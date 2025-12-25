@@ -2580,20 +2580,22 @@ export default class WorldMapScene extends Phaser.Scene {
         if (assetData?.Domain) {
             shipObject.domain = String(assetData.Domain).toLowerCase();
         }
-        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
-        const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
-        if (assetData?.Stats) {
-            const currentHp = Number(assetData.Stats.CurrentHP);
-            const maxHp = Number(assetData.Stats.MaxHP);
-            if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
-                shipObject.hp = { current: currentHp, max: maxHp };
+        if (assetData) {
+            const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+            const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
+            if (assetData?.Stats) {
+                const currentHp = Number(assetData.Stats.CurrentHP);
+                const maxHp = Number(assetData.Stats.MaxHP);
+                if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
+                    shipObject.hp = { current: currentHp, max: maxHp };
+                }
             }
-        }
-        if (Number.isFinite(baseFrame) && assetData?.ItemId) {
-            const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
-            this.generateShipAnims(baseFrame, shipTypeKey);
-            shipObject.shipTypeKey = shipTypeKey;
-        } else {
+            if (Number.isFinite(baseFrame) && assetData?.ItemId) {
+                const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+                this.generateShipAnims(baseFrame, shipTypeKey);
+                shipObject.shipTypeKey = shipTypeKey;
+            }
+        } else if (!shipObject.shipTypeKey) {
             const defaultKey = `_default__${sheetKey}__bf0`;
             if (!this.shipAnims[defaultKey]) this.generateShipAnims(0, defaultKey);
             shipObject.shipTypeKey = defaultKey;
@@ -2663,11 +2665,21 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
-    markOtherShipRemoved(playFabId) {
-        const shipObject = this.otherShips.get(playFabId);
-        if (!shipObject) return;
+    \1
+        if (this.playerShip && shipObject.sprite) {
+            const distance = Phaser.Math.Distance.Between(
+                this.playerShip.x,
+                this.playerShip.y,
+                shipObject.sprite.x,
+                shipObject.sprite.y
+            );
+            const keepRange = this.shipVisionRange * 1.25;
+            if (distance <= keepRange) {
+                return;
+            }
+        }
 
-        shipObject.pendingRemoval = true;
+shipObject.pendingRemoval = true;
         shipObject.removedAt = Date.now();
     }
 
