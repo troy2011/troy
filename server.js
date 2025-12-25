@@ -21,6 +21,7 @@ const voyageRoutes = require('./voyage');
 const guildRoutes = require('./guild');
 const shipRoutes = require('./ships');
 const { generateMapData } = require('./generateMapData');
+const buildingDefs = require('./buildingDefinitions');
 
 // Firebase Admin SDK init
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
