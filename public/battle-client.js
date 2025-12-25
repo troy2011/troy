@@ -248,7 +248,7 @@ function startBattleLoop(initialBattleState) {
                 if (!player || !player.stats) continue;
 
                 if (player.atb < 100) {
-                    player.atb += (player.stats.すばやさ || 10) * 0.05;
+                    player.atb += (player.stats.すばやさ || 10) * 0.1;
                     if (player.atb > 100) player.atb = 100;
                 }
                 const barId = (playerId === myPlayFabId) ? 'battlePlayerBAtbBar' : 'battlePlayerAAtbBar';
