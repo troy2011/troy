@@ -387,6 +387,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.messageText.setScrollFactor(0);
         this.messageText.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.messageText.setVisible(false);
+        this.cameras.main.ignore(this.messageText);
 
         this.createBoardingButton();
         this.setupShipActionUi();
