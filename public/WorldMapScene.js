@@ -322,6 +322,10 @@ export default class WorldMapScene extends Phaser.Scene {
             if (this.commandMenuOpen) {
                 this.hideCommandMenu();
             }
+            if (!this.isPointerInsideVisionArea(pointer)) {
+                this.showMessage('視界の外は移動できません。');
+                return;
+            }
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
             console.log('[Sea] Background clicked at world:', worldPoint.x, worldPoint.y);
             this.moveShipTo(worldPoint.x, worldPoint.y, null);
@@ -1067,6 +1071,18 @@ export default class WorldMapScene extends Phaser.Scene {
         this.messageTimer = this.time.delayedCall(GAME_CONFIG.MESSAGE_DISPLAY_DURATION, () => {
             this.messageText.setVisible(false);
         });
+    }
+
+    isPointerInsideVisionArea(pointer) {
+        if (!pointer || !this.cameras || !this.cameras.main) return false;
+        const screenWidth = this.cameras.main.width;
+        const screenHeight = this.cameras.main.height;
+        const centerX = screenWidth / 2;
+        const centerY = screenHeight / 2;
+        const visionPx = screenWidth / 2;
+        const dx = pointer.x - centerX;
+        const dy = pointer.y - centerY;
+        return (dx * dx + dy * dy) <= (visionPx * visionPx);
     }
 
     /**
