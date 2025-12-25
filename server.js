@@ -22,14 +22,19 @@ const guildRoutes = require('./guild');
 const shipRoutes = require('./ships');
 const { generateMapData } = require('./generateMapData');
 
-// ★ v120: Firebase Admin SDK の初期化
-// Firebaseコンソールからダウンロードした「サービスアカウントキー」のJSONファイルを
-// server.js と同じ階層に配置してください。
-const serviceAccount = require('./my-liff-app-ee704-firebase-adminsdk-fbsvc-2deac93eab.json'); // ← 自分のファイル名に書き換える
+// Firebase Admin SDK init
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+let serviceAccount = null;
+
+if (serviceAccountJson) {
+    serviceAccount = JSON.parse(serviceAccountJson);
+} else {
+    serviceAccount = require('./my-liff-app-ee704-firebase-adminsdk-fbsvc-2deac93eab.json');
+}
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://my-liff-app-ee704-default-rtdb.firebaseio.com" // ← 自分のデータベースURLに書き換える
+    databaseURL: "https://my-liff-app-ee704-default-rtdb.firebaseio.com"
 });
 
 const firestore = admin.firestore();
