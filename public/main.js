@@ -4,7 +4,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS } from 'config';
-import { callApiWithLoader, promisifyPlayFab } from 'api';
+import { callApiWithLoader, promisifyPlayFab, buildApiUrl } from 'api';
 import { showTab, showConfirmationModal } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
@@ -215,7 +215,7 @@ async function initializeAppFeatures() {
         (async () => {
             try {
                 console.log('[initializeAppFeatures] Fetching ship catalog...');
-                const response = await fetch('/api/get-ship-catalog');
+                const response = await fetch(buildApiUrl('/api/get-ship-catalog'));
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 window.shipCatalog = await response.json();
                 console.log('[initializeAppFeatures] Ship catalog loaded:', window.shipCatalog);

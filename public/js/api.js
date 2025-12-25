@@ -48,6 +48,16 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
     }
 }
 
+export function buildApiUrl(endpoint) {
+    if (!endpoint) return window.API_BASE_URL || '';
+    if (/^https?:\/\//i.test(endpoint)) return endpoint;
+    const base = window.API_BASE_URL || '';
+    if (!base) return endpoint;
+    return base.replace(/\/$/, '') + endpoint;
+}
+
+window.buildApiUrl = buildApiUrl;
+
 // サーバーAPIを呼び出す内部関数
 async function callPointApi(endpoint, body) {
     // エラーメッセージをクリア
@@ -55,7 +65,7 @@ async function callPointApi(endpoint, body) {
     document.getElementById('battleResult').innerText = '';
     document.getElementById('voyageRewardText').innerText = '';
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

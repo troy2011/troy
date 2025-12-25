@@ -11,6 +11,10 @@ export const firebaseConfig = {
     appId: "1:258309007800:web:b37bcaac51dd0e45ba474d"
 };
 
+// API base (Render)
+export const API_BASE_URL = 'https://troy-xetw.onrender.com';
+window.API_BASE_URL = API_BASE_URL;
+
 // 種族ごとの色定義（16進数カラーコード）
 export const RACE_COLORS = {
     'Human': 0xff0000, // 赤

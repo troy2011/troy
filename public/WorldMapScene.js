@@ -1452,7 +1452,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         try {
-            const res = await fetch('/api/ship-action-damage', {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-damage') : '/api/ship-action-damage'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1676,7 +1676,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.lastRamDamageAt.set(otherPlayFabId, now);
 
         try {
-            const res = await fetch('/api/ram-ship', {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ram-ship') : '/api/ram-ship'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ attackerId: myId, defenderId: otherPlayFabId, damage: 5 })
@@ -1811,7 +1811,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.respawnInFlight || !this.playerInfo?.playFabId || !shipId) return null;
         this.respawnInFlight = true;
         try {
-            const res = await fetch('/api/respawn-ship', {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/respawn-ship') : '/api/respawn-ship'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ playFabId: this.playerInfo.playFabId, shipId, reason: 'hp_zero' })
@@ -2175,7 +2175,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (typeof window !== 'undefined' && window.currentGuildId) return;
         if (!this.playerInfo?.playFabId) return;
         try {
-            const res = await fetch('/api/get-guild-info', {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/get-guild-info') : '/api/get-guild-info'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ playFabId: this.playerInfo.playFabId })

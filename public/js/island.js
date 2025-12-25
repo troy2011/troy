@@ -1,5 +1,5 @@
 ﻿// island.js - Island occupation/building client logic
-import { callApiWithLoader } from './api.js';
+import { callApiWithLoader, buildApiUrl } from './api.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 
 // Track construction timers per island
@@ -616,7 +616,7 @@ export async function helpConstruction(islandId, helperPlayFabId) {
 
 export async function getConstructingIslands() {
     try {
-        const response = await fetch('/api/get-constructing-islands');
+        const response = await fetch(buildApiUrl('/api/get-constructing-islands'));
         const data = await response.json();
 
         if (data && data.success) {
@@ -709,7 +709,7 @@ export function cleanupConstructionTimers() {
 
 export async function demolishIsland(playFabId, islandId) {
     try {
-        const response = await fetch('/api/demolish-island', {
+        const response = await fetch(buildApiUrl('/api/demolish-island'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ playFabId, islandId })
@@ -768,7 +768,7 @@ function showDemolishNotification(island) {
 
 export async function checkIslandRebuildable(islandId) {
     try {
-        const response = await fetch('/api/check-island-rebuildable', {
+        const response = await fetch(buildApiUrl('/api/check-island-rebuildable'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ islandId })
@@ -784,7 +784,7 @@ export async function checkIslandRebuildable(islandId) {
 
 export async function rebuildIsland(playFabId, islandId) {
     try {
-        const response = await fetch('/api/rebuild-island', {
+        const response = await fetch(buildApiUrl('/api/rebuild-island'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ playFabId, islandId })
@@ -869,7 +869,7 @@ function showErrorNotification(message) {
 
 export async function getDemolishedIslands() {
     try {
-        const response = await fetch('/api/get-demolished-islands', {
+        const response = await fetch(buildApiUrl('/api/get-demolished-islands'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
