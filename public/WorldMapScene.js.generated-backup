@@ -1,0 +1,492 @@
+import * as Phaser from 'phaser';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { geohashForLocation } from 'geofire-common';
+import * as Ship from './js/ship.js';
+
+const GRID_SIZE = 32;
+const MAP_TILE_SIZE = 500;
+const MAP_PIXEL_SIZE = GRID_SIZE * MAP_TILE_SIZE; // 16000
+
+const GAME_CONFIG = {
+    SHIP_SPEED: 100,
+    SHIP_VISION_RANGE: 300,
+    SHIP_MOVE_COOLDOWN: 500,
+    DEPTH: { SEA: 0, ISLAND: 1, SHIP: 2, NAME_TEXT: 10, FOG: 999, MESSAGE: 1000 },
+};
+
+function clamp01(v) {
+    return Math.max(0, Math.min(1, v));
+}
+
+export default class WorldMapScene extends Phaser.Scene {
+    constructor() {
+        super('WorldMapScene');
+
+        this.gridSize = GRID_SIZE;
+        this.mapTileSize = MAP_TILE_SIZE;
+        this.mapPixelSize = MAP_PIXEL_SIZE;
+
+        this.playerInfo = { playFabId: null, race: null };
+        this.firestore = null;
+
+        this.playerShip = null;
+        this.playerShipId = null;
+        this.playerShipTypeKey = null;
+        this.playerLastAnimKey = 'ship_down';
+        this.canMove = true;
+        this.shipMoving = false;
+        this.shipArrivalTimer = null;
+
+        this.shipSpeed = GAME_CONFIG.SHIP_SPEED;
+        this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
+
+        this.shipAnims = {}; // shipTypeKey -> { idleFrames }
+        this.otherShips = new Map(); // key(playFabId) -> { sprite, shipTypeKey, lastAnimKey, lastUpdateAt }
+        this.shipAssetCache = new Map(); // shipId -> { ts, data }
+
+        this.messageText = null;
+        this.messageTimer = null;
+
+        this.islandGraphics = null;
+    }
+
+    preload() {
+        this.load.spritesheet('map_tiles', 'Sprites/Map/map.png', { frameWidth: 32, frameHeight: 32 });
+
+        this.load.spritesheet('ship_sprite', 'Sprites/Ships/ships.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_red', 'Sprites/Ships/ships_red.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_yellow', 'Sprites/Ships/ships_yellow.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_green', 'Sprites/Ships/ships_green.png', { frameWidth: 32, frameHeight: 32 });
+    }
+
+    init(data) {
+        if (data && data.playFabId) {
+            this.playerInfo = data;
+        } else if (window.__phaserPlayerInfo && window.__phaserPlayerInfo.playFabId) {
+            this.playerInfo = window.__phaserPlayerInfo;
+        } else {
+            this.playerInfo = { playFabId: null, race: null };
+        }
+    }
+
+    async create() {
+        this.firestore = getFirestore();
+
+        const sea = this.add
+            .tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0)
+            .setOrigin(0, 0)
+            .setDepth(GAME_CONFIG.DEPTH.SEA);
+        sea.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.mapPixelSize, this.mapPixelSize), Phaser.Geom.Rectangle.Contains);
+
+        this.islandGraphics = this.add.graphics().setDepth(GAME_CONFIG.DEPTH.ISLAND);
+
+        this.playerShip = this.physics.add
+            .sprite(this.mapPixelSize / 2, this.mapPixelSize / 2, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor), 1)
+            .setDepth(GAME_CONFIG.DEPTH.SHIP)
+            .setOrigin(0.5);
+        this.playerShip.body.setSize(24, 24);
+        this.playerShip.body.setCollideWorldBounds(true);
+
+        this.cameras.main.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+        this.physics.world.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+        this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+
+        this.messageText = this.add
+            .text(this.cameras.main.width / 2, this.cameras.main.height - 80, '', {
+                fontSize: '16px',
+                fill: '#ffffff',
+                backgroundColor: 'rgba(0,0,0,0.65)',
+                padding: { x: 10, y: 6 },
+            })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(GAME_CONFIG.DEPTH.MESSAGE)
+            .setVisible(false);
+
+        sea.on('pointerup', (pointer) => {
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            this.moveShipTo(worldPoint.x, worldPoint.y);
+        });
+
+        await this.loadIslands();
+        await this.restoreOrCreateMyShipDoc();
+        await this.initializeMyShipVisual();
+        this.subscribeToShips();
+    }
+
+    normalizeShipColorKey(color) {
+        const key = String(color || '').toLowerCase().trim();
+        if (key === 'red' || key === 'blue' || key === 'yellow' || key === 'green' || key === 'brown') return key;
+        return 'brown';
+    }
+
+    getShipSpriteSheetKey(color) {
+        const c = this.normalizeShipColorKey(color);
+        if (c === 'brown') return 'ship_sprite';
+        return `ship_sprite_${c}`;
+    }
+
+    getShipSpriteSheetKeyFromShipTypeKey(shipTypeKey) {
+        const suffix = String(shipTypeKey || '');
+        const parts = suffix.split('__');
+        const maybeSheet = parts.find(p => p === 'ship_sprite' || p.startsWith('ship_sprite_')) || null;
+        if (maybeSheet && this.textures?.exists && this.textures.exists(maybeSheet)) return maybeSheet;
+        return 'ship_sprite';
+    }
+
+    getDirectionAnimKey(startX, startY, endX, endY) {
+        const angleRad = Phaser.Math.Angle.Between(startX, startY, endX, endY);
+        const angleDeg = Phaser.Math.RadToDeg(angleRad);
+        if (angleDeg >= -22.5 && angleDeg < 22.5) return 'ship_right';
+        if (angleDeg >= 22.5 && angleDeg < 67.5) return 'ship_down_right';
+        if (angleDeg >= 67.5 && angleDeg < 112.5) return 'ship_down';
+        if (angleDeg >= 112.5 && angleDeg < 157.5) return 'ship_down_left';
+        if (angleDeg >= 157.5 || angleDeg < -157.5) return 'ship_left';
+        if (angleDeg >= -157.5 && angleDeg < -112.5) return 'ship_up_left';
+        if (angleDeg >= -112.5 && angleDeg < -67.5) return 'ship_up';
+        return 'ship_up_right';
+    }
+
+    ensureShipAnims(baseFrame, shipTypeKey) {
+        if (!shipTypeKey) return;
+        if (this.shipAnims[shipTypeKey]) return;
+
+        const sheetKey = this.getShipSpriteSheetKeyFromShipTypeKey(shipTypeKey);
+        const sheetCols = 32;
+        const baseRow = Math.floor(baseFrame / sheetCols);
+        const baseCol = baseFrame % sheetCols;
+        const frameAt = (rowOffset, colOffset) => (baseRow + rowOffset) * sheetCols + (baseCol + colOffset);
+
+        const animsToCreate = [
+            { key: `ship_down${shipTypeKey}`, start: frameAt(0, 0), end: frameAt(0, 2) },
+            { key: `ship_down_left${shipTypeKey}`, start: frameAt(0, 3), end: frameAt(0, 5) },
+            { key: `ship_left${shipTypeKey}`, start: frameAt(1, 0), end: frameAt(1, 2) },
+            { key: `ship_down_right${shipTypeKey}`, start: frameAt(1, 3), end: frameAt(1, 5) },
+            { key: `ship_right${shipTypeKey}`, start: frameAt(2, 0), end: frameAt(2, 2) },
+            { key: `ship_up_left${shipTypeKey}`, start: frameAt(2, 3), end: frameAt(2, 5) },
+            { key: `ship_up${shipTypeKey}`, start: frameAt(3, 0), end: frameAt(3, 2) },
+            { key: `ship_up_right${shipTypeKey}`, start: frameAt(3, 3), end: frameAt(3, 5) },
+        ];
+
+        animsToCreate.forEach((anim) => {
+            if (!this.anims.exists(anim.key)) {
+                this.anims.create({
+                    key: anim.key,
+                    frames: this.anims.generateFrameNumbers(sheetKey, { start: anim.start, end: anim.end }),
+                    frameRate: 10,
+                    repeat: -1,
+                });
+            }
+        });
+
+        this.shipAnims[shipTypeKey] = {
+            idleFrames: {
+                ship_down: frameAt(0, 1),
+                ship_down_left: frameAt(0, 4),
+                ship_left: frameAt(1, 1),
+                ship_down_right: frameAt(1, 4),
+                ship_right: frameAt(2, 1),
+                ship_up_left: frameAt(2, 4),
+                ship_up: frameAt(3, 1),
+                ship_up_right: frameAt(3, 4),
+            },
+        };
+    }
+
+    setIdleFrame(sprite, shipTypeKey, animKey = 'ship_down') {
+        const idle = this.shipAnims?.[shipTypeKey]?.idleFrames?.[animKey];
+        if (idle !== undefined) sprite.setFrame(idle);
+    }
+
+    showMessage(text, durationMs = 1500) {
+        if (!this.messageText) return;
+        this.messageText.setText(text);
+        this.messageText.setVisible(true);
+        if (this.messageTimer) this.messageTimer.remove();
+        this.messageTimer = this.time.delayedCall(durationMs, () => this.messageText.setVisible(false));
+    }
+
+    worldToLatLng(point) {
+        const metersPerPixel = (100 /* meters per tile */) / GRID_SIZE;
+        const dxMeters = (point.x - this.mapPixelSize / 2) * metersPerPixel;
+        const dyMeters = (this.mapPixelSize / 2 - point.y) * metersPerPixel;
+        const lat = dyMeters / 110574;
+        const lng = dxMeters / 111320;
+        return { lat, lng };
+    }
+
+    async loadIslands() {
+        try {
+            const snapshot = await getDocs(collection(this.firestore, 'world_map'));
+            if (snapshot.empty) {
+                this.showMessage('島データがありません');
+                return;
+            }
+
+            this.islandGraphics.clear();
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                if (!data?.coordinate || typeof data.coordinate.x !== 'number' || typeof data.coordinate.y !== 'number') return;
+
+                const x = data.coordinate.x * this.gridSize;
+                const y = data.coordinate.y * this.gridSize;
+                const size = data.size || 'small';
+                const dims = size === 'giant' ? 5 : size === 'large' ? 4 : size === 'medium' ? 4 : 3;
+                const w = dims * this.gridSize;
+                const h = (size === 'medium' ? 3 : dims) * this.gridSize;
+
+                this.islandGraphics.fillStyle(0x2f855a, 1);
+                this.islandGraphics.fillRect(x, y, w, h);
+                this.islandGraphics.lineStyle(2, 0x1a202c, 1);
+                this.islandGraphics.strokeRect(x, y, w, h);
+
+                this.add
+                    .text(x + w / 2, y + h + 6, data.name || '名称未設定', { fontSize: '12px', fill: '#ffffff' })
+                    .setOrigin(0.5, 0)
+                    .setDepth(GAME_CONFIG.DEPTH.NAME_TEXT);
+            });
+        } catch (e) {
+            console.error('[WorldMapScene] loadIslands failed', e);
+            this.showMessage('島データの読み込みに失敗');
+        }
+    }
+
+    async restoreOrCreateMyShipDoc() {
+        if (!this.playerInfo?.playFabId) return;
+        const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+        const snapshot = await getDoc(shipRef);
+        if (snapshot.exists()) return;
+
+        const x = this.playerShip.x;
+        const y = this.playerShip.y;
+        const geo = this.worldToLatLng({ x, y });
+        const geohash = geohashForLocation([geo.lat, geo.lng]);
+
+        await setDoc(
+            shipRef,
+            {
+                playFabId: this.playerInfo.playFabId,
+                displayName: window.myLineProfile?.displayName || 'Unknown',
+                race: this.playerInfo.race || 'human',
+                shipId: null,
+                appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
+                position: { x, y },
+                movement: { isMoving: false, departureTime: null, arrivalTime: null, departurePos: null, destinationPos: null },
+                geohash,
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+        );
+    }
+
+    async initializeMyShipVisual() {
+        if (!this.playerInfo?.playFabId) return;
+
+        try {
+            const ships = await Ship.getPlayerShips(this.playerInfo.playFabId);
+            const first = Array.isArray(ships) && ships.length > 0 ? ships[0] : null;
+            const shipId = first?.shipId;
+            const assetData = first?.assetData;
+            if (!shipId || !assetData) return;
+
+            this.playerShipId = shipId;
+
+            const color = window.myAvatarBaseInfo?.AvatarColor;
+            const sheetKey = this.getShipSpriteSheetKey(color);
+            this.playerShip.setTexture(sheetKey);
+
+            const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+            const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
+            if (!Number.isFinite(baseFrame) || !assetData?.ItemId) return;
+
+            this.playerShipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+            this.ensureShipAnims(baseFrame, this.playerShipTypeKey);
+            this.playerLastAnimKey = 'ship_down';
+            this.setIdleFrame(this.playerShip, this.playerShipTypeKey, this.playerLastAnimKey);
+
+            await setDoc(doc(this.firestore, 'ships', this.playerInfo.playFabId), { shipId }, { merge: true });
+        } catch (e) {
+            console.warn('[WorldMapScene] initializeMyShipVisual failed', e);
+        }
+    }
+
+    async getShipAssetCached(playFabId, shipId) {
+        const cached = this.shipAssetCache.get(shipId);
+        const now = Date.now();
+        if (cached && now - cached.ts < 30_000) return cached.data;
+        const data = await Ship.getShipAsset(playFabId, shipId);
+        this.shipAssetCache.set(shipId, { ts: now, data });
+        return data;
+    }
+
+    subscribeToShips() {
+        if (!this.playerInfo?.playFabId) return;
+
+        const shipsCol = collection(this.firestore, 'ships');
+        this._shipsUnsub = onSnapshot(
+            shipsCol,
+            (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    const key = data?.playFabId || change.doc.id;
+                    if (!key || key === this.playerInfo.playFabId) return;
+                    if (change.type === 'removed') {
+                        const existing = this.otherShips.get(key);
+                        if (existing?.sprite) existing.sprite.destroy();
+                        this.otherShips.delete(key);
+                        return;
+                    }
+                    this.upsertOtherShip(key, data).catch((e) => console.warn('[WorldMapScene] upsertOtherShip failed', e));
+                });
+            },
+            (error) => console.error('[WorldMapScene] ships onSnapshot error', error)
+        );
+    }
+
+    async upsertOtherShip(playFabId, shipData) {
+        const now = Date.now();
+        const position = shipData?.position;
+        const movement = shipData?.movement;
+        let x = typeof position?.x === 'number' ? position.x : 0;
+        let y = typeof position?.y === 'number' ? position.y : 0;
+
+        if (movement?.isMoving && movement.departurePos && movement.destinationPos && typeof movement.departureTime === 'number' && typeof movement.arrivalTime === 'number') {
+            const total = movement.arrivalTime - movement.departureTime;
+            const elapsed = now - movement.departureTime;
+            const p = total > 0 ? clamp01(elapsed / total) : 1;
+            x = movement.departurePos.x + (movement.destinationPos.x - movement.departurePos.x) * p;
+            y = movement.departurePos.y + (movement.destinationPos.y - movement.departurePos.y) * p;
+        }
+
+        const color = shipData?.appearance?.color;
+        const sheetKey = this.getShipSpriteSheetKey(color);
+
+        let obj = this.otherShips.get(playFabId);
+        if (!obj) {
+            const sprite = this.physics.add.sprite(x, y, sheetKey, 1).setDepth(GAME_CONFIG.DEPTH.SHIP).setOrigin(0.5);
+            sprite.body.setSize(24, 24);
+            sprite.body.setCollideWorldBounds(true);
+            obj = { sprite, shipTypeKey: null, lastAnimKey: 'ship_down', lastUpdateAt: now };
+            this.otherShips.set(playFabId, obj);
+        } else {
+            obj.sprite.setPosition(x, y);
+            if (obj.sprite.texture?.key !== sheetKey) obj.sprite.setTexture(sheetKey);
+            obj.lastUpdateAt = now;
+        }
+
+        const shipId = shipData?.shipId;
+        if (!shipId) return;
+
+        const assetData = await this.getShipAssetCached(playFabId, shipId);
+        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+        const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
+        if (!Number.isFinite(baseFrame) || !assetData?.ItemId) return;
+
+        const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+        if (obj.shipTypeKey !== shipTypeKey) {
+            obj.shipTypeKey = shipTypeKey;
+            this.ensureShipAnims(baseFrame, shipTypeKey);
+            this.setIdleFrame(obj.sprite, shipTypeKey, obj.lastAnimKey);
+        }
+
+        if (movement?.isMoving && movement.departurePos && movement.destinationPos) {
+            const animKey = this.getDirectionAnimKey(movement.departurePos.x, movement.departurePos.y, movement.destinationPos.x, movement.destinationPos.y);
+            obj.lastAnimKey = animKey;
+            const full = animKey + obj.shipTypeKey;
+            if (this.anims.exists(full)) obj.sprite.anims.play(full, true);
+        } else if (obj.sprite.anims.isPlaying) {
+            obj.sprite.anims.stop();
+            this.setIdleFrame(obj.sprite, obj.shipTypeKey, obj.lastAnimKey);
+        }
+    }
+
+    async updateMyShipDoc(targetX, targetY, isMoving) {
+        if (!this.playerInfo?.playFabId) return;
+        const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+
+        const currentX = this.playerShip.x;
+        const currentY = this.playerShip.y;
+        const geo = this.worldToLatLng({ x: currentX, y: currentY });
+        const geohash = geohashForLocation([geo.lat, geo.lng]);
+
+        const payload = {
+            playFabId: this.playerInfo.playFabId,
+            displayName: window.myLineProfile?.displayName || 'Unknown',
+            race: this.playerInfo.race || 'human',
+            shipId: this.playerShipId || null,
+            appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
+            position: { x: currentX, y: currentY },
+            geohash,
+            updatedAt: serverTimestamp(),
+        };
+
+        if (isMoving) {
+            const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
+            const durationMs = (distance / this.shipSpeed) * 1000;
+            const arrivalTime = Date.now() + durationMs;
+            payload.movement = {
+                isMoving: true,
+                departureTime: Date.now(),
+                arrivalTime,
+                departurePos: { x: currentX, y: currentY },
+                destinationPos: { x: targetX, y: targetY },
+            };
+        } else {
+            payload.movement = { isMoving: false, departureTime: null, arrivalTime: null, departurePos: null, destinationPos: null };
+        }
+
+        await setDoc(shipRef, payload, { merge: true });
+    }
+
+    moveShipTo(x, y) {
+        const startX = this.playerShip.x;
+        const startY = this.playerShip.y;
+        const distance = Phaser.Math.Distance.Between(startX, startY, x, y);
+
+        if (this.shipMoving || !this.canMove || distance > this.shipVisionRange) {
+            this.showMessage(this.shipMoving ? '移動中です。' : (!this.canMove ? '移動クールダウン中です。' : '遠すぎて移動できません。'));
+            return;
+        }
+
+        if (!this.playerShipTypeKey) {
+            this.showMessage('船データを読み込み中です。');
+            return;
+        }
+
+        const animKey = this.getDirectionAnimKey(startX, startY, x, y);
+        this.playerLastAnimKey = animKey;
+        const fullAnimKey = animKey + this.playerShipTypeKey;
+        if (this.anims.exists(fullAnimKey)) {
+            this.playerShip.anims.play(fullAnimKey, true);
+        }
+
+        this.canMove = false;
+        this.shipMoving = true;
+
+        const durationMs = (distance / this.shipSpeed) * 1000;
+        this.physics.velocityFromAngle(Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(startX, startY, x, y)), this.shipSpeed, this.playerShip.body.velocity);
+        this.updateMyShipDoc(x, y, true).catch(() => {});
+
+        this.shipArrivalTimer = this.time.delayedCall(durationMs, () => {
+            this.shipMoving = false;
+            this.playerShip.body.setVelocity(0, 0);
+            if (this.playerShip.anims.isPlaying) this.playerShip.anims.stop();
+            this.setIdleFrame(this.playerShip, this.playerShipTypeKey, this.playerLastAnimKey);
+            this.updateMyShipDoc(x, y, false).catch(() => {});
+            this.time.delayedCall(GAME_CONFIG.SHIP_MOVE_COOLDOWN, () => (this.canMove = true));
+        });
+    }
+
+    shutdown() {
+        if (this._shipsUnsub) {
+            this._shipsUnsub();
+            this._shipsUnsub = null;
+        }
+        this.otherShips.forEach((o) => o.sprite?.destroy());
+        this.otherShips.clear();
+        if (this.shipArrivalTimer) this.shipArrivalTimer.remove();
+        if (this.messageTimer) this.messageTimer.remove();
+    }
+}
+

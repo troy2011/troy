@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "ユーザーのメッセージ: $ARGUMENTS\n\n上記のメッセージに対して、必ず日本語で回答してください。技術的な説明、コードのコメント、エラーメッセージの説明もすべて日本語で記述してください。\n\n重要: 時間がかかってもいいので、実装は慎重に行ってください。コードを変更する前に、必ず関連するコードを読んで理解し、変更の影響範囲を確認してください。"
+          }
+        ]
+      }
+    ]
+  }
+}

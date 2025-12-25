@@ -1,0 +1,205 @@
+{
+  "CatalogVersion": "buildings_catalog",
+  "Catalog": [
+        {
+      "ItemId": "nation_building_red",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "Nation Building Red",
+      "Description": "Nation building (red).",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "nation", "red"],
+      "CustomData": "{\"Category\":\"nation\",\"Size\":\"giant\",\"Footprint\":\"3x3\",\"SlotsRequired\":\"9\",\"BuildTime\":\"0\",\"Cost\":\"{}\",\"Effects\":\"{}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"SizeVisual\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"TileIndex\":\"576\"}"
+    },
+    {
+      "ItemId": "nation_building_green",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "Nation Building Green",
+      "Description": "Nation building (green).",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "nation", "green"],
+      "CustomData": "{\"Category\":\"nation\",\"Size\":\"giant\",\"Footprint\":\"3x3\",\"SlotsRequired\":\"9\",\"BuildTime\":\"0\",\"Cost\":\"{}\",\"Effects\":\"{}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"SizeVisual\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"TileIndex\":\"579\"}"
+    },
+    {
+      "ItemId": "nation_building_yellow",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "Nation Building Yellow",
+      "Description": "Nation building (yellow).",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "nation", "yellow"],
+      "CustomData": "{\"Category\":\"nation\",\"Size\":\"giant\",\"Footprint\":\"3x3\",\"SlotsRequired\":\"9\",\"BuildTime\":\"0\",\"Cost\":\"{}\",\"Effects\":\"{}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"SizeVisual\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"TileIndex\":\"582\"}"
+    },
+    {
+      "ItemId": "nation_building_blue",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "Nation Building Blue",
+      "Description": "Nation building (blue).",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "nation", "blue"],
+      "CustomData": "{\"Category\":\"nation\",\"Size\":\"giant\",\"Footprint\":\"3x3\",\"SlotsRequired\":\"9\",\"BuildTime\":\"0\",\"Cost\":\"{}\",\"Effects\":\"{}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"SizeVisual\":\"{\\\"x\\\":3,\\\"y\\\":3}\",\"TileIndex\":\"585\"}"
+    },
+    {
+      "ItemId": "mhouse",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "自分の家",
+      "Description": "憧れの我が家",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "house"],
+      "CustomData": "{\"Category\":\"military\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"1800\",\"Cost\":\"{\\\"wood\\\":100,\\\"stone\\\":50,\\\"gold\\\":200}\",\"Effects\":\"{\\\"visionRange\\\":10,\\\"earlyWarning\\\":true}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🗼\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":3}\"}"
+    },
+
+    {
+      "ItemId": "watchtower",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "見張り台",
+      "Description": "周囲の海域を監視",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "military"],
+      "CustomData": "{\"Category\":\"military\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"1800\",\"Cost\":\"{\\\"wood\\\":100,\\\"stone\\\":50,\\\"gold\\\":200}\",\"Effects\":\"{\\\"visionRange\\\":10,\\\"earlyWarning\\\":true}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🗼\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":3}\"}"
+    },
+    {
+      "ItemId": "coastal_battery",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "沿岸砲台",
+      "Description": "敵船を迎撃",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "military"],
+      "CustomData": "{\"Category\":\"military\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"3600\",\"Cost\":\"{\\\"wood\\\":50,\\\"stone\\\":200,\\\"iron\\\":150,\\\"gold\\\":500}\",\"Effects\":\"{\\\"defenseBonus\\\":30,\\\"attackRange\\\":5,\\\"damage\\\":50}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🎯\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":1}\"}"
+    },
+    {
+      "ItemId": "fortress",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "要塞",
+      "Description": "島全体を守る",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "military"],
+      "CustomData": "{\"Category\":\"military\",\"Size\":\"medium\",\"Footprint\":\"1x2\",\"SlotsRequired\":\"2\",\"BuildTime\":\"7200\",\"Cost\":\"{\\\"wood\\\":200,\\\"stone\\\":500,\\\"iron\\\":300,\\\"gold\\\":1000}\",\"Effects\":\"{\\\"defenseBonus\\\":100,\\\"garrisonCapacity\\\":50,\\\"repairSpeed\\\":1.5}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🏰\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "shipyard",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "造船所",
+      "Description": "船を建造できる造船施設",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "military"],
+      "CustomData": "{\"Category\":\"military\",\"Size\":\"large\",\"Footprint\":\"2x2\",\"SlotsRequired\":\"4\",\"BuildTime\":\"10800\",\"Cost\":\"{\\\"wood\\\":1000,\\\"stone\\\":500,\\\"iron\\\":500,\\\"gold\\\":2000}\",\"Effects\":\"{\\\"shipProduction\\\":true,\\\"productionSpeed\\\":1,\\\"maxQueueSize\\\":3}\",\"BiomeRestrictions\":\"[\\\"beach\\\",\\\"rocky\\\"]\",\"Icon\":\"⚓\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":2,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":2,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "warehouse",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "倉庫",
+      "Description": "資源を安全に保管",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "economic"],
+      "CustomData": "{\"Category\":\"economic\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"1800\",\"Cost\":\"{\\\"wood\\\":200,\\\"stone\\\":100,\\\"gold\\\":300}\",\"Effects\":\"{\\\"storageCapacity\\\":1000,\\\"protection\\\":0.5}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"📦\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":1}\"}"
+    },
+    {
+      "ItemId": "farm",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "農園",
+      "Description": "食料を生産",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "economic"],
+      "CustomData": "{\"Category\":\"economic\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"2400\",\"Cost\":\"{\\\"wood\\\":150,\\\"stone\\\":50,\\\"gold\\\":400}\",\"Effects\":\"{\\\"foodProduction\\\":50,\\\"crewMorale\\\":10}\",\"BiomeRestrictions\":\"[\\\"forest\\\",\\\"jungle\\\"]\",\"Icon\":\"🌾\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":1}\"}"
+    },
+    {
+      "ItemId": "trading_post",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "交易所",
+      "Description": "交易を行う",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "economic"],
+      "CustomData": "{\"Category\":\"economic\",\"Size\":\"medium\",\"Footprint\":\"1x2\",\"SlotsRequired\":\"2\",\"BuildTime\":\"5400\",\"Cost\":\"{\\\"wood\\\":300,\\\"stone\\\":200,\\\"gold\\\":1000}\",\"Effects\":\"{\\\"tradeBonus\\\":0.2,\\\"tradeSlotsRequired\\\":2,\\\"taxReduction\\\":0.1}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🏪\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "mine",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "鉱山",
+      "Description": "石材・鉄・金貨を採掘して生産",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "economic"],
+      "CustomData": "{\"Category\":\"economic\",\"Size\":\"medium\",\"Footprint\":\"1x2\",\"SlotsRequired\":\"2\",\"BuildTime\":\"7200\",\"Cost\":\"{\\\"wood\\\":500,\\\"stone\\\":300,\\\"iron\\\":200,\\\"gold\\\":1500}\",\"Effects\":\"{\\\"stoneProduction\\\":30,\\\"ironProduction\\\":20,\\\"goldProduction\\\":10}\",\"BiomeRestrictions\":\"[\\\"rocky\\\",\\\"volcanic\\\"]\",\"Icon\":\"⛏️\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "grand_market",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "大市場",
+      "Description": "大規模な交易市場で収入増",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "economic"],
+      "CustomData": "{\"Category\":\"economic\",\"Size\":\"large\",\"Footprint\":\"2x2\",\"SlotsRequired\":\"4\",\"BuildTime\":\"14400\",\"Cost\":\"{\\\"wood\\\":1000,\\\"stone\\\":800,\\\"gold\\\":3000}\",\"Effects\":\"{\\\"tradeBonus\\\":0.5,\\\"tradeRoutes\\\":5,\\\"marketPriceControl\\\":true}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🏛️\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":2,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":2,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "tavern",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "酒場",
+      "Description": "乗組員を募集",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "support"],
+      "CustomData": "{\"Category\":\"support\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"1200\",\"Cost\":\"{\\\"wood\\\":150,\\\"stone\\\":50,\\\"gold\\\":300}\",\"Effects\":\"{\\\"crewRecruitment\\\":true,\\\"morale\\\":15,\\\"recruitmentSpeed\\\":1.2}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"🍺\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":1}\"}"
+    },
+    {
+      "ItemId": "repair_dock",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "修理ドック",
+      "Description": "船を素早く修理",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "support"],
+      "CustomData": "{\"Category\":\"support\",\"Size\":\"medium\",\"Footprint\":\"1x2\",\"SlotsRequired\":\"2\",\"BuildTime\":\"3600\",\"Cost\":\"{\\\"wood\\\":400,\\\"stone\\\":200,\\\"iron\\\":200,\\\"gold\\\":800}\",\"Effects\":\"{\\\"repairSpeed\\\":2,\\\"repairCostReduction\\\":0.3,\\\"simultaneousRepairs\\\":2}\",\"BiomeRestrictions\":\"[\\\"beach\\\",\\\"rocky\\\"]\",\"Icon\":\"🔧\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "lighthouse",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "灯台",
+      "Description": "航海を安全に",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "support"],
+      "CustomData": "{\"Category\":\"support\",\"Size\":\"small\",\"Footprint\":\"1x1\",\"SlotsRequired\":\"1\",\"BuildTime\":\"2400\",\"Cost\":\"{\\\"wood\\\":100,\\\"stone\\\":300,\\\"gold\\\":500}\",\"Effects\":\"{\\\"navigationBonus\\\":0.2,\\\"fogOfWarReduction\\\":10,\\\"safetyBonus\\\":true}\",\"BiomeRestrictions\":\"[\\\"beach\\\",\\\"rocky\\\"]\",\"Icon\":\"🗼\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":1,\\\"y\\\":1}\",\"SizeVisual\":\"{\\\"x\\\":1,\\\"y\\\":2}\"}"
+    },
+    {
+      "ItemId": "temple",
+      "ItemClass": "Building",
+      "CatalogVersion": "buildings_catalog",
+      "DisplayName": "神殿",
+      "Description": "祝福により能力を強化",
+      "VirtualCurrencyPrices": {},
+      "RealCurrencyPrices": {},
+      "Tags": ["Building", "support"],
+      "CustomData": "{\"Category\":\"support\",\"Size\":\"large\",\"Footprint\":\"2x2\",\"SlotsRequired\":\"4\",\"BuildTime\":\"18000\",\"Cost\":\"{\\\"wood\\\":500,\\\"stone\\\":1000,\\\"gold\\\":5000}\",\"Effects\":\"{\\\"blessings\\\":true,\\\"healingRate\\\":2,\\\"divineProtection\\\":0.2}\",\"BiomeRestrictions\":\"[]\",\"Icon\":\"⛩️\",\"Anchor\":\"bottom_left\",\"Origin\":\"{\\\"x\\\":0,\\\"y\\\":1}\",\"SizeLogic\":\"{\\\"x\\\":2,\\\"y\\\":2}\",\"SizeVisual\":\"{\\\"x\\\":2,\\\"y\\\":3}\"}"
+    }
+  ],
+  "DropTables": []
+}

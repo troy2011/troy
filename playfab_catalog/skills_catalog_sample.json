@@ -1,0 +1,126 @@
+{
+  "CatalogVersion": "skills_catalog",
+  "Catalog": [
+    {
+      "ItemId": "skill_fire_sword",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "ファイアーソード",
+      "Description": "炎を纏った剣で斬りつける。物理ダメージ(威力150)を与え、30%の確率で火傷を3ターン付与する。",
+      "VirtualCurrencyPrices": { "PT": 500 },
+      "Tags": ["skill", "attack", "fire", "physical"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_PHYSICS\",\"params\":{\"power\":150,\"element\":\"fire\",\"critRate\":0.15,\"armorPenetration\":10},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"APPLY_STATUS\",\"params\":{\"id\":\"burn\",\"chance\":0.3,\"duration\":3},\"trigger\":\"ON_HIT\"}],\"mpCost\":25,\"cooldown\":2}"
+    },
+    {
+      "ItemId": "skill_ice_lance",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "アイスランス",
+      "Description": "氷の槍を放つ。魔法ダメージ(威力200)を与え、50%の確率で凍結を2ターン付与する。",
+      "VirtualCurrencyPrices": { "PT": 600 },
+      "Tags": ["skill", "attack", "ice", "magic"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_MAGIC\",\"params\":{\"power\":200,\"element\":\"ice\"},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"APPLY_STATUS\",\"params\":{\"id\":\"freeze\",\"chance\":0.5,\"duration\":2},\"trigger\":\"ON_HIT\"}],\"mpCost\":30,\"cooldown\":3}"
+    },
+    {
+      "ItemId": "skill_great_heal",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "グレートヒール",
+      "Description": "大量のHPを回復する。対象のHPを300回復する。",
+      "VirtualCurrencyPrices": { "PT": 400 },
+      "Tags": ["skill", "support", "heal"],
+      "CustomData": "{\"effects\":[{\"code\":\"HEAL\",\"params\":{\"amount\":300},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":40,\"cooldown\":4}"
+    },
+    {
+      "ItemId": "skill_warrior_cry",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "戦士の雄叫び",
+      "Description": "味方全体の攻撃力を5ターンの間30%上昇させる。",
+      "VirtualCurrencyPrices": { "PT": 700 },
+      "Tags": ["skill", "support", "buff"],
+      "CustomData": "{\"effects\":[{\"code\":\"BUFF_STAT\",\"params\":{\"stat\":\"atk\",\"value\":30,\"duration\":5,\"isPercent\":true},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":35,\"cooldown\":5}"
+    },
+    {
+      "ItemId": "skill_vampiric_strike",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "吸血攻撃",
+      "Description": "敵を攻撃し、与えたダメージの50%を自身のHPとして回復する。",
+      "VirtualCurrencyPrices": { "PT": 800 },
+      "Tags": ["skill", "attack", "drain"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_PHYSICS\",\"params\":{\"power\":120},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"HEAL\",\"params\":{\"amount\":60},\"trigger\":\"ON_HIT\"}],\"mpCost\":30,\"cooldown\":3}"
+    },
+    {
+      "ItemId": "skill_earthquake",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "地震",
+      "Description": "全体攻撃。全敵に物理ダメージ(威力100)を与え、防御力を20%減少させる。",
+      "VirtualCurrencyPrices": { "PT": 1000 },
+      "Tags": ["skill", "attack", "aoe", "debuff"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_PHYSICS\",\"params\":{\"power\":100},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"DEBUFF_STAT\",\"params\":{\"stat\":\"def\",\"value\":20,\"duration\":3},\"trigger\":\"ON_HIT\"}],\"mpCost\":50,\"cooldown\":6,\"targetType\":\"all_enemies\"}"
+    },
+    {
+      "ItemId": "skill_holy_shield",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "ホーリーシールド",
+      "Description": "神聖な盾を展開し、300のダメージを吸収するシールドを5ターン付与する。",
+      "VirtualCurrencyPrices": { "PT": 600 },
+      "Tags": ["skill", "support", "shield"],
+      "CustomData": "{\"effects\":[{\"code\":\"SHIELD\",\"params\":{\"amount\":300,\"duration\":5},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":40,\"cooldown\":5}"
+    },
+    {
+      "ItemId": "skill_summon_skeleton",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "スケルトン召喚",
+      "Description": "スケルトンを3体召喚する。召喚されたユニットは60秒間戦闘に参加する。",
+      "VirtualCurrencyPrices": { "PT": 900 },
+      "Tags": ["skill", "summon", "necromancy"],
+      "CustomData": "{\"effects\":[{\"code\":\"SUMMON_UNIT\",\"params\":{\"unitId\":\"skeleton_warrior\",\"count\":3,\"duration\":60},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":60,\"cooldown\":8}"
+    },
+    {
+      "ItemId": "skill_lightning_strike",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "雷撃",
+      "Description": "雷を落として魔法ダメージ(威力250)を与える。クリティカル率が高い。",
+      "VirtualCurrencyPrices": { "PT": 700 },
+      "Tags": ["skill", "attack", "lightning", "magic"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_MAGIC\",\"params\":{\"power\":250,\"element\":\"lightning\"},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":45,\"cooldown\":4}"
+    },
+    {
+      "ItemId": "skill_teleport",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "テレポート",
+      "Description": "指定した座標に瞬間移動する。",
+      "VirtualCurrencyPrices": { "PT": 500 },
+      "Tags": ["skill", "utility", "movement"],
+      "CustomData": "{\"effects\":[{\"code\":\"TELEPORT\",\"params\":{},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":20,\"cooldown\":10,\"requiresTargetPosition\":true}"
+    },
+    {
+      "ItemId": "skill_berserker_rage",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "バーサーカーレイジ",
+      "Description": "自身の攻撃力を50%上昇させるが、防御力が30%低下する。効果は4ターン継続。",
+      "VirtualCurrencyPrices": { "PT": 800 },
+      "Tags": ["skill", "buff", "debuff", "risky"],
+      "CustomData": "{\"effects\":[{\"code\":\"BUFF_STAT\",\"params\":{\"stat\":\"atk\",\"value\":50,\"duration\":4,\"isPercent\":true},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"DEBUFF_STAT\",\"params\":{\"stat\":\"def\",\"value\":30,\"duration\":4},\"trigger\":\"ON_ACTIVATE\"}],\"mpCost\":30,\"cooldown\":6}"
+    },
+    {
+      "ItemId": "skill_poison_blade",
+      "ItemClass": "Skill",
+      "CatalogVersion": "skills_catalog",
+      "DisplayName": "毒の刃",
+      "Description": "物理ダメージ(威力80)を与え、80%の確率で毒を5ターン付与する。毒は毎ターン20ダメージを与える。",
+      "VirtualCurrencyPrices": { "PT": 550 },
+      "Tags": ["skill", "attack", "poison", "dot"],
+      "CustomData": "{\"effects\":[{\"code\":\"DAMAGE_PHYSICS\",\"params\":{\"power\":80,\"element\":\"poison\"},\"trigger\":\"ON_ACTIVATE\"},{\"code\":\"APPLY_STATUS\",\"params\":{\"id\":\"poison\",\"chance\":0.8,\"duration\":5},\"trigger\":\"ON_HIT\"}],\"mpCost\":25,\"cooldown\":2}"
+    }
+  ],
+  "DropTables": []
+}

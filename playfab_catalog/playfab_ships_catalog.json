@@ -1,0 +1,193 @@
+{
+  "CatalogVersion": "ships_catalog",
+  "Catalog": [
+    {
+      "ItemId": "ship_common_boat",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "手漕ぎボート(Common)",
+      "Description": "全種族共通の初期ボート。冒険の始まり。",
+      "VirtualCurrencyPrices": { "PT": 100},
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "common" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"common\",\"class\":\"none\",\"MaxHP\":\"100\",\"Speed\":\"80\",\"CargoCapacity\":\"10\",\"CrewCapacity\":\"1\",\"baseFrame\":\"0\",\"VisionRange\":\"100\"}"
+    },
+    {
+      "ItemId": "ship_human_explorer",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "帆付きボート(Explorer)",
+      "Description": "ヒューマン族：探索艦。小回りが利く。",
+      "VirtualCurrencyPrices": { "PT": 800 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "human", "explorer" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"human\",\"class\":\"explorer\",\"MaxHP\":\"600\",\"Speed\":\"140\",\"CargoCapacity\":\"50\",\"CrewCapacity\":\"2\",\"baseFrame\":\"6\",\"VisionRange\":\"400\"}"
+    },
+    {
+      "ItemId": "ship_human_defender",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "帆船(Defender)",
+      "Description": "ヒューマン族：防衛艦。安定感があり護衛に適している。",
+      "VirtualCurrencyPrices": { "PT": 1000 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "human", "defender" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"human\",\"class\":\"defender\",\"MaxHP\":\"1500\",\"Speed\":\"80\",\"CargoCapacity\":\"120\",\"CrewCapacity\":\"5\",\"baseFrame\":\"12\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_human_fighter",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "海賊船(Fighter)",
+      "Description": "ヒューマン族：主力戦闘艦。ドクロの旗を掲げる。",
+      "VirtualCurrencyPrices": { "PT": 1000 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "human", "fighter" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"human\",\"class\":\"fighter\",\"MaxHP\":\"1200\",\"Speed\":\"100\",\"CargoCapacity\":\"100\",\"CrewCapacity\":\"4\",\"baseFrame\":\"18\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_human_merchant",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "水上馬車(Merchant)",
+      "Description": "ヒューマン族：交易船。優雅なキャビンを持つ。",
+      "VirtualCurrencyPrices": { "PT": 800 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "human", "merchant" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"human\",\"class\":\"merchant\",\"MaxHP\":\"800\",\"Speed\":\"90\",\"CargoCapacity\":\"400\",\"CrewCapacity\":\"2\",\"baseFrame\":\"24\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_elf_explorer",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "気球(Explorer)",
+      "Description": "エルフ族の偵察気球。燃料不要でどこまでも飛ぶ。",
+      "VirtualCurrencyPrices": { "PT": 900 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "elf", "explorer" ],
+      "CustomData": "{\"Domain\":\"air\",\"race\":\"elf\",\"class\":\"explorer\",\"MaxHP\":\"400\",\"Speed\":\"160\",\"CargoCapacity\":\"40\",\"CrewCapacity\":\"1\",\"baseFrame\":\"134\",\"VisionRange\":\"400\"}"
+    },
+    {
+      "ItemId": "ship_elf_defender",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "海賊飛行船(Defender)",
+      "Description": "エルフ族の重装甲飛行船。空飛ぶ要塞。",
+      "VirtualCurrencyPrices": { "PT": 1500 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "elf", "defender" ],
+      "CustomData": "{\"Domain\":\"air\",\"race\":\"elf\",\"class\":\"defender\",\"MaxHP\":\"1400\",\"Speed\":\"70\",\"CargoCapacity\":\"150\",\"CrewCapacity\":\"6\",\"baseFrame\":\"140\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_elf_fighter",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "海賊飛空艇(Fighter)",
+      "Description": "エルフ族の戦闘艇。上空から攻撃する。",
+      "VirtualCurrencyPrices": { "PT": 1200 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "elf", "fighter" ],
+      "CustomData": "{\"Domain\":\"air\",\"race\":\"elf\",\"class\":\"fighter\",\"MaxHP\":\"900\",\"Speed\":\"130\",\"CargoCapacity\":\"80\",\"CrewCapacity\":\"3\",\"baseFrame\":\"146\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_elf_merchant",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "飛行船(Merchant)",
+      "Description": "エルフ族の輸送船。大量の荷物を吊り下げる。",
+      "VirtualCurrencyPrices": { "PT": 1200 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "elf", "merchant" ],
+      "CustomData": "{\"Domain\":\"air\",\"race\":\"elf\",\"class\":\"merchant\",\"MaxHP\":\"800\",\"Speed\":\"100\",\"CargoCapacity\":\"350\",\"CrewCapacity\":\"3\",\"baseFrame\":\"152\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_orc_explorer",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "石のボート(Explorer)",
+      "Description": "オーク族：頑丈な石製ボート。波に強い。",
+      "VirtualCurrencyPrices": { "PT": 1100 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "orc", "explorer" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"orc\",\"class\":\"explorer\",\"MaxHP\":\"1100\",\"Speed\":\"85\",\"CargoCapacity\":\"90\",\"CrewCapacity\":\"3\",\"baseFrame\":\"262\",\"VisionRange\":\"400\"}"
+    },
+    {
+      "ItemId": "ship_orc_defender",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "潜水艦(Defender)",
+      "Description": "オーク族：潜水艦。海中に潜み、下から突く。",
+      "VirtualCurrencyPrices": { "PT": 1400 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "orc", "defender" ],
+      "CustomData": "{\"Domain\":\"sea_underwater\",\"race\":\"orc\",\"class\":\"defender\",\"MaxHP\":\"1800\",\"Speed\":\"60\",\"CargoCapacity\":\"120\",\"CrewCapacity\":\"4\",\"baseFrame\":\"268\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_orc_fighter",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "水上戦車(Fighter)",
+      "Description": "オーク族：主力戦車。キャタピラで水をかく。",
+      "VirtualCurrencyPrices": { "PT": 1300 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "orc", "fighter" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"orc\",\"class\":\"fighter\",\"MaxHP\":\"1400\",\"Speed\":\"80\",\"CargoCapacity\":\"100\",\"CrewCapacity\":\"5\",\"baseFrame\":\"274\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_orc_merchant",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "水上バス(Merchant)",
+      "Description": "オーク族：輸送艇。四角く頑丈。",
+      "VirtualCurrencyPrices": { "PT": 1100 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "orc", "merchant" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"orc\",\"class\":\"merchant\",\"MaxHP\":\"1200\",\"Speed\":\"70\",\"CargoCapacity\":\"500\",\"CrewCapacity\":\"6\",\"baseFrame\":\"280\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_goblin_explorer",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "キャタピラ・ボート(Explorer)",
+      "Description": "ゴブリン族：探索艦。水陸両用のキャタピラ付きボート。",
+      "VirtualCurrencyPrices": { "PT": 500 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "goblin", "explorer" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"goblin\",\"class\":\"explorer\",\"MaxHP\":\"450\",\"Speed\":\"130\",\"CargoCapacity\":\"40\",\"CrewCapacity\":\"1\",\"baseFrame\":\"390\",\"VisionRange\":\"400\"}"
+    },
+    {
+      "ItemId": "ship_goblin_defender",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "潜水艦・望遠鏡(Defender)",
+      "Description": "ゴブリン族：防衛船。水面から望遠鏡だけ出している。",
+      "VirtualCurrencyPrices": { "PT": 500 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "goblin", "defender" ],
+      "CustomData": "{\"Domain\":\"sea_underwater\",\"race\":\"goblin\",\"class\":\"defender\",\"MaxHP\":\"850\",\"Speed\":\"80\",\"CargoCapacity\":\"60\",\"CrewCapacity\":\"2\",\"baseFrame\":\"396\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_goblin_fighter",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "ドリルタンク(Fighter)",
+      "Description": "ゴブリン族：攻撃艦。敵船に穴を開ける掘削兵器。",
+      "VirtualCurrencyPrices": { "PT": 600 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "goblin", "fighter" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"goblin\",\"class\":\"fighter\",\"MaxHP\":\"700\",\"Speed\":\"110\",\"CargoCapacity\":\"50\",\"CrewCapacity\":\"3\",\"baseFrame\":\"402\",\"VisionRange\":\"300\"}"
+    },
+    {
+      "ItemId": "ship_goblin_merchant",
+      "ItemClass": "Ship",
+      "CatalogVersion": "ships_catalog",
+      "DisplayName": "水瓶船(Merchant)",
+      "Description": "ゴブリン族：輸送船。巨大な水瓶を積んでいる。",
+      "VirtualCurrencyPrices": { "PT": 500 },
+      "RealCurrencyPrices": {},
+      "Tags": [ "ship", "goblin", "merchant" ],
+      "CustomData": "{\"Domain\":\"sea_surface\",\"race\":\"goblin\",\"class\":\"merchant\",\"MaxHP\":\"550\",\"Speed\":\"90\",\"CargoCapacity\":\"350\",\"CrewCapacity\":\"2\",\"baseFrame\":\"408\",\"VisionRange\":\"300\"}"
+    }
+  ],
+  "DropTables": []
+}

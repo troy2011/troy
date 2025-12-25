@@ -1,0 +1,2174 @@
+import * as Phaser from 'phaser';
+import { RACE_COLORS } from 'config';
+import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
+import * as Ship from './js/ship.js';
+
+// ========================================
+// 螳壽焚螳夂ｾｩ
+// ========================================
+
+// 繧ｲ繝ｼ繝險ｭ螳・
+const GAME_CONFIG = {
+    GRID_SIZE: 32,                    // 1繧ｰ繝ｪ繝・ラ = 32繝斐け繧ｻ繝ｫ
+    MAP_TILE_SIZE: 500,               // 繝槭ャ繝励・繧ｰ繝ｪ繝・ラ謨ｰ・・00x500・・
+    METERS_PER_TILE: 100,             // geohash逕ｨ縺ｫ1繧ｿ繧､繝ｫ=100m
+
+    // 闊ｹ縺ｮ險ｭ螳・
+    SHIP_VISION_RANGE: 300,           // 闊ｹ縺ｮ隕也阜遽・峇・医ヴ繧ｯ繧ｻ繝ｫ・・
+    SHIP_SPEED: 100,                  // 闊ｹ縺ｮ遘ｻ蜍暮溷ｺｦ・医ヴ繧ｯ繧ｻ繝ｫ/遘抵ｼ・
+    SHIP_MOVE_COOLDOWN: 500,          // 遘ｻ蜍募ｾ後・繧ｯ繝ｼ繝ｫ繝繧ｦ繝ｳ・医Α繝ｪ遘抵ｼ・
+
+    // UI險ｭ螳・
+    MESSAGE_DISPLAY_DURATION: 2000,   // 繝｡繝・そ繝ｼ繧ｸ陦ｨ遉ｺ譎る俣・医Α繝ｪ遘抵ｼ・
+    MINIMAP_SIZE: 150,                // 繝溘ル繝槭ャ繝励し繧､繧ｺ・医ヴ繧ｯ繧ｻ繝ｫ・・
+    MINIMAP_PADDING: 10,              // 繝溘ル繝槭ャ繝励・菴咏區・医ヴ繧ｯ繧ｻ繝ｫ・・
+
+    // Firestore譖ｴ譁ｰ鬆ｻ蠎ｦ
+    SHIP_QUERY_UPDATE_INTERVAL: 1000, // 闊ｹ繧ｯ繧ｨ繝ｪ譖ｴ譁ｰ髢馴囈・医Α繝ｪ遘抵ｼ・
+    SHIP_QUERY_REFRESH_THRESHOLD: 0.25, // 闊ｹ菴咲ｽｮ譖ｴ譁ｰ縺ｮ髢ｾ蛟､・郁ｦ也阜遽・峇縺ｮ25%・・
+
+    // 繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ險ｭ螳・
+    CONSTRUCTION_BOUNCE_DURATION: 1000, // 蟒ｺ險ｭ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ・医Α繝ｪ遘抵ｼ・
+    CONSTRUCTION_CRANE_ROTATION: 2000,  // 繧ｯ繝ｬ繝ｼ繝ｳ蝗櫁ｻ｢譎る俣・医Α繝ｪ遘抵ｼ・
+    PARTICLE_LIFESPAN: 1000,           // 繝代・繝・ぅ繧ｯ繝ｫ蟇ｿ蜻ｽ・医Α繝ｪ遘抵ｼ・
+    PARTICLE_FREQUENCY: 500,           // 繝代・繝・ぅ繧ｯ繝ｫ逋ｺ逕滄ｻ蠎ｦ・医Α繝ｪ遘抵ｼ・
+
+    // 繝輔か繧ｰ繧ｪ繝悶え繧ｩ繝ｼ
+    FOG_ALPHA: 0.8,                   // 繝輔か繧ｰ縺ｮ騾乗・蠎ｦ
+    FOG_STEPS: 50,                    // 繝輔か繧ｰ縺ｮ謠冗判繧ｹ繝・ャ繝玲焚
+
+    // 繝ｬ繧､繝､繝ｼ豺ｱ蠎ｦ
+    DEPTH: {
+        SEA: 0,
+        ISLAND: 1,
+        SHIP: 2,
+        BUILDING: 3,
+        CONSTRUCTION: 4,
+        NAME_TEXT: 10,
+        INTERACTIVE_ZONE: 100,
+        FOG: 999,
+        MESSAGE: 1000,
+        MINIMAP_BG: 1001,
+        MINIMAP_TEXTURE: 1002,
+        MINIMAP_MARKER: 1003
+    }
+};
+
+// 蟲ｶ繧呈ｧ区・縺吶ｋ繧ｿ繧､繝ｫ縺ｮ繝ｬ繧､繧｢繧ｦ繝医ｒ螳夂ｾｩ
+const ISLAND_LAYOUTS = {
+    small: { // 3x3
+        tiles: [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        width: 3, height: 3,
+        // 蟒ｺ遽峨せ繝ｭ繝・ヨ縺ｮ螳夂ｾｩ (1x1)
+        slots: { width: 1, height: 1, offsetX: 1, offsetY: 1 }
+    },
+    medium: { // 3x4
+        tiles: [[1, 2, 2, 3], [4, 5, 5, 6], [7, 8, 8, 9]],
+        width: 4, height: 3,
+        // 蟒ｺ遽峨せ繝ｭ繝・ヨ縺ｮ螳夂ｾｩ (2x1)
+        slots: { width: 2, height: 1, offsetX: 1, offsetY: 1 }
+    },
+    large: { // 4x4
+        tiles: [[1, 2, 2, 3], [4, 5, 5, 6], [4, 5, 5, 6], [7, 8, 8, 9]],
+        width: 4, height: 4,
+        // 蟒ｺ遽峨せ繝ｭ繝・ヨ縺ｮ螳夂ｾｩ (2x2)
+        slots: { width: 2, height: 2, offsetX: 1, offsetY: 1 }
+    },
+    giant: { // 5x5
+        tiles: [[1, 2, 2, 2, 3], [4, 5, 5, 5, 6], [4, 5, 5, 5, 6], [4, 5, 5, 5, 6], [7, 8, 8, 8,  9]],
+        width: 5, height: 5,
+        // 蟒ｺ遽峨せ繝ｭ繝・ヨ縺ｮ螳夂ｾｩ (3x3)
+        slots: { width: 3, height: 3, offsetX: 1, offsetY: 1 }
+    }
+};
+
+// 蟒ｺ迚ｩ縺斐→縺ｮ繧ｿ繧､繝ｫ繧､繝ｳ繝・ャ繧ｯ繧ｹ縺ｨ繧ｵ繧､繧ｺ繧貞ｮ夂ｾｩ・亥ｰ・擂逧・↓縺ｯ縺薙ｌ繧・B邂｡逅・′譛帙∪縺励＞・・
+const BUILDING_DEFINITIONS = {
+    17: { width: 1, height: 1 }, // 蟆上＆縺ｪ螳ｶ
+    22: { width: 1, height: 2 }, // 蝓趣ｼ井ｻｮ縺ｫ1x2縺ｨ縺吶ｋ・・
+    // 莉悶・蟒ｺ迚ｩ繧ゅ％縺薙↓霑ｽ蜉
+};
+
+export default class WorldMapScene extends Phaser.Scene {
+    constructor() {
+        super('WorldMapScene');
+
+        // 繧ｰ繝ｪ繝・ラ縺ｨ繝槭ャ繝励し繧､繧ｺ險ｭ螳・
+        this.gridSize = GAME_CONFIG.GRID_SIZE;
+        this.TILE_SIZE = GAME_CONFIG.GRID_SIZE; // 莠呈鋤諤ｧ縺ｮ縺溘ａ谿九☆
+        this.mapTileSize = GAME_CONFIG.MAP_TILE_SIZE;
+        this.mapPixelSize = this.mapTileSize * this.gridSize; // 16000繝斐け繧ｻ繝ｫ
+        this.metersPerTile = GAME_CONFIG.METERS_PER_TILE;
+        this.islandObjects = new Map();
+
+        // 繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ邂｡逅・
+        this.shipTween = null;
+
+        // 繝励Ξ繧､繝､繝ｼ諠・ｱ
+        this.playerInfo = { playFabId: null, race: null };
+
+        // 闊ｹ縺ｮ險ｭ螳夲ｼ亥ｾ後〒繝励Ξ繧､繝､繝ｼ縺ｮ繧ｹ繝・・繧ｿ繧ｹ縺九ｉ蜿門ｾ怜庄閭ｽ・・
+        this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
+        this.shipSpeed = GAME_CONFIG.SHIP_SPEED;
+
+        // 遘ｻ蜍募宛蠕｡逕ｨ縺ｮ繝輔Λ繧ｰ縺ｨ繧ｿ繧､繝槭・
+        this.canMove = true;
+        this.moveCooldown = GAME_CONFIG.SHIP_MOVE_COOLDOWN;
+        this.shipMoving = false;
+        this.shipTargetX = 0;
+        this.shipTargetY = 0;
+        this.shipTargetIsland = null;
+        this.shipArrivalTimer = null;
+        this.collidingIsland = null;
+        this.commandMenuOpen = false;
+
+        // Firestore髢｢騾｣
+        this.firestore = null;
+        this.otherShips = new Map();
+        this.shipsUnsubscribe = null;
+        this.shipGeoUnsubscribes = [];
+        this.lastShipQueryCenter = null;
+        this.lastShipQueryUpdate = 0;
+
+        // 闊ｹ蜷悟｣ｫ縺ｮ陦晉ｪ・荵励ｊ霎ｼ縺ｿUI
+        this.shipCollisionRadius = 20;
+        this.lastRamDamageAt = new Map(); // playFabId -> timestamp
+        this.boardingButton = null;
+        this.boardingTargetId = null;
+        this.boardingVisible = false;
+
+        // 繧ｹ繝励Λ繧､繝磯・蛻・
+        this.constructionSprites = [];
+        this.constructionUnsubscribe = null;
+        this.demolishedSprites = [];
+        this.demolishedUnsubscribe = null;
+    }
+
+    preload() {
+        // 闊ｹ縺ｮ繧ｹ繝励Λ繧､繝医す繝ｼ繝医ｒ隱ｭ縺ｿ霎ｼ繧
+        this.load.spritesheet('ship_sprite', 'Sprites/Ships/ships.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_red', 'Sprites/Ships/ships_red.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_yellow', 'Sprites/Ships/ships_yellow.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_green', 'Sprites/Ships/ships_green.png', { frameWidth: 32, frameHeight: 32 });
+        // 繧ｮ繝ｫ繝芽飴逕ｨ繧ｹ繝励Λ繧､繝医す繝ｼ繝茨ｼ・8x48縲・008x576=21蛻踊12陦鯉ｼ・
+        this.load.spritesheet('guild_ship_sprite', 'Sprites/Ships/GuildShips.png', { frameWidth: 48, frameHeight: 48 });
+        // 繝槭ャ繝礼畑縺ｮ繧ｹ繝励Λ繧､繝医す繝ｼ繝医ｒ隱ｭ縺ｿ霎ｼ繧
+        this.load.spritesheet('map_tiles', 'Sprites/Map/map.png', { frameWidth: 32, frameHeight: 32 });
+    }
+
+    init(data) {
+        // main.js縺九ｉ繝励Ξ繧､繝､繝ｼ諠・ｱ繧貞女縺大叙繧九√∪縺溘・繧ｰ繝ｭ繝ｼ繝舌Ν螟画焚縺九ｉ蜿門ｾ・
+        console.log('[WorldMapScene] init called with data:', data);
+        console.log('[WorldMapScene] window.__phaserPlayerInfo:', window.__phaserPlayerInfo);
+
+        // data縺檎ｩｺ縺ｮ繧ｪ繝悶ず繧ｧ繧ｯ繝医∪縺溘・playFabId縺後↑縺・ｴ蜷医・縲√げ繝ｭ繝ｼ繝舌Ν螟画焚繧剃ｽｿ逕ｨ
+        if (data && data.playFabId) {
+            this.playerInfo = data;
+        } else if (window.__phaserPlayerInfo && window.__phaserPlayerInfo.playFabId) {
+            this.playerInfo = window.__phaserPlayerInfo;
+        } else {
+            this.playerInfo = { playFabId: null, race: null };
+        }
+
+        console.log('[WorldMapScene] Final playerInfo:', this.playerInfo);
+    }
+
+    async create() {
+        // 1. 豬ｷ縺ｮ閭梧勹繧偵ち繧､繝ｫ迥ｶ縺ｮ繧ｹ繝励Λ繧､繝医〒菴懈・・医う繝ｳ繧ｿ繝ｩ繧ｯ繝・ぅ繝悶↓縺吶ｋ・・
+        // 'map_tiles'縺ｮ繧ｹ繝励Λ繧､繝医す繝ｼ繝医・0逡ｪ逶ｮ縺ｮ繝輔Ξ繝ｼ繝・域ｰｴ縺ｮ繧ｿ繧､繝ｫ・峨ｒ菴ｿ逕ｨ
+        // 繝槭ャ繝励し繧､繧ｺ: 500繧ｰ繝ｪ繝・ラ ﾃ・32繝斐け繧ｻ繝ｫ = 16,000繝斐け繧ｻ繝ｫ
+        // 繝ｬ繧､繝､繝ｼ鬆・ｺ・ 豬ｷ(0) 竊・蟲ｶ(1) 竊・闊ｹ(2) 竊・蟒ｺ迚ｩ(3) 竊・繝輔か繧ｰ(999) 竊・UI(1000+)
+        const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
+        this.seaBackground = seaBackground;
+        seaBackground.setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, this.mapPixelSize, this.mapPixelSize),
+            Phaser.Geom.Rectangle.Contains
+        );
+
+        // Prevent DOM UI interactions from also triggering Phaser input (pointerup is listened on window).
+        if (typeof document !== 'undefined') {
+            const panel = document.getElementById('islandCommandPanel');
+            if (panel && !panel.dataset.phaserBlockerInstalled) {
+                const stop = (e) => {
+                    if (!e) return;
+                    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                };
+                // NOTE: capture 繧剃ｽｿ縺・→蟄占ｦ∫ｴ・医・繧ｿ繝ｳ・峨∪縺ｧ繧､繝吶Φ繝医′螻翫°縺壼渚蠢懊＠縺ｪ縺上↑繧九・縺ｧ bubble 縺ｧ豁｢繧√ｋ
+                ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((type) => {
+                    panel.addEventListener(type, stop);
+                });
+                // NOTE: touchmove 縺ｮ preventDefault 縺ｯ繧ｹ繧ｯ繝ｭ繝ｼ繝ｫ閾ｪ菴薙ｒ豁｢繧√※縺励∪縺・・縺ｧ陦後ｏ縺ｪ縺・
+                panel.addEventListener('touchmove', (e) => {
+                    stop(e);
+                }, { passive: true });
+                panel.dataset.phaserBlockerInstalled = '1';
+            }
+        }
+
+        // 豬ｷ縺ｮ閭梧勹繧偵け繝ｪ繝・け縺励◆譎ゅ・蜃ｦ逅・
+        seaBackground.on('pointerup', (pointer) => {
+            if (this.commandMenuOpen || (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active'))) return;
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            console.log('[Sea] Background clicked at world:', worldPoint.x, worldPoint.y);
+            this.moveShipTo(worldPoint.x, worldPoint.y, null);
+        });
+
+        // 2. 闊ｹ縺ｮ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ繧貞ｮ夂ｾｩ
+        // ships.png 縺ｯ 1024x1024 (32x32繧ｿ繧､繝ｫ = 32蛻踊32陦・ 縺ｮ繧ｹ繝励Λ繧､繝医す繝ｼ繝医・
+        // 繝懊・繝医・荳ｦ縺ｳ・域婿蜷匝3繧ｳ繝橸ｼ峨・陦後せ繝医Λ繧､繝・2縺ｧ驟咲ｽｮ:
+        // 荳・0-2 蟾ｦ荳・3-5 / 蟾ｦ:32-34 蜿ｳ荳・35-37 / 蜿ｳ:64-66 蟾ｦ荳・67-69 / 荳・96-98 蜿ｳ荳・99-101
+        this.shipSpriteBaseFrame = 0; // 蟾ｦ荳翫・繝ｼ繝医・髢句ｧ九ヵ繝ｬ繝ｼ繝・亥ｷｦ荳翫・繝ｼ繝・0・・
+        const sheetCols = 32;
+        const baseFrame = this.shipSpriteBaseFrame;
+        const baseRow = Math.floor(baseFrame / sheetCols);
+        const baseCol = baseFrame % sheetCols;
+        const frameAt = (rowOffset, colOffset) => (baseRow + rowOffset) * sheetCols + (baseCol + colOffset);
+
+        // 闊ｹ縺ｮ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ縺ｨ髱呎ｭ｢繝輔Ξ繝ｼ繝繧堤ｮ｡逅・☆繧九が繝悶ず繧ｧ繧ｯ繝・
+        this.shipAnims = {};
+
+        // 迚ｩ逅・お繝ｳ繧ｸ繝ｳ縺ｮ荳也阜蠅・阜繧定ｨｭ螳・
+        this.physics.world.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+
+        // 3. 繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧帝・鄂ｮ
+        // 蛻晄悄迥ｶ諷九〒縺ｯ繝・ヵ繧ｩ繝ｫ繝医・繝輔Ξ繝ｼ繝縺ｧ驟咲ｽｮ縲Ｊnit蠕後↓繧ｵ繝ｼ繝舌・縺九ｉ蜿門ｾ励＠縺溘ョ繝ｼ繧ｿ縺ｧ譖ｴ譁ｰ縺輔ｌ繧九・
+        this.playerShip = this.physics.add.sprite(400, 300, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor));
+        this.playerShip.setFrame(1); // 繝・ヵ繧ｩ繝ｫ繝医・髱呎ｭ｢繝輔Ξ繝ｼ繝
+        this.playerShip.setDepth(GAME_CONFIG.DEPTH.SHIP);
+
+        // 迚ｩ逅・・繝・ぅ縺ｮ險ｭ螳・
+        this.playerShip.body.setSize(24, 24);
+        this.playerShip.body.setCollideWorldBounds(true);
+        
+        // 笘・・笘・謾ｹ蝟・署譯・ 繝励Ξ繧､繝､繝ｼ縺ｮ遞ｮ譌上↓蠢懊§縺ｦ闊ｹ縺ｮ濶ｲ繧貞､峨∴繧・笘・・笘・
+        this.playerShip.clearTint();
+
+        // shipTypeKey がまだ解決できていない間も、最低限アニメーションできるようにデフォルトを用意
+        {
+            const sheetKey = this.playerShip.texture?.key || 'ship_sprite';
+            const defaultShipTypeKey = `_default__${sheetKey}__bf0`;
+            this.generateShipAnims(0, defaultShipTypeKey);
+            this.playerShip.shipTypeKey = defaultShipTypeKey;
+            this.playerShip.lastAnimKey = 'ship_down';
+            const idleFrame = this.shipAnims?.[defaultShipTypeKey]?.idleFrames?.ship_down;
+            if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
+        }
+        
+        // 4. 繧ｫ繝｡繝ｩ縺ｮ險ｭ螳・
+        this.cameras.main.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+        this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+        this.cameras.main.setZoom(1);
+
+        // 5. 隕也阜遽・峇縺ｮ繝輔か繧ｰ繧ｪ繝悶え繧ｩ繝ｼ繧剃ｽ懈・
+        this.fogGraphics = this.add.graphics();
+        this.fogGraphics.setDepth(GAME_CONFIG.DEPTH.FOG);
+        this.fogGraphics.setScrollFactor(0);
+        
+        // 6. メッセージUI（showMessage / showError 用）
+        this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
+            fontSize: '16px',
+            fill: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 6 }
+        });
+        this.messageText.setOrigin(0.5, 0);
+        this.messageText.setScrollFactor(0);
+        this.messageText.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.messageText.setVisible(false);
+
+        // 7. 荵励ｊ霎ｼ縺ｿボタンUI
+        this.createBoardingButton();
+
+        // 8. GuildShips.png の設定（48x48 / cols=21）
+        this.guildShipSheetCols = 21;
+        this.guildShipColorOffsets = { white: 0, red: 3, blue: 6, yellow: 9, green: 12 };
+
+        // 9. Firestore から島データを読み込む（world_map）
+        try {
+            const db = getFirestore();
+            const querySnapshot = await getDocs(collection(db, "world_map"));
+
+            if (querySnapshot.empty) {
+                console.warn('[WorldMapScene] No islands found in Firestore');
+                this.showError('島データが見つかりませんでした。');
+                return;
+            }
+
+            let loadedCount = 0;
+            querySnapshot.forEach((docSnapshot) => {
+                try {
+                    const data = docSnapshot.data();
+
+                    if (!data.coordinate || typeof data.coordinate.x !== 'number' || typeof data.coordinate.y !== 'number') {
+                        console.error(`[WorldMapScene] Invalid coordinate data for island ${docSnapshot.id}`, data);
+                        return;
+                    }
+
+                    this.createIsland({
+                        id: docSnapshot.id,
+                        x: data.coordinate.x * this.gridSize,
+                        y: data.coordinate.y * this.gridSize,
+                        name: data.name || '名称未設定',
+                        size: data.size || 'small',
+                        ownerRace: data.ownerRace,
+                        ownerId: data.ownerId,
+                        buildings: data.buildings || []
+                    });
+                    loadedCount++;
+                } catch (islandError) {
+                    console.error(`[WorldMapScene] Failed to create island ${docSnapshot.id}:`, islandError);
+                }
+            });
+
+            console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
+        } catch (error) {
+            console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
+            this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
+        }
+
+        // 10. ミニマップ
+        this.createMinimap();
+
+        // 11. Firestore 初期化（ships同期など）
+        await this.initializeFirestore();
+    }
+
+    /**
+     * 謖・ｮ壹＆繧後◆baseFrame縺ｨ繧ｭ繝ｼ謗･蟆ｾ霎槭↓蝓ｺ縺･縺・※縲∬飴縺ｮ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ繧ｻ繝・ヨ繧堤函謌舌☆繧九・
+     * 縺吶〒縺ｫ逕滓・貂医∩縺ｮ蝣ｴ蜷医・菴輔ｂ縺励↑縺・・
+     * @param {number} baseFrame - 繧ｹ繝励Λ繧､繝医す繝ｼ繝井ｸ翫・蝓ｺ貅悶ヵ繝ｬ繝ｼ繝逡ｪ蜿ｷ
+     * @param {string} keySuffix - 繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ繧ｭ繝ｼ縺ｮ謗･蟆ｾ霎・(萓・ "_sloop", "_galleon")
+     */
+    generateShipAnims(baseFrame, keySuffix) {
+        const normalizedBaseFrame = Number(baseFrame);
+        if (!Number.isFinite(normalizedBaseFrame)) {
+            console.warn(`[Anims] Invalid baseFrame for ${keySuffix}:`, baseFrame);
+            baseFrame = 0;
+        } else {
+            baseFrame = normalizedBaseFrame;
+        }
+        if (this.shipAnims[keySuffix]) {
+            return; // 縺吶〒縺ｫ逕滓・貂医∩
+        }
+
+        console.log(`[Anims] Generating animations for ship type ${keySuffix} with baseFrame ${baseFrame}`);
+
+        const sheet = this.getShipSpriteSheetKeyFromSuffix(keySuffix);
+        const sheetCols = 32;
+        const baseRow = Math.floor(baseFrame / sheetCols);
+        const baseCol = baseFrame % sheetCols;
+        const frameAt = (rowOffset, colOffset) => (baseRow + rowOffset) * sheetCols + (baseCol + colOffset);
+
+        const animsToCreate = [
+            { key: `ship_down${keySuffix}`, start: frameAt(0, 0), end: frameAt(0, 2) },
+            { key: `ship_down_left${keySuffix}`, start: frameAt(0, 3), end: frameAt(0, 5) },
+            { key: `ship_left${keySuffix}`, start: frameAt(1, 0), end: frameAt(1, 2) },
+            { key: `ship_down_right${keySuffix}`, start: frameAt(1, 3), end: frameAt(1, 5) },
+            { key: `ship_right${keySuffix}`, start: frameAt(2, 0), end: frameAt(2, 2) },
+            { key: `ship_up_left${keySuffix}`, start: frameAt(2, 3), end: frameAt(2, 5) },
+            { key: `ship_up${keySuffix}`, start: frameAt(3, 0), end: frameAt(3, 2) },
+            { key: `ship_up_right${keySuffix}`, start: frameAt(3, 3), end: frameAt(3, 5) },
+        ];
+
+        animsToCreate.forEach(anim => {
+            if (!this.anims.exists(anim.key)) {
+                this.anims.create({
+                    key: anim.key,
+                    frames: this.anims.generateFrameNumbers(sheet, { start: anim.start, end: anim.end }),
+                    frameRate: 10,
+                    repeat: -1
+                });
+            }
+        });
+
+        // 髱呎ｭ｢繝輔Ξ繝ｼ繝縺ｮ諠・ｱ繧剃ｿ晏ｭ・
+        this.shipAnims[keySuffix] = {
+            idleFrames: {
+                'ship_down': frameAt(0, 1),
+                'ship_down_left': frameAt(0, 4),
+                'ship_left': frameAt(1, 1),
+                'ship_down_right': frameAt(1, 4),
+                'ship_right': frameAt(2, 1),
+                'ship_up_left': frameAt(2, 4),
+                'ship_up': frameAt(3, 1),
+                'ship_up_right': frameAt(3, 4)
+            },
+            lastAnimKey: 'ship_down'
+        };
+    }
+
+    normalizeShipColorKey(color) {
+        const key = String(color || '').toLowerCase().trim();
+        if (key === 'red' || key === 'blue' || key === 'yellow' || key === 'green' || key === 'brown') return key;
+        return 'brown';
+    }
+
+    getShipSpriteSheetKey(color) {
+        const c = this.normalizeShipColorKey(color);
+        if (c === 'brown') return 'ship_sprite';
+        return `ship_sprite_${c}`;
+    }
+
+    getShipSpriteSheetKeyFromSuffix(keySuffix) {
+        const suffix = String(keySuffix || '');
+        const parts = suffix.split('__');
+        const maybeSheet = parts.find(p => p === 'ship_sprite' || p.startsWith('ship_sprite_')) || null;
+        if (maybeSheet && this.textures?.exists && this.textures.exists(maybeSheet)) return maybeSheet;
+        return 'ship_sprite';
+    }
+    
+
+
+    /**
+     * 繝溘ル繝槭ャ繝励ｒ菴懈・縺吶ｋ
+     */
+    createMinimap() {
+        const minimapSize = GAME_CONFIG.MINIMAP_SIZE;
+        const minimapPadding = GAME_CONFIG.MINIMAP_PADDING;
+        const minimapScale = minimapSize / this.mapPixelSize;
+
+        // 繝溘ル繝槭ャ繝励・閭梧勹・亥承荳翫↓驟咲ｽｮ・・
+        const minimapX = this.cameras.main.width - minimapSize - minimapPadding;
+        const minimapY = minimapPadding;
+
+        this.minimapGraphics = this.add.graphics();
+        this.minimapGraphics.setScrollFactor(0);
+        this.minimapGraphics.setDepth(GAME_CONFIG.DEPTH.MINIMAP_BG);
+
+        // 繝溘ル繝槭ャ繝励・閭梧勹繧呈緒逕ｻ
+        this.minimapGraphics.fillStyle(0x000000, 0.7);
+        this.minimapGraphics.fillRect(minimapX, minimapY, minimapSize, minimapSize);
+
+        // 繝溘ル繝槭ャ繝励・譫邱・
+        this.minimapGraphics.lineStyle(2, 0xffffff, 1);
+        this.minimapGraphics.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
+
+        // 繝溘ル繝槭ャ繝礼畑縺ｮRenderTexture・亥ｳｶ繧呈緒逕ｻ・・
+        this.minimapTexture = this.add.renderTexture(0, 0, minimapSize, minimapSize);
+        this.minimapTexture.setOrigin(0, 0);
+        this.minimapTexture.setPosition(minimapX, minimapY);
+        this.minimapTexture.setScrollFactor(0);
+        this.minimapTexture.setDepth(GAME_CONFIG.DEPTH.MINIMAP_TEXTURE);
+
+        // 縺吶∋縺ｦ縺ｮ蟲ｶ繧偵Α繝九・繝・・縺ｫ謠冗判
+        // RenderTexture縺ｫ逶ｴ謗･謠冗判縺吶ｋ縺溘ａ縲；raphics繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ菴ｿ逕ｨ
+        this.islandObjects.forEach((islandData) => {
+            // 蟲ｶ縺ｮ荳ｭ蠢・ｺｧ讓吶ｒ險育ｮ・
+            const islandCenterX = islandData.x + islandData.width / 2;
+            const islandCenterY = islandData.y + islandData.height / 2;
+
+            const minimapIslandX = (islandCenterX / this.mapPixelSize) * minimapSize;
+            const minimapIslandY = (islandCenterY / this.mapPixelSize) * minimapSize;
+
+            // 蟲ｶ縺ｮ濶ｲ繧呈ｱｺ螳夲ｼ育ｨｮ譌上↓蠢懊§縺ｦ・・
+            let color = 0x808080; // 繝・ヵ繧ｩ繝ｫ繝茨ｼ井ｸｭ遶具ｼ・
+            if (islandData.ownerRace) {
+                color = this.getRaceColor(islandData.ownerRace);
+            }
+
+            // 繝・ヰ繝・げ: 鬥夜・縺ｮ蠎ｧ讓吶ｒ蜃ｺ蜉・
+            if (islandData.type === 'capital') {
+                console.log(`[Minimap Debug] Island ${islandData.id}:`, {
+                    xy: { x: islandData.x, y: islandData.y },
+                    centerXY: { x: islandCenterX, y: islandCenterY },
+                    minimapXY: { x: minimapIslandX, y: minimapIslandY }
+                });
+            }
+
+            // RenderTexture縺ｫ蟆上＆縺ｪ蜀・ｒ謠冗判・亥推蟲ｶ縺斐→縺ｫ蛟句挨縺ｮGraphics繧剃ｽ懈・縺励※謠冗判・・
+            const dot = this.add.graphics();
+            dot.fillStyle(color, 1);
+            dot.fillCircle(minimapIslandX, minimapIslandY, 1);// 蟆上＆縺・せ
+            this.minimapTexture.draw(dot, 0, 0); // RenderTexture縺ｮ(0,0)蝓ｺ貅悶〒謠冗判
+            dot.destroy();
+        });
+
+        console.log(`[Minimap] Total islands drawn: ${this.islandObjects.size}`);
+
+        // 繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ縺ｮ菴咲ｽｮ繧堤､ｺ縺吶・繝ｼ繧ｫ繝ｼ・亥虚逧・↓譖ｴ譁ｰ・・
+        this.minimapPlayerMarker = this.add.graphics();
+        this.minimapPlayerMarker.setScrollFactor(0);
+        this.minimapPlayerMarker.setDepth(GAME_CONFIG.DEPTH.MINIMAP_MARKER);
+
+        // 繝溘ル繝槭ャ繝励・菴咲ｽｮ縺ｨ繧ｹ繧ｱ繝ｼ繝ｫ繧剃ｿ晏ｭ・
+        this.minimapConfig = {
+            x: minimapX,
+            y: minimapY,
+            size: minimapSize,
+            scale: minimapScale
+        };
+    }
+
+    createIsland(data) {
+        const layoutData = ISLAND_LAYOUTS[data.size] || ISLAND_LAYOUTS.small;
+        const layout = layoutData.tiles;
+        const islandWidth = layoutData.width * this.TILE_SIZE;
+        const islandHeight = layoutData.height * this.TILE_SIZE;
+
+        // 蟲ｶ繧呈ｧ区・縺吶ｋ繧ｹ繝励Λ繧､繝医ｒ譬ｼ邏阪☆繧矩・蛻・
+        const islandSprites = [];
+        const islandPhysicsGroup = this.physics.add.staticGroup();
+
+        // 笘・す繝ｳ繝励Ν縺ｪ蛻､螳壹Ο繧ｸ繝・け: 縲悟､門・1繧ｰ繝ｪ繝・ラ繧帝勁螟悶＠縺ｦ縲∝・蛛ｴ縺縺代↓蠖薙◆繧雁愛螳壹ｒ縺､縺代ｋ縲・
+        // 繝ｬ繧､繧｢繧ｦ繝医↓蝓ｺ縺･縺・※繧ｿ繧､繝ｫ繧帝・鄂ｮ
+        for (let row = 0; row < layout.length; row++) {
+            for (let col = 0; col < layout[row].length; col++) {
+                const tileIndex = layout[row][col];
+                if (tileIndex !== null) { // null縺ｮ蝣ｴ謇縺ｯ繧ｿ繧､繝ｫ繧帝・鄂ｮ縺励↑縺・ｴ蜷医↑縺ｩ縺ｫ菴ｿ逕ｨ
+                    const tileX = data.x + col * this.TILE_SIZE;
+                    const tileY = data.y + row * this.TILE_SIZE;
+
+                    // 蛻､螳・ 縲檎ｫｯ縺｣縺薙堺ｻ･螟悶↑繧牙ｽ薙◆繧雁愛螳壹ｒ縺､縺代ｋ
+                    // row > 0 (荳逡ｪ荳翫§繧・↑縺・ 縺九▽ row < 鬮倥＆-1 (荳逡ｪ荳九§繧・↑縺・
+                    // col > 0 (荳逡ｪ蟾ｦ縺倥ｃ縺ｪ縺・ 縺九▽ col < 蟷・1 (荳逡ｪ蜿ｳ縺倥ｃ縺ｪ縺・
+                    const isInnerRow = (row > 0 && row < layoutData.height - 1);
+                    const isInnerCol = (col > 0 && col < layoutData.width - 1);
+                    const hasCollision = (isInnerRow && isInnerCol);
+
+                    if (hasCollision) {
+                        // 蠖薙◆繧雁愛螳壹≠繧翫・迚ｩ逅・せ繝励Λ繧､繝医→縺励※驟咲ｽｮ
+                        const tile = this.physics.add.staticSprite(tileX, tileY, 'map_tiles', tileIndex);
+                        tile.setOrigin(0, 0);
+                        tile.setDepth(GAME_CONFIG.DEPTH.ISLAND);
+                        tile.body.setSize(this.TILE_SIZE, this.TILE_SIZE);
+                        tile.body.setOffset(0, 0);
+                        tile.refreshBody();
+                        islandSprites.push(tile);
+                        islandPhysicsGroup.add(tile);
+                    } else {
+                        // 蠖薙◆繧雁愛螳壹↑縺励・騾壼ｸｸ繧ｹ繝励Λ繧､繝医→縺励※驟咲ｽｮ
+                        const tile = this.add.sprite(tileX, tileY, 'map_tiles', tileIndex).setOrigin(0, 0);
+                        tile.setDepth(GAME_CONFIG.DEPTH.ISLAND);
+                        islandSprites.push(tile);
+                    }
+                }
+            }
+        }
+
+        // 蟒ｺ遽峨せ繝ｭ繝・ヨ縺ｮ繧ｰ繝ｪ繝・ラ繧貞・譛溷喧
+        const slotGrid = Array(layoutData.slots.height).fill(null).map(() => Array(layoutData.slots.width).fill(false));
+
+        // 蟒ｺ迚ｩ繝・・繧ｿ繧貞・縺ｫ蟒ｺ迚ｩ繧帝・鄂ｮ
+        const buildingSprites = [];
+        if (data.buildings && Array.isArray(data.buildings)) {
+            data.buildings.forEach(building => {
+                const def = BUILDING_DEFINITIONS[building.tileIndex];
+                const bWidth = (building.width || (def ? def.width : 1));
+                const bHeight = (building.height || (def ? def.height : 1));
+                const slotX = building.x;
+                const slotY = building.y;
+
+                // 驟咲ｽｮ蜿ｯ閭ｽ縺九メ繧ｧ繝・け
+                let canPlace = true;
+                for (let y = 0; y < bHeight; y++) {
+                    for (let x = 0; x < bWidth; x++) {
+                        if (slotY + y >= slotGrid.length || slotX + x >= slotGrid[0].length || slotGrid[slotY + y][slotX + x]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (!canPlace) break;
+                }
+
+                if (canPlace) {
+                    // 繧ｹ繝ｭ繝・ヨ繧貞頃譛画ｸ医∩縺ｫ縺吶ｋ
+                    for (let y = 0; y < bHeight; y++) {
+                        for (let x = 0; x < bWidth; x++) {
+                            slotGrid[slotY + y][slotX + x] = true;
+                        }
+                    }
+
+                    // 蟒ｺ迚ｩ縺ｮ繝斐け繧ｻ繝ｫ蠎ｧ讓吶ｒ險育ｮ暦ｼ医Ρ繝ｼ繝ｫ繝牙ｺｧ讓呻ｼ・
+                    const buildingX = data.x + (layoutData.slots.offsetX + slotX) * this.TILE_SIZE;
+                    const buildingY = data.y + (layoutData.slots.offsetY + slotY) * this.TILE_SIZE;
+
+                    // 繧ｹ繝励Λ繧､繝医ｒ驟咲ｽｮ・亥渕貅也せ縺ｯ蟾ｦ荳具ｼ・
+                    const buildingSprite = this.add.sprite(buildingX, buildingY + (bHeight * this.TILE_SIZE), 'map_tiles', building.tileIndex).setOrigin(0, 1);
+                    buildingSprite.setDepth(GAME_CONFIG.DEPTH.BUILDING);
+                    buildingSprites.push(buildingSprite);
+                } else {
+                    console.warn(`建物の配置に失敗しました: 島「${data.name}」のスロット(${slotX}, ${slotY})には配置できません。`);
+                }
+            });
+        }
+
+        // 蟲ｶ縺ｮ蜷榊燕繧帝・鄂ｮ・医Ρ繝ｼ繝ｫ繝牙ｺｧ讓呻ｼ・
+        const nameColor = this.getRaceColor(data.ownerRace);
+        const nameText = this.add.text(data.x + islandWidth / 2, data.y + islandHeight + 10, data.name, {
+            fontSize: '14px',
+            fill: `#${nameColor.toString(16).padStart(6, '0')}`,
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        nameText.setDepth(GAME_CONFIG.DEPTH.NAME_TEXT);
+
+        // 繧､繝ｳ繧ｿ繝ｩ繧ｯ繧ｷ繝ｧ繝ｳ逕ｨ縺ｮ騾乗・縺ｪ遏ｩ蠖｢繧帝・鄂ｮ
+        const interactiveZone = this.add.zone(data.x, data.y, islandWidth, islandHeight).setOrigin(0, 0);
+        interactiveZone.setDepth(GAME_CONFIG.DEPTH.INTERACTIVE_ZONE);
+        interactiveZone.setInteractive();
+        interactiveZone.on('pointerup', async () => {
+            console.log(`[Island] 蟲ｶ繧帝∈謚・ ${data.name}`);
+
+            // 陦晉ｪ∽ｸｭ縺ｮ蟲ｶ繧偵け繝ｪ繝・け縺励◆蝣ｴ蜷・
+            if (this.collidingIsland && this.collidingIsland.id === islandData.id) {
+                // 蟲ｶ繧ｳ繝槭Φ繝峨Γ繝九Η繝ｼ繧定｡ｨ遉ｺ・医％縺薙°繧牙ｻｺ險ｭ繝｡繝九Η繝ｼ縺ｸ驕ｷ遘ｻ・・
+                this.showIslandCommandMenu(islandData);
+            } else {
+                // 蟲ｶ縺ｮ荳ｭ蠢・ｺｧ讓吶∈遘ｻ蜍包ｼ郁ｦ也阜遽・峇繝√ぉ繝・け縺ｯmoveShipTo蜀・〒陦後ｏ繧後ｋ・・
+                this.moveShipTo(data.x + islandWidth / 2, data.y + islandHeight / 2, islandData);
+            }
+        });
+
+        // 蟲ｶ縺ｮ繝・・繧ｿ繧偵∪縺ｨ繧√※菫晏ｭ・
+        const islandData = {
+            id: data.id,
+            x: data.x,
+            y: data.y,
+            width: islandWidth,
+            height: islandHeight,
+            name: data.name,
+            type: data.type,
+            ownerRace: data.ownerRace,
+            ownerId: data.ownerId,
+            sprites: islandSprites,
+            buildingSprites: buildingSprites,
+            nameText: nameText,
+            interactiveZone: interactiveZone,
+            physicsGroup: islandPhysicsGroup
+        };
+
+        // 闊ｹ縺ｨ蟲ｶ縺ｮ陦晉ｪ√ｒ險ｭ螳・
+        if (this.playerShip) {
+            this.physics.add.collider(this.playerShip, islandPhysicsGroup, () => {
+                // 陦晉ｪ∵凾縺ｫ遘ｻ蜍輔ｒ蛛懈ｭ｢
+                if (this.shipMoving) {
+                    this.shipMoving = false;
+                    this.playerShip.body.setVelocity(0, 0);
+
+                    if (this.shipTween) {
+                        this.shipTween.stop();
+                    }
+                    if (this.shipArrivalTimer) {
+                        this.shipArrivalTimer.remove();
+                    }
+
+                    this.stopShipAnimation();
+                    this.updateMyShipStoppedPosition();
+
+                    // 陦晉ｪ√＠縺溷ｳｶ繧定ｨ倬鹸縺励※繝代ロ繝ｫ繧定｡ｨ遉ｺ
+                    this.collidingIsland = islandData;
+                    this.showMessage(`${islandData.name}に到着しました。`);
+
+                    // 蟲ｶ繧ｳ繝槭Φ繝峨ヱ繝阪Ν繧定・蜍慕噪縺ｫ陦ｨ遉ｺ
+                    this.showIslandCommandMenu(islandData);
+
+                    // 繧ｯ繝ｼ繝ｫ繝繧ｦ繝ｳ繧定ｧ｣髯､
+                    this.canMove = true;
+                }
+            });
+        }
+
+        this.islandObjects.set(data.id, islandData); // 蟲ｶ繝・・繧ｿ繧樽ap縺ｫ菫晏ｭ・
+    }
+
+    getRaceColor(raceId) {
+        return RACE_COLORS[raceId] || 0x808080; // 縺ｩ縺ｮ遞ｮ譌上↓繧ょｱ槭＆縺ｪ縺・ｴ蜷医・繧ｰ繝ｬ繝ｼ
+    }
+
+    /**
+     * 邱壼・縺ｨ遏ｩ蠖｢縺ｮ莠､蟾ｮ蛻､螳・
+     * @param {number} x1 - 邱壼・縺ｮ蟋狗せX
+     * @param {number} y1 - 邱壼・縺ｮ蟋狗せY
+     * @param {number} x2 - 邱壼・縺ｮ邨らせX
+     * @param {number} y2 - 邱壼・縺ｮ邨らせY
+     * @param {Object} rect - 遏ｩ蠖｢ {x, y, width, height}
+     * @returns {boolean} - 莠､蟾ｮ縺励※縺・ｋ蝣ｴ蜷医・true
+     */
+    lineIntersectsRect(x1, y1, x2, y2, rect) {
+        // 遏ｩ蠖｢縺ｮ4霎ｺ縺ｨ邱壼・縺ｮ莠､蟾ｮ繧偵メ繧ｧ繝・け
+        const left = rect.x;
+        const right = rect.x + rect.width;
+        const top = rect.y;
+        const bottom = rect.y + rect.height;
+
+        // 邱壼・縺檎洸蠖｢蜀・°繧牙ｧ九∪繧九°邨ゅｏ繧句ｴ蜷医ｂ莠､蟾ｮ縺ｨ縺ｿ縺ｪ縺・
+        if ((x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) ||
+            (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom)) {
+            return true;
+        }
+
+        // 4霎ｺ縺ｨ縺ｮ莠､蟾ｮ蛻､螳・
+        return this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||    // 荳願ｾｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) || // 蜿ｳ霎ｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, right, bottom) || // 荳玖ｾｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, left, top, left, bottom);      // 蟾ｦ霎ｺ
+    }
+
+    /**
+     * 2縺､縺ｮ邱壼・縺ｮ莠､蟾ｮ蛻､螳・
+     * @param {number} x1, y1, x2, y2 - 邱壼・1
+     * @param {number} x3, y3, x4, y4 - 邱壼・2
+     * @returns {boolean} - 莠､蟾ｮ縺励※縺・ｋ蝣ｴ蜷医・true
+     */
+    lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+        const denom = ((y4 - y3) * (x2 - x1)) - ((x4 - x3) * (y2 - y1));
+        if (denom === 0) return false; // 蟷ｳ陦・
+
+        const ua = (((x4 - x3) * (y1 - y3)) - ((y4 - y3) * (x1 - x3))) / denom;
+        const ub = (((x2 - x1) * (y1 - y3)) - ((y2 - y1) * (x1 - x3))) / denom;
+
+        return (ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1);
+    }
+
+    /**
+     * TODO: [謗ｨ貂ｬ闊ｪ豕評 遘ｻ蜍輔ョ繝ｼ繧ｿ縺九ｉ迴ｾ蝨ｨ菴咲ｽｮ繧呈耳貂ｬ縺吶ｋ・医じ繝ｻ繧｢繝ｳ繝・婿蠑擾ｼ・
+     * @param {Object} shipMovement - Firebase縺九ｉ蜿門ｾ励＠縺溽ｧｻ蜍輔ョ繝ｼ繧ｿ
+     * @returns {Object} { x, y, isMoving } - 謗ｨ貂ｬ縺輔ｌ縺溽樟蝨ｨ菴咲ｽｮ縺ｨ遘ｻ蜍穂ｸｭ縺九←縺・°
+     */
+    // calculateCurrentPosition(shipMovement) {
+    //     const now = Date.now();
+    //
+    //     // 遘ｻ蜍穂ｸｭ縺ｧ縺ｪ縺・√∪縺溘・蛻ｰ逹貂医∩縺ｮ蝣ｴ蜷・
+    //     if (!shipMovement.targetPosition || now >= shipMovement.arrivalTime) {
+    //         return {
+    //             x: shipMovement.shipPosition.x,
+    //             y: shipMovement.shipPosition.y,
+    //             isMoving: false
+    //         };
+    //     }
+    //
+    //     // 遘ｻ蜍穂ｸｭ縺ｮ蝣ｴ蜷医∫ｵ碁℃譎る俣縺九ｉ菴咲ｽｮ繧定ｨ育ｮ・
+    //     const elapsed = now - shipMovement.departureTime;
+    //     const totalDuration = shipMovement.arrivalTime - shipMovement.departureTime;
+    //     const progress = Math.min(elapsed / totalDuration, 1.0); // 0.0 ~ 1.0
+    //
+    //     const startX = shipMovement.shipPosition.x;
+    //     const startY = shipMovement.shipPosition.y;
+    //     const targetX = shipMovement.targetPosition.x;
+    //     const targetY = shipMovement.targetPosition.y;
+    //
+    //     const currentX = startX + (targetX - startX) * progress;
+    //     const currentY = startY + (targetY - startY) * progress;
+    //
+    //     return { x: currentX, y: currentY, isMoving: true };
+    // }
+
+    /**
+     * 繝｡繝・そ繝ｼ繧ｸ繧堤判髱｢縺ｫ陦ｨ遉ｺ縺吶ｋ・域欠螳壽凾髢灘ｾ後↓閾ｪ蜍慕噪縺ｫ豸医∴繧具ｼ・
+     * @param {string} message - 陦ｨ遉ｺ縺吶ｋ繝｡繝・そ繝ｼ繧ｸ
+     */
+    showMessage(message) {
+        if (!this.messageText) return;
+
+        this.messageText.setText(message);
+        this.messageText.setVisible(true);
+
+        // 譌｢蟄倥・繧ｿ繧､繝槭・縺後≠繧後・繧ｯ繝ｪ繧｢
+        if (this.messageTimer) {
+            this.messageTimer.remove();
+        }
+
+        // 謖・ｮ壽凾髢灘ｾ後↓繝｡繝・そ繝ｼ繧ｸ繧帝撼陦ｨ遉ｺ縺ｫ縺吶ｋ
+        this.messageTimer = this.time.delayedCall(GAME_CONFIG.MESSAGE_DISPLAY_DURATION, () => {
+            this.messageText.setVisible(false);
+        });
+    }
+
+    /**
+     * 繧ｨ繝ｩ繝ｼ繝｡繝・そ繝ｼ繧ｸ繧堤判髱｢荳ｭ螟ｮ縺ｫ陦ｨ遉ｺ縺吶ｋ
+     * @param {string} message - 繧ｨ繝ｩ繝ｼ繝｡繝・そ繝ｼ繧ｸ
+     */
+    showError(message) {
+        const errorText = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2,
+            message,
+            {
+                fontSize: '16px',
+                fill: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 20, y: 10 },
+                align: 'center'
+            }
+        );
+        errorText.setOrigin(0.5);
+        errorText.setScrollFactor(0);
+        errorText.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
+    }
+
+    moveShipTo(x, y, targetIsland) {
+        console.log('[moveShipTo] Called with x:', x, 'y:', y, 'targetIsland:', targetIsland);
+        this.hideBoardingButton();
+
+        const startX = this.playerShip.x;
+        const startY = this.playerShip.y;
+        const distance = Phaser.Math.Distance.Between(startX, startY, x, y);
+
+        if (this.shipMoving || !this.canMove || distance > this.shipVisionRange) {
+            this.showMessage(this.shipMoving ? '移動中です。' : (!this.canMove ? '移動クールダウン中です。' : '遠すぎて移動できません。'));
+            return;
+        }
+
+        this.hideIslandCommandMenu();
+
+        const duration = (distance / this.shipSpeed) * 1000;
+        this.updateMyShipPosition(x, y);
+
+        const angleRad = Phaser.Math.Angle.Between(startX, startY, x, y);
+        const angleDeg = Phaser.Math.RadToDeg(angleRad);
+
+        let animKey = 'ship_down';
+        if (angleDeg >= -22.5 && angleDeg < 22.5) animKey = 'ship_right';
+        else if (angleDeg >= 22.5 && angleDeg < 67.5) animKey = 'ship_down_right';
+        else if (angleDeg >= 67.5 && angleDeg < 112.5) animKey = 'ship_down';
+        else if (angleDeg >= 112.5 && angleDeg < 157.5) animKey = 'ship_down_left';
+        else if (angleDeg >= 157.5 || angleDeg < -157.5) animKey = 'ship_left';
+        else if (angleDeg >= -157.5 && angleDeg < -112.5) animKey = 'ship_up_left';
+        else if (angleDeg >= -112.5 && angleDeg < -67.5) animKey = 'ship_up';
+        else if (angleDeg >= -67.5 && angleDeg < -22.5) animKey = 'ship_up_right';
+
+        const shipTypeKey = this.playerShip.shipTypeKey;
+        if (shipTypeKey) {
+            const fullAnimKey = animKey + shipTypeKey;
+            if (this.anims.exists(fullAnimKey)) {
+                this.playerShip.anims.play(fullAnimKey, true);
+                this.playerShip.lastAnimKey = animKey;
+            } else {
+                console.warn(`Animation key ${fullAnimKey} not found.`);
+            }
+        }
+
+        this.canMove = false;
+        this.shipMoving = true;
+        this.shipTargetX = x;
+        this.shipTargetY = y;
+        this.shipTargetIsland = targetIsland;
+
+        this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleRad), this.shipSpeed, this.playerShip.body.velocity);
+
+        this.shipArrivalTimer = this.time.delayedCall(duration, () => {
+            if (this.shipMoving) this.onShipArrived();
+        });
+    }
+
+    onShipArrived() {
+        this.shipMoving = false;
+        this.playerShip.body.setVelocity(0, 0);
+
+        this.stopShipAnimation();
+        this.updateMyShipStoppedPosition();
+
+        if (this.shipTargetIsland) {
+            this.claimIsland(this.shipTargetIsland);
+        }
+
+        this.time.delayedCall(this.moveCooldown, () => {
+            this.canMove = true;
+        });
+    }
+
+    stopShipAnimation() {
+        this.playerShip.anims.stop();
+        const shipTypeKey = this.playerShip.shipTypeKey;
+        const lastAnimKey = this.playerShip.lastAnimKey || 'ship_down';
+
+        if (shipTypeKey && this.shipAnims[shipTypeKey]) {
+            const idleFrame = this.shipAnims[shipTypeKey].idleFrames[lastAnimKey];
+            if (idleFrame !== undefined) {
+                this.playerShip.setFrame(idleFrame);
+            }
+        } else {
+            this.playerShip.setFrame(1); // Fallback
+        }
+    }
+
+    // --- 繧ｮ繝ｫ繝芽飴・・uildShips.png・臥畑繝倥Ν繝代・ ---
+    // 48x48縲∝・謨ｰ=21縲よ婿蜷代・荳贋ｸ句ｷｦ蜿ｳ4譁ｹ蜷代・縺ｿ縺ｧ蜷・繧ｳ繝槭・
+    // 荳・0..2 / 蟾ｦ:21..23 / 蜿ｳ:42..44 / 荳・63..65
+    // 濶ｲ縺ｯ縲瑚飴/逋ｽ=0, 襍､=3, 髱・6, 鮟・9, 邱・12縲阪・3繧ｳ繝槫腰菴阪が繝輔そ繝・ヨ縲・
+    getGuildShipFrame(directionKey, frameIndex, layerKey, colorKey) {
+        const cols = this.guildShipSheetCols ?? 21;
+        const dirMap = { down: 0, left: 1, right: 2, up: 3 };
+        const dirIndex = dirMap[directionKey] ?? 0;
+        const colBase = this.guildShipColorOffsets?.[colorKey] ?? 0;
+
+        const blockMap = { top: 0, middle: 4, bottom: 8 };
+        const blockRowStart = blockMap[layerKey] ?? 0;
+        const row = blockRowStart + dirIndex;
+
+        return row * cols + colBase + frameIndex;
+    }
+
+    // 繝ｬ繧､繝､繝ｼ4譫夲ｼ井ｸ九°繧・ 闊ｹ縲∝ｸ・∝ｸ・∝ｸ・ｼ峨ｒ縺ｾ縺ｨ繧√※菴懈・縺吶ｋ
+    createGuildShipVisual(x, y, sailColorKey = 'white') {
+        const container = this.add.container(x, y);
+        container.setDepth(GAME_CONFIG.DEPTH.SHIP);
+
+        const ship = this.add.sprite(0, 0, 'guild_ship_sprite', this.getGuildShipFrame('down', 1, 'top', 'white'));
+        const sailTop = this.add.sprite(0, 0, 'guild_ship_sprite', this.getGuildShipFrame('down', 1, 'top', sailColorKey));
+        const sailMiddle = this.add.sprite(0, 0, 'guild_ship_sprite', this.getGuildShipFrame('down', 1, 'middle', sailColorKey));
+        const sailBottom = this.add.sprite(0, 0, 'guild_ship_sprite', this.getGuildShipFrame('down', 1, 'bottom', sailColorKey));
+
+        // 逋ｽ縺ｮ蝣ｴ蜷医∽ｸ頑ｮｵ縺ｯ闊ｹ逕ｻ蜒上↓蜷ｫ縺ｾ繧後ｋ諠ｳ螳壹↑縺ｮ縺ｧ髱櫁｡ｨ遉ｺ
+        sailTop.setVisible(sailColorKey !== 'white');
+
+        container.add([ship, sailBottom, sailMiddle, sailTop]);
+
+        return {
+            container,
+            ship,
+            sailTop,
+            sailMiddle,
+            sailBottom,
+            sailColorKey,
+            directionKey: 'down',
+            frameIndex: 1
+        };
+    }
+
+    setGuildShipVisualFrame(visual, directionKey, frameIndex) {
+        if (!visual) return;
+        const color = visual.sailColorKey ?? 'white';
+        visual.directionKey = directionKey;
+        visual.frameIndex = frameIndex;
+
+        visual.ship.setFrame(this.getGuildShipFrame(directionKey, frameIndex, 'top', 'white'));
+        visual.sailTop.setFrame(this.getGuildShipFrame(directionKey, frameIndex, 'top', color));
+        visual.sailMiddle.setFrame(this.getGuildShipFrame(directionKey, frameIndex, 'middle', color));
+        visual.sailBottom.setFrame(this.getGuildShipFrame(directionKey, frameIndex, 'bottom', color));
+        visual.sailTop.setVisible(color !== 'white');
+    }
+
+    setGuildShipVisualColor(visual, sailColorKey) {
+        if (!visual) return;
+        visual.sailColorKey = sailColorKey;
+        this.setGuildShipVisualFrame(visual, visual.directionKey ?? 'down', visual.frameIndex ?? 1);
+    }
+
+    createBoardingButton() {
+        const camera = this.cameras.main;
+        const width = 240;
+        const height = 44;
+        const x = camera.width / 2;
+        const yHidden = camera.height + height;
+
+        const bg = this.add.rectangle(0, 0, width, height, 0x111827, 0.95);
+        bg.setStrokeStyle(2, 0xffffff, 0.25);
+
+        const label = this.add.text(0, 0, '乗り込み', {
+            fontSize: '16px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        const container = this.add.container(x, yHidden, [bg, label]);
+        container.setScrollFactor(0);
+        container.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 5);
+        container.setSize(width, height);
+        container.setInteractive(new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height), Phaser.Geom.Rectangle.Contains);
+
+        container.on('pointerup', () => {
+            if (!this.boardingTargetId) return;
+            if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
+                window.startBattleWithOpponent(this.boardingTargetId);
+                this.hideBoardingButton();
+            } else {
+                console.warn('[Boarding] Battle system not ready: window.startBattleWithOpponent not found');
+            }
+        });
+
+        this.boardingButton = { container, label, yHidden, yShown: camera.height - 60 };
+        this.boardingVisible = false;
+    }
+
+    showBoardingButton(targetPlayFabId, displayName = '') {
+        if (!this.boardingButton) return;
+        this.boardingTargetId = targetPlayFabId;
+        const text = displayName ? `乗り込み (${displayName})` : '乗り込み';
+        this.boardingButton.label.setText(text);
+
+        if (this.boardingVisible) return;
+        this.boardingVisible = true;
+        this.tweens.add({
+            targets: this.boardingButton.container,
+            y: this.boardingButton.yShown,
+            duration: 200,
+            ease: 'Sine.easeOut'
+        });
+    }
+
+    hideBoardingButton() {
+        if (!this.boardingButton || !this.boardingVisible) return;
+        this.boardingVisible = false;
+        this.boardingTargetId = null;
+        this.tweens.add({
+            targets: this.boardingButton.container,
+            y: this.boardingButton.yHidden,
+            duration: 200,
+            ease: 'Sine.easeIn'
+        });
+    }
+
+    async ramShipDamage(otherPlayFabId) {
+        const myId = this.playerInfo?.playFabId;
+        if (!myId || !otherPlayFabId) return;
+
+        // 荳｡閠・′蜷梧凾縺ｫ陦晉ｪ∝・逅・ｒ襍ｰ繧峨○縺ｦ繧ゅ∫援蛛ｴ縺縺羨PI繧貞娼縺擾ｼ医ム繝｡繝ｼ繧ｸ莠碁㍾髦ｲ豁｢・・
+        if (String(myId) > String(otherPlayFabId)) return;
+
+        const now = Date.now();
+        const lastAt = this.lastRamDamageAt.get(otherPlayFabId) || 0;
+        if (now - lastAt < 5000) return;
+        this.lastRamDamageAt.set(otherPlayFabId, now);
+
+        try {
+            const res = await fetch('/api/ram-ship', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ attackerId: myId, defenderId: otherPlayFabId, damage: 5 })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                console.warn('[ShipCollision] ram-ship failed:', data);
+            }
+        } catch (error) {
+            console.warn('[ShipCollision] ram-ship request error:', error);
+        }
+    }
+
+    handleShipCollision(otherPlayFabId, shipObject) {
+        if (!this.playerShip || !shipObject?.sprite) return;
+
+        // 閾ｪ闊ｹ蛛懈ｭ｢
+        if (this.shipMoving) {
+            this.shipMoving = false;
+        }
+        this.playerShip.body?.setVelocity(0, 0);
+        if (this.shipTween) this.shipTween.stop();
+        if (this.shipArrivalTimer) this.shipArrivalTimer.remove();
+        this.stopShipAnimation();
+        this.updateMyShipStoppedPosition();
+        this.canMove = true;
+
+        // 逶ｸ謇玖飴蛛懈ｭ｢・郁｣憺俣/繧｢繝九Γ蛛懈ｭ｢・・
+        shipObject.motion = null;
+        shipObject.sprite.body?.setVelocity(0, 0);
+        shipObject.sprite.anims?.stop();
+        const idleKey = shipObject.lastAnimKey || 'ship_down';
+        const shipTypeKey = shipObject.shipTypeKey;
+        if (shipTypeKey && this.shipAnims?.[shipTypeKey]) {
+            const idleFrame = this.shipAnims[shipTypeKey].idleFrames?.[idleKey];
+            if (idleFrame !== undefined) shipObject.sprite.setFrame(idleFrame);
+        }
+
+        // 繝繝｡繝ｼ繧ｸ・域怙蟆剰ｲ闕ｷ: 陦晉ｪ∵凾縺ｮ縺ｿ繧ｵ繝ｼ繝舌・縺ｸ・・
+        this.ramShipDamage(otherPlayFabId);
+
+        // 荵励ｊ霎ｼ縺ｿUI
+        this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
+        this.showMessage('接近しました。乗り込み可能です。');
+    }
+
+    checkShipShipCollisions() {
+        if (!this.playerShip) return;
+
+        if (this.boardingVisible && this.boardingTargetId) {
+            const target = this.otherShips.get(this.boardingTargetId);
+            if (!target?.sprite) {
+                this.hideBoardingButton();
+            } else {
+                const d = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, target.sprite.x, target.sprite.y);
+                if (d > this.shipCollisionRadius * 2.5) {
+                    this.hideBoardingButton();
+                }
+            }
+        }
+
+        const radius = this.shipCollisionRadius;
+        this.otherShips.forEach((shipObject, otherPlayFabId) => {
+            if (!shipObject?.sprite) return;
+            const distance = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, shipObject.sprite.x, shipObject.sprite.y);
+            if (distance <= radius) {
+                this.handleShipCollision(otherPlayFabId, shipObject);
+            }
+        });
+    }
+
+    async claimIsland(islandData) {
+        // 閾ｪ蛻・・蟲ｶ縲√∪縺溘・繝励Ξ繧､繝､繝ｼ諠・ｱ縺後↑縺代ｌ縺ｰ菴輔ｂ縺励↑縺・
+        if (!this.playerInfo.playFabId || islandData.ownerId === this.playerInfo.playFabId) {
+            return;
+        }
+
+        console.log(`蟲ｶ縲・{islandData.name}縲阪・謇譛画ｨｩ繧剃ｸｻ蠑ｵ縺励∪縺・..`);
+
+        const db = getFirestore();
+        const islandRef = doc(db, 'world_map', islandData.id);
+
+        await updateDoc(islandRef, {
+            ownerId: this.playerInfo.playFabId,
+            ownerRace: this.playerInfo.race
+        }).then(() => {
+            console.log('所有権の更新に成功');
+            // 繧ｲ繝ｼ繝蜀・・陦ｨ遉ｺ繧呈峩譁ｰ
+            islandData.ownerId = this.playerInfo.playFabId;
+            islandData.ownerRace = this.playerInfo.race;
+            if (islandData.nameText) {
+                const newColor = this.getRaceColor(this.playerInfo.race);
+                islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
+            }
+            this.showMessage(`${islandData.name}を占領しました。`);
+        });
+    }
+
+    /**
+     * 蟲ｶ縺ｮ繧ｳ繝槭Φ繝峨ヱ繝阪Ν繧定｡ｨ遉ｺ縺吶ｋ・・TML繝代ロ繝ｫ繧剃ｽｿ逕ｨ・・
+     * @param {Object} islandData - 蟲ｶ縺ｮ繝・・繧ｿ
+     */
+    showIslandCommandMenu(islandData) {
+        // HTML繝代ロ繝ｫ縺ｮ隕∫ｴ繧貞叙蠕・
+        const panel = document.getElementById('islandCommandPanel');
+        const title = document.getElementById('islandCommandTitle');
+        const actionBtn = document.getElementById('islandCommandAction');
+        const closeBtn = document.getElementById('islandCommandClose');
+
+        if (!panel || !title || !actionBtn || !closeBtn) {
+            console.error('[showIslandCommandMenu] HTMLパネルが見つかりません');
+            return;
+        }
+
+        // 迴ｾ蝨ｨ蛻ｰ逹縺励※縺・ｋ蟲ｶ蜷阪ｒ險ｭ螳・
+        title.textContent = islandData.name;
+
+        const myPlayFabId = this.playerInfo?.playFabId;
+        const isOwner = !!myPlayFabId && islandData.ownerId === myPlayFabId;
+
+        let buttonText = '建設メニューを開く';
+        let buttonClass = 'info';
+        let onClick = async () => {
+            await this.openBuildingMenuForIsland(islandData);
+        };
+
+        if (!myPlayFabId) {
+            buttonText = 'ログインが必要です';
+            buttonClass = 'disabled';
+            onClick = () => this.showMessage('ログインしてください。');
+        } else if (!isOwner) {
+            buttonText = '占領して建設メニューを開く';
+            buttonClass = 'warning';
+            onClick = async () => {
+                await this.claimIsland(islandData);
+                await this.openBuildingMenuForIsland(islandData);
+            };
+        }
+
+        // 繝懊ち繝ｳ縺ｮ繝・く繧ｹ繝医→繧ｯ繝ｩ繧ｹ繧定ｨｭ螳・
+        actionBtn.textContent = buttonText;
+        actionBtn.className = 'island-command-btn ' + buttonClass;
+
+        // 譌｢蟄倥・繧､繝吶Φ繝医Μ繧ｹ繝翫・繧貞炎髯､・磯㍾隍・ｒ髦ｲ縺撰ｼ・
+        const newActionBtn = actionBtn.cloneNode(true);
+        actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+
+        // 譁ｰ縺励＞繧､繝吶Φ繝医Μ繧ｹ繝翫・繧定ｿｽ蜉
+        newActionBtn.addEventListener('click', () => {
+            void onClick();
+        });
+
+        newCloseBtn.addEventListener('click', () => {
+            this.hideIslandCommandMenu();
+        });
+
+        // 繝代ロ繝ｫ繧定｡ｨ遉ｺ・井ｸ九°繧峨せ繝ｩ繧､繝峨う繝ｳ・・
+        setTimeout(() => {
+            panel.classList.add('active');
+        }, 10);
+
+        // commandMenu繝輔Λ繧ｰ繧定ｨｭ螳夲ｼ医ち繝・メ繧､繝吶Φ繝医〒菴ｿ逕ｨ・・
+        this.commandMenuOpen = true;
+    }
+
+    async openBuildingMenuForIsland(islandData) {
+        if (!window.Island || !window.Island.getIslandDetails || !window.Island.showBuildingMenu) {
+            this.showMessage('建設メニューを開けません。');
+            return;
+        }
+
+        const islandDetails = await window.Island.getIslandDetails(islandData.id);
+        if (!islandDetails) {
+            this.showMessage('島の詳細情報の取得に失敗しました。');
+            return;
+        }
+
+        window.Island.showBuildingMenu(islandDetails, this.playerInfo.playFabId);
+        this.hideIslandCommandMenu();
+    }
+
+    /**
+     * 蟲ｶ縺ｮ繧ｳ繝槭Φ繝峨ヱ繝阪Ν繧帝撼陦ｨ遉ｺ縺ｫ縺吶ｋ
+     */
+    hideIslandCommandMenu() {
+        const panel = document.getElementById('islandCommandPanel');
+        if (panel) {
+            panel.classList.remove('active');
+        }
+        this.commandMenuOpen = false;
+        this.collidingIsland = null;
+    }
+
+    /**
+     * 蟲ｶ繧呈叛譽・☆繧・
+     * @param {Object} islandData - 蟲ｶ縺ｮ繝・・繧ｿ
+     */
+    async abandonIsland(islandData) {
+        console.log(`蟲ｶ縲・{islandData.name}縲阪ｒ謾ｾ譽・＠縺ｾ縺・..`);
+
+        const db = getFirestore();
+        const islandRef = doc(db, 'world_map', islandData.id);
+
+        await updateDoc(islandRef, {
+            ownerId: null,
+            ownerRace: null
+        }).then(() => {
+            console.log('島の放棄に成功');
+            // 繧ｲ繝ｼ繝蜀・・陦ｨ遉ｺ繧呈峩譁ｰ
+            islandData.ownerId = null;
+            islandData.ownerRace = null;
+            if (islandData.nameText) {
+                const newColor = this.getRaceColor(null);
+                islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
+            }
+            this.showMessage(`${islandData.name}を放棄しました。`);
+        });
+    }
+
+    /**
+     * 蟲ｶ繧呈判謦・☆繧・
+     * @param {Object} islandData - 蟲ｶ縺ｮ繝・・繧ｿ
+     */
+    async attackIsland(islandData) {
+        console.log(`蟲ｶ縲・{islandData.name}縲阪ｒ謾ｻ謦・＠縺ｾ縺・..`);
+        // TODO: 謌ｦ髣倥す繧ｹ繝・Β繧貞ｮ溯｣・
+        this.showMessage(`${islandData.name}への攻撃を開始しました。`);
+    }
+
+    update() {
+        this.drawFogOfWar();
+        this.updateMinimapPlayerMarker();
+        this.refreshShipSubscriptions();
+        this.interpolateOtherShips();
+        this.pruneOtherShips();
+        this.checkShipShipCollisions();
+        this.clearCollidingIslandWhenFar();
+    }
+
+    clearCollidingIslandWhenFar() {
+        if (!this.collidingIsland || !this.playerShip) return;
+
+        const distance = Phaser.Math.Distance.Between(
+            this.playerShip.x,
+            this.playerShip.y,
+            this.collidingIsland.x + this.collidingIsland.width / 2,
+            this.collidingIsland.y + this.collidingIsland.height / 2
+        );
+        const clearDistance = Math.max(this.collidingIsland.width, this.collidingIsland.height) / 2 + 50;
+        if (distance > clearDistance) {
+            this.collidingIsland = null;
+        }
+    }
+
+    /**
+     * 繝溘ル繝槭ャ繝励・繝励Ξ繧､繝､繝ｼ繝槭・繧ｫ繝ｼ繧呈峩譁ｰ
+     */
+    updateMinimapPlayerMarker() {
+        if (!this.minimapPlayerMarker || !this.minimapConfig || !this.playerShip) return;
+
+        this.minimapPlayerMarker.clear();
+
+        // 繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ縺ｮ菴咲ｽｮ繧偵Α繝九・繝・・蠎ｧ讓吶↓螟画鋤
+        const minimapPlayerX = this.minimapConfig.x + (this.playerShip.x / this.mapPixelSize) * this.minimapConfig.size;
+        const minimapPlayerY = this.minimapConfig.y + (this.playerShip.y / this.mapPixelSize) * this.minimapConfig.size;
+
+        // 襍､縺・せ縺ｧ繝励Ξ繧､繝､繝ｼ縺ｮ菴咲ｽｮ繧定｡ｨ遉ｺ
+        this.minimapPlayerMarker.fillStyle(0xff0000, 1);
+        this.minimapPlayerMarker.fillCircle(minimapPlayerX, minimapPlayerY, 3);
+
+        // 隕也阜遽・峇繧貞・縺ｧ陦ｨ遉ｺ
+        this.minimapPlayerMarker.lineStyle(1, 0xff0000, 0.5);
+        this.minimapPlayerMarker.strokeCircle(
+            minimapPlayerX,
+            minimapPlayerY,
+            (this.shipVisionRange / this.mapPixelSize) * this.minimapConfig.size
+        );
+    }
+
+    drawFogOfWar() {
+        if (!this.fogGraphics) return;
+
+        this.fogGraphics.clear();
+
+        const screenWidth = this.cameras.main.width;
+        const screenHeight = this.cameras.main.height;
+        const centerX = screenWidth / 2;
+        const centerY = screenHeight / 2;
+
+        // 隕也阜遽・峇螟悶ｒ證励￥縺吶ｋ・育判髱｢縺ｮ蝗幃嚆縺九ｉ蜀・ｽ｢縺ｮ隕也阜遽・峇縺ｾ縺ｧ・・
+        this.fogGraphics.fillStyle(0x000000, GAME_CONFIG.FOG_ALPHA);
+        this.fogGraphics.fillRect(0, 0, screenWidth, Math.max(0, centerY - this.shipVisionRange));
+
+        // 荳矩Κ縺ｮ髟ｷ譁ｹ蠖｢
+        this.fogGraphics.fillRect(0, centerY + this.shipVisionRange, screenWidth, screenHeight - (centerY + this.shipVisionRange));
+
+        // 蟾ｦ蛛ｴ縺ｮ髟ｷ譁ｹ蠖｢
+        this.fogGraphics.fillRect(0, Math.max(0, centerY - this.shipVisionRange),
+                                   Math.max(0, centerX - this.shipVisionRange),
+                                   this.shipVisionRange * 2);
+
+        // 蜿ｳ蛛ｴ縺ｮ髟ｷ譁ｹ蠖｢
+        this.fogGraphics.fillRect(centerX + this.shipVisionRange,
+                                   Math.max(0, centerY - this.shipVisionRange),
+                                   screenWidth - (centerX + this.shipVisionRange),
+                                   this.shipVisionRange * 2);
+
+        // 蝗幃嚆縺ｮ隗偵ｒ證励￥縺吶ｋ・郁ｦ也阜遽・峇縺ｮ蜀・ｽ｢縺ｮ螟門・・・
+        const steps = GAME_CONFIG.FOG_STEPS;
+        for (let i = 0; i < steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            const nextAngle = ((i + 1) / steps) * Math.PI * 2;
+
+            const x1 = centerX + Math.cos(angle) * this.shipVisionRange;
+            const y1 = centerY + Math.sin(angle) * this.shipVisionRange;
+            const x2 = centerX + Math.cos(nextAngle) * this.shipVisionRange;
+            const y2 = centerY + Math.sin(nextAngle) * this.shipVisionRange;
+
+            // 螟門・縺ｮ轤ｹ繧定ｨ育ｮ・
+            const outerX1 = centerX + Math.cos(angle) * Math.max(screenWidth, screenHeight);
+            const outerY1 = centerY + Math.sin(angle) * Math.max(screenWidth, screenHeight);
+            const outerX2 = centerX + Math.cos(nextAngle) * Math.max(screenWidth, screenHeight);
+            const outerY2 = centerY + Math.sin(nextAngle) * Math.max(screenWidth, screenHeight);
+
+            this.fogGraphics.fillTriangle(x1, y1, x2, y2, outerX1, outerY1);
+            this.fogGraphics.fillTriangle(x2, y2, outerX2, outerY2, outerX1, outerY1);
+        }
+    }
+
+    /**
+     * Firestore繧貞・譛溷喧縺励※縲∽ｻ悶・繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧定ｳｼ隱ｭ縺吶ｋ
+     */
+    async initializeFirestore() {
+        if (window.firestore) {
+            this.firestore = window.firestore;
+        } else {
+            try {
+                this.firestore = getFirestore();
+            } catch (error) {
+                console.warn('[Firestore] Firestore instance not available.', error);
+                return;
+            }
+        }
+
+        console.log('[Firestore] Firestore initialized successfully');
+
+        if (!this.playerInfo || !this.playerInfo.playFabId) {
+            console.warn('[Firestore] PlayerInfo not available. Cannot sync ships.');
+            return;
+        }
+
+        await this.restoreOrCreateMyShipPosition();
+
+        this.subscribeToOtherShips();
+        this.subscribeToConstructingIslands();
+        this.subscribeToDemolishedIslands();
+    }
+
+    /**
+     * 莉悶・繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧巽irestore縺九ｉ雉ｼ隱ｭ縺吶ｋ・・eohash繝吶・繧ｹ・・
+     */
+    async subscribeToOtherShips() {
+        // geohash繧ｵ繝悶せ繧ｯ繝ｪ繝励す繝ｧ繝ｳ縺ｮ蛻晏屓譖ｴ譁ｰ繧貞叉譎り｡後≧
+        await this.refreshShipSubscriptions(true);
+    }
+
+    /**
+     * 閾ｪ蛻・・闊ｹ縺ｮ菴咲ｽｮ繧巽irestore縺ｫ譖ｸ縺崎ｾｼ繧
+     * @param {number} targetX - 逶ｮ讓儿蠎ｧ讓・
+     * @param {number} targetY - 逶ｮ讓兀蠎ｧ讓・
+     */
+    async updateMyShipPosition(targetX, targetY) {
+        if (!this.firestore || !this.playerInfo || !this.playerInfo.playFabId) {
+            return;
+        }
+
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+        try {
+            const currentX = this.playerShip.x;
+            const currentY = this.playerShip.y;
+            const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
+            const duration = (distance / this.shipSpeed) * 1000; // 繝溘Μ遘・
+            const arrivalTime = Date.now() + duration;
+            // geohash縺ｯ縲檎樟蝨ｨ菴咲ｽｮ縲榊渕貅厄ｼ育ｧｻ蜍穂ｸｭ繧りｿ代￥縺ｮ繝励Ξ繧､繝､繝ｼ縺瑚ｳｼ隱ｭ縺ｧ縺阪ｋ繧医≧縺ｫ縺吶ｋ・・
+            const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
+            const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+
+            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+            await setDoc(shipRef, {
+                playFabId: this.playerInfo.playFabId,
+                displayName: window.myLineProfile?.displayName || 'Unknown',
+                race: this.playerInfo.race || 'human',
+                appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
+                currentX: currentX,
+                currentY: currentY,
+                targetX: targetX,
+                targetY: targetY,
+                geohash: geohash,
+                arrivalTime: arrivalTime,
+                speed: this.shipSpeed,
+                // Server-side ships schema compatibility (so other clients can render even if they expect position/movement).
+                position: { x: currentX, y: currentY },
+                movement: {
+                    isMoving: true,
+                    departureTime: Date.now(),
+                    arrivalTime: arrivalTime,
+                    departurePos: { x: currentX, y: currentY },
+                    destinationPos: { x: targetX, y: targetY }
+                },
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            console.log('[Firestore] Ship position updated:', { currentX, currentY, targetX, targetY, arrivalTime });
+        } catch (error) {
+            console.error('[Firestore] Error updating ship position:', error);
+        }
+    }
+
+    /**
+     * 莉悶・繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧呈峩譁ｰ縺ｾ縺溘・菴懈・縺吶ｋ
+     * @param {string} playFabId - 繝励Ξ繧､繝､繝ｼID
+     * @param {Object} shipData - 闊ｹ繝・・繧ｿ
+     */
+    async updateMyShipStoppedPosition() {
+        if (!this.firestore || !this.playerInfo || !this.playerInfo.playFabId || !this.playerShip) {
+            return;
+        }
+
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+        try {
+            const currentX = this.playerShip.x;
+            const currentY = this.playerShip.y;
+            const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
+            const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+
+            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+            await setDoc(shipRef, {
+                playFabId: this.playerInfo.playFabId,
+                displayName: window.myLineProfile?.displayName || 'Unknown',
+                race: this.playerInfo.race || 'human',
+                appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
+                currentX: currentX,
+                currentY: currentY,
+                targetX: currentX,
+                targetY: currentY,
+                geohash: geohash,
+                arrivalTime: Date.now(),
+                speed: this.shipSpeed,
+                position: { x: currentX, y: currentY },
+                movement: {
+                    isMoving: false,
+                    departureTime: null,
+                    arrivalTime: null,
+                    departurePos: null,
+                    destinationPos: null
+                },
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error('[Firestore] Error updating stopped ship position:', error);
+        }
+    }
+
+    async restoreOrCreateMyShipPosition() {
+        if (!this.firestore || !this.playerInfo?.playFabId || !this.playerShip) {
+            return;
+        }
+
+        const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+        try {
+            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+            const snapshot = await getDoc(shipRef);
+
+            if (snapshot.exists()) {
+                const data = snapshot.data() || {};
+
+                // --- 闊ｹ縺ｮ繧｢繧ｻ繝・ヨ諠・ｱ繧貞叙蠕励＠縺ｦ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ繧呈ｺ門ｙ ---
+                let shipId = data.shipId;
+                let assetDataResolved = null;
+
+                // shipId 縺檎┌縺・ｴ蜷医・謇謖∬飴縺ｮ蜈磯ｭ繧呈治逕ｨ・域怙蛻昴・闊ｹ縺ｮ baseFrame 繧貞渚譏・・
+                if (!shipId) {
+                    try {
+                        const ownedShips = await Ship.getPlayerShips(this.playerInfo.playFabId);
+                        const first = Array.isArray(ownedShips) && ownedShips.length > 0 ? ownedShips[0] : null;
+                        shipId = first?.shipId;
+                        assetDataResolved = first?.assetData || null;
+                        if (shipId) {
+                            await setDoc(shipRef, { shipId }, { merge: true });
+                        }
+                    } catch (e) {
+                        console.warn('[WorldMapScene] Failed to resolve shipId from owned ships:', e);
+                    }
+                }
+
+                if (shipId && !assetDataResolved) {
+                    try {
+                        assetDataResolved = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
+                    } catch (e) {
+                        console.error("Failed to get ship asset on init", e);
+                    }
+                }
+
+                const myColor = data?.appearance?.color || window.myAvatarBaseInfo?.AvatarColor;
+                const sheetKey = this.getShipSpriteSheetKey(myColor);
+                if (this.playerShip.texture?.key !== sheetKey) {
+                    this.playerShip.setTexture(sheetKey);
+                }
+
+                const isDestroyed = Number(assetDataResolved?.Stats?.CurrentHP) <= 0;
+                const baseFrameResolved = isDestroyed ? 0 : Number(assetDataResolved?.baseFrame);
+                if (Number.isFinite(baseFrameResolved) && assetDataResolved?.ItemId) {
+                    const shipTypeKey = `${assetDataResolved.ItemId}__${sheetKey}__bf${baseFrameResolved}`;
+                    this.generateShipAnims(baseFrameResolved, shipTypeKey);
+                    this.playerShip.shipTypeKey = shipTypeKey;
+                    this.playerShip.lastAnimKey = 'ship_down';
+                    const idleFrame = this.shipAnims?.[shipTypeKey]?.idleFrames?.ship_down;
+                    if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
+
+                    // 譌｢蟄倥・蜿､縺・・譛溷喧繝悶Ο繝・け・・hipId縺後≠繧句ｴ蜷医・蜃ｦ逅・ｼ峨ｒ繧ｹ繧ｭ繝・・
+                    shipId = null;
+                }
+                if (shipId) {
+                    try {
+                        const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true); // 襍ｷ蜍墓凾縺ｯ譛譁ｰ諠・ｱ繧貞叙蠕・
+                        const baseFrame = Number(assetData?.baseFrame);
+                        if (Number.isFinite(baseFrame) && assetData?.ItemId) {
+                            const color = data?.appearance?.color || window.myAvatarBaseInfo?.AvatarColor;
+                            const sheetKey = this.getShipSpriteSheetKey(color);
+                            if (this.playerShip.texture?.key !== sheetKey) this.playerShip.setTexture(sheetKey);
+                            const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+                            this.generateShipAnims(baseFrame, shipTypeKey);
+                            this.playerShip.shipTypeKey = shipTypeKey;
+                            this.playerShip.lastAnimKey = 'ship_down'; // 蛻晄悄譁ｹ蜷・
+                        }
+                    } catch (e) {
+                        console.error("Failed to get ship asset on init", e);
+                    }
+                }
+                // --- 縺薙％縺ｾ縺ｧ霑ｽ蜉 ---
+
+                let x = this.playerShip.x;
+                let y = this.playerShip.y;
+
+                if (data.movement?.isMoving && data.movement?.departurePos && data.movement?.destinationPos && typeof data.movement?.departureTime === 'number' && typeof data.movement?.arrivalTime === 'number') {
+                    const now = Date.now();
+                    const totalTime = data.movement.arrivalTime - data.movement.departureTime;
+                    const elapsed = now - data.movement.departureTime;
+                    const progress = totalTime > 0 ? Phaser.Math.Clamp(elapsed / totalTime, 0, 1) : 1;
+                    x = data.movement.departurePos.x + (data.movement.destinationPos.x - data.movement.departurePos.x) * progress;
+                    y = data.movement.departurePos.y + (data.movement.destinationPos.y - data.movement.departurePos.y) * progress;
+                } else if (data.position && typeof data.position.x === 'number' && typeof data.position.y === 'number') {
+                    x = data.position.x;
+                    y = data.position.y;
+                } else if (typeof data.currentX === 'number' && typeof data.currentY === 'number') {
+                    x = data.currentX;
+                    y = data.currentY;
+                }
+
+                this.playerShip.x = x;
+                this.playerShip.y = y;
+                this.stopShipAnimation(); // 豁｣縺励＞髱呎ｭ｢繝輔Ξ繝ｼ繝縺ｧ譖ｴ譁ｰ
+                return;
+            }
+
+            // 蛻晏屓縺ｮ縺ｿ菴懈・・域里蟄倥′縺ゅｋ蝣ｴ蜷医・荳翫〒蠕ｩ蜈・☆繧九・縺ｧ縲√Ο繧ｰ繧､繝ｳ縺ｮ縺溘・縺ｫ蛻晄悄菴咲ｽｮ縺ｫ謌ｻ繧峨↑縺・ｼ・
+            const currentX = this.playerShip.x;
+            const currentY = this.playerShip.y;
+            const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
+            const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+
+            await setDoc(shipRef, {
+                playFabId: this.playerInfo.playFabId,
+                displayName: window.myLineProfile?.displayName || 'Unknown',
+                race: this.playerInfo.race || 'human',
+                currentX: currentX,
+                currentY: currentY,
+                targetX: currentX,
+                targetY: currentY,
+                geohash: geohash,
+                arrivalTime: Date.now(),
+                speed: this.shipSpeed,
+                position: { x: currentX, y: currentY },
+                movement: {
+                    isMoving: false,
+                    departureTime: null,
+                    arrivalTime: null,
+                    departurePos: null,
+                    destinationPos: null
+                },
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error('[Firestore] Failed to restore/create ship position:', error);
+        }
+    }
+
+    async updateOtherShip(playFabId, shipData) {
+        let shipObject = this.otherShips.get(playFabId);
+        const now = Date.now();
+
+        // 繧｢繧ｻ繝・ヨ繝・・繧ｿ繧帝撼蜷梧悄縺ｧ蜿門ｾ・
+        const shipId = shipData.shipId;
+        let assetData = null;
+        if (shipId) {
+            try {
+                assetData = await Ship.getShipAsset(playFabId, shipId);
+            } catch (e) { console.error(`[updateOtherShip] Failed to get asset for ship ${shipId}`, e); }
+        }
+
+        const resolveWorldPos = () => {
+            if (typeof shipData?.currentX === 'number' && typeof shipData?.currentY === 'number') {
+                if (typeof shipData?.targetX === 'number' && typeof shipData?.targetY === 'number' && typeof shipData?.arrivalTime === 'number') {
+                    const speed = typeof shipData?.speed === 'number' ? shipData.speed : this.shipSpeed;
+                    const travelDuration = (Phaser.Math.Distance.Between(shipData.currentX, shipData.currentY, shipData.targetX, shipData.targetY) / speed) * 1000;
+                    const departureTime = shipData.arrivalTime - travelDuration;
+                    const elapsed = now - departureTime;
+                    const progress = travelDuration > 0 ? Phaser.Math.Clamp(elapsed / travelDuration, 0, 1) : 1;
+                    return { x: shipData.currentX + (shipData.targetX - shipData.currentX) * progress, y: shipData.currentY + (shipData.targetY - shipData.currentY) * progress };
+                }
+                return { x: shipData.currentX, y: shipData.currentY };
+            }
+            if (shipData?.movement?.isMoving && shipData?.movement?.departurePos && shipData?.movement?.destinationPos) {
+                const movement = shipData.movement;
+                if (typeof movement?.departureTime === 'number' && typeof movement?.arrivalTime === 'number') {
+                    const totalTime = movement.arrivalTime - movement.departureTime;
+                    const elapsedTime = now - movement.departureTime;
+                    const progress = totalTime > 0 ? Phaser.Math.Clamp(elapsedTime / totalTime, 0, 1) : 1;
+                    return { x: movement.departurePos.x + (movement.destinationPos.x - movement.departurePos.x) * progress, y: movement.departurePos.y + (movement.destinationPos.y - movement.departurePos.y) * progress };
+                }
+            }
+            if (shipData?.position && typeof shipData.position.x === 'number' && typeof shipData.position.y === 'number') {
+                return { x: shipData.position.x, y: shipData.position.y };
+            }
+            return { x: 0, y: 0 };
+        };
+
+        const worldPos = resolveWorldPos();
+        const sheetKey = this.getShipSpriteSheetKey(shipData?.appearance?.color);
+
+        if (!shipObject) {
+            const sprite = this.physics.add.sprite(worldPos.x, worldPos.y, sheetKey, 1);
+            sprite.setDepth(GAME_CONFIG.DEPTH.SHIP).setOrigin(0.5, 0.5).clearTint();
+            shipObject = {
+                sprite: sprite, data: shipData, lastUpdate: now, motion: null, lastAnimKey: 'ship_down',
+                shipTypeKey: null, pendingRemoval: false, removedAt: null
+            };
+            this.otherShips.set(playFabId, shipObject);
+        } else {
+            shipObject.data = shipData;
+            shipObject.lastUpdate = now;
+            shipObject.pendingRemoval = false;
+            shipObject.removedAt = null;
+            if (shipObject.sprite?.texture?.key !== sheetKey) {
+                shipObject.sprite.setTexture(sheetKey);
+            }
+        }
+
+        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+        const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
+        if (Number.isFinite(baseFrame) && assetData?.ItemId) {
+            const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+            this.generateShipAnims(baseFrame, shipTypeKey);
+            shipObject.shipTypeKey = shipTypeKey;
+        } else {
+            const defaultKey = `_default__${sheetKey}__bf0`;
+            if (!this.shipAnims[defaultKey]) this.generateShipAnims(0, defaultKey);
+            shipObject.shipTypeKey = defaultKey;
+        }
+
+        const isClientMove = typeof shipData?.currentX === 'number' && typeof shipData?.targetX === 'number' && (shipData.currentX !== shipData.targetX || shipData.currentY !== shipData.targetY);
+        const isServerMove = shipData?.movement?.isMoving && shipData.movement.departurePos && shipData.movement.destinationPos;
+
+        const applyMotion = (startX, startY, endX, endY, speed) => {
+            const durationMs = (Phaser.Math.Distance.Between(startX, startY, endX, endY) / speed) * 1000;
+            const nextMotion = { startX, startY, endX, endY, durationMs: Math.max(1, durationMs), startedAt: now };
+            if (!shipObject.motion || shipObject.motion.endX !== nextMotion.endX || shipObject.motion.endY !== nextMotion.endY) {
+                shipObject.motion = nextMotion;
+                shipObject.lastAnimKey = this.getShipAnimKey(startX, startY, endX, endY);
+                shipObject.sprite.setPosition(startX, startY);
+            }
+        };
+
+        if (isClientMove) {
+            applyMotion(shipData.currentX, shipData.currentY, shipData.targetX, shipData.targetY, shipData.speed || this.shipSpeed);
+        } else if (isServerMove) {
+            applyMotion(shipData.movement.departurePos.x, shipData.movement.departurePos.y, shipData.movement.destinationPos.x, shipData.movement.destinationPos.y, shipData.speed || this.shipSpeed);
+        } else {
+            shipObject.motion = null;
+            shipObject.sprite.setPosition(worldPos.x, worldPos.y);
+        }
+    }
+
+    getShipAnimKey(startX, startY, x, y) {
+        const angleRad = Phaser.Math.Angle.Between(startX, startY, x, y);
+        const angleDeg = Phaser.Math.RadToDeg(angleRad);
+
+        let animKey = 'ship_down';
+        if (angleDeg >= -22.5 && angleDeg < 22.5) {
+            animKey = 'ship_right';
+        } else if (angleDeg >= 22.5 && angleDeg < 67.5) {
+            animKey = 'ship_down_right';
+        } else if (angleDeg >= 67.5 && angleDeg < 112.5) {
+            animKey = 'ship_down';
+        } else if (angleDeg >= 112.5 && angleDeg < 157.5) {
+            animKey = 'ship_down_left';
+        } else if (angleDeg >= 157.5 || angleDeg < -157.5) {
+            animKey = 'ship_left';
+        } else if (angleDeg >= -157.5 && angleDeg < -112.5) {
+            animKey = 'ship_up_left';
+        } else if (angleDeg >= -112.5 && angleDeg < -67.5) {
+            animKey = 'ship_up';
+        } else if (angleDeg >= -67.5 && angleDeg < -22.5) {
+            animKey = 'ship_up_right';
+        }
+
+        return animKey;
+    }
+
+    /**
+     * 莉悶・繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧貞炎髯､縺吶ｋ
+     * @param {string} playFabId - 繝励Ξ繧､繝､繝ｼID
+     */
+    removeOtherShip(playFabId) {
+        const shipObject = this.otherShips.get(playFabId);
+        if (shipObject) {
+            shipObject.sprite.destroy();
+            this.otherShips.delete(playFabId);
+            console.log(`[Firestore] Removed ship sprite for player: ${playFabId}`);
+        }
+    }
+
+    markOtherShipRemoved(playFabId) {
+        const shipObject = this.otherShips.get(playFabId);
+        if (!shipObject) return;
+
+        shipObject.pendingRemoval = true;
+        shipObject.removedAt = Date.now();
+    }
+
+    pruneOtherShips() {
+        if (!this.playerShip) return;
+
+        const now = Date.now();
+        const hysteresisRange = this.shipVisionRange * 1.25;
+        const removeGraceMs = 5000;
+
+        this.otherShips.forEach((shipObject, playFabId) => {
+            if (!shipObject?.sprite) return;
+
+            const distance = Phaser.Math.Distance.Between(
+                this.playerShip.x,
+                this.playerShip.y,
+                shipObject.sprite.x,
+                shipObject.sprite.y
+            );
+
+            const isFar = distance > hysteresisRange;
+
+            if (shipObject.pendingRemoval) {
+                const removedAt = shipObject.removedAt || now;
+                if (now - removedAt > removeGraceMs && isFar) {
+                    this.removeOtherShip(playFabId);
+                }
+                return;
+            }
+        });
+    }
+
+    worldToLatLng(point) {
+        // 繧ｲ繝ｼ繝蠎ｧ讓・繝斐け繧ｻ繝ｫ)繧偵瑚ｷ晞屬繧ｹ繧ｱ繝ｼ繝ｫ縺ｫ荳雋ｫ縺励◆縲咲ｷｯ蠎ｦ邨悟ｺｦ縺ｸ螟画鋤縺吶ｋ縲・
+        // 莉･蜑阪・ 0..360 蠎ｦ豁｣隕丞喧縺縺ｨ縲∬ｿ題ｷ晞屬縺ｧ繧らｵ悟ｺｦ蟾ｮ縺悟､ｧ縺阪￥縺ｪ繧翫“eohash蜊雁ｾ・､懃ｴ｢縺梧ｩ溯・縺励↑縺・・
+        // 1繧ｿ繧､繝ｫ=METERS_PER_TILE 繧貞渕貅悶↓縲√・繝・・荳ｭ蠢・ｒ (lat=0,lng=0) 縺ｨ縺励◆繝ｭ繝ｼ繧ｫ繝ｫ謚募ｽｱ縺ｧ霑台ｼｼ縺吶ｋ縲・
+        const metersPerPixel = this.metersPerTile / this.gridSize;
+        const dxMeters = (point.x - this.mapPixelSize / 2) * metersPerPixel;
+        const dyMeters = (this.mapPixelSize / 2 - point.y) * metersPerPixel;
+
+        const lat = dyMeters / 110574;
+        const lng = dxMeters / 111320;
+        return { lat, lng };
+    }
+
+    teardownShipGeoSubscriptions() {
+        if (this.shipsUnsubscribe) {
+            this.shipsUnsubscribe();
+            this.shipsUnsubscribe = null;
+        }
+        this.shipGeoUnsubscribes.forEach(unsub => typeof unsub === 'function' && unsub());
+        this.shipGeoUnsubscribes = [];
+    }
+
+    async refreshShipSubscriptions(force = false) {
+        if (!this.firestore || !this.playerShip) return;
+        if (typeof document !== 'undefined' && document.hidden) return;
+
+        const now = Date.now();
+        if (!force && now - this.lastShipQueryUpdate < GAME_CONFIG.SHIP_QUERY_UPDATE_INTERVAL) return;
+
+        const center = { x: this.playerShip.x, y: this.playerShip.y };
+        if (!force && this.lastShipQueryCenter) {
+            const delta = Phaser.Math.Distance.Between(center.x, center.y, this.lastShipQueryCenter.x, this.lastShipQueryCenter.y);
+            if (delta < this.shipVisionRange * GAME_CONFIG.SHIP_QUERY_REFRESH_THRESHOLD) {
+                return;
+            }
+        }
+
+        this.lastShipQueryCenter = center;
+        this.lastShipQueryUpdate = now;
+        this.teardownShipGeoSubscriptions();
+
+        try {
+            const { collection, onSnapshot, query, orderBy, startAt, endAt } = await import('firebase/firestore');
+            const radiusTiles = this.shipVisionRange / this.gridSize;
+            const radiusMeters = radiusTiles * this.metersPerTile;
+            const centerGeo = this.worldToLatLng(center);
+            const bounds = geohashQueryBounds([centerGeo.lat, centerGeo.lng], radiusMeters);
+
+            bounds.forEach((b) => {
+                const q = query(
+                    collection(this.firestore, 'ships'),
+                    orderBy('geohash'),
+                    startAt(b[0]),
+                    endAt(b[1])
+                );
+
+                const unsub = onSnapshot(q, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        const shipData = change.doc.data();
+                        const docId = change.doc.id;
+                        const key = shipData?.playFabId ?? docId;
+
+                        if (key === this.playerInfo?.playFabId) {
+                            return;
+                        }
+
+                        if (change.type === 'removed') {
+                            this.markOtherShipRemoved(key);
+                        } else {
+                            this.updateOtherShip(key, shipData);
+                        }
+                    });
+                }, (error) => {
+                    console.error('[Firestore] Error subscribing to ships:', error);
+                });
+
+                this.shipGeoUnsubscribes.push(unsub);
+            });
+        } catch (error) {
+            console.error('[Firestore] Error setting up geohash ship subscription:', error);
+        }
+    }
+
+    /**
+     * 莉悶・繝ｬ繧､繝､繝ｼ闊ｹ縺ｮ陬憺俣繧・繝輔Ξ繝ｼ繝縺ｧ縺ｾ縺ｨ繧√※蜃ｦ逅・
+     */
+    interpolateOtherShips() {
+        const now = Date.now();
+
+        this.otherShips.forEach((shipObject) => {
+            const { data, sprite } = shipObject;
+
+            if (shipObject.motion) {
+                const motion = shipObject.motion;
+                const elapsed = now - motion.startedAt;
+                const progress = motion.durationMs > 0 ? Phaser.Math.Clamp(elapsed / motion.durationMs, 0, 1) : 1;
+                sprite.x = motion.startX + (motion.endX - motion.startX) * progress;
+                sprite.y = motion.startY + (motion.endY - motion.startY) * progress;
+
+                const animKey = shipObject.lastAnimKey || this.getShipAnimKey(motion.startX, motion.startY, motion.endX, motion.endY);
+                shipObject.lastAnimKey = animKey;
+                const shipTypeKey = shipObject.shipTypeKey;
+                if (shipTypeKey) {
+                    const fullAnimKey = animKey + shipTypeKey;
+                    if (this.anims.exists(fullAnimKey)) {
+                        sprite.anims.play(fullAnimKey, true);
+                    }
+                }
+
+                if (progress >= 1) {
+                    shipObject.motion = null;
+                    sprite.anims.stop();
+                    const shipTypeKey = shipObject.shipTypeKey;
+                    if (shipTypeKey && this.shipAnims?.[shipTypeKey]) {
+                        const idleFrame = this.shipAnims[shipTypeKey].idleFrames?.[shipObject.lastAnimKey];
+                        if (idleFrame !== undefined) sprite.setFrame(idleFrame);
+                    }
+                }
+                return;
+            }
+
+            // Client schema
+            if (
+                typeof data?.currentX === 'number' &&
+                typeof data?.currentY === 'number' &&
+                typeof data?.targetX === 'number' &&
+                typeof data?.targetY === 'number' &&
+                typeof data?.arrivalTime === 'number'
+            ) {
+                if (now >= data.arrivalTime) {
+                    sprite.x = data.targetX;
+                    sprite.y = data.targetY;
+                    if (sprite.body) sprite.body.setVelocity(0, 0);
+                    return;
+                }
+
+                const speed = typeof data?.speed === 'number' ? data.speed : this.shipSpeed;
+                const travelDuration = (Phaser.Math.Distance.Between(data.currentX, data.currentY, data.targetX, data.targetY) / speed) * 1000;
+                const departureTime = data.arrivalTime - travelDuration;
+                const elapsed = now - departureTime;
+                const progress = travelDuration > 0 ? Phaser.Math.Clamp(elapsed / travelDuration, 0, 1) : 1;
+
+                sprite.x = data.currentX + (data.targetX - data.currentX) * progress;
+                sprite.y = data.currentY + (data.targetY - data.currentY) * progress;
+                return;
+            }
+
+            // Server schema
+            const movement = data?.movement;
+            if (
+                movement?.isMoving &&
+                movement?.departurePos &&
+                movement?.destinationPos &&
+                typeof movement?.departureTime === 'number' &&
+                typeof movement?.arrivalTime === 'number'
+            ) {
+                if (now >= movement.arrivalTime) {
+                    sprite.x = movement.destinationPos.x;
+                    sprite.y = movement.destinationPos.y;
+                    if (sprite.body) sprite.body.setVelocity(0, 0);
+                    return;
+                }
+
+                const totalTime = movement.arrivalTime - movement.departureTime;
+                const elapsedTime = now - movement.departureTime;
+                const progress = totalTime > 0 ? Phaser.Math.Clamp(elapsedTime / totalTime, 0, 1) : 1;
+
+                sprite.x = movement.departurePos.x + (movement.destinationPos.x - movement.departurePos.x) * progress;
+                sprite.y = movement.departurePos.y + (movement.destinationPos.y - movement.departurePos.y) * progress;
+                return;
+            }
+
+            if (data?.position && typeof data.position.x === 'number' && typeof data.position.y === 'number') {
+                sprite.x = data.position.x;
+                sprite.y = data.position.y;
+            }
+
+            if (sprite.anims.isPlaying) {
+                sprite.anims.stop();
+            }
+            const shipTypeKey = shipObject.shipTypeKey;
+            if (shipTypeKey && this.shipAnims?.[shipTypeKey]) {
+                const idleFrame = this.shipAnims[shipTypeKey].idleFrames?.[shipObject.lastAnimKey];
+                if (idleFrame !== undefined) sprite.setFrame(idleFrame);
+            }
+        });
+    }
+
+    /**
+     * Firestore縺ｧ蟒ｺ險ｭ荳ｭ縺ｮ蟲ｶ繧定ｳｼ隱ｭ
+     */
+    async subscribeToConstructingIslands() {
+        if (!this.firestore) return;
+
+        const { collection, onSnapshot, query, where } = await import('firebase/firestore');
+
+        if (this.constructionUnsubscribe) {
+            this.constructionUnsubscribe();
+        }
+
+        try {
+            const constructionQuery = query(
+                collection(this.firestore, 'islands'),
+                where('constructionStatus', '==', 'constructing')
+            );
+
+            this.constructionUnsubscribe = onSnapshot(constructionQuery, (snapshot) => {
+                const constructingIslands = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                this.displayConstructingIslands(constructingIslands);
+            }, (error) => {
+                console.error('[Construction] Failed to subscribe constructing islands:', error);
+            });
+        } catch (error) {
+            console.error('[Construction] Failed to set up subscription:', error);
+        }
+    }
+
+    /**
+     * 繧ｹ繝励Λ繧､繝磯・蛻励ｒ繧ｯ繝ｪ繧｢縺吶ｋ繝倥Ν繝代・繝｡繧ｽ繝・ラ
+     * @param {Array} spriteArray - 蜑企勁縺吶ｋ繧ｹ繝励Λ繧､繝医・驟榊・
+     * @returns {Array} 遨ｺ縺ｮ驟榊・
+     */
+    clearSpriteArray(spriteArray) {
+        if (spriteArray && Array.isArray(spriteArray)) {
+            spriteArray.forEach(sprite => {
+                if (sprite && sprite.destroy) {
+                    sprite.destroy();
+                }
+            });
+        }
+        return [];
+    }
+
+    /**
+     * 蟒ｺ險ｭ荳ｭ縺ｮ蟲ｶ繧偵・繝・・荳翫↓陦ｨ遉ｺ
+     */
+    displayConstructingIslands(constructingIslands) {
+        // 譌｢蟄倥・蟒ｺ險ｭ繧ｹ繝励Λ繧､繝医ｒ蜑企勁
+        this.constructionSprites = this.clearSpriteArray(this.constructionSprites);
+
+        // 蟒ｺ險ｭ荳ｭ縺ｮ蟲ｶ縺後↑縺・ｴ蜷医・髻ｳ繧貞●豁｢
+        if (constructingIslands.length === 0) {
+            // 髻ｳ縺ｮ蛛懈ｭ｢縺ｯ island.js 縺ｮ playConstructionSound(false) 縺ｧ蜃ｦ逅・
+            if (window.Island && window.Island.playConstructionSound) {
+                window.Island.playConstructionSound(false);
+            }
+            return;
+        }
+
+        // 蟒ｺ險ｭ荳ｭ縺ｮ蟲ｶ縺斐→縺ｫ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ繧定ｿｽ蜉
+        constructingIslands.forEach(island => {
+            const islandObj = this.islandObjects.get(island.id);
+            if (!islandObj) return;
+
+            const x = islandObj.x + islandObj.width / 2;
+            const y = islandObj.y + islandObj.height / 2;
+
+            // 雜ｳ蝣ｴ縺ｮ繧ｹ繝励Λ繧､繝茨ｼ育ｵｵ譁・ｭ励ｒ菴ｿ逕ｨ・・
+            const scaffolding = this.add.text(x, y - 20, '🏗️', { fontSize: '32px' });
+            scaffolding.setOrigin(0.5);
+            scaffolding.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
+
+            // 繝舌え繝ｳ繧ｹ繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ
+            this.tweens.add({
+                targets: scaffolding,
+                y: y - 24,
+                duration: GAME_CONFIG.CONSTRUCTION_BOUNCE_DURATION,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // 繧ｯ繝ｬ繝ｼ繝ｳ縺ｮ繧ｹ繝励Λ繧､繝・
+            const crane = this.add.text(x + 20, y - 30, '🏗️', { fontSize: '24px' });
+            crane.setOrigin(0.5);
+            crane.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
+
+            // 蝗櫁ｻ｢繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ
+            this.tweens.add({
+                targets: crane,
+                angle: 10,
+                duration: GAME_CONFIG.CONSTRUCTION_CRANE_ROTATION,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // 繝代・繝・ぅ繧ｯ繝ｫ繧ｨ繝輔ぉ繧ｯ繝茨ｼ育ｰ｡譏鍋沿 - 蟆上＆縺・せ繧定｡ｨ遉ｺ・・
+            const particles = this.add.particles(x, y, 'map_tiles', {
+                frame: 0,
+                speed: { min: -20, max: 20 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 0.1, end: 0 },
+                lifespan: GAME_CONFIG.PARTICLE_LIFESPAN,
+                frequency: GAME_CONFIG.PARTICLE_FREQUENCY,
+                quantity: 2,
+                alpha: 0.5
+            });
+            particles.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
+
+            this.constructionSprites.push(scaffolding, crane, particles);
+        });
+
+        // 蟒ｺ險ｭ荳ｭ縺ｮ蟲ｶ縺後≠繧句ｴ蜷医・髻ｳ繧貞・逕・
+        if (constructingIslands.length > 0) {
+            if (window.Island && window.Island.playConstructionSound) {
+                window.Island.playConstructionSound(true);
+            }
+        }
+    }
+
+    /**
+     * Firestore縺ｧ遐ｴ螢翫＆繧後◆蟲ｶ繧定ｳｼ隱ｭ
+     */
+    async subscribeToDemolishedIslands() {
+        if (!this.firestore) return;
+
+        const { collection, onSnapshot, query, where } = await import('firebase/firestore');
+
+        if (this.demolishedUnsubscribe) {
+            this.demolishedUnsubscribe();
+        }
+
+        try {
+            const demolishedQuery = query(
+                collection(this.firestore, 'islands'),
+                where('occupationStatus', '==', 'demolished')
+            );
+
+            this.demolishedUnsubscribe = onSnapshot(demolishedQuery, (snapshot) => {
+                const demolishedIslands = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (demolishedIslands && demolishedIslands.length > 0) {
+                    if (window.Island && window.Island.displayDemolishedIslandsOnMap) {
+                        window.Island.displayDemolishedIslandsOnMap(this, demolishedIslands);
+                    }
+                } else {
+                    this.demolishedSprites = this.clearSpriteArray(this.demolishedSprites);
+                }
+            }, (error) => {
+                console.error('[DemolishedDisplay] Failed to subscribe demolished islands:', error);
+            });
+        } catch (error) {
+            console.error('[DemolishedDisplay] Failed to set up subscription:', error);
+        }
+    }
+
+    /**
+     * 繧ｷ繝ｼ繝ｳ縺檎ｴ譽・＆繧後ｋ譎ゅ↓Firestore縺ｮ雉ｼ隱ｭ繧定ｧ｣髯､
+     */
+    shutdown() {
+        this.teardownShipGeoSubscriptions();
+        console.log('[Firestore] Unsubscribed from ships collection');
+
+        // 莉悶・繝励Ξ繧､繝､繝ｼ縺ｮ闊ｹ繧ｹ繝励Λ繧､繝医ｒ縺吶∋縺ｦ蜑企勁
+        this.otherShips.forEach((shipObject) => {
+            shipObject.sprite.destroy();
+        });
+        this.otherShips.clear();
+
+        if (this.constructionUnsubscribe) {
+            this.constructionUnsubscribe();
+            this.constructionUnsubscribe = null;
+        }
+        this.constructionSprites = this.clearSpriteArray(this.constructionSprites);
+
+        if (this.demolishedUnsubscribe) {
+            this.demolishedUnsubscribe();
+            this.demolishedUnsubscribe = null;
+        }
+        this.demolishedSprites = this.clearSpriteArray(this.demolishedSprites);
+    }
+}

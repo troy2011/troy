@@ -1,0 +1,753 @@
+/* ========================================
+   Current Building Panel
+   ======================================== */
+
+.building-status-panel {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #1a1a2e;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.building-empty {
+    color: #8a8fa3;
+    font-size: 13px;
+}
+
+.building-current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+/* island.css - 蟲ｶ蜊鬆倥・蟒ｺ險ｭ繧ｷ繧ｹ繝・Β縺ｮ繧ｹ繧ｿ繧､繝ｫ *//* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.building-bottom-sheet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.building-bottom-sheet.active {
+    pointer-events: all;
+}
+
+.bottom-sheet-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.3s ease;
+}
+
+.building-bottom-sheet.active .bottom-sheet-overlay {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.bottom-sheet-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 80vh;
+    background: #1a1a2e;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.building-bottom-sheet.active .bottom-sheet-content {
+    transform: translateY(0);
+}
+
+.bottom-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    position: relative;
+}
+
+.bottom-sheet-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 28px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.bottom-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    padding: 20px;
+    background: #0f0f1e;
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.island-info {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row .label {
+    color: #999;
+    font-size: 14px;
+}
+
+.info-row .value {
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.info-row.biome-bonus .value {
+    color: #4ecdc4;
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+/* 蟒ｺ險ｭ荳ｭ縺ｮ陦ｨ遉ｺ */
+.building-constructing {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 152, 0, 0.2));
+    padding: 8px;
+}
+
+.scaffolding {
+    font-size: 32px;
+    animation: construction-bounce 1s infinite;
+}
+
+@keyframes construction-bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+.construction-timer {
+    font-size: 10px;
+    color: #ffb84d;
+    font-weight: bold;
+    text-align: center;
+}
+
+.helpers-count {
+    font-size: 9px;
+    color: #4ecdc4;
+    font-weight: bold;
+    text-align: center;
+    background: rgba(78, 205, 196, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.btn-help-request {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a8a0 100%);
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 2px;
+}
+
+.btn-help-request:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(78, 205, 196, 0.4);
+}
+
+.btn-help-request:active {
+    transform: scale(0.95);
+}
+
+/* 螳梧・縺励◆蟒ｺ迚ｩ縺ｮ陦ｨ遉ｺ */
+.building-completed {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, rgba(76, 209, 55, 0.2), rgba(39, 174, 96, 0.2));
+    animation: building-appear 0.5s ease-out;
+}
+
+@keyframes building-appear {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.building-icon {
+    font-size: 32px;
+    animation: icon-bounce 0.6s ease-out;
+}
+
+@keyframes icon-bounce {
+    0% {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    50% {
+        transform: translateY(5px);
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.building-name {
+    font-size: 11px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    animation: name-fade-in 0.8s ease-out;
+}
+
+@keyframes name-fade-in {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.building-categories {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: #1a1a2e;
+    padding: 8px;
+    border-radius: 12px;
+}
+
+.category-tab {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    color: #999;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.category-tab:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.category-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: white;
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.building-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.building-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1a1a2e;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.building-item:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateX(4px);
+}
+
+.building-item .building-icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+    border-radius: 8px;
+}
+
+.building-details {
+    flex: 1;
+}
+
+.building-details .building-name {
+    font-size: 16px;
+    color: white;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.building-details .building-description {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 8px;
+}
+
+.building-stats {
+    display: flex;
+    gap: 12px;
+}
+
+.building-stats .stat {
+    font-size: 11px;
+    color: #666;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.btn-build {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a8a0 100%);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-build:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+}
+
+.btn-build:active {
+    transform: scale(0.95);
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.completion-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.completion-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    animation: fadeIn 0.3s ease;
+}
+
+.completion-content {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 32px;
+    border-radius: 16px;
+    text-align: center;
+    max-width: 300px;
+    animation: slideUp 0.3s ease;
+    overflow: hidden;
+}
+
+.completion-animation {
+    margin-bottom: 20px;
+    position: relative;
+    height: 80px;
+}
+
+.flag-raise {
+    font-size: 48px;
+    animation: flag-raise-animation 1s ease-out;
+}
+
+@keyframes flag-raise-animation {
+    0% {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.sparkles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    animation: sparkle-animation 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle-animation {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+}
+
+.completion-fireworks {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.firework {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    animation: firework-explosion 1s ease-out infinite;
+}
+
+.firework:nth-child(1) {
+    top: 20%;
+    left: 20%;
+    animation-delay: 0s;
+}
+
+.firework:nth-child(2) {
+    top: 30%;
+    right: 20%;
+    animation-delay: 0.3s;
+}
+
+.firework:nth-child(3) {
+    bottom: 30%;
+    left: 50%;
+    animation-delay: 0.6s;
+}
+
+@keyframes firework-explosion {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 white;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: scale(20);
+        opacity: 0;
+        box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.5);
+    }
+}
+
+.completion-content h2 {
+    color: white;
+    font-size: 24px;
+    margin-bottom: 16px;
+    animation: text-pop 0.5s ease-out;
+}
+
+@keyframes text-pop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.completion-content p {
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 24px;
+    animation: text-fade-in 0.8s ease-out;
+}
+
+@keyframes text-fade-in {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.completion-content .btn-primary {
+    background: white;
+    color: #667eea;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.completion-content .btn-primary:hover {
+    transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+@media (max-width: 480px) {
+    .bottom-sheet-content {
+        max-height: 85vh;
+    }
+
+    .bottom-sheet-header h2 {
+        font-size: 18px;
+    }
+
+    
+
+    .building-item {
+        padding: 8px;
+    }
+
+    .building-details .building-name {
+        font-size: 14px;
+    }
+
+    .building-details .building-description {
+        font-size: 11px;
+    }
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.building-list .loading,
+.building-list .error {
+    padding: 32px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+}
+
+.building-list .error {
+    color: #ff6b6b;
+}/* ========================================
+   現在の建物表示
+   ======================================== */
+
+
+
+.demolish-section {
+    margin: 20px 0;
+    padding: 16px;
+    background: rgba(231, 76, 60, 0.1);
+    border: 2px solid #e74c3c;
+    border-radius: 8px;
+}
+
+.btn-demolish {
+    width: 100%;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.btn-demolish:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+}
+
+.btn-demolish:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+}
+
+.demolish-icon {
+    font-size: 64px;
+    animation: demolish-shake 0.5s ease-out;
+}
+
+@keyframes demolish-shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-10px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(10px);
+    }
+}
+
+/* 逑ｦ遉ｫ縺ｮ螻ｱ縺ｮ隕冶ｦ夊｡ｨ迴ｾ・・SS縺ｮ縺ｿ縺ｧ縺ｮ陬懷勧・・*/
+.island-demolished {
+    filter: grayscale(80%) brightness(0.5);
+    position: relative;
+}
+
+.island-demolished::after {
+    content: '逐';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    animation: rubble-pulse 2s ease-in-out infinite;
+}
+
+@keyframes rubble-pulse {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+
+
