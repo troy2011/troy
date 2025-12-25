@@ -2665,7 +2665,10 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
-    \1
+    markOtherShipRemoved(playFabId) {
+        const shipObject = this.otherShips.get(playFabId);
+        if (!shipObject) return;
+
         if (this.playerShip && shipObject.sprite) {
             const distance = Phaser.Math.Distance.Between(
                 this.playerShip.x,
@@ -2679,7 +2682,7 @@ export default class WorldMapScene extends Phaser.Scene {
             }
         }
 
-shipObject.pendingRemoval = true;
+        shipObject.pendingRemoval = true;
         shipObject.removedAt = Date.now();
     }
 
