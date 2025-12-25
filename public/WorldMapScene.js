@@ -1628,6 +1628,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         this.boardingTargetId = targetPlayFabId;
+        console.log('[Boarding] showShipCommandMenu', { targetPlayFabId, displayName });
         title.textContent = displayName ? `船: ${displayName}` : '船';
 
         const buttonText = '乗り込む';
@@ -1662,6 +1663,8 @@ export default class WorldMapScene extends Phaser.Scene {
         closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
         newActionBtn.addEventListener('click', onClick);
+        newActionBtn.addEventListener('pointerdown', () => console.log('[Boarding] pointerdown'));
+        newActionBtn.addEventListener('pointerup', () => console.log('[Boarding] pointerup'));
         newCloseBtn.addEventListener('click', () => {
             this.shipPanelSuppressed = true;
             this.hideShipCommandMenu();
