@@ -13,6 +13,7 @@ import * as Guild from './js/guild.js';
 import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
+import { renderAvatar } from './js/avatar.js';
 
 import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
@@ -230,6 +231,21 @@ async function initializeAppFeatures() {
         await Promise.all(initPromises);
     } catch (e) {
         console.warn('[initializeAppFeatures] One or more initialization tasks failed:', e);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.initializeBattleSystem === 'function') {
+        window.initializeBattleSystem({
+            myPlayFabId,
+            myCurrentEquipment: Inventory.getMyCurrentEquipment(),
+            myInventory: Inventory.getMyInventory(),
+            callApiWithLoader,
+            renderAvatar,
+            getMyCurrentEquipment: Inventory.getMyCurrentEquipment,
+            getMyInventory: Inventory.getMyInventory,
+            db
+        });
+    } else {
+        console.warn('[initializeAppFeatures] initializeBattleSystem not found');
     }
 
     console.log('[initializeAppFeatures] Initialization complete (async tasks running).');
