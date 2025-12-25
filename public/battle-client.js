@@ -201,7 +201,7 @@ function showBattleModal(battleId) {
                 battleInterval = null;
             }
             const resultMsg = (battleState.winner === myId) ? '<h3 style="color: gold;">YOU WIN!</h3>' : '<h3 style="color: red;">YOU LOSE...</h3>';
-            commandArea.innerHTML = resultMsg + '<button onclick="location.reload()">戻る</button>';
+            commandArea.innerHTML = resultMsg + '<button onclick="returnToMapAfterBattle()">戻る</button>';
             return;
         }
 
@@ -360,6 +360,16 @@ async function startBattleWithOpponent(opponentId) {
         console.error('[Battle] startBattleWithOpponent error:', error);
     }
 }
+function returnToMapAfterBattle() {
+    const battleModal = document.getElementById('battleModal');
+    if (battleModal) battleModal.style.display = 'none';
+    if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
+        window.showTab('map');
+    }
+}
+
+window.returnToMapAfterBattle = returnToMapAfterBattle;
+
 
 // expose helper globally
 window.startBattleWithOpponent = startBattleWithOpponent;
