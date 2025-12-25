@@ -1641,7 +1641,8 @@ export default class WorldMapScene extends Phaser.Scene {
                 ? Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, target.sprite.x, target.sprite.y)
                 : Number.POSITIVE_INFINITY;
             console.log('[Boarding] distance', { distance, shipCollisionRadius: this.shipCollisionRadius });
-            if (!Number.isFinite(distance) || distance > this.shipCollisionRadius) {
+            const allowedDistance = Math.max(this.shipCollisionRadius * 2, 96);
+            if (!Number.isFinite(distance) || distance > allowedDistance) {
                 this.showMessage('距離が離れているため乗り込めません。');
                 return;
             }
