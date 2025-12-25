@@ -1633,20 +1633,23 @@ export default class WorldMapScene extends Phaser.Scene {
         const buttonText = '乗り込む';
         const buttonClass = 'warning';
         const onClick = () => {
+            console.log('[Boarding] clicked', { target: this.boardingTargetId });
             if (!this.boardingTargetId) return;
             const target = this.otherShips.get(this.boardingTargetId);
             const distance = target?.sprite
                 ? Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, target.sprite.x, target.sprite.y)
                 : Number.POSITIVE_INFINITY;
+            console.log('[Boarding] distance', { distance, shipCollisionRadius: this.shipCollisionRadius });
             if (!Number.isFinite(distance) || distance > this.shipCollisionRadius) {
                 this.showMessage('距離が離れているため乗り込めません。');
                 return;
             }
             if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
+                console.log('[Boarding] startBattleWithOpponent', { opponentId: this.boardingTargetId });
                 window.startBattleWithOpponent(this.boardingTargetId);
                 this.hideShipCommandMenu();
             } else {
-                console.warn('[Boarding] Battle system not ready: window.startBattleWithOpponent not found');
+                console.warn('[Boarding] Battle system not ready: window.startBattleWithOpponent not found', { startBattleWithOpponent: window?.startBattleWithOpponent });
             }
         };
 
