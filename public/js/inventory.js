@@ -221,6 +221,7 @@ function updateEquipmentAndAvatarDisplay() {
     // ??E??? getEquipment ??????
     // ??????????? main.js ????????E
     renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
     updateEquipmentBonusDisplay();
 }
 

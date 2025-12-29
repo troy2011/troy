@@ -2669,19 +2669,6 @@ export default class WorldMapScene extends Phaser.Scene {
         const shipObject = this.otherShips.get(playFabId);
         if (!shipObject) return;
 
-        if (this.playerShip && shipObject.sprite) {
-            const distance = Phaser.Math.Distance.Between(
-                this.playerShip.x,
-                this.playerShip.y,
-                shipObject.sprite.x,
-                shipObject.sprite.y
-            );
-            const keepRange = this.shipVisionRange * 1.25;
-            if (distance <= keepRange) {
-                return;
-            }
-        }
-
         shipObject.pendingRemoval = true;
         shipObject.removedAt = Date.now();
     }

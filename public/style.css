@@ -829,6 +829,31 @@ button:disabled {
     z-index: 950;
     pointer-events: auto;
 }
+
+.home-ship-stage {
+    position: relative;
+    width: 260px;
+    height: 200px;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-ship-image {
+    width: 260px;
+    height: auto;
+    image-rendering: pixelated;
+}
+
+.home-ship-avatar {
+    position: absolute;
+    left: 50%;
+    top: 48%;
+    transform: translate(-50%, -50%) scale(1.6);
+    transform-origin: center center;
+    margin: 0;
+}
 .ship-action-button {
     background: rgba(17, 24, 39, 0.9);
     color: #ffffff;
