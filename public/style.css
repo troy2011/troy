@@ -982,3 +982,39 @@ button:disabled {
 }
 
 /* --- インベントリタブのアバター表示 --- */
+
+
+.resource-summary {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.resource-summary-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.resource-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    font-size: 13px;
+}
+
+.resource-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.resource-chip b {
+    color: var(--accent-color);
+}

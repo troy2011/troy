@@ -6,6 +6,7 @@ import * as Player from './player.js';
 
 let myInventory = [];
 let myCurrentEquipment = {};
+let myVirtualCurrency = {};
 
 export function getMyInventory() {
     return myInventory;
@@ -15,14 +16,35 @@ export function getMyCurrentEquipment() {
     return myCurrentEquipment;
 }
 
+function renderResourceSummary() {
+    const container = document.getElementById('resourceSummaryRows');
+    if (!container) return;
+
+    const mapping = [
+        { code: 'RR', label: '?' },
+        { code: 'RG', label: '?' },
+        { code: 'RY', label: '?' },
+        { code: 'RB', label: '?' },
+        { code: 'RT', label: '?' },
+        { code: 'RS', label: '?' }
+    ];
+
+    container.innerHTML = mapping.map(item => {
+        const value = Number(myVirtualCurrency?.[item.code] || 0);
+        return `<div class="resource-chip">${item.label}<b>${value}</b></div>`;
+    }).join('');
+}
+
 export async function getInventory(playFabId) {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
     const data = await callApiWithLoader('/api/get-inventory', { playFabId });
     if (data) {
         myInventory = data.inventory;
+        myVirtualCurrency = data.virtualCurrency || {};
     }
     await getEquipment(playFabId);
     renderInventoryGrid('All');
+    renderResourceSummary();
 }
 
 export async function getEquipment(playFabId) {
@@ -223,6 +245,7 @@ function updateEquipmentAndAvatarDisplay() {
     renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
     renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
     updateEquipmentBonusDisplay();
+    renderResourceSummary();
 }
 
 function updateEquipmentBonusDisplay() {

@@ -586,7 +586,7 @@ app.post('/api/get-inventory', async (req, res) => {
         }
         const inventoryList = Array.from(itemMap.values());
         console.log(`[インベントリ取得] 成功。`);
-        res.json({ inventory: inventoryList });
+        res.json({ inventory: inventoryList, virtualCurrency: result?.VirtualCurrency || {} });
     } catch (error) {
         console.error('[インベントリ取得エラー]', error.errorMessage);
         res.status(500).json({ error: '持ち物の取得に失敗しました。', details: error.errorMessage });
