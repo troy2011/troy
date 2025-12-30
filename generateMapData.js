@@ -225,11 +225,11 @@ function generateMapData() {
             }
 
             // 資源島と無人島をランダムに配置（資源島の確率30%）
-            const isResourceIsland = Math.random() < 0.3;
+            const isResourceIsland = (size === 'small' && shouldAssignBiome());
             const type = isResourceIsland ? 'resource' : 'barren';
 
             // バイオームと守護獣を決定
-            const biomeData = (isResourceIsland && size === 'small' && shouldAssignBiome())
+            const biomeData = isResourceIsland
                 ? (biomePoolsByFaction[corner.faction]?.[0] || { biome: null, frame: null })
                 : { biome: null, frame: null };
             const guardianType = getGuardianForIsland(size);
@@ -330,11 +330,11 @@ function generateMapData() {
             }
 
             // 資源島と無人島をランダムに配置（資源島の確率20%）
-            const isResourceIsland = Math.random() < 0.2;
+            const isResourceIsland = (size === 'small' && shouldAssignBiome());
             const type = isResourceIsland ? 'resource' : 'barren';
 
             // バイオームと守護獣を決定
-            const biomeData = (isResourceIsland && size === 'small' && shouldAssignBiome()) ? { biome: 'forest', frame: 36 } : { biome: null, frame: null };
+            const biomeData = isResourceIsland ? { biome: 'forest', frame: 36 } : { biome: null, frame: null };
             const guardianType = getGuardianForIsland(size);
 
             islands.push({
