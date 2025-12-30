@@ -60,6 +60,34 @@ export async function getIslandDetails(islandId) {
     return null;
 }
 
+
+const RESOURCE_BIOME_CURRENCY = { volcanic: 'RR', rocky: 'RG', mushroom: 'RY', lake: 'RB', forest: 'RT', sacred: 'RS' };
+
+function getResourceCurrencyForBiome(biome) {
+    return RESOURCE_BIOME_CURRENCY[String(biome || '').toLowerCase()] || null;
+}
+
+function formatMs(ms) {
+    if (!Number.isFinite(ms) || ms <= 0) return '0?';
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0) return `${minutes}?${seconds}?`;
+    return `${seconds}?`;
+}
+
+async function getResourceStatus(playFabId, islandId) {
+    const response = await callApiWithLoader('/api/get-resource-status', { playFabId, islandId }, { isSilent: true });
+    if (response && response.success) return response;
+    return null;
+}
+
+async function collectResource(playFabId, islandId) {
+    const response = await callApiWithLoader('/api/collect-resource', { playFabId, islandId });
+    return response;
+}
+
+
 export async function startBuildingConstruction(playFabId, islandId, buildingId) {
     const response = await callApiWithLoader('/api/start-building-construction', {
         playFabId: playFabId,
@@ -184,6 +212,9 @@ export function showBuildingMenu(island, playFabId) {
     const sheet = document.createElement('div');
     sheet.className = 'building-bottom-sheet';
     const islandLevel = Math.max(1, Math.trunc(Number(island.islandLevel) || 1));
+    const resourceCurrency = getResourceCurrencyForBiome(island.biome);
+    const isHarvestable = !!resourceCurrency;
+
     const isOwner = !!playFabId && island.ownerId === playFabId;
     const canUpgrade = isOwner && islandLevel < 5;
     const upgradeCostLabel = renderUpgradeCost(island.upgradeCost);
@@ -217,6 +248,15 @@ export function showBuildingMenu(island, playFabId) {
                     </div>
                 </div>
 
+                ${isHarvestable ? `
+                <div class="resource-section">
+                    <div class="resource-title">??</div>
+                    <div class="resource-row">??: <b>${resourceCurrency}</b></div>
+                    <div class="resource-row" id="resourceStatus">?????...</div>
+                    <button class="btn-harvest" id="btnHarvestResource">????</button>
+                </div>
+                ` : ''}
+
                 ${canUpgrade ? `
                 <div class="island-upgrade-section">
                     <button class="btn-upgrade" id="btnUpgradeIsland">
@@ -236,6 +276,16 @@ export function showBuildingMenu(island, playFabId) {
                     </p>
                 </div>
                 ` : ''}
+
+                ${!isHarvestable ? `<div class="building-status-panel" data-island-id="${island.id}">${renderCurrentBuilding(island)}</div>
+
+                <div class="building-categories">
+                    <button class="category-tab active" data-category="military">??</button>
+                    <button class="category-tab" data-category="economic">??</button>
+                    <button class="category-tab" data-category="support">??</button>
+                </div>
+
+                <div class="building-list" id="buildingList"></div>` : ''}
 
                 <div class="building-status-panel" data-island-id="${island.id}">
                     ${renderCurrentBuilding(island)}
@@ -269,7 +319,9 @@ export function showBuildingMenu(island, playFabId) {
     }, { passive: true });
 
     setupBuildingMenuEvents(sheet, island, playFabId);
-    loadBuildingList('military', island);
+    if (!isHarvestable) {
+        loadBuildingList('military', island);
+    }
 
     setTimeout(() => {
         sheet.classList.add('active');

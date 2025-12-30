@@ -23,6 +23,16 @@ const shipRoutes = require('./ships');
 const { generateMapData } = require('./generateMapData');
 const buildingDefs = require('./buildingDefinitions');
 
+const RESOURCE_INTERVAL_MS = 10 * 60 * 1000;
+const RESOURCE_BIOME_CURRENCY = {
+    volcanic: 'RR',
+    rocky: 'RG',
+    mushroom: 'RY',
+    lake: 'RB',
+    forest: 'RT',
+    sacred: 'RS'
+};
+
 // Firebase Admin SDK init
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 let serviceAccount = null;
@@ -1113,6 +1123,38 @@ function computeMaxHp(logicW, logicH) {
     return w * h * 100;
 }
 
+function getActiveShipIdForResource(playFabId) {
+    return promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['ActiveShipId']
+    }).then(result => {
+        const value = result?.Data?.ActiveShipId?.Value;
+        return (typeof value === 'string' && value.trim()) ? value.trim() : null;
+    });
+}
+
+async function getActiveShipCargoCapacity(playFabId) {
+    const activeShipId = await getActiveShipIdForResource(playFabId);
+    if (!activeShipId) return 0;
+
+    const key = `Ship_${activeShipId}`;
+    const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: [key]
+    });
+    const raw = result?.Data?.[key]?.Value;
+    if (!raw) return 0;
+
+    let shipData = null;
+    try {
+        shipData = JSON.parse(raw);
+    } catch {
+        return 0;
+    }
+    const capacity = Number(shipData?.Stats?.CargoCapacity);
+    return Number.isFinite(capacity) ? Math.max(0, Math.trunc(capacity)) : 0;
+}
+
 function getBuildingSpec(buildingId) {
     const fromCatalog = catalogCache[buildingId];
     if (fromCatalog && fromCatalog.ItemClass === 'Building') return fromCatalog;
@@ -1160,6 +1202,112 @@ async function resolveNationIslandByGroupId(groupId) {
     const entry = Object.values(NATION_GROUP_BY_RACE).find(item => item && item.groupName === groupName);
     return entry ? entry.island : null;
 }
+
+app.post('/api/get-resource-status', async (req, res) => {
+    const { playFabId, islandId } = req.body || {};
+    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
+
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
+
+        const data = snap.data() || {};
+        const biome = data.biome;
+        const currency = RESOURCE_BIOME_CURRENCY[biome];
+        if (!currency) return res.status(400).json({ error: 'Island not harvestable' });
+
+        const capacity = await getActiveShipCargoCapacity(playFabId);
+        if (!capacity || capacity <= 0) {
+            return res.status(400).json({ error: 'Cargo capacity is zero' });
+        }
+
+        const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
+        const harvestSnap = await harvestRef.get();
+        const now = Date.now();
+        let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
+        if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
+            lastCollectedAt = lastCollectedAt.toMillis();
+        }
+        if (!Number.isFinite(lastCollectedAt)) {
+            lastCollectedAt = now;
+            await harvestRef.set({ lastCollectedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        }
+
+        const elapsed = Math.max(0, now - lastCollectedAt);
+        const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
+        const available = Math.min(units, capacity);
+        const nextInMs = available > 0 ? 0 : (RESOURCE_INTERVAL_MS - (elapsed % RESOURCE_INTERVAL_MS));
+
+        res.json({
+            success: true,
+            biome,
+            currency,
+            capacity,
+            available,
+            nextInMs
+        });
+    } catch (error) {
+        console.error('[GetResourceStatus] Error:', error);
+        res.status(500).json({ error: 'Failed to get resource status', details: error.message });
+    }
+});
+
+app.post('/api/collect-resource', async (req, res) => {
+    const { playFabId, islandId } = req.body || {};
+    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
+
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
+
+        const data = snap.data() || {};
+        const biome = data.biome;
+        const currency = RESOURCE_BIOME_CURRENCY[biome];
+        if (!currency) return res.status(400).json({ error: 'Island not harvestable' });
+
+        const capacity = await getActiveShipCargoCapacity(playFabId);
+        if (!capacity || capacity <= 0) {
+            return res.status(400).json({ error: 'Cargo capacity is zero' });
+        }
+
+        const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
+        const harvestSnap = await harvestRef.get();
+        const now = Date.now();
+        let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
+        if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
+            lastCollectedAt = lastCollectedAt.toMillis();
+        }
+        if (!Number.isFinite(lastCollectedAt)) {
+            lastCollectedAt = now;
+        }
+
+        const elapsed = Math.max(0, now - lastCollectedAt);
+        const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
+        const amount = Math.min(units, capacity);
+
+        if (amount <= 0) {
+            return res.status(400).json({ error: 'Nothing to collect' });
+        }
+
+        await promisifyPlayFab(PlayFabServer.AddUserVirtualCurrency, {
+            PlayFabId: playFabId,
+            VirtualCurrency: currency,
+            Amount: amount
+        });
+
+        const newLast = lastCollectedAt + amount * RESOURCE_INTERVAL_MS;
+        await harvestRef.set({
+            lastCollectedAt: new Date(newLast)
+        }, { merge: true });
+
+        res.json({ success: true, biome, currency, amount, capacity });
+    } catch (error) {
+        console.error('[CollectResource] Error:', error);
+        res.status(500).json({ error: 'Failed to collect resource', details: error.message });
+    }
+});
 
 app.post('/api/get-island-details', async (req, res) => {
     const { islandId } = req.body || {};
