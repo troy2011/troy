@@ -1,5 +1,5 @@
 // buildingDefinitions.js
-// 島に建設可能な施設の定義
+// 島に建設可能な施設の定義（シンプル化版）
 
 /**
  * 施設のカテゴリ定義
@@ -27,7 +27,11 @@ const buildingCategories = {
  *
  * slotsRequired: 必要なスロット数（1=小施設、2=中施設、4=大施設）
  * buildTime: 建設時間（秒）
- * cost: 建設コスト
+ * cost: 建設コスト（PlayFab仮想通貨コード）
+ *   - PT: Ps（メイン通貨）
+ * tileIndex: スプライトシート上のフレーム番号（buildings.png、32x32、32列）
+ * sizeLogic: 占有サイズ（スロット単位）{ x, y }
+ * sizeVisual: 見た目サイズ（スロット単位）{ x, y }
  * effects: 施設の効果
  */
 const buildings = {
@@ -40,17 +44,15 @@ const buildings = {
         category: 'military',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: {
-            wood: 100,
-            stone: 50,
-            gold: 200
-        },
+        cost: { PT: 200 },
+        tileIndex: 17,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
-            visionRange: 10, // 視界範囲+10グリッド
-            earlyWarning: true // 敵接近時に通知
+            visionRange: 10,
+            earlyWarning: true
         },
-        description: '周囲の海域を監視し、敵の接近を早期発見します。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '周囲の海域を監視し、敵の接近を早期発見します。'
     },
 
     coastal_battery: {
@@ -59,19 +61,16 @@ const buildings = {
         category: 'military',
         slotsRequired: 1,
         buildTime: 3600, // 1時間
-        cost: {
-            wood: 50,
-            stone: 200,
-            iron: 150,
-            gold: 500
-        },
+        cost: { PT: 500 },
+        tileIndex: 18,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
-            defenseBonus: 30, // 防衛力+30
-            attackRange: 5, // 攻撃範囲5グリッド
-            damage: 50 // ダメージ50
+            defenseBonus: 30,
+            attackRange: 5,
+            damage: 50
         },
-        description: '島を防衛する強力な砲台。敵船を迎撃します。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '島を防衛する強力な砲台。敵船を迎撃します。'
     },
 
     fortress: {
@@ -80,19 +79,16 @@ const buildings = {
         category: 'military',
         slotsRequired: 2,
         buildTime: 7200, // 2時間
-        cost: {
-            wood: 200,
-            stone: 500,
-            iron: 300,
-            gold: 1000
-        },
+        cost: { PT: 1000 },
+        tileIndex: 19,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
-            defenseBonus: 100, // 防衛力+100
-            garrisonCapacity: 50, // 駐屯兵+50
-            repairSpeed: 1.5 // 船の修理速度1.5倍
+            defenseBonus: 100,
+            garrisonCapacity: 50,
+            repairSpeed: 1.5
         },
-        description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。'
     },
 
     shipyard: {
@@ -101,19 +97,16 @@ const buildings = {
         category: 'military',
         slotsRequired: 4,
         buildTime: 10800, // 3時間
-        cost: {
-            wood: 1000,
-            stone: 500,
-            iron: 500,
-            gold: 2000
-        },
+        cost: { PT: 2000 },
+        tileIndex: 20,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
         effects: {
-            shipProduction: true, // 船の建造が可能
-            productionSpeed: 1.0, // 建造速度1.0倍
-            maxQueueSize: 3 // 同時建造キュー3隻
+            shipProduction: true,
+            productionSpeed: 1.0,
+            maxQueueSize: 3
         },
-        description: '新しい船を建造できる大規模な造船所。',
-        biomeRestrictions: ['beach', 'rocky'] // 海岸と岩山のみ
+        description: '新しい船を建造できる大規模な造船所。'
     },
 
     // ========================================
@@ -125,17 +118,15 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: {
-            wood: 200,
-            stone: 100,
-            gold: 300
-        },
+        cost: { PT: 300 },
+        tileIndex: 21,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
-            storageCapacity: 1000, // 保管容量+1000
-            protection: 0.5 // 略奪時の保護率50%
+            storageCapacity: 1000,
+            protection: 0.5
         },
-        description: '資源を安全に保管します。略奪されにくくなります。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '資源を安全に保管します。略奪されにくくなります。'
     },
 
     farm: {
@@ -144,17 +135,15 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 2400, // 40分
-        cost: {
-            wood: 150,
-            stone: 50,
-            gold: 400
-        },
+        cost: { PT: 400 },
+        tileIndex: 22,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
-            foodProduction: 50, // 食料生産+50/時
-            crewMorale: 10 // 乗組員士気+10
+            foodProduction: 50,
+            crewMorale: 10
         },
-        description: '食料を生産します。森林バイオームでボーナスがあります。',
-        biomeRestrictions: ['forest', 'jungle'] // 森林とジャングルのみ
+        description: '食料を生産します。'
     },
 
     trading_post: {
@@ -163,18 +152,16 @@ const buildings = {
         category: 'economic',
         slotsRequired: 2,
         buildTime: 5400, // 1.5時間
-        cost: {
-            wood: 300,
-            stone: 200,
-            gold: 1000
-        },
+        cost: { PT: 1000 },
+        tileIndex: 23,
+        sizeLogic: { x: 2, y: 1 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
-            tradeBonus: 0.2, // 交易収入+20%
-            tradeSlotsRequired: 2, // 交易ルート+2
-            taxReduction: 0.1 // 税金-10%
+            tradeBonus: 0.2,
+            tradeSlots: 2,
+            taxReduction: 0.1
         },
-        description: '他のプレイヤーと交易を行えます。収入が増加します。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '他のプレイヤーと交易を行えます。収入が増加します。'
     },
 
     mine: {
@@ -183,19 +170,16 @@ const buildings = {
         category: 'economic',
         slotsRequired: 2,
         buildTime: 7200, // 2時間
-        cost: {
-            wood: 500,
-            stone: 300,
-            iron: 200,
-            gold: 1500
-        },
+        cost: { PT: 1500 },
+        tileIndex: 24,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
-            stoneProduction: 30, // 石材生産+30/時
-            ironProduction: 20, // 鉄鉱生産+20/時
-            goldProduction: 10 // 金貨生産+10/時
+            stoneProduction: 30,
+            ironProduction: 20,
+            goldProduction: 10
         },
-        description: '鉱物資源を採掘します。岩山や火山バイオームで最適です。',
-        biomeRestrictions: ['rocky', 'volcanic'] // 岩山と火山のみ
+        description: '鉱物資源を採掘します。'
     },
 
     grand_market: {
@@ -204,18 +188,16 @@ const buildings = {
         category: 'economic',
         slotsRequired: 4,
         buildTime: 14400, // 4時間
-        cost: {
-            wood: 1000,
-            stone: 800,
-            gold: 3000
-        },
+        cost: { PT: 3000 },
+        tileIndex: 25,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 3, y: 3 },
         effects: {
-            tradeBonus: 0.5, // 交易収入+50%
-            tradeRoutes: 5, // 交易ルート+5
-            marketPriceControl: true // 市場価格に影響を与える
+            tradeBonus: 0.5,
+            tradeRoutes: 5,
+            marketPriceControl: true
         },
-        description: '広範囲の交易ネットワークを構築できる巨大市場。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '広範囲の交易ネットワークを構築できる巨大市場。'
     },
 
     // ========================================
@@ -227,18 +209,16 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 1200, // 20分
-        cost: {
-            wood: 150,
-            stone: 50,
-            gold: 300
-        },
+        cost: { PT: 300 },
+        tileIndex: 26,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
-            crewRecruitment: true, // 乗組員の募集が可能
-            morale: 15, // 士気+15
-            recruitmentSpeed: 1.2 // 募集速度1.2倍
+            crewRecruitment: true,
+            morale: 15,
+            recruitmentSpeed: 1.2
         },
-        description: '乗組員を募集できます。砂浜バイオームで建設時間短縮。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '乗組員を募集できます。'
     },
 
     repair_dock: {
@@ -247,19 +227,16 @@ const buildings = {
         category: 'support',
         slotsRequired: 2,
         buildTime: 3600, // 1時間
-        cost: {
-            wood: 400,
-            stone: 200,
-            iron: 200,
-            gold: 800
-        },
+        cost: { PT: 800 },
+        tileIndex: 27,
+        sizeLogic: { x: 2, y: 1 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
-            repairSpeed: 2.0, // 修理速度2.0倍
-            repairCostReduction: 0.3, // 修理コスト-30%
-            simultaneousRepairs: 2 // 同時修理2隻
+            repairSpeed: 2.0,
+            repairCostReduction: 0.3,
+            simultaneousRepairs: 2
         },
-        description: '船を素早く修理できます。戦闘後の復帰が早くなります。',
-        biomeRestrictions: ['beach', 'rocky'] // 海岸と岩山のみ
+        description: '船を素早く修理できます。戦闘後の復帰が早くなります。'
     },
 
     lighthouse: {
@@ -268,18 +245,16 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 2400, // 40分
-        cost: {
-            wood: 100,
-            stone: 300,
-            gold: 500
-        },
+        cost: { PT: 500 },
+        tileIndex: 28,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 3 },
         effects: {
-            navigationBonus: 0.2, // 航海速度+20%
-            fogOfWarReduction: 10, // 視界範囲+10グリッド
-            safetyBonus: true // 嵐ダメージ軽減
+            navigationBonus: 0.2,
+            fogOfWarReduction: 10,
+            safetyBonus: true
         },
-        description: '航海を安全にし、船の速度を向上させます。',
-        biomeRestrictions: ['beach', 'rocky'] // 海岸と岩山のみ
+        description: '航海を安全にし、船の速度を向上させます。'
     },
 
     temple: {
@@ -288,20 +263,27 @@ const buildings = {
         category: 'support',
         slotsRequired: 4,
         buildTime: 18000, // 5時間
-        cost: {
-            wood: 500,
-            stone: 1000,
-            gold: 5000
-        },
+        cost: { PT: 5000 },
+        tileIndex: 29,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 3, y: 4 },
         effects: {
-            blessings: true, // 祝福効果（全ステータス+10%）
-            healingRate: 2.0, // HP回復速度2.0倍
-            divineProtection: 0.2 // 被ダメージ-20%
+            blessings: true,
+            healingRate: 2.0,
+            divineProtection: 0.2
         },
-        description: '神の加護を得られる神聖な建造物。全能力が向上します。',
-        biomeRestrictions: [] // どのバイオームでも建設可能
+        description: '神の加護を得られる神聖な建造物。全能力が向上します。'
     }
 };
+
+/**
+ * 建物IDから定義を取得
+ * @param {string} buildingId - 建物ID
+ * @returns {Object|null} 建物定義
+ */
+function getBuildingById(buildingId) {
+    return buildings[buildingId] || null;
+}
 
 /**
  * スロット数に応じて建設可能な施設を取得
@@ -320,32 +302,27 @@ function getBuildingsForSlots(slotsRequired, category = null) {
 }
 
 /**
- * バイオームに応じて建設可能な施設かチェック
- * @param {string} buildingId - 施設ID
- * @param {string} biome - バイオーム
- * @returns {boolean} 建設可能かどうか
+ * カテゴリで建物をフィルタリング
+ * @param {string} category - カテゴリ名
+ * @returns {Array} 建物の配列
  */
-function canBuildOnBiome(buildingId, biome) {
-    return biome == null;
+function getBuildingsByCategory(category) {
+    return Object.values(buildings).filter(b => b.category === category);
 }
 
 /**
- * バイオームボーナスを適用した建設時間を計算
- * @param {string} buildingId - 施設ID
- * @param {string} biome - バイオーム
- * @returns {number} ボーナス適用後の建設時間（秒）
+ * 全建物リストを取得
+ * @returns {Array} 全建物の配列
  */
-function calculateBuildTime(buildingId, biome) {
-    const building = buildings[buildingId];
-    if (!building) return 0;
-
-    return Math.floor(building.buildTime);
+function getAllBuildings() {
+    return Object.values(buildings);
 }
 
 module.exports = {
     buildingCategories,
     buildings,
+    getBuildingById,
     getBuildingsForSlots,
-    canBuildOnBiome,
-    calculateBuildTime
+    getBuildingsByCategory,
+    getAllBuildings
 };

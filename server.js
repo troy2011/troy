@@ -198,7 +198,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const houseSpec = getBuildingSpec(houseId);
     const houseLogic = houseSpec ? normalizeSize(houseSpec.SizeLogic, inferLogicSizeFromSlotsRequired(houseSpec.SlotsRequired)) : { x: 1, y: 1 };
     const houseVisual = houseSpec ? normalizeSize(houseSpec.SizeVisual, houseLogic) : houseLogic;
-    const houseTileIndexRaw = houseSpec ? (houseSpec.TileIndex ?? houseSpec.tileIndex) : null;
+    const houseTileIndexRaw = houseSpec ? houseSpec.TileIndex : null;
     const houseTileIndex = Number.isFinite(Number(houseTileIndexRaw)) ? Number(houseTileIndexRaw) : 17;
     const houseW = Math.max(1, Math.trunc(Number(houseLogic.x)));
     const houseH = Math.max(1, Math.trunc(Number(houseLogic.y)));
@@ -1156,29 +1156,28 @@ async function getActiveShipCargoCapacity(playFabId) {
 }
 
 function getBuildingSpec(buildingId) {
-    const fromCatalog = catalogCache[buildingId];
-    if (fromCatalog && fromCatalog.ItemClass === 'Building') return fromCatalog;
+    // buildingDefinitions.js から直接取得（PlayFab Catalog非依存）
+    const building = buildingDefs?.buildings?.[buildingId];
+    if (!building) return null;
 
-    const fallback = buildingDefs?.buildings?.[buildingId];
-    if (!fallback) return null;
+    // sizeLogic と sizeVisual を直接使用（定義されていない場合はslotsRequiredから推測）
+    const sizeLogic = building.sizeLogic || inferLogicSizeFromSlotsRequired(building.slotsRequired);
+    const sizeVisual = building.sizeVisual || sizeLogic;
 
-    // buildingDefinitions.js の定義をCatalog互換の形に寄せる（最低限）
-    const sizeLogic = inferLogicSizeFromSlotsRequired(fallback.slotsRequired);
-    const sizeVisual = sizeLogic;
     return {
-        ItemId: fallback.id,
+        ItemId: building.id,
         ItemClass: 'Building',
-        DisplayName: fallback.name,
-        Description: fallback.description,
-        Category: fallback.category,
-        SlotsRequired: fallback.slotsRequired,
-        BuildTime: fallback.buildTime,
-        Cost: fallback.cost || {},
-        Effects: fallback.effects || {},
-        BiomeRestrictions: fallback.biomeRestrictions || [],
+        DisplayName: building.name,
+        Description: building.description,
+        Category: building.category,
+        SlotsRequired: building.slotsRequired,
+        BuildTime: building.buildTime,
+        Cost: building.cost || {},
+        Effects: building.effects || {},
         SizeLogic: sizeLogic,
         SizeVisual: sizeVisual,
-        Tags: fallback.tags || []
+        TileIndex: building.tileIndex,
+        Tags: [`size_${building.slotsRequired === 1 ? 'small' : building.slotsRequired === 2 ? 'medium' : 'large'}`]
     };
 }
 
@@ -1359,6 +1358,42 @@ app.post('/api/start-building-construction', async (req, res) => {
     }
 
     try {
+        // 1. 建物定義を取得
+        const spec = getBuildingSpec(buildingId);
+        if (!spec) {
+            return res.status(400).json({ error: '建物が見つかりません。' });
+        }
+
+        // 2. コストを確認・支払い
+        const costs = spec.Cost || {};
+        const costEntries = Object.entries(costs).filter(([, amount]) => Number(amount) > 0);
+
+        if (costEntries.length > 0) {
+            // プレイヤーの残高を確認
+            const inventory = await promisifyPlayFab(PlayFabServer.GetUserInventory, { PlayFabId: playFabId });
+            const balances = inventory?.VirtualCurrency || {};
+
+            // 残高チェック
+            for (const [currency, amount] of costEntries) {
+                const balance = balances[currency] || 0;
+                if (balance < Number(amount)) {
+                    return res.status(400).json({
+                        error: `${currency} が不足しています。必要: ${amount}, 所持: ${balance}`
+                    });
+                }
+            }
+
+            // コスト支払い
+            for (const [currency, amount] of costEntries) {
+                await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
+                    PlayFabId: playFabId,
+                    VirtualCurrency: currency,
+                    Amount: Number(amount)
+                });
+            }
+        }
+
+        // 3. 建設処理（Firestoreトランザクション）
         const ref = firestore.collection('world_map').doc(islandId);
         const now = Date.now();
 
@@ -1372,9 +1407,6 @@ app.post('/api/start-building-construction', async (req, res) => {
             const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
             const existing = buildings.find(b => b && b.status !== 'demolished');
             if (existing) throw new Error('AlreadyBuilt');
-
-            const spec = getBuildingSpec(buildingId);
-            if (!spec) throw new Error('BuildingNotFound');
 
             let sizeTag = getSizeTag(spec.Tags);
             if (!sizeTag && typeof spec.Size === 'string' && spec.Size) {
@@ -1395,7 +1427,7 @@ app.post('/api/start-building-construction', async (req, res) => {
             const buildTimeSeconds = Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
             const durationMs = buildTimeSeconds * 1000;
 
-            const tileIndexRaw = spec.TileIndex ?? spec.tileIndex;
+            const tileIndexRaw = spec.TileIndex;
             const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
             const maxHp = computeMaxHp(logicW, logicH);
             const entry = {
@@ -1429,13 +1461,13 @@ app.post('/api/start-building-construction', async (req, res) => {
         res.json({
             success: true,
             building,
-            message: `${buildingId} の建設を開始しました。`
+            cost: costs,
+            message: `${spec.DisplayName || buildingId} の建設を開始しました。`
         });
     } catch (error) {
         const msg = error?.message || String(error);
         if (msg === 'NotOwner') return res.status(403).json({ error: 'この島の所有者ではありません。' });
         if (msg === 'IslandNotFound') return res.status(404).json({ error: '島が見つかりません。' });
-        if (msg === 'BuildingNotFound') return res.status(400).json({ error: '建物が見つかりません。' });
         if (msg === 'AlreadyBuilt') return res.status(400).json({ error: 'この島には既に建物があります。' });
         if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: 'この島のサイズには建てられません。' });
         console.error('[StartBuildingConstruction] Error:', error);
@@ -1509,7 +1541,7 @@ app.post('/api/upgrade-island-level', async (req, res) => {
         const logicH = Math.max(1, Math.trunc(sizeLogic.y));
         const visualW = Math.max(1, Math.trunc(sizeVisual.x));
         const visualH = Math.max(1, Math.trunc(sizeVisual.y));
-        const tileIndexRaw = spec.TileIndex ?? spec.tileIndex;
+        const tileIndexRaw = spec.TileIndex;
         const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
         const maxHp = computeMaxHp(logicW, logicH);
 
