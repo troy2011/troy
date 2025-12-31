@@ -21,12 +21,12 @@ function renderResourceSummary() {
     if (!container) return;
 
     const mapping = [
-        { code: 'RR', label: '?' },
-        { code: 'RG', label: '?' },
-        { code: 'RY', label: '?' },
-        { code: 'RB', label: '?' },
-        { code: 'RT', label: '?' },
-        { code: 'RS', label: '?' }
+        { code: 'RR', label: '🔥' },
+        { code: 'RG', label: '🪨' },
+        { code: 'RY', label: '🍄' },
+        { code: 'RB', label: '💧' },
+        { code: 'RT', label: '🌿' },
+        { code: 'RS', label: '🌳' }
     ];
 
     container.innerHTML = mapping.map(item => {

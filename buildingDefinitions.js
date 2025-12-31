@@ -1,5 +1,4 @@
 ﻿// buildingDefinitions.js
-// ???: ?????
 // 島に建設可能な施設の定義（シンプル化版）
 
 /**
@@ -204,6 +203,161 @@ const buildings = {
     // ========================================
     // 補助施設（Support）
     // ========================================
+        // ========================================
+    // 住居・商業施設
+    // ========================================
+    my_house_lv1: {
+        id: 'my_house_lv1',
+        name: 'マイハウス LV1',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 900, // 15分
+        cost: { PT: 200 },
+        tileIndex: 30,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            comfort: 5
+        },
+        description: '自分専用の小さな住居。拠点としての利便性が向上します。'
+    },
+
+    my_house_lv2: {
+        id: 'my_house_lv2',
+        name: 'マイハウス LV2',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 400 },
+        tileIndex: 31,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            comfort: 10
+        },
+        description: '生活環境が改善された住居。帰還時の回復が早まります。'
+    },
+
+    my_house_lv3: {
+        id: 'my_house_lv3',
+        name: 'マイハウス LV3',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 3600, // 1時間
+        cost: { PT: 700 },
+        tileIndex: 32,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            comfort: 18,
+            storageBonus: 50
+        },
+        description: '広くなった住居。資源の保管がしやすくなります。'
+    },
+
+    my_house_lv4: {
+        id: 'my_house_lv4',
+        name: 'マイハウス LV4',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 5400, // 1.5時間
+        cost: { PT: 1100 },
+        tileIndex: 33,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            comfort: 25,
+            storageBonus: 100
+        },
+        description: '設備が整った上位住居。補給効率が向上します。'
+    },
+
+    my_house_lv5: {
+        id: 'my_house_lv5',
+        name: 'マイハウス LV5',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 7200, // 2時間
+        cost: { PT: 1600 },
+        tileIndex: 34,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            comfort: 35,
+            storageBonus: 200,
+            moraleBonus: 5
+        },
+        description: '島を代表する豪邸。滞在するだけで士気が上がります。'
+    },
+
+    weapon_shop: {
+        id: 'weapon_shop',
+        name: '武器屋',
+        category: 'economic',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 500 },
+        tileIndex: 35,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            weaponSupply: true,
+            tradeBonus: 0.05
+        },
+        description: '武器を扱う店。装備の調達がしやすくなります。'
+    },
+
+    armor_shop: {
+        id: 'armor_shop',
+        name: '防具屋',
+        category: 'economic',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 500 },
+        tileIndex: 36,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            armorSupply: true,
+            defenseBonus: 5
+        },
+        description: '防具を扱う店。防衛準備が整いやすくなります。'
+    },
+
+    item_shop: {
+        id: 'item_shop',
+        name: '道具屋',
+        category: 'economic',
+        slotsRequired: 1,
+        buildTime: 1500, // 25分
+        cost: { PT: 400 },
+        tileIndex: 37,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            itemSupply: true,
+            tradeBonus: 0.04
+        },
+        description: '消耗品を扱う店。遠征準備がしやすくなります。'
+    },
+
+    inn: {
+        id: 'inn',
+        name: '宿屋',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 2400, // 40分
+        cost: { PT: 600 },
+        tileIndex: 38,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            restBonus: 0.2,
+            moraleBonus: 8
+        },
+        description: '休息施設。乗組員の疲労回復が早まります。'
+    },
+
     tavern: {
         id: 'tavern',
         name: '酒場',
