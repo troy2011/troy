@@ -214,6 +214,7 @@ export function showBuildingMenu(island, playFabId) {
     const islandLevel = Math.max(1, Math.trunc(Number(island.islandLevel) || 1));
     const resourceCurrency = getResourceCurrencyForBiome(island.biome);
     const isHarvestable = !!resourceCurrency;
+    const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
 
     const isOwner = !!playFabId && island.ownerId === playFabId;
     const canUpgrade = isOwner && islandLevel < 5;
@@ -277,16 +278,7 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
                 ` : ''}
 
-                ${!isHarvestable ? `<div class="building-status-panel" data-island-id="${island.id}">${renderCurrentBuilding(island)}</div>
-
-                <div class="building-categories">
-                    <button class="category-tab active" data-category="military">??</button>
-                    <button class="category-tab" data-category="economic">??</button>
-                    <button class="category-tab" data-category="support">??</button>
-                </div>
-
-                <div class="building-list" id="buildingList"></div>` : ''}
-
+                ${(!isHarvestable && !hasBuilding) ? `
                 <div class="building-status-panel" data-island-id="${island.id}">
                     ${renderCurrentBuilding(island)}
                 </div>
@@ -298,6 +290,7 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
 
                 <div class="building-list" id="buildingList"></div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -319,7 +312,7 @@ export function showBuildingMenu(island, playFabId) {
     }, { passive: true });
 
     setupBuildingMenuEvents(sheet, island, playFabId);
-    if (!isHarvestable) {
+    if (!isHarvestable && !hasBuilding) {
         loadBuildingList('military', island);
     }
 
