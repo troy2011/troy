@@ -2007,7 +2007,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const myPlayFabId = this.playerInfo?.playFabId;
         const isOwner = !!myPlayFabId && islandData.ownerId === myPlayFabId;
 
-        let buttonText = '建設メニューを開く';
+        const resourceBiomes = ['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred'];
+        const isResourceIsland = resourceBiomes.includes(String(islandData?.biome || '').toLowerCase());
+        const menuLabel = isResourceIsland ? '採取メニュー' : '建設メニュー';
+
+        let buttonText = `${menuLabel}を開く`;
         let buttonClass = 'info';
         let onClick = async () => {
             await this.openBuildingMenuForIsland(islandData);
@@ -2018,7 +2022,7 @@ export default class WorldMapScene extends Phaser.Scene {
             buttonClass = 'disabled';
             onClick = () => this.showMessage('ログインしてください。');
         } else if (!isOwner) {
-            buttonText = '占領して建設メニューを開く';
+            buttonText = `占領して${menuLabel}を開く`;
             buttonClass = 'warning';
             onClick = async () => {
                 await this.claimIsland(islandData);
@@ -2051,7 +2055,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async openBuildingMenuForIsland(islandData) {
         if (!window.Island || !window.Island.getIslandDetails || !window.Island.showBuildingMenu) {
-            this.showMessage('建設メニューを開けません。');
+            this.showMessage('メニューを開けません。');
             return;
         }
 
