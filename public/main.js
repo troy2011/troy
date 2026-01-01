@@ -153,7 +153,6 @@ async function initializeAppFeatures() {
             input.value = String((Number.isFinite(current) ? current : 0) + amount);
         });
     });
-    });
 
     initMapChat(myPlayFabId);
 
