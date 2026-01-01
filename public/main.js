@@ -140,8 +140,19 @@ async function initializeLiff() {
 async function initializeAppFeatures() {
     console.log('[initializeAppFeatures] Starting initialization...');
 
-    // --- 各機能のイベントリスナー設定 ---
-    document.getElementById('btnGetStats').addEventListener('click', () => Player.getPlayerStats(myPlayFabId));    document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);    // (他のイベントリスナーも同様に設定)
+    // --- UI event bindings ---
+    document.getElementById('btnGetStats').addEventListener('click', () => Player.getPlayerStats(myPlayFabId));
+    document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
+    document.querySelectorAll('.transfer-quick-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const amount = btn.dataset.amount;
+            const input = document.getElementById('transferAmount');
+            if (input && amount) {
+                input.value = amount;
+            }
+        });
+    });
+
     document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryTab(btn.dataset.category));
     });

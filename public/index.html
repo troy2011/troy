@@ -48,8 +48,11 @@
         <div id="tabContainer">
             <!-- 1. ホームタブ -->
             <div id="tabContentHome" class="tab-content">
-                <!-- アバターカード -->
-                <div class="content-area" id="chatArea">
+                <div class="content-area home-hero-card">
+                    <div class="home-hero-header">
+                        <h2>ポイント管理</h2>
+                        <div class="home-hero-subtitle">アバター＆船</div>
+                    </div>
                     <div id="homeShipStage" class="home-ship-stage">
                         <img src="Sprites/Ships/homeShip.png" alt="Home Ship" class="home-ship-image">
                         <div id="home-avatar" class="home-ship-avatar avatar-container">
@@ -63,12 +66,26 @@
                             <div id="home-avatar-layer-shield-left" class="avatar-layer"></div>
                         </div>
                     </div>
-                    <h2>チャット</h2>
-                    <div id="chatMessages"></div>
-                    <form id="chatInputArea" onsubmit="return false;">
-                        <input type="text" id="chatInput" placeholder="メッセージ...">
-                        <button id="btnSendChat">送信</button>
-                    </form>
+                </div>
+                <div class="content-area home-qr-card">
+                    <h2>QRコード</h2>
+                    <div id="myQrArea" class="home-qr-area">
+                        <canvas id="myQrCanvas"></canvas>
+                        <p class="home-qr-note">このコードを読み取って送金</p>
+                    </div>
+                </div>
+                <div class="content-area home-transfer-card">
+                    <h2>ポイント受け渡し</h2>
+                    <div class="transfer-quick-row">
+                        <button class="transfer-quick-btn" data-amount="100">100</button>
+                        <button class="transfer-quick-btn" data-amount="500">500</button>
+                        <button class="transfer-quick-btn" data-amount="1000">1000</button>
+                    </div>
+                    <div class="transfer-input-row">
+                        <input type="number" id="transferAmount" placeholder="手入力" value="100" />
+                        <span>Ps</span>
+                    </div>
+                    <button id="btnScanPay" class="transfer-send-btn">送金する</button>
                 </div>
             </div>
 
@@ -77,7 +94,7 @@
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
                     <div class="map-loading-text">読み込み中...</div>
                 </div>
-                <div id="phaser-container" style="width: 100%; height: calc(100vh - 140px); background: #000; touch-action: none;"></div>
+                <div id="phaser-container" class="map-stage"></div>
                 <div id="shipActionPanel" class="ship-action-panel">
                     <button id="shipActionButton" class="ship-action-button">Action</button>
                     <div id="shipActionStatus" class="ship-action-status"></div>
@@ -95,6 +112,14 @@
                     <div class="island-command-buttons">
                         <button id="islandCommandAction" class="island-command-btn">建設メニューを開く</button>
                     </div>
+                </div>
+                <div id="mapChatArea" class="map-chat-area">
+                    <h2>チャット</h2>
+                    <div id="chatMessages"></div>
+                    <form id="chatInputArea" onsubmit="return false;">
+                        <input type="text" id="chatInput" placeholder="メッセージ...">
+                        <button id="btnSendChat">送信</button>
+                    </form>
                 </div>
             </div>
 
@@ -230,29 +255,15 @@
 
 <!-- 5. QR/バトル/ギルドタブ -->
             <div id="tabContentQr" class="tab-content" style="display: none;">
-                <!-- QRコード表示エリア -->
+                <!-- QRバトル -->
                 <div class="content-area">
-                    <h2>QRバトル & 送金</h2>
-                    <div id="myQrArea" style="text-align:center; margin:20px 0;">
-                        <canvas id="myQrCanvas"></canvas>
-                        <p style="font-size:12px; color:var(--text-sub);">このコードを読み取って対戦・送金</p>
-                    </div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                        <div id="battleArea">
-                            <button id="btnScanBattle" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
-                                <span style="font-size:24px;">⚔️</span>
-                                対戦を挑む
-                            </button>
-                            <p id="battleResult" style="font-size:12px; text-align:center;"></p>
-                        </div>
-                        <div id="transferArea">
-                             <div style="display:flex; align-items:center; gap:4px; margin-bottom:8px;">
-                                <input type="number" id="transferAmount" placeholder="10" value="10" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border-color); background:#374151; color:#fff;">
-                                <span>Ps</span>
-                             </div>
-                            <button id="btnScanPay" style="width:100%;">送金する</button>
-                        </div>
+                    <h2>QRバトル</h2>
+                    <div id="battleArea">
+                        <button id="btnScanBattle" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+                            <span style="font-size:24px;">⚔️</span>
+                            対戦を挑む
+                        </button>
+                        <p id="battleResult" style="font-size:12px; text-align:center;"></p>
                     </div>
                 </div>
 

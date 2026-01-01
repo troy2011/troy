@@ -92,16 +92,11 @@ export async function showTab(tabId, playerInfo) {
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
 
-    const chatAreaEl = document.getElementById('chatArea');
-    if (chatAreaEl) chatAreaEl.style.display = 'none';
-
     const contentEl = document.getElementById(`tabContent${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (contentEl) contentEl.style.display = 'block';
 
     const navEl = document.getElementById(`nav${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (navEl) navEl.classList.add('active');
-
-    if (tabId === 'home' && chatAreaEl) chatAreaEl.style.display = 'block';
 
     try {
         if (!tabLoaded[tabId]) {
