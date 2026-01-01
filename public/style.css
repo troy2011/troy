@@ -850,7 +850,7 @@ button:disabled {
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -50%) translate(-64px, -64px) scale(1.6);
+    transform: translate(-50%, -50%) scale(1.6);
     transform-origin: center center;
     margin: 0;
 }
