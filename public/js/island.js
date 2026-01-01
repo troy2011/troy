@@ -5,6 +5,16 @@ import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 // Track construction timers per island
 let constructionTimers = new Map();
 
+const SHOP_BUILDINGS = {
+    weapon_shop: { title: '武器屋', categories: ['Weapon'] },
+    armor_shop: { title: '防具屋', categories: ['Armor', 'Shield'] },
+    item_shop: { title: '道具屋', categories: ['Consumable'] }
+};
+
+function getShopConfig(buildingId) {
+    return buildingId ? SHOP_BUILDINGS[buildingId] || null : null;
+}
+
 export async function detectIslandApproach(shipId) {
     const response = await callApiWithLoader('/api/detect-island-approach', {
         shipId: shipId
@@ -232,6 +242,9 @@ export function showBuildingMenu(island, playFabId) {
     const isOwner = !!playFabId && island.ownerId === playFabId;
     const canUpgrade = isOwner && islandLevel < 5;
     const upgradeCostLabel = renderUpgradeCost(island.upgradeCost);
+    const activeBuilding = (island.buildings || []).find(b => b && b.status !== 'demolished') || null;
+    const activeBuildingId = activeBuilding ? (activeBuilding.buildingId || activeBuilding.id || '') : '';
+    const shopConfig = getShopConfig(activeBuildingId);
 
     sheet.innerHTML = `
         <div class="bottom-sheet-overlay"></div>
@@ -309,6 +322,28 @@ export function showBuildingMenu(island, playFabId) {
                 <div class="building-status-panel" data-island-id="${island.id}">
                     ${renderCurrentBuilding(island)}
                 </div>
+                ${shopConfig ? `
+                <div class="building-actions">
+                    <div class="resource-title">${escapeHtml(shopConfig.title)}</div>
+                    <div class="resource-row" style="display:flex; gap:8px; margin-bottom:8px;">
+                        <button class="btn-build shop-tab active" data-tab="sell">販売</button>
+                        <button class="btn-build shop-tab" data-tab="buy">購入</button>
+                    </div>
+                    ${isOwner ? `
+                    <div class="resource-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <label>買い取り倍率 <input id="shopBuyMultiplier" type="number" step="0.1" min="0.1" max="5" value="0.7" style="width:80px;"></label>
+                        <label>販売倍率 <input id="shopSellMultiplier" type="number" step="0.1" min="0.1" max="5" value="1.2" style="width:80px;"></label>
+                        <button class="btn-build" id="btnSaveShopPricing">価格設定</button>
+                    </div>
+                    ` : ''}
+                    <div class="resource-row shop-panel" data-panel="sell">
+                        <div id="shopSellList">読み込み中...</div>
+                    </div>
+                    <div class="resource-row shop-panel" data-panel="buy" style="display:none;">
+                        <div id="shopBuyList">読み込み中...</div>
+                    </div>
+                </div>
+                ` : `
                 <div class="building-actions">
                     <div class="resource-title">自国の建物</div>
                     <div class="resource-row">利用できる行動</div>
@@ -318,6 +353,7 @@ export function showBuildingMenu(island, playFabId) {
                         <button class="btn-build" id="btnBuildingAction">特殊</button>
                     </div>
                 </div>
+                `}
                 ` : ''}
 
                 ${(hasBuilding && isEnemyNation) ? `
@@ -442,6 +478,46 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
         });
     }
 
+    const active = (island.buildings || []).find(b => b && b.status !== 'demolished') || null;
+    const activeId = active ? (active.buildingId || active.id || '') : '';
+    const shopConfig = getShopConfig(activeId);
+    const shopTabs = sheet.querySelectorAll('.shop-tab');
+    if (shopTabs && shopTabs.length > 0) {
+        shopTabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                shopTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const target = tab.dataset.tab;
+                sheet.querySelectorAll('.shop-panel').forEach(panel => {
+                    panel.style.display = (panel.dataset.panel === target) ? 'block' : 'none';
+                });
+            });
+        });
+    }
+
+    const savePricingBtn = sheet.querySelector('#btnSaveShopPricing');
+    if (savePricingBtn) {
+        savePricingBtn.addEventListener('click', async () => {
+            const buyValue = Number(sheet.querySelector('#shopBuyMultiplier')?.value || 0.7);
+            const sellValue = Number(sheet.querySelector('#shopSellMultiplier')?.value || 1.2);
+            const result = await callApiWithLoader('/api/set-shop-pricing', {
+                playFabId,
+                islandId: island.id,
+                buyMultiplier: buyValue,
+                sellMultiplier: sellValue
+            });
+            if (result && result.success) {
+                await loadShopPanels(sheet, island, shopConfig, playFabId);
+            } else if (result?.error) {
+                alert(result.error);
+            }
+        });
+    }
+
+    if (shopConfig) {
+        loadShopPanels(sheet, island, shopConfig, playFabId);
+    }
+
     const attackBuildingBtn = sheet.querySelector('#btnAttackBuilding');
     if (attackBuildingBtn) {
         attackBuildingBtn.addEventListener('click', async () => {
@@ -509,6 +585,101 @@ async function loadBuildingList(category, island) {
     } catch (error) {
         console.error('[LoadBuildingList] Error:', error);
         listContainer.innerHTML = '<div class="error">建物の読み込みに失敗しました</div>';
+    }
+}
+
+async function loadShopPanels(sheet, island, shopConfig, playFabId) {
+    const sellList = sheet.querySelector('#shopSellList');
+    const buyList = sheet.querySelector('#shopBuyList');
+    if (!sellList || !buyList) return;
+    sellList.innerHTML = '読み込み中...';
+    buyList.innerHTML = '読み込み中...';
+    try {
+        const [shopState, inventoryResult] = await Promise.all([
+            callApiWithLoader('/api/get-shop-state', { islandId: island.id }, { isSilent: true }),
+            callApiWithLoader('/api/get-inventory', { playFabId }, { isSilent: true })
+        ]);
+        const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2 };
+        const buyInput = sheet.querySelector('#shopBuyMultiplier');
+        const sellInput = sheet.querySelector('#shopSellMultiplier');
+        if (buyInput) buyInput.value = String(pricing.buyMultiplier);
+        if (sellInput) sellInput.value = String(pricing.sellMultiplier);
+
+        const inventory = Array.isArray(inventoryResult?.inventory) ? inventoryResult.inventory : [];
+        const allowed = shopConfig?.categories || [];
+        const sellItems = inventory.filter(item => {
+            const category = item?.customData?.Category || null;
+            return !allowed.length || (category && allowed.includes(category));
+        });
+        if (!sellItems.length) {
+            sellList.innerHTML = '<div>売れるアイテムがありません。</div>';
+        } else {
+            sellList.innerHTML = sellItems.map(item => {
+                const sellPrice = Number(item?.customData?.SellPrice || 0);
+                const price = Math.floor(sellPrice * Number(pricing.buyMultiplier || 0));
+                const instanceId = item.instances?.[0] || '';
+                return `
+                    <div class="building-item" style="margin-bottom:8px;">
+                        <div class="building-details">
+                            <div class="building-name">${escapeHtml(item.name)}</div>
+                            <div class="building-description">在庫: ${item.count} / 買い取り: ${price} Ps</div>
+                        </div>
+                        <button class="btn-build btn-sell-to-shop" data-instance-id="${instanceId}" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>売る</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const shopInventory = Array.isArray(shopState?.inventory) ? shopState.inventory : [];
+        if (!shopInventory.length) {
+            buyList.innerHTML = '<div>在庫がありません。</div>';
+        } else {
+            buyList.innerHTML = shopInventory.map(item => {
+                const base = Number(item.buyPrice || item.sellPrice || 0);
+                const price = Math.floor(base * Number(pricing.sellMultiplier || 0));
+                return `
+                    <div class="building-item" style="margin-bottom:8px;">
+                        <div class="building-details">
+                            <div class="building-name">${escapeHtml(item.name)}</div>
+                            <div class="building-description">在庫: ${item.count} / 価格: ${price} Ps</div>
+                        </div>
+                        <button class="btn-build btn-buy-from-shop" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>買う</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        sellList.querySelectorAll('.btn-sell-to-shop').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const instanceId = btn.dataset.instanceId;
+                const itemId = btn.dataset.itemId;
+                if (!instanceId || !itemId) return;
+                await callApiWithLoader('/api/sell-to-shop', {
+                    playFabId,
+                    islandId: island.id,
+                    itemInstanceId: instanceId,
+                    itemId
+                });
+                await loadShopPanels(sheet, island, shopConfig, playFabId);
+            });
+        });
+
+        buyList.querySelectorAll('.btn-buy-from-shop').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const itemId = btn.dataset.itemId;
+                if (!itemId) return;
+                await callApiWithLoader('/api/buy-from-shop', {
+                    playFabId,
+                    islandId: island.id,
+                    itemId
+                });
+                await loadShopPanels(sheet, island, shopConfig, playFabId);
+            });
+        });
+    } catch (error) {
+        console.error('[LoadShopPanels] Error:', error);
+        sellList.innerHTML = '<div>読み込みに失敗しました。</div>';
+        buyList.innerHTML = '<div>読み込みに失敗しました。</div>';
     }
 }
 

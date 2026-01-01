@@ -1351,6 +1351,209 @@ app.post('/api/get-island-details', async (req, res) => {
     }
 });
 
+// ----------------------------------------------------
+// 島ショップAPI
+// ----------------------------------------------------
+const SHOP_BUILDING_CATEGORIES = {
+    weapon_shop: ['Weapon'],
+    armor_shop: ['Armor', 'Shield'],
+    item_shop: ['Consumable']
+};
+
+function getShopBuildingId(island) {
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    const active = buildings.find(b => b && b.status !== 'demolished');
+    return active ? (active.buildingId || active.id || null) : null;
+}
+
+function getShopPricing(island) {
+    const pricing = island?.shopPricing || {};
+    const buyMultiplier = Number.isFinite(Number(pricing.buyMultiplier)) ? Number(pricing.buyMultiplier) : 0.7;
+    const sellMultiplier = Number.isFinite(Number(pricing.sellMultiplier)) ? Number(pricing.sellMultiplier) : 1.2;
+    return { buyMultiplier, sellMultiplier };
+}
+
+function resolveBasePrice(itemData) {
+    const sellPrice = itemData?.SellPrice ? Number(itemData.SellPrice) : 0;
+    const buyPrice = itemData?.BuyPrice ? Number(itemData.BuyPrice) : 0;
+    return {
+        sellPrice: Number.isFinite(sellPrice) ? sellPrice : 0,
+        buyPrice: Number.isFinite(buyPrice) ? buyPrice : 0
+    };
+}
+
+app.post('/api/get-shop-state', async (req, res) => {
+    const { islandId } = req.body || {};
+    if (!islandId) return res.status(400).json({ error: 'islandId is required' });
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        const buildingId = getShopBuildingId(island);
+        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
+        const pricing = getShopPricing(island);
+        const inventory = Array.isArray(island.shopInventory) ? island.shopInventory : [];
+        const items = inventory.map((entry) => {
+            const itemId = entry.itemId;
+            const count = Number(entry.count) || 0;
+            const itemData = catalogCache[itemId] || {};
+            const base = resolveBasePrice(itemData);
+            return {
+                itemId,
+                count,
+                name: itemData.DisplayName || itemId,
+                category: itemData.Category || null,
+                sellPrice: base.sellPrice,
+                buyPrice: base.buyPrice
+            };
+        });
+        res.json({
+            islandId,
+            ownerId: island.ownerId || null,
+            buildingId,
+            categories,
+            pricing,
+            inventory: items
+        });
+    } catch (error) {
+        console.error('[GetShopState] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to get shop state' });
+    }
+});
+
+app.post('/api/set-shop-pricing', async (req, res) => {
+    const { playFabId, islandId, buyMultiplier, sellMultiplier } = req.body || {};
+    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
+    const buyValue = Number(buyMultiplier);
+    const sellValue = Number(sellMultiplier);
+    if (!Number.isFinite(buyValue) || !Number.isFinite(sellValue)) {
+        return res.status(400).json({ error: 'Invalid pricing values' });
+    }
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
+        await ref.update({
+            shopPricing: {
+                buyMultiplier: buyValue,
+                sellMultiplier: sellValue,
+                updatedAt: Date.now(),
+                ownerId: playFabId
+            }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[SetShopPricing] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to set shop pricing' });
+    }
+});
+
+app.post('/api/sell-to-shop', async (req, res) => {
+    const { playFabId, islandId, itemInstanceId, itemId } = req.body || {};
+    if (!playFabId || !islandId || !itemInstanceId || !itemId) {
+        return res.status(400).json({ error: 'Missing parameters' });
+    }
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        const buildingId = getShopBuildingId(island);
+        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
+        if (!categories.length) return res.status(400).json({ error: 'ShopNotAvailable' });
+        const itemData = catalogCache[itemId] || {};
+        if (categories.length && itemData.Category && !categories.includes(itemData.Category)) {
+            return res.status(400).json({ error: 'InvalidItemCategory' });
+        }
+        const base = resolveBasePrice(itemData);
+        const pricing = getShopPricing(island);
+        const price = Math.floor(base.sellPrice * pricing.buyMultiplier);
+        if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotPurchasable' });
+
+        await promisifyPlayFab(PlayFabServer.ConsumeItem, {
+            PlayFabId: playFabId,
+            ItemInstanceId: itemInstanceId,
+            ConsumeCount: 1
+        });
+
+        const addResult = await promisifyPlayFab(PlayFabServer.AddUserVirtualCurrency, {
+            PlayFabId: playFabId,
+            VirtualCurrency: VIRTUAL_CURRENCY_CODE,
+            Amount: price
+        });
+
+        const shopInventory = Array.isArray(island.shopInventory) ? island.shopInventory.slice() : [];
+        const idx = shopInventory.findIndex(i => i && i.itemId === itemId);
+        if (idx >= 0) {
+            shopInventory[idx] = { ...shopInventory[idx], count: Number(shopInventory[idx].count || 0) + 1 };
+        } else {
+            shopInventory.push({ itemId, count: 1 });
+        }
+        await ref.update({ shopInventory });
+        res.json({ success: true, price, newBalance: addResult?.Balance });
+    } catch (error) {
+        console.error('[SellToShop] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to sell item to shop' });
+    }
+});
+
+app.post('/api/buy-from-shop', async (req, res) => {
+    const { playFabId, islandId, itemId } = req.body || {};
+    if (!playFabId || !islandId || !itemId) {
+        return res.status(400).json({ error: 'Missing parameters' });
+    }
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        const buildingId = getShopBuildingId(island);
+        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
+        if (!categories.length) return res.status(400).json({ error: 'ShopNotAvailable' });
+        const itemData = catalogCache[itemId] || {};
+        if (categories.length && itemData.Category && !categories.includes(itemData.Category)) {
+            return res.status(400).json({ error: 'InvalidItemCategory' });
+        }
+        const base = resolveBasePrice(itemData);
+        const pricing = getShopPricing(island);
+        const baseSell = base.buyPrice || base.sellPrice;
+        const price = Math.floor(baseSell * pricing.sellMultiplier);
+        if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotForSale' });
+
+        const shopInventory = Array.isArray(island.shopInventory) ? island.shopInventory.slice() : [];
+        const idx = shopInventory.findIndex(i => i && i.itemId === itemId);
+        if (idx === -1 || Number(shopInventory[idx].count || 0) <= 0) {
+            return res.status(400).json({ error: 'OutOfStock' });
+        }
+
+        await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
+            PlayFabId: playFabId,
+            VirtualCurrency: VIRTUAL_CURRENCY_CODE,
+            Amount: price
+        });
+
+        await promisifyPlayFab(PlayFabServer.GrantItemsToUser, {
+            PlayFabId: playFabId,
+            ItemIds: [itemId]
+        });
+
+        const nextCount = Number(shopInventory[idx].count || 0) - 1;
+        if (nextCount <= 0) {
+            shopInventory.splice(idx, 1);
+        } else {
+            shopInventory[idx] = { ...shopInventory[idx], count: nextCount };
+        }
+        await ref.update({ shopInventory });
+        res.json({ success: true, price });
+    } catch (error) {
+        console.error('[BuyFromShop] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to buy item from shop' });
+    }
+});
+
 app.post('/api/start-building-construction', async (req, res) => {
     const { playFabId, islandId, buildingId } = req.body || {};
     if (!playFabId || !islandId || !buildingId) {
