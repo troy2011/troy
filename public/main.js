@@ -215,6 +215,18 @@ async function initializeAppFeatures() {
         Inventory.getInventory(myPlayFabId),
         (async () => {
             try {
+                console.log('[initializeAppFeatures] Fetching building meta...');
+                const response = await fetch(buildApiUrl('/api/get-building-meta'));
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                window.buildingMetaById = await response.json();
+                console.log('[initializeAppFeatures] Building meta loaded:', window.buildingMetaById);
+            } catch (e) {
+                console.error('[initializeAppFeatures] Failed to fetch building meta:', e);
+                window.buildingMetaById = {};
+            }
+        })(),
+        (async () => {
+            try {
                 console.log('[initializeAppFeatures] Fetching ship catalog...');
                 const response = await fetch(buildApiUrl('/api/get-ship-catalog'));
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

@@ -1703,6 +1703,17 @@ app.get('/api/get-constructing-islands', async (_req, res) => {
     }
 });
 
+app.get('/api/get-building-meta', async (_req, res) => {
+    try {
+        const meta = buildingDefs.getBuildingMetaMap();
+        res.json(meta);
+    } catch (error) {
+        const msg = error?.message || String(error);
+        console.error('[GetBuildingMeta] Error:', msg);
+        res.status(500).json({ error: 'Failed to get building meta', details: msg });
+    }
+});
+
 // ----------------------------------------------------
 // ★ v41: PlayFabのカタログ情報を読み込んでキャッシュする (複数カタログ対応)
 // ----------------------------------------------------

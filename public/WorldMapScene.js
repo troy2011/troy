@@ -75,21 +75,27 @@ const ISLAND_LAYOUTS = {
     }
 };
 
-const BUILDING_ICON_BY_ID = {
-    watchtower: '🗼',
-    coastal_battery: '🎯',
-    fortress: '🏰',
-    warehouse: '📦',
-    farm: '🌾',
-    trading_post: '🏪',
-    tavern: '🍺',
-    repair_dock: '🔧',
-    lighthouse: '🗼',
-    shipyard: '⚓',
-    mine: '⛏️',
-    temple: '⛩️',
-    grand_market: '🏛️'
+const BUILDING_META_DEFAULT = { icon: '🏗️', nationTileOffset: false };
+
+const NATION_TILE_INDEX = {
+    fire: 0,
+    earth: 1,
+    wind: 2,
+    water: 3
 };
+
+function getNationTileOffset(nation, visualWidth) {
+    const key = String(nation || '').toLowerCase();
+    const index = (key in NATION_TILE_INDEX) ? NATION_TILE_INDEX[key] : 0;
+    const width = Math.max(1, Number(visualWidth) || 1);
+    return width * index;
+}
+
+function getBuildingMeta(buildingId) {
+    if (typeof window === 'undefined') return BUILDING_META_DEFAULT;
+    const meta = window.buildingMetaById?.[buildingId];
+    return meta || BUILDING_META_DEFAULT;
+}
 
 export default class WorldMapScene extends Phaser.Scene {
     constructor() {
@@ -829,12 +835,18 @@ export default class WorldMapScene extends Phaser.Scene {
             const buildingsToRender = activeBuildings.length > 0 ? [activeBuildings[0]] : [];
             buildingsToRender.forEach(building => {
                 const buildingId = building.buildingId || building.id || null;
-                const tileIndex = (typeof building.tileIndex === 'number') ? building.tileIndex : 17;
+                const baseTileIndex = (typeof building.tileIndex === 'number') ? building.tileIndex : 17;
 
                 const bWidth = (building.width || 1);
                 const bHeight = (building.height || 1);
                 const vWidth = (building.visualWidth || bWidth);
                 const vHeight = (building.visualHeight || bHeight);
+                const buildingMeta = buildingId ? getBuildingMeta(buildingId) : BUILDING_META_DEFAULT;
+                const nation = data?.nation;
+                const nationOffset = (buildingMeta?.nationTileOffset === true)
+                    ? getNationTileOffset(nation, vWidth)
+                    : 0;
+                const tileIndex = baseTileIndex + nationOffset;
 
                 let slotX = building.x;
                 let slotY = building.y;
@@ -926,7 +938,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
                     // buildingIdがある場合は、識別用にアイコンを上に重ねて描画（タイル画像が未整備でも分かるように）
                     if (buildingId) {
-                        const icon = BUILDING_ICON_BY_ID[buildingId] || '🏗️';
+                        const icon = (buildingMeta?.icon) || BUILDING_META_DEFAULT.icon;
                         const iconText = this.add.text(
                             buildingX + (this.TILE_SIZE * 0.5),
                             buildingY + (bHeight * this.TILE_SIZE) - (this.TILE_SIZE * 0.5),

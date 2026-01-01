@@ -39,15 +39,49 @@ const buildings = {
     // 軍事施設（Military）
     // ========================================
     watchtower: {
-        id: 'watchtower',
+        id: 'watchtower_lv1',
         name: '見張り台',
         category: 'military',
         slotsRequired: 1,
         buildTime: 1800, // 30分
         cost: { PT: 200 },
-        tileIndex: 17,
+        tileIndex: 833,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
+        effects: {
+            visionRange: 10,
+            earlyWarning: true
+        },
+        description: '周囲の海域を監視し、敵の接近を早期発見します。'
+    },
+
+        watchtower: {
+        id: 'watchtower_lv2',
+        name: '見張り台',
+        category: 'military',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 200 },
+        tileIndex: 897,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 2 },
+        effects: {
+            visionRange: 10,
+            earlyWarning: true
+        },
+        description: '周囲の海域を監視し、敵の接近を早期発見します。'
+    },
+
+    watchtower: {
+        id: 'watchtower_lv3',
+        name: '見張り台',
+        category: 'military',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 200 },
+        tileIndex: 898,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 3 },
         effects: {
             visionRange: 10,
             earlyWarning: true
@@ -213,7 +247,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 900, // 15分
         cost: { PT: 200 },
-        tileIndex: 30,
+        tileIndex: 568,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -229,7 +263,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 1800, // 30分
         cost: { PT: 400 },
-        tileIndex: 31,
+        tileIndex: 524,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -245,7 +279,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 3600, // 1時間
         cost: { PT: 700 },
-        tileIndex: 32,
+        tileIndex: 528,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -262,7 +296,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 5400, // 1.5時間
         cost: { PT: 1100 },
-        tileIndex: 33,
+        tileIndex: 532,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -279,7 +313,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 7200, // 2時間
         cost: { PT: 1600 },
-        tileIndex: 34,
+        tileIndex: 564,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -297,7 +331,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 1800, // 30分
         cost: { PT: 500 },
-        tileIndex: 35,
+        tileIndex: 736,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -314,7 +348,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 1800, // 30分
         cost: { PT: 500 },
-        tileIndex: 36,
+        tileIndex: 740,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -331,7 +365,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 1500, // 25分
         cost: { PT: 400 },
-        tileIndex: 37,
+        tileIndex: 744,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -341,31 +375,14 @@ const buildings = {
         description: '消耗品を扱う店。遠征準備がしやすくなります。'
     },
 
-    inn: {
-        id: 'inn',
-        name: '宿屋',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 2400, // 40分
-        cost: { PT: 600 },
-        tileIndex: 38,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            restBonus: 0.2,
-            moraleBonus: 8
-        },
-        description: '休息施設。乗組員の疲労回復が早まります。'
-    },
-
-    tavern: {
+       tavern: {
         id: 'tavern',
         name: '酒場',
         category: 'support',
         slotsRequired: 1,
         buildTime: 1200, // 20分
         cost: { PT: 300 },
-        tileIndex: 26,
+        tileIndex: 752,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -376,15 +393,32 @@ const buildings = {
         description: '乗組員を募集できます。'
     },
 
+    inn: {
+        id: 'inn',
+        name: '宿屋',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 2400, // 40分
+        cost: { PT: 600 },
+        tileIndex: 748,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            restBonus: 0.2,
+            moraleBonus: 8
+        },
+        description: '休息施設。乗組員の疲労回復が早まります。'
+    },
+
     repair_dock: {
         id: 'repair_dock',
         name: '修理ドック',
         category: 'support',
-        slotsRequired: 2,
+        slotsRequired: 1,
         buildTime: 3600, // 1時間
         cost: { PT: 800 },
-        tileIndex: 27,
-        sizeLogic: { x: 2, y: 1 },
+        tileIndex: 792,
+        sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 2, y: 2 },
         effects: {
             repairSpeed: 2.0,
@@ -430,6 +464,45 @@ const buildings = {
         description: '神の加護を得られる神聖な建造物。全能力が向上します。'
     }
 };
+
+const BUILDING_ICON_BY_ID = {
+    watchtower: '🗼',
+    coastal_battery: '🎯',
+    fortress: '🏰',
+    warehouse: '📦',
+    farm: '🌾',
+    trading_post: '🏪',
+    tavern: '🍺',
+    repair_dock: '🔧',
+    lighthouse: '🗼',
+    shipyard: '⚓',
+    mine: '⛏️',
+    temple: '⛩️',
+    grand_market: '🏛️',
+    my_house_lv1: '🏠',
+    my_house_lv2: '🏠',
+    my_house_lv3: '🏡',
+    my_house_lv4: '🏡',
+    my_house_lv5: '🏛️',
+    weapon_shop: '⚔️',
+    armor_shop: '🛡️',
+    item_shop: '🧰',
+    inn: '🏨'
+};
+
+function getBuildingMetaMap() {
+    const map = {};
+    Object.entries(buildings).forEach(([key, building]) => {
+        if (!building) return;
+        const id = building.id || key;
+        const icon = building.icon || BUILDING_ICON_BY_ID[key] || BUILDING_ICON_BY_ID[id] || '🏗️';
+        const nationTileOffset = building.nationTileOffset === true;
+        const meta = { id, icon, nationTileOffset };
+        map[key] = meta;
+        if (id && !map[id]) map[id] = meta;
+    });
+    return map;
+}
 
 /**
  * 建物IDから定義を取得
@@ -479,5 +552,6 @@ module.exports = {
     getBuildingById,
     getBuildingsForSlots,
     getBuildingsByCategory,
-    getAllBuildings
+    getAllBuildings,
+    getBuildingMetaMap
 };
