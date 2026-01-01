@@ -599,7 +599,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
             callApiWithLoader('/api/get-shop-state', { islandId: island.id }, { isSilent: true }),
             callApiWithLoader('/api/get-inventory', { playFabId }, { isSilent: true })
         ]);
-        const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2 };
+        const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2, itemPrices: {} };
+        const itemPrices = pricing.itemPrices || {};
         const buyInput = sheet.querySelector('#shopBuyMultiplier');
         const sellInput = sheet.querySelector('#shopSellMultiplier');
         if (buyInput) buyInput.value = String(pricing.buyMultiplier);
@@ -616,7 +617,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
         } else {
             sellList.innerHTML = sellItems.map(item => {
                 const sellPrice = Number(item?.customData?.SellPrice || 0);
-                const price = Math.floor(sellPrice * Number(pricing.buyMultiplier || 0));
+                const fixedBuy = Number.isFinite(Number(itemPrices?.[item.itemId]?.buyPrice)) ? Number(itemPrices[item.itemId].buyPrice) : null;
+                const price = fixedBuy != null ? fixedBuy : Math.floor(sellPrice * Number(pricing.buyMultiplier || 0));
                 const instanceId = item.instances?.[0] || '';
                 return `
                     <div class="building-item" style="margin-bottom:8px;">
@@ -624,7 +626,10 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                             <div class="building-name">${escapeHtml(item.name)}</div>
                             <div class="building-description">在庫: ${item.count} / 買い取り: ${price} Ps</div>
                         </div>
-                        <button class="btn-build btn-sell-to-shop" data-instance-id="${instanceId}" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>売る</button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <button class="btn-build btn-sell-to-shop" data-instance-id="${instanceId}" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>売る</button>
+                            ${shopState?.ownerId === playFabId ? `<button class="btn-build btn-set-item-price" data-item-id="${item.itemId}">価格設定</button>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -635,15 +640,19 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
             buyList.innerHTML = '<div>在庫がありません。</div>';
         } else {
             buyList.innerHTML = shopInventory.map(item => {
+                const fixedSell = Number.isFinite(Number(item.fixedSellPrice)) ? Number(item.fixedSellPrice) : null;
                 const base = Number(item.buyPrice || item.sellPrice || 0);
-                const price = Math.floor(base * Number(pricing.sellMultiplier || 0));
+                const price = fixedSell != null ? fixedSell : Math.floor(base * Number(pricing.sellMultiplier || 0));
                 return `
                     <div class="building-item" style="margin-bottom:8px;">
                         <div class="building-details">
                             <div class="building-name">${escapeHtml(item.name)}</div>
                             <div class="building-description">在庫: ${item.count} / 価格: ${price} Ps</div>
                         </div>
-                        <button class="btn-build btn-buy-from-shop" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>買う</button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <button class="btn-build btn-buy-from-shop" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>買う</button>
+                            ${shopState?.ownerId === playFabId ? `<button class="btn-build btn-set-item-price" data-item-id="${item.itemId}">価格設定</button>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -659,6 +668,27 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                     islandId: island.id,
                     itemInstanceId: instanceId,
                     itemId
+                });
+                await loadShopPanels(sheet, island, shopConfig, playFabId);
+            });
+        });
+
+        const priceButtons = sheet.querySelectorAll('.btn-set-item-price');
+        priceButtons.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const itemId = btn.dataset.itemId;
+                if (!itemId) return;
+                const current = itemPrices?.[itemId] || {};
+                const buyInput = prompt('買い取り価格 (Ps)', String(current.buyPrice ?? ''));
+                if (buyInput == null) return;
+                const sellInput = prompt('販売価格 (Ps)', String(current.sellPrice ?? ''));
+                if (sellInput == null) return;
+                await callApiWithLoader('/api/set-shop-item-price', {
+                    playFabId,
+                    islandId: island.id,
+                    itemId,
+                    buyPrice: Number(buyInput),
+                    sellPrice: Number(sellInput)
                 });
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });

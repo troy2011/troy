@@ -1370,7 +1370,8 @@ function getShopPricing(island) {
     const pricing = island?.shopPricing || {};
     const buyMultiplier = Number.isFinite(Number(pricing.buyMultiplier)) ? Number(pricing.buyMultiplier) : 0.7;
     const sellMultiplier = Number.isFinite(Number(pricing.sellMultiplier)) ? Number(pricing.sellMultiplier) : 1.2;
-    return { buyMultiplier, sellMultiplier };
+    const itemPrices = pricing.itemPrices && typeof pricing.itemPrices === 'object' ? pricing.itemPrices : {};
+    return { buyMultiplier, sellMultiplier, itemPrices };
 }
 
 function resolveBasePrice(itemData) {
@@ -1399,13 +1400,18 @@ app.post('/api/get-shop-state', async (req, res) => {
             const count = Number(entry.count) || 0;
             const itemData = catalogCache[itemId] || {};
             const base = resolveBasePrice(itemData);
+            const override = pricing.itemPrices?.[itemId] || {};
+            const fixedBuy = Number.isFinite(Number(override.buyPrice)) ? Number(override.buyPrice) : null;
+            const fixedSell = Number.isFinite(Number(override.sellPrice)) ? Number(override.sellPrice) : null;
             return {
                 itemId,
                 count,
                 name: itemData.DisplayName || itemId,
                 category: itemData.Category || null,
                 sellPrice: base.sellPrice,
-                buyPrice: base.buyPrice
+                buyPrice: base.buyPrice,
+                fixedBuyPrice: fixedBuy,
+                fixedSellPrice: fixedSell
             };
         });
         res.json({
@@ -1451,6 +1457,40 @@ app.post('/api/set-shop-pricing', async (req, res) => {
     }
 });
 
+app.post('/api/set-shop-item-price', async (req, res) => {
+    const { playFabId, islandId, itemId, buyPrice, sellPrice } = req.body || {};
+    if (!playFabId || !islandId || !itemId) {
+        return res.status(400).json({ error: 'Missing parameters' });
+    }
+    const buyValue = Number(buyPrice);
+    const sellValue = Number(sellPrice);
+    if (!Number.isFinite(buyValue) || !Number.isFinite(sellValue)) {
+        return res.status(400).json({ error: 'Invalid price values' });
+    }
+    try {
+        const ref = firestore.collection('world_map').doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
+        const pricing = island.shopPricing && typeof island.shopPricing === 'object' ? island.shopPricing : {};
+        const itemPrices = pricing.itemPrices && typeof pricing.itemPrices === 'object' ? { ...pricing.itemPrices } : {};
+        itemPrices[itemId] = { buyPrice: buyValue, sellPrice: sellValue };
+        await ref.update({
+            shopPricing: {
+                ...pricing,
+                itemPrices,
+                updatedAt: Date.now(),
+                ownerId: playFabId
+            }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[SetShopItemPrice] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to set item price' });
+    }
+});
+
 app.post('/api/sell-to-shop', async (req, res) => {
     const { playFabId, islandId, itemInstanceId, itemId } = req.body || {};
     if (!playFabId || !islandId || !itemInstanceId || !itemId) {
@@ -1470,7 +1510,9 @@ app.post('/api/sell-to-shop', async (req, res) => {
         }
         const base = resolveBasePrice(itemData);
         const pricing = getShopPricing(island);
-        const price = Math.floor(base.sellPrice * pricing.buyMultiplier);
+        const override = pricing.itemPrices?.[itemId] || {};
+        const fixedBuy = Number.isFinite(Number(override.buyPrice)) ? Number(override.buyPrice) : null;
+        const price = fixedBuy != null ? fixedBuy : Math.floor(base.sellPrice * pricing.buyMultiplier);
         if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotPurchasable' });
 
         await promisifyPlayFab(PlayFabServer.ConsumeItem, {
@@ -1519,8 +1561,10 @@ app.post('/api/buy-from-shop', async (req, res) => {
         }
         const base = resolveBasePrice(itemData);
         const pricing = getShopPricing(island);
+        const override = pricing.itemPrices?.[itemId] || {};
+        const fixedSell = Number.isFinite(Number(override.sellPrice)) ? Number(override.sellPrice) : null;
         const baseSell = base.buyPrice || base.sellPrice;
-        const price = Math.floor(baseSell * pricing.sellMultiplier);
+        const price = fixedSell != null ? fixedSell : Math.floor(baseSell * pricing.sellMultiplier);
         if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotForSale' });
 
         const shopInventory = Array.isArray(island.shopInventory) ? island.shopInventory.slice() : [];
