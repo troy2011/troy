@@ -95,25 +95,6 @@
                 </div>
             </div>
 
-            <!-- 3. 航海タブ -->
-            <div id="tabContentVoyage" class="tab-content" style="display: none;">
-                <div class="content-area">
-                    <h2>航海ミッション</h2>
-                    <div id="voyageStatusArea">
-                        <span id="voyageStatusText">（読み込み中...）</span>
-                        <p id="voyageRewardText" style="color: var(--accent-color); margin-top:5px; font-weight:bold;"></p>
-                    </div>
-                    <div id="voyageMissionButtons">
-                        <button id="btnStartVoyage10min">🏝️ 近海の小島へ (10分)</button>
-                        <button id="btnStartVoyage1hour">🌊 嵐の海域へ (1時間)</button>
-                    </div>
-                    <div style="margin-top:16px; display:flex; gap:10px;">
-                        <button id="btnCheckVoyageStatus" style="flex:1;">状況確認 / 報酬受取</button>
-                        <button id="btnReturnToPort" style="flex:1; display: none; background:var(--hp-color);">帰港する</button>
-                    </div>
-                </div>
-            </div>
-
             <!-- 4. 船管理タブ -->
             <div id="tabContentShips" class="tab-content" style="display: none;">
                 <div class="content-area">
@@ -457,9 +438,6 @@
         <button id="navHome" class="nav-button active" onclick="showTab('home')">
             <span class="nav-icon">🏠</span><span>ホーム</span>
         </button>
-        <button id="navVoyage" class="nav-button" onclick="showTab('voyage')">
-            <span class="nav-icon">⛵</span><span>航海</span>
-        </button>
         <button id="navShips" class="nav-button" onclick="showTab('ships')">
             <span class="nav-icon">🚢</span><span>船</span>
         </button>
@@ -698,7 +676,6 @@
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js",
-        "voyage": "./js/voyage.js",
         "game": "./Game.js"
       }
     }

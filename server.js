@@ -17,7 +17,6 @@ const PlayFabAuthentication = require('playfab-sdk/Scripts/PlayFab/PlayFabAuthen
 const PlayFabGroups = require('playfab-sdk/Scripts/PlayFab/PlayFabGroups');
 
 const battleRoutes = require('./battle');
-const voyageRoutes = require('./voyage');
 const guildRoutes = require('./guild');
 const shipRoutes = require('./ships');
 const { generateMapData } = require('./generateMapData');
@@ -2141,16 +2140,13 @@ async function main() {
         VIRTUAL_CURRENCY_CODE,
         LEADERBOARD_NAME,
         BATTLE_REWARD_POINTS,
-        GACHA_CATALOG_VERSION // ★ v41: voyage.js で報酬テーブルを評価するために追加
+        GACHA_CATALOG_VERSION
     };
 
     // v40: battle.js を初期化
     // ★★★ 修正: dbインスタンスを渡す ★★★
     const db = admin.database();
     battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, lineClient, catalogCache, sharedConstants, db);
-
-    // ★ v42: voyage.js を初期化
-    voyageRoutes.initializeVoyageRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, lineClient, catalogCache, sharedConstants);
 
     // ★ ギルド機能を初期化
     guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin);

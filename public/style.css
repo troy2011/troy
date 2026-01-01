@@ -613,19 +613,13 @@ button:disabled {
     z-index: 1;
 }
 
-/* --- 航海 & バトル --- */
-#voyageStatusArea, #battleArea {
+/* --- バトル --- */
+#battleArea {
     background-color: #1a202c;
     border-left: 4px solid var(--accent-color);
     padding: 12px;
     border-radius: 4px;
     margin-bottom: 16px;
-}
-
-#voyageMissionButtons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }
 
 /* --- 下部ナビゲーション --- */

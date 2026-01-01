@@ -2,14 +2,13 @@
 
 import * as Player from './player.js';
 import * as Inventory from './inventory.js';
-import * as Voyage from './voyage.js';
 import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, voyage: false, ships: false, map: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, ships: false, map: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 
@@ -111,9 +110,6 @@ export async function showTab(tabId, playerInfo) {
                 case 'home':
                     await Player.getPlayerStats(playerInfo.playFabId);
                     await Player.getPoints(playerInfo.playFabId);
-                    break;
-                case 'voyage':
-                    await Voyage.checkVoyageStatus(playerInfo.playFabId);
                     break;
                 case 'ships':
                     if (!playerInfo || !playerInfo.playFabId) {

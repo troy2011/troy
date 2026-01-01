@@ -34,9 +34,7 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
 
         // エラーメッセージの表示先を、タブごとに変える
         const errorMessage = error.message || '不明なエラー';
-        if (typeof endpointName === 'string' && endpointName.includes('voyage')) {
-            document.getElementById('voyageRewardText').innerText = `エラー: ${errorMessage}`;
-        } else if (typeof endpointName === 'string' && endpointName.includes('battle')) {
+        if (typeof endpointName === 'string' && endpointName.includes('battle')) {
             const el = document.getElementById('battleResult');
             el.innerText = `エラー: ${errorMessage}`;
             el.style.color = 'red';
@@ -63,7 +61,6 @@ async function callPointApi(endpoint, body) {
     // エラーメッセージをクリア
     document.getElementById('pointMessage').innerText = '';
     document.getElementById('battleResult').innerText = '';
-    document.getElementById('voyageRewardText').innerText = '';
 
     const response = await fetch(buildApiUrl(endpoint), {
         method: 'POST',

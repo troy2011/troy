@@ -8,7 +8,6 @@ import { callApiWithLoader, promisifyPlayFab, buildApiUrl } from 'api';
 import { showTab, showConfirmationModal } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
-import * as Voyage from 'voyage';
 import * as Guild from './js/guild.js';
 import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
@@ -143,10 +142,6 @@ async function initializeAppFeatures() {
 
     // --- 各機能のイベントリスナー設定 ---
     document.getElementById('btnGetStats').addEventListener('click', () => Player.getPlayerStats(myPlayFabId));    document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);    // (他のイベントリスナーも同様に設定)
-    document.getElementById('btnStartVoyage10min').addEventListener('click', () => Voyage.startVoyage(myPlayFabId, 'Mission_10min'));
-    document.getElementById('btnStartVoyage1hour').addEventListener('click', () => Voyage.startVoyage(myPlayFabId, 'Mission_1hour'));
-    document.getElementById('btnCheckVoyageStatus').addEventListener('click', () => Voyage.checkVoyageStatus(myPlayFabId));
-    document.getElementById('btnReturnToPort').addEventListener('click', () => Voyage.returnToPort(myPlayFabId));
     document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryTab(btn.dataset.category));
     });
