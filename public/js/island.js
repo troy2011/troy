@@ -215,6 +215,19 @@ export function showBuildingMenu(island, playFabId) {
     const resourceCurrency = getResourceCurrencyForBiome(island.biome);
     const isHarvestable = !!resourceCurrency;
     const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
+    const playerNation = (() => {
+        const color = String(window.myAvatarBaseInfo?.AvatarColor || '').toLowerCase();
+        const mapping = {
+            red: 'fire',
+            green: 'earth',
+            purple: 'wind',
+            blue: 'water'
+        };
+        return mapping[color] || null; // black or unknown => no nation
+    })();
+    const islandNation = String(island.nation || '').toLowerCase();
+    const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
+    const isEnemyNation = !!playerNation && !!islandNation && playerNation !== islandNation;
 
     const isOwner = !!playFabId && island.ownerId === playFabId;
     const canUpgrade = isOwner && islandLevel < 5;
@@ -290,6 +303,26 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
 
                 <div class="building-list" id="buildingList"></div>
+                ` : ''}
+
+                ${(hasBuilding && isOwnNation) ? `
+                <div class="building-status-panel" data-island-id="${island.id}">
+                    ${renderCurrentBuilding(island)}
+                </div>
+                <div class="building-actions">
+                    <div class="resource-title">自国の建物</div>
+                    <div class="resource-row">アクションメニュー準備中</div>
+                </div>
+                ` : ''}
+
+                ${(hasBuilding && isEnemyNation) ? `
+                <div class="building-status-panel" data-island-id="${island.id}">
+                    ${renderCurrentBuilding(island)}
+                </div>
+                <div class="building-actions">
+                    <div class="resource-title">敵国の建物</div>
+                    <div class="resource-row">破壊アクション準備中</div>
+                </div>
                 ` : ''}
             </div>
         </div>
