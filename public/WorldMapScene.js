@@ -293,7 +293,19 @@ export default class WorldMapScene extends Phaser.Scene {
         return objects;
     }
 
+    setMapReady(ready) {
+        if (typeof document === 'undefined') return;
+        const container = document.getElementById('tabContentMap');
+        if (!container) return;
+        if (ready) {
+            container.classList.add('map-ready');
+        } else {
+            container.classList.remove('map-ready');
+        }
+    }
+
     async create() {
+        this.setMapReady(false);
         const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
         this.seaBackground = seaBackground;
         if (typeof window !== 'undefined') {
@@ -476,7 +488,6 @@ export default class WorldMapScene extends Phaser.Scene {
             if (querySnapshot.empty) {
                 console.warn('[WorldMapScene] No islands found in Firestore');
                 this.showError('島データが見つかりませんでした。');
-                return;
             }
 
             let loadedCount = 0;
@@ -530,6 +541,8 @@ export default class WorldMapScene extends Phaser.Scene {
             ]);
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
+
+        this.setMapReady(true);
     }
 
     /**

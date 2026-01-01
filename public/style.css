@@ -1012,3 +1012,30 @@ button:disabled {
 .resource-chip b {
     color: var(--accent-color);
 }
+
+#tabContentMap {
+    position: relative;
+}
+
+.map-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+}
+
+.map-loading-text {
+    color: #f3f4f6;
+    font-size: 16px;
+    letter-spacing: 0.08em;
+}
+
+#tabContentMap.map-ready .map-loading-overlay {
+    opacity: 0;
+    pointer-events: none;
+}
