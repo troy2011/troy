@@ -245,6 +245,7 @@ export function showBuildingMenu(island, playFabId) {
     const activeBuilding = (island.buildings || []).find(b => b && b.status !== 'demolished') || null;
     const activeBuildingId = activeBuilding ? (activeBuilding.buildingId || activeBuilding.id || '') : '';
     const shopConfig = getShopConfig(activeBuildingId);
+    const allowShipBuild = isOwnNation && activeBuildingId === 'capital';
 
     sheet.innerHTML = `
         <div class="bottom-sheet-overlay"></div>
@@ -350,7 +351,7 @@ export function showBuildingMenu(island, playFabId) {
                     <div class="resource-row" style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button class="btn-build" id="btnBuildingRepair">修理</button>
                         <button class="btn-build" id="btnBuildingUpgrade">強化</button>
-                        <button class="btn-build" id="btnBuildingAction">特殊</button>
+                        ${allowShipBuild ? `<button class="btn-build" id="btnBuildingAction">特殊</button>` : ''}
                     </div>
                 </div>
                 `}
@@ -546,7 +547,15 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     const specialBtn = sheet.querySelector('#btnBuildingAction');
     if (specialBtn) {
         specialBtn.addEventListener('click', () => {
-            alert('特殊アクションは準備中です。');
+            if (typeof window.showTab === 'function') {
+                Promise.resolve(window.showTab('ships')).finally(() => {
+                    const btn = document.getElementById('btnCreateShip');
+                    if (btn) btn.click();
+                });
+                return;
+            }
+            const btn = document.getElementById('btnCreateShip');
+            if (btn) btn.click();
         });
     }
 }
