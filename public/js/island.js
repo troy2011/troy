@@ -620,6 +620,19 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const fixedBuy = Number.isFinite(Number(itemPrices?.[item.itemId]?.buyPrice)) ? Number(itemPrices[item.itemId].buyPrice) : null;
                 const price = fixedBuy != null ? fixedBuy : Math.floor(sellPrice * Number(pricing.buyMultiplier || 0));
                 const instanceId = item.instances?.[0] || '';
+                const ownerControls = shopState?.ownerId === playFabId
+                    ? `
+                        <div class="shop-price-row" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <label>買い取り
+                                <input class="shop-item-buy" data-item-id="${item.itemId}" type="number" step="1" min="0" value="${fixedBuy != null ? fixedBuy : ''}" style="width:80px;">
+                            </label>
+                            <label>販売
+                                <input class="shop-item-sell" data-item-id="${item.itemId}" type="number" step="1" min="0" value="${Number.isFinite(Number(itemPrices?.[item.itemId]?.sellPrice)) ? Number(itemPrices[item.itemId].sellPrice) : ''}" style="width:80px;">
+                            </label>
+                            <button class="btn-build btn-save-item-price" data-item-id="${item.itemId}">保存</button>
+                        </div>
+                    `
+                    : '';
                 return `
                     <div class="building-item" style="margin-bottom:8px;">
                         <div class="building-details">
@@ -628,8 +641,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">
                             <button class="btn-build btn-sell-to-shop" data-instance-id="${instanceId}" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>売る</button>
-                            ${shopState?.ownerId === playFabId ? `<button class="btn-build btn-set-item-price" data-item-id="${item.itemId}">価格設定</button>` : ''}
                         </div>
+                        ${ownerControls}
                     </div>
                 `;
             }).join('');
@@ -643,6 +656,19 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const fixedSell = Number.isFinite(Number(item.fixedSellPrice)) ? Number(item.fixedSellPrice) : null;
                 const base = Number(item.buyPrice || item.sellPrice || 0);
                 const price = fixedSell != null ? fixedSell : Math.floor(base * Number(pricing.sellMultiplier || 0));
+                const ownerControls = shopState?.ownerId === playFabId
+                    ? `
+                        <div class="shop-price-row" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <label>買い取り
+                                <input class="shop-item-buy" data-item-id="${item.itemId}" type="number" step="1" min="0" value="${Number.isFinite(Number(itemPrices?.[item.itemId]?.buyPrice)) ? Number(itemPrices[item.itemId].buyPrice) : ''}" style="width:80px;">
+                            </label>
+                            <label>販売
+                                <input class="shop-item-sell" data-item-id="${item.itemId}" type="number" step="1" min="0" value="${fixedSell != null ? fixedSell : ''}" style="width:80px;">
+                            </label>
+                            <button class="btn-build btn-save-item-price" data-item-id="${item.itemId}">保存</button>
+                        </div>
+                    `
+                    : '';
                 return `
                     <div class="building-item" style="margin-bottom:8px;">
                         <div class="building-details">
@@ -651,8 +677,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">
                             <button class="btn-build btn-buy-from-shop" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>買う</button>
-                            ${shopState?.ownerId === playFabId ? `<button class="btn-build btn-set-item-price" data-item-id="${item.itemId}">価格設定</button>` : ''}
                         </div>
+                        ${ownerControls}
                     </div>
                 `;
             }).join('');
@@ -673,22 +699,21 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
             });
         });
 
-        const priceButtons = sheet.querySelectorAll('.btn-set-item-price');
-        priceButtons.forEach(btn => {
+        const savePriceButtons = sheet.querySelectorAll('.btn-save-item-price');
+        savePriceButtons.forEach(btn => {
             btn.addEventListener('click', async () => {
                 const itemId = btn.dataset.itemId;
                 if (!itemId) return;
-                const current = itemPrices?.[itemId] || {};
-                const buyInput = prompt('買い取り価格 (Ps)', String(current.buyPrice ?? ''));
-                if (buyInput == null) return;
-                const sellInput = prompt('販売価格 (Ps)', String(current.sellPrice ?? ''));
-                if (sellInput == null) return;
+                const buyInput = sheet.querySelector(`.shop-item-buy[data-item-id="${itemId}"]`);
+                const sellInput = sheet.querySelector(`.shop-item-sell[data-item-id="${itemId}"]`);
+                const buyValue = Number(buyInput?.value || 0);
+                const sellValue = Number(sellInput?.value || 0);
                 await callApiWithLoader('/api/set-shop-item-price', {
                     playFabId,
                     islandId: island.id,
                     itemId,
-                    buyPrice: Number(buyInput),
-                    sellPrice: Number(sellInput)
+                    buyPrice: buyValue,
+                    sellPrice: sellValue
                 });
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
