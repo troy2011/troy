@@ -12,6 +12,7 @@ import * as Guild from './js/guild.js';
 import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
+import { initMapChat } from './js/mapChat.js';
 import { renderAvatar } from './js/avatar.js';
 
 import { getDatabase } from "firebase/database";
@@ -152,6 +153,8 @@ async function initializeAppFeatures() {
             }
         });
     });
+
+    initMapChat(myPlayFabId);
 
     document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryTab(btn.dataset.category));

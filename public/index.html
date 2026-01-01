@@ -115,6 +115,11 @@
                 </div>
                 <div id="mapChatArea" class="map-chat-area">
                     <h2>チャット</h2>
+                    <div class="map-chat-tabs">
+                        <button class="map-chat-tab active" data-chat="global">全体</button>
+                        <button class="map-chat-tab" data-chat="guild">ギルド</button>
+                        <button class="map-chat-tab" data-chat="nearby">近距離</button>
+                    </div>
                     <div id="chatMessages"></div>
                     <form id="chatInputArea" onsubmit="return false;">
                         <input type="text" id="chatInput" placeholder="メッセージ...">

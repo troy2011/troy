@@ -806,6 +806,29 @@ button:disabled {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     z-index: 1100;
 }
+
+.map-chat-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.map-chat-tab {
+    background: #374151;
+    color: var(--text-sub);
+    border-radius: 8px;
+    padding: 8px 6px;
+    font-size: 12px;
+    border: 1px solid transparent;
+    box-shadow: none;
+}
+
+.map-chat-tab.active {
+    background: var(--accent-color);
+    color: #111827;
+    border-color: rgba(255, 255, 255, 0.2);
+}
 #chatMessages {
     background: #111827;
     height: 120px;
