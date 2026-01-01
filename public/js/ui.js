@@ -141,6 +141,19 @@ export async function showTab(tabId, playerInfo) {
                         if (container && gameInstance.scale) {
                             gameInstance.scale.resize(container.clientWidth, container.clientHeight);
                         }
+                        const scene = gameInstance.scene?.getScene('WorldMapScene');
+                        if (scene && scene.scene) {
+                            if (scene.scene.isSleeping()) {
+                                scene.scene.wake();
+                            } else if (scene.scene.isPaused()) {
+                                scene.scene.resume();
+                            } else if (!scene.scene.isActive()) {
+                                scene.scene.start();
+                            }
+                            if (typeof scene.setMapReady === 'function' && scene.islandObjects?.size) {
+                                scene.setMapReady(true);
+                            }
+                        }
                         return; // Don't launch twice
                     }
                     // コンテナのサイズが確定するまで待機
