@@ -748,29 +748,12 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
 }
 
 async function fetchBuildingsForCategory(category, islandSize) {
-    const mockBuildings = {
-        military: [
-            { id: 'watchtower', name: '監視塔', description: '周辺海域を監視する', buildTime: 1800, tags: ['size_small'] },
-            { id: 'coastal_battery', name: '沿岸砲台', description: '敵船を迎撃する', buildTime: 3600, tags: ['size_small'] },
-            { id: 'fortress', name: '要塞', description: '島を防衛する', buildTime: 7200, tags: ['size_medium'] }
-        ],
-        economic: [
-            { id: 'warehouse', name: '倉庫', description: '資源を安全に保管する', buildTime: 1800, tags: ['size_small'] },
-            { id: 'farm', name: '農場', description: '食料を生産する', buildTime: 2400, tags: ['size_small'] },
-            { id: 'trading_post', name: '交易所', description: '交易を可能にする', buildTime: 5400, tags: ['size_medium'] }
-        ],
-        support: [
-            { id: 'tavern', name: '酒場', description: '乗組員を募集する', buildTime: 1200, tags: ['size_small'] },
-            { id: 'repair_dock', name: '修理ドック', description: '船をより早く修理する', buildTime: 3600, tags: ['size_medium'] },
-            { id: 'lighthouse', name: '灯台', description: '航行を安全にする', buildTime: 2400, tags: ['size_small'] }
-        ]
-    };
-
-    const list = mockBuildings[category] || [];
-    const sizeTag = islandSize ? `size_${String(islandSize).toLowerCase()}` : null;
-    if (!sizeTag) return list;
-
-    return list.filter(item => !Array.isArray(item.tags) || item.tags.includes(sizeTag));
+    const response = await callApiWithLoader('/api/get-buildings-by-category', {
+        category,
+        islandSize
+    }, { isSilent: true });
+    const list = Array.isArray(response?.buildings) ? response.buildings : [];
+    return list;
 }
 
 async function handleBuildingConstruction(buildingId, island) {

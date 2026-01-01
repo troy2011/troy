@@ -1155,8 +1155,12 @@ async function getActiveShipCargoCapacity(playFabId) {
 }
 
 function getBuildingSpec(buildingId) {
-    // buildingDefinitions.js から直接取得（PlayFab Catalog非依存）
-    const building = buildingDefs?.buildings?.[buildingId];
+    // buildingDefinitions.js direct lookup (PlayFab Catalog independent)
+    let building = buildingDefs?.buildings?.[buildingId];
+    if (!building && buildingDefs?.buildings) {
+        building = Object.values(buildingDefs.buildings).find(b => b && b.id === buildingId) || null;
+    }
+    if (!building) return null;
     if (!building) return null;
 
     // sizeLogic と sizeVisual を直接使用（定義されていない場合はslotsRequiredから推測）
@@ -1958,6 +1962,44 @@ app.get('/api/get-building-meta', async (_req, res) => {
         const msg = error?.message || String(error);
         console.error('[GetBuildingMeta] Error:', msg);
         res.status(500).json({ error: 'Failed to get building meta', details: msg });
+    }
+});
+
+app.post('/api/get-buildings-by-category', async (req, res) => {
+    try {
+        const category = String(req?.body?.category || '');
+        const islandSize = String(req?.body?.islandSize || '').toLowerCase();
+        const entries = Object.entries(buildingDefs?.buildings || {}).filter(([, building]) => {
+            if (!building) return false;
+            if (!category) return true;
+            return building.category === category;
+        });
+
+        const buildings = entries.map(([key, building]) => {
+            const slotsRequired = Number(building.slotsRequired || 1);
+            const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : 'large'}`;
+            return {
+                id: building.id || key,
+                name: building.name || building.id || key,
+                description: building.description || '',
+                buildTime: Number(building.buildTime || 0),
+                tags: [sizeTag],
+                slotsRequired,
+                category: building.category || null
+            };
+        });
+
+        let filtered = buildings;
+        if (islandSize) {
+            const tag = `size_${islandSize}`;
+            filtered = buildings.filter(item => !Array.isArray(item.tags) || item.tags.includes(tag));
+        }
+
+        res.json({ success: true, buildings: filtered });
+    } catch (error) {
+        const msg = error?.message || String(error);
+        console.error('[GetBuildingsByCategory] Error:', msg);
+        res.status(500).json({ error: 'Failed to get buildings', details: msg });
     }
 });
 
