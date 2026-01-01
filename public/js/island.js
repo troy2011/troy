@@ -311,7 +311,12 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
                 <div class="building-actions">
                     <div class="resource-title">自国の建物</div>
-                    <div class="resource-row">アクションメニュー準備中</div>
+                    <div class="resource-row">利用できる行動</div>
+                    <div class="resource-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-build" id="btnBuildingRepair">修理</button>
+                        <button class="btn-build" id="btnBuildingUpgrade">強化</button>
+                        <button class="btn-build" id="btnBuildingAction">特殊</button>
+                    </div>
                 </div>
                 ` : ''}
 
@@ -321,7 +326,10 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
                 <div class="building-actions">
                     <div class="resource-title">敵国の建物</div>
-                    <div class="resource-row">破壊アクション準備中</div>
+                    <div class="resource-row">破壊</div>
+                    <div class="resource-row">
+                        <button class="btn-build" id="btnAttackBuilding">攻撃</button>
+                    </div>
                 </div>
                 ` : ''}
             </div>
@@ -431,6 +439,38 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             } else if (result && result.error) {
                 alert(result.error);
             }
+        });
+    }
+
+    const attackBuildingBtn = sheet.querySelector('#btnAttackBuilding');
+    if (attackBuildingBtn) {
+        attackBuildingBtn.addEventListener('click', async () => {
+            if (window.worldMapScene && typeof window.worldMapScene.damageBuildingOnIsland === 'function') {
+                await window.worldMapScene.damageBuildingOnIsland(island.id, 300);
+            } else {
+                alert('攻撃機能は準備中です。');
+            }
+        });
+    }
+
+    const repairBtn = sheet.querySelector('#btnBuildingRepair');
+    if (repairBtn) {
+        repairBtn.addEventListener('click', () => {
+            alert('修理アクションは準備中です。');
+        });
+    }
+
+    const upgradeBuildingBtn = sheet.querySelector('#btnBuildingUpgrade');
+    if (upgradeBuildingBtn) {
+        upgradeBuildingBtn.addEventListener('click', () => {
+            alert('強化アクションは準備中です。');
+        });
+    }
+
+    const specialBtn = sheet.querySelector('#btnBuildingAction');
+    if (specialBtn) {
+        specialBtn.addEventListener('click', () => {
+            alert('特殊アクションは準備中です。');
         });
     }
 }

@@ -1437,6 +1437,7 @@ app.post('/api/start-building-construction', async (req, res) => {
                 startTime: now,
                 completionTime: now + durationMs,
                 durationMs,
+                buildTimeSeconds,
                 helpers: [],
                 width: logicW,
                 height: logicH,

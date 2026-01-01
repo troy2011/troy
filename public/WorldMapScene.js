@@ -296,6 +296,9 @@ export default class WorldMapScene extends Phaser.Scene {
     async create() {
         const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
         this.seaBackground = seaBackground;
+        if (typeof window !== 'undefined') {
+            window.worldMapScene = this;
+        }
         if (this.game?.canvas?.style) {
             this.game.canvas.style.backgroundColor = '#000000';
         }
@@ -1574,6 +1577,42 @@ export default class WorldMapScene extends Phaser.Scene {
         await updateDoc(islandRef, { buildings });
         await this.reloadIslandFromFirestore(closest.id);
         this.showMessage('建物に大ダメージ');
+    }
+
+    async damageBuildingOnIsland(islandId, damage = 300) {
+        if (!this.firestore || !islandId) return;
+        const { doc, getDoc, updateDoc } = await import('firebase/firestore');
+        const islandRef = doc(this.firestore, 'world_map', islandId);
+        const snap = await getDoc(islandRef);
+        if (!snap.exists()) {
+            this.showMessage('島が見つかりません');
+            return;
+        }
+        const data = snap.data() || {};
+        const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
+        const idx = buildings.findIndex(b => b && b.status !== 'demolished');
+        if (idx === -1) {
+            this.showMessage('建物がありません');
+            return;
+        }
+
+        const b = buildings[idx];
+        const maxHpFallback = (() => {
+            if (Number.isFinite(Number(b.buildTimeSeconds))) return Number(b.buildTimeSeconds);
+            if (Number.isFinite(Number(b.durationMs))) return Math.max(1, Math.floor(Number(b.durationMs) / 1000));
+            return Number(b.maxHp) || 1;
+        })();
+        const maxHp = Number(b.maxHp) || maxHpFallback;
+        const current = Number.isFinite(Number(b.currentHp)) ? Number(b.currentHp) : maxHp;
+        const next = Math.max(0, current - Number(damage || 0));
+        const nextEntry = { ...b, maxHp, currentHp: next };
+        if (next <= 0) {
+            nextEntry.status = 'demolished';
+        }
+        buildings[idx] = nextEntry;
+        await updateDoc(islandRef, { buildings });
+        await this.reloadIslandFromFirestore(islandId);
+        this.showMessage(next <= 0 ? '建物を破壊しました' : '建物にダメージ');
     }
 
     async reloadIslandFromFirestore(islandId) {
