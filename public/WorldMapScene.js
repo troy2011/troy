@@ -321,13 +321,17 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // Prevent DOM UI interactions from also triggering Phaser input (pointerup is listened on window).
         if (typeof document !== 'undefined') {
-            const panel = document.getElementById('islandCommandPanel');
-            if (panel && !panel.dataset.phaserBlockerInstalled) {
-                const stop = (e) => {
-                    if (!e) return;
-                    if (typeof e.stopPropagation === 'function') e.stopPropagation();
-                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-                };
+            const stop = (e) => {
+                if (!e) return;
+                if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            };
+            const panels = [
+                document.getElementById('islandCommandPanel'),
+                document.getElementById('mapChatArea')
+            ];
+            panels.forEach((panel) => {
+                if (!panel || panel.dataset.phaserBlockerInstalled) return;
                 ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((type) => {
                     panel.addEventListener(type, stop);
                 });
@@ -335,7 +339,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     stop(e);
                 }, { passive: true });
                 panel.dataset.phaserBlockerInstalled = '1';
-            }
+            });
         }
 
         seaBackground.on('pointerup', (pointer) => {
