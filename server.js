@@ -412,7 +412,7 @@ app.post('/api/get-nation-group', async (req, res) => {
 });
 
 app.post('/api/set-race', async (req, res) => {
-    const { playFabId, raceName, nationGroupId, entityToken } = req.body || {};
+    const { playFabId, raceName, nationGroupId, entityToken, displayName } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -493,6 +493,17 @@ app.post('/api/set-race', async (req, res) => {
                 nationIsland: mapping.island,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
+        }
+
+        if (displayName) {
+            try {
+                await promisifyPlayFab(PlayFabAdmin.UpdateUserTitleDisplayName, {
+                    PlayFabId: playFabId,
+                    DisplayName: String(displayName)
+                });
+            } catch (e) {
+                console.warn('[set-race] UpdateUserTitleDisplayName failed:', e?.errorMessage || e?.message || e);
+            }
         }
 
         const nationData = {

@@ -341,6 +341,10 @@ async function loadPlayFabGroupsSdk() {
 
 function showRaceModal() {
     document.getElementById('raceModal').style.display = 'flex';
+    const nameInput = document.getElementById('raceDisplayNameInput');
+    if (nameInput) {
+        nameInput.value = window.myLineProfile?.displayName || '';
+    }
 
     const handleRaceSelection = async (event) => {
         if (event.target.tagName !== 'BUTTON') return;
@@ -351,14 +355,19 @@ function showRaceModal() {
         document.getElementById('raceMessage').innerText = '（初期ステータスを設定中...）';
         const groupInfo = await ensureNationGroupForRace(raceName);
         if (!window.myEntityToken) throw new Error('Entity token not available');
+        const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
         const data = await callApiWithLoader('/api/set-race', {
             playFabId: myPlayFabId,
             raceName: raceName,
             nationGroupId: groupInfo.groupId,
-            entityToken: window.myEntityToken
+            entityToken: window.myEntityToken,
+            displayName: displayName || window.myLineProfile?.displayName || ''
         });
         if (data !== null) {
             document.getElementById('raceModal').style.display = 'none';
+            if (displayName) {
+                document.getElementById('globalPlayerName').innerText = displayName;
+            }
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
             await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase() });
