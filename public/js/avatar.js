@@ -86,7 +86,11 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOpponent = false) {
     const avatarContainer = document.getElementById(prefix);
     if (avatarContainer) {
-        avatarContainer.style.transform = isOpponent ? 'scaleX(-1)' : 'none';
+        if (isOpponent) {
+            avatarContainer.style.transform = 'scaleX(-1)';
+        } else {
+            avatarContainer.style.removeProperty('transform');
+        }
     }
 
     // 1. 素体の描画
