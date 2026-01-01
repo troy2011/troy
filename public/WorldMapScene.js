@@ -75,7 +75,7 @@ const ISLAND_LAYOUTS = {
     }
 };
 
-const BUILDING_META_DEFAULT = { icon: '🏗️', nationTileOffset: false };
+const BUILDING_META_DEFAULT = { nationTileOffset: false };
 
 const NATION_TILE_INDEX = {
     fire: 0,
@@ -936,19 +936,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.ignoreOnUiCamera(hpBar);
                     buildingSprites.push(hpBar);
 
-                    // buildingIdがある場合は、識別用にアイコンを上に重ねて描画（タイル画像が未整備でも分かるように）
-                    if (buildingId) {
-                        const icon = (buildingMeta?.icon) || BUILDING_META_DEFAULT.icon;
-                        const iconText = this.add.text(
-                            buildingX + (this.TILE_SIZE * 0.5),
-                            buildingY + (bHeight * this.TILE_SIZE) - (this.TILE_SIZE * 0.5),
-                            icon,
-                            { fontSize: '18px' }
-                        ).setOrigin(0.5);
-                        iconText.setDepth(GAME_CONFIG.DEPTH.BUILDING + 1);
-                        this.ignoreOnUiCamera(iconText);
-                        buildingSprites.push(iconText);
-                    }
+                    // アイコン重ね描画は廃止
                 } else {
                     console.warn(`建物の配置に失敗しました: 島「${data.name}」のスロット(${slotX}, ${slotY})には配置できません。`);
                 }

@@ -253,7 +253,8 @@ const buildings = {
         effects: {
             comfort: 5
         },
-        description: '自分専用の小さな住居。拠点としての利便性が向上します。'
+        description: '自分専用の小さな住居。拠点としての利便性が向上します。',
+        nationTileOffset: true
     },
 
     my_house_lv2: {
@@ -269,7 +270,8 @@ const buildings = {
         effects: {
             comfort: 10
         },
-        description: '生活環境が改善された住居。帰還時の回復が早まります。'
+        description: '生活環境が改善された住居。帰還時の回復が早まります。',
+        nationTileOffset: true
     },
 
     my_house_lv3: {
@@ -286,7 +288,8 @@ const buildings = {
             comfort: 18,
             storageBonus: 50
         },
-        description: '広くなった住居。資源の保管がしやすくなります。'
+        description: '広くなった住居。資源の保管がしやすくなります。',
+        nationTileOffset: true
     },
 
     my_house_lv4: {
@@ -303,7 +306,8 @@ const buildings = {
             comfort: 25,
             storageBonus: 100
         },
-        description: '設備が整った上位住居。補給効率が向上します。'
+        description: '設備が整った上位住居。補給効率が向上します。',
+        nationTileOffset: true
     },
 
     my_house_lv5: {
@@ -321,7 +325,8 @@ const buildings = {
             storageBonus: 200,
             moraleBonus: 5
         },
-        description: '島を代表する豪邸。滞在するだけで士気が上がります。'
+        description: '島を代表する豪邸。滞在するだけで士気が上がります。',
+        nationTileOffset: true
     },
 
     weapon_shop: {
@@ -338,7 +343,8 @@ const buildings = {
             weaponSupply: true,
             tradeBonus: 0.05
         },
-        description: '武器を扱う店。装備の調達がしやすくなります。'
+        description: '武器を扱う店。装備の調達がしやすくなります。',
+        nationTileOffset: true
     },
 
     armor_shop: {
@@ -355,7 +361,8 @@ const buildings = {
             armorSupply: true,
             defenseBonus: 5
         },
-        description: '防具を扱う店。防衛準備が整いやすくなります。'
+        description: '防具を扱う店。防衛準備が整いやすくなります。',
+        nationTileOffset: true
     },
 
     item_shop: {
@@ -372,7 +379,8 @@ const buildings = {
             itemSupply: true,
             tradeBonus: 0.04
         },
-        description: '消耗品を扱う店。遠征準備がしやすくなります。'
+        description: '消耗品を扱う店。遠征準備がしやすくなります。',
+        nationTileOffset: true
     },
 
        tavern: {
@@ -390,7 +398,8 @@ const buildings = {
             morale: 15,
             recruitmentSpeed: 1.2
         },
-        description: '乗組員を募集できます。'
+        description: '乗組員を募集できます。',
+        nationTileOffset: true
     },
 
     inn: {
@@ -407,7 +416,8 @@ const buildings = {
             restBonus: 0.2,
             moraleBonus: 8
         },
-        description: '休息施設。乗組員の疲労回復が早まります。'
+        description: '休息施設。乗組員の疲労回復が早まります。',
+        nationTileOffset: true
     },
 
     repair_dock: {
@@ -425,7 +435,8 @@ const buildings = {
             repairCostReduction: 0.3,
             simultaneousRepairs: 2
         },
-        description: '船を素早く修理できます。戦闘後の復帰が早くなります。'
+        description: '船を素早く修理できます。戦闘後の復帰が早くなります。',
+        nationTileOffset: true
     },
 
     lighthouse: {
@@ -465,39 +476,13 @@ const buildings = {
     }
 };
 
-const BUILDING_ICON_BY_ID = {
-    watchtower: '🗼',
-    coastal_battery: '🎯',
-    fortress: '🏰',
-    warehouse: '📦',
-    farm: '🌾',
-    trading_post: '🏪',
-    tavern: '🍺',
-    repair_dock: '🔧',
-    lighthouse: '🗼',
-    shipyard: '⚓',
-    mine: '⛏️',
-    temple: '⛩️',
-    grand_market: '🏛️',
-    my_house_lv1: '🏠',
-    my_house_lv2: '🏠',
-    my_house_lv3: '🏡',
-    my_house_lv4: '🏡',
-    my_house_lv5: '🏛️',
-    weapon_shop: '⚔️',
-    armor_shop: '🛡️',
-    item_shop: '🧰',
-    inn: '🏨'
-};
-
 function getBuildingMetaMap() {
     const map = {};
     Object.entries(buildings).forEach(([key, building]) => {
         if (!building) return;
         const id = building.id || key;
-        const icon = building.icon || BUILDING_ICON_BY_ID[key] || BUILDING_ICON_BY_ID[id] || '🏗️';
         const nationTileOffset = building.nationTileOffset === true;
-        const meta = { id, icon, nationTileOffset };
+        const meta = { id, nationTileOffset };
         map[key] = meta;
         if (id && !map[id]) map[id] = meta;
     });
