@@ -278,10 +278,10 @@ export function showBuildingMenu(island, playFabId) {
 
                 ${isHarvestable ? `
                 <div class="resource-section">
-                    <div class="resource-title">??</div>
-                    <div class="resource-row">??: <b>${resourceCurrency}</b></div>
-                    <div class="resource-row" id="resourceStatus">?????...</div>
-                    <button class="btn-harvest" id="btnHarvestResource">????</button>
+                    <div class="resource-title">\u8cc7\u6e90</div>
+                    <div class="resource-row">\u8cc7\u6e90: <b>${resourceCurrency}</b></div>
+                    <div class="resource-row" id="resourceStatus">\u8aad\u307f\u8fbc\u307f\u4e2d...</div>
+                    <button class="btn-harvest" id="btnHarvestResource">\u63a1\u53d6\u3059\u308b</button>
                 </div>
                 ` : ''}
 
