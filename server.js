@@ -411,6 +411,55 @@ app.post('/api/get-nation-group', async (req, res) => {
     }
 });
 
+app.post('/api/donate-nation-currency', async (req, res) => {
+    const { playFabId, currency, amount } = req.body || {};
+    if (!playFabId || !currency) {
+        return res.status(400).json({ error: 'playFabId and currency are required' });
+    }
+    const value = Math.floor(Number(amount) || 0);
+    if (!Number.isFinite(value) || value <= 0) {
+        return res.status(400).json({ error: 'Amount must be greater than 0' });
+    }
+
+    try {
+        const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['NationGroupId']
+        });
+        const nationGroupId = ro?.Data?.NationGroupId?.Value || null;
+        if (!nationGroupId) {
+            return res.status(400).json({ error: 'Nation not set' });
+        }
+
+        await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
+            PlayFabId: playFabId,
+            VirtualCurrency: String(currency).toUpperCase(),
+            Amount: value
+        });
+
+        const snapshot = await firestore.collection('nation_groups')
+            .where('groupId', '==', nationGroupId)
+            .limit(1)
+            .get();
+        if (snapshot.empty) {
+            return res.status(404).json({ error: 'Nation group not found' });
+        }
+        const docRef = snapshot.docs[0].ref;
+        const field = `treasury.${String(currency).toUpperCase()}`;
+        await docRef.set({
+            treasury: {
+                [String(currency).toUpperCase()]: admin.firestore.FieldValue.increment(value)
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[donate-nation-currency] Error:', error?.errorMessage || error?.message || error);
+        res.status(500).json({ error: 'Failed to donate currency' });
+    }
+});
+
 app.post('/api/set-race', async (req, res) => {
     const { playFabId, raceName, nationGroupId, entityToken, displayName } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });

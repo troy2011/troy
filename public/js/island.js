@@ -357,6 +357,19 @@ export function showBuildingMenu(island, playFabId) {
                 `}
                 ` : ''}
 
+                ${(hasBuilding && isOwnNation && allowShipBuild) ? `
+                <div class="building-actions">
+                    <div class="resource-title">首都の特殊アクション</div>
+                    <div class="resource-row" style="margin-bottom:8px;">国庫への寄付</div>
+                    <div class="resource-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                        ${renderNationDonateRows()}
+                    </div>
+                    <div class="resource-row" style="margin-top:10px;">
+                        <button class="btn-build" id="btnCapitalCreateShip">新造船</button>
+                    </div>
+                </div>
+                ` : ''}
+
                 ${(hasBuilding && isEnemyNation) ? `
                 <div class="building-status-panel" data-island-id="${island.id}">
                     ${renderCurrentBuilding(island)}
@@ -558,6 +571,45 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             if (btn) btn.click();
         });
     }
+
+    const capitalCreateBtn = sheet.querySelector('#btnCapitalCreateShip');
+    if (capitalCreateBtn) {
+        capitalCreateBtn.addEventListener('click', () => {
+            if (typeof window.showTab === 'function') {
+                Promise.resolve(window.showTab('ships')).finally(() => {
+                    const btn = document.getElementById('btnCreateShip');
+                    if (btn) btn.click();
+                });
+                return;
+            }
+            const btn = document.getElementById('btnCreateShip');
+            if (btn) btn.click();
+        });
+    }
+
+    sheet.querySelectorAll('.btn-nation-donate').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const currency = btn.dataset.currency;
+            const input = sheet.querySelector(`.nation-donate-input[data-currency="${currency}"]`);
+            const amount = Number(input?.value || 0);
+            if (!currency) return;
+            if (!Number.isFinite(amount) || amount <= 0) {
+                alert('寄付額を入力してください。');
+                return;
+            }
+            const result = await callApiWithLoader('/api/donate-nation-currency', {
+                playFabId,
+                currency,
+                amount
+            });
+            if (result && result.success) {
+                input.value = '0';
+                alert('寄付しました。');
+            } else if (result?.error) {
+                alert(result.error);
+            }
+        });
+    });
 }
 
 async function loadBuildingList(category, island) {
@@ -792,6 +844,27 @@ function renderUpgradeCost(costs) {
     return entries
         .map(([code, amount]) => `${escapeHtml(String(code))} ${Number(amount)}`)
         .join(', ');
+}
+
+function renderNationDonateRows() {
+    const currencies = [
+        { code: 'PT', label: 'Ps' },
+        { code: 'RR', label: '火' },
+        { code: 'RG', label: '石' },
+        { code: 'RY', label: 'キノコ' },
+        { code: 'RB', label: '水' },
+        { code: 'RT', label: '木の枝' },
+        { code: 'RS', label: '木' }
+    ];
+    return currencies.map((entry) => `
+        <div style="display:flex; gap:6px; align-items:center;">
+            <label style="display:flex; gap:6px; align-items:center; width:100%;">
+                <span style="min-width:48px;">${entry.label}</span>
+                <input class="nation-donate-input" data-currency="${entry.code}" type="number" min="0" step="1" value="0" style="width:100%; padding:6px; border-radius:6px; border:1px solid var(--border-color); background:#111827; color:#fff; font-size:12px;">
+            </label>
+            <button class="btn-build btn-nation-donate" data-currency="${entry.code}">寄付</button>
+        </div>
+    `).join('');
 }
 
 function getSizeLabelFromTag(tags) {
