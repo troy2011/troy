@@ -76,15 +76,15 @@ const ISLAND_LAYOUTS = {
 };
 
 const BUILDING_META_DEFAULT = { nationTileOffset: false };
-const AREA_GRID_SIZE = 5;
+const AREA_GRID_SIZE = 20;
 const AREA_CAPTURE_MS = 5 * 60 * 1000;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 
 const NATION_BOUNDS = {
-    earth: { minX: 0, maxX: 249, minY: 0, maxY: 249 },
-    wind: { minX: 250, maxX: 499, minY: 0, maxY: 249 },
-    fire: { minX: 0, maxX: 249, minY: 250, maxY: 499 },
-    water: { minX: 250, maxX: 499, minY: 250, maxY: 499 }
+    earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+    wind: { minX: 400, maxX: 499, minY: 0, maxY: 99 },
+    fire: { minX: 0, maxX: 99, minY: 400, maxY: 499 },
+    water: { minX: 400, maxX: 499, minY: 400, maxY: 499 }
 };
 
 const NATION_TILE_INDEX = {
