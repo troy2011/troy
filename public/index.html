@@ -129,6 +129,15 @@
                 </div>
             </div>
 
+            <!-- 3. 島タブ -->
+            <div id="tabContentIslands" class="tab-content" style="display: none;">
+                <div class="content-area">
+                    <h2>所有する島</h2>
+                    <p style="font-size:12px; color:var(--text-sub);">自分が所有している島の一覧です。</p>
+                    <div id="islandListContainer" style="margin-top: 12px;"></div>
+                </div>
+            </div>
+
             <!-- 4. 船管理タブ -->
             <div id="tabContentShips" class="tab-content" style="display: none;">
                 <div class="content-area">
@@ -476,6 +485,9 @@
         </button>
         <button id="navMap" class="nav-button" onclick="showTab('map')">
             <span class="nav-icon">🗺️</span><span>地図</span>
+        </button>
+        <button id="navIslands" class="nav-button" onclick="showTab('islands')">
+            <span class="nav-icon">🏝️</span><span>島</span>
         </button>
         <button id="navInventory" class="nav-button" onclick="showTab('inventory')">
             <span class="nav-icon">🎒</span><span>持ち物</span>

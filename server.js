@@ -531,6 +531,32 @@ app.post('/api/get-nation-group', async (req, res) => {
     }
 });
 
+app.post('/api/get-owned-islands', async (req, res) => {
+    const { playFabId } = req.body || {};
+    if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+
+    try {
+        const snapshot = await firestore.collection('world_map')
+            .where('ownerId', '==', playFabId)
+            .get();
+        const islands = snapshot.docs.map(doc => {
+            const data = doc.data() || {};
+            return {
+                id: doc.id,
+                name: data.name || null,
+                size: data.size || null,
+                biome: data.biome || null,
+                coordinate: data.coordinate || null,
+                buildings: data.buildings || []
+            };
+        });
+        res.json({ islands });
+    } catch (error) {
+        console.error('[get-owned-islands] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to fetch owned islands' });
+    }
+});
+
 app.post('/api/king-exile', async (req, res) => {
     const { playFabId, targetPlayFabId } = req.body || {};
     if (!playFabId || !targetPlayFabId) {

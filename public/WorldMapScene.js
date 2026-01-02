@@ -1847,6 +1847,17 @@ export default class WorldMapScene extends Phaser.Scene {
         this.islandObjects.delete(islandId);
     }
 
+    focusIslandById(islandId) {
+        if (!islandId || !this.islandObjects) return;
+        const islandData = this.islandObjects.get(islandId);
+        if (!islandData) return;
+        const cam = this.cameras?.main;
+        if (cam) {
+            cam.centerOn(islandData.x + islandData.width / 2, islandData.y + islandData.height / 2);
+        }
+        this.showIslandCommandMenu(islandData);
+    }
+
     showBoardingButton(targetPlayFabId, displayName = '') {
         this.showShipCommandMenu(targetPlayFabId, displayName);
     }

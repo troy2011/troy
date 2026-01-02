@@ -5,10 +5,11 @@ import * as Inventory from './inventory.js';
 import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
+import * as Islands from './islands.js';
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, ships: false, map: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 
@@ -116,6 +117,13 @@ export async function showTab(tabId, playerInfo) {
                 case 'inventory':
                     await Inventory.getInventory(playerInfo.playFabId);
                     await Player.getPoints(playerInfo.playFabId);
+                    break;
+                case 'islands':
+                    if (!playerInfo || !playerInfo.playFabId) {
+                        console.warn('[showTab] islands tab requires playFabId');
+                        break;
+                    }
+                    await Islands.loadOwnedIslands(playerInfo.playFabId);
                     break;
                 case 'ranking':
                     await Player.getRanking();
