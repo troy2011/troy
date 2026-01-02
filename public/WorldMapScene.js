@@ -698,8 +698,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.minimapTexture.setDepth(GAME_CONFIG.DEPTH.MINIMAP_TEXTURE);
         if (this.cameras?.main) this.cameras.main.ignore(this.minimapTexture);
 
-        this.drawOwnedAreasOnMinimap();
-
         this.minimapPlayerMarker = this.add.graphics();
         this.minimapPlayerMarker.setScrollFactor(0);
         this.minimapPlayerMarker.setDepth(GAME_CONFIG.DEPTH.MINIMAP_MARKER);
@@ -711,6 +709,8 @@ export default class WorldMapScene extends Phaser.Scene {
             size: minimapSize,
             scale: minimapScale
         };
+
+        this.drawOwnedAreasOnMinimap();
 
         this.updateMinimapPosition();
     }
