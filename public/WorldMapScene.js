@@ -1858,6 +1858,13 @@ export default class WorldMapScene extends Phaser.Scene {
         this.showIslandCommandMenu(islandData);
     }
 
+    openBuildingMenuById(islandId) {
+        if (!islandId || !this.islandObjects) return;
+        const islandData = this.islandObjects.get(islandId);
+        if (!islandData) return;
+        this.openBuildingMenuForIsland(islandData);
+    }
+
     showBoardingButton(targetPlayFabId, displayName = '') {
         this.showShipCommandMenu(targetPlayFabId, displayName);
     }

@@ -545,6 +545,7 @@ app.post('/api/get-owned-islands', async (req, res) => {
                 id: doc.id,
                 name: data.name || null,
                 size: data.size || null,
+                islandLevel: data.islandLevel || null,
                 biome: data.biome || null,
                 coordinate: data.coordinate || null,
                 buildings: data.buildings || []
