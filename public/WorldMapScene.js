@@ -76,6 +76,16 @@ const ISLAND_LAYOUTS = {
 };
 
 const BUILDING_META_DEFAULT = { nationTileOffset: false };
+const AREA_GRID_SIZE = 20;
+const AREA_CAPTURE_MS = 5 * 60 * 1000;
+const OUTSIDE_VISION_MULTIPLIER = 0.25;
+
+const NATION_BOUNDS = {
+    earth: { minX: 0, maxX: 120, minY: 0, maxY: 120 },
+    wind: { minX: 380, maxX: 499, minY: 0, maxY: 120 },
+    fire: { minX: 0, maxX: 120, minY: 380, maxY: 499 },
+    water: { minX: 380, maxX: 499, minY: 380, maxY: 499 }
+};
 
 const NATION_TILE_INDEX = {
     fire: 0,
@@ -113,6 +123,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playerInfo = { playFabId: null, race: null };
 
         this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
+        this.baseShipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
         this.shipSpeed = GAME_CONFIG.SHIP_SPEED;
         this.shipBaseSpeed = GAME_CONFIG.SHIP_SPEED;
 
@@ -137,6 +148,11 @@ export default class WorldMapScene extends Phaser.Scene {
         this.commandMenuOpen = false;
         this.collidingShipId = null;
         this.shipPanelSuppressed = false;
+        this.guildAreas = new Set();
+        this.areaCaptureKey = null;
+        this.areaCaptureStartAt = null;
+        this.lastAreaCheckAt = 0;
+        this.isInOwnedArea = true;
 
         // Firestore髢｢騾｣
         this.firestore = null;
@@ -466,6 +482,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     const vision = Number(assetData?.Stats?.VisionRange);
                     if (Number.isFinite(vision) && vision > 0) {
                         this.shipVisionRange = vision;
+                        this.baseShipVisionRange = vision;
                         this.updateZoomFromVisionRange();
                         if (this.firestore) {
                             const { doc, setDoc } = await import('firebase/firestore');
@@ -771,10 +788,128 @@ export default class WorldMapScene extends Phaser.Scene {
 
     updateZoomFromVisionRange() {
         const cam = this.cameras?.main;
-        if (!cam || !Number.isFinite(this.shipVisionRange) || this.shipVisionRange <= 0) return;
+        const visionRange = this.getEffectiveVisionRange();
+        if (!cam || !Number.isFinite(visionRange) || visionRange <= 0) return;
         const screenWidth = this.scale?.width || cam.width;
-        const zoom = screenWidth / (this.shipVisionRange * 2);
+        const zoom = screenWidth / (visionRange * 2);
         cam.setZoom(zoom);
+    }
+
+    getEffectiveVisionRange() {
+        const base = Number.isFinite(Number(this.baseShipVisionRange))
+            ? Number(this.baseShipVisionRange)
+            : Number(this.shipVisionRange);
+        if (this.isInOwnedArea) return base;
+        return Math.max(50, Math.floor(base * OUTSIDE_VISION_MULTIPLIER));
+    }
+
+    getNationKey() {
+        const race = String(this.playerInfo?.race || '').toLowerCase();
+        if (race === 'human') return 'fire';
+        if (race === 'orc') return 'earth';
+        if (race === 'elf') return 'wind';
+        if (race === 'goblin') return 'water';
+        return null;
+    }
+
+    getAreaCellFromWorld(x, y) {
+        const tileX = Math.max(0, Math.min(this.mapTileSize - 1, Math.floor(x / this.gridSize)));
+        const tileY = Math.max(0, Math.min(this.mapTileSize - 1, Math.floor(y / this.gridSize)));
+        const gx = Math.floor(tileX / AREA_GRID_SIZE);
+        const gy = Math.floor(tileY / AREA_GRID_SIZE);
+        const key = `${gx},${gy}`;
+        return { gx, gy, key, tileX, tileY };
+    }
+
+    isTileInNationArea(tileX, tileY) {
+        const nation = this.getNationKey();
+        if (!nation) return false;
+        const bounds = NATION_BOUNDS[nation];
+        if (!bounds) return false;
+        return tileX >= bounds.minX && tileX <= bounds.maxX && tileY >= bounds.minY && tileY <= bounds.maxY;
+    }
+
+    isCellOwned(cell) {
+        if (!cell) return false;
+        if (this.isTileInNationArea(cell.tileX, cell.tileY)) return true;
+        return this.guildAreas.has(cell.key);
+    }
+
+    isIslandInOwnedArea(islandData) {
+        if (!islandData) return false;
+        const cx = islandData.x + (islandData.width || 0) / 2;
+        const cy = islandData.y + (islandData.height || 0) / 2;
+        const cell = this.getAreaCellFromWorld(cx, cy);
+        return this.isCellOwned(cell);
+    }
+
+    async loadGuildAreas() {
+        const guildId = this.getMyGuildId();
+        if (!guildId) return;
+        try {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/get-guild-areas') : '/api/get-guild-areas'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guildId })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const areas = Array.isArray(data?.areas) ? data.areas : [];
+            this.guildAreas = new Set(areas.map((entry) => `${entry.gx},${entry.gy}`));
+        } catch (error) {
+            console.warn('[Area] Failed to load guild areas:', error);
+        }
+    }
+
+    async updateAreaControlState() {
+        if (!this.playerShip) return;
+        const now = Date.now();
+        if (now - this.lastAreaCheckAt < 500) return;
+        this.lastAreaCheckAt = now;
+
+        const cell = this.getAreaCellFromWorld(this.playerShip.x, this.playerShip.y);
+        const owned = this.isCellOwned(cell);
+        if (owned !== this.isInOwnedArea) {
+            this.isInOwnedArea = owned;
+            this.updateZoomFromVisionRange();
+        }
+
+        if (this.playerShipDomain !== 'guild') return;
+        if (!this.getMyGuildId()) return;
+        if (this.guildAreas.has(cell.key)) {
+            this.areaCaptureKey = null;
+            this.areaCaptureStartAt = null;
+            return;
+        }
+
+        if (this.areaCaptureKey !== cell.key) {
+            this.areaCaptureKey = cell.key;
+            this.areaCaptureStartAt = now;
+            return;
+        }
+        if (!this.areaCaptureStartAt) {
+            this.areaCaptureStartAt = now;
+            return;
+        }
+        if (now - this.areaCaptureStartAt < AREA_CAPTURE_MS) return;
+
+        try {
+            const [gx, gy] = cell.key.split(',').map(Number);
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/capture-guild-area') : '/api/capture-guild-area'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guildId: this.getMyGuildId(), gx, gy })
+            });
+            if (res.ok) {
+                this.guildAreas.add(cell.key);
+                this.isInOwnedArea = true;
+                this.updateZoomFromVisionRange();
+            }
+        } catch (error) {
+            console.warn('[Area] Capture failed:', error);
+        } finally {
+            this.areaCaptureStartAt = null;
+        }
     }
 
     createIsland(data) {
@@ -2006,6 +2141,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const myPlayFabId = this.playerInfo?.playFabId;
         const isOwner = !!myPlayFabId && islandData.ownerId === myPlayFabId;
+        const isInOwnedArea = this.isIslandInOwnedArea(islandData);
 
         const resourceBiomes = ['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred'];
         const isResourceIsland = resourceBiomes.includes(String(islandData?.biome || '').toLowerCase());
@@ -2021,6 +2157,10 @@ export default class WorldMapScene extends Phaser.Scene {
             buttonText = 'ログインが必要です';
             buttonClass = 'disabled';
             onClick = () => this.showMessage('ログインしてください。');
+        } else if (!isOwner && !isInOwnedArea) {
+            buttonText = '占領範囲外';
+            buttonClass = 'disabled';
+            onClick = () => this.showMessage('このエリアは占領されていません。');
         } else if (!isOwner) {
             buttonText = `占領して${menuLabel}を開く`;
             buttonClass = 'warning';
@@ -2126,6 +2266,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     update() {
+        this.updateAreaControlState();
         this.drawFogOfWar();
         this.updateMinimapPlayerMarker();
         this.refreshShipSubscriptions();
@@ -2247,6 +2388,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         await this.loadMyGuildId();
+        await this.loadGuildAreas();
 
         await this.restoreOrCreateMyShipPosition();
 
@@ -2400,6 +2542,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 const storedVision = Number(data?.shipVisionRange);
                 if (Number.isFinite(storedVision) && storedVision > 0) {
                     this.shipVisionRange = storedVision;
+                    this.baseShipVisionRange = storedVision;
                 }
 
                 const activeShipId = data.shipId;
@@ -2523,6 +2666,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     const assetVision = Number(assetDataResolved?.Stats?.VisionRange);
                     if (Number.isFinite(assetVision) && assetVision > 0) {
                         this.shipVisionRange = assetVision;
+                        this.baseShipVisionRange = assetVision;
                     }
                     await setDoc(shipRef, { shipVisionRange: this.shipVisionRange }, { merge: true });
                 }

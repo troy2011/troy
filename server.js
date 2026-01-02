@@ -411,6 +411,41 @@ app.post('/api/get-nation-group', async (req, res) => {
     }
 });
 
+app.post('/api/get-guild-areas', async (req, res) => {
+    const { guildId } = req.body || {};
+    if (!guildId) return res.json({ success: true, areas: [] });
+    try {
+        const snapshot = await firestore.collection('guild_areas')
+            .where('guildId', '==', guildId)
+            .get();
+        const areas = snapshot.docs.map((doc) => doc.data());
+        res.json({ success: true, areas });
+    } catch (error) {
+        console.error('[GetGuildAreas] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to get guild areas' });
+    }
+});
+
+app.post('/api/capture-guild-area', async (req, res) => {
+    const { guildId, gx, gy } = req.body || {};
+    if (!guildId || !Number.isFinite(Number(gx)) || !Number.isFinite(Number(gy))) {
+        return res.status(400).json({ error: 'guildId, gx, gy are required' });
+    }
+    try {
+        const key = `${guildId}_${gx}_${gy}`;
+        await firestore.collection('guild_areas').doc(key).set({
+            guildId,
+            gx: Number(gx),
+            gy: Number(gy),
+            occupiedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[CaptureGuildArea] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to capture guild area' });
+    }
+});
+
 app.post('/api/donate-nation-currency', async (req, res) => {
     const { playFabId, currency, amount } = req.body || {};
     if (!playFabId || !currency) {
