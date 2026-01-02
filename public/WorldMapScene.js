@@ -169,7 +169,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_yellow', 'Sprites/Ships/ships_yellow.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_green', 'Sprites/Ships/ships_green.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('guild_ship_sprite', 'Sprites/Ships/GuildShips.png', { frameWidth: 48, frameHeight: 48 });
+        this.load.spritesheet('guild_ship_sprite', 'Sprites/Ships/guildShips.png', { frameWidth: 48, frameHeight: 48 });
         this.load.spritesheet('map_tiles', 'Sprites/Buildings/buildings.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('building_tiles', 'Sprites/Buildings/buildings.png', { frameWidth: 32, frameHeight: 32 });
     }
