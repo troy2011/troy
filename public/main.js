@@ -19,7 +19,7 @@ import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
 window.myLineProfile = null;
 window.myPlayFabId = null;
-window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1 };
+window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire' };
 window.myEntityToken = null;
 
 const NATION_GROUP_BY_RACE = {
@@ -112,7 +112,7 @@ async function initializeLiff() {
                         }
                     }
 
-                    await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human' });
+                    await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
                 }
             }
@@ -184,7 +184,7 @@ async function initializeAppFeatures() {
             }
 
             // インベントリタブに移動
-            await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race });
+            await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
 
             // カテゴリタブを切り替え
             if (targetCategory !== 'All') {
@@ -373,7 +373,8 @@ function showRaceModal() {
             }
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
-            await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase() });
+            const nation = data?.nation?.Nation || data?.nation?.NationIsland || null;
+            await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
             raceButtonsContainer.addEventListener('click', handleRaceSelection);
@@ -390,12 +391,13 @@ async function updateAvatarBaseInfo() {
     console.log('[updateAvatarBaseInfo] Fetching user data from PlayFab...');
     const result = await callApiWithLoader(PlayFab.ClientApi.GetUserReadOnlyData, {
         PlayFabId: myPlayFabId,
-        Keys: ["Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
+        Keys: ["Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
     }, { isSilent: true });
 
     if (result && result.Data) {
         myAvatarBaseInfo = {
             Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
+            Nation: (result.Data.Nation?.Value || '').toLowerCase(),
             AvatarColor: result.Data.AvatarColor?.Value || 'brown',
             SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
             FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
@@ -615,14 +617,14 @@ async function stopShip(shipId) {
 }
 
 function startShipVoyageUI(shipId) {
-    showTab('map', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race });
+    showTab('map', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
     alert('Select a destination on the map to start the voyage.');
 }
 
 
 // --- グローバルスコープへの登録 ---
 // HTMLのonclick属性から呼び出せるように、モジュールスコープ内の関数をwindowオブジェクトに登録します。
-window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race });
+window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
 window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, slot);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);
 window.sellItem = (instanceId, itemId) => Inventory.sellItem(myPlayFabId, instanceId, itemId);

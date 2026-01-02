@@ -591,6 +591,7 @@ app.post('/api/set-race', async (req, res) => {
         }
 
         const nationData = {
+            Nation: mapping.island,
             NationIsland: mapping.island,
             NationGroupId: nationGroupId,
             NationGroupName: mapping.groupName
