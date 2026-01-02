@@ -115,6 +115,9 @@ function _wireHandlers(playFabId) {
     const transferTargetEl = document.getElementById('kingTransferTargetId');
     const scanTransferBtn = document.getElementById('btnKingScanTransferTarget');
     const transferBtn = document.getElementById('btnKingTransfer');
+    const exileTargetEl = document.getElementById('kingExileTargetId');
+    const scanExileBtn = document.getElementById('btnKingScanExileTarget');
+    const exileBtn = document.getElementById('btnKingExile');
     const previewEl = document.getElementById('kingGrantPreview');
 
     if (saveBtn) {
@@ -225,6 +228,34 @@ function _wireHandlers(playFabId) {
                 _isKing = false;
                 const nav = document.getElementById('navKing');
                 if (nav) nav.style.display = 'none';
+            }
+        });
+    }
+
+    if (scanExileBtn && exileTargetEl) {
+        scanExileBtn.addEventListener('click', async () => {
+            try {
+                const value = await _scanQrValue();
+                if (value) exileTargetEl.value = value;
+            } catch (e) {
+                _setMessage(e.message || String(e), true);
+            }
+        });
+    }
+
+    if (exileBtn) {
+        exileBtn.addEventListener('click', async () => {
+            const targetPlayFabId = exileTargetEl ? String(exileTargetEl.value || '').trim() : '';
+            if (!targetPlayFabId) {
+                _setMessage('Target PlayFabId is required.', true);
+                return;
+            }
+            if (!confirm(`Proceed exile?\nTarget: ${targetPlayFabId}\nOwned islands will be removed.`)) return;
+
+            const result = await callApiWithLoader('/api/king-exile', { playFabId, targetPlayFabId });
+            if (result) {
+                const deleted = typeof result.deletedIslands === 'number' ? ` / islands: ${result.deletedIslands}` : '';
+                _setMessage(`Exile completed.${deleted}`);
             }
         });
     }

@@ -107,6 +107,25 @@ const NATION_GROUP_BY_RACE = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
+const NATION_GROUP_BY_NATION = {
+    fire: { island: 'fire', groupName: 'nation_fire_island' },
+    earth: { island: 'earth', groupName: 'nation_earth_island' },
+    wind: { island: 'wind', groupName: 'nation_wind_island' },
+    water: { island: 'water', groupName: 'nation_water_island' }
+};
+
+const AVATAR_COLOR_BY_NATION = {
+    fire: 'red',
+    earth: 'green',
+    wind: 'purple',
+    water: 'blue'
+};
+
+function getAvatarColorForNation(nation) {
+    const key = String(nation || '').toLowerCase();
+    return AVATAR_COLOR_BY_NATION[key] || null;
+}
+
 let _titleEntityTokenReady = false;
 async function ensureTitleEntityToken() {
     if (_titleEntityTokenReady) return;
@@ -266,6 +285,78 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     return { created: true, islandId: docRef.id, respawnPosition };
 }
 
+async function getPlayerEntity(playFabId) {
+    const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+        PlayFabId: playFabId,
+        ProfileConstraints: { ShowDisplayName: true }
+    });
+    const p = profile?.PlayerProfile || {};
+    const entityId = p.EntityId || p.EntityID || p.Entity?.Id || null;
+    const entityType = p.EntityType || p.Entity?.Type || 'title_player_account';
+    if (!entityId) return null;
+    return { Id: entityId, Type: entityType };
+}
+
+async function deleteOwnedIslands(firestore, playFabId) {
+    const snapshot = await firestore.collection('world_map').where('ownerId', '==', playFabId).get();
+    if (snapshot.empty) return { deleted: 0 };
+    const batch = firestore.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    return { deleted: snapshot.size };
+}
+
+function worldToLatLng(point) {
+    const gridSize = 32;
+    const mapTileSize = 500;
+    const metersPerTile = 100;
+    const mapPixelSize = mapTileSize * gridSize;
+    const metersPerPixel = metersPerTile / gridSize;
+    const dxMeters = (point.x - mapPixelSize / 2) * metersPerPixel;
+    const dyMeters = (mapPixelSize / 2 - point.y) * metersPerPixel;
+
+    const lat = dyMeters / 110574;
+    const lng = dxMeters / 111320;
+    return { lat, lng };
+}
+
+async function relocateActiveShip(firestore, playFabId, respawnPosition) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['ActiveShipId']
+    });
+    const activeShipId = ro?.Data?.ActiveShipId?.Value;
+    if (!activeShipId) return { moved: false, reason: 'no_active_ship' };
+
+    const geoPoint = worldToLatLng(respawnPosition);
+    const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+    const now = Date.now();
+    const patch = {
+        position: { x: respawnPosition.x, y: respawnPosition.y },
+        currentX: respawnPosition.x,
+        currentY: respawnPosition.y,
+        targetX: respawnPosition.x,
+        targetY: respawnPosition.y,
+        arrivalTime: now,
+        movement: {
+            isMoving: false,
+            departureTime: null,
+            arrivalTime: null,
+            departurePos: null,
+            destinationPos: null
+        },
+        geohash: geohash,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await Promise.all([
+        firestore.collection('ships').doc(playFabId).set(patch, { merge: true }),
+        firestore.collection('ships').doc(activeShipId).set(patch, { merge: true })
+    ]);
+
+    return { moved: true, shipId: activeShipId };
+}
+
 
 // ----------------------------------------------------
 // API: 国（島）グループ「王」専用ページ情報
@@ -408,6 +499,121 @@ app.post('/api/get-nation-group', async (req, res) => {
     } catch (error) {
         console.error('[get-nation-group] Error:', error.errorMessage || error.message);
         return res.status(500).json({ error: 'Failed to get nation group', details: error.errorMessage || error.message });
+    }
+});
+
+app.post('/api/king-exile', async (req, res) => {
+    const { playFabId, targetPlayFabId } = req.body || {};
+    if (!playFabId || !targetPlayFabId) {
+        return res.status(400).json({ error: 'playFabId and targetPlayFabId are required' });
+    }
+    if (playFabId === targetPlayFabId) {
+        return res.status(400).json({ error: 'Cannot exile self' });
+    }
+
+    try {
+        const kingCheck = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+            PlayFabId: playFabId,
+            FunctionName: 'GetNationKingPageData',
+            FunctionParameter: {},
+            GeneratePlayStreamEvent: false
+        });
+        if (kingCheck && kingCheck.Error) {
+            const msg = kingCheck.Error.Message || kingCheck.Error.Error || 'CloudScript error';
+            if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
+                return res.status(403).json({ error: 'Only the king can exile players' });
+            }
+            return res.status(500).json({ error: 'Failed to validate king', details: msg });
+        }
+
+        const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['NationGroupId', 'NationGroupName', 'NationIsland', 'Nation']
+        });
+        const kingNationGroupId = kingRo?.Data?.NationGroupId?.Value || null;
+        if (!kingNationGroupId) return res.status(400).json({ error: 'King nation group not set' });
+
+        let targetNationIsland = await resolveNationIslandByGroupId(kingNationGroupId);
+        const kingNation = String(kingRo?.Data?.Nation?.Value || kingRo?.Data?.NationIsland?.Value || '').toLowerCase();
+        if (!targetNationIsland && kingNation) targetNationIsland = kingNation;
+        const nationMapping = NATION_GROUP_BY_NATION[kingNation] || null;
+        const targetNationGroupName = kingRo?.Data?.NationGroupName?.Value || nationMapping?.groupName || null;
+
+        const targetRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: targetPlayFabId,
+            Keys: ['Race', 'NationGroupId', 'Nation']
+        });
+        const targetRace = targetRo?.Data?.Race?.Value || null;
+        const targetPrevGroupId = targetRo?.Data?.NationGroupId?.Value || null;
+
+        const playerEntity = await getPlayerEntity(targetPlayFabId);
+        if (!playerEntity) return res.status(400).json({ error: 'Failed to resolve target entity' });
+
+        if (targetPrevGroupId && targetPrevGroupId !== kingNationGroupId) {
+            try {
+                await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                    Group: { Id: targetPrevGroupId, Type: 'group' },
+                    Members: [playerEntity]
+                });
+            } catch (e) {
+                console.warn('[king-exile] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+            }
+        }
+
+        try {
+            await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                Group: { Id: kingNationGroupId, Type: 'group' },
+                Members: [playerEntity]
+            });
+        } catch (e) {
+            const msg = e?.errorMessage || e?.message || String(e);
+            if (!String(msg).includes('EntityIsAlreadyMember')) throw e;
+        }
+
+        const avatarColor = getAvatarColorForNation(targetNationIsland || kingNation);
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: targetPlayFabId,
+            Data: {
+                Nation: targetNationIsland || kingNation || null,
+                NationIsland: targetNationIsland || kingNation || null,
+                NationGroupId: kingNationGroupId,
+                NationGroupName: targetNationGroupName,
+                AvatarColor: avatarColor || 'brown'
+            }
+        });
+
+        const deleteResult = await deleteOwnedIslands(firestore, targetPlayFabId);
+        let starterIsland = null;
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: targetPlayFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            const displayName = profile?.PlayerProfile?.DisplayName || null;
+            starterIsland = await createStarterIsland({
+                playFabId: targetPlayFabId,
+                raceName: targetRace || 'Human',
+                nationIsland: targetNationIsland || kingNation || null,
+                displayName
+            });
+        } catch (e) {
+            console.warn('[king-exile] Failed to create starter island:', e?.errorMessage || e?.message || e);
+        }
+
+        if (starterIsland?.respawnPosition) {
+            await relocateActiveShip(firestore, targetPlayFabId, starterIsland.respawnPosition);
+        }
+
+        return res.json({
+            success: true,
+            nationGroupId: kingNationGroupId,
+            nationIsland: targetNationIsland || kingNation || null,
+            deletedIslands: deleteResult.deleted,
+            starterIsland
+        });
+    } catch (error) {
+        console.error('[king-exile] Error:', error?.errorMessage || error?.message || error);
+        return res.status(500).json({ error: 'Failed to exile player', details: error?.errorMessage || error?.message || error });
     }
 });
 

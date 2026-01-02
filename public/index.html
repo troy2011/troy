@@ -434,6 +434,19 @@
                     </div>
 
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">亡命の受け入れ（QRコード）</div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">亡命希望者（PlayFabId）</div>
+                            <input id="kingExileTargetId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
+                            <div style="display:flex; gap:10px; margin-top: 8px;">
+                                <button id="btnKingScanExileTarget" style="background: #374151;">QRで読み取り</button>
+                                <button id="btnKingExile" style="background: var(--accent-color);">亡命させる</button>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">島は全て手放し、亡命先の国付近に再配置されます。</div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
                         <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">現在の告知</div>
                         <div id="kingAnnouncementCurrent" style="white-space: pre-wrap; font-size: 14px;">-</div>
                         <div id="kingAnnouncementMeta" style="margin-top: 6px; font-size: 11px; color: var(--text-sub);"></div>
