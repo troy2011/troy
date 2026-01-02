@@ -1704,7 +1704,19 @@ app.post('/api/start-building-construction', async (req, res) => {
         }
 
         // 3. 建設処理（Firestoreトランザクション）
-        const ref = firestore.collection('world_map').doc(islandId);
+        let displayName = null;
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            displayName = profile?.PlayerProfile?.DisplayName || null;
+        } catch (e) {
+            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
+        }
+        const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
+
+const ref = firestore.collection('world_map').doc(islandId);
         const now = Date.now();
 
         const building = await firestore.runTransaction(async (tx) => {
@@ -1762,6 +1774,7 @@ app.post('/api/start-building-construction', async (req, res) => {
 
             tx.update(ref, {
                 buildings,
+                name: islandName,
                 constructionStatus: 'constructing',
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
@@ -1906,7 +1919,19 @@ app.post('/api/check-building-completion', async (req, res) => {
     }
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        let displayName = null;
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            displayName = profile?.PlayerProfile?.DisplayName || null;
+        } catch (e) {
+            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
+        }
+        const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
+
+const ref = firestore.collection('world_map').doc(islandId);
         const now = Date.now();
 
         const result = await firestore.runTransaction(async (tx) => {
@@ -1960,7 +1985,19 @@ app.post('/api/help-construction', async (req, res) => {
     }
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        let displayName = null;
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            displayName = profile?.PlayerProfile?.DisplayName || null;
+        } catch (e) {
+            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
+        }
+        const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
+
+const ref = firestore.collection('world_map').doc(islandId);
         const now = Date.now();
         const reductionPerHelper = 0.1;
         const maxReduction = 0.5;
@@ -1986,6 +2023,7 @@ app.post('/api/help-construction', async (req, res) => {
             buildings[idx] = { ...b, helpers, completionTime: Math.max(now, newCompletion), durationMs };
             tx.update(ref, {
                 buildings,
+                name: islandName,
                 constructionStatus: 'constructing',
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
