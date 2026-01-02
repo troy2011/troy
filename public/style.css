@@ -200,6 +200,12 @@ button:disabled {
     border: 1px solid var(--border-color);
 }
 
+.transfer-quick-btn.reset {
+    background: #1f2937;
+    color: var(--text-sub);
+    border-style: dashed;
+}
+
 .transfer-quick-btn:active {
     transform: scale(0.98);
 }

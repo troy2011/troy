@@ -149,6 +149,10 @@ async function initializeAppFeatures() {
             const amount = Number(btn.dataset.amount || 0);
             const input = document.getElementById('transferAmount');
             if (!input || !Number.isFinite(amount)) return;
+            if (amount === 0) {
+                input.value = '0';
+                return;
+            }
             const current = Number(input.value || 0);
             input.value = String((Number.isFinite(current) ? current : 0) + amount);
         });
