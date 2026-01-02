@@ -231,7 +231,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         size: 'small',
         islandLevel: islandLevel,
         ownerId: playFabId,
-        ownerRace: raceName,
+        ownerNation: nationIsland || null,
         biome: nationIsland || null,
         biomeFrame: chosenBiomeFrame,
         buildingSlots: { layout: '1x1' },
@@ -306,7 +306,7 @@ async function deleteOwnedIslands(firestore, playFabId) {
     return { deleted: snapshot.size };
 }
 
-async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toRace) {
+async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toNation) {
     const snapshot = await firestore.collection('world_map').where('ownerId', '==', fromPlayFabId).get();
     if (snapshot.empty) return { transferred: 0 };
 
@@ -317,7 +317,7 @@ async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toRac
     snapshot.docs.forEach(doc => {
         batch.update(doc.ref, {
             ownerId: toPlayFabId,
-            ownerRace: toRace || null
+            ownerNation: toNation || null
         });
         transferred += 1;
         batchCount += 1;
@@ -613,7 +613,7 @@ app.post('/api/king-exile', async (req, res) => {
             }
         });
 
-        const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, kingRace);
+        const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, targetNationIsland || kingNation || null);
         let starterIsland = null;
         try {
             const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
@@ -2091,13 +2091,17 @@ app.post('/api/upgrade-island-level', async (req, res) => {
 
         const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Race', 'NationGroupId']
+            Keys: ['Nation', 'Race', 'NationGroupId']
         });
         const nationGroupId = userReadOnly?.Data?.NationGroupId?.Value || null;
+        const nationValue = userReadOnly?.Data?.Nation?.Value || null;
         const raceName = userReadOnly?.Data?.Race?.Value || null;
-        if (!nationGroupId && !raceName) return res.status(400).json({ error: 'NationNotSet' });
+        if (!nationGroupId && !nationValue && !raceName) return res.status(400).json({ error: 'NationNotSet' });
 
         let nationIsland = await resolveNationIslandByGroupId(nationGroupId);
+        if (!nationIsland && nationValue) {
+            nationIsland = String(nationValue).toLowerCase();
+        }
         if (!nationIsland && raceName && NATION_GROUP_BY_RACE[raceName]) {
             nationIsland = NATION_GROUP_BY_RACE[raceName].island;
         }

@@ -534,7 +534,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         y: data.coordinate.y * this.gridSize,
                         name: data.name || '名称未設定',
                         size: data.size || 'small',
-                        ownerRace: data.ownerRace,
+                        ownerNation: data.ownerNation || data.ownerRace,
                         ownerId: data.ownerId,
                         biome: data.biome,
                         biomeFrame: data.biomeFrame,
@@ -1139,7 +1139,8 @@ export default class WorldMapScene extends Phaser.Scene {
             });
         }
 
-        const nameColor = this.getRaceColor(data.ownerRace);
+        const ownerNation = data.ownerNation || data.ownerRace;
+        const nameColor = this.getNationColor(ownerNation);
         const nameText = this.add.text(data.x + islandWidth / 2, data.y + islandHeight + 10, data.name, {
             fontSize: '14px',
             fill: `#${nameColor.toString(16).padStart(6, '0')}`,
@@ -1171,7 +1172,7 @@ export default class WorldMapScene extends Phaser.Scene {
             height: islandHeight,
             name: data.name,
             type: data.type,
-            ownerRace: data.ownerRace,
+            ownerNation: ownerNation,
             ownerId: data.ownerId,
             sprites: islandSprites,
             buildingSprites: buildingSprites,
@@ -1211,6 +1212,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
     getRaceColor(raceId) {
         return RACE_COLORS[raceId] || 0x808080;
+    }
+
+    getNationColor(nation) {
+        const key = String(nation || '').toLowerCase();
+        return NATION_COLORS[key] ?? 0x808080;
     }
 
     /**
@@ -1821,7 +1827,7 @@ export default class WorldMapScene extends Phaser.Scene {
             y: data.coordinate.y * this.gridSize,
             name: data.name || '名称未設定',
             size: data.size || 'small',
-            ownerRace: data.ownerRace,
+            ownerNation: data.ownerNation || data.ownerRace,
             ownerId: data.ownerId,
             biome: data.biome,
             biomeFrame: data.biomeFrame,
@@ -2147,13 +2153,13 @@ export default class WorldMapScene extends Phaser.Scene {
         try {
             await updateDoc(islandRef, {
                 ownerId: this.playerInfo.playFabId,
-                ownerRace: this.playerInfo.race
+                ownerNation: this.playerInfo.nation || null
             });
             console.log('所有権の更新に成功');
             islandData.ownerId = this.playerInfo.playFabId;
-            islandData.ownerRace = this.playerInfo.race;
+            islandData.ownerNation = this.playerInfo.nation || null;
             if (islandData.nameText) {
-                const newColor = this.getRaceColor(this.playerInfo.race);
+                const newColor = this.getNationColor(this.playerInfo.nation);
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
             }
             this.showMessage(`${islandData.name}を占領しました。`);
@@ -2281,13 +2287,13 @@ export default class WorldMapScene extends Phaser.Scene {
         try {
             await updateDoc(islandRef, {
                 ownerId: null,
-                ownerRace: null
+                ownerNation: null
             });
             console.log('島の放棄に成功');
             islandData.ownerId = null;
-            islandData.ownerRace = null;
+            islandData.ownerNation = null;
             if (islandData.nameText) {
-                const newColor = this.getRaceColor(null);
+                const newColor = this.getNationColor(null);
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
             }
             this.showMessage(`${islandData.name}を放棄しました。`);
