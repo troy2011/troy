@@ -29,6 +29,18 @@ const NATION_GROUP_BY_RACE = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
+const AVATAR_COLOR_BY_NATION = {
+    fire: 'red',
+    earth: 'green',
+    wind: 'purple',
+    water: 'blue'
+};
+
+function getAvatarColorForNation(nation) {
+    const key = String(nation || '').toLowerCase();
+    return AVATAR_COLOR_BY_NATION[key] || null;
+}
+
 // main.js は export しないため、RACE_COLORS を window に登録
 window.RACE_COLORS = RACE_COLORS;
 
@@ -374,6 +386,17 @@ function showRaceModal() {
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
             const nation = data?.nation?.Nation || data?.nation?.NationIsland || null;
+            if (nation) {
+                const avatarColor = getAvatarColorForNation(nation);
+                if (avatarColor) {
+                    myAvatarBaseInfo = {
+                        ...myAvatarBaseInfo,
+                        Nation: String(nation).toLowerCase(),
+                        AvatarColor: avatarColor
+                    };
+                    window.myAvatarBaseInfo = myAvatarBaseInfo;
+                }
+            }
             await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
@@ -395,10 +418,12 @@ async function updateAvatarBaseInfo() {
     }, { isSilent: true });
 
     if (result && result.Data) {
+        const nation = (result.Data.Nation?.Value || '').toLowerCase();
+        const nationColor = getAvatarColorForNation(nation);
         myAvatarBaseInfo = {
             Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
-            Nation: (result.Data.Nation?.Value || '').toLowerCase(),
-            AvatarColor: result.Data.AvatarColor?.Value || 'brown',
+            Nation: nation,
+            AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
             SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
             FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
             HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
