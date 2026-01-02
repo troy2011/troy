@@ -532,6 +532,45 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
         loadShopPanels(sheet, island, shopConfig, playFabId);
     }
 
+    const resourceStatusEl = sheet.querySelector('#resourceStatus');
+    const harvestBtn = sheet.querySelector('#btnHarvestResource');
+    if (resourceStatusEl && harvestBtn) {
+        const updateResourceStatus = async () => {
+            resourceStatusEl.textContent = '読み込み中...';
+            const status = await getResourceStatus(playFabId, island.id);
+            if (!status || !status.success) {
+                resourceStatusEl.textContent = '情報の取得に失敗しました。';
+                return;
+            }
+            const available = Number(status.available || 0);
+            const capacity = Number(status.capacity || 0);
+            const nextInMs = Number(status.nextInMs || 0);
+            if (available > 0) {
+                resourceStatusEl.textContent = `採取可能: ${available} / 容量: ${capacity}`;
+            } else {
+                resourceStatusEl.textContent = `次の採取まで: ${formatMs(nextInMs)}`;
+            }
+        };
+
+        harvestBtn.addEventListener('click', async () => {
+            harvestBtn.disabled = true;
+            resourceStatusEl.textContent = '採取中...';
+            const result = await collectResource(playFabId, island.id);
+            if (result && result.success) {
+                const amount = Number(result.amount || 0);
+                resourceStatusEl.textContent = amount > 0
+                    ? `採取しました: ${amount}`
+                    : '採取できる資源がありません。';
+            } else {
+                resourceStatusEl.textContent = result?.error || '採取に失敗しました。';
+            }
+            harvestBtn.disabled = false;
+            await updateResourceStatus();
+        });
+
+        updateResourceStatus();
+    }
+
     const attackBuildingBtn = sheet.querySelector('#btnAttackBuilding');
     if (attackBuildingBtn) {
         attackBuildingBtn.addEventListener('click', async () => {
