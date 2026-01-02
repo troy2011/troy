@@ -240,325 +240,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 島オブジェクトのスプライトを破棄
         if (this.islandObjects && this.islandObjects.size > 0) {
-            this.islandObjects.forEach((islandData) => {
-                if (islandData.sprites) {
-                    islandData.sprites.forEach(sprite => sprite?.destroy?.());
-                }
-                if (islandData.buildingSprites) {
-                    islandData.buildingSprites.forEach(sprite => sprite?.destroy?.());
-                }
-                islandData.nameText?.destroy?.();
-                islandData.interactiveZone?.destroy?.();
-                islandData.physicsGroup?.destroy?.(true);
-            });
-            this.islandObjects.clear();
-        }
-
-        // 建設・破壊スプライトを破棄
-        if (this.constructionSprites && this.constructionSprites.length > 0) {
-            this.constructionSprites.forEach(sprite => sprite?.destroy?.());
-            this.constructionSprites = [];
-        }
-        if (this.demolishedSprites && this.demolishedSprites.length > 0) {
-            this.demolishedSprites.forEach(sprite => sprite?.destroy?.());
-            this.demolishedSprites = [];
-        }
-
-        // 状態変数をリセット
-        this.shipTween = null;
-        this.canMove = true;
-        this.shipMoving = false;
-        this.shipTargetX = 0;
-        this.shipTargetY = 0;
-        this.shipTargetIsland = null;
-        this.shipArrivalTimer = null;
-        this.collidingIsland = null;
-        this.commandMenuOpen = false;
-        this.firestore = null;
-        this.lastShipQueryCenter = null;
-        this.lastShipQueryUpdate = 0;
-        this.boardingButton = null;
-        this.boardingTargetId = null;
-        this.boardingVisible = false;
-        this.collidingShipId = null;
-        this.shipPanelSuppressed = false;
-        if (this.lastRamDamageAt) {
-            this.lastRamDamageAt.clear();
-        }
-        this.shipAnims = {};
-        this.destroyShipHpBar(this.playerShip);
-        this.destroyShipShadow(this.playerShip);
-        this.playerHp = { current: null, max: null };
-        this.playerShipDomain = null;
-        this.respawnInFlight = false;
-        if (this.onActiveShipChanged && typeof window !== 'undefined') {
-            window.removeEventListener('ship:active-changed', this.onActiveShipChanged);
-            this.onActiveShipChanged = null;
-        }
-
-        console.log('[WorldMapScene] Previous state cleaned up');
-    }
-
-    ignoreOnUiCamera(objects) {
-        if (!this.uiCamera) return objects;
-        if (Array.isArray(objects)) {
-            objects.forEach(obj => obj && obj !== this.fogGraphics && this.uiCamera.ignore(obj));
-        } else if (objects && objects !== this.fogGraphics) {
-            this.uiCamera.ignore(objects);
-        }
-        return objects;
-    }
-
-    setMapReady(ready) {
-        if (typeof document === 'undefined') return;
-        const container = document.getElementById('tabContentMap');
-        if (!container) return;
-        if (ready) {
-            container.classList.add('map-ready');
-        } else {
-            container.classList.remove('map-ready');
-        }
-    }
-
-    async create() {
-        this.setMapReady(false);
-        const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
-        this.seaBackground = seaBackground;
-        if (typeof window !== 'undefined') {
-            window.worldMapScene = this;
-        }
-        if (this.game?.canvas?.style) {
-            this.game.canvas.style.backgroundColor = '#000000';
-        }
-        seaBackground.setInteractive(
-            new Phaser.Geom.Rectangle(0, 0, this.mapPixelSize, this.mapPixelSize),
-            Phaser.Geom.Rectangle.Contains
-        );
-
-        // Prevent DOM UI interactions from also triggering Phaser input (pointerup is listened on window).
-        if (typeof document !== 'undefined') {
-            const stop = (e) => {
-                if (!e) return;
-                if (typeof e.stopPropagation === 'function') e.stopPropagation();
-                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-            };
-            const panels = [
-                document.getElementById('islandCommandPanel'),
-                document.getElementById('mapChatArea')
-            ];
-            panels.forEach((panel) => {
-                if (!panel || panel.dataset.phaserBlockerInstalled) return;
-                ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((type) => {
-                    panel.addEventListener(type, stop);
-                });
-                panel.addEventListener('touchmove', (e) => {
-                    stop(e);
-                }, { passive: true });
-                panel.dataset.phaserBlockerInstalled = '1';
-            });
-        }
-
-        seaBackground.on('pointerup', (pointer) => {
-            if (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active')) return;
-            if (this.commandMenuOpen) {
-                this.hideCommandMenu();
-            }
-            if (!this.isPointerInsideVisionArea(pointer)) {
-                this.showMessage('視界の外は移動できません。');
-                return;
-            }
-            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-            console.log('[Sea] Background clicked at world:', worldPoint.x, worldPoint.y);
-            this.moveShipTo(worldPoint.x, worldPoint.y, null);
-        });
-
-        // 荳・0-2 蟾ｦ荳・3-5 / 蟾ｦ:32-34 蜿ｳ荳・35-37 / 蜿ｳ:64-66 蟾ｦ荳・67-69 / 荳・96-98 蜿ｳ荳・99-101
-        this.shipSpriteBaseFrame = 0; // 蟾ｦ荳翫・繝ｼ繝医・髢句ｧ九ヵ繝ｬ繝ｼ繝・亥ｷｦ荳翫・繝ｼ繝・0・・
-        const sheetCols = 32;
-        const baseFrame = this.shipSpriteBaseFrame;
-        const baseRow = Math.floor(baseFrame / sheetCols);
-        const baseCol = baseFrame % sheetCols;
-        const frameAt = (rowOffset, colOffset) => (baseRow + rowOffset) * sheetCols + (baseCol + colOffset);
-
-        this.shipAnims = {};
-
-        this.physics.world.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
-
-        this.playerShip = this.physics.add.sprite(400, 300, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor));
-        this.playerShip.setFrame(1);
-        this.playerShip.setDepth(GAME_CONFIG.DEPTH.SHIP);
-
-        this.playerShip.body.setSize(24, 24);
-        this.playerShip.body.setCollideWorldBounds(true);
-        
-        this.playerShip.clearTint();
-
-        // shipTypeKey がまだ解決できていない間も、最低限アニメーションできるようにデフォルトを用意
-        {
-            const sheetKey = this.playerShip.texture?.key || 'ship_sprite';
-            const defaultShipTypeKey = `_default__${sheetKey}__bf0`;
-            this.generateShipAnims(0, defaultShipTypeKey);
-            this.playerShip.shipTypeKey = defaultShipTypeKey;
-            this.playerShip.lastAnimKey = 'ship_down';
-            const idleFrame = this.shipAnims?.[defaultShipTypeKey]?.idleFrames?.ship_down;
-            if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
-        }
-        
-        this.cameras.main.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
-        this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
-        this.updateZoomFromVisionRange();
-
-        this.fogGraphics = this.add.graphics();
-        this.fogGraphics.setDepth(GAME_CONFIG.DEPTH.FOG);
-        this.fogGraphics.setScrollFactor(0);
-
-        this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
-        this.uiCamera.setScroll(0, 0);
-        this.cameras.main.ignore(this.fogGraphics);
-        this.ignoreOnUiCamera([this.seaBackground, this.playerShip]);
-        
-        // 6. メッセージUI（showMessage / showError 用）
-        this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
-            fontSize: '16px',
-            fill: '#ffffff',
-            backgroundColor: '#000000',
-            padding: { x: 10, y: 6 }
-        });
-        this.messageText.setOrigin(0.5, 0);
-        this.messageText.setScrollFactor(0);
-        this.messageText.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
-        this.messageText.setVisible(false);
-        this.cameras.main.ignore(this.messageText);
-
-        this.createBoardingButton();
-        this.setupShipActionUi();
-
-        this.scale.on('resize', () => {
-            this.cameras.main.setViewport(0, 0, this.scale.width, this.scale.height);
-            if (this.uiCamera) this.uiCamera.setSize(this.scale.width, this.scale.height);
-            this.updateZoomFromVisionRange();
-        });
-
-        if (typeof window !== 'undefined') {
-            this.onActiveShipChanged = async (event) => {
-                const shipId = event?.detail?.shipId;
-                if (!shipId || !this.playerInfo?.playFabId) return;
-                try {
-                    const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
-                    if (assetData) {
-                        this.setPlayerShipAssetData(assetData);
-                        if (assetData.Domain) {
-                            this.playerShipDomain = String(assetData.Domain).toLowerCase();
-                        }
-                        const color = window.myAvatarBaseInfo?.AvatarColor;
-                        const sheetKey = this.getShipSpriteSheetKey(color);
-                        if (this.playerShip?.texture?.key !== sheetKey) {
-                            this.playerShip.setTexture(sheetKey);
-                        }
-                        if (assetData?.Domain) {
-            shipObject.domain = String(assetData.Domain).toLowerCase();
-        }
-        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
-                        const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
-                        if (Number.isFinite(baseFrame) && assetData?.ItemId) {
-                            const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
-                            this.generateShipAnims(baseFrame, shipTypeKey);
-                            this.playerShip.shipTypeKey = shipTypeKey;
-                            this.playerShip.lastAnimKey = 'ship_down';
-                            const idleFrame = this.shipAnims?.[shipTypeKey]?.idleFrames?.ship_down;
-                            if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
-                        }
-                        if (assetData?.Domain) {
-                            this.playerShipDomain = String(assetData.Domain).toLowerCase();
-                        }
-                        if (assetData?.Stats) {
-                            const currentHp = Number(assetData.Stats.CurrentHP);
-                            const maxHp = Number(assetData.Stats.MaxHP);
-                            if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
-                                this.playerHp = { current: currentHp, max: maxHp };
-                            }
-                        }
-                    }
-                    const vision = Number(assetData?.Stats?.VisionRange);
-                    if (Number.isFinite(vision) && vision > 0) {
-                        this.shipVisionRange = vision;
-                        this.baseShipVisionRange = vision;
-                        this.updateZoomFromVisionRange();
-                        if (this.firestore) {
-                            const { doc, setDoc } = await import('firebase/firestore');
-                            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
-                            await setDoc(shipRef, { shipVisionRange: vision, shipId }, { merge: true });
-                        }
-                    }
-                } catch (error) {
-                    console.warn('[WorldMapScene] Failed to update vision range from active ship:', error);
-                }
-            };
-            window.addEventListener('ship:active-changed', this.onActiveShipChanged);
-        }
-
-        // 8. GuildShips.png の設定（48x48 / cols=21）
-        this.guildShipSheetCols = 21;
-        this.guildShipColorOffsets = { white: 0, red: 3, blue: 6, yellow: 9, green: 12 };
-
-        // 9. Firestore から島データを読み込む（world_map）
-        try {
-            const db = getFirestore();
-            const querySnapshot = await getDocs(collection(db, "world_map"));
-
-            if (querySnapshot.empty) {
-                console.warn('[WorldMapScene] No islands found in Firestore');
-                this.showError('島データが見つかりませんでした。');
-            }
-
-            let loadedCount = 0;
-            querySnapshot.forEach((docSnapshot) => {
-                try {
-                    const data = docSnapshot.data();
-
-                    if (!data.coordinate || typeof data.coordinate.x !== 'number' || typeof data.coordinate.y !== 'number') {
-                        console.error(`[WorldMapScene] Invalid coordinate data for island ${docSnapshot.id}`, data);
-                        return;
-                    }
-
-                    this.createIsland({
-                        id: docSnapshot.id,
-                        x: data.coordinate.x * this.gridSize,
-                        y: data.coordinate.y * this.gridSize,
-                        name: data.name || '名称未設定',
-                        size: data.size || 'small',
-                        ownerRace: data.ownerRace,
-                        ownerId: data.ownerId,
-                        biome: data.biome,
-                        biomeFrame: data.biomeFrame,
-                        buildingSlots: data.buildingSlots,
-                        buildings: data.buildings || []
-                    });
-                    loadedCount++;
-                } catch (islandError) {
-                    console.error(`[WorldMapScene] Failed to create island ${docSnapshot.id}:`, islandError);
-                }
-            });
-
-            console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
-        } catch (error) {
-            console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
-            this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
-        }
-
-        // 10. ミニマップ
-        this.createMinimap();
-
-        // 11. Firestore 初期化（ships同期など）
-        await this.initializeFirestore();
-
-        // UI camera should only render fog + minimap.
-        if (this.uiCamera) {
-            const uiKeep = new Set([
-                this.fogGraphics,
-                this.minimapGraphics,
-                this.minimapTexture,
-                this.minimapPlayerMarker
+            this.minimapPlayerMarker
             ]);
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
@@ -658,6 +340,8 @@ export default class WorldMapScene extends Phaser.Scene {
         const minimapSize = GAME_CONFIG.MINIMAP_SIZE;
         const minimapPadding = GAME_CONFIG.MINIMAP_PADDING;
         const minimapScale = minimapSize / this.mapPixelSize;
+        const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
+        const cellPx = minimapSize / gridCells;
 
         // 繝溘ル繝槭ャ繝励・閭梧勹・亥承荳翫↓驟咲ｽｮ・・
         const minimapX = (this.scale?.width || this.cameras.main.width) - minimapSize - minimapPadding;
@@ -674,6 +358,13 @@ export default class WorldMapScene extends Phaser.Scene {
         // 繝溘ル繝槭ャ繝励・譫邱・
         this.minimapGraphics.lineStyle(2, 0xffffff, 1);
         this.minimapGraphics.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
+        this.minimapGraphics.lineStyle(1, 0xffffff, 0.35);
+        for (let i = 0; i <= gridCells; i++) {
+            const x = minimapX + i * cellPx;
+            const y = minimapY + i * cellPx;
+            this.minimapGraphics.lineBetween(x, minimapY, x, minimapY + minimapSize);
+            this.minimapGraphics.lineBetween(minimapX, y, minimapX + minimapSize, y);
+        }
 
         this.minimapTexture = this.add.renderTexture(0, 0, minimapSize, minimapSize);
         this.minimapTexture.setOrigin(0, 0);
@@ -682,34 +373,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.minimapTexture.setDepth(GAME_CONFIG.DEPTH.MINIMAP_TEXTURE);
         if (this.cameras?.main) this.cameras.main.ignore(this.minimapTexture);
 
-        this.islandObjects.forEach((islandData) => {
-            const islandCenterX = islandData.x + islandData.width / 2;
-            const islandCenterY = islandData.y + islandData.height / 2;
-
-            const minimapIslandX = (islandCenterX / this.mapPixelSize) * minimapSize;
-            const minimapIslandY = (islandCenterY / this.mapPixelSize) * minimapSize;
-
-            let color = 0x808080;
-            if (islandData.ownerRace) {
-                color = this.getRaceColor(islandData.ownerRace);
-            }
-
-            if (islandData.type === 'capital') {
-                console.log(`[Minimap Debug] Island ${islandData.id}:`, {
-                    xy: { x: islandData.x, y: islandData.y },
-                    centerXY: { x: islandCenterX, y: islandCenterY },
-                    minimapXY: { x: minimapIslandX, y: minimapIslandY }
-                });
-            }
-
-            const dot = this.add.graphics();
-            dot.fillStyle(color, 1);
-            dot.fillCircle(minimapIslandX, minimapIslandY, 1);
-            this.minimapTexture.draw(dot, 0, 0);
-            dot.destroy();
-        });
-
-        console.log(`[Minimap] Total islands drawn: ${this.islandObjects.size}`);
+        this.drawOwnedAreasOnMinimap();
 
         this.minimapPlayerMarker = this.add.graphics();
         this.minimapPlayerMarker.setScrollFactor(0);
@@ -734,6 +398,8 @@ export default class WorldMapScene extends Phaser.Scene {
         const minimapX = viewWidth - minimapSize - minimapPadding;
         const minimapY = minimapPadding;
         const visible = true;
+        const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
+        const cellPx = minimapSize / gridCells;
 
         this.minimapConfig.x = minimapX;
         this.minimapConfig.y = minimapY;
@@ -745,16 +411,65 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.minimapGraphics.fillRect(minimapX, minimapY, minimapSize, minimapSize);
                 this.minimapGraphics.lineStyle(2, 0xffffff, 1);
                 this.minimapGraphics.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
+                this.minimapGraphics.lineStyle(1, 0xffffff, 0.35);
+                for (let i = 0; i <= gridCells; i++) {
+                    const x = minimapX + i * cellPx;
+                    const y = minimapY + i * cellPx;
+                    this.minimapGraphics.lineBetween(x, minimapY, x, minimapY + minimapSize);
+                    this.minimapGraphics.lineBetween(minimapX, y, minimapX + minimapSize, y);
+                }
             }
         }
         if (this.minimapTexture) {
             this.minimapTexture.setPosition(minimapX, minimapY);
             this.minimapTexture.setVisible(visible);
         }
+        this.drawOwnedAreasOnMinimap();
         if (this.minimapPlayerMarker) {
             this.minimapPlayerMarker.setPosition(0, 0);
             this.minimapPlayerMarker.setVisible(visible);
         }
+    }
+
+    drawOwnedAreasOnMinimap() {
+        if (!this.minimapTexture || !this.minimapConfig) return;
+        const minimapSize = this.minimapConfig.size;
+        const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
+        const cellPx = minimapSize / gridCells;
+        const color = this.getRaceColor(this.playerInfo?.race);
+
+        this.minimapTexture.clear();
+
+        const graphics = this.add.graphics();
+        graphics.fillStyle(color, 0.25);
+
+        const nation = this.getNationKey();
+        const bounds = nation ? NATION_BOUNDS[nation] : null;
+        if (bounds) {
+            const gxStart = Math.floor(bounds.minX / AREA_GRID_SIZE);
+            const gxEnd = Math.floor(bounds.maxX / AREA_GRID_SIZE);
+            const gyStart = Math.floor(bounds.minY / AREA_GRID_SIZE);
+            const gyEnd = Math.floor(bounds.maxY / AREA_GRID_SIZE);
+            for (let gx = gxStart; gx <= gxEnd; gx++) {
+                for (let gy = gyStart; gy <= gyEnd; gy++) {
+                    graphics.fillRect(gx * cellPx, gy * cellPx, cellPx, cellPx);
+                }
+            }
+        }
+
+        if (this.guildAreas && this.guildAreas.size > 0) {
+            graphics.fillStyle(color, 0.45);
+            this.guildAreas.forEach((key) => {
+                const parts = String(key).split(',');
+                const gx = Number(parts[0]);
+                const gy = Number(parts[1]);
+                if (!Number.isFinite(gx) || !Number.isFinite(gy)) return;
+                graphics.fillRect(gx * cellPx, gy * cellPx, cellPx, cellPx);
+            });
+        }
+
+        this.minimapTexture.draw(graphics, 0, 0);
+        graphics.destroy();
     }
 
     getMyGuildId() {
@@ -856,6 +571,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const data = await res.json();
             const areas = Array.isArray(data?.areas) ? data.areas : [];
             this.guildAreas = new Set(areas.map((entry) => `${entry.gx},${entry.gy}`));
+            this.drawOwnedAreasOnMinimap();
         } catch (error) {
             console.warn('[Area] Failed to load guild areas:', error);
         }
@@ -904,6 +620,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.guildAreas.add(cell.key);
                 this.isInOwnedArea = true;
                 this.updateZoomFromVisionRange();
+                this.drawOwnedAreasOnMinimap();
             }
         } catch (error) {
             console.warn('[Area] Capture failed:', error);
@@ -2300,21 +2017,17 @@ export default class WorldMapScene extends Phaser.Scene {
      */
     updateMinimapPlayerMarker() {
         if (!this.minimapPlayerMarker || !this.minimapConfig || !this.playerShip) return;
+        const minimapSize = this.minimapConfig.size;
+        const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
+        const cellPx = minimapSize / gridCells;
+
+        const cell = this.getAreaCellFromWorld(this.playerShip.x, this.playerShip.y);
+        const x = this.minimapConfig.x + cell.gx * cellPx;
+        const y = this.minimapConfig.y + cell.gy * cellPx;
 
         this.minimapPlayerMarker.clear();
-
-        const minimapPlayerX = this.minimapConfig.x + (this.playerShip.x / this.mapPixelSize) * this.minimapConfig.size;
-        const minimapPlayerY = this.minimapConfig.y + (this.playerShip.y / this.mapPixelSize) * this.minimapConfig.size;
-
-        this.minimapPlayerMarker.fillStyle(0xff0000, 1);
-        this.minimapPlayerMarker.fillCircle(minimapPlayerX, minimapPlayerY, 3);
-
-        this.minimapPlayerMarker.lineStyle(1, 0xff0000, 0.5);
-        this.minimapPlayerMarker.strokeCircle(
-            minimapPlayerX,
-            minimapPlayerY,
-            (this.shipVisionRange / this.mapPixelSize) * this.minimapConfig.size
-        );
+        this.minimapPlayerMarker.lineStyle(2, 0xffffff, 1);
+        this.minimapPlayerMarker.strokeRect(x, y, cellPx, cellPx);
     }
 
     drawFogOfWar() {
