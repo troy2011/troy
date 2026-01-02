@@ -87,6 +87,13 @@ const NATION_BOUNDS = {
     water: { minX: 400, maxX: 499, minY: 400, maxY: 499 }
 };
 
+const NATION_COLORS = {
+    fire: 0xff4d4d,
+    earth: 0x4caf50,
+    wind: 0x9b59ff,
+    water: 0x4aa3ff
+};
+
 const NATION_TILE_INDEX = {
     fire: 0,
     earth: 1,
@@ -753,16 +760,13 @@ export default class WorldMapScene extends Phaser.Scene {
         const minimapSize = this.minimapConfig.size;
         const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
         const cellPx = minimapSize / gridCells;
-        const color = this.getRaceColor(this.playerInfo?.race);
 
         this.minimapTexture.clear();
 
         const graphics = this.add.graphics();
-        graphics.fillStyle(color, 0.25);
-
-        const nation = this.getNationKey();
-        const bounds = nation ? NATION_BOUNDS[nation] : null;
-        if (bounds) {
+        Object.entries(NATION_BOUNDS).forEach(([nation, bounds]) => {
+            const color = NATION_COLORS[nation] ?? 0xffffff;
+            graphics.fillStyle(color, 0.25);
             const gxStart = Math.floor(bounds.minX / AREA_GRID_SIZE);
             const gxEnd = Math.floor(bounds.maxX / AREA_GRID_SIZE);
             const gyStart = Math.floor(bounds.minY / AREA_GRID_SIZE);
@@ -772,10 +776,11 @@ export default class WorldMapScene extends Phaser.Scene {
                     graphics.fillRect(gx * cellPx, gy * cellPx, cellPx, cellPx);
                 }
             }
-        }
+        });
 
         if (this.guildAreas && this.guildAreas.size > 0) {
-            graphics.fillStyle(color, 0.45);
+            const guildColor = NATION_COLORS[this.getNationKey()] ?? 0xffffff;
+            graphics.fillStyle(guildColor, 0.45);
             this.guildAreas.forEach((key) => {
                 const parts = String(key).split(',');
                 const gx = Number(parts[0]);
@@ -836,6 +841,8 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     getNationKey() {
+        const explicit = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
+        if (explicit && NATION_BOUNDS[explicit]) return explicit;
         const race = String(this.playerInfo?.race || '').toLowerCase();
         if (race === 'human') return 'fire';
         if (race === 'orc') return 'earth';

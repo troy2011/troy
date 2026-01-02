@@ -226,6 +226,8 @@ export function showBuildingMenu(island, playFabId) {
     const isHarvestable = !!resourceCurrency;
     const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
     const playerNation = (() => {
+        const explicit = String(window.__phaserPlayerInfo?.nation || window.__phaserPlayerInfo?.Nation || '').toLowerCase();
+        if (explicit) return explicit;
         const color = String(window.myAvatarBaseInfo?.AvatarColor || '').toLowerCase();
         const mapping = {
             red: 'fire',
@@ -233,7 +235,7 @@ export function showBuildingMenu(island, playFabId) {
             purple: 'wind',
             blue: 'water'
         };
-        return mapping[color] || null; // black or unknown => no nation
+        return mapping[color] || null;
     })();
     const islandNation = String(island.nation || '').toLowerCase();
     const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
