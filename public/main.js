@@ -410,15 +410,52 @@ function showRaceModal() {
 
 // --- アバター表示ロジック ---
 
+function showNationChangedNotice() {
+    if (document.getElementById('nationChangedNotice')) return;
+    const notice = document.createElement('div');
+    notice.id = 'nationChangedNotice';
+    notice.style.cssText = [
+        'position: fixed',
+        'left: 12px',
+        'right: 12px',
+        'bottom: 84px',
+        'z-index: 9999',
+        'background: rgba(17,24,39,0.95)',
+        'border: 1px solid #334155',
+        'color: #fff',
+        'padding: 12px 14px',
+        'border-radius: 10px',
+        'font-size: 12px',
+        'display: flex',
+        'align-items: center',
+        'justify-content: space-between',
+        'gap: 12px'
+    ].join(';');
+    notice.innerHTML = `
+        <div>国が変わりました。再読み込みしてください。</div>
+        <button id="nationChangedReload" style="background: var(--accent-color); color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px;">再読み込み</button>
+    `;
+    document.body.appendChild(notice);
+
+    const btn = document.getElementById('nationChangedReload');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            notice.remove();
+            location.reload();
+        });
+    }
+}
+
 async function updateAvatarBaseInfo() {
     console.log('[updateAvatarBaseInfo] Fetching user data from PlayFab...');
     const result = await callApiWithLoader(PlayFab.ClientApi.GetUserReadOnlyData, {
         PlayFabId: myPlayFabId,
-        Keys: ["Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
+        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
     }, { isSilent: true });
 
     if (result && result.Data) {
         const nation = (result.Data.Nation?.Value || '').toLowerCase();
+        const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
         const nationColor = getAvatarColorForNation(nation);
         myAvatarBaseInfo = {
             Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
@@ -429,6 +466,14 @@ async function updateAvatarBaseInfo() {
             HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
         };
         window.myAvatarBaseInfo = myAvatarBaseInfo;
+
+        if (nationChangedAt) {
+            const seenAt = String(localStorage.getItem('nationChangedAtSeen') || '');
+            if (nationChangedAt !== seenAt) {
+                localStorage.setItem('nationChangedAtSeen', nationChangedAt);
+                showNationChangedNotice();
+            }
+        }
     }
 }
 

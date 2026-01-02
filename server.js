@@ -306,6 +306,35 @@ async function deleteOwnedIslands(firestore, playFabId) {
     return { deleted: snapshot.size };
 }
 
+async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toRace) {
+    const snapshot = await firestore.collection('world_map').where('ownerId', '==', fromPlayFabId).get();
+    if (snapshot.empty) return { transferred: 0 };
+
+    let transferred = 0;
+    let batch = firestore.batch();
+    let batchCount = 0;
+
+    snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, {
+            ownerId: toPlayFabId,
+            ownerRace: toRace || null
+        });
+        transferred += 1;
+        batchCount += 1;
+        if (batchCount >= 450) {
+            batch.commit();
+            batch = firestore.batch();
+            batchCount = 0;
+        }
+    });
+
+    if (batchCount > 0) {
+        await batch.commit();
+    }
+
+    return { transferred };
+}
+
 function worldToLatLng(point) {
     const gridSize = 32;
     const mapTileSize = 500;
@@ -528,13 +557,14 @@ app.post('/api/king-exile', async (req, res) => {
 
         const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['NationGroupId', 'NationGroupName', 'NationIsland', 'Nation']
+            Keys: ['NationGroupId', 'NationGroupName', 'NationIsland', 'Nation', 'Race']
         });
         const kingNationGroupId = kingRo?.Data?.NationGroupId?.Value || null;
         if (!kingNationGroupId) return res.status(400).json({ error: 'King nation group not set' });
 
         let targetNationIsland = await resolveNationIslandByGroupId(kingNationGroupId);
         const kingNation = String(kingRo?.Data?.Nation?.Value || kingRo?.Data?.NationIsland?.Value || '').toLowerCase();
+        const kingRace = kingRo?.Data?.Race?.Value || null;
         if (!targetNationIsland && kingNation) targetNationIsland = kingNation;
         const nationMapping = NATION_GROUP_BY_NATION[kingNation] || null;
         const targetNationGroupName = kingRo?.Data?.NationGroupName?.Value || nationMapping?.groupName || null;
@@ -578,11 +608,12 @@ app.post('/api/king-exile', async (req, res) => {
                 NationIsland: targetNationIsland || kingNation || null,
                 NationGroupId: kingNationGroupId,
                 NationGroupName: targetNationGroupName,
-                AvatarColor: avatarColor || 'brown'
+                AvatarColor: avatarColor || 'brown',
+                NationChangedAt: String(Date.now())
             }
         });
 
-        const deleteResult = await deleteOwnedIslands(firestore, targetPlayFabId);
+        const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, kingRace);
         let starterIsland = null;
         try {
             const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
@@ -608,7 +639,7 @@ app.post('/api/king-exile', async (req, res) => {
             success: true,
             nationGroupId: kingNationGroupId,
             nationIsland: targetNationIsland || kingNation || null,
-            deletedIslands: deleteResult.deleted,
+            transferredIslands: transferResult.transferred,
             starterIsland
         });
     } catch (error) {

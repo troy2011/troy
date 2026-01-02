@@ -254,8 +254,8 @@ function _wireHandlers(playFabId) {
 
             const result = await callApiWithLoader('/api/king-exile', { playFabId, targetPlayFabId });
             if (result) {
-                const deleted = typeof result.deletedIslands === 'number' ? ` / islands: ${result.deletedIslands}` : '';
-                _setMessage(`Exile completed.${deleted}`);
+                const transferred = typeof result.transferredIslands === 'number' ? ` / islands: ${result.transferredIslands}` : '';
+                _setMessage(`Exile completed.${transferred}`);
             }
         });
     }
