@@ -240,7 +240,325 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 島オブジェクトのスプライトを破棄
         if (this.islandObjects && this.islandObjects.size > 0) {
-            this.minimapPlayerMarker
+            this.islandObjects.forEach((islandData) => {
+                if (islandData.sprites) {
+                    islandData.sprites.forEach(sprite => sprite?.destroy?.());
+                }
+                if (islandData.buildingSprites) {
+                    islandData.buildingSprites.forEach(sprite => sprite?.destroy?.());
+                }
+                islandData.nameText?.destroy?.();
+                islandData.interactiveZone?.destroy?.();
+                islandData.physicsGroup?.destroy?.(true);
+            });
+            this.islandObjects.clear();
+        }
+
+        // 建設・破壊スプライトを破棄
+        if (this.constructionSprites && this.constructionSprites.length > 0) {
+            this.constructionSprites.forEach(sprite => sprite?.destroy?.());
+            this.constructionSprites = [];
+        }
+        if (this.demolishedSprites && this.demolishedSprites.length > 0) {
+            this.demolishedSprites.forEach(sprite => sprite?.destroy?.());
+            this.demolishedSprites = [];
+        }
+
+        // 状態変数をリセット
+        this.shipTween = null;
+        this.canMove = true;
+        this.shipMoving = false;
+        this.shipTargetX = 0;
+        this.shipTargetY = 0;
+        this.shipTargetIsland = null;
+        this.shipArrivalTimer = null;
+        this.collidingIsland = null;
+        this.commandMenuOpen = false;
+        this.firestore = null;
+        this.lastShipQueryCenter = null;
+        this.lastShipQueryUpdate = 0;
+        this.boardingButton = null;
+        this.boardingTargetId = null;
+        this.boardingVisible = false;
+        this.collidingShipId = null;
+        this.shipPanelSuppressed = false;
+        if (this.lastRamDamageAt) {
+            this.lastRamDamageAt.clear();
+        }
+        this.shipAnims = {};
+        this.destroyShipHpBar(this.playerShip);
+        this.destroyShipShadow(this.playerShip);
+        this.playerHp = { current: null, max: null };
+        this.playerShipDomain = null;
+        this.respawnInFlight = false;
+        if (this.onActiveShipChanged && typeof window !== 'undefined') {
+            window.removeEventListener('ship:active-changed', this.onActiveShipChanged);
+            this.onActiveShipChanged = null;
+        }
+
+        console.log('[WorldMapScene] Previous state cleaned up');
+    }
+
+    ignoreOnUiCamera(objects) {
+        if (!this.uiCamera) return objects;
+        if (Array.isArray(objects)) {
+            objects.forEach(obj => obj && obj !== this.fogGraphics && this.uiCamera.ignore(obj));
+        } else if (objects && objects !== this.fogGraphics) {
+            this.uiCamera.ignore(objects);
+        }
+        return objects;
+    }
+
+    setMapReady(ready) {
+        if (typeof document === 'undefined') return;
+        const container = document.getElementById('tabContentMap');
+        if (!container) return;
+        if (ready) {
+            container.classList.add('map-ready');
+        } else {
+            container.classList.remove('map-ready');
+        }
+    }
+
+    async create() {
+        this.setMapReady(false);
+        const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
+        this.seaBackground = seaBackground;
+        if (typeof window !== 'undefined') {
+            window.worldMapScene = this;
+        }
+        if (this.game?.canvas?.style) {
+            this.game.canvas.style.backgroundColor = '#000000';
+        }
+        seaBackground.setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, this.mapPixelSize, this.mapPixelSize),
+            Phaser.Geom.Rectangle.Contains
+        );
+
+        // Prevent DOM UI interactions from also triggering Phaser input (pointerup is listened on window).
+        if (typeof document !== 'undefined') {
+            const stop = (e) => {
+                if (!e) return;
+                if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            };
+            const panels = [
+                document.getElementById('islandCommandPanel'),
+                document.getElementById('mapChatArea')
+            ];
+            panels.forEach((panel) => {
+                if (!panel || panel.dataset.phaserBlockerInstalled) return;
+                ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((type) => {
+                    panel.addEventListener(type, stop);
+                });
+                panel.addEventListener('touchmove', (e) => {
+                    stop(e);
+                }, { passive: true });
+                panel.dataset.phaserBlockerInstalled = '1';
+            });
+        }
+
+        seaBackground.on('pointerup', (pointer) => {
+            if (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active')) return;
+            if (this.commandMenuOpen) {
+                this.hideCommandMenu();
+            }
+            if (!this.isPointerInsideVisionArea(pointer)) {
+                this.showMessage('視界の外は移動できません。');
+                return;
+            }
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            console.log('[Sea] Background clicked at world:', worldPoint.x, worldPoint.y);
+            this.moveShipTo(worldPoint.x, worldPoint.y, null);
+        });
+
+        // 荳・0-2 蟾ｦ荳・3-5 / 蟾ｦ:32-34 蜿ｳ荳・35-37 / 蜿ｳ:64-66 蟾ｦ荳・67-69 / 荳・96-98 蜿ｳ荳・99-101
+        this.shipSpriteBaseFrame = 0; // 蟾ｦ荳翫・繝ｼ繝医・髢句ｧ九ヵ繝ｬ繝ｼ繝・亥ｷｦ荳翫・繝ｼ繝・0・・
+        const sheetCols = 32;
+        const baseFrame = this.shipSpriteBaseFrame;
+        const baseRow = Math.floor(baseFrame / sheetCols);
+        const baseCol = baseFrame % sheetCols;
+        const frameAt = (rowOffset, colOffset) => (baseRow + rowOffset) * sheetCols + (baseCol + colOffset);
+
+        this.shipAnims = {};
+
+        this.physics.world.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+
+        this.playerShip = this.physics.add.sprite(400, 300, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor));
+        this.playerShip.setFrame(1);
+        this.playerShip.setDepth(GAME_CONFIG.DEPTH.SHIP);
+
+        this.playerShip.body.setSize(24, 24);
+        this.playerShip.body.setCollideWorldBounds(true);
+        
+        this.playerShip.clearTint();
+
+        // shipTypeKey がまだ解決できていない間も、最低限アニメーションできるようにデフォルトを用意
+        {
+            const sheetKey = this.playerShip.texture?.key || 'ship_sprite';
+            const defaultShipTypeKey = `_default__${sheetKey}__bf0`;
+            this.generateShipAnims(0, defaultShipTypeKey);
+            this.playerShip.shipTypeKey = defaultShipTypeKey;
+            this.playerShip.lastAnimKey = 'ship_down';
+            const idleFrame = this.shipAnims?.[defaultShipTypeKey]?.idleFrames?.ship_down;
+            if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
+        }
+        
+        this.cameras.main.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
+        this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+        this.updateZoomFromVisionRange();
+
+        this.fogGraphics = this.add.graphics();
+        this.fogGraphics.setDepth(GAME_CONFIG.DEPTH.FOG);
+        this.fogGraphics.setScrollFactor(0);
+
+        this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+        this.uiCamera.setScroll(0, 0);
+        this.cameras.main.ignore(this.fogGraphics);
+        this.ignoreOnUiCamera([this.seaBackground, this.playerShip]);
+        
+        // 6. メッセージUI（showMessage / showError 用）
+        this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
+            fontSize: '16px',
+            fill: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 6 }
+        });
+        this.messageText.setOrigin(0.5, 0);
+        this.messageText.setScrollFactor(0);
+        this.messageText.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.messageText.setVisible(false);
+        this.cameras.main.ignore(this.messageText);
+
+        this.createBoardingButton();
+        this.setupShipActionUi();
+
+        this.scale.on('resize', () => {
+            this.cameras.main.setViewport(0, 0, this.scale.width, this.scale.height);
+            if (this.uiCamera) this.uiCamera.setSize(this.scale.width, this.scale.height);
+            this.updateZoomFromVisionRange();
+        });
+
+        if (typeof window !== 'undefined') {
+            this.onActiveShipChanged = async (event) => {
+                const shipId = event?.detail?.shipId;
+                if (!shipId || !this.playerInfo?.playFabId) return;
+                try {
+                    const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
+                    if (assetData) {
+                        this.setPlayerShipAssetData(assetData);
+                        if (assetData.Domain) {
+                            this.playerShipDomain = String(assetData.Domain).toLowerCase();
+                        }
+                        const color = window.myAvatarBaseInfo?.AvatarColor;
+                        const sheetKey = this.getShipSpriteSheetKey(color);
+                        if (this.playerShip?.texture?.key !== sheetKey) {
+                            this.playerShip.setTexture(sheetKey);
+                        }
+                        if (assetData?.Domain) {
+            shipObject.domain = String(assetData.Domain).toLowerCase();
+        }
+        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+                        const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
+                        if (Number.isFinite(baseFrame) && assetData?.ItemId) {
+                            const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
+                            this.generateShipAnims(baseFrame, shipTypeKey);
+                            this.playerShip.shipTypeKey = shipTypeKey;
+                            this.playerShip.lastAnimKey = 'ship_down';
+                            const idleFrame = this.shipAnims?.[shipTypeKey]?.idleFrames?.ship_down;
+                            if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
+                        }
+                        if (assetData?.Domain) {
+                            this.playerShipDomain = String(assetData.Domain).toLowerCase();
+                        }
+                        if (assetData?.Stats) {
+                            const currentHp = Number(assetData.Stats.CurrentHP);
+                            const maxHp = Number(assetData.Stats.MaxHP);
+                            if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
+                                this.playerHp = { current: currentHp, max: maxHp };
+                            }
+                        }
+                    }
+                    const vision = Number(assetData?.Stats?.VisionRange);
+                    if (Number.isFinite(vision) && vision > 0) {
+                        this.shipVisionRange = vision;
+                        this.baseShipVisionRange = vision;
+                        this.updateZoomFromVisionRange();
+                        if (this.firestore) {
+                            const { doc, setDoc } = await import('firebase/firestore');
+                            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+                            await setDoc(shipRef, { shipVisionRange: vision, shipId }, { merge: true });
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[WorldMapScene] Failed to update vision range from active ship:', error);
+                }
+            };
+            window.addEventListener('ship:active-changed', this.onActiveShipChanged);
+        }
+
+        // 8. GuildShips.png の設定（48x48 / cols=21）
+        this.guildShipSheetCols = 21;
+        this.guildShipColorOffsets = { white: 0, red: 3, blue: 6, yellow: 9, green: 12 };
+
+        // 9. Firestore から島データを読み込む（world_map）
+        try {
+            const db = getFirestore();
+            const querySnapshot = await getDocs(collection(db, "world_map"));
+
+            if (querySnapshot.empty) {
+                console.warn('[WorldMapScene] No islands found in Firestore');
+                this.showError('島データが見つかりませんでした。');
+            }
+
+            let loadedCount = 0;
+            querySnapshot.forEach((docSnapshot) => {
+                try {
+                    const data = docSnapshot.data();
+
+                    if (!data.coordinate || typeof data.coordinate.x !== 'number' || typeof data.coordinate.y !== 'number') {
+                        console.error(`[WorldMapScene] Invalid coordinate data for island ${docSnapshot.id}`, data);
+                        return;
+                    }
+
+                    this.createIsland({
+                        id: docSnapshot.id,
+                        x: data.coordinate.x * this.gridSize,
+                        y: data.coordinate.y * this.gridSize,
+                        name: data.name || '名称未設定',
+                        size: data.size || 'small',
+                        ownerRace: data.ownerRace,
+                        ownerId: data.ownerId,
+                        biome: data.biome,
+                        biomeFrame: data.biomeFrame,
+                        buildingSlots: data.buildingSlots,
+                        buildings: data.buildings || []
+                    });
+                    loadedCount++;
+                } catch (islandError) {
+                    console.error(`[WorldMapScene] Failed to create island ${docSnapshot.id}:`, islandError);
+                }
+            });
+
+            console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
+        } catch (error) {
+            console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
+            this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
+        }
+
+        // 10. ミニマップ
+        this.createMinimap();
+
+        // 11. Firestore 初期化（ships同期など）
+        await this.initializeFirestore();
+
+        // UI camera should only render fog + minimap.
+        if (this.uiCamera) {
+            const uiKeep = new Set([
+                this.fogGraphics,
+                this.minimapGraphics,
+                this.minimapTexture,
+                this.minimapPlayerMarker
             ]);
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
