@@ -742,7 +742,6 @@ export default class WorldMapScene extends Phaser.Scene {
             this.minimapTexture.setPosition(minimapX, minimapY);
             this.minimapTexture.setVisible(visible);
         }
-        this.drawOwnedAreasOnMinimap();
         if (this.minimapPlayerMarker) {
             this.minimapPlayerMarker.setPosition(0, 0);
             this.minimapPlayerMarker.setVisible(visible);
