@@ -949,7 +949,7 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(400).json({ error: 'Invalid entity token' });
         }
 
-        let assignedGroupId = nationGroupId;
+        let assignedGroupId = nationGroupId || storedGroupId || null;
         let assignedGroupName = mapping.groupName;
         let assignedNation = mapping.island;
         let isKing = false;
@@ -970,16 +970,8 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
         }
 
-        try {
-            await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: assignedGroupId, Type: 'group' },
-                Members: [playerEntity]
-            });
-        } catch (e) {
-            const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
-            if (!msg.includes('EntityIsAlreadyMember')) {
-                throw e;
-            }
+        if (!assignedGroupId) {
+            return res.status(500).json({ error: 'Failed to resolve nation group id' });
         }
 
         if (!storedGroupId || storedGroupId !== assignedGroupId) {
