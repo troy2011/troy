@@ -950,16 +950,27 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(400).json({ error: 'Invalid entity token' });
         }
 
-        const groupInfo = await promisifyPlayFab(PlayFabGroups.GetGroup, {
-            Group: { Id: nationGroupId, Type: 'group' }
-        });
-        if (groupInfo && groupInfo.GroupName && groupInfo.GroupName !== mapping.groupName) {
-            return res.status(400).json({ error: 'Invalid nation group name' });
+        let effectiveGroupId = nationGroupId;
+        try {
+            const groupInfo = await promisifyPlayFab(PlayFabGroups.GetGroup, {
+                Group: { Id: nationGroupId, Type: 'group' }
+            });
+            if (groupInfo && groupInfo.GroupName && groupInfo.GroupName !== mapping.groupName) {
+                return res.status(400).json({ error: 'Invalid nation group name' });
+            }
+        } catch (e) {
+            const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
+            if (String(msg).includes('No group profile found')) {
+                const created = await promisifyPlayFab(PlayFabGroups.CreateGroup, { GroupName: mapping.groupName });
+                effectiveGroupId = created?.Group?.Id || created?.Group?.id || effectiveGroupId;
+            } else {
+                throw e;
+            }
         }
 
         try {
             await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: nationGroupId, Type: 'group' },
+                Group: { Id: effectiveGroupId, Type: 'group' },
                 Members: [playerEntity]
             });
         } catch (e) {
@@ -969,9 +980,9 @@ app.post('/api/set-race', async (req, res) => {
             }
         }
 
-        if (!storedGroupId) {
+        if (!storedGroupId || storedGroupId !== effectiveGroupId) {
             await docRef.set({
-                groupId: nationGroupId,
+                groupId: effectiveGroupId,
                 groupName: mapping.groupName,
                 nation: mapping.island,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -991,7 +1002,7 @@ app.post('/api/set-race', async (req, res) => {
 
         const nationData = {
             Nation: mapping.island,
-            NationGroupId: nationGroupId,
+            NationGroupId: effectiveGroupId,
             NationGroupName: mapping.groupName
         };
 
