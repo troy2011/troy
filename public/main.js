@@ -29,6 +29,29 @@ const NATION_GROUP_BY_RACE = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
+function showRpgMessage(text) {
+    const msg = document.createElement('div');
+    msg.style.cssText = [
+        'position: fixed',
+        'left: 12px',
+        'right: 12px',
+        'bottom: 90px',
+        'z-index: 9999',
+        'background: rgba(17,24,39,0.95)',
+        'border: 1px solid #334155',
+        'color: #fff',
+        'padding: 12px 14px',
+        'border-radius: 10px',
+        'font-size: 13px',
+        'font-weight: 700'
+    ].join(';');
+    msg.textContent = text;
+    document.body.appendChild(msg);
+    setTimeout(() => {
+        if (msg.parentElement) msg.remove();
+    }, 4000);
+}
+
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
@@ -396,6 +419,13 @@ function showRaceModal() {
                     };
                     window.myAvatarBaseInfo = myAvatarBaseInfo;
                 }
+            }
+            if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
+                showRpgMessage('ふねをてにいれた！');
+            }
+            if (data?.starterIsland?.created) {
+                const islandName = data?.starterIsland?.name || 'あなたの島';
+                showRpgMessage(`${islandName}をてにいれた！`);
             }
             await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         } else {

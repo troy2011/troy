@@ -388,7 +388,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         Data: { RespawnPosition: JSON.stringify(respawnPosition) }
     });
 
-    return { created: true, islandId: docRef.id, respawnPosition };
+    return { created: true, islandId: docRef.id, name: islandName, respawnPosition };
 }
 
 async function getPlayerEntity(playFabId) {
