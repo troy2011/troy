@@ -158,6 +158,7 @@ export async function showTab(tabId, playerInfo) {
                             delay += 1200;
                         });
                     };
+                    triggerFirstMapMessages();
                     if (gameInstance) {
                         tabLoaded[tabId] = true;
                         // ゲームが既に存在する場合は、リサイズして再表示
@@ -179,7 +180,6 @@ export async function showTab(tabId, playerInfo) {
                                 scene.setMapReady(true);
                             }
                         }
-                        triggerFirstMapMessages();
                         return; // Don't launch twice
                     }
                     // コンテナのサイズが確定するまで待機
@@ -204,7 +204,6 @@ export async function showTab(tabId, playerInfo) {
                     if (gameInstance) {
                         Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
                     }
-                    triggerFirstMapMessages();
                     break;
                 }
             }
