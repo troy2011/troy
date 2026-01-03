@@ -38,7 +38,7 @@ const buildings = {
     // ========================================
     // 軍事施設（Military）
     // ========================================
-    watchtower: {
+    watchtower_lv1: {
         id: 'watchtower_lv1',
         name: '見張り台',
         category: 'military',
@@ -55,7 +55,7 @@ const buildings = {
         description: '周囲の海域を監視し、敵の接近を早期発見します。'
     },
 
-        watchtower: {
+    watchtower_lv2: {
         id: 'watchtower_lv2',
         name: '見張り台',
         category: 'military',
@@ -72,7 +72,7 @@ const buildings = {
         description: '周囲の海域を監視し、敵の接近を早期発見します。'
     },
 
-    watchtower: {
+    watchtower_lv3: {
         id: 'watchtower_lv3',
         name: '見張り台',
         category: 'military',
@@ -254,7 +254,8 @@ const buildings = {
             comfort: 5
         },
         description: '自分専用の小さな住居。拠点としての利便性が向上します。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     my_house_lv2: {
@@ -271,7 +272,8 @@ const buildings = {
             comfort: 10
         },
         description: '生活環境が改善された住居。帰還時の回復が早まります。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     my_house_lv3: {
@@ -289,7 +291,8 @@ const buildings = {
             storageBonus: 50
         },
         description: '広くなった住居。資源の保管がしやすくなります。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     my_house_lv4: {
@@ -307,7 +310,8 @@ const buildings = {
             storageBonus: 100
         },
         description: '設備が整った上位住居。補給効率が向上します。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     my_house_lv5: {
@@ -326,7 +330,8 @@ const buildings = {
             moraleBonus: 5
         },
         description: '島を代表する豪邸。滞在するだけで士気が上がります。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     weapon_shop: {

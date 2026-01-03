@@ -2497,6 +2497,7 @@ app.post('/api/get-buildings-by-category', async (req, res) => {
         const islandSize = String(req?.body?.islandSize || '').toLowerCase();
         const entries = Object.entries(buildingDefs?.buildings || {}).filter(([, building]) => {
             if (!building) return false;
+            if (building.buildable === false) return false;
             if (!category) return true;
             return building.category === category;
         });
