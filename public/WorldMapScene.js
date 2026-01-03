@@ -90,7 +90,7 @@ const NATION_BOUNDS = {
 const NATION_COLORS = {
     fire: 0xff4d4d,
     earth: 0x4caf50,
-    wind: 0x9b59ff,
+    wind: 0xffd34d,
     water: 0x4aa3ff
 };
 
