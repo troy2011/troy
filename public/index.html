@@ -96,6 +96,13 @@
                     <div class="map-loading-text">読み込み中...</div>
                 </div>
                 <div id="phaser-container" class="map-stage"></div>
+                <div id="mapNavHud" style="position:absolute; top:12px; left:12px; z-index: 1200; display:none; align-items:center; gap:8px; padding:6px 10px; border-radius:10px; background: rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:12px;">
+                    <div id="mapNavArrow" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; transform: rotate(0deg);">▲</div>
+                    <div>
+                        <div id="mapNavLabel" style="font-weight:700; font-size:12px;">NAV</div>
+                        <div id="mapNavDistance" style="font-size:11px; color:rgba(255,255,255,0.8);">距離: -</div>
+                    </div>
+                </div>
                 <div id="shipActionPanel" class="ship-action-panel">
                     <button id="shipActionButton" class="ship-action-button">Action</button>
                     <div id="shipActionStatus" class="ship-action-status"></div>

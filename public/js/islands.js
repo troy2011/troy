@@ -86,7 +86,10 @@ function renderIslands(list) {
             <div class="island-row" data-island-id="${id}" style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
                     <div style="font-weight:700;">${name}</div>
-                    <button class="btn-island-focus" data-island-id="${id}" style="background: var(--accent-color); padding: 6px 10px; border-radius: 6px; border: none; color: #fff; font-size: 12px;">地図で開く</button>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn-island-focus" data-island-id="${id}" style="background: var(--accent-color); padding: 6px 10px; border-radius: 6px; border: none; color: #fff; font-size: 12px;">地図で開く</button>
+                        <button class="btn-island-nav" data-island-id="${id}" style="background: #0ea5e9; padding: 6px 10px; border-radius: 6px; border: none; color: #fff; font-size: 12px;">ナビ</button>
+                    </div>
                 </div>
                 <div style="font-size:12px; color: var(--text-sub); margin-top: 6px;">位置: ${coord} / サイズ: ${size} / Lv: ${level}</div>
                 <div style="font-size:12px; color: var(--text-sub); margin-top: 2px;">バイオーム: ${biome} / 建物: ${building}</div>
@@ -124,6 +127,19 @@ function renderIslands(list) {
             }
             if (scene && typeof scene.openBuildingMenuById === 'function') {
                 scene.openBuildingMenuById(islandId);
+            }
+        });
+    });
+
+    container.querySelectorAll('.btn-island-nav').forEach((btn) => {
+        btn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            const islandId = btn.getAttribute('data-island-id');
+            if (!islandId) return;
+            await window.showTab('map');
+            const scene = getScene();
+            if (scene && typeof scene.setNavigationTarget === 'function') {
+                scene.setNavigationTarget(islandId);
             }
         });
     });

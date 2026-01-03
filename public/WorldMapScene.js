@@ -143,6 +143,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+        this.navTargetId = null;
+        this.navTargetLabel = null;
 
         this.canMove = true;
         this.moveCooldown = GAME_CONFIG.SHIP_MOVE_COOLDOWN;
@@ -1865,6 +1867,46 @@ export default class WorldMapScene extends Phaser.Scene {
         this.openBuildingMenuForIsland(islandData);
     }
 
+    setNavigationTarget(islandId) {
+        if (!islandId || !this.islandObjects) return;
+        const islandData = this.islandObjects.get(islandId);
+        if (!islandData) return;
+        this.navTargetId = islandId;
+        this.navTargetLabel = islandData.name || 'NAV';
+        this.updateNavigationHud();
+    }
+
+    updateNavigationHud() {
+        const hud = document.getElementById('mapNavHud');
+        if (!hud) return;
+        if (!this.navTargetId || !this.playerShip || !this.islandObjects) {
+            hud.style.display = 'none';
+            return;
+        }
+        const islandData = this.islandObjects.get(this.navTargetId);
+        if (!islandData) {
+            hud.style.display = 'none';
+            return;
+        }
+        const targetX = islandData.x + islandData.width / 2;
+        const targetY = islandData.y + islandData.height / 2;
+        const dx = targetX - this.playerShip.x;
+        const dy = targetY - this.playerShip.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const distTiles = Math.max(0, Math.round(distPx / this.TILE_SIZE));
+
+        const angleRad = Math.atan2(dy, dx);
+        const angleDeg = (angleRad * 180) / Math.PI + 90;
+
+        const arrow = document.getElementById('mapNavArrow');
+        const label = document.getElementById('mapNavLabel');
+        const distance = document.getElementById('mapNavDistance');
+        if (arrow) arrow.style.transform = `rotate(${angleDeg}deg)`;
+        if (label) label.textContent = this.navTargetLabel || 'NAV';
+        if (distance) distance.textContent = `距離: ${distTiles}`;
+        hud.style.display = 'flex';
+    }
+
     showBoardingButton(targetPlayFabId, displayName = '') {
         this.showShipCommandMenu(targetPlayFabId, displayName);
     }
@@ -2333,6 +2375,7 @@ export default class WorldMapScene extends Phaser.Scene {
     update() {
         this.updateAreaControlState();
         this.drawFogOfWar();
+        this.updateNavigationHud();
         this.updateMinimapPlayerMarker();
         this.refreshShipSubscriptions();
         this.interpolateOtherShips();
