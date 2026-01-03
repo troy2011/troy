@@ -73,12 +73,12 @@ function _setNationTaxRateBps(groupId, bps) {
 function _getNationGroupIdForCurrentPlayer() {
     var ro = server.GetUserReadOnlyData({
         PlayFabId: currentPlayerId,
-        Keys: ['NationIsland', 'NationGroupId', 'NationGroupName']
+        Keys: ['Nation', 'NationGroupId', 'NationGroupName']
     });
 
     if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) return null;
     return {
-        nationIsland: ro.Data.NationIsland ? ro.Data.NationIsland.Value : null,
+        nationIsland: ro.Data.Nation ? ro.Data.Nation.Value : null,
         nationGroupId: ro.Data.NationGroupId.Value,
         nationGroupName: ro.Data.NationGroupName ? ro.Data.NationGroupName.Value : null
     };
@@ -123,11 +123,11 @@ handlers.AssignNationGroupByRace = function (args, context) {
 
     var ro = server.GetUserReadOnlyData({
         PlayFabId: currentPlayerId,
-        Keys: ['NationIsland', 'NationGroupId', 'NationGroupName']
+        Keys: ['Nation', 'NationGroupId', 'NationGroupName']
     });
 
     if (ro && ro.Data) {
-        var existingIsland = ro.Data.NationIsland && ro.Data.NationIsland.Value;
+        var existingIsland = ro.Data.Nation && ro.Data.Nation.Value;
         var existingGroupId = ro.Data.NationGroupId && ro.Data.NationGroupId.Value;
         if (existingIsland === nationIsland && existingGroupId) {
             var existingKing = _getNationKing(existingGroupId);
@@ -178,7 +178,7 @@ handlers.AssignNationGroupByRace = function (args, context) {
     server.UpdateUserReadOnlyData({
         PlayFabId: currentPlayerId,
         Data: {
-            NationIsland: nationIsland,
+            Nation: nationIsland,
             NationGroupId: groupKey.Id,
             NationGroupName: groupName
         }

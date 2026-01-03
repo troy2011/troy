@@ -414,7 +414,7 @@ function showRaceModal() {
             }
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
-            const nation = data?.nation?.Nation || data?.nation?.NationIsland || null;
+            const nation = data?.nation?.Nation || null;
             if (nation) {
                 const avatarColor = getAvatarColorForNation(nation);
                 if (avatarColor) {

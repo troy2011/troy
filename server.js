@@ -720,13 +720,13 @@ app.post('/api/king-exile', async (req, res) => {
 
         const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['NationGroupId', 'NationGroupName', 'NationIsland', 'Nation', 'Race']
+            Keys: ['NationGroupId', 'NationGroupName', 'Nation', 'Race']
         });
         const kingNationGroupId = kingRo?.Data?.NationGroupId?.Value || null;
         if (!kingNationGroupId) return res.status(400).json({ error: 'King nation group not set' });
 
         let targetNationIsland = await resolveNationIslandByGroupId(kingNationGroupId);
-        const kingNation = String(kingRo?.Data?.Nation?.Value || kingRo?.Data?.NationIsland?.Value || '').toLowerCase();
+        const kingNation = String(kingRo?.Data?.Nation?.Value || '').toLowerCase();
         const kingRace = kingRo?.Data?.Race?.Value || null;
         if (!targetNationIsland && kingNation) targetNationIsland = kingNation;
         const nationMapping = NATION_GROUP_BY_NATION[kingNation] || null;
@@ -768,7 +768,6 @@ app.post('/api/king-exile', async (req, res) => {
             PlayFabId: targetPlayFabId,
             Data: {
                 Nation: targetNationIsland || kingNation || null,
-                NationIsland: targetNationIsland || kingNation || null,
                 NationGroupId: kingNationGroupId,
                 NationGroupName: targetNationGroupName,
                 AvatarColor: avatarColor || 'brown',
@@ -974,7 +973,7 @@ app.post('/api/set-race', async (req, res) => {
             await docRef.set({
                 groupId: nationGroupId,
                 groupName: mapping.groupName,
-                nationIsland: mapping.island,
+                nation: mapping.island,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
@@ -992,7 +991,6 @@ app.post('/api/set-race', async (req, res) => {
 
         const nationData = {
             Nation: mapping.island,
-            NationIsland: mapping.island,
             NationGroupId: nationGroupId,
             NationGroupName: mapping.groupName
         };
@@ -1024,7 +1022,7 @@ app.post('/api/set-race', async (req, res) => {
                 starterIsland = await createStarterIsland({
                     playFabId,
                     raceName,
-                    nationIsland: nationData.NationIsland,
+                    nationIsland: nationData.Nation,
                     displayName
                 });
             } else {
@@ -1041,7 +1039,7 @@ app.post('/api/set-race', async (req, res) => {
             catalogCache,
             playFabId,
             raceName,
-            nationIsland: nationData.NationIsland
+            nationIsland: nationData.Nation
         });
 
         try {
