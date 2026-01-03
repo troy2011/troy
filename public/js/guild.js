@@ -2,6 +2,7 @@
 // ギルド機能を管理するモジュール
 
 import { callApiWithLoader } from 'api';
+import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;
@@ -139,6 +140,8 @@ export async function createGuild(playFabId, guildName) {
 
             // ギルド情報を再読み込み
             await loadGuildInfo(playFabId);
+            showRpgMessage(rpgSay.guildCreated(guildName));
+            showRpgMessage(rpgSay.guildJoined(data.guildName));
 
             // 成功メッセージを表示
             showMessage(`ギルド「${guildName}」を作成しました！`);
@@ -194,6 +197,7 @@ async function joinGuild(playFabId, guildId) {
         if (data && data.success) {
             // ギルド情報を再読み込み
             await loadGuildInfo(playFabId);
+            showRpgMessage(rpgSay.guildJoined(data.guildName));
 
             // 成功メッセージを表示
             showMessage(`ギルド「${data.guildName}」に加入しました！`);
@@ -220,7 +224,9 @@ export async function leaveGuild(playFabId) {
 
         if (data && data.success) {
             // ギルド情報を再読み込み
+            const prevName = currentGuildInfo?.name || 'ギルド';
             await loadGuildInfo(playFabId);
+            showRpgMessage(rpgSay.guildLeft(prevName));
 
             // 成功メッセージを表示
             showMessage('ギルドから脱退しました');
@@ -538,6 +544,7 @@ async function withdrawFromWarehouse(playFabId, warehouseIndex) {
 
         if (data && data.success) {
             showMessage('アイテムを引き出しました');
+            showRpgMessage(rpgSay.guildWarehouseWithdrawn());
             // 倉庫を再読み込み
             showGuildWarehouse(playFabId);
         } else {
@@ -636,6 +643,7 @@ async function approveApplication(playFabId, applicantId) {
 
         if (data && data.success) {
             showMessage('加入申請を承認しました');
+            showRpgMessage(rpgSay.guildApplicationApproved());
             // 申請リストを再読み込み
             showGuildApplications(playFabId);
             // ギルド情報も再読み込み
@@ -668,6 +676,7 @@ async function rejectApplication(playFabId, applicantId) {
 
         if (data && data.success) {
             showMessage('加入申請を拒否しました');
+            showRpgMessage(rpgSay.guildApplicationRejected());
             // 申請リストを再読み込み
             showGuildApplications(playFabId);
             // ギルド情報も再読み込み

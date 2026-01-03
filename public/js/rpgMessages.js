@@ -39,7 +39,19 @@ export const rpgSay = {
     resourceGained: (code, amount) => `${code} を ${amount} てにいれた！`,
     islandClaimed: (name) => `${name}を占領した！`,
     islandAbandoned: (name) => `${name}を手放した。`,
+    islandDemolished: (name) => `${name}は瓦礫になった…`,
+    islandRebuilt: (name) => `${name}がよみがえった！`,
     shipCreated: (name) => `${name}を建造した！`,
+    shipSunk: () => 'ふねが沈んだ…',
+    shipRespawned: () => 'ふねが復活した！',
+    battleWin: () => 'しょうり！',
+    battleLose: () => 'まけてしまった…',
+    guildCreated: (name) => `ギルド「${name}」を結成した！`,
+    guildJoined: (name) => `ギルド「${name}」に加入した！`,
+    guildLeft: (name) => `ギルド「${name}」を脱退した。`,
+    guildWarehouseWithdrawn: () => '倉庫からアイテムを引き出した！',
+    guildApplicationApproved: () => '加入申請を承認した！',
+    guildApplicationRejected: () => '加入申請を拒否した。',
     exileDone: () => '亡命が完了した！'
 };
 

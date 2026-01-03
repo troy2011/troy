@@ -202,6 +202,12 @@ function showBattleModal(battleId) {
             }
             const resultMsg = (battleState.winner === myId) ? '<h3 style="color: gold;">YOU WIN!</h3>' : '<h3 style="color: red;">YOU LOSE...</h3>';
             commandArea.innerHTML = resultMsg + '<button onclick="returnToMapAfterBattle()">戻る</button>';
+            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                const msg = (battleState.winner === myId)
+                    ? (window.rpgSay?.battleWin ? window.rpgSay.battleWin() : 'しょうり！')
+                    : (window.rpgSay?.battleLose ? window.rpgSay.battleLose() : 'まけてしまった…');
+                window.showRpgMessage(msg);
+            }
             return;
         }
 

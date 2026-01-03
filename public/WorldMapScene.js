@@ -2033,6 +2033,15 @@ export default class WorldMapScene extends Phaser.Scene {
             const data = await res.json();
             if (!res.ok) {
                 console.warn('[ShipCollision] ram-ship failed:', data);
+            } else if (data && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                const attackerRespawned = data.attacker?.playFabId === myId && data.attacker?.respawned;
+                const defenderRespawned = data.defender?.playFabId === myId && data.defender?.respawned;
+                if (attackerRespawned || defenderRespawned) {
+                    const msg = window.rpgSay?.shipSunk ? window.rpgSay.shipSunk() : 'ふねが沈んだ…';
+                    window.showRpgMessage(msg);
+                    const revive = window.rpgSay?.shipRespawned ? window.rpgSay.shipRespawned() : 'ふねが復活した！';
+                    setTimeout(() => window.showRpgMessage(revive), 1200);
+                }
             }
         } catch (error) {
             console.warn('[ShipCollision] ram-ship request error:', error);

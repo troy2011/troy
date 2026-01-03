@@ -1199,6 +1199,7 @@ export async function demolishIsland(playFabId, islandId) {
 }
 
 function showDemolishNotification(island) {
+    showRpgMessage(rpgSay.islandDemolished(island?.name || '島'));
     const modal = document.createElement('div');
     modal.className = 'completion-modal';
     modal.innerHTML = `
@@ -1274,6 +1275,7 @@ export async function rebuildIsland(playFabId, islandId) {
 }
 
 function showRebuildNotification(island) {
+    showRpgMessage(rpgSay.islandRebuilt(island?.name || '島'));
     const modal = document.createElement('div');
     modal.className = 'completion-modal';
     modal.innerHTML = `
