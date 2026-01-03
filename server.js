@@ -932,14 +932,13 @@ app.post('/api/set-race', async (req, res) => {
     try {
         const mapping = NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
-        if (!nationGroupId) return res.status(400).json({ error: 'nationGroupId is required' });
         if (!entityToken) return res.status(400).json({ error: 'entityToken is required' });
 
         const firestore = admin.firestore();
         const docRef = await getNationGroupDoc(firestore, mapping.groupName);
         const docSnap = await docRef.get();
         const storedGroupId = docSnap.exists && docSnap.data() ? docSnap.data().groupId : null;
-        if (storedGroupId && storedGroupId !== nationGroupId) {
+        if (storedGroupId && nationGroupId && storedGroupId !== nationGroupId) {
             return res.status(409).json({ error: 'Nation group mismatch' });
         }
 
@@ -950,27 +949,30 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(400).json({ error: 'Invalid entity token' });
         }
 
-        let effectiveGroupId = nationGroupId;
+        let assignedGroupId = nationGroupId;
+        let assignedGroupName = mapping.groupName;
+        let assignedNation = mapping.island;
+        let isKing = false;
         try {
-            const groupInfo = await promisifyPlayFab(PlayFabGroups.GetGroup, {
-                Group: { Id: nationGroupId, Type: 'group' }
+            const assignResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+                PlayFabId: playFabId,
+                FunctionName: 'AssignNationGroupByRace',
+                FunctionParameter: { raceName },
+                GeneratePlayStreamEvent: false
             });
-            if (groupInfo && groupInfo.GroupName && groupInfo.GroupName !== mapping.groupName) {
-                return res.status(400).json({ error: 'Invalid nation group name' });
-            }
+            const result = assignResult?.FunctionResult || {};
+            assignedGroupId = result.nationGroupId || assignedGroupId;
+            assignedGroupName = result.nationGroupName || assignedGroupName;
+            assignedNation = result.nationIsland || assignedNation;
+            isKing = !!result.isKing;
         } catch (e) {
             const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
-            if (String(msg).includes('No group profile found')) {
-                const created = await promisifyPlayFab(PlayFabGroups.CreateGroup, { GroupName: mapping.groupName });
-                effectiveGroupId = created?.Group?.Id || created?.Group?.id || effectiveGroupId;
-            } else {
-                throw e;
-            }
+            return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
         }
 
         try {
             await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: effectiveGroupId, Type: 'group' },
+                Group: { Id: assignedGroupId, Type: 'group' },
                 Members: [playerEntity]
             });
         } catch (e) {
@@ -980,11 +982,11 @@ app.post('/api/set-race', async (req, res) => {
             }
         }
 
-        if (!storedGroupId || storedGroupId !== effectiveGroupId) {
+        if (!storedGroupId || storedGroupId !== assignedGroupId) {
             await docRef.set({
-                groupId: effectiveGroupId,
-                groupName: mapping.groupName,
-                nation: mapping.island,
+                groupId: assignedGroupId,
+                groupName: assignedGroupName,
+                nation: assignedNation,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
@@ -1001,9 +1003,9 @@ app.post('/api/set-race', async (req, res) => {
         }
 
         const nationData = {
-            Nation: mapping.island,
-            NationGroupId: effectiveGroupId,
-            NationGroupName: mapping.groupName
+            Nation: assignedNation,
+            NationGroupId: assignedGroupId,
+            NationGroupName: assignedGroupName
         };
 
         const statsPayload = Object.keys(initialStats).map(key => ({ StatisticName: key, Value: initialStats[key] }));
@@ -1067,6 +1069,7 @@ app.post('/api/set-race', async (req, res) => {
             status: 'success',
             selectedRace: raceName,
             nation: nationData,
+            isKing: isKing,
             starterAssets,
             starterIsland
         });
