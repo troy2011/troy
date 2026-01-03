@@ -135,7 +135,29 @@ export async function showTab(tabId, playerInfo) {
                     await Player.getPoints(playerInfo.playFabId);
                     await Guild.loadGuildInfo(playerInfo.playFabId);
                     break;
-                case 'map':
+                case 'map': {
+                    const triggerFirstMapMessages = () => {
+                        if (window.__firstMapRpgShown) return;
+                        const pending = Array.isArray(window.__pendingFirstMapMessages)
+                            ? window.__pendingFirstMapMessages.slice()
+                            : [];
+                        if (!pending.length) {
+                            window.__firstMapRpgShown = true;
+                            return;
+                        }
+                        window.__firstMapRpgShown = true;
+                        window.__pendingFirstMapMessages = [];
+                        let delay = 0;
+                        pending.forEach((msg) => {
+                            if (!msg) return;
+                            setTimeout(() => {
+                                if (typeof window.showRpgMessage === 'function') {
+                                    window.showRpgMessage(msg);
+                                }
+                            }, delay);
+                            delay += 900;
+                        });
+                    };
                     if (gameInstance) {
                         tabLoaded[tabId] = true;
                         // ゲームが既に存在する場合は、リサイズして再表示
@@ -157,6 +179,7 @@ export async function showTab(tabId, playerInfo) {
                                 scene.setMapReady(true);
                             }
                         }
+                        triggerFirstMapMessages();
                         return; // Don't launch twice
                     }
                     // コンテナのサイズが確定するまで待機
@@ -181,7 +204,9 @@ export async function showTab(tabId, playerInfo) {
                     if (gameInstance) {
                         Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
                     }
+                    triggerFirstMapMessages();
                     break;
+                }
             }
             tabLoaded[tabId] = true;
         }

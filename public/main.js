@@ -427,13 +427,14 @@ function showRaceModal() {
                 }
             }
             const nameForLine = displayName || window.myLineProfile?.displayName || '旅人';
-            showRpgMessage(rpgSay.kingGreeting(nameForLine));
+            if (!window.__pendingFirstMapMessages) window.__pendingFirstMapMessages = [];
+            window.__pendingFirstMapMessages.push(rpgSay.kingGreeting(nameForLine));
             if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
-                showRpgMessage(rpgSay.shipGained());
+                window.__pendingFirstMapMessages.push(rpgSay.shipGained());
             }
             if (data?.starterIsland?.created) {
                 const islandName = data?.starterIsland?.name || 'あなたの島';
-                showRpgMessage(rpgSay.islandGained(islandName));
+                window.__pendingFirstMapMessages.push(rpgSay.islandGained(islandName));
             }
             await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         } else {
