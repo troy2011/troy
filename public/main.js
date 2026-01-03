@@ -14,6 +14,7 @@ import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat } from './js/mapChat.js';
 import { renderAvatar } from './js/avatar.js';
+import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 
 import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
@@ -29,32 +30,6 @@ const NATION_GROUP_BY_RACE = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
-function showRpgMessage(text) {
-    const msg = document.createElement('div');
-    msg.style.cssText = [
-        'position: fixed',
-        'left: 12px',
-        'right: 12px',
-        'bottom: 90px',
-        'z-index: 9999',
-        'background: rgba(17,24,39,0.95)',
-        'border: 1px solid #334155',
-        'color: #fff',
-        'padding: 12px 14px',
-        'border-radius: 10px',
-        'font-size: 13px',
-        'font-weight: 700'
-    ].join(';');
-    msg.textContent = text;
-    document.body.appendChild(msg);
-    setTimeout(() => {
-        if (msg.parentElement) msg.remove();
-    }, 4000);
-}
-
-if (typeof window !== 'undefined') {
-    window.showRpgMessage = showRpgMessage;
-}
 
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
@@ -425,13 +400,13 @@ function showRaceModal() {
                 }
             }
             const nameForLine = displayName || window.myLineProfile?.displayName || '旅人';
-            showRpgMessage(`王：よく来た「${nameForLine}」。これを授けよう。`);
+            showRpgMessage(rpgSay.kingGreeting(nameForLine));
             if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
-                showRpgMessage('ふねをてにいれた！');
+                showRpgMessage(rpgSay.shipGained());
             }
             if (data?.starterIsland?.created) {
                 const islandName = data?.starterIsland?.name || 'あなたの島';
-                showRpgMessage(`${islandName}をてにいれた！`);
+                showRpgMessage(rpgSay.islandGained(islandName));
             }
             await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
         } else {

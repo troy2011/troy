@@ -2249,6 +2249,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 const newColor = this.getNationColor(this.playerInfo.nation);
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
             }
+            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                const name = islandData.name || '島';
+                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandClaimed(name) : `${name}を占領した！`);
+            }
             this.showMessage(`${islandData.name}を占領しました。`);
         } catch (error) {
             console.error('島の占領に失敗しました:', error);
@@ -2382,6 +2386,10 @@ export default class WorldMapScene extends Phaser.Scene {
             if (islandData.nameText) {
                 const newColor = this.getNationColor(null);
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
+            }
+            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                const name = islandData.name || '島';
+                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandAbandoned(name) : `${name}を手放した。`);
             }
             this.showMessage(`${islandData.name}を放棄しました。`);
         } catch (error) {

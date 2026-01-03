@@ -2,6 +2,7 @@
 // Client-side ship management with dead reckoning animation
 
 import { callApiWithLoader } from './api.js';
+import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 class LRUCache {
@@ -122,6 +123,8 @@ export async function createShip(playFabId, shipItemId, spawnPosition) {
 
     if (data && data.success) {
         console.log(`[CreateShip] Created ship ${data.shipId}`);
+        const shipName = data.shipData?.ShipType || '船';
+        showRpgMessage(rpgSay.shipCreated(shipName));
         return data;
     }
 

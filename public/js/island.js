@@ -1,6 +1,7 @@
 ﻿// island.js - Island occupation/building client logic
 import { callApiWithLoader, buildApiUrl } from './api.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
+import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // Track construction timers per island
 let constructionTimers = new Map();
@@ -107,6 +108,8 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId)
 
     if (response && response.success) {
         startConstructionTimer(islandId, response.building.completionTime);
+        const name = response.building?.displayName || response.building?.buildingName || buildingId;
+        showRpgMessage(rpgSay.buildStarted(name));
     }
 
     return response;
@@ -118,6 +121,11 @@ export async function upgradeIslandLevel(playFabId, islandId) {
         islandId: islandId
     });
 
+    if (response && response.success) {
+        const buildingId = response.buildingId || '';
+        const name = buildingId ? buildingId : 'マイハウス';
+        showRpgMessage(rpgSay.buildUpgraded(name));
+    }
     return response;
 }
 
@@ -165,9 +173,7 @@ function updateConstructionProgress(islandId, remainingTime) {
 
 function showCompletionNotification(islandId) {
     playConstructionSound(false);
-    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-        window.showRpgMessage('建設が完了した！');
-    }
+    showRpgMessage(rpgSay.buildCompleted());
 
     const modal = document.createElement('div');
     modal.className = 'completion-modal';
@@ -566,8 +572,8 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 resourceStatusEl.textContent = amount > 0
                     ? `採取しました: ${amount}`
                     : '採取できる資源がありません。';
-                if (amount > 0 && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                    window.showRpgMessage(`${resourceCurrency} を ${amount} てにいれた！`);
+                if (amount > 0) {
+                    showRpgMessage(rpgSay.resourceGained(resourceCurrency, amount));
                 }
             } else {
                 resourceStatusEl.textContent = result?.error || '採取に失敗しました。';
