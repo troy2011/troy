@@ -953,13 +953,27 @@ app.post('/api/set-race', async (req, res) => {
         let assignedGroupName = mapping.groupName;
         let assignedNation = mapping.island;
         let isKing = false;
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         try {
-            const assignResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-                PlayFabId: playFabId,
-                FunctionName: 'AssignNationGroupByRace',
-                FunctionParameter: { raceName },
-                GeneratePlayStreamEvent: false
-            });
+            let assignResult = null;
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                try {
+                    assignResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+                        PlayFabId: playFabId,
+                        FunctionName: 'AssignNationGroupByRace',
+                        FunctionParameter: { raceName },
+                        GeneratePlayStreamEvent: false
+                    });
+                    break;
+                } catch (err) {
+                    const msg = (err && (err.errorMessage || err.message)) ? (err.errorMessage || err.message) : String(err);
+                    if (String(msg).includes('No group profile found') && attempt === 0) {
+                        await sleep(5000);
+                        continue;
+                    }
+                    throw err;
+                }
+            }
             const result = assignResult?.FunctionResult || {};
             assignedGroupId = result.nationGroupId || assignedGroupId;
             assignedGroupName = result.nationGroupName || assignedGroupName;
