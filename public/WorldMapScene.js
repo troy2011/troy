@@ -1892,6 +1892,14 @@ export default class WorldMapScene extends Phaser.Scene {
         const targetY = islandData.y + islandData.height / 2;
         const dx = targetX - this.playerShip.x;
         const dy = targetY - this.playerShip.y;
+        const withinX = this.playerShip.x >= islandData.x && this.playerShip.x <= islandData.x + islandData.width;
+        const withinY = this.playerShip.y >= islandData.y && this.playerShip.y <= islandData.y + islandData.height;
+        if (withinX && withinY) {
+            this.navTargetId = null;
+            this.navTargetLabel = null;
+            hud.style.display = 'none';
+            return;
+        }
         const distPx = Math.sqrt(dx * dx + dy * dy);
         const distTiles = Math.max(0, Math.round(distPx / this.TILE_SIZE));
 
