@@ -150,6 +150,112 @@ async function provisionStarterAssets({ promisifyPlayFab, PlayFabServer, playFab
     }
 }
 
+async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['ActiveShipId', 'AvatarColor', 'Nation']
+    });
+    let activeShipId = ro?.Data?.ActiveShipId?.Value || null;
+    const avatarColor = ro?.Data?.AvatarColor?.Value || 'brown';
+
+    const shipSpec = catalogCache?.ship_common_boat || null;
+    const shipBaseFrame = Number(shipSpec?.baseFrame);
+    const shipDomain = shipSpec?.Domain || 'sea_surface';
+    const shipStats = {
+        MaxHP: Number(shipSpec?.MaxHP) || 100,
+        CurrentHP: Number(shipSpec?.MaxHP) || 100,
+        Speed: Number(shipSpec?.Speed) || 100,
+        CargoCapacity: Number(shipSpec?.CargoCapacity) || 5,
+        CrewCapacity: Number(shipSpec?.CrewCapacity) || 1,
+        VisionRange: Number(shipSpec?.VisionRange) || 300
+    };
+
+    let shipData = null;
+    if (activeShipId) {
+        const key = `Ship_${activeShipId}`;
+        const shipRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: [key]
+        });
+        const raw = shipRo?.Data?.[key]?.Value;
+        if (raw) {
+            try {
+                shipData = JSON.parse(raw);
+            } catch {
+                shipData = null;
+            }
+        }
+    }
+
+    if (!activeShipId || !shipData) {
+        activeShipId = activeShipId || `ship_${playFabId}_${Date.now()}`;
+        shipData = {
+            ShipId: activeShipId,
+            ShipType: shipSpec?.DisplayName || 'Common Boat',
+            ItemId: 'ship_common_boat',
+            baseFrame: Number.isFinite(shipBaseFrame) ? Math.max(0, Math.trunc(shipBaseFrame)) : 0,
+            Domain: shipDomain,
+            Stats: { ...shipStats },
+            Skills: shipSpec?.Skills || [],
+            Equipment: { Cannon: null, Sail: null, Hull: null, Anchor: null },
+            Cargo: [],
+            Crew: [{ PlayFabId: playFabId, Role: 'Captain' }],
+            Owner: playFabId,
+            CreatedAt: new Date().toISOString()
+        };
+    } else {
+        shipData.Stats = shipData.Stats || {};
+        if (!Number.isFinite(Number(shipData.Stats.CargoCapacity)) || Number(shipData.Stats.CargoCapacity) <= 0) {
+            shipData.Stats.CargoCapacity = shipStats.CargoCapacity;
+        }
+        if (!Number.isFinite(Number(shipData.Stats.VisionRange)) || Number(shipData.Stats.VisionRange) <= 0) {
+            shipData.Stats.VisionRange = shipStats.VisionRange;
+        }
+    }
+
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            ActiveShipId: activeShipId,
+            [`Ship_${activeShipId}`]: JSON.stringify(shipData)
+        }
+    });
+
+    const position = respawnPosition || { x: 100, y: 100 };
+    const geoPoint = worldToLatLng(position);
+    const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+    const firestoreShipData = {
+        shipId: activeShipId,
+        playFabId: playFabId,
+        position: position,
+        geohash: geohash,
+        appearance: {
+            shipType: shipData.ShipType || 'Common Boat',
+            domain: shipDomain,
+            color: String(avatarColor).toLowerCase(),
+            sailState: 'furled'
+        },
+        movement: {
+            isMoving: false,
+            departureTime: null,
+            arrivalTime: null,
+            departurePos: null,
+            destinationPos: null
+        },
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await firestore.collection('ships').doc(activeShipId).set(firestoreShipData, { merge: true });
+    await firestore.collection('ships').doc(playFabId).set({
+        shipId: activeShipId,
+        playFabId: playFabId,
+        active: true,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { shipId: activeShipId };
+}
+
 async function createStarterIsland({ playFabId, raceName, nationIsland, displayName }) {
     const worldMap = admin.firestore().collection('world_map');
     const existing = await worldMap.where('ownerId', '==', playFabId).limit(1).get();
@@ -873,16 +979,6 @@ app.post('/api/set-race', async (req, res) => {
             Data: { "Race": raceName, ...avatarData, ...nationData }
         });
 
-        const starterAssets = await provisionStarterAssets({
-            promisifyPlayFab,
-            PlayFabServer,
-            firestore,
-            catalogCache,
-            playFabId,
-            raceName,
-            nationIsland: nationData.NationIsland
-        });
-
         let starterIsland = null;
         try {
             const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
@@ -898,6 +994,26 @@ app.post('/api/set-race', async (req, res) => {
             });
         } catch (e) {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
+        }
+
+        const starterAssets = await provisionStarterAssets({
+            promisifyPlayFab,
+            PlayFabServer,
+            firestore,
+            catalogCache,
+            playFabId,
+            raceName,
+            nationIsland: nationData.NationIsland
+        });
+
+        try {
+            await ensureStarterShip({
+                playFabId,
+                catalogCache,
+                respawnPosition: starterIsland?.respawnPosition || null
+            });
+        } catch (e) {
+            console.warn('[starterShip] Failed to ensure starter ship:', e?.errorMessage || e?.message || e);
         }
 
         res.json({
