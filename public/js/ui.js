@@ -6,6 +6,7 @@ import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
+import { callApiWithLoader } from './api.js';
 
 let gameInstance = null;
 let launchGameFn = null;
@@ -82,6 +83,23 @@ export function escapeHtml(str) {
 
 export async function showTab(tabId, playerInfo) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
+
+    const showKingAnnouncementOnMap = async () => {
+        if (!playerInfo?.playFabId) return;
+        try {
+            const data = await callApiWithLoader('/api/get-nation-king-page', { playFabId: playerInfo.playFabId }, { isSilent: true });
+            const msg = data?.announcement?.message;
+            if (msg && typeof window.showRpgMessage === 'function') {
+                window.showRpgMessage(`王の告知：${msg}`);
+            }
+        } catch (error) {
+            console.warn('[showTab] Failed to load king announcement:', error);
+        }
+    };
+
+    if (tabId === 'map') {
+        await showKingAnnouncementOnMap();
+    }
 
     // 船タブから離れる場合はリスナーをクリーンアップ
     const currentActiveTab = document.querySelector('.nav-button.active');
