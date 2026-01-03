@@ -22,6 +22,10 @@ window.myLineProfile = null;
 window.myPlayFabId = null;
 window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire' };
 window.myEntityToken = null;
+let playFabLoginInProgress = false;
+let playFabLoginDone = false;
+let playFabLoginPromise = null;
+let lastFirebaseUid = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -98,15 +102,38 @@ async function initializeLiff() {
         // --- PlayFab & Firebase Login ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                if (lastFirebaseUid === user.uid && playFabLoginDone) {
+                    return;
+                }
+                lastFirebaseUid = user.uid;
                 __perfLog('firebase auth state: user');
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
 
-                // PlayFab Client SDKにログイン
-                const pfLogin = await promisifyPlayFab(PlayFab.ClientApi.LoginWithCustomID, {
-                    CustomId: myLineProfile.userId, CreateAccount: false
-                });
-                __perfLog('PlayFab ClientApi.LoginWithCustomID done');
-                window.myEntityToken = pfLogin?.EntityToken?.EntityToken || PlayFab?._internalSettings?.entityToken || null;
+                // PlayFab Client SDKにログイン（多重実行ガード）
+                if (!playFabLoginPromise) {
+                    playFabLoginPromise = (async () => {
+                        if (playFabLoginInProgress || playFabLoginDone) return null;
+                        playFabLoginInProgress = true;
+                        try {
+                            const pfLogin = await promisifyPlayFab(PlayFab.ClientApi.LoginWithCustomID, {
+                                CustomId: myLineProfile.userId, CreateAccount: false
+                            });
+                            __perfLog('PlayFab ClientApi.LoginWithCustomID done');
+                            window.myEntityToken = pfLogin?.EntityToken?.EntityToken || PlayFab?._internalSettings?.entityToken || null;
+                            playFabLoginDone = true;
+                            return pfLogin;
+                        } finally {
+                            playFabLoginInProgress = false;
+                        }
+                    })();
+                }
+                try {
+                    await playFabLoginPromise;
+                } catch (error) {
+                    playFabLoginPromise = null;
+                    playFabLoginDone = false;
+                    throw error;
+                }
 
                 if (loginData.needsRaceSelection) {
                     document.getElementById('appWrapper').style.display = 'block';
