@@ -438,6 +438,19 @@ export default class WorldMapScene extends Phaser.Scene {
         
         this.playerShip.clearTint();
 
+        this.navArrow = this.add.triangle(0, 0, 0, -10, -7, 6, 7, 6, 0xffffff, 0.9);
+        this.navArrow.setDepth(GAME_CONFIG.DEPTH.SHIP + 1);
+        this.navArrow.setVisible(false);
+        this.navDistanceText = this.add.text(0, 0, '', {
+            fontSize: '12px',
+            fill: '#ffffff',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            padding: { x: 6, y: 4 }
+        });
+        this.navDistanceText.setOrigin(0.5, 1);
+        this.navDistanceText.setDepth(GAME_CONFIG.DEPTH.SHIP + 1);
+        this.navDistanceText.setVisible(false);
+
         // shipTypeKey がまだ解決できていない間も、最低限アニメーションできるようにデフォルトを用意
         {
             const sheetKey = this.playerShip.texture?.key || 'ship_sprite';
@@ -1939,14 +1952,16 @@ export default class WorldMapScene extends Phaser.Scene {
 
     updateNavigationHud() {
         const hud = document.getElementById('mapNavHud');
-        if (!hud) return;
+        if (hud) hud.style.display = 'none';
         if (!this.navTargetId || !this.playerShip || !this.islandObjects) {
-            hud.style.display = 'none';
+            if (this.navArrow) this.navArrow.setVisible(false);
+            if (this.navDistanceText) this.navDistanceText.setVisible(false);
             return;
         }
         const islandData = this.islandObjects.get(this.navTargetId);
         if (!islandData) {
-            hud.style.display = 'none';
+            if (this.navArrow) this.navArrow.setVisible(false);
+            if (this.navDistanceText) this.navDistanceText.setVisible(false);
             return;
         }
         const targetX = islandData.x + islandData.width / 2;
@@ -1958,22 +1973,27 @@ export default class WorldMapScene extends Phaser.Scene {
         if (withinX && withinY) {
             this.navTargetId = null;
             this.navTargetLabel = null;
-            hud.style.display = 'none';
+            if (this.navArrow) this.navArrow.setVisible(false);
+            if (this.navDistanceText) this.navDistanceText.setVisible(false);
             return;
         }
         const distPx = Math.sqrt(dx * dx + dy * dy);
         const distTiles = Math.max(0, Math.round(distPx / this.TILE_SIZE));
 
         const angleRad = Math.atan2(dy, dx);
-        const angleDeg = (angleRad * 180) / Math.PI + 90;
-
-        const arrow = document.getElementById('mapNavArrow');
-        const label = document.getElementById('mapNavLabel');
-        const distance = document.getElementById('mapNavDistance');
-        if (arrow) arrow.style.transform = `rotate(${angleDeg}deg)`;
-        if (label) label.textContent = this.navTargetLabel || 'NAV';
-        if (distance) distance.textContent = `距離: ${distTiles}`;
-        hud.style.display = 'flex';
+        const unitX = distPx > 0 ? dx / distPx : 0;
+        const unitY = distPx > 0 ? dy / distPx : 0;
+        const radius = 30;
+        if (this.navArrow) {
+            this.navArrow.setPosition(this.playerShip.x + unitX * radius, this.playerShip.y + unitY * radius);
+            this.navArrow.setRotation(angleRad + Math.PI / 2);
+            this.navArrow.setVisible(true);
+        }
+        if (this.navDistanceText) {
+            this.navDistanceText.setPosition(this.playerShip.x, this.playerShip.y - 26);
+            this.navDistanceText.setText(`距離 ${distTiles}`);
+            this.navDistanceText.setVisible(true);
+        }
     }
 
     updatePositionHud() {
