@@ -38,7 +38,7 @@ const NATION_GROUP_BY_RACE = {
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
-    wind: 'purple',
+    wind: 'yellow',
     water: 'blue'
 };
 
