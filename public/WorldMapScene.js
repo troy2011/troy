@@ -338,14 +338,42 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async create() {
         this.setMapReady(false);
-        const seaBackground = this.add.tileSprite(0, 0, this.mapPixelSize, this.mapPixelSize, 'map_tiles', 0).setOrigin(0, 0).setDepth(GAME_CONFIG.DEPTH.SEA);
-        this.seaBackground = seaBackground;
+        const halfSize = this.mapPixelSize / 2;
+        const seaQuadrants = [];
+        const createSeaQuadrant = (col, row) => {
+            const sprite = this.add.tileSprite(col * halfSize, row * halfSize, halfSize, halfSize, 'map_tiles', 0)
+                .setOrigin(0, 0)
+                .setDepth(GAME_CONFIG.DEPTH.SEA);
+            seaQuadrants.push(sprite);
+            return sprite;
+        };
+        const nationKey = this.getNationKey();
+        const nationBounds = NATION_BOUNDS[nationKey];
+        const nationCenter = getNationCenterTile(nationBounds);
+        const nationCenterWorld = {
+            x: (nationCenter.x + 0.5) * this.gridSize,
+            y: (nationCenter.y + 0.5) * this.gridSize
+        };
+        const primaryCol = nationCenterWorld.x < halfSize ? 0 : 1;
+        const primaryRow = nationCenterWorld.y < halfSize ? 0 : 1;
+        createSeaQuadrant(primaryCol, primaryRow);
+        this.time.delayedCall(300, () => {
+            for (let row = 0; row < 2; row += 1) {
+                for (let col = 0; col < 2; col += 1) {
+                    if (col === primaryCol && row === primaryRow) continue;
+                    createSeaQuadrant(col, row);
+                }
+            }
+        });
+        this.seaBackgrounds = seaQuadrants;
         if (typeof window !== 'undefined') {
             window.worldMapScene = this;
         }
         if (this.game?.canvas?.style) {
             this.game.canvas.style.backgroundColor = '#000000';
         }
+        const seaBackground = this.add.rectangle(0, 0, this.mapPixelSize, this.mapPixelSize, 0x000000, 0)
+            .setOrigin(0, 0);
         seaBackground.setInteractive(
             new Phaser.Geom.Rectangle(0, 0, this.mapPixelSize, this.mapPixelSize),
             Phaser.Geom.Rectangle.Contains
@@ -432,7 +460,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
         this.uiCamera.setScroll(0, 0);
         this.cameras.main.ignore(this.fogGraphics);
-        this.ignoreOnUiCamera([this.seaBackground, this.playerShip]);
+        this.ignoreOnUiCamera([...(this.seaBackgrounds || []), this.playerShip]);
 
         this.positionText = this.add.text(12, this.scale.height - 10, '', {
             fontSize: '12px',
