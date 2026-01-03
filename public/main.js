@@ -52,6 +52,10 @@ function showRpgMessage(text) {
     }, 4000);
 }
 
+if (typeof window !== 'undefined') {
+    window.showRpgMessage = showRpgMessage;
+}
+
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
@@ -420,6 +424,8 @@ function showRaceModal() {
                     window.myAvatarBaseInfo = myAvatarBaseInfo;
                 }
             }
+            const nameForLine = displayName || window.myLineProfile?.displayName || '旅人';
+            showRpgMessage(`王：よく来た「${nameForLine}」。これを授けよう。`);
             if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
                 showRpgMessage('ふねをてにいれた！');
             }

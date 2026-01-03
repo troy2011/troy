@@ -256,6 +256,9 @@ function _wireHandlers(playFabId) {
             if (result) {
                 const transferred = typeof result.transferredIslands === 'number' ? ` / islands: ${result.transferredIslands}` : '';
                 _setMessage(`Exile completed.${transferred}`);
+                if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage('亡命が完了した！');
+                }
             }
         });
     }

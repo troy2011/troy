@@ -165,6 +165,9 @@ function updateConstructionProgress(islandId, remainingTime) {
 
 function showCompletionNotification(islandId) {
     playConstructionSound(false);
+    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage('建設が完了した！');
+    }
 
     const modal = document.createElement('div');
     modal.className = 'completion-modal';
@@ -563,6 +566,9 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 resourceStatusEl.textContent = amount > 0
                     ? `採取しました: ${amount}`
                     : '採取できる資源がありません。';
+                if (amount > 0 && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage(`${resourceCurrency} を ${amount} てにいれた！`);
+                }
             } else {
                 resourceStatusEl.textContent = result?.error || '採取に失敗しました。';
             }
