@@ -932,21 +932,12 @@ app.post('/api/set-race', async (req, res) => {
     try {
         const mapping = NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
-        if (!entityToken) return res.status(400).json({ error: 'entityToken is required' });
-
         const firestore = admin.firestore();
         const docRef = await getNationGroupDoc(firestore, mapping.groupName);
         const docSnap = await docRef.get();
         const storedGroupId = docSnap.exists && docSnap.data() ? docSnap.data().groupId : null;
         if (storedGroupId && nationGroupId && storedGroupId !== nationGroupId) {
             return res.status(409).json({ error: 'Nation group mismatch' });
-        }
-
-        await ensureTitleEntityToken();
-        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, { EntityToken: entityToken });
-        const playerEntity = validate && validate.Entity ? validate.Entity : null;
-        if (!playerEntity || !playerEntity.Id || !playerEntity.Type) {
-            return res.status(400).json({ error: 'Invalid entity token' });
         }
 
         let assignedGroupId = nationGroupId || storedGroupId || null;
@@ -973,6 +964,10 @@ app.post('/api/set-race', async (req, res) => {
                     }
                     throw err;
                 }
+            }
+            if (assignResult?.Error) {
+                const msg = assignResult.Error.Message || assignResult.Error.Error || 'CloudScript error';
+                throw new Error(msg);
             }
             const result = assignResult?.FunctionResult || {};
             assignedGroupId = result.nationGroupId || assignedGroupId;
