@@ -1200,9 +1200,10 @@ export default class WorldMapScene extends Phaser.Scene {
                     const barY = baseY + 4;
 
                     const hpBar = this.add.graphics();
+                    const ownerColor = this.getNationColor(ownerNation);
                     hpBar.fillStyle(0x000000, 0.6);
                     hpBar.fillRect(barX, barY, barWidth, barHeight);
-                    hpBar.fillStyle(0x3ad37a, 0.9);
+                    hpBar.fillStyle(ownerColor, 0.9);
                     hpBar.fillRect(barX + 1, barY + 1, Math.max(0, (barWidth - 2) * ratio), Math.max(1, barHeight - 2));
                     hpBar.setDepth(GAME_CONFIG.DEPTH.BUILDING - 1);
                     this.ignoreOnUiCamera(hpBar);
@@ -2180,9 +2181,12 @@ export default class WorldMapScene extends Phaser.Scene {
         const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
 
         hpBar.clear();
+        const shipColor = (sprite.__ownerNation || sprite.__avatarColor)
+            ? this.getNationColor(sprite.__ownerNation || sprite.__avatarColor)
+            : this.getNationColor(this.playerInfo?.nation);
         hpBar.fillStyle(0x000000, 0.6);
         hpBar.fillRect(barX, barY, barWidth, barHeight);
-        hpBar.fillStyle(0x3ad37a, 0.9);
+        hpBar.fillStyle(shipColor, 0.9);
         hpBar.fillRect(barX + 1, barY + 1, Math.max(0, (barWidth - 2) * ratio), Math.max(1, barHeight - 2));
     }
 
@@ -2901,6 +2905,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 playFabId: this.playerInfo.playFabId,
                 displayName: window.myLineProfile?.displayName || 'Unknown',
                 race: this.playerInfo.race || 'human',
+                nation: this.playerInfo.nation || this.playerInfo.Nation || null,
                 guildId: this.getMyGuildId(),
                 currentX: currentX,
                 currentY: currentY,
@@ -2965,7 +2970,7 @@ export default class WorldMapScene extends Phaser.Scene {
         };
 
         const worldPos = resolveWorldPos();
-        const sheetKey = this.getShipSpriteSheetKey(shipData?.appearance?.color);
+                const sheetKey = this.getShipSpriteSheetKey(shipData?.appearance?.color);
 
         if (!shipObject) {
             const sprite = this.physics.add.sprite(worldPos.x, worldPos.y, sheetKey, 1);
@@ -2975,11 +2980,13 @@ export default class WorldMapScene extends Phaser.Scene {
             sprite.body.setCollideWorldBounds(true);
             sprite.body.setAllowGravity(false);
             sprite.body.setImmovable(true);
-            shipObject = {
-                sprite: sprite, data: shipData, lastUpdate: now, motion: null, lastAnimKey: 'ship_down',
-                shipTypeKey: null, pendingRemoval: false, removedAt: null
-            };
-            this.otherShips.set(playFabId, shipObject);
+                    shipObject = {
+                        sprite: sprite, data: shipData, lastUpdate: now, motion: null, lastAnimKey: 'ship_down',
+                        shipTypeKey: null, pendingRemoval: false, removedAt: null
+                    };
+                    sprite.__ownerNation = shipData?.nation || shipData?.Nation || null;
+                    sprite.__avatarColor = shipData?.appearance?.color || null;
+                    this.otherShips.set(playFabId, shipObject);
 
             if (this.playerShip) {
                 this.physics.add.collider(this.playerShip, sprite, () => {
@@ -2994,6 +3001,10 @@ export default class WorldMapScene extends Phaser.Scene {
             shipObject.lastUpdate = now;
             shipObject.pendingRemoval = false;
             shipObject.removedAt = null;
+            if (shipObject.sprite) {
+                shipObject.sprite.__ownerNation = shipData?.nation || shipData?.Nation || null;
+                shipObject.sprite.__avatarColor = shipData?.appearance?.color || null;
+            }
             if (shipObject.sprite?.texture?.key !== sheetKey) {
                 shipObject.sprite.setTexture(sheetKey);
             }
