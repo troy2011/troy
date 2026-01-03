@@ -257,9 +257,12 @@ async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
 }
 
 async function createStarterIsland({ playFabId, raceName, nationIsland, displayName }) {
-    const worldMap = admin.firestore().collection('world_map');
-    const existing = await worldMap.where('ownerId', '==', playFabId).limit(1).get();
-    if (!existing.empty) return { skipped: true, reason: 'already_has_island' };
+    const NATION_BOUNDS = {
+        earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+        wind: { minX: 400, maxX: 499, minY: 0, maxY: 99 },
+        fire: { minX: 0, maxX: 99, minY: 400, maxY: 499 },
+        water: { minX: 400, maxX: 499, minY: 400, maxY: 499 }
+    };
 
     const sizeByKey = {
         small: { w: 3, h: 3 },
@@ -267,6 +270,31 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         large: { w: 4, h: 4 },
         giant: { w: 5, h: 5 }
     };
+    const islandSize = sizeByKey.small;
+
+    const mapBounds = (() => {
+        const key = String(nationIsland || '').toLowerCase();
+        return NATION_BOUNDS[key] || null;
+    })();
+
+    const mapSize = 500;
+    const offsetRange = 6;
+    const baseRange = mapBounds
+        ? {
+            minX: mapBounds.minX,
+            maxX: Math.max(mapBounds.minX, mapBounds.maxX - islandSize.w + 1),
+            minY: mapBounds.minY,
+            maxY: Math.max(mapBounds.minY, mapBounds.maxY - islandSize.h + 1)
+        }
+        : {
+            minX: 0,
+            maxX: mapSize - islandSize.w,
+            minY: 0,
+            maxY: mapSize - islandSize.h
+        };
+    const worldMap = admin.firestore().collection('world_map');
+    const existing = await worldMap.where('ownerId', '==', playFabId).limit(1).get();
+    if (!existing.empty) return { skipped: true, reason: 'already_has_island' };
 
     const allIslandsSnap = await worldMap.get();
     const occupied = [];
@@ -284,9 +312,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         }
     });
 
-    const mapSize = 500;
     const tries = 80;
-    const offsetRange = 10;
     const islandSize = sizeByKey.small;
 
     const overlaps = (rect) => {
@@ -299,10 +325,14 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         const base = nationIslands.length > 0
             ? nationIslands[Math.floor(Math.random() * nationIslands.length)]
             : occupied[Math.floor(Math.random() * occupied.length)];
-        const bx = base?.x ?? Math.floor(Math.random() * (mapSize - islandSize.w));
-        const by = base?.y ?? Math.floor(Math.random() * (mapSize - islandSize.h));
-        const rx = Math.max(0, Math.min(mapSize - islandSize.w, bx + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
-        const ry = Math.max(0, Math.min(mapSize - islandSize.h, by + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
+        const baseMinX = baseRange.minX;
+        const baseMaxX = baseRange.maxX;
+        const baseMinY = baseRange.minY;
+        const baseMaxY = baseRange.maxY;
+        const bx = base?.x ?? Math.floor(Math.random() * (baseMaxX - baseMinX + 1)) + baseMinX;
+        const by = base?.y ?? Math.floor(Math.random() * (baseMaxY - baseMinY + 1)) + baseMinY;
+        const rx = Math.max(baseMinX, Math.min(baseMaxX, bx + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
+        const ry = Math.max(baseMinY, Math.min(baseMaxY, by + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
         const rect = { x: rx, y: ry, w: islandSize.w, h: islandSize.h };
         if (!overlaps(rect)) {
             chosen = { x: rx, y: ry };
