@@ -425,6 +425,17 @@ export default class WorldMapScene extends Phaser.Scene {
         this.uiCamera.setScroll(0, 0);
         this.cameras.main.ignore(this.fogGraphics);
         this.ignoreOnUiCamera([this.seaBackground, this.playerShip]);
+
+        this.positionText = this.add.text(12, this.scale.height - 10, '', {
+            fontSize: '12px',
+            fill: '#ffffff',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            padding: { x: 6, y: 4 }
+        });
+        this.positionText.setOrigin(0, 1);
+        this.positionText.setScrollFactor(0);
+        this.positionText.setDepth(GAME_CONFIG.DEPTH.FOG + 1);
+        this.cameras.main.ignore(this.positionText);
         
         // 6. メッセージUI（showMessage / showError 用）
         this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
@@ -446,6 +457,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.cameras.main.setViewport(0, 0, this.scale.width, this.scale.height);
             if (this.uiCamera) this.uiCamera.setSize(this.scale.width, this.scale.height);
             this.updateZoomFromVisionRange();
+            if (this.positionText) this.positionText.setPosition(12, this.scale.height - 10);
         });
 
         if (typeof window !== 'undefined') {
@@ -1915,6 +1927,13 @@ export default class WorldMapScene extends Phaser.Scene {
         hud.style.display = 'flex';
     }
 
+    updatePositionHud() {
+        if (!this.positionText || !this.playerShip) return;
+        const tileX = Math.floor(this.playerShip.x / this.TILE_SIZE);
+        const tileY = Math.floor(this.playerShip.y / this.TILE_SIZE);
+        this.positionText.setText(`x:${tileX} y:${tileY}`);
+    }
+
     showBoardingButton(targetPlayFabId, displayName = '') {
         this.showShipCommandMenu(targetPlayFabId, displayName);
     }
@@ -2384,6 +2403,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateAreaControlState();
         this.drawFogOfWar();
         this.updateNavigationHud();
+        this.updatePositionHud();
         this.updateMinimapPlayerMarker();
         this.refreshShipSubscriptions();
         this.interpolateOtherShips();
