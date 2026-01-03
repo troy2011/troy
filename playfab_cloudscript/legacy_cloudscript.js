@@ -168,12 +168,23 @@ handlers.AssignNationGroupByRace = function (args, context) {
         createdNewGroup = true;
     }
 
-    try {
-        groups.AddMembers({ Group: groupKey, Members: [playerEntity] });
-    } catch (e) {
-        var msg = _stringifyError(e);
-        if (msg.indexOf('already') === -1 && msg.indexOf('Already') === -1) throw msg;
+    var added = false;
+    for (var addTry = 0; addTry < 3 && !added; addTry += 1) {
+        try {
+            groups.AddMembers({ Group: groupKey, Members: [playerEntity] });
+            added = true;
+        } catch (e) {
+            var msg = _stringifyError(e);
+            if (msg.indexOf('already') !== -1 || msg.indexOf('Already') !== -1) {
+                added = true;
+            } else if (msg.indexOf('No group profile found') !== -1) {
+                // retry for eventual consistency
+            } else {
+                throw msg;
+            }
+        }
     }
+    if (!added) throw 'Failed to add member to nation group';
 
     server.UpdateUserReadOnlyData({
         PlayFabId: currentPlayerId,
