@@ -981,17 +981,25 @@ app.post('/api/set-race', async (req, res) => {
 
         let starterIsland = null;
         try {
-            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowDisplayName: true }
-            });
-            const displayName = profile?.PlayerProfile?.DisplayName || null;
-            starterIsland = await createStarterIsland({
-                playFabId,
-                raceName,
-                nationIsland: nationData.NationIsland,
-                displayName
-            });
+            const existingIslands = await firestore.collection('world_map')
+                .where('ownerId', '==', playFabId)
+                .limit(1)
+                .get();
+            if (existingIslands.empty) {
+                const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                    PlayFabId: playFabId,
+                    ProfileConstraints: { ShowDisplayName: true }
+                });
+                const displayName = profile?.PlayerProfile?.DisplayName || null;
+                starterIsland = await createStarterIsland({
+                    playFabId,
+                    raceName,
+                    nationIsland: nationData.NationIsland,
+                    displayName
+                });
+            } else {
+                console.warn('[starterIsland] Skipped creation because starter island already exists');
+            }
         } catch (e) {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
         }

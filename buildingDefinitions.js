@@ -247,7 +247,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 900, // 15分
         cost: { PT: 200 },
-        tileIndex: 568,
+        tileIndex: 588,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
