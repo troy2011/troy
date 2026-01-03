@@ -147,7 +147,7 @@ export async function showTab(tabId, playerInfo) {
                         }
                         window.__firstMapRpgShown = true;
                         window.__pendingFirstMapMessages = [];
-                        let delay = 0;
+                        let delay = 300;
                         pending.forEach((msg) => {
                             if (!msg) return;
                             setTimeout(() => {
@@ -155,7 +155,7 @@ export async function showTab(tabId, playerInfo) {
                                     window.showRpgMessage(msg);
                                 }
                             }, delay);
-                            delay += 900;
+                            delay += 1200;
                         });
                     };
                     if (gameInstance) {
