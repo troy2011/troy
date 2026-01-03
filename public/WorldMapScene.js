@@ -101,6 +101,13 @@ const NATION_TILE_INDEX = {
     water: 3
 };
 
+function getNationCenterTile(bounds) {
+    if (!bounds) return { x: 0, y: 0 };
+    const centerX = Math.floor((bounds.minX + bounds.maxX + 1) / 2);
+    const centerY = Math.floor((bounds.minY + bounds.maxY + 1) / 2);
+    return { x: centerX, y: centerY };
+}
+
 function getNationTileOffset(nation, visualWidth) {
     const key = String(nation || '').toLowerCase();
     const index = (key in NATION_TILE_INDEX) ? NATION_TILE_INDEX[key] : 0;
@@ -393,7 +400,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.physics.world.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
 
-        this.playerShip = this.physics.add.sprite(400, 300, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor));
+        const initialPos = this.getInitialSpawnPosition();
+        this.playerShip = this.physics.add.sprite(initialPos.x, initialPos.y, this.getShipSpriteSheetKey(window.myAvatarBaseInfo?.AvatarColor));
         this.playerShip.setFrame(1);
         this.playerShip.setDepth(GAME_CONFIG.DEPTH.SHIP);
 
@@ -863,6 +871,19 @@ export default class WorldMapScene extends Phaser.Scene {
         if (race === 'elf') return 'wind';
         if (race === 'goblin') return 'water';
         return null;
+    }
+
+    getInitialSpawnPosition() {
+        const nation = this.getNationKey();
+        const bounds = NATION_BOUNDS[nation];
+        if (!bounds) return { x: 400, y: 300 };
+        const center = getNationCenterTile(bounds);
+        const x = (center.x + 0.5) * this.gridSize;
+        const y = (center.y + 0.5) * this.gridSize;
+        return {
+            x: Phaser.Math.Clamp(x, 0, this.mapPixelSize),
+            y: Phaser.Math.Clamp(y, 0, this.mapPixelSize)
+        };
     }
 
     getAreaCellFromWorld(x, y) {
