@@ -115,6 +115,7 @@ const createIsland = (config) => ({
     biome: config.biome ?? null,
     biomeFrame: config.biomeFrame ?? null,
     occupationStatus: config.occupationStatus ?? null,
+    buildingSlots: config.buildingSlots ?? null,
     buildings: Array.isArray(config.buildings) ? config.buildings : []
 });
 
@@ -145,7 +146,24 @@ function generateMapData(options = {}) {
                 nation: faction,
                 ownerNation: faction,
                 biome: pickBiome(faction, false),
-                occupationStatus: 'capital'
+                occupationStatus: 'capital',
+                buildingSlots: { layout: '3x3' },
+                buildings: [{
+                    buildingId: 'capital',
+                    status: 'completed',
+                    level: 1,
+                    startTime: Date.now(),
+                    completionTime: Date.now(),
+                    durationMs: 0,
+                    helpers: [],
+                    width: 3,
+                    height: 3,
+                    visualWidth: 3,
+                    visualHeight: 3,
+                    tileIndex: 576,
+                    x: 0,
+                    y: 0
+                }]
             }));
         }
     } else if (mapType === 'major' && cardNumber !== null) {

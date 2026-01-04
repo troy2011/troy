@@ -35,6 +35,20 @@ const buildingCategories = {
  * effects: 施設の効果
  */
 const buildings = {
+    capital: {
+        id: 'capital',
+        name: '首都',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 0,
+        cost: { PT: 0 },
+        tileIndex: 576,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 3, y: 3 },
+        nationTileOffset: true,
+        effects: {},
+        description: '各国の中枢となる首都です。'
+    },
     // ========================================
     // 軍事施設（Military）
     // ========================================
