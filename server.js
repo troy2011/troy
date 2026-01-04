@@ -939,6 +939,13 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(409).json({ error: 'Nation group mismatch' });
         }
 
+        await ensureTitleEntityToken();
+        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, { EntityToken: entityToken });
+        const playerEntity = validate && validate.Entity ? validate.Entity : null;
+        if (!playerEntity || !playerEntity.Id || !playerEntity.Type) {
+            return res.status(400).json({ error: 'Invalid entity token' });
+        }
+
         let assignedGroupId = nationGroupId || storedGroupId || null;
         let assignedGroupName = mapping.groupName;
         let assignedNation = mapping.island;
@@ -988,6 +995,12 @@ app.post('/api/set-race', async (req, res) => {
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
             }
+            if (isKing) {
+                await docRef.set({
+                    kingPlayFabId: playFabId,
+                    kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
         } catch (e) {
             const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
             return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
@@ -1019,7 +1032,7 @@ app.post('/api/set-race', async (req, res) => {
 
         await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
             PlayFabId: playFabId,
-            Data: { "Race": raceName, ...avatarData, ...nationData }
+            Data: { "Race": raceName, ...avatarData, ...nationData, IsKing: isKing ? 'true' : 'false', NationKingId: isKing ? playFabId : '' }
         });
 
         let starterIsland = null;
