@@ -213,6 +213,15 @@ export async function showTab(tabId, playerInfo, options = {}) {
         mapId: options.mapId || null,
         mapLabel: options.mapLabel || null
     };
+    if (tabId === 'map' && mapSelectOptions.mapId) {
+        if (window.__currentMapId && window.__currentMapId !== mapSelectOptions.mapId && gameInstance) {
+            gameInstance.destroy(true);
+            gameInstance = null;
+            tabLoaded.map = false;
+        }
+        window.__currentMapId = mapSelectOptions.mapId;
+        window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
+    }
     if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
         if (!window.__currentMapId && playerInfo?.nation) {
             const areaId = AREA_BY_NATION[String(playerInfo.nation).toLowerCase()];
