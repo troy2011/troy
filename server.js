@@ -945,51 +945,52 @@ app.post('/api/set-race', async (req, res) => {
         let isKing = false;
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         try {
-            let assignResult = null;
+            if (!assignedGroupId) {
+                let search = null;
+                try {
+                    search = await promisifyPlayFab(PlayFabGroups.SearchGroups, { SearchTerm: mapping.groupName });
+                } catch (e) {
+                    console.warn('[set-race] SearchGroups failed:', e?.errorMessage || e?.message || e);
+                }
+                const hit = search?.Groups?.find(g => g?.GroupName === mapping.groupName) || null;
+                assignedGroupId = hit?.Group?.Id || null;
+            }
+            if (!assignedGroupId) {
+                const created = await promisifyPlayFab(PlayFabGroups.CreateGroup, { GroupName: mapping.groupName });
+                assignedGroupId = created?.Group?.Id || null;
+                isKing = true;
+            }
+            if (!assignedGroupId) {
+                return res.status(500).json({ error: 'Failed to create nation group' });
+            }
             for (let attempt = 0; attempt < 2; attempt += 1) {
                 try {
-                    assignResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-                        PlayFabId: playFabId,
-                        FunctionName: 'AssignNationGroupByRace',
-                        FunctionParameter: { raceName },
-                        GeneratePlayStreamEvent: false
+                    await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                        Group: { Id: assignedGroupId, Type: 'group' },
+                        Members: [playerEntity]
                     });
                     break;
-                } catch (err) {
-                    const msg = (err && (err.errorMessage || err.message)) ? (err.errorMessage || err.message) : String(err);
+                } catch (e) {
+                    const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
+                    if (String(msg).includes('EntityIsAlreadyMember')) break;
                     if (String(msg).includes('No group profile found') && attempt === 0) {
                         await sleep(5000);
                         continue;
                     }
-                    throw err;
+                    throw e;
                 }
             }
-            console.log('[set-race] AssignNationGroupByRace result:', JSON.stringify(assignResult || {}));
-            if (assignResult?.Error) {
-                const msg = assignResult.Error.Message || assignResult.Error.Error || 'CloudScript error';
-                throw new Error(msg);
+            if (!storedGroupId || storedGroupId !== assignedGroupId) {
+                await docRef.set({
+                    groupId: assignedGroupId,
+                    groupName: assignedGroupName,
+                    nation: assignedNation,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
             }
-            const result = assignResult?.FunctionResult || {};
-            assignedGroupId = result.nationGroupId || assignedGroupId;
-            assignedGroupName = result.nationGroupName || assignedGroupName;
-            assignedNation = result.nationIsland || assignedNation;
-            isKing = !!result.isKing;
         } catch (e) {
             const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
             return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
-        }
-
-        if (!assignedGroupId) {
-            return res.status(500).json({ error: 'Failed to resolve nation group id' });
-        }
-
-        if (!storedGroupId || storedGroupId !== assignedGroupId) {
-            await docRef.set({
-                groupId: assignedGroupId,
-                groupName: assignedGroupName,
-                nation: assignedNation,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
         }
 
         if (displayName) {
