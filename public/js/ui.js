@@ -13,7 +13,7 @@ const TAROT_AREAS = [
     { id: 'pentacles', label: 'ペンタクル' },
     { id: 'swords', label: 'ソード' },
     { id: 'cups', label: 'カップ' },
-    { id: 'neutral', label: '中立' }
+    { id: 'joker', label: 'joker' }
 ];
 
 const MAJOR_ARCANA = [
@@ -46,7 +46,7 @@ const MAJOR_ARCANA_BY_AREA = {
     pentacles: [5, 9, 12, 16],
     swords: [3, 10, 11, 17],
     cups: [2, 7, 14, 18],
-    neutral: [0, 1, 6, 13, 20, 21]
+    joker: [0, 1, 6, 13, 20, 21]
 };
 
 const AREA_BY_NATION = {
@@ -54,7 +54,7 @@ const AREA_BY_NATION = {
     earth: 'pentacles',
     wind: 'swords',
     water: 'cups',
-    neutral: 'neutral'
+    neutral: 'joker'
 };
 const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
     acc[area.id] = area.label;
