@@ -129,6 +129,21 @@ const getNationLabel = (faction) => {
     }
 };
 
+const getBiomeLabel = (biome) => {
+    switch (String(biome || '').toLowerCase()) {
+        case 'volcanic': return '火山島';
+        case 'rocky': return '岩場島';
+        case 'mushroom': return 'キノコ島';
+        case 'lake': return '湖島';
+        case 'forest': return '森林島';
+        case 'sacred': return '聖地島';
+        case 'beach': return '浜辺島';
+        case 'jungle': return 'ジャングル島';
+        case 'ocean': return '海島';
+        default: return '島';
+    }
+};
+
 function generateMapData(options = {}) {
     const mapId = String(options.mapId || 'map');
     const mapType = String(options.mapType || 'nation');
@@ -198,15 +213,18 @@ function generateMapData(options = {}) {
             const rect = placeRandom(sizeKey, occupied);
             if (!rect) continue;
             registerOccupied(occupied, rect);
+            const biome = pickBiome(faction, true);
+            const islandNumber = String(index + 1).padStart(3, '0');
+            const baseLabel = getBiomeLabel(biome);
             islands.push(createIsland({
                 id: `${mapId}_island_${index += 1}`,
-                name: `島 ${String(index).padStart(3, '0')}`,
+                name: `${baseLabel} ${islandNumber}`,
                 x: rect.x,
                 y: rect.y,
                 size: sizeKey,
                 nation: faction,
                 ownerNation: null,
-                biome: pickBiome(faction, true)
+                biome: biome
             }));
         }
     };
