@@ -965,6 +965,7 @@ app.post('/api/set-race', async (req, res) => {
                     throw err;
                 }
             }
+            console.log('[set-race] AssignNationGroupByRace result:', JSON.stringify(assignResult || {}));
             if (assignResult?.Error) {
                 const msg = assignResult.Error.Message || assignResult.Error.Error || 'CloudScript error';
                 throw new Error(msg);
