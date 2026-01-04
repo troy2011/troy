@@ -8,28 +8,28 @@ const SIZE_BY_KEY = {
 const DEFAULT_COUNTS = { small: 20, large: 10, giant: 3 };
 
 const MAJOR_ARCANA = [
-    { number: 0, name: 'The Fool' },
-    { number: 1, name: 'The Magician' },
-    { number: 2, name: 'The High Priestess' },
-    { number: 3, name: 'The Empress' },
-    { number: 4, name: 'The Emperor' },
-    { number: 5, name: 'The Hierophant' },
-    { number: 6, name: 'The Lovers' },
-    { number: 7, name: 'The Chariot' },
-    { number: 8, name: 'Strength' },
-    { number: 9, name: 'The Hermit' },
-    { number: 10, name: 'Wheel of Fortune' },
-    { number: 11, name: 'Justice' },
-    { number: 12, name: 'The Hanged Man' },
-    { number: 13, name: 'Death' },
-    { number: 14, name: 'Temperance' },
-    { number: 15, name: 'The Devil' },
-    { number: 16, name: 'The Tower' },
-    { number: 17, name: 'The Star' },
-    { number: 18, name: 'The Moon' },
-    { number: 19, name: 'The Sun' },
-    { number: 20, name: 'Judgement' },
-    { number: 21, name: 'The World' }
+    { number: 0, name: '愚者' },
+    { number: 1, name: '魔術師' },
+    { number: 2, name: '女教皇' },
+    { number: 3, name: '女帝' },
+    { number: 4, name: '皇帝' },
+    { number: 5, name: '教皇' },
+    { number: 6, name: '恋人' },
+    { number: 7, name: '戦車' },
+    { number: 8, name: '力' },
+    { number: 9, name: '隠者' },
+    { number: 10, name: '運命の輪' },
+    { number: 11, name: '正義' },
+    { number: 12, name: '吊るされた男' },
+    { number: 13, name: '死神' },
+    { number: 14, name: '節制' },
+    { number: 15, name: '悪魔' },
+    { number: 16, name: '塔' },
+    { number: 17, name: '星' },
+    { number: 18, name: '月' },
+    { number: 19, name: '太陽' },
+    { number: 20, name: '審判' },
+    { number: 21, name: '世界' }
 ];
 
 const RESOURCE_BIOME_BY_FACTION = {
@@ -119,11 +119,21 @@ const createIsland = (config) => ({
     buildings: Array.isArray(config.buildings) ? config.buildings : []
 });
 
+const getNationLabel = (faction) => {
+    switch (String(faction || '').toLowerCase()) {
+        case 'fire': return '火の国';
+        case 'earth': return '土の国';
+        case 'wind': return '風の国';
+        case 'water': return '水の国';
+        default: return '中立';
+    }
+};
+
 function generateMapData(options = {}) {
     const mapId = String(options.mapId || 'map');
     const mapType = String(options.mapType || 'nation');
     const faction = String(options.faction || 'neutral').toLowerCase();
-    const factionLabel = options.factionLabel || faction;
+    const factionLabel = getNationLabel(faction);
     const cardNumber = Number.isFinite(Number(options.cardNumber))
         ? Number(options.cardNumber)
         : null;
@@ -139,7 +149,7 @@ function generateMapData(options = {}) {
             registerOccupied(occupied, rect);
             islands.push(createIsland({
                 id: `capital_${faction}`,
-                name: `${factionLabel} Capital`,
+                name: `${factionLabel}首都`,
                 x: rect.x,
                 y: rect.y,
                 size: 'giant',
@@ -172,7 +182,7 @@ function generateMapData(options = {}) {
         registerOccupied(occupied, rect);
         islands.push(createIsland({
             id: `major_${String(cardNumber).padStart(2, '0')}`,
-            name: getArcanaName(cardNumber),
+            name: `【${getArcanaName(cardNumber)}】の島`,
             x: rect.x,
             y: rect.y,
             size: sizeKey,
@@ -190,7 +200,7 @@ function generateMapData(options = {}) {
             registerOccupied(occupied, rect);
             islands.push(createIsland({
                 id: `${mapId}_island_${index += 1}`,
-                name: `${mapId}_island_${index}`,
+                name: `島 ${String(index).padStart(3, '0')}`,
                 x: rect.x,
                 y: rect.y,
                 size: sizeKey,
