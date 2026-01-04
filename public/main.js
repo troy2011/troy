@@ -330,7 +330,7 @@ async function ensureNationGroupForRace(raceName) {
 
     const info = await callApiWithLoader('/api/get-nation-group', { raceName }, { isSilent: true });
     if (info && info.groupId) {
-        return { groupId: info.groupId, groupName: mapping.groupName };
+        return { groupId: info.groupId, groupName: mapping.groupName, created: false };
     }
 
     const groupsApi = getPlayFabGroupsApi();
@@ -342,11 +342,11 @@ async function ensureNationGroupForRace(raceName) {
         const created = await promisifyPlayFab(groupsApi.CreateGroup, { GroupName: mapping.groupName });
         const groupId = created?.Group?.Id || null;
         if (!groupId) throw new Error('CreateGroup did not return group id');
-        return { groupId, groupName: mapping.groupName };
+        return { groupId, groupName: mapping.groupName, created: true };
     } catch (e) {
         const retry = await callApiWithLoader('/api/get-nation-group', { raceName }, { isSilent: true });
         if (retry && retry.groupId) {
-            return { groupId: retry.groupId, groupName: mapping.groupName };
+            return { groupId: retry.groupId, groupName: mapping.groupName, created: false };
         }
         throw e;
     }
@@ -404,6 +404,7 @@ function showRaceModal() {
             playFabId: myPlayFabId,
             raceName: raceName,
             nationGroupId: groupInfo.groupId,
+            isKing: !!groupInfo.created,
             entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || ''
         });

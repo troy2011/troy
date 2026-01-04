@@ -894,7 +894,7 @@ app.post('/api/donate-nation-currency', async (req, res) => {
 });
 
 app.post('/api/set-race', async (req, res) => {
-    const { playFabId, raceName, nationGroupId, entityToken, displayName } = req.body || {};
+        const { playFabId, raceName, nationGroupId, entityToken, displayName, isKing: isKingRequest } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -949,43 +949,11 @@ app.post('/api/set-race', async (req, res) => {
         let assignedGroupId = nationGroupId || storedGroupId || null;
         let assignedGroupName = mapping.groupName;
         let assignedNation = mapping.island;
-        let isKing = false;
+        let isKing = !!isKingRequest;
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         try {
             if (!assignedGroupId) {
-                let search = null;
-                try {
-                    search = await promisifyPlayFab(PlayFabGroups.SearchGroups, { SearchTerm: mapping.groupName });
-                } catch (e) {
-                    console.warn('[set-race] SearchGroups failed:', e?.errorMessage || e?.message || e);
-                }
-                const hit = search?.Groups?.find(g => g?.GroupName === mapping.groupName) || null;
-                assignedGroupId = hit?.Group?.Id || null;
-            }
-            if (!assignedGroupId) {
-                const created = await promisifyPlayFab(PlayFabGroups.CreateGroup, { GroupName: mapping.groupName });
-                assignedGroupId = created?.Group?.Id || null;
-                isKing = true;
-            }
-            if (!assignedGroupId) {
-                return res.status(500).json({ error: 'Failed to create nation group' });
-            }
-            for (let attempt = 0; attempt < 2; attempt += 1) {
-                try {
-                    await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                        Group: { Id: assignedGroupId, Type: 'group' },
-                        Members: [playerEntity]
-                    });
-                    break;
-                } catch (e) {
-                    const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
-                    if (String(msg).includes('EntityIsAlreadyMember')) break;
-                    if (String(msg).includes('No group profile found') && attempt === 0) {
-                        await sleep(5000);
-                        continue;
-                    }
-                    throw e;
-                }
+                return res.status(400).json({ error: 'nationGroupId is required' });
             }
             if (!storedGroupId || storedGroupId !== assignedGroupId) {
                 await docRef.set({
