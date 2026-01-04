@@ -313,7 +313,6 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     });
 
     const tries = 80;
-    const islandSize = sizeByKey.small;
 
     const overlaps = (rect) => {
         return occupied.some(o => rect.x < o.x + o.w && rect.x + rect.w > o.x && rect.y < o.y + o.h && rect.y + rect.h > o.y);
