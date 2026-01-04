@@ -120,6 +120,9 @@ handlers.AssignNationGroupByRace = function (args, context) {
 
     var nationIsland = mapping.island;
     var groupName = mapping.groupName;
+    if (typeof log !== 'undefined' && log && typeof log.info === 'function') {
+        log.info({ handler: 'AssignNationGroupByRace', step: 'start', raceName: raceName, groupName: groupName });
+    }
 
     var ro = server.GetUserReadOnlyData({
         PlayFabId: currentPlayerId,
@@ -157,8 +160,14 @@ handlers.AssignNationGroupByRace = function (args, context) {
                 }
             }
         }
+        if (typeof log !== 'undefined' && log && typeof log.info === 'function') {
+            log.info({ handler: 'AssignNationGroupByRace', step: 'search', groupName: groupName, found: !!groupKey });
+        }
     } catch (e) {
         // SearchGroups が利用できない場合は CreateGroup を試す
+        if (typeof log !== 'undefined' && log && typeof log.warn === 'function') {
+            log.warn({ handler: 'AssignNationGroupByRace', step: 'search_failed', error: _stringifyError(e) });
+        }
     }
 
     if (!groupKey) {
@@ -166,6 +175,9 @@ handlers.AssignNationGroupByRace = function (args, context) {
         if (!created || !created.Group) throw 'Failed to create group: ' + groupName;
         groupKey = created.Group;
         createdNewGroup = true;
+        if (typeof log !== 'undefined' && log && typeof log.info === 'function') {
+            log.info({ handler: 'AssignNationGroupByRace', step: 'created', groupId: groupKey.Id, groupName: groupName });
+        }
     }
 
     var added = false;
@@ -180,6 +192,9 @@ handlers.AssignNationGroupByRace = function (args, context) {
             } else if (msg.indexOf('No group profile found') !== -1) {
                 // retry for eventual consistency
             } else {
+                if (typeof log !== 'undefined' && log && typeof log.error === 'function') {
+                    log.error({ handler: 'AssignNationGroupByRace', step: 'add_members_failed', error: msg, groupId: groupKey.Id });
+                }
                 throw msg;
             }
         }
@@ -194,6 +209,9 @@ handlers.AssignNationGroupByRace = function (args, context) {
             NationGroupName: groupName
         }
     });
+    if (typeof log !== 'undefined' && log && typeof log.info === 'function') {
+        log.info({ handler: 'AssignNationGroupByRace', step: 'done', groupId: groupKey.Id, isKing: !!kingObj });
+    }
 
     // グループ作成時のみ、作成者を王として設定する
     var kingObj = _getNationKing(groupKey.Id);
