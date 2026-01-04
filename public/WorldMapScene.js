@@ -933,12 +933,57 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     getInitialSpawnPosition() {
+        const pendingSide = this.consumePendingMapSpawn();
+        if (pendingSide) {
+            const pos = this.getEdgeSpawnPosition(pendingSide);
+            this.pendingMapSpawnPos = pos;
+            return pos;
+        }
         const nation = this.getNationKey();
         const bounds = NATION_BOUNDS[nation];
         if (!bounds) return { x: 400, y: 300 };
         const center = getNationCenterTile(bounds);
         const x = (center.x + 0.5) * this.gridSize;
         const y = (center.y + 0.5) * this.gridSize;
+        return {
+            x: Phaser.Math.Clamp(x, 0, this.mapPixelSize),
+            y: Phaser.Math.Clamp(y, 0, this.mapPixelSize)
+        };
+    }
+
+    consumePendingMapSpawn() {
+        if (typeof window === 'undefined') return null;
+        const pending = window.__pendingMapSpawn;
+        if (!pending || !pending.mapId || pending.mapId !== this.mapId) return null;
+        window.__pendingMapSpawn = null;
+        return pending.side || null;
+    }
+
+    getEdgeSpawnPosition(side) {
+        const marginTiles = 2;
+        const minTile = marginTiles;
+        const maxTile = Math.max(minTile, this.mapTileSize - 1 - marginTiles);
+        const pick = () => Phaser.Math.Between(minTile, maxTile);
+        let tileX = pick();
+        let tileY = pick();
+        switch (side) {
+            case 'north':
+                tileY = minTile;
+                break;
+            case 'south':
+                tileY = maxTile;
+                break;
+            case 'east':
+                tileX = maxTile;
+                break;
+            case 'west':
+                tileX = minTile;
+                break;
+            default:
+                break;
+        }
+        const x = (tileX + 0.5) * this.gridSize;
+        const y = (tileY + 0.5) * this.gridSize;
         return {
             x: Phaser.Math.Clamp(x, 0, this.mapPixelSize),
             y: Phaser.Math.Clamp(y, 0, this.mapPixelSize)
@@ -2899,6 +2944,33 @@ export default class WorldMapScene extends Phaser.Scene {
                 } else if (typeof data.currentX === 'number' && typeof data.currentY === 'number') {
                     x = data.currentX;
                     y = data.currentY;
+                }
+
+                const pendingPos = this.pendingMapSpawnPos;
+                if (pendingPos && Number.isFinite(pendingPos.x) && Number.isFinite(pendingPos.y)) {
+                    x = pendingPos.x;
+                    y = pendingPos.y;
+                    this.pendingMapSpawnPos = null;
+                    const geoPoint = this.worldToLatLng({ x, y });
+                    const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+                    await setDoc(shipRef, {
+                        mapId: this.mapId || null,
+                        currentX: x,
+                        currentY: y,
+                        targetX: x,
+                        targetY: y,
+                        geohash: geohash,
+                        arrivalTime: Date.now(),
+                        position: { x, y },
+                        movement: {
+                            isMoving: false,
+                            departureTime: null,
+                            arrivalTime: null,
+                            departurePos: null,
+                            destinationPos: null
+                        },
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
                 }
 
                 this.playerShip.x = x;

@@ -56,10 +56,24 @@ const AREA_BY_NATION = {
     water: 'cups',
     neutral: 'joker'
 };
+const ENTRY_SIDE_BY_NATION = {
+    fire: 'south',
+    earth: 'east',
+    wind: 'north',
+    water: 'west'
+};
 const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
     acc[area.id] = area.label;
     return acc;
 }, {});
+
+const getEntrySideForNation = (nation) => {
+    const key = String(nation || '').toLowerCase();
+    const side = ENTRY_SIDE_BY_NATION[key];
+    if (side) return side;
+    const options = ['north', 'south', 'east', 'west'];
+    return options[Math.floor(Math.random() * options.length)];
+};
 
 function showMapSelectModal(playerInfo) {
     const modal = document.getElementById('mapSelectModal');
@@ -214,7 +228,14 @@ export async function showTab(tabId, playerInfo, options = {}) {
         mapLabel: options.mapLabel || null
     };
     if (tabId === 'map' && mapSelectOptions.mapId) {
-        if (window.__currentMapId && window.__currentMapId !== mapSelectOptions.mapId && gameInstance) {
+        const prevMapId = window.__currentMapId;
+        if (prevMapId && prevMapId !== mapSelectOptions.mapId) {
+            window.__pendingMapSpawn = {
+                mapId: mapSelectOptions.mapId,
+                side: getEntrySideForNation(playerInfo?.nation)
+            };
+        }
+        if (prevMapId && prevMapId !== mapSelectOptions.mapId && gameInstance) {
             gameInstance.destroy(true);
             gameInstance = null;
             tabLoaded.map = false;
