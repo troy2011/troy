@@ -49,6 +49,18 @@ const MAJOR_ARCANA_BY_AREA = {
     neutral: [0, 1, 6, 13, 20, 21]
 };
 
+const AREA_BY_NATION = {
+    fire: 'wands',
+    earth: 'pentacles',
+    wind: 'swords',
+    water: 'cups',
+    neutral: 'neutral'
+};
+const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
+    acc[area.id] = area.label;
+    return acc;
+}, {});
+
 function showMapSelectModal(playerInfo) {
     const modal = document.getElementById('mapSelectModal');
     if (!modal) return;
@@ -79,6 +91,15 @@ function showMapSelectModal(playerInfo) {
         if (title) title.textContent = `${areaLabel}の海域`;
         areaList.innerHTML = '';
         arcanaList.innerHTML = '';
+        const baseBtn = document.createElement('button');
+        baseBtn.type = 'button';
+        baseBtn.textContent = `${areaLabel}の国マップ`;
+        baseBtn.addEventListener('click', () => {
+            const mapId = areaId;
+            hideMapSelectModal();
+            showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: `${areaLabel}の国マップ` });
+        });
+        arcanaList.appendChild(baseBtn);
         const arcanaNumbers = MAJOR_ARCANA_BY_AREA[areaId] || [];
         arcanaNumbers.forEach((num) => {
             const entry = MAJOR_ARCANA.find(a => a.number === num);
@@ -88,7 +109,7 @@ function showMapSelectModal(playerInfo) {
             btn.textContent = label;
             btn.dataset.arcana = String(num);
             btn.addEventListener('click', () => {
-                const mapId = `${areaId}_${String(num).padStart(2, '0')}`;
+                const mapId = `major_${String(num).padStart(2, '0')}`;
                 hideMapSelectModal();
                 showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: label });
             });
@@ -193,6 +214,14 @@ export async function showTab(tabId, playerInfo, options = {}) {
         mapLabel: options.mapLabel || null
     };
     if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
+        if (!window.__currentMapId && playerInfo?.nation) {
+            const areaId = AREA_BY_NATION[String(playerInfo.nation).toLowerCase()];
+            if (areaId) {
+                const label = AREA_LABEL_BY_ID[areaId] || areaId;
+                await showTab('map', playerInfo, { skipMapSelect: true, mapId: areaId, mapLabel: `${label}の国マップ` });
+                return;
+            }
+        }
         showMapSelectModal(playerInfo);
         return;
     }
