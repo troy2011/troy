@@ -135,6 +135,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipTween = null;
 
         this.playerInfo = { playFabId: null, race: null };
+        this.mapId = null;
+        this.mapLabel = null;
 
         this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
         this.baseShipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
@@ -220,6 +222,8 @@ export default class WorldMapScene extends Phaser.Scene {
         } else {
             this.playerInfo = { playFabId: null, race: null };
         }
+        this.mapId = data?.mapId || window.__phaserPlayerInfo?.mapId || this.mapId;
+        this.mapLabel = data?.mapLabel || window.__phaserPlayerInfo?.mapLabel || this.mapLabel;
 
         console.log('[WorldMapScene] Final playerInfo:', this.playerInfo);
     }
@@ -338,6 +342,9 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async create() {
         this.setMapReady(false);
+        if (!this.mapId && typeof window !== 'undefined') {
+            this.mapId = window.__currentMapId || this.mapId;
+        }
         const halfSize = this.mapPixelSize / 2;
         const seaQuadrants = [];
         const createSeaQuadrant = (col, row) => {
@@ -574,7 +581,7 @@ export default class WorldMapScene extends Phaser.Scene {
         // 9. Firestore から島データを読み込む（world_map）
         try {
             const db = getFirestore();
-            const querySnapshot = await getDocs(collection(db, "world_map"));
+            const querySnapshot = await getDocs(collection(db, this.getWorldMapCollectionName()));
 
             if (querySnapshot.empty) {
                 console.warn('[WorldMapScene] No islands found in Firestore');
@@ -855,6 +862,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.minimapTexture.draw(graphics, 0, 0);
         graphics.destroy();
+    }
+
+    getWorldMapCollectionName() {
+        if (!this.mapId) return 'world_map';
+        return `world_map_${this.mapId}`;
     }
 
     getMyGuildId() {
@@ -1831,7 +1843,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         const { doc, getDoc, updateDoc } = await import('firebase/firestore');
-        const islandRef = doc(this.firestore, 'world_map', closest.id);
+        const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), closest.id);
         const snap = await getDoc(islandRef);
         if (!snap.exists()) {
             this.showMessage('島が見つかりません');
@@ -1859,7 +1871,7 @@ export default class WorldMapScene extends Phaser.Scene {
     async damageBuildingOnIsland(islandId, damage = 300) {
         if (!this.firestore || !islandId) return;
         const { doc, getDoc, updateDoc } = await import('firebase/firestore');
-        const islandRef = doc(this.firestore, 'world_map', islandId);
+        const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), islandId);
         const snap = await getDoc(islandRef);
         if (!snap.exists()) {
             this.showMessage('島が見つかりません');
@@ -1895,7 +1907,7 @@ export default class WorldMapScene extends Phaser.Scene {
     async reloadIslandFromFirestore(islandId) {
         if (!this.firestore) return;
         const { doc, getDoc } = await import('firebase/firestore');
-        const snap = await getDoc(doc(this.firestore, 'world_map', islandId));
+        const snap = await getDoc(doc(this.firestore, this.getWorldMapCollectionName(), islandId));
         if (!snap.exists()) return;
         const data = snap.data() || {};
         this.removeIslandById(islandId);
@@ -2318,7 +2330,7 @@ export default class WorldMapScene extends Phaser.Scene {
         console.log(`島「${islandData.name}」を占領します...`);
 
         const db = getFirestore();
-        const islandRef = doc(db, 'world_map', islandData.id);
+        const islandRef = doc(db, this.getWorldMapCollectionName(), islandData.id);
 
         try {
             await updateDoc(islandRef, {
@@ -2456,7 +2468,7 @@ export default class WorldMapScene extends Phaser.Scene {
         console.log(`島「${islandData.name}」を放棄します...`);
 
         const db = getFirestore();
-        const islandRef = doc(db, 'world_map', islandData.id);
+        const islandRef = doc(db, this.getWorldMapCollectionName(), islandData.id);
 
         try {
             await updateDoc(islandRef, {
@@ -3348,7 +3360,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         try {
             const constructionQuery = query(
-                collection(this.firestore, 'world_map'),
+                collection(this.firestore, this.getWorldMapCollectionName()),
                 where('constructionStatus', '==', 'constructing')
             );
 

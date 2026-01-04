@@ -8,6 +8,109 @@ import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
 import { callApiWithLoader } from './api.js';
 
+const TAROT_AREAS = [
+    { id: 'wands', label: 'ワンド' },
+    { id: 'pentacles', label: 'ペンタクル' },
+    { id: 'swords', label: 'ソード' },
+    { id: 'cups', label: 'カップ' },
+    { id: 'neutral', label: '中立' }
+];
+
+const MAJOR_ARCANA = [
+    { number: 0, name: '愚者' },
+    { number: 1, name: '魔術師' },
+    { number: 2, name: '女教皇' },
+    { number: 3, name: '女帝' },
+    { number: 4, name: '皇帝' },
+    { number: 5, name: '教皇' },
+    { number: 6, name: '恋人' },
+    { number: 7, name: '戦車' },
+    { number: 8, name: '力' },
+    { number: 9, name: '隠者' },
+    { number: 10, name: '運命の輪' },
+    { number: 11, name: '正義' },
+    { number: 12, name: '吊るされた男' },
+    { number: 13, name: '死神' },
+    { number: 14, name: '節制' },
+    { number: 15, name: '悪魔' },
+    { number: 16, name: '塔' },
+    { number: 17, name: '星' },
+    { number: 18, name: '月' },
+    { number: 19, name: '太陽' },
+    { number: 20, name: '審配' },
+    { number: 21, name: '世界' }
+];
+
+const MAJOR_ARCANA_BY_AREA = {
+    wands: [4, 8, 15, 19],
+    pentacles: [5, 9, 12, 16],
+    swords: [3, 10, 11, 17],
+    cups: [2, 7, 14, 18],
+    neutral: [0, 1, 6, 13, 20, 21]
+};
+
+function showMapSelectModal(playerInfo) {
+    const modal = document.getElementById('mapSelectModal');
+    if (!modal) return;
+    const areaList = document.getElementById('mapSelectAreaList');
+    const arcanaList = document.getElementById('mapSelectArcanaList');
+    const title = document.getElementById('mapSelectTitle');
+    if (!areaList || !arcanaList) return;
+
+    let currentArea = null;
+    const renderAreas = () => {
+        currentArea = null;
+        if (title) title.textContent = '海域を選択';
+        areaList.innerHTML = '';
+        arcanaList.innerHTML = '';
+        TAROT_AREAS.forEach((area) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = area.label;
+            btn.dataset.area = area.id;
+            btn.addEventListener('click', () => renderArcana(area.id));
+            areaList.appendChild(btn);
+        });
+    };
+
+    const renderArcana = (areaId) => {
+        currentArea = areaId;
+        const areaLabel = TAROT_AREAS.find(a => a.id === areaId)?.label || areaId;
+        if (title) title.textContent = `${areaLabel}の海域`;
+        areaList.innerHTML = '';
+        arcanaList.innerHTML = '';
+        const arcanaNumbers = MAJOR_ARCANA_BY_AREA[areaId] || [];
+        arcanaNumbers.forEach((num) => {
+            const entry = MAJOR_ARCANA.find(a => a.number === num);
+            const label = entry ? `${entry.number}: ${entry.name}` : String(num);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = label;
+            btn.dataset.arcana = String(num);
+            btn.addEventListener('click', () => {
+                const mapId = `${areaId}_${String(num).padStart(2, '0')}`;
+                hideMapSelectModal();
+                showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: label });
+            });
+            arcanaList.appendChild(btn);
+        });
+        const backBtn = document.createElement('button');
+        backBtn.type = 'button';
+        backBtn.textContent = '海域へ戻る';
+        backBtn.addEventListener('click', renderAreas);
+        arcanaList.appendChild(backBtn);
+    };
+
+    renderAreas();
+    modal.style.display = 'flex';
+}
+
+function hideMapSelectModal() {
+    const modal = document.getElementById('mapSelectModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
 let gameInstance = null;
 let launchGameFn = null;
 const tabLoaded = { home: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
@@ -81,8 +184,18 @@ export function escapeHtml(str) {
     })[match]);
 }
 
-export async function showTab(tabId, playerInfo) {
+export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
+
+    const mapSelectOptions = {
+        skipMapSelect: !!options.skipMapSelect,
+        mapId: options.mapId || null,
+        mapLabel: options.mapLabel || null
+    };
+    if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
+        showMapSelectModal(playerInfo);
+        return;
+    }
 
     const showKingAnnouncementOnMap = async () => {
         if (!playerInfo?.playFabId) return;
@@ -177,6 +290,15 @@ export async function showTab(tabId, playerInfo) {
                         });
                     };
                     triggerFirstMapMessages();
+                    if (mapSelectOptions.mapId) {
+                        if (window.__currentMapId && window.__currentMapId !== mapSelectOptions.mapId && gameInstance) {
+                            gameInstance.destroy(true);
+                            gameInstance = null;
+                            tabLoaded.map = false;
+                        }
+                        window.__currentMapId = mapSelectOptions.mapId;
+                        window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
+                    }
                     if (gameInstance) {
                         tabLoaded[tabId] = true;
                         // ゲームが既に存在する場合は、リサイズして再表示
@@ -218,7 +340,10 @@ export async function showTab(tabId, playerInfo) {
                         const gameModule = await import('../Game.js');
                         launchGameFn = gameModule.launchGame;
                     }
-                    gameInstance = launchGameFn('phaser-container', playerInfo);
+                    const infoWithMap = mapSelectOptions.mapId
+                        ? { ...playerInfo, mapId: mapSelectOptions.mapId, mapLabel: mapSelectOptions.mapLabel }
+                        : playerInfo;
+                    gameInstance = launchGameFn('phaser-container', infoWithMap);
                     if (gameInstance) {
                         Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
                     }
