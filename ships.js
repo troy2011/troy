@@ -988,7 +988,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/get-ships-in-view
      */
     app.post('/api/get-ships-in-view', async (req, res) => {
-        const { centerX, centerY, radius } = req.body;
+        const { centerX, centerY, radius, mapId } = req.body;
 
         if (centerX === undefined || centerY === undefined || !radius) {
             return res.status(400).json({ error: 'centerX, centerY, radius are required' });
@@ -1002,8 +1002,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
             const promises = [];
             for (const b of bounds) {
-                const q = db.collection('ships')
-                    .orderBy('geohash')
+                let q = db.collection('ships');
+                if (mapId) {
+                    q = q.where('mapId', '==', mapId);
+                }
+                q = q.orderBy('geohash')
                     .startAt(b[0])
                     .endAt(b[1]);
                 promises.push(q.get());

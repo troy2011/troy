@@ -171,11 +171,12 @@ export async function getPlayerShips(playFabId) {
     return [];
 }
 
-export async function getShipsInView(centerX, centerY, radius) {
+export async function getShipsInView(centerX, centerY, radius, mapId = null) {
     const data = await callApiWithLoader('/api/get-ships-in-view', {
         centerX: centerX,
         centerY: centerY,
-        radius: radius
+        radius: radius,
+        mapId: mapId || null
     }, { isSilent: true });
 
     if (data && data.success) {
@@ -649,8 +650,8 @@ function startShipAnimation() {
     animate();
 }
 
-export function watchShipsInView(centerX, centerY, radius, onShipsUpdate) {
-    console.log('[WatchShipsInView] Starting listener for area:', centerX, centerY, 'radius:', radius);
+export function watchShipsInView(centerX, centerY, radius, onShipsUpdate, mapId = null) {
+    console.log('[WatchShipsInView] Starting listener for area:', centerX, centerY, 'radius:', radius, 'mapId:', mapId);
 
     if (shipsInViewListener) {
         shipsInViewListener();
@@ -664,8 +665,9 @@ export function watchShipsInView(centerX, centerY, radius, onShipsUpdate) {
     }
 
     const shipsRef = collection(firestore, 'ships');
+    const mapFilter = mapId ? where('mapId', '==', mapId) : null;
 
-    shipsInViewListener = onSnapshot(shipsRef, (snapshot) => {
+    shipsInViewListener = onSnapshot(mapFilter ? query(shipsRef, mapFilter) : shipsRef, (snapshot) => {
         console.log('[WatchShipsInView] Snapshot received, total ships:', snapshot.size);
 
         const shipsInView = [];

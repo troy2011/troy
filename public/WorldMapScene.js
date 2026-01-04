@@ -2686,6 +2686,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 playFabId: this.playerInfo.playFabId,
                 displayName: window.myLineProfile?.displayName || 'Unknown',
                 race: this.playerInfo.race || 'human',
+                mapId: this.mapId || null,
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
                 currentX: currentX,
@@ -2737,6 +2738,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 playFabId: this.playerInfo.playFabId,
                 displayName: window.myLineProfile?.displayName || 'Unknown',
                 race: this.playerInfo.race || 'human',
+                mapId: this.mapId || null,
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
                 currentX: currentX,
@@ -2920,6 +2922,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 displayName: window.myLineProfile?.displayName || 'Unknown',
                 race: this.playerInfo.race || 'human',
                 nation: this.playerInfo.nation || this.playerInfo.Nation || null,
+                mapId: this.mapId || null,
                 guildId: this.getMyGuildId(),
                 currentX: currentX,
                 currentY: currentY,
@@ -3201,19 +3204,24 @@ export default class WorldMapScene extends Phaser.Scene {
         this.teardownShipGeoSubscriptions();
 
         try {
-            const { collection, onSnapshot, query, orderBy, startAt, endAt } = await import('firebase/firestore');
+            const { collection, onSnapshot, query, orderBy, startAt, endAt, where } = await import('firebase/firestore');
             const radiusTiles = this.shipVisionRange / this.gridSize;
             const radiusMeters = radiusTiles * this.metersPerTile;
             const centerGeo = this.worldToLatLng(center);
             const bounds = geohashQueryBounds([centerGeo.lat, centerGeo.lng], radiusMeters);
+            const mapId = this.mapId || null;
 
             bounds.forEach((b) => {
-                const q = query(
+                const constraints = [
                     collection(this.firestore, 'ships'),
                     orderBy('geohash'),
                     startAt(b[0]),
                     endAt(b[1])
-                );
+                ];
+                if (mapId) {
+                    constraints.splice(1, 0, where('mapId', '==', mapId));
+                }
+                const q = query(...constraints);
 
                 const unsub = onSnapshot(q, (snapshot) => {
                     snapshot.docChanges().forEach((change) => {
