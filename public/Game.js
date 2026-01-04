@@ -37,7 +37,7 @@ export const launchGame = (containerId, playerInfo = null) => {
                 debug: false,
                 // 物理エンジンの世界境界をマップサイズに合わせる
                 world: {
-                    bounds: { x: 0, y: 0, width: 800, height: 800 }
+                    bounds: { x: 0, y: 0, width: 3200, height: 3200 }
                 }
             }
         },

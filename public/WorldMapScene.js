@@ -10,7 +10,7 @@ import * as Ship from './js/ship.js';
 
 const GAME_CONFIG = {
     GRID_SIZE: 32,
-    MAP_TILE_SIZE: 25,
+    MAP_TILE_SIZE: 100,
     METERS_PER_TILE: 100,
 
     SHIP_VISION_RANGE: 300,
@@ -81,10 +81,11 @@ const AREA_CAPTURE_MS = 5 * 60 * 1000;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 
 const NATION_BOUNDS = {
-    earth: { minX: 0, maxX: 24, minY: 0, maxY: 24 },
-    wind: { minX: 0, maxX: 24, minY: 0, maxY: 24 },
-    fire: { minX: 0, maxX: 24, minY: 0, maxY: 24 },
-    water: { minX: 0, maxX: 24, minY: 0, maxY: 24 }
+    earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+    wind: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+    fire: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+    water: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
+    neutral: { minX: 0, maxX: 99, minY: 0, maxY: 99 }
 };
 
 const NATION_COLORS = {
