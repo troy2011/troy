@@ -1187,6 +1187,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         buildingSprites.push(buildingSprite);
                     }
 
+                    const ownerNation = data.ownerNation || data.ownerRace;
                     const maxHp = Number.isFinite(Number(building.maxHp))
                         ? Number(building.maxHp)
                         : Math.max(1, bWidth * bHeight * 100);
