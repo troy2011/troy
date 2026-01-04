@@ -396,7 +396,8 @@ export default class WorldMapScene extends Phaser.Scene {
             };
             const panels = [
                 document.getElementById('islandCommandPanel'),
-                document.getElementById('mapChatArea')
+                document.getElementById('mapChatArea'),
+                document.getElementById('mapSelectModal')
             ];
             panels.forEach((panel) => {
                 if (!panel || panel.dataset.phaserBlockerInstalled) return;
@@ -412,6 +413,10 @@ export default class WorldMapScene extends Phaser.Scene {
 
         seaBackground.on('pointerup', (pointer) => {
             if (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active')) return;
+            if (typeof document !== 'undefined') {
+                const modal = document.getElementById('mapSelectModal');
+                if (modal && modal.style.display !== 'none') return;
+            }
             if (this.commandMenuOpen) {
                 this.hideCommandMenu();
             }
