@@ -222,6 +222,17 @@ export function escapeHtml(str) {
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     const currentActiveTab = document.querySelector('.nav-button.active');
+    const mapLoadLabel = tabId === 'map' ? `[showTab][map] ${Date.now()}` : null;
+    if (mapLoadLabel) {
+        console.time(mapLoadLabel);
+        console.log('[showTab][map] state', {
+            tabLoaded: tabLoaded.map,
+            hasGame: !!gameInstance,
+            currentMapId: window.__currentMapId || null,
+            mapId: options.mapId || null,
+            skipMapSelect: !!options.skipMapSelect
+        });
+    }
 
     const mapSelectOptions = {
         skipMapSelect: !!options.skipMapSelect,
@@ -250,11 +261,13 @@ export async function showTab(tabId, playerInfo, options = {}) {
             if (areaId) {
                 const label = AREA_LABEL_BY_ID[areaId] || areaId;
                 await showTab('map', playerInfo, { skipMapSelect: true, mapId: areaId, mapLabel: `${label}の国マップ` });
+                if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                 return;
             }
         }
         if (currentActiveTab && currentActiveTab.id === 'navMap') {
             showMapSelectModal(playerInfo);
+            if (mapLoadLabel) console.timeEnd(mapLoadLabel);
             return;
         }
     }
@@ -363,10 +376,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         window.__currentMapId = mapSelectOptions.mapId;
                         window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
                     }
-                    if (gameInstance) {
-                        tabLoaded[tabId] = true;
-                        // ゲームが既に存在する場合は、リサイズして再表示
-                        await new Promise(resolve => requestAnimationFrame(resolve));
+                        if (gameInstance) {
+                            tabLoaded[tabId] = true;
+                            // ゲームが既に存在する場合は、リサイズして再表示
+                            await new Promise(resolve => requestAnimationFrame(resolve));
                         const container = document.getElementById('phaser-container');
                         if (container && gameInstance.scale) {
                             gameInstance.scale.resize(container.clientWidth, container.clientHeight);
@@ -384,6 +397,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                                 scene.setMapReady(true);
                             }
                         }
+                        if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                         return; // Don't launch twice
                     }
                     // コンテナのサイズが確定するまで待機
@@ -396,6 +410,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
                     if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
                         console.error('[Phaser] Container still has zero dimensions after waiting.');
+                        if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                         break;
                     }
 
@@ -411,6 +426,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     if (gameInstance) {
                         Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
                     }
+                    if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                     break;
                 }
             }
@@ -440,6 +456,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
     } catch (error) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
     }
+    if (mapLoadLabel) console.timeEnd(mapLoadLabel);
 }
 
 export function showConfirmationModal(amount, receiverId, onConfirm) {
