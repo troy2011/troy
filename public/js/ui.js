@@ -411,6 +411,27 @@ export async function showTab(tabId, playerInfo, options = {}) {
             }
             tabLoaded[tabId] = true;
         }
+
+        if (tabId === 'map' && gameInstance) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            const container = document.getElementById('phaser-container');
+            if (container && gameInstance.scale) {
+                gameInstance.scale.resize(container.clientWidth, container.clientHeight);
+            }
+            const scene = gameInstance.scene?.getScene('WorldMapScene');
+            if (scene && scene.scene) {
+                if (scene.scene.isSleeping()) {
+                    scene.scene.wake();
+                } else if (scene.scene.isPaused()) {
+                    scene.scene.resume();
+                } else if (!scene.scene.isActive()) {
+                    scene.scene.start();
+                }
+                if (typeof scene.setMapReady === 'function' && scene.islandObjects?.size) {
+                    scene.setMapReady(true);
+                }
+            }
+        }
     } catch (error) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
     }
