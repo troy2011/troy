@@ -628,6 +628,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         size: data.size || 'small',
                         ownerNation: data.ownerNation || data.ownerRace,
                         ownerId: data.ownerId,
+                        nation: data.nation || null,
                         occupationStatus: data.occupationStatus || null,
                         biome: data.biome,
                         biomeFrame: data.biomeFrame,
