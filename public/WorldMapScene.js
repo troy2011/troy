@@ -76,7 +76,7 @@ const ISLAND_LAYOUTS = {
 };
 
 const BUILDING_META_DEFAULT = { nationTileOffset: false };
-const AREA_GRID_SIZE = 10;
+const AREA_GRID_SIZE = 5;
 const AREA_CAPTURE_MS = 5 * 60 * 1000;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 
@@ -628,6 +628,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         size: data.size || 'small',
                         ownerNation: data.ownerNation || data.ownerRace,
                         ownerId: data.ownerId,
+                        occupationStatus: data.occupationStatus || null,
                         biome: data.biome,
                         biomeFrame: data.biomeFrame,
                         buildingSlots: data.buildingSlots,
@@ -896,37 +897,31 @@ export default class WorldMapScene extends Phaser.Scene {
     drawOwnedAreasOnMinimap() {
         if (!this.minimapTexture || !this.minimapConfig) return;
         const minimapSize = this.minimapConfig.size;
-        const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
-        const cellPx = minimapSize / gridCells;
-
         this.minimapTexture.clear();
 
         const graphics = this.add.graphics();
-        Object.entries(NATION_BOUNDS).forEach(([nation, bounds]) => {
-            const color = NATION_COLORS[nation] ?? 0xffffff;
-            graphics.fillStyle(color, 0.25);
-            const gxStart = Math.floor(bounds.minX / AREA_GRID_SIZE);
-            const gxEnd = Math.floor(bounds.maxX / AREA_GRID_SIZE);
-            const gyStart = Math.floor(bounds.minY / AREA_GRID_SIZE);
-            const gyEnd = Math.floor(bounds.maxY / AREA_GRID_SIZE);
-            for (let gx = gxStart; gx <= gxEnd; gx++) {
-                for (let gy = gyStart; gy <= gyEnd; gy++) {
-                    graphics.fillRect(gx * cellPx, gy * cellPx, cellPx, cellPx);
-                }
+        const myId = this.playerInfo?.playFabId || null;
+        const scale = this.minimapConfig.scale;
+        const ownedColor = 0x4cc9f0;
+        const capitalColor = 0xffd166;
+        const dotSize = 3;
+        const capitalSize = 4;
+        this.islandObjects.forEach((island) => {
+            if (!island) return;
+            const centerX = island.x + (island.width / 2);
+            const centerY = island.y + (island.height / 2);
+            const mx = centerX * scale;
+            const my = centerY * scale;
+            if (island.occupationStatus === 'capital') {
+                graphics.fillStyle(capitalColor, 0.9);
+                graphics.fillRect(mx - capitalSize / 2, my - capitalSize / 2, capitalSize, capitalSize);
+                return;
+            }
+            if (myId && island.ownerId === myId) {
+                graphics.fillStyle(ownedColor, 0.85);
+                graphics.fillRect(mx - dotSize / 2, my - dotSize / 2, dotSize, dotSize);
             }
         });
-
-        if (this.guildAreas && this.guildAreas.size > 0) {
-            const guildColor = NATION_COLORS[this.getNationKey()] ?? 0xffffff;
-            graphics.fillStyle(guildColor, 0.45);
-            this.guildAreas.forEach((key) => {
-                const parts = String(key).split(',');
-                const gx = Number(parts[0]);
-                const gy = Number(parts[1]);
-                if (!Number.isFinite(gx) || !Number.isFinite(gy)) return;
-                graphics.fillRect(gx * cellPx, gy * cellPx, cellPx, cellPx);
-            });
-        }
 
         this.minimapTexture.draw(graphics, 0, 0);
         graphics.destroy();
@@ -1377,6 +1372,7 @@ export default class WorldMapScene extends Phaser.Scene {
             type: data.type,
             ownerNation: ownerNation,
             ownerId: data.ownerId,
+            occupationStatus: data.occupationStatus || null,
             sprites: islandSprites,
             buildingSprites: buildingSprites,
             nameText: nameText,
