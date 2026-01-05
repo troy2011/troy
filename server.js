@@ -128,9 +128,43 @@ function getAvatarColorForNation(nation) {
 
 let _titleEntityTokenReady = false;
 async function ensureTitleEntityToken() {
-    if (_titleEntityTokenReady) return;
-    await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+    if (_titleEntityTokenReady && PlayFab._internalSettings?.entityToken) return;
+    const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+    const entityToken = tokenResult?.EntityToken || tokenResult?.EntityToken?.EntityToken || null;
+    if (entityToken && PlayFab?._internalSettings) {
+        PlayFab._internalSettings.entityToken = entityToken;
+    }
     _titleEntityTokenReady = true;
+}
+
+async function ensureNationGroupExists(firestore, mapping) {
+    const docRef = await getNationGroupDoc(firestore, mapping.groupName);
+    const docSnap = await docRef.get();
+    if (docSnap.exists && docSnap.data()?.groupId) {
+        return {
+            groupId: docSnap.data().groupId,
+            groupName: mapping.groupName,
+            created: false
+        };
+    }
+
+    await ensureTitleEntityToken();
+    const createResult = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
+        GroupName: mapping.groupName
+    });
+    const groupId = createResult?.Group?.Id || null;
+    if (!groupId) {
+        throw new Error('CreateGroup did not return group id');
+    }
+
+    await docRef.set({
+        groupId,
+        groupName: mapping.groupName,
+        nation: mapping.island,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { groupId, groupName: mapping.groupName, created: true };
 }
 
 async function getNationGroupDoc(firestore, groupName) {
@@ -693,6 +727,27 @@ app.post('/api/get-owned-islands', async (req, res) => {
     }
 });
 
+app.post('/api/ensure-nation-group', async (req, res) => {
+    const { raceName } = req.body || {};
+    if (!raceName) return res.status(400).json({ error: 'raceName is required' });
+
+    const mapping = NATION_GROUP_BY_RACE[raceName];
+    if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
+
+    try {
+        const firestore = admin.firestore();
+        const result = await ensureNationGroupExists(firestore, mapping);
+        return res.json({
+            groupName: mapping.groupName,
+            groupId: result.groupId,
+            created: result.created
+        });
+    } catch (error) {
+        console.error('[ensure-nation-group] Error:', error.errorMessage || error.message || error);
+        return res.status(500).json({ error: 'Failed to ensure nation group', details: error.errorMessage || error.message || String(error) });
+    }
+});
+
 app.post('/api/king-exile', async (req, res) => {
     const { playFabId, targetPlayFabId } = req.body || {};
     if (!playFabId || !targetPlayFabId) {
@@ -894,7 +949,7 @@ app.post('/api/donate-nation-currency', async (req, res) => {
 });
 
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, nationGroupId, entityToken, displayName, isKing: isKingRequest } = req.body || {};
+        const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -932,38 +987,43 @@ app.post('/api/set-race', async (req, res) => {
         const mapping = NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const firestore = admin.firestore();
-        const docRef = await getNationGroupDoc(firestore, mapping.groupName);
-        const docSnap = await docRef.get();
-        const storedGroupId = docSnap.exists && docSnap.data() ? docSnap.data().groupId : null;
-        if (storedGroupId && nationGroupId && storedGroupId !== nationGroupId) {
-            return res.status(409).json({ error: 'Nation group mismatch' });
+        const groupInfo = await ensureNationGroupExists(firestore, mapping);
+        const playerEntity = await getPlayerEntity(playFabId);
+        if (!playerEntity) {
+            return res.status(400).json({ error: 'Failed to resolve player entity' });
         }
 
-        await ensureTitleEntityToken();
-        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, { EntityToken: entityToken });
-        const playerEntity = validate && validate.Entity ? validate.Entity : null;
-        if (!playerEntity || !playerEntity.Id || !playerEntity.Type) {
-            return res.status(400).json({ error: 'Invalid entity token' });
-        }
+        const assignedGroupId = groupInfo.groupId;
+        const assignedGroupName = groupInfo.groupName;
+        const assignedNation = mapping.island;
+        const isKing = !!isKingRequest || !!groupInfo.created;
 
-        let assignedGroupId = nationGroupId || storedGroupId || null;
-        let assignedGroupName = mapping.groupName;
-        let assignedNation = mapping.island;
-        let isKing = !!isKingRequest;
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         try {
-            if (!assignedGroupId) {
-                return res.status(400).json({ error: 'nationGroupId is required' });
+            const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['NationGroupId']
+            });
+            const prevGroupId = ro?.Data?.NationGroupId?.Value || null;
+            if (prevGroupId && prevGroupId !== assignedGroupId) {
+                try {
+                    await ensureTitleEntityToken();
+                    await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                        Group: { Id: prevGroupId, Type: 'group' },
+                        Members: [playerEntity]
+                    });
+                } catch (e) {
+                    console.warn('[set-race] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+                }
             }
-            if (!storedGroupId || storedGroupId !== assignedGroupId) {
-                await docRef.set({
-                    groupId: assignedGroupId,
-                    groupName: assignedGroupName,
-                    nation: assignedNation,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            }
+
+            await ensureTitleEntityToken();
+            await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                Group: { Id: assignedGroupId, Type: 'group' },
+                Members: [playerEntity]
+            });
+
             if (isKing) {
+                const docRef = await getNationGroupDoc(firestore, mapping.groupName);
                 await docRef.set({
                     kingPlayFabId: playFabId,
                     kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()

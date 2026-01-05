@@ -323,64 +323,11 @@ async function initializeAppFeatures() {
 async function ensureNationGroupForRace(raceName) {
     const mapping = NATION_GROUP_BY_RACE[raceName];
     if (!mapping) throw new Error('Invalid raceName');
-
-    if (!getPlayFabGroupsApi()) {
-        await loadPlayFabGroupsSdk();
-    }
-
-    const info = await callApiWithLoader('/api/get-nation-group', { raceName }, { isSilent: true });
+    const info = await callApiWithLoader('/api/ensure-nation-group', { raceName }, { isSilent: true });
     if (info && info.groupId) {
-        return { groupId: info.groupId, groupName: mapping.groupName, created: false };
+        return { groupId: info.groupId, groupName: mapping.groupName, created: !!info.created };
     }
-
-    const groupsApi = getPlayFabGroupsApi();
-    if (!groupsApi) {
-        throw new Error('PlayFabGroups SDK not loaded');
-    }
-
-    try {
-        const created = await promisifyPlayFab(groupsApi.CreateGroup, { GroupName: mapping.groupName });
-        const groupId = created?.Group?.Id || null;
-        if (!groupId) throw new Error('CreateGroup did not return group id');
-        return { groupId, groupName: mapping.groupName, created: true };
-    } catch (e) {
-        const retry = await callApiWithLoader('/api/get-nation-group', { raceName }, { isSilent: true });
-        if (retry && retry.groupId) {
-            return { groupId: retry.groupId, groupName: mapping.groupName, created: false };
-        }
-        throw e;
-    }
-}
-
-function getPlayFabGroupsApi() {
-    if (typeof PlayFabGroupsSDK !== 'undefined') return PlayFabGroupsSDK;
-    if (typeof PlayFab !== 'undefined' && PlayFab.GroupsApi) return PlayFab.GroupsApi;
-    return null;
-}
-
-let _playFabGroupsLoading = null;
-async function loadPlayFabGroupsSdk() {
-    if (getPlayFabGroupsApi()) return;
-    if (_playFabGroupsLoading) return _playFabGroupsLoading;
-
-    _playFabGroupsLoading = new Promise((resolve, reject) => {
-        const existing = document.querySelector('script[data-playfab-groups]');
-        if (existing) {
-            existing.addEventListener('load', () => resolve(), { once: true });
-            existing.addEventListener('error', () => reject(new Error('Failed to load PlayFabGroups SDK')), { once: true });
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://download.playfab.com/PlayFabGroupsApi.js?ts=' + Date.now();
-        script.async = true;
-        script.dataset.playfabGroups = '1';
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load PlayFabGroups SDK'));
-        document.head.appendChild(script);
-    });
-
-    return _playFabGroupsLoading;
+    throw new Error('Failed to ensure nation group');
 }
 
 function showRaceModal() {
@@ -398,14 +345,11 @@ function showRaceModal() {
         const raceName = event.target.dataset.race;
         document.getElementById('raceMessage').innerText = '（初期ステータスを設定中...）';
         const groupInfo = await ensureNationGroupForRace(raceName);
-        if (!window.myEntityToken) throw new Error('Entity token not available');
         const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
         const data = await callApiWithLoader('/api/set-race', {
             playFabId: myPlayFabId,
             raceName: raceName,
-            nationGroupId: groupInfo.groupId,
             isKing: !!groupInfo.created,
-            entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || ''
         });
         if (data !== null) {
