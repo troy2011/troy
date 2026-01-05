@@ -221,6 +221,7 @@ export function escapeHtml(str) {
 
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
+    const currentActiveTab = document.querySelector('.nav-button.active');
 
     const mapSelectOptions = {
         skipMapSelect: !!options.skipMapSelect,
@@ -244,12 +245,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
         window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
     }
     if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
-        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
-        const mapContentEl = document.getElementById('tabContentMap');
-        if (mapContentEl) mapContentEl.style.display = 'block';
-        const mapNavEl = document.getElementById('navMap');
-        if (mapNavEl) mapNavEl.classList.add('active');
         if (!window.__currentMapId && playerInfo?.nation) {
             const areaId = AREA_BY_NATION[String(playerInfo.nation).toLowerCase()];
             if (areaId) {
@@ -258,8 +253,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 return;
             }
         }
-        showMapSelectModal(playerInfo);
-        return;
+        if (currentActiveTab && currentActiveTab.id === 'navMap') {
+            showMapSelectModal(playerInfo);
+            return;
+        }
     }
     if (tabId === 'map' && tabLoaded.map && !gameInstance) {
         tabLoaded.map = false;
@@ -283,7 +280,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
     }
 
     // 船タブから離れる場合はリスナーをクリーンアップ
-    const currentActiveTab = document.querySelector('.nav-button.active');
     if (currentActiveTab && currentActiveTab.id === 'navShips' && tabId !== 'ships') {
         console.log('[showTab] Leaving ships tab, cleaning up listeners');
         Ship.cleanupShipListeners();
