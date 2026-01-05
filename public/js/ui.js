@@ -255,6 +255,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
         showMapSelectModal(playerInfo);
         return;
     }
+    if (tabId === 'map' && tabLoaded.map && !gameInstance) {
+        tabLoaded.map = false;
+    }
 
     const showKingAnnouncementOnMap = async () => {
         if (!playerInfo?.playFabId) return;
