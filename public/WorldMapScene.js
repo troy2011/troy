@@ -604,6 +604,22 @@ export default class WorldMapScene extends Phaser.Scene {
                         return;
                     }
 
+                    if (data.type === 'obstacle') {
+                        this.createObstacle({
+                            id: docSnapshot.id,
+                            x: data.coordinate.x * this.gridSize,
+                            y: data.coordinate.y * this.gridSize,
+                            name: data.name || '障害物',
+                            width: data.width || 1,
+                            height: data.height || 1,
+                            visualWidth: data.visualWidth || data.width || 1,
+                            visualHeight: data.visualHeight || data.height || 1,
+                            tileIndex: Number.isFinite(Number(data.tileIndex)) ? Number(data.tileIndex) : 133
+                        });
+                        loadedCount++;
+                        return;
+                    }
+
                     this.createIsland({
                         id: docSnapshot.id,
                         x: data.coordinate.x * this.gridSize,
@@ -647,6 +663,52 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         this.setMapReady(true);
+    }
+
+    createObstacle(data) {
+        const logicW = Math.max(1, Number(data.width) || 1);
+        const logicH = Math.max(1, Number(data.height) || 1);
+        const visualW = Math.max(1, Number(data.visualWidth) || logicW);
+        const visualH = Math.max(1, Number(data.visualHeight) || logicH);
+        const tileIndex = Number.isFinite(Number(data.tileIndex)) ? Number(data.tileIndex) : 133;
+
+        const obstacleSprites = [];
+        const sheetCols = 32;
+        const baseX = data.x;
+        const baseY = data.y + (logicH * this.TILE_SIZE);
+
+        for (let dy = 0; dy < visualH; dy++) {
+            for (let dx = 0; dx < visualW; dx++) {
+                const frameIndex = tileIndex + dx - (dy * sheetCols);
+                const tileX = data.x + (dx * this.TILE_SIZE);
+                const tileY = baseY - (dy * this.TILE_SIZE);
+                const tileSprite = this.add.sprite(tileX, tileY, 'building_tiles', frameIndex).setOrigin(0, 1);
+                tileSprite.setDepth(GAME_CONFIG.DEPTH.BUILDING);
+                this.ignoreOnUiCamera(tileSprite);
+                obstacleSprites.push(tileSprite);
+            }
+        }
+
+        const collider = this.add.zone(data.x, data.y, logicW * this.TILE_SIZE, logicH * this.TILE_SIZE).setOrigin(0, 0);
+        this.physics.add.existing(collider, true);
+
+        if (this.playerShip) {
+            this.physics.add.collider(this.playerShip, collider, () => {
+                if (this.shipMoving) {
+                    this.shipMoving = false;
+                    this.playerShip.body.setVelocity(0, 0);
+                    if (this.shipTween) this.shipTween.stop();
+                    if (this.shipArrivalTimer) this.shipArrivalTimer.remove();
+                    this.stopShipAnimation();
+                    this.updateMyShipStoppedPosition();
+                }
+            });
+        }
+
+        this.ignoreOnUiCamera(collider);
+        collider.setDepth(GAME_CONFIG.DEPTH.BUILDING - 1);
+        if (!this.obstacleObjects) this.obstacleObjects = new Map();
+        this.obstacleObjects.set(data.id, { sprites: obstacleSprites, collider: collider });
     }
 
     /**

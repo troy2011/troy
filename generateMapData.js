@@ -50,6 +50,14 @@ const NON_RESOURCE_BIOME_BY_FACTION = {
 
 const MAP_SIZE = { width: 100, height: 100 };
 const RESOURCE_CHANCE = 0.35;
+const OBSTACLE_TILE_INDEX = 133;
+const OBSTACLE_TYPES = ['岩礁', '渦潮', '氷塊', '竜の爪', '棘山', 'クレーター'];
+const OBSTACLE_SIZES = [
+    { w: 1, h: 1 },
+    { w: 1, h: 2 },
+    { w: 2, h: 2 }
+];
+const DEFAULT_OBSTACLE_COUNT = 10;
 
 const getArcanaName = (number) => {
     const entry = MAJOR_ARCANA.find((item) => item.number === number);
@@ -92,6 +100,19 @@ const placeAtCenter = (sizeKey) => {
 
 const placeRandom = (sizeKey, occupied) => {
     const size = SIZE_BY_KEY[sizeKey] || SIZE_BY_KEY.small;
+    const maxX = MAP_SIZE.width - size.w;
+    const maxY = MAP_SIZE.height - size.h;
+    for (let i = 0; i < 200; i += 1) {
+        const x = Math.floor(Math.random() * (maxX + 1));
+        const y = Math.floor(Math.random() * (maxY + 1));
+        const rect = { x, y, w: size.w, h: size.h };
+        if (canPlace(occupied, rect)) return rect;
+    }
+    return null;
+};
+
+const placeRandomRect = (rectSize, occupied) => {
+    const size = rectSize || { w: 1, h: 1 };
     const maxX = MAP_SIZE.width - size.w;
     const maxY = MAP_SIZE.height - size.h;
     for (let i = 0; i < 200; i += 1) {
@@ -157,6 +178,7 @@ function generateMapData(options = {}) {
     const occupied = [];
     const islands = [];
     let index = 0;
+    let obstacleIndex = 0;
 
     if (mapType === 'nation') {
         if (faction !== 'neutral' && mapId !== 'joker') {
@@ -232,6 +254,33 @@ function generateMapData(options = {}) {
     addRandomIslands('small', counts.small || 0);
     addRandomIslands('large', counts.large || 0);
     addRandomIslands('giant', counts.giant || 0);
+
+    if (mapType === 'major') {
+        const obstacleCount = Number.isFinite(Number(options.obstacleCount))
+            ? Number(options.obstacleCount)
+            : DEFAULT_OBSTACLE_COUNT;
+        for (let i = 0; i < obstacleCount; i += 1) {
+            const sizeSpec = OBSTACLE_SIZES[Math.floor(Math.random() * OBSTACLE_SIZES.length)];
+            const rect = placeRandomRect(sizeSpec, occupied);
+            if (!rect) continue;
+            registerOccupied(occupied, rect);
+            const typeLabel = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+            obstacleIndex += 1;
+            islands.push({
+                id: `${mapId}_obstacle_${String(obstacleIndex).padStart(3, '0')}`,
+                type: 'obstacle',
+                name: typeLabel,
+                coordinate: { x: rect.x, y: rect.y },
+                size: 'obstacle',
+                width: sizeSpec.w,
+                height: sizeSpec.h,
+                visualWidth: sizeSpec.w,
+                visualHeight: sizeSpec.h,
+                tileIndex: OBSTACLE_TILE_INDEX,
+                obstacleType: typeLabel
+            });
+        }
+    }
 
     return islands;
 }
