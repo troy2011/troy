@@ -22,6 +22,7 @@ window.myLineProfile = null;
 window.myPlayFabId = null;
 window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire' };
 window.myEntityToken = null;
+window.myPlayFabLoginInfo = null;
 let playFabLoginInProgress = false;
 let playFabLoginDone = false;
 let playFabLoginPromise = null;
@@ -119,7 +120,18 @@ async function initializeLiff() {
                                 CustomId: myLineProfile.userId, CreateAccount: false
                             });
                             __perfLog('PlayFab ClientApi.LoginWithCustomID done');
-                            window.myEntityToken = pfLogin?.EntityToken?.EntityToken || PlayFab?._internalSettings?.entityToken || null;
+                            const entityKey = pfLogin?.EntityToken?.Entity || null;
+                            const entityToken = pfLogin?.EntityToken?.EntityToken || PlayFab?._internalSettings?.entityToken || null;
+                            const sessionTicket = pfLogin?.SessionTicket || null;
+                            window.myEntityToken = entityToken;
+                            window.myPlayFabLoginInfo = {
+                                playFabId: pfLogin?.PlayFabId || myPlayFabId || null,
+                                entityKey,
+                                entityToken,
+                                sessionTicket,
+                                newlyCreated: !!pfLogin?.NewlyCreated,
+                                settingsForUser: pfLogin?.SettingsForUser || null
+                            };
                             playFabLoginDone = true;
                             return pfLogin;
                         } finally {
@@ -345,12 +357,14 @@ function showRaceModal() {
         const raceName = event.target.dataset.race;
         document.getElementById('raceMessage').innerText = '（初期ステータスを設定中...）';
         const groupInfo = await ensureNationGroupForRace(raceName);
-        if (!window.myEntityToken) throw new Error('Entity token not available');
+        const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+        if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
         const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
         const data = await callApiWithLoader('/api/set-race', {
             playFabId: myPlayFabId,
             raceName: raceName,
             isKing: !!groupInfo.created,
+            entityKey,
             entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || ''
         });

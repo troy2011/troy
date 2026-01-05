@@ -1024,7 +1024,7 @@ app.post('/api/donate-nation-currency', async (req, res) => {
 });
 
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, displayName, isKing: isKingRequest, entityToken } = req.body || {};
+        const { playFabId, raceName, displayName, isKing: isKingRequest, entityKey } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -1063,7 +1063,7 @@ app.post('/api/set-race', async (req, res) => {
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const firestore = admin.firestore();
         const groupInfo = await ensureNationGroupExists(firestore, mapping);
-        const playerEntity = await getPlayerEntity(playFabId);
+        const playerEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
         if (!playerEntity) {
             return res.status(400).json({ error: 'Failed to resolve player entity' });
         }
@@ -1149,16 +1149,11 @@ app.post('/api/set-race', async (req, res) => {
                 .limit(1)
                 .get();
             if (existingIslands.empty) {
-                const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                    PlayFabId: playFabId,
-                    ProfileConstraints: { ShowDisplayName: true }
-                });
-                const displayName = profile?.PlayerProfile?.DisplayName || null;
                 starterIsland = await createStarterIsland({
                     playFabId,
                     raceName,
                     nationIsland: nationData.Nation,
-                    displayName
+                    displayName: displayName || null
                 });
             } else {
                 console.warn('[starterIsland] Skipped creation because starter island already exists');
