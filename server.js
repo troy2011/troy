@@ -1062,16 +1062,16 @@ app.post('/api/set-race', async (req, res) => {
         const mapping = NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const firestore = admin.firestore();
-        const groupInfo = await ensureNationGroupExists(firestore, mapping);
+        let groupInfo = await ensureNationGroupExists(firestore, mapping);
         const playerEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
         if (!playerEntity) {
             return res.status(400).json({ error: 'Failed to resolve player entity' });
         }
 
-        const assignedGroupId = groupInfo.groupId;
-        const assignedGroupName = groupInfo.groupName;
+        let assignedGroupId = groupInfo.groupId;
+        let assignedGroupName = groupInfo.groupName;
         const assignedNation = mapping.island;
-        const isKing = !!isKingRequest || !!groupInfo.created;
+        let isKing = !!isKingRequest || !!groupInfo.created;
 
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -1096,10 +1096,28 @@ app.post('/api/set-race', async (req, res) => {
             }
 
             await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: assignedGroupId, Type: 'group' },
-                Members: [playerEntity]
-            });
+            try {
+                await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                    Group: { Id: assignedGroupId, Type: 'group' },
+                    Members: [playerEntity]
+                });
+            } catch (addError) {
+                const msg = addError?.errorMessage || addError?.message || String(addError);
+                if (!String(msg).includes('No group profile found')) {
+                    throw addError;
+                }
+                console.warn('[set-race] Group missing, recreating:', assignedGroupId);
+                await getNationGroupDoc(firestore, mapping.groupName).delete().catch(() => {});
+                groupInfo = await ensureNationGroupExists(firestore, mapping);
+                assignedGroupId = groupInfo.groupId;
+                assignedGroupName = groupInfo.groupName;
+                isKing = !!isKingRequest || !!groupInfo.created;
+                await ensureTitleEntityToken();
+                await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                    Group: { Id: assignedGroupId, Type: 'group' },
+                    Members: [playerEntity]
+                });
+            }
 
             if (isKing) {
                 const docRef = await getNationGroupDoc(firestore, mapping.groupName);
