@@ -504,7 +504,14 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
 async function getPlayerEntityFromToken(entityToken) {
     if (!entityToken) return null;
     try {
-        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, { EntityToken: entityToken });
+        const prevToken = PlayFab?._internalSettings?.entityToken || null;
+        if (PlayFab?._internalSettings) {
+            PlayFab._internalSettings.entityToken = entityToken;
+        }
+        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, {});
+        if (PlayFab?._internalSettings) {
+            PlayFab._internalSettings.entityToken = prevToken;
+        }
         const entity = validate?.Entity || null;
         if (entity?.Id && entity?.Type) return { Id: entity.Id, Type: entity.Type };
     } catch (error) {
