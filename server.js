@@ -503,7 +503,14 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
 
 async function getPlayerEntity(playFabId) {
     if (!playFabId) return null;
-    return { Id: playFabId, Type: 'title_player_account' };
+    try {
+        const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, { PlayFabId: playFabId });
+        const entity = tokenResult?.Entity || null;
+        if (entity?.Id && entity?.Type) return { Id: entity.Id, Type: entity.Type };
+    } catch (error) {
+        console.warn('[getPlayerEntity] GetEntityToken failed:', error?.errorMessage || error?.message || error);
+    }
+    return null;
 }
 
 async function deleteOwnedIslands(firestore, playFabId) {
