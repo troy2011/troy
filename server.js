@@ -506,10 +506,10 @@ async function getPlayerEntity(playFabId) {
     try {
         const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
             PlayFabId: playFabId,
-            ProfileConstraints: { ShowDisplayName: true }
+            ProfileConstraints: { ShowDisplayName: true, ShowEntity: true }
         });
-        const entityId = profile?.PlayerProfile?.EntityId || null;
-        const entityType = profile?.PlayerProfile?.EntityType || null;
+        const entityId = profile?.PlayerProfile?.Entity?.Id || profile?.PlayerProfile?.EntityId || null;
+        const entityType = profile?.PlayerProfile?.Entity?.Type || profile?.PlayerProfile?.EntityType || null;
         if (entityId && entityType) return { Id: entityId, Type: entityType };
     } catch (error) {
         console.warn('[getPlayerEntity] GetPlayerProfile failed:', error?.errorMessage || error?.message || error);
