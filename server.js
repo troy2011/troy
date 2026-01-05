@@ -501,14 +501,14 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     return { created: true, islandId: docRef.id, name: islandName, respawnPosition };
 }
 
-async function getPlayerEntity(playFabId) {
-    if (!playFabId) return null;
+async function getPlayerEntityFromToken(entityToken) {
+    if (!entityToken) return null;
     try {
-        const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, { PlayFabId: playFabId });
-        const entity = tokenResult?.Entity || null;
+        const validate = await promisifyPlayFab(PlayFabAuthentication.ValidateEntityToken, { EntityToken: entityToken });
+        const entity = validate?.Entity || null;
         if (entity?.Id && entity?.Type) return { Id: entity.Id, Type: entity.Type };
     } catch (error) {
-        console.warn('[getPlayerEntity] GetEntityToken failed:', error?.errorMessage || error?.message || error);
+        console.warn('[getPlayerEntityFromToken] ValidateEntityToken failed:', error?.errorMessage || error?.message || error);
     }
     return null;
 }
@@ -1020,7 +1020,7 @@ app.post('/api/donate-nation-currency', async (req, res) => {
 });
 
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
+        const { playFabId, raceName, displayName, isKing: isKingRequest, entityToken } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -1059,7 +1059,7 @@ app.post('/api/set-race', async (req, res) => {
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const firestore = admin.firestore();
         const groupInfo = await ensureNationGroupExists(firestore, mapping);
-        const playerEntity = await getPlayerEntity(playFabId);
+        const playerEntity = await getPlayerEntityFromToken(entityToken);
         if (!playerEntity) {
             return res.status(400).json({ error: 'Failed to resolve player entity' });
         }

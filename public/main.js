@@ -345,11 +345,13 @@ function showRaceModal() {
         const raceName = event.target.dataset.race;
         document.getElementById('raceMessage').innerText = '（初期ステータスを設定中...）';
         const groupInfo = await ensureNationGroupForRace(raceName);
+        if (!window.myEntityToken) throw new Error('Entity token not available');
         const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
         const data = await callApiWithLoader('/api/set-race', {
             playFabId: myPlayFabId,
             raceName: raceName,
             isKing: !!groupInfo.created,
+            entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || ''
         });
         if (data !== null) {
