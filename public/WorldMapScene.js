@@ -76,7 +76,7 @@ const ISLAND_LAYOUTS = {
 };
 
 const BUILDING_META_DEFAULT = { nationTileOffset: false };
-const AREA_GRID_SIZE = 20;
+const AREA_GRID_SIZE = 10;
 const AREA_CAPTURE_MS = 5 * 60 * 1000;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 
