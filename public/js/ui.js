@@ -244,6 +244,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
         window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
     }
     if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
+        const mapContentEl = document.getElementById('tabContentMap');
+        if (mapContentEl) mapContentEl.style.display = 'block';
+        const mapNavEl = document.getElementById('navMap');
+        if (mapNavEl) mapNavEl.classList.add('active');
         if (!window.__currentMapId && playerInfo?.nation) {
             const areaId = AREA_BY_NATION[String(playerInfo.nation).toLowerCase()];
             if (areaId) {
