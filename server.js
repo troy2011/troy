@@ -1107,7 +1107,8 @@ app.post('/api/set-race', async (req, res) => {
                     throw addError;
                 }
                 console.warn('[set-race] Group missing, recreating:', assignedGroupId);
-                await getNationGroupDoc(firestore, mapping.groupName).delete().catch(() => {});
+                const staleRef = await getNationGroupDoc(firestore, mapping.groupName);
+                await staleRef.delete().catch(() => {});
                 groupInfo = await ensureNationGroupExists(firestore, mapping);
                 assignedGroupId = groupInfo.groupId;
                 assignedGroupName = groupInfo.groupName;
