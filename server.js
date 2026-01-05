@@ -126,6 +126,20 @@ function getAvatarColorForNation(nation) {
     return AVATAR_COLOR_BY_NATION[key] || null;
 }
 
+function getNationMappingByNation(nation) {
+    const key = String(nation || '').toLowerCase();
+    return NATION_GROUP_BY_NATION[key] || null;
+}
+
+async function getNationForPlayer(playFabId) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['Nation']
+    });
+    const nation = ro?.Data?.Nation?.Value || null;
+    return nation ? String(nation).toLowerCase() : null;
+}
+
 let _titleEntityTokenReady = false;
 async function ensureTitleEntityToken() {
     if (_titleEntityTokenReady && PlayFab._internalSettings?.entityToken) return;
@@ -774,36 +788,39 @@ app.post('/api/king-exile', async (req, res) => {
 
         const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['NationGroupId', 'NationGroupName', 'Nation', 'Race']
+            Keys: ['Nation', 'Race']
         });
-        const kingNationGroupId = kingRo?.Data?.NationGroupId?.Value || null;
-        if (!kingNationGroupId) return res.status(400).json({ error: 'King nation group not set' });
-
-        let targetNationIsland = await resolveNationIslandByGroupId(kingNationGroupId);
         const kingNation = String(kingRo?.Data?.Nation?.Value || '').toLowerCase();
-        const kingRace = kingRo?.Data?.Race?.Value || null;
-        if (!targetNationIsland && kingNation) targetNationIsland = kingNation;
-        const nationMapping = NATION_GROUP_BY_NATION[kingNation] || null;
-        const targetNationGroupName = kingRo?.Data?.NationGroupName?.Value || nationMapping?.groupName || null;
+        if (!kingNation) return res.status(400).json({ error: 'King nation not set' });
+        const nationMapping = getNationMappingByNation(kingNation);
+        if (!nationMapping) return res.status(400).json({ error: 'Invalid king nation' });
+        const groupInfo = await ensureNationGroupExists(firestore, nationMapping);
+        const kingNationGroupId = groupInfo.groupId;
+        const targetNationIsland = nationMapping.island;
+        const targetNationGroupName = nationMapping.groupName;
 
         const targetRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: targetPlayFabId,
-            Keys: ['Race', 'NationGroupId', 'Nation']
+            Keys: ['Race', 'Nation']
         });
         const targetRace = targetRo?.Data?.Race?.Value || null;
-        const targetPrevGroupId = targetRo?.Data?.NationGroupId?.Value || null;
+        const targetPrevNation = String(targetRo?.Data?.Nation?.Value || '').toLowerCase();
 
         const playerEntity = await getPlayerEntity(targetPlayFabId);
         if (!playerEntity) return res.status(400).json({ error: 'Failed to resolve target entity' });
 
-        if (targetPrevGroupId && targetPrevGroupId !== kingNationGroupId) {
-            try {
-                await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
-                    Group: { Id: targetPrevGroupId, Type: 'group' },
-                    Members: [playerEntity]
-                });
-            } catch (e) {
-                console.warn('[king-exile] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+        if (targetPrevNation && targetPrevNation !== kingNation) {
+            const prevMapping = getNationMappingByNation(targetPrevNation);
+            if (prevMapping) {
+                try {
+                    const prevGroup = await ensureNationGroupExists(firestore, prevMapping);
+                    await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                        Group: { Id: prevGroup.groupId, Type: 'group' },
+                        Members: [playerEntity]
+                    });
+                } catch (e) {
+                    console.warn('[king-exile] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+                }
             }
         }
 
@@ -910,13 +927,13 @@ app.post('/api/donate-nation-currency', async (req, res) => {
     }
 
     try {
-        const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: ['NationGroupId']
-        });
-        const nationGroupId = ro?.Data?.NationGroupId?.Value || null;
-        if (!nationGroupId) {
+        const nation = await getNationForPlayer(playFabId);
+        if (!nation) {
             return res.status(400).json({ error: 'Nation not set' });
+        }
+        const mapping = getNationMappingByNation(nation);
+        if (!mapping) {
+            return res.status(400).json({ error: 'Invalid nation' });
         }
 
         await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
@@ -925,14 +942,7 @@ app.post('/api/donate-nation-currency', async (req, res) => {
             Amount: value
         });
 
-        const snapshot = await firestore.collection('nation_groups')
-            .where('groupId', '==', nationGroupId)
-            .limit(1)
-            .get();
-        if (snapshot.empty) {
-            return res.status(404).json({ error: 'Nation group not found' });
-        }
-        const docRef = snapshot.docs[0].ref;
+        const docRef = await getNationGroupDoc(firestore, mapping.groupName);
         const field = `treasury.${String(currency).toUpperCase()}`;
         await docRef.set({
             treasury: {
@@ -1001,18 +1011,22 @@ app.post('/api/set-race', async (req, res) => {
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
-                Keys: ['NationGroupId']
+                Keys: ['Nation']
             });
-            const prevGroupId = ro?.Data?.NationGroupId?.Value || null;
-            if (prevGroupId && prevGroupId !== assignedGroupId) {
-                try {
-                    await ensureTitleEntityToken();
-                    await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
-                        Group: { Id: prevGroupId, Type: 'group' },
-                        Members: [playerEntity]
-                    });
-                } catch (e) {
-                    console.warn('[set-race] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+            const prevNation = String(ro?.Data?.Nation?.Value || '').toLowerCase();
+            if (prevNation && prevNation !== assignedNation) {
+                const prevMapping = getNationMappingByNation(prevNation);
+                if (prevMapping) {
+                    try {
+                        const prevGroup = await ensureNationGroupExists(firestore, prevMapping);
+                        await ensureTitleEntityToken();
+                        await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                            Group: { Id: prevGroup.groupId, Type: 'group' },
+                            Members: [playerEntity]
+                        });
+                    } catch (e) {
+                        console.warn('[set-race] RemoveMembers failed:', e?.errorMessage || e?.message || e);
+                    }
                 }
             }
 
@@ -2327,17 +2341,13 @@ app.post('/api/upgrade-island-level', async (req, res) => {
 
         const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Nation', 'Race', 'NationGroupId']
+            Keys: ['Nation', 'Race']
         });
-        const nationGroupId = userReadOnly?.Data?.NationGroupId?.Value || null;
         const nationValue = userReadOnly?.Data?.Nation?.Value || null;
         const raceName = userReadOnly?.Data?.Race?.Value || null;
-        if (!nationGroupId && !nationValue && !raceName) return res.status(400).json({ error: 'NationNotSet' });
+        if (!nationValue && !raceName) return res.status(400).json({ error: 'NationNotSet' });
 
-        let nationIsland = await resolveNationIslandByGroupId(nationGroupId);
-        if (!nationIsland && nationValue) {
-            nationIsland = String(nationValue).toLowerCase();
-        }
+        let nationIsland = nationValue ? String(nationValue).toLowerCase() : null;
         if (!nationIsland && raceName && NATION_GROUP_BY_RACE[raceName]) {
             nationIsland = NATION_GROUP_BY_RACE[raceName].island;
         }

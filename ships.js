@@ -109,7 +109,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     async function resolveRespawnPosition(playFabId) {
         const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['RespawnPosition', 'NationGroupId']
+            Keys: ['RespawnPosition', 'Nation', 'Race']
         });
 
         const rawRespawn = readOnly?.Data?.RespawnPosition?.Value;
@@ -126,21 +126,21 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
         }
 
-        const nationGroupId = String(readOnly?.Data?.NationGroupId?.Value || '').trim();
-        if (nationGroupId) {
-            const nationSnap = await db.collection('nation_groups').where('groupId', '==', nationGroupId).limit(1).get();
-            const nationData = nationSnap.empty ? null : nationSnap.docs[0].data();
-            const nationIsland = nationData?.nationIsland;
-            if (nationIsland) {
-                const islandSnap = await islandCollection.where('biome', '==', nationIsland).limit(1).get();
-                if (!islandSnap.empty) {
-                    const island = islandSnap.docs[0].data() || {};
-                    const coord = island.coordinate || {};
-                    const ix = Number(coord.x);
-                    const iy = Number(coord.y);
-                    if (Number.isFinite(ix) && Number.isFinite(iy)) {
-                        return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE };
-                    }
+        const nationValue = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        const raceValue = String(readOnly?.Data?.Race?.Value || '').trim();
+        let nationIsland = nationValue || null;
+        if (!nationIsland && raceValue && NATION_GROUP_BY_RACE[raceValue]) {
+            nationIsland = NATION_GROUP_BY_RACE[raceValue].island;
+        }
+        if (nationIsland) {
+            const islandSnap = await islandCollection.where('biome', '==', nationIsland).limit(1).get();
+            if (!islandSnap.empty) {
+                const island = islandSnap.docs[0].data() || {};
+                const coord = island.coordinate || {};
+                const ix = Number(coord.x);
+                const iy = Number(coord.y);
+                if (Number.isFinite(ix) && Number.isFinite(iy)) {
+                    return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE };
                 }
             }
         }
@@ -495,11 +495,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
 
             const [attackerNationResult, defenderNationResult] = await Promise.all([
-                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: attackerId, Keys: ['NationGroupId'] }),
-                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: defenderId, Keys: ['NationGroupId'] })
+                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: attackerId, Keys: ['Nation'] }),
+                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: defenderId, Keys: ['Nation'] })
             ]);
-            const attackerNation = String(attackerNationResult?.Data?.NationGroupId?.Value || '').trim();
-            const defenderNation = String(defenderNationResult?.Data?.NationGroupId?.Value || '').trim();
+            const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+            const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
             if (attackerNation && defenderNation && attackerNation === defenderNation) {
                 return res.json({ success: true, skipped: true, reason: 'same_nation' });
             }
@@ -585,9 +585,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         try {
             const attackerNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: attackerId,
-                Keys: ['NationGroupId']
+                Keys: ['Nation']
             });
-            const attackerNation = String(attackerNationResult?.Data?.NationGroupId?.Value || '').trim();
+            const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
 
             const results = [];
             for (const targetId of targets) {
@@ -595,9 +595,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
                 const defenderNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                     PlayFabId: targetId,
-                    Keys: ['NationGroupId']
+                    Keys: ['Nation']
                 });
-                const defenderNation = String(defenderNationResult?.Data?.NationGroupId?.Value || '').trim();
+                const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
                 if (attackerNation && defenderNation && attackerNation === defenderNation) {
                     results.push({ playFabId: targetId, skipped: true, reason: 'same_nation' });
                     continue;
