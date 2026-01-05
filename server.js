@@ -162,6 +162,27 @@ async function ensureNationGroupExists(firestore, mapping) {
         };
     }
 
+    const titleDataKey = 'NationGroupIds';
+    const titleData = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [titleDataKey] });
+    let titleGroupId = null;
+    if (titleData?.Data?.[titleDataKey]) {
+        try {
+            const parsed = JSON.parse(titleData.Data[titleDataKey]);
+            titleGroupId = parsed?.[mapping.groupName] || null;
+        } catch (e) {
+            console.warn('[ensureNationGroupExists] Failed to parse TitleData:', e?.message || e);
+        }
+    }
+    if (titleGroupId) {
+        await docRef.set({
+            groupId: titleGroupId,
+            groupName: mapping.groupName,
+            nation: mapping.island,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        return { groupId: titleGroupId, groupName: mapping.groupName, created: false };
+    }
+
     await ensureTitleEntityToken();
     const createResult = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
         GroupName: mapping.groupName
@@ -177,6 +198,18 @@ async function ensureNationGroupExists(firestore, mapping) {
         nation: mapping.island,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+
+    const newTitleMap = { [mapping.groupName]: groupId };
+    try {
+        const existing = titleData?.Data?.[titleDataKey] ? JSON.parse(titleData.Data[titleDataKey]) : {};
+        const merged = { ...existing, ...newTitleMap };
+        await promisifyPlayFab(PlayFabAdmin.SetTitleData, {
+            Key: titleDataKey,
+            Value: JSON.stringify(merged)
+        });
+    } catch (e) {
+        console.warn('[ensureNationGroupExists] Failed to update TitleData:', e?.message || e);
+    }
 
     return { groupId, groupName: mapping.groupName, created: true };
 }
@@ -469,15 +502,8 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
 }
 
 async function getPlayerEntity(playFabId) {
-    const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-        PlayFabId: playFabId,
-        ProfileConstraints: { ShowDisplayName: true }
-    });
-    const p = profile?.PlayerProfile || {};
-    const entityId = p.EntityId || p.EntityID || p.Entity?.Id || null;
-    const entityType = p.EntityType || p.Entity?.Type || 'title_player_account';
-    if (!entityId) return null;
-    return { Id: entityId, Type: entityType };
+    if (!playFabId) return null;
+    return { Id: playFabId, Type: 'title_player_account' };
 }
 
 async function deleteOwnedIslands(firestore, playFabId) {
@@ -750,7 +776,35 @@ app.post('/api/ensure-nation-group', async (req, res) => {
 
     try {
         const firestore = admin.firestore();
-        const result = await ensureNationGroupExists(firestore, mapping);
+        let result;
+        try {
+            result = await ensureNationGroupExists(firestore, mapping);
+        } catch (e) {
+            const msg = e?.errorMessage || e?.message || String(e);
+            if (String(msg).includes('group name is already in use')) {
+                const retry = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: ['NationGroupIds'] });
+                let retryGroupId = null;
+                try {
+                    const parsed = retry?.Data?.NationGroupIds ? JSON.parse(retry.Data.NationGroupIds) : {};
+                    retryGroupId = parsed?.[mapping.groupName] || null;
+                } catch (parseErr) {
+                    console.warn('[ensure-nation-group] Retry parse failed:', parseErr?.message || parseErr);
+                }
+                if (retryGroupId) {
+                    await getNationGroupDoc(firestore, mapping.groupName).set({
+                        groupId: retryGroupId,
+                        groupName: mapping.groupName,
+                        nation: mapping.island,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    result = { groupId: retryGroupId, groupName: mapping.groupName, created: false };
+                } else {
+                    throw e;
+                }
+            } else {
+                throw e;
+            }
+        }
         return res.json({
             groupName: mapping.groupName,
             groupId: result.groupId,
