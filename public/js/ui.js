@@ -286,6 +286,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
     if (currentActiveTab && currentActiveTab.id === 'navShips' && tabId !== 'ships') {
         console.log('[showTab] Leaving ships tab, cleaning up listeners');
         Ship.cleanupShipListeners();
+        tabLoaded.ships = false;
     }
 
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
