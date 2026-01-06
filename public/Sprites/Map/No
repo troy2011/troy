@@ -1,0 +1,108 @@
+GIMP 2.10.36 Python Console
+Python 2.7.18 (default, Jul  1 2023, 20:56:56)  [GCC 13.1.0 64 bit (AMD64)]
+>>> import gimpfu
+>>> 
+>>> def generate_numbered_grid():
+...     # 設定値
+...     img_size = 1024
+...     cell_size = 32
+...     font_size = 12
+...     font_name = "Sans" # フォントがない場合は適宜変更してください
+... 
+>>>     # 1. 新規画像を作成 (1024x1024)
+>>>     img = gimp.Image(img_size, img_size, RGB)
+  File "<input>", line 1
+    img = gimp.Image(img_size, img_size, RGB)
+    ^
+IndentationError: unexpected indent
+>>>     layer = gimp.Layer(img, "Background", img_size, img_size, RGB_IMAGE, 100, NORMAL_MODE)
+  File "<input>", line 1
+    layer = gimp.Layer(img, "Background", img_size, img_size, RGB_IMAGE, 100, NORMAL_MODE)
+    ^
+IndentationError: unexpected indent
+>>>     img.add_layer(layer, 0)
+  File "<input>", line 1
+    img.add_layer(layer, 0)
+    ^
+IndentationError: unexpected indent
+>>>     gimp.set_background( (255, 255, 255) ) # 背景：白
+  File "<input>", line 1
+    gimp.set_background( (255, 255, 255) ) # 背景：白
+    ^
+IndentationError: unexpected indent
+>>>     layer.fill(FILL_BACKGROUND)
+  File "<input>", line 1
+    layer.fill(FILL_BACKGROUND)
+    ^
+IndentationError: unexpected indent
+>>> 
+>>>     # 2. 数字とグリッドを描画
+>>>     # 前景色の設定（黒）
+>>>     gimp.set_foreground( (0, 0, 0) )
+  File "<input>", line 1
+    gimp.set_foreground( (0, 0, 0) )
+    ^
+IndentationError: unexpected indent
+>>> 
+>>>     count = 0
+  File "<input>", line 1
+    count = 0
+    ^
+IndentationError: unexpected indent
+>>>     for y in range(0, img_size, cell_size):
+  File "<input>", line 1
+    for y in range(0, img_size, cell_size):
+    ^
+IndentationError: unexpected indent
+>>>         for x in range(0, img_size, cell_size):
+  File "<input>", line 1
+    for x in range(0, img_size, cell_size):
+    ^
+IndentationError: unexpected indent
+>>>             # 数字のテキストレイヤーを作成
+>>>             text_layer = pdb.gimp_text_fontname(img, None, x + 2, y + 2, str(count), 0, True, font_size, PIXELS, font_name)
+  File "<input>", line 1
+    text_layer = pdb.gimp_text_fontname(img, None, x + 2, y + 2, str(count), 0, True, font_size, PIXELS, font_name)
+    ^
+IndentationError: unexpected indent
+>>>             # 枠線（補助）を描画したい場合はここで処理可能
+>>>             count += 1
+  File "<input>", line 1
+    count += 1
+    ^
+IndentationError: unexpected indent
+>>> 
+>>>     # 3. グリッド線を描画（画像の全レイヤーを統合してから実行）
+>>>     grid_layer = gimp.Layer(img, "Grid", img_size, img_size, RGBA_IMAGE, 100, NORMAL_MODE)
+  File "<input>", line 1
+    grid_layer = gimp.Layer(img, "Grid", img_size, img_size, RGBA_IMAGE, 100, NORMAL_MODE)
+    ^
+IndentationError: unexpected indent
+>>>     img.add_layer(grid_layer, 0)
+  File "<input>", line 1
+    img.add_layer(grid_layer, 0)
+    ^
+IndentationError: unexpected indent
+>>>     pdb.plug_in_grid(img, grid_layer, 1, cell_size, 0, (180, 180, 180, 255), 255, 1, cell_size, 0, (180, 180, 180, 255), 255, 0, 0, 0, (0, 0, 0, 255), 255)
+  File "<input>", line 1
+    pdb.plug_in_grid(img, grid_layer, 1, cell_size, 0, (180, 180, 180, 255), 255, 1, cell_size, 0, (180, 180, 180, 255), 255, 0, 0, 0, (0, 0, 0, 255), 255)
+    ^
+IndentationError: unexpected indent
+>>> 
+>>>     # 画像を表示
+>>>     gimp.Display(img)
+  File "<input>", line 1
+    gimp.Display(img)
+    ^
+IndentationError: unexpected indent
+>>>     gimp.displays_flush()
+  File "<input>", line 1
+    gimp.displays_flush()
+    ^
+IndentationError: unexpected indent
+>>> 
+>>> # 実行
+>>> generate_numbered_grid()
+>>> 
+>>> 
+>>> 

@@ -10,11 +10,18 @@ const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 
-const PlayFab = require('playfab-sdk/Scripts/PlayFab/PlayFab');
-const PlayFabServer = require('playfab-sdk/Scripts/PlayFab/PlayFabServer');
-const PlayFabAdmin = require('playfab-sdk/Scripts/PlayFab/PlayFabAdmin');
-const PlayFabAuthentication = require('playfab-sdk/Scripts/PlayFab/PlayFabAuthentication');
-const PlayFabGroups = require('playfab-sdk/Scripts/PlayFab/PlayFabGroups');
+const {
+    PlayFab,
+    PlayFabServer,
+    PlayFabAdmin,
+    PlayFabAuthentication,
+    PlayFabGroups,
+    configurePlayFab,
+    promisifyPlayFab,
+    ensureTitleEntityToken,
+    getGroupDataValue,
+    setGroupDataValues
+} = require('./server/playfab');
 
 const battleRoutes = require('./battle');
 const guildRoutes = require('./guild');
@@ -52,8 +59,10 @@ const firestore = admin.firestore();
 
 app.use(express.json());
 
-PlayFab.settings.titleId = process.env.PLAYFAB_TITLE_ID;
-PlayFab.settings.developerSecretKey = process.env.PLAYFAB_SECRET_KEY;
+configurePlayFab({
+    titleId: process.env.PLAYFAB_TITLE_ID,
+    secretKey: process.env.PLAYFAB_SECRET_KEY
+});
 
 const lineClient = new line.Client({
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
@@ -81,16 +90,6 @@ app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules', 'geofire-common', 'dist', 'geofire-common', 'index.esm.js'));
 });
 
-function promisifyPlayFab(apiFunction, request) {
-    return new Promise((resolve, reject) => {
-        apiFunction(request, (error, result) => {
-            if (error) return reject(error);
-            if (result && result.data) return resolve(result.data);
-            if (result) return resolve(result);
-            return reject(new Error('PlayFab call returned no error and no result.'));
-        });
-    });
-}
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PT';
@@ -140,16 +139,6 @@ async function getNationForPlayer(playFabId) {
     return nation ? String(nation).toLowerCase() : null;
 }
 
-let _titleEntityTokenReady = false;
-async function ensureTitleEntityToken() {
-    if (_titleEntityTokenReady && PlayFab._internalSettings?.entityToken) return;
-    const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
-    const entityToken = tokenResult?.EntityToken || tokenResult?.EntityToken?.EntityToken || null;
-    if (entityToken && PlayFab?._internalSettings) {
-        PlayFab._internalSettings.entityToken = entityToken;
-    }
-    _titleEntityTokenReady = true;
-}
 
 async function ensureNationGroupExists(firestore, mapping) {
     const docRef = await getNationGroupDoc(firestore, mapping.groupName);
@@ -241,25 +230,6 @@ async function getNationGroupIdByNation(nation) {
     return info?.groupId || null;
 }
 
-async function getGroupDataValue(groupId, key) {
-    if (!groupId || !key) return null;
-    await ensureTitleEntityToken();
-    const result = await promisifyPlayFab(PlayFabGroups.GetGroupData, {
-        Group: { Id: groupId, Type: 'group' }
-    });
-    const data = result?.Data || {};
-    const entry = data[key];
-    return entry && typeof entry.Value === 'string' ? entry.Value : null;
-}
-
-async function setGroupDataValues(groupId, values) {
-    if (!groupId) return null;
-    await ensureTitleEntityToken();
-    return promisifyPlayFab(PlayFabGroups.SetGroupData, {
-        Group: { Id: groupId, Type: 'group' },
-        Data: values
-    });
-}
 
 async function getNationTaxRateBps(nation) {
     const groupId = await getNationGroupIdByNation(nation);
