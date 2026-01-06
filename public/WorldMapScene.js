@@ -357,6 +357,12 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async create() {
         this.setMapReady(false);
+        if (this.cameras?.main) {
+            this.cameras.main.roundPixels = true;
+        }
+        if (this.uiCamera) {
+            this.uiCamera.roundPixels = true;
+        }
         if (!this.mapId && typeof window !== 'undefined') {
             this.mapId = window.__currentMapId || this.mapId;
         }

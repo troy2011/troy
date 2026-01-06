@@ -22,6 +22,10 @@ export const launchGame = (containerId, playerInfo = null) => {
         height: container.clientHeight, // コンテナの高さに合わせる
         parent: containerId, // Phaserを描画するHTML要素のID
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        pixelArt: true,
+        roundPixels: true,
+        antialias: false,
+        antialiasGL: false,
         backgroundColor: '#006994', // 海の色
         input: {
             activePointers: 3, // マルチタッチ対応（ピンチズーム用）
