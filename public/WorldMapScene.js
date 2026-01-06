@@ -342,6 +342,9 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     async create() {
+        const mapLabel = this.mapId || 'unknown';
+        const createLabel = `[WorldMapScene][create] ${mapLabel} ${Date.now()}`;
+        console.time(createLabel);
         this.setMapReady(false);
         if (!this.mapId && typeof window !== 'undefined') {
             this.mapId = window.__currentMapId || this.mapId;
@@ -586,6 +589,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 9. Firestore から島データを読み込む（world_map）
         try {
+            const islandsLabel = `[WorldMapScene][islands] ${mapLabel} ${Date.now()}`;
+            console.time(islandsLabel);
             const db = getFirestore();
             const querySnapshot = await getDocs(collection(db, this.getWorldMapCollectionName()));
 
@@ -642,6 +647,7 @@ export default class WorldMapScene extends Phaser.Scene {
             });
 
             console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
+            console.timeEnd(islandsLabel);
         } catch (error) {
             console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
             this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
@@ -651,7 +657,10 @@ export default class WorldMapScene extends Phaser.Scene {
         this.createMinimap();
 
         // 11. Firestore 初期化（ships同期など）
+        const firestoreLabel = `[WorldMapScene][firestore] ${mapLabel} ${Date.now()}`;
+        console.time(firestoreLabel);
         await this.initializeFirestore();
+        console.timeEnd(firestoreLabel);
 
         // UI camera should only render fog + minimap.
         if (this.uiCamera) {
@@ -665,6 +674,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         this.setMapReady(true);
+        console.timeEnd(createLabel);
     }
 
     createObstacle(data) {
