@@ -16,8 +16,9 @@ export async function loadGuildInfo(playFabId) {
     console.log('[Guild] Loading guild info for player:', playFabId);
 
     try {
+        const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
         // サーバーAPIを呼び出してギルド情報を取得
-        const data = await callApiWithLoader('/api/get-guild-info', { playFabId }, { isSilent: true });
+        const data = await callApiWithLoader('/api/get-guild-info', { playFabId, entityKey }, { isSilent: true });
 
         if (data && data.guild) {
             // ギルドに加入している場合

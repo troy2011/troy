@@ -101,7 +101,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     // API: ギルド情報を取得
     // ----------------------------------------------------
     app.post('/api/get-guild-info', async (req, res) => {
-        const { playFabId } = req.body;
+        const { playFabId, entityKey } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
 
         console.log(`[ギルド情報取得] ${playFabId} のギルド情報を取得します...`);
@@ -111,23 +111,25 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
 
             // プレイヤーのEntityKeyを取得
-            const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
-            });
-
-            if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
+            let resolvedEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
+            if (!resolvedEntity) {
+                const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                    PlayFabId: playFabId,
+                    ProfileConstraints: { ShowEntity: true }
+                });
+                const entityId = entityResult?.PlayerProfile?.Entity?.Id || null;
+                const entityType = entityResult?.PlayerProfile?.Entity?.Type || null;
+                if (entityId && entityType) {
+                    resolvedEntity = { Id: entityId, Type: entityType };
+                }
+            }
+            if (!resolvedEntity) {
                 return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
             }
 
-            const entityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
-            };
-
             // プレイヤーが所属するグループを取得
             const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
-                Entity: entityKey
+                Entity: resolvedEntity
             });
 
             if (!membershipResult.Groups || membershipResult.Groups.length === 0) {
