@@ -1995,8 +1995,8 @@ app.post('/api/get-resource-status', async (req, res) => {
             lastCollectedAt = lastCollectedAt.toMillis();
         }
         if (!Number.isFinite(lastCollectedAt)) {
-            lastCollectedAt = now;
-            await harvestRef.set({ lastCollectedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            lastCollectedAt = now - RESOURCE_INTERVAL_MS;
+            await harvestRef.set({ lastCollectedAt: new Date(lastCollectedAt) }, { merge: true });
         }
 
         const elapsed = Math.max(0, now - lastCollectedAt);
@@ -2045,7 +2045,7 @@ app.post('/api/collect-resource', async (req, res) => {
             lastCollectedAt = lastCollectedAt.toMillis();
         }
         if (!Number.isFinite(lastCollectedAt)) {
-            lastCollectedAt = now;
+            lastCollectedAt = now - RESOURCE_INTERVAL_MS;
         }
 
         const elapsed = Math.max(0, now - lastCollectedAt);
