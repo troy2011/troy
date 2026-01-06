@@ -1,6 +1,6 @@
 // c:/Users/ikeda/my-liff-app/public/js/inventory.js
 
-import { callApiWithLoader } from './api.js';
+import { callApiWithLoader } from './playfabClient.js';
 import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
 

@@ -1,6 +1,6 @@
 // c:/Users/ikeda/my-liff-app/public/js/player.js
 
-import { callApiWithLoader } from './api.js';
+import { callApiWithLoader } from './playfabClient.js';
 
 let myPlayerStats = {};
 

@@ -1,7 +1,7 @@
 // c:/Users/ikeda/my-liff-app/public/js/guild.js
 // ギルド機能を管理するモジュール
 
-import { callApiWithLoader } from 'api';
+import { callApiWithLoader } from './playfabClient.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;

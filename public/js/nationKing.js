@@ -1,6 +1,6 @@
 // c:/Users/ikeda/my-liff-app/public/js/nationKing.js
 
-import { callApiWithLoader } from './api.js';
+import { callApiWithLoader } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 let _isKing = false;

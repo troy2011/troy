@@ -1,7 +1,7 @@
 // c:/Users/ikeda/my-liff-app/public/js/guild.js
 // ギルド機能を管理するモジュール
 
-import { callApiWithLoader } from 'api';
+import { callApiWithLoader } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // ギルド情報をキャッシュ

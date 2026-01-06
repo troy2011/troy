@@ -1,7 +1,7 @@
 ﻿// c:/Users/ikeda/my-liff-app/public/js/ship.js
 // Client-side ship management with dead reckoning animation
 
-import { callApiWithLoader } from './api.js';
+import { callApiWithLoader } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
