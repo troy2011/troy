@@ -1,4 +1,4 @@
-// Migrate world_map.ownerNation using PlayFab Nation (fallback to race mapping).
+// Migrate world_map_*.ownerNation using PlayFab Nation (fallback to race mapping).
 require('dotenv').config();
 const admin = require('firebase-admin');
 const PlayFab = require('playfab-sdk/Scripts/PlayFab/PlayFab');
@@ -68,28 +68,32 @@ async function run() {
         process.exit(1);
     }
 
-    const snapshot = await firestore.collection('world_map').get();
+    const collections = await firestore.listCollections();
+    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
     let updated = 0;
     let batch = firestore.batch();
     let batchCount = 0;
 
-    for (const doc of snapshot.docs) {
-        const data = doc.data() || {};
-        const ownerId = data.ownerId || null;
-        const ownerNation = data.ownerNation || null;
-        if (!ownerId || ownerNation) continue;
+    for (const collection of mapCollections) {
+        const snapshot = await collection.get();
+        for (const doc of snapshot.docs) {
+            const data = doc.data() || {};
+            const ownerId = data.ownerId || null;
+            const ownerNation = data.ownerNation || null;
+            if (!ownerId || ownerNation) continue;
 
-        const ownerRace = data.ownerRace || null;
-        const nation = await getNationForOwner(ownerId, ownerRace);
-        if (!nation) continue;
+            const ownerRace = data.ownerRace || null;
+            const nation = await getNationForOwner(ownerId, ownerRace);
+            if (!nation) continue;
 
-        batch.update(doc.ref, { ownerNation: nation });
-        updated += 1;
-        batchCount += 1;
-        if (batchCount >= 450) {
-            await batch.commit();
-            batch = firestore.batch();
-            batchCount = 0;
+            batch.update(doc.ref, { ownerNation: nation });
+            updated += 1;
+            batchCount += 1;
+            if (batchCount >= 450) {
+                await batch.commit();
+                batch = firestore.batch();
+                batchCount = 0;
+            }
         }
     }
 

@@ -242,6 +242,24 @@ function getWorldMapCollection(firestore, mapId) {
     return firestore.collection(`world_map_${raw}`);
 }
 
+async function findIslandDocAcrossMaps(firestore, islandId) {
+    const collections = await firestore.listCollections();
+    const mapCollections = collections.filter((col) => {
+        const id = String(col.id || '');
+        return id === 'world_map' || id.startsWith('world_map_');
+    });
+
+    for (const col of mapCollections) {
+        const snap = await col.doc(islandId).get();
+        if (snap.exists) {
+            const mapId = col.id === 'world_map' ? null : col.id.slice('world_map_'.length);
+            return { snap, mapId, collection: col };
+        }
+    }
+
+    return { snap: null, mapId: null, collection: null };
+}
+
 async function provisionStarterAssets({ promisifyPlayFab, PlayFabServer, playFabId }) {
     try {
         await promisifyPlayFab(PlayFabServer.GrantItemsToUser, {
@@ -549,38 +567,46 @@ async function getPlayerEntity(playFabId) {
 }
 
 async function deleteOwnedIslands(firestore, playFabId) {
-    const snapshot = await firestore.collection('world_map').where('ownerId', '==', playFabId).get();
-    if (snapshot.empty) return { deleted: 0 };
-    const batch = firestore.batch();
-    snapshot.docs.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    return { deleted: snapshot.size };
+    const collections = await firestore.listCollections();
+    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
+    let deleted = 0;
+    for (const col of mapCollections) {
+        const snapshot = await col.where('ownerId', '==', playFabId).get();
+        if (snapshot.empty) continue;
+        const batch = firestore.batch();
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        deleted += snapshot.size;
+    }
+    return { deleted };
 }
 
 async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toNation) {
-    const snapshot = await firestore.collection('world_map').where('ownerId', '==', fromPlayFabId).get();
-    if (snapshot.empty) return { transferred: 0 };
+    const collections = await firestore.listCollections();
+    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
 
     let transferred = 0;
-    let batch = firestore.batch();
-    let batchCount = 0;
-
-    snapshot.docs.forEach(doc => {
-        batch.update(doc.ref, {
-            ownerId: toPlayFabId,
-            ownerNation: toNation || null
+    for (const col of mapCollections) {
+        const snapshot = await col.where('ownerId', '==', fromPlayFabId).get();
+        if (snapshot.empty) continue;
+        let batch = firestore.batch();
+        let batchCount = 0;
+        snapshot.docs.forEach(doc => {
+            batch.update(doc.ref, {
+                ownerId: toPlayFabId,
+                ownerNation: toNation || null
+            });
+            transferred += 1;
+            batchCount += 1;
+            if (batchCount >= 450) {
+                batch.commit();
+                batch = firestore.batch();
+                batchCount = 0;
+            }
         });
-        transferred += 1;
-        batchCount += 1;
-        if (batchCount >= 450) {
-            batch.commit();
-            batch = firestore.batch();
-            batchCount = 0;
+        if (batchCount > 0) {
+            await batch.commit();
         }
-    });
-
-    if (batchCount > 0) {
-        await batch.commit();
     }
 
     return { transferred };
@@ -1232,11 +1258,17 @@ app.post('/api/set-race', async (req, res) => {
 
         let starterIsland = null;
         try {
-            const existingIslands = await firestore.collection('world_map')
-                .where('ownerId', '==', playFabId)
-                .limit(1)
-                .get();
-            if (existingIslands.empty) {
+            const collections = await firestore.listCollections();
+            const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
+            let hasExisting = false;
+            for (const col of mapCollections) {
+                const snapshot = await col.where('ownerId', '==', playFabId).limit(1).get();
+                if (!snapshot.empty) {
+                    hasExisting = true;
+                    break;
+                }
+            }
+            if (!hasExisting) {
                 starterIsland = await createStarterIsland({
                     playFabId,
                     raceName,
@@ -2047,11 +2079,14 @@ app.post('/api/get-island-details', async (req, res) => {
     if (!islandId) return res.status(400).json({ error: 'islandId is required' });
 
     try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        let snap = await ref.get();
-        if (!snap.exists && mapId) {
-            const legacyRef = firestore.collection('world_map').doc(islandId);
-            snap = await legacyRef.get();
+        let snap = null;
+        if (mapId) {
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            snap = await ref.get();
+        }
+        if (!snap || !snap.exists) {
+            const found = await findIslandDocAcrossMaps(firestore, islandId);
+            snap = found.snap;
         }
         if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
 
@@ -2122,10 +2157,10 @@ function resolveBasePrice(itemData) {
 }
 
 app.post('/api/get-shop-state', async (req, res) => {
-    const { islandId } = req.body || {};
+    const { islandId, mapId } = req.body || {};
     if (!islandId) return res.status(400).json({ error: 'islandId is required' });
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
@@ -2167,7 +2202,7 @@ app.post('/api/get-shop-state', async (req, res) => {
 });
 
 app.post('/api/set-shop-pricing', async (req, res) => {
-    const { playFabId, islandId, buyMultiplier, sellMultiplier } = req.body || {};
+    const { playFabId, islandId, buyMultiplier, sellMultiplier, mapId } = req.body || {};
     if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
     const buyValue = Number(buyMultiplier);
     const sellValue = Number(sellMultiplier);
@@ -2175,7 +2210,7 @@ app.post('/api/set-shop-pricing', async (req, res) => {
         return res.status(400).json({ error: 'Invalid pricing values' });
     }
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
@@ -2196,7 +2231,7 @@ app.post('/api/set-shop-pricing', async (req, res) => {
 });
 
 app.post('/api/set-shop-item-price', async (req, res) => {
-    const { playFabId, islandId, itemId, buyPrice, sellPrice } = req.body || {};
+    const { playFabId, islandId, itemId, buyPrice, sellPrice, mapId } = req.body || {};
     if (!playFabId || !islandId || !itemId) {
         return res.status(400).json({ error: 'Missing parameters' });
     }
@@ -2206,7 +2241,7 @@ app.post('/api/set-shop-item-price', async (req, res) => {
         return res.status(400).json({ error: 'Invalid price values' });
     }
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
@@ -2230,12 +2265,12 @@ app.post('/api/set-shop-item-price', async (req, res) => {
 });
 
 app.post('/api/sell-to-shop', async (req, res) => {
-    const { playFabId, islandId, itemInstanceId, itemId } = req.body || {};
+    const { playFabId, islandId, itemInstanceId, itemId, mapId } = req.body || {};
     if (!playFabId || !islandId || !itemInstanceId || !itemId) {
         return res.status(400).json({ error: 'Missing parameters' });
     }
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
@@ -2281,12 +2316,12 @@ app.post('/api/sell-to-shop', async (req, res) => {
 });
 
 app.post('/api/buy-from-shop', async (req, res) => {
-    const { playFabId, islandId, itemId } = req.body || {};
+    const { playFabId, islandId, itemId, mapId } = req.body || {};
     if (!playFabId || !islandId || !itemId) {
         return res.status(400).json({ error: 'Missing parameters' });
     }
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
@@ -2608,7 +2643,7 @@ app.post('/api/upgrade-island-level', async (req, res) => {
 });
 
 app.post('/api/check-building-completion', async (req, res) => {
-    const { islandId } = req.body || {};
+    const { islandId, mapId } = req.body || {};
     if (!islandId) {
         return res.status(400).json({ error: 'islandId is required' });
     }
@@ -2626,7 +2661,14 @@ app.post('/api/check-building-completion', async (req, res) => {
         }
         const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
 
-const ref = firestore.collection('world_map').doc(islandId);
+        let ref = null;
+        if (mapId) {
+            ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+        } else {
+            const found = await findIslandDocAcrossMaps(firestore, islandId);
+            if (!found.snap) throw new Error('IslandNotFound');
+            ref = found.collection.doc(islandId);
+        }
         const now = Date.now();
 
         const result = await firestore.runTransaction(async (tx) => {
@@ -2674,7 +2716,7 @@ const ref = firestore.collection('world_map').doc(islandId);
 });
 
 app.post('/api/help-construction', async (req, res) => {
-    const { islandId, helperPlayFabId } = req.body || {};
+    const { islandId, helperPlayFabId, mapId } = req.body || {};
     if (!islandId || !helperPlayFabId) {
         return res.status(400).json({ error: 'islandId and helperPlayFabId are required' });
     }
@@ -2692,7 +2734,14 @@ app.post('/api/help-construction', async (req, res) => {
         }
         const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
 
-const ref = firestore.collection('world_map').doc(islandId);
+        let ref = null;
+        if (mapId) {
+            ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+        } else {
+            const found = await findIslandDocAcrossMaps(firestore, islandId);
+            if (!found.snap) throw new Error('IslandNotFound');
+            ref = found.collection.doc(islandId);
+        }
         const now = Date.now();
         const reductionPerHelper = 0.1;
         const maxReduction = 0.5;
@@ -2736,10 +2785,27 @@ const ref = firestore.collection('world_map').doc(islandId);
     }
 });
 
-app.get('/api/get-constructing-islands', async (_req, res) => {
+app.get('/api/get-constructing-islands', async (req, res) => {
     try {
-        const snapshot = await firestore.collection('world_map').where('constructionStatus', '==', 'constructing').get();
-        const islands = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const mapId = String(req?.query?.mapId || '').trim();
+        if (mapId) {
+            const snapshot = await getWorldMapCollection(firestore, mapId)
+                .where('constructionStatus', '==', 'constructing')
+                .get();
+            const islands = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            return res.json({ success: true, islands });
+        }
+
+        const collections = await firestore.listCollections();
+        const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
+        const islands = [];
+        for (const col of mapCollections) {
+            const snapshot = await col.where('constructionStatus', '==', 'constructing').get();
+            snapshot.docs.forEach((doc) => {
+                islands.push({ id: doc.id, ...doc.data() });
+            });
+        }
+
         res.json({ success: true, islands });
     } catch (error) {
         console.error('[GetConstructingIslands] Error:', error);

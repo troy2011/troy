@@ -142,7 +142,8 @@ export async function upgradeIslandLevel(playFabId, islandId) {
 
 export async function checkBuildingCompletion(islandId) {
     const response = await callApiWithLoader('/api/check-building-completion', {
-        islandId: islandId
+        islandId: islandId,
+        mapId: window.__currentMapId || null
     }, { isSilent: true });
 
     return response;
@@ -540,7 +541,8 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 playFabId,
                 islandId: island.id,
                 buyMultiplier: buyValue,
-                sellMultiplier: sellValue
+                sellMultiplier: sellValue,
+                mapId: window.__currentMapId || null
             });
             if (result && result.success) {
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
@@ -721,7 +723,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
     buyList.innerHTML = '読み込み中...';
     try {
         const [shopState, inventoryResult] = await Promise.all([
-            callApiWithLoader('/api/get-shop-state', { islandId: island.id }, { isSilent: true }),
+            callApiWithLoader('/api/get-shop-state', { islandId: island.id, mapId: window.__currentMapId || null }, { isSilent: true }),
             callApiWithLoader('/api/get-inventory', { playFabId }, { isSilent: true })
         ]);
         const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2, itemPrices: {} };
@@ -818,7 +820,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                     playFabId,
                     islandId: island.id,
                     itemInstanceId: instanceId,
-                    itemId
+                    itemId,
+                    mapId: window.__currentMapId || null
                 });
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
@@ -838,7 +841,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                     islandId: island.id,
                     itemId,
                     buyPrice: buyValue,
-                    sellPrice: sellValue
+                    sellPrice: sellValue,
+                    mapId: window.__currentMapId || null
                 });
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
@@ -851,7 +855,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 await callApiWithLoader('/api/buy-from-shop', {
                     playFabId,
                     islandId: island.id,
-                    itemId
+                    itemId,
+                    mapId: window.__currentMapId || null
                 });
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
@@ -1069,7 +1074,8 @@ export async function requestConstructionHelp(islandId, buildingName) {
 export async function helpConstruction(islandId, helperPlayFabId) {
     const response = await callApiWithLoader('/api/help-construction', {
         islandId: islandId,
-        helperPlayFabId: helperPlayFabId
+        helperPlayFabId: helperPlayFabId,
+        mapId: window.__currentMapId || null
     });
 
     if (response && response.success) {
@@ -1089,7 +1095,9 @@ export async function helpConstruction(islandId, helperPlayFabId) {
 
 export async function getConstructingIslands() {
     try {
-        const response = await fetch(buildApiUrl('/api/get-constructing-islands'));
+        const mapId = window.__currentMapId || '';
+        const suffix = mapId ? `?mapId=${encodeURIComponent(mapId)}` : '';
+        const response = await fetch(buildApiUrl(`/api/get-constructing-islands${suffix}`));
         const data = await response.json();
 
         if (data && data.success) {

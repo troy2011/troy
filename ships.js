@@ -46,8 +46,19 @@ function worldToLatLng(point) {
 
 function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, catalogCache) {
     const db = admin.firestore();
-    const islandCollection = db.collection('world_map');
     const shipsCollection = db.collection('ships');
+
+    async function findIslandByBiome(biome) {
+        const collections = await db.listCollections();
+        const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
+        for (const col of mapCollections) {
+            const snapshot = await col.where('biome', '==', biome).limit(1).get();
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data() || null;
+            }
+        }
+        return null;
+    }
 
     async function getActiveShipId(playFabId) {
         const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -133,9 +144,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             nationIsland = NATION_GROUP_BY_RACE[raceValue].island;
         }
         if (nationIsland) {
-            const islandSnap = await islandCollection.where('biome', '==', nationIsland).limit(1).get();
-            if (!islandSnap.empty) {
-                const island = islandSnap.docs[0].data() || {};
+            const island = await findIslandByBiome(nationIsland);
+            if (island) {
                 const coord = island.coordinate || {};
                 const ix = Number(coord.x);
                 const iy = Number(coord.y);
