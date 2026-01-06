@@ -452,7 +452,9 @@ function renderCurrentBuilding(island) {
         return '<div class="building-empty">建物なし</div>';
     }
 
-    const label = getBuildingName(building.buildingId || building.id || '');
+    const baseName = getBuildingName(building.buildingId || building.id || '');
+    const level = Number(building.level);
+    const label = Number.isFinite(level) && level > 0 ? `${baseName} LV${level}` : baseName;
     const status = building.status === 'constructing' ? '建設中' : '完了';
     const remainingMs = Math.max(0, (Number(building.completionTime) || 0) - Date.now());
     const timer = building.status === 'constructing'
@@ -993,6 +995,11 @@ function getBuildingIcon(buildingId) {
 }
 
 function getBuildingName(buildingId) {
+    if (buildingId === 'my_house') return 'マイハウス';
+    const baseId = String(buildingId || '').replace(/_lv\d+$/, '');
+    if (baseId !== buildingId) {
+        return getBuildingName(baseId);
+    }
     const names = {
         watchtower: '監視塔',
         coastal_battery: '沿岸砲台',

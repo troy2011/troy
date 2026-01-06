@@ -477,8 +477,9 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const islandName = `${displayName || 'Player'}島`;
     const docRef = worldMap.doc();
     const islandLevel = 1;
-    const houseId = `my_house_lv${Math.min(5, Math.max(1, islandLevel))}`;
-    const houseSpec = getBuildingSpec(houseId);
+    const houseId = 'my_house';
+    const houseLevel = Math.min(5, Math.max(1, islandLevel));
+    const houseSpec = getBuildingSpec(houseId, houseLevel);
     const houseLogic = houseSpec ? normalizeSize(houseSpec.SizeLogic, inferLogicSizeFromSlotsRequired(houseSpec.SlotsRequired)) : { x: 1, y: 1 };
     const houseVisual = houseSpec ? normalizeSize(houseSpec.SizeVisual, houseLogic) : houseLogic;
     const houseTileIndexRaw = houseSpec ? houseSpec.TileIndex : null;
@@ -1917,18 +1918,16 @@ async function getActiveShipCargoCapacity(playFabId) {
     return Number.isFinite(capacity) ? Math.max(0, Math.trunc(capacity)) : 0;
 }
 
-function getBuildingSpec(buildingId) {
-    // buildingDefinitions.js direct lookup (PlayFab Catalog independent)
-    let building = buildingDefs?.buildings?.[buildingId];
-    if (!building && buildingDefs?.buildings) {
-        building = Object.values(buildingDefs.buildings).find(b => b && b.id === buildingId) || null;
-    }
-    if (!building) return null;
+function getBuildingSpec(buildingId, level = null) {
+    // buildingDefinitions.js resolver (PlayFab Catalog independent)
+    const building = buildingDefs?.getBuildingById
+        ? buildingDefs.getBuildingById(buildingId, level)
+        : null;
     if (!building) return null;
 
-    // sizeLogic と sizeVisual を直接使用（定義されていない場合はslotsRequiredから推測）
     const sizeLogic = building.sizeLogic || inferLogicSizeFromSlotsRequired(building.slotsRequired);
     const sizeVisual = building.sizeVisual || sizeLogic;
+    const effects = { ...(building.effects || {}), ...(building.stats || {}) };
 
     return {
         ItemId: building.id,
@@ -1939,10 +1938,11 @@ function getBuildingSpec(buildingId) {
         SlotsRequired: building.slotsRequired,
         BuildTime: building.buildTime,
         Cost: building.cost || {},
-        Effects: building.effects || {},
+        Effects: effects,
         SizeLogic: sizeLogic,
         SizeVisual: sizeVisual,
         TileIndex: building.tileIndex,
+        Level: building.level,
         Tags: [`size_${building.slotsRequired === 1 ? 'small' : building.slotsRequired === 2 ? 'medium' : 'large'}`]
     };
 }
@@ -2100,8 +2100,8 @@ app.post('/api/get-island-details', async (req, res) => {
         let upgradeLevel = null;
         if (islandLevel < maxLevel) {
             upgradeLevel = islandLevel + 1;
-            upgradeHouseId = `my_house_lv${upgradeLevel}`;
-            const spec = getBuildingSpec(upgradeHouseId);
+            upgradeHouseId = 'my_house';
+            const spec = getBuildingSpec(upgradeHouseId, upgradeLevel);
             if (spec && spec.VirtualCurrencyPrices) {
                 upgradeCost = spec.VirtualCurrencyPrices;
             }
@@ -2483,7 +2483,7 @@ app.post('/api/start-building-construction', async (req, res) => {
             const entry = {
                 buildingId,
                 status: 'constructing',
-                level: 1,
+                level: Number.isFinite(Number(spec.Level)) ? Number(spec.Level) : 1,
                 startTime: now,
                 completionTime: now + durationMs,
                 durationMs,
@@ -2568,8 +2568,8 @@ app.post('/api/upgrade-island-level', async (req, res) => {
         if (currentLevel >= maxLevel) return res.status(400).json({ error: 'MaxLevel' });
 
         const nextLevel = nextLevelFrom(currentLevel);
-        const houseId = `my_house_lv${nextLevel}`;
-        const spec = getBuildingSpec(houseId);
+        const houseId = 'my_house';
+        const spec = getBuildingSpec(houseId, nextLevel);
         if (!spec) return res.status(400).json({ error: 'BuildingNotFound' });
 
         const costs = spec.VirtualCurrencyPrices || {};
@@ -2626,7 +2626,12 @@ app.post('/api/upgrade-island-level', async (req, res) => {
                 y: 0
             };
 
-            const filtered = existing.filter(b => !b || !String(b.buildingId || b.id || '').startsWith('my_house_lv'));
+            const filtered = existing.filter(b => {
+                if (!b) return true;
+                const rawId = String(b.buildingId || b.id || '');
+                if (rawId === 'my_house') return false;
+                return !rawId.startsWith('my_house_lv');
+            });
             filtered.push(nextBuilding);
 
             tx.update(ref, {

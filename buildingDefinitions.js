@@ -52,55 +52,41 @@ const buildings = {
     // ========================================
     // 軍事施設（Military）
     // ========================================
-    watchtower_lv1: {
-        id: 'watchtower_lv1',
+    watchtower: {
+        id: 'watchtower',
         name: '見張り台',
         category: 'military',
         slotsRequired: 1,
         buildTime: 1800, // 30分
         cost: { PT: 200 },
-        tileIndex: 833,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
             visionRange: 10,
             earlyWarning: true
         },
-        description: '周囲の海域を監視し、敵の接近を早期発見します。'
-    },
-
-    watchtower_lv2: {
-        id: 'watchtower_lv2',
-        name: '見張り台',
-        category: 'military',
-        slotsRequired: 1,
-        buildTime: 1800, // 30分
-        cost: { PT: 200 },
-        tileIndex: 897,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 2 },
-        effects: {
-            visionRange: 10,
-            earlyWarning: true
-        },
-        description: '周囲の海域を監視し、敵の接近を早期発見します。'
-    },
-
-    watchtower_lv3: {
-        id: 'watchtower_lv3',
-        name: '見張り台',
-        category: 'military',
-        slotsRequired: 1,
-        buildTime: 1800, // 30分
-        cost: { PT: 200 },
-        tileIndex: 898,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 3 },
-        effects: {
-            visionRange: 10,
-            earlyWarning: true
-        },
-        description: '周囲の海域を監視し、敵の接近を早期発見します。'
+        description: '周囲の海域を監視し、敵の接近を早期発見します。',
+        levelLabel: false,
+        levels: {
+            1: {
+                tileIndex: 833,
+                sizeVisual: { x: 1, y: 1 },
+                maxHp: 100,
+                stats: { visionRange: 10 }
+            },
+            2: {
+                tileIndex: 897,
+                sizeVisual: { x: 1, y: 2 },
+                maxHp: 140,
+                stats: { visionRange: 14 }
+            },
+            3: {
+                tileIndex: 898,
+                sizeVisual: { x: 1, y: 3 },
+                maxHp: 200,
+                stats: { visionRange: 18 }
+            }
+        }
     },
 
     coastal_battery: {
@@ -254,98 +240,64 @@ const buildings = {
         // ========================================
     // 住居・商業施設
     // ========================================
-    my_house_lv1: {
-        id: 'my_house_lv1',
-        name: 'マイハウス LV1',
+    my_house: {
+        id: 'my_house',
+        name: 'マイハウス',
         category: 'support',
         slotsRequired: 1,
         buildTime: 900, // 15分
         cost: { PT: 200 },
-        tileIndex: 588,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
             comfort: 5
         },
-        description: '自分専用の小さな住居。拠点としての利便性が向上します。',
+        description: '自分専用の住居。拠点としての利便性が向上します。',
         nationTileOffset: true,
-        buildable: false
-    },
-
-    my_house_lv2: {
-        id: 'my_house_lv2',
-        name: 'マイハウス LV2',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 1800, // 30分
-        cost: { PT: 400 },
-        tileIndex: 524,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            comfort: 10
-        },
-        description: '生活環境が改善された住居。帰還時の回復が早まります。',
-        nationTileOffset: true,
-        buildable: false
-    },
-
-    my_house_lv3: {
-        id: 'my_house_lv3',
-        name: 'マイハウス LV3',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 3600, // 1時間
-        cost: { PT: 700 },
-        tileIndex: 528,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            comfort: 18,
-            storageBonus: 50
-        },
-        description: '広くなった住居。資源の保管がしやすくなります。',
-        nationTileOffset: true,
-        buildable: false
-    },
-
-    my_house_lv4: {
-        id: 'my_house_lv4',
-        name: 'マイハウス LV4',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 5400, // 1.5時間
-        cost: { PT: 1100 },
-        tileIndex: 532,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            comfort: 25,
-            storageBonus: 100
-        },
-        description: '設備が整った上位住居。補給効率が向上します。',
-        nationTileOffset: true,
-        buildable: false
-    },
-
-    my_house_lv5: {
-        id: 'my_house_lv5',
-        name: 'マイハウス LV5',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 7200, // 2時間
-        cost: { PT: 1600 },
-        tileIndex: 564,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            comfort: 35,
-            storageBonus: 200,
-            moraleBonus: 5
-        },
-        description: '島を代表する豪邸。滞在するだけで士気が上がります。',
-        nationTileOffset: true,
-        buildable: false
+        buildable: false,
+        levelLabel: true,
+        levels: {
+            1: {
+                buildTime: 900,
+                cost: { PT: 200 },
+                tileIndex: 588,
+                effects: { comfort: 5 },
+                maxHp: 120,
+                stats: { comfort: 5 }
+            },
+            2: {
+                buildTime: 1800,
+                cost: { PT: 400 },
+                tileIndex: 524,
+                effects: { comfort: 10 },
+                maxHp: 160,
+                stats: { comfort: 10 }
+            },
+            3: {
+                buildTime: 3600,
+                cost: { PT: 700 },
+                tileIndex: 528,
+                effects: { comfort: 18, storageBonus: 50 },
+                maxHp: 220,
+                stats: { comfort: 18, storageBonus: 50 }
+            },
+            4: {
+                buildTime: 5400,
+                cost: { PT: 1100 },
+                tileIndex: 532,
+                effects: { comfort: 25, storageBonus: 100 },
+                maxHp: 280,
+                stats: { comfort: 25, storageBonus: 100 }
+            },
+            5: {
+                buildTime: 7200,
+                cost: { PT: 1600 },
+                tileIndex: 564,
+                effects: { comfort: 35, storageBonus: 200, moraleBonus: 5 },
+                maxHp: 360,
+                stats: { comfort: 35, storageBonus: 200, moraleBonus: 5 }
+            }
+        }
     },
 
     weapon_shop: {
@@ -495,6 +447,31 @@ const buildings = {
     }
 };
 
+function parseLevelFromId(buildingId) {
+    const raw = String(buildingId || '');
+    const match = /^(.*)_lv(\d+)$/.exec(raw);
+    if (!match) return null;
+    return { baseId: match[1], level: Number(match[2]) };
+}
+
+function resolveBuildingDefinition(base, level) {
+    if (!base) return null;
+    const resolvedLevel = Number.isFinite(Number(level))
+        ? Math.max(1, Math.trunc(Number(level)))
+        : Math.max(1, Math.trunc(Number(base.defaultLevel || 1)));
+    const levelDef = base.levels ? base.levels[resolvedLevel] : null;
+    const name = base.levelLabel ? `${base.name} LV${resolvedLevel}` : base.name;
+    const merged = {
+        ...base,
+        ...(levelDef || {}),
+        id: base.id,
+        level: resolvedLevel,
+        name: name,
+        levels: base.levels
+    };
+    return merged;
+}
+
 function getBuildingMetaMap() {
     const map = {};
     Object.entries(buildings).forEach(([key, building]) => {
@@ -504,6 +481,12 @@ function getBuildingMetaMap() {
         const meta = { id, nationTileOffset };
         map[key] = meta;
         if (id && !map[id]) map[id] = meta;
+        if (building.levels) {
+            Object.keys(building.levels).forEach((levelKey) => {
+                const legacyId = `${id}_lv${levelKey}`;
+                if (!map[legacyId]) map[legacyId] = meta;
+            });
+        }
     });
     return map;
 }
@@ -511,10 +494,19 @@ function getBuildingMetaMap() {
 /**
  * 建物IDから定義を取得
  * @param {string} buildingId - 建物ID
+ * @param {number} level - レベル
  * @returns {Object|null} 建物定義
  */
-function getBuildingById(buildingId) {
-    return buildings[buildingId] || null;
+function getBuildingById(buildingId, level = null) {
+    if (!buildingId) return null;
+    const direct = buildings[buildingId];
+    if (direct) return resolveBuildingDefinition(direct, level);
+    const parsed = parseLevelFromId(buildingId);
+    if (parsed && buildings[parsed.baseId]) {
+        return resolveBuildingDefinition(buildings[parsed.baseId], parsed.level);
+    }
+    const fallback = Object.values(buildings).find(b => b && b.id === buildingId) || null;
+    return resolveBuildingDefinition(fallback, level);
 }
 
 /**
@@ -530,7 +522,7 @@ function getBuildingsForSlots(slotsRequired, category = null) {
         filtered = filtered.filter(b => b.category === category);
     }
 
-    return filtered;
+    return filtered.map(b => resolveBuildingDefinition(b, null));
 }
 
 /**
@@ -539,7 +531,9 @@ function getBuildingsForSlots(slotsRequired, category = null) {
  * @returns {Array} 建物の配列
  */
 function getBuildingsByCategory(category) {
-    return Object.values(buildings).filter(b => b.category === category);
+    return Object.values(buildings)
+        .filter(b => b.category === category)
+        .map(b => resolveBuildingDefinition(b, null));
 }
 
 /**
@@ -547,7 +541,7 @@ function getBuildingsByCategory(category) {
  * @returns {Array} 全建物の配列
  */
 function getAllBuildings() {
-    return Object.values(buildings);
+    return Object.values(buildings).map(b => resolveBuildingDefinition(b, null));
 }
 
 module.exports = {
