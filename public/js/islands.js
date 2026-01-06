@@ -183,7 +183,10 @@ export async function loadOwnedIslands(playFabId) {
     if (!container) return;
     container.innerHTML = '<div style="font-size:12px; color: var(--text-sub);">読み込み中...</div>';
 
-    const data = await callApiWithLoader('/api/get-owned-islands', { playFabId });
+    const data = await callApiWithLoader('/api/get-owned-islands', {
+        playFabId,
+        mapId: window.__currentMapId || null
+    });
     if (!data || !Array.isArray(data.islands)) {
         container.innerHTML = '<div style="font-size:12px; color: var(--text-sub);">取得に失敗しました。</div>';
         return;
