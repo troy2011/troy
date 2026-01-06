@@ -155,11 +155,20 @@ async function ensureNationGroupExists(firestore, mapping) {
     const docRef = await getNationGroupDoc(firestore, mapping.groupName);
     const docSnap = await docRef.get();
     if (docSnap.exists && docSnap.data()?.groupId) {
-        return {
-            groupId: docSnap.data().groupId,
-            groupName: mapping.groupName,
-            created: false
-        };
+        const existingGroupId = docSnap.data().groupId;
+        try {
+            await ensureTitleEntityToken();
+            await promisifyPlayFab(PlayFabGroups.GetGroup, {
+                Group: { Id: existingGroupId, Type: 'group' }
+            });
+            return {
+                groupId: existingGroupId,
+                groupName: mapping.groupName,
+                created: false
+            };
+        } catch (e) {
+            console.warn('[ensureNationGroupExists] Stored groupId invalid, recreating:', existingGroupId);
+        }
     }
 
     const titleDataKey = 'NationGroupIds';
@@ -174,13 +183,22 @@ async function ensureNationGroupExists(firestore, mapping) {
         }
     }
     if (titleGroupId) {
-        await docRef.set({
-            groupId: titleGroupId,
-            groupName: mapping.groupName,
-            nation: mapping.island,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        return { groupId: titleGroupId, groupName: mapping.groupName, created: false };
+        try {
+            await ensureTitleEntityToken();
+            await promisifyPlayFab(PlayFabGroups.GetGroup, {
+                Group: { Id: titleGroupId, Type: 'group' }
+            });
+            await docRef.set({
+                groupId: titleGroupId,
+                groupName: mapping.groupName,
+                nation: mapping.island,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            return { groupId: titleGroupId, groupName: mapping.groupName, created: false };
+        } catch (e) {
+            console.warn('[ensureNationGroupExists] TitleData groupId invalid, recreating:', titleGroupId);
+            titleGroupId = null;
+        }
     }
 
     await ensureTitleEntityToken();
@@ -1109,6 +1127,20 @@ app.post('/api/set-race', async (req, res) => {
                 console.warn('[set-race] Group missing, recreating:', assignedGroupId);
                 const staleRef = await getNationGroupDoc(firestore, mapping.groupName);
                 await staleRef.delete().catch(() => {});
+                try {
+                    const titleDataKey = 'NationGroupIds';
+                    const titleData = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [titleDataKey] });
+                    const existing = titleData?.Data?.[titleDataKey] ? JSON.parse(titleData.Data[titleDataKey]) : {};
+                    if (existing && Object.prototype.hasOwnProperty.call(existing, mapping.groupName)) {
+                        delete existing[mapping.groupName];
+                        await promisifyPlayFab(PlayFabAdmin.SetTitleData, {
+                            Key: titleDataKey,
+                            Value: JSON.stringify(existing)
+                        });
+                    }
+                } catch (clearError) {
+                    console.warn('[set-race] Failed to clear stale TitleData groupId:', clearError?.errorMessage || clearError?.message || clearError);
+                }
                 groupInfo = await ensureNationGroupExists(firestore, mapping);
                 assignedGroupId = groupInfo.groupId;
                 assignedGroupName = groupInfo.groupName;
