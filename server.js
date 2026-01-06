@@ -362,11 +362,13 @@ async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
 }
 
 async function createStarterIsland({ playFabId, raceName, nationIsland, displayName }) {
-    const NATION_BOUNDS = {
-        earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
-        wind: { minX: 400, maxX: 499, minY: 0, maxY: 99 },
-        fire: { minX: 0, maxX: 99, minY: 400, maxY: 499 },
-        water: { minX: 400, maxX: 499, minY: 400, maxY: 499 }
+    const MAP_SIZE = 100;
+    const AREA_BY_NATION = {
+        fire: 'wands',
+        earth: 'pentacles',
+        wind: 'swords',
+        water: 'cups',
+        neutral: 'joker'
     };
 
     const sizeByKey = {
@@ -377,12 +379,8 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     };
     const islandSize = sizeByKey.small;
 
-    const mapBounds = (() => {
-        const key = String(nationIsland || '').toLowerCase();
-        return NATION_BOUNDS[key] || null;
-    })();
-
-    const mapSize = 500;
+    const mapId = AREA_BY_NATION[String(nationIsland || '').toLowerCase()] || 'joker';
+    const mapBounds = { minX: 0, maxX: MAP_SIZE - 1, minY: 0, maxY: MAP_SIZE - 1 };
     const offsetRange = 6;
     const baseRange = mapBounds
         ? {
@@ -393,11 +391,11 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         }
         : {
             minX: 0,
-            maxX: mapSize - islandSize.w,
+            maxX: MAP_SIZE - islandSize.w,
             minY: 0,
-            maxY: mapSize - islandSize.h
+            maxY: MAP_SIZE - islandSize.h
         };
-    const worldMap = admin.firestore().collection('world_map');
+    const worldMap = admin.firestore().collection(`world_map_${mapId}`);
     const existing = await worldMap.where('ownerId', '==', playFabId).limit(1).get();
     if (!existing.empty) return { skipped: true, reason: 'already_has_island' };
 
@@ -507,8 +505,8 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         const dx = (Math.floor(Math.random() * (maxOffset * 2 + 1)) - maxOffset);
         const dy = (Math.floor(Math.random() * (maxOffset * 2 + 1)) - maxOffset);
         if (Math.abs(dx) < minOffset && Math.abs(dy) < minOffset) continue;
-        const tx = Math.max(0, Math.min(500 - 1, baseX + dx));
-        const ty = Math.max(0, Math.min(500 - 1, baseY + dy));
+    const tx = Math.max(0, Math.min(MAP_SIZE - 1, baseX + dx));
+    const ty = Math.max(0, Math.min(MAP_SIZE - 1, baseY + dy));
         const inside = (tx >= chosen.x && tx < chosen.x + islandSize.w && ty >= chosen.y && ty < chosen.y + islandSize.h);
         if (!inside) {
             respawnTileX = tx;
