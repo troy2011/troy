@@ -243,12 +243,12 @@ function generateMapData(options = {}) {
         }));
     }
 
-    const addRandomIslands = (sizeKey, count) => {
+    const addRandomIslands = (sizeKey, count, allowResource) => {
         for (let i = 0; i < count; i += 1) {
             const rect = placeRandom(sizeKey, occupied);
             if (!rect) continue;
             registerOccupied(occupied, rect);
-            const biome = pickBiome(faction, true);
+            const biome = pickBiome(faction, !!allowResource);
             const islandNumber = String(index + 1).padStart(3, '0');
             const baseLabel = getBiomeLabel(biome);
             islands.push(createIsland({
@@ -264,7 +264,7 @@ function generateMapData(options = {}) {
         }
     };
 
-    addRandomIslands('small', counts.small || 0);
+    addRandomIslands('small', counts.small || 0, true);
     addRandomIslands('large', counts.large || 0);
     addRandomIslands('giant', counts.giant || 0);
 
