@@ -64,3 +64,17 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 - `GetUserInventory` → `GetInventoryItems` (items in `Result.Items`).
 - `ConsumeItem` / `SubtractUserVirtualCurrency` → `SubtractInventoryItems`.
 - `PurchaseItem` → `PurchaseInventoryItems` with `PriceAmounts`.
+
+---
+
+## PlayFab Economy V2 Rules (Node.js/JavaScript)
+
+- Use `PlayFabEconomy` from `playfab-sdk` for Economy V2 operations.
+- Do not use `PlayFabClient` or `PlayFabServer` legacy economy methods.
+- Every request must include `Entity: { Id, Type }`.
+- Currency is an item; use `AddInventoryItems` / `SubtractInventoryItems` with `Item.Id = "CURRENCY_ID"`.
+- `GetUserInventory` → `PlayFabEconomy.GetInventoryItems` (items in `result.data.Items`).
+- `AddUserVirtualCurrency` → `PlayFabEconomy.AddInventoryItems`.
+- `SubtractUserVirtualCurrency` / `ConsumeItem` → `PlayFabEconomy.SubtractInventoryItems`.
+- `PurchaseItem` → `PlayFabEconomy.PurchaseInventoryItems` with `PriceAmounts`.
+- `GetCatalogItems` → `PlayFabEconomy.SearchItems`.
