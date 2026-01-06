@@ -346,6 +346,11 @@ export default class WorldMapScene extends Phaser.Scene {
                 console.log('[MapReady] ms:', delta);
                 const overlay = container.querySelector('.map-loading-overlay');
                 if (overlay) {
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none';
+                    requestAnimationFrame(() => {
+                        overlay.style.display = 'none';
+                    });
                     const onTransitionEnd = () => {
                         const done = Math.round(performance.now() - window.__mapOpenStart);
                         console.log('[MapOverlayHidden] ms:', done);
@@ -358,6 +363,12 @@ export default class WorldMapScene extends Phaser.Scene {
             }
         } else {
             container.classList.remove('map-ready');
+            const overlay = container.querySelector('.map-loading-overlay');
+            if (overlay) {
+                overlay.style.display = '';
+                overlay.style.opacity = '';
+                overlay.style.pointerEvents = '';
+            }
         }
     }
 
