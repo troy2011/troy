@@ -80,12 +80,12 @@ function getResourceCurrencyForBiome(biome) {
 }
 
 function formatMs(ms) {
-    if (!Number.isFinite(ms) || ms <= 0) return '0?';
+    if (!Number.isFinite(ms) || ms <= 0) return '0秒';
     const totalSeconds = Math.ceil(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    if (minutes > 0) return `${minutes}?${seconds}?`;
-    return `${seconds}?`;
+    if (minutes > 0) return `${minutes}分${seconds}秒`;
+    return `${seconds}秒`;
 }
 
 async function getResourceStatus(playFabId, islandId) {
@@ -559,13 +559,16 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     const resourceStatusEl = sheet.querySelector('#resourceStatus');
     const harvestBtn = sheet.querySelector('#btnHarvestResource');
     if (resourceStatusEl && harvestBtn) {
+        let latestStatus = null;
         const updateResourceStatus = async () => {
             resourceStatusEl.textContent = '読み込み中...';
             const status = await getResourceStatus(playFabId, island.id);
             if (!status || !status.success) {
                 resourceStatusEl.textContent = '情報の取得に失敗しました。';
+                harvestBtn.disabled = true;
                 return;
             }
+            latestStatus = status;
             const available = Number(status.available || 0);
             const capacity = Number(status.capacity || 0);
             const nextInMs = Number(status.nextInMs || 0);
@@ -574,9 +577,14 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             } else {
                 resourceStatusEl.textContent = `次の採取まで: ${formatMs(nextInMs)}`;
             }
+            harvestBtn.disabled = available <= 0;
         };
 
         harvestBtn.addEventListener('click', async () => {
+            if (latestStatus && Number(latestStatus.available || 0) <= 0) {
+                await updateResourceStatus();
+                return;
+            }
             harvestBtn.disabled = true;
             resourceStatusEl.textContent = '採取中...';
             const result = await collectResource(playFabId, island.id);
@@ -591,7 +599,6 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             } else {
                 resourceStatusEl.textContent = result?.error || '採取に失敗しました。';
             }
-            harvestBtn.disabled = false;
             await updateResourceStatus();
         });
 
