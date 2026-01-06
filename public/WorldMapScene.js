@@ -2505,7 +2505,10 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const resourceBiomes = ['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred'];
         const isResourceIsland = resourceBiomes.includes(String(islandData?.biome || '').toLowerCase());
-        const menuLabel = isResourceIsland ? '採取メニュー' : '建設メニュー';
+        const hasBuilding = Array.isArray(islandData.buildings)
+            ? islandData.buildings.some(b => b && b.status !== 'demolished')
+            : false;
+        const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
         let buttonText = `${menuLabel}を開く`;
         let buttonClass = 'info';
