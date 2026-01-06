@@ -66,3 +66,13 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 - `SubtractUserVirtualCurrency` / `ConsumeItem` → `PlayFabEconomy.SubtractInventoryItems`.
 - `PurchaseItem` → `PlayFabEconomy.PurchaseInventoryItems` with `PriceAmounts`.
 - `GetCatalogItems` → `PlayFabEconomy.SearchItems`.
+
+---
+
+## PlayFab Economy V2 Rules (Node.js Async/Await)
+
+- Use async/await only. No callbacks for PlayFab API calls.
+- Use `try { ... } catch (error) { ... }` around PlayFab calls.
+- Use `PlayFabEconomy` (promisified) for Economy V2 operations.
+- Every request must include `Entity: { Id, Type }`.
+- Currency is an item. Use `AddInventoryItems` / `SubtractInventoryItems` with `Item.Id = "CURRENCY_ID"`.
