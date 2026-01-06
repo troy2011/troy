@@ -401,6 +401,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                                 scene.setMapReady(true);
                             }
                         }
+                        if (gameInstance?.loop?.wake) {
+                            gameInstance.loop.wake();
+                        }
+                        if (gameInstance?.renderer?.snapshot) {
+                            gameInstance.renderer.snapshot(() => {});
+                        }
                         if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                         return; // Don't launch twice
                     }
@@ -455,6 +461,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 if (typeof scene.setMapReady === 'function' && scene.islandObjects?.size) {
                     scene.setMapReady(true);
                 }
+            }
+            if (gameInstance?.loop?.wake) {
+                gameInstance.loop.wake();
+            }
+            if (gameInstance?.renderer?.snapshot) {
+                gameInstance.renderer.snapshot(() => {});
             }
         }
     } catch (error) {
