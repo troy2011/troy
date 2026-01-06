@@ -310,6 +310,18 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
     const navEl = document.getElementById(`nav${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (navEl) navEl.classList.add('active');
+    if (tabId === 'map') {
+        const mapTab = document.getElementById('tabContentMap');
+        const overlay = mapTab?.querySelector?.('.map-loading-overlay') || null;
+        const canvas = mapTab?.querySelector?.('canvas') || null;
+        console.log('[MapTab] display state', {
+            tabDisplay: mapTab ? getComputedStyle(mapTab).display : null,
+            overlayDisplay: overlay ? getComputedStyle(overlay).display : null,
+            overlayOpacity: overlay ? getComputedStyle(overlay).opacity : null,
+            canvasDisplay: canvas ? getComputedStyle(canvas).display : null,
+            canvasVisibility: canvas ? getComputedStyle(canvas).visibility : null
+        });
+    }
 
     try {
         if (!tabLoaded[tabId]) {
