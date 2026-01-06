@@ -336,6 +336,11 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!container) return;
         if (ready) {
             container.classList.add('map-ready');
+            if (typeof window !== 'undefined' && typeof window.__mapOpenStart === 'number') {
+                const delta = Math.round(performance.now() - window.__mapOpenStart);
+                console.log('[MapReady] ms:', delta);
+                window.__mapOpenStart = null;
+            }
         } else {
             container.classList.remove('map-ready');
         }

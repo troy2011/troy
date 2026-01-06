@@ -222,6 +222,9 @@ export function escapeHtml(str) {
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     const currentActiveTab = document.querySelector('.nav-button.active');
+    if (tabId === 'map') {
+        window.__mapOpenStart = performance.now();
+    }
     const isMapReuse = tabId === 'map' && tabLoaded.map && !!gameInstance;
     const mapLoadLabel = isMapReuse ? `[showTab][map] ${Date.now()}` : null;
     if (mapLoadLabel) {
