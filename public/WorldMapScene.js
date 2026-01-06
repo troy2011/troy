@@ -95,6 +95,31 @@ const NATION_COLORS = {
     water: 0x4aa3ff
 };
 
+const BIOME_FRAME_BY_ID = {
+    volcanic: 32,
+    rocky: 33,
+    mushroom: 34,
+    lake: 35,
+    forest: 36,
+    sacred: 37
+};
+
+const BIOME_ID_BY_JP = {
+    '火山': 'volcanic',
+    '岩場': 'rocky',
+    'キノコ': 'mushroom',
+    '湖': 'lake',
+    '森林': 'forest',
+    '聖地': 'sacred'
+};
+
+function normalizeBiomeId(raw) {
+    if (!raw) return null;
+    const trimmed = String(raw).trim();
+    if (!trimmed) return null;
+    return BIOME_ID_BY_JP[trimmed] || trimmed.toLowerCase();
+}
+
 const NATION_TILE_INDEX = {
     fire: 0,
     earth: 1,
@@ -1206,8 +1231,14 @@ export default class WorldMapScene extends Phaser.Scene {
             }
         }
 
-        if (data.biomeFrame !== null && data.biomeFrame !== undefined) {
-            const biomeFrame = Number(data.biomeFrame);
+        let biomeFrame = (data.biomeFrame !== null && data.biomeFrame !== undefined)
+            ? Number(data.biomeFrame)
+            : null;
+        if (!Number.isFinite(biomeFrame)) {
+            const biomeId = normalizeBiomeId(data.biome);
+            biomeFrame = biomeId ? BIOME_FRAME_BY_ID[biomeId] : null;
+        }
+        if (biomeFrame !== null && biomeFrame !== undefined) {
             if (!Number.isFinite(biomeFrame)) return;
             const iconX = data.x + (islandWidth / 2);
             const iconY = data.y + (islandHeight / 2);
@@ -2504,7 +2535,8 @@ export default class WorldMapScene extends Phaser.Scene {
         const isInOwnedArea = this.isIslandInOwnedArea(islandData);
 
         const resourceBiomes = ['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred'];
-        const isResourceIsland = resourceBiomes.includes(String(islandData?.biome || '').toLowerCase());
+        const biomeId = normalizeBiomeId(islandData?.biome);
+        const isResourceIsland = resourceBiomes.includes(String(biomeId || ''));
         const hasBuilding = Array.isArray(islandData.buildings)
             ? islandData.buildings.some(b => b && b.status !== 'demolished')
             : false;

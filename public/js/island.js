@@ -74,9 +74,20 @@ export async function getIslandDetails(islandId) {
 
 
 const RESOURCE_BIOME_CURRENCY = { volcanic: 'RR', rocky: 'RG', mushroom: 'RY', lake: 'RB', forest: 'RT', sacred: 'RS' };
+const RESOURCE_BIOME_JP = {
+    '火山': 'volcanic',
+    '岩場': 'rocky',
+    'キノコ': 'mushroom',
+    '湖': 'lake',
+    '森林': 'forest',
+    '聖地': 'sacred'
+};
 
 function getResourceCurrencyForBiome(biome) {
-    return RESOURCE_BIOME_CURRENCY[String(biome || '').toLowerCase()] || null;
+    const raw = String(biome || '').trim();
+    if (!raw) return null;
+    const normalized = RESOURCE_BIOME_JP[raw] || raw.toLowerCase();
+    return RESOURCE_BIOME_CURRENCY[normalized] || null;
 }
 
 function formatMs(ms) {

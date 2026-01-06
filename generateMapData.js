@@ -48,6 +48,15 @@ const NON_RESOURCE_BIOME_BY_FACTION = {
     neutral: 'beach'
 };
 
+const BIOME_FRAME_BY_ID = {
+    volcanic: 32,
+    rocky: 33,
+    mushroom: 34,
+    lake: 35,
+    forest: 36,
+    sacred: 37
+};
+
 const MAP_SIZE = { width: 100, height: 100 };
 const RESOURCE_CHANCE = 0.35;
 const OBSTACLE_TILE_INDEX = 133;
@@ -124,7 +133,10 @@ const placeRandomRect = (rectSize, occupied) => {
     return null;
 };
 
-const createIsland = (config) => ({
+const createIsland = (config) => {
+    const biome = config.biome ?? null;
+    const biomeFrame = config.biomeFrame ?? (biome ? BIOME_FRAME_BY_ID[String(biome).toLowerCase()] : null);
+    return ({
     id: config.id,
     name: config.name,
     coordinate: { x: config.x, y: config.y },
@@ -133,12 +145,13 @@ const createIsland = (config) => ({
     ownerId: config.ownerId ?? null,
     ownerNation: config.ownerNation ?? null,
     nation: config.nation ?? null,
-    biome: config.biome ?? null,
-    biomeFrame: config.biomeFrame ?? null,
+    biome: biome,
+    biomeFrame: biomeFrame ?? null,
     occupationStatus: config.occupationStatus ?? null,
     buildingSlots: config.buildingSlots ?? null,
     buildings: Array.isArray(config.buildings) ? config.buildings : []
 });
+};
 
 const getNationLabel = (faction) => {
     switch (String(faction || '').toLowerCase()) {
