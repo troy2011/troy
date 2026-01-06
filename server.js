@@ -396,8 +396,17 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
             maxY: MAP_SIZE - islandSize.h
         };
     const worldMap = admin.firestore().collection(`world_map_${mapId}`);
-    const existing = await worldMap.where('ownerId', '==', playFabId).limit(1).get();
-    if (!existing.empty) return { skipped: true, reason: 'already_has_island' };
+    const allCollections = await admin.firestore().listCollections();
+    const mapCollections = allCollections.filter((col) => String(col.id || '').startsWith('world_map'));
+    let hasExisting = false;
+    for (const col of mapCollections) {
+        const snap = await col.where('ownerId', '==', playFabId).limit(1).get();
+        if (!snap.empty) {
+            hasExisting = true;
+            break;
+        }
+    }
+    if (hasExisting) return { skipped: true, reason: 'already_has_island' };
 
     const allIslandsSnap = await worldMap.get();
     const occupied = [];
