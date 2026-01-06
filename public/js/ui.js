@@ -480,6 +480,22 @@ export async function showTab(tabId, playerInfo, options = {}) {
             if (gameInstance?.renderer?.snapshot) {
                 gameInstance.renderer.snapshot(() => {});
             }
+            if (gameInstance?.scale?.refresh) {
+                gameInstance.scale.refresh();
+            }
+            const canvas = gameInstance?.canvas;
+            if (canvas && canvas.style) {
+                const prev = canvas.style.transform;
+                canvas.style.transform = 'translateZ(0)';
+                requestAnimationFrame(() => {
+                    canvas.style.transform = prev || '';
+                });
+            }
+            setTimeout(() => {
+                if (gameInstance?.renderer?.snapshot) {
+                    gameInstance.renderer.snapshot(() => {});
+                }
+            }, 50);
         }
     } catch (error) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
