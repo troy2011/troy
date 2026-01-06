@@ -3610,27 +3610,15 @@ export default class WorldMapScene extends Phaser.Scene {
             const x = islandObj.x + islandObj.width / 2;
             const y = islandObj.y + islandObj.height / 2;
 
-            const scaffolding = this.add.text(x, y - 20, '🏗️', { fontSize: '32px' });
-            scaffolding.setOrigin(0.5);
-            scaffolding.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
+            const hammer = this.add.text(x, y - 20, '🔨', { fontSize: '28px' });
+            hammer.setOrigin(0.5);
+            hammer.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
 
             this.tweens.add({
-                targets: scaffolding,
-                y: y - 24,
-                duration: GAME_CONFIG.CONSTRUCTION_BOUNCE_DURATION,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
-
-            const crane = this.add.text(x + 20, y - 30, '🏗️', { fontSize: '24px' });
-            crane.setOrigin(0.5);
-            crane.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
-
-            this.tweens.add({
-                targets: crane,
-                angle: 10,
-                duration: GAME_CONFIG.CONSTRUCTION_CRANE_ROTATION,
+                targets: hammer,
+                y: y - 12,
+                angle: -20,
+                duration: 220,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
@@ -3649,7 +3637,7 @@ export default class WorldMapScene extends Phaser.Scene {
             particles.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
             this.ignoreOnUiCamera(particles);
 
-            this.constructionSprites.push(scaffolding, crane, particles);
+            this.constructionSprites.push(hammer, particles);
         });
 
         if (constructingIslands.length > 0) {

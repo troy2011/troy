@@ -2790,11 +2790,50 @@ app.post('/api/help-construction', async (req, res) => {
 app.get('/api/get-constructing-islands', async (req, res) => {
     try {
         const mapId = String(req?.query?.mapId || '').trim();
+        const now = Date.now();
+
+        const normalizeConstructingIslands = async (snapshot) => {
+            const islands = [];
+            for (const docSnap of snapshot.docs) {
+                const data = docSnap.data() || {};
+                const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
+                const idx = buildings.findIndex(b => b && b.status === 'constructing');
+                if (idx === -1) {
+                    if (data.constructionStatus) {
+                        await docSnap.ref.update({
+                            constructionStatus: admin.firestore.FieldValue.delete()
+                        });
+                    }
+                    continue;
+                }
+
+                const completionTime = Number(buildings[idx].completionTime) || 0;
+                if (completionTime && completionTime <= now) {
+                    buildings[idx] = { ...buildings[idx], status: 'completed' };
+                    const status = computeConstructionStatus(buildings);
+                    const patch = {
+                        buildings,
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (status) {
+                        patch.constructionStatus = status;
+                    } else {
+                        patch.constructionStatus = admin.firestore.FieldValue.delete();
+                    }
+                    await docSnap.ref.update(patch);
+                    continue;
+                }
+
+                islands.push({ id: docSnap.id, ...data });
+            }
+            return islands;
+        };
+
         if (mapId) {
             const snapshot = await getWorldMapCollection(firestore, mapId)
                 .where('constructionStatus', '==', 'constructing')
                 .get();
-            const islands = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const islands = await normalizeConstructingIslands(snapshot);
             return res.json({ success: true, islands });
         }
 
@@ -2803,9 +2842,8 @@ app.get('/api/get-constructing-islands', async (req, res) => {
         const islands = [];
         for (const col of mapCollections) {
             const snapshot = await col.where('constructionStatus', '==', 'constructing').get();
-            snapshot.docs.forEach((doc) => {
-                islands.push({ id: doc.id, ...doc.data() });
-            });
+            const list = await normalizeConstructingIslands(snapshot);
+            islands.push(...list);
         }
 
         res.json({ success: true, islands });
