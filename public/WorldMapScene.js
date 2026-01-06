@@ -344,7 +344,17 @@ export default class WorldMapScene extends Phaser.Scene {
             if (typeof window !== 'undefined' && typeof window.__mapOpenStart === 'number') {
                 const delta = Math.round(performance.now() - window.__mapOpenStart);
                 console.log('[MapReady] ms:', delta);
-                window.__mapOpenStart = null;
+                const overlay = container.querySelector('.map-loading-overlay');
+                if (overlay) {
+                    const onTransitionEnd = () => {
+                        const done = Math.round(performance.now() - window.__mapOpenStart);
+                        console.log('[MapOverlayHidden] ms:', done);
+                        window.__mapOpenStart = null;
+                    };
+                    overlay.addEventListener('transitionend', onTransitionEnd, { once: true });
+                } else {
+                    window.__mapOpenStart = null;
+                }
             }
         } else {
             container.classList.remove('map-ready');
