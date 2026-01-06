@@ -52,3 +52,15 @@ $old  = (Test-Path $file) ? ([IO.File]::ReadAllText($file,$enc)) : ''
 Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 "'
 ```
+
+---
+
+## PlayFab Economy V2 Rules (Must Follow)
+
+- Use Economy V2 only. Legacy V1 APIs are forbidden.
+- Use `PlayFabEconomyAPI` and `PlayFab.EconomyModels` for economy operations.
+- All requests must include `Entity` (EntityKey). Use `title_player_account` for player, `group` for guild.
+- Currency is an item. Use `AddInventoryItems` / `SubtractInventoryItems` with `Item.Id = "CURRENCY_CODE"`.
+- `GetUserInventory` → `GetInventoryItems` (items in `Result.Items`).
+- `ConsumeItem` / `SubtractUserVirtualCurrency` → `SubtractInventoryItems`.
+- `PurchaseItem` → `PurchaseInventoryItems` with `PriceAmounts`.
