@@ -1836,6 +1836,71 @@ app.post('/api/sell-item', async (req, res) => {
 });
 
 // ----------------------------------------------------
+// API: 温泉入浴でHP回復
+// ----------------------------------------------------
+app.post('/api/hot-spring-bath', async (req, res) => {
+    const { playFabId, islandId, mapId } = req.body || {};
+    if (!playFabId || !islandId || !mapId) {
+        return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+    }
+
+    const cost = 200;
+
+    try {
+        const islandRef = getWorldMapCollection(firestore, mapId).doc(islandId);
+        const islandSnap = await islandRef.get();
+        if (!islandSnap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = islandSnap.data() || {};
+        const buildings = Array.isArray(island.buildings) ? island.buildings : [];
+        const hasHotSpring = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'hot_spring' || b.id === 'hot_spring'));
+        if (!hasHotSpring) return res.status(400).json({ error: 'HotSpringNotFound' });
+
+        const nationValue = String(island.nation || '').toLowerCase();
+        const userNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['Nation']
+        });
+        const userNation = String(userNationResult?.Data?.Nation?.Value || '').toLowerCase();
+        if (!userNation || (nationValue && userNation !== nationValue)) {
+            return res.status(403).json({ error: 'NotOwnNation' });
+        }
+
+        const inventory = await promisifyPlayFab(PlayFabServer.GetUserInventory, { PlayFabId: playFabId });
+        const balance = Number(inventory?.VirtualCurrency?.PT || 0);
+        if (balance < cost) {
+            return res.status(400).json({ error: 'InsufficientFunds' });
+        }
+
+        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
+        const currentStats = {};
+        if (statsResult.Statistics) {
+            statsResult.Statistics.forEach(stat => { currentStats[stat.StatisticName] = stat.Value; });
+        }
+        const currentHp = Number(currentStats.HP || 0);
+        const maxHp = Number(currentStats.MaxHP || currentHp || 0);
+        if (currentHp >= maxHp) {
+            return res.status(400).json({ error: 'HpAlreadyMax' });
+        }
+
+        await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
+            PlayFabId: playFabId,
+            VirtualCurrency: 'PT',
+            Amount: cost
+        });
+
+        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: 'HP', Value: maxHp }]
+        });
+
+        res.json({ success: true, cost, newHp: maxHp });
+    } catch (error) {
+        console.error('[HotSpringBath] Error:', error);
+        res.status(500).json({ error: 'Failed to use hot spring', details: error?.errorMessage || error?.message || error });
+    }
+});
+
+// ----------------------------------------------------
 // 島( world_map ) + 建設API
 // buildings[] の推奨スキーマ（島あたり1件）
 // {

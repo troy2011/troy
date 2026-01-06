@@ -1,5 +1,6 @@
 ﻿// island.js - Island occupation/building client logic
 import { callApiWithLoader, buildApiUrl } from './api.js';
+import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
@@ -280,6 +281,7 @@ export function showBuildingMenu(island, playFabId) {
     const activeBuildingId = activeBuilding ? (activeBuilding.buildingId || activeBuilding.id || '') : '';
     const shopConfig = getShopConfig(activeBuildingId);
     const allowShipBuild = isOwnNation && activeBuildingId === 'capital';
+    const allowHotSpring = isOwnNation && activeBuildingId === 'hot_spring';
 
     sheet.innerHTML = `
         <div class="bottom-sheet-overlay"></div>
@@ -389,6 +391,16 @@ export function showBuildingMenu(island, playFabId) {
                     </div>
                 </div>
                 `}
+                ` : ''}
+
+                ${(hasBuilding && isOwnNation && allowHotSpring) ? `
+                <div class="building-actions">
+                    <div class="resource-title">温泉</div>
+                    <div class="resource-row">入浴（200 Ps）でHPを回復</div>
+                    <div class="resource-row">
+                        <button class="btn-build" id="btnHotSpringBath">入浴</button>
+                    </div>
+                </div>
                 ` : ''}
 
                 ${(hasBuilding && isOwnNation && allowShipBuild) ? `
@@ -666,6 +678,26 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             if (typeof window.showTab === 'function') {
                 void window.showTab('ships');
             }
+        });
+    }
+
+    const hotSpringBtn = sheet.querySelector('#btnHotSpringBath');
+    if (hotSpringBtn) {
+        hotSpringBtn.addEventListener('click', async () => {
+            hotSpringBtn.disabled = true;
+            const result = await callApiWithLoader('/api/hot-spring-bath', {
+                playFabId,
+                islandId: island.id,
+                mapId: window.__currentMapId || null
+            });
+            if (result && result.success) {
+                showRpgMessage('温泉で体力が回復した！');
+                await Player.getPlayerStats(playFabId);
+                await Player.getPoints(playFabId);
+            } else if (result?.error) {
+                alert(result.error);
+            }
+            hotSpringBtn.disabled = false;
         });
     }
 
