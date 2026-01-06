@@ -2310,7 +2310,7 @@ app.post('/api/buy-from-shop', async (req, res) => {
 });
 
 app.post('/api/start-building-construction', async (req, res) => {
-    const { playFabId, islandId, buildingId } = req.body || {};
+    const { playFabId, islandId, buildingId, mapId } = req.body || {};
     if (!playFabId || !islandId || !buildingId) {
         return res.status(400).json({ error: 'playFabId, islandId, buildingId are required' });
     }
@@ -2353,6 +2353,7 @@ app.post('/api/start-building-construction', async (req, res) => {
 
         // 3. 建設処理（Firestoreトランザクション）
         let displayName = null;
+        let playerNation = null;
         try {
             const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: playFabId,
@@ -2362,9 +2363,24 @@ app.post('/api/start-building-construction', async (req, res) => {
         } catch (e) {
             console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
         }
+        try {
+            const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['Nation', 'Race']
+            });
+            const nationValue = ro?.Data?.Nation?.Value || null;
+            const raceValue = ro?.Data?.Race?.Value || null;
+            if (nationValue) {
+                playerNation = String(nationValue).toLowerCase();
+            } else if (raceValue && NATION_GROUP_BY_RACE[raceValue]) {
+                playerNation = NATION_GROUP_BY_RACE[raceValue].island;
+            }
+        } catch (e) {
+            console.warn('[StartBuildingConstruction] GetUserReadOnlyData failed:', e?.errorMessage || e?.message || e);
+        }
         const islandName = `${displayName || 'Player'}?${spec.DisplayName || buildingId}`;
 
-const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const now = Date.now();
 
         const building = await firestore.runTransaction(async (tx) => {
@@ -2372,7 +2388,7 @@ const ref = firestore.collection('world_map').doc(islandId);
             if (!snap.exists) throw new Error('IslandNotFound');
 
             const island = snap.data() || {};
-            if (island.ownerId !== playFabId) throw new Error('NotOwner');
+            if (island.ownerId && island.ownerId !== playFabId) throw new Error('NotOwner');
 
             const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
             const existing = buildings.find(b => b && b.status !== 'demolished');
@@ -2424,6 +2440,10 @@ const ref = firestore.collection('world_map').doc(islandId);
                 buildings,
                 name: islandName,
                 constructionStatus: 'constructing',
+                ownerId: island.ownerId || playFabId,
+                ownerNation: island.ownerNation || playerNation,
+                nation: island.nation || playerNation,
+                occupationStatus: island.occupationStatus || 'occupied',
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
 
@@ -2448,7 +2468,7 @@ const ref = firestore.collection('world_map').doc(islandId);
 });
 
 app.post('/api/upgrade-island-level', async (req, res) => {
-    const { playFabId, islandId } = req.body || {};
+    const { playFabId, islandId, mapId } = req.body || {};
     if (!playFabId || !islandId) {
         return res.status(400).json({ error: 'playFabId and islandId are required' });
     }
@@ -2457,7 +2477,7 @@ app.post('/api/upgrade-island-level', async (req, res) => {
     const maxLevel = 5;
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
 

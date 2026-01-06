@@ -104,7 +104,8 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId)
     const response = await callApiWithLoader('/api/start-building-construction', {
         playFabId: playFabId,
         islandId: islandId,
-        buildingId: buildingId
+        buildingId: buildingId,
+        mapId: window.__currentMapId || null
     });
 
     if (response && response.success) {
@@ -119,7 +120,8 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId)
 export async function upgradeIslandLevel(playFabId, islandId) {
     const response = await callApiWithLoader('/api/upgrade-island-level', {
         playFabId: playFabId,
-        islandId: islandId
+        islandId: islandId,
+        mapId: window.__currentMapId || null
     });
 
     if (response && response.success) {
