@@ -199,6 +199,11 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     preload() {
+        const preloadLabel = `[WorldMapScene][preload] ${this.mapId || 'unknown'} ${Date.now()}`;
+        console.time(preloadLabel);
+        this.load.once('complete', () => {
+            console.timeEnd(preloadLabel);
+        });
         this.load.spritesheet('ship_sprite', 'Sprites/Ships/ships.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_red', 'Sprites/Ships/ships_red.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
