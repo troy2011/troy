@@ -2876,6 +2876,7 @@ app.post('/api/get-buildings-by-category', async (req, res) => {
     try {
         const category = String(req?.body?.category || '');
         const islandSize = String(req?.body?.islandSize || '').toLowerCase();
+        const mapId = String(req?.body?.mapId || '').trim();
         const entries = Object.entries(buildingDefs?.buildings || {}).filter(([, building]) => {
             if (!building) return false;
             if (building.buildable === false) return false;
@@ -2883,24 +2884,56 @@ app.post('/api/get-buildings-by-category', async (req, res) => {
             return building.category === category;
         });
 
+        let mapBuildingCounts = null;
+        if (mapId) {
+            const counts = {};
+            const snapshot = await getWorldMapCollection(firestore, mapId).get();
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data() || {};
+                const list = Array.isArray(data.buildings) ? data.buildings : [];
+                list.forEach((entry) => {
+                    if (!entry || entry.status === 'demolished') return;
+                    const rawId = String(entry.buildingId || entry.id || '');
+                    if (!rawId) return;
+                    counts[rawId] = (counts[rawId] || 0) + 1;
+                });
+            });
+            mapBuildingCounts = counts;
+        }
+
         const buildings = entries.map(([key, building]) => {
+            const resolved = buildingDefs.getBuildingById
+                ? buildingDefs.getBuildingById(building.id || key)
+                : building;
             const slotsRequired = Number(building.slotsRequired || 1);
             const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : 'large'}`;
+            const condition = resolved?.buildCondition || building?.buildCondition || null;
+            let meetsCondition = true;
+            if (condition && mapBuildingCounts) {
+                const requiredId = String(condition.buildingId || '').trim();
+                const minCount = Number(condition.minCount || 0);
+                if (requiredId && minCount > 0) {
+                    const current = Number(mapBuildingCounts[requiredId] || 0);
+                    meetsCondition = current >= minCount;
+                }
+            }
             return {
                 id: building.id || key,
-                name: building.name || building.id || key,
-                description: building.description || '',
-                buildTime: Number(building.buildTime || 0),
+                name: resolved?.name || building.name || building.id || key,
+                description: resolved?.description || building.description || '',
+                buildTime: Number(resolved?.buildTime || building.buildTime || 0),
                 tags: [sizeTag],
                 slotsRequired,
-                category: building.category || null
+                category: building.category || null,
+                buildCondition: condition || null,
+                meetsCondition
             };
         });
 
-        let filtered = buildings;
+        let filtered = buildings.filter((item) => item.meetsCondition !== false);
         if (islandSize) {
             const tag = `size_${islandSize}`;
-            filtered = buildings.filter(item => !Array.isArray(item.tags) || item.tags.includes(tag));
+            filtered = filtered.filter(item => !Array.isArray(item.tags) || item.tags.includes(tag));
         }
 
         res.json({ success: true, buildings: filtered });

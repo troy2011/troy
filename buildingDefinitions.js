@@ -97,8 +97,8 @@ const buildings = {
         buildTime: 3600, // 1時間
         cost: { PT: 500 },
         tileIndex: 18,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
             defenseBonus: 30,
             attackRange: 5,
@@ -121,6 +121,11 @@ const buildings = {
             defenseBonus: 100,
             garrisonCapacity: 50,
             repairSpeed: 1.5
+        },
+        buildCondition: {
+            sameMap: true,
+            buildingId: 'watchtower',
+            minCount: 2
         },
         description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。'
     },
@@ -187,7 +192,7 @@ const buildings = {
         slotsRequired: 2,
         buildTime: 5400, // 1.5時間
         cost: { PT: 1000 },
-        tileIndex: 23,
+        tileIndex: 994,
         sizeLogic: { x: 2, y: 1 },
         sizeVisual: { x: 2, y: 2 },
         effects: {
@@ -223,15 +228,16 @@ const buildings = {
         slotsRequired: 4,
         buildTime: 14400, // 4時間
         cost: { PT: 3000 },
-        tileIndex: 25,
+        tileIndex: 656,
         sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 3, y: 3 },
+        sizeVisual: { x: 2, y: 2 },
         effects: {
             tradeBonus: 0.5,
             tradeRoutes: 5,
             marketPriceControl: true
         },
-        description: '広範囲の交易ネットワークを構築できる巨大市場。'
+        description: '広範囲の交易ネットワークを構築できる巨大市場。',
+        nationTileOffset: true
     },
 
     // ========================================
@@ -361,7 +367,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 1200, // 20分
         cost: { PT: 300 },
-        tileIndex: 752,
+        tileIndex: 748,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -380,7 +386,7 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 2400, // 40分
         cost: { PT: 600 },
-        tileIndex: 748,
+        tileIndex: 752,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {

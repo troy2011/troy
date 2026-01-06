@@ -887,7 +887,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
 async function fetchBuildingsForCategory(category, islandSize) {
     const response = await callApiWithLoader('/api/get-buildings-by-category', {
         category,
-        islandSize
+        islandSize,
+        mapId: window.__currentMapId || null
     }, { isSilent: true });
     const list = Array.isArray(response?.buildings) ? response.buildings : [];
     return list;
