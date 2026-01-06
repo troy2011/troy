@@ -61,7 +61,8 @@ export async function getPlayerIslands(playFabId) {
 
 export async function getIslandDetails(islandId) {
     const response = await callApiWithLoader('/api/get-island-details', {
-        islandId: islandId
+        islandId: islandId,
+        mapId: window.__currentMapId || null
     }, { isSilent: true });
 
     if (response && response.success) {

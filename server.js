@@ -236,6 +236,12 @@ async function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
 
+function getWorldMapCollection(firestore, mapId) {
+    const raw = String(mapId || '').trim();
+    if (!raw) return firestore.collection('world_map');
+    return firestore.collection(`world_map_${raw}`);
+}
+
 async function provisionStarterAssets({ promisifyPlayFab, PlayFabServer, playFabId }) {
     try {
         await promisifyPlayFab(PlayFabServer.GrantItemsToUser, {
@@ -2006,12 +2012,16 @@ app.post('/api/collect-resource', async (req, res) => {
 });
 
 app.post('/api/get-island-details', async (req, res) => {
-    const { islandId } = req.body || {};
+    const { islandId, mapId } = req.body || {};
     if (!islandId) return res.status(400).json({ error: 'islandId is required' });
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
-        const snap = await ref.get();
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+        let snap = await ref.get();
+        if (!snap.exists && mapId) {
+            const legacyRef = firestore.collection('world_map').doc(islandId);
+            snap = await legacyRef.get();
+        }
         if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
 
         const data = snap.data() || {};
