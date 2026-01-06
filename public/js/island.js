@@ -89,13 +89,21 @@ function formatMs(ms) {
 }
 
 async function getResourceStatus(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/get-resource-status', { playFabId, islandId }, { isSilent: true });
+    const response = await callApiWithLoader('/api/get-resource-status', {
+        playFabId,
+        islandId,
+        mapId: window.__currentMapId || null
+    }, { isSilent: true });
     if (response && response.success) return response;
     return null;
 }
 
 async function collectResource(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/collect-resource', { playFabId, islandId });
+    const response = await callApiWithLoader('/api/collect-resource', {
+        playFabId,
+        islandId,
+        mapId: window.__currentMapId || null
+    });
     return response;
 }
 

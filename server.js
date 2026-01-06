@@ -1937,11 +1937,11 @@ async function resolveNationIslandByGroupId(groupId) {
 }
 
 app.post('/api/get-resource-status', async (req, res) => {
-    const { playFabId, islandId } = req.body || {};
+    const { playFabId, islandId, mapId } = req.body || {};
     if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
 
@@ -1987,11 +1987,11 @@ app.post('/api/get-resource-status', async (req, res) => {
 });
 
 app.post('/api/collect-resource', async (req, res) => {
-    const { playFabId, islandId } = req.body || {};
+    const { playFabId, islandId, mapId } = req.body || {};
     if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
 
     try {
-        const ref = firestore.collection('world_map').doc(islandId);
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
 
