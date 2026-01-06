@@ -222,21 +222,7 @@ export function escapeHtml(str) {
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     const currentActiveTab = document.querySelector('.nav-button.active');
-    if (tabId === 'map') {
-        window.__mapOpenStart = performance.now();
-    }
-    const isMapReuse = tabId === 'map' && tabLoaded.map && !!gameInstance;
-    const mapLoadLabel = isMapReuse ? `[showTab][map] ${Date.now()}` : null;
-    if (mapLoadLabel) {
-        console.time(mapLoadLabel);
-        console.log('[showTab][map] state', {
-            tabLoaded: tabLoaded.map,
-            hasGame: !!gameInstance,
-            currentMapId: window.__currentMapId || null,
-            mapId: options.mapId || null,
-            skipMapSelect: !!options.skipMapSelect
-        });
-    }
+    const mapLoadLabel = null;
 
     const mapSelectOptions = {
         skipMapSelect: !!options.skipMapSelect,
@@ -310,18 +296,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
     const navEl = document.getElementById(`nav${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (navEl) navEl.classList.add('active');
-    if (tabId === 'map') {
-        const mapTab = document.getElementById('tabContentMap');
-        const overlay = mapTab?.querySelector?.('.map-loading-overlay') || null;
-        const canvas = mapTab?.querySelector?.('canvas') || null;
-        console.log('[MapTab] display state', {
-            tabDisplay: mapTab ? getComputedStyle(mapTab).display : null,
-            overlayDisplay: overlay ? getComputedStyle(overlay).display : null,
-            overlayOpacity: overlay ? getComputedStyle(overlay).opacity : null,
-            canvasDisplay: canvas ? getComputedStyle(canvas).display : null,
-            canvasVisibility: canvas ? getComputedStyle(canvas).visibility : null
-        });
-    }
 
     try {
         if (!tabLoaded[tabId]) {
@@ -419,9 +393,8 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         if (gameInstance?.renderer?.snapshot) {
                             gameInstance.renderer.snapshot(() => {});
                         }
-                        if (mapLoadLabel) console.timeEnd(mapLoadLabel);
-                        return; // Don't launch twice
-                    }
+                return; // Don't launch twice
+            }
                     // コンテナのサイズが確定するまで待機
                     const container = document.getElementById('phaser-container');
                     let retries = 0;
@@ -432,7 +405,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
                     if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
                         console.error('[Phaser] Container still has zero dimensions after waiting.');
-                        if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                         break;
                     }
 
@@ -448,7 +420,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     if (gameInstance) {
                         Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
                     }
-                    if (mapLoadLabel) console.timeEnd(mapLoadLabel);
                     break;
                 }
             }
@@ -500,7 +471,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
     } catch (error) {
         console.error(`Failed to load data for tab ${tabId}:`, error);
     }
-    if (mapLoadLabel) console.timeEnd(mapLoadLabel);
+    // no-op
 }
 
 export function showConfirmationModal(amount, receiverId, onConfirm) {

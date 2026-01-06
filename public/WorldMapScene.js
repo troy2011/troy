@@ -199,11 +199,6 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     preload() {
-        const preloadLabel = `[WorldMapScene][preload] ${this.mapId || 'unknown'} ${Date.now()}`;
-        console.time(preloadLabel);
-        this.load.once('complete', () => {
-            console.timeEnd(preloadLabel);
-        });
         this.load.spritesheet('ship_sprite', 'Sprites/Ships/ships.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_red', 'Sprites/Ships/ships_red.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
@@ -341,25 +336,13 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!container) return;
         if (ready) {
             container.classList.add('map-ready');
-            if (typeof window !== 'undefined' && typeof window.__mapOpenStart === 'number') {
-                const delta = Math.round(performance.now() - window.__mapOpenStart);
-                console.log('[MapReady] ms:', delta);
-                const overlay = container.querySelector('.map-loading-overlay');
-                if (overlay) {
-                    overlay.style.opacity = '0';
-                    overlay.style.pointerEvents = 'none';
-                    requestAnimationFrame(() => {
-                        overlay.style.display = 'none';
-                    });
-                    const onTransitionEnd = () => {
-                        const done = Math.round(performance.now() - window.__mapOpenStart);
-                        console.log('[MapOverlayHidden] ms:', done);
-                        window.__mapOpenStart = null;
-                    };
-                    overlay.addEventListener('transitionend', onTransitionEnd, { once: true });
-                } else {
-                    window.__mapOpenStart = null;
-                }
+            const overlay = container.querySelector('.map-loading-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+                requestAnimationFrame(() => {
+                    overlay.style.display = 'none';
+                });
             }
         } else {
             container.classList.remove('map-ready');
@@ -373,9 +356,6 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     async create() {
-        const mapLabel = this.mapId || 'unknown';
-        const createLabel = `[WorldMapScene][create] ${mapLabel} ${Date.now()}`;
-        console.time(createLabel);
         this.setMapReady(false);
         if (!this.mapId && typeof window !== 'undefined') {
             this.mapId = window.__currentMapId || this.mapId;
@@ -620,8 +600,6 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 9. Firestore から島データを読み込む（world_map）
         try {
-            const islandsLabel = `[WorldMapScene][islands] ${mapLabel} ${Date.now()}`;
-            console.time(islandsLabel);
             const db = getFirestore();
             const querySnapshot = await getDocs(collection(db, this.getWorldMapCollectionName()));
 
@@ -678,7 +656,6 @@ export default class WorldMapScene extends Phaser.Scene {
             });
 
             console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
-            console.timeEnd(islandsLabel);
         } catch (error) {
             console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
             this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
@@ -688,10 +665,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.createMinimap();
 
         // 11. Firestore 初期化（ships同期など）
-        const firestoreLabel = `[WorldMapScene][firestore] ${mapLabel} ${Date.now()}`;
-        console.time(firestoreLabel);
         await this.initializeFirestore();
-        console.timeEnd(firestoreLabel);
 
         // UI camera should only render fog + minimap.
         if (this.uiCamera) {
@@ -705,7 +679,6 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         this.setMapReady(true);
-        console.timeEnd(createLabel);
     }
 
     createObstacle(data) {
