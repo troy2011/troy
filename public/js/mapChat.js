@@ -1,5 +1,13 @@
 // c:/Users/ikeda/my-liff-app/public/js/mapChat.js
-import { callApiWithLoader } from './api.js';
+import {
+    getGuildInfo,
+    getGuildChat,
+    getNearbyChat,
+    getGlobalChat,
+    sendGuildChat,
+    sendNearbyChat,
+    sendGlobalChat
+} from './playfabClient.js';
 
 let activeChannel = 'global';
 let pollTimer = null;
@@ -27,7 +35,7 @@ function getPlayerPosition() {
 
 async function getGuildId(playFabId) {
     if (cachedGuildId) return cachedGuildId;
-    const data = await callApiWithLoader('/api/get-guild-info', { playFabId }, { isSilent: true });
+    const data = await getGuildInfo(playFabId, null, { isSilent: true });
     if (data?.guild?.guildId) {
         cachedGuildId = data.guild.guildId;
         return cachedGuildId;
@@ -77,19 +85,15 @@ async function fetchMessages(playFabId) {
     if (activeChannel === 'guild') {
         const guildId = await getGuildId(playFabId);
         if (!guildId) return [];
-        const data = await callApiWithLoader('/api/get-guild-chat', { playFabId, guildId }, { isSilent: true });
+        const data = await getGuildChat(playFabId, guildId, { isSilent: true });
         return Array.isArray(data?.messages) ? data.messages : [];
     }
     if (activeChannel === 'nearby') {
         const pos = getPlayerPosition();
-        const data = await callApiWithLoader('/api/get-nearby-chat', {
-            playFabId,
-            x: pos?.x,
-            y: pos?.y
-        }, { isSilent: true });
+        const data = await getNearbyChat(playFabId, pos?.x, pos?.y, window.__currentMapId || null, { isSilent: true });
         return Array.isArray(data?.messages) ? data.messages : [];
     }
-    const data = await callApiWithLoader('/api/get-global-chat', { playFabId }, { isSilent: true });
+    const data = await getGlobalChat(playFabId, { isSilent: true });
     return Array.isArray(data?.messages) ? data.messages : [];
 }
 
@@ -105,15 +109,15 @@ async function sendMessage(playFabId, message) {
             alert('ギルドに所属していません');
             return false;
         }
-        const res = await callApiWithLoader('/api/send-guild-chat', { ...payload, guildId });
+        const res = await sendGuildChat(playFabId, guildId, payload.message);
         return !!res?.success;
     }
     if (activeChannel === 'nearby') {
         const pos = getPlayerPosition();
-        const res = await callApiWithLoader('/api/send-nearby-chat', { ...payload, x: pos?.x, y: pos?.y });
+        const res = await sendNearbyChat({ ...payload, x: pos?.x, y: pos?.y });
         return !!res?.success;
     }
-    const res = await callApiWithLoader('/api/send-global-chat', payload);
+    const res = await sendGlobalChat(payload);
     return !!res?.success;
 }
 
@@ -169,4 +173,3 @@ export function initMapChat(playFabId) {
     setActiveChannel(activeChannel, playFabId);
     startPolling(playFabId);
 }
-

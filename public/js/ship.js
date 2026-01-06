@@ -1,7 +1,17 @@
 ﻿// c:/Users/ikeda/my-liff-app/public/js/ship.js
 // Client-side ship management with dead reckoning animation
 
-import { callApiWithLoader } from './playfabClient.js';
+import {
+    getActiveShip as fetchActiveShip,
+    setActiveShip as requestSetActiveShip,
+    createShip as requestCreateShip,
+    startShipVoyage as requestStartShipVoyage,
+    stopShip as requestStopShip,
+    getPlayerShips as fetchPlayerShips,
+    getShipsInView as fetchShipsInView,
+    getShipAsset as fetchShipAsset,
+    getShipPosition as fetchShipPosition
+} from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
@@ -54,7 +64,7 @@ const ASSET_CACHE_TTL = 5 * 60 * 1000;
 let activeShipIdCache = null;
 
 export async function getActiveShipId(playFabId) {
-    const result = await callApiWithLoader('/api/get-active-ship', { playFabId }, { isSilent: true });
+    const result = await fetchActiveShip(playFabId, { isSilent: true });
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || null;
         return activeShipIdCache;
@@ -63,7 +73,7 @@ export async function getActiveShipId(playFabId) {
 }
 
 export async function setActiveShip(playFabId, shipId) {
-    const result = await callApiWithLoader('/api/set-active-ship', { playFabId, shipId });
+    const result = await requestSetActiveShip(playFabId, shipId);
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || shipId;
 
@@ -115,13 +125,13 @@ export function calculateCurrentPosition(movement, staticPosition) {
 }
 
 export async function createShip(playFabId, shipItemId, spawnPosition, context) {
-    const data = await callApiWithLoader('/api/create-ship', {
-        playFabId: playFabId,
-        shipItemId: shipItemId,
-        spawnPosition: spawnPosition,
-        mapId: context?.mapId || null,
-        islandId: context?.islandId || null
-    });
+    const data = await requestCreateShip(
+        playFabId,
+        shipItemId,
+        spawnPosition,
+        context?.mapId || null,
+        context?.islandId || null
+    );
 
     if (data && data.success) {
         console.log(`[CreateShip] Created ship ${data.shipId}`);
@@ -134,11 +144,7 @@ export async function createShip(playFabId, shipItemId, spawnPosition, context) 
 }
 
 export async function startShipVoyage(shipId, playFabId, destination) {
-    const data = await callApiWithLoader('/api/start-ship-voyage', {
-        shipId: shipId,
-        playFabId: playFabId,
-        destination: destination
-    });
+    const data = await requestStartShipVoyage(shipId, playFabId, destination);
 
     if (data && data.success) {
         console.log(`[StartShipVoyage] Ship ${shipId} departing, ETA: ${data.travelTimeSeconds.toFixed(1)}s`);
@@ -149,9 +155,7 @@ export async function startShipVoyage(shipId, playFabId, destination) {
 }
 
 export async function stopShip(shipId) {
-    const data = await callApiWithLoader('/api/stop-ship', {
-        shipId: shipId
-    });
+    const data = await requestStopShip(shipId);
 
     if (data && data.success) {
         console.log(`[StopShip] Ship ${shipId} stopped at (${data.currentPosition.x}, ${data.currentPosition.y})`);
@@ -162,9 +166,7 @@ export async function stopShip(shipId) {
 }
 
 export async function getPlayerShips(playFabId) {
-    const data = await callApiWithLoader('/api/get-player-ships', {
-        playFabId: playFabId
-    }, { isSilent: true });
+    const data = await fetchPlayerShips(playFabId, { isSilent: true });
 
     if (data && data.success) {
         return data.ships;
@@ -174,12 +176,7 @@ export async function getPlayerShips(playFabId) {
 }
 
 export async function getShipsInView(centerX, centerY, radius, mapId = null) {
-    const data = await callApiWithLoader('/api/get-ships-in-view', {
-        centerX: centerX,
-        centerY: centerY,
-        radius: radius,
-        mapId: mapId || null
-    }, { isSilent: true });
+    const data = await fetchShipsInView(centerX, centerY, radius, mapId || null, { isSilent: true });
 
     if (data && data.success) {
         return data.ships;
@@ -205,10 +202,7 @@ export async function getShipAsset(playFabId, shipId, forceRefresh = false) {
     }
 
     console.log(`[GetShipAsset] Fetching from API for ${shipId}`);
-    const data = await callApiWithLoader('/api/get-ship-asset', {
-        playFabId: playFabId,
-        shipId: shipId
-    }, { isSilent: true });
+    const data = await fetchShipAsset(playFabId, shipId, { isSilent: true });
 
     if (data && data.success) {
         assetDataCache.set(cacheKey, {
@@ -222,9 +216,7 @@ export async function getShipAsset(playFabId, shipId, forceRefresh = false) {
 }
 
 export async function getShipPosition(shipId) {
-    const data = await callApiWithLoader('/api/get-ship-position', {
-        shipId: shipId
-    }, { isSilent: true });
+    const data = await fetchShipPosition(shipId, { isSilent: true });
 
     if (data && data.success) {
         return data.positionData;

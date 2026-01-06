@@ -1,6 +1,5 @@
 // c:/Users/ikeda/my-liff-app/public/js/avatar.js
 
-import { callApiWithLoader } from './api.js';
 import { AVATAR_PART_OFFSETS } from './config.js';
 
 /**

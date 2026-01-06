@@ -1,7 +1,20 @@
 // c:/Users/ikeda/my-liff-app/public/js/guild.js
 // ギルド機能を管理するモジュール
 
-import { callApiWithLoader } from './playfabClient.js';
+import {
+    getGuildInfo,
+    createGuild as requestCreateGuild,
+    joinGuild as requestJoinGuild,
+    leaveGuild as requestLeaveGuild,
+    getGuildMembers as fetchGuildMembers,
+    getGuildChat as fetchGuildChat,
+    sendGuildChat as requestSendGuildChat,
+    getGuildWarehouse as fetchGuildWarehouse,
+    withdrawFromGuildWarehouse as requestWithdrawFromGuildWarehouse,
+    getGuildApplications as fetchGuildApplications,
+    approveGuildApplication as requestApproveGuildApplication,
+    rejectGuildApplication as requestRejectGuildApplication
+} from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // ギルド情報をキャッシュ
@@ -18,7 +31,7 @@ export async function loadGuildInfo(playFabId) {
     try {
         const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
         // サーバーAPIを呼び出してギルド情報を取得
-        const data = await callApiWithLoader('/api/get-guild-info', { playFabId, entityKey }, { isSilent: true });
+        const data = await getGuildInfo(playFabId, entityKey, { isSilent: true });
 
         if (data && data.guild) {
             // ギルドに加入している場合
@@ -130,10 +143,7 @@ export async function createGuild(playFabId, guildName) {
     document.getElementById('guildCreateMessage').textContent = '作成中...';
 
     try {
-        const data = await callApiWithLoader('/api/create-guild', {
-            playFabId,
-            guildName: guildName.trim()
-        });
+        const data = await requestCreateGuild(playFabId, guildName.trim());
 
         if (data && data.success) {
             document.getElementById('guildCreateModal').style.display = 'none';
@@ -190,10 +200,7 @@ export async function scanJoinGuild(playFabId) {
  */
 async function joinGuild(playFabId, guildId) {
     try {
-        const data = await callApiWithLoader('/api/join-guild', {
-            playFabId,
-            guildId
-        });
+        const data = await requestJoinGuild(playFabId, guildId);
 
         if (data && data.success) {
             // ギルド情報を再読み込み
@@ -221,7 +228,7 @@ export async function leaveGuild(playFabId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/leave-guild', { playFabId });
+        const data = await requestLeaveGuild(playFabId);
 
         if (data && data.success) {
             // ギルド情報を再読み込み
@@ -251,10 +258,7 @@ export async function showGuildMembers(playFabId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/get-guild-members', {
-            playFabId,
-            guildId: currentGuildInfo.guildId
-        });
+        const data = await fetchGuildMembers(playFabId, currentGuildInfo.guildId);
 
         if (data && data.members) {
             renderGuildMembers(data.members);
@@ -311,10 +315,7 @@ export async function showGuildChat(playFabId) {
 
     try {
         // チャットメッセージを取得
-        const data = await callApiWithLoader('/api/get-guild-chat', {
-            playFabId,
-            guildId: currentGuildInfo.guildId
-        }, { isSilent: true });
+        const data = await fetchGuildChat(playFabId, currentGuildInfo.guildId, { isSilent: true });
 
         if (data && data.messages) {
             renderGuildChat(data.messages);
@@ -395,10 +396,7 @@ function startChatPolling(playFabId) {
         }
 
         try {
-            const data = await callApiWithLoader('/api/get-guild-chat', {
-                playFabId,
-                guildId: currentGuildInfo.guildId
-            }, { isSilent: true });
+            const data = await fetchGuildChat(playFabId, currentGuildInfo.guildId, { isSilent: true });
 
             if (data && data.messages) {
                 renderGuildChat(data.messages);
@@ -427,20 +425,13 @@ export async function sendGuildChatMessage(playFabId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/send-guild-chat', {
-            playFabId,
-            guildId: currentGuildInfo.guildId,
-            message: message
-        });
+        const data = await requestSendGuildChat(playFabId, currentGuildInfo.guildId, message);
 
         if (data && data.success) {
             input.value = '';
 
             // チャットを再読み込み
-            const chatData = await callApiWithLoader('/api/get-guild-chat', {
-                playFabId,
-                guildId: currentGuildInfo.guildId
-            }, { isSilent: true });
+            const chatData = await fetchGuildChat(playFabId, currentGuildInfo.guildId, { isSilent: true });
 
             if (chatData && chatData.messages) {
                 renderGuildChat(chatData.messages);
@@ -465,10 +456,7 @@ export async function showGuildWarehouse(playFabId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/get-guild-warehouse', {
-            playFabId,
-            guildId: currentGuildInfo.guildId
-        });
+        const data = await fetchGuildWarehouse(playFabId, currentGuildInfo.guildId);
 
         if (data) {
             renderGuildWarehouse(data.warehouse, data.treasury);
@@ -537,11 +525,7 @@ async function withdrawFromWarehouse(playFabId, warehouseIndex) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/withdraw-from-guild-warehouse', {
-            playFabId,
-            guildId: currentGuildInfo.guildId,
-            warehouseIndex: warehouseIndex
-        });
+        const data = await requestWithdrawFromGuildWarehouse(playFabId, currentGuildInfo.guildId, warehouseIndex);
 
         if (data && data.success) {
             showMessage('アイテムを引き出しました');
@@ -568,10 +552,7 @@ export async function showGuildApplications(playFabId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/get-guild-applications', {
-            playFabId,
-            guildId: currentGuildInfo.guildId
-        });
+        const data = await fetchGuildApplications(playFabId, currentGuildInfo.guildId);
 
         if (data && data.applications) {
             renderGuildApplications(data.applications, playFabId);
@@ -636,11 +617,7 @@ function renderGuildApplications(applications, playFabId) {
  */
 async function approveApplication(playFabId, applicantId) {
     try {
-        const data = await callApiWithLoader('/api/approve-guild-application', {
-            playFabId,
-            guildId: currentGuildInfo.guildId,
-            applicantId: applicantId
-        });
+        const data = await requestApproveGuildApplication(playFabId, currentGuildInfo.guildId, applicantId);
 
         if (data && data.success) {
             showMessage('加入申請を承認しました');
@@ -669,11 +646,7 @@ async function rejectApplication(playFabId, applicantId) {
     }
 
     try {
-        const data = await callApiWithLoader('/api/reject-guild-application', {
-            playFabId,
-            guildId: currentGuildInfo.guildId,
-            applicantId: applicantId
-        });
+        const data = await requestRejectGuildApplication(playFabId, currentGuildInfo.guildId, applicantId);
 
         if (data && data.success) {
             showMessage('加入申請を拒否しました');

@@ -1,6 +1,12 @@
 // c:/Users/ikeda/my-liff-app/public/js/inventory.js
 
-import { callApiWithLoader } from './playfabClient.js';
+import {
+    getInventory as fetchInventory,
+    getEquipment as fetchEquipment,
+    equipItem as requestEquipItem,
+    useItem as requestUseItem,
+    sellItem as requestSellItem
+} from './playfabClient.js';
 import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
 
@@ -37,7 +43,7 @@ function renderResourceSummary() {
 
 export async function getInventory(playFabId) {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
-    const data = await callApiWithLoader('/api/get-inventory', { playFabId });
+    const data = await fetchInventory(playFabId);
     if (data) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
@@ -48,7 +54,7 @@ export async function getInventory(playFabId) {
 }
 
 export async function getEquipment(playFabId) {
-    const data = await callApiWithLoader('/api/get-equipment', { playFabId });
+    const data = await fetchEquipment(playFabId);
     if (data?.equipment) {
         myCurrentEquipment = data.equipment;
     }
@@ -56,7 +62,7 @@ export async function getEquipment(playFabId) {
 }
 
 export async function equipItem(playFabId, itemId, slot) {
-    const data = await callApiWithLoader('/api/equip-item', { playFabId, itemId, slot });
+    const data = await requestEquipItem(playFabId, itemId, slot);
     if (data !== null) {
         await getInventory(playFabId); // インベントリと装備を再取得して表示を更新
         // アイテム詳細モーダルを閉じる
@@ -68,7 +74,7 @@ export async function equipItem(playFabId, itemId, slot) {
 }
 
 export async function useItem(playFabId, itemInstanceId, itemId) {
-    const data = await callApiWithLoader('/api/use-item', { playFabId, itemInstanceId, itemId });
+    const data = await requestUseItem(playFabId, itemInstanceId, itemId);
     if (data) {
         document.getElementById('pointMessage').innerText = data.message;
         await getInventory(playFabId);
@@ -82,7 +88,7 @@ export async function useItem(playFabId, itemInstanceId, itemId) {
 }
 
 export async function sellItem(playFabId, itemInstanceId, itemId) {
-    const data = await callApiWithLoader('/api/sell-item', { playFabId, itemInstanceId, itemId });
+    const data = await requestSellItem(playFabId, itemInstanceId, itemId);
     if (data) {
         await getInventory(playFabId);
         await Player.getPoints(playFabId);

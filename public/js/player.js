@@ -1,6 +1,13 @@
 // c:/Users/ikeda/my-liff-app/public/js/player.js
 
-import { callApiWithLoader } from './playfabClient.js';
+import {
+    getPlayerStats as fetchPlayerStats,
+    getPoints as fetchPoints,
+    addPoints as requestAddPoints,
+    usePoints as requestUsePoints,
+    getRanking as fetchRanking,
+    getBountyRanking as fetchBountyRanking
+} from './playfabClient.js';
 
 let myPlayerStats = {};
 
@@ -9,7 +16,7 @@ export function getMyPlayerStats() {
 }
 
 export async function getPlayerStats(playFabId) {
-    const data = await callApiWithLoader('/api/get-stats', { playFabId });
+    const data = await fetchPlayerStats(playFabId);
     if (data?.stats) {
         myPlayerStats = data.stats;
         updatePlayerStatsDisplay();
@@ -32,7 +39,7 @@ function updatePlayerStatsDisplay() {
 }
 
 export async function getPoints(playFabId) {
-    const data = await callApiWithLoader('/api/get-points', { playFabId });
+    const data = await fetchPoints(playFabId);
     if (data) {
         const currentPointsEl = document.getElementById('currentPoints');
         if (currentPointsEl) currentPointsEl.innerText = data.points;
@@ -42,7 +49,7 @@ export async function getPoints(playFabId) {
 }
 
 export async function addPoints(playFabId) {
-    const data = await callApiWithLoader('/api/add-points', { playFabId, amount: 10 });
+    const data = await requestAddPoints(playFabId, 10);
     if (data) {
         const currentPointsEl = document.getElementById('currentPoints');
         if (currentPointsEl) currentPointsEl.innerText = data.newBalance;
@@ -55,7 +62,7 @@ export async function addPoints(playFabId) {
 }
 
 export async function usePoints(playFabId) {
-    const data = await callApiWithLoader('/api/use-points', { playFabId, amount: 5 });
+    const data = await requestUsePoints(playFabId, 5);
     if (data) {
         const currentPointsEl = document.getElementById('currentPoints');
         if (currentPointsEl) currentPointsEl.innerText = data.newBalance;
@@ -70,7 +77,7 @@ export async function usePoints(playFabId) {
 export async function getRanking() {
     const rankingListEl = document.getElementById('rankingList');
     rankingListEl.innerHTML = '<li>（ランキングを読み込んでいます...）</li>';
-    const data = await callApiWithLoader('/api/get-ranking', {});
+    const data = await fetchRanking();
     if (data?.ranking) {
         const myDisplayName = window.myLineProfile?.displayName;
         rankingListEl.innerHTML = data.ranking.map(entry => {
@@ -84,7 +91,7 @@ export async function getRanking() {
 export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
     rankingListEl.innerHTML = '<li>（懸賞金ランキングを読み込んでいます...）</li>';
-    const data = await callApiWithLoader('/api/get-bounty-ranking', {});
+    const data = await fetchBountyRanking();
     if (data?.ranking) {
         const myDisplayName = window.myLineProfile?.displayName;
         rankingListEl.innerHTML = data.ranking.map(entry => {

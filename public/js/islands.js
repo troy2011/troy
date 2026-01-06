@@ -1,5 +1,5 @@
 // c:/Users/ikeda/my-liff-app/public/js/islands.js
-import { callApiWithLoader } from './api.js';
+import { getOwnedIslands } from './playfabClient.js';
 
 function escapeHtml(str) {
     return String(str || '').replace(/[&<>"']/g, (match) => ({
@@ -183,10 +183,7 @@ export async function loadOwnedIslands(playFabId) {
     if (!container) return;
     container.innerHTML = '<div style="font-size:12px; color: var(--text-sub);">読み込み中...</div>';
 
-    const data = await callApiWithLoader('/api/get-owned-islands', {
-        playFabId,
-        mapId: window.__currentMapId || null
-    });
+    const data = await getOwnedIslands(playFabId, window.__currentMapId || null);
     if (!data || !Array.isArray(data.islands)) {
         container.innerHTML = '<div style="font-size:12px; color: var(--text-sub);">取得に失敗しました。</div>';
         return;

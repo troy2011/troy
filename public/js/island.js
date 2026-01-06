@@ -1,5 +1,32 @@
 ﻿// island.js - Island occupation/building client logic
-import { callApiWithLoader, buildApiUrl } from './api.js';
+import {
+    detectIslandApproach as requestDetectIslandApproach,
+    startIslandOccupation as requestStartIslandOccupation,
+    guardianBattleResult as requestGuardianBattleResult,
+    getPlayerIslands as fetchPlayerIslands,
+    getIslandDetails as fetchIslandDetails,
+    getResourceStatus as fetchResourceStatus,
+    collectResource as requestCollectResource,
+    startBuildingConstruction as requestStartBuildingConstruction,
+    upgradeIslandLevel as requestUpgradeIslandLevel,
+    checkBuildingCompletion as requestCheckBuildingCompletion,
+    helpConstruction as requestHelpConstruction,
+    getShopState as fetchShopState,
+    setShopPricing as requestSetShopPricing,
+    sellToShop as requestSellToShop,
+    setShopItemPrice as requestSetShopItemPrice,
+    buyFromShop as requestBuyFromShop,
+    getBuildingsByCategory as fetchBuildingsByCategory,
+    donateNationCurrency as requestDonateNationCurrency,
+    hotSpringBath as requestHotSpringBath,
+    setHotSpringPrice as requestSetHotSpringPrice,
+    getConstructingIslands as fetchConstructingIslands,
+    demolishIsland as requestDemolishIsland,
+    checkIslandRebuildable as requestCheckIslandRebuildable,
+    rebuildIsland as requestRebuildIsland,
+    getDemolishedIslands as fetchDemolishedIslands,
+    getInventory as fetchInventory
+} from './playfabClient.js';
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
@@ -18,9 +45,7 @@ function getShopConfig(buildingId) {
 }
 
 export async function detectIslandApproach(shipId) {
-    const response = await callApiWithLoader('/api/detect-island-approach', {
-        shipId: shipId
-    }, { isSilent: true });
+    const response = await requestDetectIslandApproach(window.myPlayFabId || null, shipId, { isSilent: true });
 
     if (response && response.success) {
         return response;
@@ -30,28 +55,19 @@ export async function detectIslandApproach(shipId) {
 }
 
 export async function startIslandOccupation(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/start-island-occupation', {
-        playFabId: playFabId,
-        islandId: islandId
-    });
+    const response = await requestStartIslandOccupation(playFabId, islandId, window.__currentMapId || null);
 
     return response;
 }
 
 export async function submitGuardianBattleResult(playFabId, islandId, victory) {
-    const response = await callApiWithLoader('/api/guardian-battle-result', {
-        playFabId: playFabId,
-        islandId: islandId,
-        victory: victory
-    });
+    const response = await requestGuardianBattleResult(playFabId, islandId, victory);
 
     return response;
 }
 
 export async function getPlayerIslands(playFabId) {
-    const response = await callApiWithLoader('/api/get-player-islands', {
-        playFabId: playFabId
-    }, { isSilent: true });
+    const response = await fetchPlayerIslands(playFabId, { isSilent: true });
 
     if (response && response.success) {
         return response.islands;
@@ -61,10 +77,7 @@ export async function getPlayerIslands(playFabId) {
 }
 
 export async function getIslandDetails(islandId) {
-    const response = await callApiWithLoader('/api/get-island-details', {
-        islandId: islandId,
-        mapId: window.__currentMapId || null
-    }, { isSilent: true });
+    const response = await fetchIslandDetails(islandId, window.__currentMapId || null, window.myPlayFabId || null, { isSilent: true });
 
     if (response && response.success) {
         return response.island;
@@ -101,32 +114,19 @@ function formatMs(ms) {
 }
 
 async function getResourceStatus(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/get-resource-status', {
-        playFabId,
-        islandId,
-        mapId: window.__currentMapId || null
-    }, { isSilent: true });
+    const response = await fetchResourceStatus(playFabId, islandId, window.__currentMapId || null, { isSilent: true });
     if (response && response.success) return response;
     return null;
 }
 
 async function collectResource(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/collect-resource', {
-        playFabId,
-        islandId,
-        mapId: window.__currentMapId || null
-    });
+    const response = await requestCollectResource(playFabId, islandId, window.__currentMapId || null);
     return response;
 }
 
 
 export async function startBuildingConstruction(playFabId, islandId, buildingId) {
-    const response = await callApiWithLoader('/api/start-building-construction', {
-        playFabId: playFabId,
-        islandId: islandId,
-        buildingId: buildingId,
-        mapId: window.__currentMapId || null
-    });
+    const response = await requestStartBuildingConstruction(playFabId, islandId, buildingId, window.__currentMapId || null);
 
     if (response && response.success) {
         startConstructionTimer(islandId, response.building.completionTime);
@@ -138,11 +138,7 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId)
 }
 
 export async function upgradeIslandLevel(playFabId, islandId) {
-    const response = await callApiWithLoader('/api/upgrade-island-level', {
-        playFabId: playFabId,
-        islandId: islandId,
-        mapId: window.__currentMapId || null
-    });
+    const response = await requestUpgradeIslandLevel(playFabId, islandId, window.__currentMapId || null);
 
     if (response && response.success) {
         const buildingId = response.buildingId || '';
@@ -153,10 +149,7 @@ export async function upgradeIslandLevel(playFabId, islandId) {
 }
 
 export async function checkBuildingCompletion(islandId) {
-    const response = await callApiWithLoader('/api/check-building-completion', {
-        islandId: islandId,
-        mapId: window.__currentMapId || null
-    }, { isSilent: true });
+    const response = await requestCheckBuildingCompletion(islandId, window.__currentMapId || null, { isSilent: true });
 
     return response;
 }
@@ -568,13 +561,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
         savePricingBtn.addEventListener('click', async () => {
             const buyValue = Number(sheet.querySelector('#shopBuyMultiplier')?.value || 0.7);
             const sellValue = Number(sheet.querySelector('#shopSellMultiplier')?.value || 1.2);
-            const result = await callApiWithLoader('/api/set-shop-pricing', {
-                playFabId,
-                islandId: island.id,
-                buyMultiplier: buyValue,
-                sellMultiplier: sellValue,
-                mapId: window.__currentMapId || null
-            });
+            const result = await requestSetShopPricing(playFabId, island.id, buyValue, sellValue, window.__currentMapId || null);
             if (result && result.success) {
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             } else if (result?.error) {
@@ -691,11 +678,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     if (hotSpringBtn) {
         hotSpringBtn.addEventListener('click', async () => {
             hotSpringBtn.disabled = true;
-            const result = await callApiWithLoader('/api/hot-spring-bath', {
-                playFabId,
-                islandId: island.id,
-                mapId: window.__currentMapId || null
-            });
+            const result = await requestHotSpringBath(playFabId, island.id, window.__currentMapId || null);
             if (result && result.success) {
                 showRpgMessage('温泉で体力が回復した！');
                 await Player.getPlayerStats(playFabId);
@@ -712,12 +695,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
         saveHotSpringBtn.addEventListener('click', async () => {
             const priceInput = sheet.querySelector('#hotSpringPriceInput');
             const priceValue = Number(priceInput?.value || 0);
-            const result = await callApiWithLoader('/api/set-hot-spring-price', {
-                playFabId,
-                islandId: island.id,
-                price: priceValue,
-                mapId: window.__currentMapId || null
-            });
+            const result = await requestSetHotSpringPrice(playFabId, island.id, priceValue, window.__currentMapId || null);
             if (result && result.success) {
                 showRpgMessage('温泉の価格を更新しました。');
                 priceInput.value = String(result.price || priceValue);
@@ -737,11 +715,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 alert('寄付額を入力してください。');
                 return;
             }
-            const result = await callApiWithLoader('/api/donate-nation-currency', {
-                playFabId,
-                currency,
-                amount
-            });
+            const result = await requestDonateNationCurrency(playFabId, currency, amount);
             if (result && result.success) {
                 input.value = '0';
                 alert('寄付しました。');
@@ -797,8 +771,8 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
     buyList.innerHTML = '読み込み中...';
     try {
         const [shopState, inventoryResult] = await Promise.all([
-            callApiWithLoader('/api/get-shop-state', { islandId: island.id, mapId: window.__currentMapId || null }, { isSilent: true }),
-            callApiWithLoader('/api/get-inventory', { playFabId }, { isSilent: true })
+            fetchShopState(island.id, window.__currentMapId || null, { isSilent: true }),
+            fetchInventory(playFabId, { isSilent: true })
         ]);
         const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2, itemPrices: {} };
         const itemPrices = pricing.itemPrices || {};
@@ -890,13 +864,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const instanceId = btn.dataset.instanceId;
                 const itemId = btn.dataset.itemId;
                 if (!instanceId || !itemId) return;
-                await callApiWithLoader('/api/sell-to-shop', {
-                    playFabId,
-                    islandId: island.id,
-                    itemInstanceId: instanceId,
-                    itemId,
-                    mapId: window.__currentMapId || null
-                });
+                await requestSellToShop(playFabId, island.id, instanceId, itemId, 1, window.__currentMapId || null);
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
         });
@@ -910,14 +878,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const sellInput = sheet.querySelector(`.shop-item-sell[data-item-id="${itemId}"]`);
                 const buyValue = Number(buyInput?.value || 0);
                 const sellValue = Number(sellInput?.value || 0);
-                await callApiWithLoader('/api/set-shop-item-price', {
-                    playFabId,
-                    islandId: island.id,
-                    itemId,
-                    buyPrice: buyValue,
-                    sellPrice: sellValue,
-                    mapId: window.__currentMapId || null
-                });
+                await requestSetShopItemPrice(playFabId, island.id, itemId, buyValue, sellValue, window.__currentMapId || null);
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
         });
@@ -926,12 +887,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
             btn.addEventListener('click', async () => {
                 const itemId = btn.dataset.itemId;
                 if (!itemId) return;
-                await callApiWithLoader('/api/buy-from-shop', {
-                    playFabId,
-                    islandId: island.id,
-                    itemId,
-                    mapId: window.__currentMapId || null
-                });
+                await requestBuyFromShop(playFabId, island.id, itemId, 1, window.__currentMapId || null);
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             });
         });
@@ -943,11 +899,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
 }
 
 async function fetchBuildingsForCategory(category, islandSize) {
-    const response = await callApiWithLoader('/api/get-buildings-by-category', {
-        category,
-        islandSize,
-        mapId: window.__currentMapId || null
-    }, { isSilent: true });
+    const response = await fetchBuildingsByCategory(category, islandSize, window.__currentMapId || null, { isSilent: true });
     const list = Array.isArray(response?.buildings) ? response.buildings : [];
     return list;
 }
@@ -1152,11 +1104,7 @@ export async function requestConstructionHelp(islandId, buildingName) {
 }
 
 export async function helpConstruction(islandId, helperPlayFabId) {
-    const response = await callApiWithLoader('/api/help-construction', {
-        islandId: islandId,
-        helperPlayFabId: helperPlayFabId,
-        mapId: window.__currentMapId || null
-    });
+    const response = await requestHelpConstruction(islandId, helperPlayFabId, window.__currentMapId || null);
 
     if (response && response.success) {
         const timerKey = `${islandId}`;
@@ -1176,9 +1124,7 @@ export async function helpConstruction(islandId, helperPlayFabId) {
 export async function getConstructingIslands() {
     try {
         const mapId = window.__currentMapId || '';
-        const suffix = mapId ? `?mapId=${encodeURIComponent(mapId)}` : '';
-        const response = await fetch(buildApiUrl(`/api/get-constructing-islands${suffix}`));
-        const data = await response.json();
+        const data = await fetchConstructingIslands(mapId || null);
 
         if (data && data.success) {
             return data.islands;
@@ -1270,18 +1216,7 @@ export function cleanupConstructionTimers() {
 
 export async function demolishIsland(playFabId, islandId) {
     try {
-        const response = await fetch(buildApiUrl('/api/demolish-island'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ playFabId, islandId })
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-            showErrorNotification(data.error || '解体に失敗しました');
-            return { success: false, error: data.error || 'リクエストに失敗しました' };
-        }
+        const data = await requestDemolishIsland(playFabId, islandId, window.__currentMapId || null);
 
         if (data.success) {
             showDemolishNotification(data.island);
@@ -1330,14 +1265,7 @@ function showDemolishNotification(island) {
 
 export async function checkIslandRebuildable(islandId) {
     try {
-        const response = await fetch(buildApiUrl('/api/check-island-rebuildable'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ islandId })
-        });
-
-        const data = await response.json();
-        return data;
+        return await requestCheckIslandRebuildable(window.myPlayFabId || null, islandId, window.__currentMapId || null);
     } catch (error) {
         console.error('[CheckIslandRebuildable] Error:', error);
         return null;
@@ -1346,18 +1274,7 @@ export async function checkIslandRebuildable(islandId) {
 
 export async function rebuildIsland(playFabId, islandId) {
     try {
-        const response = await fetch(buildApiUrl('/api/rebuild-island'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ playFabId, islandId })
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-            showErrorNotification(data.error || data.message || '再建に失敗しました');
-            return { success: false, error: data.error || data.message || 'リクエストに失敗しました' };
-        }
+        const data = await requestRebuildIsland(playFabId, islandId, window.__currentMapId || null);
 
         if (data.success) {
             showRebuildNotification(data.island);
@@ -1432,13 +1349,7 @@ function showErrorNotification(message) {
 
 export async function getDemolishedIslands() {
     try {
-        const response = await fetch(buildApiUrl('/api/get-demolished-islands'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-
-        const data = await response.json();
+        const data = await fetchDemolishedIslands(window.myPlayFabId || null);
 
         if (data.success) {
             return data.islands;

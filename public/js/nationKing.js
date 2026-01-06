@@ -1,6 +1,13 @@
 // c:/Users/ikeda/my-liff-app/public/js/nationKing.js
 
-import { callApiWithLoader } from './playfabClient.js';
+import {
+    getNationKingPage,
+    setNationAnnouncement,
+    setNationTaxRate,
+    grantPs,
+    transferKing,
+    exileKing
+} from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 let _isKing = false;
@@ -51,7 +58,7 @@ export async function refreshKingNav(playFabId) {
     const nav = document.getElementById('navKing');
     if (!nav) return false;
 
-    const data = await callApiWithLoader('/api/get-nation-king-page', { playFabId }, { isSilent: true });
+    const data = await getNationKingPage(playFabId, { isSilent: true });
     _isKing = !!data;
     nav.style.display = _isKing ? '' : 'none';
     return _isKing;
@@ -60,7 +67,7 @@ export async function refreshKingNav(playFabId) {
 export async function loadKingPage(playFabId) {
     _setMessage('');
 
-    const data = await callApiWithLoader('/api/get-nation-king-page', { playFabId });
+    const data = await getNationKingPage(playFabId);
     if (!data) return;
     _lastPageData = data;
 
@@ -124,7 +131,7 @@ function _wireHandlers(playFabId) {
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
             const message = inputEl ? String(inputEl.value || '') : '';
-            const result = await callApiWithLoader('/api/set-nation-announcement', { playFabId, message });
+            const result = await setNationAnnouncement(playFabId, message);
             if (result) {
                 _setMessage('告知を更新しました。');
                 await loadKingPage(playFabId);
@@ -148,7 +155,7 @@ function _wireHandlers(playFabId) {
         taxSaveBtn.addEventListener('click', async () => {
             const raw = taxInputEl ? taxInputEl.value : '0';
             const taxRatePercent = Number(raw);
-            const result = await callApiWithLoader('/api/king-set-tax-rate', { playFabId, taxRatePercent });
+            const result = await setNationTaxRate(playFabId, taxRatePercent);
             if (result) {
                 _setMessage('税率を保存しました。');
                 await loadKingPage(playFabId);
@@ -195,7 +202,7 @@ function _wireHandlers(playFabId) {
             }
             if (!confirm(`王の所持金から ${Math.floor(amount)} Ps を支払い、受取人に付与します。実行しますか？`)) return;
 
-            const result = await callApiWithLoader('/api/king-grant-ps', { playFabId, receiverPlayFabId, amount: Math.floor(amount) });
+            const result = await grantPs(playFabId, receiverPlayFabId, Math.floor(amount));
             if (result) {
                 _setMessage(`付与しました（受取: ${result.netAmount} Ps / 税: ${result.taxAmount} Ps）。`);
                 await loadKingPage(playFabId);
@@ -223,7 +230,7 @@ function _wireHandlers(playFabId) {
             }
             if (!confirm(`本当に王を ${newKingPlayFabId} に譲渡しますか？（取り消し不可）`)) return;
 
-            const result = await callApiWithLoader('/api/king-transfer', { playFabId, newKingPlayFabId });
+            const result = await transferKing(playFabId, newKingPlayFabId);
             if (result) {
                 _setMessage('王を譲渡しました。');
                 _isKing = false;
@@ -253,7 +260,7 @@ function _wireHandlers(playFabId) {
             }
             if (!confirm(`Proceed exile?\nTarget: ${targetPlayFabId}\nOwned islands will be removed.`)) return;
 
-            const result = await callApiWithLoader('/api/king-exile', { playFabId, targetPlayFabId });
+            const result = await exileKing(playFabId, targetPlayFabId);
             if (result) {
                 const transferred = typeof result.transferredIslands === 'number' ? ` / islands: ${result.transferredIslands}` : '';
                 _setMessage(`Exile completed.${transferred}`);
