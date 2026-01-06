@@ -780,21 +780,27 @@ app.post('/api/get-owned-islands', async (req, res) => {
     if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
 
     try {
-        const snapshot = await firestore.collection('world_map')
-            .where('ownerId', '==', playFabId)
-            .get();
-        const islands = snapshot.docs.map(doc => {
-            const data = doc.data() || {};
-            return {
-                id: doc.id,
-                name: data.name || null,
-                size: data.size || null,
-                islandLevel: data.islandLevel || null,
-                biome: data.biome || null,
-                coordinate: data.coordinate || null,
-                buildings: data.buildings || []
-            };
-        });
+        const collections = await firestore.listCollections();
+        const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
+        const islands = [];
+        for (const col of mapCollections) {
+            const snapshot = await col.where('ownerId', '==', playFabId).get();
+            if (snapshot.empty) continue;
+            const mapId = col.id.startsWith('world_map_') ? col.id.slice('world_map_'.length) : null;
+            snapshot.docs.forEach((doc) => {
+                const data = doc.data() || {};
+                islands.push({
+                    id: doc.id,
+                    name: data.name || null,
+                    size: data.size || null,
+                    islandLevel: data.islandLevel || null,
+                    biome: data.biome || null,
+                    coordinate: data.coordinate || null,
+                    buildings: data.buildings || [],
+                    mapId
+                });
+            });
+        }
         res.json({ islands });
     } catch (error) {
         console.error('[get-owned-islands] Error:', error?.message || error);

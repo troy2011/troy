@@ -38,6 +38,9 @@ let _ownedIslands = [];
 
 function getDistanceToIsland(scene, island) {
     if (!scene || !scene.playerShip) return Number.POSITIVE_INFINITY;
+    if (island?.mapId && window.__currentMapId && island.mapId !== window.__currentMapId) {
+        return Number.POSITIVE_INFINITY;
+    }
     const coord = island?.coordinate;
     if (!coord || !Number.isFinite(coord.x) || !Number.isFinite(coord.y)) return Number.POSITIVE_INFINITY;
     const centerX = (coord.x + 0.5) * 32;
@@ -45,6 +48,15 @@ function getDistanceToIsland(scene, island) {
     const dx = scene.playerShip.x - centerX;
     const dy = scene.playerShip.y - centerY;
     return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getPlayerInfoFallback() {
+    const avatar = window.myAvatarBaseInfo || {};
+    return {
+        playFabId: window.myPlayFabId || null,
+        race: avatar.Race || avatar.race || null,
+        nation: avatar.Nation || avatar.nation || null
+    };
 }
 
 function sortIslands(list, sortKey) {
@@ -104,7 +116,14 @@ function renderIslands(list) {
             if (event.target && event.target.classList.contains('btn-island-focus')) return;
             const islandId = row.getAttribute('data-island-id');
             if (!islandId) return;
-            await window.showTab('map');
+            const island = _ownedIslands.find(entry => entry.id === islandId);
+            const mapId = island?.mapId || null;
+            const playerInfo = window.__phaserPlayerInfo || getPlayerInfoFallback();
+            if (mapId && window.__currentMapId !== mapId) {
+                await window.showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: mapId });
+            } else {
+                await window.showTab('map', playerInfo);
+            }
             const scene = getScene();
             if (scene && typeof scene.focusIslandById === 'function') {
                 scene.focusIslandById(islandId);
@@ -120,7 +139,14 @@ function renderIslands(list) {
             event.stopPropagation();
             const islandId = btn.getAttribute('data-island-id');
             if (!islandId) return;
-            await window.showTab('map');
+            const island = _ownedIslands.find(entry => entry.id === islandId);
+            const mapId = island?.mapId || null;
+            const playerInfo = window.__phaserPlayerInfo || getPlayerInfoFallback();
+            if (mapId && window.__currentMapId !== mapId) {
+                await window.showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: mapId });
+            } else {
+                await window.showTab('map', playerInfo);
+            }
             const scene = getScene();
             if (scene && typeof scene.focusIslandById === 'function') {
                 scene.focusIslandById(islandId);
@@ -136,7 +162,14 @@ function renderIslands(list) {
             event.stopPropagation();
             const islandId = btn.getAttribute('data-island-id');
             if (!islandId) return;
-            await window.showTab('map');
+            const island = _ownedIslands.find(entry => entry.id === islandId);
+            const mapId = island?.mapId || null;
+            const playerInfo = window.__phaserPlayerInfo || getPlayerInfoFallback();
+            if (mapId && window.__currentMapId !== mapId) {
+                await window.showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel: mapId });
+            } else {
+                await window.showTab('map', playerInfo);
+            }
             const scene = getScene();
             if (scene && typeof scene.setNavigationTarget === 'function') {
                 scene.setNavigationTarget(islandId);
