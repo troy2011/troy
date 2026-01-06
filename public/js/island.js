@@ -396,7 +396,13 @@ export function showBuildingMenu(island, playFabId) {
                 ${(hasBuilding && isOwnNation && allowHotSpring) ? `
                 <div class="building-actions">
                     <div class="resource-title">温泉</div>
-                    <div class="resource-row">入浴（200 Ps）でHPを回復</div>
+                    <div class="resource-row">入浴（${Number(island.hotSpringPrice || 200)} Ps）でHPを回復</div>
+                    ${isOwner ? `
+                    <div class="resource-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <label>価格 <input id="hotSpringPriceInput" type="number" min="1" step="1" value="${Number(island.hotSpringPrice || 200)}" style="width:80px;"></label>
+                        <button class="btn-build" id="btnSaveHotSpringPrice">価格設定</button>
+                    </div>
+                    ` : ''}
                     <div class="resource-row">
                         <button class="btn-build" id="btnHotSpringBath">入浴</button>
                     </div>
@@ -698,6 +704,26 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 alert(result.error);
             }
             hotSpringBtn.disabled = false;
+        });
+    }
+
+    const saveHotSpringBtn = sheet.querySelector('#btnSaveHotSpringPrice');
+    if (saveHotSpringBtn) {
+        saveHotSpringBtn.addEventListener('click', async () => {
+            const priceInput = sheet.querySelector('#hotSpringPriceInput');
+            const priceValue = Number(priceInput?.value || 0);
+            const result = await callApiWithLoader('/api/set-hot-spring-price', {
+                playFabId,
+                islandId: island.id,
+                price: priceValue,
+                mapId: window.__currentMapId || null
+            });
+            if (result && result.success) {
+                showRpgMessage('温泉の価格を更新しました。');
+                priceInput.value = String(result.price || priceValue);
+            } else if (result?.error) {
+                alert(result.error);
+            }
         });
     }
 

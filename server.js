@@ -232,6 +232,61 @@ async function ensureNationGroupExists(firestore, mapping) {
     return { groupId, groupName: mapping.groupName, created: true };
 }
 
+async function getNationGroupIdByNation(nation) {
+    const key = String(nation || '').toLowerCase();
+    if (!key) return null;
+    const mapping = getNationMappingByNation(key);
+    if (!mapping) return null;
+    const info = await ensureNationGroupExists(firestore, mapping);
+    return info?.groupId || null;
+}
+
+async function getGroupDataValue(groupId, key) {
+    if (!groupId || !key) return null;
+    await ensureTitleEntityToken();
+    const result = await promisifyPlayFab(PlayFabGroups.GetGroupData, {
+        Group: { Id: groupId, Type: 'group' }
+    });
+    const data = result?.Data || {};
+    const entry = data[key];
+    return entry && typeof entry.Value === 'string' ? entry.Value : null;
+}
+
+async function setGroupDataValues(groupId, values) {
+    if (!groupId) return null;
+    await ensureTitleEntityToken();
+    return promisifyPlayFab(PlayFabGroups.SetGroupData, {
+        Group: { Id: groupId, Type: 'group' },
+        Data: values
+    });
+}
+
+async function getNationTaxRateBps(nation) {
+    const groupId = await getNationGroupIdByNation(nation);
+    if (!groupId) return 0;
+    const raw = await getGroupDataValue(groupId, 'taxRateBps');
+    const bps = Math.max(0, Math.min(5000, Math.floor(Number(raw) || 0)));
+    return bps;
+}
+
+async function addNationTreasury(nation, amount) {
+    const groupId = await getNationGroupIdByNation(nation);
+    if (!groupId) return null;
+    const raw = await getGroupDataValue(groupId, 'treasuryPT');
+    const current = Math.max(0, Math.floor(Number(raw) || 0));
+    const next = current + Math.max(0, Math.floor(Number(amount) || 0));
+    await setGroupDataValues(groupId, { treasuryPT: String(next) });
+    return { groupId, treasuryPT: next };
+}
+
+function applyTax(amount, taxRateBps) {
+    const gross = Math.max(0, Math.floor(Number(amount) || 0));
+    const bps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateBps) || 0)));
+    const tax = Math.floor((gross * bps) / 10000);
+    const net = Math.max(0, gross - tax);
+    return { gross, tax, net, bps };
+}
+
 async function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
@@ -770,7 +825,23 @@ app.post('/api/get-nation-king-page', async (req, res) => {
             return res.status(500).json({ error: 'Failed to get king page data', details: msg });
         }
 
-        res.json(csResult ? (csResult.FunctionResult || {}) : {});
+        const payload = csResult ? (csResult.FunctionResult || {}) : {};
+        try {
+            const nation = await getNationForPlayer(playFabId);
+            const groupId = await getNationGroupIdByNation(nation);
+            if (groupId) {
+                const taxRateRaw = await getGroupDataValue(groupId, 'taxRateBps');
+                const treasuryRaw = await getGroupDataValue(groupId, 'treasuryPT');
+                const taxRateBps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateRaw) || 0)));
+                const treasuryPs = Math.max(0, Math.floor(Number(treasuryRaw) || 0));
+                payload.taxRateBps = taxRateBps;
+                payload.treasuryPs = treasuryPs;
+            }
+        } catch (e) {
+            console.warn('[get-nation-king-page] Failed to load group tax data:', e?.message || e);
+        }
+
+        res.json(payload);
     } catch (error) {
         const msg = error.errorMessage || error.message;
         if (String(msg).includes('NationGroupNotSet')) {
@@ -1835,6 +1906,42 @@ app.post('/api/sell-item', async (req, res) => {
     }
 });
 
+app.post('/api/king-set-tax-rate', async (req, res) => {
+    const { playFabId, taxRatePercent } = req.body || {};
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+    const percent = Number(taxRatePercent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 50) {
+        return res.status(400).json({ error: 'Tax rate must be between 0 and 50' });
+    }
+    const bps = Math.floor(percent * 100);
+
+    try {
+        const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+            PlayFabId: playFabId,
+            FunctionName: 'GetNationKingPageData',
+            FunctionParameter: {},
+            GeneratePlayStreamEvent: false
+        });
+        if (csResult && csResult.Error) {
+            const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
+            if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+        }
+
+        const nation = await getNationForPlayer(playFabId);
+        if (!nation) return res.status(400).json({ error: 'Nation not set' });
+        const groupId = await getNationGroupIdByNation(nation);
+        if (!groupId) return res.status(400).json({ error: 'Nation group not found' });
+
+        await setGroupDataValues(groupId, { taxRateBps: String(bps) });
+        res.json({ success: true, taxRateBps: bps });
+    } catch (error) {
+        console.error('[king-set-tax-rate] Error:', error?.errorMessage || error?.message || error);
+        res.status(500).json({ error: 'Failed to set tax rate' });
+    }
+});
+
 // ----------------------------------------------------
 // API: 温泉入浴でHP回復
 // ----------------------------------------------------
@@ -1844,8 +1951,6 @@ app.post('/api/hot-spring-bath', async (req, res) => {
         return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
     }
 
-    const cost = 200;
-
     try {
         const islandRef = getWorldMapCollection(firestore, mapId).doc(islandId);
         const islandSnap = await islandRef.get();
@@ -1854,6 +1959,9 @@ app.post('/api/hot-spring-bath', async (req, res) => {
         const buildings = Array.isArray(island.buildings) ? island.buildings : [];
         const hasHotSpring = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'hot_spring' || b.id === 'hot_spring'));
         if (!hasHotSpring) return res.status(400).json({ error: 'HotSpringNotFound' });
+        const ownerId = island.ownerId || null;
+        const price = Math.max(0, Math.floor(Number(island.hotSpringPrice) || 200));
+        if (!price) return res.status(400).json({ error: 'PriceNotSet' });
 
         const nationValue = String(island.nation || '').toLowerCase();
         const userNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -1867,7 +1975,7 @@ app.post('/api/hot-spring-bath', async (req, res) => {
 
         const inventory = await promisifyPlayFab(PlayFabServer.GetUserInventory, { PlayFabId: playFabId });
         const balance = Number(inventory?.VirtualCurrency?.PT || 0);
-        if (balance < cost) {
+        if (balance < price) {
             return res.status(400).json({ error: 'InsufficientFunds' });
         }
 
@@ -1885,15 +1993,28 @@ app.post('/api/hot-spring-bath', async (req, res) => {
         await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
             PlayFabId: playFabId,
             VirtualCurrency: 'PT',
-            Amount: cost
+            Amount: price
         });
+
+        const taxRateBps = await getNationTaxRateBps(nationValue || userNation);
+        const { tax, net } = applyTax(price, taxRateBps);
+        if (ownerId && net > 0) {
+            await promisifyPlayFab(PlayFabServer.AddUserVirtualCurrency, {
+                PlayFabId: ownerId,
+                VirtualCurrency: 'PT',
+                Amount: net
+            });
+        }
+        if (tax > 0) {
+            await addNationTreasury(nationValue || userNation, tax);
+        }
 
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
             Statistics: [{ StatisticName: 'HP', Value: maxHp }]
         });
 
-        res.json({ success: true, cost, newHp: maxHp });
+        res.json({ success: true, price, tax, net, newHp: maxHp });
     } catch (error) {
         console.error('[HotSpringBath] Error:', error);
         res.status(500).json({ error: 'Failed to use hot spring', details: error?.errorMessage || error?.message || error });
@@ -2300,6 +2421,36 @@ app.post('/api/set-shop-pricing', async (req, res) => {
     }
 });
 
+app.post('/api/set-hot-spring-price', async (req, res) => {
+    const { playFabId, islandId, price, mapId } = req.body || {};
+    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
+    const value = Math.max(0, Math.floor(Number(price) || 0));
+    if (!Number.isFinite(value) || value <= 0) {
+        return res.status(400).json({ error: 'InvalidPrice' });
+    }
+    try {
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+        const island = snap.data() || {};
+        if (!island.ownerId || island.ownerId !== playFabId) {
+            return res.status(403).json({ error: 'NotOwner' });
+        }
+        const buildings = Array.isArray(island.buildings) ? island.buildings : [];
+        const hasHotSpring = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'hot_spring' || b.id === 'hot_spring'));
+        if (!hasHotSpring) return res.status(400).json({ error: 'HotSpringNotFound' });
+
+        await ref.update({
+            hotSpringPrice: value,
+            hotSpringPriceUpdatedAt: Date.now()
+        });
+        res.json({ success: true, price: value });
+    } catch (error) {
+        console.error('[SetHotSpringPrice] Error:', error?.message || error);
+        res.status(500).json({ error: 'Failed to set hot spring price' });
+    }
+});
+
 app.post('/api/set-shop-item-price', async (req, res) => {
     const { playFabId, islandId, itemId, buyPrice, sellPrice, mapId } = req.body || {};
     if (!playFabId || !islandId || !itemId) {
@@ -2434,6 +2585,24 @@ app.post('/api/buy-from-shop', async (req, res) => {
             shopInventory[idx] = { ...shopInventory[idx], count: nextCount };
         }
         await ref.update({ shopInventory });
+
+        const ownerId = island.ownerId || null;
+        if (ownerId && price > 0) {
+            const nationValue = String(island.nation || '').toLowerCase();
+            const taxRateBps = await getNationTaxRateBps(nationValue);
+            const { tax, net } = applyTax(price, taxRateBps);
+            if (net > 0) {
+                await promisifyPlayFab(PlayFabServer.AddUserVirtualCurrency, {
+                    PlayFabId: ownerId,
+                    VirtualCurrency: VIRTUAL_CURRENCY_CODE,
+                    Amount: net
+                });
+            }
+            if (tax > 0) {
+                await addNationTreasury(nationValue, tax);
+            }
+        }
+
         res.json({ success: true, price });
     } catch (error) {
         console.error('[BuyFromShop] Error:', error?.message || error);
