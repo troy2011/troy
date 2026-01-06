@@ -114,7 +114,7 @@ const buildings = {
         slotsRequired: 2,
         buildTime: 7200, // 2時間
         cost: { PT: 1000 },
-        tileIndex: 19,
+        tileIndex: 640,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
         effects: {
@@ -127,7 +127,8 @@ const buildings = {
             buildingId: 'watchtower',
             minCount: 2
         },
-        description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。'
+        description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。',
+        nationTileOffset: true
     },
 
     shipyard: {
@@ -394,6 +395,24 @@ const buildings = {
             moraleBonus: 8
         },
         description: '休息施設。乗組員の疲労回復が早まります。',
+        nationTileOffset: true
+    },
+
+    hot_spring: {
+        id: 'hot_spring',
+        name: '温泉',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PT: 500 },
+        tileIndex: 756,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            restBonus: 0.25,
+            moraleBonus: 10
+        },
+        description: '温泉施設。疲労回復と士気が少し上がります。',
         nationTileOffset: true
     },
 
