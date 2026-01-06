@@ -355,10 +355,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * Body: { playFabId, shipItemId, spawnPosition: { x, y } }
      */
     app.post('/api/create-ship', async (req, res) => {
-        const { playFabId, shipItemId, spawnPosition } = req.body;
+        const { playFabId, shipItemId, spawnPosition, mapId, islandId } = req.body;
 
         if (!playFabId || !shipItemId || !spawnPosition) {
             return res.status(400).json({ error: 'playFabId, shipItemId, spawnPosition are required' });
+        }
+        if (!mapId || !islandId) {
+            return res.status(400).json({ error: 'Capital island is required' });
         }
 
         const shipSpec = shipCatalog[shipItemId];
@@ -376,12 +379,32 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         try {
             const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
-                Keys: ['Race']
+                Keys: ['Race', 'Nation']
             });
             const playerRace = String(readOnly?.Data?.Race?.Value || '').toLowerCase().trim();
+            const playerNation = String(readOnly?.Data?.Nation?.Value || '').toLowerCase().trim();
+            if (!playerNation) {
+                return res.status(403).json({ error: 'NationNotSet' });
+            }
             const shipRace = String(shipSpec.race || shipSpec.Race || '').toLowerCase().trim();
             if (shipRace && shipRace !== 'common' && playerRace && shipRace !== playerRace) {
                 return res.status(403).json({ error: 'Race restricted ship', details: { shipRace, playerRace } });
+            }
+
+            const capitalRef = db.collection(`world_map_${mapId}`).doc(islandId);
+            const capitalSnap = await capitalRef.get();
+            if (!capitalSnap.exists) {
+                return res.status(404).json({ error: 'CapitalNotFound' });
+            }
+            const capital = capitalSnap.data() || {};
+            const capitalNation = String(capital.nation || '').toLowerCase().trim();
+            if (!capitalNation || capitalNation !== playerNation) {
+                return res.status(403).json({ error: 'NotOwnCapital' });
+            }
+            const buildings = Array.isArray(capital.buildings) ? capital.buildings : [];
+            const hasCapital = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'capital' || b.id === 'capital'));
+            if (!hasCapital) {
+                return res.status(403).json({ error: 'CapitalRequired' });
             }
 
             const resolvedSpawnPosition = await findAvailableSpawnPosition(spawnPosition);

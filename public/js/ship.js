@@ -114,11 +114,13 @@ export function calculateCurrentPosition(movement, staticPosition) {
     return { x: currentX, y: currentY };
 }
 
-export async function createShip(playFabId, shipItemId, spawnPosition) {
+export async function createShip(playFabId, shipItemId, spawnPosition, context) {
     const data = await callApiWithLoader('/api/create-ship', {
         playFabId: playFabId,
         shipItemId: shipItemId,
-        spawnPosition: spawnPosition
+        spawnPosition: spawnPosition,
+        mapId: context?.mapId || null,
+        islandId: context?.islandId || null
     });
 
     if (data && data.success) {

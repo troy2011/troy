@@ -268,7 +268,10 @@ async function initializeAppFeatures() {
     });
 
     // 船関連のイベントリスナー
-    document.getElementById('btnCreateShip').addEventListener('click', showCreateShipModal);
+    const createShipBtn = document.getElementById('btnCreateShip');
+    if (createShipBtn) {
+        createShipBtn.addEventListener('click', showCreateShipModal);
+    }
     document.getElementById('btnConfirmCreateShip').addEventListener('click', () => confirmCreateShip(myPlayFabId));
     document.getElementById('shipTypeSelect').addEventListener('change', updateShipTypeDetails);
 
@@ -508,8 +511,10 @@ async function startScanAndPay() {
 // ハードコードされた船情報を削除し、代わりに window.shipCatalog を使用します。
 
 let shipCreateInFlight = false;
+let shipCreateContext = null;
 
-function showCreateShipModal() {
+function showCreateShipModal(context) {
+    shipCreateContext = context || null;
     const selectEl = document.getElementById('shipTypeSelect');
     selectEl.innerHTML = ''; // 既存のオプションをクリア
 
@@ -539,6 +544,10 @@ function showCreateShipModal() {
     document.getElementById('shipCreateModal').style.display = 'flex';
     // 最初の項目で詳細を更新
     updateShipTypeDetails();
+}
+
+if (typeof window !== 'undefined') {
+    window.showCreateShipModal = showCreateShipModal;
 }
 
 function updateShipTypeDetails() {
@@ -581,20 +590,25 @@ function updateShipTypeDetails() {
 
 async function confirmCreateShip(playFabId) {
     if (shipCreateInFlight) return;
+    if (!shipCreateContext || !shipCreateContext.islandId || !shipCreateContext.mapId) {
+        alert('首都でのみ新造船が可能です。');
+        return;
+    }
     const shipItemId = document.getElementById('shipTypeSelect').value;
     if (!shipItemId) {
         alert('???????????????');
         return;
     }
-    const spawnPosition = { x: 100, y: 100 }; 
+    const spawnPosition = shipCreateContext?.spawnPosition || { x: 100, y: 100 };
     const confirmBtn = document.getElementById('btnConfirmCreateShip');
     shipCreateInFlight = true;
     if (confirmBtn) confirmBtn.disabled = true;
 
     try {
-        const data = await Ship.createShip(playFabId, shipItemId, spawnPosition);
+        const data = await Ship.createShip(playFabId, shipItemId, spawnPosition, shipCreateContext);
         if (data) {
             document.getElementById('shipCreateModal').style.display = 'none';
+            shipCreateContext = null;
             alert(`Ship created: ${window.shipCatalog[shipItemId].DisplayName}`);
             try {
                 await Ship.setActiveShip(playFabId, data.shipId);

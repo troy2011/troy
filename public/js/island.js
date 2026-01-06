@@ -644,30 +644,26 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     const specialBtn = sheet.querySelector('#btnBuildingAction');
     if (specialBtn) {
         specialBtn.addEventListener('click', () => {
-            if (typeof window.showTab === 'function') {
-                Promise.resolve(window.showTab('ships')).finally(() => {
-                    const btn = document.getElementById('btnCreateShip');
-                    if (btn) btn.click();
-                });
+            if (typeof window.showCreateShipModal === 'function') {
+                window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
-            const btn = document.getElementById('btnCreateShip');
-            if (btn) btn.click();
+            if (typeof window.showTab === 'function') {
+                void window.showTab('ships');
+            }
         });
     }
 
     const capitalCreateBtn = sheet.querySelector('#btnCapitalCreateShip');
     if (capitalCreateBtn) {
         capitalCreateBtn.addEventListener('click', () => {
-            if (typeof window.showTab === 'function') {
-                Promise.resolve(window.showTab('ships')).finally(() => {
-                    const btn = document.getElementById('btnCreateShip');
-                    if (btn) btn.click();
-                });
+            if (typeof window.showCreateShipModal === 'function') {
+                window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
-            const btn = document.getElementById('btnCreateShip');
-            if (btn) btn.click();
+            if (typeof window.showTab === 'function') {
+                void window.showTab('ships');
+            }
         });
     }
 
