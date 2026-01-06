@@ -552,10 +552,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         if (this.playerShip?.texture?.key !== sheetKey) {
                             this.playerShip.setTexture(sheetKey);
                         }
-                        if (assetData?.Domain) {
-            shipObject.domain = String(assetData.Domain).toLowerCase();
-        }
-        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
+                        const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
                         const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
                         if (Number.isFinite(baseFrame) && assetData?.ItemId) {
                             const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
