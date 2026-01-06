@@ -2214,7 +2214,9 @@ app.post('/api/set-shop-pricing', async (req, res) => {
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
         const island = snap.data() || {};
-        if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
+        if (!island.ownerId || island.ownerId !== playFabId) {
+            return res.status(403).json({ error: 'NotOwner' });
+        }
         await ref.update({
             shopPricing: {
                 buyMultiplier: buyValue,
