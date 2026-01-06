@@ -1421,6 +1421,8 @@ export default class WorldMapScene extends Phaser.Scene {
             type: data.type,
             ownerNation: ownerNation,
             ownerId: data.ownerId,
+            biome: data.biome,
+            buildings: Array.isArray(data.buildings) ? data.buildings : [],
             occupationStatus: data.occupationStatus || null,
             sprites: islandSprites,
             buildingSprites: buildingSprites,
