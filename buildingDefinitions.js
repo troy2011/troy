@@ -447,6 +447,35 @@ const buildings = {
     }
 };
 
+function scaleEffects(effects, multiplier) {
+    const src = effects || {};
+    const scaled = {};
+    Object.entries(src).forEach(([key, value]) => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            scaled[key] = Math.round(value * multiplier * 100) / 100;
+        } else {
+            scaled[key] = value;
+        }
+    });
+    return scaled;
+}
+
+function buildDefaultLevels(building) {
+    const levels = {};
+    const baseEffects = building.effects || {};
+    for (let level = 1; level <= 5; level += 1) {
+        const multiplier = 1 + 0.2 * (level - 1);
+        levels[level] = {
+            tileIndex: building.tileIndex,
+            sizeVisual: building.sizeVisual,
+            effects: scaleEffects(baseEffects, multiplier),
+            stats: scaleEffects(baseEffects, multiplier),
+            maxHp: Math.round(100 * multiplier)
+        };
+    }
+    return levels;
+}
+
 function parseLevelFromId(buildingId) {
     const raw = String(buildingId || '');
     const match = /^(.*)_lv(\d+)$/.exec(raw);
@@ -459,7 +488,8 @@ function resolveBuildingDefinition(base, level) {
     const resolvedLevel = Number.isFinite(Number(level))
         ? Math.max(1, Math.trunc(Number(level)))
         : Math.max(1, Math.trunc(Number(base.defaultLevel || 1)));
-    const levelDef = base.levels ? base.levels[resolvedLevel] : null;
+    const levels = base.levels || buildDefaultLevels(base);
+    const levelDef = levels ? levels[resolvedLevel] : null;
     const name = base.levelLabel ? `${base.name} LV${resolvedLevel}` : base.name;
     const merged = {
         ...base,
@@ -467,7 +497,7 @@ function resolveBuildingDefinition(base, level) {
         id: base.id,
         level: resolvedLevel,
         name: name,
-        levels: base.levels
+        levels: levels
     };
     return merged;
 }
@@ -481,12 +511,11 @@ function getBuildingMetaMap() {
         const meta = { id, nationTileOffset };
         map[key] = meta;
         if (id && !map[id]) map[id] = meta;
-        if (building.levels) {
-            Object.keys(building.levels).forEach((levelKey) => {
-                const legacyId = `${id}_lv${levelKey}`;
-                if (!map[legacyId]) map[legacyId] = meta;
-            });
-        }
+        const levelKeys = building.levels ? Object.keys(building.levels) : ['1', '2', '3', '4', '5'];
+        levelKeys.forEach((levelKey) => {
+            const legacyId = `${id}_lv${levelKey}`;
+            if (!map[legacyId]) map[legacyId] = meta;
+        });
     });
     return map;
 }

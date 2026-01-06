@@ -488,7 +488,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const houseH = Math.max(1, Math.trunc(Number(houseLogic.y)));
     const houseVW = Math.max(1, Math.trunc(Number(houseVisual.x)));
     const houseVH = Math.max(1, Math.trunc(Number(houseVisual.y)));
-    const houseMaxHp = computeMaxHp(houseW, houseH);
+    const houseMaxHp = computeMaxHp(houseW, houseH, houseLevel);
 
     const islandData = {
         id: docRef.id,
@@ -1880,10 +1880,13 @@ function inferLogicSizeFromSlotsRequired(slotsRequired) {
     return { x: 1, y: 1 };
 }
 
-function computeMaxHp(logicW, logicH) {
+function computeMaxHp(logicW, logicH, level = 1) {
     const w = Math.max(1, Math.trunc(Number(logicW) || 1));
     const h = Math.max(1, Math.trunc(Number(logicH) || 1));
-    return w * h * 100;
+    const base = w * h * 100;
+    const lv = Math.max(1, Math.trunc(Number(level) || 1));
+    const multiplier = 1 + 0.2 * (lv - 1);
+    return Math.round(base * multiplier);
 }
 
 function getActiveShipIdForResource(playFabId) {
@@ -2479,7 +2482,7 @@ app.post('/api/start-building-construction', async (req, res) => {
 
             const tileIndexRaw = spec.TileIndex;
             const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-            const maxHp = computeMaxHp(logicW, logicH);
+            const maxHp = computeMaxHp(logicW, logicH, Number(spec.Level) || 1);
             const entry = {
                 buildingId,
                 status: 'constructing',
@@ -2599,7 +2602,7 @@ app.post('/api/upgrade-island-level', async (req, res) => {
         const visualH = Math.max(1, Math.trunc(sizeVisual.y));
         const tileIndexRaw = spec.TileIndex;
         const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-        const maxHp = computeMaxHp(logicW, logicH);
+        const maxHp = computeMaxHp(logicW, logicH, nextLevel);
 
         await firestore.runTransaction(async (tx) => {
             const snapTx = await tx.get(ref);
