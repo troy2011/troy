@@ -93,7 +93,39 @@ async function saveGuildData(guildId, data, promisifyPlayFab) {
  * @param {Object} PlayFabServer - PlayFab Server API
  * @param {Object} PlayFabAdmin - PlayFab Admin API
  */
-function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin) {
+function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy) {
+
+    async function getEntityKeyForPlayFabId(playFabId) {
+        const result = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowEntity: true }
+        });
+        return result?.PlayerProfile?.Entity || null;
+    }
+
+    async function addEconomyItem(playFabId, itemId, amount) {
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        if (!entityKey?.Id || !entityKey?.Type) {
+            throw new Error('EntityKeyNotFound');
+        }
+        await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
+            Entity: entityKey,
+            Item: { Id: itemId },
+            Amount: Number(amount)
+        });
+    }
+
+    async function subtractEconomyItem(playFabId, itemId, amount) {
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        if (!entityKey?.Id || !entityKey?.Type) {
+            throw new Error('EntityKeyNotFound');
+        }
+        await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
+            Entity: entityKey,
+            Item: { Id: itemId },
+            Amount: Number(amount)
+        });
+    }
 
     // ----------------------------------------------------
     // API: ギルド情報を取得
@@ -785,11 +817,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
 
         try {
             // プレイヤーからアイテムを消費
-            await promisifyPlayFab(PlayFabServer.ConsumeItem, {
-                PlayFabId: playFabId,
-                ItemInstanceId: itemInstanceId,
-                ConsumeCount: 1
-            });
+            await subtractEconomyItem(playFabId, itemId, 1);
 
             // ギルドデータを取得
             const guildData = await getGuildData(guildId, promisifyPlayFab);
@@ -846,11 +874,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const item = guildData.warehouse[warehouseIndex];
 
             // プレイヤーにアイテムを付与
-            await promisifyPlayFab(PlayFabServer.GrantItemsToUser, {
-                PlayFabId: playFabId,
-                CatalogVersion: 'main_catalog',
-                ItemIds: [item.itemId]
-            });
+            await addEconomyItem(playFabId, item.itemId, 1);
 
             // 倉庫からアイテムを削除
             guildData.warehouse.splice(warehouseIndex, 1);

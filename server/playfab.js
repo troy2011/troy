@@ -4,6 +4,7 @@ const PlayFabAdmin = require('playfab-sdk/Scripts/PlayFab/PlayFabAdmin');
 const PlayFabAuthentication = require('playfab-sdk/Scripts/PlayFab/PlayFabAuthentication');
 const PlayFabGroups = require('playfab-sdk/Scripts/PlayFab/PlayFabGroups');
 const PlayFabData = require('playfab-sdk/Scripts/PlayFab/PlayFabData');
+const PlayFabEconomy = require('playfab-sdk/Scripts/PlayFab/PlayFabEconomy');
 
 let _titleEntityTokenReady = false;
 
@@ -53,6 +54,15 @@ async function setGroupDataValues(groupId, values) {
     });
 }
 
+async function getEntityKeyFromPlayFabId(playFabId) {
+    if (!playFabId) return null;
+    const result = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+        PlayFabId: playFabId,
+        ProfileConstraints: { ShowEntity: true }
+    });
+    return result?.PlayerProfile?.Entity || null;
+}
+
 module.exports = {
     PlayFab,
     PlayFabServer,
@@ -60,9 +70,11 @@ module.exports = {
     PlayFabAuthentication,
     PlayFabGroups,
     PlayFabData,
+    PlayFabEconomy,
     configurePlayFab,
     promisifyPlayFab,
     ensureTitleEntityToken,
     getGroupDataValue,
-    setGroupDataValues
+    setGroupDataValues,
+    getEntityKeyFromPlayFabId
 };

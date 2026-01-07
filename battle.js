@@ -7,8 +7,67 @@ require('dotenv').config();
 // initializeBattleRoutes 実行時に、server.js から渡されるオブジェクトを保持する
 let _promisifyPlayFab = null;
 let _PlayFabServer = null;
+let _PlayFabEconomy = null;
 let _lineClient = null;
 let _catalogCache = null;
+
+async function getEntityKeyForPlayFabId(playFabId) {
+    const result = await _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
+        PlayFabId: playFabId,
+        ProfileConstraints: { ShowEntity: true }
+    });
+    return result?.PlayerProfile?.Entity || null;
+}
+
+async function getAllInventoryItems(playFabId) {
+    const entityKey = await getEntityKeyForPlayFabId(playFabId);
+    if (!entityKey?.Id || !entityKey?.Type) return [];
+    const items = [];
+    let token = null;
+    do {
+        const result = await _promisifyPlayFab(_PlayFabEconomy.GetInventoryItems, {
+            Entity: entityKey,
+            Count: 100,
+            ContinuationToken: token || undefined
+        });
+        const page = Array.isArray(result?.Items) ? result.Items : [];
+        items.push(...page);
+        token = result?.ContinuationToken || null;
+    } while (token);
+    return items;
+}
+
+function getCurrencyBalanceFromItems(items, currencyId) {
+    return (items || []).reduce((sum, item) => {
+        const id = item?.Id || item?.ItemId;
+        if (id !== currencyId) return sum;
+        return sum + (Number(item?.Amount ?? item?.amount ?? 0) || 0);
+    }, 0);
+}
+
+async function addEconomyItem(playFabId, itemId, amount) {
+    const entityKey = await getEntityKeyForPlayFabId(playFabId);
+    if (!entityKey?.Id || !entityKey?.Type) {
+        throw new Error('EntityKeyNotFound');
+    }
+    await _promisifyPlayFab(_PlayFabEconomy.AddInventoryItems, {
+        Entity: entityKey,
+        Item: { Id: itemId },
+        Amount: Number(amount)
+    });
+}
+
+async function subtractEconomyItem(playFabId, itemId, amount) {
+    const entityKey = await getEntityKeyForPlayFabId(playFabId);
+    if (!entityKey?.Id || !entityKey?.Type) {
+        throw new Error('EntityKeyNotFound');
+    }
+    await _promisifyPlayFab(_PlayFabEconomy.SubtractInventoryItems, {
+        Entity: entityKey,
+        Item: { Id: itemId },
+        Amount: Number(amount)
+    });
+}
 
 // ----------------------------------------------------
 // ★ v42: プレイヤーHP/MPを保存する共通関数
@@ -59,15 +118,17 @@ async function getPlayerFullProfile(playFabId) {
         PlayFabId: playFabId, ProfileConstraints: { ShowDisplayName: true }
     });
     // ★★★ 修正点: インベントリ全体を取得して、InstanceId と ItemId の対応表を作る ★★★
-    const inventoryPromise = _promisifyPlayFab(_PlayFabServer.GetUserInventory, { PlayFabId: playFabId });
+    const inventoryPromise = getAllInventoryItems(playFabId);
 
     const [statsResult, equipmentResult, profileResult, inventoryResult] = await Promise.all([statsPromise, equipmentPromise, profilePromise, inventoryPromise]);
 
     // InstanceId をキー、ItemId を値とするマップを作成
     const instanceIdToItemIdMap = {};
-    if (inventoryResult && inventoryResult.Inventory) {
-        inventoryResult.Inventory.forEach(item => {
-            instanceIdToItemIdMap[item.ItemInstanceId] = item.ItemId;
+    if (Array.isArray(inventoryResult)) {
+        inventoryResult.forEach(item => {
+            if (item?.StackId && item?.Id) {
+                instanceIdToItemIdMap[item.StackId] = item.Id;
+            }
         });
     }
 
@@ -211,12 +272,12 @@ async function runBattle(playerA, playerB) {
 // ----------------------------------------------------
 // ★ v42: server.js から呼び出される初期化関数
 // ----------------------------------------------------
-function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, lineClient, catalogCache, constants) {
+function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, constants) {
 
     // ★ v42: モジュールレベル変数に代入
     _promisifyPlayFab = promisifyPlayFab;
     _PlayFabServer = PlayFabServer;
-    _lineClient = lineClient;
+    _PlayFabEconomy = PlayFabEconomy;
     _catalogCache = catalogCache;
     // ★ v120: Firebase Adminのdatabaseインスタンスを取得
     const db = require('firebase-admin').database();
@@ -547,10 +608,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     // ★★★ 報酬処理用の非同期関数を追加 ★★★
     async function handleBattleRewards(battleId, winnerId, loserId) {
         console.log(`[報酬処理] 開始。 勝者: ${winnerId}, 敗者: ${loserId}`);
-        const loserInventory = await _promisifyPlayFab(_PlayFabServer.GetUserInventory, { PlayFabId: loserId });
-        const loserPs = (loserInventory.VirtualCurrency && loserInventory.VirtualCurrency.PT) ? loserInventory.VirtualCurrency.PT : 0;
-        // ★★★ 修正: 敗者の懸賞金(BT)も取得 ★★★
-        const loserBounty = (loserInventory.VirtualCurrency && loserInventory.VirtualCurrency.BT) ? loserInventory.VirtualCurrency.BT : 0;
+        const loserInventory = await getAllInventoryItems(loserId);
+        const loserPs = getCurrencyBalanceFromItems(loserInventory, 'PT');
+        // 笘・・笘・菫ｮ豁｣: 謨苓・・諛ｸ雉樣≡(BT)繧ょ叙蠕・笘・・笘・
+        const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
 
         // ★★★ 修正: 奪う金額の計算ロジックを変更 ★★★
         // 1. 所持金(Ps)の10%～30%を計算
@@ -568,16 +629,16 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         }
 
         // 敗者から減算
-        await _promisifyPlayFab(_PlayFabServer.SubtractUserVirtualCurrency, { PlayFabId: loserId, VirtualCurrency: 'PT', Amount: pointsToSteal });
-        // 勝者に加算
-        await _promisifyPlayFab(_PlayFabServer.AddUserVirtualCurrency, { PlayFabId: winnerId, VirtualCurrency: 'PT', Amount: pointsToSteal });
+        await subtractEconomyItem(loserId, 'PT', pointsToSteal);
+
+
 
         // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げる ★★★
-        await _promisifyPlayFab(_PlayFabServer.AddUserVirtualCurrency, {
-            PlayFabId: winnerId,
-            VirtualCurrency: 'BT', // 新しい仮想通貨コード
-            Amount: pointsToSteal
-        });
+        await addEconomyItem(winnerId, 'BT', pointsToSteal);
+
+
+
+
         console.log(`[報酬処理] ${winnerId} の懸賞金が ${pointsToSteal}BT 上がった！`);
 
         console.log(`[報酬処理] ${winnerId} が ${loserId} から ${pointsToSteal}Ps を奪った！`);
@@ -589,11 +650,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         });
 
         // 両者のランキングスコアを更新
-        const winnerInventory = await _promisifyPlayFab(_PlayFabServer.GetUserInventory, { PlayFabId: winnerId });
-        const winnerNewBalance = winnerInventory.VirtualCurrency.PT;
+        const winnerInventory = await getAllInventoryItems(winnerId);
+        const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, 'PT');
         const loserNewBalance = loserPs - pointsToSteal;
-        // ★★★ 修正: 懸賞金(BT)の新しい残高も取得 ★★★
-        const winnerNewBounty = (winnerInventory.VirtualCurrency && winnerInventory.VirtualCurrency.BT) ? winnerInventory.VirtualCurrency.BT : 0;
+        // 笘・・笘・菫ｮ豁｣: 諛ｸ雉樣≡(BT)縺ｮ譁ｰ縺励＞谿矩ｫ倥ｂ蜿門ｾ・笘・・笘・
+        const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
 
         // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★
         await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: winnerId, Statistics: [

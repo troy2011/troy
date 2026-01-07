@@ -44,9 +44,29 @@ function worldToLatLng(point) {
  * データ構造メモ (省略)
  */
 
-function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, catalogCache) {
+function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
+
+    async function getEntityKeyForPlayFabId(playFabId) {
+        const result = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowEntity: true }
+        });
+        return result?.PlayerProfile?.Entity || null;
+    }
+
+    async function subtractEconomyItem(playFabId, itemId, amount) {
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        if (!entityKey?.Id || !entityKey?.Type) {
+            throw new Error('EntityKeyNotFound');
+        }
+        await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
+            Entity: entityKey,
+            Item: { Id: itemId },
+            Amount: Number(amount)
+        });
+    }
 
     async function findIslandByBiome(biome) {
         const collections = await db.listCollections();
@@ -410,11 +430,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const resolvedSpawnPosition = await findAvailableSpawnPosition(spawnPosition);
 
             // 1. 建造コストを支払う
-            await promisifyPlayFab(PlayFabServer.SubtractUserVirtualCurrency, {
-                PlayFabId: playFabId,
-                VirtualCurrency: currencyCode,
-                Amount: cost
-            });
+            await subtractEconomyItem(playFabId, currencyCode, cost);
             console.log(`[CreateShip] ${playFabId} から ${cost} ${currencyCode} を引きました。`);
 
             // 2. PlayFabに船データを保存（UserReadOnlyData）

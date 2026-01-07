@@ -84,6 +84,14 @@ function _getNationGroupIdForCurrentPlayer() {
     };
 }
 
+function _getEntityKeyForPlayFabId(playFabId) {
+    var profile = server.GetPlayerProfile({
+        PlayFabId: playFabId,
+        ProfileConstraints: { ShowEntity: true }
+    });
+    return profile && profile.PlayerProfile ? profile.PlayerProfile.Entity : null;
+}
+
 function _getNationKing(groupId) {
     var groupEntity = { Id: groupId, Type: 'group' };
     var objects = _safeGetGroupObjects(groupEntity);
@@ -358,16 +366,18 @@ handlers.KingGrantPsWithTax = function (args, context) {
     var net = amount - tax;
 
     // 王の所持金から差し引く（付与の原資）
-    server.SubtractUserVirtualCurrency({
-        PlayFabId: currentPlayerId,
-        VirtualCurrency: NATION_VC_CODE,
+    var senderEntity = _getEntityKeyForPlayFabId(currentPlayerId);
+    entity.SubtractInventoryItems({
+        Entity: senderEntity,
+        Item: { Id: NATION_VC_CODE },
         Amount: amount
     });
 
     if (net > 0) {
-        server.AddUserVirtualCurrency({
-            PlayFabId: receiverPlayFabId,
-            VirtualCurrency: NATION_VC_CODE,
+        var receiverEntity = _getEntityKeyForPlayFabId(receiverPlayFabId);
+        entity.AddInventoryItems({
+            Entity: receiverEntity,
+            Item: { Id: NATION_VC_CODE },
             Amount: net
         });
     }
