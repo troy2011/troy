@@ -306,6 +306,18 @@ async function getNationGroupIdByNation(nation) {
     return info?.groupId || null;
 }
 
+async function createGroupEntity(groupName) {
+    await ensureTitleEntityToken();
+    const result = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
+        GroupName: groupName
+    });
+    const groupId = result?.Group?.Id || null;
+    if (!groupId) {
+        throw new Error('CreateGroup did not return group id');
+    }
+    return groupId;
+}
+
 
 async function getNationTaxRateBps(nation) {
     const groupId = await getNationGroupIdByNation(nation);
@@ -424,6 +436,13 @@ async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
             Owner: playFabId,
             CreatedAt: new Date().toISOString()
         };
+        if (!shipData.ShipGroupId) {
+            try {
+                shipData.ShipGroupId = await createGroupEntity(`ship_${activeShipId}`);
+            } catch (e) {
+                console.warn('[starterShip] Failed to create ship group:', e?.errorMessage || e?.message || e);
+            }
+        }
     } else {
         shipData.Stats = shipData.Stats || {};
         if (!Number.isFinite(Number(shipData.Stats.CargoCapacity)) || Number(shipData.Stats.CargoCapacity) <= 0) {
@@ -574,6 +593,18 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
 
     const islandName = `${displayName || 'Player'}の島`;
     const docRef = worldMap.doc();
+    let islandGroupId = null;
+    try {
+        islandGroupId = await createGroupEntity(`island_${docRef.id}`);
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: {
+                [`IslandGroup_${docRef.id}`]: islandGroupId
+            }
+        });
+    } catch (e) {
+        console.warn('[starterIsland] Failed to create island group:', e?.errorMessage || e?.message || e);
+    }
     const islandLevel = 1;
     const houseId = 'my_house';
     const houseLevel = Math.min(5, Math.max(1, islandLevel));
@@ -3508,7 +3539,7 @@ async function main() {
     guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy);
 
     // 笘・闊ｹ繧ｷ繧ｹ繝・Β繧貞・譛溷喧
-    shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache);
+    shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, PlayFabGroups, ensureTitleEntityToken, catalogCache);
 
     app.listen(PORT, () => {
 console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);
