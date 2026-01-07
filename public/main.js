@@ -558,12 +558,22 @@ function updateShipTypeDetails() {
     }
 
     const info = window.shipCatalog[shipItemId];
-    const currencyPrices = info.VirtualCurrencyPrices || {};
+    const currencyPrices = {};
+    if (Array.isArray(info.PriceAmounts)) {
+        info.PriceAmounts.forEach((entry) => {
+            const key = entry?.ItemId || entry?.itemId;
+            if (!key) return;
+            currencyPrices[key] = Number(entry.Amount || 0);
+        });
+    }
+    if (Object.keys(currencyPrices).length === 0 && info.VirtualCurrencyPrices) {
+        Object.assign(currencyPrices, info.VirtualCurrencyPrices);
+    }
     const currencyCode =
         (currencyPrices.PS != null) ? 'PS' :
         ((currencyPrices.PT != null) ? 'PT' :
-        ((currencyPrices.GO != null) ? 'GO' : 'PT'));
-    const cost = currencyPrices[currencyCode] || 0;
+        ((currencyPrices.GO != null) ? 'GO' : (Object.keys(currencyPrices)[0] || 'PT')));
+    const cost = Number(currencyPrices[currencyCode] || 0);
 
     const domainLabel = (() => {
         switch (info.Domain) {
