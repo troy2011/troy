@@ -1,4 +1,4 @@
-// server.js (v42)
+﻿// server.js (v42)
 
 require('dotenv').config();
 const express = require('express');
@@ -6,8 +6,7 @@ const app = express();
 const path = require('path');
 const fs = require('fs');
 const line = require('@line/bot-sdk');
-// v120: Firebase Admin SDK 初期化
-const admin = require('firebase-admin');
+// v120: Firebase Admin SDK 蛻晄悄蛹・const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 
 const {
@@ -58,14 +57,15 @@ async function getEntityKeyForPlayFabId(playFabId) {
     return entityKey;
 }
 
-async function getAllInventoryItems(entityKey) {
+async function getAllInventoryItems(entityKey, collectionId = null) {
     const items = [];
     let token = null;
     do {
         const result = await promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
             Entity: entityKey,
             Count: 100,
-            ContinuationToken: token || undefined
+            ContinuationToken: token || undefined,
+            CollectionId: collectionId || undefined
         });
         const page = Array.isArray(result?.Items) ? result.Items : [];
         items.push(...page);
@@ -88,29 +88,31 @@ function getVirtualCurrencyMap(items) {
     return totals;
 }
 
-async function addEconomyItem(playFabId, itemId, amount) {
+async function addEconomyItem(playFabId, itemId, amount, collectionId = null) {
     const entityKey = await getEntityKeyForPlayFabId(playFabId);
     await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: itemId }
+        Item: { Id: itemId },
+        CollectionId: collectionId || undefined
     });
     return entityKey;
 }
 
-async function subtractEconomyItem(playFabId, itemId, amount) {
+async function subtractEconomyItem(playFabId, itemId, amount, collectionId = null) {
     const entityKey = await getEntityKeyForPlayFabId(playFabId);
     await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: itemId }
+        Item: { Id: itemId },
+        CollectionId: collectionId || undefined
     });
     return entityKey;
 }
 
-async function getCurrencyBalance(playFabId, currencyId) {
+async function getCurrencyBalance(playFabId, currencyId, collectionId = null) {
     const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    const items = await getAllInventoryItems(entityKey);
+    const items = await getAllInventoryItems(entityKey, collectionId);
     const totals = getVirtualCurrencyMap(items);
     return totals[currencyId] || 0;
 }
@@ -306,18 +308,6 @@ async function getNationGroupIdByNation(nation) {
     return info?.groupId || null;
 }
 
-async function createGroupEntity(groupName) {
-    await ensureTitleEntityToken();
-    const result = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
-        GroupName: groupName
-    });
-    const groupId = result?.Group?.Id || null;
-    if (!groupId) {
-        throw new Error('CreateGroup did not return group id');
-    }
-    return groupId;
-}
-
 
 async function getNationTaxRateBps(nation) {
     const groupId = await getNationGroupIdByNation(nation);
@@ -436,13 +426,6 @@ async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
             Owner: playFabId,
             CreatedAt: new Date().toISOString()
         };
-        if (!shipData.ShipGroupId) {
-            try {
-                shipData.ShipGroupId = await createGroupEntity(`ship_${activeShipId}`);
-            } catch (e) {
-                console.warn('[starterShip] Failed to create ship group:', e?.errorMessage || e?.message || e);
-            }
-        }
     } else {
         shipData.Stats = shipData.Stats || {};
         if (!Number.isFinite(Number(shipData.Stats.CargoCapacity)) || Number(shipData.Stats.CargoCapacity) <= 0) {
@@ -591,20 +574,8 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         return { skipped: true, reason: 'no_space' };
     }
 
-    const islandName = `${displayName || 'Player'}の島`;
+    const islandName = `${displayName || 'Player'}縺ｮ蟲ｶ`;
     const docRef = worldMap.doc();
-    let islandGroupId = null;
-    try {
-        islandGroupId = await createGroupEntity(`island_${docRef.id}`);
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: {
-                [`IslandGroup_${docRef.id}`]: islandGroupId
-            }
-        });
-    } catch (e) {
-        console.warn('[starterIsland] Failed to create island group:', e?.errorMessage || e?.message || e);
-    }
     const islandLevel = 1;
     const houseId = 'my_house';
     const houseLevel = Math.min(5, Math.max(1, islandLevel));
@@ -795,7 +766,7 @@ async function relocateActiveShip(firestore, playFabId, respawnPosition) {
 
 
 // ----------------------------------------------------
-// API: 蝗ｽ・亥ｳｶ・峨げ繝ｫ繝ｼ繝励檎視縲榊ｰら畑繝壹・繧ｸ諠・ｱ
+// API: 陜暦ｽｽ繝ｻ莠･・ｳ・ｶ繝ｻ蟲ｨ縺堤ｹ晢ｽｫ郢晢ｽｼ郢晏干ﾂ讙手ｦ也ｸｲ讎奇ｽｰ繧臥舞郢晏｣ｹ繝ｻ郢ｧ・ｸ隲繝ｻ・ｰ・ｱ
 // ----------------------------------------------------
 app.post('/api/login-playfab', async (req, res) => {
     const { lineUserId, displayName, pictureUrl } = req.body || {};
@@ -863,7 +834,7 @@ app.post('/api/login-playfab', async (req, res) => {
 });
 
 app.post('/api/get-nation-king-page', async (req, res) => {
-    const { playFabId } = req.body;
+    const { playFabId, collectionId } = req.body;
     if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
 
     try {
@@ -929,7 +900,7 @@ app.post('/api/get-nation-king-page', async (req, res) => {
     }
 });
 // ----------------------------------------------------
-// API 7: 繧､繝ｳ繝吶Φ繝医Μ・域戟縺｡迚ｩ・峨・蜿門ｾ・(v41縺ｨ螟画峩縺ｪ縺・
+// API 7: 郢ｧ・､郢晢ｽｳ郢晏生ﾎｦ郢晏現ﾎ懊・蝓滓亜邵ｺ・｡霑夲ｽｩ繝ｻ蟲ｨ繝ｻ陷ｿ髢・ｾ繝ｻ(v41邵ｺ・ｨ陞溽判蟲ｩ邵ｺ・ｪ邵ｺ繝ｻ
 // ----------------------------------------------------
 
 app.post('/api/get-nation-group', async (req, res) => {
@@ -1258,22 +1229,22 @@ app.post('/api/set-race', async (req, res) => {
 
     switch (raceName) {
         case 'Human':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "縺｡縺九ｉ": 2, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 10, "縺九＠縺薙＆": 15, "縺阪ｈ縺・＆": 10 };
             maxSkinColorIndex = 7;
             avatarData = { "AvatarColor": "red" };
             break;
         case 'Elf':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 10, "MaxMP": 10, "ちから": 5, "みのまもり": 5, "すばやさ": 15, "かしこさ": 10, "きようさ": 15 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 10, "MaxMP": 10, "縺｡縺九ｉ": 5, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 15, "縺九＠縺薙＆": 10, "縺阪ｈ縺・＆": 15 };
             maxSkinColorIndex = 8;
             avatarData = { "AvatarColor": "purple" };
             break;
         case 'Orc':
-            initialStats = { "Level": 1, "HP": 15, "MaxHP": 15, "MP": 2, "MaxMP": 2, "ちから": 15, "みのまもり": 15, "すばやさ": 2, "かしこさ": 2, "きようさ": 5 };
+            initialStats = { "Level": 1, "HP": 15, "MaxHP": 15, "MP": 2, "MaxMP": 2, "縺｡縺九ｉ": 15, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 15, "縺吶・繧・＆": 2, "縺九＠縺薙＆": 2, "縺阪ｈ縺・＆": 5 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "green" };
             break;
         case 'Goblin':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "縺｡縺九ｉ": 2, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 10, "縺九＠縺薙＆": 15, "縺阪ｈ縺・＆": 10 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "blue" };
             break;
@@ -1453,16 +1424,16 @@ app.post('/api/set-race', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// API 7: インベントリ取得 (v41移行済み)
+// API 7: 繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ・(v41遘ｻ陦梧ｸ医∩)
 // ----------------------------------------------------
 app.post('/api/get-inventory', async (req, res) => {
-    // (v41移行済み)
-    const { playFabId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
-    console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
+    // (v41遘ｻ陦梧ｸ医∩)
+    const { playFabId, collectionId } = req.body;
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
+    console.log(`[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 ${playFabId} 縺ｮ謖√■迚ｩ繧貞叙蠕励＠縺ｾ縺・..`);
     try {
         const entityKey = await getEntityKeyForPlayFabId(playFabId);
-        const items = await getAllInventoryItems(entityKey);
+        const items = await getAllInventoryItems(entityKey, collectionId || null);
         const itemMap = new Map();
         items.forEach((item) => {
             const itemId = item?.Id || item?.ItemId;
@@ -1487,96 +1458,93 @@ app.post('/api/get-inventory', async (req, res) => {
         });
         const inventoryList = Array.from(itemMap.values());
         const virtualCurrency = getVirtualCurrencyMap(items);
-        console.log('[インベントリ取得] 取得完了');
+        console.log('[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 蜿門ｾ怜ｮ御ｺ・);
         res.json({ inventory: inventoryList, virtualCurrency });
     } catch (error) {
-        console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
-        res.status(500).json({ error: 'インベントリ取得に失敗しました。', details: error.errorMessage || error.message });
+        console.error('[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 蜿門ｾ怜､ｱ謨・, error.errorMessage || error.message || error);
+        res.status(500).json({ error: '繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage || error.message });
     }
 });
 // ----------------------------------------------------
-// API 9: 装備アイテムを設定する (v41移行済み)
+// API 9: 陬・ｙ繧｢繧､繝・Β繧定ｨｭ螳壹☆繧・(v41遘ｻ陦梧ｸ医∩)
 // ----------------------------------------------------
 app.post('/api/equip-item', async (req, res) => {
-    // v103: slot パラメータを追加
-    const { playFabId, itemId, slot } = req.body; // itemId は null の場合がある
-    if (!playFabId || !slot) return res.status(400).json({ error: 'IDまたはスロット情報がありません。' });
+    // v103: slot 繝代Λ繝｡繝ｼ繧ｿ繧定ｿｽ蜉
+    const { playFabId, itemId, slot } = req.body; // itemId 縺ｯ null 縺ｮ蝣ｴ蜷医′縺ゅｋ
+    if (!playFabId || !slot) return res.status(400).json({ error: 'ID縺ｾ縺溘・繧ｹ繝ｭ繝・ヨ諠・ｱ縺後≠繧翫∪縺帙ｓ縲・ });
 
-    // slot名からPlayFabに保存するキーへ変換
+    // slot蜷阪°繧臼layFab縺ｫ菫晏ｭ倥☆繧九く繝ｼ縺ｸ螟画鋤
     const validSlots = { 'RightHand': 'Equipped_RightHand', 'LeftHand': 'Equipped_LeftHand', 'Armor': 'Equipped_Armor' };
     const dataKey = validSlots[slot];
-    if (!dataKey) return res.status(400).json({ error: '不正なスロットです。' });
+    if (!dataKey) return res.status(400).json({ error: '荳肴ｭ｣縺ｪ繧ｹ繝ｭ繝・ヨ縺ｧ縺吶・ });
 
     const dataToUpdate = {};
 
     if (itemId) {
-        // --- アイテムを装備する場合 ---
+        // --- 繧｢繧､繝・Β繧定｣・ｙ縺吶ｋ蝣ｴ蜷・---
         dataToUpdate[dataKey] = itemId;
 
-        // カタログ情報から大型武器の処理を行う
+        // 繧ｫ繧ｿ繝ｭ繧ｰ諠・ｱ縺九ｉ螟ｧ蝙区ｭｦ蝎ｨ縺ｮ蜃ｦ逅・ｒ陦後≧
         const itemData = catalogCache[itemId];
         if (itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
-            console.log(`[装備] 両手武器 (${itemId}) を装備します`);
-            // 両手武器の場合は左右を同期
-            dataToUpdate['Equipped_RightHand'] = itemId;
-            dataToUpdate['Equipped_LeftHand'] = null; // 左手を空にする
+            console.log(`[陬・ｙ] 荳｡謇区ｭｦ蝎ｨ (${itemId}) 繧定｣・ｙ縺励∪縺兪);
+            // 荳｡謇区ｭｦ蝎ｨ縺ｮ蝣ｴ蜷医・蟾ｦ蜿ｳ繧貞酔譛・            dataToUpdate['Equipped_RightHand'] = itemId;
+            dataToUpdate['Equipped_LeftHand'] = null; // 蟾ｦ謇九ｒ遨ｺ縺ｫ縺吶ｋ
         }
     } else {
-        // --- アイテムを外す場合 (itemId is null) ---
-        // v167: 大型武器解除の際は両手を外す
-        // 右手装備を確認して必要なら左手も外す
+        // --- 繧｢繧､繝・Β繧貞､悶☆蝣ｴ蜷・(itemId is null) ---
+        // v167: 螟ｧ蝙区ｭｦ蝎ｨ隗｣髯､縺ｮ髫帙・荳｡謇九ｒ螟悶☆
+        // 蜿ｳ謇玖｣・ｙ繧堤｢ｺ隱阪＠縺ｦ蠢・ｦ√↑繧牙ｷｦ謇九ｂ螟悶☆
         const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
         const currentRightHandId = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
         const itemData = currentRightHandId ? catalogCache[currentRightHandId] : null;
 
         if (slot === 'RightHand' && itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
-            console.log(`[装備解除] 両手武器 (${currentRightHandId}) を外します`);
+            console.log(`[陬・ｙ隗｣髯､] 荳｡謇区ｭｦ蝎ｨ (${currentRightHandId}) 繧貞､悶＠縺ｾ縺兪);
             dataToUpdate['Equipped_RightHand'] = null;
             dataToUpdate['Equipped_LeftHand'] = null;
         } else {
-            // 通常の装備解除
+            // 騾壼ｸｸ縺ｮ陬・ｙ隗｣髯､
             dataToUpdate[dataKey] = null;
         }
     }
 
-    console.log(`[装備] ${playFabId} の装備を更新します...`, dataToUpdate);
+    console.log(`[陬・ｙ] ${playFabId} 縺ｮ陬・ｙ繧呈峩譁ｰ縺励∪縺・..`, dataToUpdate);
 
     try {
         await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
             PlayFabId: playFabId,
             Data: dataToUpdate,
-            Permission: "Public" // 読み取り用なのでPublic
+            Permission: "Public" // 隱ｭ縺ｿ蜿悶ｊ逕ｨ縺ｪ縺ｮ縺ｧPublic
         });
-        console.log('[装備] 更新完了');
+        console.log('[陬・ｙ] 譖ｴ譁ｰ螳御ｺ・);
         res.json({ status: 'success', equippedItem: itemId });
     } catch (error) {
-        console.error('[装備] エラー', error.errorMessage);
-        res.status(500).json({ error: '装備の更新に失敗しました。', details: error.errorMessage });
+        console.error('[陬・ｙ] 繧ｨ繝ｩ繝ｼ', error.errorMessage);
+        res.status(500).json({ error: '陬・ｙ縺ｮ譖ｴ譁ｰ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
     }
 });
 // ----------------------------------------------------
-// API 10: 現在の装備を取得する (v41移行済み)
+// API 10: 迴ｾ蝨ｨ縺ｮ陬・ｙ繧貞叙蠕励☆繧・(v41遘ｻ陦梧ｸ医∩)
 // ----------------------------------------------------
 app.post('/api/get-equipment', async (req, res) => {
-    // v103: 表示用データ取得
-    const { playFabId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
-    console.log(`[装備取得] ${playFabId} の装備を取得します...`);
+    // v103: 陦ｨ遉ｺ逕ｨ繝・・繧ｿ蜿門ｾ・    const { playFabId, collectionId } = req.body;
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
+    console.log(`[陬・ｙ蜿門ｾ余 ${playFabId} 縺ｮ陬・ｙ繧貞叙蠕励＠縺ｾ縺・..`);
     try {
-        // PlayFabから装備データを取得
-        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        // PlayFab縺九ｉ陬・ｙ繝・・繧ｿ繧貞叙蠕・        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId, Keys: ["Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor"]
         });
         const equipment = {};
-        // RightHand / LeftHand / Armor を返す
+        // RightHand / LeftHand / Armor 繧定ｿ斐☆
         if (result.Data && result.Data.Equipped_RightHand) equipment.RightHand = result.Data.Equipped_RightHand.Value;
         if (result.Data && result.Data.Equipped_LeftHand) equipment.LeftHand = result.Data.Equipped_LeftHand.Value;
         if (result.Data && result.Data.Equipped_Armor) equipment.Armor = result.Data.Equipped_Armor.Value;
-        console.log('[装備取得] 完了', equipment);
+        console.log('[陬・ｙ蜿門ｾ余 螳御ｺ・, equipment);
         res.json({ equipment: equipment });
     } catch (error) {
-        console.error('[装備取得] エラー', error.errorMessage);
-        res.status(500).json({ error: '装備の取得に失敗しました。', details: error.errorMessage });
+        console.error('[陬・ｙ蜿門ｾ余 繧ｨ繝ｩ繝ｼ', error.errorMessage);
+        res.status(500).json({ error: '陬・ｙ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
     }
 });
 // ----------------------------------------------------
@@ -1584,13 +1552,13 @@ app.post('/api/get-equipment', async (req, res) => {
 // ----------------------------------------------------
 app.post('/api/get-points', async (req, res) => {
     const playFabId = req.body.playFabId;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
     try {
         const points = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
         res.json({ points });
     } catch (error) {
         res.status(500).json({
-            error: 'ポイント取得に失敗しました。',
+            error: '繝昴う繝ｳ繝亥叙蠕励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
             details: error.errorMessage || error.message
         });
     }
@@ -1602,7 +1570,7 @@ app.post('/api/get-points', async (req, res) => {
 app.post('/api/add-points', async (req, res) => {
     const { playFabId, amount } = req.body;
     if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
+        return res.status(400).json({ error: 'PlayFab ID 縺ｨ amount 縺悟ｿ・ｦ√〒縺吶・ });
     }
     try {
         await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
@@ -1613,9 +1581,9 @@ app.post('/api/add-points', async (req, res) => {
         });
         res.json({ newBalance });
     } catch (error) {
-        console.error('ポイント追加失敗:', error.errorMessage || error.message || error);
+        console.error('繝昴う繝ｳ繝郁ｿｽ蜉螟ｱ謨・', error.errorMessage || error.message || error);
         res.status(500).json({
-            error: 'ポイント追加に失敗しました。',
+            error: '繝昴う繝ｳ繝郁ｿｽ蜉縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
             details: error.errorMessage || error.message
         });
     }
@@ -1627,7 +1595,7 @@ app.post('/api/add-points', async (req, res) => {
 app.post('/api/use-points', async (req, res) => {
     const { playFabId, amount } = req.body;
     if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
+        return res.status(400).json({ error: 'PlayFab ID 縺ｨ amount 縺悟ｿ・ｦ√〒縺吶・ });
     }
     try {
         await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
@@ -1639,11 +1607,11 @@ app.post('/api/use-points', async (req, res) => {
         res.json({ newBalance });
     } catch (error) {
         if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: 'ポイントが不足しています。' });
+            return res.status(400).json({ error: '繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶・ });
         }
-        console.error('ポイント消費失敗:', error.errorMessage || error.message || error);
+        console.error('繝昴う繝ｳ繝域ｶ郁ｲｻ螟ｱ謨・', error.errorMessage || error.message || error);
         res.status(500).json({
-            error: 'ポイント消費に失敗しました。',
+            error: '繝昴う繝ｳ繝域ｶ郁ｲｻ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
             details: error.errorMessage || error.message
         });
     }
@@ -1666,7 +1634,7 @@ app.post('/api/get-ranking', async (req, res) => {
                 const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                 return {
                     position: entry.Position,
-                    displayName: entry.DisplayName || '名無し',
+                    displayName: entry.DisplayName || '蜷咲┌縺・,
                     score: entry.StatValue,
                     avatarUrl: avatarUrl
                 };
@@ -1674,9 +1642,9 @@ app.post('/api/get-ranking', async (req, res) => {
         }
         res.json({ ranking });
     } catch (error) {
-        console.error('ランキング取得失敗:', error.errorMessage || error.message || error);
+        console.error('繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ怜､ｱ謨・', error.errorMessage || error.message || error);
         return res.status(500).json({
-            error: 'ランキング取得に失敗しました。',
+            error: '繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
             details: error.errorMessage || error.message
         });
     }
@@ -1699,7 +1667,7 @@ app.post('/api/get-bounty-ranking', async (req, res) => {
                 const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                 return {
                     position: entry.Position,
-                    displayName: entry.DisplayName || '名無し',
+                    displayName: entry.DisplayName || '蜷咲┌縺・,
                     score: entry.StatValue,
                     avatarUrl: avatarUrl
                 };
@@ -1707,9 +1675,9 @@ app.post('/api/get-bounty-ranking', async (req, res) => {
         }
         res.json({ ranking });
     } catch (error) {
-        console.error('賞金ランキング取得失敗:', error.errorMessage || error.message || error);
+        console.error('雉樣≡繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ怜､ｱ謨・', error.errorMessage || error.message || error);
         return res.status(500).json({
-            error: '賞金ランキング取得に失敗しました。',
+            error: '雉樣≡繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
             details: error.errorMessage || error.message
         });
     }
@@ -1722,10 +1690,10 @@ app.post('/api/transfer-points', async (req, res) => {
     const { fromId, toId, amount } = req.body;
     const amountInt = parseInt(amount, 10);
     if (!fromId || !toId || !amountInt || amountInt <= 0) {
-        return res.status(400).json({ error: '送金パラメータが不正です。' });
+        return res.status(400).json({ error: '騾・≡繝代Λ繝｡繝ｼ繧ｿ縺御ｸ肴ｭ｣縺ｧ縺吶・ });
     }
     if (fromId === toId) {
-        return res.status(400).json({ error: '同じアカウントには送金できません。' });
+        return res.status(400).json({ error: '蜷後§繧｢繧ｫ繧ｦ繝ｳ繝医↓縺ｯ騾・≡縺ｧ縺阪∪縺帙ｓ縲・ });
     }
     try {
         await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
@@ -1743,16 +1711,16 @@ app.post('/api/transfer-points', async (req, res) => {
             });
             res.json({ newBalance: payerNewBalance });
         } catch (addError) {
-            console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
+            console.error('騾・≡蜈医∈縺ｮ蜉邂怜､ｱ謨・', addError.errorMessage || addError.message || addError);
             await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
-            res.status(500).json({ error: '送金先への加算に失敗しました。' });
+            res.status(500).json({ error: '騾・≡蜈医∈縺ｮ蜉邂励↓螟ｱ謨励＠縺ｾ縺励◆縲・ });
         }
     } catch (subtractError) {
         if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: 'ポイントが不足しています。' });
+            return res.status(400).json({ error: '繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶・ });
         }
-        console.error('送金元からの減算失敗:', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: '送金に失敗しました。', details: subtractError.errorMessage || subtractError.message });
+        console.error('騾・≡蜈・°繧峨・貂帷ｮ怜､ｱ謨・', subtractError.errorMessage || subtractError.message || subtractError);
+        res.status(500).json({ error: '騾・≡縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: subtractError.errorMessage || subtractError.message });
     }
 });
 
@@ -1760,8 +1728,8 @@ app.post('/api/transfer-points', async (req, res) => {
 // API 6: Pull gacha
 // ----------------------------------------------------
 app.post('/api/pull-gacha', async (req, res) => {
-    const { playFabId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+    const { playFabId, collectionId } = req.body;
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
     try {
         await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
         const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
@@ -1775,36 +1743,36 @@ app.post('/api/pull-gacha', async (req, res) => {
                 CatalogVersion: GACHA_CATALOG_VERSION
             });
             const grantedItemId = evalResult.ResultItemId;
-            if (!grantedItemId) throw new Error('ガチャ結果が空でした。');
+            if (!grantedItemId) throw new Error('繧ｬ繝√Ε邨先棡縺檎ｩｺ縺ｧ縺励◆縲・);
             await addEconomyItem(playFabId, grantedItemId, 1);
             res.json({
                 newBalance: newBalance,
                 grantedItems: [{ ItemId: grantedItemId }]
             });
         } catch (grantError) {
-            console.error('ガチャ付与失敗:', grantError.errorMessage || grantError.message || grantError);
+            console.error('繧ｬ繝√Ε莉倅ｸ主､ｱ謨・', grantError.errorMessage || grantError.message || grantError);
             await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
             res.status(500).json({
-                error: 'ガチャ報酬の付与に失敗しました。',
+                error: '繧ｬ繝√Ε蝣ｱ驟ｬ縺ｮ莉倅ｸ弱↓螟ｱ謨励＠縺ｾ縺励◆縲・,
                 details: grantError.errorMessage || grantError.message
             });
         }
     } catch (subtractError) {
         if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: `ポイントが不足しています。必要: ${GACHA_COST} PT` });
+            return res.status(400).json({ error: `繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶ょｿ・ｦ・ ${GACHA_COST} PT` });
         }
-        console.error('ガチャ課金失敗:', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: 'ガチャに失敗しました。', details: subtractError.errorMessage || subtractError.message });
+        console.error('繧ｬ繝√Ε隱ｲ驥大､ｱ謨・', subtractError.errorMessage || subtractError.message || subtractError);
+        res.status(500).json({ error: '繧ｬ繝√Ε縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: subtractError.errorMessage || subtractError.message });
     }
 });
 // ----------------------------------------------------
-// API 12: プレイヤーステータス取得 (v41移行済み)
+// API 12: 繝励Ξ繧､繝､繝ｼ繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ・(v41遘ｻ陦梧ｸ医∩)
 // ----------------------------------------------------
 app.post('/api/get-stats', async (req, res) => {
-    // (v41移行済み)
-    const { playFabId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
-    console.log(`[ステータス取得] ${playFabId} のステータスを取得します...`);
+    // (v41遘ｻ陦梧ｸ医∩)
+    const { playFabId, collectionId } = req.body;
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
+    console.log(`[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 ${playFabId} 縺ｮ繧ｹ繝・・繧ｿ繧ｹ繧貞叙蠕励＠縺ｾ縺・..`);
     try {
         const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
             PlayFabId: playFabId
@@ -1815,39 +1783,37 @@ app.post('/api/get-stats', async (req, res) => {
                 stats[stat.StatisticName] = stat.Value;
             });
         }
-        console.log('[ステータス取得] 完了');
+        console.log('[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 螳御ｺ・);
         res.json({ stats: stats });
     } catch (error) {
-        console.error('[ステータス取得] エラー', error.errorMessage);
-        res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });
+        console.error('[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 繧ｨ繝ｩ繝ｼ', error.errorMessage);
+        res.status(500).json({ error: '繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
     }
 });
 
 // ----------------------------------------------------
-// API 15: 蝗槫ｾｩ繧｢繧､繝・Β繧剃ｽｿ逕ｨ縺吶ｋ (笘・v43縺ｧ霑ｽ蜉)
+// API 15: 陜玲ｧｫ・ｾ・ｩ郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ蜑・ｽｽ・ｿ騾包ｽｨ邵ｺ蜷ｶ・・(隨倥・v43邵ｺ・ｧ髴托ｽｽ陷会｣ｰ)
 // ----------------------------------------------------
 app.post('/api/use-item', async (req, res) => {
     const { playFabId, itemInstanceId, itemId } = req.body;
     if (!playFabId || !itemInstanceId || !itemId) {
-        return res.status(400).json({ error: 'IDまたはアイテム情報が不足しています。' });
+        return res.status(400).json({ error: 'ID縺ｾ縺溘・繧｢繧､繝・Β諠・ｱ縺御ｸ崎ｶｳ縺励※縺・∪縺吶・ });
     }
 
-    console.log(`[アイテム使用] ${playFabId} がアイテム (Instance: ${itemInstanceId}) を使用します...`);
+    console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺後い繧､繝・Β (Instance: ${itemInstanceId}) 繧剃ｽｿ逕ｨ縺励∪縺・..`);
 
     try {
-        // 1. アイテムの効果をカタログから取得
-        const itemData = catalogCache[itemId];
+        // 1. 繧｢繧､繝・Β縺ｮ蜉ｹ譫懊ｒ繧ｫ繧ｿ繝ｭ繧ｰ縺九ｉ蜿門ｾ・        const itemData = catalogCache[itemId];
         if (!itemData || itemData.Category !== 'Consumable' || !itemData.Effect) {
-            return res.status(400).json({ error: 'このアイテムは使用できません。' });
+            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ菴ｿ逕ｨ縺ｧ縺阪∪縺帙ｓ縲・ });
         }
 
         const effect = itemData.Effect;
         if (effect.Type !== 'Heal' || !effect.Target || !effect.Amount) {
-            return res.status(400).json({ error: 'アイテム効果の設定が不正です。' });
+            return res.status(400).json({ error: '繧｢繧､繝・Β蜉ｹ譫懊・險ｭ螳壹′荳肴ｭ｣縺ｧ縺吶・ });
         }
 
-        // 2. 現在のステータスを取得
-        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
+        // 2. 迴ｾ蝨ｨ縺ｮ繧ｹ繝・・繧ｿ繧ｹ繧貞叙蠕・        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
         const currentStats = {};
         if (statsResult.Statistics) {
             statsResult.Statistics.forEach(stat => { currentStats[stat.StatisticName] = stat.Value; });
@@ -1859,101 +1825,99 @@ app.post('/api/use-item', async (req, res) => {
         const currentValue = currentStats[targetStat] || 0;
         const maxValue = currentStats[maxStat] || currentValue;
 
-        // 3. 縺吶〒縺ｫ蜈ｨ蝗槫ｾｩ縺励※縺・ｋ縺九メ繧ｧ繝・け
-        if (currentValue >= maxValue) {
-            return res.status(400).json({ error: `${targetStat} は既に満タンです。` });
+        // 3. 邵ｺ蜷ｶ縲堤ｸｺ・ｫ陷茨ｽｨ陜玲ｧｫ・ｾ・ｩ邵ｺ蜉ｱ窶ｻ邵ｺ繝ｻ・狗ｸｺ荵昴Γ郢ｧ・ｧ郢昴・縺・        if (currentValue >= maxValue) {
+            return res.status(400).json({ error: `${targetStat} 縺ｯ譌｢縺ｫ貅繧ｿ繝ｳ縺ｧ縺吶Ａ });
         }
 
-        // 4. 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ蜻茨ｽｶ驛・ｽｲ・ｻ
+        // 4. 驛｢・ｧ繝ｻ・｢驛｢・ｧ繝ｻ・､驛｢譏ｴ繝ｻ・主､・ｹ・ｧ陷ｻ闌ｨ・ｽ・ｶ鬩帙・・ｽ・ｲ繝ｻ・ｻ
         await subtractEconomyItem(playFabId, itemId, 1);
-        console.log(`[アイテム使用] ${playFabId} のアイテム ${itemInstanceId} を消費しました`);
+        console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺ｮ繧｢繧､繝・Β ${itemInstanceId} 繧呈ｶ郁ｲｻ縺励∪縺励◆`);
 
-        // 5. 繧ｹ繝・・繧ｿ繧ｹ繧貞屓蠕ｩ繝ｻ譖ｴ譁ｰ
+        // 5. 郢ｧ・ｹ郢昴・繝ｻ郢ｧ・ｿ郢ｧ・ｹ郢ｧ雋槫ｱ楢包ｽｩ郢晢ｽｻ隴厄ｽｴ隴・ｽｰ
         const recoveredValue = Math.min(currentValue + effect.Amount, maxValue);
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
             Statistics: [{ StatisticName: targetStat, Value: recoveredValue }]
         });
-        console.log(`[アイテム使用] ${playFabId} の ${targetStat} を ${currentValue} -> ${recoveredValue} に回復しました`);
+        console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺ｮ ${targetStat} 繧・${currentValue} -> ${recoveredValue} 縺ｫ蝗槫ｾｩ縺励∪縺励◆`);
 
-        // 6. 邨先棡繧偵け繝ｩ繧､繧｢繝ｳ繝医↓霑斐☆ 
+        // 6. 驍ｨ蜈域｣｡郢ｧ蛛ｵ縺醍ｹ晢ｽｩ郢ｧ・､郢ｧ・｢郢晢ｽｳ郢晏現竊馴恆譁絶・ 
         res.json({
             status: 'success',
-            message: `${itemData.DisplayName || itemId}を使用しました。${targetStat}が${effect.Amount}回復しました。`,
+            message: `${itemData.DisplayName || itemId}繧剃ｽｿ逕ｨ縺励∪縺励◆縲・{targetStat}縺・{effect.Amount}蝗槫ｾｩ縺励∪縺励◆縲Ａ,
             updatedStats: {
                 [targetStat]: recoveredValue
             }
         });
 
     } catch (error) {
-        console.error('[アイテム使用] エラー', error.errorMessage || error.message, error.apiErrorInfo);
+        console.error('[繧｢繧､繝・Β菴ｿ逕ｨ] 繧ｨ繝ｩ繝ｼ', error.errorMessage || error.message, error.apiErrorInfo);
 
-        // PlayFabの代表的なエラーをハンドリング
+        // PlayFab縺ｮ莉｣陦ｨ逧・↑繧ｨ繝ｩ繝ｼ繧偵ワ繝ｳ繝峨Μ繝ｳ繧ｰ
         if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemIsNotConsumable') {
-            return res.status(400).json({ error: 'このアイテムは消費できません。' });
+            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ豸郁ｲｻ縺ｧ縺阪∪縺帙ｓ縲・ });
         }
         if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'NoRemainingUses') {
-            return res.status(400).json({ error: 'このアイテムはもう使えません。' });
+            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ繧ゅ≧菴ｿ縺医∪縺帙ｓ縲・ });
         }
-        res.status(500).json({ error: 'アイテムの使用に失敗しました。', details: error.errorMessage || 'サーバーで予期しないエラーが発生しました。' });
+        res.status(500).json({ error: '繧｢繧､繝・Β縺ｮ菴ｿ逕ｨ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage || '繧ｵ繝ｼ繝舌・縺ｧ莠域悄縺励↑縺・お繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆縲・ });
     }
 });
 
 // ----------------------------------------------------
-// API 16: 繧｢繧､繝・Β繧貞｣ｲ蜊ｴ縺吶ｋ (笘・v106縺ｧ霑ｽ蜉)
+// API 16: 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ雋橸ｽ｣・ｲ陷奇ｽｴ邵ｺ蜷ｶ・・(隨倥・v106邵ｺ・ｧ髴托ｽｽ陷会｣ｰ)
 // ----------------------------------------------------
 app.post('/api/sell-item', async (req, res) => {
     const { playFabId, itemInstanceId, itemId } = req.body;
     if (!playFabId || !itemInstanceId || !itemId) {
-        return res.status(400).json({ error: 'IDまたはアイテム情報が不足しています。' });
+        return res.status(400).json({ error: 'ID縺ｾ縺溘・繧｢繧､繝・Β諠・ｱ縺御ｸ崎ｶｳ縺励※縺・∪縺吶・ });
     }
 
-    console.log(`[アイテム売却] ${playFabId} がアイテム (Instance: ${itemInstanceId}) を売却します...`);
+    console.log(`[繧｢繧､繝・Β螢ｲ蜊ｴ] ${playFabId} 縺後い繧､繝・Β (Instance: ${itemInstanceId}) 繧貞｣ｲ蜊ｴ縺励∪縺・..`);
 
     try {
-        // 1. 繧｢繧､繝・Β縺ｮ螢ｲ蜊ｴ萓｡譬ｼ繧偵き繧ｿ繝ｭ繧ｰ繧ｭ繝｣繝・す繝･縺九ｉ蜿門ｾ・
+        // 1. 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｸｺ・ｮ陞｢・ｲ陷奇ｽｴ關難ｽ｡隴ｬ・ｼ郢ｧ蛛ｵ縺咲ｹｧ・ｿ郢晢ｽｭ郢ｧ・ｰ郢ｧ・ｭ郢晢ｽ｣郢昴・縺咏ｹ晢ｽ･邵ｺ荵晢ｽ芽愾髢・ｾ繝ｻ
         const itemData = catalogCache[itemId];
-        // 笘・v110: SellPrice縺悟ｮ夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｴ蜷医・Power繧貞盾辣ｧ縺帙★縲∝｣ｲ蜊ｴ荳榊庄縺ｨ縺吶ｋ
+        // 隨倥・v110: SellPrice邵ｺ謔滂ｽｮ螟ゑｽｾ・ｩ邵ｺ霈費ｽ檎ｸｺ・ｦ邵ｺ繝ｻ竊醍ｸｺ繝ｻ・ｰ・ｴ陷ｷ蛹ｻ繝ｻPower郢ｧ雋樒崟霎｣・ｧ邵ｺ蟶吮・邵ｲ竏晢ｽ｣・ｲ陷奇ｽｴ闕ｳ讎雁ｺ・ｸｺ・ｨ邵ｺ蜷ｶ・・
         const sellPrice = (itemData && itemData.SellPrice)
             ? parseInt(itemData.SellPrice, 10)
             : 0;
 
         if (!sellPrice || sellPrice <= 0) {
-            return res.status(400).json({ error: 'このアイテムは売却できません。' });
+            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ螢ｲ蜊ｴ縺ｧ縺阪∪縺帙ｓ縲・ });
         }
 
-        // 2. 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ蜻茨ｽｶ驛・ｽｲ・ｻ
+        // 2. 驛｢・ｧ繝ｻ・｢驛｢・ｧ繝ｻ・､驛｢譏ｴ繝ｻ・主､・ｹ・ｧ陷ｻ闌ｨ・ｽ・ｶ鬩帙・・ｽ・ｲ繝ｻ・ｻ
         await subtractEconomyItem(playFabId, itemId, 1);
-        console.log('[アイテム売却] アイテムを消費しました');
+        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繧｢繧､繝・Β繧呈ｶ郁ｲｻ縺励∪縺励◆');
 
-        // 3. PTを付与
-        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, sellPrice);
+        // 3. PT繧剃ｻ倅ｸ・        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, sellPrice);
         const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        console.log('[アイテム売却] PT を付与しました');
+        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] PT 繧剃ｻ倅ｸ弱＠縺ｾ縺励◆');
 
-        // 4. ランキングスコアを更新
+        // 4. 繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ繧ｹ繧ｳ繧｢繧呈峩譁ｰ
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
             Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
         });
-        console.log('[アイテム売却] ランキングスコアを更新しました');
+        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ繧ｹ繧ｳ繧｢繧呈峩譁ｰ縺励∪縺励◆');
 
-        // 5. 邨先棡繧偵け繝ｩ繧､繧｢繝ｳ繝医↓霑斐☆
+        // 5. 驍ｨ蜈域｣｡郢ｧ蛛ｵ縺醍ｹ晢ｽｩ郢ｧ・､郢ｧ・｢郢晢ｽｳ郢晏現竊馴恆譁絶・
         res.json({
             status: 'success',
-            message: `${itemData.DisplayName || itemId}を${sellPrice} PTで売却しました。`,
+            message: `${itemData.DisplayName || itemId}繧・{sellPrice} PT縺ｧ螢ｲ蜊ｴ縺励∪縺励◆縲Ａ,
             newBalance: newBalance
         });
 
     } catch (error) {
-        console.error('[アイテム売却] エラー', error.errorMessage || error.message, error.apiErrorInfo);
+        console.error('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繧ｨ繝ｩ繝ｼ', error.errorMessage || error.message, error.apiErrorInfo);
 
         if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemNotFound') {
-            return res.status(400).json({ error: '指定されたアイテムが見つかりません。' });
+            return res.status(400).json({ error: '謖・ｮ壹＆繧後◆繧｢繧､繝・Β縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
         }
         res.status(500).json({
-            error: 'アイテムの売却に失敗しました。',
-            details: error.errorMessage || 'サーバーで予期しないエラーが発生しました。'
+            error: '繧｢繧､繝・Β縺ｮ螢ｲ蜊ｴ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
+            details: error.errorMessage || '繧ｵ繝ｼ繝舌・縺ｧ莠域悄縺励↑縺・お繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆縲・
         });
     }
 });
@@ -1995,7 +1959,7 @@ app.post('/api/king-set-tax-rate', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// API: 貂ｩ豕牙・豬ｴ縺ｧHP蝗槫ｾｩ
+// API: 雋ゑｽｩ雎慕甥繝ｻ雎ｬ・ｴ邵ｺ・ｧHP陜玲ｧｫ・ｾ・ｩ
 // ----------------------------------------------------
 app.post('/api/hot-spring-bath', async (req, res) => {
     const { playFabId, islandId, mapId } = req.body || {};
@@ -2065,8 +2029,8 @@ app.post('/api/hot-spring-bath', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 蟲ｶ( world_map ) + 蟒ｺ險ｭAPI
-// buildings[] 縺ｮ謗ｨ螂ｨ繧ｹ繧ｭ繝ｼ繝橸ｼ亥ｳｶ縺ゅ◆繧・莉ｶ・・
+// 陝ｲ・ｶ( world_map ) + 陝抵ｽｺ髫ｪ・ｭAPI
+// buildings[] 邵ｺ・ｮ隰暦ｽｨ陞ゑｽｨ郢ｧ・ｹ郢ｧ・ｭ郢晢ｽｼ郢晄ｩｸ・ｼ莠･・ｳ・ｶ邵ｺ繧・螺郢ｧ繝ｻ闔会ｽｶ繝ｻ繝ｻ
 // {
 //   buildingId: "watchtower",
 //   status: "constructing"|"completed"|"demolished",
@@ -2075,9 +2039,9 @@ app.post('/api/hot-spring-bath', async (req, res) => {
 //   completionTime: 456,
 //   durationMs: 1800000,
 //   helpers: ["PLAYFABID", ...],
-//   width: 1, height: 1,             // 隲也炊(蜊譛・繧ｵ繧､繧ｺ・医せ繝ｭ繝・ヨ蜊倅ｽ搾ｼ・
-//   visualWidth: 1, visualHeight: 3,  // 隕九◆逶ｮ繧ｵ繧､繧ｺ・医せ繝ｭ繝・ヨ蜊倅ｽ搾ｼ・
-//   tileIndex: 17                     // map_tiles 縺ｮ繝輔Ξ繝ｼ繝・域悴謨ｴ蛯吶↑繧牙酔荳縺ｧOK・・
+//   width: 1, height: 1,             // 髫ｲ荵溽ｊ(陷奇｣ｰ隴帙・郢ｧ・ｵ郢ｧ・､郢ｧ・ｺ繝ｻ蛹ｻ縺帷ｹ晢ｽｭ郢昴・繝ｨ陷雁・ｽｽ謳ｾ・ｼ繝ｻ
+//   visualWidth: 1, visualHeight: 3,  // 髫穂ｹ昶螺騾ｶ・ｮ郢ｧ・ｵ郢ｧ・､郢ｧ・ｺ繝ｻ蛹ｻ縺帷ｹ晢ｽｭ郢昴・繝ｨ陷雁・ｽｽ謳ｾ・ｼ繝ｻ
+//   tileIndex: 17                     // map_tiles 邵ｺ・ｮ郢晁ｼ釆樒ｹ晢ｽｼ郢晢｣ｰ繝ｻ蝓滓ざ隰ｨ・ｴ陋ｯ蜷ｶ竊醍ｹｧ迚咎・闕ｳﾂ邵ｺ・ｧOK繝ｻ繝ｻ
 // }
 // ----------------------------------------------------
 function getSizeTag(tags) {
@@ -2288,7 +2252,7 @@ app.post('/api/collect-resource', async (req, res) => {
             return res.status(400).json({ error: 'Nothing to collect' });
         }
 
-        await addEconomyItem(playFabId, currency, amount);
+        await addEconomyItem(playFabId, currency, amount, 'ShipCargo');
 
         const newLast = lastCollectedAt + amount * RESOURCE_INTERVAL_MS;
         await harvestRef.set({
@@ -2353,7 +2317,7 @@ app.post('/api/get-island-details', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 蟲ｶ繧ｷ繝ｧ繝・・API
+// 陝ｲ・ｶ郢ｧ・ｷ郢晢ｽｧ郢昴・繝ｻAPI
 // ----------------------------------------------------
 const SHOP_BUILDING_CATEGORIES = {
     weapon_shop: ['Weapon'],
@@ -2640,39 +2604,37 @@ app.post('/api/start-building-construction', async (req, res) => {
     }
 
     try {
-        // 1. 建物仕様を取得
-        const spec = getBuildingSpec(buildingId);
+        // 1. 蟒ｺ迚ｩ莉墓ｧ倥ｒ蜿門ｾ・        const spec = getBuildingSpec(buildingId);
         if (!spec) {
-            return res.status(400).json({ error: '建物定義が見つかりません。' });
+            return res.status(400).json({ error: '蟒ｺ迚ｩ螳夂ｾｩ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
         }
 
-        // 2. コストを計算
-        const costs = spec.Cost || {};
+        // 2. 繧ｳ繧ｹ繝医ｒ險育ｮ・        const costs = spec.Cost || {};
         const costEntries = Object.entries(costs).filter(([, amount]) => Number(amount) > 0);
 
         if (costEntries.length > 0) {
-            // 繝励Ξ繧､繝､繝ｼ縺ｮ谿矩ｫ倥ｒ遒ｺ隱・
+            // 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｮ隹ｿ遏ｩ・ｫ蛟･・帝￡・ｺ髫ｱ繝ｻ
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const balances = getVirtualCurrencyMap(items);
 
-            // 隹ｿ遏ｩ・ｫ蛟･繝｡郢ｧ・ｧ郢昴・縺・
+            // 髫ｹ・ｿ驕擾ｽｩ繝ｻ・ｫ陋滂ｽ･郢晢ｽ｡驛｢・ｧ繝ｻ・ｧ驛｢譏ｴ繝ｻ邵ｺ繝ｻ
             for (const [currency, amount] of costEntries) {
                 const balance = balances[currency] || 0;
                 if (balance < Number(amount)) {
                     return res.status(400).json({
-                        error: `${currency} が不足しています。必要: ${amount}, 所持: ${balance}`
+                        error: `${currency} 縺御ｸ崎ｶｳ縺励※縺・∪縺吶ょｿ・ｦ・ ${amount}, 謇謖・ ${balance}`
                     });
                 }
             }
 
-            // 郢ｧ・ｳ郢ｧ・ｹ郢晏沺鬮ｪ隰・ｼ費ｼ・
+            // 驛｢・ｧ繝ｻ・ｳ驛｢・ｧ繝ｻ・ｹ驛｢譎乗ｲｺ鬯ｮ・ｪ髫ｰ繝ｻ・ｼ雋ｻ・ｼ繝ｻ
             for (const [currency, amount] of costEntries) {
                 await subtractEconomyItem(playFabId, currency, Number(amount));
             }
         }
 
-        // 3. 蟒ｺ險ｭ蜃ｦ逅・ｼ・irestore繝医Λ繝ｳ繧ｶ繧ｯ繧ｷ繝ｧ繝ｳ・・
+        // 3. 陝抵ｽｺ髫ｪ・ｭ陷・ｽｦ騾・・・ｼ繝ｻirestore郢晏現ﾎ帷ｹ晢ｽｳ郢ｧ・ｶ郢ｧ・ｯ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ繝ｻ繝ｻ
         let displayName = null;
         let playerNation = null;
         try {
@@ -2699,7 +2661,7 @@ app.post('/api/start-building-construction', async (req, res) => {
         } catch (e) {
             console.warn('[StartBuildingConstruction] GetUserReadOnlyData failed:', e?.errorMessage || e?.message || e);
         }
-        const islandName = `${displayName || 'Player'}の${spec.DisplayName || buildingId}`;
+        const islandName = `${displayName || 'Player'}縺ｮ${spec.DisplayName || buildingId}`;
 
         const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
         const now = Date.now();
@@ -2775,14 +2737,14 @@ app.post('/api/start-building-construction', async (req, res) => {
             success: true,
             building,
             cost: costs,
-            message: `${spec.DisplayName || buildingId} の建設を開始しました。`
+            message: `${spec.DisplayName || buildingId} 縺ｮ蟒ｺ險ｭ繧帝幕蟋九＠縺ｾ縺励◆縲Ａ
         });
     } catch (error) {
         const msg = error?.message || String(error);
-        if (msg === 'NotOwner') return res.status(403).json({ error: 'この島の所有者ではありません。' });
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '島が見つかりません。' });
-        if (msg === 'AlreadyBuilt') return res.status(400).json({ error: 'この島には既に建物があります。' });
-        if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: 'この島のサイズに合っていません。' });
+        if (msg === 'NotOwner') return res.status(403).json({ error: '縺薙・蟲ｶ縺ｮ謇譛芽・〒縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・ });
+        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
+        if (msg === 'AlreadyBuilt') return res.status(400).json({ error: '縺薙・蟲ｶ縺ｫ縺ｯ譌｢縺ｫ蟒ｺ迚ｩ縺後≠繧翫∪縺吶・ });
+        if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: '縺薙・蟲ｶ縺ｮ繧ｵ繧､繧ｺ縺ｫ蜷医▲縺ｦ縺・∪縺帙ｓ縲・ });
         console.error('[StartBuildingConstruction] Error:', error);
         res.status(500).json({ error: 'Failed to start building construction', details: msg });
     }
@@ -2965,10 +2927,10 @@ app.post('/api/check-building-completion', async (req, res) => {
             return { completed: true, building: buildings[idx] };
         });
 
-        res.json({ success: true, ...result, message: result.completed ? '建設が完了しました。' : 'まだ建設中です。' });
+        res.json({ success: true, ...result, message: result.completed ? '蟒ｺ險ｭ縺悟ｮ御ｺ・＠縺ｾ縺励◆縲・ : '縺ｾ縺蟒ｺ險ｭ荳ｭ縺ｧ縺吶・ });
     } catch (error) {
         const msg = error?.message || String(error);
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '島が見つかりません。' });
+        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
         console.error('[CheckBuildingCompletion] Error:', error);
         res.status(500).json({ error: 'Failed to check building completion', details: msg });
     }
@@ -3032,11 +2994,11 @@ app.post('/api/help-construction', async (req, res) => {
             return { building: buildings[idx], reduction };
         });
 
-        res.json({ success: true, ...result, message: '建設時間を短縮しました。' });
+        res.json({ success: true, ...result, message: '蟒ｺ險ｭ譎る俣繧堤洒邵ｮ縺励∪縺励◆縲・ });
     } catch (error) {
         const msg = error?.message || String(error);
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '島が見つかりません。' });
-        if (msg === 'NotConstructing') return res.status(400).json({ error: 'そのスロットは建設中ではありません。' });
+        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
+        if (msg === 'NotConstructing') return res.status(400).json({ error: '縺昴・繧ｹ繝ｭ繝・ヨ縺ｯ蟒ｺ險ｭ荳ｭ縺ｧ縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・ });
         console.error('[HelpConstruction] Error:', error);
         res.status(500).json({ error: 'Failed to help construction', details: msg });
     }
@@ -3261,11 +3223,11 @@ app.post('/api/send-nearby-chat', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 笘・v41: PlayFab縺ｮ繧ｫ繧ｿ繝ｭ繧ｰ諠・ｱ繧定ｪｭ縺ｿ霎ｼ繧薙〒繧ｭ繝｣繝・す繝･縺吶ｋ (隍・焚繧ｫ繧ｿ繝ｭ繧ｰ蟇ｾ蠢・
+// 隨倥・v41: PlayFab邵ｺ・ｮ郢ｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ隲繝ｻ・ｰ・ｱ郢ｧ螳夲ｽｪ・ｭ邵ｺ・ｿ髴趣ｽｼ郢ｧ阮吶堤ｹｧ・ｭ郢晢ｽ｣郢昴・縺咏ｹ晢ｽ･邵ｺ蜷ｶ・・(髫阪・辟夂ｹｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ陝・ｽｾ陟｢繝ｻ
 // ----------------------------------------------------
 async function loadCatalogCache() {
-    console.log('[カタログ] PlayFabカタログの読み込みを開始します...');
-    const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog']; // 隱ｭ縺ｿ霎ｼ繧繧ｫ繧ｿ繝ｭ繧ｰ縺ｮ繝ｪ繧ｹ繝・
+    console.log('[繧ｫ繧ｿ繝ｭ繧ｰ] PlayFab繧ｫ繧ｿ繝ｭ繧ｰ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ繧帝幕蟋九＠縺ｾ縺・..');
+    const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog']; // 髫ｱ・ｭ邵ｺ・ｿ髴趣ｽｼ郢ｧﾂ郢ｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ邵ｺ・ｮ郢晢ｽｪ郢ｧ・ｹ郢昴・
     try {
         async function loadCatalogVersion(version) {
             try {
@@ -3295,7 +3257,7 @@ async function loadCatalogCache() {
                 const localPath = path.join(__dirname, 'playfab_catalog', `title-${titleId}-${version}.json`);
                 const msg = error?.errorMessage || error?.message || String(error);
                 const code = error?.code ? ` (${error.code})` : '';
-                console.warn(`[カタログ] PlayFabから ${version} の取得に失敗しました${code}: ${msg}`);
+                console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] PlayFab縺九ｉ ${version} 縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆${code}: ${msg}`);
  
                 if (fs.existsSync(localPath)) {
                     try {
@@ -3305,7 +3267,7 @@ async function loadCatalogCache() {
                         const catalogArray = Array.isArray(catalog) ? catalog : [];
                         const shipCount = catalogArray.filter((it) => it && (it.ItemClass === 'Ship' || (typeof it.ItemId === 'string' && it.ItemId.startsWith('ship_')))).length;
 
-                        // ships_catalog 縺悟商縺・螢翫ｌ縺ｦ縺・ｋ蝣ｴ蜷茨ｼ井ｾ・ placeholder item縺ｮ縺ｿ・峨↓蛯吶∴縺ｦ縲√・繝ｭ繧ｸ繧ｧ繧ｯ繝育峩荳九・繝輔ぃ繧､繝ｫ繧りｩｦ縺・
+                        // ships_catalog 邵ｺ謔溷膚邵ｺ繝ｻ陞｢鄙ｫ・檎ｸｺ・ｦ邵ｺ繝ｻ・玖撻・ｴ陷ｷ闌ｨ・ｼ莠包ｽｾ繝ｻ placeholder item邵ｺ・ｮ邵ｺ・ｿ繝ｻ蟲ｨ竊楢岷蜷ｶ竏ｴ邵ｺ・ｦ邵ｲ竏壹・郢晢ｽｭ郢ｧ・ｸ郢ｧ・ｧ郢ｧ・ｯ郢晁ご蟲ｩ闕ｳ荵昴・郢晁ｼ斐＜郢ｧ・､郢晢ｽｫ郢ｧ繧奇ｽｩ・ｦ邵ｺ繝ｻ
                         if (version === 'ships_catalog' && shipCount === 0) {
                             const altPath = path.join(__dirname, 'playfab_ships_catalog.json');
                             if (fs.existsSync(altPath)) {
@@ -3315,20 +3277,20 @@ async function loadCatalogCache() {
                                     const altCatalog = altParsed?.Catalog || altParsed?.data?.Catalog || [];
                                     const altArray = Array.isArray(altCatalog) ? altCatalog : [];
                                     const altShipCount = altArray.filter((it) => it && (it.ItemClass === 'Ship' || (typeof it.ItemId === 'string' && it.ItemId.startsWith('ship_')))).length;
-                                    console.warn(`[カタログ] ${localPath} に有効なデータがないため、${altPath} を使用します (${altArray.length}件/Ship ${altShipCount}件)`);
+                                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] ${localPath} 縺ｫ譛牙柑縺ｪ繝・・繧ｿ縺後↑縺・◆繧√・{altPath} 繧剃ｽｿ逕ｨ縺励∪縺・(${altArray.length}莉ｶ/Ship ${altShipCount}莉ｶ)`);
                                     return { Catalog: altArray };
                                 } catch (e2) {
-                                    console.warn(`[カタログ] 代替ファイルの読み込みに失敗しました: ${altPath}`, e2?.message || e2);
+                                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 莉｣譖ｿ繝輔ぃ繧､繝ｫ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: ${altPath}`, e2?.message || e2);
                                 }
                             }
                         }
-                        console.warn(`[カタログ] ローカルファイルから ${version} を読み込みました: ${localPath} (${catalogArray.length}件)`);
+                        console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺九ｉ ${version} 繧定ｪｭ縺ｿ霎ｼ縺ｿ縺ｾ縺励◆: ${localPath} (${catalogArray.length}莉ｶ)`);
                         return { Catalog: catalogArray };
                     } catch (e) {
-                        console.warn(`[カタログ] ローカルファイルの読み込みに失敗しました: ${localPath}`, e?.message || e);
+                        console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: ${localPath}`, e?.message || e);
                     }
                 } else {
-                    console.warn(`[カタログ] ローカルファイルが見つかりません: ${localPath}`);
+                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ: ${localPath}`);
                 }
 
                 
@@ -3347,21 +3309,21 @@ async function loadCatalogCache() {
                     let customData = {};
                     if (item.CustomData) {
                         try {
-                            // PlayFabのCustomDataはキーと値が文字列なのでJSONとしてパース
+                            // PlayFab縺ｮCustomData縺ｯ繧ｭ繝ｼ縺ｨ蛟､縺梧枚蟄怜・縺ｪ縺ｮ縺ｧJSON縺ｨ縺励※繝代・繧ｹ
                             const parsedData = JSON.parse(item.CustomData);
-                            // パースしたオブジェクトの値も必要に応じてパース
+                            // 繝代・繧ｹ縺励◆繧ｪ繝悶ず繧ｧ繧ｯ繝医・蛟､繧ょｿ・ｦ√↓蠢懊§縺ｦ繝代・繧ｹ
                             for (const key in parsedData) {
                                 const normalizedKey = String(key).trim();
                                 try {
-                                    // JSON文字列なら再パース
+                                    // JSON譁・ｭ怜・縺ｪ繧牙・繝代・繧ｹ
                                     customData[normalizedKey] = JSON.parse(parsedData[key]);
                                 } catch (e) {
-                                    // JSONでなければそのまま
+                                    // JSON縺ｧ縺ｪ縺代ｌ縺ｰ縺昴・縺ｾ縺ｾ
                                     customData[normalizedKey] = parsedData[key];
                                 }
                             }
                         } catch (e) {
-                            console.warn(`[カタログ] ItemID ${item.ItemId} のCustomDataのパースに失敗しました。`, item.CustomData);
+                            console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] ItemID ${item.ItemId} 縺ｮCustomData縺ｮ繝代・繧ｹ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲Ａ, item.CustomData);
                         }
                     }
                     itemMap[item.ItemId] = {
@@ -3377,19 +3339,19 @@ async function loadCatalogCache() {
         });
 
         catalogCache = itemMap;
-        console.log(`[カタログ] カタログを読み込みました。${Object.keys(catalogCache).length} 件のアイテムを取得しました。`);
+        console.log(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｫ繧ｿ繝ｭ繧ｰ繧定ｪｭ縺ｿ霎ｼ縺ｿ縺ｾ縺励◆縲・{Object.keys(catalogCache).length} 莉ｶ縺ｮ繧｢繧､繝・Β繧貞叙蠕励＠縺ｾ縺励◆縲Ａ);
     } catch (error) {
         console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
-        console.error(`[カタログ] サーバーURL: ${PlayFab.GetServerUrl ? PlayFab.GetServerUrl() : '(unknown)'}`);
-        console.error('PlayFabのTitle ID、Secret Key、CatalogVersionやネットワーク(443/tcp)を確認してください。');
+        console.error('[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｨ繝ｩ繝ｼ: 繧ｫ繧ｿ繝ｭ繧ｰ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, error?.errorMessage || error?.message || error);
+        console.error(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｵ繝ｼ繝舌・URL: ${PlayFab.GetServerUrl ? PlayFab.GetServerUrl() : '(unknown)'}`);
+        console.error('PlayFab縺ｮTitle ID縲ヾecret Key縲，atalogVersion繧・ロ繝・ヨ繝ｯ繝ｼ繧ｯ(443/tcp)繧堤｢ｺ隱阪＠縺ｦ縺上□縺輔＞縲・);
         console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
         process.exit(1);
     }
 }
 
 // ----------------------------------------------------
-// 笘・蛻晄悄繝槭ャ繝励ョ繝ｼ繧ｿ繧巽irestore縺ｫ謚募・縺吶ｋ
+// 隨倥・陋ｻ譎・ｄ郢晄ｧｭ繝｣郢晏干繝ｧ郢晢ｽｼ郢ｧ・ｿ郢ｧ蟾ｽirestore邵ｺ・ｫ隰壼供繝ｻ邵ｺ蜷ｶ・・
 // ----------------------------------------------------
 const MAJOR_ARCANA = [
     { number: 0, name: 'The Fool' },
@@ -3514,15 +3476,15 @@ async function initializeMapData() {
 }
 
 
-// 笘・v42: 繧ｵ繝ｼ繝舌・襍ｷ蜍・(繝｡繧､繝ｳ)
+// 隨倥・v42: 郢ｧ・ｵ郢晢ｽｼ郢晁・繝ｻ隘搾ｽｷ陷阪・(郢晢ｽ｡郢ｧ・､郢晢ｽｳ)
 // ----------------------------------------------------
 async function main() {
     await loadCatalogCache();
 
-    // 笘・蛻晄悄繝槭ャ繝励ョ繝ｼ繧ｿ繧巽irestore縺ｫ謚募・
+    // 隨倥・陋ｻ譎・ｄ郢晄ｧｭ繝｣郢晏干繝ｧ郢晢ｽｼ郢ｧ・ｿ郢ｧ蟾ｽirestore邵ｺ・ｫ隰壼供繝ｻ
     await initializeMapData();
 
-    // 笘・v41: 蜈ｱ騾壹〒貂｡縺吝ｮ壽焚繧偵∪縺ｨ繧√ｋ
+    // 隨倥・v41: 陷茨ｽｱ鬨ｾ螢ｹ縲定ｲゑｽ｡邵ｺ蜷晢ｽｮ螢ｽ辟夂ｹｧ蛛ｵ竏ｪ邵ｺ・ｨ郢ｧ竏夲ｽ・
     const sharedConstants = {
         VIRTUAL_CURRENCY_CODE,
         LEADERBOARD_NAME,
@@ -3530,21 +3492,21 @@ async function main() {
         GACHA_CATALOG_VERSION
     };
 
-    // v40: battle.js 繧貞・譛溷喧
-    // 笘・・笘・菫ｮ豁｣: db繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ繧呈ｸ｡縺・笘・・笘・
+    // v40: battle.js 郢ｧ雋槭・隴帶ｺｷ蝟ｧ
+    // 隨倥・繝ｻ隨倥・闖ｫ・ｮ雎・ｽ｣: db郢ｧ・､郢晢ｽｳ郢ｧ・ｹ郢ｧ・ｿ郢晢ｽｳ郢ｧ・ｹ郢ｧ蜻茨ｽｸ・｡邵ｺ繝ｻ隨倥・繝ｻ隨倥・
     const db = admin.database();
     battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, sharedConstants, db);
 
-    // 笘・繧ｮ繝ｫ繝画ｩ溯・繧貞・譛溷喧
+    // 隨倥・郢ｧ・ｮ郢晢ｽｫ郢晉判・ｩ貅ｯ繝ｻ郢ｧ雋槭・隴帶ｺｷ蝟ｧ
     guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy);
 
-    // 笘・闊ｹ繧ｷ繧ｹ繝・Β繧貞・譛溷喧
-    shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, PlayFabGroups, ensureTitleEntityToken, catalogCache);
+    // 隨倥・髣奇ｽｹ郢ｧ・ｷ郢ｧ・ｹ郢昴・ﾎ堤ｹｧ雋槭・隴帶ｺｷ蝟ｧ
+    shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache);
 
     app.listen(PORT, () => {
-console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);
+console.log(`繧ｵ繝ｼ繝舌・縺後・繝ｼ繝・${PORT} 縺ｧ襍ｷ蜍輔＠縺ｾ縺励◆縲Ｉttp://localhost:${PORT}`);
     });
 }
 
-// v42: 繧ｵ繝ｼ繝舌・繧定ｵｷ蜍・
+// v42: 郢ｧ・ｵ郢晢ｽｼ郢晁・繝ｻ郢ｧ螳夲ｽｵ・ｷ陷阪・
 main();

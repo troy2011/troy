@@ -44,7 +44,7 @@ function worldToLatLng(point) {
  * データ構造メモ (省略)
  */
 
-function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, PlayFabGroups, ensureTitleEntityToken, catalogCache) {
+function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
 
@@ -66,18 +66,6 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             Item: { Id: itemId },
             Amount: Number(amount)
         });
-    }
-
-    async function createShipGroup(shipId) {
-        await ensureTitleEntityToken();
-        const result = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
-            GroupName: `ship_${shipId}`
-        });
-        const groupId = result?.Group?.Id || null;
-        if (!groupId) {
-            throw new Error('CreateGroup did not return group id');
-        }
-        return groupId;
     }
 
     async function findIslandByBiome(biome) {
@@ -449,11 +437,6 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const shipId = `ship_${playFabId}_${Date.now()}`;
             const shipData = {};
             shipData.ShipId = shipId;
-            try {
-                shipData.ShipGroupId = await createShipGroup(shipId);
-            } catch (groupError) {
-                console.warn('[CreateShip] Failed to create ship group:', groupError?.errorMessage || groupError?.message || groupError);
-            }
             shipData.ShipType = shipSpec.DisplayName; // カタログの表示名を利用
             shipData.ItemId = shipItemId; // カタログのItemIdを保存
             shipData.baseFrame = normalizeBaseFrame(shipSpec.baseFrame); // グラフィックの基準フレーム

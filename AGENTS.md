@@ -1,6 +1,6 @@
-# AGENTS.md
+﻿# AGENTS.md
 
-**Rule:** In each command, **define → use**. Do **not** escape `$`. Use generic `'path/to/file.ext'`.
+**Rule:** In each command, **define -> use**. Do **not** escape $. Use generic 'path/to/file.ext'.
 
 ---
 
@@ -61,11 +61,11 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 - Do not use `PlayFabClient` or `PlayFabServer` legacy economy methods.
 - Every request must include `Entity: { Id, Type }`.
 - Currency is an item; use `AddInventoryItems` / `SubtractInventoryItems` with `Item.Id = "CURRENCY_ID"`.
-- `GetUserInventory` → `PlayFabEconomy.GetInventoryItems` (items in `result.data.Items`).
-- `AddUserVirtualCurrency` → `PlayFabEconomy.AddInventoryItems`.
-- `SubtractUserVirtualCurrency` / `ConsumeItem` → `PlayFabEconomy.SubtractInventoryItems`.
-- `PurchaseItem` → `PlayFabEconomy.PurchaseInventoryItems` with `PriceAmounts`.
-- `GetCatalogItems` → `PlayFabEconomy.SearchItems`.
+- `GetUserInventory` 竊・`PlayFabEconomy.GetInventoryItems` (items in `result.data.Items`).
+- `AddUserVirtualCurrency` 竊・`PlayFabEconomy.AddInventoryItems`.
+- `SubtractUserVirtualCurrency` / `ConsumeItem` 竊・`PlayFabEconomy.SubtractInventoryItems`.
+- `PurchaseItem` 竊・`PlayFabEconomy.PurchaseInventoryItems` with `PriceAmounts`.
+- `GetCatalogItems` 竊・`PlayFabEconomy.SearchItems`.
 
 ---
 
@@ -76,3 +76,8 @@ Write-Utf8NoBom -Path $file -Content ($old+"`nYOUR_TEXT_HERE`n")
 - Use `PlayFabEconomy` (promisified) for Economy V2 operations.
 - Every request must include `Entity: { Id, Type }`.
 - Currency is an item. Use `AddInventoryItems` / `SubtractInventoryItems` with `Item.Id = "CURRENCY_ID"`.
+
+## Firestore Load Policy
+
+- Prefer PlayFab when possible; avoid increasing Firestore load.
+
