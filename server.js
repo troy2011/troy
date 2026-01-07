@@ -1553,13 +1553,13 @@ app.post('/api/get-equipment', async (req, res) => {
 // ----------------------------------------------------
 app.post('/api/get-points', async (req, res) => {
     const playFabId = req.body.playFabId;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFabId is required.' });
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
     try {
         const points = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
         res.json({ points });
     } catch (error) {
         res.status(500).json({
-            error: 'Failed to get points.',
+            error: 'ポイント取得に失敗しました。',
             details: error.errorMessage || error.message
         });
     }
@@ -1571,7 +1571,7 @@ app.post('/api/get-points', async (req, res) => {
 app.post('/api/add-points', async (req, res) => {
     const { playFabId, amount } = req.body;
     if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFabId and amount are required.' });
+        return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
     }
     try {
         await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
@@ -1582,9 +1582,9 @@ app.post('/api/add-points', async (req, res) => {
         });
         res.json({ newBalance });
     } catch (error) {
-        console.error('Add points failed:', error.errorMessage || error.message || error);
+        console.error('ポイント追加失敗:', error.errorMessage || error.message || error);
         res.status(500).json({
-            error: 'Failed to add points.',
+            error: 'ポイント追加に失敗しました。',
             details: error.errorMessage || error.message
         });
     }
@@ -1596,7 +1596,7 @@ app.post('/api/add-points', async (req, res) => {
 app.post('/api/use-points', async (req, res) => {
     const { playFabId, amount } = req.body;
     if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFabId and amount are required.' });
+        return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
     }
     try {
         await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
@@ -1608,11 +1608,11 @@ app.post('/api/use-points', async (req, res) => {
         res.json({ newBalance });
     } catch (error) {
         if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: 'Insufficient funds.' });
+            return res.status(400).json({ error: 'ポイントが不足しています。' });
         }
-        console.error('Use points failed:', error.errorMessage || error.message || error);
+        console.error('ポイント消費失敗:', error.errorMessage || error.message || error);
         res.status(500).json({
-            error: 'Failed to use points.',
+            error: 'ポイント消費に失敗しました。',
             details: error.errorMessage || error.message
         });
     }
@@ -1635,7 +1635,7 @@ app.post('/api/get-ranking', async (req, res) => {
                 const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                 return {
                     position: entry.Position,
-                    displayName: entry.DisplayName || 'Anonymous',
+                    displayName: entry.DisplayName || '名無し',
                     score: entry.StatValue,
                     avatarUrl: avatarUrl
                 };
@@ -1643,9 +1643,9 @@ app.post('/api/get-ranking', async (req, res) => {
         }
         res.json({ ranking });
     } catch (error) {
-        console.error('Get ranking failed:', error.errorMessage || error.message || error);
+        console.error('ランキング取得失敗:', error.errorMessage || error.message || error);
         return res.status(500).json({
-            error: 'Failed to get ranking.',
+            error: 'ランキング取得に失敗しました。',
             details: error.errorMessage || error.message
         });
     }
@@ -1668,7 +1668,7 @@ app.post('/api/get-bounty-ranking', async (req, res) => {
                 const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                 return {
                     position: entry.Position,
-                    displayName: entry.DisplayName || 'Anonymous',
+                    displayName: entry.DisplayName || '名無し',
                     score: entry.StatValue,
                     avatarUrl: avatarUrl
                 };
@@ -1676,9 +1676,9 @@ app.post('/api/get-bounty-ranking', async (req, res) => {
         }
         res.json({ ranking });
     } catch (error) {
-        console.error('Get bounty ranking failed:', error.errorMessage || error.message || error);
+        console.error('賞金ランキング取得失敗:', error.errorMessage || error.message || error);
         return res.status(500).json({
-            error: 'Failed to get bounty ranking.',
+            error: '賞金ランキング取得に失敗しました。',
             details: error.errorMessage || error.message
         });
     }
@@ -1691,10 +1691,10 @@ app.post('/api/transfer-points', async (req, res) => {
     const { fromId, toId, amount } = req.body;
     const amountInt = parseInt(amount, 10);
     if (!fromId || !toId || !amountInt || amountInt <= 0) {
-        return res.status(400).json({ error: 'Invalid transfer parameters.' });
+        return res.status(400).json({ error: '送金パラメータが不正です。' });
     }
     if (fromId === toId) {
-        return res.status(400).json({ error: 'Cannot transfer to the same account.' });
+        return res.status(400).json({ error: '同じアカウントには送金できません。' });
     }
     try {
         await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
@@ -1712,16 +1712,16 @@ app.post('/api/transfer-points', async (req, res) => {
             });
             res.json({ newBalance: payerNewBalance });
         } catch (addError) {
-            console.error('Transfer add failed:', addError.errorMessage || addError.message || addError);
+            console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
             await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
-            res.status(500).json({ error: 'Transfer failed while crediting receiver.' });
+            res.status(500).json({ error: '送金先への加算に失敗しました。' });
         }
     } catch (subtractError) {
         if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: 'Insufficient funds.' });
+            return res.status(400).json({ error: 'ポイントが不足しています。' });
         }
-        console.error('Transfer subtract failed:', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: 'Transfer failed.', details: subtractError.errorMessage || subtractError.message });
+        console.error('送金元からの減算失敗:', subtractError.errorMessage || subtractError.message || subtractError);
+        res.status(500).json({ error: '送金に失敗しました。', details: subtractError.errorMessage || subtractError.message });
     }
 });
 
@@ -1730,7 +1730,7 @@ app.post('/api/transfer-points', async (req, res) => {
 // ----------------------------------------------------
 app.post('/api/pull-gacha', async (req, res) => {
     const { playFabId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFabId is required.' });
+    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
     try {
         await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
         const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
@@ -1744,26 +1744,26 @@ app.post('/api/pull-gacha', async (req, res) => {
                 CatalogVersion: GACHA_CATALOG_VERSION
             });
             const grantedItemId = evalResult.ResultItemId;
-            if (!grantedItemId) throw new Error('No item returned from gacha.');
+            if (!grantedItemId) throw new Error('ガチャ結果が空でした。');
             await addEconomyItem(playFabId, grantedItemId, 1);
             res.json({
                 newBalance: newBalance,
                 grantedItems: [{ ItemId: grantedItemId }]
             });
         } catch (grantError) {
-            console.error('Gacha grant failed:', grantError.errorMessage || grantError.message || grantError);
+            console.error('ガチャ付与失敗:', grantError.errorMessage || grantError.message || grantError);
             await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
             res.status(500).json({
-                error: 'Failed to grant gacha item.',
+                error: 'ガチャ報酬の付与に失敗しました。',
                 details: grantError.errorMessage || grantError.message
             });
         }
     } catch (subtractError) {
         if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: `Insufficient funds. Need ${GACHA_COST} PT.` });
+            return res.status(400).json({ error: `ポイントが不足しています。必要: ${GACHA_COST} PT` });
         }
-        console.error('Gacha charge failed:', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: 'Gacha failed.', details: subtractError.errorMessage || subtractError.message });
+        console.error('ガチャ課金失敗:', subtractError.errorMessage || subtractError.message || subtractError);
+        res.status(500).json({ error: 'ガチャに失敗しました。', details: subtractError.errorMessage || subtractError.message });
     }
 });
 // ----------------------------------------------------
