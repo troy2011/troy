@@ -629,20 +629,28 @@ handlers.UseSkill = function(args, context) {
   const skillId = args.skillId;
   const targetId = args.targetId;
 
-  // スキルのカタログデータを取得
+  // スキルのカタログデータを取得 (Economy V2)
   const catalogRequest = {
-    CatalogVersion: "skills_catalog",
-    ItemIds: [skillId]
+    Ids: [skillId]
   };
 
-  const catalogResult = server.GetCatalogItems(catalogRequest);
+  const catalogResult = economy.GetItems(catalogRequest);
 
-  if (!catalogResult.Catalog || catalogResult.Catalog.length === 0) {
+  if (!catalogResult.Items || catalogResult.Items.length === 0) {
     return { error: "スキルが見つかりません" };
   }
 
-  const skillData = catalogResult.Catalog[0];
-  const customData = JSON.parse(skillData.CustomData || "{}");
+  const skillData = catalogResult.Items[0];
+  let customData = {};
+  if (skillData.DisplayProperties && typeof skillData.DisplayProperties === "object") {
+    customData = skillData.DisplayProperties;
+  } else if (typeof skillData.CustomData === "string" && skillData.CustomData) {
+    try {
+      customData = JSON.parse(skillData.CustomData);
+    } catch (e) {
+      customData = {};
+    }
+  }
   const effects = customData.effects || [];
 
   // 戦闘コンテキストの構築（実際のゲームではデータベースから取得）
