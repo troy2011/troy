@@ -1,4 +1,4 @@
-# 島占領・建設システム 統合完了レポート
+﻿# 島占領・建設システム 統合完了レポート
 
 ## 概要
 
@@ -371,7 +371,7 @@ Island.showBuildingMenu(island, 'yourPlayFabId');
 
 **解決策**:
 1. ブラウザのコンソールでエラーを確認
-2. サーバーログを確認（[ships.js:1039-1074](ships.js#L1039-L1074)）
+2. サーバーログを確認（[server/routes/ships.js:1039-1074](server/routes/ships.js#L1039-L1074)）
 3. Firestoreの `islands` コレクションに建設中データがあるか確認
 
 ### 問題: 建設音が再生されない
@@ -464,3 +464,4 @@ const particles = this.add.particles(x, y, 'map_tiles', {
 - 🔧 守護獣戦闘システムとの統合（オプション）
 
 次は、実際にゲームをプレイして、島を占領・建設してみましょう！🏗️🚩
+

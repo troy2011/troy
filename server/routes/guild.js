@@ -1,7 +1,7 @@
 // guild.js - ギルド機能のサーバー側API
 // PlayFab Groups APIを使用したギルド管理
 
-const { PlayFabGroups, PlayFabData, PlayFabAuthentication } = require('./server/playfab');
+const { PlayFabGroups, PlayFabData, PlayFabAuthentication } = require('../playfab');
 
 // ギルドレベルシステムの設定
 const GUILD_LEVEL_CONFIG = {

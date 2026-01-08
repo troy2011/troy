@@ -10,7 +10,7 @@ let serviceAccount = null;
 if (serviceAccountJson) {
     serviceAccount = JSON.parse(serviceAccountJson);
 } else {
-    serviceAccount = require('../my-liff-app-ee704-firebase-adminsdk-fbsvc-2deac93eab.json');
+    serviceAccount = require('../config/firebase-service-account.json');
 }
 
 admin.initializeApp({

@@ -1,4 +1,4 @@
-# 船システム改善完了レポート
+﻿# 船システム改善完了レポート
 
 ## ✅ 実装完了した改善項目
 
@@ -189,7 +189,7 @@ playerShipsListener = onSnapshot(q, async (snapshot) => {
 - 返却データ: `ShipType`, `Stats` のみ
 - 除外データ: `Equipment`, `Cargo`, `Crew`
 
-### コード ([ships.js:172-212](ships.js#L172-L212))
+### コード ([server/routes/ships.js:172-212](server/routes/ships.js#L172-L212))
 ```javascript
 app.post('/api/get-ship-asset-light', async (req, res) => {
     const { playFabId, shipId } = req.body;
@@ -257,7 +257,7 @@ app.post('/api/get-ship-asset-light', async (req, res) => {
 - サーバー側で効率的なgeohashクエリを実装
 - 視界内の船を取得する際、全船舶スキャンではなく地理範囲クエリを使用
 
-### コード ([ships.js:112-135](ships.js#L112-L135), [ships.js:244-258](ships.js#L244-L258), [ships.js:348-365](ships.js#L348-L365))
+### コード ([server/routes/ships.js:112-135](server/routes/ships.js#L112-L135), [server/routes/ships.js:244-258](server/routes/ships.js#L244-L258), [server/routes/ships.js:348-365](server/routes/ships.js#L348-L365))
 
 **船作成時のgeohash計算**:
 ```javascript
@@ -273,7 +273,7 @@ const firestoreShipData = {
 };
 ```
 
-**視界内の船を取得（geohashクエリ）** ([ships.js:437-493](ships.js#L437-L493)):
+**視界内の船を取得（geohashクエリ）** ([server/routes/ships.js:437-493](server/routes/ships.js#L437-L493)):
 ```javascript
 // Geohashの範囲を計算
 const center = [centerY, centerX];
@@ -365,3 +365,4 @@ const assetData = await getShipAsset(playFabId, shipId, true); // forceRefresh=t
 
 既存の船データに `geohash` フィールドがない場合、マイグレーションが必要です。
 詳細は [FIRESTORE_INDEX_SETUP.md](FIRESTORE_INDEX_SETUP.md) の「トラブルシューティング」セクションを参照してください。
+

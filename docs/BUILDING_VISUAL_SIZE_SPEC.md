@@ -1,4 +1,4 @@
-# 建物の「論理サイズ」と「描画サイズ」仕様
+﻿# 建物の「論理サイズ」と「描画サイズ」仕様
 
 ## 用語
 - **論理サイズ (SizeLogic)**: 建設/占有判定に使うサイズ（スロット消費量）
@@ -51,3 +51,4 @@ function placeBuilding(scene, slotX, slotY, buildingDef, TILE_SIZE) {
 ポイント:
 - 画像が `SizeVisual` で上/右へはみ出しても、足元（左下）が一致するため破綻しません。
 - 当たり判定や配置可否は `SizeLogic` のみで行います（描画は自由）。
+

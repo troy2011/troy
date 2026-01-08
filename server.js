@@ -36,9 +36,9 @@ const mapModule = require('./server/map');
 const chat = require('./server/chat');
 
 // 既存ルート
-const battleRoutes = require('./battle');
-const guildRoutes = require('./guild');
-const shipRoutes = require('./ships');
+const battleRoutes = require('./server/routes/battle');
+const guildRoutes = require('./server/routes/guild');
+const shipRoutes = require('./server/routes/ships');
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
@@ -53,7 +53,7 @@ let serviceAccount = null;
 if (serviceAccountJson) {
     serviceAccount = JSON.parse(serviceAccountJson);
 } else {
-    serviceAccount = require('./my-liff-app-ee704-firebase-adminsdk-fbsvc-2deac93eab.json');
+    serviceAccount = require('./config/firebase-service-account.json');
 }
 
 admin.initializeApp({

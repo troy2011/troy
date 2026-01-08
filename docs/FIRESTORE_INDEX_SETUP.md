@@ -1,4 +1,4 @@
-# Firestore インデックス設定ガイド
+﻿# Firestore インデックス設定ガイド
 
 ## 概要
 
@@ -207,3 +207,4 @@ node migration-add-geohash.js
 ✅ 動作確認でエラーがないことを確認
 
 これで、Geohashを使った高速な地理クエリが有効になります！
+
