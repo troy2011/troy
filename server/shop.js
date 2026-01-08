@@ -255,8 +255,17 @@ function initializeShopRoutes(app, deps) {
                 return res.status(400).json({ error: '建物定義が見つかりません。' });
             }
 
-            const costs = spec.Cost || {};
-            const costEntries = Object.entries(costs).filter(([, amount]) => Number(amount) > 0);
+            let costEntries = [];
+            if (Array.isArray(spec.PriceAmounts)) {
+                costEntries = spec.PriceAmounts.map((entry) => {
+                    const code = entry?.ItemId || entry?.itemId;
+                    const amount = Number(entry?.Amount ?? entry?.amount ?? 0);
+                    return [code, amount];
+                });
+            } else if (spec.Cost && typeof spec.Cost === 'object') {
+                costEntries = Object.entries(spec.Cost);
+            }
+            costEntries = costEntries.filter(([, amount]) => Number(amount) > 0);
 
             if (costEntries.length > 0) {
                 const entityKey = await getEntityKeyForPlayFabId(playFabId);
