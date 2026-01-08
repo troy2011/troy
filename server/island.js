@@ -539,7 +539,7 @@ function initializeIslandRoutes(app, deps) {
 
             const { getCurrencyBalance } = require('./economy');
             const economyDeps = deps;
-            const balance = await getCurrencyBalance(playFabId, 'PT', economyDeps);
+            const balance = await getCurrencyBalance(playFabId, 'PS', economyDeps);
             if (balance < price) {
                 return res.status(400).json({ error: 'InsufficientFunds' });
             }
@@ -555,12 +555,12 @@ function initializeIslandRoutes(app, deps) {
                 return res.status(400).json({ error: 'HpAlreadyMax' });
             }
 
-            await subtractEconomyItem(playFabId, 'PT', price);
+            await subtractEconomyItem(playFabId, 'PS', price);
 
             const taxRateBps = await getNationTaxRateBps(nationValue || userNation, firestore, deps);
             const { tax, net } = applyTax(price, taxRateBps);
             if (ownerId && net > 0) {
-                await addEconomyItem(ownerId, 'PT', net);
+                await addEconomyItem(ownerId, 'PS', net);
             }
             if (tax > 0) {
                 await addNationTreasury(nationValue || userNation, tax, firestore, deps);

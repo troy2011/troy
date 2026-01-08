@@ -569,11 +569,10 @@ function updateShipTypeDetails() {
     if (Object.keys(currencyPrices).length === 0 && info.VirtualCurrencyPrices) {
         Object.assign(currencyPrices, info.VirtualCurrencyPrices);
     }
-    const currencyCode =
-        (currencyPrices.PS != null) ? 'PS' :
-        ((currencyPrices.PT != null) ? 'PT' :
-        ((currencyPrices.GO != null) ? 'GO' : (Object.keys(currencyPrices)[0] || 'PT')));
-    const cost = Number(currencyPrices[currencyCode] || 0);
+    const costDisplays = Object.entries(currencyPrices)
+        .filter(([, amount]) => Number(amount) > 0)
+        .map(([code, amount]) => `${Number(amount)} ${code}`);
+    const costString = costDisplays.length > 0 ? costDisplays.join(' + ') : '無料';
 
     const domainLabel = (() => {
         switch (info.Domain) {
@@ -594,7 +593,7 @@ function updateShipTypeDetails() {
         <div>視覚距離: ${visionValue}</div>
         <div>積荷容量: ${info.CargoCapacity}</div>
         <div>乗組員: ${info.CrewCapacity}人</div>
-        <div style="margin-top: 8px; color: var(--accent-color);">建造費用: ${cost} ${currencyCode}</div>
+        <div style="margin-top: 8px; color: var(--accent-color);">建造費用: ${costString}</div>
     `;
 }
 

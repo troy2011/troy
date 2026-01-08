@@ -609,7 +609,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     async function handleBattleRewards(battleId, winnerId, loserId) {
         console.log(`[報酬処理] 開始。 勝者: ${winnerId}, 敗者: ${loserId}`);
         const loserInventory = await getAllInventoryItems(loserId);
-        const loserPs = getCurrencyBalanceFromItems(loserInventory, 'PT');
+        const loserPs = getCurrencyBalanceFromItems(loserInventory, 'PS');
         // 笘・・笘・菫ｮ豁｣: 謨苓・・諛ｸ雉樣≡(BT)繧ょ叙蠕・笘・・笘・
         const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
 
@@ -629,7 +629,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         }
 
         // 敗者から減算
-        await subtractEconomyItem(loserId, 'PT', pointsToSteal);
+        await subtractEconomyItem(loserId, 'PS', pointsToSteal);
 
 
 
@@ -651,7 +651,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         // 両者のランキングスコアを更新
         const winnerInventory = await getAllInventoryItems(winnerId);
-        const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, 'PT');
+        const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, 'PS');
         const loserNewBalance = loserPs - pointsToSteal;
         // 笘・・笘・菫ｮ豁｣: 諛ｸ雉樣≡(BT)縺ｮ譁ｰ縺励＞谿矩ｫ倥ｂ蜿門ｾ・笘・・笘・
         const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');

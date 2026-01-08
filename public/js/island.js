@@ -944,7 +944,7 @@ function renderUpgradeCost(costs) {
 
 function renderNationDonateRows() {
     const currencies = [
-        { code: 'PT', label: 'Ps' },
+        { code: 'PS', label: 'Ps' },
         { code: 'RR', label: '火' },
         { code: 'RG', label: '石' },
         { code: 'RY', label: 'キノコ' },

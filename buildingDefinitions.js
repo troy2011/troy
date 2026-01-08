@@ -1,4 +1,4 @@
-﻿// buildingDefinitions.js
+// buildingDefinitions.js
 // 島に建設可能な施設の定義（シンプル化版）
 
 /**
@@ -28,7 +28,7 @@ const buildingCategories = {
  * slotsRequired: 必要なスロット数（1=小施設、2=中施設、4=大施設）
  * buildTime: 建設時間（秒）
  * cost: 建設コスト（PlayFab仮想通貨コード）
- *   - PT: Ps（メイン通貨）
+ *   - PS: Ps（メイン通貨）
  * tileIndex: スプライトシート上のフレーム番号（buildings.png、32x32、32列）
  * sizeLogic: 占有サイズ（スロット単位）{ x, y }
  * sizeVisual: 見た目サイズ（スロット単位）{ x, y }
@@ -41,7 +41,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 4,
         buildTime: 0,
-        cost: { PT: 0 },
+        cost: { PS: 0 },
         tileIndex: 576,
         sizeLogic: { x: 3, y: 3 },
         sizeVisual: { x: 3, y: 3 },
@@ -58,7 +58,7 @@ const buildings = {
         category: 'military',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: { PT: 200 },
+        cost: { PS: 200 },
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -95,7 +95,7 @@ const buildings = {
         category: 'military',
         slotsRequired: 1,
         buildTime: 3600, // 1時間
-        cost: { PT: 500 },
+        cost: { PS: 500 },
         tileIndex: 18,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
@@ -113,7 +113,7 @@ const buildings = {
         category: 'military',
         slotsRequired: 2,
         buildTime: 7200, // 2時間
-        cost: { PT: 1000 },
+        cost: { PS: 1000 },
         tileIndex: 640,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
@@ -137,7 +137,7 @@ const buildings = {
         category: 'military',
         slotsRequired: 4,
         buildTime: 10800, // 3時間
-        cost: { PT: 2000 },
+        cost: { PS: 2000 },
         tileIndex: 20,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 3 },
@@ -158,7 +158,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: { PT: 300 },
+        cost: { PS: 300 },
         tileIndex: 21,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -175,7 +175,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 2400, // 40分
-        cost: { PT: 400 },
+        cost: { PS: 400 },
         tileIndex: 22,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -192,7 +192,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 2,
         buildTime: 5400, // 1.5時間
-        cost: { PT: 1000 },
+        cost: { PS: 1000 },
         tileIndex: 994,
         sizeLogic: { x: 2, y: 1 },
         sizeVisual: { x: 2, y: 2 },
@@ -210,7 +210,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 2,
         buildTime: 7200, // 2時間
-        cost: { PT: 1500 },
+        cost: { PS: 1500 },
         tileIndex: 24,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
@@ -228,7 +228,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 4,
         buildTime: 14400, // 4時間
-        cost: { PT: 3000 },
+        cost: { PS: 3000 },
         tileIndex: 656,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
@@ -253,7 +253,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 900, // 15分
-        cost: { PT: 200 },
+        cost: { PS: 200 },
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
@@ -266,7 +266,7 @@ const buildings = {
         levels: {
             1: {
                 buildTime: 900,
-                cost: { PT: 200 },
+                cost: { PS: 200 },
                 tileIndex: 588,
                 effects: { comfort: 5 },
                 maxHp: 120,
@@ -274,7 +274,7 @@ const buildings = {
             },
             2: {
                 buildTime: 1800,
-                cost: { PT: 400 },
+                cost: { PS: 400 },
                 tileIndex: 524,
                 effects: { comfort: 10 },
                 maxHp: 160,
@@ -282,7 +282,7 @@ const buildings = {
             },
             3: {
                 buildTime: 3600,
-                cost: { PT: 700 },
+                cost: { PS: 700 },
                 tileIndex: 528,
                 effects: { comfort: 18, storageBonus: 50 },
                 maxHp: 220,
@@ -290,7 +290,7 @@ const buildings = {
             },
             4: {
                 buildTime: 5400,
-                cost: { PT: 1100 },
+                cost: { PS: 1100 },
                 tileIndex: 532,
                 effects: { comfort: 25, storageBonus: 100 },
                 maxHp: 280,
@@ -298,7 +298,7 @@ const buildings = {
             },
             5: {
                 buildTime: 7200,
-                cost: { PT: 1600 },
+                cost: { PS: 1600 },
                 tileIndex: 564,
                 effects: { comfort: 35, storageBonus: 200, moraleBonus: 5 },
                 maxHp: 360,
@@ -313,7 +313,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: { PT: 500 },
+        cost: { PS: 500 },
         tileIndex: 736,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -331,7 +331,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: { PT: 500 },
+        cost: { PS: 500 },
         tileIndex: 740,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -349,7 +349,7 @@ const buildings = {
         category: 'economic',
         slotsRequired: 1,
         buildTime: 1500, // 25分
-        cost: { PT: 400 },
+        cost: { PS: 400 },
         tileIndex: 744,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -367,7 +367,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 1200, // 20分
-        cost: { PT: 300 },
+        cost: { PS: 300 },
         tileIndex: 748,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -386,7 +386,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 2400, // 40分
-        cost: { PT: 600 },
+        cost: { PS: 600 },
         tileIndex: 752,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -404,7 +404,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 1800, // 30分
-        cost: { PT: 500 },
+        cost: { PS: 500 },
         tileIndex: 756,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
@@ -422,7 +422,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 3600, // 1時間
-        cost: { PT: 800 },
+        cost: { PS: 800 },
         tileIndex: 792,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 2, y: 2 },
@@ -441,7 +441,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 1,
         buildTime: 2400, // 40分
-        cost: { PT: 500 },
+        cost: { PS: 500 },
         tileIndex: 28,
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 3 },
@@ -459,7 +459,7 @@ const buildings = {
         category: 'support',
         slotsRequired: 4,
         buildTime: 18000, // 5時間
-        cost: { PT: 5000 },
+        cost: { PS: 5000 },
         tileIndex: 29,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 3, y: 4 },

@@ -100,12 +100,13 @@ app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
 let catalogCache = {};
 
 function normalizePriceAmounts(item) {
-    const amounts = [];
+    const totals = {};
     const pushAmount = (itemId, amount) => {
-        const id = String(itemId || '').trim();
+        const rawId = String(itemId || '').trim();
+        const id = (rawId === 'PT' || rawId === 'GO') ? 'PS' : rawId;
         const value = Number(amount);
         if (!id || !Number.isFinite(value) || value <= 0) return;
-        amounts.push({ ItemId: id, Amount: value });
+        totals[id] = (totals[id] || 0) + value;
     };
 
     if (Array.isArray(item?.PriceAmounts)) {
@@ -129,7 +130,7 @@ function normalizePriceAmounts(item) {
         });
     }
 
-    return amounts;
+    return Object.entries(totals).map(([id, amount]) => ({ ItemId: id, Amount: amount }));
 }
 
 // カタログ読み込み

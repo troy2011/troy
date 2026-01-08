@@ -7,7 +7,7 @@ var RACE_TO_NATION = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
-var NATION_VC_CODE = 'PT';
+var NATION_VC_CODE = 'PS';
 
 function _stringifyError(e) {
     try {

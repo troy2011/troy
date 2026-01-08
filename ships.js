@@ -389,12 +389,24 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             return res.status(400).json({ error: `無効な shipItemId: ${shipItemId}` });
         }
 
-        const currencyPrices = shipSpec.VirtualCurrencyPrices || {};
-        const currencyCode =
-            (currencyPrices.PS != null) ? 'PS' :
-            ((currencyPrices.PT != null) ? 'PT' :
-            ((currencyPrices.GO != null) ? 'GO' : 'PT'));
-        const cost = currencyPrices[currencyCode] || 0;
+        const priceAmounts = Array.isArray(shipSpec.PriceAmounts) ? shipSpec.PriceAmounts : [];
+        const costsToPay = [];
+        if (priceAmounts.length === 0 && shipSpec.VirtualCurrencyPrices) {
+            for (const [code, amount] of Object.entries(shipSpec.VirtualCurrencyPrices)) {
+                const value = Number(amount) || 0;
+                if (value > 0) costsToPay.push({ ItemId: code, Amount: value });
+            }
+        } else {
+            priceAmounts.forEach((entry) => {
+                const code = entry?.ItemId || entry?.itemId;
+                const amount = Number(entry?.Amount ?? entry?.amount ?? 0);
+                if (!code || amount <= 0) return;
+                costsToPay.push({ ItemId: code, Amount: amount });
+            });
+        }
+        if (costsToPay.length === 0) {
+            return res.status(400).json({ error: 'MissingPriceAmounts' });
+        }
 
         try {
             const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -430,8 +442,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const resolvedSpawnPosition = await findAvailableSpawnPosition(spawnPosition);
 
             // 1. 建造コストを支払う
-            await subtractEconomyItem(playFabId, currencyCode, cost);
-            console.log(`[CreateShip] ${playFabId} から ${cost} ${currencyCode} を引きました。`);
+            for (const costItem of costsToPay) {
+                const code = costItem.ItemId || costItem.itemId;
+                const amount = costItem.Amount || costItem.amount;
+                await subtractEconomyItem(playFabId, code, amount);
+                console.log(`[CreateShip] ${playFabId} paid ${amount} ${code}`);
+            }
 
             // 2. PlayFabに船データを保存（UserReadOnlyData）
             const shipId = `ship_${playFabId}_${Date.now()}`;
