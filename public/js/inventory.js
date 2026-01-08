@@ -53,6 +53,14 @@ export async function getInventory(playFabId) {
     renderResourceSummary();
 }
 
+export async function refreshResourceSummary(playFabId) {
+    const data = await fetchInventory(playFabId);
+    if (data) {
+        myVirtualCurrency = data.virtualCurrency || {};
+        renderResourceSummary();
+    }
+}
+
 export async function getEquipment(playFabId) {
     const data = await fetchEquipment(playFabId);
     if (data?.equipment) {

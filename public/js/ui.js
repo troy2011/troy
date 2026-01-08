@@ -37,7 +37,7 @@ const MAJOR_ARCANA = [
     { number: 17, name: '星' },
     { number: 18, name: '月' },
     { number: 19, name: '太陽' },
-    { number: 20, name: '審配' },
+    { number: 20, name: '審判' },
     { number: 21, name: '世界' }
 ];
 
@@ -66,6 +66,45 @@ const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
     acc[area.id] = area.label;
     return acc;
 }, {});
+
+async function waitForContainerSize(container, timeoutMs = 5000) {
+    if (!container) return false;
+    if (container.clientWidth > 0 && container.clientHeight > 0) return true;
+
+    return await new Promise((resolve) => {
+        let done = false;
+        let observer = null;
+        const finish = (ready) => {
+            if (done) return;
+            done = true;
+            if (observer) observer.disconnect();
+            resolve(ready);
+        };
+
+        if (typeof ResizeObserver !== 'undefined') {
+            observer = new ResizeObserver(() => {
+                if (container.clientWidth > 0 && container.clientHeight > 0) {
+                    finish(true);
+                }
+            });
+            observer.observe(container);
+        }
+
+        const start = Date.now();
+        const tick = () => {
+            if (container.clientWidth > 0 && container.clientHeight > 0) {
+                finish(true);
+                return;
+            }
+            if (Date.now() - start >= timeoutMs) {
+                finish(false);
+                return;
+            }
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    });
+}
 
 const getEntrySideForNation = (nation) => {
     const key = String(nation || '').toLowerCase();
@@ -305,6 +344,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 case 'home':
                     await Player.getPlayerStats(playerInfo.playFabId);
                     await Player.getPoints(playerInfo.playFabId);
+                    await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     break;
                 case 'ships':
                     if (!playerInfo || !playerInfo.playFabId) {
@@ -332,6 +372,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     break;
                 case 'qr':
                     await Player.getPoints(playerInfo.playFabId);
+                    await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     await Guild.loadGuildInfo(playerInfo.playFabId);
                     break;
                 case 'map': {
@@ -403,15 +444,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         }
                 return; // Don't launch twice
             }
-                    // コンテナのサイズが確定するまで待機
                     const container = document.getElementById('phaser-container');
-                    let retries = 0;
-                    while ((!container || container.clientWidth === 0 || container.clientHeight === 0) && retries < 10) {
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-                        retries++;
-                    }
-
-                    if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+                    const containerReady = await waitForContainerSize(container, 5000);
+                    if (!container || !containerReady) {
                         console.error('[Phaser] Container still has zero dimensions after waiting.');
                         break;
                     }
