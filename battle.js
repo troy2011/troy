@@ -609,8 +609,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     async function handleBattleRewards(battleId, winnerId, loserId) {
         console.log(`[報酬処理] 開始。 勝者: ${winnerId}, 敗者: ${loserId}`);
         const loserInventory = await getAllInventoryItems(loserId);
-        const loserPs = getCurrencyBalanceFromItems(loserInventory, 'PS');
-        // 笘・・笘・菫ｮ豁｣: 謨苓・・諛ｸ雉樣≡(BT)繧ょ叙蠕・笘・・笘・
+        const loserPs = getCurrencyBalanceFromItems(loserInventory, VIRTUAL_CURRENCY_CODE);
         const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
 
         // ★★★ 修正: 奪う金額の計算ロジックを変更 ★★★
@@ -629,11 +628,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         }
 
         // 敗者から減算
-        await subtractEconomyItem(loserId, 'PS', pointsToSteal);
+        await subtractEconomyItem(loserId, VIRTUAL_CURRENCY_CODE, pointsToSteal);
 
 
 
         // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げる ★★★
+        await addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal);
         await addEconomyItem(winnerId, 'BT', pointsToSteal);
 
 
@@ -641,19 +641,18 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         console.log(`[報酬処理] ${winnerId} の懸賞金が ${pointsToSteal}BT 上がった！`);
 
-        console.log(`[報酬処理] ${winnerId} が ${loserId} から ${pointsToSteal}Ps を奪った！`);
+        console.log(`[報酬処理] ${winnerId} が ${loserId} から ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`);
 
         // バトルログに報酬情報を追記
         const battleRef = db.ref(`battles/${battleId}`);
         await battleRef.child('log').update({
-            [Date.now()]: `勝者は ${pointsToSteal}Ps を奪った！`
+            [Date.now()]: `勝者は ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`
         });
 
         // 両者のランキングスコアを更新
         const winnerInventory = await getAllInventoryItems(winnerId);
-        const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, 'PS');
+        const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, VIRTUAL_CURRENCY_CODE);
         const loserNewBalance = loserPs - pointsToSteal;
-        // 笘・・笘・菫ｮ豁｣: 諛ｸ雉樣≡(BT)縺ｮ譁ｰ縺励＞谿矩ｫ倥ｂ蜿門ｾ・笘・・笘・
         const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
 
         // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★
