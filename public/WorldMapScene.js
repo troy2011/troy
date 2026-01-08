@@ -1,11 +1,11 @@
-﻿import * as Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { RACE_COLORS } from 'config';
 import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
 
 // ========================================
-// 螳壽焚螳夂ｾｩ
+// 定数定義
 // ========================================
 
 const GAME_CONFIG = {
@@ -19,12 +19,12 @@ const GAME_CONFIG = {
     SHIP_ACTION_COOLDOWN_MS: 5 * 60 * 1000,
     SHIP_ACTION_DURATION_MS: 3000,
 
-    // UI險ｭ螳・
+    // UI設定
     MESSAGE_DISPLAY_DURATION: 2000,
     MINIMAP_SIZE: 100,
     MINIMAP_PADDING: 0,
 
-    // Firestore譖ｴ譁ｰ鬆ｻ蠎ｦ
+    // Firestore更新設定
     SHIP_QUERY_UPDATE_INTERVAL: 4000,
     SHIP_QUERY_REFRESH_THRESHOLD: 0.75,
 
@@ -2992,8 +2992,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 }
 
                 const isDestroyed = Number(assetDataResolved?.Stats?.CurrentHP) <= 0;
-                if (isDestroyed && activeShipId) {
-                    await this.respawnPlayerShipIfNeeded(activeShipId);
+                const respawnTargetId = activeShipId || shipId;
+                if (isDestroyed && respawnTargetId) {
+                    await this.respawnPlayerShipIfNeeded(respawnTargetId);
                 }
                 const baseFrameResolved = isDestroyed ? 0 : Number(assetDataResolved?.baseFrame);
                 if (Number.isFinite(baseFrameResolved) && assetDataResolved?.ItemId) {
@@ -3011,8 +3012,9 @@ export default class WorldMapScene extends Phaser.Scene {
                         const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
                         const baseFrame = Number(assetData?.baseFrame);
                         const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
-                        if (isDestroyed && activeShipId) {
-                            await this.respawnPlayerShipIfNeeded(activeShipId);
+                        const respawnTargetId = activeShipId || shipId;
+                        if (isDestroyed && respawnTargetId) {
+                            await this.respawnPlayerShipIfNeeded(respawnTargetId);
                         }
                         if (assetData?.Domain) {
                             this.playerShipDomain = String(assetData.Domain).toLowerCase();
@@ -3034,7 +3036,7 @@ export default class WorldMapScene extends Phaser.Scene {
                             const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
                             this.generateShipAnims(baseFrame, shipTypeKey);
                             this.playerShip.shipTypeKey = shipTypeKey;
-                            this.playerShip.lastAnimKey = 'ship_down'; // 蛻晄悄譁ｹ蜷・
+                            this.playerShip.lastAnimKey = 'ship_down'; // 初期向き
                         }
                     } catch (e) {
                         console.error("Failed to get ship asset on init", e);

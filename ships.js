@@ -879,29 +879,24 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     });
 
     /**
-     * API: 船の航海を開始（変更なし）
+     * API: NPC船の航海を開始
      * POST /api/start-ship-voyage
      */
     app.post('/api/start-ship-voyage', async (req, res) => {
-        const { shipId, playFabId, destination } = req.body;
+        const { shipId, destination, isNpc, shipSpeed } = req.body;
 
-        if (!shipId || !playFabId || !destination) {
-            return res.status(400).json({ error: 'shipId, playFabId, destination are required' });
+        if (!isNpc) {
+            return res.status(403).json({ error: 'PlayerVoyageNotAllowed' });
+        }
+        if (!shipId || !destination) {
+            return res.status(400).json({ error: 'shipId and destination are required' });
+        }
+        const speedValue = Number(shipSpeed);
+        if (!Number.isFinite(speedValue) || speedValue <= 0) {
+            return res.status(400).json({ error: 'shipSpeed is required' });
         }
 
         try {
-            const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
-                Keys: [`Ship_${shipId}`]
-            });
-
-            if (!assetResult.Data || !assetResult.Data[`Ship_${shipId}`]) {
-                return res.status(404).json({ error: 'Ship not found' });
-            }
-
-            const shipData = JSON.parse(assetResult.Data[`Ship_${shipId}`].Value);
-            const shipSpeed = shipData.Stats.Speed;
-
             const shipDoc = await db.collection('ships').doc(shipId).get();
             if (!shipDoc.exists) {
                 return res.status(404).json({ error: 'Ship position not found' });
@@ -913,7 +908,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 Math.pow(destination.x - currentPos.x, 2) +
                 Math.pow(destination.y - currentPos.y, 2)
             );
-            const travelTimeSeconds = distance / shipSpeed;
+            const travelTimeSeconds = distance / speedValue;
             const departureTime = Date.now();
             const arrivalTime = departureTime + (travelTimeSeconds * 1000);
 
