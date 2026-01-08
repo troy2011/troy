@@ -208,3 +208,4 @@ node migration-add-geohash.js
 
 これで、Geohashを使った高速な地理クエリが有効になります！
 
+

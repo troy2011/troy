@@ -503,7 +503,7 @@ this.demolishedCheckInterval = setInterval(() => {
 デフォルトでは24時間ですが、テスト用に短縮可能：
 
 ```javascript
-// server/routes/ships.js:1111 を編集
+// server/routes/shipRoutes.js:1111 を編集
 const DEMOLISH_COOLDOWN = 24 * 60 * 60 * 1000; // 24時間
 // ↓ テスト用に5分に変更
 const DEMOLISH_COOLDOWN = 5 * 60 * 1000; // 5分
@@ -556,4 +556,5 @@ const DEMOLISH_COOLDOWN = 5 * 60 * 1000; // 5分
 - 奪還と再建の駆け引きが生まれる
 
 次は、実際にゲームをプレイして、敵の島を破壊・再建してみましょう！💥🏗️
+
 

@@ -1,7 +1,7 @@
 // server/building.js
 // 建物関連のユーティリティ関数
 
-const buildingDefs = require('./data/buildingDefinitions');
+const buildingDefs = require('./data/buildingDefs');
 
 function getSizeTag(tags) {
     const list = Array.isArray(tags) ? tags : [];

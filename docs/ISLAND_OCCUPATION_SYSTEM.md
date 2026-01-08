@@ -70,7 +70,7 @@
 }
 ```
 
-### 守護獣の定義（[server/data/generateMapData.js:75-80](server/data/generateMapData.js#L75-L80)）
+### 守護獣の定義（[server/data/mapDataGen.js:75-80](server/data/mapDataGen.js#L75-L80)）
 
 ```javascript
 const guardianTypes = {
@@ -105,7 +105,7 @@ const guardianTypes = {
 };
 ```
 
-### バイオームボーナス（[server/data/generateMapData.js:66-72](server/data/generateMapData.js#L66-L72)）
+### バイオームボーナス（[server/data/mapDataGen.js:66-72](server/data/mapDataGen.js#L66-L72)）
 
 | バイオーム | 効果カテゴリ | ボーナス | 説明 |
 |-----------|------------|---------|------|
@@ -115,7 +115,7 @@ const guardianTypes = {
 | volcanic（火山） | military | +30% | 防衛施設の攻撃力+30% |
 | jungle（ジャングル） | economic | +15% | 資源生産+15% |
 
-### 施設データ（[server/data/buildingDefinitions.js](server/data/buildingDefinitions.js)）
+### 施設データ（[server/data/buildingDefs.js](server/data/buildingDefs.js)）
 
 施設は3つのカテゴリに分類されます：
 
@@ -448,7 +448,7 @@ const guardianTypes = {
 ## 7. 次のステップ
 
 1. **マップデータの初期化**
-   - [server/data/generateMapData.js](server/data/generateMapData.js)を使って島データを生成
+   - [server/data/mapDataGen.js](server/data/mapDataGen.js)を使って島データを生成
    - Firestoreの`islands`コレクションにデータを投入
 
 2. **クライアント側UIの実装**
@@ -469,9 +469,9 @@ const guardianTypes = {
 
 ## 8. 参考ファイル
 
-- [server/data/generateMapData.js](server/data/generateMapData.js) - 島データ生成スクリプト
-- [server/data/buildingDefinitions.js](server/data/buildingDefinitions.js) - 施設データ定義
-- [server/routes/ships.js:537-957](server/routes/ships.js#L537-L957) - 島占領・建設API
+- [server/data/mapDataGen.js](server/data/mapDataGen.js) - 島データ生成スクリプト
+- [server/data/buildingDefs.js](server/data/buildingDefs.js) - 施設データ定義
+- [server/routes/shipRoutes.js:537-957](server/routes/shipRoutes.js#L537-L957) - 島占領・建設API
 - [FIRESTORE_INDEX_SETUP.md](FIRESTORE_INDEX_SETUP.md) - Firestoreインデックス設定
 
 ---
@@ -488,4 +488,5 @@ const guardianTypes = {
 - 🚩 占領演出（旗が立つ）
 
 次はクライアント側のUIを実装して、プレイヤーが実際に島を占領・建設できるようにしましょう！
+
 

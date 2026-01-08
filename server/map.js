@@ -1,7 +1,7 @@
 // server/map.js
 // マップ初期化・定数
 
-const { generateMapData } = require('./data/generateMapData');
+const { generateMapData } = require('./data/mapDataGen');
 
 const MAJOR_ARCANA = [
     { number: 0, name: 'The Fool' },

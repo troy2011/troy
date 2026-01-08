@@ -36,9 +36,9 @@ const mapModule = require('./server/map');
 const chat = require('./server/chat');
 
 // 既存ルート
-const battleRoutes = require('./server/routes/battle');
-const guildRoutes = require('./server/routes/guild');
-const shipRoutes = require('./server/routes/ships');
+const battleRoutes = require('./server/routes/battleRoutes');
+const guildRoutes = require('./server/routes/guildRoutes');
+const shipRoutes = require('./server/routes/shipRoutes');
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;

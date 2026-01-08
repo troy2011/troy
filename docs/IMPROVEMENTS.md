@@ -8,7 +8,7 @@
 ### 解決策: Geohash + Firestore複合クエリ
 
 ```javascript
-// server/routes/ships.js に追加
+// server/routes/shipRoutes.js に追加
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 
 /**
@@ -468,4 +468,5 @@ let cachedShipsData = new LRUCache(100); // 最大100隻
 - 月額コスト: 約$0.1-0.5
 
 **99%のコスト削減が可能！**
+
 

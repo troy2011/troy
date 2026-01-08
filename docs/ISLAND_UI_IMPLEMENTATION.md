@@ -142,7 +142,7 @@ async function handleIslandOccupation(islandId) {
 
 async function startGuardianBattle(guardian) {
     // 既存の白兵戦システムを使用
-    // 例: server/routes/battle.js の戦闘システムに遷移
+    // 例: server/routes/battleRoutes.js の戦闘システムに遷移
     console.log('守護獣戦闘開始:', guardian);
 
     // 仮の戦闘結果（実際には戦闘システムから取得）
@@ -423,4 +423,5 @@ const completionTime = Date.now() + buildTime * 1000;
 - ✅ レスポンシブデザイン（スマホ対応）
 
 次は、これらのUIコンポーネントを既存のゲームシステム（Phaser.js、白兵戦システム）と統合していきましょう！
+
 

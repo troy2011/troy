@@ -148,7 +148,7 @@ export function playConstructionSound(start = true) {
 - ワンタップでヘルプ可能なボタン
 - ヘルプ要請ボタンをBottom Sheetに配置
 
-**サーバー側API**: [server/routes/ships.js:964-1037](server/routes/ships.js#L964-L1037)
+**サーバー側API**: [server/routes/shipRoutes.js:964-1037](server/routes/shipRoutes.js#L964-L1037)
 
 ```javascript
 app.post('/api/help-construction', async (req, res) => {
@@ -273,7 +273,7 @@ export async function requestConstructionHelp(islandId, slotIndex, buildingName)
 | 5人 | 25% | 45分 |
 | 10人 | 50% | 30分 |
 
-**コード**: [server/routes/ships.js:1002-1010](server/routes/ships.js#L1002-L1010)
+**コード**: [server/routes/shipRoutes.js:1002-1010](server/routes/shipRoutes.js#L1002-L1010)
 
 ```javascript
 // 建設時間を短縮（1人につき5%、最大50%）
@@ -506,4 +506,5 @@ if (urlParams.get('action') === 'help') {
 6. 旗が立ち、花火が上がる演出
 
 次は、これらの機能をゲームに統合していきましょう！
+
 

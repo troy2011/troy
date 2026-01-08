@@ -8,18 +8,18 @@
 
 ### サーバー側
 
-- [x] **島データ構造の拡張** ([server/data/generateMapData.js](server/data/generateMapData.js))
+- [x] **島データ構造の拡張** ([server/data/mapDataGen.js](server/data/mapDataGen.js))
   - バイオーム（rocky, forest, beach, volcanic, jungle）
   - 建設スロット（1x1, 1x2, 2x2, 3x3）
   - 守護獣情報（crab_giant, skeleton_warrior, sea_serpent, kraken）
   - 占領ステータス（wild, occupied, sacred, capital）
 
-- [x] **施設定義** ([server/data/buildingDefinitions.js](server/data/buildingDefinitions.js))
+- [x] **施設定義** ([server/data/buildingDefs.js](server/data/buildingDefs.js))
   - 軍事施設: 見張り台、沿岸砲台、要塞、造船所
   - 経済施設: 倉庫、農園、交易所、鉱山、大市場
   - 補助施設: 酒場、修理ドック、灯台、神殿
 
-- [x] **島占領・建設API** ([server/routes/ships.js:537-1074](server/routes/ships.js#L537-L1074))
+- [x] **島占領・建設API** ([server/routes/shipRoutes.js:537-1074](server/routes/shipRoutes.js#L537-L1074))
   - 島接近検出
   - 島占領開始
   - 守護獣戦闘結果処理
@@ -318,4 +318,5 @@ async function startIslandOccupation(playFabId, islandId) {
 ---
 
 最終更新: 2025-12-12
+
 
