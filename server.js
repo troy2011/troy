@@ -1,4 +1,4 @@
-﻿// server.js (v42)
+﻿// server.js (v43 - Modularized)
 
 require('dotenv').config();
 const express = require('express');
@@ -6,9 +6,10 @@ const app = express();
 const path = require('path');
 const fs = require('fs');
 const line = require('@line/bot-sdk');
-// v120: Firebase Admin SDK 蛻晄悄蛹・const admin = require('firebase-admin');
+const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 
+// PlayFab モジュール
 const {
     PlayFab,
     PlayFabServer,
@@ -24,100 +25,28 @@ const {
     getEntityKeyFromPlayFabId
 } = require('./server/playfab');
 
+// 分割モジュール
+const economy = require('./server/economy');
+const building = require('./server/building');
+const nation = require('./server/nation');
+const island = require('./server/island');
+const inventory = require('./server/inventory');
+const shop = require('./server/shop');
+const mapModule = require('./server/map');
+const chat = require('./server/chat');
+
+// 既存ルート
 const battleRoutes = require('./battle');
 const guildRoutes = require('./guild');
 const shipRoutes = require('./ships');
-const { generateMapData } = require('./generateMapData');
-const buildingDefs = require('./buildingDefinitions');
 
-const RESOURCE_INTERVAL_MS = 10 * 60 * 1000;
-const RESOURCE_BIOME_CURRENCY = {
-    volcanic: 'RR',
-    rocky: 'RG',
-    mushroom: 'RY',
-    lake: 'RB',
-    forest: 'RT',
-    sacred: 'RS'
-};
-const ECONOMY_CURRENCY_IDS = new Set([
-    VIRTUAL_CURRENCY_CODE,
-    'RR',
-    'RG',
-    'RY',
-    'RB',
-    'RT',
-    'RS'
-]);
+const PORT = process.env.PORT || 8080;
+const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
+const LEADERBOARD_NAME = economy.LEADERBOARD_NAME;
+const BATTLE_REWARD_POINTS = Number(process.env.BATTLE_REWARD_POINTS || 10);
+const GACHA_CATALOG_VERSION = inventory.GACHA_CATALOG_VERSION;
 
-async function getEntityKeyForPlayFabId(playFabId) {
-    const entityKey = await getEntityKeyFromPlayFabId(playFabId);
-    if (!entityKey?.Id || !entityKey?.Type) {
-        throw new Error('EntityKeyNotFound');
-    }
-    return entityKey;
-}
-
-async function getAllInventoryItems(entityKey, collectionId = null) {
-    const items = [];
-    let token = null;
-    do {
-        const result = await promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
-            Entity: entityKey,
-            Count: 100,
-            ContinuationToken: token || undefined,
-            CollectionId: collectionId || undefined
-        });
-        const page = Array.isArray(result?.Items) ? result.Items : [];
-        items.push(...page);
-        token = result?.ContinuationToken || null;
-    } while (token);
-    return items;
-}
-
-function getItemAmount(item) {
-    return Number(item?.Amount ?? item?.amount ?? 0) || 0;
-}
-
-function getVirtualCurrencyMap(items) {
-    const totals = {};
-    (items || []).forEach((item) => {
-        const itemId = item?.Id || item?.ItemId;
-        if (!itemId || !ECONOMY_CURRENCY_IDS.has(itemId)) return;
-        totals[itemId] = (totals[itemId] || 0) + getItemAmount(item);
-    });
-    return totals;
-}
-
-async function addEconomyItem(playFabId, itemId, amount, collectionId = null) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
-        Entity: entityKey,
-        Amount: Number(amount),
-        Item: { Id: itemId },
-        CollectionId: collectionId || undefined
-    });
-    return entityKey;
-}
-
-async function subtractEconomyItem(playFabId, itemId, amount, collectionId = null) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
-        Entity: entityKey,
-        Amount: Number(amount),
-        Item: { Id: itemId },
-        CollectionId: collectionId || undefined
-    });
-    return entityKey;
-}
-
-async function getCurrencyBalance(playFabId, currencyId, collectionId = null) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    const items = await getAllInventoryItems(entityKey, collectionId);
-    const totals = getVirtualCurrencyMap(items);
-    return totals[currencyId] || 0;
-}
-
-// Firebase Admin SDK init
+// Firebase Admin SDK 初期化
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 let serviceAccount = null;
 
@@ -134,7 +63,6 @@ admin.initializeApp({
 
 const firestore = admin.firestore();
 
-
 app.use(express.json());
 
 configurePlayFab({
@@ -146,10 +74,10 @@ const lineClient = new line.Client({
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
 
-// Serve static assets (public/*)
+// 静的ファイル
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CSP for LIFF + Google Translate stylesheet
+// CSP
 app.use((req, res, next) => {
     res.setHeader(
         'Content-Security-Policy',
@@ -163,322 +91,175 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve geofire-common ESM build for browser imports
+// geofire-common ESM
 app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules', 'geofire-common', 'dist', 'geofire-common', 'index.esm.js'));
 });
 
+// カタログキャッシュ
+let catalogCache = {};
 
-const PORT = process.env.PORT || 8080;
-const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PT';
-const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
-const BATTLE_REWARD_POINTS = Number(process.env.BATTLE_REWARD_POINTS || 10);
-const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
-const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
-const GACHA_COST = Number(process.env.GACHA_COST || 10);
-
-const NATION_GROUP_BY_RACE = {
-    Human: { island: 'fire', groupName: 'nation_fire_island' },
-    Goblin: { island: 'water', groupName: 'nation_water_island' },
-    Orc: { island: 'earth', groupName: 'nation_earth_island' },
-    Elf: { island: 'wind', groupName: 'nation_wind_island' }
-};
-
-const NATION_GROUP_BY_NATION = {
-    fire: { island: 'fire', groupName: 'nation_fire_island' },
-    earth: { island: 'earth', groupName: 'nation_earth_island' },
-    wind: { island: 'wind', groupName: 'nation_wind_island' },
-    water: { island: 'water', groupName: 'nation_water_island' }
-};
-
-const AVATAR_COLOR_BY_NATION = {
-    fire: 'red',
-    earth: 'green',
-    wind: 'purple',
-    water: 'blue'
-};
-
-function getAvatarColorForNation(nation) {
-    const key = String(nation || '').toLowerCase();
-    return AVATAR_COLOR_BY_NATION[key] || null;
-}
-
-function getNationMappingByNation(nation) {
-    const key = String(nation || '').toLowerCase();
-    return NATION_GROUP_BY_NATION[key] || null;
-}
-
-async function getNationForPlayer(playFabId) {
-    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Keys: ['Nation']
-    });
-    const nation = ro?.Data?.Nation?.Value || null;
-    return nation ? String(nation).toLowerCase() : null;
-}
-
-
-async function ensureNationGroupExists(firestore, mapping) {
-    const docRef = await getNationGroupDoc(firestore, mapping.groupName);
-    const docSnap = await docRef.get();
-    if (docSnap.exists && docSnap.data()?.groupId) {
-        const existingGroupId = docSnap.data().groupId;
-        try {
-            await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.GetGroup, {
-                Group: { Id: existingGroupId, Type: 'group' }
-            });
-            return {
-                groupId: existingGroupId,
-                groupName: mapping.groupName,
-                created: false
-            };
-        } catch (e) {
-            console.warn('[ensureNationGroupExists] Stored groupId invalid, recreating:', existingGroupId);
-        }
-    }
-
-    const titleDataKey = 'NationGroupIds';
-    const titleData = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [titleDataKey] });
-    let titleGroupId = null;
-    if (titleData?.Data?.[titleDataKey]) {
-        try {
-            const parsed = JSON.parse(titleData.Data[titleDataKey]);
-            titleGroupId = parsed?.[mapping.groupName] || null;
-        } catch (e) {
-            console.warn('[ensureNationGroupExists] Failed to parse TitleData:', e?.message || e);
-        }
-    }
-    if (titleGroupId) {
-        try {
-            await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.GetGroup, {
-                Group: { Id: titleGroupId, Type: 'group' }
-            });
-            await docRef.set({
-                groupId: titleGroupId,
-                groupName: mapping.groupName,
-                nation: mapping.island,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            return { groupId: titleGroupId, groupName: mapping.groupName, created: false };
-        } catch (e) {
-            console.warn('[ensureNationGroupExists] TitleData groupId invalid, recreating:', titleGroupId);
-            titleGroupId = null;
-        }
-    }
-
-    await ensureTitleEntityToken();
-    const createResult = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
-        GroupName: mapping.groupName
-    });
-    const groupId = createResult?.Group?.Id || null;
-    if (!groupId) {
-        throw new Error('CreateGroup did not return group id');
-    }
-
-    await docRef.set({
-        groupId,
-        groupName: mapping.groupName,
-        nation: mapping.island,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    const newTitleMap = { [mapping.groupName]: groupId };
-    try {
-        const existing = titleData?.Data?.[titleDataKey] ? JSON.parse(titleData.Data[titleDataKey]) : {};
-        const merged = { ...existing, ...newTitleMap };
-        await promisifyPlayFab(PlayFabAdmin.SetTitleData, {
-            Key: titleDataKey,
-            Value: JSON.stringify(merged)
-        });
-    } catch (e) {
-        console.warn('[ensureNationGroupExists] Failed to update TitleData:', e?.message || e);
-    }
-
-    return { groupId, groupName: mapping.groupName, created: true };
-}
-
-async function getNationGroupIdByNation(nation) {
-    const key = String(nation || '').toLowerCase();
-    if (!key) return null;
-    const mapping = getNationMappingByNation(key);
-    if (!mapping) return null;
-    const info = await ensureNationGroupExists(firestore, mapping);
-    return info?.groupId || null;
-}
-
-
-async function getNationTaxRateBps(nation) {
-    const groupId = await getNationGroupIdByNation(nation);
-    if (!groupId) return 0;
-    const raw = await getGroupDataValue(groupId, 'taxRateBps');
-    const bps = Math.max(0, Math.min(5000, Math.floor(Number(raw) || 0)));
-    return bps;
-}
-
-async function addNationTreasury(nation, amount) {
-    const groupId = await getNationGroupIdByNation(nation);
-    if (!groupId) return null;
-    const raw = await getGroupDataValue(groupId, 'treasuryPT');
-    const current = Math.max(0, Math.floor(Number(raw) || 0));
-    const next = current + Math.max(0, Math.floor(Number(amount) || 0));
-    await setGroupDataValues(groupId, { treasuryPT: String(next) });
-    return { groupId, treasuryPT: next };
-}
-
-function applyTax(amount, taxRateBps) {
-    const gross = Math.max(0, Math.floor(Number(amount) || 0));
-    const bps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateBps) || 0)));
-    const tax = Math.floor((gross * bps) / 10000);
-    const net = Math.max(0, gross - tax);
-    return { gross, tax, net, bps };
-}
-
-async function getNationGroupDoc(firestore, groupName) {
-    return firestore.collection('nation_groups').doc(groupName);
-}
-
-function getWorldMapCollection(firestore, mapId) {
-    const raw = String(mapId || '').trim();
-    if (!raw) return firestore.collection('world_map');
-    return firestore.collection(`world_map_${raw}`);
-}
-
-async function findIslandDocAcrossMaps(firestore, islandId) {
-    const collections = await firestore.listCollections();
-    const mapCollections = collections.filter((col) => {
-        const id = String(col.id || '');
-        return id === 'world_map' || id.startsWith('world_map_');
-    });
-
-    for (const col of mapCollections) {
-        const snap = await col.doc(islandId).get();
-        if (snap.exists) {
-            const mapId = col.id === 'world_map' ? null : col.id.slice('world_map_'.length);
-            return { snap, mapId, collection: col };
-        }
-    }
-
-    return { snap: null, mapId: null, collection: null };
-}
-
-async function provisionStarterAssets({ playFabId }) {
-    try {
-        await addEconomyItem(playFabId, 'ship_common_boat', 1);
-        return { granted: ['ship_common_boat'] };
-    } catch (error) {
-        console.warn('[starterAssets] Failed to grant ship_common_boat:', error?.errorMessage || error?.message || error);
-        return { granted: [], error: error?.errorMessage || error?.message || String(error) };
-    }
-}
-
-async function ensureStarterShip({ playFabId, catalogCache, respawnPosition }) {
-    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Keys: ['ActiveShipId', 'AvatarColor', 'Nation']
-    });
-    let activeShipId = ro?.Data?.ActiveShipId?.Value || null;
-    const avatarColor = ro?.Data?.AvatarColor?.Value || 'brown';
-
-    const shipSpec = catalogCache?.ship_common_boat || null;
-    const shipBaseFrame = Number(shipSpec?.baseFrame);
-    const shipDomain = shipSpec?.Domain || 'sea_surface';
-    const shipStats = {
-        MaxHP: Number(shipSpec?.MaxHP) || 100,
-        CurrentHP: Number(shipSpec?.MaxHP) || 100,
-        Speed: Number(shipSpec?.Speed) || 100,
-        CargoCapacity: Number(shipSpec?.CargoCapacity) || 5,
-        CrewCapacity: Number(shipSpec?.CrewCapacity) || 1,
-        VisionRange: Number(shipSpec?.VisionRange) || 300
+function normalizePriceAmounts(item) {
+    const amounts = [];
+    const pushAmount = (itemId, amount) => {
+        const id = String(itemId || '').trim();
+        const value = Number(amount);
+        if (!id || !Number.isFinite(value) || value <= 0) return;
+        amounts.push({ ItemId: id, Amount: value });
     };
 
-    let shipData = null;
-    if (activeShipId) {
-        const key = `Ship_${activeShipId}`;
-        const shipRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: [key]
+    if (Array.isArray(item?.PriceAmounts)) {
+        item.PriceAmounts.forEach((entry) => {
+            pushAmount(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
         });
-        const raw = shipRo?.Data?.[key]?.Value;
-        if (raw) {
+    }
+
+    if (amounts.length === 0 && Array.isArray(item?.PriceOptions?.Prices)) {
+        item.PriceOptions.Prices.forEach((price) => {
+            const priceAmounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+            priceAmounts.forEach((entry) => {
+                pushAmount(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+            });
+        });
+    }
+
+    if (amounts.length === 0 && item?.VirtualCurrencyPrices && typeof item.VirtualCurrencyPrices === 'object') {
+        Object.entries(item.VirtualCurrencyPrices).forEach(([code, amount]) => {
+            pushAmount(code, amount);
+        });
+    }
+
+    return amounts;
+}
+
+// カタログ読み込み
+async function loadCatalogCache() {
+    console.log('[カタログ] PlayFabカタログの読み込みを開始します...');
+    const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog'];
+    try {
+        async function loadCatalogVersion(version) {
             try {
-                shipData = JSON.parse(raw);
-            } catch {
-                shipData = null;
+                const items = [];
+                let token = null;
+                do {
+                    const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
+                        CatalogVersion: version,
+                        Count: 100,
+                        ContinuationToken: token || undefined
+                    });
+                    const page = Array.isArray(result?.Items) ? result.Items : [];
+                    items.push(...page);
+                    token = result?.ContinuationToken || null;
+                } while (token);
+
+                const catalogItems = items.map((item) => ({
+                    ItemId: item.Id,
+                    ItemClass: item.Type,
+                    DisplayName: item.DisplayName,
+                    Description: item.Description,
+                    CustomData: item.DisplayProperties ? JSON.stringify(item.DisplayProperties) : item.CustomData,
+                    PriceAmounts: normalizePriceAmounts(item)
+                }));
+                return { Catalog: catalogItems };
+            } catch (error) {
+                const titleId = PlayFab.settings.titleId || process.env.PLAYFAB_TITLE_ID;
+                const localPath = path.join(__dirname, 'playfab_catalog', `title-${titleId}-${version}.json`);
+                const msg = error?.errorMessage || error?.message || String(error);
+                console.warn(`[カタログ] PlayFabから ${version} の取得に失敗しました: ${msg}`);
+
+                if (fs.existsSync(localPath)) {
+                    try {
+                        const raw = fs.readFileSync(localPath, 'utf-8');
+                        const parsed = JSON.parse(raw);
+                        const catalog = parsed?.Catalog || parsed?.data?.Catalog || [];
+                        const catalogArray = Array.isArray(catalog) ? catalog : [];
+                        console.warn(`[カタログ] ローカルファイルから ${version} を読み込みました: ${localPath} (${catalogArray.length}件)`);
+                        return { Catalog: catalogArray };
+                    } catch (e) {
+                        console.warn(`[カタログ] ローカルファイルの読み込みに失敗しました: ${localPath}`, e?.message || e);
+                    }
+                }
+                throw error;
             }
         }
+
+        const results = await Promise.all(catalogVersions.map(loadCatalogVersion));
+
+        const itemMap = {};
+        results.forEach(result => {
+            if (result.Catalog) {
+                result.Catalog.forEach(item => {
+                    let customData = {};
+                    if (item.CustomData) {
+                        try {
+                            const parsedData = JSON.parse(item.CustomData);
+                            for (const key in parsedData) {
+                                const normalizedKey = String(key).trim();
+                                try {
+                                    customData[normalizedKey] = JSON.parse(parsedData[key]);
+                                } catch (e) {
+                                    customData[normalizedKey] = parsedData[key];
+                                }
+                            }
+                        } catch (e) {
+                            console.warn(`[カタログ] ItemID ${item.ItemId} のCustomDataのパースに失敗しました。`);
+                        }
+                    }
+                    itemMap[item.ItemId] = {
+                        ItemId: item.ItemId,
+                        ItemClass: item.ItemClass,
+                        DisplayName: item.DisplayName,
+                        Description: item.Description,
+                        PriceAmounts: normalizePriceAmounts(item),
+                        ...customData
+                    };
+                });
+            }
+        });
+
+        catalogCache = itemMap;
+        console.log(`[カタログ] カタログを読み込みました。${Object.keys(catalogCache).length} 件のアイテムを取得しました。`);
+    } catch (error) {
+        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
+        process.exit(1);
     }
-
-    if (!activeShipId || !shipData) {
-        activeShipId = activeShipId || `ship_${playFabId}_${Date.now()}`;
-        shipData = {
-            ShipId: activeShipId,
-            ShipType: shipSpec?.DisplayName || 'Common Boat',
-            ItemId: 'ship_common_boat',
-            baseFrame: Number.isFinite(shipBaseFrame) ? Math.max(0, Math.trunc(shipBaseFrame)) : 0,
-            Domain: shipDomain,
-            Stats: { ...shipStats },
-            Skills: shipSpec?.Skills || [],
-            Equipment: { Cannon: null, Sail: null, Hull: null, Anchor: null },
-            Cargo: [],
-            Crew: [{ PlayFabId: playFabId, Role: 'Captain' }],
-            Owner: playFabId,
-            CreatedAt: new Date().toISOString()
-        };
-    } else {
-        shipData.Stats = shipData.Stats || {};
-        if (!Number.isFinite(Number(shipData.Stats.CargoCapacity)) || Number(shipData.Stats.CargoCapacity) <= 0) {
-            shipData.Stats.CargoCapacity = shipStats.CargoCapacity;
-        }
-        if (!Number.isFinite(Number(shipData.Stats.VisionRange)) || Number(shipData.Stats.VisionRange) <= 0) {
-            shipData.Stats.VisionRange = shipStats.VisionRange;
-        }
-    }
-
-    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Data: {
-            ActiveShipId: activeShipId,
-            [`Ship_${activeShipId}`]: JSON.stringify(shipData)
-        }
-    });
-
-    const position = respawnPosition || { x: 100, y: 100 };
-    const geoPoint = worldToLatLng(position);
-    const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
-    const firestoreShipData = {
-        shipId: activeShipId,
-        playFabId: playFabId,
-        position: position,
-        geohash: geohash,
-        appearance: {
-            shipType: shipData.ShipType || 'Common Boat',
-            domain: shipDomain,
-            color: String(avatarColor).toLowerCase(),
-            sailState: 'furled'
-        },
-        movement: {
-            isMoving: false,
-            departureTime: null,
-            arrivalTime: null,
-            departurePos: null,
-            destinationPos: null
-        },
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    await firestore.collection('ships').doc(activeShipId).set(firestoreShipData, { merge: true });
-    await firestore.collection('ships').doc(playFabId).set({
-        shipId: activeShipId,
-        playFabId: playFabId,
-        active: true,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    return { shipId: activeShipId };
 }
 
+// 依存関係オブジェクト
+function createDependencies() {
+    return {
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabAdmin,
+        PlayFabGroups,
+        PlayFabEconomy,
+        firestore,
+        admin,
+        catalogCache,
+        ensureTitleEntityToken,
+        getGroupDataValue,
+        setGroupDataValues,
+        getEntityKeyFromPlayFabId,
+        NATION_GROUP_BY_RACE: nation.NATION_GROUP_BY_RACE,
+        // economy関数
+        getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
+        getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
+        getVirtualCurrencyMap: economy.getVirtualCurrencyMap,
+        addEconomyItem: (playFabId, itemId, amount) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
+        subtractEconomyItem: (playFabId, itemId, amount) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
+        getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
+        applyTax: economy.applyTax,
+        // nation関数
+        getNationTaxRateBps: (nation, fs, d) => require('./server/nation').getNationTaxRateBps(nation, fs || firestore, d || createDependencies()),
+        addNationTreasury: (nation, amount, fs, d) => require('./server/nation').addNationTreasury(nation, amount, fs || firestore, d || createDependencies()),
+        // island関数
+        transferOwnedIslands: (fs, fromId, toId, toNation) => island.transferOwnedIslands(fs, fromId, toId, toNation, { promisifyPlayFab, PlayFabServer }),
+        createStarterIsland: createStarterIsland,
+        relocateActiveShip: (fs, playFabId, pos) => island.relocateActiveShip(fs, playFabId, pos, { promisifyPlayFab, PlayFabServer, admin })
+    };
+}
+
+// スターター島作成（認証時に必要）
 async function createStarterIsland({ playFabId, raceName, nationIsland, displayName }) {
     const MAP_SIZE = 100;
     const AREA_BY_NATION = {
@@ -500,22 +281,17 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const mapId = AREA_BY_NATION[String(nationIsland || '').toLowerCase()] || 'joker';
     const mapBounds = { minX: 0, maxX: MAP_SIZE - 1, minY: 0, maxY: MAP_SIZE - 1 };
     const offsetRange = 6;
-    const baseRange = mapBounds
-        ? {
-            minX: mapBounds.minX,
-            maxX: Math.max(mapBounds.minX, mapBounds.maxX - islandSize.w + 1),
-            minY: mapBounds.minY,
-            maxY: Math.max(mapBounds.minY, mapBounds.maxY - islandSize.h + 1)
-        }
-        : {
-            minX: 0,
-            maxX: MAP_SIZE - islandSize.w,
-            minY: 0,
-            maxY: MAP_SIZE - islandSize.h
-        };
-    const worldMap = admin.firestore().collection(`world_map_${mapId}`);
-    const allCollections = await admin.firestore().listCollections();
+    const baseRange = {
+        minX: mapBounds.minX,
+        maxX: Math.max(mapBounds.minX, mapBounds.maxX - islandSize.w + 1),
+        minY: mapBounds.minY,
+        maxY: Math.max(mapBounds.minY, mapBounds.maxY - islandSize.h + 1)
+    };
+
+    const worldMap = firestore.collection(`world_map_${mapId}`);
+    const allCollections = await firestore.listCollections();
     const mapCollections = allCollections.filter((col) => String(col.id || '').startsWith('world_map'));
+
     let hasExisting = false;
     for (const col of mapCollections) {
         const snap = await col.where('ownerId', '==', playFabId).limit(1).get();
@@ -542,26 +318,20 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         }
     });
 
-    const tries = 80;
-
     const overlaps = (rect) => {
         return occupied.some(o => rect.x < o.x + o.w && rect.x + rect.w > o.x && rect.y < o.y + o.h && rect.y + rect.h > o.y);
     };
 
     let chosen = null;
     let chosenBiomeFrame = null;
-    for (let i = 0; i < tries; i++) {
+    for (let i = 0; i < 80; i++) {
         const base = nationIslands.length > 0
             ? nationIslands[Math.floor(Math.random() * nationIslands.length)]
             : occupied[Math.floor(Math.random() * occupied.length)];
-        const baseMinX = baseRange.minX;
-        const baseMaxX = baseRange.maxX;
-        const baseMinY = baseRange.minY;
-        const baseMaxY = baseRange.maxY;
-        const bx = base?.x ?? Math.floor(Math.random() * (baseMaxX - baseMinX + 1)) + baseMinX;
-        const by = base?.y ?? Math.floor(Math.random() * (baseMaxY - baseMinY + 1)) + baseMinY;
-        const rx = Math.max(baseMinX, Math.min(baseMaxX, bx + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
-        const ry = Math.max(baseMinY, Math.min(baseMaxY, by + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
+        const bx = base?.x ?? Math.floor(Math.random() * (baseRange.maxX - baseRange.minX + 1)) + baseRange.minX;
+        const by = base?.y ?? Math.floor(Math.random() * (baseRange.maxY - baseRange.minY + 1)) + baseRange.minY;
+        const rx = Math.max(baseRange.minX, Math.min(baseRange.maxX, bx + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
+        const ry = Math.max(baseRange.minY, Math.min(baseRange.maxY, by + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
         const rect = { x: rx, y: ry, w: islandSize.w, h: islandSize.h };
         if (!overlaps(rect)) {
             chosen = { x: rx, y: ry };
@@ -574,21 +344,19 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         return { skipped: true, reason: 'no_space' };
     }
 
-    const islandName = `${displayName || 'Player'}縺ｮ蟲ｶ`;
+    const islandName = `${displayName || 'Player'}の島`;
     const docRef = worldMap.doc();
     const islandLevel = 1;
     const houseId = 'my_house';
-    const houseLevel = Math.min(5, Math.max(1, islandLevel));
-    const houseSpec = getBuildingSpec(houseId, houseLevel);
-    const houseLogic = houseSpec ? normalizeSize(houseSpec.SizeLogic, inferLogicSizeFromSlotsRequired(houseSpec.SlotsRequired)) : { x: 1, y: 1 };
-    const houseVisual = houseSpec ? normalizeSize(houseSpec.SizeVisual, houseLogic) : houseLogic;
-    const houseTileIndexRaw = houseSpec ? houseSpec.TileIndex : null;
-    const houseTileIndex = Number.isFinite(Number(houseTileIndexRaw)) ? Number(houseTileIndexRaw) : 17;
+    const houseSpec = building.getBuildingSpec(houseId, islandLevel);
+    const houseLogic = houseSpec ? building.normalizeSize(houseSpec.SizeLogic, building.inferLogicSizeFromSlotsRequired(houseSpec.SlotsRequired)) : { x: 1, y: 1 };
+    const houseVisual = houseSpec ? building.normalizeSize(houseSpec.SizeVisual, houseLogic) : houseLogic;
+    const houseTileIndex = houseSpec?.TileIndex != null ? Number(houseSpec.TileIndex) : 17;
     const houseW = Math.max(1, Math.trunc(Number(houseLogic.x)));
     const houseH = Math.max(1, Math.trunc(Number(houseLogic.y)));
     const houseVW = Math.max(1, Math.trunc(Number(houseVisual.x)));
     const houseVH = Math.max(1, Math.trunc(Number(houseVisual.y)));
-    const houseMaxHp = computeMaxHp(houseW, houseH, houseLevel);
+    const houseMaxHp = building.computeMaxHp(houseW, houseH, islandLevel);
 
     const islandData = {
         id: docRef.id,
@@ -622,19 +390,22 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     };
 
     await docRef.set(islandData);
+    try {
+        await island.addOwnedMapId(playFabId, mapId, { promisifyPlayFab, PlayFabServer });
+    } catch (e) {
+        console.warn('[createStarterIsland] Failed to update OwnedMapIds:', e?.errorMessage || e?.message || e);
+    }
 
     const baseX = chosen.x + Math.floor(islandSize.w / 2);
     const baseY = chosen.y + Math.floor(islandSize.h / 2);
-    const minOffset = 2;
-    const maxOffset = 4;
     let respawnTileX = baseX;
     let respawnTileY = baseY;
     for (let i = 0; i < 12; i++) {
-        const dx = (Math.floor(Math.random() * (maxOffset * 2 + 1)) - maxOffset);
-        const dy = (Math.floor(Math.random() * (maxOffset * 2 + 1)) - maxOffset);
-        if (Math.abs(dx) < minOffset && Math.abs(dy) < minOffset) continue;
-    const tx = Math.max(0, Math.min(MAP_SIZE - 1, baseX + dx));
-    const ty = Math.max(0, Math.min(MAP_SIZE - 1, baseY + dy));
+        const dx = Math.floor(Math.random() * 9) - 4;
+        const dy = Math.floor(Math.random() * 9) - 4;
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) continue;
+        const tx = Math.max(0, Math.min(MAP_SIZE - 1, baseX + dx));
+        const ty = Math.max(0, Math.min(MAP_SIZE - 1, baseY + dy));
         const inside = (tx >= chosen.x && tx < chosen.x + islandSize.w && ty >= chosen.y && ty < chosen.y + islandSize.h);
         if (!inside) {
             respawnTileX = tx;
@@ -651,100 +422,80 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     return { created: true, islandId: docRef.id, name: islandName, respawnPosition };
 }
 
-async function getPlayerEntity(playFabId) {
-    if (!playFabId) return null;
-    try {
-        const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+// スターター船確保
+async function ensureStarterShip({ playFabId, respawnPosition }) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['ActiveShipId', 'AvatarColor', 'Nation']
+    });
+    let activeShipId = ro?.Data?.ActiveShipId?.Value || null;
+    const avatarColor = ro?.Data?.AvatarColor?.Value || 'brown';
+
+    const shipSpec = catalogCache?.ship_common_boat || null;
+    const shipBaseFrame = Number(shipSpec?.baseFrame);
+    const shipDomain = shipSpec?.Domain || 'sea_surface';
+    const shipStats = {
+        MaxHP: Number(shipSpec?.MaxHP) || 100,
+        CurrentHP: Number(shipSpec?.MaxHP) || 100,
+        Speed: Number(shipSpec?.Speed) || 100,
+        CargoCapacity: Number(shipSpec?.CargoCapacity) || 5,
+        CrewCapacity: Number(shipSpec?.CrewCapacity) || 1,
+        VisionRange: Number(shipSpec?.VisionRange) || 300
+    };
+
+    let shipData = null;
+    if (activeShipId) {
+        const key = `Ship_${activeShipId}`;
+        const shipRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            ProfileConstraints: { ShowDisplayName: true, ShowEntity: true }
+            Keys: [key]
         });
-        const entityId = profile?.PlayerProfile?.Entity?.Id || profile?.PlayerProfile?.EntityId || null;
-        const entityType = profile?.PlayerProfile?.Entity?.Type || profile?.PlayerProfile?.EntityType || null;
-        if (entityId && entityType) return { Id: entityId, Type: entityType };
-    } catch (error) {
-        console.warn('[getPlayerEntity] GetPlayerProfile failed:', error?.errorMessage || error?.message || error);
-    }
-    return null;
-}
-
-async function deleteOwnedIslands(firestore, playFabId) {
-    const collections = await firestore.listCollections();
-    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-    let deleted = 0;
-    for (const col of mapCollections) {
-        const snapshot = await col.where('ownerId', '==', playFabId).get();
-        if (snapshot.empty) continue;
-        const batch = firestore.batch();
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        deleted += snapshot.size;
-    }
-    return { deleted };
-}
-
-async function transferOwnedIslands(firestore, fromPlayFabId, toPlayFabId, toNation) {
-    const collections = await firestore.listCollections();
-    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-
-    let transferred = 0;
-    for (const col of mapCollections) {
-        const snapshot = await col.where('ownerId', '==', fromPlayFabId).get();
-        if (snapshot.empty) continue;
-        let batch = firestore.batch();
-        let batchCount = 0;
-        snapshot.docs.forEach(doc => {
-            batch.update(doc.ref, {
-                ownerId: toPlayFabId,
-                ownerNation: toNation || null
-            });
-            transferred += 1;
-            batchCount += 1;
-            if (batchCount >= 450) {
-                batch.commit();
-                batch = firestore.batch();
-                batchCount = 0;
-            }
-        });
-        if (batchCount > 0) {
-            await batch.commit();
+        const raw = shipRo?.Data?.[key]?.Value;
+        if (raw) {
+            try { shipData = JSON.parse(raw); } catch { shipData = null; }
         }
     }
 
-    return { transferred };
-}
+    if (!activeShipId || !shipData) {
+        activeShipId = activeShipId || `ship_${playFabId}_${Date.now()}`;
+        shipData = {
+            ShipId: activeShipId,
+            ShipType: shipSpec?.DisplayName || 'Common Boat',
+            ItemId: 'ship_common_boat',
+            baseFrame: Number.isFinite(shipBaseFrame) ? Math.max(0, Math.trunc(shipBaseFrame)) : 0,
+            Domain: shipDomain,
+            Stats: { ...shipStats },
+            Skills: shipSpec?.Skills || [],
+            Equipment: { Cannon: null, Sail: null, Hull: null, Anchor: null },
+            Cargo: [],
+            Crew: [{ PlayFabId: playFabId, Role: 'Captain' }],
+            Owner: playFabId,
+            CreatedAt: new Date().toISOString()
+        };
+    }
 
-function worldToLatLng(point) {
-    const gridSize = 32;
-    const mapTileSize = 500;
-    const metersPerTile = 100;
-    const mapPixelSize = mapTileSize * gridSize;
-    const metersPerPixel = metersPerTile / gridSize;
-    const dxMeters = (point.x - mapPixelSize / 2) * metersPerPixel;
-    const dyMeters = (mapPixelSize / 2 - point.y) * metersPerPixel;
-
-    const lat = dyMeters / 110574;
-    const lng = dxMeters / 111320;
-    return { lat, lng };
-}
-
-async function relocateActiveShip(firestore, playFabId, respawnPosition) {
-    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
         PlayFabId: playFabId,
-        Keys: ['ActiveShipId']
+        Data: {
+            ActiveShipId: activeShipId,
+            [`Ship_${activeShipId}`]: JSON.stringify(shipData)
+        }
     });
-    const activeShipId = ro?.Data?.ActiveShipId?.Value;
-    if (!activeShipId) return { moved: false, reason: 'no_active_ship' };
 
-    const geoPoint = worldToLatLng(respawnPosition);
+    const position = respawnPosition || { x: 100, y: 100 };
+    const geoPoint = island.worldToLatLng(position);
     const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
-    const now = Date.now();
-    const patch = {
-        position: { x: respawnPosition.x, y: respawnPosition.y },
-        currentX: respawnPosition.x,
-        currentY: respawnPosition.y,
-        targetX: respawnPosition.x,
-        targetY: respawnPosition.y,
-        arrivalTime: now,
+    const firestoreShipData = {
+        shipId: activeShipId,
+        playFabId: playFabId,
+        position: position,
+        geohash: geohash,
+        appearance: {
+            shipType: shipData.ShipType || 'Common Boat',
+            domain: shipDomain,
+            color: String(avatarColor).toLowerCase(),
+            sailState: 'furled'
+        },
         movement: {
             isMoving: false,
             departureTime: null,
@@ -752,22 +503,33 @@ async function relocateActiveShip(firestore, playFabId, respawnPosition) {
             departurePos: null,
             destinationPos: null
         },
-        geohash: geohash,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    await Promise.all([
-        firestore.collection('ships').doc(playFabId).set(patch, { merge: true }),
-        firestore.collection('ships').doc(activeShipId).set(patch, { merge: true })
-    ]);
+    await firestore.collection('ships').doc(activeShipId).set(firestoreShipData, { merge: true });
+    await firestore.collection('ships').doc(playFabId).set({
+        shipId: activeShipId,
+        playFabId: playFabId,
+        active: true,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
 
-    return { moved: true, shipId: activeShipId };
+    return { shipId: activeShipId };
 }
 
+// スターターアセット
+async function provisionStarterAssets({ playFabId }) {
+    const deps = createDependencies();
+    try {
+        await deps.addEconomyItem(playFabId, 'ship_common_boat', 1);
+        return { granted: ['ship_common_boat'] };
+    } catch (error) {
+        console.warn('[starterAssets] Failed to grant ship_common_boat:', error?.errorMessage || error?.message || error);
+        return { granted: [], error: error?.errorMessage || error?.message || String(error) };
+    }
+}
 
-// ----------------------------------------------------
-// API: 陜暦ｽｽ繝ｻ莠･・ｳ・ｶ繝ｻ蟲ｨ縺堤ｹ晢ｽｫ郢晢ｽｼ郢晏干ﾂ讙手ｦ也ｸｲ讎奇ｽｰ繧臥舞郢晏｣ｹ繝ｻ郢ｧ・ｸ隲繝ｻ・ｰ・ｱ
-// ----------------------------------------------------
+// ログインAPI
 app.post('/api/login-playfab', async (req, res) => {
     const { lineUserId, displayName, pictureUrl } = req.body || {};
     if (!lineUserId) return res.status(400).json({ error: 'lineUserId is required' });
@@ -833,392 +595,9 @@ app.post('/api/login-playfab', async (req, res) => {
     }
 });
 
-app.post('/api/get-nation-king-page', async (req, res) => {
-    const { playFabId, collectionId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
-
-    try {
-        const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: ['NationGroupId']
-        });
-        if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) {
-            return res.json({ notInNation: true });
-        }
-
-        const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-            PlayFabId: playFabId,
-            FunctionName: 'GetNationKingPageData',
-            FunctionParameter: {},
-            GeneratePlayStreamEvent: false
-        });
-
-        if (csResult && csResult.Error) {
-            const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
-            if (String(msg).includes('NationGroupNotSet')) {
-                return res.json({ notInNation: true });
-            }
-            if (String(msg).includes('JavascriptException')) {
-                return res.json({ notInNation: true });
-            }
-            if (String(msg).includes('NotKing')) {
-                return res.status(403).json({ error: 'Only the king can view this page' });
-            }
-            if (String(msg).includes('NationKingNotSet')) {
-                return res.status(403).json({ error: 'Nation king is not set' });
-            }
-            return res.status(500).json({ error: 'Failed to get king page data', details: msg });
-        }
-
-        const payload = csResult ? (csResult.FunctionResult || {}) : {};
-        try {
-            const nation = await getNationForPlayer(playFabId);
-            const groupId = await getNationGroupIdByNation(nation);
-            if (groupId) {
-                const taxRateRaw = await getGroupDataValue(groupId, 'taxRateBps');
-                const treasuryRaw = await getGroupDataValue(groupId, 'treasuryPT');
-                const taxRateBps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateRaw) || 0)));
-                const treasuryPs = Math.max(0, Math.floor(Number(treasuryRaw) || 0));
-                payload.taxRateBps = taxRateBps;
-                payload.treasuryPs = treasuryPs;
-            }
-        } catch (e) {
-            console.warn('[get-nation-king-page] Failed to load group tax data:', e?.message || e);
-        }
-
-        res.json(payload);
-    } catch (error) {
-        const msg = error.errorMessage || error.message;
-        if (String(msg).includes('NationGroupNotSet')) {
-            return res.json({ notInNation: true });
-        }
-        if (String(msg).includes('JavascriptException')) {
-            return res.json({ notInNation: true });
-        }
-        console.error('[get-nation-king-page]', msg);
-        res.status(500).json({ error: 'Failed to get king page data', details: msg });
-    }
-});
-// ----------------------------------------------------
-// API 7: 郢ｧ・､郢晢ｽｳ郢晏生ﾎｦ郢晏現ﾎ懊・蝓滓亜邵ｺ・｡霑夲ｽｩ繝ｻ蟲ｨ繝ｻ陷ｿ髢・ｾ繝ｻ(v41邵ｺ・ｨ陞溽判蟲ｩ邵ｺ・ｪ邵ｺ繝ｻ
-// ----------------------------------------------------
-
-app.post('/api/get-nation-group', async (req, res) => {
-    const { raceName } = req.body || {};
-    if (!raceName) return res.status(400).json({ error: 'raceName is required' });
-
-    const mapping = NATION_GROUP_BY_RACE[raceName];
-    if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
-
-    try {
-        const firestore = admin.firestore();
-        const docRef = await getNationGroupDoc(firestore, mapping.groupName);
-        const docSnap = await docRef.get();
-        const data = docSnap.exists ? docSnap.data() : null;
-        return res.json({
-            groupName: mapping.groupName,
-            groupId: data && data.groupId ? data.groupId : null
-        });
-    } catch (error) {
-        console.error('[get-nation-group] Error:', error.errorMessage || error.message);
-        return res.status(500).json({ error: 'Failed to get nation group', details: error.errorMessage || error.message });
-    }
-});
-
-app.post('/api/get-owned-islands', async (req, res) => {
-    const { playFabId, mapId } = req.body || {};
-    if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
-
-    try {
-        const islands = [];
-        if (mapId) {
-            const col = getWorldMapCollection(firestore, mapId);
-            const snapshot = await col.where('ownerId', '==', playFabId).get();
-            snapshot.docs.forEach((doc) => {
-                const data = doc.data() || {};
-                islands.push({
-                    id: doc.id,
-                    name: data.name || null,
-                    size: data.size || null,
-                    islandLevel: data.islandLevel || null,
-                    biome: data.biome || null,
-                    coordinate: data.coordinate || null,
-                    buildings: data.buildings || [],
-                    mapId
-                });
-            });
-        } else {
-            const collections = await firestore.listCollections();
-            const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-            for (const col of mapCollections) {
-                const snapshot = await col.where('ownerId', '==', playFabId).get();
-                if (snapshot.empty) continue;
-                const resolvedMapId = col.id.startsWith('world_map_') ? col.id.slice('world_map_'.length) : null;
-                snapshot.docs.forEach((doc) => {
-                    const data = doc.data() || {};
-                    islands.push({
-                        id: doc.id,
-                        name: data.name || null,
-                        size: data.size || null,
-                        islandLevel: data.islandLevel || null,
-                        biome: data.biome || null,
-                        coordinate: data.coordinate || null,
-                        buildings: data.buildings || [],
-                        mapId: resolvedMapId
-                    });
-                });
-            }
-        }
-        res.json({ islands });
-    } catch (error) {
-        console.error('[get-owned-islands] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to fetch owned islands' });
-    }
-});
-
-app.post('/api/ensure-nation-group', async (req, res) => {
-    const { raceName } = req.body || {};
-    if (!raceName) return res.status(400).json({ error: 'raceName is required' });
-
-    const mapping = NATION_GROUP_BY_RACE[raceName];
-    if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
-
-    try {
-        const firestore = admin.firestore();
-        let result;
-        try {
-            result = await ensureNationGroupExists(firestore, mapping);
-        } catch (e) {
-            const msg = e?.errorMessage || e?.message || String(e);
-            if (String(msg).includes('group name is already in use')) {
-                const retry = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: ['NationGroupIds'] });
-                let retryGroupId = null;
-                try {
-                    const parsed = retry?.Data?.NationGroupIds ? JSON.parse(retry.Data.NationGroupIds) : {};
-                    retryGroupId = parsed?.[mapping.groupName] || null;
-                } catch (parseErr) {
-                    console.warn('[ensure-nation-group] Retry parse failed:', parseErr?.message || parseErr);
-                }
-                if (retryGroupId) {
-                    await getNationGroupDoc(firestore, mapping.groupName).set({
-                        groupId: retryGroupId,
-                        groupName: mapping.groupName,
-                        nation: mapping.island,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    result = { groupId: retryGroupId, groupName: mapping.groupName, created: false };
-                } else {
-                    throw e;
-                }
-            } else {
-                throw e;
-            }
-        }
-        return res.json({
-            groupName: mapping.groupName,
-            groupId: result.groupId,
-            created: result.created
-        });
-    } catch (error) {
-        console.error('[ensure-nation-group] Error:', error.errorMessage || error.message || error);
-        return res.status(500).json({ error: 'Failed to ensure nation group', details: error.errorMessage || error.message || String(error) });
-    }
-});
-
-app.post('/api/king-exile', async (req, res) => {
-    const { playFabId, targetPlayFabId } = req.body || {};
-    if (!playFabId || !targetPlayFabId) {
-        return res.status(400).json({ error: 'playFabId and targetPlayFabId are required' });
-    }
-    if (playFabId === targetPlayFabId) {
-        return res.status(400).json({ error: 'Cannot exile self' });
-    }
-
-    try {
-        const kingCheck = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-            PlayFabId: playFabId,
-            FunctionName: 'GetNationKingPageData',
-            FunctionParameter: {},
-            GeneratePlayStreamEvent: false
-        });
-        if (kingCheck && kingCheck.Error) {
-            const msg = kingCheck.Error.Message || kingCheck.Error.Error || 'CloudScript error';
-            if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
-                return res.status(403).json({ error: 'Only the king can exile players' });
-            }
-            return res.status(500).json({ error: 'Failed to validate king', details: msg });
-        }
-
-        const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: ['Nation', 'Race']
-        });
-        const kingNation = String(kingRo?.Data?.Nation?.Value || '').toLowerCase();
-        if (!kingNation) return res.status(400).json({ error: 'King nation not set' });
-        const nationMapping = getNationMappingByNation(kingNation);
-        if (!nationMapping) return res.status(400).json({ error: 'Invalid king nation' });
-        const groupInfo = await ensureNationGroupExists(firestore, nationMapping);
-        const kingNationGroupId = groupInfo.groupId;
-        const targetNationIsland = nationMapping.island;
-        const targetNationGroupName = nationMapping.groupName;
-
-        const targetRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: targetPlayFabId,
-            Keys: ['Race', 'Nation']
-        });
-        const targetRace = targetRo?.Data?.Race?.Value || null;
-        const targetPrevNation = String(targetRo?.Data?.Nation?.Value || '').toLowerCase();
-
-        const playerEntity = await getPlayerEntity(targetPlayFabId);
-        if (!playerEntity) return res.status(400).json({ error: 'Failed to resolve target entity' });
-
-        if (targetPrevNation && targetPrevNation !== kingNation) {
-            const prevMapping = getNationMappingByNation(targetPrevNation);
-            if (prevMapping) {
-                try {
-                    const prevGroup = await ensureNationGroupExists(firestore, prevMapping);
-                    await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
-                        Group: { Id: prevGroup.groupId, Type: 'group' },
-                        Members: [playerEntity]
-                    });
-                } catch (e) {
-                    console.warn('[king-exile] RemoveMembers failed:', e?.errorMessage || e?.message || e);
-                }
-            }
-        }
-
-        try {
-            await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: kingNationGroupId, Type: 'group' },
-                Members: [playerEntity]
-            });
-        } catch (e) {
-            const msg = e?.errorMessage || e?.message || String(e);
-            if (!String(msg).includes('EntityIsAlreadyMember')) throw e;
-        }
-
-        const avatarColor = getAvatarColorForNation(targetNationIsland || kingNation);
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: targetPlayFabId,
-            Data: {
-                Nation: targetNationIsland || kingNation || null,
-                NationGroupId: kingNationGroupId,
-                NationGroupName: targetNationGroupName,
-                AvatarColor: avatarColor || 'brown',
-                NationChangedAt: String(Date.now())
-            }
-        });
-
-        const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, targetNationIsland || kingNation || null);
-        let starterIsland = null;
-        try {
-            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: targetPlayFabId,
-                ProfileConstraints: { ShowDisplayName: true }
-            });
-            const displayName = profile?.PlayerProfile?.DisplayName || null;
-            starterIsland = await createStarterIsland({
-                playFabId: targetPlayFabId,
-                raceName: targetRace || 'Human',
-                nationIsland: targetNationIsland || kingNation || null,
-                displayName
-            });
-        } catch (e) {
-            console.warn('[king-exile] Failed to create starter island:', e?.errorMessage || e?.message || e);
-        }
-
-        if (starterIsland?.respawnPosition) {
-            await relocateActiveShip(firestore, targetPlayFabId, starterIsland.respawnPosition);
-        }
-
-        return res.json({
-            success: true,
-            nationGroupId: kingNationGroupId,
-            nationIsland: targetNationIsland || kingNation || null,
-            transferredIslands: transferResult.transferred,
-            starterIsland
-        });
-    } catch (error) {
-        console.error('[king-exile] Error:', error?.errorMessage || error?.message || error);
-        return res.status(500).json({ error: 'Failed to exile player', details: error?.errorMessage || error?.message || error });
-    }
-});
-
-app.post('/api/get-guild-areas', async (req, res) => {
-    const { guildId } = req.body || {};
-    if (!guildId) return res.json({ success: true, areas: [] });
-    try {
-        const snapshot = await firestore.collection('guild_areas')
-            .where('guildId', '==', guildId)
-            .get();
-        const areas = snapshot.docs.map((doc) => doc.data());
-        res.json({ success: true, areas });
-    } catch (error) {
-        console.error('[GetGuildAreas] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to get guild areas' });
-    }
-});
-
-app.post('/api/capture-guild-area', async (req, res) => {
-    const { guildId, gx, gy } = req.body || {};
-    if (!guildId || !Number.isFinite(Number(gx)) || !Number.isFinite(Number(gy))) {
-        return res.status(400).json({ error: 'guildId, gx, gy are required' });
-    }
-    try {
-        const key = `${guildId}_${gx}_${gy}`;
-        await firestore.collection('guild_areas').doc(key).set({
-            guildId,
-            gx: Number(gx),
-            gy: Number(gy),
-            occupiedAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[CaptureGuildArea] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to capture guild area' });
-    }
-});
-
-app.post('/api/donate-nation-currency', async (req, res) => {
-    const { playFabId, currency, amount } = req.body || {};
-    if (!playFabId || !currency) {
-        return res.status(400).json({ error: 'playFabId and currency are required' });
-    }
-    const value = Math.floor(Number(amount) || 0);
-    if (!Number.isFinite(value) || value <= 0) {
-        return res.status(400).json({ error: 'Amount must be greater than 0' });
-    }
-
-    try {
-        const nation = await getNationForPlayer(playFabId);
-        if (!nation) {
-            return res.status(400).json({ error: 'Nation not set' });
-        }
-        const mapping = getNationMappingByNation(nation);
-        if (!mapping) {
-            return res.status(400).json({ error: 'Invalid nation' });
-        }
-
-        await subtractEconomyItem(playFabId, String(currency).toUpperCase(), value);
-
-        const docRef = await getNationGroupDoc(firestore, mapping.groupName);
-        const field = `treasury.${String(currency).toUpperCase()}`;
-        await docRef.set({
-            treasury: {
-                [String(currency).toUpperCase()]: admin.firestore.FieldValue.increment(value)
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[donate-nation-currency] Error:', error?.errorMessage || error?.message || error);
-        res.status(500).json({ error: 'Failed to donate currency' });
-    }
-});
-
+// 種族設定API
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, displayName, isKing: isKingRequest, entityKey } = req.body || {};
+    const { playFabId, raceName, displayName, isKing: isKingRequest, entityKey } = req.body || {};
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -1229,22 +608,22 @@ app.post('/api/set-race', async (req, res) => {
 
     switch (raceName) {
         case 'Human':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "縺｡縺九ｉ": 2, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 10, "縺九＠縺薙＆": 15, "縺阪ｈ縺・＆": 10 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
             maxSkinColorIndex = 7;
             avatarData = { "AvatarColor": "red" };
             break;
         case 'Elf':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 10, "MaxMP": 10, "縺｡縺九ｉ": 5, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 15, "縺九＠縺薙＆": 10, "縺阪ｈ縺・＆": 15 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 10, "MaxMP": 10, "ちから": 5, "みのまもり": 5, "すばやさ": 15, "かしこさ": 10, "きようさ": 15 };
             maxSkinColorIndex = 8;
             avatarData = { "AvatarColor": "purple" };
             break;
         case 'Orc':
-            initialStats = { "Level": 1, "HP": 15, "MaxHP": 15, "MP": 2, "MaxMP": 2, "縺｡縺九ｉ": 15, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 15, "縺吶・繧・＆": 2, "縺九＠縺薙＆": 2, "縺阪ｈ縺・＆": 5 };
+            initialStats = { "Level": 1, "HP": 15, "MaxHP": 15, "MP": 2, "MaxMP": 2, "ちから": 15, "みのまもり": 15, "すばやさ": 2, "かしこさ": 2, "きようさ": 5 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "green" };
             break;
         case 'Goblin':
-            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "縺｡縺九ｉ": 2, "縺ｿ縺ｮ縺ｾ繧ゅｊ": 5, "縺吶・繧・＆": 10, "縺九＠縺薙＆": 15, "縺阪ｈ縺・＆": 10 };
+            initialStats = { "Level": 1, "HP": 5, "MaxHP": 5, "MP": 15, "MaxMP": 15, "ちから": 2, "みのまもり": 5, "すばやさ": 10, "かしこさ": 15, "きようさ": 10 };
             maxSkinColorIndex = 4;
             avatarData = { "AvatarColor": "blue" };
             break;
@@ -1253,10 +632,10 @@ app.post('/api/set-race', async (req, res) => {
     }
 
     try {
-        const mapping = NATION_GROUP_BY_RACE[raceName];
+        const mapping = nation.NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
-        const firestore = admin.firestore();
-        let groupInfo = await ensureNationGroupExists(firestore, mapping);
+        const deps = createDependencies();
+        let groupInfo = await nation.ensureNationGroupExists(firestore, mapping, deps);
         const playerEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
         if (!playerEntity) {
             return res.status(400).json({ error: 'Failed to resolve player entity' });
@@ -1274,10 +653,10 @@ app.post('/api/set-race', async (req, res) => {
             });
             const prevNation = String(ro?.Data?.Nation?.Value || '').toLowerCase();
             if (prevNation && prevNation !== assignedNation) {
-                const prevMapping = getNationMappingByNation(prevNation);
+                const prevMapping = nation.getNationMappingByNation(prevNation);
                 if (prevMapping) {
                     try {
-                        const prevGroup = await ensureNationGroupExists(firestore, prevMapping);
+                        const prevGroup = await nation.ensureNationGroupExists(firestore, prevMapping, deps);
                         await ensureTitleEntityToken();
                         await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
                             Group: { Id: prevGroup.groupId, Type: 'group' },
@@ -1290,46 +669,13 @@ app.post('/api/set-race', async (req, res) => {
             }
 
             await ensureTitleEntityToken();
-            try {
-                await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                    Group: { Id: assignedGroupId, Type: 'group' },
-                    Members: [playerEntity]
-                });
-            } catch (addError) {
-                const msg = addError?.errorMessage || addError?.message || String(addError);
-                if (!String(msg).includes('No group profile found')) {
-                    throw addError;
-                }
-                console.warn('[set-race] Group missing, recreating:', assignedGroupId);
-                const staleRef = await getNationGroupDoc(firestore, mapping.groupName);
-                await staleRef.delete().catch(() => {});
-                try {
-                    const titleDataKey = 'NationGroupIds';
-                    const titleData = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [titleDataKey] });
-                    const existing = titleData?.Data?.[titleDataKey] ? JSON.parse(titleData.Data[titleDataKey]) : {};
-                    if (existing && Object.prototype.hasOwnProperty.call(existing, mapping.groupName)) {
-                        delete existing[mapping.groupName];
-                        await promisifyPlayFab(PlayFabAdmin.SetTitleData, {
-                            Key: titleDataKey,
-                            Value: JSON.stringify(existing)
-                        });
-                    }
-                } catch (clearError) {
-                    console.warn('[set-race] Failed to clear stale TitleData groupId:', clearError?.errorMessage || clearError?.message || clearError);
-                }
-                groupInfo = await ensureNationGroupExists(firestore, mapping);
-                assignedGroupId = groupInfo.groupId;
-                assignedGroupName = groupInfo.groupName;
-                isKing = !!isKingRequest || !!groupInfo.created;
-                await ensureTitleEntityToken();
-                await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                    Group: { Id: assignedGroupId, Type: 'group' },
-                    Members: [playerEntity]
-                });
-            }
+            await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                Group: { Id: assignedGroupId, Type: 'group' },
+                Members: [playerEntity]
+            });
 
             if (isKing) {
-                const docRef = await getNationGroupDoc(firestore, mapping.groupName);
+                const docRef = await nation.getNationGroupDoc(firestore, mapping.groupName);
                 await docRef.set({
                     kingPlayFabId: playFabId,
                     kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -1337,7 +683,9 @@ app.post('/api/set-race', async (req, res) => {
             }
         } catch (e) {
             const msg = (e && (e.errorMessage || e.message)) ? (e.errorMessage || e.message) : String(e);
-            return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
+            if (!String(msg).includes('EntityIsAlreadyMember')) {
+                return res.status(500).json({ error: 'Failed to assign nation group', details: msg });
+            }
         }
 
         if (displayName) {
@@ -1388,21 +736,16 @@ app.post('/api/set-race', async (req, res) => {
                     nationIsland: nationData.Nation,
                     displayName: displayName || null
                 });
-            } else {
-                console.warn('[starterIsland] Skipped creation because starter island already exists');
             }
         } catch (e) {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
         }
 
-        const starterAssets = await provisionStarterAssets({
-            playFabId
-        });
+        const starterAssets = await provisionStarterAssets({ playFabId });
 
         try {
             await ensureStarterShip({
                 playFabId,
-                catalogCache,
                 respawnPosition: starterIsland?.respawnPosition || null
             });
         } catch (e) {
@@ -1423,2068 +766,14 @@ app.post('/api/set-race', async (req, res) => {
     }
 });
 
-// ----------------------------------------------------
-// API 7: 繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ・(v41遘ｻ陦梧ｸ医∩)
-// ----------------------------------------------------
-app.post('/api/get-inventory', async (req, res) => {
-    // (v41遘ｻ陦梧ｸ医∩)
-    const { playFabId, collectionId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
-    console.log(`[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 ${playFabId} 縺ｮ謖√■迚ｩ繧貞叙蠕励＠縺ｾ縺・..`);
-    try {
-        const entityKey = await getEntityKeyForPlayFabId(playFabId);
-        const items = await getAllInventoryItems(entityKey, collectionId || null);
-        const itemMap = new Map();
-        items.forEach((item) => {
-            const itemId = item?.Id || item?.ItemId;
-            if (!itemId || ECONOMY_CURRENCY_IDS.has(itemId)) return;
-            const catalogData = catalogCache[itemId] || {};
-            const name = catalogData.DisplayName || catalogData.Title || itemId;
-            const amount = getItemAmount(item) || 1;
-            if (itemMap.has(name)) {
-                const existing = itemMap.get(name);
-                existing.count += amount;
-                if (item?.StackId) existing.instances.push(item.StackId);
-            } else {
-                itemMap.set(name, {
-                    name,
-                    count: amount,
-                    itemId,
-                    description: catalogData.Description || '',
-                    instances: item?.StackId ? [item.StackId] : [],
-                    customData: catalogData
-                });
-            }
-        });
-        const inventoryList = Array.from(itemMap.values());
-        const virtualCurrency = getVirtualCurrencyMap(items);
-        console.log('[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 蜿門ｾ怜ｮ御ｺ・);
-        res.json({ inventory: inventoryList, virtualCurrency });
-    } catch (error) {
-        console.error('[繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ余 蜿門ｾ怜､ｱ謨・, error.errorMessage || error.message || error);
-        res.status(500).json({ error: '繧､繝ｳ繝吶Φ繝医Μ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage || error.message });
-    }
-});
-// ----------------------------------------------------
-// API 9: 陬・ｙ繧｢繧､繝・Β繧定ｨｭ螳壹☆繧・(v41遘ｻ陦梧ｸ医∩)
-// ----------------------------------------------------
-app.post('/api/equip-item', async (req, res) => {
-    // v103: slot 繝代Λ繝｡繝ｼ繧ｿ繧定ｿｽ蜉
-    const { playFabId, itemId, slot } = req.body; // itemId 縺ｯ null 縺ｮ蝣ｴ蜷医′縺ゅｋ
-    if (!playFabId || !slot) return res.status(400).json({ error: 'ID縺ｾ縺溘・繧ｹ繝ｭ繝・ヨ諠・ｱ縺後≠繧翫∪縺帙ｓ縲・ });
-
-    // slot蜷阪°繧臼layFab縺ｫ菫晏ｭ倥☆繧九く繝ｼ縺ｸ螟画鋤
-    const validSlots = { 'RightHand': 'Equipped_RightHand', 'LeftHand': 'Equipped_LeftHand', 'Armor': 'Equipped_Armor' };
-    const dataKey = validSlots[slot];
-    if (!dataKey) return res.status(400).json({ error: '荳肴ｭ｣縺ｪ繧ｹ繝ｭ繝・ヨ縺ｧ縺吶・ });
-
-    const dataToUpdate = {};
-
-    if (itemId) {
-        // --- 繧｢繧､繝・Β繧定｣・ｙ縺吶ｋ蝣ｴ蜷・---
-        dataToUpdate[dataKey] = itemId;
-
-        // 繧ｫ繧ｿ繝ｭ繧ｰ諠・ｱ縺九ｉ螟ｧ蝙区ｭｦ蝎ｨ縺ｮ蜃ｦ逅・ｒ陦後≧
-        const itemData = catalogCache[itemId];
-        if (itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
-            console.log(`[陬・ｙ] 荳｡謇区ｭｦ蝎ｨ (${itemId}) 繧定｣・ｙ縺励∪縺兪);
-            // 荳｡謇区ｭｦ蝎ｨ縺ｮ蝣ｴ蜷医・蟾ｦ蜿ｳ繧貞酔譛・            dataToUpdate['Equipped_RightHand'] = itemId;
-            dataToUpdate['Equipped_LeftHand'] = null; // 蟾ｦ謇九ｒ遨ｺ縺ｫ縺吶ｋ
-        }
-    } else {
-        // --- 繧｢繧､繝・Β繧貞､悶☆蝣ｴ蜷・(itemId is null) ---
-        // v167: 螟ｧ蝙区ｭｦ蝎ｨ隗｣髯､縺ｮ髫帙・荳｡謇九ｒ螟悶☆
-        // 蜿ｳ謇玖｣・ｙ繧堤｢ｺ隱阪＠縺ｦ蠢・ｦ√↑繧牙ｷｦ謇九ｂ螟悶☆
-        const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
-        const currentRightHandId = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
-        const itemData = currentRightHandId ? catalogCache[currentRightHandId] : null;
-
-        if (slot === 'RightHand' && itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
-            console.log(`[陬・ｙ隗｣髯､] 荳｡謇区ｭｦ蝎ｨ (${currentRightHandId}) 繧貞､悶＠縺ｾ縺兪);
-            dataToUpdate['Equipped_RightHand'] = null;
-            dataToUpdate['Equipped_LeftHand'] = null;
-        } else {
-            // 騾壼ｸｸ縺ｮ陬・ｙ隗｣髯､
-            dataToUpdate[dataKey] = null;
-        }
-    }
-
-    console.log(`[陬・ｙ] ${playFabId} 縺ｮ陬・ｙ繧呈峩譁ｰ縺励∪縺・..`, dataToUpdate);
-
-    try {
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: dataToUpdate,
-            Permission: "Public" // 隱ｭ縺ｿ蜿悶ｊ逕ｨ縺ｪ縺ｮ縺ｧPublic
-        });
-        console.log('[陬・ｙ] 譖ｴ譁ｰ螳御ｺ・);
-        res.json({ status: 'success', equippedItem: itemId });
-    } catch (error) {
-        console.error('[陬・ｙ] 繧ｨ繝ｩ繝ｼ', error.errorMessage);
-        res.status(500).json({ error: '陬・ｙ縺ｮ譖ｴ譁ｰ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
-    }
-});
-// ----------------------------------------------------
-// API 10: 迴ｾ蝨ｨ縺ｮ陬・ｙ繧貞叙蠕励☆繧・(v41遘ｻ陦梧ｸ医∩)
-// ----------------------------------------------------
-app.post('/api/get-equipment', async (req, res) => {
-    // v103: 陦ｨ遉ｺ逕ｨ繝・・繧ｿ蜿門ｾ・    const { playFabId, collectionId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
-    console.log(`[陬・ｙ蜿門ｾ余 ${playFabId} 縺ｮ陬・ｙ繧貞叙蠕励＠縺ｾ縺・..`);
-    try {
-        // PlayFab縺九ｉ陬・ｙ繝・・繧ｿ繧貞叙蠕・        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId, Keys: ["Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor"]
-        });
-        const equipment = {};
-        // RightHand / LeftHand / Armor 繧定ｿ斐☆
-        if (result.Data && result.Data.Equipped_RightHand) equipment.RightHand = result.Data.Equipped_RightHand.Value;
-        if (result.Data && result.Data.Equipped_LeftHand) equipment.LeftHand = result.Data.Equipped_LeftHand.Value;
-        if (result.Data && result.Data.Equipped_Armor) equipment.Armor = result.Data.Equipped_Armor.Value;
-        console.log('[陬・ｙ蜿門ｾ余 螳御ｺ・, equipment);
-        res.json({ equipment: equipment });
-    } catch (error) {
-        console.error('[陬・ｙ蜿門ｾ余 繧ｨ繝ｩ繝ｼ', error.errorMessage);
-        res.status(500).json({ error: '陬・ｙ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
-    }
-});
-// ----------------------------------------------------
-// API 1: Get points
-// ----------------------------------------------------
-app.post('/api/get-points', async (req, res) => {
-    const playFabId = req.body.playFabId;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
-    try {
-        const points = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        res.json({ points });
-    } catch (error) {
-        res.status(500).json({
-            error: '繝昴う繝ｳ繝亥叙蠕励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || error.message
-        });
-    }
-});
-
-// ----------------------------------------------------
-// API 2: Add points
-// ----------------------------------------------------
-app.post('/api/add-points', async (req, res) => {
-    const { playFabId, amount } = req.body;
-    if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFab ID 縺ｨ amount 縺悟ｿ・ｦ√〒縺吶・ });
-    }
-    try {
-        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
-        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-        });
-        res.json({ newBalance });
-    } catch (error) {
-        console.error('繝昴う繝ｳ繝郁ｿｽ蜉螟ｱ謨・', error.errorMessage || error.message || error);
-        res.status(500).json({
-            error: '繝昴う繝ｳ繝郁ｿｽ蜉縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || error.message
-        });
-    }
-});
-
-// ----------------------------------------------------
-// API 3: Use points
-// ----------------------------------------------------
-app.post('/api/use-points', async (req, res) => {
-    const { playFabId, amount } = req.body;
-    if (!playFabId || !amount) {
-        return res.status(400).json({ error: 'PlayFab ID 縺ｨ amount 縺悟ｿ・ｦ√〒縺吶・ });
-    }
-    try {
-        await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount);
-        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-        });
-        res.json({ newBalance });
-    } catch (error) {
-        if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: '繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶・ });
-        }
-        console.error('繝昴う繝ｳ繝域ｶ郁ｲｻ螟ｱ謨・', error.errorMessage || error.message || error);
-        res.status(500).json({
-            error: '繝昴う繝ｳ繝域ｶ郁ｲｻ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || error.message
-        });
-    }
-});
-
-// ----------------------------------------------------
-// API 4: Get ranking
-// ----------------------------------------------------
-app.post('/api/get-ranking', async (req, res) => {
-    try {
-        const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-            StatisticName: LEADERBOARD_NAME,
-            StartPosition: 0,
-            MaxResultsCount: 10,
-            ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
-        });
-        let ranking = [];
-        if (result && result.Leaderboard) {
-            ranking = result.Leaderboard.map((entry) => {
-                const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
-                return {
-                    position: entry.Position,
-                    displayName: entry.DisplayName || '蜷咲┌縺・,
-                    score: entry.StatValue,
-                    avatarUrl: avatarUrl
-                };
-            });
-        }
-        res.json({ ranking });
-    } catch (error) {
-        console.error('繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ怜､ｱ謨・', error.errorMessage || error.message || error);
-        return res.status(500).json({
-            error: '繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || error.message
-        });
-    }
-});
-
-// ----------------------------------------------------
-// API: Get bounty ranking
-// ----------------------------------------------------
-app.post('/api/get-bounty-ranking', async (req, res) => {
-    try {
-        const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-            StatisticName: 'bounty_ranking',
-            StartPosition: 0,
-            MaxResultsCount: 10,
-            ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
-        });
-        let ranking = [];
-        if (result && result.Leaderboard) {
-            ranking = result.Leaderboard.map((entry) => {
-                const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
-                return {
-                    position: entry.Position,
-                    displayName: entry.DisplayName || '蜷咲┌縺・,
-                    score: entry.StatValue,
-                    avatarUrl: avatarUrl
-                };
-            });
-        }
-        res.json({ ranking });
-    } catch (error) {
-        console.error('雉樣≡繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ怜､ｱ謨・', error.errorMessage || error.message || error);
-        return res.status(500).json({
-            error: '雉樣≡繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || error.message
-        });
-    }
-});
-
-// ----------------------------------------------------
-// API 5: Transfer points
-// ----------------------------------------------------
-app.post('/api/transfer-points', async (req, res) => {
-    const { fromId, toId, amount } = req.body;
-    const amountInt = parseInt(amount, 10);
-    if (!fromId || !toId || !amountInt || amountInt <= 0) {
-        return res.status(400).json({ error: '騾・≡繝代Λ繝｡繝ｼ繧ｿ縺御ｸ肴ｭ｣縺ｧ縺吶・ });
-    }
-    if (fromId === toId) {
-        return res.status(400).json({ error: '蜷後§繧｢繧ｫ繧ｦ繝ｳ繝医↓縺ｯ騾・≡縺ｧ縺阪∪縺帙ｓ縲・ });
-    }
-    try {
-        await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
-        const payerNewBalance = await getCurrencyBalance(fromId, VIRTUAL_CURRENCY_CODE);
-        try {
-            await addEconomyItem(toId, VIRTUAL_CURRENCY_CODE, amountInt);
-            const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE);
-            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: fromId,
-                Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: payerNewBalance }]
-            });
-            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: toId,
-                Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }]
-            });
-            res.json({ newBalance: payerNewBalance });
-        } catch (addError) {
-            console.error('騾・≡蜈医∈縺ｮ蜉邂怜､ｱ謨・', addError.errorMessage || addError.message || addError);
-            await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt);
-            res.status(500).json({ error: '騾・≡蜈医∈縺ｮ蜉邂励↓螟ｱ謨励＠縺ｾ縺励◆縲・ });
-        }
-    } catch (subtractError) {
-        if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: '繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶・ });
-        }
-        console.error('騾・≡蜈・°繧峨・貂帷ｮ怜､ｱ謨・', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: '騾・≡縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: subtractError.errorMessage || subtractError.message });
-    }
-});
-
-// ----------------------------------------------------
-// API 6: Pull gacha
-// ----------------------------------------------------
-app.post('/api/pull-gacha', async (req, res) => {
-    const { playFabId, collectionId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
-    try {
-        await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
-        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        try {
-            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: playFabId,
-                Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-            });
-            const evalResult = await promisifyPlayFab(PlayFabServer.EvaluateRandomResultTable, {
-                TableId: GACHA_DROP_TABLE_ID,
-                CatalogVersion: GACHA_CATALOG_VERSION
-            });
-            const grantedItemId = evalResult.ResultItemId;
-            if (!grantedItemId) throw new Error('繧ｬ繝√Ε邨先棡縺檎ｩｺ縺ｧ縺励◆縲・);
-            await addEconomyItem(playFabId, grantedItemId, 1);
-            res.json({
-                newBalance: newBalance,
-                grantedItems: [{ ItemId: grantedItemId }]
-            });
-        } catch (grantError) {
-            console.error('繧ｬ繝√Ε莉倅ｸ主､ｱ謨・', grantError.errorMessage || grantError.message || grantError);
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
-            res.status(500).json({
-                error: '繧ｬ繝√Ε蝣ｱ驟ｬ縺ｮ莉倅ｸ弱↓螟ｱ謨励＠縺ｾ縺励◆縲・,
-                details: grantError.errorMessage || grantError.message
-            });
-        }
-    } catch (subtractError) {
-        if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-            return res.status(400).json({ error: `繝昴う繝ｳ繝医′荳崎ｶｳ縺励※縺・∪縺吶ょｿ・ｦ・ ${GACHA_COST} PT` });
-        }
-        console.error('繧ｬ繝√Ε隱ｲ驥大､ｱ謨・', subtractError.errorMessage || subtractError.message || subtractError);
-        res.status(500).json({ error: '繧ｬ繝√Ε縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: subtractError.errorMessage || subtractError.message });
-    }
-});
-// ----------------------------------------------------
-// API 12: 繝励Ξ繧､繝､繝ｼ繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ・(v41遘ｻ陦梧ｸ医∩)
-// ----------------------------------------------------
-app.post('/api/get-stats', async (req, res) => {
-    // (v41遘ｻ陦梧ｸ医∩)
-    const { playFabId, collectionId } = req.body;
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID 縺後≠繧翫∪縺帙ｓ縲・ });
-    console.log(`[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 ${playFabId} 縺ｮ繧ｹ繝・・繧ｿ繧ｹ繧貞叙蠕励＠縺ｾ縺・..`);
-    try {
-        const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
-            PlayFabId: playFabId
-        });
-        const stats = {};
-        if (result.Statistics) {
-            result.Statistics.forEach(stat => {
-                stats[stat.StatisticName] = stat.Value;
-            });
-        }
-        console.log('[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 螳御ｺ・);
-        res.json({ stats: stats });
-    } catch (error) {
-        console.error('[繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ余 繧ｨ繝ｩ繝ｼ', error.errorMessage);
-        res.status(500).json({ error: '繧ｹ繝・・繧ｿ繧ｹ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage });
-    }
-});
-
-// ----------------------------------------------------
-// API 15: 陜玲ｧｫ・ｾ・ｩ郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ蜑・ｽｽ・ｿ騾包ｽｨ邵ｺ蜷ｶ・・(隨倥・v43邵ｺ・ｧ髴托ｽｽ陷会｣ｰ)
-// ----------------------------------------------------
-app.post('/api/use-item', async (req, res) => {
-    const { playFabId, itemInstanceId, itemId } = req.body;
-    if (!playFabId || !itemInstanceId || !itemId) {
-        return res.status(400).json({ error: 'ID縺ｾ縺溘・繧｢繧､繝・Β諠・ｱ縺御ｸ崎ｶｳ縺励※縺・∪縺吶・ });
-    }
-
-    console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺後い繧､繝・Β (Instance: ${itemInstanceId}) 繧剃ｽｿ逕ｨ縺励∪縺・..`);
-
-    try {
-        // 1. 繧｢繧､繝・Β縺ｮ蜉ｹ譫懊ｒ繧ｫ繧ｿ繝ｭ繧ｰ縺九ｉ蜿門ｾ・        const itemData = catalogCache[itemId];
-        if (!itemData || itemData.Category !== 'Consumable' || !itemData.Effect) {
-            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ菴ｿ逕ｨ縺ｧ縺阪∪縺帙ｓ縲・ });
-        }
-
-        const effect = itemData.Effect;
-        if (effect.Type !== 'Heal' || !effect.Target || !effect.Amount) {
-            return res.status(400).json({ error: '繧｢繧､繝・Β蜉ｹ譫懊・險ｭ螳壹′荳肴ｭ｣縺ｧ縺吶・ });
-        }
-
-        // 2. 迴ｾ蝨ｨ縺ｮ繧ｹ繝・・繧ｿ繧ｹ繧貞叙蠕・        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
-        const currentStats = {};
-        if (statsResult.Statistics) {
-            statsResult.Statistics.forEach(stat => { currentStats[stat.StatisticName] = stat.Value; });
-        }
-
-        const targetStat = effect.Target; // "HP" or "MP"
-        const maxStat = `Max${targetStat}`; // "MaxHP" or "MaxMP"
-
-        const currentValue = currentStats[targetStat] || 0;
-        const maxValue = currentStats[maxStat] || currentValue;
-
-        // 3. 邵ｺ蜷ｶ縲堤ｸｺ・ｫ陷茨ｽｨ陜玲ｧｫ・ｾ・ｩ邵ｺ蜉ｱ窶ｻ邵ｺ繝ｻ・狗ｸｺ荵昴Γ郢ｧ・ｧ郢昴・縺・        if (currentValue >= maxValue) {
-            return res.status(400).json({ error: `${targetStat} 縺ｯ譌｢縺ｫ貅繧ｿ繝ｳ縺ｧ縺吶Ａ });
-        }
-
-        // 4. 驛｢・ｧ繝ｻ・｢驛｢・ｧ繝ｻ・､驛｢譏ｴ繝ｻ・主､・ｹ・ｧ陷ｻ闌ｨ・ｽ・ｶ鬩帙・・ｽ・ｲ繝ｻ・ｻ
-        await subtractEconomyItem(playFabId, itemId, 1);
-        console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺ｮ繧｢繧､繝・Β ${itemInstanceId} 繧呈ｶ郁ｲｻ縺励∪縺励◆`);
-
-        // 5. 郢ｧ・ｹ郢昴・繝ｻ郢ｧ・ｿ郢ｧ・ｹ郢ｧ雋槫ｱ楢包ｽｩ郢晢ｽｻ隴厄ｽｴ隴・ｽｰ
-        const recoveredValue = Math.min(currentValue + effect.Amount, maxValue);
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: targetStat, Value: recoveredValue }]
-        });
-        console.log(`[繧｢繧､繝・Β菴ｿ逕ｨ] ${playFabId} 縺ｮ ${targetStat} 繧・${currentValue} -> ${recoveredValue} 縺ｫ蝗槫ｾｩ縺励∪縺励◆`);
-
-        // 6. 驍ｨ蜈域｣｡郢ｧ蛛ｵ縺醍ｹ晢ｽｩ郢ｧ・､郢ｧ・｢郢晢ｽｳ郢晏現竊馴恆譁絶・ 
-        res.json({
-            status: 'success',
-            message: `${itemData.DisplayName || itemId}繧剃ｽｿ逕ｨ縺励∪縺励◆縲・{targetStat}縺・{effect.Amount}蝗槫ｾｩ縺励∪縺励◆縲Ａ,
-            updatedStats: {
-                [targetStat]: recoveredValue
-            }
-        });
-
-    } catch (error) {
-        console.error('[繧｢繧､繝・Β菴ｿ逕ｨ] 繧ｨ繝ｩ繝ｼ', error.errorMessage || error.message, error.apiErrorInfo);
-
-        // PlayFab縺ｮ莉｣陦ｨ逧・↑繧ｨ繝ｩ繝ｼ繧偵ワ繝ｳ繝峨Μ繝ｳ繧ｰ
-        if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemIsNotConsumable') {
-            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ豸郁ｲｻ縺ｧ縺阪∪縺帙ｓ縲・ });
-        }
-        if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'NoRemainingUses') {
-            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ繧ゅ≧菴ｿ縺医∪縺帙ｓ縲・ });
-        }
-        res.status(500).json({ error: '繧｢繧､繝・Β縺ｮ菴ｿ逕ｨ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, details: error.errorMessage || '繧ｵ繝ｼ繝舌・縺ｧ莠域悄縺励↑縺・お繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆縲・ });
-    }
-});
-
-// ----------------------------------------------------
-// API 16: 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｹｧ雋橸ｽ｣・ｲ陷奇ｽｴ邵ｺ蜷ｶ・・(隨倥・v106邵ｺ・ｧ髴托ｽｽ陷会｣ｰ)
-// ----------------------------------------------------
-app.post('/api/sell-item', async (req, res) => {
-    const { playFabId, itemInstanceId, itemId } = req.body;
-    if (!playFabId || !itemInstanceId || !itemId) {
-        return res.status(400).json({ error: 'ID縺ｾ縺溘・繧｢繧､繝・Β諠・ｱ縺御ｸ崎ｶｳ縺励※縺・∪縺吶・ });
-    }
-
-    console.log(`[繧｢繧､繝・Β螢ｲ蜊ｴ] ${playFabId} 縺後い繧､繝・Β (Instance: ${itemInstanceId}) 繧貞｣ｲ蜊ｴ縺励∪縺・..`);
-
-    try {
-        // 1. 郢ｧ・｢郢ｧ・､郢昴・ﾎ堤ｸｺ・ｮ陞｢・ｲ陷奇ｽｴ關難ｽ｡隴ｬ・ｼ郢ｧ蛛ｵ縺咲ｹｧ・ｿ郢晢ｽｭ郢ｧ・ｰ郢ｧ・ｭ郢晢ｽ｣郢昴・縺咏ｹ晢ｽ･邵ｺ荵晢ｽ芽愾髢・ｾ繝ｻ
-        const itemData = catalogCache[itemId];
-        // 隨倥・v110: SellPrice邵ｺ謔滂ｽｮ螟ゑｽｾ・ｩ邵ｺ霈費ｽ檎ｸｺ・ｦ邵ｺ繝ｻ竊醍ｸｺ繝ｻ・ｰ・ｴ陷ｷ蛹ｻ繝ｻPower郢ｧ雋樒崟霎｣・ｧ邵ｺ蟶吮・邵ｲ竏晢ｽ｣・ｲ陷奇ｽｴ闕ｳ讎雁ｺ・ｸｺ・ｨ邵ｺ蜷ｶ・・
-        const sellPrice = (itemData && itemData.SellPrice)
-            ? parseInt(itemData.SellPrice, 10)
-            : 0;
-
-        if (!sellPrice || sellPrice <= 0) {
-            return res.status(400).json({ error: '縺薙・繧｢繧､繝・Β縺ｯ螢ｲ蜊ｴ縺ｧ縺阪∪縺帙ｓ縲・ });
-        }
-
-        // 2. 驛｢・ｧ繝ｻ・｢驛｢・ｧ繝ｻ・､驛｢譏ｴ繝ｻ・主､・ｹ・ｧ陷ｻ闌ｨ・ｽ・ｶ鬩帙・・ｽ・ｲ繝ｻ・ｻ
-        await subtractEconomyItem(playFabId, itemId, 1);
-        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繧｢繧､繝・Β繧呈ｶ郁ｲｻ縺励∪縺励◆');
-
-        // 3. PT繧剃ｻ倅ｸ・        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, sellPrice);
-        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] PT 繧剃ｻ倅ｸ弱＠縺ｾ縺励◆');
-
-        // 4. 繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ繧ｹ繧ｳ繧｢繧呈峩譁ｰ
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-        });
-        console.log('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ繧ｹ繧ｳ繧｢繧呈峩譁ｰ縺励∪縺励◆');
-
-        // 5. 驍ｨ蜈域｣｡郢ｧ蛛ｵ縺醍ｹ晢ｽｩ郢ｧ・､郢ｧ・｢郢晢ｽｳ郢晏現竊馴恆譁絶・
-        res.json({
-            status: 'success',
-            message: `${itemData.DisplayName || itemId}繧・{sellPrice} PT縺ｧ螢ｲ蜊ｴ縺励∪縺励◆縲Ａ,
-            newBalance: newBalance
-        });
-
-    } catch (error) {
-        console.error('[繧｢繧､繝・Β螢ｲ蜊ｴ] 繧ｨ繝ｩ繝ｼ', error.errorMessage || error.message, error.apiErrorInfo);
-
-        if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'ItemNotFound') {
-            return res.status(400).json({ error: '謖・ｮ壹＆繧後◆繧｢繧､繝・Β縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
-        }
-        res.status(500).json({
-            error: '繧｢繧､繝・Β縺ｮ螢ｲ蜊ｴ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・,
-            details: error.errorMessage || '繧ｵ繝ｼ繝舌・縺ｧ莠域悄縺励↑縺・お繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆縲・
-        });
-    }
-});
-
-app.post('/api/king-set-tax-rate', async (req, res) => {
-    const { playFabId, taxRatePercent } = req.body || {};
-    if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
-    const percent = Number(taxRatePercent);
-    if (!Number.isFinite(percent) || percent < 0 || percent > 50) {
-        return res.status(400).json({ error: 'Tax rate must be between 0 and 50' });
-    }
-    const bps = Math.floor(percent * 100);
-
-    try {
-        const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-            PlayFabId: playFabId,
-            FunctionName: 'GetNationKingPageData',
-            FunctionParameter: {},
-            GeneratePlayStreamEvent: false
-        });
-        if (csResult && csResult.Error) {
-            const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
-            if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
-                return res.status(403).json({ error: 'NotKing' });
-            }
-        }
-
-        const nation = await getNationForPlayer(playFabId);
-        if (!nation) return res.status(400).json({ error: 'Nation not set' });
-        const groupId = await getNationGroupIdByNation(nation);
-        if (!groupId) return res.status(400).json({ error: 'Nation group not found' });
-
-        await setGroupDataValues(groupId, { taxRateBps: String(bps) });
-        res.json({ success: true, taxRateBps: bps });
-    } catch (error) {
-        console.error('[king-set-tax-rate] Error:', error?.errorMessage || error?.message || error);
-        res.status(500).json({ error: 'Failed to set tax rate' });
-    }
-});
-
-// ----------------------------------------------------
-// API: 雋ゑｽｩ雎慕甥繝ｻ雎ｬ・ｴ邵ｺ・ｧHP陜玲ｧｫ・ｾ・ｩ
-// ----------------------------------------------------
-app.post('/api/hot-spring-bath', async (req, res) => {
-    const { playFabId, islandId, mapId } = req.body || {};
-    if (!playFabId || !islandId || !mapId) {
-        return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
-    }
-
-    try {
-        const islandRef = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const islandSnap = await islandRef.get();
-        if (!islandSnap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = islandSnap.data() || {};
-        const buildings = Array.isArray(island.buildings) ? island.buildings : [];
-        const hasHotSpring = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'hot_spring' || b.id === 'hot_spring'));
-        if (!hasHotSpring) return res.status(400).json({ error: 'HotSpringNotFound' });
-        const ownerId = island.ownerId || null;
-        const price = Math.max(0, Math.floor(Number(island.hotSpringPrice) || 200));
-        if (!price) return res.status(400).json({ error: 'PriceNotSet' });
-
-        const nationValue = String(island.nation || '').toLowerCase();
-        const userNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: ['Nation']
-        });
-        const userNation = String(userNationResult?.Data?.Nation?.Value || '').toLowerCase();
-        if (!userNation || (nationValue && userNation !== nationValue)) {
-            return res.status(403).json({ error: 'NotOwnNation' });
-        }
-
-        const balance = await getCurrencyBalance(playFabId, 'PT');
-        if (balance < price) {
-            return res.status(400).json({ error: 'InsufficientFunds' });
-        }
-
-        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
-        const currentStats = {};
-        if (statsResult.Statistics) {
-            statsResult.Statistics.forEach(stat => { currentStats[stat.StatisticName] = stat.Value; });
-        }
-        const currentHp = Number(currentStats.HP || 0);
-        const maxHp = Number(currentStats.MaxHP || currentHp || 0);
-        if (currentHp >= maxHp) {
-            return res.status(400).json({ error: 'HpAlreadyMax' });
-        }
-
-        await subtractEconomyItem(playFabId, 'PT', price);
-
-        const taxRateBps = await getNationTaxRateBps(nationValue || userNation);
-        const { tax, net } = applyTax(price, taxRateBps);
-        if (ownerId && net > 0) {
-            await addEconomyItem(ownerId, 'PT', net);
-        }
-        if (tax > 0) {
-            await addNationTreasury(nationValue || userNation, tax);
-        }
-
-        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-            PlayFabId: playFabId,
-            Statistics: [{ StatisticName: 'HP', Value: maxHp }]
-        });
-
-        res.json({ success: true, price, tax, net, newHp: maxHp });
-    } catch (error) {
-        console.error('[HotSpringBath] Error:', error);
-        res.status(500).json({ error: 'Failed to use hot spring', details: error?.errorMessage || error?.message || error });
-    }
-});
-
-// ----------------------------------------------------
-// 陝ｲ・ｶ( world_map ) + 陝抵ｽｺ髫ｪ・ｭAPI
-// buildings[] 邵ｺ・ｮ隰暦ｽｨ陞ゑｽｨ郢ｧ・ｹ郢ｧ・ｭ郢晢ｽｼ郢晄ｩｸ・ｼ莠･・ｳ・ｶ邵ｺ繧・螺郢ｧ繝ｻ闔会ｽｶ繝ｻ繝ｻ
-// {
-//   buildingId: "watchtower",
-//   status: "constructing"|"completed"|"demolished",
-//   level: 1,
-//   startTime: 123,
-//   completionTime: 456,
-//   durationMs: 1800000,
-//   helpers: ["PLAYFABID", ...],
-//   width: 1, height: 1,             // 髫ｲ荵溽ｊ(陷奇｣ｰ隴帙・郢ｧ・ｵ郢ｧ・､郢ｧ・ｺ繝ｻ蛹ｻ縺帷ｹ晢ｽｭ郢昴・繝ｨ陷雁・ｽｽ謳ｾ・ｼ繝ｻ
-//   visualWidth: 1, visualHeight: 3,  // 髫穂ｹ昶螺騾ｶ・ｮ郢ｧ・ｵ郢ｧ・､郢ｧ・ｺ繝ｻ蛹ｻ縺帷ｹ晢ｽｭ郢昴・繝ｨ陷雁・ｽｽ謳ｾ・ｼ繝ｻ
-//   tileIndex: 17                     // map_tiles 邵ｺ・ｮ郢晁ｼ釆樒ｹ晢ｽｼ郢晢｣ｰ繝ｻ蝓滓ざ隰ｨ・ｴ陋ｯ蜷ｶ竊醍ｹｧ迚咎・闕ｳﾂ邵ｺ・ｧOK繝ｻ繝ｻ
-// }
-// ----------------------------------------------------
-function getSizeTag(tags) {
-    const list = Array.isArray(tags) ? tags : [];
-    return list.find(tag => typeof tag === 'string' && tag.startsWith('size_')) || null;
-}
-
-function sizeTagMatchesIsland(sizeTag, islandSize) {
-    const expected = `size_${String(islandSize || '').toLowerCase()}`;
-    return sizeTag === expected;
-}
-
-function normalizeSize(obj, fallback) {
-    if (obj && typeof obj.x === 'number' && typeof obj.y === 'number') return { x: obj.x, y: obj.y };
-    if (obj && typeof obj.x === 'string' && typeof obj.y === 'string') {
-        const x = Number(obj.x);
-        const y = Number(obj.y);
-        if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
-    }
-    return fallback;
-}
-
-function inferLogicSizeFromSlotsRequired(slotsRequired) {
-    const s = Number(slotsRequired) || 1;
-    if (s === 1) return { x: 1, y: 1 };
-    if (s === 2) return { x: 2, y: 1 };
-    if (s === 4) return { x: 2, y: 2 };
-    if (s === 9) return { x: 3, y: 3 };
-    return { x: 1, y: 1 };
-}
-
-function computeMaxHp(logicW, logicH, level = 1) {
-    const w = Math.max(1, Math.trunc(Number(logicW) || 1));
-    const h = Math.max(1, Math.trunc(Number(logicH) || 1));
-    const base = w * h * 100;
-    const lv = Math.max(1, Math.trunc(Number(level) || 1));
-    const multiplier = 1 + 0.2 * (lv - 1);
-    return Math.round(base * multiplier);
-}
-
-function getActiveShipIdForResource(playFabId) {
-    return promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Keys: ['ActiveShipId']
-    }).then(result => {
-        const value = result?.Data?.ActiveShipId?.Value;
-        return (typeof value === 'string' && value.trim()) ? value.trim() : null;
-    });
-}
-
-async function getActiveShipCargoCapacity(playFabId) {
-    const activeShipId = await getActiveShipIdForResource(playFabId);
-    if (!activeShipId) return 0;
-
-    const key = `Ship_${activeShipId}`;
-    const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Keys: [key]
-    });
-    const raw = result?.Data?.[key]?.Value;
-    if (!raw) return 0;
-
-    let shipData = null;
-    try {
-        shipData = JSON.parse(raw);
-    } catch {
-        return 0;
-    }
-    const capacity = Number(shipData?.Stats?.CargoCapacity);
-    return Number.isFinite(capacity) ? Math.max(0, Math.trunc(capacity)) : 0;
-}
-
-function getBuildingSpec(buildingId, level = null) {
-    // buildingDefinitions.js resolver (PlayFab Catalog independent)
-    const building = buildingDefs?.getBuildingById
-        ? buildingDefs.getBuildingById(buildingId, level)
-        : null;
-    if (!building) return null;
-
-    const sizeLogic = building.sizeLogic || inferLogicSizeFromSlotsRequired(building.slotsRequired);
-    const sizeVisual = building.sizeVisual || sizeLogic;
-    const effects = { ...(building.effects || {}), ...(building.stats || {}) };
-
-    return {
-        ItemId: building.id,
-        ItemClass: 'Building',
-        DisplayName: building.name,
-        Description: building.description,
-        Category: building.category,
-        SlotsRequired: building.slotsRequired,
-        BuildTime: building.buildTime,
-        Cost: building.cost || {},
-        Effects: effects,
-        SizeLogic: sizeLogic,
-        SizeVisual: sizeVisual,
-        TileIndex: building.tileIndex,
-        Level: building.level,
-        Tags: [`size_${building.slotsRequired === 1 ? 'small' : building.slotsRequired === 2 ? 'medium' : 'large'}`]
-    };
-}
-
-
-function computeConstructionStatus(buildings) {
-    const arr = Array.isArray(buildings) ? buildings : [];
-    return arr.some(b => b && b.status === 'constructing') ? 'constructing' : null;
-}
-
-async function resolveNationIslandByGroupId(groupId) {
-    if (!groupId) return null;
-    const snapshot = await firestore.collection('nation_groups')
-        .where('groupId', '==', groupId)
-        .limit(1)
-        .get();
-    if (snapshot.empty) return null;
-    const doc = snapshot.docs[0];
-    const data = doc.data() || {};
-    const groupName = data.groupName || doc.id;
-    if (!groupName) return null;
-    const entry = Object.values(NATION_GROUP_BY_RACE).find(item => item && item.groupName === groupName);
-    return entry ? entry.island : null;
-}
-
-app.post('/api/get-resource-status', async (req, res) => {
-    const { playFabId, islandId, mapId } = req.body || {};
-    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
-
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
-
-        const data = snap.data() || {};
-        const biome = data.biome;
-        const currency = RESOURCE_BIOME_CURRENCY[biome];
-        if (!currency) return res.status(400).json({ error: 'Island not harvestable' });
-
-        const capacity = await getActiveShipCargoCapacity(playFabId);
-        if (!capacity || capacity <= 0) {
-            return res.status(400).json({ error: 'Cargo capacity is zero' });
-        }
-
-        const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
-        const harvestSnap = await harvestRef.get();
-        const now = Date.now();
-        let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
-        if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
-            lastCollectedAt = lastCollectedAt.toMillis();
-        }
-        if (!Number.isFinite(lastCollectedAt)) {
-            lastCollectedAt = now - RESOURCE_INTERVAL_MS;
-            await harvestRef.set({ lastCollectedAt: new Date(lastCollectedAt) }, { merge: true });
-        }
-
-        const elapsed = Math.max(0, now - lastCollectedAt);
-        const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
-        const available = Math.min(units, capacity);
-        const nextInMs = available > 0 ? 0 : (RESOURCE_INTERVAL_MS - (elapsed % RESOURCE_INTERVAL_MS));
-
-        res.json({
-            success: true,
-            biome,
-            currency,
-            capacity,
-            available,
-            nextInMs
-        });
-    } catch (error) {
-        console.error('[GetResourceStatus] Error:', error);
-        res.status(500).json({ error: 'Failed to get resource status', details: error.message });
-    }
-});
-
-app.post('/api/collect-resource', async (req, res) => {
-    const { playFabId, islandId, mapId } = req.body || {};
-    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
-
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
-
-        const data = snap.data() || {};
-        const biome = data.biome;
-        const currency = RESOURCE_BIOME_CURRENCY[biome];
-        if (!currency) return res.status(400).json({ error: 'Island not harvestable' });
-
-        const capacity = await getActiveShipCargoCapacity(playFabId);
-        if (!capacity || capacity <= 0) {
-            return res.status(400).json({ error: 'Cargo capacity is zero' });
-        }
-
-        const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
-        const harvestSnap = await harvestRef.get();
-        const now = Date.now();
-        let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
-        if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
-            lastCollectedAt = lastCollectedAt.toMillis();
-        }
-        if (!Number.isFinite(lastCollectedAt)) {
-            lastCollectedAt = now - RESOURCE_INTERVAL_MS;
-        }
-
-        const elapsed = Math.max(0, now - lastCollectedAt);
-        const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
-        const amount = Math.min(units, capacity);
-
-        if (amount <= 0) {
-            return res.status(400).json({ error: 'Nothing to collect' });
-        }
-
-        await addEconomyItem(playFabId, currency, amount, 'ShipCargo');
-
-        const newLast = lastCollectedAt + amount * RESOURCE_INTERVAL_MS;
-        await harvestRef.set({
-            lastCollectedAt: new Date(newLast)
-        }, { merge: true });
-
-        res.json({ success: true, biome, currency, amount, capacity });
-    } catch (error) {
-        console.error('[CollectResource] Error:', error);
-        res.status(500).json({ error: 'Failed to collect resource', details: error.message });
-    }
-});
-
-app.post('/api/get-island-details', async (req, res) => {
-    const { islandId, mapId } = req.body || {};
-    if (!islandId) return res.status(400).json({ error: 'islandId is required' });
-
-    try {
-        let snap = null;
-        if (mapId) {
-            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-            snap = await ref.get();
-        }
-        if (!snap || !snap.exists) {
-            const found = await findIslandDocAcrossMaps(firestore, islandId);
-            snap = found.snap;
-        }
-        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
-
-        const data = snap.data() || {};
-        const biome = data.biome;
-        const biomeInfo = null;
-        const islandLevel = Math.max(1, Math.trunc(Number(data.islandLevel) || 1));
-        const maxLevel = 5;
-        let upgradeCost = null;
-        let upgradeHouseId = null;
-        let upgradeLevel = null;
-        if (islandLevel < maxLevel) {
-            upgradeLevel = islandLevel + 1;
-            upgradeHouseId = 'my_house';
-            const spec = getBuildingSpec(upgradeHouseId, upgradeLevel);
-            if (spec && spec.VirtualCurrencyPrices) {
-                upgradeCost = spec.VirtualCurrencyPrices;
-            }
-        }
-
-        res.json({
-            success: true,
-            island: {
-                id: snap.id,
-                ...data,
-                biomeInfo,
-                upgradeCost,
-                upgradeHouseId,
-                upgradeLevel
-            }
-        });
-    } catch (error) {
-        console.error('[GetIslandDetails] Error:', error);
-        res.status(500).json({ error: 'Failed to get island details', details: error.message });
-    }
-});
-
-// ----------------------------------------------------
-// 陝ｲ・ｶ郢ｧ・ｷ郢晢ｽｧ郢昴・繝ｻAPI
-// ----------------------------------------------------
-const SHOP_BUILDING_CATEGORIES = {
-    weapon_shop: ['Weapon'],
-    armor_shop: ['Armor', 'Shield'],
-    item_shop: ['Consumable']
-};
-
-function getShopBuildingId(island) {
-    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
-    const active = buildings.find(b => b && b.status !== 'demolished');
-    return active ? (active.buildingId || active.id || null) : null;
-}
-
-function getShopPricing(island) {
-    const pricing = island?.shopPricing || {};
-    const buyMultiplier = Number.isFinite(Number(pricing.buyMultiplier)) ? Number(pricing.buyMultiplier) : 0.7;
-    const sellMultiplier = Number.isFinite(Number(pricing.sellMultiplier)) ? Number(pricing.sellMultiplier) : 1.2;
-    const itemPrices = pricing.itemPrices && typeof pricing.itemPrices === 'object' ? pricing.itemPrices : {};
-    return { buyMultiplier, sellMultiplier, itemPrices };
-}
-
-function resolveBasePrice(itemData) {
-    const sellPrice = itemData?.SellPrice ? Number(itemData.SellPrice) : 0;
-    const buyPrice = itemData?.BuyPrice ? Number(itemData.BuyPrice) : 0;
-    return {
-        sellPrice: Number.isFinite(sellPrice) ? sellPrice : 0,
-        buyPrice: Number.isFinite(buyPrice) ? buyPrice : 0
-    };
-}
-
-app.post('/api/get-shop-state', async (req, res) => {
-    const { islandId, mapId } = req.body || {};
-    if (!islandId) return res.status(400).json({ error: 'islandId is required' });
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        const buildingId = getShopBuildingId(island);
-        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
-        const pricing = getShopPricing(island);
-        const inventory = Array.isArray(island.shopInventory) ? island.shopInventory : [];
-        const items = inventory.map((entry) => {
-            const itemId = entry.itemId;
-            const count = Number(entry.count) || 0;
-            const itemData = catalogCache[itemId] || {};
-            const base = resolveBasePrice(itemData);
-            const override = pricing.itemPrices?.[itemId] || {};
-            const fixedBuy = Number.isFinite(Number(override.buyPrice)) ? Number(override.buyPrice) : null;
-            const fixedSell = Number.isFinite(Number(override.sellPrice)) ? Number(override.sellPrice) : null;
-            return {
-                itemId,
-                count,
-                name: itemData.DisplayName || itemId,
-                category: itemData.Category || null,
-                sellPrice: base.sellPrice,
-                buyPrice: base.buyPrice,
-                fixedBuyPrice: fixedBuy,
-                fixedSellPrice: fixedSell
-            };
-        });
-        res.json({
-            islandId,
-            ownerId: island.ownerId || null,
-            buildingId,
-            categories,
-            pricing,
-            inventory: items
-        });
-    } catch (error) {
-        console.error('[GetShopState] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to get shop state' });
-    }
-});
-
-app.post('/api/set-shop-pricing', async (req, res) => {
-    const { playFabId, islandId, buyMultiplier, sellMultiplier, mapId } = req.body || {};
-    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
-    const buyValue = Number(buyMultiplier);
-    const sellValue = Number(sellMultiplier);
-    if (!Number.isFinite(buyValue) || !Number.isFinite(sellValue)) {
-        return res.status(400).json({ error: 'Invalid pricing values' });
-    }
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        if (!island.ownerId || island.ownerId !== playFabId) {
-            return res.status(403).json({ error: 'NotOwner' });
-        }
-        await ref.update({
-            shopPricing: {
-                buyMultiplier: buyValue,
-                sellMultiplier: sellValue,
-                updatedAt: Date.now(),
-                ownerId: playFabId
-            }
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[SetShopPricing] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to set shop pricing' });
-    }
-});
-
-app.post('/api/set-hot-spring-price', async (req, res) => {
-    const { playFabId, islandId, price, mapId } = req.body || {};
-    if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
-    const value = Math.max(0, Math.floor(Number(price) || 0));
-    if (!Number.isFinite(value) || value <= 0) {
-        return res.status(400).json({ error: 'InvalidPrice' });
-    }
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        if (!island.ownerId || island.ownerId !== playFabId) {
-            return res.status(403).json({ error: 'NotOwner' });
-        }
-        const buildings = Array.isArray(island.buildings) ? island.buildings : [];
-        const hasHotSpring = buildings.some(b => b && b.status !== 'demolished' && (b.buildingId === 'hot_spring' || b.id === 'hot_spring'));
-        if (!hasHotSpring) return res.status(400).json({ error: 'HotSpringNotFound' });
-
-        await ref.update({
-            hotSpringPrice: value,
-            hotSpringPriceUpdatedAt: Date.now()
-        });
-        res.json({ success: true, price: value });
-    } catch (error) {
-        console.error('[SetHotSpringPrice] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to set hot spring price' });
-    }
-});
-
-app.post('/api/set-shop-item-price', async (req, res) => {
-    const { playFabId, islandId, itemId, buyPrice, sellPrice, mapId } = req.body || {};
-    if (!playFabId || !islandId || !itemId) {
-        return res.status(400).json({ error: 'Missing parameters' });
-    }
-    const buyValue = Number(buyPrice);
-    const sellValue = Number(sellPrice);
-    if (!Number.isFinite(buyValue) || !Number.isFinite(sellValue)) {
-        return res.status(400).json({ error: 'Invalid price values' });
-    }
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
-        const pricing = island.shopPricing && typeof island.shopPricing === 'object' ? island.shopPricing : {};
-        const itemPrices = pricing.itemPrices && typeof pricing.itemPrices === 'object' ? { ...pricing.itemPrices } : {};
-        itemPrices[itemId] = { buyPrice: buyValue, sellPrice: sellValue };
-        await ref.update({
-            shopPricing: {
-                ...pricing,
-                itemPrices,
-                updatedAt: Date.now(),
-                ownerId: playFabId
-            }
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[SetShopItemPrice] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to set item price' });
-    }
-});
-
-app.post('/api/sell-to-shop', async (req, res) => {
-    const { playFabId, islandId, itemInstanceId, itemId, mapId } = req.body || {};
-    if (!playFabId || !islandId || !itemInstanceId || !itemId) {
-        return res.status(400).json({ error: 'Missing parameters' });
-    }
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        const buildingId = getShopBuildingId(island);
-        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
-        if (!categories.length) return res.status(400).json({ error: 'ShopNotAvailable' });
-        const itemData = catalogCache[itemId] || {};
-        if (categories.length && itemData.Category && !categories.includes(itemData.Category)) {
-            return res.status(400).json({ error: 'InvalidItemCategory' });
-        }
-        const base = resolveBasePrice(itemData);
-        const pricing = getShopPricing(island);
-        const override = pricing.itemPrices?.[itemId] || {};
-        const fixedBuy = Number.isFinite(Number(override.buyPrice)) ? Number(override.buyPrice) : null;
-        const price = fixedBuy != null ? fixedBuy : Math.floor(base.sellPrice * pricing.buyMultiplier);
-        if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotPurchasable' });
-
-        await subtractEconomyItem(playFabId, itemId, 1);
-
-        await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, price);
-        const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-        const shopInventory = Array.isArray(island.shopInventory) ? island.shopInventory.slice() : [];
-        const idx = shopInventory.findIndex(i => i && i.itemId === itemId);
-        if (idx >= 0) {
-            shopInventory[idx] = { ...shopInventory[idx], count: Number(shopInventory[idx].count || 0) + 1 };
-        } else {
-            shopInventory.push({ itemId, count: 1 });
-        }
-        await ref.update({ shopInventory });
-        res.json({ success: true, price, newBalance: newBalance });
-    } catch (error) {
-        console.error('[SellToShop] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to sell item to shop' });
-    }
-});
-
-app.post('/api/buy-from-shop', async (req, res) => {
-    const { playFabId, islandId, itemId, mapId } = req.body || {};
-    if (!playFabId || !islandId || !itemId) {
-        return res.status(400).json({ error: 'Missing parameters' });
-    }
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-        const island = snap.data() || {};
-        const buildingId = getShopBuildingId(island);
-        const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
-        if (!categories.length) return res.status(400).json({ error: 'ShopNotAvailable' });
-        const itemData = catalogCache[itemId] || {};
-        if (categories.length && itemData.Category && !categories.includes(itemData.Category)) {
-            return res.status(400).json({ error: 'InvalidItemCategory' });
-        }
-        const base = resolveBasePrice(itemData);
-        const pricing = getShopPricing(island);
-        const override = pricing.itemPrices?.[itemId] || {};
-        const fixedSell = Number.isFinite(Number(override.sellPrice)) ? Number(override.sellPrice) : null;
-        const baseSell = base.buyPrice || base.sellPrice;
-        const price = fixedSell != null ? fixedSell : Math.floor(baseSell * pricing.sellMultiplier);
-        if (!price || price <= 0) return res.status(400).json({ error: 'ItemNotForSale' });
-
-        const shopInventory = Array.isArray(island.shopInventory) ? island.shopInventory.slice() : [];
-        const idx = shopInventory.findIndex(i => i && i.itemId === itemId);
-        if (idx === -1 || Number(shopInventory[idx].count || 0) <= 0) {
-            return res.status(400).json({ error: 'OutOfStock' });
-        }
-
-        await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, price);
-
-        await addEconomyItem(playFabId, itemId, 1);
-
-
-
-
-        const nextCount = Number(shopInventory[idx].count || 0) - 1;
-        if (nextCount <= 0) {
-            shopInventory.splice(idx, 1);
-        } else {
-            shopInventory[idx] = { ...shopInventory[idx], count: nextCount };
-        }
-        await ref.update({ shopInventory });
-
-        const ownerId = island.ownerId || null;
-        if (ownerId && price > 0) {
-            const nationValue = String(island.nation || '').toLowerCase();
-            const taxRateBps = await getNationTaxRateBps(nationValue);
-            const { tax, net } = applyTax(price, taxRateBps);
-            if (net > 0) {
-                await addEconomyItem(ownerId, VIRTUAL_CURRENCY_CODE, net);
-            }
-            if (tax > 0) {
-                await addNationTreasury(nationValue, tax);
-            }
-        }
-
-        res.json({ success: true, price });
-    } catch (error) {
-        console.error('[BuyFromShop] Error:', error?.message || error);
-        res.status(500).json({ error: 'Failed to buy item from shop' });
-    }
-});
-
-app.post('/api/start-building-construction', async (req, res) => {
-    const { playFabId, islandId, buildingId, mapId } = req.body || {};
-    if (!playFabId || !islandId || !buildingId) {
-        return res.status(400).json({ error: 'playFabId, islandId, buildingId are required' });
-    }
-
-    try {
-        // 1. 蟒ｺ迚ｩ莉墓ｧ倥ｒ蜿門ｾ・        const spec = getBuildingSpec(buildingId);
-        if (!spec) {
-            return res.status(400).json({ error: '蟒ｺ迚ｩ螳夂ｾｩ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
-        }
-
-        // 2. 繧ｳ繧ｹ繝医ｒ險育ｮ・        const costs = spec.Cost || {};
-        const costEntries = Object.entries(costs).filter(([, amount]) => Number(amount) > 0);
-
-        if (costEntries.length > 0) {
-            // 郢晏干ﾎ樒ｹｧ・､郢晢ｽ､郢晢ｽｼ邵ｺ・ｮ隹ｿ遏ｩ・ｫ蛟･・帝￡・ｺ髫ｱ繝ｻ
-            const entityKey = await getEntityKeyForPlayFabId(playFabId);
-            const items = await getAllInventoryItems(entityKey);
-            const balances = getVirtualCurrencyMap(items);
-
-            // 髫ｹ・ｿ驕擾ｽｩ繝ｻ・ｫ陋滂ｽ･郢晢ｽ｡驛｢・ｧ繝ｻ・ｧ驛｢譏ｴ繝ｻ邵ｺ繝ｻ
-            for (const [currency, amount] of costEntries) {
-                const balance = balances[currency] || 0;
-                if (balance < Number(amount)) {
-                    return res.status(400).json({
-                        error: `${currency} 縺御ｸ崎ｶｳ縺励※縺・∪縺吶ょｿ・ｦ・ ${amount}, 謇謖・ ${balance}`
-                    });
-                }
-            }
-
-            // 驛｢・ｧ繝ｻ・ｳ驛｢・ｧ繝ｻ・ｹ驛｢譎乗ｲｺ鬯ｮ・ｪ髫ｰ繝ｻ・ｼ雋ｻ・ｼ繝ｻ
-            for (const [currency, amount] of costEntries) {
-                await subtractEconomyItem(playFabId, currency, Number(amount));
-            }
-        }
-
-        // 3. 陝抵ｽｺ髫ｪ・ｭ陷・ｽｦ騾・・・ｼ繝ｻirestore郢晏現ﾎ帷ｹ晢ｽｳ郢ｧ・ｶ郢ｧ・ｯ郢ｧ・ｷ郢晢ｽｧ郢晢ｽｳ繝ｻ繝ｻ
-        let displayName = null;
-        let playerNation = null;
-        try {
-            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowDisplayName: true }
-            });
-            displayName = profile?.PlayerProfile?.DisplayName || null;
-        } catch (e) {
-            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
-        }
-        try {
-            const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
-                Keys: ['Nation', 'Race']
-            });
-            const nationValue = ro?.Data?.Nation?.Value || null;
-            const raceValue = ro?.Data?.Race?.Value || null;
-            if (nationValue) {
-                playerNation = String(nationValue).toLowerCase();
-            } else if (raceValue && NATION_GROUP_BY_RACE[raceValue]) {
-                playerNation = NATION_GROUP_BY_RACE[raceValue].island;
-            }
-        } catch (e) {
-            console.warn('[StartBuildingConstruction] GetUserReadOnlyData failed:', e?.errorMessage || e?.message || e);
-        }
-        const islandName = `${displayName || 'Player'}縺ｮ${spec.DisplayName || buildingId}`;
-
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const now = Date.now();
-
-        const building = await firestore.runTransaction(async (tx) => {
-            const snap = await tx.get(ref);
-            if (!snap.exists) throw new Error('IslandNotFound');
-
-            const island = snap.data() || {};
-            if (island.ownerId && island.ownerId !== playFabId) throw new Error('NotOwner');
-
-            const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
-            const existing = buildings.find(b => b && b.status !== 'demolished');
-            if (existing) throw new Error('AlreadyBuilt');
-
-            let sizeTag = getSizeTag(spec.Tags);
-            if (!sizeTag && typeof spec.Size === 'string' && spec.Size) {
-                sizeTag = `size_${spec.Size.toLowerCase()}`;
-            }
-            if (!sizeTag || !sizeTagMatchesIsland(sizeTag, island.size)) {
-                throw new Error('InvalidBuildingSize');
-            }
-
-            const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
-            const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
-
-            const logicW = Math.max(1, Math.trunc(sizeLogic.x));
-            const logicH = Math.max(1, Math.trunc(sizeLogic.y));
-            const visualW = Math.max(1, Math.trunc(sizeVisual.x));
-            const visualH = Math.max(1, Math.trunc(sizeVisual.y));
-
-            const buildTimeSeconds = Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
-            const durationMs = buildTimeSeconds * 1000;
-
-            const tileIndexRaw = spec.TileIndex;
-            const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-            const maxHp = computeMaxHp(logicW, logicH, Number(spec.Level) || 1);
-            const entry = {
-                buildingId,
-                status: 'constructing',
-                level: Number.isFinite(Number(spec.Level)) ? Number(spec.Level) : 1,
-                startTime: now,
-                completionTime: now + durationMs,
-                durationMs,
-                buildTimeSeconds,
-                helpers: [],
-                width: logicW,
-                height: logicH,
-                visualWidth: visualW,
-                visualHeight: visualH,
-                tileIndex: tileIndexValue,
-                maxHp,
-                currentHp: maxHp
-            };
-
-            buildings.push(entry);
-
-            tx.update(ref, {
-                buildings,
-                name: islandName,
-                constructionStatus: 'constructing',
-                ownerId: island.ownerId || playFabId,
-                ownerNation: island.ownerNation || playerNation,
-                nation: island.nation || playerNation,
-                occupationStatus: island.occupationStatus || 'occupied',
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            return entry;
-        });
-
-        res.json({
-            success: true,
-            building,
-            cost: costs,
-            message: `${spec.DisplayName || buildingId} 縺ｮ蟒ｺ險ｭ繧帝幕蟋九＠縺ｾ縺励◆縲Ａ
-        });
-    } catch (error) {
-        const msg = error?.message || String(error);
-        if (msg === 'NotOwner') return res.status(403).json({ error: '縺薙・蟲ｶ縺ｮ謇譛芽・〒縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・ });
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
-        if (msg === 'AlreadyBuilt') return res.status(400).json({ error: '縺薙・蟲ｶ縺ｫ縺ｯ譌｢縺ｫ蟒ｺ迚ｩ縺後≠繧翫∪縺吶・ });
-        if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: '縺薙・蟲ｶ縺ｮ繧ｵ繧､繧ｺ縺ｫ蜷医▲縺ｦ縺・∪縺帙ｓ縲・ });
-        console.error('[StartBuildingConstruction] Error:', error);
-        res.status(500).json({ error: 'Failed to start building construction', details: msg });
-    }
-});
-
-app.post('/api/upgrade-island-level', async (req, res) => {
-    const { playFabId, islandId, mapId } = req.body || {};
-    if (!playFabId || !islandId) {
-        return res.status(400).json({ error: 'playFabId and islandId are required' });
-    }
-
-    const nextLevelFrom = (level) => Math.max(1, Math.trunc(Number(level) || 1)) + 1;
-    const maxLevel = 5;
-
-    try {
-        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        const snap = await ref.get();
-        if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
-
-        const island = snap.data() || {};
-        if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
-
-        const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: ['Nation', 'Race']
-        });
-        const nationValue = userReadOnly?.Data?.Nation?.Value || null;
-        const raceName = userReadOnly?.Data?.Race?.Value || null;
-        if (!nationValue && !raceName) return res.status(400).json({ error: 'NationNotSet' });
-
-        let nationIsland = nationValue ? String(nationValue).toLowerCase() : null;
-        if (!nationIsland && raceName && NATION_GROUP_BY_RACE[raceName]) {
-            nationIsland = NATION_GROUP_BY_RACE[raceName].island;
-        }
-        if (!nationIsland || island.biome !== nationIsland) {
-            return res.status(403).json({ error: 'NationMismatch' });
-        }
-
-        const currentLevel = Math.max(1, Math.trunc(Number(island.islandLevel) || 1));
-        if (currentLevel >= maxLevel) return res.status(400).json({ error: 'MaxLevel' });
-
-        const nextLevel = nextLevelFrom(currentLevel);
-        const houseId = 'my_house';
-        const spec = getBuildingSpec(houseId, nextLevel);
-        if (!spec) return res.status(400).json({ error: 'BuildingNotFound' });
-
-        const costs = spec.VirtualCurrencyPrices || {};
-        const entityKey = await getEntityKeyForPlayFabId(playFabId);
-        const items = await getAllInventoryItems(entityKey);
-        const balances = getVirtualCurrencyMap(items);
-        const costEntries = Object.entries(costs).filter(([, amount]) => Number(amount) > 0);
-        for (const [code, amount] of costEntries) {
-            const bal = Number(balances[code] || 0);
-            if (bal < Number(amount)) {
-                return res.status(400).json({ error: 'InsufficientFunds', details: { currency: code, required: Number(amount), balance: bal } });
-            }
-        }
-
-        for (const [code, amount] of costEntries) {
-            await subtractEconomyItem(playFabId, code, Number(amount));
-        }
-
-        const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
-        const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
-        const logicW = Math.max(1, Math.trunc(sizeLogic.x));
-        const logicH = Math.max(1, Math.trunc(sizeLogic.y));
-        const visualW = Math.max(1, Math.trunc(sizeVisual.x));
-        const visualH = Math.max(1, Math.trunc(sizeVisual.y));
-        const tileIndexRaw = spec.TileIndex;
-        const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-        const maxHp = computeMaxHp(logicW, logicH, nextLevel);
-
-        await firestore.runTransaction(async (tx) => {
-            const snapTx = await tx.get(ref);
-            if (!snapTx.exists) throw new Error('IslandNotFound');
-            const data = snapTx.data() || {};
-            const existing = Array.isArray(data.buildings) ? data.buildings.slice() : [];
-
-            const nextBuilding = {
-                buildingId: houseId,
-                status: 'completed',
-                level: nextLevel,
-                startTime: Date.now(),
-                completionTime: Date.now(),
-                durationMs: 0,
-                helpers: [],
-                width: logicW,
-                height: logicH,
-                visualWidth: visualW,
-                visualHeight: visualH,
-                tileIndex: tileIndexValue,
-                maxHp: maxHp,
-                currentHp: maxHp,
-                x: 0,
-                y: 0
-            };
-
-            const filtered = existing.filter(b => {
-                if (!b) return true;
-                const rawId = String(b.buildingId || b.id || '');
-                if (rawId === 'my_house') return false;
-                return !rawId.startsWith('my_house_lv');
-            });
-            filtered.push(nextBuilding);
-
-            tx.update(ref, {
-                islandLevel: nextLevel,
-                buildings: filtered
-            });
-        });
-
-        res.json({ success: true, islandId, nextLevel, buildingId: houseId });
-    } catch (error) {
-        const msg = error?.message || String(error);
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: 'IslandNotFound' });
-        console.error('[upgrade-island-level] Error:', error);
-        res.status(500).json({ error: 'Failed to upgrade island level', details: error?.errorMessage || error?.message || error });
-    }
-});
-
-app.post('/api/check-building-completion', async (req, res) => {
-    const { islandId, mapId } = req.body || {};
-    if (!islandId) {
-        return res.status(400).json({ error: 'islandId is required' });
-    }
-
-    try {
-        let displayName = null;
-        try {
-            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowDisplayName: true }
-            });
-            displayName = profile?.PlayerProfile?.DisplayName || null;
-        } catch (e) {
-            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
-        }
-        let ref = null;
-        if (mapId) {
-            ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        } else {
-            const found = await findIslandDocAcrossMaps(firestore, islandId);
-            if (!found.snap) throw new Error('IslandNotFound');
-            ref = found.collection.doc(islandId);
-        }
-        const now = Date.now();
-
-        const result = await firestore.runTransaction(async (tx) => {
-            const snap = await tx.get(ref);
-            if (!snap.exists) throw new Error('IslandNotFound');
-            const island = snap.data() || {};
-            const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
-            const idx = buildings.findIndex(b => b && b.status === 'constructing');
-
-            if (idx === -1) {
-                const existing = buildings.find(b => b && b.status === 'completed');
-                if (existing && existing.status === 'completed') {
-                    return { completed: true, building: existing };
-                }
-                return { completed: false, remainingTime: 0 };
-            }
-
-            const b = buildings[idx];
-            const completionTime = Number(b.completionTime) || 0;
-            if (now < completionTime) {
-                const remainingTime = Math.max(0, Math.ceil((completionTime - now) / 1000));
-                return { completed: false, remainingTime, building: b };
-            }
-
-            buildings[idx] = { ...b, status: 'completed' };
-            const status = computeConstructionStatus(buildings);
-            const patch = {
-                buildings,
-                constructionStatus: status,
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-            };
-            if (!status) patch.constructionStatus = admin.firestore.FieldValue.delete();
-
-            tx.update(ref, patch);
-            return { completed: true, building: buildings[idx] };
-        });
-
-        res.json({ success: true, ...result, message: result.completed ? '蟒ｺ險ｭ縺悟ｮ御ｺ・＠縺ｾ縺励◆縲・ : '縺ｾ縺蟒ｺ險ｭ荳ｭ縺ｧ縺吶・ });
-    } catch (error) {
-        const msg = error?.message || String(error);
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
-        console.error('[CheckBuildingCompletion] Error:', error);
-        res.status(500).json({ error: 'Failed to check building completion', details: msg });
-    }
-});
-
-app.post('/api/help-construction', async (req, res) => {
-    const { islandId, helperPlayFabId, mapId } = req.body || {};
-    if (!islandId || !helperPlayFabId) {
-        return res.status(400).json({ error: 'islandId and helperPlayFabId are required' });
-    }
-
-    try {
-        let displayName = null;
-        try {
-            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                PlayFabId: playFabId,
-                ProfileConstraints: { ShowDisplayName: true }
-            });
-            displayName = profile?.PlayerProfile?.DisplayName || null;
-        } catch (e) {
-            console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
-        }
-        let ref = null;
-        if (mapId) {
-            ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-        } else {
-            const found = await findIslandDocAcrossMaps(firestore, islandId);
-            if (!found.snap) throw new Error('IslandNotFound');
-            ref = found.collection.doc(islandId);
-        }
-        const now = Date.now();
-        const reductionPerHelper = 0.1;
-        const maxReduction = 0.5;
-
-        const result = await firestore.runTransaction(async (tx) => {
-            const snap = await tx.get(ref);
-            if (!snap.exists) throw new Error('IslandNotFound');
-            const island = snap.data() || {};
-            const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
-            const idx = buildings.findIndex(b => b && b.status === 'constructing');
-            if (idx === -1) throw new Error('NotConstructing');
-
-            const b = buildings[idx];
-            const helpers = Array.isArray(b.helpers) ? b.helpers.slice() : [];
-            if (!helpers.includes(helperPlayFabId)) {
-                helpers.push(helperPlayFabId);
-            }
-
-            const durationMs = Number(b.durationMs) || Math.max(0, (Number(b.completionTime) || now) - (Number(b.startTime) || now));
-            const reduction = Math.min(maxReduction, helpers.length * reductionPerHelper);
-            const newCompletion = (Number(b.startTime) || now) + Math.floor(durationMs * (1 - reduction));
-
-            buildings[idx] = { ...b, helpers, completionTime: Math.max(now, newCompletion), durationMs };
-            tx.update(ref, {
-                buildings,
-                name: islandName,
-                constructionStatus: 'constructing',
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            return { building: buildings[idx], reduction };
-        });
-
-        res.json({ success: true, ...result, message: '蟒ｺ險ｭ譎る俣繧堤洒邵ｮ縺励∪縺励◆縲・ });
-    } catch (error) {
-        const msg = error?.message || String(error);
-        if (msg === 'IslandNotFound') return res.status(404).json({ error: '蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縲・ });
-        if (msg === 'NotConstructing') return res.status(400).json({ error: '縺昴・繧ｹ繝ｭ繝・ヨ縺ｯ蟒ｺ險ｭ荳ｭ縺ｧ縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・ });
-        console.error('[HelpConstruction] Error:', error);
-        res.status(500).json({ error: 'Failed to help construction', details: msg });
-    }
-});
-
-app.get('/api/get-constructing-islands', async (req, res) => {
-    try {
-        const mapId = String(req?.query?.mapId || '').trim();
-        const now = Date.now();
-
-        const normalizeConstructingIslands = async (snapshot) => {
-            const islands = [];
-            for (const docSnap of snapshot.docs) {
-                const data = docSnap.data() || {};
-                const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
-                const idx = buildings.findIndex(b => b && b.status === 'constructing');
-                if (idx === -1) {
-                    if (data.constructionStatus) {
-                        await docSnap.ref.update({
-                            constructionStatus: admin.firestore.FieldValue.delete()
-                        });
-                    }
-                    continue;
-                }
-
-                const completionTime = Number(buildings[idx].completionTime) || 0;
-                if (completionTime && completionTime <= now) {
-                    buildings[idx] = { ...buildings[idx], status: 'completed' };
-                    const status = computeConstructionStatus(buildings);
-                    const patch = {
-                        buildings,
-                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                    };
-                    if (status) {
-                        patch.constructionStatus = status;
-                    } else {
-                        patch.constructionStatus = admin.firestore.FieldValue.delete();
-                    }
-                    await docSnap.ref.update(patch);
-                    continue;
-                }
-
-                islands.push({ id: docSnap.id, ...data });
-            }
-            return islands;
-        };
-
-        if (mapId) {
-            const snapshot = await getWorldMapCollection(firestore, mapId)
-                .where('constructionStatus', '==', 'constructing')
-                .get();
-            const islands = await normalizeConstructingIslands(snapshot);
-            return res.json({ success: true, islands });
-        }
-
-        const collections = await firestore.listCollections();
-        const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-        const islands = [];
-        for (const col of mapCollections) {
-            const snapshot = await col.where('constructionStatus', '==', 'constructing').get();
-            const list = await normalizeConstructingIslands(snapshot);
-            islands.push(...list);
-        }
-
-        res.json({ success: true, islands });
-    } catch (error) {
-        console.error('[GetConstructingIslands] Error:', error);
-        res.status(500).json({ error: 'Failed to get constructing islands', details: error.message });
-    }
-});
-
-app.get('/api/get-building-meta', async (_req, res) => {
-    try {
-        const meta = buildingDefs.getBuildingMetaMap();
-        res.json(meta);
-    } catch (error) {
-        const msg = error?.message || String(error);
-        console.error('[GetBuildingMeta] Error:', msg);
-        res.status(500).json({ error: 'Failed to get building meta', details: msg });
-    }
-});
-
-app.post('/api/get-buildings-by-category', async (req, res) => {
-    try {
-        const category = String(req?.body?.category || '');
-        const islandSize = String(req?.body?.islandSize || '').toLowerCase();
-        const mapId = String(req?.body?.mapId || '').trim();
-        const entries = Object.entries(buildingDefs?.buildings || {}).filter(([, building]) => {
-            if (!building) return false;
-            if (building.buildable === false) return false;
-            if (!category) return true;
-            return building.category === category;
-        });
-
-        let mapBuildingCounts = null;
-        if (mapId) {
-            const counts = {};
-            const snapshot = await getWorldMapCollection(firestore, mapId).get();
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data() || {};
-                const list = Array.isArray(data.buildings) ? data.buildings : [];
-                list.forEach((entry) => {
-                    if (!entry || entry.status === 'demolished') return;
-                    const rawId = String(entry.buildingId || entry.id || '');
-                    if (!rawId) return;
-                    counts[rawId] = (counts[rawId] || 0) + 1;
-                });
-            });
-            mapBuildingCounts = counts;
-        }
-
-        const buildings = entries.map(([key, building]) => {
-            const resolved = buildingDefs.getBuildingById
-                ? buildingDefs.getBuildingById(building.id || key)
-                : building;
-            const slotsRequired = Number(building.slotsRequired || 1);
-            const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : 'large'}`;
-            const condition = resolved?.buildCondition || building?.buildCondition || null;
-            let meetsCondition = true;
-            if (condition && mapBuildingCounts) {
-                const requiredId = String(condition.buildingId || '').trim();
-                const minCount = Number(condition.minCount || 0);
-                if (requiredId && minCount > 0) {
-                    const current = Number(mapBuildingCounts[requiredId] || 0);
-                    meetsCondition = current >= minCount;
-                }
-            }
-            return {
-                id: building.id || key,
-                name: resolved?.name || building.name || building.id || key,
-                description: resolved?.description || building.description || '',
-                buildTime: Number(resolved?.buildTime || building.buildTime || 0),
-                tags: [sizeTag],
-                slotsRequired,
-                category: building.category || null,
-                buildCondition: condition || null,
-                meetsCondition
-            };
-        });
-
-        let filtered = buildings.filter((item) => item.meetsCondition !== false);
-        if (islandSize) {
-            const tag = `size_${islandSize}`;
-            filtered = filtered.filter(item => !Array.isArray(item.tags) || item.tags.includes(tag));
-        }
-
-        res.json({ success: true, buildings: filtered });
-    } catch (error) {
-        const msg = error?.message || String(error);
-        console.error('[GetBuildingsByCategory] Error:', msg);
-        res.status(500).json({ error: 'Failed to get buildings', details: msg });
-    }
-});
-
-const GLOBAL_CHAT_LIMIT = 200;
-const NEARBY_CHAT_LIMIT = 200;
-const NEARBY_CHAT_RANGE = 500;
-const NEARBY_CHAT_TTL_MS = 10 * 60 * 1000;
-const globalChatMessages = [];
-const nearbyChatMessages = [];
-
-function trimChat(list, limit) {
-    while (list.length > limit) list.shift();
-}
-
-function normalizeChatMessage(entry) {
-    return {
-        message: entry.message,
-        displayName: entry.displayName || 'Player',
-        timestamp: entry.timestamp
-    };
-}
-
-app.post('/api/get-global-chat', async (_req, res) => {
-    res.json({ success: true, messages: globalChatMessages.map(normalizeChatMessage) });
-});
-
-app.post('/api/send-global-chat', async (req, res) => {
-    const { message, displayName } = req.body || {};
-    const text = String(message || '').trim();
-    if (!text) return res.status(400).json({ error: 'Message is required' });
-    globalChatMessages.push({
-        message: text,
-        displayName: String(displayName || 'Player'),
-        timestamp: Date.now()
-    });
-    trimChat(globalChatMessages, GLOBAL_CHAT_LIMIT);
-    res.json({ success: true });
-});
-
-app.post('/api/get-nearby-chat', async (req, res) => {
-    const x = Number(req?.body?.x);
-    const y = Number(req?.body?.y);
-    const now = Date.now();
-    const list = nearbyChatMessages.filter((msg) => (now - msg.timestamp) <= NEARBY_CHAT_TTL_MS);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return res.json({ success: true, messages: list.map(normalizeChatMessage) });
-    }
-    const filtered = list.filter((msg) => {
-        const dx = (Number(msg.x) || 0) - x;
-        const dy = (Number(msg.y) || 0) - y;
-        return Math.sqrt(dx * dx + dy * dy) <= NEARBY_CHAT_RANGE;
-    });
-    res.json({ success: true, messages: filtered.map(normalizeChatMessage) });
-});
-
-app.post('/api/send-nearby-chat', async (req, res) => {
-    const { message, displayName } = req.body || {};
-    const text = String(message || '').trim();
-    if (!text) return res.status(400).json({ error: 'Message is required' });
-    const x = Number(req?.body?.x);
-    const y = Number(req?.body?.y);
-    nearbyChatMessages.push({
-        message: text,
-        displayName: String(displayName || 'Player'),
-        timestamp: Date.now(),
-        x: Number.isFinite(x) ? x : null,
-        y: Number.isFinite(y) ? y : null
-    });
-    trimChat(nearbyChatMessages, NEARBY_CHAT_LIMIT);
-    res.json({ success: true });
-});
-
-// ----------------------------------------------------
-// 隨倥・v41: PlayFab邵ｺ・ｮ郢ｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ隲繝ｻ・ｰ・ｱ郢ｧ螳夲ｽｪ・ｭ邵ｺ・ｿ髴趣ｽｼ郢ｧ阮吶堤ｹｧ・ｭ郢晢ｽ｣郢昴・縺咏ｹ晢ｽ･邵ｺ蜷ｶ・・(髫阪・辟夂ｹｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ陝・ｽｾ陟｢繝ｻ
-// ----------------------------------------------------
-async function loadCatalogCache() {
-    console.log('[繧ｫ繧ｿ繝ｭ繧ｰ] PlayFab繧ｫ繧ｿ繝ｭ繧ｰ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ繧帝幕蟋九＠縺ｾ縺・..');
-    const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog']; // 髫ｱ・ｭ邵ｺ・ｿ髴趣ｽｼ郢ｧﾂ郢ｧ・ｫ郢ｧ・ｿ郢晢ｽｭ郢ｧ・ｰ邵ｺ・ｮ郢晢ｽｪ郢ｧ・ｹ郢昴・
-    try {
-        async function loadCatalogVersion(version) {
-            try {
-                const items = [];
-                let token = null;
-                do {
-                    const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
-                        CatalogVersion: version,
-                        Count: 100,
-                        ContinuationToken: token || undefined
-                    });
-                    const page = Array.isArray(result?.Items) ? result.Items : [];
-                    items.push(...page);
-                    token = result?.ContinuationToken || null;
-                } while (token);
-
-                const catalogItems = items.map((item) => ({
-                    ItemId: item.Id,
-                    ItemClass: item.Type,
-                    DisplayName: item.DisplayName,
-                    Description: item.Description,
-                    CustomData: item.DisplayProperties ? JSON.stringify(item.DisplayProperties) : item.CustomData
-                }));
-                return { Catalog: catalogItems };
-            } catch (error) {
-                const titleId = PlayFab.settings.titleId || process.env.PLAYFAB_TITLE_ID;
-                const localPath = path.join(__dirname, 'playfab_catalog', `title-${titleId}-${version}.json`);
-                const msg = error?.errorMessage || error?.message || String(error);
-                const code = error?.code ? ` (${error.code})` : '';
-                console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] PlayFab縺九ｉ ${version} 縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆${code}: ${msg}`);
- 
-                if (fs.existsSync(localPath)) {
-                    try {
-                        const raw = fs.readFileSync(localPath, 'utf-8');
-                        const parsed = JSON.parse(raw);
-                        const catalog = parsed?.Catalog || parsed?.data?.Catalog || [];
-                        const catalogArray = Array.isArray(catalog) ? catalog : [];
-                        const shipCount = catalogArray.filter((it) => it && (it.ItemClass === 'Ship' || (typeof it.ItemId === 'string' && it.ItemId.startsWith('ship_')))).length;
-
-                        // ships_catalog 邵ｺ謔溷膚邵ｺ繝ｻ陞｢鄙ｫ・檎ｸｺ・ｦ邵ｺ繝ｻ・玖撻・ｴ陷ｷ闌ｨ・ｼ莠包ｽｾ繝ｻ placeholder item邵ｺ・ｮ邵ｺ・ｿ繝ｻ蟲ｨ竊楢岷蜷ｶ竏ｴ邵ｺ・ｦ邵ｲ竏壹・郢晢ｽｭ郢ｧ・ｸ郢ｧ・ｧ郢ｧ・ｯ郢晁ご蟲ｩ闕ｳ荵昴・郢晁ｼ斐＜郢ｧ・､郢晢ｽｫ郢ｧ繧奇ｽｩ・ｦ邵ｺ繝ｻ
-                        if (version === 'ships_catalog' && shipCount === 0) {
-                            const altPath = path.join(__dirname, 'playfab_ships_catalog.json');
-                            if (fs.existsSync(altPath)) {
-                                try {
-                                    const altRaw = fs.readFileSync(altPath, 'utf-8');
-                                    const altParsed = JSON.parse(altRaw);
-                                    const altCatalog = altParsed?.Catalog || altParsed?.data?.Catalog || [];
-                                    const altArray = Array.isArray(altCatalog) ? altCatalog : [];
-                                    const altShipCount = altArray.filter((it) => it && (it.ItemClass === 'Ship' || (typeof it.ItemId === 'string' && it.ItemId.startsWith('ship_')))).length;
-                                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] ${localPath} 縺ｫ譛牙柑縺ｪ繝・・繧ｿ縺後↑縺・◆繧√・{altPath} 繧剃ｽｿ逕ｨ縺励∪縺・(${altArray.length}莉ｶ/Ship ${altShipCount}莉ｶ)`);
-                                    return { Catalog: altArray };
-                                } catch (e2) {
-                                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 莉｣譖ｿ繝輔ぃ繧､繝ｫ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: ${altPath}`, e2?.message || e2);
-                                }
-                            }
-                        }
-                        console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺九ｉ ${version} 繧定ｪｭ縺ｿ霎ｼ縺ｿ縺ｾ縺励◆: ${localPath} (${catalogArray.length}莉ｶ)`);
-                        return { Catalog: catalogArray };
-                    } catch (e) {
-                        console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: ${localPath}`, e?.message || e);
-                    }
-                } else {
-                    console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繝ｭ繝ｼ繧ｫ繝ｫ繝輔ぃ繧､繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ: ${localPath}`);
-                }
-
-                
-                throw error;
-            }
-        }
-
-        const catalogPromises = catalogVersions.map((version) => loadCatalogVersion(version));
-
-        const results = await Promise.all(catalogPromises);
-
-        const itemMap = {};
-        results.forEach(result => {
-            if (result.Catalog) {
-                result.Catalog.forEach(item => {
-                    let customData = {};
-                    if (item.CustomData) {
-                        try {
-                            // PlayFab縺ｮCustomData縺ｯ繧ｭ繝ｼ縺ｨ蛟､縺梧枚蟄怜・縺ｪ縺ｮ縺ｧJSON縺ｨ縺励※繝代・繧ｹ
-                            const parsedData = JSON.parse(item.CustomData);
-                            // 繝代・繧ｹ縺励◆繧ｪ繝悶ず繧ｧ繧ｯ繝医・蛟､繧ょｿ・ｦ√↓蠢懊§縺ｦ繝代・繧ｹ
-                            for (const key in parsedData) {
-                                const normalizedKey = String(key).trim();
-                                try {
-                                    // JSON譁・ｭ怜・縺ｪ繧牙・繝代・繧ｹ
-                                    customData[normalizedKey] = JSON.parse(parsedData[key]);
-                                } catch (e) {
-                                    // JSON縺ｧ縺ｪ縺代ｌ縺ｰ縺昴・縺ｾ縺ｾ
-                                    customData[normalizedKey] = parsedData[key];
-                                }
-                            }
-                        } catch (e) {
-                            console.warn(`[繧ｫ繧ｿ繝ｭ繧ｰ] ItemID ${item.ItemId} 縺ｮCustomData縺ｮ繝代・繧ｹ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲Ａ, item.CustomData);
-                        }
-                    }
-                    itemMap[item.ItemId] = {
-                        ItemId: item.ItemId,
-                        ItemClass: item.ItemClass,
-                        DisplayName: item.DisplayName,
-                        Description: item.Description,
-                        VirtualCurrencyPrices: item.VirtualCurrencyPrices,
-                        ...customData
-                    };
-                });
-            }
-        });
-
-        catalogCache = itemMap;
-        console.log(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｫ繧ｿ繝ｭ繧ｰ繧定ｪｭ縺ｿ霎ｼ縺ｿ縺ｾ縺励◆縲・{Object.keys(catalogCache).length} 莉ｶ縺ｮ繧｢繧､繝・Β繧貞叙蠕励＠縺ｾ縺励◆縲Ａ);
-    } catch (error) {
-        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        console.error('[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｨ繝ｩ繝ｼ: 繧ｫ繧ｿ繝ｭ繧ｰ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・, error?.errorMessage || error?.message || error);
-        console.error(`[繧ｫ繧ｿ繝ｭ繧ｰ] 繧ｵ繝ｼ繝舌・URL: ${PlayFab.GetServerUrl ? PlayFab.GetServerUrl() : '(unknown)'}`);
-        console.error('PlayFab縺ｮTitle ID縲ヾecret Key縲，atalogVersion繧・ロ繝・ヨ繝ｯ繝ｼ繧ｯ(443/tcp)繧堤｢ｺ隱阪＠縺ｦ縺上□縺輔＞縲・);
-        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        process.exit(1);
-    }
-}
-
-// ----------------------------------------------------
-// 隨倥・陋ｻ譎・ｄ郢晄ｧｭ繝｣郢晏干繝ｧ郢晢ｽｼ郢ｧ・ｿ郢ｧ蟾ｽirestore邵ｺ・ｫ隰壼供繝ｻ邵ｺ蜷ｶ・・
-// ----------------------------------------------------
-const MAJOR_ARCANA = [
-    { number: 0, name: 'The Fool' },
-    { number: 1, name: 'The Magician' },
-    { number: 2, name: 'The High Priestess' },
-    { number: 3, name: 'The Empress' },
-    { number: 4, name: 'The Emperor' },
-    { number: 5, name: 'The Hierophant' },
-    { number: 6, name: 'The Lovers' },
-    { number: 7, name: 'The Chariot' },
-    { number: 8, name: 'Strength' },
-    { number: 9, name: 'The Hermit' },
-    { number: 10, name: 'Wheel of Fortune' },
-    { number: 11, name: 'Justice' },
-    { number: 12, name: 'The Hanged Man' },
-    { number: 13, name: 'Death' },
-    { number: 14, name: 'Temperance' },
-    { number: 15, name: 'The Devil' },
-    { number: 16, name: 'The Tower' },
-    { number: 17, name: 'The Star' },
-    { number: 18, name: 'The Moon' },
-    { number: 19, name: 'The Sun' },
-    { number: 20, name: 'Judgement' },
-    { number: 21, name: 'The World' }
-];
-
-const MAJOR_ARCANA_BY_AREA = {
-    wands: [4, 8, 15, 19],
-    pentacles: [5, 9, 12, 16],
-    swords: [3, 10, 11, 17],
-    cups: [2, 7, 14, 18],
-    joker: [0, 1, 6, 13, 20, 21]
-};
-
-const FACTION_BY_AREA = {
-    wands: 'fire',
-    pentacles: 'earth',
-    swords: 'wind',
-    cups: 'water',
-    joker: 'neutral'
-};
-
-const FACTION_LABEL_BY_ID = {
-    fire: 'Fire',
-    earth: 'Earth',
-    wind: 'Wind',
-    water: 'Water',
-    neutral: 'Neutral'
-};
-
-const buildMapConfigs = () => {
-    const nationMaps = Object.entries(FACTION_BY_AREA).map(([areaId, faction]) => ({
-        mapId: areaId,
-        mapType: 'nation',
-        faction,
-        factionLabel: FACTION_LABEL_BY_ID[faction] || faction
-    }));
-
-    const majorMaps = [];
-    Object.entries(MAJOR_ARCANA_BY_AREA).forEach(([areaId, numbers]) => {
-        const faction = FACTION_BY_AREA[areaId] || 'neutral';
-        numbers.forEach((num) => {
-            const entry = MAJOR_ARCANA.find((item) => item.number === num);
-            majorMaps.push({
-                mapId: `major_${String(num).padStart(2, '0')}`,
-                mapType: 'major',
-                faction,
-                factionLabel: FACTION_LABEL_BY_ID[faction] || faction,
-                cardNumber: num,
-                cardName: entry ? entry.name : `Major ${num}`
-            });
-        });
-    });
-
-    return [...nationMaps, ...majorMaps];
-};
-
-async function initializeMapData() {
-    console.log('[Map Init] Checking world_map_* collections...');
-
-    const firestore = admin.firestore();
-    const mapConfigs = buildMapConfigs();
-
-    try {
-        for (const config of mapConfigs) {
-            const collectionName = `world_map_${config.mapId}`;
-            const collectionRef = firestore.collection(collectionName);
-            const snapshot = await collectionRef.limit(1).get();
-            if (!snapshot.empty) {
-                console.log(`[Map Init] ${collectionName} already exists. Skipping.`);
-                continue;
-            }
-
-            console.log(`[Map Init] Generating islands for ${collectionName}...`);
-            const islands = generateMapData(config);
-            let batch = firestore.batch();
-            let batchCount = 0;
-            let totalCount = 0;
-
-            for (const island of islands) {
-                const docRef = collectionRef.doc(island.id);
-                batch.set(docRef, island);
-                batchCount += 1;
-                totalCount += 1;
-
-                if (batchCount >= 500) {
-                    await batch.commit();
-                    batch = firestore.batch();
-                    batchCount = 0;
-                }
-            }
-
-            if (batchCount > 0) {
-                await batch.commit();
-            }
-
-            console.log(`[Map Init] ${collectionName}: ${totalCount} islands created.`);
-        }
-    } catch (error) {
-        console.error('[Map Init] Failed to initialize maps:', error?.message || error);
-    }
-}
-
-
-// 隨倥・v42: 郢ｧ・ｵ郢晢ｽｼ郢晁・繝ｻ隘搾ｽｷ陷阪・(郢晢ｽ｡郢ｧ・､郢晢ｽｳ)
-// ----------------------------------------------------
+// サーバー起動
 async function main() {
     await loadCatalogCache();
 
-    // 隨倥・陋ｻ譎・ｄ郢晄ｧｭ繝｣郢晏干繝ｧ郢晢ｽｼ郢ｧ・ｿ郢ｧ蟾ｽirestore邵ｺ・ｫ隰壼供繝ｻ
-    await initializeMapData();
+    // マップ初期化
+    await mapModule.initializeMapData(firestore);
 
-    // 隨倥・v41: 陷茨ｽｱ鬨ｾ螢ｹ縲定ｲゑｽ｡邵ｺ蜷晢ｽｮ螢ｽ辟夂ｹｧ蛛ｵ竏ｪ邵ｺ・ｨ郢ｧ竏夲ｽ・
+    // 共通定数
     const sharedConstants = {
         VIRTUAL_CURRENCY_CODE,
         LEADERBOARD_NAME,
@@ -3492,21 +781,56 @@ async function main() {
         GACHA_CATALOG_VERSION
     };
 
-    // v40: battle.js 郢ｧ雋槭・隴帶ｺｷ蝟ｧ
-    // 隨倥・繝ｻ隨倥・闖ｫ・ｮ雎・ｽ｣: db郢ｧ・､郢晢ｽｳ郢ｧ・ｹ郢ｧ・ｿ郢晢ｽｳ郢ｧ・ｹ郢ｧ蜻茨ｽｸ・｡邵ｺ繝ｻ隨倥・繝ｻ隨倥・
+    // 依存関係
+    const deps = createDependencies();
+
+    // 経済ルート
+    economy.initializeEconomyRoutes(app, {
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabEconomy,
+        getEntityKeyFromPlayFabId
+    });
+
+    // 国家ルート
+    nation.initializeNationRoutes(app, deps);
+
+    // 島ルート
+    island.initializeIslandRoutes(app, deps);
+
+    // インベントリルート
+    inventory.initializeInventoryRoutes(app, {
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabEconomy,
+        catalogCache,
+        getEntityKeyForPlayFabId: deps.getEntityKeyForPlayFabId,
+        getAllInventoryItems: deps.getAllInventoryItems,
+        getVirtualCurrencyMap: deps.getVirtualCurrencyMap,
+        addEconomyItem: deps.addEconomyItem,
+        subtractEconomyItem: deps.subtractEconomyItem,
+        getCurrencyBalance: deps.getCurrencyBalance
+    });
+
+    // ショップルート
+    shop.initializeShopRoutes(app, deps);
+
+    // チャットルート
+    chat.initializeChatRoutes(app);
+
+    // バトルルート
     const db = admin.database();
     battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, sharedConstants, db);
 
-    // 隨倥・郢ｧ・ｮ郢晢ｽｫ郢晉判・ｩ貅ｯ繝ｻ郢ｧ雋槭・隴帶ｺｷ蝟ｧ
+    // ギルドルート
     guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy);
 
-    // 隨倥・髣奇ｽｹ郢ｧ・ｷ郢ｧ・ｹ郢昴・ﾎ堤ｹｧ雋槭・隴帶ｺｷ蝟ｧ
+    // 船ルート
     shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache);
 
     app.listen(PORT, () => {
-console.log(`繧ｵ繝ｼ繝舌・縺後・繝ｼ繝・${PORT} 縺ｧ襍ｷ蜍輔＠縺ｾ縺励◆縲Ｉttp://localhost:${PORT}`);
+        console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);
     });
 }
 
-// v42: 郢ｧ・ｵ郢晢ｽｼ郢晁・繝ｻ郢ｧ螳夲ｽｵ・ｷ陷阪・
 main();
