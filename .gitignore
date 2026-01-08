@@ -1,3 +1,7 @@
 node_modules
 .env
 my-liff-app-ee704-firebase-adminsdk-fbsvc-2deac93eab.json
+catalog_v1.json
+catalog_v2_items.json
+converter.js
+uploader.js
