@@ -138,6 +138,7 @@ async function loadCatalogCache() {
     console.log('[カタログ] PlayFabカタログの読み込みを開始します...');
     const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog'];
     try {
+        await ensureTitleEntityToken();
         async function loadCatalogVersion(version) {
             try {
                 const items = [];
