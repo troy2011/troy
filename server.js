@@ -115,7 +115,7 @@ function normalizePriceAmounts(item) {
         });
     }
 
-    if (amounts.length === 0 && Array.isArray(item?.PriceOptions?.Prices)) {
+    if (Object.keys(totals).length === 0 && Array.isArray(item?.PriceOptions?.Prices)) {
         item.PriceOptions.Prices.forEach((price) => {
             const priceAmounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
             priceAmounts.forEach((entry) => {
@@ -124,7 +124,7 @@ function normalizePriceAmounts(item) {
         });
     }
 
-    if (amounts.length === 0 && item?.VirtualCurrencyPrices && typeof item.VirtualCurrencyPrices === 'object') {
+    if (Object.keys(totals).length === 0 && item?.VirtualCurrencyPrices && typeof item.VirtualCurrencyPrices === 'object') {
         Object.entries(item.VirtualCurrencyPrices).forEach(([code, amount]) => {
             pushAmount(code, amount);
         });
