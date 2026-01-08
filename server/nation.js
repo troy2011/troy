@@ -158,6 +158,29 @@ async function addNationTreasury(nation, amount, firestore, deps) {
     return { groupId, treasuryPT: next };
 }
 
+async function getNationTreasuryRanking(firestore, deps) {
+    const rows = [];
+    for (const mapping of Object.values(NATION_GROUP_BY_NATION)) {
+        try {
+            const info = await ensureNationGroupExists(firestore, mapping, deps);
+            const groupId = info?.groupId;
+            if (!groupId) {
+                rows.push({ nation: mapping.island, groupName: mapping.groupName, treasuryPs: 0 });
+                continue;
+            }
+            const raw = await deps.getGroupDataValue(groupId, 'treasuryPT');
+            const treasuryPs = Math.max(0, Math.floor(Number(raw) || 0));
+            rows.push({ nation: mapping.island, groupName: mapping.groupName, treasuryPs });
+        } catch (error) {
+            console.warn('[getNationTreasuryRanking] Failed for', mapping?.groupName, error?.message || error);
+            rows.push({ nation: mapping.island, groupName: mapping.groupName, treasuryPs: 0 });
+        }
+    }
+
+    rows.sort((a, b) => b.treasuryPs - a.treasuryPs);
+    return rows;
+}
+
 async function getPlayerEntity(playFabId, deps) {
     const { promisifyPlayFab, PlayFabServer } = deps;
     if (!playFabId) return null;
@@ -508,6 +531,11 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            const normalizedCurrency = String(currency).toUpperCase();
+            if (normalizedCurrency === 'PS') {
+                await addNationTreasury(nation, value, firestore, nationDeps);
+            }
+
             res.json({ success: true });
         } catch (error) {
             console.error('[donate-nation-currency] Error:', error?.errorMessage || error?.message || error);
@@ -551,6 +579,16 @@ function initializeNationRoutes(app, deps) {
             res.status(500).json({ error: 'Failed to capture guild area' });
         }
     });
+
+    app.post('/api/get-nation-treasury-ranking', async (_req, res) => {
+        try {
+            const ranking = await getNationTreasuryRanking(firestore, nationDeps);
+            res.json({ ranking });
+        } catch (error) {
+            console.error('[get-nation-treasury-ranking] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get nation treasury ranking' });
+        }
+    });
 }
 
 module.exports = {
@@ -565,6 +603,7 @@ module.exports = {
     getNationGroupIdByNation,
     getNationTaxRateBps,
     addNationTreasury,
+    getNationTreasuryRanking,
     getPlayerEntity,
     initializeNationRoutes
 };
