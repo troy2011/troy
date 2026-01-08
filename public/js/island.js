@@ -125,11 +125,22 @@ async function collectResource(playFabId, islandId) {
 }
 
 
-export async function startBuildingConstruction(playFabId, islandId, buildingId) {
-    const response = await requestStartBuildingConstruction(playFabId, islandId, buildingId, window.__currentMapId || null);
+export async function startBuildingConstruction(playFabId, islandId, buildingId, options = {}) {
+    const response = await requestStartBuildingConstruction(
+        playFabId,
+        islandId,
+        buildingId,
+        window.__currentMapId || null,
+        null,
+        options
+    );
 
     if (response && response.success) {
-        startConstructionTimer(islandId, response.building.completionTime);
+        if (response.building?.status === 'completed') {
+            showCompletionNotification(islandId);
+        } else {
+            startConstructionTimer(islandId, response.building.completionTime);
+        }
         const name = response.building?.displayName || response.building?.buildingName || buildingId;
         showRpgMessage(rpgSay.buildStarted(name));
     }

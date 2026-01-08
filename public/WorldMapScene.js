@@ -2145,6 +2145,13 @@ export default class WorldMapScene extends Phaser.Scene {
         const withinX = this.playerShip.x >= islandData.x && this.playerShip.x <= islandData.x + islandData.width;
         const withinY = this.playerShip.y >= islandData.y && this.playerShip.y <= islandData.y + islandData.height;
         if (withinX && withinY) {
+            if (typeof window !== 'undefined' && window.__tutorialFirstIsland?.stage === 'nav') {
+                const tutorial = window.__tutorialFirstIsland;
+                if (tutorial?.islandId === this.navTargetId && typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage(window.rpgSay?.tutorialArrived ? window.rpgSay.tutorialArrived() : '島に到着した！');
+                    tutorial.stage = 'arrived';
+                }
+            }
             this.navTargetId = null;
             this.navTargetLabel = null;
             if (this.navArrow) this.navArrow.setVisible(false);
@@ -2600,6 +2607,30 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!islandDetails) {
             this.showMessage('島の詳細情報の取得に失敗しました。');
             return;
+        }
+
+        if (typeof window !== 'undefined' && window.__tutorialFirstIsland?.stage === 'arrived') {
+            const tutorial = window.__tutorialFirstIsland;
+            if (tutorial?.islandId === islandData.id) {
+                const result = await window.Island.startBuildingConstruction(
+                    this.playerInfo?.playFabId,
+                    islandData.id,
+                    'my_house',
+                    { tutorial: true }
+                );
+                if (result && result.success) {
+                    tutorial.stage = 'built';
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.setItem('tutorialFirstIslandDone', 'true');
+                    }
+                    if (typeof window.showRpgMessage === 'function') {
+                        const msg = window.rpgSay?.tutorialHouseBuilt
+                            ? window.rpgSay.tutorialHouseBuilt()
+                            : 'マイハウスが建った！';
+                        window.showRpgMessage(msg);
+                    }
+                }
+            }
         }
 
         window.Island.showBuildingMenu(islandDetails, this.playerInfo.playFabId);

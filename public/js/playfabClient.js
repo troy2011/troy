@@ -217,8 +217,9 @@ export function collectResource(playFabId, islandId, mapId, options) {
     return callApiWithLoader('/api/collect-resource', { playFabId, islandId, mapId }, options);
 }
 
-export function startBuildingConstruction(playFabId, islandId, buildingId, mapId, options) {
-    return callApiWithLoader('/api/start-building-construction', { playFabId, islandId, buildingId, mapId }, options);
+export function startBuildingConstruction(playFabId, islandId, buildingId, mapId, options, extra) {
+    const payload = { playFabId, islandId, buildingId, mapId, ...(extra || {}) };
+    return callApiWithLoader('/api/start-building-construction', payload, options);
 }
 
 export function upgradeIslandLevel(playFabId, islandId, mapId, options) {

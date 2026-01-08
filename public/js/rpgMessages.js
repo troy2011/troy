@@ -52,7 +52,10 @@ export const rpgSay = {
     guildWarehouseWithdrawn: () => '倉庫からアイテムを引き出した！',
     guildApplicationApproved: () => '加入申請を承認した！',
     guildApplicationRejected: () => '加入申請を拒否した。',
-    exileDone: () => '亡命が完了した！'
+    exileDone: () => '亡命が完了した！',
+    tutorialNav: () => 'ナビで島へ向かおう。',
+    tutorialArrived: () => '島に到着！島をクリックしてマイハウスを建てよう。',
+    tutorialHouseBuilt: () => 'マイハウスが建った！'
 };
 
 if (typeof window !== 'undefined') {

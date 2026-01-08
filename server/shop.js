@@ -255,6 +255,22 @@ function initializeShopRoutes(app, deps) {
                 return res.status(400).json({ error: '建物定義が見つかりません。' });
             }
 
+            const isTutorialBuild = Boolean(req?.body?.tutorial) && buildingId === 'my_house';
+            if (isTutorialBuild) {
+                try {
+                    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Keys: ['TutorialMyHouseBuilt']
+                    });
+                    const done = String(ro?.Data?.TutorialMyHouseBuilt?.Value || '').toLowerCase();
+                    if (done === 'true') {
+                        return res.status(400).json({ error: 'TutorialAlreadyCompleted' });
+                    }
+                } catch (e) {
+                    console.warn('[StartBuildingConstruction] Tutorial flag check failed:', e?.errorMessage || e?.message || e);
+                }
+            }
+
             let costEntries = [];
             if (Array.isArray(spec.PriceAmounts)) {
                 costEntries = spec.PriceAmounts.map((entry) => {
@@ -344,15 +360,16 @@ function initializeShopRoutes(app, deps) {
                 const visualW = Math.max(1, Math.trunc(sizeVisual.x));
                 const visualH = Math.max(1, Math.trunc(sizeVisual.y));
 
-                const buildTimeSeconds = Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
+                const buildTimeSeconds = isTutorialBuild ? 0 : Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
                 const durationMs = buildTimeSeconds * 1000;
+                const status = isTutorialBuild ? 'completed' : 'constructing';
 
                 const tileIndexRaw = spec.TileIndex;
                 const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
                 const maxHp = computeMaxHp(logicW, logicH, Number(spec.Level) || 1);
                 const entry = {
                     buildingId,
-                    status: 'constructing',
+                    status: status,
                     level: Number.isFinite(Number(spec.Level)) ? Number(spec.Level) : 1,
                     startTime: now,
                     completionTime: now + durationMs,
@@ -370,19 +387,35 @@ function initializeShopRoutes(app, deps) {
 
                 buildings.push(entry);
 
-                tx.update(ref, {
+                const patch = {
                     buildings,
                     name: islandName,
-                    constructionStatus: 'constructing',
                     ownerId: island.ownerId || playFabId,
                     ownerNation: island.ownerNation || playerNation,
                     nation: island.nation || playerNation,
                     occupationStatus: island.occupationStatus || 'occupied',
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                if (status === 'constructing') {
+                    patch.constructionStatus = 'constructing';
+                } else {
+                    patch.constructionStatus = admin.firestore.FieldValue.delete();
+                }
+                tx.update(ref, patch);
 
                 return entry;
             });
+
+            if (isTutorialBuild) {
+                try {
+                    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Data: { TutorialMyHouseBuilt: 'true' }
+                    });
+                } catch (e) {
+                    console.warn('[StartBuildingConstruction] Failed to mark tutorial build:', e?.errorMessage || e?.message || e);
+                }
+            }
 
             try {
                 await addOwnedMapId(playFabId, mapId, { promisifyPlayFab, PlayFabServer });
