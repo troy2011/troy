@@ -387,6 +387,13 @@ export async function showTab(tabId, playerInfo, options = {}) {
                             if (typeof scene.setMapReady === 'function' && scene.islandObjects?.size) {
                                 scene.setMapReady(true);
                             }
+                            if (window.__pendingFirstMapNav?.islandId) {
+                                const targetId = window.__pendingFirstMapNav.islandId;
+                                if (typeof scene.setNavigationTarget === 'function') {
+                                    scene.setNavigationTarget(targetId);
+                                    window.__pendingFirstMapNav = null;
+                                }
+                            }
                         }
                         if (gameInstance?.loop?.wake) {
                             gameInstance.loop.wake();
@@ -444,6 +451,13 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 }
                 if (typeof scene.setMapReady === 'function' && scene.islandObjects?.size) {
                     scene.setMapReady(true);
+                }
+                if (window.__pendingFirstMapNav?.islandId) {
+                    const targetId = window.__pendingFirstMapNav.islandId;
+                    if (typeof scene.setNavigationTarget === 'function') {
+                        scene.setNavigationTarget(targetId);
+                        window.__pendingFirstMapNav = null;
+                    }
                 }
             }
             if (gameInstance?.loop?.wake) {

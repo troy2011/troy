@@ -420,7 +420,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         Data: { RespawnPosition: JSON.stringify(respawnPosition) }
     });
 
-    return { created: true, islandId: docRef.id, name: islandName, respawnPosition };
+    return { created: true, islandId: docRef.id, name: islandName, mapId, respawnPosition };
 }
 
 // スターター船確保

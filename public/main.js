@@ -399,8 +399,25 @@ function showRaceModal() {
             if (data?.starterIsland?.created) {
                 const islandName = data?.starterIsland?.name || 'あなたの島';
                 window.__pendingFirstMapMessages.push(rpgSay.islandGained(islandName));
+                const starterIslandId = data?.starterIsland?.islandId || null;
+                const starterMapId = data?.starterIsland?.mapId || null;
+                if (starterIslandId && starterMapId) {
+                    window.__pendingFirstMapNav = {
+                        islandId: starterIslandId,
+                        mapId: starterMapId,
+                        label: islandName
+                    };
+                }
             }
-            await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
+            const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
+            await showTab('home', playerInfo);
+            if (window.__pendingFirstMapNav?.islandId && window.__pendingFirstMapNav?.mapId) {
+                await showTab('map', playerInfo, {
+                    skipMapSelect: true,
+                    mapId: window.__pendingFirstMapNav.mapId,
+                    mapLabel: window.__pendingFirstMapNav.mapId
+                });
+            }
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
             raceButtonsContainer.addEventListener('click', handleRaceSelection);
