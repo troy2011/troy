@@ -146,7 +146,7 @@ async function loadCatalogCache() {
                 do {
                     const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
                         CatalogVersion: version,
-                        Count: 100,
+                        Count: 50,
                         ContinuationToken: token || undefined
                     });
                     const page = Array.isArray(result?.Items) ? result.Items : [];
