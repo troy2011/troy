@@ -688,6 +688,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     const resourceStatusEl = sheet.querySelector('#resourceStatus');
     const harvestBtn = sheet.querySelector('#btnHarvestResource');
     if (resourceStatusEl && harvestBtn) {
+        const resourceCurrency = getResourceCurrencyForBiome(island.biome);
         let latestStatus = null;
         const updateResourceStatus = async () => {
             resourceStatusEl.textContent = '読み込み中...';
