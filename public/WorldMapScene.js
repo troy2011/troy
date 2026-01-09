@@ -1405,6 +1405,11 @@ export default class WorldMapScene extends Phaser.Scene {
             console.log(`[Island] 島クリック: ${data.name}`);
 
             if (this.collidingIsland && this.collidingIsland.id === islandData.id) {
+                const tutorial = (typeof window !== 'undefined') ? window.__tutorialFirstIsland : null;
+                if (tutorial?.stage === 'arrived' && tutorial?.islandId === islandData.id) {
+                    await this.openBuildingMenuForIsland(islandData);
+                    return;
+                }
                 this.showIslandCommandMenu(islandData);
             } else {
                 this.moveShipTo(data.x + islandWidth / 2, data.y + islandHeight / 2, islandData);
