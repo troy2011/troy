@@ -35,7 +35,7 @@ async function getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconom
     do {
         const result = await promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
             Entity: entityKey,
-            Count: 100,
+            Count: 50,
             ContinuationToken: token || undefined
         });
         const page = Array.isArray(result?.Items) ? result.Items : [];
