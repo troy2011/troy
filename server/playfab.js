@@ -65,6 +65,17 @@ async function getEntityKeyFromPlayFabId(playFabId) {
     const legacyId = result?.PlayerProfile?.EntityId || null;
     const legacyType = result?.PlayerProfile?.EntityType || null;
     if (legacyId && legacyType) return { Id: legacyId, Type: legacyType };
+    try {
+        const accountInfo = await promisifyPlayFab(PlayFabServer.GetAccountInfo, {
+            PlayFabId: playFabId
+        });
+        const titlePlayerAccountId = accountInfo?.AccountInfo?.TitleInfo?.TitlePlayerAccountId || null;
+        if (titlePlayerAccountId) {
+            return { Id: titlePlayerAccountId, Type: 'title_player_account' };
+        }
+    } catch (error) {
+        console.warn('[getEntityKeyFromPlayFabId] GetAccountInfo failed:', error?.errorMessage || error?.message || error);
+    }
     console.warn('[getEntityKeyFromPlayFabId] Entity not found in profile:', playFabId);
     return null;
 }
