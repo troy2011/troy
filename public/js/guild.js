@@ -171,7 +171,7 @@ export async function createGuild(playFabId, guildName) {
  */
 export async function scanJoinGuild(playFabId) {
     if (!liff.isInClient()) {
-        alert('QRスキャンはLINEアプリ内でのみ利用できます。');
+        showRpgMessage('QRスキャンはLINEアプリ内でのみ利用できます。');
         return;
     }
 
@@ -184,12 +184,12 @@ export async function scanJoinGuild(playFabId) {
                 const guildId = result.value.substring(6); // "guild:" を除去
                 await joinGuild(playFabId, guildId);
             } else {
-                alert('無効なギルド招待QRコードです');
+                showRpgMessage('無効なギルド招待QRコードです');
             }
         }
     } catch (error) {
         console.error('[Guild] QR scan error:', error);
-        alert('QRスキャンに失敗しました');
+        showRpgMessage('QRスキャンに失敗しました');
     }
 }
 
@@ -210,11 +210,11 @@ async function joinGuild(playFabId, guildId) {
             // 成功メッセージを表示
             showMessage(`ギルド「${data.guildName}」に加入しました！`);
         } else {
-            alert(data?.error || 'ギルド加入に失敗しました');
+            showRpgMessage(data?.error || 'ギルド加入に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error joining guild:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -239,11 +239,11 @@ export async function leaveGuild(playFabId) {
             // 成功メッセージを表示
             showMessage('ギルドから脱退しました');
         } else {
-            alert(data?.error || 'ギルド脱退に失敗しました');
+            showRpgMessage(data?.error || 'ギルド脱退に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error leaving guild:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -253,7 +253,7 @@ export async function leaveGuild(playFabId) {
  */
 export async function showGuildMembers(playFabId) {
     if (!currentGuildInfo || !currentGuildInfo.guildId) {
-        alert('ギルド情報が取得できません');
+        showRpgMessage('ギルド情報が取得できません');
         return;
     }
 
@@ -264,11 +264,11 @@ export async function showGuildMembers(playFabId) {
             renderGuildMembers(data.members);
             document.getElementById('guildMembersModal').style.display = 'flex';
         } else {
-            alert('メンバー情報の取得に失敗しました');
+            showRpgMessage('メンバー情報の取得に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error loading guild members:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -309,7 +309,7 @@ function renderGuildMembers(members) {
  */
 export async function showGuildChat(playFabId) {
     if (!currentGuildInfo || !currentGuildInfo.guildId) {
-        alert('ギルド情報が取得できません');
+        showRpgMessage('ギルド情報が取得できません');
         return;
     }
 
@@ -324,11 +324,11 @@ export async function showGuildChat(playFabId) {
             // ポーリングを開始（5秒ごとに更新）
             startChatPolling(playFabId);
         } else {
-            alert('チャットメッセージの取得に失敗しました');
+            showRpgMessage('チャットメッセージの取得に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error loading guild chat:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -413,7 +413,7 @@ function startChatPolling(playFabId) {
  */
 export async function sendGuildChatMessage(playFabId) {
     if (!currentGuildInfo || !currentGuildInfo.guildId) {
-        alert('ギルド情報が取得できません');
+        showRpgMessage('ギルド情報が取得できません');
         return;
     }
 
@@ -437,11 +437,11 @@ export async function sendGuildChatMessage(playFabId) {
                 renderGuildChat(chatData.messages);
             }
         } else {
-            alert(data?.error || 'メッセージの送信に失敗しました');
+            showRpgMessage(data?.error || 'メッセージの送信に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error sending chat message:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -451,7 +451,7 @@ export async function sendGuildChatMessage(playFabId) {
  */
 export async function showGuildWarehouse(playFabId) {
     if (!currentGuildInfo || !currentGuildInfo.guildId) {
-        alert('ギルド情報が取得できません');
+        showRpgMessage('ギルド情報が取得できません');
         return;
     }
 
@@ -462,11 +462,11 @@ export async function showGuildWarehouse(playFabId) {
             renderGuildWarehouse(data.warehouse, data.treasury);
             document.getElementById('guildWarehouseModal').style.display = 'flex';
         } else {
-            alert('ギルド倉庫の取得に失敗しました');
+            showRpgMessage('ギルド倉庫の取得に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error loading guild warehouse:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -533,11 +533,11 @@ async function withdrawFromWarehouse(playFabId, warehouseIndex) {
             // 倉庫を再読み込み
             showGuildWarehouse(playFabId);
         } else {
-            alert(data?.error || 'アイテムの引き出しに失敗しました');
+            showRpgMessage(data?.error || 'アイテムの引き出しに失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error withdrawing from warehouse:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -547,7 +547,7 @@ async function withdrawFromWarehouse(playFabId, warehouseIndex) {
  */
 export async function showGuildApplications(playFabId) {
     if (!currentGuildInfo || !currentGuildInfo.guildId) {
-        alert('ギルド情報が取得できません');
+        showRpgMessage('ギルド情報が取得できません');
         return;
     }
 
@@ -558,11 +558,11 @@ export async function showGuildApplications(playFabId) {
             renderGuildApplications(data.applications, playFabId);
             document.getElementById('guildApplicationsModal').style.display = 'flex';
         } else {
-            alert('加入申請の取得に失敗しました');
+            showRpgMessage('加入申請の取得に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error loading guild applications:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -627,11 +627,11 @@ async function approveApplication(playFabId, applicantId) {
             // ギルド情報も再読み込み
             await loadGuildInfo(playFabId);
         } else {
-            alert(data?.error || '加入申請の承認に失敗しました');
+            showRpgMessage(data?.error || '加入申請の承認に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error approving application:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -656,11 +656,11 @@ async function rejectApplication(playFabId, applicantId) {
             // ギルド情報も再読み込み
             await loadGuildInfo(playFabId);
         } else {
-            alert(data?.error || '加入申請の拒否に失敗しました');
+            showRpgMessage(data?.error || '加入申請の拒否に失敗しました');
         }
     } catch (error) {
         console.error('[Guild] Error rejecting application:', error);
-        alert('エラーが発生しました');
+        showRpgMessage('エラーが発生しました');
     }
 }
 
@@ -673,6 +673,6 @@ function showMessage(message) {
     if (window.showMessage && typeof window.showMessage === 'function') {
         window.showMessage(message);
     } else {
-        alert(message);
+        showRpgMessage(message);
     }
 }

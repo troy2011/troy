@@ -8,6 +8,7 @@ import {
     sendNearbyChat,
     sendGlobalChat
 } from './playfabClient.js';
+import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 let activeChannel = 'global';
 let pollTimer = null;
@@ -106,7 +107,7 @@ async function sendMessage(playFabId, message) {
     if (activeChannel === 'guild') {
         const guildId = await getGuildId(playFabId);
         if (!guildId) {
-            alert('ギルドに所属していません');
+            showRpgMessage('ギルドに所属していません');
             return false;
         }
         const res = await sendGuildChat(playFabId, guildId, payload.message);

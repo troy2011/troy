@@ -658,12 +658,12 @@ function updateShipTypeDetails() {
 async function confirmCreateShip(playFabId) {
     if (shipCreateInFlight) return;
     if (!shipCreateContext || !shipCreateContext.islandId || !shipCreateContext.mapId) {
-        alert('首都でのみ新造船が可能です。');
+        showRpgMessage('首都でのみ新造船が可能です。');
         return;
     }
     const shipItemId = document.getElementById('shipTypeSelect').value;
     if (!shipItemId) {
-        alert('???????????????');
+        showRpgMessage('???????????????');
         return;
     }
     const spawnPosition = shipCreateContext?.spawnPosition || { x: 100, y: 100 };
@@ -676,7 +676,7 @@ async function confirmCreateShip(playFabId) {
         if (data) {
             document.getElementById('shipCreateModal').style.display = 'none';
             shipCreateContext = null;
-            alert(`Ship created: ${window.shipCatalog[shipItemId].DisplayName}`);
+            showRpgMessage(`Ship created: ${window.shipCatalog[shipItemId].DisplayName}`);
             try {
                 await Ship.setActiveShip(playFabId, data.shipId);
             } catch (e) {
@@ -762,14 +762,14 @@ async function stopShip(shipId) {
 
     const data = await Ship.stopShip(shipId);
     if (data) {
-        alert('船を停止しました');
+        showRpgMessage('船を停止しました');
         await Ship.displayPlayerShips(myPlayFabId);
     }
 }
 
 function startShipVoyageUI(shipId) {
     showTab('map', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
-    alert('Select a destination on the map to start the voyage.');
+    showRpgMessage('Select a destination on the map to start the voyage.');
 }
 
 

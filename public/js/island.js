@@ -1,4 +1,4 @@
-﻿// island.js - Island occupation/building client logic
+// island.js - Island occupation/building client logic
 import {
     detectIslandApproach as requestDetectIslandApproach,
     startIslandOccupation as requestStartIslandOccupation,
@@ -645,7 +645,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                     showBuildingMenu(refreshed, playFabId);
                 }
             } else if (result && result.error) {
-                alert(result.error);
+                showRpgMessage(result.error);
             }
         });
     }
@@ -676,7 +676,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             if (result && result.success) {
                 await loadShopPanels(sheet, island, shopConfig, playFabId);
             } else if (result?.error) {
-                alert(result.error);
+                showRpgMessage(result.error);
             }
         });
     }
@@ -741,7 +741,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             if (window.worldMapScene && typeof window.worldMapScene.damageBuildingOnIsland === 'function') {
                 await window.worldMapScene.damageBuildingOnIsland(island.id, 300);
             } else {
-                alert('攻撃機能は準備中です。');
+                showRpgMessage('攻撃機能は準備中です。');
             }
         });
     }
@@ -749,14 +749,14 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     const repairBtn = sheet.querySelector('#btnBuildingRepair');
     if (repairBtn) {
         repairBtn.addEventListener('click', () => {
-            alert('修理アクションは準備中です。');
+            showRpgMessage('修理アクションは準備中です。');
         });
     }
 
     const upgradeBuildingBtn = sheet.querySelector('#btnBuildingUpgrade');
     if (upgradeBuildingBtn) {
         upgradeBuildingBtn.addEventListener('click', () => {
-            alert('強化アクションは準備中です。');
+            showRpgMessage('強化アクションは準備中です。');
         });
     }
 
@@ -796,7 +796,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 await Player.getPlayerStats(playFabId);
                 await Player.getPoints(playFabId);
             } else if (result?.error) {
-                alert(result.error);
+                showRpgMessage(result.error);
             }
             hotSpringBtn.disabled = false;
         });
@@ -812,7 +812,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
                 showRpgMessage('温泉の価格を更新しました。');
                 priceInput.value = String(result.price || priceValue);
             } else if (result?.error) {
-                alert(result.error);
+                showRpgMessage(result.error);
             }
         });
     }
@@ -824,15 +824,15 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
             const amount = Number(input?.value || 0);
             if (!currency) return;
             if (!Number.isFinite(amount) || amount <= 0) {
-                alert('寄付額を入力してください。');
+                showRpgMessage('寄付額を入力してください。');
                 return;
             }
             const result = await requestDonateNationCurrency(playFabId, currency, amount);
             if (result && result.success) {
                 input.value = '0';
-                alert('寄付しました。');
+                showRpgMessage('寄付しました。');
             } else if (result?.error) {
-                alert(result.error);
+                showRpgMessage(result.error);
             }
         });
     });
@@ -1023,7 +1023,7 @@ async function handleBuildingConstruction(buildingId, island) {
         ? window.myPlayFabId
         : localStorage.getItem('playFabId');
     if (!playFabId) {
-        alert('プレイヤー情報がありません');
+        showRpgMessage('プレイヤー情報がありません');
         return;
     }
 
@@ -1148,7 +1148,7 @@ function getBuildingName(buildingId) {
 
 export async function requestConstructionHelp(islandId, buildingName) {
     if (typeof liff === 'undefined' || !liff.isLoggedIn()) {
-        alert('LINEログインが必要です');
+        showRpgMessage('LINEログインが必要です');
         return;
     }
 
@@ -1213,10 +1213,10 @@ export async function requestConstructionHelp(islandId, buildingName) {
         };
 
         await liff.shareTargetPicker([shareMessage]);
-        alert('ヘルプ依頼を送信しました');
+        showRpgMessage('ヘルプ依頼を送信しました');
     } catch (error) {
         console.error('[RequestConstructionHelp] Error:', error);
-        alert('共有に失敗しました');
+        showRpgMessage('共有に失敗しました');
     }
 }
 
