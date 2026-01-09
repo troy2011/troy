@@ -229,27 +229,27 @@ function showItemDetailModal(item) {
         const isTwoHanded = cd.sprite_w > 32 || cd.sprite_h > 32;
         if (isTwoHanded) {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">Remove</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">荳｡謇玖｣・ｙ</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">Equip 2H</button>`;
             }
         } else {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">右手を外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">Unequip R</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">蜿ｳ謇・/button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">Equip R</button>`;
             }
             if (isEquipped('LeftHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">左手を外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">Unequip L</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">蟾ｦ謇・/button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">Equip L</button>`;
             }
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">外す</button>';
+            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">Remove</button>';
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">陬・ｙ</button>`;
+            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">Equip</button>`;
         }
     } else if (cd.Category === 'Consumable') {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">つかう</button>`;
