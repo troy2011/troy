@@ -221,11 +221,13 @@ export function getResourceStatus(playFabId, islandId, mapId, options) {
 }
 
 export function collectResource(playFabId, islandId, mapId, options) {
-    return callApiWithLoader('/api/collect-resource', { playFabId, islandId, mapId }, options);
+    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    return callApiWithLoader('/api/collect-resource', { playFabId, islandId, mapId, entityKey }, options);
 }
 
 export function startBuildingConstruction(playFabId, islandId, buildingId, mapId, options, extra) {
-    const payload = { playFabId, islandId, buildingId, mapId, ...(extra || {}) };
+    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    const payload = { playFabId, islandId, buildingId, mapId, entityKey, ...(extra || {}) };
     return callApiWithLoader('/api/start-building-construction', payload, options);
 }
 

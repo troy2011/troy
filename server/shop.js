@@ -18,6 +18,13 @@ const {
 const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId } = require('./island');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 
+function normalizeEntityKey(input) {
+    const id = input?.Id || input?.id || null;
+    const type = input?.Type || input?.type || null;
+    if (!id || !type) return null;
+    return { Id: String(id), Type: String(type) };
+}
+
 // APIルートを初期化
 function initializeShopRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
@@ -245,6 +252,7 @@ function initializeShopRoutes(app, deps) {
     // 建設開始
     app.post('/api/start-building-construction', async (req, res) => {
         const { playFabId, islandId, buildingId, mapId } = req.body || {};
+        const requestEntity = normalizeEntityKey(req.body?.entityKey);
         if (!playFabId || !islandId || !buildingId) {
             return res.status(400).json({ error: 'playFabId, islandId, buildingId are required' });
         }
@@ -284,7 +292,7 @@ function initializeShopRoutes(app, deps) {
             costEntries = costEntries.filter(([, amount]) => Number(amount) > 0);
 
             if (costEntries.length > 0) {
-                const entityKey = await getEntityKeyForPlayFabId(playFabId);
+                const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);
                 const items = await getAllInventoryItems(entityKey);
                 const balances = getVirtualCurrencyMap(items);
 
@@ -298,7 +306,7 @@ function initializeShopRoutes(app, deps) {
                 }
 
                 for (const [currency, amount] of costEntries) {
-                    await subtractEconomyItem(playFabId, currency, Number(amount));
+                    await subtractEconomyItem(playFabId, currency, Number(amount), requestEntity);
                 }
             }
 

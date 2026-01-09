@@ -67,8 +67,9 @@ async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
 }
 
 async function addEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId } = deps;
-    const entityKey = await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride } = deps;
+    const requestEntity = normalizeEntityKey(entityKeyOverride);
+    const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
     await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),
@@ -78,8 +79,9 @@ async function addEconomyItem(playFabId, itemId, amount, deps) {
 }
 
 async function subtractEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId } = deps;
-    const entityKey = await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride } = deps;
+    const requestEntity = normalizeEntityKey(entityKeyOverride);
+    const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
     await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),

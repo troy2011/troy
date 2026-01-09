@@ -24,6 +24,13 @@ const RESOURCE_BIOME_CURRENCY = {
 };
 const OWNED_MAP_IDS_KEY = 'OwnedMapIds';
 
+function normalizeEntityKey(input) {
+    const id = input?.Id || input?.id || null;
+    const type = input?.Type || input?.type || null;
+    if (!id || !type) return null;
+    return { Id: String(id), Type: String(type) };
+}
+
 function normalizePriceAmounts(value) {
     if (Array.isArray(value)) return value;
     if (value && typeof value === 'object') {
@@ -458,6 +465,7 @@ function initializeIslandRoutes(app, deps) {
     // リソース収集
     app.post('/api/collect-resource', async (req, res) => {
         const { playFabId, islandId, mapId } = req.body || {};
+        const requestEntity = normalizeEntityKey(req.body?.entityKey);
         if (!playFabId || !islandId || !mapId) {
             return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
         }
@@ -503,7 +511,7 @@ function initializeIslandRoutes(app, deps) {
                 return { biome, currency, amount, capacity };
             });
 
-            await addEconomyItem(playFabId, result.currency, result.amount);
+            await addEconomyItem(playFabId, result.currency, result.amount, requestEntity);
             res.json({ success: true, ...result });
         } catch (error) {
             const code = error?.message || '';
@@ -524,6 +532,7 @@ function initializeIslandRoutes(app, deps) {
     // 温泉入浴
     app.post('/api/hot-spring-bath', async (req, res) => {
         const { playFabId, islandId, mapId } = req.body || {};
+        const requestEntity = normalizeEntityKey(req.body?.entityKey);
         if (!playFabId || !islandId || !mapId) {
             return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
         }
@@ -568,12 +577,12 @@ function initializeIslandRoutes(app, deps) {
                 return res.status(400).json({ error: 'HpAlreadyMax' });
             }
 
-            await subtractEconomyItem(playFabId, 'PS', price);
+            await subtractEconomyItem(playFabId, 'PS', price, requestEntity);
 
             const taxRateBps = await getNationTaxRateBps(nationValue || userNation, firestore, deps);
             const { tax, net } = applyTax(price, taxRateBps);
             if (ownerId && net > 0) {
-                await addEconomyItem(ownerId, 'PS', net);
+                await addEconomyItem(ownerId, 'PS', net, requestEntity);
             }
             if (tax > 0) {
                 await addNationTreasury(nationValue || userNation, tax, firestore, deps);

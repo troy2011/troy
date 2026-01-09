@@ -250,8 +250,8 @@ function createDependencies() {
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
         getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
         getVirtualCurrencyMap: economy.getVirtualCurrencyMap,
-        addEconomyItem: (playFabId, itemId, amount) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
-        subtractEconomyItem: (playFabId, itemId, amount) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
+        addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride }),
+        subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride }),
         getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
         applyTax: economy.applyTax,
         // nation関数
