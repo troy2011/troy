@@ -1027,12 +1027,17 @@ async function handleBuildingConstruction(buildingId, island) {
         return;
     }
 
-    const result = await startBuildingConstruction(playFabId, island.id, buildingId);
-
-    if (result && result.success) {
-        alert(result.message);
-        sheet.classList.remove('active');
-        setTimeout(() => sheet.remove(), 300);
+    try {
+        const result = await startBuildingConstruction(playFabId, island.id, buildingId);
+        if (result && result.success) {
+            if (result.message) showRpgMessage(result.message);
+            sheet.classList.remove('active');
+            setTimeout(() => sheet.remove(), 300);
+        }
+    } catch (error) {
+        const message = error?.message || '建設に失敗しました。';
+        showRpgMessage(message);
+        console.error('[handleBuildingConstruction] Error:', error);
     }
 }
 
