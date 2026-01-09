@@ -1,5 +1,7 @@
 // battle.js (v42 - 共通関数をexportsするように変更)
 require('dotenv').config();
+const economy = require('../economy');
+const { getEntityKeyFromPlayFabId } = require('../playfab');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -45,28 +47,8 @@ function getCurrencyBalanceFromItems(items, currencyId) {
     }, 0);
 }
 
-async function addEconomyItem(playFabId, itemId, amount) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    if (!entityKey?.Id || !entityKey?.Type) {
-        throw new Error('EntityKeyNotFound');
-    }
-    await _promisifyPlayFab(_PlayFabEconomy.AddInventoryItems, {
-        Entity: entityKey,
-        Item: { Id: itemId },
-        Amount: Number(amount)
-    });
-}
-
-async function subtractEconomyItem(playFabId, itemId, amount) {
-    const entityKey = await getEntityKeyForPlayFabId(playFabId);
-    if (!entityKey?.Id || !entityKey?.Type) {
-        throw new Error('EntityKeyNotFound');
-    }
-    await _promisifyPlayFab(_PlayFabEconomy.SubtractInventoryItems, {
-        Entity: entityKey,
-        Item: { Id: itemId },
-        Amount: Number(amount)
-    });
+function getEconomyDeps() {
+    return { promisifyPlayFab: _promisifyPlayFab, PlayFabEconomy: _PlayFabEconomy, getEntityKeyFromPlayFabId };
 }
 
 // ----------------------------------------------------
@@ -628,13 +610,13 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         }
 
         // 敗者から減算
-        await subtractEconomyItem(loserId, VIRTUAL_CURRENCY_CODE, pointsToSteal);
+        await economy.subtractEconomyItem(loserId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
 
 
 
         // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げる ★★★
-        await addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal);
-        await addEconomyItem(winnerId, 'BT', pointsToSteal);
+        await economy.addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
+        await economy.addEconomyItem(winnerId, 'BT', pointsToSteal, getEconomyDeps());
 
 
 
