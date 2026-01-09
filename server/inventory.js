@@ -1,7 +1,7 @@
 // server/inventory.js
 // インベントリ・装備関連のAPI
 
-const { ECONOMY_CURRENCY_IDS, getItemAmount } = require('./economy');
+const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
 
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
@@ -32,7 +32,7 @@ function initializeInventoryRoutes(app, deps) {
             const itemMap = new Map();
             items.forEach((item) => {
                 const itemId = item?.Id || item?.ItemId;
-                if (!itemId || ECONOMY_CURRENCY_IDS.has(itemId)) return;
+                if (!itemId || getCurrencyIdFromItem(item, catalogCache)) return;
                 const catalogData = catalogCache[itemId] || {};
                 const name = catalogData.DisplayName || catalogData.Title || itemId;
                 const amount = getItemAmount(item) || 1;

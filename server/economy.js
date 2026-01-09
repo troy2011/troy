@@ -49,20 +49,35 @@ function getItemAmount(item) {
     return Number(item?.Amount ?? item?.amount ?? 0) || 0;
 }
 
-function getVirtualCurrencyMap(items) {
+function getCurrencyIdFromItem(item, catalogCache) {
+    const itemId = item?.Id || item?.ItemId;
+    if (!itemId) return null;
+    if (ECONOMY_CURRENCY_IDS.has(itemId)) return itemId;
+    if (catalogCache) {
+        const entry = catalogCache[itemId];
+        const entryClass = String(entry?.ItemClass || '').toLowerCase();
+        if (entry && entryClass === 'currency') {
+            return entry?.FriendlyId || itemId;
+        }
+    }
+    return null;
+}
+
+function getVirtualCurrencyMap(items, options = {}) {
+    const catalogCache = options.catalogCache || null;
     const totals = {};
     (items || []).forEach((item) => {
-        const itemId = item?.Id || item?.ItemId;
-        if (!itemId || !ECONOMY_CURRENCY_IDS.has(itemId)) return;
-        totals[itemId] = (totals[itemId] || 0) + getItemAmount(item);
+        const currencyId = getCurrencyIdFromItem(item, catalogCache);
+        if (!currencyId) return;
+        totals[currencyId] = (totals[currencyId] || 0) + getItemAmount(item);
     });
     return totals;
 }
 
 async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
-    const { promisifyPlayFab, PlayFabEconomy } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, catalogCache } = deps;
     const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
-    const totals = getVirtualCurrencyMap(items);
+    const totals = getVirtualCurrencyMap(items, { catalogCache });
     return totals[currencyId] || 0;
 }
 
@@ -93,10 +108,10 @@ async function subtractEconomyItem(playFabId, itemId, amount, deps) {
 }
 
 async function getCurrencyBalance(playFabId, currencyId, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCache } = deps;
     const entityKey = await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
     const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
-    const totals = getVirtualCurrencyMap(items);
+    const totals = getVirtualCurrencyMap(items, { catalogCache });
     return totals[currencyId] || 0;
 }
 
@@ -112,7 +127,7 @@ function applyTax(amount, taxRateBps) {
 function initializeEconomyRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId } = deps;
 
-    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId };
+    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCache: deps.catalogCache };
 
     // ポイント取得
     app.post('/api/get-points', async (req, res) => {
@@ -291,6 +306,7 @@ module.exports = {
     getAllInventoryItems,
     getItemAmount,
     getVirtualCurrencyMap,
+    getCurrencyIdFromItem,
     addEconomyItem,
     subtractEconomyItem,
     getCurrencyBalance,

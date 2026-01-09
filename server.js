@@ -215,6 +215,7 @@ async function loadCatalogCache() {
             itemMap[item.Id] = {
                 ItemId: item.Id,
                 ItemClass: item.ContentType || item.Type,
+                FriendlyId: item.FriendlyId || null,
                 DisplayName: displayName,
                 Description: description,
                 PriceAmounts: normalizePriceAmounts(item),
@@ -272,10 +273,10 @@ function createDependencies() {
         // economy関数
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
         getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
-        getVirtualCurrencyMap: economy.getVirtualCurrencyMap,
+        getVirtualCurrencyMap: (items) => economy.getVirtualCurrencyMap(items, { catalogCache }),
         addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
         subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
-        getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
+        getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCache }),
         applyTax: economy.applyTax,
         // nation関数
         getNationTaxRateBps: (nation, fs, d) => require('./server/nation').getNationTaxRateBps(nation, fs || firestore, d || createDependencies()),
