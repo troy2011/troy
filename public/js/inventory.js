@@ -229,34 +229,35 @@ function showItemDetailModal(item) {
         const isTwoHanded = cd.sprite_w > 32 || cd.sprite_h > 32;
         if (isTwoHanded) {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">両手装備</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">\u4e21\u624b\u88c5\u5099</button>`;
             }
         } else {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">右手を外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u53f3\u624b\u3092\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">右手装備</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">\u53f3\u624b\u88c5\u5099</button>`;
             }
             if (isEquipped('LeftHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">左手を外す</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">\u5de6\u624b\u3092\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">左手装備</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">\u5de6\u624b\u88c5\u5099</button>`;
             }
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">外す</button>';
+            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">\u5916\u3059</button>';
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">装備</button>`;
+            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">\u88c5\u5099</button>`;
         }
     } else if (cd.Category === 'Consumable') {
-        buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">つかう</button>`;
+        buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;
+    }
     }
 
     if (cd.SellPrice > 0) {
-        buttonsEl.innerHTML += `<button style="background: #a0aec0;" onclick="window.showSellConfirmationModal('${instanceId}', '${item.itemId}')">売る</button>`;
+        buttonsEl.innerHTML += `<button style="background: #a0aec0;" onclick="window.showSellConfirmationModal('${instanceId}', '${item.itemId}')">\u58f2\u5374</button>`;
     }
 
     modal.style.display = 'flex';
