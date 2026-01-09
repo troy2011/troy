@@ -2,8 +2,8 @@
 
 import {
     getInventory as fetchInventory,
-    get??ment as fetch??ment,
-    equipItem as request??Item,
+    getEquipment as fetchEquipment,
+    equipItem as requestEquipItem,
     useItem as requestUseItem,
     sellItem as requestSellItem
 } from './playfabClient.js';
@@ -11,7 +11,7 @@ import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
 
 let myInventory = [];
-let myCurrent??ment = {};
+let myCurrentEquipment = {};
 let myVirtualCurrency = {};
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
@@ -20,8 +20,8 @@ export function getMyInventory() {
     return myInventory;
 }
 
-export function getMyCurrent??ment() {
-    return myCurrent??ment;
+export function getMyCurrentEquipment() {
+    return myCurrentEquipment;
 }
 
 function renderResourceSummary() {
@@ -54,7 +54,7 @@ export async function getInventory(playFabId) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
     }
-    await get??ment(playFabId);
+    await getEquipment(playFabId);
     renderInventoryGrid('All');
     renderResourceSummary();
     lastInventoryFetchAt = Date.now();
@@ -77,16 +77,16 @@ export async function refreshResourceSummary(playFabId) {
     }
 }
 
-export async function get??ment(playFabId) {
-    const data = await fetch??ment(playFabId);
+export async function getEquipment(playFabId) {
+    const data = await fetchEquipment(playFabId);
     if (data?.equipment) {
-        myCurrent??ment = data.equipment;
+        myCurrentEquipment = data.equipment;
     }
-    update??mentAndAvatarDisplay();
+    updateEquipmentAndAvatarDisplay();
 }
 
 export async function equipItem(playFabId, itemId, slot) {
-    const data = await request??Item(playFabId, itemId, slot);
+    const data = await requestEquipItem(playFabId, itemId, slot);
     if (data !== null) {
         await getInventory(playFabId); // インベントリと装備を再取得して表示を更新
         // アイテム詳細モーダルを閉じる
@@ -171,7 +171,7 @@ export function renderInventoryGrid(category) {
             countSpan.innerText = `x${item.count}`;
             cell.appendChild(countSpan);
         }
-        if (Object.values(myCurrent??ment).includes(instanceId)) {
+        if (Object.values(myCurrentEquipment).includes(instanceId)) {
             const equippedSpan = document.createElement('span');
             equippedSpan.className = 'inventory-item-equipped-mark';
             equippedSpan.innerText = 'E';
@@ -285,17 +285,17 @@ export function showSellConfirmationModal(itemInstanceId, itemId) {
     newCancelBtn.onclick = () => { modal.style.display = 'none'; };
 }
 
-function update??mentAndAvatarDisplay() {
-    // ??E??? get??ment ??????
-    // ??????????? main.js ????????E
-    renderAvatar('avatar', window.myAvatarBaseInfo, myCurrent??ment, myInventory, false);
-    renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrent??ment, myInventory, false);
-    update??mentBonusDisplay();
+function updateEquipmentAndAvatarDisplay() {
+    // Update avatar visuals after equipment change.
+    // Re-render avatar after inventory refresh.
+    renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+    updateEquipmentBonusDisplay();
     renderResourceSummary();
 }
 
-function update??mentBonusDisplay() {
-    const bonuses = get??mentBonuses();
+function updateEquipmentBonusDisplay() {
+    const bonuses = getEquipmentBonuses();
     setBonusValue('currentStrBonus', bonuses.str);
     setBonusValue('currentDefBonus', bonuses.def);
     setBonusValue('currentAgiBonus', bonuses.agi);
@@ -310,9 +310,9 @@ function setBonusValue(elementId, value) {
     el.classList.toggle('is-zero', displayValue === 0);
 }
 
-function get??mentBonuses() {
+function getEquipmentBonuses() {
     const bonuses = { str: 0, def: 0, agi: 0, int: 0 };
-    const equippedIds = Object.values(myCurrent??ment || {}).filter(Boolean);
+    const equippedIds = Object.values(myCurrentEquipment || {}).filter(Boolean);
 
     equippedIds.forEach((instanceId) => {
         const item = myInventory.find(i => i.instances && i.instances.includes(instanceId));
