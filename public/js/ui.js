@@ -431,10 +431,8 @@ export async function showTab(tabId, playerInfo, options = {}) {
                             if (window.__pendingFirstMapNav?.islandId) {
                                 const targetId = window.__pendingFirstMapNav.islandId;
                                 if (typeof scene.setNavigationTarget === 'function') {
-                                    const setOk = scene.setNavigationTarget(targetId);
-                                    if (setOk) {
-                                        window.__pendingFirstMapNav = null;
-                                    }
+                                    scene.setNavigationTarget(targetId);
+                                    window.__pendingFirstMapNav = null;
                                 }
                             }
                         }
@@ -492,10 +490,8 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 if (window.__pendingFirstMapNav?.islandId) {
                     const targetId = window.__pendingFirstMapNav.islandId;
                     if (typeof scene.setNavigationTarget === 'function') {
-                        const setOk = scene.setNavigationTarget(targetId);
-                        if (setOk) {
-                            window.__pendingFirstMapNav = null;
-                        }
+                        scene.setNavigationTarget(targetId);
+                        window.__pendingFirstMapNav = null;
                     }
                 }
             }
