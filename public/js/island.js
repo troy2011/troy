@@ -434,7 +434,7 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
                 ` : ''}
 
-                ${(hasBuilding && !isHarvestable && island.occupationStatus !== 'demolished' && island.occupationStatus !== 'capital' && island.occupationStatus !== 'sacred') ? `
+                ${(hasBuilding && !isHarvestable && (isOwner || isEnemyNation) && island.occupationStatus !== 'demolished' && island.occupationStatus !== 'capital' && island.occupationStatus !== 'sacred') ? `
                 <div class="demolish-section">
                     <button class="btn-demolish" id="btnDemolish">
                         この島を解体する
