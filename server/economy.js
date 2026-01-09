@@ -67,25 +67,27 @@ async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
 }
 
 async function addEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId } = deps;
     const requestEntity = normalizeEntityKey(entityKeyOverride);
     const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+    const resolvedItemId = typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId;
     await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: itemId }
+        Item: { Id: resolvedItemId }
     });
     return entityKey;
 }
 
 async function subtractEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId } = deps;
     const requestEntity = normalizeEntityKey(entityKeyOverride);
     const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+    const resolvedItemId = typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId;
     await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: itemId }
+        Item: { Id: resolvedItemId }
     });
     return entityKey;
 }

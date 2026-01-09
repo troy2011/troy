@@ -98,6 +98,7 @@ app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
 
 // カタログキャッシュ
 let catalogCache = {};
+let catalogAliasMap = {};
 
 function normalizeEntityKey(raw) {
     if (!raw || typeof raw !== 'object') return null;
@@ -184,6 +185,7 @@ async function loadCatalogCache() {
         };
 
         const itemMap = {};
+        const aliasMap = {};
         items.forEach((item) => {
             let customData = {};
             const displayProps = item?.DisplayProperties ?? item?.CustomData ?? null;
@@ -218,9 +220,24 @@ async function loadCatalogCache() {
                 PriceAmounts: normalizePriceAmounts(item),
                 ...customData
             };
+
+            const aliases = new Set();
+            if (item?.Id) aliases.add(String(item.Id));
+            if (item?.FriendlyId) aliases.add(String(item.FriendlyId));
+            if (Array.isArray(item?.AlternateIds)) {
+                item.AlternateIds.forEach((entry) => {
+                    if (entry?.Value) aliases.add(String(entry.Value));
+                });
+            }
+            aliases.forEach((alias) => {
+                if (alias && !aliasMap[alias]) {
+                    aliasMap[alias] = item.Id;
+                }
+            });
         });
 
         catalogCache = itemMap;
+        catalogAliasMap = aliasMap;
         console.log(`[カタログ] 読み込み完了: ${Object.keys(catalogCache).length} 件のアイテムをキャッシュしました。`);
         const shipCount = Object.values(catalogCache).filter(i => i.ItemClass === 'Ship').length;
         console.log(`[カタログ] 内訳確認: Ship = ${shipCount} 件`);
@@ -228,6 +245,12 @@ async function loadCatalogCache() {
         console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
         process.exit(1);
     }
+}
+
+function resolveCatalogItemId(itemId) {
+    if (!itemId) return itemId;
+    const key = String(itemId);
+    return catalogAliasMap[key] || itemId;
 }
 
 // 依存関係オブジェクト
@@ -250,8 +273,8 @@ function createDependencies() {
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
         getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
         getVirtualCurrencyMap: economy.getVirtualCurrencyMap,
-        addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride }),
-        subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride }),
+        addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
+        subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
         getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId }),
         applyTax: economy.applyTax,
         // nation関数
