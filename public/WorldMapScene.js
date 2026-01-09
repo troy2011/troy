@@ -2562,6 +2562,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const hasBuilding = Array.isArray(islandData.buildings)
             ? islandData.buildings.some(b => b && b.status !== 'demolished')
             : false;
+        const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const islandNation = String(islandData.ownerNation || islandData.nation || biomeId || '').toLowerCase();
+        const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
+        const isUnoccupied = !islandData.ownerId;
+        const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
         let buttonText = `${menuLabel}を開く`;
@@ -2579,11 +2584,17 @@ export default class WorldMapScene extends Phaser.Scene {
             buttonClass = 'disabled';
             onClick = () => this.showMessage('このエリアは占領されていません。');
         } else if (!isOwner) {
-            buttonText = `建築して占領する`;
-            buttonClass = 'warning';
-            onClick = async () => {
-                await this.openBuildingMenuForIsland(islandData);
-            };
+            if (canBuildToOccupy) {
+                buttonText = '建築して占領する';
+                buttonClass = 'warning';
+                onClick = async () => {
+                    await this.openBuildingMenuForIsland(islandData);
+                };
+            } else {
+                buttonText = '占領不可';
+                buttonClass = 'disabled';
+                onClick = () => this.showMessage('この島は建築して占領できません。');
+            }
         }
 
         actionBtn.textContent = buttonText;
