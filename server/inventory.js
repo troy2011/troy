@@ -53,7 +53,13 @@ function initializeInventoryRoutes(app, deps) {
             });
             const inventoryList = Array.from(itemMap.values());
             const virtualCurrency = getVirtualCurrencyMap(items);
-            console.log('[インベントリ取得] 取得完了');
+            const currencyKeys = Object.keys(virtualCurrency || {});
+            console.log('[Inventory] currency summary', {
+                playFabId,
+                currencyKeys,
+                virtualCurrency
+            });
+            console.log('[Inventory] fetch complete');
             res.json({ inventory: inventoryList, virtualCurrency });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
