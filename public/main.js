@@ -379,8 +379,10 @@ function showRaceModal() {
         raceButtonsContainer.removeEventListener('click', handleRaceSelection);
 
         const raceName = event.target.dataset.race;
-        document.getElementById('raceMessage').innerText = '（初期ステータスを設定中...）';
+        const raceMessageEl = document.getElementById('raceMessage');
+        if (raceMessageEl) raceMessageEl.innerText = '（国グループを準備中...）';
         const groupInfo = await ensureNationGroupForRace(raceName);
+        if (raceMessageEl) raceMessageEl.innerText = '（初期ステータスを設定中...）';
         const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
         if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
         const displayName = (document.getElementById('raceDisplayNameInput')?.value || '').trim();
@@ -392,6 +394,7 @@ function showRaceModal() {
             entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || ''
         });
+        if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
         if (data !== null) {
             document.getElementById('raceModal').style.display = 'none';
             if (displayName) {
