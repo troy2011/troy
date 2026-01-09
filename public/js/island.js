@@ -114,13 +114,23 @@ function formatMs(ms) {
 }
 
 async function getResourceStatus(playFabId, islandId) {
-    const response = await fetchResourceStatus(playFabId, islandId, window.__currentMapId || null, { isSilent: true });
+    const mapId = window.__currentMapId || null;
+    if (!mapId) {
+        showRpgMessage('マップ情報が読み込めませんでした。再読み込みしてください。');
+        return null;
+    }
+    const response = await fetchResourceStatus(playFabId, islandId, mapId, { isSilent: true });
     if (response && response.success) return response;
     return null;
 }
 
 async function collectResource(playFabId, islandId) {
-    const response = await requestCollectResource(playFabId, islandId, window.__currentMapId || null);
+    const mapId = window.__currentMapId || null;
+    if (!mapId) {
+        showRpgMessage('マップ情報が読み込めませんでした。再読み込みしてください。');
+        return null;
+    }
+    const response = await requestCollectResource(playFabId, islandId, mapId);
     return response;
 }
 
@@ -138,11 +148,11 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId,
     if (response && response.success) {
         if (response.building?.status === 'completed') {
             showCompletionNotification(islandId);
+            showRpgMessage(rpgSay.buildCompleted());
         } else {
             startConstructionTimer(islandId, response.building.completionTime);
+            showRpgMessage(rpgSay.buildStarted(response.building?.displayName || response.building?.buildingName || buildingId));
         }
-        const name = response.building?.displayName || response.building?.buildingName || buildingId;
-        showRpgMessage(rpgSay.buildStarted(name));
     }
 
     return response;
@@ -346,6 +356,12 @@ export function showBuildingMenu(island, playFabId) {
         const buildBtn = sheet.querySelector('#btnBuildMyHouse');
         if (buildBtn) {
             buildBtn.addEventListener('click', async () => {
+                if (!playFabId) {
+                    showRpgMessage('建設を行うにはログインが必要です。');
+                    return;
+                }
+                buildBtn.disabled = true;
+                buildBtn.textContent = '処理中...';
                 const result = await startBuildingConstruction(playFabId, island.id, 'my_house', { tutorial: true });
                 if (result && result.success) {
                     if (typeof localStorage !== 'undefined') {
@@ -359,6 +375,9 @@ export function showBuildingMenu(island, playFabId) {
                     }
                     const refreshed = await getIslandDetails(island.id);
                     if (refreshed) showBuildingMenu(refreshed, playFabId);
+                } else {
+                    buildBtn.disabled = false;
+                    buildBtn.textContent = 'マイハウスを建てる';
                 }
             });
         }
