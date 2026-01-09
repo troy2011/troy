@@ -48,14 +48,8 @@ export async function getInventory(playFabId) {
     if (inventoryFetchPromise) return inventoryFetchPromise;
     if (now - lastInventoryFetchAt < 1500) return;
     inventoryFetchPromise = (async () => {
-    console.info('[Inventory] getInventory start', { playFabId });
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
     const data = await fetchInventory(playFabId);
-    console.info('[Inventory] getInventory response', {
-        hasData: !!data,
-        inventoryCount: Array.isArray(data?.inventory) ? data.inventory.length : 0,
-        currencyKeys: data?.virtualCurrency ? Object.keys(data.virtualCurrency) : []
-    });
     if (data) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
@@ -75,12 +69,7 @@ export async function getInventory(playFabId) {
 export async function refreshResourceSummary(playFabId) {
     const now = Date.now();
     if (now - lastInventoryFetchAt < 1500) return;
-    console.info('[Inventory] refreshResourceSummary', { playFabId });
     const data = await fetchInventory(playFabId);
-    console.info('[Inventory] refreshResourceSummary response', {
-        hasData: !!data,
-        currencyKeys: data?.virtualCurrency ? Object.keys(data.virtualCurrency) : []
-    });
     if (data) {
         myVirtualCurrency = data.virtualCurrency || {};
         renderResourceSummary();
