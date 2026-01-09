@@ -326,17 +326,6 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const islandName = `${displayName || 'Player'}の島`;
     const docRef = worldMap.doc();
     const islandLevel = 1;
-    const houseId = 'my_house';
-    const houseSpec = building.getBuildingSpec(houseId, islandLevel);
-    const houseLogic = houseSpec ? building.normalizeSize(houseSpec.SizeLogic, building.inferLogicSizeFromSlotsRequired(houseSpec.SlotsRequired)) : { x: 1, y: 1 };
-    const houseVisual = houseSpec ? building.normalizeSize(houseSpec.SizeVisual, houseLogic) : houseLogic;
-    const houseTileIndex = houseSpec?.TileIndex != null ? Number(houseSpec.TileIndex) : 17;
-    const houseW = Math.max(1, Math.trunc(Number(houseLogic.x)));
-    const houseH = Math.max(1, Math.trunc(Number(houseLogic.y)));
-    const houseVW = Math.max(1, Math.trunc(Number(houseVisual.x)));
-    const houseVH = Math.max(1, Math.trunc(Number(houseVisual.y)));
-    const houseMaxHp = building.computeMaxHp(houseW, houseH, islandLevel);
-
     const islandData = {
         id: docRef.id,
         coordinate: { x: chosen.x, y: chosen.y },
@@ -348,24 +337,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         biome: nationIsland || null,
         biomeFrame: chosenBiomeFrame,
         buildingSlots: { layout: '1x1' },
-        buildings: [{
-            buildingId: houseId,
-            status: 'completed',
-            level: islandLevel,
-            startTime: Date.now(),
-            completionTime: Date.now(),
-            durationMs: 0,
-            helpers: [],
-            width: houseW,
-            height: houseH,
-            visualWidth: houseVW,
-            visualHeight: houseVH,
-            tileIndex: houseTileIndex,
-            maxHp: houseMaxHp,
-            currentHp: houseMaxHp,
-            x: 0,
-            y: 0
-        }]
+        buildings: []
     };
 
     await docRef.set(islandData);
