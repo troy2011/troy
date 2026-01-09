@@ -497,10 +497,18 @@ async function ensureStarterShip({ playFabId, respawnPosition }) {
 }
 
 // スターターアセット
-async function provisionStarterAssets({ playFabId }) {
+async function provisionStarterAssets({ playFabId, entityKey }) {
     const deps = createDependencies();
     try {
-        await deps.addEconomyItem(playFabId, 'ship_common_boat', 1);
+        if (entityKey?.Id && entityKey?.Type) {
+            await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, {
+                Entity: { Id: entityKey.Id, Type: entityKey.Type },
+                Item: { Id: 'ship_common_boat' },
+                Amount: 1
+            });
+        } else {
+            await deps.addEconomyItem(playFabId, 'ship_common_boat', 1);
+        }
         return { granted: ['ship_common_boat'] };
     } catch (error) {
         console.warn('[starterAssets] Failed to grant ship_common_boat:', error?.errorMessage || error?.message || error);
@@ -576,7 +584,10 @@ app.post('/api/login-playfab', async (req, res) => {
 
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
-    const { playFabId, raceName, displayName, isKing: isKingRequest, entityKey } = req.body || {};
+        const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
+        const entityKey = req.body?.entityKey && req.body.entityKey.Id && req.body.entityKey.Type
+            ? { Id: String(req.body.entityKey.Id), Type: String(req.body.entityKey.Type) }
+            : null;
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -720,7 +731,7 @@ app.post('/api/set-race', async (req, res) => {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
         }
 
-        const starterAssets = await provisionStarterAssets({ playFabId });
+        const starterAssets = await provisionStarterAssets({ playFabId, entityKey });
 
         try {
             await ensureStarterShip({

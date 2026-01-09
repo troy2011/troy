@@ -68,7 +68,8 @@ export function sellItem(playFabId, itemInstanceId, itemId, options) {
 }
 
 export function getGuildInfo(playFabId, entityKey, options) {
-    return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey }, options);
+    const resolvedEntityKey = entityKey || window.myPlayFabLoginInfo?.entityKey || null;
+    return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);
 }
 
 export function createGuild(playFabId, guildName, options) {

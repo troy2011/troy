@@ -13,6 +13,8 @@ import * as Player from './player.js';
 let myInventory = [];
 let myCurrentEquipment = {};
 let myVirtualCurrency = {};
+let lastInventoryFetchAt = 0;
+let inventoryFetchPromise = null;
 
 export function getMyInventory() {
     return myInventory;
@@ -42,6 +44,10 @@ function renderResourceSummary() {
 }
 
 export async function getInventory(playFabId) {
+    const now = Date.now();
+    if (inventoryFetchPromise) return inventoryFetchPromise;
+    if (now - lastInventoryFetchAt < 1500) return;
+    inventoryFetchPromise = (async () => {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
     const data = await fetchInventory(playFabId);
     if (data) {
@@ -51,13 +57,23 @@ export async function getInventory(playFabId) {
     await getEquipment(playFabId);
     renderInventoryGrid('All');
     renderResourceSummary();
+    lastInventoryFetchAt = Date.now();
+    })();
+    try {
+        return await inventoryFetchPromise;
+    } finally {
+        inventoryFetchPromise = null;
+    }
 }
 
 export async function refreshResourceSummary(playFabId) {
+    const now = Date.now();
+    if (now - lastInventoryFetchAt < 1500) return;
     const data = await fetchInventory(playFabId);
     if (data) {
         myVirtualCurrency = data.virtualCurrency || {};
         renderResourceSummary();
+        lastInventoryFetchAt = Date.now();
     }
 }
 
