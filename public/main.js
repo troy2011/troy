@@ -27,6 +27,8 @@ let playFabLoginInProgress = false;
 let playFabLoginDone = false;
 let playFabLoginPromise = null;
 let lastFirebaseUid = null;
+let initializeAppPromise = null;
+let raceSelectionBound = false;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -192,7 +194,9 @@ async function initializeLiff() {
 }
 
 async function initializeAppFeatures() {
-    console.log('[initializeAppFeatures] Starting initialization...');
+    if (initializeAppPromise) return initializeAppPromise;
+    initializeAppPromise = (async () => {
+        console.log('[initializeAppFeatures] Starting initialization...');
 
     // --- UI event bindings ---
     document.getElementById('btnGetStats').addEventListener('click', () => Player.getPlayerStats(myPlayFabId));
@@ -331,7 +335,14 @@ async function initializeAppFeatures() {
         console.warn('[initializeAppFeatures] initializeBattleSystem not found');
     }
 
-    console.log('[initializeAppFeatures] Initialization complete (async tasks running).');
+        console.log('[initializeAppFeatures] Initialization complete (async tasks running).');
+    })();
+    try {
+        return await initializeAppPromise;
+    } catch (error) {
+        initializeAppPromise = null;
+        throw error;
+    }
 }
 
 // --- UI制御系 ---
@@ -435,7 +446,16 @@ function showRaceModal() {
     };
 
     const raceButtonsContainer = document.getElementById('raceModal').querySelector('div[style*="grid"]');
-    raceButtonsContainer.addEventListener('click', handleRaceSelection);
+    if (!raceSelectionBound) {
+        raceSelectionBound = true;
+        raceButtonsContainer.addEventListener('click', async (event) => {
+            try {
+                await handleRaceSelection(event);
+            } finally {
+                raceSelectionBound = false;
+            }
+        }, { once: true });
+    }
 }
 
 // --- アバター表示ロジック ---
