@@ -8,6 +8,7 @@
  * @returns {Promise<object|null>} APIからのレスポンスデータ、またはエラー時にnull
  */
 export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {}) {
+    options = options || {};
     const spinner = document.getElementById('loadingSpinner');
     if (spinner && !options.isSilent) spinner.style.display = 'flex';
 
