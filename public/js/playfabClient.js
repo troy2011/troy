@@ -22,7 +22,8 @@ export function getPlayerStats(playFabId, options) {
 }
 
 export function getPoints(playFabId, options) {
-    return callApiWithLoader('/api/get-points', { playFabId }, options);
+    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    return callApiWithLoader('/api/get-points', { playFabId, entityKey }, options);
 }
 
 export function addPoints(playFabId, amount, options) {
@@ -46,7 +47,8 @@ export function getNationTreasuryRanking(options) {
 }
 
 export function getInventory(playFabId, options) {
-    return callApiWithLoader('/api/get-inventory', { playFabId }, options);
+    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options);
 }
 
 export function getEquipment(playFabId, options) {

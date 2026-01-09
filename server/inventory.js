@@ -9,6 +9,13 @@ const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 
+function normalizeEntityKey(input) {
+    const id = input?.Id || input?.id || null;
+    const type = input?.Type || input?.type || null;
+    if (!id || !type) return null;
+    return { Id: String(id), Type: String(type) };
+}
+
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance } = deps;
@@ -16,10 +23,11 @@ function initializeInventoryRoutes(app, deps) {
     // インベントリ取得
     app.post('/api/get-inventory', async (req, res) => {
         const { playFabId } = req.body;
+        const requestEntity = normalizeEntityKey(req.body.entityKey);
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
-            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const itemMap = new Map();
             items.forEach((item) => {

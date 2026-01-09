@@ -14,6 +14,13 @@ const ECONOMY_CURRENCY_IDS = new Set([
     'RS'
 ]);
 
+function normalizeEntityKey(input) {
+    const id = input?.Id || input?.id || null;
+    const type = input?.Type || input?.type || null;
+    if (!id || !type) return null;
+    return { Id: String(id), Type: String(type) };
+}
+
 async function getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }) {
     const entityKey = await getEntityKeyFromPlayFabId(playFabId);
     if (!entityKey?.Id || !entityKey?.Type) {
@@ -50,6 +57,13 @@ function getVirtualCurrencyMap(items) {
         totals[itemId] = (totals[itemId] || 0) + getItemAmount(item);
     });
     return totals;
+}
+
+async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
+    const { promisifyPlayFab, PlayFabEconomy } = deps;
+    const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
+    const totals = getVirtualCurrencyMap(items);
+    return totals[currencyId] || 0;
 }
 
 async function addEconomyItem(playFabId, itemId, amount, deps) {
@@ -99,9 +113,12 @@ function initializeEconomyRoutes(app, deps) {
     // ポイント取得
     app.post('/api/get-points', async (req, res) => {
         const playFabId = req.body.playFabId;
+        const requestEntity = normalizeEntityKey(req.body.entityKey);
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         try {
-            const points = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
+            const points = requestEntity
+                ? await getCurrencyBalanceWithEntity(requestEntity, VIRTUAL_CURRENCY_CODE, economyDeps)
+                : await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
             res.json({ points });
         } catch (error) {
             res.status(500).json({
