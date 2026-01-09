@@ -458,51 +458,64 @@ function initializeIslandRoutes(app, deps) {
     // リソース収集
     app.post('/api/collect-resource', async (req, res) => {
         const { playFabId, islandId, mapId } = req.body || {};
-        if (!playFabId || !islandId) return res.status(400).json({ error: 'playFabId and islandId are required' });
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
 
         try {
-            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-            const snap = await ref.get();
-            if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
-
-            const data = snap.data() || {};
-            const biome = data.biome;
-            const currency = RESOURCE_BIOME_CURRENCY[biome];
-            if (!currency) return res.status(400).json({ error: 'Island not harvestable' });
-
             const capacity = await getActiveShipCargoCapacity(playFabId, islandDeps);
             if (!capacity || capacity <= 0) {
-                return res.status(400).json({ error: 'Cargo capacity is zero' });
+                return res.json({ success: false, amount: 0, message: 'Cargo capacity is zero' });
             }
 
-            const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
-            const harvestSnap = await harvestRef.get();
-            const now = Date.now();
-            let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
-            if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
-                lastCollectedAt = lastCollectedAt.toMillis();
-            }
-            if (!Number.isFinite(lastCollectedAt)) {
-                lastCollectedAt = now - RESOURCE_INTERVAL_MS;
-            }
+            const result = await firestore.runTransaction(async (tx) => {
+                const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+                const snap = await tx.get(ref);
+                if (!snap.exists) throw new Error('IslandNotFound');
 
-            const elapsed = Math.max(0, now - lastCollectedAt);
-            const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
-            const amount = Math.min(units, capacity);
+                const data = snap.data() || {};
+                const biome = data.biome;
+                const currency = RESOURCE_BIOME_CURRENCY[biome];
+                if (!currency) throw new Error('IslandNotHarvestable');
 
-            if (amount <= 0) {
-                return res.status(400).json({ error: 'Nothing to collect' });
-            }
+                const harvestRef = ref.collection('resourceHarvest').doc(playFabId);
+                const harvestSnap = await tx.get(harvestRef);
+                const now = Date.now();
+                let lastCollectedAt = harvestSnap.exists ? harvestSnap.data()?.lastCollectedAt : null;
+                if (lastCollectedAt && typeof lastCollectedAt.toMillis === 'function') {
+                    lastCollectedAt = lastCollectedAt.toMillis();
+                }
+                if (!Number.isFinite(lastCollectedAt)) {
+                    lastCollectedAt = now;
+                }
 
-            await addEconomyItem(playFabId, currency, amount);
+                const elapsed = Math.max(0, now - lastCollectedAt);
+                const units = Math.floor(elapsed / RESOURCE_INTERVAL_MS);
+                const amount = Math.min(units, capacity);
+                if (amount <= 0) {
+                    throw new Error('NothingToCollect');
+                }
 
-            const newLast = lastCollectedAt + amount * RESOURCE_INTERVAL_MS;
-            await harvestRef.set({
-                lastCollectedAt: new Date(now)
-            }, { merge: true });
+                const remainderTime = elapsed % RESOURCE_INTERVAL_MS;
+                const newLastTime = now - remainderTime;
+                tx.set(harvestRef, { lastCollectedAt: new Date(newLastTime) }, { merge: true });
 
-            res.json({ success: true, biome, currency, amount, capacity });
+                return { biome, currency, amount, capacity };
+            });
+
+            await addEconomyItem(playFabId, result.currency, result.amount);
+            res.json({ success: true, ...result });
         } catch (error) {
+            const code = error?.message || '';
+            if (code === 'NothingToCollect') {
+                return res.json({ success: false, amount: 0, message: 'Nothing to collect yet' });
+            }
+            if (code === 'IslandNotFound') {
+                return res.status(404).json({ error: 'Island not found' });
+            }
+            if (code === 'IslandNotHarvestable') {
+                return res.status(400).json({ error: 'Island not harvestable' });
+            }
             console.error('[CollectResource] Error:', error);
             res.status(500).json({ error: 'Failed to collect resource', details: error.message });
         }
