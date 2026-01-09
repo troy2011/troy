@@ -60,7 +60,13 @@ async function getEntityKeyFromPlayFabId(playFabId) {
         PlayFabId: playFabId,
         ProfileConstraints: { ShowEntity: true }
     });
-    return result?.PlayerProfile?.Entity || null;
+    const entity = result?.PlayerProfile?.Entity || null;
+    if (entity?.Id && entity?.Type) return entity;
+    const legacyId = result?.PlayerProfile?.EntityId || null;
+    const legacyType = result?.PlayerProfile?.EntityType || null;
+    if (legacyId && legacyType) return { Id: legacyId, Type: legacyType };
+    console.warn('[getEntityKeyFromPlayFabId] Entity not found in profile:', playFabId);
+    return null;
 }
 
 module.exports = {
