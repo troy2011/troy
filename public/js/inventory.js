@@ -2,8 +2,8 @@
 
 import {
     getInventory as fetchInventory,
-    getEquipment as fetchEquipment,
-    equipItem as requestEquipItem,
+    get??ment as fetch??ment,
+    equipItem as request??Item,
     useItem as requestUseItem,
     sellItem as requestSellItem
 } from './playfabClient.js';
@@ -11,7 +11,7 @@ import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
 
 let myInventory = [];
-let myCurrentEquipment = {};
+let myCurrent??ment = {};
 let myVirtualCurrency = {};
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
@@ -20,8 +20,8 @@ export function getMyInventory() {
     return myInventory;
 }
 
-export function getMyCurrentEquipment() {
-    return myCurrentEquipment;
+export function getMyCurrent??ment() {
+    return myCurrent??ment;
 }
 
 function renderResourceSummary() {
@@ -54,7 +54,7 @@ export async function getInventory(playFabId) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
     }
-    await getEquipment(playFabId);
+    await get??ment(playFabId);
     renderInventoryGrid('All');
     renderResourceSummary();
     lastInventoryFetchAt = Date.now();
@@ -77,16 +77,16 @@ export async function refreshResourceSummary(playFabId) {
     }
 }
 
-export async function getEquipment(playFabId) {
-    const data = await fetchEquipment(playFabId);
+export async function get??ment(playFabId) {
+    const data = await fetch??ment(playFabId);
     if (data?.equipment) {
-        myCurrentEquipment = data.equipment;
+        myCurrent??ment = data.equipment;
     }
-    updateEquipmentAndAvatarDisplay();
+    update??mentAndAvatarDisplay();
 }
 
 export async function equipItem(playFabId, itemId, slot) {
-    const data = await requestEquipItem(playFabId, itemId, slot);
+    const data = await request??Item(playFabId, itemId, slot);
     if (data !== null) {
         await getInventory(playFabId); // インベントリと装備を再取得して表示を更新
         // アイテム詳細モーダルを閉じる
@@ -171,7 +171,7 @@ export function renderInventoryGrid(category) {
             countSpan.innerText = `x${item.count}`;
             cell.appendChild(countSpan);
         }
-        if (Object.values(myCurrentEquipment).includes(instanceId)) {
+        if (Object.values(myCurrent??ment).includes(instanceId)) {
             const equippedSpan = document.createElement('span');
             equippedSpan.className = 'inventory-item-equipped-mark';
             equippedSpan.innerText = 'E';
@@ -229,27 +229,27 @@ function showItemDetailModal(item) {
         const isTwoHanded = cd.sprite_w > 32 || cd.sprite_h > 32;
         if (isTwoHanded) {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">Remove</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">外す</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">Equip 2H</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">両手装備</button>`;
             }
         } else {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">Unequip R</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">右手を外す</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">Equip R</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">右手装備</button>`;
             }
             if (isEquipped('LeftHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">Unequip L</button>';
+                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">左手を外す</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">Equip L</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">左手装備</button>`;
             }
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">Remove</button>';
+            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">外す</button>';
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">Equip</button>`;
+            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">装備</button>`;
         }
     } else if (cd.Category === 'Consumable') {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">つかう</button>`;
@@ -285,17 +285,17 @@ export function showSellConfirmationModal(itemInstanceId, itemId) {
     newCancelBtn.onclick = () => { modal.style.display = 'none'; };
 }
 
-function updateEquipmentAndAvatarDisplay() {
-    // ??E??? getEquipment ??????
+function update??mentAndAvatarDisplay() {
+    // ??E??? get??ment ??????
     // ??????????? main.js ????????E
-    renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
-    renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
-    updateEquipmentBonusDisplay();
+    renderAvatar('avatar', window.myAvatarBaseInfo, myCurrent??ment, myInventory, false);
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrent??ment, myInventory, false);
+    update??mentBonusDisplay();
     renderResourceSummary();
 }
 
-function updateEquipmentBonusDisplay() {
-    const bonuses = getEquipmentBonuses();
+function update??mentBonusDisplay() {
+    const bonuses = get??mentBonuses();
     setBonusValue('currentStrBonus', bonuses.str);
     setBonusValue('currentDefBonus', bonuses.def);
     setBonusValue('currentAgiBonus', bonuses.agi);
@@ -310,9 +310,9 @@ function setBonusValue(elementId, value) {
     el.classList.toggle('is-zero', displayValue === 0);
 }
 
-function getEquipmentBonuses() {
+function get??mentBonuses() {
     const bonuses = { str: 0, def: 0, agi: 0, int: 0 };
-    const equippedIds = Object.values(myCurrentEquipment || {}).filter(Boolean);
+    const equippedIds = Object.values(myCurrent??ment || {}).filter(Boolean);
 
     equippedIds.forEach((instanceId) => {
         const item = myInventory.find(i => i.instances && i.instances.includes(instanceId));
