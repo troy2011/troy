@@ -135,92 +135,70 @@ function normalizePriceAmounts(item) {
 
 // カタログ読み込み
 async function loadCatalogCache() {
-    console.log('[カタログ] PlayFabカタログの読み込みを開始します...');
-    const catalogVersions = [GACHA_CATALOG_VERSION, 'ships_catalog', 'buildings_catalog'];
+    console.log('[カタログ] PlayFab Economy V2 カタログの読み込みを開始します...');
     try {
         await ensureTitleEntityToken();
-        async function loadCatalogVersion(version) {
-            try {
-                const items = [];
-                let token = null;
-                do {
-                    const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
-                        CatalogVersion: version,
-                        Count: 50,
-                        ContinuationToken: token || undefined
-                    });
-                    const page = Array.isArray(result?.Items) ? result.Items : [];
-                    items.push(...page);
-                    token = result?.ContinuationToken || null;
-                } while (token);
+        const items = [];
+        let token = null;
+        do {
+            const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
+                Count: 50,
+                Filter: 'PublishDate ne null',
+                ContinuationToken: token || undefined
+            });
+            const page = Array.isArray(result?.Items) ? result.Items : [];
+            items.push(...page);
+            token = result?.ContinuationToken || null;
+            console.log(`[カタログ] ページ取得: ${page.length}件 (累計: ${items.length}件)`);
+        } while (token);
 
-                const catalogItems = items.map((item) => ({
-                    ItemId: item.Id,
-                    ItemClass: item.Type,
-                    DisplayName: item.DisplayName,
-                    Description: item.Description,
-                    CustomData: item.DisplayProperties ? JSON.stringify(item.DisplayProperties) : item.CustomData,
-                    PriceAmounts: normalizePriceAmounts(item)
-                }));
-                return { Catalog: catalogItems };
-            } catch (error) {
-                const titleId = PlayFab.settings.titleId || process.env.PLAYFAB_TITLE_ID;
-                const localPath = path.join(__dirname, 'playfab_catalog', `title-${titleId}-${version}.json`);
-                const msg = error?.errorMessage || error?.message || String(error);
-                console.warn(`[カタログ] PlayFabから ${version} の取得に失敗しました: ${msg}`);
-
-                if (fs.existsSync(localPath)) {
-                    try {
-                        const raw = fs.readFileSync(localPath, 'utf-8');
-                        const parsed = JSON.parse(raw);
-                        const catalog = parsed?.Catalog || parsed?.data?.Catalog || [];
-                        const catalogArray = Array.isArray(catalog) ? catalog : [];
-                        console.warn(`[カタログ] ローカルファイルから ${version} を読み込みました: ${localPath} (${catalogArray.length}件)`);
-                        return { Catalog: catalogArray };
-                    } catch (e) {
-                        console.warn(`[カタログ] ローカルファイルの読み込みに失敗しました: ${localPath}`, e?.message || e);
-                    }
-                }
-                throw error;
-            }
-        }
-
-        const results = await Promise.all(catalogVersions.map(loadCatalogVersion));
+        const pickLocalizedText = (entry) => {
+            if (!entry) return '';
+            if (typeof entry === 'string') return entry;
+            return entry['ja-JP'] || entry.NEUTRAL || entry.en || Object.values(entry)[0] || '';
+        };
 
         const itemMap = {};
-        results.forEach(result => {
-            if (result.Catalog) {
-                result.Catalog.forEach(item => {
-                    let customData = {};
-                    if (item.CustomData) {
-                        try {
-                            const parsedData = JSON.parse(item.CustomData);
-                            for (const key in parsedData) {
-                                const normalizedKey = String(key).trim();
-                                try {
-                                    customData[normalizedKey] = JSON.parse(parsedData[key]);
-                                } catch (e) {
-                                    customData[normalizedKey] = parsedData[key];
-                                }
+        items.forEach((item) => {
+            let customData = {};
+            const displayProps = item?.DisplayProperties ?? item?.CustomData ?? null;
+            if (displayProps) {
+                try {
+                    const parsed = typeof displayProps === 'string'
+                        ? JSON.parse(displayProps)
+                        : displayProps;
+                    if (parsed && typeof parsed === 'object') {
+                        for (const [key, value] of Object.entries(parsed)) {
+                            const normalizedKey = String(key).trim();
+                            if (!normalizedKey) continue;
+                            try {
+                                customData[normalizedKey] = typeof value === 'string' ? JSON.parse(value) : value;
+                            } catch {
+                                customData[normalizedKey] = value;
                             }
-                        } catch (e) {
-                            console.warn(`[カタログ] ItemID ${item.ItemId} のCustomDataのパースに失敗しました。`);
                         }
                     }
-                    itemMap[item.ItemId] = {
-                        ItemId: item.ItemId,
-                        ItemClass: item.ItemClass,
-                        DisplayName: item.DisplayName,
-                        Description: item.Description,
-                        PriceAmounts: normalizePriceAmounts(item),
-                        ...customData
-                    };
-                });
+                } catch (e) {
+                    console.warn(`[カタログ] ItemID ${item?.Id} のDisplayPropertiesパースに失敗しました。`, e?.message || e);
+                }
             }
+
+            const displayName = pickLocalizedText(item?.Title) || item?.DisplayName || item?.Id;
+            const description = pickLocalizedText(item?.Description) || '';
+            itemMap[item.Id] = {
+                ItemId: item.Id,
+                ItemClass: item.ContentType || item.Type,
+                DisplayName: displayName,
+                Description: description,
+                PriceAmounts: normalizePriceAmounts(item),
+                ...customData
+            };
         });
 
         catalogCache = itemMap;
-        console.log(`[カタログ] カタログを読み込みました。${Object.keys(catalogCache).length} 件のアイテムを取得しました。`);
+        console.log(`[カタログ] 読み込み完了: ${Object.keys(catalogCache).length} 件のアイテムをキャッシュしました。`);
+        const shipCount = Object.values(catalogCache).filter(i => i.ItemClass === 'Ship').length;
+        console.log(`[カタログ] 内訳確認: Ship = ${shipCount} 件`);
     } catch (error) {
         console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
         process.exit(1);
