@@ -369,6 +369,13 @@ export default class WorldMapScene extends Phaser.Scene {
                     overlay.style.display = 'none';
                 });
             }
+            if (typeof window !== 'undefined' && window.__pendingFirstMapNav?.islandId) {
+                const targetId = window.__pendingFirstMapNav.islandId;
+                const setOk = this.setNavigationTarget(targetId);
+                if (setOk) {
+                    window.__pendingFirstMapNav = null;
+                }
+            }
         } else {
             container.classList.remove('map-ready');
             const overlay = container.querySelector('.map-loading-overlay');
