@@ -29,6 +29,8 @@ let playFabLoginPromise = null;
 let lastFirebaseUid = null;
 let initializeAppPromise = null;
 let raceSelectionBound = false;
+let authHandled = false;
+let authUnsubscribe = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -103,8 +105,14 @@ async function initializeLiff() {
         window.myPlayFabId = loginData.playFabId; // グローバルスコープにも設定
 
         // --- PlayFab & Firebase Login ---
-        onAuthStateChanged(auth, async (user) => {
+        authUnsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
+                if (authHandled) return;
+                authHandled = true;
+                if (typeof authUnsubscribe === 'function') {
+                    authUnsubscribe();
+                    authUnsubscribe = null;
+                }
                 if (lastFirebaseUid === user.uid && playFabLoginDone) {
                     return;
                 }
