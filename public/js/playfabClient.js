@@ -23,6 +23,7 @@ export function getPlayerStats(playFabId, options) {
 
 export function getPoints(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    console.info('[PlayFabClient] getPoints', { playFabId, hasEntityKey: !!entityKey });
     return callApiWithLoader('/api/get-points', { playFabId, entityKey }, options);
 }
 
@@ -48,6 +49,7 @@ export function getNationTreasuryRanking(options) {
 
 export function getInventory(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    console.info('[PlayFabClient] getInventory', { playFabId, hasEntityKey: !!entityKey });
     return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options);
 }
 
