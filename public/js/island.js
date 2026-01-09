@@ -280,7 +280,7 @@ export function showBuildingMenu(island, playFabId) {
     const isEnemyNation = !!playerNation && !!islandNation && playerNation !== islandNation;
 
     const isOwner = !!playFabId && island.ownerId === playFabId;
-    const canUpgrade = isOwner && islandLevel < 5;
+    const canUpgrade = isOwner && hasBuilding && islandLevel < 5;
     const upgradeCostLabel = renderUpgradeCost(island.upgradeCost);
     const activeBuilding = (island.buildings || []).find(b => b && b.status !== 'demolished') || null;
     const activeBuildingId = activeBuilding ? (activeBuilding.buildingId || activeBuilding.id || '') : '';
@@ -415,7 +415,7 @@ export function showBuildingMenu(island, playFabId) {
                 </div>
                 ` : ''}
 
-                ${island.occupationStatus !== 'demolished' && island.occupationStatus !== 'capital' && island.occupationStatus !== 'sacred' ? `
+                ${(hasBuilding && island.occupationStatus !== 'demolished' && island.occupationStatus !== 'capital' && island.occupationStatus !== 'sacred') ? `
                 <div class="demolish-section">
                     <button class="btn-demolish" id="btnDemolish">
                         この島を解体する
