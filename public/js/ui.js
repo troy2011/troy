@@ -131,6 +131,8 @@ function showMapSelectModal(playerInfo) {
         TAROT_AREAS.forEach((area) => {
             const btn = document.createElement('button');
             btn.type = 'button';
+            btn.className = 'map-select-button';
+            btn.className = 'map-select-button';
             btn.textContent = area.label;
             btn.dataset.area = area.id;
             btn.addEventListener('click', () => renderArcana(area.id));
@@ -146,6 +148,8 @@ function showMapSelectModal(playerInfo) {
         arcanaList.innerHTML = '';
         const baseBtn = document.createElement('button');
         baseBtn.type = 'button';
+        baseBtn.className = 'map-select-button';
+        baseBtn.dataset.area = areaId;
         baseBtn.textContent = `${areaLabel}の国マップ`;
         baseBtn.addEventListener('click', () => {
             const mapId = areaId;
@@ -161,6 +165,7 @@ function showMapSelectModal(playerInfo) {
             btn.type = 'button';
             btn.textContent = label;
             btn.dataset.arcana = String(num);
+            btn.dataset.area = areaId;
             btn.addEventListener('click', () => {
                 const mapId = `major_${String(num).padStart(2, '0')}`;
                 hideMapSelectModal();
@@ -170,6 +175,7 @@ function showMapSelectModal(playerInfo) {
         });
         const backBtn = document.createElement('button');
         backBtn.type = 'button';
+        backBtn.className = 'map-select-button map-select-button--ghost';
         backBtn.textContent = '海域へ戻る';
         backBtn.addEventListener('click', renderAreas);
         arcanaList.appendChild(backBtn);
