@@ -41,11 +41,11 @@ const RESOURCE_BIOME_BY_FACTION = {
 };
 
 const NON_RESOURCE_BIOME_BY_FACTION = {
-    fire: 'beach',
-    earth: 'jungle',
-    wind: 'ocean',
-    water: 'beach',
-    neutral: 'beach'
+    fire: null,
+    earth: null,
+    wind: null,
+    water: null,
+    neutral: null
 };
 
 const BIOME_FRAME_BY_ID = {
@@ -84,7 +84,7 @@ const pickBiome = (faction, allowResource) => {
     if (allowResource && Math.random() < RESOURCE_CHANCE) {
         return RESOURCE_BIOME_BY_FACTION[key] || 'forest';
     }
-    return NON_RESOURCE_BIOME_BY_FACTION[key] || 'beach';
+    return NON_RESOURCE_BIOME_BY_FACTION[key] ?? null;
 };
 
 const canPlace = (occupied, rect) => {
@@ -165,16 +165,15 @@ const getNationLabel = (faction) => {
 
 const getBiomeLabel = (biome) => {
     switch (String(biome || '').toLowerCase()) {
-        case 'volcanic': return '火山島';
-        case 'rocky': return '岩場島';
-        case 'mushroom': return 'キノコ島';
-        case 'lake': return '湖島';
-        case 'forest': return '森林島';
-        case 'sacred': return '聖地島';
-        case 'beach': return '浜辺島';
-        case 'jungle': return 'ジャングル島';
-        case 'ocean': return '海島';
-        default: return '島';
+        case 'volcanic':
+        case 'rocky':
+        case 'mushroom':
+        case 'lake':
+        case 'forest':
+        case 'sacred':
+            return '資源島';
+        default:
+            return '無人島';
     }
 };
 
