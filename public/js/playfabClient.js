@@ -41,6 +41,10 @@ export function getBountyRanking(options) {
     return callApiWithLoader('/api/get-bounty-ranking', {}, options);
 }
 
+export function getNationTreasuryRanking(options) {
+    return callApiWithLoader('/api/get-nation-treasury-ranking', {}, options);
+}
+
 export function getInventory(playFabId, options) {
     return callApiWithLoader('/api/get-inventory', { playFabId }, options);
 }

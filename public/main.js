@@ -248,6 +248,8 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetRanking').addEventListener('click', Player.getRanking);
     document.getElementById('btnShowPsRanking').addEventListener('click', () => Player.showRanking('ps'));
     document.getElementById('btnShowBountyRanking').addEventListener('click', () => Player.showRanking('bounty'));
+    document.getElementById('btnShowTreasuryRanking').addEventListener('click', () => Player.showRanking('treasury'));
+    document.getElementById('btnGetTreasuryRanking').addEventListener('click', Player.getNationTreasuryRanking);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {
         const guildName = document.getElementById('guildNameInput').value;

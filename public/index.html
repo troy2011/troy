@@ -391,6 +391,7 @@
                     <div id="rankingToggleButtons">
                         <button id="btnShowPsRanking" class="ranking-toggle-btn active">Ps順</button>
                         <button id="btnShowBountyRanking" class="ranking-toggle-btn">懸賞金順</button>
+                        <button id="btnShowTreasuryRanking" class="ranking-toggle-btn">国庫順</button>
                     </div>
 
                     <!-- ★★★ 修正箇所: psRankingArea を追加し、更新ボタンとリストをラップする ★★★ -->
@@ -404,6 +405,13 @@
                     <!-- ★★★ 修正箇所: bountyRankingArea を追加 ★★★ -->
                     <div id="bountyRankingArea" style="display: none;">
                         <ol id="bountyRankingList"></ol>
+                    </div>
+
+                    <div id="treasuryRankingArea" style="display: none;">
+                        <div style="text-align:right; margin-bottom:10px;">
+                            <button id="btnGetTreasuryRanking" style="font-size:12px; padding:4px 10px;">更新</button>
+                        </div>
+                        <ol id="treasuryRankingList"></ol>
                     </div>
                 </div>
             </div>

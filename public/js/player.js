@@ -6,7 +6,8 @@ import {
     addPoints as requestAddPoints,
     usePoints as requestUsePoints,
     getRanking as fetchRanking,
-    getBountyRanking as fetchBountyRanking
+    getBountyRanking as fetchBountyRanking,
+    getNationTreasuryRanking as fetchNationTreasuryRanking
 } from './playfabClient.js';
 
 let myPlayerStats = {};
@@ -76,6 +77,7 @@ export async function usePoints(playFabId) {
 
 export async function getRanking() {
     const rankingListEl = document.getElementById('rankingList');
+    if (!rankingListEl) return;
     rankingListEl.innerHTML = '<li>（ランキングを読み込んでいます...）</li>';
     const data = await fetchRanking();
     if (data?.ranking) {
@@ -90,6 +92,7 @@ export async function getRanking() {
 
 export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
+    if (!rankingListEl) return;
     rankingListEl.innerHTML = '<li>（懸賞金ランキングを読み込んでいます...）</li>';
     const data = await fetchBountyRanking();
     if (data?.ranking) {
@@ -102,23 +105,58 @@ export async function getBountyRanking() {
     }
 }
 
+export async function getNationTreasuryRanking() {
+    const rankingListEl = document.getElementById('treasuryRankingList');
+    if (!rankingListEl) return;
+    rankingListEl.innerHTML = '<li>（国庫ランキングを読み込んでいます...）</li>';
+    const data = await fetchNationTreasuryRanking();
+    if (data?.ranking) {
+        const nationLabels = {
+            fire: '火',
+            earth: '土',
+            wind: '風',
+            water: '水'
+        };
+        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
+            const nationKey = String(entry.nation || '').toLowerCase();
+            const label = nationLabels[nationKey] || entry.nation || '不明';
+            const value = Number(entry.treasuryPs || 0);
+            return `<li>${index + 1}位: ${label} (${value}Ps)</li>`;
+        }).join('') || '<li>（データがありません）</li>';
+    }
+}
+
 export function showRanking(type) {
     const psRankingArea = document.getElementById('psRankingArea');
     const bountyRankingArea = document.getElementById('bountyRankingArea');
+    const treasuryRankingArea = document.getElementById('treasuryRankingArea');
     const btnPs = document.getElementById('btnShowPsRanking');
     const btnBounty = document.getElementById('btnShowBountyRanking');
+    const btnTreasury = document.getElementById('btnShowTreasuryRanking');
 
     if (type === 'ps') {
         psRankingArea.style.display = 'block';
         bountyRankingArea.style.display = 'none';
+        if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
         btnPs.classList.add('active');
         btnBounty.classList.remove('active');
+        if (btnTreasury) btnTreasury.classList.remove('active');
         getRanking();
-    } else { // bounty
+    } else if (type === 'bounty') {
         psRankingArea.style.display = 'none';
         bountyRankingArea.style.display = 'block';
+        if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
         btnPs.classList.remove('active');
         btnBounty.classList.add('active');
+        if (btnTreasury) btnTreasury.classList.remove('active');
         getBountyRanking();
+    } else { // treasury
+        psRankingArea.style.display = 'none';
+        bountyRankingArea.style.display = 'none';
+        if (treasuryRankingArea) treasuryRankingArea.style.display = 'block';
+        btnPs.classList.remove('active');
+        btnBounty.classList.remove('active');
+        if (btnTreasury) btnTreasury.classList.add('active');
+        getNationTreasuryRanking();
     }
 }
