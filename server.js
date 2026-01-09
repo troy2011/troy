@@ -729,6 +729,11 @@ app.post('/api/set-race', async (req, res) => {
         }
 
         const starterAssets = await provisionStarterAssets({ playFabId, entityKey });
+        try {
+            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, entityKey);
+        } catch (e) {
+            console.warn('[starterGrant] Failed to grant starter PS:', e?.errorMessage || e?.message || e);
+        }
 
         try {
             await ensureStarterShip({
