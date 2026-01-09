@@ -99,6 +99,32 @@ app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
 // カタログキャッシュ
 let catalogCache = {};
 
+function normalizeEntityKey(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = raw.Id || raw.id || raw.EntityId || raw.entityId;
+    const type = raw.Type || raw.type || raw.EntityType || raw.entityType;
+    if (!id || !type) return null;
+    return { Id: String(id), Type: String(type) };
+}
+
+function getEntityKeyFromToken(entityToken) {
+    if (!entityToken || typeof entityToken !== 'string') return null;
+    const parts = entityToken.split('.');
+    if (parts.length < 2) return null;
+    try {
+        const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = payload.padEnd(payload.length + (4 - (payload.length % 4)) % 4, '=');
+        const decoded = Buffer.from(padded, 'base64').toString('utf8');
+        const data = JSON.parse(decoded);
+        return normalizeEntityKey({
+            Id: data?.entityId || data?.EntityId,
+            Type: data?.entityType || data?.EntityType
+        });
+    } catch {
+        return null;
+    }
+}
+
 function normalizePriceAmounts(item) {
     const totals = {};
     const pushAmount = (itemId, amount) => {
@@ -557,9 +583,7 @@ app.post('/api/login-playfab', async (req, res) => {
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
         const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
-        const entityKey = req.body?.entityKey && req.body.entityKey.Id && req.body.entityKey.Type
-            ? { Id: String(req.body.entityKey.Id), Type: String(req.body.entityKey.Type) }
-            : null;
+        const entityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
