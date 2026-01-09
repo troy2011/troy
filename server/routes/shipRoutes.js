@@ -172,7 +172,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     if (Number.isFinite(ix) && Number.isFinite(iy)) {
                         const baseX = ix * GEO_CONFIG.GRID_SIZE;
                         const baseY = iy * GEO_CONFIG.GRID_SIZE;
-                        return { x: baseX, y: baseY + (GEO_CONFIG.GRID_SIZE * 2) };
+                        return { x: baseX, y: baseY + GEO_CONFIG.GRID_SIZE };
                     }
             }
         }
