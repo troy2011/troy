@@ -169,9 +169,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 const coord = island.coordinate || {};
                 const ix = Number(coord.x);
                 const iy = Number(coord.y);
-                if (Number.isFinite(ix) && Number.isFinite(iy)) {
-                    return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE };
-                }
+                    if (Number.isFinite(ix) && Number.isFinite(iy)) {
+                        const baseX = ix * GEO_CONFIG.GRID_SIZE;
+                        const baseY = iy * GEO_CONFIG.GRID_SIZE;
+                        return { x: baseX, y: baseY + (GEO_CONFIG.GRID_SIZE * 2) };
+                    }
             }
         }
 
