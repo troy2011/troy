@@ -42,7 +42,7 @@ async function getNationForPlayer(playFabId, deps) {
     return nation ? String(nation).toLowerCase() : null;
 }
 
-async function getNationGroupDoc(firestore, groupName) {
+function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
 
