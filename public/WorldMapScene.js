@@ -2121,12 +2121,13 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     setNavigationTarget(islandId) {
-        if (!islandId || !this.islandObjects) return;
+        if (!islandId || !this.islandObjects) return false;
         const islandData = this.islandObjects.get(islandId);
-        if (!islandData) return;
+        if (!islandData) return false;
         this.navTargetId = islandId;
         this.navTargetLabel = islandData.name || 'NAV';
         this.updateNavigationHud();
+        return true;
     }
 
     updateNavigationHud() {
