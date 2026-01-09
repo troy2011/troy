@@ -5,7 +5,7 @@ const SIZE_BY_KEY = {
     giant: { w: 5, h: 5 }
 };
 
-const DEFAULT_COUNTS = { small: 20, large: 10, giant: 3 };
+const DEFAULT_COUNTS = { small: 40, large: 15, giant: 3 };
 
 const MAJOR_ARCANA = [
     { number: 0, name: '愚者' },
