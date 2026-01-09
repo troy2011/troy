@@ -362,6 +362,7 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         ownerNation: nationIsland || null,
         biome: nationIsland || null,
         biomeFrame: chosenBiomeFrame,
+        starterIsland: true,
         buildingSlots: { layout: '1x1' },
         buildings: []
     };

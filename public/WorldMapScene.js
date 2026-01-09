@@ -2614,30 +2614,6 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        if (typeof window !== 'undefined' && window.__tutorialFirstIsland?.stage === 'arrived') {
-            const tutorial = window.__tutorialFirstIsland;
-            if (tutorial?.islandId === islandData.id) {
-                const result = await window.Island.startBuildingConstruction(
-                    this.playerInfo?.playFabId,
-                    islandData.id,
-                    'my_house',
-                    { tutorial: true }
-                );
-                if (result && result.success) {
-                    tutorial.stage = 'built';
-                    if (typeof localStorage !== 'undefined') {
-                        localStorage.setItem('tutorialFirstIslandDone', 'true');
-                    }
-                    if (typeof window.showRpgMessage === 'function') {
-                        const msg = window.rpgSay?.tutorialHouseBuilt
-                            ? window.rpgSay.tutorialHouseBuilt()
-                            : 'マイハウスが建った！';
-                        window.showRpgMessage(msg);
-                    }
-                }
-            }
-        }
-
         window.Island.showBuildingMenu(islandDetails, this.playerInfo.playFabId);
         this.hideIslandCommandMenu();
     }

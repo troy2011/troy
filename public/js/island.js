@@ -262,6 +262,7 @@ export function showBuildingMenu(island, playFabId) {
     const resourceCurrency = getResourceCurrencyForBiome(island.biome);
     const isHarvestable = !!resourceCurrency;
     const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
+    const isStarterIsland = island?.starterIsland === true;
     const playerNation = (() => {
         const explicit = String(window.__phaserPlayerInfo?.nation || window.__phaserPlayerInfo?.Nation || '').toLowerCase();
         if (explicit) return explicit;
@@ -286,6 +287,86 @@ export function showBuildingMenu(island, playFabId) {
     const shopConfig = getShopConfig(activeBuildingId);
     const allowShipBuild = isOwnNation && activeBuildingId === 'capital';
     const allowHotSpring = isOwnNation && activeBuildingId === 'hot_spring';
+
+    if (isStarterIsland && !isHarvestable && !hasBuilding) {
+        sheet.innerHTML = `
+            <div class="bottom-sheet-overlay"></div>
+            <div class="bottom-sheet-content">
+                <div class="bottom-sheet-header">
+                    <h2>${escapeHtml(island.name)}</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="bottom-sheet-body">
+                    <div class="island-info">
+                        <div class="info-row">
+                            <span class="label">サイズ:</span>
+                            <span class="value">${getSizeLabel(island.size)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">バイオーム:</span>
+                            <span class="value">${getBiomeLabel(island.biome)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">レベル:</span>
+                            <span class="value">Lv ${islandLevel}</span>
+                        </div>
+                    </div>
+                    <div class="building-status-panel" data-island-id="${island.id}">
+                        ${renderCurrentBuilding(island)}
+                    </div>
+                    <div class="building-actions">
+                        <div class="resource-title">マイハウス建築</div>
+                        <div class="resource-row">チュートリアル用の建物です。</div>
+                        <div class="resource-row">
+                            <button class="btn-build" id="btnBuildMyHouse">マイハウスを建てる</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(sheet);
+        const stopPhaser = (e) => {
+            if (!e) return;
+            if (typeof e.stopPropagation === 'function') e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        };
+        ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((type) => {
+            sheet.addEventListener(type, stopPhaser);
+        });
+        sheet.addEventListener('touchmove', (e) => {
+            stopPhaser(e);
+        }, { passive: true });
+        const closeBtn = sheet.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                sheet.classList.remove('active');
+                setTimeout(() => sheet.remove(), 300);
+            });
+        }
+        const buildBtn = sheet.querySelector('#btnBuildMyHouse');
+        if (buildBtn) {
+            buildBtn.addEventListener('click', async () => {
+                const result = await startBuildingConstruction(playFabId, island.id, 'my_house', { tutorial: true });
+                if (result && result.success) {
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.setItem('tutorialFirstIslandDone', 'true');
+                    }
+                    if (typeof window.showRpgMessage === 'function') {
+                        const msg = window.rpgSay?.tutorialHouseBuilt
+                            ? window.rpgSay.tutorialHouseBuilt()
+                            : 'マイハウスが建った！';
+                        window.showRpgMessage(msg);
+                    }
+                    const refreshed = await getIslandDetails(island.id);
+                    if (refreshed) showBuildingMenu(refreshed, playFabId);
+                }
+            });
+        }
+        setTimeout(() => {
+            sheet.classList.add('active');
+        }, 10);
+        return;
+    }
 
     sheet.innerHTML = `
         <div class="bottom-sheet-overlay"></div>
