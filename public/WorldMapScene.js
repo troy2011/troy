@@ -2571,10 +2571,9 @@ export default class WorldMapScene extends Phaser.Scene {
             buttonClass = 'disabled';
             onClick = () => this.showMessage('このエリアは占領されていません。');
         } else if (!isOwner) {
-            buttonText = `占領して${menuLabel}を開く`;
+            buttonText = `建築して占領する`;
             buttonClass = 'warning';
             onClick = async () => {
-                await this.claimIsland(islandData);
                 await this.openBuildingMenuForIsland(islandData);
             };
         }
