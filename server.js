@@ -184,6 +184,15 @@ async function loadCatalogCache() {
             if (typeof entry === 'string') return entry;
             return entry['ja-JP'] || entry.NEUTRAL || entry.en || Object.values(entry)[0] || '';
         };
+        const pickAlternateCurrencyId = (entry) => {
+            if (!Array.isArray(entry?.AlternateIds)) return null;
+            for (const alt of entry.AlternateIds) {
+                const value = String(alt?.Value || '').trim();
+                if (!value) continue;
+                if (/^[A-Z0-9]{1,3}$/.test(value)) return value;
+            }
+            return null;
+        };
 
         const itemMap = {};
         const aliasMap = {};
@@ -214,10 +223,11 @@ async function loadCatalogCache() {
 
             const displayName = pickLocalizedText(item?.Title) || item?.DisplayName || item?.Id;
             const description = pickLocalizedText(item?.Description) || '';
+            const resolvedFriendlyId = item.FriendlyId || pickAlternateCurrencyId(item) || null;
             itemMap[item.Id] = {
                 ItemId: item.Id,
                 ItemClass: item.ContentType || item.Type,
-                FriendlyId: item.FriendlyId || null,
+                FriendlyId: resolvedFriendlyId,
                 DisplayName: displayName,
                 Description: description,
                 PriceAmounts: normalizePriceAmounts(item),
@@ -226,12 +236,14 @@ async function loadCatalogCache() {
 
             const contentType = String(item?.ContentType || item?.Type || '').toLowerCase();
             if (contentType === 'currency') {
-                currencyMap[item.Id] = item.FriendlyId || item.Id;
+                if (resolvedFriendlyId) {
+                    currencyMap[item.Id] = resolvedFriendlyId;
+                }
             }
 
             const aliases = new Set();
             if (item?.Id) aliases.add(String(item.Id));
-            if (item?.FriendlyId) aliases.add(String(item.FriendlyId));
+            if (resolvedFriendlyId) aliases.add(String(resolvedFriendlyId));
             if (Array.isArray(item?.AlternateIds)) {
                 item.AlternateIds.forEach((entry) => {
                     if (entry?.Value) aliases.add(String(entry.Value));
