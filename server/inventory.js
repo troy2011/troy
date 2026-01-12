@@ -36,12 +36,12 @@ function initializeInventoryRoutes(app, deps) {
                 const catalogData = catalogCache[itemId] || {};
                 const name = catalogData.DisplayName || catalogData.Title || itemId;
                 const amount = getItemAmount(item) || 1;
-                if (itemMap.has(name)) {
-                    const existing = itemMap.get(name);
+                if (itemMap.has(itemId)) {
+                    const existing = itemMap.get(itemId);
                     existing.count += amount;
                     if (item?.StackId) existing.instances.push(item.StackId);
                 } else {
-                    itemMap.set(name, {
+                    itemMap.set(itemId, {
                         name,
                         count: amount,
                         itemId,
