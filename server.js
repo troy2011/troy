@@ -184,12 +184,20 @@ async function loadCatalogCache() {
             if (typeof entry === 'string') return entry;
             return entry['ja-JP'] || entry.NEUTRAL || entry.en || Object.values(entry)[0] || '';
         };
+        const normalizeCurrencyCode = (value) => {
+            const raw = String(value || '').trim();
+            if (!raw) return null;
+            if (/^[A-Za-z0-9]{1,3}$/.test(raw)) {
+                return raw.toUpperCase();
+            }
+            return raw;
+        };
         const pickAlternateCurrencyId = (entry) => {
             if (!Array.isArray(entry?.AlternateIds)) return null;
             for (const alt of entry.AlternateIds) {
-                const value = String(alt?.Value || '').trim();
-                if (!value) continue;
-                if (/^[A-Z0-9]{1,3}$/.test(value)) return value;
+                const normalized = normalizeCurrencyCode(alt?.Value);
+                if (!normalized) continue;
+                if (/^[A-Z0-9]{1,3}$/.test(normalized)) return normalized;
             }
             return null;
         };
@@ -223,7 +231,7 @@ async function loadCatalogCache() {
 
             const displayName = pickLocalizedText(item?.Title) || item?.DisplayName || item?.Id;
             const description = pickLocalizedText(item?.Description) || '';
-            const resolvedFriendlyId = item.FriendlyId || pickAlternateCurrencyId(item) || null;
+            const resolvedFriendlyId = normalizeCurrencyCode(item.FriendlyId) || pickAlternateCurrencyId(item) || null;
             itemMap[item.Id] = {
                 ItemId: item.Id,
                 ItemClass: item.ContentType || item.Type,
@@ -243,6 +251,7 @@ async function loadCatalogCache() {
 
             const aliases = new Set();
             if (item?.Id) aliases.add(String(item.Id));
+            if (item?.FriendlyId) aliases.add(String(item.FriendlyId));
             if (resolvedFriendlyId) aliases.add(String(resolvedFriendlyId));
             if (Array.isArray(item?.AlternateIds)) {
                 item.AlternateIds.forEach((entry) => {

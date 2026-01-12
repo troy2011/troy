@@ -1,7 +1,7 @@
 // server/economy.js
 // 経済関連のユーティリティ関数
 
-const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
+const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 
 const ECONOMY_CURRENCY_IDS = new Set([
@@ -145,10 +145,18 @@ function initializeEconomyRoutes(app, deps) {
         const requestEntity = normalizeEntityKey(req.body.entityKey);
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         try {
-            const points = requestEntity
-                ? await getCurrencyBalanceWithEntity(requestEntity, VIRTUAL_CURRENCY_CODE, economyDeps)
-                : await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
-            res.json({ points });
+            const entityKey = requestEntity
+                ? requestEntity
+                : await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+            const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
+            const totals = getVirtualCurrencyMap(items, {
+                catalogCache: economyDeps.catalogCache,
+                catalogCurrencyMap: economyDeps.catalogCurrencyMap
+            });
+            res.json({
+                points: totals[VIRTUAL_CURRENCY_CODE] || 0,
+                virtualCurrency: totals
+            });
         } catch (error) {
             res.status(500).json({
                 error: 'ポイント取得に失敗しました。',

@@ -1,7 +1,12 @@
 node_modules
 .env
+.env.*
 config/firebase-service-account.json
 data/local/catalog_v1.json
 data/local/catalog_v2_items.json
 scripts/tools/converter.js
 scripts/tools/uploader.js
+catalog_v2_ships.json
+enable_tags.js
+uploader.js
+uploaderShips.js

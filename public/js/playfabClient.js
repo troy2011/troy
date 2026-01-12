@@ -23,7 +23,11 @@ export function getPlayerStats(playFabId, options) {
 
 export function getPoints(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
-    return callApiWithLoader('/api/get-points', { playFabId, entityKey }, options);
+    return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
+        .then((data) => {
+            const points = Number(data?.virtualCurrency?.PS || 0);
+            return { points };
+        });
 }
 
 export function addPoints(playFabId, amount, options) {
