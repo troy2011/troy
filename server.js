@@ -99,6 +99,7 @@ app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
 // カタログキャッシュ
 let catalogCache = {};
 let catalogAliasMap = {};
+let catalogCurrencyMap = {};
 
 function normalizeEntityKey(raw) {
     if (!raw || typeof raw !== 'object') return null;
@@ -186,6 +187,7 @@ async function loadCatalogCache() {
 
         const itemMap = {};
         const aliasMap = {};
+        const currencyMap = {};
         items.forEach((item) => {
             let customData = {};
             const displayProps = item?.DisplayProperties ?? item?.CustomData ?? null;
@@ -222,6 +224,11 @@ async function loadCatalogCache() {
                 ...customData
             };
 
+            const contentType = String(item?.ContentType || item?.Type || '').toLowerCase();
+            if (contentType === 'currency') {
+                currencyMap[item.Id] = item.FriendlyId || item.Id;
+            }
+
             const aliases = new Set();
             if (item?.Id) aliases.add(String(item.Id));
             if (item?.FriendlyId) aliases.add(String(item.FriendlyId));
@@ -239,9 +246,11 @@ async function loadCatalogCache() {
 
         catalogCache = itemMap;
         catalogAliasMap = aliasMap;
+        catalogCurrencyMap = currencyMap;
         console.log(`[カタログ] 読み込み完了: ${Object.keys(catalogCache).length} 件のアイテムをキャッシュしました。`);
         const shipCount = Object.values(catalogCache).filter(i => i.ItemClass === 'Ship').length;
         console.log(`[カタログ] 内訳確認: Ship = ${shipCount} 件`);
+        console.log(`[カタログ] 内訳確認: Currency = ${Object.keys(catalogCurrencyMap).length} 件`);
     } catch (error) {
         console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
         process.exit(1);
@@ -265,6 +274,7 @@ function createDependencies() {
         firestore,
         admin,
         catalogCache,
+        catalogCurrencyMap,
         ensureTitleEntityToken,
         getGroupDataValue,
         setGroupDataValues,
@@ -273,10 +283,10 @@ function createDependencies() {
         // economy関数
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
         getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
-        getVirtualCurrencyMap: (items) => economy.getVirtualCurrencyMap(items, { catalogCache }),
+        getVirtualCurrencyMap: (items) => economy.getVirtualCurrencyMap(items, { catalogCurrencyMap, catalogCache }),
         addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
         subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
-        getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCache }),
+        getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCurrencyMap, catalogCache }),
         applyTax: economy.applyTax,
         // nation関数
         getNationTaxRateBps: (nation, fs, d) => require('./server/nation').getNationTaxRateBps(nation, fs || firestore, d || createDependencies()),
