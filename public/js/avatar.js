@@ -163,13 +163,13 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
                     // 攻撃力
                     const atkValue = cd ? (cd.Atk ?? cd.Power) : null;
                     if (atkValue && parseInt(atkValue) > 0) {
-                        stats.push(`<span class="stat-atk">?? +${atkValue}</span>`);
+                        stats.push(`<span class="stat-atk">\u653b\u6483 +${atkValue}</span>`);
                     }
 
                     // 防御力
                     const defValue = cd ? (cd.Def ?? cd.Defense) : null;
                     if (defValue && parseInt(defValue) > 0) {
-                        stats.push(`<span class="stat-def">??? +${defValue}</span>`);
+                        stats.push(`<span class="stat-def">\u9632\u5fa1 +${defValue}</span>`);
                     }
 
                     statsEl.innerHTML = stats.join('');
