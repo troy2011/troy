@@ -223,7 +223,11 @@ function showItemDetailModal(item) {
 
     const buttonsEl = document.getElementById('itemDetailButtons');
     buttonsEl.innerHTML = '';
-    const isEquipped = (slot) => myCurrentEquipment[slot] === instanceId;
+    const equipItemId = item.itemId;
+    const isEquipped = (slot) => {
+        const equippedValue = myCurrentEquipment[slot];
+        return equippedValue === instanceId || equippedValue === equipItemId;
+    };
 
     if (cd.Category === 'Weapon' || cd.Category === 'Shield') {
         const isTwoHanded = cd.sprite_w > 32 || cd.sprite_h > 32;
@@ -231,25 +235,25 @@ function showItemDetailModal(item) {
             if (isEquipped('RightHand')) {
                 buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">\u4e21\u624b\u88c5\u5099</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'RightHand')">\u4e21\u624b\u88c5\u5099</button>`;
             }
         } else {
             if (isEquipped('RightHand')) {
                 buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u53f3\u624b\u3092\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'RightHand')">\u53f3\u624b\u88c5\u5099</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'RightHand')">\u53f3\u624b\u88c5\u5099</button>`;
             }
             if (isEquipped('LeftHand')) {
                 buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">\u5de6\u624b\u3092\u5916\u3059</button>';
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'LeftHand')">\u5de6\u624b\u88c5\u5099</button>`;
+                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'LeftHand')">\u5de6\u624b\u88c5\u5099</button>`;
             }
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
             buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">\u5916\u3059</button>';
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${instanceId}', 'Armor')">\u88c5\u5099</button>`;
+            buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'Armor')">\u88c5\u5099</button>`;
         }
     } else if (cd.Category === 'Consumable') {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;

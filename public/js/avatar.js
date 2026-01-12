@@ -111,9 +111,12 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     // 2. アイテム詳細を取得するヘルパー
     const getItemDetails = (id) => {
         if (!id) return null;
-        return Array.isArray(itemSource)
-            ? itemSource.find(i => i.instances && i.instances.includes(id))
-            : itemSource[id];
+        if (Array.isArray(itemSource)) {
+            return itemSource.find(i =>
+                (i.instances && i.instances.includes(id)) || i.itemId === id
+            );
+        }
+        return itemSource[id];
     };
 
     // 3. 装備品の描画
