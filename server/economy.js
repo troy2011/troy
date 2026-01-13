@@ -278,10 +278,21 @@ function initializeEconomyRoutes(app, deps) {
 
     // ポイント送金
     app.post('/api/transfer-points', async (req, res) => {
-        const { fromId, toId, amount } = req.body;
-        const amountInt = parseInt(amount, 10);
+        const normalizePlayFabId = (value) => {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+        };
+        const isValidPlayFabId = (value) => /^[A-F0-9]{16,32}$/.test(value);
+
+        const fromId = normalizePlayFabId(req.body?.fromId);
+        const toId = normalizePlayFabId(req.body?.toId);
+        const amountInt = parseInt(req.body?.amount, 10);
         if (!fromId || !toId || !amountInt || amountInt <= 0) {
             return res.status(400).json({ error: '送金パラメータが不正です。' });
+        }
+        if (!isValidPlayFabId(toId)) {
+            return res.status(400).json({ error: '送金先IDが正しくありません。' });
         }
         if (fromId === toId) {
             return res.status(400).json({ error: '同じアカウントには送金できません。' });
@@ -303,10 +314,19 @@ function initializeEconomyRoutes(app, deps) {
                 res.json({ newBalance: payerNewBalance });
             } catch (addError) {
                 console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
+                const addMessage = addError?.errorMessage || addError?.message || '';
+                if (String(addMessage).includes('EntityKeyNotFound')) {
+                    await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, economyDeps);
+                    return res.status(400).json({ error: '送金先のアカウントが見つかりません。' });
+                }
                 await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, economyDeps);
                 res.status(500).json({ error: '送金先への加算に失敗しました。' });
             }
         } catch (subtractError) {
+            const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';
+            if (String(subtractMessage).includes('EntityKeyNotFound')) {
+                return res.status(400).json({ error: '送金元のアカウントが見つかりません。' });
+            }
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(400).json({ error: 'ポイントが不足しています。' });
             }
