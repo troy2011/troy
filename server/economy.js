@@ -136,7 +136,8 @@ function initializeEconomyRoutes(app, deps) {
         PlayFabEconomy,
         getEntityKeyFromPlayFabId,
         catalogCache: deps.catalogCache,
-        catalogCurrencyMap: deps.catalogCurrencyMap
+        catalogCurrencyMap: deps.catalogCurrencyMap,
+        resolveItemId: deps.resolveItemId
     };
 
     // ポイント取得

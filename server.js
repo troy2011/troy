@@ -836,7 +836,10 @@ async function main() {
         promisifyPlayFab,
         PlayFabServer,
         PlayFabEconomy,
-        getEntityKeyFromPlayFabId
+        getEntityKeyFromPlayFabId,
+        catalogCache,
+        catalogCurrencyMap,
+        resolveItemId: resolveCatalogItemId
     });
 
     // 国家ルート
