@@ -61,6 +61,13 @@ async function getEntityKeyFromPlayFabId(playFabId) {
             const accountInfo = await promisifyPlayFab(PlayFabAdmin.GetUserAccountInfo, {
                 PlayFabId: playFabId
             });
+            const titlePlayerAccount = accountInfo?.UserAccountInfo?.TitleInfo?.TitlePlayerAccount
+                || accountInfo?.UserInfo?.TitleInfo?.TitlePlayerAccount
+                || accountInfo?.AccountInfo?.TitleInfo?.TitlePlayerAccount
+                || null;
+            if (titlePlayerAccount?.Id) {
+                return { Id: titlePlayerAccount.Id, Type: titlePlayerAccount.Type || 'title_player_account' };
+            }
             const titlePlayerAccountId = accountInfo?.UserAccountInfo?.TitleInfo?.TitlePlayerAccountId
                 || accountInfo?.AccountInfo?.TitleInfo?.TitlePlayerAccountId
                 || null;
