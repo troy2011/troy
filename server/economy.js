@@ -287,6 +287,7 @@ function initializeEconomyRoutes(app, deps) {
 
         const fromId = normalizePlayFabId(req.body?.fromId);
         const toId = normalizePlayFabId(req.body?.toId);
+        const fromEntityKey = normalizeEntityKey(req.body?.fromEntityKey);
         const amountInt = parseInt(req.body?.amount, 10);
         if (!fromId || !toId || !amountInt || amountInt <= 0) {
             return res.status(400).json({ error: '送金パラメータが不正です。' });
@@ -298,8 +299,11 @@ function initializeEconomyRoutes(app, deps) {
             return res.status(400).json({ error: '同じアカウントには送金できません。' });
         }
         try {
-            await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, economyDeps);
-            const payerNewBalance = await getCurrencyBalance(fromId, VIRTUAL_CURRENCY_CODE, economyDeps);
+            const payerDeps = fromEntityKey ? { ...economyDeps, entityKeyOverride: fromEntityKey } : economyDeps;
+            await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, payerDeps);
+            const payerNewBalance = fromEntityKey
+                ? await getCurrencyBalanceWithEntity(fromEntityKey, VIRTUAL_CURRENCY_CODE, economyDeps)
+                : await getCurrencyBalance(fromId, VIRTUAL_CURRENCY_CODE, economyDeps);
             try {
                 await addEconomyItem(toId, VIRTUAL_CURRENCY_CODE, amountInt, economyDeps);
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
@@ -325,7 +329,8 @@ function initializeEconomyRoutes(app, deps) {
         } catch (subtractError) {
             const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';
             if (String(subtractMessage).includes('EntityKeyNotFound')) {
-                return res.status(400).json({ error: '送金元のアカウントが見つかりません。' });
+                const hint = fromEntityKey ? '送金元の認証が無効です。再ログインしてください。' : '送金元のアカウントが見つかりません。';
+                return res.status(400).json({ error: hint });
             }
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(400).json({ error: 'ポイントが不足しています。' });

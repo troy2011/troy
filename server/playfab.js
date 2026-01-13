@@ -56,29 +56,32 @@ async function setGroupDataValues(groupId, values) {
 
 async function getEntityKeyFromPlayFabId(playFabId) {
     if (!playFabId) return null;
-    const result = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-        PlayFabId: playFabId,
-        ProfileConstraints: { ShowEntity: true }
-    });
-    const entity = result?.PlayerProfile?.Entity || null;
-    if (entity?.Id && entity?.Type) return entity;
-    const legacyId = result?.PlayerProfile?.EntityId || null;
-    const legacyType = result?.PlayerProfile?.EntityType || null;
-    if (legacyId && legacyType) return { Id: legacyId, Type: legacyType };
     try {
-        const accountInfoFn = PlayFabServer.GetAccountInfo || PlayFabAdmin.GetUserAccountInfo;
-        if (typeof accountInfoFn !== 'function') {
-            throw new Error('GetAccountInfoNotAvailable');
-        }
-        const accountInfo = await promisifyPlayFab(accountInfoFn, {
-            PlayFabId: playFabId
-        });
-        const titlePlayerAccountId = accountInfo?.AccountInfo?.TitleInfo?.TitlePlayerAccountId || null;
-        if (titlePlayerAccountId) {
-            return { Id: titlePlayerAccountId, Type: 'title_player_account' };
+        if (typeof PlayFabAdmin?.GetUserAccountInfo === 'function') {
+            const accountInfo = await promisifyPlayFab(PlayFabAdmin.GetUserAccountInfo, {
+                PlayFabId: playFabId
+            });
+            const titlePlayerAccountId = accountInfo?.UserAccountInfo?.TitleInfo?.TitlePlayerAccountId
+                || accountInfo?.AccountInfo?.TitleInfo?.TitlePlayerAccountId
+                || null;
+            if (titlePlayerAccountId) {
+                return { Id: titlePlayerAccountId, Type: 'title_player_account' };
+            }
         }
     } catch (error) {
-        console.warn('[getEntityKeyFromPlayFabId] GetAccountInfo failed:', error?.errorMessage || error?.message || error);
+        console.warn('[getEntityKeyFromPlayFabId] Admin.GetUserAccountInfo failed:', error?.errorMessage || error?.message || error);
+    }
+    try {
+        const result = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId
+        });
+        const entity = result?.PlayerProfile?.Entity || null;
+        if (entity?.Id && entity?.Type) return entity;
+        const legacyId = result?.PlayerProfile?.EntityId || null;
+        const legacyType = result?.PlayerProfile?.EntityType || null;
+        if (legacyId && legacyType) return { Id: legacyId, Type: legacyType };
+    } catch (error) {
+        console.warn('[getEntityKeyFromPlayFabId] GetPlayerProfile failed:', error?.errorMessage || error?.message || error);
     }
     console.warn('[getEntityKeyFromPlayFabId] Entity not found in profile:', playFabId);
     return null;

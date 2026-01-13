@@ -551,7 +551,13 @@ async function startScanAndPay() {
         if (result && result.value) {
             const amount = parseInt(document.getElementById('transferAmount').value, 10);
             showConfirmationModal(amount, result.value, async () => {
-                const data = await callApiWithLoader('/api/transfer-points', { fromId: myPlayFabId, toId: result.value, amount });
+                const fromEntityKey = window.myPlayFabLoginInfo?.entityKey || null;
+                const data = await callApiWithLoader('/api/transfer-points', {
+                    fromId: myPlayFabId,
+                    toId: result.value,
+                    amount,
+                    fromEntityKey
+                });
                 if (data) {
                     document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！`;
                     await Player.getPoints(myPlayFabId);
