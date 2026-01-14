@@ -423,6 +423,37 @@
                     <p style="font-size:12px; color:var(--text-sub);">このページは各国（島）グループの王だけが閲覧できます。</p>
 
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">Ps 付与（QRコード）</div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                            <div>
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受取人 PlayFabId</div>
+                                <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
+                                <div style="display:flex; gap:10px; margin-top: 8px;">
+                                    <button id="btnKingScanReceiver" style="background: #374151;">QRで読み取り</button>
+                                    <button id="btnKingClearReceiver" style="background: #4b5563;">クリア</button>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与総額（王が支払う）</div>
+                                <div class="transfer-quick-row">
+                                    <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
+                                    <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
+                                    <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
+                                    <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
+                                </div>
+                                <div class="transfer-input-row">
+                                    <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
+                                    <span>Ps</span>
+                                </div>
+                                <div style="display:flex; gap:10px; margin-top: 8px;">
+                                    <button id="btnKingGrantPs" style="background: var(--hp-color);">付与する</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="kingGrantPreview" style="margin-top: 10px; font-size: 12px; color: var(--text-sub);"></div>
+                    </div>
+
+                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
                         <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
                             <div>
                                 <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">税率（%）</div>
@@ -436,28 +467,6 @@
                         </div>
                         <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">税率は「付与総額」から差し引かれ、税金は国庫として記録されます。</div>
                         <div id="kingTreasuryInfo" style="margin-top: 8px; font-size: 12px; color: var(--text-sub);"></div>
-                    </div>
-
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">Ps 付与（QRコード）</div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                            <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受取人 PlayFabId</div>
-                                <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                                <div style="display:flex; gap:10px; margin-top: 8px;">
-                                    <button id="btnKingScanReceiver" style="background: #374151;">QRで読み取り</button>
-                                    <button id="btnKingClearReceiver" style="background: #4b5563;">クリア</button>
-                                </div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与総額（王が支払う）</div>
-                                <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="例: 100" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                                <div style="display:flex; gap:10px; margin-top: 8px;">
-                                    <button id="btnKingGrantPs" style="background: var(--hp-color);">付与する</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="kingGrantPreview" style="margin-top: 10px; font-size: 12px; color: var(--text-sub);"></div>
                     </div>
 
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">

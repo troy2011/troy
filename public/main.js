@@ -216,7 +216,8 @@ async function initializeAppFeatures() {
     document.querySelectorAll('.transfer-quick-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             const amount = Number(btn.dataset.amount || 0);
-            const input = document.getElementById('transferAmount');
+            const targetId = String(btn.dataset.target || 'transferAmount');
+            const input = document.getElementById(targetId);
             if (!input || !Number.isFinite(amount)) return;
             if (amount === 0) {
                 input.value = '0';
