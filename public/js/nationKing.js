@@ -3,7 +3,7 @@
 import {
     getNationKingPage,
     setNationAnnouncement,
-    setNationTaxRate,
+    setNationGrantMultiplier,
     grantPs,
     transferKing,
     exileKing
@@ -29,12 +29,11 @@ function _formatEpochMs(ms) {
     }
 }
 
-function _taxPreview(amount, taxRateBps) {
+function _grantPreview(amount, multiplier) {
     const gross = Math.max(0, Math.floor(Number(amount) || 0));
-    const bps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateBps) || 0)));
-    const tax = Math.floor((gross * bps) / 10000);
-    const net = Math.max(0, gross - tax);
-    return { gross, tax, net, bps };
+    const multi = Math.max(0, Number(multiplier) || 0);
+    const grant = Math.floor(gross * 0.1 * multi);
+    return { gross, grant, multiplier: multi };
 }
 
 function _extractErrorMessage(error, fallback = '付与に失敗しました。') {
@@ -80,7 +79,7 @@ export async function loadKingPage(playFabId) {
     const currentEl = document.getElementById('kingAnnouncementCurrent');
     const metaEl = document.getElementById('kingAnnouncementMeta');
     const inputEl = document.getElementById('kingAnnouncementInput');
-    const taxInputEl = document.getElementById('kingTaxRateInput');
+    const grantMultiplierInputEl = document.getElementById('kingGrantMultiplierInput');
     const treasuryEl = document.getElementById('kingTreasuryInfo');
     const previewEl = document.getElementById('kingGrantPreview');
     const grantAmountEl = document.getElementById('kingGrantAmount');
@@ -93,18 +92,17 @@ export async function loadKingPage(playFabId) {
     }
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
 
-    if (taxInputEl) {
-        const bps = typeof data.taxRateBps === 'number' ? data.taxRateBps : 0;
-        taxInputEl.value = String((bps / 100).toFixed(1)).replace(/\.0$/, '');
+    if (grantMultiplierInputEl) {
+        const multiplier = Number.isFinite(Number(data.grantMultiplier)) ? Number(data.grantMultiplier) : 1;
+        grantMultiplierInputEl.value = String(multiplier);
     }
     if (treasuryEl) {
-        const taxPercent = (typeof data.taxRateBps === 'number') ? (data.taxRateBps / 100) : 0;
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
-        treasuryEl.innerText = `現在の税率: ${taxPercent}% / 国庫: ${treasuryPs} Ps`;
+        treasuryEl.innerText = `国庫: ${treasuryPs} Ps`;
     }
     if (previewEl && grantAmountEl) {
-        const p = _taxPreview(grantAmountEl.value, data.taxRateBps);
-        previewEl.innerText = p.gross > 0 ? `受取人: ${p.net} Ps / 税金: ${p.tax} Ps（総額: ${p.gross} Ps）` : '';
+        const p = _grantPreview(grantAmountEl.value, data.grantMultiplier);
+        previewEl.innerText = p.gross > 0 ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps` : '';
     }
 
     _wireHandlers(playFabId);
@@ -119,8 +117,8 @@ function _wireHandlers(playFabId) {
     const reloadBtn = document.getElementById('btnKingReload');
     const reloadBtn2 = document.getElementById('btnKingReload2');
     const inputEl = document.getElementById('kingAnnouncementInput');
-    const taxSaveBtn = document.getElementById('btnKingSetTaxRate');
-    const taxInputEl = document.getElementById('kingTaxRateInput');
+    const grantMultiplierSaveBtn = document.getElementById('btnKingSetGrantMultiplier');
+    const grantMultiplierInputEl = document.getElementById('kingGrantMultiplierInput');
     const grantReceiverEl = document.getElementById('kingGrantReceiverId');
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const grantBtn = document.getElementById('btnKingGrantPs');
@@ -157,13 +155,13 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (taxSaveBtn) {
-        taxSaveBtn.addEventListener('click', async () => {
-            const raw = taxInputEl ? taxInputEl.value : '0';
-            const taxRatePercent = Number(raw);
-            const result = await setNationTaxRate(playFabId, taxRatePercent);
+    if (grantMultiplierSaveBtn) {
+        grantMultiplierSaveBtn.addEventListener('click', async () => {
+            const raw = grantMultiplierInputEl ? grantMultiplierInputEl.value : '1';
+            const grantMultiplier = Number(raw);
+            const result = await setNationGrantMultiplier(playFabId, grantMultiplier);
             if (result) {
-                _setMessage('税率を保存しました。');
+                _setMessage('付与倍率を保存しました。');
                 await loadKingPage(playFabId);
             }
         });
@@ -171,9 +169,11 @@ function _wireHandlers(playFabId) {
 
     if (grantAmountEl && previewEl) {
         grantAmountEl.addEventListener('input', () => {
-            const bps = _lastPageData && typeof _lastPageData.taxRateBps === 'number' ? _lastPageData.taxRateBps : 0;
-            const p = _taxPreview(grantAmountEl.value, bps);
-            previewEl.innerText = p.gross > 0 ? `受取人: ${p.net} Ps / 税金: ${p.tax} Ps（総額: ${p.gross} Ps）` : '';
+            const multiplier = _lastPageData && Number.isFinite(Number(_lastPageData.grantMultiplier))
+                ? Number(_lastPageData.grantMultiplier)
+                : 1;
+            const p = _grantPreview(grantAmountEl.value, multiplier);
+            previewEl.innerText = p.gross > 0 ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps` : '';
         });
     }
 
@@ -206,7 +206,7 @@ function _wireHandlers(playFabId) {
                 _setMessage('付与総額は1以上を入力してください。', true);
                 return;
             }
-            if (!confirm(`王の所持金から ${Math.floor(amount)} Ps を支払い、受取人に付与します。実行しますか？`)) return;
+            if (!confirm(`¥${Math.floor(amount)} を受領し、受取人に PS を付与します。実行しますか？`)) return;
 
             const nextAmount = Math.floor(amount);
             const previousLabel = grantBtn.innerText;
@@ -216,7 +216,7 @@ function _wireHandlers(playFabId) {
             try {
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount);
                 if (result) {
-                    _setMessage(`付与しました（受取: ${result.netAmount} Ps / 税: ${result.taxAmount} Ps）。`);
+                    _setMessage(`付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`);
                     await loadKingPage(playFabId);
                 }
             } catch (error) {

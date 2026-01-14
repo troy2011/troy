@@ -144,8 +144,8 @@ export function setNationAnnouncement(playFabId, message, options) {
     return callApiWithLoader('/api/set-nation-announcement', { playFabId, message }, options);
 }
 
-export function setNationTaxRate(playFabId, taxRatePercent, options) {
-    return callApiWithLoader('/api/king-set-tax-rate', { playFabId, taxRatePercent }, options);
+export function setNationGrantMultiplier(playFabId, grantMultiplier, options) {
+    return callApiWithLoader('/api/king-set-grant-multiplier', { playFabId, grantMultiplier }, options);
 }
 
 export function grantPs(playFabId, receiverPlayFabId, amount, options) {

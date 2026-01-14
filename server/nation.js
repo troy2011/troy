@@ -22,6 +22,12 @@ const AVATAR_COLOR_BY_NATION = {
     water: 'blue'
 };
 
+function normalizePlayFabId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
 function getAvatarColorForNation(nation) {
     const key = String(nation || '').toLowerCase();
     return AVATAR_COLOR_BY_NATION[key] || null;
@@ -198,6 +204,36 @@ async function getPlayerEntity(playFabId, deps) {
     return null;
 }
 
+async function requireKingContext(playFabId, firestore, deps) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    const kingId = normalizePlayFabId(playFabId);
+    if (!kingId) throw new Error('InvalidPlayFabId');
+
+    const nation = await getNationForPlayer(kingId, { promisifyPlayFab, PlayFabServer });
+    if (!nation) throw new Error('KingNationNotSet');
+    const mapping = getNationMappingByNation(nation);
+    if (!mapping) throw new Error('InvalidKingNation');
+
+    const groupId = await getNationGroupIdByNation(nation, firestore, deps);
+    if (!groupId) throw new Error('NationGroupNotFound');
+
+    const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
+    const storedKingId = groupSnap.exists ? normalizePlayFabId(groupSnap.data()?.kingPlayFabId || '') : '';
+    if (storedKingId && storedKingId !== kingId) throw new Error('NotKing');
+
+    if (!storedKingId) {
+        const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: kingId,
+            Keys: ['IsKing', 'NationKingId']
+        });
+        const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
+        const roKingId = normalizePlayFabId(kingRo?.Data?.NationKingId?.Value || '');
+        if (!isKing || (roKingId && roKingId !== kingId)) throw new Error('NotKing');
+    }
+
+    return { kingId, nation, mapping, groupId };
+}
+
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip } = deps;
@@ -318,11 +354,14 @@ function initializeNationRoutes(app, deps) {
                 const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
                 if (groupId) {
-                    const taxRateRaw = await getGroupDataValue(groupId, 'taxRateBps');
+                    const grantMultiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
                     const treasuryRaw = await getGroupDataValue(groupId, 'treasuryPT');
-                    const taxRateBps = Math.max(0, Math.min(5000, Math.floor(Number(taxRateRaw) || 0)));
+                    const grantMultiplierValue = Number(grantMultiplierRaw);
+                    const grantMultiplier = Number.isFinite(grantMultiplierValue) && grantMultiplierValue >= 0
+                        ? grantMultiplierValue
+                        : 1;
                     const treasuryPs = Math.max(0, Math.floor(Number(treasuryRaw) || 0));
-                    payload.taxRateBps = taxRateBps;
+                    payload.grantMultiplier = grantMultiplier;
                     payload.treasuryPs = treasuryPs;
                 }
             } catch (e) {
@@ -343,40 +382,26 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // 税率設定
-    app.post('/api/king-set-tax-rate', async (req, res) => {
-        const { playFabId, taxRatePercent } = req.body || {};
+    // 付与倍率設定
+    app.post('/api/king-set-grant-multiplier', async (req, res) => {
+        const { playFabId, grantMultiplier } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
-        const percent = Number(taxRatePercent);
-        if (!Number.isFinite(percent) || percent < 0 || percent > 50) {
-            return res.status(400).json({ error: 'Tax rate must be between 0 and 50' });
+        const multiplierValue = Number(grantMultiplier);
+        if (!Number.isFinite(multiplierValue) || multiplierValue < 0) {
+            return res.status(400).json({ error: 'Grant multiplier must be 0 or greater' });
         }
-        const bps = Math.floor(percent * 100);
 
         try {
-            const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-                PlayFabId: playFabId,
-                FunctionName: 'GetNationKingPageData',
-                FunctionParameter: {},
-                GeneratePlayStreamEvent: false
-            });
-            if (csResult && csResult.Error) {
-                const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
-                if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
-                    return res.status(403).json({ error: 'NotKing' });
-                }
-            }
-
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
-            if (!nation) return res.status(400).json({ error: 'Nation not set' });
-            const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
-            if (!groupId) return res.status(400).json({ error: 'Nation group not found' });
-
-            await setGroupDataValues(groupId, { taxRateBps: String(bps) });
-            res.json({ success: true, taxRateBps: bps });
+            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            await setGroupDataValues(context.groupId, { grantMultiplier: String(multiplierValue) });
+            res.json({ success: true, grantMultiplier: multiplierValue });
         } catch (error) {
-            console.error('[king-set-tax-rate] Error:', error?.errorMessage || error?.message || error);
-            res.status(500).json({ error: 'Failed to set tax rate' });
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[king-set-grant-multiplier] Error:', msg);
+            res.status(500).json({ error: 'Failed to set grant multiplier' });
         }
     });
 
@@ -395,65 +420,22 @@ function initializeNationRoutes(app, deps) {
         }
 
         try {
-            const normalizePlayFabId = (raw) => String(raw || '').replace(/^playfab:/i, '').trim().toUpperCase();
-            const kingId = normalizePlayFabId(playFabId);
+            const context = await requireKingContext(playFabId, firestore, nationDeps);
             const receiverId = normalizePlayFabId(receiverPlayFabId);
-            if (!kingId || !receiverId) {
-                return res.status(400).json({ error: 'Invalid PlayFab ID' });
-            }
+            if (!receiverId) return res.status(400).json({ error: 'Invalid receiver PlayFab ID' });
 
-            const kingNation = await getNationForPlayer(kingId, { promisifyPlayFab, PlayFabServer });
-            if (!kingNation) return res.status(400).json({ error: 'King nation not set' });
-            const mapping = getNationMappingByNation(kingNation);
-            if (!mapping) return res.status(400).json({ error: 'Invalid king nation' });
-            const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
-            const storedKingId = groupSnap.exists ? String(groupSnap.data()?.kingPlayFabId || '').trim().toUpperCase() : '';
-            if (storedKingId && storedKingId !== kingId) {
-                return res.status(403).json({ error: 'NotKing' });
-            }
-            if (!storedKingId) {
-                const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                    PlayFabId: kingId,
-                    Keys: ['IsKing', 'NationKingId']
-                });
-                const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
-                const roKingId = String(kingRo?.Data?.NationKingId?.Value || '').trim().toUpperCase();
-                if (!isKing || (roKingId && roKingId !== kingId)) {
-                    return res.status(403).json({ error: 'NotKing' });
-                }
-            }
+            const multiplierRaw = await getGroupDataValue(context.groupId, 'grantMultiplier');
+            const multiplierValue = Number(multiplierRaw);
+            const multiplier = Number.isFinite(multiplierValue) && multiplierValue >= 0 ? multiplierValue : 1;
 
-            const receiverNation = await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer });
-            const taxRateBps = receiverNation ? await getNationTaxRateBps(receiverNation, firestore, nationDeps) : 0;
-            const taxInfo = applyTax ? applyTax(value, taxRateBps) : { gross: value, tax: 0, net: value, bps: taxRateBps };
-            const gross = taxInfo.gross;
-            const taxAmount = taxInfo.tax;
-            const netAmount = taxInfo.net;
-            if (netAmount <= 0) {
-                return res.status(400).json({ error: 'Amount too small after tax' });
+            const grantAmount = Math.floor(value * 0.1 * multiplier);
+            if (grantAmount <= 0) {
+                return res.status(400).json({ error: 'Grant amount is zero' });
             }
 
             try {
-                await subtractEconomyItem(kingId, 'PS', gross);
-            } catch (subtractError) {
-                const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';
-                if (String(subtractMessage).includes('EntityKeyNotFound')) {
-                    return res.status(400).json({ error: '王のアカウントが見つかりません。' });
-                }
-                if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-                    return res.status(400).json({ error: '王の所持PSが不足しています。' });
-                }
-                return res.status(500).json({ error: 'Failed to subtract PS', details: subtractError?.errorMessage || subtractError?.message });
-            }
-
-            try {
-                await addEconomyItem(receiverId, 'PS', netAmount);
+                await addEconomyItem(receiverId, 'PS', grantAmount);
             } catch (addError) {
-                try {
-                    await addEconomyItem(kingId, 'PS', gross);
-                } catch (refundError) {
-                    console.warn('[king-grant-ps] Refund failed:', refundError?.errorMessage || refundError?.message || refundError);
-                }
                 const addMessage = addError?.errorMessage || addError?.message || '';
                 if (String(addMessage).includes('EntityKeyNotFound')) {
                     return res.status(400).json({ error: '受取人のアカウントが見つかりません。' });
@@ -461,32 +443,36 @@ function initializeNationRoutes(app, deps) {
                 return res.status(500).json({ error: 'Failed to add PS', details: addError?.errorMessage || addError?.message });
             }
 
-            if (taxAmount > 0 && receiverNation) {
-                try {
-                    await addNationTreasury(receiverNation, taxAmount, firestore, nationDeps);
-                } catch (taxError) {
-                    console.warn('[king-grant-ps] Failed to add tax to treasury:', taxError?.errorMessage || taxError?.message || taxError);
-                }
+            try {
+                await addNationTreasury(context.nation, value, firestore, nationDeps);
+            } catch (treasuryError) {
+                console.warn('[king-grant-ps] Failed to add treasury:', treasuryError?.errorMessage || treasuryError?.message || treasuryError);
             }
 
-            const [kingBalance, receiverBalance] = await Promise.all([
-                getCurrencyBalance ? getCurrencyBalance(kingId, 'PS') : null,
-                getCurrencyBalance ? getCurrencyBalance(receiverId, 'PS') : null
-            ]);
+            let receiverBalance = null;
+            if (getCurrencyBalance) {
+                receiverBalance = await getCurrencyBalance(receiverId, 'PS');
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: receiverId,
+                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                });
+            }
 
             res.json({
                 success: true,
-                grossAmount: gross,
-                netAmount,
-                taxAmount,
-                taxRateBps: taxInfo.bps,
-                receiverNation: receiverNation || null,
-                kingBalance: Number.isFinite(kingBalance) ? kingBalance : undefined,
+                receivedAmount: value,
+                grantAmount,
+                grantMultiplier: multiplier,
+                receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
                 receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined
             });
         } catch (error) {
-            console.error('[king-grant-ps] Error:', error?.errorMessage || error?.message || error);
-            res.status(500).json({ error: 'Failed to grant PS', details: error?.errorMessage || error?.message || error });
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[king-grant-ps] Error:', msg);
+            res.status(500).json({ error: 'Failed to grant PS', details: msg });
         }
     });
 

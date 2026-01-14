@@ -423,7 +423,7 @@
                     <p style="font-size:12px; color:var(--text-sub);">このページは各国（島）グループの王だけが閲覧できます。</p>
 
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">Ps 付与（QRコード）</div>
+                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">受領 → PS 付与（QRコード）</div>
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                             <div>
                                 <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受取人 PlayFabId</div>
@@ -434,7 +434,7 @@
                                 </div>
                             </div>
                             <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与総額（王が支払う）</div>
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受領金額（¥）</div>
                                 <div class="transfer-quick-row">
                                     <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
                                     <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
@@ -443,7 +443,7 @@
                                 </div>
                                 <div class="transfer-input-row">
                                     <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
-                                    <span>Ps</span>
+                                    <span>¥</span>
                                 </div>
                                 <div style="display:flex; gap:10px; margin-top: 8px;">
                                     <button id="btnKingGrantPs" style="background: var(--hp-color);">付与する</button>
@@ -456,16 +456,16 @@
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
                         <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
                             <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">税率（%）</div>
-                                <input id="kingTaxRateInput" type="number" min="0" max="50" step="0.1" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
+                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与倍率（10% × 倍率）</div>
+                                <input id="kingGrantMultiplierInput" type="number" min="0" step="0.1" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
                             </div>
                             <div style="flex:1;"></div>
                             <div style="display:flex; gap:10px; align-items:flex-end;">
-                                <button id="btnKingSetTaxRate" style="background: var(--accent-color);">税率を保存</button>
+                                <button id="btnKingSetGrantMultiplier" style="background: var(--accent-color);">倍率を保存</button>
                                 <button id="btnKingReload" style="background: #4b5563;">再読み込み</button>
                             </div>
                         </div>
-                        <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">税率は「付与総額」から差し引かれ、税金は国庫として記録されます。</div>
+                        <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">受領金額の10% × 倍率をPSとして付与します。国庫には受領額がPSで加算されます。</div>
                         <div id="kingTreasuryInfo" style="margin-top: 8px; font-size: 12px; color: var(--text-sub);"></div>
                     </div>
 
