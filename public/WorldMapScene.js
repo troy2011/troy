@@ -2563,7 +2563,22 @@ export default class WorldMapScene extends Phaser.Scene {
             ? islandData.buildings.some(b => b && b.status !== 'demolished')
             : false;
         const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
-        const islandNation = String(islandData.ownerNation || islandData.nation || biomeId || '').toLowerCase();
+        const mapNation = (() => {
+            const mapKey = String(islandData.mapId || this.mapId || '').toLowerCase();
+            switch (mapKey) {
+                case 'wands':
+                    return 'fire';
+                case 'pentacles':
+                    return 'earth';
+                case 'swords':
+                    return 'wind';
+                case 'cups':
+                    return 'water';
+                default:
+                    return '';
+            }
+        })();
+        const islandNation = String(islandData.ownerNation || islandData.nation || mapNation || biomeId || '').toLowerCase();
         const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
         const isUnoccupied = !islandData.ownerId;
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
