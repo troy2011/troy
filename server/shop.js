@@ -434,7 +434,7 @@ function initializeShopRoutes(app, deps) {
             res.json({
                 success: true,
                 building,
-                cost: costs,
+                cost: costEntries,
                 message: `${spec.DisplayName || buildingId} の建設を開始しました。`
             });
         } catch (error) {
