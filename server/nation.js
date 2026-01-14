@@ -380,6 +380,47 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // 国王によるPs付与（CloudScript経由）
+    app.post('/api/king-grant-ps', async (req, res) => {
+        const { playFabId, receiverPlayFabId, amount } = req.body || {};
+        if (!playFabId || !receiverPlayFabId) {
+            return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
+        }
+        const value = Math.floor(Number(amount) || 0);
+        if (!Number.isFinite(value) || value <= 0) {
+            return res.status(400).json({ error: 'Amount must be greater than 0' });
+        }
+        if (playFabId === receiverPlayFabId) {
+            return res.status(400).json({ error: 'Cannot grant to self' });
+        }
+
+        try {
+            const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+                PlayFabId: playFabId,
+                FunctionName: 'KingGrantPsWithTax',
+                FunctionParameter: { receiverPlayFabId, amount: value },
+                GeneratePlayStreamEvent: false
+            });
+
+            if (csResult && csResult.Error) {
+                const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
+                if (String(msg).includes('NotKing') || String(msg).includes('NationKingNotSet')) {
+                    return res.status(403).json({ error: 'NotKing' });
+                }
+                if (String(msg).includes('ReceiverNotInSameNation')) {
+                    return res.status(400).json({ error: 'ReceiverNotInSameNation' });
+                }
+                return res.status(500).json({ error: 'Failed to grant PS', details: msg });
+            }
+
+            const payload = csResult ? (csResult.FunctionResult || {}) : {};
+            res.json(payload);
+        } catch (error) {
+            console.error('[king-grant-ps] Error:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: 'Failed to grant PS', details: error?.errorMessage || error?.message || error });
+        }
+    });
+
     // プレイヤー追放
     app.post('/api/king-exile', async (req, res) => {
         const { playFabId, targetPlayFabId } = req.body || {};
