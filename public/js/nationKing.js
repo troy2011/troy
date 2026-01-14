@@ -37,6 +37,12 @@ function _taxPreview(amount, taxRateBps) {
     return { gross, tax, net, bps };
 }
 
+function _extractErrorMessage(error, fallback = '付与に失敗しました。') {
+    if (!error) return fallback;
+    if (typeof error === 'string') return error;
+    return error.message || error.errorMessage || fallback;
+}
+
 async function _scanQrValue() {
     if (!window.liff) throw new Error('LIFF が初期化されていません。');
     if (typeof window.liff.scanCodeV2 === 'function') {
@@ -202,10 +208,22 @@ function _wireHandlers(playFabId) {
             }
             if (!confirm(`王の所持金から ${Math.floor(amount)} Ps を支払い、受取人に付与します。実行しますか？`)) return;
 
-            const result = await grantPs(playFabId, receiverPlayFabId, Math.floor(amount));
-            if (result) {
-                _setMessage(`付与しました（受取: ${result.netAmount} Ps / 税: ${result.taxAmount} Ps）。`);
-                await loadKingPage(playFabId);
+            const nextAmount = Math.floor(amount);
+            const previousLabel = grantBtn.innerText;
+            grantBtn.disabled = true;
+            grantBtn.innerText = '処理中...';
+            _setMessage('');
+            try {
+                const result = await grantPs(playFabId, receiverPlayFabId, nextAmount);
+                if (result) {
+                    _setMessage(`付与しました（受取: ${result.netAmount} Ps / 税: ${result.taxAmount} Ps）。`);
+                    await loadKingPage(playFabId);
+                }
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error), true);
+            } finally {
+                grantBtn.disabled = false;
+                grantBtn.innerText = previousLabel;
             }
         });
     }
