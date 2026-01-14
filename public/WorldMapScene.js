@@ -1279,7 +1279,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const buildingSprites = [];
         if (data.buildings && Array.isArray(data.buildings)) {
-            const activeBuildings = data.buildings.filter(b => b && b.status !== 'demolished');
+            const activeBuildings = data.buildings.filter(b => b && b.status === 'completed');
             const buildingsToRender = activeBuildings.length > 0 ? [activeBuildings[0]] : [];
             buildingsToRender.forEach(building => {
                 const buildingId = building.buildingId || building.id || null;
