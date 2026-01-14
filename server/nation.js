@@ -449,6 +449,26 @@ function initializeNationRoutes(app, deps) {
                 console.warn('[king-grant-ps] Failed to add treasury:', treasuryError?.errorMessage || treasuryError?.message || treasuryError);
             }
 
+            if (firestore && admin) {
+                try {
+                    await firestore
+                        .collection('notifications')
+                        .doc(receiverId)
+                        .collection('items')
+                        .add({
+                            type: 'king_grant',
+                            fromId: context.kingId,
+                            amount: grantAmount,
+                            currency: 'PS',
+                            receivedAmount: value,
+                            grantMultiplier: multiplier,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                } catch (notifyError) {
+                    console.warn('[king-grant-ps] Notification write failed:', notifyError?.message || notifyError);
+                }
+            }
+
             let receiverBalance = null;
             if (getCurrencyBalance) {
                 receiverBalance = await getCurrencyBalance(receiverId, 'PS');
