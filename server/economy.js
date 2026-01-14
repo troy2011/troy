@@ -358,6 +358,25 @@ function initializeEconomyRoutes(app, deps) {
             res.status(500).json({ error: '送金に失敗しました。', details: subtractError.errorMessage || subtractError.message });
         }
     });
+
+    // プレイヤー表示名取得
+    app.post('/api/get-player-display-name', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            const displayName = profile?.PlayerProfile?.DisplayName || null;
+            res.json({ displayName });
+        } catch (error) {
+            res.status(500).json({
+                error: 'Failed to get display name',
+                details: error.errorMessage || error.message
+            });
+        }
+    });
 }
 
 module.exports = {

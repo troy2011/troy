@@ -604,7 +604,14 @@ async function startScanAndPay() {
         const result = await liff.scanCodeV2();
         if (result && result.value) {
             const amount = parseInt(document.getElementById('transferAmount').value, 10);
-            showConfirmationModal(amount, result.value, async () => {
+            let receiverName = '';
+            try {
+                const profile = await callApiWithLoader('/api/get-player-display-name', { playFabId: result.value }, { isSilent: true });
+                receiverName = String(profile?.displayName || '').trim();
+            } catch {
+                receiverName = '';
+            }
+            showConfirmationModal(amount, result.value, receiverName, async () => {
                 const fromEntityKey = window.myPlayFabLoginInfo?.entityKey || null;
                 const data = await callApiWithLoader('/api/transfer-points', {
                     fromId: myPlayFabId,

@@ -534,10 +534,11 @@ export async function showTab(tabId, playerInfo, options = {}) {
     // no-op
 }
 
-export function showConfirmationModal(amount, receiverId, onConfirm) {
+export function showConfirmationModal(amount, receiverId, receiverName, onConfirm) {
     playSound('audioCoin');
     document.getElementById('modalAmount').innerText = `${amount}Ps`;
-    document.getElementById('modalReceiverId').innerText = receiverId;
+    const label = receiverName || receiverId;
+    document.getElementById('modalReceiverId').innerText = label;
     const modal = document.getElementById('confirmationModal');
     modal.style.display = 'flex';
 
