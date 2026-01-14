@@ -94,9 +94,9 @@ async function saveGuildData(guildId, data, promisifyPlayFab) {
  * @param {Object} PlayFabServer - PlayFab Server API
  * @param {Object} PlayFabAdmin - PlayFab Admin API
  */
-function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy) {
+function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveItemId) {
 
-    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId };
+    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
 
     // ----------------------------------------------------
     // API: ギルド情報を取得

@@ -44,13 +44,13 @@ function worldToLatLng(point) {
  * データ構造メモ (省略)
  */
 
-function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache) {
+function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem } = require('../economy');
 
-    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId };
+    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
 
     async function findIslandByBiome(biome) {
         const collections = await db.listCollections();

@@ -12,6 +12,8 @@ let _PlayFabServer = null;
 let _PlayFabEconomy = null;
 let _lineClient = null;
 let _catalogCache = null;
+let _catalogCurrencyMap = null;
+let _resolveItemId = null;
 
 async function getEntityKeyForPlayFabId(playFabId) {
     const result = await _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
@@ -40,15 +42,20 @@ async function getAllInventoryItems(playFabId) {
 }
 
 function getCurrencyBalanceFromItems(items, currencyId) {
-    return (items || []).reduce((sum, item) => {
-        const id = item?.Id || item?.ItemId;
-        if (id !== currencyId) return sum;
-        return sum + (Number(item?.Amount ?? item?.amount ?? 0) || 0);
-    }, 0);
+    const totals = economy.getVirtualCurrencyMap(items, {
+        catalogCache: _catalogCache,
+        catalogCurrencyMap: _catalogCurrencyMap
+    });
+    return totals[currencyId] || 0;
 }
 
 function getEconomyDeps() {
-    return { promisifyPlayFab: _promisifyPlayFab, PlayFabEconomy: _PlayFabEconomy, getEntityKeyFromPlayFabId };
+    return {
+        promisifyPlayFab: _promisifyPlayFab,
+        PlayFabEconomy: _PlayFabEconomy,
+        getEntityKeyFromPlayFabId,
+        resolveItemId: _resolveItemId
+    };
 }
 
 // ----------------------------------------------------
@@ -254,13 +261,15 @@ async function runBattle(playerA, playerB) {
 // ----------------------------------------------------
 // ★ v42: server.js から呼び出される初期化関数
 // ----------------------------------------------------
-function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, constants) {
+function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveItemId, constants) {
 
     // ★ v42: モジュールレベル変数に代入
     _promisifyPlayFab = promisifyPlayFab;
     _PlayFabServer = PlayFabServer;
     _PlayFabEconomy = PlayFabEconomy;
     _catalogCache = catalogCache;
+    _catalogCurrencyMap = catalogCurrencyMap || null;
+    _resolveItemId = resolveItemId || null;
     // ★ v120: Firebase Adminのdatabaseインスタンスを取得
     const db = require('firebase-admin').database();
 
