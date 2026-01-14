@@ -839,7 +839,9 @@ async function main() {
         getEntityKeyFromPlayFabId,
         catalogCache,
         catalogCurrencyMap,
-        resolveItemId: resolveCatalogItemId
+        resolveItemId: resolveCatalogItemId,
+        firestore,
+        admin
     });
 
     // 国家ルート

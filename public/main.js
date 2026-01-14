@@ -2,7 +2,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS } from 'config';
 import { callApiWithLoader, promisifyPlayFab, buildApiUrl } from 'api';
 import { showTab, showConfirmationModal } from 'ui';
@@ -31,6 +31,9 @@ let initializeAppPromise = null;
 let raceSelectionBound = false;
 let authHandled = false;
 let authUnsubscribe = null;
+let transferNoticeUnsubscribe = null;
+let transferNoticeReady = false;
+let lastTransferNoticeId = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -177,6 +180,7 @@ async function initializeLiff() {
 
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
+                    subscribeTransferNotifications(myPlayFabId);
                 }
             }
         });
@@ -351,6 +355,56 @@ async function initializeAppFeatures() {
         initializeAppPromise = null;
         throw error;
     }
+}
+
+function subscribeTransferNotifications(playFabId) {
+    if (!firestore || !playFabId) return;
+    if (typeof transferNoticeUnsubscribe === 'function') {
+        transferNoticeUnsubscribe();
+        transferNoticeUnsubscribe = null;
+    }
+    transferNoticeReady = false;
+    lastTransferNoticeId = null;
+
+    const notifQuery = query(
+        collection(firestore, 'notifications', playFabId, 'items'),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+    );
+    transferNoticeUnsubscribe = onSnapshot(notifQuery, (snapshot) => {
+        if (!transferNoticeReady) {
+            const firstDoc = snapshot.docs[0];
+            if (firstDoc) {
+                lastTransferNoticeId = firstDoc.id;
+            }
+            transferNoticeReady = true;
+            return;
+        }
+        snapshot.docChanges().forEach((change) => {
+            if (change.type !== 'added') return;
+            if (change.doc.id === lastTransferNoticeId) return;
+            lastTransferNoticeId = change.doc.id;
+            const data = change.doc.data() || {};
+            const amount = Number(data.amount || 0);
+            const currency = String(data.currency || 'PS');
+            if (amount <= 0) return;
+            if (typeof showRpgMessage === 'function') {
+                showRpgMessage(`送金を受け取りました: ${amount} ${currency}`);
+            } else {
+                const pointMessageEl = document.getElementById('pointMessage');
+                if (pointMessageEl) pointMessageEl.innerText = `送金を受け取りました: ${amount} ${currency}`;
+            }
+            if (Number.isFinite(Number(data.balanceAfter))) {
+                const nextBalance = Number(data.balanceAfter);
+                const globalPointsEl = document.getElementById('globalPoints');
+                if (globalPointsEl) globalPointsEl.innerText = nextBalance;
+                const currentPointsEl = document.getElementById('currentPoints');
+                if (currentPointsEl) currentPointsEl.innerText = nextBalance;
+            } else {
+                void Player.getPoints(playFabId);
+            }
+        });
+    });
 }
 
 // --- UI制御系 ---

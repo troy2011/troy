@@ -129,7 +129,7 @@ function applyTax(amount, taxRateBps) {
 
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin } = deps;
 
     const economyDeps = {
         promisifyPlayFab,
@@ -316,6 +316,24 @@ function initializeEconomyRoutes(app, deps) {
                     PlayFabId: toId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }]
                 });
+                if (firestore && admin) {
+                    try {
+                        await firestore
+                            .collection('notifications')
+                            .doc(toId)
+                            .collection('items')
+                            .add({
+                                type: 'transfer_in',
+                                fromId,
+                                amount: amountInt,
+                                currency: VIRTUAL_CURRENCY_CODE,
+                                balanceAfter: receiverNewBalance,
+                                createdAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                    } catch (notifyError) {
+                        console.warn('[transfer-points] Notification write failed:', notifyError?.message || notifyError);
+                    }
+                }
                 res.json({ newBalance: payerNewBalance });
             } catch (addError) {
                 console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
