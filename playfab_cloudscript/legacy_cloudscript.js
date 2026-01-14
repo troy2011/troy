@@ -351,15 +351,14 @@ handlers.KingGrantPsWithTax = function (args, context) {
 
     _requireNationKing(nation.nationGroupId);
 
-    // 受取人が同じ国グループか確認
+    // 受取人の所属国に応じて課税する（所属なしなら税なし）
     var receiverNation = server.GetUserReadOnlyData({
         PlayFabId: receiverPlayFabId,
         Keys: ['NationGroupId']
     });
     var receiverGroupId = receiverNation && receiverNation.Data && receiverNation.Data.NationGroupId ? receiverNation.Data.NationGroupId.Value : null;
-    if (!receiverGroupId || receiverGroupId !== nation.nationGroupId) throw 'ReceiverNotInSameNation';
 
-    var taxRateBps = _getNationTaxRateBps(nation.nationGroupId);
+    var taxRateBps = receiverGroupId ? _getNationTaxRateBps(receiverGroupId) : 0;
     var tax = Math.floor((amount * taxRateBps) / 10000);
     if (tax < 0) tax = 0;
     if (tax > amount) tax = amount;
@@ -383,10 +382,10 @@ handlers.KingGrantPsWithTax = function (args, context) {
     }
 
     // 税金は国庫として記録（数値のみ）
-    if (tax > 0) {
-        var oldTreasury = _getNationTreasuryPs(nation.nationGroupId);
+    if (tax > 0 && receiverGroupId) {
+        var oldTreasury = _getNationTreasuryPs(receiverGroupId);
         var newTreasury = oldTreasury + tax;
-        _setNationTreasuryPs(nation.nationGroupId, newTreasury);
+        _setNationTreasuryPs(receiverGroupId, newTreasury);
     }
 
     return {
@@ -396,7 +395,8 @@ handlers.KingGrantPsWithTax = function (args, context) {
         taxAmount: tax,
         netAmount: net,
         receiverPlayFabId: receiverPlayFabId,
-        treasuryPs: _getNationTreasuryPs(nation.nationGroupId)
+        receiverNationGroupId: receiverGroupId,
+        treasuryPs: receiverGroupId ? _getNationTreasuryPs(receiverGroupId) : null
     };
 };
 
