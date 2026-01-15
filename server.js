@@ -180,20 +180,41 @@ async function loadCatalogCache() {
         await ensureTitleEntityToken();
         const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
         const titleEntity = tokenResult?.Entity;
-        const items = [];
+        if (!titleEntity?.Id || !titleEntity?.Type) {
+            throw new Error('Title entity token is missing Entity.');
+        }
+
+        const itemIds = [];
         let token = null;
         do {
             const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
                 Count: 50,
                 Entity: titleEntity,
-                Select: 'Title,Description,DisplayProperties,ContentType,Type,Tags,FriendlyId,AlternateIds,PriceOptions,PriceAmounts',
                 ContinuationToken: token || undefined
             });
             const page = Array.isArray(result?.Items) ? result.Items : [];
-            items.push(...page);
+            page.forEach((item) => {
+                if (item?.Id) itemIds.push(item.Id);
+            });
             token = result?.ContinuationToken || null;
-            console.log(`[カタログ] ページ取得: ${page.length}件 (累計: ${items.length}件)`);
+            console.log(`[カタログ] ページ取得: ${page.length}件 (累計: ${itemIds.length}件)`);
         } while (token);
+
+        const uniqueIds = Array.from(new Set(itemIds));
+        const items = [];
+        for (let i = 0; i < uniqueIds.length; i += 50) {
+            const batchIds = uniqueIds.slice(i, i + 50);
+            try {
+                const batchResult = await promisifyPlayFab(PlayFabEconomy.GetItems, {
+                    Entity: titleEntity,
+                    Ids: batchIds
+                });
+                const batchItems = Array.isArray(batchResult?.Items) ? batchResult.Items : [];
+                items.push(...batchItems);
+            } catch (error) {
+                console.warn('[カタログ] GetItems failed:', error?.errorMessage || error?.message || error);
+            }
+        }
 
         const pickLocalizedText = (entry) => {
             if (!entry) return '';
