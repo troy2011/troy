@@ -820,6 +820,7 @@ app.post('/api/set-race', async (req, res) => {
         });
 
         let starterIsland = null;
+        let createdStarterIsland = false;
         try {
             const collections = await firestore.listCollections();
             const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
@@ -838,6 +839,7 @@ app.post('/api/set-race', async (req, res) => {
                     nationIsland: nationData.Nation,
                     displayName: displayName || null
                 });
+                createdStarterIsland = !!starterIsland?.created;
             }
         } catch (e) {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
@@ -857,6 +859,13 @@ app.post('/api/set-race', async (req, res) => {
             });
         } catch (e) {
             console.warn('[starterShip] Failed to ensure starter ship:', e?.errorMessage || e?.message || e);
+        }
+
+        if (createdStarterIsland) {
+            const nationLabelMap = { fire: '火', water: '水', earth: '地', wind: '風' };
+            const nationLabel = nationLabelMap[assignedNation] || assignedNation || '不明';
+            const nameLabel = displayName || playFabId;
+            chat.addGlobalChatMessage(`${nationLabel}の国に「${nameLabel}」が生まれた！`, 'システム');
         }
 
         res.json({
