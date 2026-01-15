@@ -622,6 +622,8 @@ async function startScanAndPay() {
                 });
                 if (data) {
                     document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！`;
+                    const amountInput = document.getElementById('transferAmount');
+                    if (amountInput) amountInput.value = '0';
                     await Player.getPoints(myPlayFabId);
                     await Player.getRanking();
                 }

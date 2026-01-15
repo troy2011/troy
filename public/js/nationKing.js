@@ -217,6 +217,12 @@ function _wireHandlers(playFabId) {
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount);
                 if (result) {
                     _setMessage(`付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`);
+                    if (grantAmountEl) {
+                        grantAmountEl.value = '0';
+                    }
+                    if (previewEl) {
+                        previewEl.innerText = '';
+                    }
                     await loadKingPage(playFabId);
                 }
             } catch (error) {
