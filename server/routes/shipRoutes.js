@@ -381,6 +381,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!shipSpec) {
             return res.status(400).json({ error: `無効な shipItemId: ${shipItemId}` });
         }
+        if (!Array.isArray(shipSpec.PriceAmounts) && !shipSpec.PriceOptions && !shipSpec.VirtualCurrencyPrices) {
+            console.warn('[create-ship] shipSpec snapshot', {
+                shipItemId,
+                shipSpecKeys: Object.keys(shipSpec || {}),
+                shipSpec
+            });
+        }
 
         const priceAmounts = Array.isArray(shipSpec.PriceAmounts) ? shipSpec.PriceAmounts : [];
         const costsToPay = [];
