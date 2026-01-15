@@ -1,10 +1,11 @@
 const PlayFab = require('playfab-sdk/Scripts/PlayFab/PlayFab');
-const PlayFabServer = require('playfab-sdk/Scripts/PlayFab/PlayFabServer');
-const PlayFabAdmin = require('playfab-sdk/Scripts/PlayFab/PlayFabAdmin');
-const PlayFabAuthentication = require('playfab-sdk/Scripts/PlayFab/PlayFabAuthentication');
-const PlayFabGroups = require('playfab-sdk/Scripts/PlayFab/PlayFabGroups');
-const PlayFabData = require('playfab-sdk/Scripts/PlayFab/PlayFabData');
-const PlayFabEconomy = require('playfab-sdk/Scripts/PlayFab/PlayFabEconomy');
+const PlayFab = require('playfab-sdk');
+const PlayFabServer = PlayFab.PlayFabServer || require('playfab-sdk/Scripts/PlayFab/PlayFabServer');
+const PlayFabAdmin = PlayFab.PlayFabAdmin || require('playfab-sdk/Scripts/PlayFab/PlayFabAdmin');
+const PlayFabAuthentication = PlayFab.PlayFabAuthentication || require('playfab-sdk/Scripts/PlayFab/PlayFabAuthentication');
+const PlayFabGroups = PlayFab.PlayFabGroups || require('playfab-sdk/Scripts/PlayFab/PlayFabGroups');
+const PlayFabData = PlayFab.PlayFabData || require('playfab-sdk/Scripts/PlayFab/PlayFabData');
+const PlayFabEconomy = PlayFab.PlayFabEconomy || require('playfab-sdk/Scripts/PlayFab/PlayFabEconomy');
 
 let _titleEntityTokenReady = false;
 
