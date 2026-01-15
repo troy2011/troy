@@ -268,6 +268,10 @@ export function showBuildingMenu(island, playFabId) {
 
     const sheet = document.createElement('div');
     sheet.className = 'building-bottom-sheet';
+    const closeSheet = () => {
+        sheet.classList.remove('active');
+        setTimeout(() => sheet.remove(), 300);
+    };
     const islandLevel = Math.max(1, Math.trunc(Number(island.islandLevel) || 1));
     const resourceCurrency = getResourceCurrencyForBiome(island.biome);
     const isHarvestable = !!resourceCurrency;
@@ -346,14 +350,10 @@ export function showBuildingMenu(island, playFabId) {
         sheet.addEventListener('touchmove', (e) => {
             stopPhaser(e);
         }, { passive: true });
-    const closeSheet = () => {
-        sheet.classList.remove('active');
-        setTimeout(() => sheet.remove(), 300);
-    };
-    const closeBtn = sheet.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeSheet);
-    }
+        const closeBtn = sheet.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeSheet);
+        }
         const buildBtn = sheet.querySelector('#btnBuildMyHouse');
         if (buildBtn) {
             buildBtn.addEventListener('click', async () => {
