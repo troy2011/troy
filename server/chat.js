@@ -76,10 +76,22 @@ function initializeChatRoutes(app) {
     });
 }
 
+function addGlobalChatMessage(message, displayName = 'System') {
+    const text = String(message || '').trim();
+    if (!text) return;
+    globalChatMessages.push({
+        message: text,
+        displayName: String(displayName || 'System'),
+        timestamp: Date.now()
+    });
+    trimChat(globalChatMessages, GLOBAL_CHAT_LIMIT);
+}
+
 module.exports = {
     GLOBAL_CHAT_LIMIT,
     NEARBY_CHAT_LIMIT,
     NEARBY_CHAT_RANGE,
     NEARBY_CHAT_TTL_MS,
-    initializeChatRoutes
+    initializeChatRoutes,
+    addGlobalChatMessage
 };

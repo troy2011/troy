@@ -1,6 +1,7 @@
 // server/economy.js
 // 経済関連のユーティリティ関数
 
+const { addGlobalChatMessage } = require('./chat');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 
@@ -316,6 +317,26 @@ function initializeEconomyRoutes(app, deps) {
                     PlayFabId: toId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }]
                 });
+                try {
+                    const getDisplayName = async (id) => {
+                        try {
+                            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                                PlayFabId: id,
+                                ProfileConstraints: { ShowDisplayName: true }
+                            });
+                            return profile?.PlayerProfile?.DisplayName || id;
+                        } catch {
+                            return id;
+                        }
+                    };
+                    const [toName, fromName] = await Promise.all([
+                        getDisplayName(toId),
+                        getDisplayName(fromId)
+                    ]);
+                    addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}PS勝ち取った！`, 'システム');
+                } catch (chatError) {
+                    console.warn('[transfer-points] Failed to publish global chat:', chatError?.message || chatError);
+                }
                 if (firestore && admin) {
                     try {
                         await firestore
