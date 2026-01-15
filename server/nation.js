@@ -319,10 +319,33 @@ function initializeNationRoutes(app, deps) {
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
-                Keys: ['NationGroupId']
+                Keys: ['NationGroupId', 'IsKing', 'NationKingId']
             });
             if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) {
                 return res.json({ notInNation: true });
+            }
+
+            const selfId = normalizePlayFabId(playFabId);
+            const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
+            const roKingId = normalizePlayFabId(ro?.Data?.NationKingId?.Value || '');
+            if (isKingFlag && (!roKingId || roKingId === selfId)) {
+                try {
+                    const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+                    const mapping = getNationMappingByNation(nation);
+                    if (mapping) {
+                        const docRef = getNationGroupDoc(firestore, mapping.groupName);
+                        const docSnap = await docRef.get();
+                        const storedKingId = normalizePlayFabId(docSnap.data()?.kingPlayFabId || '');
+                        if (storedKingId !== selfId) {
+                            await docRef.set({
+                                kingPlayFabId: selfId,
+                                kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
+                            }, { merge: true });
+                        }
+                    }
+                } catch (syncError) {
+                    console.warn('[get-nation-king-page] Failed to sync kingPlayFabId:', syncError?.message || syncError);
+                }
             }
 
             const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
