@@ -443,10 +443,14 @@ function initializeNationRoutes(app, deps) {
                 return res.status(500).json({ error: 'Failed to add PS', details: addError?.errorMessage || addError?.message });
             }
 
+            let treasuryUpdated = true;
+            let treasuryErrorMessage = '';
             try {
                 await addNationTreasury(context.nation, value, firestore, nationDeps);
             } catch (treasuryError) {
-                console.warn('[king-grant-ps] Failed to add treasury:', treasuryError?.errorMessage || treasuryError?.message || treasuryError);
+                treasuryUpdated = false;
+                treasuryErrorMessage = treasuryError?.errorMessage || treasuryError?.message || String(treasuryError);
+                console.warn('[king-grant-ps] Failed to add treasury:', treasuryErrorMessage);
             }
 
             if (firestore && admin) {
@@ -484,7 +488,9 @@ function initializeNationRoutes(app, deps) {
                 grantAmount,
                 grantMultiplier: multiplier,
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
-                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
+                treasuryUpdated,
+                treasuryError: treasuryUpdated ? undefined : treasuryErrorMessage
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;

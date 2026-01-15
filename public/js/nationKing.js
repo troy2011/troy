@@ -216,7 +216,12 @@ function _wireHandlers(playFabId) {
             try {
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount);
                 if (result) {
-                    _setMessage(`付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`);
+                    const baseMessage = `付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`;
+                    if (result.treasuryUpdated === false) {
+                        _setMessage(`${baseMessage} 国庫更新に失敗しました: ${result.treasuryError || 'Unknown error'}`, true);
+                    } else {
+                        _setMessage(baseMessage);
+                    }
                     if (grantAmountEl) {
                         grantAmountEl.value = '0';
                     }
