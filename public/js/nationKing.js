@@ -159,6 +159,10 @@ function _wireHandlers(playFabId) {
         grantMultiplierSaveBtn.addEventListener('click', async () => {
             const raw = grantMultiplierInputEl ? grantMultiplierInputEl.value : '1';
             const grantMultiplier = Number(raw);
+            if (!Number.isFinite(grantMultiplier) || grantMultiplier <= 0) {
+                _setMessage('付与倍率は0より大きい値を入力してください。', true);
+                return;
+            }
             const result = await setNationGrantMultiplier(playFabId, grantMultiplier);
             if (result) {
                 _setMessage('付与倍率を保存しました。');
