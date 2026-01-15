@@ -16,12 +16,14 @@ export const launchGame = (containerId, playerInfo = null) => {
         return null;
     }
 
+    const resolution = Math.max(1, Math.round(window.devicePixelRatio || 1));
     const config = {
         type: Phaser.AUTO, // WebGLが使えるなら使い、だめならCanvasにフォールバック
         width: container.clientWidth,  // コンテナの幅に合わせる
         height: container.clientHeight, // コンテナの高さに合わせる
         parent: containerId, // Phaserを描画するHTML要素のID
-        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, autoRound: true },
+        resolution: resolution,
         pixelArt: true,
         roundPixels: true,
         antialias: false,
@@ -54,6 +56,9 @@ export const launchGame = (containerId, playerInfo = null) => {
     }
 
     gameInstance = new Phaser.Game(config);
+    if (gameInstance?.canvas?.style) {
+        gameInstance.canvas.style.imageRendering = 'pixelated';
+    }
 
     // ウィンドウリサイズイベントに対応
     window.addEventListener('resize', () => {

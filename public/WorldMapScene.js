@@ -244,6 +244,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.constructionSprites = [];
         this.constructionUnsubscribe = null;
+        this.lastConstructingIslandIds = new Set();
         this.demolishedSprites = [];
         this.demolishedUnsubscribe = null;
 
@@ -298,6 +299,9 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.constructionUnsubscribe) {
             this.constructionUnsubscribe();
             this.constructionUnsubscribe = null;
+        }
+        if (this.lastConstructingIslandIds) {
+            this.lastConstructingIslandIds.clear();
         }
 
         if (this.demolishedUnsubscribe) {
@@ -4277,6 +4281,21 @@ export default class WorldMapScene extends Phaser.Scene {
      */
     displayConstructingIslands(constructingIslands) {
         this.constructionSprites = this.clearSpriteArray(this.constructionSprites);
+        const previousIds = new Set(this.lastConstructingIslandIds || []);
+        const currentIds = new Set();
+
+        constructingIslands.forEach((island) => {
+            if (island?.id) currentIds.add(island.id);
+        });
+
+        if (previousIds.size > 0) {
+            previousIds.forEach((id) => {
+                if (!currentIds.has(id)) {
+                    this.reloadIslandFromFirestore(id);
+                }
+            });
+        }
+        this.lastConstructingIslandIds = currentIds;
 
         if (constructingIslands.length === 0) {
             if (window.Island && window.Island.playConstructionSound) {

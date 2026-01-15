@@ -803,6 +803,10 @@ button:disabled {
     touch-action: none;
 }
 
+.map-stage canvas {
+    image-rendering: pixelated;
+}
+
 .map-chat-area {
     margin: 0 16px 16px;
     background-color: var(--card-bg);

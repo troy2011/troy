@@ -362,6 +362,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      */
     app.post('/api/create-ship', async (req, res) => {
         const { playFabId, shipItemId, spawnPosition, mapId, islandId } = req.body;
+        console.log('[create-ship] incoming', {
+            playFabId,
+            shipItemId,
+            hasSpawnPosition: !!spawnPosition,
+            mapId,
+            islandId
+        });
 
         if (!playFabId || !shipItemId || !spawnPosition) {
             return res.status(400).json({ error: 'playFabId, shipItemId, spawnPosition are required' });
@@ -391,6 +398,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             });
         }
         if (costsToPay.length === 0) {
+            console.warn('[create-ship] MissingPriceAmounts', {
+                shipItemId,
+                priceAmounts: shipSpec?.PriceAmounts,
+                priceOptions: shipSpec?.PriceOptions,
+                virtualCurrencyPrices: shipSpec?.VirtualCurrencyPrices
+            });
             return res.status(400).json({ error: 'MissingPriceAmounts' });
         }
 

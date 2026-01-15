@@ -143,13 +143,25 @@ function normalizePriceAmounts(item) {
         });
     }
 
-    if (Object.keys(totals).length === 0 && Array.isArray(item?.PriceOptions?.Prices)) {
-        item.PriceOptions.Prices.forEach((price) => {
-            const priceAmounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
-            priceAmounts.forEach((entry) => {
-                pushAmount(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+    if (Object.keys(totals).length === 0) {
+        if (Array.isArray(item?.PriceOptions)) {
+            item.PriceOptions.forEach((option) => {
+                const prices = Array.isArray(option?.Prices) ? option.Prices : [];
+                prices.forEach((price) => {
+                    const priceAmounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+                    priceAmounts.forEach((entry) => {
+                        pushAmount(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+                    });
+                });
             });
-        });
+        } else if (Array.isArray(item?.PriceOptions?.Prices)) {
+            item.PriceOptions.Prices.forEach((price) => {
+                const priceAmounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+                priceAmounts.forEach((entry) => {
+                    pushAmount(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+                });
+            });
+        }
     }
 
     if (Object.keys(totals).length === 0 && item?.VirtualCurrencyPrices && typeof item.VirtualCurrencyPrices === 'object') {
