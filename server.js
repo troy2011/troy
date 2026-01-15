@@ -570,6 +570,51 @@ async function provisionStarterAssets({ playFabId, entityKey }) {
     }
 }
 
+async function deleteCollectionDocs(collectionRef, batchSize = 400) {
+    let snapshot = await collectionRef.limit(batchSize).get();
+    while (!snapshot.empty) {
+        const batch = firestore.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        snapshot = await collectionRef.limit(batchSize).get();
+    }
+}
+
+async function cleanupFirestoreForPlayFabId(playFabId) {
+    if (!playFabId) return;
+    try {
+        await island.deleteOwnedIslands(firestore, playFabId, null);
+    } catch (e) {
+        console.warn('[cleanup] Failed to delete owned islands:', e?.errorMessage || e?.message || e);
+    }
+    try {
+        const shipsSnap = await firestore.collection('ships').where('playFabId', '==', playFabId).get();
+        if (!shipsSnap.empty) {
+            let batch = firestore.batch();
+            let count = 0;
+            shipsSnap.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+                count += 1;
+                if (count >= 400) {
+                    batch.commit();
+                    batch = firestore.batch();
+                    count = 0;
+                }
+            });
+            if (count > 0) await batch.commit();
+        }
+    } catch (e) {
+        console.warn('[cleanup] Failed to delete ships:', e?.errorMessage || e?.message || e);
+    }
+    try {
+        const notifRef = firestore.collection('notifications').doc(playFabId);
+        await deleteCollectionDocs(notifRef.collection('items'));
+        await notifRef.delete();
+    } catch (e) {
+        console.warn('[cleanup] Failed to delete notifications:', e?.errorMessage || e?.message || e);
+    }
+}
+
 // ログインAPI
 app.post('/api/login-playfab', async (req, res) => {
     const { lineUserId, displayName, pictureUrl } = req.body || {};
@@ -584,6 +629,21 @@ app.post('/api/login-playfab', async (req, res) => {
         const playFabId = loginResult?.PlayFabId;
         if (!playFabId) {
             return res.status(500).json({ error: 'PlayFab login failed' });
+        }
+
+        try {
+            const linkRef = firestore.collection('line_user_links').doc(lineUserId);
+            const linkSnap = await linkRef.get();
+            const previousPlayFabId = linkSnap.exists ? String(linkSnap.data()?.playFabId || '') : '';
+            if (previousPlayFabId && previousPlayFabId !== playFabId) {
+                await cleanupFirestoreForPlayFabId(previousPlayFabId);
+            }
+            await linkRef.set({
+                playFabId,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } catch (e) {
+            console.warn('[login-playfab] Failed to sync line_user_links:', e?.errorMessage || e?.message || e);
         }
 
         if (displayName) {
