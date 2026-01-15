@@ -641,6 +641,22 @@ async function startScanAndPay() {
 let shipCreateInFlight = false;
 let shipCreateContext = null;
 
+function blockMapClicksForModal(modalEl) {
+    if (!modalEl || modalEl.dataset?.blockMapClicks === 'true') return;
+    const stopPhaser = (e) => {
+        if (!e) return;
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+    };
+    ['pointerdown', 'pointerup', 'pointermove', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click', 'wheel'].forEach((type) => {
+        modalEl.addEventListener(type, stopPhaser);
+    });
+    modalEl.addEventListener('touchmove', (e) => {
+        stopPhaser(e);
+    }, { passive: true });
+    modalEl.dataset.blockMapClicks = 'true';
+}
+
 function showCreateShipModal(context) {
     shipCreateContext = context || null;
     const selectEl = document.getElementById('shipTypeSelect');
@@ -669,7 +685,9 @@ function showCreateShipModal(context) {
         selectEl.appendChild(option);
     }
 
-    document.getElementById('shipCreateModal').style.display = 'flex';
+    const modal = document.getElementById('shipCreateModal');
+    blockMapClicksForModal(modal);
+    modal.style.display = 'flex';
     // 最初の項目で詳細を更新
     updateShipTypeDetails();
 }
