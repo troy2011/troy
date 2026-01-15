@@ -16,6 +16,7 @@ import {
     rejectGuildApplication as requestRejectGuildApplication
 } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
+import { getNationLabel } from './nationLabels.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;
@@ -65,7 +66,8 @@ function showGuildJoinedView(guildInfo) {
     document.getElementById('guildJoined').style.display = 'block';
 
     // ギルド情報を表示
-    document.getElementById('guildName').textContent = guildInfo.name || 'Unknown Guild';
+    const guildLabel = getNationLabel(guildInfo.name) || guildInfo.name || 'Unknown Guild';
+    document.getElementById('guildName').textContent = guildLabel;
     document.getElementById('guildMemberCount').textContent = guildInfo.memberCount || 0;
     document.getElementById('guildMaxMembers').textContent = guildInfo.maxMembers || 10;
     document.getElementById('guildLevel').textContent = guildInfo.level || 1;

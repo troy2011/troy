@@ -9,6 +9,7 @@ import {
     getBountyRanking as fetchBountyRanking,
     getNationTreasuryRanking as fetchNationTreasuryRanking
 } from './playfabClient.js';
+import { getNationLabel } from './nationLabels.js';
 
 let myPlayerStats = {};
 
@@ -85,7 +86,7 @@ export async function getRanking() {
         rankingListEl.innerHTML = data.ranking.map(entry => {
             const isMyRank = myDisplayName && entry.displayName === myDisplayName;
             const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.position + 1}位: ${entry.displayName}(${entry.score}Ps)</li>`;
+            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.displayName}(${entry.score}Ps)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }
@@ -100,7 +101,7 @@ export async function getBountyRanking() {
         rankingListEl.innerHTML = data.ranking.map(entry => {
             const isMyRank = myDisplayName && entry.displayName === myDisplayName;
             const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.position + 1}位: ${entry.displayName}(${entry.score}BT)</li>`;
+            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.displayName}(${entry.score}BT)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }
@@ -111,17 +112,11 @@ export async function getNationTreasuryRanking() {
     rankingListEl.innerHTML = '<li>（国庫ランキングを読み込んでいます...）</li>';
     const data = await fetchNationTreasuryRanking();
     if (data?.ranking) {
-        const nationLabels = {
-            fire: '火',
-            earth: '土',
-            wind: '風',
-            water: '水'
-        };
         rankingListEl.innerHTML = data.ranking.map((entry, index) => {
             const nationKey = String(entry.nation || '').toLowerCase();
-            const label = nationLabels[nationKey] || entry.nation || '不明';
+            const label = getNationLabel(nationKey) || entry.nation || '不明';
             const value = Number(entry.treasuryPs || 0);
-            return `<li>${index + 1}位: ${label} (${value}Ps)</li>`;
+            return `<li>${label} (${value}Ps)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }

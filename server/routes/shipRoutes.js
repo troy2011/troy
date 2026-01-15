@@ -567,18 +567,40 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
             const attackerShipData = JSON.parse(attackerShipDataRaw);
             const defenderShipData = JSON.parse(defenderShipDataRaw);
+            const attackerDomain = String(attackerShipData?.Domain || '').toLowerCase();
+            const defenderDomain = String(defenderShipData?.Domain || '').toLowerCase();
             const attackerItemId = attackerShipData?.ItemId;
             const defenderItemId = defenderShipData?.ItemId;
             const attackerClass = String(catalogCache[attackerItemId]?.class || catalogCache[attackerItemId]?.Class || '').toLowerCase();
             const defenderClass = String(catalogCache[defenderItemId]?.class || catalogCache[defenderItemId]?.Class || '').toLowerCase();
 
-            const attackerDamage = baseDamage * (advantage(attackerClass, defenderClass) ? 2 : 1);
-            const defenderDamage = baseDamage * (advantage(defenderClass, attackerClass) ? 2 : 1);
+            let attackerDamage = baseDamage * (advantage(attackerClass, defenderClass) ? 2 : 1);
+            let defenderDamage = baseDamage * (advantage(defenderClass, attackerClass) ? 2 : 1);
 
             const attackerMaxHp = Number(attackerShipData?.Stats?.MaxHP) || 0;
             const defenderMaxHp = Number(defenderShipData?.Stats?.MaxHP) || 0;
             const attackerHp = Number(attackerShipData?.Stats?.CurrentHP);
             const defenderHp = Number(defenderShipData?.Stats?.CurrentHP);
+
+            const isAirDomain = (domain) => ['air', 'sky', 'flight', 'flying'].includes(domain);
+            const isWaterDomain = (domain) => ['water', 'underwater', 'sea_underwater', 'submarine'].includes(domain);
+
+            if (isAirDomain(attackerDomain) !== isAirDomain(defenderDomain)) {
+                return res.json({ success: true, skipped: true, reason: 'air_mismatch' });
+            }
+
+            if (isWaterDomain(defenderDomain)) {
+                attackerDamage *= 0.5;
+            }
+            if (isWaterDomain(attackerDomain)) {
+                defenderDamage *= 0.5;
+            }
+            if (isAirDomain(defenderDomain)) {
+                attackerDamage = Math.max(attackerDamage, defenderMaxHp);
+            }
+            if (isAirDomain(attackerDomain)) {
+                defenderDamage = Math.max(defenderDamage, attackerMaxHp);
+            }
             const nextAttackerHp = Math.max(0, (Number.isFinite(attackerHp) ? attackerHp : attackerMaxHp) - defenderDamage);
             const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - attackerDamage);
             const attackerRespawn = nextAttackerHp <= 0;

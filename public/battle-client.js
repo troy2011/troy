@@ -5,6 +5,8 @@ let currentBattleId = null;
 let battleStateListener = null;
 let battleInterval = null;
 let isMyActionReady = false;
+let battleAutoCloseTimer = null;
+const battleEventEmitted = new Set();
 
 // ★ v184: バトルループで常に最新の情報を参照するための変数
 let localBattleState = null;
@@ -64,11 +66,11 @@ async function startBattleScan() {
         }
         battleResultEl.innerText = '（サーバーでバトル実行中...）';
         const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
-        if (data && data.status === "Invitation Sent") {
-            battleResultEl.innerText = '相手の参加を待っています...';
-            listenForBattleStart(data.invitationId);
+        if (data && data.battleId) {
+            battleResultEl.innerText = '対戦が成立しました！';
+            showBattleModal(data.battleId);
         } else {
-            battleResultEl.innerText = '招待の送信に失敗しました。';
+            battleResultEl.innerText = 'バトル開始に失敗しました。';
         }
     } catch (error) {
         battleResultEl.innerText = `エラー: ${error.message}`;
@@ -85,23 +87,14 @@ function initializeInvitationListener() {
         onChildAdded(invitationsQuery, async (snapshot) => {
         const invitation = snapshot.val();
         const invitationId = snapshot.key;
-        if (invitation && invitation.status === 'pending') {
-            if (invitation.createdAt && invitation.createdAt < listenerStartTime) {
-                console.log("過去の招待のため無視します:", invitationId);
-                return;
-            }
-            console.log(`新しい対戦招待を受けました: ${invitationId} from ${invitation.from.name}`);
-            try {
-                const data = await battleDependencies.callApiWithLoader('/api/accept-battle', { playFabId: myPlayFabId, invitationId: invitationId });
-                if (data && data.status === "Battle Ready") {
-                    console.log("バトル準備完了。バトル画面を表示します。");
-                    showBattleModal(data.battleId);
-                } else {
-                    console.error("招待の承諾に失敗しました。", data);
-                }
-            } catch (error) {
-                console.error("accept-battle API呼び出しエラー:", error);
-            }
+        if (!invitation) return;
+        if (invitation.createdAt && invitation.createdAt < listenerStartTime) {
+            console.log("過去の招待のため無視します:", invitationId);
+            return;
+        }
+        if (invitation.status === 'started' && invitation.battleId) {
+            console.log(`バトル開始通知: ${invitationId}`);
+            showBattleModal(invitation.battleId);
         }
         });
     });
@@ -120,12 +113,52 @@ function listenForBattleStart(invitationId) {
     });
 }
 
+function setBattleActiveWindow(durationMs) {
+    const now = Date.now();
+    const until = now + Math.max(0, Number(durationMs) || 0);
+    const current = Number(window.__battleActiveUntil || 0);
+    if (until > current) {
+        window.__battleActiveUntil = until;
+    }
+}
+
+async function emitBattleEventIfPossible(battleId, participantIds) {
+    if (!battleId || !Array.isArray(participantIds) || participantIds.length === 0) return;
+    const mapId = window.__currentMapId || window.__phaserPlayerInfo?.mapId || window.playerInfo?.mapId || null;
+    if (!mapId || !window.firestore) return;
+    try {
+        const { collection, addDoc } = await import('firebase/firestore');
+        await addDoc(collection(window.firestore, 'ship_battle_events'), {
+            battleId,
+            mapId,
+            participantIds: participantIds,
+            emojis: ['⚔️', '💥'],
+            durationMs: 5000,
+            createdAt: Date.now()
+        });
+    } catch (error) {
+        console.warn('[Battle] Failed to emit battle event:', error);
+    }
+}
+
 // --- バトル中ロジック ---
 
 function showBattleModal(battleId) {
     currentBattleId = battleId;
     const battleModal = document.getElementById('battleModal');
     battleModal.style.display = 'flex';
+    setBattleActiveWindow(5000);
+
+    if (battleAutoCloseTimer) {
+        clearTimeout(battleAutoCloseTimer);
+        battleAutoCloseTimer = null;
+    }
+    battleAutoCloseTimer = setTimeout(() => {
+        battleModal.style.display = 'none';
+        if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
+            window.__battleActiveUntil = 0;
+        }
+    }, 5000);
 
     if (battleInterval) {
         clearInterval(battleInterval);
@@ -150,6 +183,13 @@ function showBattleModal(battleId) {
     battleStateListener = dbOnValue(battleRef, async (snapshot) => {
         const battleState = snapshot.val();
         if (!battleState) return;
+        if (battleId && !battleEventEmitted.has(battleId)) {
+            const playerIds = battleState?.players ? Object.keys(battleState.players) : [];
+            if (playerIds.length > 0) {
+                battleEventEmitted.add(battleId);
+                emitBattleEventIfPossible(battleId, playerIds);
+            }
+        }
 
         // ★★★ 修正: サーバーからのデータでローカルステートを更新する ★★★
         // ATBゲージはクライアント側で独立して管理するため、ここでは単純に上書きする
@@ -357,10 +397,10 @@ async function startBattleWithOpponent(opponentId) {
 
     try {
         const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
-        if (data && data.invitationId) {
-            listenForBattleStart(data.invitationId);
+        if (data && data.battleId) {
+            showBattleModal(data.battleId);
         } else {
-            console.warn('[Battle] start-battle returned no invitationId:', data);
+            console.warn('[Battle] start-battle returned no battleId:', data);
         }
     } catch (error) {
         console.error('[Battle] startBattleWithOpponent error:', error);

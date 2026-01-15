@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { RACE_COLORS } from 'config';
-import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
 
@@ -113,6 +113,28 @@ const BIOME_ID_BY_JP = {
     '聖地': 'sacred'
 };
 
+const SHIP_ACTIONS = {
+    ship_human_fighter: { type: 'fighter', label: '火炎噴射', emoji: ['🔥', '🌪️'], rangeTiles: 5, angle: 70, damage: 320, effect: 'flame_cone', cooldownMs: 55_000 },
+    ship_elf_fighter: { type: 'fighter', label: '爆雷', emoji: ['🧨', '💥'], radiusTiles: 4, damage: 360, cooldownMs: 65_000 },
+    ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 50, damage: 380, effect: 'drill_burst', cooldownMs: 50_000 },
+    ship_orc_fighter: { type: 'fighter', label: '大砲', emoji: ['💣', '💥'], rangeTiles: 6, angle: 35, damage: 400, effect: 'cannon_shot', cooldownMs: 75_000 },
+
+    ship_human_defender: { type: 'defender', label: '守護砲', emoji: ['🛡️', '🧱'], rangeTiles: 5, damage: 520, cooldownMs: 55_000 },
+    ship_elf_defender: { type: 'defender', label: '守護光', emoji: ['✨', '🛡️'], rangeTiles: 6, damage: 560, cooldownMs: 60_000 },
+    ship_goblin_defender: { type: 'defender', label: '掘削衝撃', emoji: ['🪨', '💥'], rangeTiles: 4, damage: 600, cooldownMs: 65_000 },
+    ship_orc_defender: { type: 'defender', label: '鋼壁砲', emoji: ['🛡️', '💥'], rangeTiles: 5, damage: 640, cooldownMs: 75_000 },
+
+    ship_human_merchant: { type: 'merchant', label: '交易煙幕', emoji: ['💨', '🪙'], durationMs: 4000, cooldownMs: 55_000 },
+    ship_elf_merchant: { type: 'merchant', label: '幻惑', emoji: ['🦋', '✨'], durationMs: 4500, cooldownMs: 65_000 },
+    ship_goblin_merchant: { type: 'merchant', label: '煙突投下', emoji: ['🧯', '💨'], durationMs: 3500, cooldownMs: 50_000 },
+    ship_orc_merchant: { type: 'merchant', label: '濁流隠れ', emoji: ['🌫️', '💧'], durationMs: 4200, cooldownMs: 70_000 },
+
+    ship_human_explorer: { type: 'explorer', label: '帆走加速', emoji: ['⛵', '💨'], durationMs: 4000, speedMultiplier: 1.5, cooldownMs: 55_000 },
+    ship_elf_explorer: { type: 'explorer', label: '風読み', emoji: ['🍃', '🌟'], durationMs: 3500, speedMultiplier: 1.6, cooldownMs: 60_000 },
+    ship_goblin_explorer: { type: 'explorer', label: '機関加速', emoji: ['⚙️', '💨'], durationMs: 3000, speedMultiplier: 1.7, cooldownMs: 65_000 },
+    ship_orc_explorer: { type: 'explorer', label: '踏破突進', emoji: ['🐗', '💨'], durationMs: 3000, speedMultiplier: 1.6, cooldownMs: 60_000 }
+};
+
 function normalizeBiomeId(raw) {
     if (!raw) return null;
     const trimmed = String(raw).trim();
@@ -208,6 +230,14 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.shipCollisionRadius = 20;
         this.lastRamDamageAt = new Map(); // playFabId -> timestamp
+        this.lastShipHitFxAt = new Map(); // playFabId -> timestamp
+        this.shipActionEventsUnsubscribe = null;
+        this.shipActionEventsSeen = new Set();
+        this.shipBattleEventsUnsubscribe = null;
+        this.shipBattleEventsSeen = new Set();
+        this.shipBattleShield = new Map(); // playFabId -> battle end timestamp
+        this.shipBattleHiddenUntil = new Map(); // playFabId -> hidden end timestamp
+        this.shipBattleSmokeTimers = new Map(); // playFabId -> Phaser time event
         this.boardingButton = null;
         this.boardingTargetId = null;
         this.boardingVisible = false;
@@ -273,6 +303,31 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.demolishedUnsubscribe) {
             this.demolishedUnsubscribe();
             this.demolishedUnsubscribe = null;
+        }
+
+        if (this.shipActionEventsUnsubscribe) {
+            this.shipActionEventsUnsubscribe();
+            this.shipActionEventsUnsubscribe = null;
+        }
+        if (this.shipActionEventsSeen) {
+            this.shipActionEventsSeen.clear();
+        }
+        if (this.shipBattleEventsUnsubscribe) {
+            this.shipBattleEventsUnsubscribe();
+            this.shipBattleEventsUnsubscribe = null;
+        }
+        if (this.shipBattleEventsSeen) {
+            this.shipBattleEventsSeen.clear();
+        }
+        if (this.shipBattleShield) {
+            this.shipBattleShield.clear();
+        }
+        if (this.shipBattleHiddenUntil) {
+            this.shipBattleHiddenUntil.clear();
+        }
+        if (this.shipBattleSmokeTimers) {
+            this.shipBattleSmokeTimers.forEach(timer => timer?.remove?.());
+            this.shipBattleSmokeTimers.clear();
         }
 
         // 他の船のスプライトを破棄
@@ -587,9 +642,9 @@ export default class WorldMapScene extends Phaser.Scene {
                         }
                         const color = window.myAvatarBaseInfo?.AvatarColor;
                         const sheetKey = this.getShipSpriteSheetKey(color);
-                        if (this.playerShip?.texture?.key !== sheetKey) {
-                            this.playerShip.setTexture(sheetKey);
-                        }
+            if (this.playerShip?.texture?.key !== sheetKey) {
+                this.playerShip.setTexture(sheetKey);
+            }
                         const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
                         const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
                         if (Number.isFinite(baseFrame) && assetData?.ItemId) {
@@ -600,14 +655,15 @@ export default class WorldMapScene extends Phaser.Scene {
                             const idleFrame = this.shipAnims?.[shipTypeKey]?.idleFrames?.ship_down;
                             if (idleFrame !== undefined) this.playerShip.setFrame(idleFrame);
                         }
-                        if (assetData?.Domain) {
-                            this.playerShipDomain = String(assetData.Domain).toLowerCase();
-                        }
-                        if (assetData?.Stats) {
-                            const currentHp = Number(assetData.Stats.CurrentHP);
-                            const maxHp = Number(assetData.Stats.MaxHP);
-                            if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
-                                this.playerHp = { current: currentHp, max: maxHp };
+            if (assetData?.Domain) {
+                this.playerShipDomain = String(assetData.Domain).toLowerCase();
+            }
+            this.applyPlayerShipDomain();
+            if (assetData?.Stats) {
+                const currentHp = Number(assetData.Stats.CurrentHP);
+                const maxHp = Number(assetData.Stats.MaxHP);
+                if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
+                    this.playerHp = { current: currentHp, max: maxHp };
                             }
                         }
                     }
@@ -742,9 +798,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const collider = this.add.zone(data.x, data.y, logicW * this.TILE_SIZE, logicH * this.TILE_SIZE).setOrigin(0, 0);
         this.physics.add.existing(collider, true);
+        collider.__logicH = logicH;
 
         if (this.playerShip) {
             this.physics.add.collider(this.playerShip, collider, () => {
+                if (this.isAirDomain(this.playerShipDomain) && logicH <= 2) return;
                 if (this.shipMoving) {
                     this.shipMoving = false;
                     this.playerShip.body.setVelocity(0, 0);
@@ -759,7 +817,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.ignoreOnUiCamera(collider);
         collider.setDepth(GAME_CONFIG.DEPTH.BUILDING - 1);
         if (!this.obstacleObjects) this.obstacleObjects = new Map();
-        this.obstacleObjects.set(data.id, { sprites: obstacleSprites, collider: collider });
+        this.obstacleObjects.set(data.id, { sprites: obstacleSprites, collider: collider, logicH });
     }
 
     /**
@@ -1445,7 +1503,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if (this.playerShip) {
             this.physics.add.collider(this.playerShip, islandPhysicsGroup, () => {
-                if (this.shipMoving) {
+                if (!this.isAirDomain(this.playerShipDomain) && this.shipMoving) {
                     this.shipMoving = false;
                     this.playerShip.body.setVelocity(0, 0);
 
@@ -1459,12 +1517,13 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.stopShipAnimation();
                     this.updateMyShipStoppedPosition();
 
+                    this.canMove = true;
+                }
+
+                if (!this.collidingIsland) {
                     this.collidingIsland = islandData;
                     this.showMessage(`${islandData.name}に到着しました。`);
-
                     this.showIslandCommandMenu(islandData);
-
-                    this.canMove = true;
                 }
             });
         }
@@ -1763,11 +1822,15 @@ export default class WorldMapScene extends Phaser.Scene {
         const itemId = String(assetData?.ItemId || '').trim();
         this.playerShipItemId = itemId || null;
         this.playerShipClass = this.getShipClassFromItemId(itemId);
+        if (assetData?.Domain) {
+            this.playerShipDomain = String(assetData.Domain).toLowerCase();
+        }
         const baseSpeed = Number(assetData?.Stats?.Speed);
         if (Number.isFinite(baseSpeed) && baseSpeed > 0) {
             this.shipBaseSpeed = baseSpeed;
             this.shipSpeed = baseSpeed;
         }
+        this.applyPlayerShipDomain();
         this.updateShipActionUi(true);
     }
 
@@ -1782,17 +1845,14 @@ export default class WorldMapScene extends Phaser.Scene {
 
     getShipActionType() {
         const itemId = String(this.playerShipItemId || '').toLowerCase();
+        if (itemId === 'ship_common_boat') return { type: 'none', label: 'None' };
+        const byItem = SHIP_ACTIONS[itemId];
+        if (byItem) return { ...byItem };
         const shipClass = this.playerShipClass;
-        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer' };
-        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant' };
-        if (shipClass === 'defender') return { type: 'defender', label: 'Defender' };
-        if (shipClass === 'fighter') {
-            if (itemId.includes('ship_elf_fighter')) return { type: 'fighter', subtype: 'elf', label: 'Elf Fighter' };
-            if (itemId.includes('ship_orc_fighter')) return { type: 'fighter', subtype: 'orc', label: 'Orc Fighter' };
-            if (itemId.includes('ship_goblin_fighter')) return { type: 'fighter', subtype: 'goblin', label: 'Goblin Fighter' };
-            if (itemId.includes('ship_human_fighter')) return { type: 'fighter', subtype: 'human', label: 'Human Fighter' };
-            return { type: 'fighter', subtype: 'generic', label: 'Fighter' };
-        }
+        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'] };
+        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['💨'] };
+        if (shipClass === 'defender') return { type: 'defender', label: 'Defender', emoji: ['🛡️'] };
+        if (shipClass === 'fighter') return { type: 'fighter', label: 'Fighter', emoji: ['⚔️'], rangeTiles: 5, angle: 50, damage: 300 };
         return { type: 'none', label: 'None' };
     }
 
@@ -1841,6 +1901,30 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    isAirDomain(domain) {
+        const key = String(domain || '').toLowerCase();
+        return key === 'air' || key === 'sky' || key === 'flight' || key === 'flying';
+    }
+
+    isWaterDomain(domain) {
+        const key = String(domain || '').toLowerCase();
+        return key === 'water' || key === 'underwater' || key === 'sea_underwater' || key === 'submarine';
+    }
+
+    applyPlayerShipDomain() {
+        if (!this.playerShip?.body) return;
+        const isAir = this.isAirDomain(this.playerShipDomain);
+        this.playerShip.setDepth(isAir ? GAME_CONFIG.DEPTH.SHIP + 1 : GAME_CONFIG.DEPTH.SHIP);
+        this.playerShip.body.checkCollision.none = isAir;
+        this.updateShipShadow(this.playerShip);
+    }
+
+    applyShipDomainDepth(sprite, domain) {
+        if (!sprite) return;
+        const isAir = this.isAirDomain(domain);
+        sprite.setDepth(isAir ? GAME_CONFIG.DEPTH.SHIP + 1 : GAME_CONFIG.DEPTH.SHIP);
+    }
+
     setPlayerShipInvisible(isInvisible) {
         if (!this.playerShip) return;
         this.playerShip.setAlpha(isInvisible ? 0 : 1);
@@ -1857,6 +1941,10 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage('アクションを使用できません。');
             return;
         }
+        if (this.isShipInBattle(this.playerInfo.playFabId)) {
+            this.showMessage('戦闘中はアクションを使用できません。');
+            return;
+        }
         const actionInfo = this.getShipActionType();
         if (!actionInfo || actionInfo.type === 'none') {
             this.showMessage('使用できるアクションがありません。');
@@ -1869,20 +1957,32 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        if (actionInfo.type === 'explorer') {
-            this.shipActionSpeedBoostUntil = now + GAME_CONFIG.SHIP_ACTION_DURATION_MS;
-            this.showMessage('速度上昇!');
-        } else if (actionInfo.type === 'merchant') {
-            this.shipActionInvisibleUntil = now + GAME_CONFIG.SHIP_ACTION_DURATION_MS;
-            this.setPlayerShipInvisible(true);
-            this.showMessage('姿を消しました');
-        } else if (actionInfo.type === 'defender') {
-            this.applyDefenderAction();
-        } else if (actionInfo.type === 'fighter') {
-            this.applyFighterAction(actionInfo.subtype || 'generic');
+        if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
+            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16);
+        }
+        if (actionInfo.type !== 'defender') {
+            this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
         }
 
-        this.shipActionCooldownUntil = now + GAME_CONFIG.SHIP_ACTION_COOLDOWN_MS;
+        if (actionInfo.type === 'explorer') {
+            const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
+            const multiplier = Number(actionInfo.speedMultiplier) || 1.5;
+            this.shipActionSpeedBoostUntil = now + duration;
+            this.shipSpeed = Math.max(1, this.shipBaseSpeed * multiplier);
+            this.showMessage(`${actionInfo.label || '速度上昇'}!`);
+        } else if (actionInfo.type === 'merchant') {
+            const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
+            this.shipActionInvisibleUntil = now + duration;
+            this.setPlayerShipInvisible(true);
+            this.showMessage(`${actionInfo.label || '姿を消しました'}`);
+        } else if (actionInfo.type === 'defender') {
+            this.applyDefenderAction(actionInfo);
+        } else if (actionInfo.type === 'fighter') {
+            this.applyFighterAction(actionInfo);
+        }
+
+        const cooldownMs = Number(actionInfo?.cooldownMs) || GAME_CONFIG.SHIP_ACTION_COOLDOWN_MS;
+        this.shipActionCooldownUntil = now + cooldownMs;
         this.updateShipActionUi(true);
     }
 
@@ -1932,13 +2032,18 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage('対象がいません');
             return;
         }
+        const filtered = targets.filter(target => !this.isShipInBattle(target.playFabId));
+        if (filtered.length === 0) {
+            this.showMessage('戦闘中の相手には攻撃できません。');
+            return;
+        }
         try {
             const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-damage') : '/api/ship-action-damage'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     attackerId: this.playerInfo.playFabId,
-                    targets: targets.map(t => t.playFabId),
+                    targets: filtered.map(t => t.playFabId),
                     damage: damage
                 })
             });
@@ -1946,7 +2051,21 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!res.ok || !data?.success) {
                 this.showMessage('攻撃に失敗しました');
             } else {
-                this.showMessage(`命中 ${data?.hits || targets.length}`);
+                this.showMessage(`命中 ${data?.hits || filtered.length}`);
+                if (Array.isArray(data.results)) {
+                    data.results.forEach((result) => {
+                        if (!result || result.skipped || result.error) return;
+                        const target = this.otherShips.get(result.playFabId);
+                        if (target && target.sprite) {
+                            const maxHp = Number(target.hp?.max || result.hp || 0);
+                            target.hp = { current: Number(result.hp), max: maxHp };
+                            this.playShipHitEffect(target.sprite.x, target.sprite.y, result.damageTaken);
+                            if (result.respawnPosition) {
+                                target.sprite.setPosition(result.respawnPosition.x, result.respawnPosition.y);
+                            }
+                        }
+                    });
+                }
             }
         } catch (e) {
             console.warn('[ShipAction] Damage request failed:', e);
@@ -1954,25 +2073,15 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
-    applyFighterAction(subtype) {
+    applyFighterAction(actionInfo) {
         const tile = this.TILE_SIZE;
-        let range = tile * 5;
-        let angle = 50;
-        let damage = 300;
-        if (subtype === 'human') {
-            range = tile * 4;
-            angle = 60;
-            damage = 300;
-        } else if (subtype === 'orc') {
-            range = tile * 8;
-            angle = 30;
-            damage = 450;
-        } else if (subtype === 'goblin') {
-            range = tile * 3;
-            angle = 40;
-            damage = 600;
-        } else if (subtype === 'elf') {
-            const radius = tile * 4;
+        const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
+        const angle = Number(actionInfo?.angle) || 50;
+        const damage = Number(actionInfo?.damage) || 300;
+        const radiusTiles = Number(actionInfo?.radiusTiles);
+        const heading = this.getFacingAngleRad();
+        if (Number.isFinite(radiusTiles) && radiusTiles > 0) {
+            const radius = tile * radiusTiles;
             const targets = [];
             this.otherShips.forEach((shipObject, otherId) => {
                 const sprite = shipObject?.sprite;
@@ -1982,17 +2091,29 @@ export default class WorldMapScene extends Phaser.Scene {
                     targets.push({ playFabId: otherId, distance: dist });
                 }
             });
-            this.applyShipActionDamage(targets, 350);
+            this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius);
+            this.applyShipActionDamage(targets, damage);
             return;
         }
         const targets = this.getTargetsInCone(range, angle);
+        if (actionInfo?.effect === 'flame_cone') {
+            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, 0xff6b35);
+        } else {
+            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading);
+        }
+        if (actionInfo?.effect === 'cannon_shot') {
+            this.playCannonShot(this.playerShip.x, this.playerShip.y, range, heading);
+        }
+        if (actionInfo?.effect === 'drill_burst') {
+            this.playDrillBurst(this.playerShip.x, this.playerShip.y, heading);
+        }
         this.applyShipActionDamage(targets, damage);
     }
 
-    async applyDefenderAction() {
+    async applyDefenderAction(actionInfo = {}) {
         if (!this.playerShip || !this.firestore) return;
         const facing = this.getPlayerFacingVector();
-        const range = this.TILE_SIZE * 5;
+        const range = this.TILE_SIZE * Math.max(1, Number(actionInfo.rangeTiles) || 5);
         let closest = null;
 
         this.islandObjects.forEach((islandData) => {
@@ -2022,6 +2143,13 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         const data = snap.data() || {};
+        const islandData = this.islandObjects?.get(closest.id);
+        const centerX = islandData
+            ? islandData.x + islandData.width / 2
+            : (Number(data.coordinate?.x) * this.gridSize);
+        const centerY = islandData
+            ? islandData.y + islandData.height / 2
+            : (Number(data.coordinate?.y) * this.gridSize);
         const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
         const idx = buildings.findIndex(b => b && b.status !== 'demolished');
         if (idx === -1) {
@@ -2029,7 +2157,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        const damage = 600;
+        const damage = Number(actionInfo.damage) || 600;
         const b = buildings[idx];
         const maxHp = Number(b.maxHp) || 0;
         const current = Number.isFinite(Number(b.currentHp)) ? Number(b.currentHp) : maxHp;
@@ -2037,7 +2165,13 @@ export default class WorldMapScene extends Phaser.Scene {
         buildings[idx] = { ...b, currentHp: next };
         await updateDoc(islandRef, { buildings });
         await this.reloadIslandFromFirestore(closest.id);
-        this.showMessage('建物に大ダメージ');
+        this.showMessage(`${actionInfo.label || '建物に大ダメージ'}`);
+        if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
+            if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
+                this.playEmojiBurst(actionInfo.emoji, centerX, centerY - 10);
+            }
+            this.emitShipActionEvent(actionInfo, centerX, centerY);
+        }
     }
 
     async damageBuildingOnIsland(islandId, damage = 300) {
@@ -2216,6 +2350,11 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
+        if (this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(targetPlayFabId)) {
+            this.showMessage('戦闘中は乗り込めません。');
+            return;
+        }
+
         this.boardingTargetId = targetPlayFabId;
         console.log('[Boarding] showShipCommandMenu', { targetPlayFabId, displayName });
         title.textContent = displayName ? `船: ${displayName}` : '船';
@@ -2279,6 +2418,7 @@ export default class WorldMapScene extends Phaser.Scene {
     async ramShipDamage(otherPlayFabId) {
         const myId = this.playerInfo?.playFabId;
         if (!myId || !otherPlayFabId) return;
+        if (this.isShipInBattle(myId) || this.isShipInBattle(otherPlayFabId)) return;
 
         if (String(myId) > String(otherPlayFabId)) return;
 
@@ -2297,6 +2437,32 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!res.ok) {
                 console.warn('[ShipCollision] ram-ship failed:', data);
             } else if (data && typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                const attacker = data.attacker;
+                const defender = data.defender;
+                if (attacker?.playFabId === myId) {
+                    const maxHp = Number(this.playerHp?.max || attacker.hp || 0);
+                    this.playerHp = { current: Number(attacker.hp), max: maxHp };
+                    this.playShipHitEffect(this.playerShip?.x, this.playerShip?.y, attacker.damageTaken);
+                } else if (attacker?.playFabId) {
+                    const target = this.otherShips.get(attacker.playFabId);
+                    if (target && target.sprite) {
+                        const maxHp = Number(target.hp?.max || attacker.hp || 0);
+                        target.hp = { current: Number(attacker.hp), max: maxHp };
+                        this.playShipHitEffect(target.sprite.x, target.sprite.y, attacker.damageTaken);
+                    }
+                }
+                if (defender?.playFabId === myId) {
+                    const maxHp = Number(this.playerHp?.max || defender.hp || 0);
+                    this.playerHp = { current: Number(defender.hp), max: maxHp };
+                    this.playShipHitEffect(this.playerShip?.x, this.playerShip?.y, defender.damageTaken);
+                } else if (defender?.playFabId) {
+                    const target = this.otherShips.get(defender.playFabId);
+                    if (target && target.sprite) {
+                        const maxHp = Number(target.hp?.max || defender.hp || 0);
+                        target.hp = { current: Number(defender.hp), max: maxHp };
+                        this.playShipHitEffect(target.sprite.x, target.sprite.y, defender.damageTaken);
+                    }
+                }
                 const attackerRespawned = data.attacker?.playFabId === myId && data.attacker?.respawned;
                 const defenderRespawned = data.defender?.playFabId === myId && data.defender?.respawned;
                 if (attackerRespawned || defenderRespawned) {
@@ -2335,7 +2501,22 @@ export default class WorldMapScene extends Phaser.Scene {
             if (idleFrame !== undefined) shipObject.sprite.setFrame(idleFrame);
         }
 
-        this.ramShipDamage(otherPlayFabId);
+        const inBattle = this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(otherPlayFabId);
+        if (inBattle) {
+            return;
+        }
+
+        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || shipObject?.sprite?.__ownerNation || '').toLowerCase();
+
+        this.playShipHitEffect(
+            (this.playerShip.x + shipObject.sprite.x) / 2,
+            (this.playerShip.y + shipObject.sprite.y) / 2,
+            null
+        );
+        if (!myNation || !otherNation || myNation !== otherNation) {
+            this.ramShipDamage(otherPlayFabId);
+        }
 
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
             navigator.vibrate(50);
@@ -2381,6 +2562,382 @@ export default class WorldMapScene extends Phaser.Scene {
         hpBar.fillRect(barX, barY, barWidth, barHeight);
         hpBar.fillStyle(shipColor, 0.9);
         hpBar.fillRect(barX + 1, barY + 1, Math.max(0, (barWidth - 2) * ratio), Math.max(1, barHeight - 2));
+    }
+
+    playShipHitEffect(x, y, damageValue = null) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const now = Date.now();
+        const key = `${Math.round(x)}:${Math.round(y)}`;
+        const lastAt = this.lastShipHitFxAt.get(key) || 0;
+        if (now - lastAt < 300) return;
+        this.lastShipHitFxAt.set(key, now);
+
+        if (Number.isFinite(damageValue)) {
+            this.spawnDamageNumber(x, y - 12, `-${Math.round(damageValue)}`, 0xff6b6b);
+        }
+        this.spawnImpactBurst(x, y);
+        if (this.cameras?.main) {
+            this.cameras.main.shake(80, 0.002);
+        }
+    }
+
+    spawnDamageNumber(x, y, text, color) {
+        const label = this.add.text(x, y, text, {
+            fontSize: '12px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2
+        });
+        label.setOrigin(0.5);
+        label.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.ignoreOnUiCamera(label);
+        label.setTint(color);
+        this.tweens.add({
+            targets: label,
+            y: y - 14,
+            alpha: 0,
+            duration: 700,
+            ease: 'Sine.easeOut',
+            onComplete: () => label.destroy()
+        });
+    }
+
+    spawnImpactBurst(x, y) {
+        const particles = this.add.particles(x, y, 'map_tiles', {
+            frame: 0,
+            speed: { min: 40, max: 140 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.3, end: 0 },
+            lifespan: 350,
+            quantity: 10,
+            alpha: { start: 0.9, end: 0 }
+        });
+        particles.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.ignoreOnUiCamera(particles);
+        this.time.delayedCall(360, () => particles.destroy());
+    }
+
+    playActionConeEffect(range, angleDeg) {
+        if (!this.playerShip) return;
+        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angleDeg, this.getFacingAngleRad());
+    }
+
+    playActionConeEffectAt(x, y, range, angleDeg, headingRad = 0, color = 0xffd166) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const graphics = this.add.graphics();
+        graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.ignoreOnUiCamera(graphics);
+        const start = headingRad - Phaser.Math.DegToRad(angleDeg / 2);
+        const end = headingRad + Phaser.Math.DegToRad(angleDeg / 2);
+        graphics.fillStyle(color, 0.18);
+        graphics.lineStyle(1, color, 0.6);
+        graphics.beginPath();
+        graphics.moveTo(x, y);
+        graphics.arc(x, y, range, start, end, false);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.strokePath();
+        this.time.delayedCall(220, () => graphics.destroy());
+    }
+
+    playActionCircleEffect(radius) {
+        if (!this.playerShip) return;
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius);
+    }
+
+    playActionCircleEffectAt(x, y, radius) {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const graphics = this.add.graphics();
+        graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.ignoreOnUiCamera(graphics);
+        graphics.lineStyle(2, 0x7bdff2, 0.6);
+        graphics.strokeCircle(x, y, radius);
+        graphics.fillStyle(0x7bdff2, 0.12);
+        graphics.fillCircle(x, y, radius);
+        this.time.delayedCall(240, () => graphics.destroy());
+    }
+
+    playEmojiBurst(emojis, x, y) {
+        if (!Array.isArray(emojis) || emojis.length === 0) return;
+        const count = Math.min(8, Math.max(3, emojis.length * 2));
+        for (let i = 0; i < count; i += 1) {
+            const emoji = emojis[i % emojis.length];
+            const offsetX = Phaser.Math.Between(-14, 14);
+            const offsetY = Phaser.Math.Between(-10, 10);
+            const text = this.add.text(x + offsetX, y + offsetY, emoji, { fontSize: '16px' });
+            text.setOrigin(0.5);
+            text.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
+            this.ignoreOnUiCamera(text);
+            this.tweens.add({
+                targets: text,
+                y: y + offsetY - 16,
+                alpha: 0,
+                duration: 600,
+                ease: 'Sine.easeOut',
+                onComplete: () => text.destroy()
+            });
+        }
+    }
+
+    playCannonShot(x, y, range, headingRad) {
+        const dx = Math.cos(headingRad);
+        const dy = Math.sin(headingRad);
+        const startX = x + dx * 18;
+        const startY = y + dy * 18;
+        const endX = x + dx * range;
+        const endY = y + dy * range;
+        const shot = this.add.text(startX, startY, '💣', { fontSize: '16px' });
+        shot.setOrigin(0.5);
+        shot.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
+        this.ignoreOnUiCamera(shot);
+        this.tweens.add({
+            targets: shot,
+            x: endX,
+            y: endY,
+            duration: 240,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+                shot.destroy();
+                this.spawnImpactBurst(endX, endY);
+                this.spawnDamageNumber(endX, endY - 10, '💥', 0xffe066);
+            }
+        });
+    }
+
+    playDrillBurst(x, y, headingRad) {
+        const dx = Math.cos(headingRad);
+        const dy = Math.sin(headingRad);
+        const impactX = x + dx * 22;
+        const impactY = y + dy * 22;
+        this.spawnImpactBurst(impactX, impactY);
+        this.spawnDamageNumber(impactX, impactY - 8, '✨', 0xffe066);
+        if (this.cameras?.main) {
+            this.cameras.main.shake(90, 0.003);
+        }
+    }
+
+    getFacingAngleRad() {
+        const facing = this.getPlayerFacingVector();
+        return Math.atan2(facing.y, facing.x);
+    }
+
+    async emitShipActionEvent(actionInfo, x, y) {
+        if (!this.firestore || !this.mapId || !this.playerInfo?.playFabId) return;
+        const payload = {
+            mapId: this.mapId,
+            sourceId: this.playerInfo.playFabId,
+            type: actionInfo?.type || null,
+            label: actionInfo?.label || null,
+            emojis: Array.isArray(actionInfo?.emoji) ? actionInfo.emoji : [],
+            x: Number(x),
+            y: Number(y),
+            rangeTiles: Number(actionInfo?.rangeTiles) || null,
+            radiusTiles: Number(actionInfo?.radiusTiles) || null,
+            angle: Number(actionInfo?.angle) || null,
+            heading: this.getFacingAngleRad(),
+            createdAt: Date.now()
+        };
+        try {
+            await addDoc(collection(this.firestore, 'ship_action_events'), payload);
+        } catch (error) {
+            console.warn('[ShipActionEvent] Failed to emit:', error);
+        }
+    }
+
+    subscribeToShipActionEvents() {
+        if (!this.firestore || !this.mapId) return;
+        if (this.shipActionEventsUnsubscribe) {
+            this.shipActionEventsUnsubscribe();
+        }
+
+        const eventsQuery = query(
+            collection(this.firestore, 'ship_action_events'),
+            where('mapId', '==', this.mapId),
+            orderBy('createdAt', 'desc'),
+            limit(25)
+        );
+
+        this.shipActionEventsUnsubscribe = onSnapshot(eventsQuery, (snapshot) => {
+            const now = Date.now();
+            snapshot.docChanges().forEach((change) => {
+                if (change.type !== 'added') return;
+                const docSnap = change.doc;
+                if (!docSnap?.exists()) return;
+                if (this.shipActionEventsSeen.has(docSnap.id)) return;
+                this.shipActionEventsSeen.add(docSnap.id);
+                if (this.shipActionEventsSeen.size > 200) {
+                    this.shipActionEventsSeen.clear();
+                }
+
+                const data = docSnap.data() || {};
+                const createdAt = Number(data.createdAt) || 0;
+                if (createdAt && now - createdAt > 5000) return;
+                if (data.sourceId && data.sourceId === this.playerInfo?.playFabId) return;
+
+                const x = Number(data.x);
+                const y = Number(data.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+                if (Array.isArray(data.emojis) && data.emojis.length > 0) {
+                    this.playEmojiBurst(data.emojis, x, y - 12);
+                }
+                if (Number.isFinite(Number(data.radiusTiles))) {
+                    const radius = this.TILE_SIZE * Number(data.radiusTiles);
+                    this.playActionCircleEffectAt(x, y, radius);
+                } else if (Number.isFinite(Number(data.rangeTiles)) && Number.isFinite(Number(data.angle))) {
+                    const range = this.TILE_SIZE * Number(data.rangeTiles);
+                    const heading = Number(data.heading) || 0;
+                    this.playActionConeEffectAt(x, y, range, Number(data.angle), heading);
+                } else {
+                    this.spawnImpactBurst(x, y);
+                }
+            });
+        }, (error) => {
+            console.warn('[ShipActionEvent] Subscribe failed:', error);
+        });
+    }
+
+    getBattleShieldUntil(playFabId) {
+        if (!playFabId) return 0;
+        if (playFabId === this.playerInfo?.playFabId) {
+            return Number(window.__battleActiveUntil || 0);
+        }
+        return Number(this.shipBattleShield?.get(playFabId) || 0);
+    }
+
+    isShipInBattle(playFabId) {
+        const until = this.getBattleShieldUntil(playFabId);
+        return until > Date.now();
+    }
+
+    markShipInBattle(playFabId, durationMs) {
+        if (!playFabId) return;
+        const until = Date.now() + Math.max(0, Number(durationMs) || 0);
+        const current = Number(this.shipBattleShield.get(playFabId) || 0);
+        if (until > current) {
+            this.shipBattleShield.set(playFabId, until);
+        }
+        const hiddenCurrent = Number(this.shipBattleHiddenUntil.get(playFabId) || 0);
+        if (until > hiddenCurrent) {
+            this.shipBattleHiddenUntil.set(playFabId, until);
+        }
+        this.setShipBattleVisibility(playFabId, false);
+        this.spawnBattleSmoke(playFabId, durationMs);
+
+        if (this.time?.delayedCall) {
+            this.time.delayedCall(Math.max(0, Number(durationMs) || 0), () => {
+                if (!this.isShipInBattle(playFabId)) {
+                    this.setShipBattleVisibility(playFabId, true);
+                }
+            });
+        }
+    }
+
+    playBattleEmojiForShip(playFabId, emojis) {
+        const sprite = playFabId === this.playerInfo?.playFabId
+            ? this.playerShip
+            : this.otherShips.get(playFabId)?.sprite;
+        if (!sprite) return;
+        const list = Array.isArray(emojis) && emojis.length > 0 ? emojis : ['⚔️', '💥'];
+        this.playEmojiBurst(list, sprite.x, sprite.y - 18);
+    }
+
+    setShipBattleVisibility(playFabId, visible) {
+        if (!playFabId) return;
+        if (playFabId === this.playerInfo?.playFabId) {
+            if (visible) {
+                const now = Date.now();
+                if (now < this.shipActionInvisibleUntil) {
+                    this.setPlayerShipInvisible(true);
+                    return;
+                }
+            }
+            this.setPlayerShipInvisible(!visible);
+            return;
+        }
+        const shipObject = this.otherShips.get(playFabId);
+        if (!shipObject?.sprite) return;
+        shipObject.sprite.setAlpha(visible ? 1 : 0);
+        if (shipObject.sprite.__hpBar) {
+            shipObject.sprite.__hpBar.setVisible(visible);
+        }
+        if (shipObject.sprite.__shadow) {
+            shipObject.sprite.__shadow.setVisible(visible);
+        }
+    }
+
+    spawnBattleSmoke(playFabId, durationMs) {
+        if (!playFabId || !this.time) return;
+        const existing = this.shipBattleSmokeTimers.get(playFabId);
+        if (existing) {
+            existing.remove(false);
+            this.shipBattleSmokeTimers.delete(playFabId);
+        }
+        const emojis = ['💨', '☁️', '💥'];
+        const repeatMs = 450;
+        const repeatCount = Math.max(1, Math.ceil((Number(durationMs) || 0) / repeatMs));
+        let fired = 0;
+        const timer = this.time.addEvent({
+            delay: repeatMs,
+            callback: () => {
+                fired += 1;
+                const sprite = playFabId === this.playerInfo?.playFabId
+                    ? this.playerShip
+                    : this.otherShips.get(playFabId)?.sprite;
+                if (sprite) {
+                    this.playEmojiBurst(emojis, sprite.x, sprite.y - 6);
+                }
+                if (fired >= repeatCount) {
+                    timer.remove(false);
+                    this.shipBattleSmokeTimers.delete(playFabId);
+                }
+            },
+            loop: true
+        });
+        this.shipBattleSmokeTimers.set(playFabId, timer);
+    }
+
+    subscribeToShipBattleEvents() {
+        if (!this.firestore || !this.mapId) return;
+        if (this.shipBattleEventsUnsubscribe) {
+            this.shipBattleEventsUnsubscribe();
+        }
+
+        const eventsQuery = query(
+            collection(this.firestore, 'ship_battle_events'),
+            where('mapId', '==', this.mapId),
+            orderBy('createdAt', 'desc'),
+            limit(25)
+        );
+
+        this.shipBattleEventsUnsubscribe = onSnapshot(eventsQuery, (snapshot) => {
+            const now = Date.now();
+            snapshot.docChanges().forEach((change) => {
+                if (change.type !== 'added') return;
+                const docSnap = change.doc;
+                if (!docSnap?.exists()) return;
+                if (this.shipBattleEventsSeen.has(docSnap.id)) return;
+                this.shipBattleEventsSeen.add(docSnap.id);
+                if (this.shipBattleEventsSeen.size > 200) {
+                    this.shipBattleEventsSeen.clear();
+                }
+
+                const data = docSnap.data() || {};
+                const createdAt = Number(data.createdAt) || 0;
+                if (createdAt && now - createdAt > 6000) return;
+
+                const durationMs = Number(data.durationMs) || 5000;
+                const participants = Array.isArray(data.participantIds) ? data.participantIds : [];
+                const emojis = Array.isArray(data.emojis) ? data.emojis : ['⚔️', '💥'];
+
+                participants.forEach((id) => {
+                    this.markShipInBattle(id, durationMs);
+                    this.playBattleEmojiForShip(id, emojis);
+                });
+            });
+        }, (error) => {
+            console.warn('[ShipBattleEvent] Subscribe failed:', error);
+        });
     }
 
     createShipShadow(sprite) {
@@ -2476,6 +3033,9 @@ export default class WorldMapScene extends Phaser.Scene {
         let anyIntersect = false;
         this.otherShips.forEach((shipObject, otherPlayFabId) => {
             if (!shipObject?.sprite) return;
+            const myAir = this.isAirDomain(this.playerShipDomain);
+            const otherAir = this.isAirDomain(shipObject?.domain);
+            if (myAir !== otherAir) return;
             const intersects = this.physics.world.overlap(this.playerShip, shipObject.sprite);
             if (intersects) {
                 anyIntersect = true;
@@ -2581,6 +3141,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const islandNation = String(islandData.ownerNation || islandData.nation || mapNation || biomeId || '').toLowerCase();
         const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
         const isUnoccupied = !islandData.ownerId;
+        const isCapitalIsland = String(islandData.occupationStatus || '').toLowerCase() === 'capital';
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
@@ -2594,6 +3155,12 @@ export default class WorldMapScene extends Phaser.Scene {
             buttonText = 'ログインが必要です';
             buttonClass = 'disabled';
             onClick = () => this.showMessage('ログインしてください。');
+        } else if (isCapitalIsland && isOwnNation) {
+            buttonText = '首都メニューを開く';
+            buttonClass = 'info';
+            onClick = async () => {
+                await this.openBuildingMenuForIsland(islandData);
+            };
         } else if (!isOwner && !isInOwnedArea) {
             buttonText = '占領範囲外';
             buttonClass = 'disabled';
@@ -2729,6 +3296,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipHpBars();
         this.pruneOtherShips();
         this.checkShipShipCollisions();
+        this.checkAirObstacleCollisions();
+        this.checkAirIslandProximity();
         this.clearCollidingIslandWhenFar();
         this.updateShipActionEffects();
         this.updateShipActionUi();
@@ -2747,6 +3316,62 @@ export default class WorldMapScene extends Phaser.Scene {
         if (distance > clearDistance) {
             this.collidingIsland = null;
         }
+    }
+
+    checkAirIslandProximity() {
+        if (!this.playerShip || !this.isAirDomain(this.playerShipDomain)) return;
+        if (!this.islandObjects || this.islandObjects.size === 0) return;
+
+        const buffer = this.TILE_SIZE * 2;
+        let nearest = null;
+        this.islandObjects.forEach((islandData) => {
+            const left = islandData.x;
+            const right = islandData.x + islandData.width;
+            const top = islandData.y;
+            const bottom = islandData.y + islandData.height;
+            const px = this.playerShip.x;
+            const py = this.playerShip.y;
+            const dx = Math.max(0, left - px, px - right);
+            const dy = Math.max(0, top - py, py - bottom);
+            if (dx <= buffer && dy <= buffer) {
+                const dist = Math.hypot(dx, dy);
+                if (!nearest || dist < nearest.distance) {
+                    nearest = { island: islandData, distance: dist };
+                }
+            }
+        });
+
+        if (nearest?.island) {
+            if (!this.collidingIsland || this.collidingIsland.id !== nearest.island.id) {
+                this.collidingIsland = nearest.island;
+                this.showMessage(`${nearest.island.name}に接近しました。`);
+                this.showIslandCommandMenu(nearest.island);
+            }
+        } else if (this.collidingIsland) {
+            this.collidingIsland = null;
+            this.hideIslandCommandMenu();
+        }
+    }
+
+    checkAirObstacleCollisions() {
+        if (!this.playerShip || !this.isAirDomain(this.playerShipDomain)) return;
+        if (!this.obstacleObjects || this.obstacleObjects.size === 0) return;
+
+        this.obstacleObjects.forEach((entry) => {
+            const collider = entry?.collider;
+            const logicH = Number(entry?.logicH) || 0;
+            if (!collider || logicH <= 2) return;
+            const intersects = this.physics.world.overlap(this.playerShip, collider);
+            if (!intersects) return;
+            if (this.shipMoving) {
+                this.shipMoving = false;
+                this.playerShip.body.setVelocity(0, 0);
+                if (this.shipTween) this.shipTween.stop();
+                if (this.shipArrivalTimer) this.shipArrivalTimer.remove();
+                this.stopShipAnimation();
+                this.updateMyShipStoppedPosition();
+            }
+        });
     }
 
     /**
@@ -2843,6 +3468,8 @@ export default class WorldMapScene extends Phaser.Scene {
         await this.restoreOrCreateMyShipPosition();
 
         this.subscribeToOtherShips();
+        this.subscribeToShipActionEvents();
+        this.subscribeToShipBattleEvents();
         this.subscribeToConstructingIslands();
         this.subscribeToDemolishedIslands();
     }
@@ -3273,6 +3900,8 @@ export default class WorldMapScene extends Phaser.Scene {
         if (assetData?.Domain) {
             shipObject.domain = String(assetData.Domain).toLowerCase();
         }
+        this.applyShipDomainDepth(shipObject?.sprite, shipObject?.domain);
+        this.setShipBattleVisibility(playFabId, !this.isShipInBattle(playFabId));
         if (assetData) {
             const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
             const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
@@ -3782,5 +4411,13 @@ export default class WorldMapScene extends Phaser.Scene {
             this.demolishedUnsubscribe = null;
         }
         this.demolishedSprites = this.clearSpriteArray(this.demolishedSprites);
+
+        if (this.shipActionEventsUnsubscribe) {
+            this.shipActionEventsUnsubscribe();
+            this.shipActionEventsUnsubscribe = null;
+        }
+        if (this.shipActionEventsSeen) {
+            this.shipActionEventsSeen.clear();
+        }
     }
 }

@@ -280,7 +280,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     } = constants;
 
     // ----------------------------------------------------
-    // API 11: バトル実行 (★ v120: リアルタイムバトル開始処理に変更)
+    // API 11: バトル実行 (自動戦闘・即時決着)
     // ----------------------------------------------------
     app.post('/api/start-battle', async (req, res) => {
         const { attackerId, defenderId } = req.body;
@@ -293,35 +293,112 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const playerA = await getPlayerFullProfile(attackerId);
             const playerB = await getPlayerFullProfile(defenderId);
 
-            // --- 2. Firebase Realtime Databaseに「対戦招待」を作成 ---
-            const invitationRef = db.ref('invitations').push(); // 新しい招待IDを生成
-            const invitationId = invitationRef.key;
+            // --- 2. 自動戦闘を即時実行 ---
+            const battleResult = await runBattle(playerA, playerB);
 
-            const invitationData = {
-                status: 'pending', // pending, accepted, started
-                from: {
-                    id: playerA.id,
-                    name: playerA.stats.DisplayName
+            // --- 3. Firebase Realtime Databaseに「バトル結果」を作成 ---
+            const battleRef = db.ref('battles').push();
+            const battleId = battleRef.key;
+
+            const playersPayload = {
+                [playerA.id]: {
+                    name: playerA.stats.DisplayName,
+                    hp: Math.max(0, Number(playerA.stats.CurrentHP || 0)),
+                    maxHp: playerA.stats.MaxHP,
+                    online: true,
+                    level: playerA.level,
+                    stats: { すばやさ: playerA.stats.すばやさ },
+                    avatar: playerA.avatar,
+                    equipment: playerA.equipment
                 },
-                to: {
-                    id: playerB.id,
-                    name: playerB.stats.DisplayName
-                },
-                createdAt: require('firebase-admin').database.ServerValue.TIMESTAMP // ★ v143: 正しいタイムスタンプの取得方法に修正
+                [playerB.id]: {
+                    name: playerB.stats.DisplayName,
+                    hp: Math.max(0, Number(playerB.stats.CurrentHP || 0)),
+                    maxHp: playerB.stats.MaxHP,
+                    online: true,
+                    level: playerB.level,
+                    stats: { すばやさ: playerB.stats.すばやさ },
+                    avatar: playerB.avatar,
+                    equipment: playerB.equipment
+                }
             };
 
-            await invitationRef.set(invitationData);
-            console.log(`[対戦招待] 招待を作成しました: ${invitationId}`);
-
-            // --- 3. クライアントに招待IDを返す ---
-            res.json({
-                status: "Invitation Sent",
-                invitationId: invitationId
+            const logEntries = {};
+            const baseTime = Date.now();
+            (battleResult.logs || []).forEach((line, index) => {
+                logEntries[baseTime + index] = line;
             });
 
+            const finalBattleState = {
+                status: 'finished',
+                winner: battleResult.winner ? battleResult.winner.id : null,
+                lastActionPlayer: null,
+                players: playersPayload,
+                log: logEntries
+            };
+
+            await battleRef.set(finalBattleState);
+            console.log(`[自動戦闘] バトル結果を保存しました: ${battleId}`);
+
+            // --- 4. 招待通知 (オンラインなら即モーダル表示) ---
+            const invitationRef = db.ref('invitations').push();
+            const invitationId = invitationRef.key;
+            await invitationRef.set({
+                status: 'started',
+                battleId,
+                from: { id: playerA.id, name: playerA.stats.DisplayName },
+                to: { id: playerB.id, name: playerB.stats.DisplayName },
+                createdAt: require('firebase-admin').database.ServerValue.TIMESTAMP
+            });
+
+            // --- 5. HP/MP保存と報酬 ---
+            await Promise.all([
+                savePlayerHpMp(playerA),
+                savePlayerHpMp(playerB)
+            ]);
+            if (battleResult.winner && battleResult.loser) {
+                handleBattleRewards(battleId, battleResult.winner.id, battleResult.loser.id).catch(rewardError => {
+                    console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
+                });
+            }
+
+            // --- 6. 通知 (オフライン向け) ---
+            try {
+                const admin = require('firebase-admin');
+                const firestore = admin.firestore();
+                const notify = async (targetId, payload) => {
+                    await firestore
+                        .collection('notifications')
+                        .doc(targetId)
+                        .collection('items')
+                        .add({
+                            type: 'battle_result',
+                            battleId,
+                            ...payload,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                };
+                const winnerId = battleResult.winner ? battleResult.winner.id : null;
+                const loserId = battleResult.loser ? battleResult.loser.id : null;
+                if (winnerId) {
+                    await notify(winnerId, { result: 'win', opponentId: loserId });
+                }
+                if (loserId) {
+                    await notify(loserId, { result: 'lose', opponentId: winnerId });
+                }
+            } catch (notifyError) {
+                console.warn('[start-battle] Notification write failed:', notifyError?.message || notifyError);
+            }
+
+            // --- 7. クライアントへ即時返却 ---
+            res.json({
+                status: "Battle Finished",
+                battleId,
+                invitationId
+            });
         } catch (error) {
-            console.error('[バトル招待作成エラー]', error.errorMessage || error.message);
-            res.status(500).json({ error: 'バトル招待の作成中にエラーが発生しました。', details: error.errorMessage || error.message });
+            console.error('[バトル作成エラー]', error.errorMessage || error.message || error);
+            res.status(500).json({ error: 'バトル作成中にエラーが発生しました。', details: error.errorMessage || error.message });
         }
     });
 

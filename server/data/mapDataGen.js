@@ -156,7 +156,7 @@ const createIsland = (config) => {
 const getNationLabel = (faction) => {
     switch (String(faction || '').toLowerCase()) {
         case 'fire': return '火の国';
-        case 'earth': return '土の国';
+        case 'earth': return '地の国';
         case 'wind': return '風の国';
         case 'water': return '水の国';
         default: return '中立';
