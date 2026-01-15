@@ -450,10 +450,17 @@ function initializeNationRoutes(app, deps) {
             const multiplierRaw = await getGroupDataValue(context.groupId, 'grantMultiplier');
             const multiplierValue = Number(multiplierRaw);
             const multiplier = Number.isFinite(multiplierValue) && multiplierValue >= 0 ? multiplierValue : 1;
+            if (multiplier <= 0) {
+                return res.status(400).json({ error: 'Grant multiplier must be greater than 0', details: `multiplier=${multiplier}` });
+            }
 
             const grantAmount = Math.floor(value * 0.1 * multiplier);
             if (grantAmount <= 0) {
-                return res.status(400).json({ error: 'Grant amount is zero' });
+                const minReceived = Math.ceil(10 / multiplier);
+                return res.status(400).json({
+                    error: 'Grant amount is zero',
+                    details: `received=${value}, multiplier=${multiplier}, minReceived=${minReceived}`
+                });
             }
 
             try {
