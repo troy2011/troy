@@ -178,11 +178,15 @@ async function loadCatalogCache() {
     console.log('[カタログ] PlayFab Economy V2 カタログの読み込みを開始します...');
     try {
         await ensureTitleEntityToken();
+        const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+        const titleEntity = tokenResult?.Entity;
         const items = [];
         let token = null;
         do {
             const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
                 Count: 50,
+                Entity: titleEntity,
+                Select: 'Title,Description,DisplayProperties,ContentType,Type,Tags,FriendlyId,AlternateIds,PriceOptions,PriceAmounts',
                 ContinuationToken: token || undefined
             });
             const page = Array.isArray(result?.Items) ? result.Items : [];
