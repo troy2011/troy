@@ -37,20 +37,34 @@ async function ensureTitleEntityToken() {
 async function getGroupDataValue(groupId, key) {
     if (!groupId || !key) return null;
     await ensureTitleEntityToken();
-    const result = await promisifyPlayFab(PlayFabGroups.GetGroupData, {
-        Group: { Id: groupId, Type: 'group' }
+    const result = await promisifyPlayFab(PlayFabData.GetObjects, {
+        Entity: { Id: groupId, Type: 'group' }
     });
-    const data = result?.Data || {};
-    const entry = data[key];
-    return entry && typeof entry.Value === 'string' ? entry.Value : null;
+    const objects = result?.Data?.Objects || result?.Objects || {};
+    const entry = objects[key];
+    if (!entry) return null;
+    const dataObject = entry?.DataObject ?? entry?.Object ?? entry;
+    if (dataObject == null) return null;
+    if (typeof dataObject === 'string') return dataObject;
+    if (typeof dataObject === 'number') return String(dataObject);
+    if (typeof dataObject === 'object' && dataObject.Value != null) return String(dataObject.Value);
+    try {
+        return JSON.stringify(dataObject);
+    } catch {
+        return String(dataObject);
+    }
 }
 
 async function setGroupDataValues(groupId, values) {
     if (!groupId) return null;
     await ensureTitleEntityToken();
-    return promisifyPlayFab(PlayFabGroups.SetGroupData, {
-        Group: { Id: groupId, Type: 'group' },
-        Data: values
+    const objects = Object.entries(values || {}).map(([key, value]) => ({
+        ObjectName: key,
+        DataObject: String(value)
+    }));
+    return promisifyPlayFab(PlayFabData.SetObjects, {
+        Entity: { Id: groupId, Type: 'group' },
+        Objects: objects
     });
 }
 
