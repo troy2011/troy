@@ -1,4 +1,3 @@
-const PlayFab = require('playfab-sdk/Scripts/PlayFab/PlayFab');
 const PlayFab = require('playfab-sdk');
 const PlayFabServer = PlayFab.PlayFabServer || require('playfab-sdk/Scripts/PlayFab/PlayFabServer');
 const PlayFabAdmin = PlayFab.PlayFabAdmin || require('playfab-sdk/Scripts/PlayFab/PlayFabAdmin');
