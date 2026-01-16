@@ -52,6 +52,10 @@ function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
 
+function getTroyRoomDoc(firestore, groupName) {
+    return firestore.collection('troy_rooms').doc(groupName);
+}
+
 async function ensureNationGroupExists(firestore, mapping, deps) {
     const { promisifyPlayFab, PlayFabAdmin, PlayFabGroups, ensureTitleEntityToken, admin } = deps;
 
@@ -376,6 +380,7 @@ function initializeNationRoutes(app, deps) {
             try {
                 const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
+                const mapping = getNationMappingByNation(nation);
                 if (groupId) {
                     const grantMultiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
                     const treasuryRaw = await getGroupDataValue(groupId, 'treasuryPT');
@@ -386,6 +391,10 @@ function initializeNationRoutes(app, deps) {
                     const treasuryPs = Math.max(0, Math.floor(Number(treasuryRaw) || 0));
                     payload.grantMultiplier = grantMultiplier;
                     payload.treasuryPs = treasuryPs;
+                }
+                if (mapping) {
+                    const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
+                    payload.troyOpen = !!roomSnap.data()?.isOpen;
                 }
             } catch (e) {
                 console.warn('[get-nation-king-page] Failed to load group tax data:', e?.message || e);
@@ -425,6 +434,118 @@ function initializeNationRoutes(app, deps) {
             }
             console.error('[king-set-grant-multiplier] Error:', msg);
             res.status(500).json({ error: 'Failed to set grant multiplier' });
+        }
+    });
+
+    // TROY営業状態の変更
+    app.post('/api/king-set-troy-open', async (req, res) => {
+        const { playFabId, isOpen } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const nextOpen = !!isOpen;
+
+        try {
+            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
+            await roomRef.set({
+                isOpen: nextOpen,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedBy: context.kingId
+            }, { merge: true });
+            res.json({ success: true, isOpen: nextOpen });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[king-set-troy-open] Error:', msg);
+            res.status(500).json({ error: 'Failed to update troy status' });
+        }
+    });
+
+    // TROY状態取得
+    app.post('/api/get-troy-status', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.json({ isOpen: false, members: [], notInNation: true });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.json({ isOpen: false, members: [], notInNation: true });
+
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const roomSnap = await roomRef.get();
+            const isOpen = !!roomSnap.data()?.isOpen;
+
+            const membersSnap = await roomRef
+                .collection('members')
+                .orderBy('joinedAt', 'asc')
+                .limit(50)
+                .get();
+            const members = membersSnap.docs.map(doc => {
+                const data = doc.data() || {};
+                return {
+                    playFabId: doc.id,
+                    displayName: data.displayName || doc.id,
+                    joinedAt: data.joinedAt ? data.joinedAt.toMillis?.() || data.joinedAt : null
+                };
+            });
+
+            res.json({ isOpen, members, nation });
+        } catch (error) {
+            console.error('[get-troy-status] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get troy status' });
+        }
+    });
+
+    // TROY入店
+    app.post('/api/troy-join', async (req, res) => {
+        const { playFabId, displayName } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(400).json({ error: 'NationNotSet' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
+
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const roomSnap = await roomRef.get();
+            if (!roomSnap.exists || !roomSnap.data()?.isOpen) {
+                return res.status(403).json({ error: 'TroyClosed' });
+            }
+
+            const memberId = normalizePlayFabId(playFabId);
+            const name = String(displayName || '').trim().slice(0, 40) || memberId;
+            await roomRef.collection('members').doc(memberId).set({
+                playFabId: memberId,
+                displayName: name,
+                joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[troy-join] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to join troy' });
+        }
+    });
+
+    // TROY退店
+    app.post('/api/troy-leave', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.json({ success: true });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.json({ success: true });
+
+            const memberId = normalizePlayFabId(playFabId);
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            await roomRef.collection('members').doc(memberId).delete();
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[troy-leave] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to leave troy' });
         }
     });
 

@@ -6,6 +6,7 @@ import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
+import * as Troy from './troy.js';
 import { getNationKingPage } from './playfabClient.js';
 
 const TAROT_AREAS = [
@@ -193,7 +194,7 @@ function hideMapSelectModal() {
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, troy: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 
@@ -351,6 +352,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Player.getPlayerStats(playerInfo.playFabId);
                     await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
+                    break;
+                case 'troy':
+                    await Troy.loadTroyPage(playerInfo.playFabId);
                     break;
                 case 'ships':
                     if (!playerInfo || !playerInfo.playFabId) {

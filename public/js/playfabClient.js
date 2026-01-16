@@ -152,6 +152,22 @@ export function grantPs(playFabId, receiverPlayFabId, amount, options) {
     return callApiWithLoader('/api/king-grant-ps', { playFabId, receiverPlayFabId, amount }, options);
 }
 
+export function getTroyStatus(playFabId, options) {
+    return callApiWithLoader('/api/get-troy-status', { playFabId }, options);
+}
+
+export function setTroyOpen(playFabId, isOpen, options) {
+    return callApiWithLoader('/api/king-set-troy-open', { playFabId, isOpen }, options);
+}
+
+export function joinTroy(playFabId, displayName, options) {
+    return callApiWithLoader('/api/troy-join', { playFabId, displayName }, options);
+}
+
+export function leaveTroy(playFabId, options) {
+    return callApiWithLoader('/api/troy-leave', { playFabId }, options);
+}
+
 export function transferKing(playFabId, newKingPlayFabId, options) {
     return callApiWithLoader('/api/king-transfer', { playFabId, newKingPlayFabId }, options);
 }
