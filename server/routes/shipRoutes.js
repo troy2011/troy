@@ -404,7 +404,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     /**
      * API: 船を建造する (カタログベースに修正)
      * POST /api/create-ship
-     * Body: { playFabId, shipItemId, spawnPosition: { x, y } }
+     * Body: { playFabId, shipItemId, mapId, islandId }
      */
     app.post('/api/create-ship', async (req, res) => {
         const { playFabId, shipItemId, spawnPosition, mapId, islandId } = req.body;
@@ -416,8 +416,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             islandId
         });
 
-        if (!playFabId || !shipItemId || !spawnPosition) {
-            return res.status(400).json({ error: 'playFabId, shipItemId, spawnPosition are required' });
+        if (!playFabId || !shipItemId) {
+            return res.status(400).json({ error: 'playFabId and shipItemId are required' });
         }
         if (!mapId || !islandId) {
             return res.status(400).json({ error: 'Capital island is required' });
@@ -496,7 +496,22 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(403).json({ error: 'CapitalRequired' });
             }
 
-            const resolvedSpawnPosition = await findAvailableSpawnPosition(spawnPosition);
+            const coord = capital.coordinate || {};
+            const ix = Number(coord.x);
+            const iy = Number(coord.y);
+            let baseSpawnPosition = null;
+            if (Number.isFinite(ix) && Number.isFinite(iy)) {
+                baseSpawnPosition = {
+                    x: ix * GEO_CONFIG.GRID_SIZE,
+                    y: iy * GEO_CONFIG.GRID_SIZE + GEO_CONFIG.GRID_SIZE
+                };
+            } else if (spawnPosition && Number.isFinite(Number(spawnPosition.x)) && Number.isFinite(Number(spawnPosition.y))) {
+                baseSpawnPosition = { x: Number(spawnPosition.x), y: Number(spawnPosition.y) };
+            } else {
+                baseSpawnPosition = await resolveRespawnPosition(playFabId);
+            }
+
+            const resolvedSpawnPosition = await findAvailableSpawnPosition(baseSpawnPosition);
 
             // 1. 建造コストを支払う
             for (const costItem of costsToPay) {

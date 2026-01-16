@@ -776,13 +776,12 @@ async function confirmCreateShip(playFabId) {
         showRpgMessage('???????????????');
         return;
     }
-    const spawnPosition = shipCreateContext?.spawnPosition || { x: 100, y: 100 };
     const confirmBtn = document.getElementById('btnConfirmCreateShip');
     shipCreateInFlight = true;
     if (confirmBtn) confirmBtn.disabled = true;
 
     try {
-        const data = await Ship.createShip(playFabId, shipItemId, spawnPosition, shipCreateContext);
+        const data = await Ship.createShip(playFabId, shipItemId, shipCreateContext);
         if (data) {
             document.getElementById('shipCreateModal').style.display = 'none';
             shipCreateContext = null;

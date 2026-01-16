@@ -168,8 +168,8 @@ export function setActiveShip(playFabId, shipId, options) {
     return callApiWithLoader('/api/set-active-ship', { playFabId, shipId }, options);
 }
 
-export function createShip(playFabId, shipItemId, spawnPosition, mapId, islandId, options) {
-    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, spawnPosition, mapId, islandId }, options);
+export function createShip(playFabId, shipItemId, mapId, islandId, options) {
+    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, mapId, islandId }, options);
 }
 
 export function startShipVoyage(shipId, playFabId, destination, options) {
