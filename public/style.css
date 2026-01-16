@@ -182,9 +182,9 @@ button:disabled {
 .home-hero-card {
     padding: 18px;
     background:
-        linear-gradient(180deg, rgba(12, 32, 56, 0.92), rgba(8, 18, 32, 0.96)),
-        radial-gradient(circle at 30% 15%, rgba(64, 140, 200, 0.22), transparent 60%);
-    border: 1px solid rgba(110, 170, 220, 0.25);
+        linear-gradient(180deg, rgba(18, 48, 80, 0.92), rgba(10, 24, 42, 0.96)),
+        radial-gradient(circle at 30% 15%, rgba(80, 170, 230, 0.28), transparent 60%);
+    border: 1px solid rgba(130, 190, 240, 0.28);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
     overflow: hidden;
