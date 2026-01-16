@@ -164,6 +164,8 @@ button:disabled {
         radial-gradient(circle at 20% 0%, rgba(245, 158, 11, 0.08), transparent 55%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
 }
 
 .home-hero-header {
@@ -181,6 +183,16 @@ button:disabled {
     margin-bottom: 12px;
 }
 
+.home-hero-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 45%, transparent 75%);
+    transform: translateX(-120%);
+    animation: homeSheen 8s ease-in-out infinite;
+    pointer-events: none;
+}
+
 .home-ps-card {
     display: flex;
     align-items: center;
@@ -190,6 +202,26 @@ button:disabled {
     background: linear-gradient(180deg, rgba(9, 12, 18, 0.9), rgba(25, 31, 42, 0.95));
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 16px -12px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.home-ps-lamp {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+}
+
+.home-ps-card.is-low .home-ps-lamp {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    animation: pulseLamp 1.6s ease-in-out infinite;
 }
 
 .home-ps-icon {
@@ -216,6 +248,7 @@ button:disabled {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    transition: filter 0.4s ease, opacity 0.4s ease;
 }
 
 .home-ps-unit {
@@ -233,11 +266,88 @@ button:disabled {
     color: var(--text-main);
 }
 
+.home-ps-seal {
+    position: absolute;
+    right: 12px;
+    bottom: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #b73d3d, #5b1616 70%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f5d7d7;
+    font-size: 12px;
+    font-weight: 700;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.home-ps-card.is-sealed .home-ps-seal {
+    display: flex;
+}
+
+.home-ps-card.is-sealed .home-ps-value {
+    filter: blur(6px);
+    opacity: 0.25;
+}
+
+.home-ps-card.seal-break .home-ps-seal {
+    animation: sealBreak 0.6s ease forwards;
+}
+
 .home-hero-subtitle {
     font-size: 12px;
     color: var(--text-sub);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+.home-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(10, 14, 20, 0.98), rgba(24, 30, 42, 0.98));
+}
+
+.home-card.sealed::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(120deg, #0c121c 0%, #2c3545 45%, #0c121c 70%);
+    transform: translateX(0);
+    transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.home-card.sealed::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #a02a2a, #4d1212 70%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.home-card.sealed.card-open::before {
+    transform: translateX(105%);
+}
+
+.home-card.sealed .home-card-header,
+.home-card.sealed .home-qr-area,
+.home-card.sealed .transfer-quick-row,
+.home-card.sealed .transfer-input-row,
+.home-card.sealed .transfer-send-btn {
+    position: relative;
+    z-index: 0;
 }
 
 .home-card-header {
@@ -292,6 +402,30 @@ button:disabled {
 
 .transfer-quick-btn:active {
     transform: scale(0.98);
+}
+
+.transfer-quick-btn:active,
+.transfer-send-btn:active {
+    transform: translateY(2px) scale(0.98);
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes homeSheen {
+    0%, 65% { transform: translateX(-120%); opacity: 0; }
+    70% { opacity: 0.5; }
+    85% { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes sealBreak {
+    0% { transform: scale(1); opacity: 1; }
+    60% { transform: scale(1.4); opacity: 0.7; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes pulseLamp {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
 }
 
 .transfer-input-row {

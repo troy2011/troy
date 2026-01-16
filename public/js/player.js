@@ -12,6 +12,7 @@ import {
 import { getNationLabel } from './nationLabels.js';
 
 let myPlayerStats = {};
+const LOW_PS_THRESHOLD = 200;
 
 export function getMyPlayerStats() {
     return myPlayerStats;
@@ -43,20 +44,14 @@ function updatePlayerStatsDisplay() {
 export async function getPoints(playFabId) {
     const data = await fetchPoints(playFabId);
     if (data) {
-        const currentPointsEl = document.getElementById('currentPoints');
-        if (currentPointsEl) currentPointsEl.innerText = data.points;
-        const globalPointsEl = document.getElementById('globalPoints');
-        if (globalPointsEl) globalPointsEl.innerText = data.points;
+        updatePointsDisplays(data.points);
     }
 }
 
 export async function addPoints(playFabId) {
     const data = await requestAddPoints(playFabId, 10);
     if (data) {
-        const currentPointsEl = document.getElementById('currentPoints');
-        if (currentPointsEl) currentPointsEl.innerText = data.newBalance;
-        const globalPointsEl = document.getElementById('globalPoints');
-        if (globalPointsEl) globalPointsEl.innerText = data.newBalance;
+        updatePointsDisplays(data.newBalance);
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = '10 Ps 追加しました！';
         await getRanking();
@@ -66,14 +61,42 @@ export async function addPoints(playFabId) {
 export async function usePoints(playFabId) {
     const data = await requestUsePoints(playFabId, 5);
     if (data) {
-        const currentPointsEl = document.getElementById('currentPoints');
-        if (currentPointsEl) currentPointsEl.innerText = data.newBalance;
-        const globalPointsEl = document.getElementById('globalPoints');
-        if (globalPointsEl) globalPointsEl.innerText = data.newBalance;
+        updatePointsDisplays(data.newBalance);
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = '5 Ps 使いました！';
         await getRanking();
     }
+}
+
+function updatePointsDisplays(points) {
+    const value = Number(points);
+    if (!Number.isFinite(value)) return;
+    animatePoints(document.getElementById('currentPoints'), value);
+    animatePoints(document.getElementById('globalPoints'), value);
+    const psCard = document.querySelector('.home-ps-card');
+    if (psCard) {
+        psCard.classList.toggle('is-low', value <= LOW_PS_THRESHOLD);
+    }
+}
+
+function animatePoints(element, target) {
+    if (!element) return;
+    const current = Number(String(element.innerText || '').replace(/[^\d.-]/g, ''));
+    const start = Number.isFinite(current) ? current : 0;
+    if (start === target) {
+        element.innerText = String(target);
+        return;
+    }
+    const startTime = performance.now();
+    const duration = 550;
+    const step = (now) => {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const next = Math.round(start + (target - start) * eased);
+        element.innerText = String(next);
+        if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
 }
 
 export async function getRanking() {

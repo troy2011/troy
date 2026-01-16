@@ -50,6 +50,35 @@ const AVATAR_COLOR_BY_NATION = {
     water: 'blue'
 };
 
+function initHomeSurprises() {
+    const psCard = document.querySelector('.home-ps-card');
+    if (psCard) {
+        const sealKey = 'home_ps_seal_opened_v1';
+        const hasOpened = localStorage.getItem(sealKey) === '1';
+        if (!hasOpened) {
+            psCard.classList.add('is-sealed');
+        }
+        psCard.addEventListener('click', () => {
+            if (!psCard.classList.contains('is-sealed')) return;
+            psCard.classList.add('seal-break');
+            setTimeout(() => {
+                psCard.classList.remove('seal-break', 'is-sealed');
+                localStorage.setItem(sealKey, '1');
+            }, 650);
+        });
+    }
+
+    document.querySelectorAll('.home-card.sealed').forEach((card) => {
+        card.addEventListener('click', () => {
+            if (card.classList.contains('card-open')) return;
+            card.classList.add('card-open');
+            setTimeout(() => {
+                card.classList.remove('sealed');
+            }, 700);
+        });
+    });
+}
+
 function getAvatarColorForNation(nation) {
     const key = String(nation || '').toLowerCase();
     return AVATAR_COLOR_BY_NATION[key] || null;
@@ -72,6 +101,7 @@ PlayFab.settings.titleId = '1A0BA';
 // --- 初期化フロー ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    initHomeSurprises();
     initializeLiff();
 });
 
