@@ -17,6 +17,14 @@ const NATION_GROUP_BY_NATION = {
     water: { island: 'water', groupName: 'nation_water_island' }
 };
 
+const NATION_EMOJI_BY_NATION = {
+    fire: '🔥',
+    water: '💧',
+    wind: '🌪️',
+    earth: '🌱',
+    neutral: '🏴'
+};
+
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
@@ -38,6 +46,68 @@ function getAvatarColorForNation(nation) {
 function getNationMappingByNation(nation) {
     const key = String(nation || '').toLowerCase();
     return NATION_GROUP_BY_NATION[key] || null;
+}
+
+function stripNationEmoji(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^(🔥|💧|🌪️|🌱|🏴)\s*/, '').trim();
+}
+
+function buildNationDisplayName(baseName, nation) {
+    const key = String(nation || '').toLowerCase();
+    const emoji = NATION_EMOJI_BY_NATION[key] || '';
+    const base = stripNationEmoji(baseName);
+    if (!emoji) return base;
+    return base ? `${emoji} ${base}` : emoji;
+}
+
+async function ensureNationDisplayName(playFabId, nation, deps) {
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin } = deps;
+    if (!playFabId || !nation) return;
+    let currentDisplayName = '';
+    let baseName = '';
+    try {
+        const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['BaseDisplayName']
+        });
+        baseName = ro?.Data?.BaseDisplayName?.Value || '';
+    } catch (e) {
+        console.warn('[displayName] BaseDisplayName fetch failed:', e?.errorMessage || e?.message || e);
+    }
+    if (!baseName) {
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            currentDisplayName = profile?.PlayerProfile?.DisplayName || '';
+            baseName = stripNationEmoji(currentDisplayName) || playFabId;
+        } catch (e) {
+            console.warn('[displayName] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
+            baseName = playFabId;
+        }
+    }
+    const nextDisplayName = buildNationDisplayName(baseName, nation);
+    if (nextDisplayName && nextDisplayName !== currentDisplayName) {
+        try {
+            await promisifyPlayFab(PlayFabAdmin.UpdateUserTitleDisplayName, {
+                PlayFabId: playFabId,
+                DisplayName: nextDisplayName
+            });
+        } catch (e) {
+            console.warn('[displayName] UpdateUserTitleDisplayName failed:', e?.errorMessage || e?.message || e);
+        }
+    }
+    try {
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: { BaseDisplayName: baseName }
+        });
+    } catch (e) {
+        console.warn('[displayName] UpdateUserReadOnlyData(BaseDisplayName) failed:', e?.errorMessage || e?.message || e);
+    }
 }
 
 async function getNationForPlayer(playFabId, deps) {
@@ -830,6 +900,11 @@ function initializeNationRoutes(app, deps) {
                     AvatarColor: avatarColor || 'brown',
                     NationChangedAt: String(Date.now())
                 }
+            });
+            await ensureNationDisplayName(targetPlayFabId, targetNationIsland || kingNation || null, {
+                promisifyPlayFab,
+                PlayFabServer,
+                PlayFabAdmin
             });
 
             const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, targetNationIsland || kingNation || null);

@@ -34,6 +34,7 @@ let authUnsubscribe = null;
 let transferNoticeUnsubscribe = null;
 let transferNoticeReady = false;
 let lastTransferNoticeId = null;
+window.myPlayFabDisplayName = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -60,6 +61,20 @@ function updateSeaToneByTime(date = new Date()) {
     else if (hour >= 9 && hour < 16) tone = 'day';
     else if (hour >= 16 && hour < 20) tone = 'dusk';
     document.body.dataset.seaTone = tone;
+}
+
+async function refreshPlayFabDisplayName(playFabId) {
+    if (!playFabId) return;
+    try {
+        const result = await callApiWithLoader('/api/get-player-display-name', { playFabId }, { isSilent: true });
+        const displayName = result?.displayName ? String(result.displayName) : '';
+        if (!displayName) return;
+        window.myPlayFabDisplayName = displayName;
+        const nameEl = document.getElementById('globalPlayerName');
+        if (nameEl) nameEl.innerText = displayName;
+    } catch (error) {
+        console.warn('[displayName] Failed to refresh display name:', error);
+    }
 }
 
 function getAvatarColorForNation(nation) {
@@ -174,6 +189,7 @@ async function initializeLiff() {
                     playFabLoginDone = false;
                     throw error;
                 }
+                await refreshPlayFabDisplayName(myPlayFabId);
 
                 if (loginData.needsRaceSelection) {
                     document.getElementById('appWrapper').style.display = 'block';

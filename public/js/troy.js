@@ -22,7 +22,7 @@ function getTroyElements() {
 }
 
 function getDisplayName() {
-    return window.myLineProfile?.displayName || window.myPlayFabId || 'Player';
+    return window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player';
 }
 
 function renderEntryList(members) {

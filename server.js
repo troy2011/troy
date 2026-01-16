@@ -45,6 +45,13 @@ const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
 const LEADERBOARD_NAME = economy.LEADERBOARD_NAME;
 const BATTLE_REWARD_POINTS = Number(process.env.BATTLE_REWARD_POINTS || 10);
 const GACHA_CATALOG_VERSION = inventory.GACHA_CATALOG_VERSION;
+const NATION_EMOJI_BY_NATION = {
+    fire: '🔥',
+    water: '💧',
+    wind: '🌪️',
+    earth: '🌱',
+    neutral: '🏴'
+};
 
 // Firebase Admin SDK 初期化
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -107,6 +114,48 @@ function normalizeEntityKey(raw) {
     const type = raw.Type || raw.type || raw.EntityType || raw.entityType;
     if (!id || !type) return null;
     return { Id: String(id), Type: String(type) };
+}
+
+function stripNationEmoji(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^(🔥|💧|🌪️|🌱|🏴)\s*/, '').trim();
+}
+
+function buildNationDisplayName(baseName, nation) {
+    const key = String(nation || '').toLowerCase();
+    const emoji = NATION_EMOJI_BY_NATION[key] || '';
+    const base = stripNationEmoji(baseName);
+    if (!emoji) return base;
+    return base ? `${emoji} ${base}` : emoji;
+}
+
+async function ensureNationDisplayName(playFabId, nation, preferredBaseName) {
+    if (!playFabId || !nation) return { baseName: '', displayName: '' };
+    let currentDisplayName = '';
+    try {
+        const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowDisplayName: true }
+        });
+        currentDisplayName = profile?.PlayerProfile?.DisplayName || '';
+    } catch (e) {
+        console.warn('[displayName] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
+    }
+
+    const baseName = stripNationEmoji(preferredBaseName || currentDisplayName || playFabId);
+    const nextDisplayName = buildNationDisplayName(baseName, nation);
+    if (nextDisplayName && nextDisplayName !== currentDisplayName) {
+        try {
+            await promisifyPlayFab(PlayFabAdmin.UpdateUserTitleDisplayName, {
+                PlayFabId: playFabId,
+                DisplayName: nextDisplayName
+            });
+        } catch (e) {
+            console.warn('[displayName] UpdateUserTitleDisplayName failed:', e?.errorMessage || e?.message || e);
+        }
+    }
+    return { baseName, displayName: nextDisplayName || currentDisplayName };
 }
 
 function getEntityKeyFromToken(entityToken) {
@@ -783,9 +832,24 @@ app.post('/api/login-playfab', async (req, res) => {
 
         const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Race', 'NationGroupId']
+            Keys: ['Race', 'NationGroupId', 'Nation', 'BaseDisplayName']
         });
         const needsRaceSelection = !(readOnly?.Data?.Race?.Value);
+        const nationValue = String(readOnly?.Data?.Nation?.Value || '').toLowerCase();
+        const storedBaseName = readOnly?.Data?.BaseDisplayName?.Value || '';
+        if (nationValue) {
+            const result = await ensureNationDisplayName(playFabId, nationValue, storedBaseName || displayName);
+            if (result.baseName && storedBaseName !== result.baseName) {
+                try {
+                    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Data: { BaseDisplayName: result.baseName }
+                    });
+                } catch (e) {
+                    console.warn('[login-playfab] UpdateUserReadOnlyData(BaseDisplayName) failed:', e?.errorMessage || e?.message || e);
+                }
+            }
+        }
 
         const firebaseToken = await admin.auth().createCustomToken(playFabId);
 
@@ -894,16 +958,7 @@ app.post('/api/set-race', async (req, res) => {
             }
         }
 
-        if (displayName) {
-            try {
-                await promisifyPlayFab(PlayFabAdmin.UpdateUserTitleDisplayName, {
-                    PlayFabId: playFabId,
-                    DisplayName: String(displayName)
-                });
-            } catch (e) {
-                console.warn('[set-race] UpdateUserTitleDisplayName failed:', e?.errorMessage || e?.message || e);
-            }
-        }
+        const displayResult = await ensureNationDisplayName(playFabId, assignedNation, displayName || '');
 
         const nationData = {
             Nation: assignedNation,
@@ -920,7 +975,14 @@ app.post('/api/set-race', async (req, res) => {
 
         await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
             PlayFabId: playFabId,
-            Data: { "Race": raceName, ...avatarData, ...nationData, IsKing: isKing ? 'true' : 'false', NationKingId: isKing ? playFabId : '' }
+            Data: {
+                "Race": raceName,
+                BaseDisplayName: displayResult.baseName || displayName || '',
+                ...avatarData,
+                ...nationData,
+                IsKing: isKing ? 'true' : 'false',
+                NationKingId: isKing ? playFabId : ''
+            }
         });
 
         let starterIsland = null;
