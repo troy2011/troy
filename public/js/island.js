@@ -559,7 +559,7 @@ export function showBuildingMenu(island, playFabId) {
         stopPhaser(e);
     }, { passive: true });
 
-    setupBuildingMenuEvents(sheet, island, playFabId);
+    setupBuildingMenuEvents(sheet, island, playFabId, safeCloseSheet);
     if (!isHarvestable && !hasBuilding) {
         loadBuildingList('military', island);
     }
@@ -594,16 +594,16 @@ function renderCurrentBuilding(island) {
     `;
 }
 
-function setupBuildingMenuEvents(sheet, island, playFabId) {
-    sheet.querySelector('.close-btn').addEventListener('click', () => {
-        sheet.classList.remove('active');
-        setTimeout(() => sheet.remove(), 300);
-    });
+function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
+    const closeSheet = (typeof closeSheetFn === 'function')
+        ? closeSheetFn
+        : (() => {
+            sheet.classList.remove('active');
+            setTimeout(() => sheet.remove(), 300);
+        });
+    sheet.querySelector('.close-btn').addEventListener('click', closeSheet);
 
-    sheet.querySelector('.bottom-sheet-overlay').addEventListener('click', () => {
-        sheet.classList.remove('active');
-        setTimeout(() => sheet.remove(), 300);
-    });
+    sheet.querySelector('.bottom-sheet-overlay').addEventListener('click', closeSheet);
 
     sheet.querySelectorAll('.category-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -765,7 +765,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     if (specialBtn) {
         specialBtn.addEventListener('click', () => {
             if (typeof window.showCreateShipModal === 'function') {
-                safeCloseSheet();
+                closeSheet();
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
@@ -779,7 +779,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     if (capitalCreateBtn) {
         capitalCreateBtn.addEventListener('click', () => {
             if (typeof window.showCreateShipModal === 'function') {
-                safeCloseSheet();
+                closeSheet();
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
