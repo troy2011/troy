@@ -51,23 +51,6 @@ const AVATAR_COLOR_BY_NATION = {
 };
 
 function initHomeSurprises() {
-    const psCard = document.querySelector('.home-ps-card');
-    if (psCard) {
-        const sealKey = 'home_ps_seal_opened_v1';
-        const hasOpened = localStorage.getItem(sealKey) === '1';
-        if (!hasOpened) {
-            psCard.classList.add('is-sealed');
-        }
-        psCard.addEventListener('click', () => {
-            if (!psCard.classList.contains('is-sealed')) return;
-            psCard.classList.add('seal-break');
-            setTimeout(() => {
-                psCard.classList.remove('seal-break', 'is-sealed');
-                localStorage.setItem(sealKey, '1');
-            }, 650);
-        });
-    }
-
     document.querySelectorAll('.home-card.sealed').forEach((card) => {
         card.addEventListener('click', () => {
             if (card.classList.contains('card-open')) return;

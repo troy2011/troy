@@ -204,7 +204,6 @@ button:disabled {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 16px -12px rgba(0, 0, 0, 0.8);
     position: relative;
     overflow: hidden;
-    cursor: pointer;
 }
 
 .home-ps-lamp {
@@ -235,12 +234,6 @@ button:disabled {
     gap: 2px;
 }
 
-.home-ps-label {
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    color: var(--text-sub);
-}
-
 .home-ps-value {
     font-size: 26px;
     font-weight: 900;
@@ -264,37 +257,6 @@ button:disabled {
     border: 1px solid rgba(255, 255, 255, 0.08);
     letter-spacing: 0.2em;
     color: var(--text-main);
-}
-
-.home-ps-seal {
-    position: absolute;
-    right: 12px;
-    bottom: 6px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #b73d3d, #5b1616 70%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #f5d7d7;
-    font-size: 12px;
-    font-weight: 700;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.home-ps-card.is-sealed .home-ps-seal {
-    display: flex;
-}
-
-.home-ps-card.is-sealed .home-ps-value {
-    filter: blur(6px);
-    opacity: 0.25;
-}
-
-.home-ps-card.seal-break .home-ps-seal {
-    animation: sealBreak 0.6s ease forwards;
 }
 
 .home-hero-subtitle {
@@ -415,12 +377,6 @@ button:disabled {
     70% { opacity: 0.5; }
     85% { transform: translateX(120%); opacity: 0; }
     100% { transform: translateX(120%); opacity: 0; }
-}
-
-@keyframes sealBreak {
-    0% { transform: scale(1); opacity: 1; }
-    60% { transform: scale(1.4); opacity: 0.7; }
-    100% { transform: scale(2.2); opacity: 0; }
 }
 
 @keyframes pulseLamp {
@@ -1185,6 +1141,7 @@ button:disabled {
     width: 260px;
     height: auto;
     image-rendering: pixelated;
+    animation: homeShipBob 6s ease-in-out infinite;
 }
 
 .home-ship-avatar {
@@ -1194,6 +1151,17 @@ button:disabled {
     transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
     transform-origin: center center;
     margin: 0;
+    animation: homeAvatarBob 5.5s ease-in-out infinite;
+}
+
+@keyframes homeShipBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+}
+
+@keyframes homeAvatarBob {
+    0%, 100% { transform: translate(-50%, -50%) translateY(-32px) scale(1.6); }
+    50% { transform: translate(-50%, -50%) translateY(-26px) scale(1.6); }
 }
 .ship-action-button {
     background: rgba(17, 24, 39, 0.9);
