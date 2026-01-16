@@ -71,7 +71,9 @@ export async function usePoints(playFabId) {
 function updatePointsDisplays(points) {
     const value = Number(points);
     if (!Number.isFinite(value)) return;
-    animatePoints(document.getElementById('currentPoints'), value);
+    const currentPointsEl = document.getElementById('currentPoints');
+    animatePoints(currentPointsEl, value);
+    triggerVaultSlide(currentPointsEl);
     animatePoints(document.getElementById('globalPoints'), value);
     const psCard = document.querySelector('.home-ps-card');
     if (psCard) {
@@ -97,6 +99,14 @@ function animatePoints(element, target) {
         if (t < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+}
+
+function triggerVaultSlide(element) {
+    if (!element) return;
+    element.classList.remove('slide');
+    void element.offsetWidth;
+    element.classList.add('slide');
+    setTimeout(() => element.classList.remove('slide'), 520);
 }
 
 export async function getRanking() {

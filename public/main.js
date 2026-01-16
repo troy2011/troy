@@ -657,6 +657,12 @@ async function startScanAndPay() {
                     document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！`;
                     const amountInput = document.getElementById('transferAmount');
                     if (amountInput) amountInput.value = '0';
+                    const transferCard = document.querySelector('.home-transfer-card');
+                    if (transferCard) {
+                        transferCard.classList.remove('shake');
+                        void transferCard.offsetWidth;
+                        transferCard.classList.add('shake');
+                    }
                     await Player.getPoints(myPlayFabId);
                     await Player.getRanking();
                 }

@@ -244,6 +244,23 @@ button:disabled {
     transition: filter 0.4s ease, opacity 0.4s ease;
 }
 
+.home-ps-slit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 30px;
+    overflow: hidden;
+}
+
+.home-ps-slit-value {
+    display: inline-block;
+    transform: translateY(0);
+}
+
+.home-ps-slit-value.slide {
+    animation: vaultSlide 0.5s ease;
+}
+
 .home-ps-unit {
     font-size: 12px;
     color: rgba(248, 231, 193, 0.6);
@@ -270,6 +287,35 @@ button:disabled {
     position: relative;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(10, 14, 20, 0.98), rgba(24, 30, 42, 0.98));
+}
+
+.home-card::before {
+    content: '';
+    position: absolute;
+    inset: -120px;
+    background: radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.4), transparent 60%);
+    opacity: 0.5;
+    animation: cardRipple 18s linear infinite;
+    pointer-events: none;
+}
+
+.home-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.06) 45%, transparent 70%);
+    transform: translateX(-120%);
+    animation: cardSheen 10s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.home-card:focus-within,
+.home-card:hover {
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.28), 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.home-card.shake {
+    animation: cardShake 0.28s ease;
 }
 
 .home-card-header {
@@ -342,6 +388,32 @@ button:disabled {
 @keyframes pulseLamp {
     0%, 100% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes vaultSlide {
+    0% { transform: translateY(18px); opacity: 0; }
+    45% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes cardSheen {
+    0%, 65% { transform: translateX(-120%); opacity: 0; }
+    70% { opacity: 0.5; }
+    85% { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes cardRipple {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes cardShake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(3px); }
+    75% { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
 }
 
 .home-qr-area canvas {
@@ -1153,13 +1225,13 @@ button:disabled {
     display: flex;
     align-items: center;
     justify-content: center;
+    animation: homeShipBob 6s ease-in-out infinite;
 }
 
 .home-ship-image {
     width: 260px;
     height: auto;
     image-rendering: pixelated;
-    animation: homeShipBob 6s ease-in-out infinite;
 }
 
 .home-ship-avatar {
@@ -1169,7 +1241,6 @@ button:disabled {
     transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
     transform-origin: center center;
     margin: 0;
-    animation: homeAvatarBob 5.5s ease-in-out infinite;
 }
 
 @keyframes homeShipBob {
@@ -1177,10 +1248,6 @@ button:disabled {
     50% { transform: translateY(6px); }
 }
 
-@keyframes homeAvatarBob {
-    0%, 100% { transform: translate(-50%, -50%) translateY(-32px) scale(1.6); }
-    50% { transform: translate(-50%, -50%) translateY(-26px) scale(1.6); }
-}
 .ship-action-button {
     background: rgba(17, 24, 39, 0.9);
     color: #ffffff;
