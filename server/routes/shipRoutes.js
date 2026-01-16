@@ -47,10 +47,43 @@ function worldToLatLng(point) {
 function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
-    const { getEntityKeyFromPlayFabId } = require('../playfab');
+    const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem } = require('../economy');
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
+
+    const buildCostsFromItem = (spec) => {
+        const costs = [];
+        const pushCost = (code, amount) => {
+            const id = code ? String(code) : '';
+            const value = Number(amount) || 0;
+            if (!id || value <= 0) return;
+            costs.push({ ItemId: id, Amount: value });
+        };
+        if (Array.isArray(spec?.PriceAmounts)) {
+            spec.PriceAmounts.forEach((entry) => {
+                pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+            });
+        }
+        if (costs.length === 0 && spec?.PriceOptions) {
+            const options = Array.isArray(spec.PriceOptions) ? spec.PriceOptions : [spec.PriceOptions];
+            options.forEach((option) => {
+                const prices = Array.isArray(option?.Prices) ? option.Prices : [];
+                prices.forEach((price) => {
+                    const amounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+                    amounts.forEach((entry) => {
+                        pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+                    });
+                });
+            });
+        }
+        if (costs.length === 0 && spec?.VirtualCurrencyPrices) {
+            for (const [code, amount] of Object.entries(spec.VirtualCurrencyPrices)) {
+                pushCost(code, amount);
+            }
+        }
+        return costs;
+    };
 
     async function findIslandByBiome(biome) {
         const collections = await db.listCollections();
@@ -389,32 +422,24 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             });
         }
 
-        const priceAmounts = Array.isArray(shipSpec.PriceAmounts) ? shipSpec.PriceAmounts : [];
-        const costsToPay = [];
-        const pushCost = (code, amount) => {
-            const id = code ? String(code) : '';
-            const value = Number(amount) || 0;
-            if (!id || value <= 0) return;
-            costsToPay.push({ ItemId: id, Amount: value });
-        };
-        if (priceAmounts.length > 0) {
-            priceAmounts.forEach((entry) => {
-                pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
-            });
-        } else if (shipSpec.PriceOptions) {
-            const options = Array.isArray(shipSpec.PriceOptions) ? shipSpec.PriceOptions : [shipSpec.PriceOptions];
-            options.forEach((option) => {
-                const prices = Array.isArray(option?.Prices) ? option.Prices : [];
-                prices.forEach((price) => {
-                    const amounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
-                    amounts.forEach((entry) => {
-                        pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+        const costsToPay = buildCostsFromItem(shipSpec);
+        if (costsToPay.length === 0) {
+            try {
+                const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+                const titleEntity = tokenResult?.Entity;
+                if (titleEntity?.Id && titleEntity?.Type) {
+                    const latestResult = await promisifyPlayFab(PlayFabEconomy.GetItems, {
+                        Entity: titleEntity,
+                        Ids: [shipItemId]
                     });
-                });
-            });
-        } else if (shipSpec.VirtualCurrencyPrices) {
-            for (const [code, amount] of Object.entries(shipSpec.VirtualCurrencyPrices)) {
-                pushCost(code, amount);
+                    const latestItem = Array.isArray(latestResult?.Items) ? latestResult.Items[0] : null;
+                    const latestCosts = buildCostsFromItem(latestItem);
+                    if (latestCosts.length > 0) {
+                        costsToPay.push(...latestCosts);
+                    }
+                }
+            } catch (error) {
+                console.warn('[create-ship] Failed to fetch latest price data', error?.errorMessage || error?.message || error);
             }
         }
         if (costsToPay.length === 0) {
