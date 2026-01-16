@@ -239,6 +239,32 @@ async function loadCatalogCache() {
             return null;
         };
 
+        const localPriceMap = (() => {
+            const fallback = {};
+            try {
+                const localPath = path.join(__dirname, 'data', 'local', 'catalog_v2_items.json');
+                if (!fs.existsSync(localPath)) return fallback;
+                const raw = fs.readFileSync(localPath, 'utf8');
+                const parsed = JSON.parse(raw);
+                const items = Array.isArray(parsed?.Items) ? parsed.Items : [];
+                items.forEach((localItem) => {
+                    const altIds = Array.isArray(localItem?.AlternateIds) ? localItem.AlternateIds : [];
+                    const friendly = altIds.find((entry) => String(entry?.Type || '').toLowerCase() === 'friendlyid')?.Value;
+                    if (!friendly) return;
+                    const amounts = normalizePriceAmounts(localItem);
+                    const entry = {
+                        PriceAmounts: amounts,
+                        PriceOptions: localItem?.PriceOptions,
+                        VirtualCurrencyPrices: localItem?.VirtualCurrencyPrices
+                    };
+                    fallback[String(friendly)] = entry;
+                });
+            } catch (error) {
+                console.warn('[カタログ] ローカルカタログの読み込みに失敗しました。', error?.message || error);
+            }
+            return fallback;
+        })();
+
         const itemMap = {};
         const aliasMap = {};
         const currencyMap = {};
@@ -291,6 +317,12 @@ async function loadCatalogCache() {
             const resolvedPriceAmounts = (normalizedPriceAmounts.length > 0)
                 ? normalizedPriceAmounts
                 : (Array.isArray(customPriceSource) ? customPriceSource : []);
+            const localFallback = resolvedFriendlyId ? localPriceMap[resolvedFriendlyId] : null;
+            const finalPriceAmounts = (resolvedPriceAmounts.length > 0)
+                ? resolvedPriceAmounts
+                : (Array.isArray(localFallback?.PriceAmounts) ? localFallback.PriceAmounts : []);
+            const finalPriceOptions = item.PriceOptions || localFallback?.PriceOptions;
+            const finalVirtualCurrencyPrices = item.VirtualCurrencyPrices || localFallback?.VirtualCurrencyPrices;
 
             itemMap[item.Id] = {
                 ItemId: item.Id,
@@ -298,14 +330,14 @@ async function loadCatalogCache() {
                 FriendlyId: resolvedFriendlyId,
                 DisplayName: displayName,
                 Description: description,
-                PriceOptions: item.PriceOptions,
-                VirtualCurrencyPrices: item.VirtualCurrencyPrices,
-                PriceAmounts: resolvedPriceAmounts,
+                PriceOptions: finalPriceOptions,
+                VirtualCurrencyPrices: finalVirtualCurrencyPrices,
+                PriceAmounts: finalPriceAmounts,
                 ...customData
             };
 
             const isShip = String(item?.ContentType || item?.Type || '').toLowerCase() === 'ship';
-            if (isShip && resolvedPriceAmounts.length === 0) {
+            if (isShip && finalPriceAmounts.length === 0) {
                 console.warn('[カタログ] Ship has no price data', {
                     itemId: item.Id,
                     displayName,
