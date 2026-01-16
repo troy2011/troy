@@ -258,75 +258,51 @@ export function renderShipCard(ship) {
         return Object.values(window.shipCatalog).find(item => item.DisplayName === shipType) || null;
     };
 
+    const catalogItem = resolveCatalogShip();
+    const shipName = (() => {
+        if (catalogItem?.DisplayName) return catalogItem.DisplayName;
+        if (assetData?.DisplayName) return assetData.DisplayName;
+        const raw = assetData?.ShipType;
+        if (raw === 'Common Boat') return '手漕ぎボート(Common)';
+        return raw || '不明';
+    })();
+
+    const positionLabel = (() => {
+        const x = Number(currentPos?.x);
+        const y = Number(currentPos?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return '未設定';
+        return `(${Math.round(x)}, ${Math.round(y)})`;
+    })();
+
     const isMoving = !!movement.isMoving;
     const eta = isMoving ? formatETA(movement.arrivalTime) : '停泊中';
 
     return `
-        <div class="ship-card" data-ship-id="${ship.shipId}" style="
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="ship-card" data-ship-id="${ship.shipId}">
+            <div class="ship-card-header">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="font-size: 18px; font-weight: bold; color: var(--text-color);">
-                            ${assetData ? assetData.ShipType : '不明'}
-                        </div>
-                        <span data-role="active-badge" style="
-                            display: ${isActive ? 'inline-block' : 'none'};
-                            font-size: 12px;
-                            padding: 2px 8px;
-                            border-radius: 999px;
-                            border: 1px solid rgba(0, 255, 180, 0.35);
-                            color: var(--accent-color);
-                            background: rgba(0, 255, 180, 0.12);
-                        ">使用中</span>
+                    <div class="ship-card-title">
+                        <span class="ship-card-name">${shipName}</span>
+                        <span data-role="active-badge" class="ship-card-active" style="display:${isActive ? 'inline-flex' : 'none'};">使用中</span>
                     </div>
-                    <div style="font-size: 14px; color: var(--text-sub); margin-top: 4px;">
-                        ${ship.shipId}
-                    </div>
+                    <div class="ship-card-id">${ship.shipId}</div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 14px; color: ${isMoving ? 'var(--accent-color)' : 'var(--text-sub)'};">
-                        ${isMoving ? '航海中' : '停泊中'}
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-sub); margin-top: 4px;">
-                        ${eta}
-                    </div>
+                <div class="ship-card-status">
+                    <strong>${isMoving ? '航海中' : '停泊中'}</strong>
+                    <div>${eta}</div>
                 </div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; font-size: 13px;">
-                <div>
-                    <span style="color: var(--text-sub);">HP:</span>
-                    <span style="color: var(--hp-color);">
-                        ${assetData?.Stats?.CurrentHP ?? 0}/${assetData?.Stats?.MaxHP ?? 0}
-                    </span>
-                </div>
-                <div>
-                    <span style="color: var(--text-sub);">速度:</span>
-                    <span>${assetData?.Stats?.Speed ?? 0}</span>
-                </div>
-                <div>
-                    <span style="color: var(--text-sub);">視覚距離:</span>
-                    <span>${(() => {
-                        if (!assetData) return 0;
-                        const catalogItem = resolveCatalogShip();
-                        const catalogVision = catalogItem ? Number(catalogItem.VisionRange) : Number.NaN;
-                        if (Number.isFinite(catalogVision)) return catalogVision;
-                        return assetData?.Stats?.VisionRange || 0;
-                    })()}</span>
-                </div>
-                <div>
-                    <span style="color: var(--text-sub);">位置:</span>
-                    <span>(${Math.round(currentPos.x)}, ${Math.round(currentPos.y)})</span>
-                </div>
-                <div>
-                    <span style="color: var(--text-sub);">積荷:</span>
-                    <span>${assetData?.Cargo?.length ?? 0}/${assetData?.Stats?.CargoCapacity ?? 0}</span>
-                </div>
+            <div class="ship-card-meta">
+                <div><span>HP:</span> <b>${assetData?.Stats?.CurrentHP ?? 0}/${assetData?.Stats?.MaxHP ?? 0}</b></div>
+                <div><span>速度:</span> <b>${assetData?.Stats?.Speed ?? 0}</b></div>
+                <div><span>視覚距離:</span> <b>${(() => {
+                    if (!assetData) return 0;
+                    const catalogVision = catalogItem ? Number(catalogItem.VisionRange) : Number.NaN;
+                    if (Number.isFinite(catalogVision)) return catalogVision;
+                    return assetData?.Stats?.VisionRange || 0;
+                })()}</b></div>
+                <div><span>位置:</span> <b>${positionLabel}</b></div>
+                <div><span>積荷:</span> <b>${assetData?.Cargo?.length ?? 0}/${assetData?.Stats?.CargoCapacity ?? 0}</b></div>
             </div>
             ${isMoving ? `
             <div style="margin-top: 12px;">
@@ -344,20 +320,14 @@ export function renderShipCard(ship) {
                 </div>
             </div>
             ` : ''}
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button onclick="window.viewShipDetails('${ship.shipId}')" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--button-bg); color: var(--text-color); border: 1px solid var(--border-color); cursor: pointer;">
-                    詳細
-                </button>
+            <div class="ship-card-actions">
+                <button onclick="window.viewShipDetails('${ship.shipId}')">詳細</button>
                 ${isMoving ? `
-                <button onclick="window.stopShip('${ship.shipId}')" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--danger-color); color: white; border: none; cursor: pointer;">
-                    停止
-                </button>
+                <button data-variant="danger" onclick="window.stopShip('${ship.shipId}')">停止</button>
                 ` : `
-                <button onclick="window.startShipVoyageUI('${ship.shipId}')" style="flex: 1; padding: 8px; border-radius: 4px; background: var(--accent-color); color: white; border: none; cursor: pointer;">
-                    出航
-                </button>
+                <button data-variant="accent" onclick="window.startShipVoyageUI('${ship.shipId}')">出航</button>
                 `}
-                <button data-role="active-button" onclick="window.setActiveShip('${ship.shipId}')" ${isActive ? 'disabled' : ''} style="flex: 1; padding: 8px; border-radius: 4px; background: var(--button-bg); color: var(--text-color); border: 1px solid var(--border-color); cursor: ${isActive ? 'not-allowed' : 'pointer'};">
+                <button data-role="active-button" onclick="window.setActiveShip('${ship.shipId}')" ${isActive ? 'disabled' : ''}>
                     ${isActive ? '使用中' : '使用する'}
                 </button>
             </div>
@@ -380,9 +350,13 @@ export async function displayPlayerShips(playFabId) {
     return displayPlayerShipsWithRetry(playFabId, 0);
 }
 
-async function displayPlayerShipsWithRetry(playFabId, retryCount = 0) {
+export async function displayPlayerShipsInContainer(playFabId, container) {
+    return displayPlayerShipsWithRetry(playFabId, 0, container);
+}
+
+async function displayPlayerShipsWithRetry(playFabId, retryCount = 0, targetContainer = null) {
     const MAX_RETRIES = 3;
-    const container = document.getElementById('playerShipsContainer');
+    const container = targetContainer || document.getElementById('playerShipsContainer');
     if (!container) {
         console.warn('[DisplayPlayerShips] Container not found');
         return;
@@ -434,6 +408,18 @@ async function displayPlayerShipsWithRetry(playFabId, retryCount = 0) {
         if (shipDocs.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 20px;">船を所有していません</div>';
             cachedShipsData.clear();
+            return;
+        }
+
+        if (!container.querySelector('.ship-card')) {
+            container.innerHTML = '';
+            cachedShipsData.clear();
+            for (const doc of shipDocs) {
+                const firestoreData = doc.data();
+                const shipId = firestoreData.shipId || firestoreData.ShipId || doc.id;
+                const assetData = shipId ? await getShipAsset(playFabId, shipId) : null;
+                await addShipCard(container, shipId, firestoreData, assetData);
+            }
             return;
         }
 

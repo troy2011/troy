@@ -30,6 +30,7 @@ import {
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 import { formatCurrencyLabel } from './config.js';
+import * as Ship from './ship.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // Track construction timers per island
@@ -302,6 +303,7 @@ export function showBuildingMenu(island, playFabId) {
     const shopConfig = getShopConfig(activeBuildingId);
     const allowShipBuild = isOwnNation && activeBuildingId === 'capital';
     const allowHotSpring = isOwnNation && activeBuildingId === 'hot_spring';
+    const allowMyHouseShips = isOwner && activeBuildingId === 'my_house';
 
     if (isStarterIsland && !isHarvestable && !hasBuilding) {
         sheet.innerHTML = `
@@ -524,6 +526,15 @@ export function showBuildingMenu(island, playFabId) {
                     </div>
                     <div class="resource-row" style="margin-top:10px;">
                         <button class="btn-build" id="btnCapitalCreateShip">新造船</button>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${allowMyHouseShips ? `
+                <div class="building-actions">
+                    <div class="resource-title">保有船舶</div>
+                    <div class="resource-row" id="myHouseShipsContainer">
+                        <div style="text-align: center; color: var(--text-sub); padding: 20px;">読み込み中...</div>
                     </div>
                 </div>
                 ` : ''}
@@ -770,9 +781,6 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
-            if (typeof window.showTab === 'function') {
-                void window.showTab('ships');
-            }
         });
     }
 
@@ -784,10 +792,12 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
-            if (typeof window.showTab === 'function') {
-                void window.showTab('ships');
-            }
         });
+    }
+
+    const myHouseShips = sheet.querySelector('#myHouseShipsContainer');
+    if (myHouseShips) {
+        Ship.displayPlayerShipsInContainer(playFabId, myHouseShips);
     }
 
     const hotSpringBtn = sheet.querySelector('#btnHotSpringBath');
