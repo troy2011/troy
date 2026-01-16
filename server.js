@@ -275,6 +275,8 @@ async function loadCatalogCache() {
                 FriendlyId: resolvedFriendlyId,
                 DisplayName: displayName,
                 Description: description,
+                PriceOptions: item.PriceOptions,
+                VirtualCurrencyPrices: item.VirtualCurrencyPrices,
                 PriceAmounts: normalizePriceAmounts(item),
                 ...customData
             };

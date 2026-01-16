@@ -391,18 +391,31 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
         const priceAmounts = Array.isArray(shipSpec.PriceAmounts) ? shipSpec.PriceAmounts : [];
         const costsToPay = [];
-        if (priceAmounts.length === 0 && shipSpec.VirtualCurrencyPrices) {
-            for (const [code, amount] of Object.entries(shipSpec.VirtualCurrencyPrices)) {
-                const value = Number(amount) || 0;
-                if (value > 0) costsToPay.push({ ItemId: code, Amount: value });
-            }
-        } else {
+        const pushCost = (code, amount) => {
+            const id = code ? String(code) : '';
+            const value = Number(amount) || 0;
+            if (!id || value <= 0) return;
+            costsToPay.push({ ItemId: id, Amount: value });
+        };
+        if (priceAmounts.length > 0) {
             priceAmounts.forEach((entry) => {
-                const code = entry?.ItemId || entry?.itemId;
-                const amount = Number(entry?.Amount ?? entry?.amount ?? 0);
-                if (!code || amount <= 0) return;
-                costsToPay.push({ ItemId: code, Amount: amount });
+                pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
             });
+        } else if (shipSpec.PriceOptions) {
+            const options = Array.isArray(shipSpec.PriceOptions) ? shipSpec.PriceOptions : [shipSpec.PriceOptions];
+            options.forEach((option) => {
+                const prices = Array.isArray(option?.Prices) ? option.Prices : [];
+                prices.forEach((price) => {
+                    const amounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+                    amounts.forEach((entry) => {
+                        pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+                    });
+                });
+            });
+        } else if (shipSpec.VirtualCurrencyPrices) {
+            for (const [code, amount] of Object.entries(shipSpec.VirtualCurrencyPrices)) {
+                pushCost(code, amount);
+            }
         }
         if (costsToPay.length === 0) {
             console.warn('[create-ship] MissingPriceAmounts', {
