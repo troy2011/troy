@@ -269,6 +269,29 @@ async function loadCatalogCache() {
             const displayName = pickLocalizedText(item?.Title) || item?.DisplayName || item?.Id;
             const description = pickLocalizedText(item?.Description) || '';
             const resolvedFriendlyId = normalizeCurrencyCode(item.FriendlyId) || pickAlternateCurrencyId(item) || null;
+            const normalizedPriceAmounts = normalizePriceAmounts(item);
+            const customPriceSource = (() => {
+                const direct = customData?.PriceAmounts ?? customData?.priceAmounts ?? null;
+                if (Array.isArray(direct)) return direct;
+                if (direct && typeof direct === 'object') {
+                    return Object.entries(direct).map(([code, amount]) => ({
+                        ItemId: code,
+                        Amount: Number(amount)
+                    }));
+                }
+                const legacy = customData?.VirtualCurrencyPrices ?? customData?.virtualCurrencyPrices ?? customData?.Cost ?? null;
+                if (legacy && typeof legacy === 'object') {
+                    return Object.entries(legacy).map(([code, amount]) => ({
+                        ItemId: code,
+                        Amount: Number(amount)
+                    }));
+                }
+                return null;
+            })();
+            const resolvedPriceAmounts = (normalizedPriceAmounts.length > 0)
+                ? normalizedPriceAmounts
+                : (Array.isArray(customPriceSource) ? customPriceSource : []);
+
             itemMap[item.Id] = {
                 ItemId: item.Id,
                 ItemClass: item.ContentType || item.Type,
@@ -277,9 +300,19 @@ async function loadCatalogCache() {
                 Description: description,
                 PriceOptions: item.PriceOptions,
                 VirtualCurrencyPrices: item.VirtualCurrencyPrices,
-                PriceAmounts: normalizePriceAmounts(item),
+                PriceAmounts: resolvedPriceAmounts,
                 ...customData
             };
+
+            const isShip = String(item?.ContentType || item?.Type || '').toLowerCase() === 'ship';
+            if (isShip && resolvedPriceAmounts.length === 0) {
+                console.warn('[カタログ] Ship has no price data', {
+                    itemId: item.Id,
+                    displayName,
+                    friendlyId: resolvedFriendlyId,
+                    customKeys: Object.keys(customData || {})
+                });
+            }
 
             const contentType = String(item?.ContentType || item?.Type || '').toLowerCase();
             if (contentType === 'currency') {
