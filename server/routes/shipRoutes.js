@@ -44,7 +44,7 @@ function worldToLatLng(point) {
  * データ構造メモ (省略)
  */
 
-function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId) {
+function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
@@ -368,9 +368,22 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
     // --- 船カタログの初期化 ---
     // サーバー起動時に渡されたカタログキャッシュから船のデータだけをフィルタリング
+    const resolveCurrencyCode = (itemId) => {
+        if (!itemId) return itemId;
+        return catalogCurrencyMap?.[itemId] || catalogCache?.[itemId]?.FriendlyId || itemId;
+    };
+
     shipCatalog = Object.values(catalogCache).filter(item => item.ItemClass === 'Ship').reduce((obj, item) => {
+        let priceAmounts = Array.isArray(item.PriceAmounts) ? item.PriceAmounts : [];
+        if (priceAmounts.length > 0) {
+            priceAmounts = priceAmounts.map((entry) => ({
+                ...entry,
+                ItemId: resolveCurrencyCode(entry?.ItemId || entry?.itemId)
+            }));
+        }
         obj[item.ItemId] = {
             ...item,
+            PriceAmounts: priceAmounts,
             baseFrame: normalizeBaseFrame(item.baseFrame)
         };
         return obj;

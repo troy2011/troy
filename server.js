@@ -1051,7 +1051,16 @@ async function main() {
     guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveCatalogItemId);
 
     // 船ルート
-    shipRoutes.initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveCatalogItemId);
+    shipRoutes.initializeShipRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabAdmin,
+        PlayFabEconomy,
+        catalogCache,
+        resolveCatalogItemId,
+        catalogCurrencyMap
+    );
 
     app.listen(PORT, () => {
         console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);
