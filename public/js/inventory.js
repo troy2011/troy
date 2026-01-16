@@ -9,6 +9,7 @@ import {
 } from './playfabClient.js';
 import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
+import { formatCurrencyLabel } from './config.js';
 
 let myInventory = [];
 let myCurrentEquipment = {};
@@ -28,18 +29,11 @@ function renderResourceSummary() {
     const container = document.getElementById('resourceSummaryRows');
     if (!container) return;
 
-    const mapping = [
-        { code: 'RR', label: '🔥' },
-        { code: 'RG', label: '🪨' },
-        { code: 'RY', label: '🍄' },
-        { code: 'RB', label: '💧' },
-        { code: 'RT', label: '🌿' },
-        { code: 'RS', label: '🌳' }
-    ];
+    const mapping = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
 
-    container.innerHTML = mapping.map(item => {
-        const value = Number(myVirtualCurrency?.[item.code] || 0);
-        return `<div class="resource-chip">${item.label}<b>${value}</b></div>`;
+    container.innerHTML = mapping.map(code => {
+        const value = Number(myVirtualCurrency?.[code] || 0);
+        return `<div class="resource-chip">${formatCurrencyLabel(code)}<b>${value}</b></div>`;
     }).join('');
 }
 

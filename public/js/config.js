@@ -34,3 +34,18 @@ export const AVATAR_PART_OFFSETS = {
     shield: { x: 0, y: 15 },
     handLeftTwoHanded: { x: 0, y: 35 }
 };
+
+export const CURRENCY_EMOJI = {
+    PS: 'PS',
+    RR: '🔥',
+    RG: '🪨',
+    RY: '🍄',
+    RB: '💧',
+    RT: '🌿',
+    RS: '🌳'
+};
+
+export function formatCurrencyLabel(code) {
+    const key = String(code || '').toUpperCase();
+    return CURRENCY_EMOJI[key] || key;
+}

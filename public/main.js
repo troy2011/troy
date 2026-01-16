@@ -3,7 +3,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { firebaseConfig, RACE_COLORS } from 'config';
+import { firebaseConfig, RACE_COLORS, formatCurrencyLabel } from 'config';
 import { callApiWithLoader, promisifyPlayFab, buildApiUrl } from 'api';
 import { showTab, showConfirmationModal } from 'ui';
 import * as Player from 'player';
@@ -388,12 +388,13 @@ function subscribeTransferNotifications(playFabId) {
             const data = change.doc.data() || {};
             const amount = Number(data.amount || 0);
             const currency = String(data.currency || 'PS');
+            const currencyLabel = formatCurrencyLabel(currency);
             if (amount <= 0) return;
             if (typeof showRpgMessage === 'function') {
-                showRpgMessage(`送金を受け取りました: ${amount} ${currency}`);
+                showRpgMessage(`送金を受け取りました: ${amount} ${currencyLabel}`);
             } else {
                 const pointMessageEl = document.getElementById('pointMessage');
-                if (pointMessageEl) pointMessageEl.innerText = `送金を受け取りました: ${amount} ${currency}`;
+                if (pointMessageEl) pointMessageEl.innerText = `送金を受け取りました: ${amount} ${currencyLabel}`;
             }
             if (Number.isFinite(Number(data.balanceAfter))) {
                 const nextBalance = Number(data.balanceAfter);
@@ -717,7 +718,7 @@ function updateShipTypeDetails() {
     }
     const costDisplays = Object.entries(currencyPrices)
         .filter(([, amount]) => Number(amount) > 0)
-        .map(([code, amount]) => `${Number(amount)} ${code}`);
+        .map(([code, amount]) => `${Number(amount)} ${formatCurrencyLabel(code)}`);
     const costString = costDisplays.length > 0 ? costDisplays.join(' + ') : '無料';
 
     const domainLabel = (() => {

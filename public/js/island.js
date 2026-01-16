@@ -29,6 +29,7 @@ import {
 } from './playfabClient.js';
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
+import { formatCurrencyLabel } from './config.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 // Track construction timers per island
@@ -1064,13 +1065,13 @@ function renderUpgradeCost(costs) {
 
 function renderNationDonateRows() {
     const currencies = [
-        { code: 'PS', label: 'Ps' },
-        { code: 'RR', label: '火' },
-        { code: 'RG', label: '石' },
-        { code: 'RY', label: 'キノコ' },
-        { code: 'RB', label: '水' },
-        { code: 'RT', label: '木の枝' },
-        { code: 'RS', label: '木' }
+        { code: 'PS', label: formatCurrencyLabel('PS') },
+        { code: 'RR', label: formatCurrencyLabel('RR') },
+        { code: 'RG', label: formatCurrencyLabel('RG') },
+        { code: 'RY', label: formatCurrencyLabel('RY') },
+        { code: 'RB', label: formatCurrencyLabel('RB') },
+        { code: 'RT', label: formatCurrencyLabel('RT') },
+        { code: 'RS', label: formatCurrencyLabel('RS') }
     ];
     return currencies.map((entry) => `
         <div style="display:flex; gap:6px; align-items:center;">
