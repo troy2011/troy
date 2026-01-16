@@ -72,12 +72,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="content-area home-qr-card home-card sealed">
+                <div class="content-area home-qr-card home-card">
                     <div id="myQrArea" class="home-qr-area">
                         <canvas id="myQrCanvas"></canvas>
                     </div>
                 </div>
-                <div class="content-area home-transfer-card home-card sealed">
+                <div class="content-area home-transfer-card home-card">
                     <div class="transfer-quick-row">
                         <button class="transfer-quick-btn" data-amount="100">100</button>
                         <button class="transfer-quick-btn" data-amount="500">500</button>
@@ -89,6 +89,13 @@
                         <span>PS</span>
                     </div>
                     <button id="btnScanPay" class="transfer-send-btn">渡す</button>
+                </div>
+            </div>
+
+            <div id="qrZoomOverlay" class="qr-zoom-overlay">
+                <div class="qr-zoom-frame">
+                    <canvas id="myQrZoomCanvas"></canvas>
+                    <button type="button" class="qr-zoom-close">×</button>
                 </div>
             </div>
 

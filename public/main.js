@@ -51,15 +51,34 @@ const AVATAR_COLOR_BY_NATION = {
 };
 
 function initHomeSurprises() {
-    document.querySelectorAll('.home-card.sealed').forEach((card) => {
-        card.addEventListener('click', () => {
-            if (card.classList.contains('card-open')) return;
-            card.classList.add('card-open');
-            setTimeout(() => {
-                card.classList.remove('sealed');
-            }, 700);
+    const qrCanvas = document.getElementById('myQrCanvas');
+    const zoomOverlay = document.getElementById('qrZoomOverlay');
+    const zoomCanvas = document.getElementById('myQrZoomCanvas');
+    const zoomClose = zoomOverlay ? zoomOverlay.querySelector('.qr-zoom-close') : null;
+
+    if (qrCanvas && zoomOverlay && zoomCanvas) {
+        qrCanvas.addEventListener('click', () => {
+            const width = qrCanvas.width || 0;
+            const height = qrCanvas.height || 0;
+            if (width <= 0 || height <= 0) return;
+            zoomCanvas.width = width;
+            zoomCanvas.height = height;
+            const ctx = zoomCanvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(qrCanvas, 0, 0);
+            }
+            zoomOverlay.classList.add('active');
         });
-    });
+
+        const closeZoom = () => zoomOverlay.classList.remove('active');
+        zoomOverlay.addEventListener('click', closeZoom);
+        if (zoomClose) zoomClose.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeZoom();
+        });
+        zoomCanvas.addEventListener('click', (event) => event.stopPropagation());
+    }
 }
 
 function getAvatarColorForNation(nation) {
