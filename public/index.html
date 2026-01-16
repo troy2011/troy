@@ -49,9 +49,15 @@
             <!-- 1. ホームタブ -->
             <div id="tabContentHome" class="tab-content">
                 <div class="content-area home-hero-card">
-                    <div class="home-hero-header">
-                        <h2>ポイント管理</h2>
-                        <div class="home-hero-subtitle">アバター＆船</div>
+                    <div class="home-hero-top">
+                        <div class="home-ps-card">
+                            <div class="home-ps-icon">💰</div>
+                            <div class="home-ps-meta">
+                                <div class="home-ps-label">PS</div>
+                                <div class="home-ps-value"><span id="currentPoints">0</span><span class="home-ps-unit">PS</span></div>
+                            </div>
+                        </div>
+                        <div class="home-hero-tag">🧍🚢</div>
                     </div>
                     <div id="homeShipStage" class="home-ship-stage">
                         <img src="Sprites/Ships/homeShip.png" alt="Home Ship" class="home-ship-image">
@@ -68,14 +74,20 @@
                     </div>
                 </div>
                 <div class="content-area home-qr-card">
-                    <h2>QRコード</h2>
+                    <div class="home-card-header">
+                        <span class="home-card-emoji">📲</span>
+                        <span class="home-card-title">QR送金</span>
+                    </div>
                     <div id="myQrArea" class="home-qr-area">
                         <canvas id="myQrCanvas"></canvas>
-                        <p class="home-qr-note">このコードを読み取って送金</p>
+                        <p class="home-qr-note">読み取りで送金</p>
                     </div>
                 </div>
                 <div class="content-area home-transfer-card">
-                    <h2>ポイント受け渡し</h2>
+                    <div class="home-card-header">
+                        <span class="home-card-emoji">🤝</span>
+                        <span class="home-card-title">送金</span>
+                    </div>
                     <div class="transfer-quick-row">
                         <button class="transfer-quick-btn" data-amount="100">100</button>
                         <button class="transfer-quick-btn" data-amount="500">500</button>
@@ -84,9 +96,9 @@
                     </div>
                     <div class="transfer-input-row">
                         <input type="number" id="transferAmount" placeholder="手入力" value="0" />
-                        <span>Ps</span>
+                        <span>PS</span>
                     </div>
-                    <button id="btnScanPay" class="transfer-send-btn">送金する</button>
+                    <button id="btnScanPay" class="transfer-send-btn">送金</button>
                 </div>
             </div>
 
