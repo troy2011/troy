@@ -1530,3 +1530,9 @@ export function displayDemolishedIslandsOnMap(phaserScene, demolishedIslands) {
         phaserScene.demolishedSprites.push(rubble);
     });
 }
+
+
+// Expose island helpers for non-module callers.
+window.Island = window.Island || {};
+window.Island.showBuildingMenu = showBuildingMenu;
+window.Island.getIslandDetails = getIslandDetails;
