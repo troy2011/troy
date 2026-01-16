@@ -9,7 +9,20 @@ export const NATION_LABELS = {
     neutral: '中立'
 };
 
+export const NATION_MARKS = {
+    fire: '🔥',
+    water: '💧',
+    wind: '🌪️',
+    earth: '🪨',
+    neutral: '⭕'
+};
+
 export function getNationLabel(nationKey) {
     const key = String(nationKey || '').trim().toLowerCase();
     return NATION_LABELS[key] || '';
+}
+
+export function getNationMark(nationKey) {
+    const key = String(nationKey || '').trim().toLowerCase();
+    return NATION_MARKS[key] || key;
 }
