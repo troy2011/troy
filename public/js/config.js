@@ -37,12 +37,12 @@ export const AVATAR_PART_OFFSETS = {
 
 export const CURRENCY_EMOJI = {
     PS: 'PS',
-    RR: '🔥',
+    RR: '🧨',
     RG: '🪨',
     RY: '🍄',
-    RB: '💧',
-    RT: '🌿',
-    RS: '🌳'
+    RB: '🫙',
+    RT: '🪾',
+    RS: '🪵'
 };
 
 export function formatCurrencyLabel(code) {
