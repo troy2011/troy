@@ -190,6 +190,33 @@ button:disabled {
     overflow: hidden;
 }
 
+body[data-sea-tone="dawn"] .home-hero-card {
+    background:
+        linear-gradient(180deg, rgba(26, 64, 96, 0.92), rgba(12, 28, 46, 0.96)),
+        radial-gradient(circle at 20% 12%, rgba(140, 196, 230, 0.32), transparent 62%);
+    border-color: rgba(150, 198, 230, 0.3);
+}
+
+body[data-sea-tone="day"] .home-hero-card {
+    background:
+        linear-gradient(180deg, rgba(30, 78, 120, 0.92), rgba(14, 34, 56, 0.96)),
+        radial-gradient(circle at 24% 12%, rgba(120, 208, 245, 0.34), transparent 62%);
+    border-color: rgba(140, 210, 245, 0.32);
+}
+
+body[data-sea-tone="dusk"] .home-hero-card {
+    background:
+        linear-gradient(180deg, rgba(22, 54, 82, 0.92), rgba(10, 24, 40, 0.96)),
+        radial-gradient(circle at 24% 12%, rgba(110, 160, 210, 0.26), transparent 62%);
+    border-color: rgba(120, 175, 220, 0.26);
+}
+
+body[data-sea-tone="night"] .home-hero-card {
+    background:
+        linear-gradient(180deg, rgba(12, 30, 52, 0.92), rgba(6, 16, 28, 0.96)),
+        radial-gradient(circle at 24% 12%, rgba(70, 120, 170, 0.22), transparent 60%);
+    border-color: rgba(90, 140, 180, 0.22);
+}
 .home-hero-header {
     display: flex;
     flex-direction: column;

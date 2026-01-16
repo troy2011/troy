@@ -53,6 +53,15 @@ const AVATAR_COLOR_BY_NATION = {
 function initHomeSurprises() {
 }
 
+function updateSeaToneByTime(date = new Date()) {
+    const hour = date.getHours();
+    let tone = 'night';
+    if (hour >= 5 && hour < 9) tone = 'dawn';
+    else if (hour >= 9 && hour < 16) tone = 'day';
+    else if (hour >= 16 && hour < 20) tone = 'dusk';
+    document.body.dataset.seaTone = tone;
+}
+
 function getAvatarColorForNation(nation) {
     const key = String(nation || '').toLowerCase();
     return AVATAR_COLOR_BY_NATION[key] || null;
@@ -76,6 +85,8 @@ PlayFab.settings.titleId = '1A0BA';
 
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
+    updateSeaToneByTime();
+    setInterval(updateSeaToneByTime, 15 * 60 * 1000);
     initializeLiff();
 });
 
