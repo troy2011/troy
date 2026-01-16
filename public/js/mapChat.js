@@ -3,9 +3,11 @@ import {
     getGuildInfo,
     getGuildChat,
     getNearbyChat,
+    getTroyChat,
     getGlobalChat,
     sendGuildChat,
     sendNearbyChat,
+    sendTroyChat,
     sendGlobalChat
 } from './playfabClient.js';
 import { showRpgMessage } from './rpgMessages.js';
@@ -99,6 +101,14 @@ function createChatController(options) {
             const data = await getGuildChat(playFabId, guildId, { isSilent: true });
             return Array.isArray(data?.messages) ? data.messages : [];
         }
+        if (activeChannel === 'troy') {
+            try {
+                const data = await getTroyChat(playFabId, { isSilent: true });
+                return Array.isArray(data?.messages) ? data.messages : [];
+            } catch {
+                return [];
+            }
+        }
         if (activeChannel === 'nearby') {
             const pos = getPlayerPosition();
             const data = await getNearbyChat(playFabId, pos?.x, pos?.y, window.__currentMapId || null, { isSilent: true });
@@ -127,6 +137,15 @@ function createChatController(options) {
             const pos = getPlayerPosition();
             const res = await sendNearbyChat({ ...payload, x: pos?.x, y: pos?.y });
             return !!res?.success;
+        }
+        if (activeChannel === 'troy') {
+            try {
+                const res = await sendTroyChat(playFabId, payload.message);
+                return !!res?.success;
+            } catch {
+                showRpgMessage('入店者のみ店内チャットが利用できます');
+                return false;
+            }
         }
         const res = await sendGlobalChat(payload);
         return !!res?.success;

@@ -1,6 +1,8 @@
 // server/nation.js
 // 国家関連のAPI
 
+const { addGlobalChatMessage } = require('./chat');
+
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
     Goblin: { island: 'water', groupName: 'nation_water_island' },
@@ -54,6 +56,21 @@ function getNationGroupDoc(firestore, groupName) {
 
 function getTroyRoomDoc(firestore, groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
+}
+
+async function getPlayerDisplayName(playFabId, deps) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    try {
+        const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowDisplayName: true }
+        });
+        const name = profile?.PlayerProfile?.DisplayName;
+        return name ? String(name) : '';
+    } catch (error) {
+        console.warn('[getPlayerDisplayName] Failed:', error?.errorMessage || error?.message || error);
+        return '';
+    }
 }
 
 async function ensureNationGroupExists(firestore, mapping, deps) {
@@ -451,6 +468,10 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: context.kingId
             }, { merge: true });
+            const kingName = await getPlayerDisplayName(context.kingId, { promisifyPlayFab, PlayFabServer });
+            const label = kingName || '王';
+            const message = nextOpen ? 'TROYをOPEN！' : 'TROYをCLOSE。';
+            addGlobalChatMessage(message, label);
             res.json({ success: true, isOpen: nextOpen });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
@@ -546,6 +567,82 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[troy-leave] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to leave troy' });
+        }
+    });
+
+    // TROYチャット取得
+    app.post('/api/get-troy-chat', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(403).json({ error: 'NotInNation' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(403).json({ error: 'NotInNation' });
+
+            const memberId = normalizePlayFabId(playFabId);
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const memberSnap = await roomRef.collection('members').doc(memberId).get();
+            if (!memberSnap.exists) {
+                return res.status(403).json({ error: 'NotInTroy' });
+            }
+
+            const snap = await roomRef
+                .collection('chat')
+                .orderBy('createdAt', 'desc')
+                .limit(50)
+                .get();
+            const messages = snap.docs
+                .map((doc) => {
+                    const data = doc.data() || {};
+                    const ts = data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt;
+                    return {
+                        message: data.message || '',
+                        displayName: data.displayName || 'Player',
+                        timestamp: ts || Date.now()
+                    };
+                })
+                .reverse();
+
+            res.json({ success: true, messages });
+        } catch (error) {
+            console.error('[get-troy-chat] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get troy chat' });
+        }
+    });
+
+    // TROYチャット送信
+    app.post('/api/send-troy-chat', async (req, res) => {
+        const { playFabId, message } = req.body || {};
+        const text = String(message || '').trim();
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!text) return res.status(400).json({ error: 'Message is required' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(403).json({ error: 'NotInNation' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(403).json({ error: 'NotInNation' });
+
+            const memberId = normalizePlayFabId(playFabId);
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const memberSnap = await roomRef.collection('members').doc(memberId).get();
+            if (!memberSnap.exists) {
+                return res.status(403).json({ error: 'NotInTroy' });
+            }
+            const memberData = memberSnap.data() || {};
+            const displayName = memberData.displayName || memberId;
+
+            await roomRef.collection('chat').add({
+                playFabId: memberId,
+                displayName,
+                message: text,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[send-troy-chat] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to send troy chat' });
         }
     });
 

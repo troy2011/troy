@@ -132,6 +132,14 @@ export function sendNearbyChat(payload, options) {
     return callApiWithLoader('/api/send-nearby-chat', payload, options);
 }
 
+export function getTroyChat(playFabId, options) {
+    return callApiWithLoader('/api/get-troy-chat', { playFabId }, options);
+}
+
+export function sendTroyChat(playFabId, message, options) {
+    return callApiWithLoader('/api/send-troy-chat', { playFabId, message }, options);
+}
+
 export function sendGlobalChat(payload, options) {
     return callApiWithLoader('/api/send-global-chat', payload, options);
 }
