@@ -268,7 +268,7 @@ export function showBuildingMenu(island, playFabId) {
 
     const sheet = document.createElement('div');
     sheet.className = 'building-bottom-sheet';
-    const closeSheet = () => {
+    const safeCloseSheet = () => {
         sheet.classList.remove('active');
         setTimeout(() => sheet.remove(), 300);
     };
@@ -350,10 +350,10 @@ export function showBuildingMenu(island, playFabId) {
         sheet.addEventListener('touchmove', (e) => {
             stopPhaser(e);
         }, { passive: true });
-        const closeBtn = sheet.querySelector('.close-btn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeSheet);
-        }
+    const closeBtn = sheet.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', safeCloseSheet);
+    }
         const buildBtn = sheet.querySelector('#btnBuildMyHouse');
         if (buildBtn) {
             buildBtn.addEventListener('click', async () => {
@@ -765,7 +765,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     if (specialBtn) {
         specialBtn.addEventListener('click', () => {
             if (typeof window.showCreateShipModal === 'function') {
-                closeSheet();
+                safeCloseSheet();
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
@@ -779,7 +779,7 @@ function setupBuildingMenuEvents(sheet, island, playFabId) {
     if (capitalCreateBtn) {
         capitalCreateBtn.addEventListener('click', () => {
             if (typeof window.showCreateShipModal === 'function') {
-                closeSheet();
+                safeCloseSheet();
                 window.showCreateShipModal({ islandId: island.id, mapId: window.__currentMapId || null });
                 return;
             }
