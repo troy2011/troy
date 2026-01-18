@@ -193,6 +193,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.playerShipItemId = null;
         this.playerShipClass = null;
+        this.playerShipAssetData = null;
         this.shipActionCooldownUntil = 0;
         this.shipActionSpeedBoostUntil = 0;
         this.shipActionInvisibleUntil = 0;
@@ -1823,9 +1824,12 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     setPlayerShipAssetData(assetData) {
+        this.playerShipAssetData = assetData || null;
         const itemId = String(assetData?.ItemId || '').trim();
         this.playerShipItemId = itemId || null;
-        this.playerShipClass = this.getShipClassFromItemId(itemId);
+        const catalogItem = this.resolveShipCatalogItem(assetData);
+        const classFromCatalog = String(catalogItem?.class || catalogItem?.Class || '').toLowerCase().trim();
+        this.playerShipClass = classFromCatalog || this.getShipClassFromItemId(itemId);
         if (assetData?.Domain) {
             this.playerShipDomain = String(assetData.Domain).toLowerCase();
         }
@@ -1847,10 +1851,23 @@ export default class WorldMapScene extends Phaser.Scene {
         return null;
     }
 
+    resolveShipCatalogItem(assetData = null) {
+        if (typeof window === 'undefined') return null;
+        const catalog = window.shipCatalog;
+        if (!catalog || typeof catalog !== 'object') return null;
+        const itemId = String((assetData?.ItemId || this.playerShipItemId || '')).trim();
+        if (itemId && catalog[itemId]) return catalog[itemId];
+        const shipType = String(assetData?.ShipType || this.playerShipAssetData?.ShipType || '').trim();
+        if (!shipType) return null;
+        return Object.values(catalog).find(item => item && item.DisplayName === shipType) || null;
+    }
+
     getShipActionType() {
         const itemId = String(this.playerShipItemId || '').toLowerCase();
         if (itemId === 'ship_common_boat') return { type: 'none', label: 'None' };
-        const byItem = SHIP_ACTIONS[itemId];
+        const catalogItem = this.resolveShipCatalogItem();
+        const friendlyId = String(catalogItem?.FriendlyId || catalogItem?.friendlyId || '').toLowerCase();
+        const byItem = SHIP_ACTIONS[itemId] || (friendlyId ? SHIP_ACTIONS[friendlyId] : null);
         if (byItem) return { ...byItem };
         const shipClass = this.playerShipClass;
         if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'] };
