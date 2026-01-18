@@ -17,6 +17,12 @@ let myVirtualCurrency = {};
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 
+function getActiveInventoryCategory() {
+    if (typeof document === 'undefined') return 'All';
+    const active = document.querySelector('.inventory-tab-btn.active');
+    return active?.dataset?.category || 'All';
+}
+
 export function getMyInventory() {
     return myInventory;
 }
@@ -49,7 +55,7 @@ export async function getInventory(playFabId) {
         myVirtualCurrency = data.virtualCurrency || {};
     }
     await getEquipment(playFabId);
-    renderInventoryGrid('All');
+    renderInventoryGrid(getActiveInventoryCategory());
     renderResourceSummary();
     lastInventoryFetchAt = Date.now();
     })();
