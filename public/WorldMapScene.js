@@ -3474,8 +3474,27 @@ export default class WorldMapScene extends Phaser.Scene {
         this.subscribeToOtherShips();
         this.subscribeToShipActionEvents();
         this.subscribeToShipBattleEvents();
+        await this.refreshConstructingIslandsOnce();
         this.subscribeToConstructingIslands();
         this.subscribeToDemolishedIslands();
+    }
+
+    async refreshConstructingIslandsOnce() {
+        try {
+            const mapId = this.mapId || (typeof window !== 'undefined' ? window.__currentMapId : null) || '';
+            const suffix = mapId ? `?mapId=${encodeURIComponent(mapId)}` : '';
+            const url = (typeof window !== 'undefined' && window.buildApiUrl)
+                ? window.buildApiUrl(`/api/get-constructing-islands${suffix}`)
+                : `/api/get-constructing-islands${suffix}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.warn('[Construction] Refresh failed:', res.status, res.statusText);
+                return;
+            }
+            await res.json();
+        } catch (error) {
+            console.warn('[Construction] Failed to refresh constructing islands once:', error);
+        }
     }
 
     async loadMyGuildId() {
