@@ -165,7 +165,8 @@ export function renderInventoryGrid(category) {
             countSpan.innerText = `x${item.count}`;
             cell.appendChild(countSpan);
         }
-        if (Object.values(myCurrentEquipment).includes(instanceId)) {
+        const equippedValues = Object.values(myCurrentEquipment || {}).filter(Boolean);
+        if (equippedValues.includes(instanceId) || equippedValues.includes(item.itemId)) {
             const equippedSpan = document.createElement('span');
             equippedSpan.className = 'inventory-item-equipped-mark';
             equippedSpan.innerText = 'E';
@@ -313,7 +314,8 @@ function getEquipmentBonuses() {
     const equippedIds = Object.values(myCurrentEquipment || {}).filter(Boolean);
 
     equippedIds.forEach((instanceId) => {
-        const item = myInventory.find(i => i.instances && i.instances.includes(instanceId));
+        const item = myInventory.find(i => i.instances && i.instances.includes(instanceId))
+            || myInventory.find(i => i.itemId === instanceId);
         if (!item || !item.customData) return;
         const cd = item.customData;
 
