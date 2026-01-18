@@ -159,6 +159,16 @@ button:disabled {
     overflow: hidden;
 }
 
+.content-area::before {
+    content: '';
+    position: absolute;
+    inset: -120px;
+    background: radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.4), transparent 60%);
+    opacity: 0.5;
+    animation: cardRipple 18s linear infinite;
+    pointer-events: none;
+}
+
 .content-area::after {
     content: '';
     position: absolute;
@@ -328,6 +338,16 @@ body[data-sea-tone="night"] .home-hero-card {
     background: linear-gradient(180deg, rgba(10, 14, 20, 0.98), rgba(24, 30, 42, 0.98));
 }
 
+.home-card::before {
+    content: '';
+    position: absolute;
+    inset: -120px;
+    background: radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.4), transparent 60%);
+    opacity: 0.5;
+    animation: cardRipple 18s linear infinite;
+    pointer-events: none;
+}
+
 .home-card::after {
     content: '';
     position: absolute;
@@ -430,6 +450,11 @@ body[data-sea-tone="night"] .home-hero-card {
     70% { opacity: 0.5; }
     85% { transform: translateX(120%); opacity: 0; }
     100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes cardRipple {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 @keyframes cardShake {
