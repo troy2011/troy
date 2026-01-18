@@ -1296,6 +1296,9 @@ body[data-sea-tone="night"] .home-hero-card {
     justify-content: center;
     animation: homeShipBob 6s ease-in-out infinite;
     border-radius: 14px;
+    background: transparent;
+    box-shadow: none;
+    border: none;
 }
 
 .home-ship-image {
