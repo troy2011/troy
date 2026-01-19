@@ -1,0 +1,21 @@
+id	name	category	buildTimeSec	buildTimeMin	cost	slotsRequired	sizeLogic	sizeVisual	tileIndex	level	nationTileOffset	buildable	buildCondition
+capital	首都	support	0	0	{"PS":0}	4	{"x":3,"y":3}	{"x":3,"y":3}	576	1	true	true	null
+watchtower	見張り台	military	1800	30	{"PS":200}	1	{"x":1,"y":1}	{"x":1,"y":1}	833	1	false	true	null
+coastal_battery	沿岸砲台	military	3600	60	{"PS":500}	1	{"x":2,"y":2}	{"x":2,"y":2}	18	1	false	true	null
+fortress	要塞	military	7200	120	{"PS":1000}	2	{"x":2,"y":2}	{"x":2,"y":2}	640	1	true	true	{"sameMap":true,"buildingId":"watchtower","minCount":2}
+shipyard	造船所	military	10800	180	{"PS":2000}	4	{"x":2,"y":2}	{"x":2,"y":3}	20	1	false	true	null
+warehouse	倉庫	economic	1800	30	{"PS":300}	1	{"x":1,"y":1}	{"x":1,"y":1}	21	1	false	true	null
+farm	農園	economic	2400	40	{"PS":400}	1	{"x":1,"y":1}	{"x":1,"y":1}	22	1	false	true	null
+trading_post	交易所	economic	5400	90	{"PS":1000}	2	{"x":2,"y":1}	{"x":2,"y":2}	994	1	false	true	null
+mine	鉱山	economic	7200	120	{"PS":1500}	2	{"x":2,"y":2}	{"x":2,"y":2}	24	1	false	true	null
+grand_market	大市場	economic	14400	240	{"PS":3000}	4	{"x":2,"y":2}	{"x":2,"y":2}	656	1	true	true	null
+my_house	マイハウス LV1	support	900	15	{"PS":200}	1	{"x":1,"y":1}	{"x":1,"y":1}	588	1	true	false	null
+weapon_shop	武器屋	economic	1800	30	{"PS":500}	1	{"x":1,"y":1}	{"x":1,"y":1}	736	1	true	true	null
+armor_shop	防具屋	economic	1800	30	{"PS":500}	1	{"x":1,"y":1}	{"x":1,"y":1}	740	1	true	true	null
+item_shop	道具屋	economic	1500	25	{"PS":400}	1	{"x":1,"y":1}	{"x":1,"y":1}	744	1	true	true	null
+tavern	酒場	support	1200	20	{"PS":300}	1	{"x":1,"y":1}	{"x":1,"y":1}	748	1	true	true	null
+inn	宿屋	support	2400	40	{"PS":600}	1	{"x":1,"y":1}	{"x":1,"y":1}	752	1	true	true	null
+hot_spring	温泉	support	1800	30	{"PS":500}	1	{"x":1,"y":1}	{"x":1,"y":1}	756	1	true	true	null
+repair_dock	修理ドック	support	3600	60	{"PS":800}	1	{"x":1,"y":1}	{"x":2,"y":2}	792	1	true	true	null
+lighthouse	灯台	support	2400	40	{"PS":500}	1	{"x":1,"y":1}	{"x":1,"y":3}	28	1	false	true	null
+temple	神殿	support	18000	300	{"PS":5000}	4	{"x":2,"y":2}	{"x":3,"y":4}	29	1	false	true	null
