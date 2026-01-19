@@ -9,6 +9,7 @@ import {
 } from './playfabClient.js';
 import { renderAvatar } from './avatar.js';
 import * as Player from './player.js';
+import { isKing as isKingFlag } from './nationKing.js';
 import { formatCurrencyLabel } from './config.js';
 
 let myInventory = [];
@@ -60,6 +61,15 @@ function calculateLevelFromExp(expValue) {
     return { level, expInto: 0, expNeeded: baseExp, rank: Math.floor(level / 10) };
 }
 
+function getRankName(level, isKing) {
+    if (isKing) return '王';
+    if (level >= 41) return '海賊王';
+    if (level >= 31) return '提督';
+    if (level >= 21) return '船長';
+    if (level >= 11) return '航海士';
+    return '見習い';
+}
+
 function updateExperienceUI() {
     const levelEl = document.getElementById('homeExpLevel');
     const rankEl = document.getElementById('homeExpRank');
@@ -70,9 +80,10 @@ function updateExperienceUI() {
 
     const data = calculateLevelFromExp(myExperience);
     const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
+    const rankName = getRankName(data.level, isKingFlag());
 
     levelEl.textContent = String(data.level);
-    rankEl.textContent = String(data.rank);
+    rankEl.textContent = rankName;
     progressEl.textContent = String(data.expInto);
     neededEl.textContent = String(data.expNeeded);
     fillEl.style.width = `${Math.round(ratio * 100)}%`;
