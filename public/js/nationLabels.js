@@ -17,12 +17,29 @@ export const NATION_MARKS = {
     neutral: '⭕'
 };
 
+const NATION_ALIASES = {
+    human: 'fire',
+    goblin: 'water',
+    orc: 'earth',
+    elf: 'wind'
+};
+
+function normalizeNationKey(nationKey) {
+    const raw = String(nationKey || '').trim().toLowerCase();
+    if (!raw) return '';
+    if (NATION_LABELS[raw]) return raw;
+    if (NATION_ALIASES[raw]) return NATION_ALIASES[raw];
+    const match = /^nation_([a-z]+)_island$/.exec(raw);
+    if (match && NATION_LABELS[match[1]]) return match[1];
+    return raw;
+}
+
 export function getNationLabel(nationKey) {
-    const key = String(nationKey || '').trim().toLowerCase();
+    const key = normalizeNationKey(nationKey);
     return NATION_LABELS[key] || '';
 }
 
 export function getNationMark(nationKey) {
-    const key = String(nationKey || '').trim().toLowerCase();
+    const key = normalizeNationKey(nationKey);
     return NATION_MARKS[key] || key;
 }
