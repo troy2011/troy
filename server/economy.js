@@ -14,6 +14,13 @@ const ECONOMY_CURRENCY_IDS = new Set([
     'RT',
     'RS'
 ]);
+const BOUNTY_RESET_DATE_KEY = 'BountyResetDate';
+const EXPERIENCE_KEY = 'Experience';
+
+function getJstDateKey(nowMs = Date.now()) {
+    const jstMs = nowMs + (9 * 60 * 60 * 1000);
+    return new Date(jstMs).toISOString().slice(0, 10);
+}
 
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
@@ -126,6 +133,45 @@ function applyTax(amount, taxRateBps) {
     const tax = Math.floor((gross * bps) / 10000);
     const net = Math.max(0, gross - tax);
     return { gross, tax, net, bps };
+}
+
+async function ensureDailyBountyConversion(playFabId, deps) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    if (!playFabId) return { updated: false };
+
+    const todayKey = getJstDateKey();
+    const readResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: [BOUNTY_RESET_DATE_KEY, EXPERIENCE_KEY]
+    });
+    const lastKey = readResult?.Data?.[BOUNTY_RESET_DATE_KEY]?.Value || '';
+    if (lastKey === todayKey) {
+        return { updated: false };
+    }
+
+    const currentExpRaw = readResult?.Data?.[EXPERIENCE_KEY]?.Value;
+    const currentExp = Number(currentExpRaw) || 0;
+    const bountyAmount = await getCurrencyBalance(playFabId, 'BT', deps);
+
+    let nextExp = currentExp;
+    if (bountyAmount > 0) {
+        await subtractEconomyItem(playFabId, 'BT', bountyAmount, deps);
+        nextExp = currentExp + bountyAmount;
+    }
+
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            [BOUNTY_RESET_DATE_KEY]: todayKey,
+            [EXPERIENCE_KEY]: String(nextExp)
+        }
+    });
+    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+        PlayFabId: playFabId,
+        Statistics: [{ StatisticName: 'bounty_ranking', Value: 0 }]
+    });
+
+    return { updated: true, bountyConverted: bountyAmount, exp: nextExp };
 }
 
 // APIルートを初期化
@@ -425,6 +471,7 @@ module.exports = {
     addEconomyItem,
     subtractEconomyItem,
     getCurrencyBalance,
+    ensureDailyBountyConversion,
     applyTax,
     initializeEconomyRoutes
 };

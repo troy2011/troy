@@ -18,7 +18,7 @@ function normalizeEntityKey(input) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion } = deps;
 
     // インベントリ取得
     app.post('/api/get-inventory', async (req, res) => {
@@ -27,6 +27,13 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
+            if (typeof ensureDailyBountyConversion === 'function') {
+                try {
+                    await ensureDailyBountyConversion(playFabId);
+                } catch (resetError) {
+                    console.warn('[bounty-reset] Failed:', resetError?.errorMessage || resetError?.message || resetError);
+                }
+            }
             const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const itemMap = new Map();

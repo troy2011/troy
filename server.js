@@ -1118,7 +1118,16 @@ async function main() {
         getVirtualCurrencyMap: deps.getVirtualCurrencyMap,
         addEconomyItem: deps.addEconomyItem,
         subtractEconomyItem: deps.subtractEconomyItem,
-        getCurrencyBalance: deps.getCurrencyBalance
+        getCurrencyBalance: deps.getCurrencyBalance,
+        ensureDailyBountyConversion: (playFabId) => economy.ensureDailyBountyConversion(playFabId, {
+            promisifyPlayFab,
+            PlayFabServer,
+            PlayFabEconomy,
+            getEntityKeyFromPlayFabId,
+            catalogCache,
+            catalogCurrencyMap,
+            resolveItemId: resolveCatalogItemId
+        })
     });
 
     // ショップルート
