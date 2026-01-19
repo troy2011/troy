@@ -2366,7 +2366,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.commandMenuOpen = false;
     }
 
-    async ramShipDamage(otherPlayFabId) {
+    async ramShipDamage(otherPlayFabId, shipObject) {
         const myId = this.playerInfo?.playFabId;
         if (!myId || !otherPlayFabId) return;
         if (this.isShipInBattle(myId) || this.isShipInBattle(otherPlayFabId)) return;
@@ -2379,10 +2379,26 @@ export default class WorldMapScene extends Phaser.Scene {
         this.lastRamDamageAt.set(otherPlayFabId, now);
 
         try {
+            const attackerFacing = this.playerShip?.lastAnimKey || 'ship_down';
+            const defenderFacing = shipObject?.lastAnimKey || 'ship_down';
+            const attackerPos = (this.playerShip && Number.isFinite(this.playerShip.x) && Number.isFinite(this.playerShip.y))
+                ? { x: this.playerShip.x, y: this.playerShip.y }
+                : null;
+            const defenderPos = (shipObject?.sprite && Number.isFinite(shipObject.sprite.x) && Number.isFinite(shipObject.sprite.y))
+                ? { x: shipObject.sprite.x, y: shipObject.sprite.y }
+                : null;
             const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ram-ship') : '/api/ram-ship'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attackerId: myId, defenderId: otherPlayFabId, damage: 5 })
+                body: JSON.stringify({
+                    attackerId: myId,
+                    defenderId: otherPlayFabId,
+                    attackerFacing,
+                    defenderFacing,
+                    attackerPos,
+                    defenderPos,
+                    damage: 5
+                })
             });
             const data = await res.json();
             if (!res.ok) {
@@ -2466,7 +2482,7 @@ export default class WorldMapScene extends Phaser.Scene {
             null
         );
         if (!myNation || !otherNation || myNation !== otherNation) {
-            this.ramShipDamage(otherPlayFabId);
+            this.ramShipDamage(otherPlayFabId, shipObject);
         }
 
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -3507,6 +3523,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 mapId: this.mapId || null,
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
+                lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
                 currentX: currentX,
                 currentY: currentY,
                 targetX: targetX,
@@ -3559,6 +3576,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 mapId: this.mapId || null,
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
+                lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
                 currentX: currentX,
                 currentY: currentY,
                 targetX: currentX,

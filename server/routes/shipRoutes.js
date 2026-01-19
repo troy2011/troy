@@ -602,6 +602,85 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
     // ( ... 他のAPIエンドポイントは変更なし ... )
 
+    const RAM_DIRECTION_THRESHOLDS = { front: 60, side: 120 };
+    const RAM_DIRECTION_MULTIPLIERS = { front: 1.0, side: 1.25, back: 1.5 };
+    const DIRECTION_VECTORS = {
+        ship_down: { x: 0, y: 1 },
+        ship_up: { x: 0, y: -1 },
+        ship_left: { x: -1, y: 0 },
+        ship_right: { x: 1, y: 0 },
+        ship_down_left: { x: -0.707, y: 0.707 },
+        ship_down_right: { x: 0.707, y: 0.707 },
+        ship_up_left: { x: -0.707, y: -0.707 },
+        ship_up_right: { x: 0.707, y: -0.707 }
+    };
+
+    function normalizeVector(vec) {
+        const x = Number(vec?.x);
+        const y = Number(vec?.y);
+        const len = Math.hypot(x, y);
+        if (!Number.isFinite(len) || len === 0) return null;
+        return { x: x / len, y: y / len };
+    }
+
+    function normalizePosition(pos) {
+        const x = Number(pos?.x);
+        const y = Number(pos?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+    }
+
+    function getFacingVector(key) {
+        const vec = DIRECTION_VECTORS[String(key || '').toLowerCase().trim()];
+        return vec ? normalizeVector(vec) : null;
+    }
+
+    function resolveShipPosition(doc) {
+        const movement = doc?.movement || null;
+        if (movement?.isMoving && movement?.departurePos && movement?.destinationPos) {
+            const now = Date.now();
+            const departureTime = Number(movement.departureTime);
+            const arrivalTime = Number(movement.arrivalTime);
+            if (Number.isFinite(departureTime) && Number.isFinite(arrivalTime) && arrivalTime > departureTime) {
+                const progress = Math.min(1, Math.max(0, (now - departureTime) / (arrivalTime - departureTime)));
+                const start = movement.departurePos;
+                const end = movement.destinationPos;
+                if (start && end) {
+                    return {
+                        x: Number(start.x) + (Number(end.x) - Number(start.x)) * progress,
+                        y: Number(start.y) + (Number(end.y) - Number(start.y)) * progress
+                    };
+                }
+            }
+        }
+        const position = normalizePosition(doc?.position);
+        if (position) return position;
+        const currentX = Number(doc?.currentX);
+        const currentY = Number(doc?.currentY);
+        if (Number.isFinite(currentX) && Number.isFinite(currentY)) {
+            return { x: currentX, y: currentY };
+        }
+        return null;
+    }
+
+    function getDirectionMultiplier(facingKey, selfPos, targetPos) {
+        const facing = getFacingVector(facingKey);
+        const self = normalizePosition(selfPos);
+        const target = normalizePosition(targetPos);
+        if (!facing || !self || !target) return { multiplier: 1.0, zone: 'unknown' };
+        const toTarget = normalizeVector({ x: target.x - self.x, y: target.y - self.y });
+        if (!toTarget) return { multiplier: 1.0, zone: 'unknown' };
+        const dot = Math.max(-1, Math.min(1, facing.x * toTarget.x + facing.y * toTarget.y));
+        const angle = Math.acos(dot) * (180 / Math.PI);
+        if (angle <= RAM_DIRECTION_THRESHOLDS.front) {
+            return { multiplier: RAM_DIRECTION_MULTIPLIERS.front, zone: 'front' };
+        }
+        if (angle <= RAM_DIRECTION_THRESHOLDS.side) {
+            return { multiplier: RAM_DIRECTION_MULTIPLIERS.side, zone: 'side' };
+        }
+        return { multiplier: RAM_DIRECTION_MULTIPLIERS.back, zone: 'back' };
+    }
+
     /**
      * API: 船の体当たりダメージ
      * POST /api/ram-ship
@@ -625,8 +704,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 shipsCollection.doc(attackerId).get(),
                 shipsCollection.doc(defenderId).get()
             ]);
-            const attackerShipId = attackerSummary.exists ? attackerSummary.data()?.shipId : null;
-            const defenderShipId = defenderSummary.exists ? defenderSummary.data()?.shipId : null;
+            const attackerSummaryData = attackerSummary.exists ? (attackerSummary.data() || {}) : {};
+            const defenderSummaryData = defenderSummary.exists ? (defenderSummary.data() || {}) : {};
+            const attackerShipId = attackerSummaryData.shipId || null;
+            const defenderShipId = defenderSummaryData.shipId || null;
             if (!attackerShipId || !defenderShipId) {
                 return res.status(404).json({ error: 'Active ship not found for attacker/defender' });
             }
@@ -687,6 +768,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             if (isAirDomain(attackerDomain)) {
                 defenderDamage = Math.max(defenderDamage, attackerMaxHp);
             }
+
+            const attackerFacing = req.body?.attackerFacing || attackerSummaryData.lastAnimKey || 'ship_down';
+            const defenderFacing = req.body?.defenderFacing || defenderSummaryData.lastAnimKey || 'ship_down';
+            const attackerPos = normalizePosition(req.body?.attackerPos) || resolveShipPosition(attackerSummaryData);
+            const defenderPos = normalizePosition(req.body?.defenderPos) || resolveShipPosition(defenderSummaryData);
+            const attackerDir = getDirectionMultiplier(attackerFacing, attackerPos, defenderPos);
+            const defenderDir = getDirectionMultiplier(defenderFacing, defenderPos, attackerPos);
+            attackerDamage *= attackerDir.multiplier;
+            defenderDamage *= defenderDir.multiplier;
             const nextAttackerHp = Math.max(0, (Number.isFinite(attackerHp) ? attackerHp : attackerMaxHp) - defenderDamage);
             const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - attackerDamage);
             const attackerRespawn = nextAttackerHp <= 0;
