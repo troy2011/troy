@@ -309,13 +309,26 @@ function initializeEconomyRoutes(app, deps) {
             try {
                 await addEconomyItem(toId, VIRTUAL_CURRENCY_CODE, amountInt, economyDeps);
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
+                let bountyAdded = false;
+                let receiverNewBounty = null;
+                try {
+                    await addEconomyItem(toId, 'BT', amountInt, economyDeps);
+                    receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
+                    bountyAdded = true;
+                } catch (bountyError) {
+                    console.warn('[transfer-points] Failed to add bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
+                }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: fromId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: payerNewBalance }]
                 });
+                const receiverStats = [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }];
+                if (bountyAdded && receiverNewBounty !== null) {
+                    receiverStats.push({ StatisticName: 'bounty_ranking', Value: receiverNewBounty });
+                }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: toId,
-                    Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }]
+                    Statistics: receiverStats
                 });
                 try {
                     const getDisplayName = async (id) => {
@@ -355,7 +368,7 @@ function initializeEconomyRoutes(app, deps) {
                         console.warn('[transfer-points] Notification write failed:', notifyError?.message || notifyError);
                     }
                 }
-                res.json({ newBalance: payerNewBalance });
+                res.json({ newBalance: payerNewBalance, bountyAdded });
             } catch (addError) {
                 console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
                 const addMessage = addError?.errorMessage || addError?.message || '';
