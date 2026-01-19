@@ -235,6 +235,21 @@ async function getNationGroupIdByNation(nation, firestore, deps) {
     return info?.groupId || null;
 }
 
+async function getNationGroupEntityKey(nation, firestore, deps) {
+    const groupId = await getNationGroupIdByNation(nation, firestore, deps);
+    if (!groupId) return null;
+    return { Id: groupId, Type: 'group' };
+}
+
+async function getGroupTreasuryBalance(groupId, deps) {
+    if (!groupId) return 0;
+    if (!deps?.getAllInventoryItems || !deps?.getVirtualCurrencyMap) return 0;
+    const entityKey = { Id: groupId, Type: 'group' };
+    const items = await deps.getAllInventoryItems(entityKey);
+    const totals = deps.getVirtualCurrencyMap(items);
+    return Math.max(0, Math.floor(Number(totals?.PS) || 0));
+}
+
 async function getNationTaxRateBps(nation, firestore, deps) {
     const { getGroupDataValue } = deps;
     const groupId = await getNationGroupIdByNation(nation, firestore, deps);
@@ -245,14 +260,17 @@ async function getNationTaxRateBps(nation, firestore, deps) {
 }
 
 async function addNationTreasury(nation, amount, firestore, deps) {
-    const { getGroupDataValue, setGroupDataValues } = deps;
-    const groupId = await getNationGroupIdByNation(nation, firestore, deps);
-    if (!groupId) return null;
-    const raw = await getGroupDataValue(groupId, 'treasuryPT');
-    const current = Math.max(0, Math.floor(Number(raw) || 0));
-    const next = current + Math.max(0, Math.floor(Number(amount) || 0));
-    await setGroupDataValues(groupId, { treasuryPT: String(next) });
-    return { groupId, treasuryPT: next };
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    const entityKey = await getNationGroupEntityKey(nation, firestore, deps);
+    if (!entityKey) return null;
+    if (!deps?.addEconomyItem) {
+        throw new Error('Missing addEconomyItem dependency');
+    }
+    if (value > 0) {
+        await deps.addEconomyItem(entityKey.Id, 'PS', value, entityKey);
+    }
+    const treasuryPs = await getGroupTreasuryBalance(entityKey.Id, deps);
+    return { groupId: entityKey.Id, treasuryPs };
 }
 
 async function getNationTreasuryRanking(firestore, deps) {
@@ -265,8 +283,7 @@ async function getNationTreasuryRanking(firestore, deps) {
                 rows.push({ nation: mapping.island, groupName: mapping.groupName, treasuryPs: 0 });
                 continue;
             }
-            const raw = await deps.getGroupDataValue(groupId, 'treasuryPT');
-            const treasuryPs = Math.max(0, Math.floor(Number(raw) || 0));
+            const treasuryPs = await getGroupTreasuryBalance(groupId, deps);
             rows.push({ nation: mapping.island, groupName: mapping.groupName, treasuryPs });
         } catch (error) {
             console.warn('[getNationTreasuryRanking] Failed for', mapping?.groupName, error?.message || error);
@@ -329,7 +346,19 @@ async function requireKingContext(playFabId, firestore, deps) {
 function initializeNationRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip } = deps;
 
-    const nationDeps = { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, ensureTitleEntityToken, admin, getGroupDataValue, setGroupDataValues };
+    const nationDeps = {
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabAdmin,
+        PlayFabGroups,
+        ensureTitleEntityToken,
+        admin,
+        getGroupDataValue,
+        setGroupDataValues,
+        addEconomyItem,
+        getAllInventoryItems: deps.getAllInventoryItems,
+        getVirtualCurrencyMap: deps.getVirtualCurrencyMap
+    };
 
     // 国家グループ取得
     app.post('/api/get-nation-group', async (req, res) => {
@@ -470,12 +499,11 @@ function initializeNationRoutes(app, deps) {
                 const mapping = getNationMappingByNation(nation);
                 if (groupId) {
                     const grantMultiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
-                    const treasuryRaw = await getGroupDataValue(groupId, 'treasuryPT');
                     const grantMultiplierValue = Number(grantMultiplierRaw);
                     const grantMultiplier = Number.isFinite(grantMultiplierValue) && grantMultiplierValue >= 0
                         ? grantMultiplierValue
                         : 1;
-                    const treasuryPs = Math.max(0, Math.floor(Number(treasuryRaw) || 0));
+                    const treasuryPs = await getGroupTreasuryBalance(groupId, nationDeps);
                     payload.grantMultiplier = grantMultiplier;
                     payload.treasuryPs = treasuryPs;
                 }
@@ -965,18 +993,12 @@ function initializeNationRoutes(app, deps) {
 
             await subtractEconomyItem(playFabId, String(currency).toUpperCase(), value);
 
-            const docRef = await getNationGroupDoc(firestore, mapping.groupName);
-            await docRef.set({
-                treasury: {
-                    [String(currency).toUpperCase()]: admin.firestore.FieldValue.increment(value)
-                },
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-
             const normalizedCurrency = String(currency).toUpperCase();
-            if (normalizedCurrency === 'PS') {
-                await addNationTreasury(nation, value, firestore, nationDeps);
+            const groupEntity = await getNationGroupEntityKey(nation, firestore, nationDeps);
+            if (!groupEntity) {
+                return res.status(500).json({ error: 'Nation group not found' });
             }
+            await addEconomyItem(groupEntity.Id, normalizedCurrency, value, groupEntity);
 
             res.json({ success: true });
         } catch (error) {
