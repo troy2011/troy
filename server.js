@@ -52,6 +52,7 @@ const NATION_EMOJI_BY_NATION = {
     earth: '🌱',
     neutral: '🏴'
 };
+const NATION_KING_LINE_USER_IDS_KEY = 'NationKingLineUserIds';
 
 // Firebase Admin SDK 初期化
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -128,6 +129,19 @@ function buildNationDisplayName(baseName, nation) {
     const base = stripNationEmoji(baseName);
     if (!emoji) return base;
     return base ? `${emoji} ${base}` : emoji;
+}
+
+async function getNationKingLineUserIds() {
+    try {
+        const data = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [NATION_KING_LINE_USER_IDS_KEY] });
+        const raw = data?.Data?.[NATION_KING_LINE_USER_IDS_KEY] || '';
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (e) {
+        console.warn('[kingLineUserId] Failed to load TitleData:', e?.errorMessage || e?.message || e);
+        return {};
+    }
 }
 
 async function ensureNationDisplayName(playFabId, nation, preferredBaseName) {
@@ -919,9 +933,15 @@ app.post('/api/set-race', async (req, res) => {
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
-                Keys: ['Nation']
+                Keys: ['Nation', 'lineUserId']
             });
             const prevNation = String(ro?.Data?.Nation?.Value || '').toLowerCase();
+            const lineUserId = String(ro?.Data?.lineUserId?.Value || '').trim();
+            const kingMap = await getNationKingLineUserIds();
+            const expectedKingLineId = String(kingMap?.[assignedGroupName] || '').trim();
+            if (expectedKingLineId) {
+                isKing = lineUserId && lineUserId === expectedKingLineId;
+            }
             if (prevNation && prevNation !== assignedNation) {
                 const prevMapping = nation.getNationMappingByNation(prevNation);
                 if (prevMapping) {
