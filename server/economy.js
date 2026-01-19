@@ -165,13 +165,12 @@ async function ensureDailyBountyConversion(playFabId, deps) {
         PlayFabId: playFabId,
         Keys: [BOUNTY_RESET_DATE_KEY, EXPERIENCE_KEY]
     });
+    const currentExpRaw = readResult?.Data?.[EXPERIENCE_KEY]?.Value;
+    const currentExp = Number(currentExpRaw) || 0;
     const lastKey = readResult?.Data?.[BOUNTY_RESET_DATE_KEY]?.Value || '';
     if (lastKey === todayKey) {
         return { updated: false, exp: currentExp };
     }
-
-    const currentExpRaw = readResult?.Data?.[EXPERIENCE_KEY]?.Value;
-    const currentExp = Number(currentExpRaw) || 0;
     const bountyAmount = await getCurrencyBalance(playFabId, 'BT', deps);
 
     let nextExp = currentExp;
