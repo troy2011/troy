@@ -358,19 +358,32 @@ function initializeEconomyRoutes(app, deps) {
                 let bountyAdded = false;
                 let receiverNewBounty = null;
                 let payerNewBounty = null;
+                let bountyTransferred = 0;
+                let bountyShortage = false;
                 try {
                     const payerBounty = fromEntityKey
                         ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
                         : await getCurrencyBalance(fromId, 'BT', economyDeps);
                     const bountyTransfer = Math.min(Math.max(0, payerBounty), amountInt);
+                    bountyShortage = payerBounty < amountInt;
                     if (bountyTransfer > 0) {
                         await subtractEconomyItem(fromId, 'BT', bountyTransfer, payerDeps);
-                        await addEconomyItem(toId, 'BT', bountyTransfer, economyDeps);
-                        receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
-                        payerNewBounty = fromEntityKey
-                            ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
-                            : await getCurrencyBalance(fromId, 'BT', economyDeps);
-                        bountyAdded = true;
+                        try {
+                            await addEconomyItem(toId, 'BT', bountyTransfer, economyDeps);
+                            receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
+                            payerNewBounty = fromEntityKey
+                                ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
+                                : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                            bountyAdded = true;
+                            bountyTransferred = bountyTransfer;
+                        } catch (addBountyError) {
+                            console.warn('[transfer-points] Failed to add bounty to receiver:', addBountyError?.errorMessage || addBountyError?.message || addBountyError);
+                            try {
+                                await addEconomyItem(fromId, 'BT', bountyTransfer, payerDeps);
+                            } catch (refundError) {
+                                console.warn('[transfer-points] Failed to refund bounty to payer:', refundError?.errorMessage || refundError?.message || refundError);
+                            }
+                        }
                     }
                 } catch (bountyError) {
                     console.warn('[transfer-points] Failed to sync bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
@@ -431,7 +444,7 @@ function initializeEconomyRoutes(app, deps) {
                         console.warn('[transfer-points] Notification write failed:', notifyError?.message || notifyError);
                     }
                 }
-                res.json({ newBalance: payerNewBalance, bountyAdded });
+                res.json({ newBalance: payerNewBalance, bountyAdded, bountyShortage, bountyTransferred });
             } catch (addError) {
                 console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
                 const addMessage = addError?.errorMessage || addError?.message || '';

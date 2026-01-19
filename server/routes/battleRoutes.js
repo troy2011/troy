@@ -703,9 +703,20 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げ、敗者から同額を減らす ★★★
         await economy.addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
         const bountyTransfer = Math.min(Math.max(0, loserBounty), pointsToSteal);
+        let bountyTransferFailed = false;
         if (bountyTransfer > 0) {
             await economy.subtractEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
-            await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
+            try {
+                await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
+            } catch (bountyAddError) {
+                bountyTransferFailed = true;
+                console.warn('[報酬処理] BT付与に失敗。返金を試みます。', bountyAddError?.errorMessage || bountyAddError?.message || bountyAddError);
+                try {
+                    await economy.addEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
+                } catch (refundError) {
+                    console.warn('[報酬処理] BT返金に失敗。', refundError?.errorMessage || refundError?.message || refundError);
+                }
+            }
         }
 
 
@@ -727,6 +738,16 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const loserNewBalance = loserPs - pointsToSteal;
         const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
         const loserNewBounty = Math.max(0, loserBounty - bountyTransfer);
+        if (bountyTransfer > 0 && bountyTransfer < pointsToSteal) {
+            await battleRef.child('log').update({
+                [Date.now()]: `懸賞金が不足していたため、BTの移動は${bountyTransfer}に抑えられた。`
+            });
+        }
+        if (bountyTransferFailed) {
+            await battleRef.child('log').update({
+                [Date.now()]: `懸賞金の移動に失敗したため、BTは変動しなかった。`
+            });
+        }
 
         // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★
         await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: winnerId, Statistics: [

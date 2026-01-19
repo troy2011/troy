@@ -654,7 +654,10 @@ async function startScanAndPay() {
                     fromEntityKey
                 });
                 if (data) {
-                    document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！`;
+                    const bountyNote = data.bountyShortage
+                        ? '（相手の懸賞金が不足していたため、BTの移動は一部だけ）'
+                        : '';
+                    document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！${bountyNote}`;
                     const amountInput = document.getElementById('transferAmount');
                     if (amountInput) amountInput.value = '0';
                     const transferCard = document.querySelector('.home-transfer-card');
