@@ -123,6 +123,23 @@ async function subtractEconomyItem(playFabId, itemId, amount, deps) {
     return entityKey;
 }
 
+async function transferEconomyItem(fromPlayFabId, toPlayFabId, itemId, amount, deps) {
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId, idempotencyId, givingEntityOverride } = deps;
+    const givingEntity = normalizeEntityKey(givingEntityOverride) || await getEntityKeyForPlayFabId(fromPlayFabId, { getEntityKeyFromPlayFabId });
+    const receivingEntity = await getEntityKeyForPlayFabId(toPlayFabId, { getEntityKeyFromPlayFabId });
+    const resolvedItemId = typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId;
+    const request = {
+        GivingEntity: givingEntity,
+        ReceivingEntity: receivingEntity,
+        GivingItem: { Id: resolvedItemId },
+        ReceivingItem: { Id: resolvedItemId },
+        Amount: Number(amount)
+    };
+    if (idempotencyId) request.IdempotencyId = String(idempotencyId);
+    await promisifyPlayFab(PlayFabEconomy.TransferInventoryItems, request);
+    return { givingEntity, receivingEntity };
+}
+
 async function getCurrencyBalance(playFabId, currencyId, deps) {
     const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCache, catalogCurrencyMap } = deps;
     const entityKey = await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
@@ -354,14 +371,13 @@ function initializeEconomyRoutes(app, deps) {
         try {
             const idempotencyFor = (suffix) => requestId ? `${requestId}:${suffix}` : null;
             const payerDeps = fromEntityKey
-                ? { ...economyDeps, entityKeyOverride: fromEntityKey, idempotencyId: idempotencyFor('ps-sub') }
-                : { ...economyDeps, idempotencyId: idempotencyFor('ps-sub') };
-            await subtractEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, payerDeps);
+                ? { ...economyDeps, givingEntityOverride: fromEntityKey, idempotencyId: idempotencyFor('ps-transfer') }
+                : { ...economyDeps, idempotencyId: idempotencyFor('ps-transfer') };
+            await transferEconomyItem(fromId, toId, VIRTUAL_CURRENCY_CODE, amountInt, payerDeps);
             const payerNewBalance = fromEntityKey
                 ? await getCurrencyBalanceWithEntity(fromEntityKey, VIRTUAL_CURRENCY_CODE, economyDeps)
                 : await getCurrencyBalance(fromId, VIRTUAL_CURRENCY_CODE, economyDeps);
             try {
-                await addEconomyItem(toId, VIRTUAL_CURRENCY_CODE, amountInt, { ...economyDeps, idempotencyId: idempotencyFor('ps-add') });
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
                 let bountyAdded = false;
                 let receiverNewBounty = null;
@@ -375,23 +391,13 @@ function initializeEconomyRoutes(app, deps) {
                     const bountyTransfer = Math.min(Math.max(0, payerBounty), amountInt);
                     bountyShortage = payerBounty < amountInt;
                     if (bountyTransfer > 0) {
-                        await subtractEconomyItem(fromId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-sub') });
-                        try {
-                            await addEconomyItem(toId, 'BT', bountyTransfer, { ...economyDeps, idempotencyId: idempotencyFor('bt-add') });
-                            receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
-                            payerNewBounty = fromEntityKey
-                                ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
-                                : await getCurrencyBalance(fromId, 'BT', economyDeps);
-                            bountyAdded = true;
-                            bountyTransferred = bountyTransfer;
-                        } catch (addBountyError) {
-                            console.warn('[transfer-points] Failed to add bounty to receiver:', addBountyError?.errorMessage || addBountyError?.message || addBountyError);
-                            try {
-                                await addEconomyItem(fromId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-refund') });
-                            } catch (refundError) {
-                                console.warn('[transfer-points] Failed to refund bounty to payer:', refundError?.errorMessage || refundError?.message || refundError);
-                            }
-                        }
+                        await transferEconomyItem(fromId, toId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-transfer') });
+                        receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
+                        payerNewBounty = fromEntityKey
+                            ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
+                            : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                        bountyAdded = true;
+                        bountyTransferred = bountyTransfer;
                     }
                 } catch (bountyError) {
                     console.warn('[transfer-points] Failed to sync bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
@@ -454,14 +460,12 @@ function initializeEconomyRoutes(app, deps) {
                 }
                 res.json({ newBalance: payerNewBalance, bountyAdded, bountyShortage, bountyTransferred });
             } catch (addError) {
-                console.error('送金先への加算失敗:', addError.errorMessage || addError.message || addError);
+                console.error('送金後の処理失敗:', addError.errorMessage || addError.message || addError);
                 const addMessage = addError?.errorMessage || addError?.message || '';
                 if (String(addMessage).includes('EntityKeyNotFound')) {
-                    await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, { ...economyDeps, idempotencyId: requestId ? `${requestId}:ps-refund` : null });
                     return res.status(400).json({ error: '送金先のアカウントが見つかりません。' });
                 }
-                await addEconomyItem(fromId, VIRTUAL_CURRENCY_CODE, amountInt, { ...economyDeps, idempotencyId: requestId ? `${requestId}:ps-refund` : null });
-                res.status(500).json({ error: '送金先への加算に失敗しました。' });
+                res.status(500).json({ error: '送金後の処理に失敗しました。' });
             }
         } catch (subtractError) {
             const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';
@@ -472,7 +476,7 @@ function initializeEconomyRoutes(app, deps) {
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(400).json({ error: 'ポイントが不足しています。' });
             }
-            console.error('送金元からの減算失敗:', subtractError.errorMessage || subtractError.message || subtractError);
+            console.error('送金に失敗:', subtractError.errorMessage || subtractError.message || subtractError);
             res.status(500).json({ error: '送金に失敗しました。', details: subtractError.errorMessage || subtractError.message });
         }
     });
@@ -509,6 +513,7 @@ module.exports = {
     addEconomyItem,
     subtractEconomyItem,
     getCurrencyBalance,
+    transferEconomyItem,
     ensureDailyBountyConversion,
     applyTax,
     initializeEconomyRoutes
