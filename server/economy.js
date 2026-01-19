@@ -146,7 +146,7 @@ async function ensureDailyBountyConversion(playFabId, deps) {
     });
     const lastKey = readResult?.Data?.[BOUNTY_RESET_DATE_KEY]?.Value || '';
     if (lastKey === todayKey) {
-        return { updated: false };
+        return { updated: false, exp: currentExp };
     }
 
     const currentExpRaw = readResult?.Data?.[EXPERIENCE_KEY]?.Value;

@@ -27,9 +27,11 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
+            let experience = 0;
             if (typeof ensureDailyBountyConversion === 'function') {
                 try {
-                    await ensureDailyBountyConversion(playFabId);
+                    const result = await ensureDailyBountyConversion(playFabId);
+                    experience = Number(result?.exp) || 0;
                 } catch (resetError) {
                     console.warn('[bounty-reset] Failed:', resetError?.errorMessage || resetError?.message || resetError);
                 }
@@ -67,7 +69,7 @@ function initializeInventoryRoutes(app, deps) {
                 virtualCurrency
             });
             console.log('[Inventory] fetch complete');
-            res.json({ inventory: inventoryList, virtualCurrency });
+            res.json({ inventory: inventoryList, virtualCurrency, experience });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'インベントリ取得に失敗しました。', details: error.errorMessage || error.message });

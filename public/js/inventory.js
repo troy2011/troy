@@ -14,6 +14,7 @@ import { formatCurrencyLabel } from './config.js';
 let myInventory = [];
 let myCurrentEquipment = {};
 let myVirtualCurrency = {};
+let myExperience = 0;
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 
@@ -43,6 +44,40 @@ function renderResourceSummary() {
     }).join('');
 }
 
+function calculateLevelFromExp(expValue) {
+    const baseExp = 100;
+    let level = 1;
+    let remaining = Math.max(0, Math.floor(Number(expValue) || 0));
+    for (let i = 0; i < 10000; i++) {
+        const rank = Math.floor(level / 10);
+        const needed = baseExp * (2 ** rank);
+        if (remaining < needed) {
+            return { level, expInto: remaining, expNeeded: needed, rank };
+        }
+        remaining -= needed;
+        level += 1;
+    }
+    return { level, expInto: 0, expNeeded: baseExp, rank: Math.floor(level / 10) };
+}
+
+function updateExperienceUI() {
+    const levelEl = document.getElementById('homeExpLevel');
+    const rankEl = document.getElementById('homeExpRank');
+    const progressEl = document.getElementById('homeExpProgress');
+    const neededEl = document.getElementById('homeExpNeeded');
+    const fillEl = document.getElementById('homeExpFill');
+    if (!levelEl || !rankEl || !progressEl || !neededEl || !fillEl) return;
+
+    const data = calculateLevelFromExp(myExperience);
+    const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
+
+    levelEl.textContent = String(data.level);
+    rankEl.textContent = String(data.rank);
+    progressEl.textContent = String(data.expInto);
+    neededEl.textContent = String(data.expNeeded);
+    fillEl.style.width = `${Math.round(ratio * 100)}%`;
+}
+
 export async function getInventory(playFabId) {
     const now = Date.now();
     if (inventoryFetchPromise) return inventoryFetchPromise;
@@ -53,10 +88,12 @@ export async function getInventory(playFabId) {
     if (data) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
+        myExperience = Number(data.experience || 0);
     }
     await getEquipment(playFabId);
     renderInventoryGrid(getActiveInventoryCategory());
     renderResourceSummary();
+    updateExperienceUI();
     lastInventoryFetchAt = Date.now();
     })();
     try {
@@ -72,7 +109,9 @@ export async function refreshResourceSummary(playFabId) {
     const data = await fetchInventory(playFabId);
     if (data) {
         myVirtualCurrency = data.virtualCurrency || {};
+        myExperience = Number(data.experience || 0);
         renderResourceSummary();
+        updateExperienceUI();
         lastInventoryFetchAt = Date.now();
     }
 }
