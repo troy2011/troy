@@ -9,6 +9,7 @@ import {
     transferKing,
     exileKing
 } from './playfabClient.js';
+import { createRequestId } from './api.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 let _isKing = false;
@@ -227,7 +228,8 @@ function _wireHandlers(playFabId) {
             grantBtn.innerText = '処理中...';
             _setMessage('');
             try {
-                const result = await grantPs(playFabId, receiverPlayFabId, nextAmount);
+                const requestId = createRequestId('king-grant');
+                const result = await grantPs(playFabId, receiverPlayFabId, nextAmount, requestId);
                 if (result) {
                     const baseMessage = `付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`;
                     if (result.treasuryUpdated === false) {

@@ -156,8 +156,8 @@ export function setNationGrantMultiplier(playFabId, grantMultiplier, options) {
     return callApiWithLoader('/api/king-set-grant-multiplier', { playFabId, grantMultiplier }, options);
 }
 
-export function grantPs(playFabId, receiverPlayFabId, amount, options) {
-    return callApiWithLoader('/api/king-grant-ps', { playFabId, receiverPlayFabId, amount }, options);
+export function grantPs(playFabId, receiverPlayFabId, amount, requestId, options) {
+    return callApiWithLoader('/api/king-grant-ps', { playFabId, receiverPlayFabId, amount, requestId }, options);
 }
 
 export function getTroyStatus(playFabId, options) {

@@ -4,7 +4,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS, formatCurrencyLabel } from 'config';
-import { callApiWithLoader, promisifyPlayFab, buildApiUrl } from 'api';
+import { callApiWithLoader, promisifyPlayFab, buildApiUrl, createRequestId } from 'api';
 import { showTab, showConfirmationModal } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
@@ -647,11 +647,13 @@ async function startScanAndPay() {
             }
             showConfirmationModal(amount, result.value, receiverName, async () => {
                 const fromEntityKey = window.myPlayFabLoginInfo?.entityKey || null;
+                const requestId = createRequestId('transfer');
                 const data = await callApiWithLoader('/api/transfer-points', {
                     fromId: myPlayFabId,
                     toId: result.value,
                     amount,
-                    fromEntityKey
+                    fromEntityKey,
+                    requestId
                 });
                 if (data) {
                     const bountyNote = data.bountyShortage

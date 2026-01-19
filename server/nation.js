@@ -298,7 +298,7 @@ async function getNationTaxRateBps(nation, firestore, deps) {
     return bps;
 }
 
-async function addNationTreasury(nation, amount, firestore, deps) {
+async function addNationTreasury(nation, amount, firestore, deps, options = {}) {
     const value = Math.max(0, Math.floor(Number(amount) || 0));
     const entityKey = await getNationGroupEntityKey(nation, firestore, deps);
     if (!entityKey) return null;
@@ -306,7 +306,7 @@ async function addNationTreasury(nation, amount, firestore, deps) {
         throw new Error('Missing addEconomyItem dependency');
     }
     if (value > 0) {
-        await deps.addEconomyItem(entityKey.Id, 'PS', value, entityKey);
+        await deps.addEconomyItem(entityKey.Id, 'PS', value, { entityKeyOverride: entityKey, idempotencyId: options.idempotencyId });
     }
     const treasuryPs = await getGroupTreasuryBalance(entityKey.Id, deps);
     return { groupId: entityKey.Id, treasuryPs };
@@ -786,6 +786,7 @@ function initializeNationRoutes(app, deps) {
     // 国王によるPs付与（サーバー実行）
     app.post('/api/king-grant-ps', async (req, res) => {
         const { playFabId, receiverPlayFabId, amount } = req.body || {};
+        const requestId = String(req.body?.requestId || '').trim();
         if (!playFabId || !receiverPlayFabId) {
             return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
         }
@@ -815,8 +816,9 @@ function initializeNationRoutes(app, deps) {
                 });
             }
 
+            const idempotencyFor = (suffix) => requestId ? `${requestId}:${suffix}` : null;
             try {
-                await addEconomyItem(receiverId, 'PS', grantAmount);
+                await addEconomyItem(receiverId, 'PS', grantAmount, { idempotencyId: idempotencyFor('ps-grant') });
             } catch (addError) {
                 const addMessage = addError?.errorMessage || addError?.message || '';
                 if (String(addMessage).includes('EntityKeyNotFound')) {
@@ -828,7 +830,7 @@ function initializeNationRoutes(app, deps) {
             let treasuryUpdated = true;
             let treasuryErrorMessage = '';
             try {
-                await addNationTreasury(context.nation, value, firestore, nationDeps);
+                await addNationTreasury(context.nation, value, firestore, nationDeps, { idempotencyId: idempotencyFor('treasury') });
             } catch (treasuryError) {
                 treasuryUpdated = false;
                 treasuryErrorMessage = treasuryError?.errorMessage || treasuryError?.message || String(treasuryError);

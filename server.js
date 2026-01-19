@@ -472,8 +472,30 @@ function createDependencies() {
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
         getAllInventoryItems: (entityKey) => economy.getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy }),
         getVirtualCurrencyMap: (items) => economy.getVirtualCurrencyMap(items, { catalogCurrencyMap, catalogCache }),
-        addEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.addEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
-        subtractEconomyItem: (playFabId, itemId, amount, entityKeyOverride) => economy.subtractEconomyItem(playFabId, itemId, amount, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId: resolveCatalogItemId }),
+        addEconomyItem: (playFabId, itemId, amount, options) => {
+            const entityKeyOverride = (options && options.Id && options.Type) ? options : options?.entityKeyOverride;
+            const idempotencyId = options?.idempotencyId;
+            return economy.addEconomyItem(playFabId, itemId, amount, {
+                promisifyPlayFab,
+                PlayFabEconomy,
+                getEntityKeyFromPlayFabId,
+                entityKeyOverride,
+                idempotencyId,
+                resolveItemId: resolveCatalogItemId
+            });
+        },
+        subtractEconomyItem: (playFabId, itemId, amount, options) => {
+            const entityKeyOverride = (options && options.Id && options.Type) ? options : options?.entityKeyOverride;
+            const idempotencyId = options?.idempotencyId;
+            return economy.subtractEconomyItem(playFabId, itemId, amount, {
+                promisifyPlayFab,
+                PlayFabEconomy,
+                getEntityKeyFromPlayFabId,
+                entityKeyOverride,
+                idempotencyId,
+                resolveItemId: resolveCatalogItemId
+            });
+        },
         getCurrencyBalance: (playFabId, currencyId) => economy.getCurrencyBalance(playFabId, currencyId, { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, catalogCurrencyMap, catalogCache }),
         applyTax: economy.applyTax,
         // nation関数

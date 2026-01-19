@@ -57,6 +57,13 @@ export function buildApiUrl(endpoint) {
 
 window.buildApiUrl = buildApiUrl;
 
+export function createRequestId(prefix = 'req') {
+    const base = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}-${base}`;
+}
+
 // サーバーAPIを呼び出す内部関数
 async function callPointApi(endpoint, body) {
     // エラーメッセージをクリア
