@@ -700,9 +700,13 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
 
 
-        // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げる ★★★
+        // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げ、敗者から同額を減らす ★★★
         await economy.addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
-        await economy.addEconomyItem(winnerId, 'BT', pointsToSteal, getEconomyDeps());
+        const bountyTransfer = Math.min(Math.max(0, loserBounty), pointsToSteal);
+        if (bountyTransfer > 0) {
+            await economy.subtractEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
+            await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
+        }
 
 
 
@@ -722,13 +726,17 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const winnerNewBalance = getCurrencyBalanceFromItems(winnerInventory, VIRTUAL_CURRENCY_CODE);
         const loserNewBalance = loserPs - pointsToSteal;
         const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
+        const loserNewBounty = Math.max(0, loserBounty - bountyTransfer);
 
         // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★
         await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: winnerId, Statistics: [
             { StatisticName: 'points_ranking', Value: winnerNewBalance },
             { StatisticName: 'bounty_ranking', Value: winnerNewBounty }
         ] });
-        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: loserId, Statistics: [{ StatisticName: 'points_ranking', Value: loserNewBalance }] });
+        await _promisifyPlayFab(_PlayFabServer.UpdatePlayerStatistics, { PlayFabId: loserId, Statistics: [
+            { StatisticName: 'points_ranking', Value: loserNewBalance },
+            { StatisticName: 'bounty_ranking', Value: loserNewBounty }
+        ] });
         console.log('[報酬処理] 両者のランキングスコアを更新しました。');
     }
 }

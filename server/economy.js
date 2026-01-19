@@ -357,12 +357,23 @@ function initializeEconomyRoutes(app, deps) {
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
                 let bountyAdded = false;
                 let receiverNewBounty = null;
+                let payerNewBounty = null;
                 try {
-                    await addEconomyItem(toId, 'BT', amountInt, economyDeps);
-                    receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
-                    bountyAdded = true;
+                    const payerBounty = fromEntityKey
+                        ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
+                        : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                    const bountyTransfer = Math.min(Math.max(0, payerBounty), amountInt);
+                    if (bountyTransfer > 0) {
+                        await subtractEconomyItem(fromId, 'BT', bountyTransfer, payerDeps);
+                        await addEconomyItem(toId, 'BT', bountyTransfer, economyDeps);
+                        receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
+                        payerNewBounty = fromEntityKey
+                            ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
+                            : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                        bountyAdded = true;
+                    }
                 } catch (bountyError) {
-                    console.warn('[transfer-points] Failed to add bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
+                    console.warn('[transfer-points] Failed to sync bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
                 }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: fromId,
@@ -376,6 +387,12 @@ function initializeEconomyRoutes(app, deps) {
                     PlayFabId: toId,
                     Statistics: receiverStats
                 });
+                if (bountyAdded && payerNewBounty !== null) {
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: fromId,
+                        Statistics: [{ StatisticName: 'bounty_ranking', Value: payerNewBounty }]
+                    });
+                }
                 try {
                     const getDisplayName = async (id) => {
                         try {
