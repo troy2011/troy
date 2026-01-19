@@ -128,6 +128,11 @@ function getTroyRoomDoc(firestore, groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
 }
 
+function buildGuildAreaKey(mapId) {
+    const raw = String(mapId || '').trim();
+    return raw ? `GuildAreas_${raw}` : '';
+}
+
 async function getPlayerDisplayName(playFabId, deps) {
     const { promisifyPlayFab, PlayFabServer } = deps;
     try {
@@ -1009,13 +1014,21 @@ function initializeNationRoutes(app, deps) {
 
     // ギルドエリア取得
     app.post('/api/get-guild-areas', async (req, res) => {
-        const { guildId } = req.body || {};
-        if (!guildId) return res.json({ success: true, areas: [] });
+        const { guildId, mapId } = req.body || {};
+        if (!guildId || !mapId) return res.json({ success: true, areas: [] });
         try {
-            const snapshot = await firestore.collection('guild_areas')
-                .where('guildId', '==', guildId)
-                .get();
-            const areas = snapshot.docs.map((doc) => doc.data());
+            const key = buildGuildAreaKey(mapId);
+            if (!key) return res.json({ success: true, areas: [] });
+            const raw = await getGroupDataValue(guildId, key);
+            let areas = [];
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    areas = Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    console.warn('[GetGuildAreas] Failed to parse group data:', e?.message || e);
+                }
+            }
             res.json({ success: true, areas });
         } catch (error) {
             console.error('[GetGuildAreas] Error:', error?.message || error);
@@ -1025,19 +1038,31 @@ function initializeNationRoutes(app, deps) {
 
     // ギルドエリア占領
     app.post('/api/capture-guild-area', async (req, res) => {
-        const { guildId, gx, gy } = req.body || {};
-        if (!guildId || !Number.isFinite(Number(gx)) || !Number.isFinite(Number(gy))) {
-            return res.status(400).json({ error: 'guildId, gx, gy are required' });
+        const { guildId, mapId, gx, gy } = req.body || {};
+        if (!guildId || !mapId || !Number.isFinite(Number(gx)) || !Number.isFinite(Number(gy))) {
+            return res.status(400).json({ error: 'guildId, mapId, gx, gy are required' });
         }
         try {
-            const key = `${guildId}_${gx}_${gy}`;
-            await firestore.collection('guild_areas').doc(key).set({
-                guildId,
-                gx: Number(gx),
-                gy: Number(gy),
-                occupiedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            res.json({ success: true });
+            const key = buildGuildAreaKey(mapId);
+            if (!key) return res.status(400).json({ error: 'Invalid mapId' });
+            const raw = await getGroupDataValue(guildId, key);
+            let areas = [];
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    areas = Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    console.warn('[CaptureGuildArea] Failed to parse group data:', e?.message || e);
+                }
+            }
+            const gxValue = Number(gx);
+            const gyValue = Number(gy);
+            const exists = areas.some((entry) => Number(entry?.gx) === gxValue && Number(entry?.gy) === gyValue);
+            if (!exists) {
+                areas.push({ gx: gxValue, gy: gyValue, occupiedAt: Date.now() });
+                await setGroupDataValues(guildId, { [key]: JSON.stringify(areas) });
+            }
+            res.json({ success: true, alreadyOwned: exists });
         } catch (error) {
             console.error('[CaptureGuildArea] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to capture guild area' });

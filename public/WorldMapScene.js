@@ -1198,7 +1198,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/get-guild-areas') : '/api/get-guild-areas'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ guildId })
+                body: JSON.stringify({ guildId, mapId: this.mapId })
             });
             if (!res.ok) return;
             const data = await res.json();
@@ -1247,7 +1247,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/capture-guild-area') : '/api/capture-guild-area'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ guildId: this.getMyGuildId(), gx, gy })
+                body: JSON.stringify({ guildId: this.getMyGuildId(), mapId: this.mapId, gx, gy })
             });
             if (res.ok) {
                 this.guildAreas.add(cell.key);
