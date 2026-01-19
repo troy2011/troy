@@ -128,9 +128,43 @@ function getTroyRoomDoc(firestore, groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
 }
 
-function buildGuildAreaKey(mapId) {
-    const raw = String(mapId || '').trim();
-    return raw ? `GuildAreas_${raw}` : '';
+const MAP_OCCUPATION_KEY = 'MapOccupationByMapId';
+
+async function getMapOccupationMap(deps) {
+    const { promisifyPlayFab, PlayFabAdmin } = deps;
+    const result = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [MAP_OCCUPATION_KEY] });
+    const raw = result?.Data?.[MAP_OCCUPATION_KEY] || '';
+    if (!raw) return {};
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+async function getMapOccupationNation(mapId, deps) {
+    const key = String(mapId || '').trim();
+    if (!key) return null;
+    const map = await getMapOccupationMap(deps);
+    const value = map?.[key];
+    return value ? String(value).toLowerCase() : null;
+}
+
+async function setMapOccupationNation(mapId, nation, deps) {
+    const key = String(mapId || '').trim();
+    if (!key) return null;
+    const map = await getMapOccupationMap(deps);
+    if (nation) {
+        map[key] = String(nation).toLowerCase();
+    } else {
+        delete map[key];
+    }
+    await deps.promisifyPlayFab(deps.PlayFabAdmin.SetTitleData, {
+        Key: MAP_OCCUPATION_KEY,
+        Value: JSON.stringify(map)
+    });
+    return map[key] || null;
 }
 
 async function getPlayerDisplayName(playFabId, deps) {
@@ -1012,60 +1046,16 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // ギルドエリア取得
-    app.post('/api/get-guild-areas', async (req, res) => {
-        const { guildId, mapId } = req.body || {};
-        if (!guildId || !mapId) return res.json({ success: true, areas: [] });
+    // マップ占領状態取得
+    app.post('/api/get-map-occupation', async (req, res) => {
+        const { mapId } = req.body || {};
+        if (!mapId) return res.status(400).json({ error: 'mapId is required' });
         try {
-            const key = buildGuildAreaKey(mapId);
-            if (!key) return res.json({ success: true, areas: [] });
-            const raw = await getGroupDataValue(guildId, key);
-            let areas = [];
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    areas = Array.isArray(parsed) ? parsed : [];
-                } catch (e) {
-                    console.warn('[GetGuildAreas] Failed to parse group data:', e?.message || e);
-                }
-            }
-            res.json({ success: true, areas });
+            const nation = await getMapOccupationNation(mapId, { promisifyPlayFab, PlayFabAdmin });
+            res.json({ mapId, nation: nation || null });
         } catch (error) {
-            console.error('[GetGuildAreas] Error:', error?.message || error);
-            res.status(500).json({ error: 'Failed to get guild areas' });
-        }
-    });
-
-    // ギルドエリア占領
-    app.post('/api/capture-guild-area', async (req, res) => {
-        const { guildId, mapId, gx, gy } = req.body || {};
-        if (!guildId || !mapId || !Number.isFinite(Number(gx)) || !Number.isFinite(Number(gy))) {
-            return res.status(400).json({ error: 'guildId, mapId, gx, gy are required' });
-        }
-        try {
-            const key = buildGuildAreaKey(mapId);
-            if (!key) return res.status(400).json({ error: 'Invalid mapId' });
-            const raw = await getGroupDataValue(guildId, key);
-            let areas = [];
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    areas = Array.isArray(parsed) ? parsed : [];
-                } catch (e) {
-                    console.warn('[CaptureGuildArea] Failed to parse group data:', e?.message || e);
-                }
-            }
-            const gxValue = Number(gx);
-            const gyValue = Number(gy);
-            const exists = areas.some((entry) => Number(entry?.gx) === gxValue && Number(entry?.gy) === gyValue);
-            if (!exists) {
-                areas.push({ gx: gxValue, gy: gyValue, occupiedAt: Date.now() });
-                await setGroupDataValues(guildId, { [key]: JSON.stringify(areas) });
-            }
-            res.json({ success: true, alreadyOwned: exists });
-        } catch (error) {
-            console.error('[CaptureGuildArea] Error:', error?.message || error);
-            res.status(500).json({ error: 'Failed to capture guild area' });
+            console.error('[GetMapOccupation] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get map occupation' });
         }
     });
 
@@ -1093,6 +1083,8 @@ module.exports = {
     getNationTaxRateBps,
     addNationTreasury,
     getNationTreasuryRanking,
+    getMapOccupationNation,
+    setMapOccupationNation,
     getPlayerEntity,
     initializeNationRoutes
 };

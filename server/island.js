@@ -24,6 +24,24 @@ const RESOURCE_BIOME_CURRENCY = {
 };
 const OWNED_MAP_IDS_KEY = 'OwnedMapIds';
 
+function getCentralIslandIdForMap(mapId) {
+    const key = String(mapId || '').toLowerCase();
+    if (!key) return null;
+    if (key.startsWith('major_')) return key;
+    switch (key) {
+        case 'wands':
+            return 'capital_fire';
+        case 'pentacles':
+            return 'capital_earth';
+        case 'swords':
+            return 'capital_wind';
+        case 'cups':
+            return 'capital_water';
+        default:
+            return null;
+    }
+}
+
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
     const type = input?.Type || input?.type || null;
@@ -293,9 +311,61 @@ async function getActiveShipCargoCapacity(playFabId, deps) {
 
 // APIルートを初期化
 function initializeIslandRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, firestore, admin, addEconomyItem, subtractEconomyItem, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, getNationTaxRateBps, applyTax, addNationTreasury, NATION_GROUP_BY_RACE, catalogCache } = deps;
+    const { promisifyPlayFab, PlayFabServer, firestore, admin, addEconomyItem, subtractEconomyItem, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, NATION_GROUP_BY_RACE, catalogCache } = deps;
 
     const islandDeps = { promisifyPlayFab, PlayFabServer, admin };
+
+    // 島占領
+    app.post('/api/claim-island', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const nationRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['Nation']
+            });
+            const playerNation = String(nationRo?.Data?.Nation?.Value || '').toLowerCase();
+
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const result = await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!snap.exists) throw new Error('IslandNotFound');
+                const data = snap.data() || {};
+                if (data.ownerId === playFabId) {
+                    return { island: data, changed: false };
+                }
+                const patch = {
+                    ownerId: playFabId,
+                    ownerNation: playerNation || null,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                };
+                tx.update(ref, patch);
+                return { island: { ...data, ...patch }, changed: true };
+            });
+
+            let mapOccupationNation = null;
+            const centralId = getCentralIslandIdForMap(mapId);
+            if (centralId && centralId === islandId && typeof setMapOccupationNation === 'function') {
+                mapOccupationNation = await setMapOccupationNation(mapId, playerNation || null);
+            }
+
+            res.json({
+                success: true,
+                islandId,
+                mapId,
+                ownerId: playFabId,
+                ownerNation: playerNation || null,
+                mapOccupationNation: mapOccupationNation || null
+            });
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            console.error('[ClaimIsland] Error:', error);
+            res.status(500).json({ error: 'Failed to claim island', details: msg });
+        }
+    });
 
     // 所有島一覧
     app.post('/api/get-owned-islands', async (req, res) => {

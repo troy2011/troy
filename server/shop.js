@@ -25,9 +25,27 @@ function normalizeEntityKey(input) {
     return { Id: String(id), Type: String(type) };
 }
 
+function getCentralIslandIdForMap(mapId) {
+    const key = String(mapId || '').toLowerCase();
+    if (!key) return null;
+    if (key.startsWith('major_')) return key;
+    switch (key) {
+        case 'wands':
+            return 'capital_fire';
+        case 'pentacles':
+            return 'capital_earth';
+        case 'swords':
+            return 'capital_wind';
+        case 'cups':
+            return 'capital_water';
+        default:
+            return null;
+    }
+}
+
 // APIルートを初期化
 function initializeShopRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
+    const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
 
     // ショップ状態取得
     app.post('/api/get-shop-state', async (req, res) => {
@@ -429,6 +447,15 @@ function initializeShopRoutes(app, deps) {
                 await addOwnedMapId(playFabId, mapId, { promisifyPlayFab, PlayFabServer });
             } catch (e) {
                 console.warn('[StartBuildingConstruction] Failed to update OwnedMapIds:', e?.errorMessage || e?.message || e);
+            }
+
+            try {
+                const centralId = getCentralIslandIdForMap(mapId);
+                if (centralId && centralId === islandId && typeof setMapOccupationNation === 'function') {
+                    await setMapOccupationNation(mapId, playerNation || null);
+                }
+            } catch (e) {
+                console.warn('[StartBuildingConstruction] Failed to update map occupation:', e?.errorMessage || e?.message || e);
             }
 
             res.json({
