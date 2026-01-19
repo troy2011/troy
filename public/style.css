@@ -246,17 +246,15 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 .home-exp-card {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+    position: static;
     margin-bottom: 0;
-    width: min(220px, 46vw);
+    width: min(220px, 100%);
     padding: 10px 12px;
     border-radius: 12px;
     background: linear-gradient(180deg, rgba(10, 16, 26, 0.92), rgba(16, 24, 36, 0.96));
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    text-align: right;
+    text-align: center;
 }
 
 .home-exp-header {
@@ -290,7 +288,7 @@ body[data-sea-tone="night"] .home-hero-card {
     margin-top: 6px;
     font-size: 12px;
     color: var(--text-sub);
-    text-align: right;
+    text-align: center;
 }
 
 .home-ps-lamp {
@@ -1337,11 +1335,12 @@ body[data-sea-tone="night"] .home-hero-card {
 .home-ship-stage {
     position: relative;
     width: 260px;
-    height: 200px;
     margin: 0 auto 12px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     border-radius: 14px;
     background: transparent;
     box-shadow: none;
@@ -1351,7 +1350,7 @@ body[data-sea-tone="night"] .home-hero-card {
 .home-ship-bob {
     position: relative;
     width: 100%;
-    height: 100%;
+    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
