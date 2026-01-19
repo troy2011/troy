@@ -71,18 +71,16 @@ function getRankName(level, isKing) {
 }
 
 function updateExperienceUI() {
-    const levelEl = document.getElementById('homeExpLevel');
     const rankEl = document.getElementById('homeExpRank');
     const progressEl = document.getElementById('homeExpProgress');
     const neededEl = document.getElementById('homeExpNeeded');
     const fillEl = document.getElementById('homeExpFill');
-    if (!levelEl || !rankEl || !progressEl || !neededEl || !fillEl) return;
+    if (!rankEl || !progressEl || !neededEl || !fillEl) return;
 
     const data = calculateLevelFromExp(myExperience);
     const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
     const rankName = getRankName(data.level, isKingFlag());
 
-    levelEl.textContent = String(data.level);
     rankEl.textContent = rankName;
     progressEl.textContent = String(data.expInto);
     neededEl.textContent = String(data.expNeeded);

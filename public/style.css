@@ -246,6 +246,9 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 .home-exp-card {
+    position: absolute;
+    top: 12px;
+    right: 12px;
     margin-bottom: 0;
     width: min(220px, 46vw);
     padding: 10px 12px;
@@ -262,12 +265,6 @@ body[data-sea-tone="night"] .home-hero-card {
     align-items: center;
     font-weight: 700;
     margin-bottom: 6px;
-}
-
-.home-exp-level {
-    font-size: 15px;
-    color: #f8e7c1;
-    letter-spacing: 0.02em;
 }
 
 .home-exp-rank {
