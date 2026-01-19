@@ -121,16 +121,10 @@ function getWorldMapCollection(firestore, mapId) {
 }
 
 async function findIslandDocAcrossMaps(firestore, islandId, mapIds = null) {
-    let mapCollections = [];
-    if (Array.isArray(mapIds) && mapIds.length > 0) {
-        mapCollections = mapIds.map((mapId) => getWorldMapCollection(firestore, mapId));
-    } else {
-        const collections = await firestore.listCollections();
-        mapCollections = collections.filter((col) => {
-            const id = String(col.id || '');
-            return id === 'world_map' || id.startsWith('world_map_');
-        });
+    if (!Array.isArray(mapIds) || mapIds.length === 0) {
+        return { snap: null, mapId: null, collection: null };
     }
+    const mapCollections = mapIds.map((mapId) => getWorldMapCollection(firestore, mapId));
 
     for (const col of mapCollections) {
         const snap = await col.doc(islandId).get();
@@ -148,11 +142,7 @@ async function resolveOwnedMapIds(firestore, playFabId, deps) {
         const owned = await getOwnedMapIds(playFabId, deps);
         if (owned.length > 0) return owned;
     }
-    const collections = await firestore.listCollections();
-    const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-    return mapCollections
-        .map((col) => col.id === 'world_map' ? null : col.id.slice('world_map_'.length))
-        .filter(Boolean);
+    return [];
 }
 
 function worldToLatLng(point) {
@@ -332,6 +322,9 @@ function initializeIslandRoutes(app, deps) {
                 });
             } else {
                 const ownedMapIds = await getOwnedMapIds(playFabId, { promisifyPlayFab, PlayFabServer });
+                if (ownedMapIds.length === 0) {
+                    return res.json({ islands });
+                }
                 for (const ownedMapId of ownedMapIds) {
                     const col = getWorldMapCollection(firestore, ownedMapId);
                     const snapshot = await col.where('ownerId', '==', playFabId).get();
@@ -377,7 +370,7 @@ function initializeIslandRoutes(app, deps) {
                 const found = await findIslandDocAcrossMaps(firestore, islandId, ownedMapIds);
                 snap = found.snap;
             }
-            if (!snap.exists) return res.status(404).json({ error: 'Island not found' });
+            if (!snap || !snap.exists) return res.status(404).json({ error: 'Island not found' });
 
             const data = snap.data() || {};
             const biomeInfo = null;
