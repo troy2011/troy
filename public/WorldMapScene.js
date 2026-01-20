@@ -2423,7 +2423,8 @@ export default class WorldMapScene extends Phaser.Scene {
                     defenderFacing,
                     attackerPos,
                     defenderPos,
-                    damage: 5
+                    damage: 5,
+                    mapId: this.mapId || null
                 })
             });
             const data = await res.json();
