@@ -1762,7 +1762,7 @@ body[data-sea-tone="night"] .home-hero-card {
     gap: 8px;
 }
 
-.troy-menu-items li {
+.troy-menu-items > li {
     padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1770,4 +1770,26 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 12px;
     font-weight: 700;
     color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.troy-menu-subitems {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.troy-menu-subitems li {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 11px;
+    font-weight: 600;
+    color: #cbd5f5;
 }
