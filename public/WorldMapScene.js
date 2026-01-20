@@ -5,7 +5,7 @@ import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
 
 // ========================================
-// 螳壽焚螳夂ｾｩ
+// 定数定義
 // ========================================
 
 const GAME_CONFIG = {
@@ -19,11 +19,13 @@ const GAME_CONFIG = {
     SHIP_ACTION_COOLDOWN_MS: 5 * 60 * 1000,
     SHIP_ACTION_DURATION_MS: 3000,
 
-    // UI險ｭ螳・    MESSAGE_DISPLAY_DURATION: 2000,
+    // UI設定
+    MESSAGE_DISPLAY_DURATION: 2000,
     MINIMAP_SIZE: 100,
     MINIMAP_PADDING: 0,
 
-    // Firestore譖ｴ譁ｰ險ｭ螳・    SHIP_QUERY_UPDATE_INTERVAL: 4000,
+    // Firestore更新設定
+    SHIP_QUERY_UPDATE_INTERVAL: 4000,
     SHIP_QUERY_REFRESH_THRESHOLD: 0.75,
 
     CONSTRUCTION_BOUNCE_DURATION: 1000,
@@ -227,7 +229,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.mapOccupationNation = null;
         this.isInOwnedArea = true;
 
-        // Firestore鬮｢・｢鬨ｾ・｣
+        // Firestore髢｢騾｣
         this.firestore = null;
         this.otherShips = new Map();
         this.shipsUnsubscribe = null;
@@ -276,7 +278,7 @@ export default class WorldMapScene extends Phaser.Scene {
         console.log('[WorldMapScene] init called with data:', data);
         console.log('[WorldMapScene] window.__phaserPlayerInfo:', window.__phaserPlayerInfo);
 
-        // 繧ｷ繝ｼ繝ｳ蜀榊茜逕ｨ譎ゅ↓蜑榊屓縺ｮ迥ｶ諷九ｒ繧ｯ繝ｪ繝ｼ繝ｳ繧｢繝・・
+        // シーン再利用時に前回の状態をクリーンアップ
         this.cleanupPreviousState();
 
         if (data && data.playFabId) {
@@ -293,7 +295,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     cleanupPreviousState() {
-        // Firestore繧ｵ繝悶せ繧ｯ繝ｪ繝励す繝ｧ繝ｳ繧定ｧ｣髯､
+        // Firestoreサブスクリプションを解除
         if (this.shipsUnsubscribe) {
             this.shipsUnsubscribe();
             this.shipsUnsubscribe = null;
@@ -341,7 +343,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipBattleSmokeTimers.clear();
         }
 
-        // 莉悶・闊ｹ縺ｮ繧ｹ繝励Λ繧､繝医ｒ遐ｴ譽・        if (this.otherShips && this.otherShips.size > 0) {
+        // 他の船のスプライトを破棄
+        if (this.otherShips && this.otherShips.size > 0) {
             this.otherShips.forEach((shipObject) => {
                 this.destroyShipHpBar(shipObject?.sprite);
                 shipObject.sprite?.destroy?.();
@@ -349,7 +352,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.otherShips.clear();
         }
 
-        // 蟲ｶ繧ｪ繝悶ず繧ｧ繧ｯ繝医・繧ｹ繝励Λ繧､繝医ｒ遐ｴ譽・        if (this.islandObjects && this.islandObjects.size > 0) {
+        // 島オブジェクトのスプライトを破棄
+        if (this.islandObjects && this.islandObjects.size > 0) {
             this.islandObjects.forEach((islandData) => {
                 if (islandData.sprites) {
                     islandData.sprites.forEach(sprite => sprite?.destroy?.());
@@ -364,7 +368,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.islandObjects.clear();
         }
 
-        // 蟒ｺ險ｭ繝ｻ遐ｴ螢翫せ繝励Λ繧､繝医ｒ遐ｴ譽・        if (this.constructionSprites && this.constructionSprites.length > 0) {
+        // 建設・破壊スプライトを破棄
+        if (this.constructionSprites && this.constructionSprites.length > 0) {
             this.constructionSprites.forEach(sprite => sprite?.destroy?.());
             this.constructionSprites = [];
         }
@@ -373,7 +378,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.demolishedSprites = [];
         }
 
-        // 迥ｶ諷句､画焚繧偵Μ繧ｻ繝・ヨ
+        // 状態変数をリセット
         this.shipTween = null;
         this.canMove = true;
         this.shipMoving = false;
@@ -536,7 +541,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.hideCommandMenu();
             }
             if (!this.isPointerInsideVisionArea(pointer)) {
-                this.showMessage('隕也阜縺ｮ螟悶・遘ｻ蜍輔〒縺阪∪縺帙ｓ縲・);
+                this.showMessage('視界の外は移動できません。');
                 return;
             }
             const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -544,8 +549,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.moveShipTo(worldPoint.x, worldPoint.y, null);
         });
 
-        // 闕ｳ繝ｻ0-2 陝ｾ・ｦ闕ｳ繝ｻ3-5 / 陝ｾ・ｦ:32-34 陷ｿ・ｳ闕ｳ繝ｻ35-37 / 陷ｿ・ｳ:64-66 陝ｾ・ｦ闕ｳ繝ｻ67-69 / 闕ｳ繝ｻ96-98 陷ｿ・ｳ闕ｳ繝ｻ99-101
-        this.shipSpriteBaseFrame = 0; // 陝ｾ・ｦ闕ｳ鄙ｫ繝ｻ郢晢ｽｼ郢晏現繝ｻ鬮｢蜿･・ｧ荵昴Ψ郢晢ｽｬ郢晢ｽｼ郢晢｣ｰ繝ｻ莠･・ｷ・ｦ闕ｳ鄙ｫ繝ｻ郢晢ｽｼ郢昴・0繝ｻ繝ｻ
+        // 荳・0-2 蟾ｦ荳・3-5 / 蟾ｦ:32-34 蜿ｳ荳・35-37 / 蜿ｳ:64-66 蟾ｦ荳・67-69 / 荳・96-98 蜿ｳ荳・99-101
+        this.shipSpriteBaseFrame = 0; // 蟾ｦ荳翫・繝ｼ繝医・髢句ｧ九ヵ繝ｬ繝ｼ繝・亥ｷｦ荳翫・繝ｼ繝・0・・
         const sheetCols = 32;
         const baseFrame = this.shipSpriteBaseFrame;
         const baseRow = Math.floor(baseFrame / sheetCols);
@@ -579,7 +584,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.navDistanceText.setDepth(GAME_CONFIG.DEPTH.SHIP + 1);
         this.navDistanceText.setVisible(false);
 
-        // shipTypeKey 縺後∪縺隗｣豎ｺ縺ｧ縺阪※縺・↑縺・俣繧ゅ∵怙菴朱剞繧｢繝九Γ繝ｼ繧ｷ繝ｧ繝ｳ縺ｧ縺阪ｋ繧医≧縺ｫ繝・ヵ繧ｩ繝ｫ繝医ｒ逕ｨ諢・        {
+        // shipTypeKey がまだ解決できていない間も、最低限アニメーションできるようにデフォルトを用意
+        {
             const sheetKey = this.playerShip.texture?.key || 'ship_sprite';
             const defaultShipTypeKey = `_default__${sheetKey}__bf0`;
             this.generateShipAnims(0, defaultShipTypeKey);
@@ -613,7 +619,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.positionText.setDepth(GAME_CONFIG.DEPTH.FOG + 1);
         this.cameras.main.ignore(this.positionText);
         
-        // 6. 繝｡繝・そ繝ｼ繧ｸUI・・howMessage / showError 逕ｨ・・        this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
+        // 6. メッセージUI（showMessage / showError 用）
+        this.messageText = this.add.text(this.cameras.main.width / 2, 18, '', {
             fontSize: '16px',
             fill: '#ffffff',
             backgroundColor: '#000000',
@@ -691,16 +698,18 @@ export default class WorldMapScene extends Phaser.Scene {
             window.addEventListener('ship:active-changed', this.onActiveShipChanged);
         }
 
-        // 8. GuildShips.png 縺ｮ險ｭ螳夲ｼ・8x48 / cols=21・・        this.guildShipSheetCols = 21;
+        // 8. GuildShips.png の設定（48x48 / cols=21）
+        this.guildShipSheetCols = 21;
         this.guildShipColorOffsets = { white: 0, red: 3, blue: 6, yellow: 9, green: 12 };
 
-        // 9. Firestore 縺九ｉ蟲ｶ繝・・繧ｿ繧定ｪｭ縺ｿ霎ｼ繧・・orld_map・・        try {
+        // 9. Firestore から島データを読み込む（world_map）
+        try {
             const db = getFirestore();
             const querySnapshot = await getDocs(collection(db, this.getWorldMapCollectionName()));
 
             if (querySnapshot.empty) {
                 console.warn('[WorldMapScene] No islands found in Firestore');
-                this.showError('蟲ｶ繝・・繧ｿ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ縺ｧ縺励◆縲・);
+                this.showError('島データが見つかりませんでした。');
             }
 
             let loadedCount = 0;
@@ -718,7 +727,7 @@ export default class WorldMapScene extends Phaser.Scene {
                             id: docSnapshot.id,
                             x: data.coordinate.x * this.gridSize,
                             y: data.coordinate.y * this.gridSize,
-                            name: data.name || '髫懷ｮｳ迚ｩ',
+                            name: data.name || '障害物',
                             width: data.width || 1,
                             height: data.height || 1,
                             visualWidth: data.visualWidth || data.width || 1,
@@ -733,7 +742,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         id: docSnapshot.id,
                         x: data.coordinate.x * this.gridSize,
                         y: data.coordinate.y * this.gridSize,
-                        name: data.name || '蜷咲ｧｰ譛ｪ險ｭ螳・,
+                        name: data.name || '名称未設定',
                         size: data.size || 'small',
                         ownerNation: data.ownerNation || data.ownerRace,
                         ownerId: data.ownerId,
@@ -753,12 +762,14 @@ export default class WorldMapScene extends Phaser.Scene {
             console.log(`[WorldMapScene] Successfully loaded ${loadedCount} islands`);
         } catch (error) {
             console.error('[WorldMapScene] Error fetching island data from Firestore:', error);
-            this.showError('繝槭ャ繝励ョ繝ｼ繧ｿ縺ｮ隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆縲・\n譎る俣繧偵♀縺・※蜀榊ｺｦ縺願ｩｦ縺励￥縺縺輔＞縲・);
+            this.showError('マップデータの読み込みに失敗しました。\\n時間をおいて再度お試しください。');
         }
 
-        // 10. 繝溘ル繝槭ャ繝・        this.createMinimap();
+        // 10. ミニマップ
+        this.createMinimap();
 
-        // 11. Firestore 蛻晄悄蛹厄ｼ・hips蜷梧悄縺ｪ縺ｩ・・        await this.initializeFirestore();
+        // 11. Firestore 初期化（ships同期など）
+        await this.initializeFirestore();
 
         // UI camera should only render fog + minimap.
         if (this.uiCamera) {
@@ -917,7 +928,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
         const cellPx = minimapSize / gridCells;
 
-        // 郢晄ｺ倥Ν郢晄ｧｭ繝｣郢晏干繝ｻ髢ｭ譴ｧ蜍ｹ繝ｻ莠･謇ｿ闕ｳ鄙ｫ竊馴ｩ溷調・ｽ・ｮ繝ｻ繝ｻ
+        // 繝溘ル繝槭ャ繝励・閭梧勹・亥承荳翫↓驟咲ｽｮ・・
         const minimapX = (this.scale?.width || this.cameras.main.width) - minimapSize - minimapPadding;
         const minimapY = minimapPadding;
 
@@ -929,7 +940,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.minimapGraphics.fillStyle(0x000000, 0.7);
         this.minimapGraphics.fillRect(minimapX, minimapY, minimapSize, minimapSize);
 
-        // 郢晄ｺ倥Ν郢晄ｧｭ繝｣郢晏干繝ｻ隴ｫ・ｰ驍ｱ繝ｻ
+        // 繝溘ル繝槭ャ繝励・譫邱・
         this.minimapGraphics.lineStyle(2, 0xffffff, 1);
         this.minimapGraphics.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
         this.minimapGraphics.lineStyle(1, 0xffffff, 0.35);
@@ -1323,7 +1334,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const lw = Math.max(1, Number(logicWidth) || 1);
             const vw = Math.max(1, Number(visualWidth) || lw);
             const deltaX = Math.max(0, vw - lw);
-            const leftOverflowX = Math.floor(deltaX / 2); // 蛛ｶ謨ｰ:蟾ｦ蜿ｳ蜷後§ / 螂・焚:蜿ｳ縺・1
+            const leftOverflowX = Math.floor(deltaX / 2); // 偶数:左右同じ / 奇数:右が+1
             return slotX - leftOverflowX;
         };
 
@@ -1349,7 +1360,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 let slotX = building.x;
                 let slotY = building.y;
                 if ((slotX == null || slotY == null) && typeof building.slotIndex === 'number') {
-                    // slotIndex 縺ｯ縲悟ｷｦ荳・0縲阪・繧､繝ｳ繝・ャ繧ｯ繧ｹ縺ｨ縺吶ｋ・・ottom-left indexing・・                    // slotGrid 縺ｯ荳翫′ 0 陦檎岼縺ｪ縺ｮ縺ｧ縲∝ｻｺ迚ｩ縺ｮ隲也炊繧ｵ繧､繧ｺ(bHeight)縺ｶ繧謎ｸ翫↓莨ｸ縺ｳ繧九ｈ縺・top-left 陦後∈螟画鋤縺吶ｋ縲・                    const index = building.slotIndex;
+                    // slotIndex は「左下=0」のインデックスとする（bottom-left indexing）
+                    // slotGrid は上が 0 行目なので、建物の論理サイズ(bHeight)ぶん上に伸びるよう top-left 行へ変換する。
+                    const index = building.slotIndex;
                     slotX = index % slotGridWidth;
                     const bottomRowFromTop = (slotGridHeight - 1) - Math.floor(index / slotGridWidth);
                     slotY = bottomRowFromTop - (bHeight - 1);
@@ -1451,9 +1464,9 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.ignoreOnUiCamera(hpBar);
                     buildingSprites.push(hpBar);
 
-                    // 繧｢繧､繧ｳ繝ｳ驥阪・謠冗判縺ｯ蟒・ｭ｢
+                    // アイコン重ね描画は廃止
                 } else {
-                    console.warn(`蟒ｺ迚ｩ縺ｮ驟咲ｽｮ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: 蟲ｶ縲・{data.name}縲阪・繧ｹ繝ｭ繝・ヨ(${slotX}, ${slotY})縺ｫ縺ｯ驟咲ｽｮ縺ｧ縺阪∪縺帙ｓ縲Ａ);
+                    console.warn(`建物の配置に失敗しました: 島「${data.name}」のスロット(${slotX}, ${slotY})には配置できません。`);
                 }
             });
         }
@@ -1474,7 +1487,7 @@ export default class WorldMapScene extends Phaser.Scene {
         interactiveZone.setDepth(GAME_CONFIG.DEPTH.INTERACTIVE_ZONE);
         interactiveZone.setInteractive();
         interactiveZone.on('pointerup', async () => {
-            console.log(`[Island] 蟲ｶ繧ｯ繝ｪ繝・け: ${data.name}`);
+            console.log(`[Island] 島クリック: ${data.name}`);
 
             if (this.collidingIsland && this.collidingIsland.id === islandData.id) {
                 const tutorial = (typeof window !== 'undefined') ? window.__tutorialFirstIsland : null;
@@ -1529,7 +1542,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
                 if (!this.collidingIsland) {
                     this.collidingIsland = islandData;
-                    this.showMessage(`${islandData.name}縺ｫ蛻ｰ逹縺励∪縺励◆縲Ａ);
+                    this.showMessage(`${islandData.name}に到着しました。`);
                     this.showIslandCommandMenu(islandData);
                 }
             });
@@ -1553,7 +1566,7 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      *
      *
-     * @param {Object} rect - 驕擾ｽｩ陟厄ｽ｢ {x, y, width, height}
+     * @param {Object} rect - 遏ｩ蠖｢ {x, y, width, height}
      *
      */
     lineIntersectsRect(x1, y1, x2, y2, rect) {
@@ -1567,21 +1580,21 @@ export default class WorldMapScene extends Phaser.Scene {
             return true;
         }
 
-        return this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||    // 闕ｳ鬘假ｽｾ・ｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) || // 陷ｿ・ｳ髴趣ｽｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, right, bottom) || // 闕ｳ邇厄ｽｾ・ｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, left, top, left, bottom);      // 陝ｾ・ｦ髴趣ｽｺ
+        return this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||    // 荳願ｾｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) || // 蜿ｳ霎ｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, right, bottom) || // 荳玖ｾｺ
+               this.lineIntersectsLine(x1, y1, x2, y2, left, top, left, bottom);      // 蟾ｦ霎ｺ
     }
 
     /**
      *
-     * @param {number} x1, y1, x2, y2 - 驍ｱ螢ｼ繝ｻ1
-     * @param {number} x3, y3, x4, y4 - 驍ｱ螢ｼ繝ｻ2
+     * @param {number} x1, y1, x2, y2 - 邱壼・1
+     * @param {number} x3, y3, x4, y4 - 邱壼・2
      *
      */
     lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
         const denom = ((y4 - y3) * (x2 - x1)) - ((x4 - x3) * (y2 - y1));
-        if (denom === 0) return false; // 陝ｷ・ｳ髯ｦ繝ｻ
+        if (denom === 0) return false; // 蟷ｳ陦・
 
         const ua = (((x4 - x3) * (y1 - y3)) - ((y4 - y3) * (x1 - x3))) / denom;
         const ub = (((x2 - x1) * (y1 - y3)) - ((y2 - y1) * (x1 - x3))) / denom;
@@ -1646,7 +1659,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const startY = this.playerShip.y;
 
         if (this.shipMoving || !this.canMove) {
-            this.showMessage(this.shipMoving ? '遘ｻ蜍穂ｸｭ縺ｧ縺吶・ : (!this.canMove ? '遘ｻ蜍輔け繝ｼ繝ｫ繝繧ｦ繝ｳ荳ｭ縺ｧ縺吶・ : '驕縺吶℃縺ｦ遘ｻ蜍輔〒縺阪∪縺帙ｓ縲・));
+            this.showMessage(this.shipMoving ? '移動中です。' : (!this.canMove ? '移動クールダウン中です。' : '遠すぎて移動できません。'));
             return;
         }
 
@@ -1718,7 +1731,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
-    // 闕ｳ繝ｻ0..2 / 陝ｾ・ｦ:21..23 / 陷ｿ・ｳ:42..44 / 闕ｳ繝ｻ63..65
+    // 荳・0..2 / 蟾ｦ:21..23 / 蜿ｳ:42..44 / 荳・63..65
     getGuildShipFrame(directionKey, frameIndex, layerKey, colorKey) {
         const cols = this.guildShipSheetCols ?? 21;
         const dirMap = { down: 0, left: 1, right: 2, up: 3 };
@@ -1786,7 +1799,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const bg = this.add.rectangle(0, 0, width, height, 0x111827, 0.95);
         bg.setStrokeStyle(2, 0xffffff, 0.25);
 
-        const label = this.add.text(0, 0, '荵励ｊ霎ｼ縺ｿ', {
+        const label = this.add.text(0, 0, '乗り込み', {
             fontSize: '16px',
             color: '#ffffff'
         }).setOrigin(0.5);
@@ -1872,10 +1885,10 @@ export default class WorldMapScene extends Phaser.Scene {
         const byItem = SHIP_ACTIONS[itemId] || (friendlyId ? SHIP_ACTIONS[friendlyId] : null);
         if (byItem) return { ...byItem };
         const shipClass = this.playerShipClass;
-        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['笵ｵ'] };
-        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['暢'] };
-        if (shipClass === 'defender') return { type: 'defender', label: 'Defender', emoji: ['孱・・] };
-        if (shipClass === 'fighter') return { type: 'fighter', label: 'Fighter', emoji: ['笞費ｸ・], rangeTiles: 5, angle: 50, damage: 300 };
+        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'] };
+        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['💨'] };
+        if (shipClass === 'defender') return { type: 'defender', label: 'Defender', emoji: ['🛡️'] };
+        if (shipClass === 'fighter') return { type: 'fighter', label: 'Fighter', emoji: ['⚔️'], rangeTiles: 5, angle: 50, damage: 300 };
         return { type: 'none', label: 'None' };
     }
 
@@ -1961,22 +1974,22 @@ export default class WorldMapScene extends Phaser.Scene {
 
     triggerShipAction() {
         if (!this.playerShip || !this.playerInfo?.playFabId) {
-            this.showMessage('繧｢繧ｯ繧ｷ繝ｧ繝ｳ繧剃ｽｿ逕ｨ縺ｧ縺阪∪縺帙ｓ縲・);
+            this.showMessage('アクションを使用できません。');
             return;
         }
         if (this.isShipInBattle(this.playerInfo.playFabId)) {
-            this.showMessage('謌ｦ髣倅ｸｭ縺ｯ繧｢繧ｯ繧ｷ繝ｧ繝ｳ繧剃ｽｿ逕ｨ縺ｧ縺阪∪縺帙ｓ縲・);
+            this.showMessage('戦闘中はアクションを使用できません。');
             return;
         }
         const actionInfo = this.getShipActionType();
         if (!actionInfo || actionInfo.type === 'none') {
-            this.showMessage('菴ｿ逕ｨ縺ｧ縺阪ｋ繧｢繧ｯ繧ｷ繝ｧ繝ｳ縺後≠繧翫∪縺帙ｓ縲・);
+            this.showMessage('使用できるアクションがありません。');
             return;
         }
         const now = Date.now();
         if (now < this.shipActionCooldownUntil) {
             const seconds = Math.ceil((this.shipActionCooldownUntil - now) / 1000);
-            this.showMessage(`繧ｯ繝ｼ繝ｫ繝繧ｦ繝ｳ荳ｭ (${seconds}s)`);
+            this.showMessage(`クールダウン中 (${seconds}s)`);
             return;
         }
 
@@ -1992,12 +2005,12 @@ export default class WorldMapScene extends Phaser.Scene {
             const multiplier = Number(actionInfo.speedMultiplier) || 1.5;
             this.shipActionSpeedBoostUntil = now + duration;
             this.shipSpeed = Math.max(1, this.shipBaseSpeed * multiplier);
-            this.showMessage(`${actionInfo.label || '騾溷ｺｦ荳頑・'}!`);
+            this.showMessage(`${actionInfo.label || '速度上昇'}!`);
         } else if (actionInfo.type === 'merchant') {
             const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
             this.shipActionInvisibleUntil = now + duration;
             this.setPlayerShipInvisible(true);
-            this.showMessage(`${actionInfo.label || '蟋ｿ繧呈ｶ医＠縺ｾ縺励◆'}`);
+            this.showMessage(`${actionInfo.label || '姿を消しました'}`);
         } else if (actionInfo.type === 'defender') {
             this.applyDefenderAction(actionInfo);
         } else if (actionInfo.type === 'fighter') {
@@ -2052,12 +2065,12 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async applyShipActionDamage(targets, damage) {
         if (!targets.length) {
-            this.showMessage('蟇ｾ雎｡縺後＞縺ｾ縺帙ｓ');
+            this.showMessage('対象がいません');
             return;
         }
         const filtered = targets.filter(target => !this.isShipInBattle(target.playFabId));
         if (filtered.length === 0) {
-            this.showMessage('謌ｦ髣倅ｸｭ縺ｮ逶ｸ謇九↓縺ｯ謾ｻ謦・〒縺阪∪縺帙ｓ縲・);
+            this.showMessage('戦闘中の相手には攻撃できません。');
             return;
         }
         try {
@@ -2072,9 +2085,9 @@ export default class WorldMapScene extends Phaser.Scene {
             });
             const data = await res.json();
             if (!res.ok || !data?.success) {
-                this.showMessage('謾ｻ謦・↓螟ｱ謨励＠縺ｾ縺励◆');
+                this.showMessage('攻撃に失敗しました');
             } else {
-                this.showMessage(`蜻ｽ荳ｭ ${data?.hits || filtered.length}`);
+                this.showMessage(`命中 ${data?.hits || filtered.length}`);
                 if (Array.isArray(data.results)) {
                     data.results.forEach((result) => {
                         if (!result || result.skipped || result.error) return;
@@ -2092,7 +2105,7 @@ export default class WorldMapScene extends Phaser.Scene {
             }
         } catch (e) {
             console.warn('[ShipAction] Damage request failed:', e);
-            this.showMessage('謾ｻ謦・↓螟ｱ謨励＠縺ｾ縺励◆');
+            this.showMessage('攻撃に失敗しました');
         }
     }
 
@@ -2147,15 +2160,15 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         if (hitTargets.length === 0) {
-            this.showMessage('謾ｻ謦・′螟悶ｌ縺・);
+            this.showMessage('攻撃が外れた');
             return;
         }
 
         const damageValue = Number(config.damage) || 0;
         if (Number.isFinite(damageValue) && damageValue > 0) {
             const primaryTarget = hitTargets[0];
-            const targetLabel = primaryTarget?.name || primaryTarget?.playFabId || '謨ｵ';
-            const msg = `HIT・・{targetLabel}縺ｫ${Math.round(damageValue)}繝繝｡繝ｼ繧ｸ・～;
+            const targetLabel = primaryTarget?.name || primaryTarget?.playFabId || '敵';
+            const msg = `HIT！${targetLabel}に${Math.round(damageValue)}ダメージ！`;
             if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
                 window.showRpgMessage(msg);
             } else {
@@ -2246,7 +2259,7 @@ export default class WorldMapScene extends Phaser.Scene {
         });
 
         if (!closest) {
-            this.showMessage('蟇ｾ雎｡縺ｮ蟲ｶ縺後≠繧翫∪縺帙ｓ');
+            this.showMessage('対象の島がありません');
             return;
         }
 
@@ -2254,7 +2267,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), closest.id);
         const snap = await getDoc(islandRef);
         if (!snap.exists()) {
-            this.showMessage('蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ');
+            this.showMessage('島が見つかりません');
             return;
         }
         const data = snap.data() || {};
@@ -2268,7 +2281,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
         const idx = buildings.findIndex(b => b && b.status !== 'demolished');
         if (idx === -1) {
-            this.showMessage('蟒ｺ迚ｩ縺後≠繧翫∪縺帙ｓ');
+            this.showMessage('建物がありません');
             return;
         }
 
@@ -2280,7 +2293,7 @@ export default class WorldMapScene extends Phaser.Scene {
         buildings[idx] = { ...b, currentHp: next };
         await updateDoc(islandRef, { buildings });
         await this.reloadIslandFromFirestore(closest.id);
-        this.showMessage(`${actionInfo.label || '蟒ｺ迚ｩ縺ｫ螟ｧ繝繝｡繝ｼ繧ｸ'}`);
+        this.showMessage(`${actionInfo.label || '建物に大ダメージ'}`);
         if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
             if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
                 this.playEmojiBurst(actionInfo.emoji, centerX, centerY - 10);
@@ -2295,14 +2308,14 @@ export default class WorldMapScene extends Phaser.Scene {
         const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), islandId);
         const snap = await getDoc(islandRef);
         if (!snap.exists()) {
-            this.showMessage('蟲ｶ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ');
+            this.showMessage('島が見つかりません');
             return;
         }
         const data = snap.data() || {};
         const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
         const idx = buildings.findIndex(b => b && b.status !== 'demolished');
         if (idx === -1) {
-            this.showMessage('蟒ｺ迚ｩ縺後≠繧翫∪縺帙ｓ');
+            this.showMessage('建物がありません');
             return;
         }
 
@@ -2322,7 +2335,7 @@ export default class WorldMapScene extends Phaser.Scene {
         buildings[idx] = nextEntry;
         await updateDoc(islandRef, { buildings });
         await this.reloadIslandFromFirestore(islandId);
-        this.showMessage(next <= 0 ? '蟒ｺ迚ｩ繧堤ｴ螢翫＠縺ｾ縺励◆' : '蟒ｺ迚ｩ縺ｫ繝繝｡繝ｼ繧ｸ');
+        this.showMessage(next <= 0 ? '建物を破壊しました' : '建物にダメージ');
     }
 
     async reloadIslandFromFirestore(islandId) {
@@ -2336,7 +2349,7 @@ export default class WorldMapScene extends Phaser.Scene {
             id: snap.id,
             x: data.coordinate.x * this.gridSize,
             y: data.coordinate.y * this.gridSize,
-            name: data.name || '蜷咲ｧｰ譛ｪ險ｭ螳・,
+            name: data.name || '名称未設定',
             size: data.size || 'small',
             ownerNation: data.ownerNation || data.ownerRace,
             ownerId: data.ownerId,
@@ -2410,7 +2423,7 @@ export default class WorldMapScene extends Phaser.Scene {
             if (typeof window !== 'undefined' && window.__tutorialFirstIsland?.stage === 'nav') {
                 const tutorial = window.__tutorialFirstIsland;
                 if (tutorial?.islandId === this.navTargetId && typeof window.showRpgMessage === 'function') {
-                    window.showRpgMessage(window.rpgSay?.tutorialArrived ? window.rpgSay.tutorialArrived() : '蟲ｶ縺ｫ蛻ｰ逹縺励◆・・);
+                    window.showRpgMessage(window.rpgSay?.tutorialArrived ? window.rpgSay.tutorialArrived() : '島に到着した！');
                     tutorial.stage = 'arrived';
                 }
             }
@@ -2434,7 +2447,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         if (this.navDistanceText) {
             this.navDistanceText.setPosition(this.playerShip.x, this.playerShip.y - 26);
-            this.navDistanceText.setText(`霍晞屬 ${distTiles}`);
+            this.navDistanceText.setText(`距離 ${distTiles}`);
             this.navDistanceText.setVisible(true);
         }
     }
@@ -2462,20 +2475,20 @@ export default class WorldMapScene extends Phaser.Scene {
         const closeBtn = document.getElementById('islandCommandClose');
 
         if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
-            console.error('[showShipCommandMenu] HTML繝代ロ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ');
+            console.error('[showShipCommandMenu] HTMLパネルが見つかりません');
             return;
         }
 
         if (this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(targetPlayFabId)) {
-            this.showMessage('謌ｦ髣倅ｸｭ縺ｯ荵励ｊ霎ｼ繧√∪縺帙ｓ縲・);
+            this.showMessage('戦闘中は乗り込めません。');
             return;
         }
 
         this.boardingTargetId = targetPlayFabId;
         console.log('[Boarding] showShipCommandMenu', { targetPlayFabId, displayName });
-        title.textContent = displayName ? `闊ｹ: ${displayName}` : '闊ｹ';
+        title.textContent = displayName ? `船: ${displayName}` : '船';
 
-        const buttonText = '荵励ｊ霎ｼ繧';
+        const buttonText = '乗り込む';
         const buttonClass = 'warning';
         const onClick = () => {
             console.log('[Boarding] clicked', { target: this.boardingTargetId });
@@ -2487,7 +2500,7 @@ export default class WorldMapScene extends Phaser.Scene {
             console.log('[Boarding] distance', { distance, shipCollisionRadius: this.shipCollisionRadius });
             const allowedDistance = Math.max(this.shipCollisionRadius * 2, 96);
             if (!Number.isFinite(distance) || distance > allowedDistance) {
-                this.showMessage('霍晞屬縺碁屬繧後※縺・ｋ縺溘ａ荵励ｊ霎ｼ繧√∪縺帙ｓ縲・);
+                this.showMessage('距離が離れているため乗り込めません。');
                 return;
             }
             if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
@@ -2603,9 +2616,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 const attackerRespawned = data.attacker?.playFabId === myId && data.attacker?.respawned;
                 const defenderRespawned = data.defender?.playFabId === myId && data.defender?.respawned;
                 if (attackerRespawned || defenderRespawned) {
-                    const msg = window.rpgSay?.shipSunk ? window.rpgSay.shipSunk() : '縺ｵ縺ｭ縺梧ｲ医ｓ縺窶ｦ';
+                    const msg = window.rpgSay?.shipSunk ? window.rpgSay.shipSunk() : 'ふねが沈んだ…';
                     window.showRpgMessage(msg);
-                    const revive = window.rpgSay?.shipRespawned ? window.rpgSay.shipRespawned() : '縺ｵ縺ｭ縺悟ｾｩ豢ｻ縺励◆・・;
+                    const revive = window.rpgSay?.shipRespawned ? window.rpgSay.shipRespawned() : 'ふねが復活した！';
                     setTimeout(() => window.showRpgMessage(revive), 1200);
                 }
             }
@@ -2617,7 +2630,7 @@ export default class WorldMapScene extends Phaser.Scene {
     handleShipCollision(otherPlayFabId, shipObject) {
         if (!this.playerShip || !shipObject?.sprite) return;
 
-        // 髢ｾ・ｪ髣奇ｽｹ陋帶㊧・ｭ・｢
+        // 閾ｪ闊ｹ蛛懈ｭ｢
         if (this.shipMoving) {
             this.shipMoving = false;
         }
@@ -2660,7 +2673,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
-        this.showMessage('謗･霑代＠縺ｾ縺励◆縲ゆｹ励ｊ霎ｼ縺ｿ蜿ｯ閭ｽ縺ｧ縺吶・);
+        this.showMessage('接近しました。乗り込み可能です。');
     }
 
     createShipHpBar(sprite) {
@@ -2839,7 +2852,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const startY = y + dy * 18;
         const endX = x + dx * range;
         const endY = y + dy * range;
-        const shot = this.add.text(startX, startY, '張', { fontSize: '16px' });
+        const shot = this.add.text(startX, startY, '💣', { fontSize: '16px' });
         shot.setOrigin(0.5);
         shot.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
         this.ignoreOnUiCamera(shot);
@@ -2852,7 +2865,7 @@ export default class WorldMapScene extends Phaser.Scene {
             onComplete: () => {
                 shot.destroy();
                 this.spawnImpactBurst(endX, endY);
-                this.spawnDamageNumber(endX, endY - 10, '徴', 0xffe066);
+                this.spawnDamageNumber(endX, endY - 10, '💥', 0xffe066);
             }
         });
     }
@@ -2863,7 +2876,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const impactX = x + dx * 22;
         const impactY = y + dy * 22;
         this.spawnImpactBurst(impactX, impactY);
-        this.spawnDamageNumber(impactX, impactY - 8, '笨ｨ', 0xffe066);
+        this.spawnDamageNumber(impactX, impactY - 8, '✨', 0xffe066);
         if (this.cameras?.main) {
             this.cameras.main.shake(90, 0.003);
         }
@@ -2991,7 +3004,7 @@ export default class WorldMapScene extends Phaser.Scene {
             ? this.playerShip
             : this.otherShips.get(playFabId)?.sprite;
         if (!sprite) return;
-        const list = Array.isArray(emojis) && emojis.length > 0 ? emojis : ['笞費ｸ・, '徴'];
+        const list = Array.isArray(emojis) && emojis.length > 0 ? emojis : ['⚔️', '💥'];
         this.playEmojiBurst(list, sprite.x, sprite.y - 18);
     }
 
@@ -3026,7 +3039,7 @@ export default class WorldMapScene extends Phaser.Scene {
             existing.remove(false);
             this.shipBattleSmokeTimers.delete(playFabId);
         }
-        const emojis = ['暢', '笘・ｸ・, '徴'];
+        const emojis = ['💨', '☁️', '💥'];
         const repeatMs = 450;
         const repeatCount = Math.max(1, Math.ceil((Number(durationMs) || 0) / repeatMs));
         let fired = 0;
@@ -3081,7 +3094,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
                 const durationMs = Number(data.durationMs) || 5000;
                 const participants = Array.isArray(data.participantIds) ? data.participantIds : [];
-                const emojis = Array.isArray(data.emojis) ? data.emojis : ['笞費ｸ・, '徴'];
+                const emojis = Array.isArray(data.emojis) ? data.emojis : ['⚔️', '💥'];
 
                 participants.forEach((id) => {
                     this.markShipInBattle(id, durationMs);
@@ -3220,7 +3233,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        console.log(`蟲ｶ縲・{islandData.name}縲阪ｒ蜊鬆倥＠縺ｾ縺・..`);
+        console.log(`島「${islandData.name}」を占領します...`);
 
         try {
             const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/claim-island') : '/api/claim-island'), {
@@ -3247,13 +3260,13 @@ export default class WorldMapScene extends Phaser.Scene {
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
             }
             if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                const name = islandData.name || '蟲ｶ';
-                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandClaimed(name) : `${name}繧貞頃鬆倥＠縺滂ｼ～);
+                const name = islandData.name || '島';
+                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandClaimed(name) : `${name}を占領した！`);
             }
-            this.showMessage(`${islandData.name}繧貞頃鬆倥＠縺ｾ縺励◆縲Ａ);
+            this.showMessage(`${islandData.name}を占領しました。`);
         } catch (error) {
-            console.error('蟲ｶ縺ｮ蜊鬆倥↓螟ｱ謨励＠縺ｾ縺励◆:', error);
-            this.showError('蟲ｶ縺ｮ蜊鬆倥↓螟ｱ謨励＠縺ｾ縺励◆縲・);
+            console.error('島の占領に失敗しました:', error);
+            this.showError('島の占領に失敗しました。');
         }
     }
 
@@ -3269,7 +3282,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const closeBtn = document.getElementById('islandCommandClose');
 
         if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
-            console.error('[showIslandCommandMenu] HTML繝代ロ繝ｫ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ');
+            console.error('[showIslandCommandMenu] HTMLパネルが見つかりません');
             return;
         }
 
@@ -3310,45 +3323,45 @@ export default class WorldMapScene extends Phaser.Scene {
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
         const autoAttackConfig = this.getIslandAutoAttackConfig(islandData);
         const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
-        const menuLabel = hasBuilding ? '譁ｽ險ｭ繝｡繝九Η繝ｼ' : (isResourceIsland ? '謗｡蜿悶Γ繝九Η繝ｼ' : '蟒ｺ險ｭ繝｡繝九Η繝ｼ');
+        const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
-        let buttonText = `${menuLabel}繧帝幕縺汁;
+        let buttonText = `${menuLabel}を開く`;
         let buttonClass = 'info';
         let onClick = async () => {
             await this.openBuildingMenuForIsland(islandData);
         };
 
         if (!myPlayFabId) {
-            buttonText = '繝ｭ繧ｰ繧､繝ｳ縺悟ｿ・ｦ√〒縺・;
+            buttonText = 'ログインが必要です';
             buttonClass = 'disabled';
-            onClick = () => this.showMessage('繝ｭ繧ｰ繧､繝ｳ縺励※縺上□縺輔＞縲・);
+            onClick = () => this.showMessage('ログインしてください。');
         } else if (isCapitalIsland && isOwnNation) {
-            buttonText = '鬥夜・繝｡繝九Η繝ｼ繧帝幕縺・;
+            buttonText = '首都メニューを開く';
             buttonClass = 'info';
             onClick = async () => {
                 await this.openBuildingMenuForIsland(islandData);
             };
         } else if (!isOwner && !isInOwnedArea) {
-            buttonText = '蜊鬆倡ｯ・峇螟・;
+            buttonText = '占領範囲外';
             buttonClass = 'disabled';
-            onClick = () => this.showMessage('縺薙・繧ｨ繝ｪ繧｢縺ｯ蜊鬆倥＆繧後※縺・∪縺帙ｓ縲・);
+            onClick = () => this.showMessage('このエリアは占領されていません。');
         } else if (!isOwner) {
             if (isResourceIsland) {
-                buttonText = `${menuLabel}繧帝幕縺汁;
+                buttonText = `${menuLabel}を開く`;
                 buttonClass = 'info';
                 onClick = async () => {
                     await this.openBuildingMenuForIsland(islandData);
                 };
             } else if (canBuildToOccupy) {
-                buttonText = '蟒ｺ遽峨＠縺ｦ蜊鬆倥☆繧・;
+                buttonText = '建築して占領する';
                 buttonClass = 'warning';
                 onClick = async () => {
                     await this.openBuildingMenuForIsland(islandData);
                 };
             } else {
-                buttonText = '蜊鬆倅ｸ榊庄';
+                buttonText = '占領不可';
                 buttonClass = 'disabled';
-                onClick = () => this.showMessage('縺薙・蟲ｶ縺ｯ蟒ｺ遽峨＠縺ｦ蜊鬆倥〒縺阪∪縺帙ｓ縲・);
+                onClick = () => this.showMessage('この島は建築して占領できません。');
             }
         }
 
@@ -3398,13 +3411,13 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async openBuildingMenuForIsland(islandData) {
         if (!window.Island || !window.Island.getIslandDetails || !window.Island.showBuildingMenu) {
-            this.showMessage('繝｡繝九Η繝ｼ繧帝幕縺代∪縺帙ｓ縲・);
+            this.showMessage('メニューを開けません。');
             return;
         }
 
         const islandDetails = await window.Island.getIslandDetails(islandData.id);
         if (!islandDetails) {
-            this.showMessage('蟲ｶ縺ｮ隧ｳ邏ｰ諠・ｱ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆縲・);
+            this.showMessage('島の詳細情報の取得に失敗しました。');
             return;
         }
 
@@ -3435,7 +3448,7 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      */
     async abandonIsland(islandData) {
-        console.log(`蟲ｶ縲・{islandData.name}縲阪ｒ謾ｾ譽・＠縺ｾ縺・..`);
+        console.log(`島「${islandData.name}」を放棄します...`);
 
         const db = getFirestore();
         const islandRef = doc(db, this.getWorldMapCollectionName(), islandData.id);
@@ -3445,7 +3458,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 ownerId: null,
                 ownerNation: null
             });
-            console.log('蟲ｶ縺ｮ謾ｾ譽・↓謌仙粥');
+            console.log('島の放棄に成功');
             islandData.ownerId = null;
             islandData.ownerNation = null;
             if (islandData.nameText) {
@@ -3453,13 +3466,13 @@ export default class WorldMapScene extends Phaser.Scene {
                 islandData.nameText.setFill(`#${newColor.toString(16).padStart(6, '0')}`);
             }
             if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                const name = islandData.name || '蟲ｶ';
-                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandAbandoned(name) : `${name}繧呈焔謾ｾ縺励◆縲Ａ);
+                const name = islandData.name || '島';
+                window.showRpgMessage(window.rpgSay ? window.rpgSay.islandAbandoned(name) : `${name}を手放した。`);
             }
-            this.showMessage(`${islandData.name}繧呈叛譽・＠縺ｾ縺励◆縲Ａ);
+            this.showMessage(`${islandData.name}を放棄しました。`);
         } catch (error) {
-            console.error('蟲ｶ縺ｮ謾ｾ譽・↓螟ｱ謨励＠縺ｾ縺励◆:', error);
-            this.showError('蟲ｶ縺ｮ謾ｾ譽・↓螟ｱ謨励＠縺ｾ縺励◆縲・);
+            console.error('島の放棄に失敗しました:', error);
+            this.showError('島の放棄に失敗しました。');
         }
     }
 
@@ -3468,8 +3481,8 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      */
     async attackIsland(islandData) {
-        console.log(`蟲ｶ縲・{islandData.name}縲阪∈縺ｮ謾ｻ謦・ｒ髢句ｧ九＠縺ｾ縺・..`);
-        this.showMessage(`${islandData.name}縺ｸ縺ｮ謾ｻ謦・ｒ髢句ｧ九＠縺ｾ縺励◆縲Ａ);
+        console.log(`島「${islandData.name}」への攻撃を開始します...`);
+        this.showMessage(`${islandData.name}への攻撃を開始しました。`);
     }
 
     update() {
@@ -3532,7 +3545,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (nearest?.island) {
             if (!this.collidingIsland || this.collidingIsland.id !== nearest.island.id) {
                 this.collidingIsland = nearest.island;
-                this.showMessage(`${nearest.island.name}縺ｫ謗･霑代＠縺ｾ縺励◆縲Ａ);
+                this.showMessage(`${nearest.island.name}に接近しました。`);
                 this.showIslandCommandMenu(nearest.island);
             }
         } else if (this.collidingIsland) {
@@ -3705,8 +3718,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
     /**
      *
-     * @param {number} targetX - 騾ｶ・ｮ隶灘・陟趣ｽｧ隶薙・
-     * @param {number} targetY - 騾ｶ・ｮ隶灘・陟趣ｽｧ隶薙・
+     * @param {number} targetX - 逶ｮ讓儿蠎ｧ讓・
+     * @param {number} targetY - 逶ｮ讓兀蠎ｧ讓・
      */
     async updateMyShipPosition(targetX, targetY) {
         if (!this.firestore || !this.playerInfo || !this.playerInfo.playFabId) {
@@ -3720,7 +3733,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const currentY = this.playerShip.y;
             const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
             const speed = this.getEffectiveShipSpeed();
-            const duration = (distance / speed) * 1000; // 郢晄ｺ佩憺§繝ｻ
+            const duration = (distance / speed) * 1000; // 繝溘Μ遘・
             const arrivalTime = Date.now() + duration;
             const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
             const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
@@ -3919,7 +3932,7 @@ export default class WorldMapScene extends Phaser.Scene {
                             const shipTypeKey = `${assetData.ItemId}__${sheetKey}__bf${baseFrame}`;
                             this.generateShipAnims(baseFrame, shipTypeKey);
                             this.playerShip.shipTypeKey = shipTypeKey;
-                            this.playerShip.lastAnimKey = 'ship_down'; // 蛻晄悄蜷代″
+                            this.playerShip.lastAnimKey = 'ship_down'; // 初期向き
                         }
                     } catch (e) {
                         console.error("Failed to get ship asset on init", e);
@@ -4512,7 +4525,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const x = islandObj.x + islandObj.width / 2;
             const y = islandObj.y + islandObj.height / 2;
 
-            const hammer = this.add.text(x, y - 20, '畑', { fontSize: '28px' });
+            const hammer = this.add.text(x, y - 20, '🔨', { fontSize: '28px' });
             hammer.setOrigin(0.5);
             hammer.setDepth(GAME_CONFIG.DEPTH.CONSTRUCTION);
 
@@ -4607,7 +4620,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.destroyShipHpBar(this.playerShip);
         this.destroyShipShadow(this.playerShip);
 
-        // 蟲ｶ繧ｪ繝悶ず繧ｧ繧ｯ繝医・繧ｹ繝励Λ繧､繝医ｒ遐ｴ譽・        this.islandObjects.forEach((islandData) => {
+        // 島オブジェクトのスプライトを破棄
+        this.islandObjects.forEach((islandData) => {
             if (islandData.sprites) {
                 islandData.sprites.forEach(sprite => sprite?.destroy?.());
             }
@@ -4640,5 +4654,3 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 }
-
-
