@@ -1124,17 +1124,11 @@ function getBuildingIcon(buildingId) {
         watchtower: 'W',
         coastal_battery: 'C',
         dragon_gate: 'D',
-        fortress: 'F',
-        warehouse: 'W',
         farm: 'F',
-        trading_post: 'T',
         tavern: 'T',
         repair_dock: 'R',
-        lighthouse: 'L',
         shipyard: 'S',
-        mine: 'M',
-        temple: 'P',
-        grand_market: 'G'
+        temple: 'P'
     };
     return icons[buildingId] || 'B';
 }
@@ -1149,17 +1143,11 @@ function getBuildingName(buildingId) {
         watchtower: '監視塔',
         coastal_battery: '沿岸砲台',
         dragon_gate: '竜撃砲門',
-        fortress: '要塞',
-        warehouse: '倉庫',
         farm: '農場',
-        trading_post: '交易所',
         tavern: '酒場',
         repair_dock: '修理ドック',
-        lighthouse: '灯台',
         shipyard: '造船所',
-        mine: '鉱山',
         temple: '神殿',
-        grand_market: '大市場',
         goddess_statue: '女神像',
         arcana_fool_tavern: '海賊酒場',
         arcana_magician_school: '魔法学校',

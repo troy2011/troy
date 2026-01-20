@@ -126,31 +126,6 @@ const buildings = {
         description: '竜撃砲を備えた防衛門。'
     },
 
-    fortress: {
-        id: 'fortress',
-        name: '要塞',
-        category: 'military',
-        slotsRequired: 2,
-        buildTime: 7200, // 2時間
-        cost: { PS: 1000 },
-        tileIndex: 640,
-        sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 2, y: 2 },
-        effects: {
-            defenseBonus: 100,
-            garrisonCapacity: 50,
-            repairSpeed: 1.5
-        },
-        buildCondition: {
-            sameMap: true,
-            buildingId: 'watchtower',
-            minCount: 2
-        },
-        description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。',
-        nationTileOffset: true,
-        buildable: false
-    },
-
     shipyard: {
         id: 'shipyard',
         name: '造船所',
@@ -172,24 +147,6 @@ const buildings = {
     // ========================================
     // 経済施設（Economic）
     // ========================================
-    warehouse: {
-        id: 'warehouse',
-        name: '倉庫',
-        category: 'economic',
-        slotsRequired: 1,
-        buildTime: 1800, // 30分
-        cost: { PS: 300 },
-        tileIndex: 21,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 1 },
-        effects: {
-            storageCapacity: 1000,
-            protection: 0.5
-        },
-        description: '資源を安全に保管します。略奪されにくくなります。',
-        buildable: false
-    },
-
     farm: {
         id: 'farm',
         name: '農園',
@@ -205,64 +162,6 @@ const buildings = {
             crewMorale: 10
         },
         description: '食料を生産します。'
-    },
-
-    trading_post: {
-        id: 'trading_post',
-        name: '交易所',
-        category: 'economic',
-        slotsRequired: 2,
-        buildTime: 5400, // 1.5時間
-        cost: { PS: 1000 },
-        tileIndex: 994,
-        sizeLogic: { x: 2, y: 1 },
-        sizeVisual: { x: 2, y: 2 },
-        effects: {
-            tradeBonus: 0.2,
-            tradeSlots: 2,
-            taxReduction: 0.1
-        },
-        description: '他のプレイヤーと交易を行えます。収入が増加します。',
-        buildable: false
-    },
-
-    mine: {
-        id: 'mine',
-        name: '鉱山',
-        category: 'economic',
-        slotsRequired: 2,
-        buildTime: 7200, // 2時間
-        cost: { PS: 1500 },
-        tileIndex: 24,
-        sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 2, y: 2 },
-        effects: {
-            stoneProduction: 30,
-            ironProduction: 20,
-            goldProduction: 10
-        },
-        description: '鉱物資源を採掘します。',
-        buildable: false
-    },
-
-    grand_market: {
-        id: 'grand_market',
-        name: '大市場',
-        category: 'economic',
-        slotsRequired: 4,
-        buildTime: 14400, // 4時間
-        cost: { PS: 3000 },
-        tileIndex: 656,
-        sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 2, y: 2 },
-        effects: {
-            tradeBonus: 0.5,
-            tradeRoutes: 5,
-            marketPriceControl: true
-        },
-        description: '広範囲の交易ネットワークを構築できる巨大市場。',
-        nationTileOffset: true,
-        buildable: false
     },
 
     // ========================================
@@ -457,25 +356,6 @@ const buildings = {
         },
         description: '船を素早く修理できます。戦闘後の復帰が早くなります。',
         nationTileOffset: true
-    },
-
-    lighthouse: {
-        id: 'lighthouse',
-        name: '灯台',
-        category: 'support',
-        slotsRequired: 1,
-        buildTime: 2400, // 40分
-        cost: { PS: 500 },
-        tileIndex: 28,
-        sizeLogic: { x: 1, y: 1 },
-        sizeVisual: { x: 1, y: 3 },
-        effects: {
-            navigationBonus: 0.2,
-            fogOfWarReduction: 10,
-            safetyBonus: true
-        },
-        description: '航海を安全にし、船の速度を向上させます。',
-        buildable: false
     },
 
     temple: {
