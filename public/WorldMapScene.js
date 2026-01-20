@@ -134,6 +134,13 @@ const SHIP_ACTIONS = {
     ship_orc_explorer: { type: 'explorer', label: '踏破突進', emoji: ['🐗', '💨'], durationMs: 3000, speedMultiplier: 1.6, cooldownMs: 60_000 }
 };
 
+const ISLAND_AUTO_ATTACK_CONFIG = {
+    coastal_battery: { label: '沿岸砲台', emojis: ['💣'], hitChance: 0.5, mode: 'single', radiusTiles: 3, damage: 50 },
+    dragon_gate: { label: '竜撃砲門', emojis: ['💥'], hitChance: 0.5, mode: 'single', radiusTiles: 4, damage: 70 },
+    arcana_tower_judgement: { label: '裁きの塔', emojis: ['⚡'], hitChance: 0.3, mode: 'area', radiusTiles: 5, damage: 90 }
+};
+const ISLAND_ATTACK_PREP_DURATION_MS = 4000;
+
 function normalizeBiomeId(raw) {
     if (!raw) return null;
     const trimmed = String(raw).trim();
@@ -200,6 +207,10 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+
+        this.attackPrepVisionRange = null;
+        this.attackPrepUntil = 0;
+        this.attackPrepTimer = null;
         this.navTargetId = null;
         this.navTargetLabel = null;
 
@@ -1080,11 +1091,49 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     getEffectiveVisionRange() {
+        if (this.attackPrepUntil && Date.now() < this.attackPrepUntil) {
+            const prepRange = Number(this.attackPrepVisionRange);
+            if (Number.isFinite(prepRange) && prepRange > 0) return prepRange;
+        }
         const base = Number.isFinite(Number(this.baseShipVisionRange))
             ? Number(this.baseShipVisionRange)
             : Number(this.shipVisionRange);
         if (this.isInOwnedArea) return base;
         return Math.max(50, Math.floor(base * OUTSIDE_VISION_MULTIPLIER));
+    }
+
+    getIslandCenterPoint(islandData) {
+        if (!islandData) return null;
+        const layout = ISLAND_LAYOUTS[islandData.size] || ISLAND_LAYOUTS.small;
+        const width = layout.width * this.TILE_SIZE;
+        const height = layout.height * this.TILE_SIZE;
+        const x = Number(islandData.x) + width / 2;
+        const y = Number(islandData.y) + height / 2;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+    }
+
+    getIslandAutoAttackConfig(islandData) {
+        if (!islandData || !Array.isArray(islandData.buildings)) return null;
+        const building = islandData.buildings.find(b => b && b.status === 'completed');
+        const buildingId = building?.buildingId || building?.id || null;
+        if (!buildingId) return null;
+        return ISLAND_AUTO_ATTACK_CONFIG[buildingId] || null;
+    }
+
+    activateIslandAttackVision(rangeTiles) {
+        const rangePx = Math.max(1, Number(rangeTiles) || 0) * this.TILE_SIZE;
+        if (!Number.isFinite(rangePx) || rangePx <= 0) return;
+        this.attackPrepVisionRange = rangePx;
+        this.attackPrepUntil = Date.now() + ISLAND_ATTACK_PREP_DURATION_MS;
+        if (this.attackPrepTimer) clearTimeout(this.attackPrepTimer);
+        this.updateZoomFromVisionRange();
+        this.attackPrepTimer = setTimeout(() => {
+            this.attackPrepVisionRange = null;
+            this.attackPrepUntil = 0;
+            this.attackPrepTimer = null;
+            this.updateZoomFromVisionRange();
+        }, ISLAND_ATTACK_PREP_DURATION_MS);
     }
 
     getNationKey() {
@@ -2050,6 +2099,74 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    async triggerIslandAutoAttack(islandData, config) {
+        if (!config || !this.playerInfo?.playFabId) return;
+        const center = this.getIslandCenterPoint(islandData);
+        if (!center) return;
+        const rangeTiles = Number(config.radiusTiles) || 0;
+        if (!Number.isFinite(rangeTiles) || rangeTiles <= 0) return;
+
+        this.activateIslandAttackVision(rangeTiles);
+
+        const rangePx = rangeTiles * this.TILE_SIZE;
+        const myNation = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
+        const candidates = [];
+        this.otherShips.forEach((shipObject, otherId) => {
+            const sprite = shipObject?.sprite;
+            if (!sprite) return;
+            const dist = Phaser.Math.Distance.Between(center.x, center.y, sprite.x, sprite.y);
+            if (!Number.isFinite(dist) || dist > rangePx) return;
+            const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
+            if (myNation && otherNation && myNation === otherNation) return;
+            candidates.push({ playFabId: otherId, sprite, distance: dist });
+        });
+
+        if (candidates.length === 0) {
+            this.showMessage('範囲内に敵がいません');
+            return;
+        }
+
+        let hitTargets = [];
+        if (config.mode === 'single') {
+            candidates.sort((a, b) => a.distance - b.distance);
+            const target = candidates[0];
+            if (Math.random() <= Number(config.hitChance)) {
+                hitTargets = [target];
+            }
+        } else {
+            hitTargets = candidates.filter(() => Math.random() <= Number(config.hitChance));
+        }
+
+        if (hitTargets.length === 0) {
+            this.showMessage('攻撃が外れた');
+            return;
+        }
+
+        const actionInfo = {
+            type: 'island_attack',
+            label: config.label || 'IslandAttack',
+            emoji: Array.isArray(config.emojis) ? config.emojis : []
+        };
+
+        const emitPromises = [];
+        hitTargets.forEach((target) => {
+            if (actionInfo.emoji.length > 0) {
+                const emoji = actionInfo.emoji[Math.floor(Math.random() * actionInfo.emoji.length)];
+                this.playEmojiShot(emoji, center.x, center.y - 6, target.sprite.x, target.sprite.y - 8);
+                this.playEmojiBurst(actionInfo.emoji, target.sprite.x, target.sprite.y - 12);
+            }
+            emitPromises.push(this.emitShipActionEvent(actionInfo, target.sprite.x, target.sprite.y));
+        });
+        await Promise.all(emitPromises);
+
+        if (Number.isFinite(Number(config.damage)) && Number(config.damage) > 0) {
+            await this.applyShipActionDamage(
+                hitTargets.map(t => ({ playFabId: t.playFabId, distance: t.distance })),
+                Number(config.damage)
+            );
+        }
+    }
+
     applyFighterAction(actionInfo) {
         const tile = this.TILE_SIZE;
         const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
@@ -2320,9 +2437,10 @@ export default class WorldMapScene extends Phaser.Scene {
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
         const actionBtn = document.getElementById('islandCommandAction');
+        const attackBtn = document.getElementById('islandCommandAttack');
         const closeBtn = document.getElementById('islandCommandClose');
 
-        if (!panel || !title || !actionBtn || !closeBtn) {
+        if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
             console.error('[showShipCommandMenu] HTMLパネルが見つかりません');
             return;
         }
@@ -2365,8 +2483,12 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const newActionBtn = actionBtn.cloneNode(true);
         actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+        const newAttackBtn = attackBtn.cloneNode(true);
+        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
         const newCloseBtn = closeBtn.cloneNode(true);
         closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+
+        newAttackBtn.style.display = 'none';
 
         newActionBtn.addEventListener('click', onClick);
         newActionBtn.addEventListener('pointerdown', () => console.log('[Boarding] pointerdown'));
@@ -2671,6 +2793,22 @@ export default class WorldMapScene extends Phaser.Scene {
                 onComplete: () => text.destroy()
             });
         }
+    }
+
+    playEmojiShot(emoji, startX, startY, endX, endY) {
+        if (!emoji) return;
+        const text = this.add.text(startX, startY, emoji, { fontSize: '16px' });
+        text.setOrigin(0.5);
+        text.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
+        this.ignoreOnUiCamera(text);
+        this.tweens.add({
+            targets: text,
+            x: endX,
+            y: endY,
+            duration: 260,
+            ease: 'Quad.easeOut',
+            onComplete: () => text.destroy()
+        });
     }
 
     playCannonShot(x, y, range, headingRad) {
@@ -3106,9 +3244,10 @@ export default class WorldMapScene extends Phaser.Scene {
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
         const actionBtn = document.getElementById('islandCommandAction');
+        const attackBtn = document.getElementById('islandCommandAttack');
         const closeBtn = document.getElementById('islandCommandClose');
 
-        if (!panel || !title || !actionBtn || !closeBtn) {
+        if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
             console.error('[showIslandCommandMenu] HTMLパネルが見つかりません');
             return;
         }
@@ -3148,6 +3287,8 @@ export default class WorldMapScene extends Phaser.Scene {
         const isUnoccupied = !islandData.ownerId;
         const isCapitalIsland = String(islandData.occupationStatus || '').toLowerCase() === 'capital';
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
+        const autoAttackConfig = this.getIslandAutoAttackConfig(islandData);
+        const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
         let buttonText = `${menuLabel}を開く`;
@@ -3193,14 +3334,29 @@ export default class WorldMapScene extends Phaser.Scene {
         actionBtn.textContent = buttonText;
         actionBtn.className = 'island-command-btn ' + buttonClass;
 
+        const attackOnClick = () => {
+            void this.triggerIslandAutoAttack(islandData, autoAttackConfig);
+        };
+        attackBtn.textContent = '攻撃準備';
+        attackBtn.className = 'island-command-btn danger';
+        attackBtn.style.display = canAutoAttack ? 'block' : 'none';
+
         const newActionBtn = actionBtn.cloneNode(true);
         actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+        const newAttackBtn = attackBtn.cloneNode(true);
+        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
         const newCloseBtn = closeBtn.cloneNode(true);
         closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
         newActionBtn.addEventListener('click', () => {
             void onClick();
         });
+
+        if (canAutoAttack) {
+            newAttackBtn.addEventListener('click', attackOnClick);
+        } else {
+            newAttackBtn.style.display = 'none';
+        }
 
         newCloseBtn.addEventListener('click', () => {
             this.hideIslandCommandMenu();
