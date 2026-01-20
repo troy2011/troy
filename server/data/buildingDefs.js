@@ -47,7 +47,8 @@ const buildings = {
         sizeVisual: { x: 3, y: 3 },
         nationTileOffset: true,
         effects: {},
-        description: '各国の中枢となる首都です。'
+        description: '各国の中枢となる首都です。',
+        buildable: false
     },
     // ========================================
     // 軍事施設（Military）
@@ -96,15 +97,33 @@ const buildings = {
         slotsRequired: 1,
         buildTime: 3600, // 1時間
         cost: { PS: 500 },
-        tileIndex: 18,
-        sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 2, y: 2 },
+        tileIndex: 896,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
             defenseBonus: 30,
             attackRange: 5,
             damage: 50
         },
         description: '島を防衛する強力な砲台。敵船を迎撃します。'
+    },
+
+    dragon_gate: {
+        id: 'dragon_gate',
+        name: '竜撃砲門',
+        category: 'military',
+        slotsRequired: 4,
+        buildTime: 7200, // 2時間
+        cost: { PS: 1000 },
+        tileIndex: 961,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: {
+            defenseBonus: 120,
+            attackRange: 6,
+            damage: 70
+        },
+        description: '竜撃砲を備えた防衛門。'
     },
 
     fortress: {
@@ -128,7 +147,8 @@ const buildings = {
             minCount: 2
         },
         description: '島全体を守る堅固な要塞。多数の兵を駐屯できます。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     shipyard: {
@@ -166,7 +186,8 @@ const buildings = {
             storageCapacity: 1000,
             protection: 0.5
         },
-        description: '資源を安全に保管します。略奪されにくくなります。'
+        description: '資源を安全に保管します。略奪されにくくなります。',
+        buildable: false
     },
 
     farm: {
@@ -201,7 +222,8 @@ const buildings = {
             tradeSlots: 2,
             taxReduction: 0.1
         },
-        description: '他のプレイヤーと交易を行えます。収入が増加します。'
+        description: '他のプレイヤーと交易を行えます。収入が増加します。',
+        buildable: false
     },
 
     mine: {
@@ -219,7 +241,8 @@ const buildings = {
             ironProduction: 20,
             goldProduction: 10
         },
-        description: '鉱物資源を採掘します。'
+        description: '鉱物資源を採掘します。',
+        buildable: false
     },
 
     grand_market: {
@@ -238,7 +261,8 @@ const buildings = {
             marketPriceControl: true
         },
         description: '広範囲の交易ネットワークを構築できる巨大市場。',
-        nationTileOffset: true
+        nationTileOffset: true,
+        buildable: false
     },
 
     // ========================================
@@ -450,25 +474,48 @@ const buildings = {
             fogOfWarReduction: 10,
             safetyBonus: true
         },
-        description: '航海を安全にし、船の速度を向上させます。'
+        description: '航海を安全にし、船の速度を向上させます。',
+        buildable: false
     },
 
     temple: {
         id: 'temple',
         name: '神殿',
         category: 'support',
-        slotsRequired: 4,
+        slotsRequired: 1,
         buildTime: 18000, // 5時間
         cost: { PS: 5000 },
-        tileIndex: 29,
-        sizeLogic: { x: 2, y: 2 },
-        sizeVisual: { x: 3, y: 4 },
+        tileIndex: 769,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
         effects: {
             blessings: true,
             healingRate: 2.0,
             divineProtection: 0.2
         },
-        description: '神の加護を得られる神聖な建造物。全能力が向上します。'
+        description: '神の加護を得られる神聖な建造物。全能力が向上します。',
+        levelLabel: true,
+        levels: {
+            1: { tileIndex: 769, sizeVisual: { x: 1, y: 1 } },
+            2: { tileIndex: 770, sizeVisual: { x: 1, y: 1 } },
+            3: { tileIndex: 802, sizeVisual: { x: 1, y: 1 } }
+        }
+    },
+
+    goddess_statue: {
+        id: 'goddess_statue',
+        name: '女神像',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 5400, // 1.5時間
+        cost: { PS: 1500 },
+        tileIndex: 801,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            blessings: true
+        },
+        description: '女神を祀る像。'
     },
 
     // ========================================

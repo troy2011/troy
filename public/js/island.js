@@ -1123,6 +1123,7 @@ function getBuildingIcon(buildingId) {
     const icons = {
         watchtower: 'W',
         coastal_battery: 'C',
+        dragon_gate: 'D',
         fortress: 'F',
         warehouse: 'W',
         farm: 'F',
@@ -1147,6 +1148,7 @@ function getBuildingName(buildingId) {
     const names = {
         watchtower: '監視塔',
         coastal_battery: '沿岸砲台',
+        dragon_gate: '竜撃砲門',
         fortress: '要塞',
         warehouse: '倉庫',
         farm: '農場',
@@ -1158,6 +1160,7 @@ function getBuildingName(buildingId) {
         mine: '鉱山',
         temple: '神殿',
         grand_market: '大市場',
+        goddess_statue: '女神像',
         arcana_fool_tavern: '海賊酒場',
         arcana_magician_school: '魔法学校',
         arcana_priestess_fountain_palace: '聖泉宮殿',
