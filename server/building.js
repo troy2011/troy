@@ -78,7 +78,7 @@ function getBuildingSpec(buildingId, level = null) {
         SizeVisual: sizeVisual,
         TileIndex: building.tileIndex,
         Level: building.level,
-        Tags: [`size_${building.slotsRequired === 1 ? 'small' : building.slotsRequired === 2 ? 'medium' : 'large'}`]
+        Tags: [`size_${building.slotsRequired === 1 ? 'small' : building.slotsRequired === 2 ? 'medium' : building.slotsRequired === 9 ? 'giant' : 'large'}`]
     };
 }
 

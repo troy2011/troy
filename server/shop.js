@@ -43,9 +43,70 @@ function getCentralIslandIdForMap(mapId) {
     }
 }
 
+async function getMapBuildingCounts(mapId, firestore) {
+    if (!mapId) return null;
+    const counts = {};
+    const snapshot = await getWorldMapCollection(firestore, mapId).get();
+    snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const list = Array.isArray(data.buildings) ? data.buildings : [];
+        list.forEach((entry) => {
+            if (!entry || entry.status === 'demolished') return;
+            const rawId = String(entry.buildingId || entry.id || '');
+            if (!rawId) return;
+            counts[rawId] = (counts[rawId] || 0) + 1;
+        });
+    });
+    return counts;
+}
+
+async function getPlayerNation(playFabId, deps) {
+    if (!playFabId) return null;
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    try {
+        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['Nation']
+        });
+        return String(result?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
+    } catch (error) {
+        console.warn('[GetPlayerNation] Failed:', error?.errorMessage || error?.message || error);
+        return null;
+    }
+}
+
+function normalizeConditionMapIds(conditionMapId) {
+    if (!conditionMapId) return null;
+    if (Array.isArray(conditionMapId)) return conditionMapId.map(id => String(id));
+    return [String(conditionMapId)];
+}
+
+function checkMapIdCondition(condition, mapId) {
+    const mapIds = normalizeConditionMapIds(condition?.mapId);
+    if (!mapIds) return true;
+    if (!mapId) return false;
+    return mapIds.includes(String(mapId));
+}
+
+function checkBuildingCountCondition(condition, mapBuildingCounts) {
+    const requiredId = String(condition?.buildingId || '').trim();
+    const minCount = Number(condition?.minCount || 0);
+    if (!requiredId || minCount <= 0) return true;
+    if (!mapBuildingCounts) return false;
+    const current = Number(mapBuildingCounts[requiredId] || 0);
+    return current >= minCount;
+}
+
+function checkOccupationCondition(condition, mapOccupationNation, playerNation) {
+    if (!condition?.requiresOccupation) return true;
+    if (!mapOccupationNation) return false;
+    if (condition.matchNation === false) return true;
+    return !!playerNation && playerNation === mapOccupationNation;
+}
+
 // APIルートを初期化
 function initializeShopRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
+    const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getMapOccupationNation, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
 
     // ショップ状態取得
     app.post('/api/get-shop-state', async (req, res) => {
@@ -279,6 +340,22 @@ function initializeShopRoutes(app, deps) {
             const spec = getBuildingSpec(buildingId);
             if (!spec) {
                 return res.status(400).json({ error: '建物定義が見つかりません。' });
+            }
+
+            const baseDef = buildingDefs?.getBuildingById ? buildingDefs.getBuildingById(buildingId) : null;
+            const condition = baseDef?.buildCondition || null;
+            if (condition) {
+                const mapBuildingCounts = await getMapBuildingCounts(mapId, firestore);
+                const mapOccupationNation = mapId && typeof getMapOccupationNation === 'function'
+                    ? await getMapOccupationNation(mapId)
+                    : null;
+                const playerNation = await getPlayerNation(playFabId, { promisifyPlayFab, PlayFabServer });
+                const meets = checkMapIdCondition(condition, mapId)
+                    && checkBuildingCountCondition(condition, mapBuildingCounts)
+                    && checkOccupationCondition(condition, mapOccupationNation, playerNation);
+                if (!meets) {
+                    return res.status(403).json({ error: 'BuildConditionNotMet' });
+                }
             }
 
             const isTutorialBuild = Boolean(req?.body?.tutorial) && buildingId === 'my_house';
@@ -613,6 +690,7 @@ function initializeShopRoutes(app, deps) {
             const category = String(req?.body?.category || '');
             const islandSize = String(req?.body?.islandSize || '').toLowerCase();
             const mapId = String(req?.body?.mapId || '').trim();
+            const playFabId = String(req?.body?.playFabId || '').trim();
             const entries = Object.entries(buildingDefs?.buildings || {}).filter(([, building]) => {
                 if (!building) return false;
                 if (building.buildable === false) return false;
@@ -620,38 +698,27 @@ function initializeShopRoutes(app, deps) {
                 return building.category === category;
             });
 
-            let mapBuildingCounts = null;
-            if (mapId) {
-                const counts = {};
-                const snapshot = await getWorldMapCollection(firestore, mapId).get();
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data() || {};
-                    const list = Array.isArray(data.buildings) ? data.buildings : [];
-                    list.forEach((entry) => {
-                        if (!entry || entry.status === 'demolished') return;
-                        const rawId = String(entry.buildingId || entry.id || '');
-                        if (!rawId) return;
-                        counts[rawId] = (counts[rawId] || 0) + 1;
-                    });
-                });
-                mapBuildingCounts = counts;
-            }
+            const mapBuildingCounts = await getMapBuildingCounts(mapId, firestore);
+            const needsOccupationCheck = entries.some(([, building]) => building?.buildCondition?.requiresOccupation === true);
+            const mapOccupationNation = (mapId && needsOccupationCheck && typeof getMapOccupationNation === 'function')
+                ? await getMapOccupationNation(mapId)
+                : null;
+            const playerNation = (playFabId && needsOccupationCheck)
+                ? await getPlayerNation(playFabId, { promisifyPlayFab, PlayFabServer })
+                : null;
 
             const buildings = entries.map(([key, building]) => {
                 const resolved = buildingDefs.getBuildingById
                     ? buildingDefs.getBuildingById(building.id || key)
                     : building;
                 const slotsRequired = Number(building.slotsRequired || 1);
-                const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : 'large'}`;
+                const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : slotsRequired === 9 ? 'giant' : 'large'}`;
                 const condition = resolved?.buildCondition || building?.buildCondition || null;
                 let meetsCondition = true;
-                if (condition && mapBuildingCounts) {
-                    const requiredId = String(condition.buildingId || '').trim();
-                    const minCount = Number(condition.minCount || 0);
-                    if (requiredId && minCount > 0) {
-                        const current = Number(mapBuildingCounts[requiredId] || 0);
-                        meetsCondition = current >= minCount;
-                    }
+                if (condition) {
+                    meetsCondition = checkMapIdCondition(condition, mapId)
+                        && checkBuildingCountCondition(condition, mapBuildingCounts)
+                        && checkOccupationCondition(condition, mapOccupationNation, playerNation);
                 }
                 return {
                     id: building.id || key,

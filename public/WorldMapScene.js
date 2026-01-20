@@ -75,7 +75,7 @@ const ISLAND_LAYOUTS = {
     }
 };
 
-const BUILDING_META_DEFAULT = { nationTileOffset: false };
+const BUILDING_META_DEFAULT = { nationTileOffset: false, clearGroundTiles: false };
 const AREA_GRID_SIZE = 5;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 
@@ -1199,6 +1199,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const islandHeight = layoutData.height * this.TILE_SIZE;
 
         const islandSprites = [];
+        const islandTileMap = new Map();
         const islandPhysicsGroup = this.physics.add.staticGroup();
 
         for (let row = 0; row < layout.length; row++) {
@@ -1220,11 +1221,19 @@ export default class WorldMapScene extends Phaser.Scene {
                         tile.body.setSize(this.TILE_SIZE, this.TILE_SIZE);
                         tile.body.setOffset(0, 0);
                         tile.refreshBody();
+                        tile.__islandTile = true;
+                        tile.__tileRow = row;
+                        tile.__tileCol = col;
+                        islandTileMap.set(`${col},${row}`, tile);
                         islandSprites.push(tile);
                         islandPhysicsGroup.add(tile);
                     } else {
                         const tile = this.add.sprite(tileX, tileY, 'map_tiles', tileIndex).setOrigin(0, 0);
                         tile.setDepth(GAME_CONFIG.DEPTH.ISLAND);
+                        tile.__islandTile = true;
+                        tile.__tileRow = row;
+                        tile.__tileCol = col;
+                        islandTileMap.set(`${col},${row}`, tile);
                         islandSprites.push(tile);
                     }
                 }
@@ -1332,6 +1341,23 @@ export default class WorldMapScene extends Phaser.Scene {
                     const buildingY = data.y + (layoutData.slots.offsetY + slotY) * this.TILE_SIZE;
                     const baseX = buildingX;
                     const baseY = buildingY + (bHeight * this.TILE_SIZE);
+
+                    if (buildingMeta?.clearGroundTiles) {
+                        const startCol = layoutData.slots.offsetX + renderSlotX;
+                        const baseRow = layoutData.slots.offsetY + slotY + (bHeight - 1);
+                        for (let dy = 0; dy < vHeight; dy++) {
+                            const row = baseRow - dy;
+                            for (let dx = 0; dx < vWidth; dx++) {
+                                const col = startCol + dx;
+                                if (row < 0 || col < 0 || row >= layoutData.height || col >= layoutData.width) continue;
+                                const tile = islandTileMap.get(`${col},${row}`);
+                                if (tile) {
+                                    tile.setAlpha(0);
+                                    tile.__hiddenByBuilding = buildingId || true;
+                                }
+                            }
+                        }
+                    }
 
                     if (vWidth > 1 || vHeight > 1) {
                         const sheetCols = 32;

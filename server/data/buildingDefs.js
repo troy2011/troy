@@ -25,7 +25,7 @@ const buildingCategories = {
 /**
  * 施設の定義
  *
- * slotsRequired: 必要なスロット数（1=小施設、2=中施設、4=大施設）
+ * slotsRequired: 必要なスロット数（1=小施設、2=中施設、4=大施設、9=巨大施設）
  * buildTime: 建設時間（秒）
  * cost: 建設コスト（PlayFab仮想通貨コード）
  *   - PS: Ps（メイン通貨）
@@ -469,6 +469,319 @@ const buildings = {
             divineProtection: 0.2
         },
         description: '神の加護を得られる神聖な建造物。全能力が向上します。'
+    },
+
+    // ========================================
+    // 大アルカナ施設
+    // ========================================
+    arcana_fool_tavern: {
+        id: 'arcana_fool_tavern',
+        name: '海賊酒場',
+        category: 'support',
+        slotsRequired: 1,
+        buildTime: 3600,
+        cost: { PS: 800 },
+        tileIndex: 832,
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: { 'ちから': 1, 'かしこさ': 1, 'きようさ': 1, 'みのまもり': 1 },
+        description: '全能力が少し上がる海賊酒場。',
+        buildCondition: { mapId: 'major_00', requiresOccupation: true, matchNation: true }
+    },
+    arcana_magician_school: {
+        id: 'arcana_magician_school',
+        name: '魔法学校',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2000 },
+        tileIndex: 720,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'かしこさ': 2 },
+        description: 'かしこさが上がる魔法学校。',
+        buildCondition: { mapId: 'major_01', requiresOccupation: true, matchNation: true }
+    },
+    arcana_priestess_fountain_palace: {
+        id: 'arcana_priestess_fountain_palace',
+        name: '聖泉宮殿',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2000 },
+        tileIndex: 656,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'きようさ': 2 },
+        description: 'きようさが上がる噴水の宮殿。',
+        buildCondition: { mapId: 'major_02', requiresOccupation: true, matchNation: true }
+    },
+    arcana_empress_garden: {
+        id: 'arcana_empress_garden',
+        name: '温室庭園',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2000 },
+        tileIndex: 712,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'みのまもり': 2 },
+        description: 'みのまもりが上がる温室庭園。',
+        buildCondition: { mapId: 'major_03', requiresOccupation: true, matchNation: true }
+    },
+    arcana_emperor_training: {
+        id: 'arcana_emperor_training',
+        name: '訓練所',
+        category: 'military',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2000 },
+        tileIndex: 728,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'ちから': 2 },
+        description: 'ちからが上がる訓練所。',
+        buildCondition: { mapId: 'major_04', requiresOccupation: true, matchNation: true }
+    },
+    arcana_hierophant_lab: {
+        id: 'arcana_hierophant_lab',
+        name: '魔法研究所',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2200 },
+        tileIndex: 704,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'かしこさ': 4 },
+        description: 'かしこさが大きく上がる魔法研究所。',
+        buildCondition: { mapId: 'major_05', requiresOccupation: true, matchNation: true }
+    },
+    arcana_lovers_palace: {
+        id: 'arcana_lovers_palace',
+        name: '恋人の宮殿',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2200 },
+        tileIndex: 664,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'きようさ': 4 },
+        description: 'きようさが大きく上がる宮殿。',
+        buildCondition: { mapId: 'major_06', requiresOccupation: true, matchNation: true }
+    },
+    arcana_chariot_factory: {
+        id: 'arcana_chariot_factory',
+        name: '戦車工廠',
+        category: 'military',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2200 },
+        tileIndex: 648,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { 'みのまもり': 4 },
+        description: 'みのまもりが大きく上がる工廠。',
+        buildCondition: { mapId: 'major_07', requiresOccupation: true, matchNation: true }
+    },
+    arcana_strength_fortress: {
+        id: 'arcana_strength_fortress',
+        name: '城塞',
+        category: 'military',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2200 },
+        tileIndex: 600,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
+        effects: { 'ちから': 4 },
+        description: 'ちからが大きく上がる城塞。',
+        buildCondition: { mapId: 'major_08', requiresOccupation: true, matchNation: true }
+    },
+    arcana_hermit_lodge: {
+        id: 'arcana_hermit_lodge',
+        name: '隠者の館',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 995,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
+        effects: { 'かしこさ': 3 },
+        description: '賢者の庵。知恵が磨かれます。',
+        buildCondition: { mapId: 'major_09', requiresOccupation: true, matchNation: true }
+    },
+    arcana_wheel_casino: {
+        id: 'arcana_wheel_casino',
+        name: '地下カジノ',
+        category: 'economic',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 837,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
+        effects: { gambleBonus: 1 },
+        description: 'ギャンブルが盛んな地下カジノ。',
+        clearGroundTiles: true,
+        buildCondition: { mapId: 'major_10', requiresOccupation: true, matchNation: true }
+    },
+    arcana_justice_court: {
+        id: 'arcana_justice_court',
+        name: '裁判所',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 933,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
+        effects: { lawOrder: 1 },
+        description: '秩序を守る裁判所。',
+        buildCondition: { mapId: 'major_11', requiresOccupation: true, matchNation: true }
+    },
+    arcana_hanged_altar: {
+        id: 'arcana_hanged_altar',
+        name: '供物台',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 997,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { sacrificeBonus: 1 },
+        description: '供物を捧げる儀式の台。',
+        buildCondition: { mapId: 'major_12', requiresOccupation: true, matchNation: true }
+    },
+    arcana_death_mausoleum: {
+        id: 'arcana_death_mausoleum',
+        name: '納骨堂',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 807,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 2 },
+        effects: { soulWard: 1 },
+        description: '魂を鎮める霊廟。',
+        buildCondition: { mapId: 'major_13', requiresOccupation: true, matchNation: true }
+    },
+    arcana_temperance_spring: {
+        id: 'arcana_temperance_spring',
+        name: '癒しの泉',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2400 },
+        tileIndex: 903,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 3 },
+        effects: { healingBonus: 1 },
+        description: '癒しの力を宿す泉。',
+        buildCondition: { mapId: 'major_14', requiresOccupation: true, matchNation: true }
+    },
+    arcana_devil_black_market: {
+        id: 'arcana_devil_black_market',
+        name: '黒市',
+        category: 'economic',
+        slotsRequired: 9,
+        buildTime: 10800,
+        cost: { PS: 3500 },
+        tileIndex: 999,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 3, y: 3 },
+        effects: { blackMarket: true },
+        description: '禁制品が集まる闇市。',
+        buildCondition: { mapId: 'major_15', requiresOccupation: true, matchNation: true }
+    },
+    arcana_tower_judgement: {
+        id: 'arcana_tower_judgement',
+        name: '裁きの塔',
+        category: 'military',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2600 },
+        tileIndex: 873,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 4 },
+        effects: { defenseBonus: 10 },
+        description: '防衛力を高める裁きの塔。',
+        buildCondition: { mapId: 'major_16', requiresOccupation: true, matchNation: true }
+    },
+    arcana_star_observatory: {
+        id: 'arcana_star_observatory',
+        name: '天文台',
+        category: 'support',
+        slotsRequired: 9,
+        buildTime: 10800,
+        cost: { PS: 3500 },
+        tileIndex: 843,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 3, y: 3 },
+        effects: { visionRange: 5 },
+        description: '星を観測する天文台。',
+        buildCondition: { mapId: 'major_17', requiresOccupation: true, matchNation: true }
+    },
+    arcana_moon_shrine: {
+        id: 'arcana_moon_shrine',
+        name: '氷霧の社',
+        category: 'support',
+        slotsRequired: 9,
+        buildTime: 10800,
+        cost: { PS: 3500 },
+        tileIndex: 846,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 3, y: 3 },
+        effects: { stealthBonus: 1 },
+        description: '幻術と隠密に通じる社。',
+        buildCondition: { mapId: 'major_18', requiresOccupation: true, matchNation: true }
+    },
+    arcana_sun_temple: {
+        id: 'arcana_sun_temple',
+        name: '太陽神殿',
+        category: 'support',
+        slotsRequired: 4,
+        buildTime: 7200,
+        cost: { PS: 2600 },
+        tileIndex: 1002,
+        sizeLogic: { x: 2, y: 2 },
+        sizeVisual: { x: 2, y: 4 },
+        effects: { blessing: 1 },
+        description: '祝福の光を宿す神殿。',
+        buildCondition: { mapId: 'major_19', requiresOccupation: true, matchNation: true }
+    },
+    arcana_judgement_belltower: {
+        id: 'arcana_judgement_belltower',
+        name: '鐘楼',
+        category: 'support',
+        slotsRequired: 9,
+        buildTime: 10800,
+        cost: { PS: 3600 },
+        tileIndex: 942,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 3, y: 3 },
+        effects: { revivalBoost: 1 },
+        description: '告示と復活を司る鐘楼。',
+        buildCondition: { mapId: 'major_20', requiresOccupation: true, matchNation: true }
+    },
+    arcana_world_tree: {
+        id: 'arcana_world_tree',
+        name: '世界樹',
+        category: 'support',
+        slotsRequired: 9,
+        buildTime: 14400,
+        cost: { PS: 5000 },
+        tileIndex: 1009,
+        sizeLogic: { x: 3, y: 3 },
+        sizeVisual: { x: 4, y: 8 },
+        effects: { allBlessing: 2 },
+        description: '世界を支える大樹。',
+        buildCondition: { mapId: 'major_21', requiresOccupation: true, matchNation: true }
     }
 };
 
@@ -533,7 +846,8 @@ function getBuildingMetaMap() {
         if (!building) return;
         const id = building.id || key;
         const nationTileOffset = building.nationTileOffset === true;
-        const meta = { id, nationTileOffset };
+        const clearGroundTiles = building.clearGroundTiles === true;
+        const meta = { id, nationTileOffset, clearGroundTiles };
         map[key] = meta;
         if (id && !map[id]) map[id] = meta;
         const levelKeys = building.levels ? Object.keys(building.levels) : ['1', '2', '3', '4', '5'];

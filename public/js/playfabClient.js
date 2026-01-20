@@ -292,7 +292,12 @@ export function buyFromShop(playFabId, islandId, itemId, quantity, mapId, option
 }
 
 export function getBuildingsByCategory(category, islandSize, mapId, options) {
-    return callApiWithLoader('/api/get-buildings-by-category', { category, islandSize, mapId }, options);
+    const playFabId = (typeof window !== 'undefined' && window.myPlayFabId)
+        ? window.myPlayFabId
+        : localStorage.getItem('playFabId');
+    const payload = { category, islandSize, mapId };
+    if (playFabId) payload.playFabId = playFabId;
+    return callApiWithLoader('/api/get-buildings-by-category', payload, options);
 }
 
 export function donateNationCurrency(playFabId, currency, amount, options) {

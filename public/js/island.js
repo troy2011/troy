@@ -1118,6 +1118,8 @@ function getBiomeLabel(biome) {
 }
 
 function getBuildingIcon(buildingId) {
+    const baseId = String(buildingId || '').replace(/_lv\d+$/, '');
+    if (baseId.startsWith('arcana_')) return '🃏';
     const icons = {
         watchtower: 'W',
         coastal_battery: 'C',
@@ -1155,7 +1157,29 @@ function getBuildingName(buildingId) {
         shipyard: '造船所',
         mine: '鉱山',
         temple: '神殿',
-        grand_market: '大市場'
+        grand_market: '大市場',
+        arcana_fool_tavern: '海賊酒場',
+        arcana_magician_school: '魔法学校',
+        arcana_priestess_fountain_palace: '聖泉宮殿',
+        arcana_empress_garden: '温室庭園',
+        arcana_emperor_training: '訓練所',
+        arcana_hierophant_lab: '魔法研究所',
+        arcana_lovers_palace: '恋人の宮殿',
+        arcana_chariot_factory: '戦車工廠',
+        arcana_strength_fortress: '城塞',
+        arcana_hermit_lodge: '隠者の館',
+        arcana_wheel_casino: '地下カジノ',
+        arcana_justice_court: '裁判所',
+        arcana_hanged_altar: '供物台',
+        arcana_death_mausoleum: '納骨堂',
+        arcana_temperance_spring: '癒しの泉',
+        arcana_devil_black_market: '黒市',
+        arcana_tower_judgement: '裁きの塔',
+        arcana_star_observatory: '天文台',
+        arcana_moon_shrine: '氷霧の社',
+        arcana_sun_temple: '太陽神殿',
+        arcana_judgement_belltower: '鐘楼',
+        arcana_world_tree: '世界樹'
     };
     return names[buildingId] || buildingId;
 }
