@@ -650,7 +650,7 @@ const buildings = {
         tileIndex: 873,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 4 },
-        effects: { defenseBonus: 10, autoAttackTier: 'large', autoAttackRadius: 5 },
+        effects: { defenseBonus: 10, autoAttackTier: 'large', autoAttackRadius: 5, damage: 90 },
         description: '防衛力を高める裁きの塔。',
         buildCondition: { mapId: 'major_16', requiresOccupation: true, matchNation: true }
     },

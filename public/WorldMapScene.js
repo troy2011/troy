@@ -2118,7 +2118,8 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!Number.isFinite(dist) || dist > rangePx) return;
             const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
             if (myNation && otherNation && myNation === otherNation) return;
-            candidates.push({ playFabId: otherId, sprite, distance: dist });
+            const displayName = shipObject?.data?.displayName || shipObject?.data?.name || shipObject?.data?.playerName || otherId;
+            candidates.push({ playFabId: otherId, sprite, distance: dist, name: displayName });
         });
 
         if (candidates.length === 0) {
@@ -2142,6 +2143,18 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
+        const damageValue = Number(config.damage) || 0;
+        if (Number.isFinite(damageValue) && damageValue > 0) {
+            const primaryTarget = hitTargets[0];
+            const targetLabel = primaryTarget?.name || primaryTarget?.playFabId || '敵';
+            const msg = `HIT！${targetLabel}に${Math.round(damageValue)}ダメージ！`;
+            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                window.showRpgMessage(msg);
+            } else {
+                this.showMessage(msg);
+            }
+        }
+
         const actionInfo = {
             type: 'island_attack',
             label: config.label || 'IslandAttack',
@@ -2159,10 +2172,10 @@ export default class WorldMapScene extends Phaser.Scene {
         });
         await Promise.all(emitPromises);
 
-        if (Number.isFinite(Number(config.damage)) && Number(config.damage) > 0) {
+        if (Number.isFinite(damageValue) && damageValue > 0) {
             await this.applyShipActionDamage(
                 hitTargets.map(t => ({ playFabId: t.playFabId, distance: t.distance })),
-                Number(config.damage)
+                damageValue
             );
         }
     }
