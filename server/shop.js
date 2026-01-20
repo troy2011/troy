@@ -17,6 +17,7 @@ const {
 } = require('./building');
 const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId } = require('./island');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const { invalidateMapCache } = require('./islandEffects');
 
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
@@ -535,6 +536,8 @@ function initializeShopRoutes(app, deps) {
                 console.warn('[StartBuildingConstruction] Failed to update map occupation:', e?.errorMessage || e?.message || e);
             }
 
+            invalidateMapCache(mapId);
+
             res.json({
                 success: true,
                 building,
@@ -561,12 +564,14 @@ function initializeShopRoutes(app, deps) {
 
         try {
             let ref = null;
+            let resolvedMapId = mapId || null;
             if (mapId) {
                 ref = getWorldMapCollection(firestore, mapId).doc(islandId);
             } else {
                 const found = await findIslandDocAcrossMaps(firestore, islandId);
                 if (!found.snap) throw new Error('IslandNotFound');
                 ref = found.collection.doc(islandId);
+                resolvedMapId = found.mapId;
             }
             const now = Date.now();
 
@@ -604,6 +609,10 @@ function initializeShopRoutes(app, deps) {
                 tx.update(ref, patch);
                 return { completed: true, building: buildings[idx] };
             });
+
+            if (result.completed) {
+                invalidateMapCache(resolvedMapId);
+            }
 
             res.json({ success: true, ...result, message: result.completed ? '建設が完了しました。' : 'まだ建設中です。' });
         } catch (error) {

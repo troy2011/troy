@@ -2,6 +2,7 @@
 
 const admin = require('firebase-admin');
 const { geohashForLocation, geohashQueryBounds, distanceBetween } = require('geofire-common');
+const { getEffectsAtPosition } = require('../islandEffects');
 
 // WorldMapScene.js と同じ座標系（ピクセル）→緯度経度の近似変換（geofire-common用）
 const GEO_CONFIG = {
@@ -681,6 +682,32 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         return { multiplier: RAM_DIRECTION_MULTIPLIERS.back, zone: 'back' };
     }
 
+    const AUTO_ATTACK_DAMAGE_BY_TIER = {
+        small: 60,
+        medium: 120,
+        large: 200
+    };
+
+    function resolveAutoAttackDamage(effects) {
+        const directDamage = Number(effects?.damage);
+        if (Number.isFinite(directDamage) && directDamage > 0) return directDamage;
+        const tier = String(effects?.autoAttackTier || '').toLowerCase();
+        return AUTO_ATTACK_DAMAGE_BY_TIER[tier] || 0;
+    }
+
+    function pickAutoAttackDamage(effectEntries, nation) {
+        if (!Array.isArray(effectEntries) || !nation) return 0;
+        let maxDamage = 0;
+        effectEntries.forEach((entry) => {
+            if (!entry?.flags?.autoAttack) return;
+            const ownerNation = String(entry.ownerNation || '').trim().toLowerCase();
+            if (!ownerNation || ownerNation === nation) return;
+            const damage = resolveAutoAttackDamage(entry.effects);
+            if (damage > maxDamage) maxDamage = damage;
+        });
+        return maxDamage;
+    }
+
     /**
      * API: 船の体当たりダメージ
      * POST /api/ram-ship
@@ -777,6 +804,25 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const defenderDir = getDirectionMultiplier(defenderFacing, defenderPos, attackerPos);
             attackerDamage *= attackerDir.multiplier;
             defenderDamage *= defenderDir.multiplier;
+
+            let autoDamageToAttacker = 0;
+            let autoDamageToDefender = 0;
+            const resolvedMapId = (typeof req.body?.mapId === 'string' && req.body.mapId.trim())
+                ? req.body.mapId.trim()
+                : (attackerSummaryData.mapId || defenderSummaryData.mapId || null);
+            try {
+                const [attackerEffects, defenderEffects] = await Promise.all([
+                    attackerPos ? getEffectsAtPosition(resolvedMapId, attackerPos, db) : [],
+                    defenderPos ? getEffectsAtPosition(resolvedMapId, defenderPos, db) : []
+                ]);
+                autoDamageToAttacker = pickAutoAttackDamage(attackerEffects, attackerNation);
+                autoDamageToDefender = pickAutoAttackDamage(defenderEffects, defenderNation);
+            } catch (error) {
+                console.warn('[RamShip] Failed to resolve island effects:', error?.message || error);
+            }
+            attackerDamage += autoDamageToDefender;
+            defenderDamage += autoDamageToAttacker;
+
             const nextAttackerHp = Math.max(0, (Number.isFinite(attackerHp) ? attackerHp : attackerMaxHp) - defenderDamage);
             const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - attackerDamage);
             const attackerRespawn = nextAttackerHp <= 0;
