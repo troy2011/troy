@@ -64,7 +64,10 @@ const buildings = {
         sizeVisual: { x: 1, y: 1 },
         effects: {
             visionRange: 10,
-            earlyWarning: true
+            earlyWarning: true,
+            watchRadius: 6,
+            watchNotify: true,
+            watchNotifyScope: 'nation'
         },
         description: '周囲の海域を監視し、敵の接近を早期発見します。',
         levelLabel: false,
@@ -103,7 +106,9 @@ const buildings = {
         effects: {
             defenseBonus: 30,
             attackRange: 5,
-            damage: 50
+            damage: 50,
+            autoAttackTier: 'small',
+            autoAttackRadius: 3
         },
         description: '島を防衛する強力な砲台。敵船を迎撃します。'
     },
@@ -121,7 +126,9 @@ const buildings = {
         effects: {
             defenseBonus: 120,
             attackRange: 6,
-            damage: 70
+            damage: 70,
+            autoAttackTier: 'medium',
+            autoAttackRadius: 4
         },
         description: '竜撃砲を備えた防衛門。'
     },
@@ -297,7 +304,8 @@ const buildings = {
         effects: {
             crewRecruitment: true,
             morale: 15,
-            recruitmentSpeed: 1.2
+            recruitmentSpeed: 1.2,
+            timedBuffId: 'tavern'
         },
         description: '乗組員を募集できます。',
         nationTileOffset: true
@@ -315,7 +323,8 @@ const buildings = {
         sizeVisual: { x: 1, y: 1 },
         effects: {
             restBonus: 0.2,
-            moraleBonus: 8
+            moraleBonus: 8,
+            paidHealHp: true
         },
         description: '休息施設。乗組員の疲労回復が早まります。',
         nationTileOffset: true
@@ -333,7 +342,8 @@ const buildings = {
         sizeVisual: { x: 1, y: 1 },
         effects: {
             restBonus: 0.25,
-            moraleBonus: 10
+            moraleBonus: 10,
+            paidHealMp: true
         },
         description: '温泉施設。疲労回復と士気が少し上がります。',
         nationTileOffset: true
@@ -352,7 +362,8 @@ const buildings = {
         effects: {
             repairSpeed: 2.0,
             repairCostReduction: 0.3,
-            simultaneousRepairs: 2
+            simultaneousRepairs: 2,
+            repairCurrency: 'PS'
         },
         description: '船を素早く修理できます。戦闘後の復帰が早くなります。',
         nationTileOffset: true
@@ -371,7 +382,9 @@ const buildings = {
         effects: {
             blessings: true,
             healingRate: 2.0,
-            divineProtection: 0.2
+            divineProtection: 0.2,
+            areaBuffRadius: 5,
+            areaBuffLevelScale: true
         },
         description: '神の加護を得られる神聖な建造物。全能力が向上します。',
         levelLabel: true,
@@ -393,7 +406,8 @@ const buildings = {
         sizeLogic: { x: 1, y: 1 },
         sizeVisual: { x: 1, y: 1 },
         effects: {
-            blessings: true
+            blessings: true,
+            areaHealRadius: 4
         },
         description: '女神を祀る像。'
     },
@@ -580,7 +594,7 @@ const buildings = {
         tileIndex: 997,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
-        effects: { sacrificeBonus: 1 },
+        effects: { sacrificeBonus: 1, allyDeathBuffRadius: 5 },
         description: '供物を捧げる儀式の台。',
         buildCondition: { mapId: 'major_12', requiresOccupation: true, matchNation: true }
     },
@@ -594,7 +608,7 @@ const buildings = {
         tileIndex: 807,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
-        effects: { soulWard: 1 },
+        effects: { soulWard: 1, enemyDeathPrisonRadius: 4 },
         description: '魂を鎮める霊廟。',
         buildCondition: { mapId: 'major_13', requiresOccupation: true, matchNation: true }
     },
@@ -608,7 +622,7 @@ const buildings = {
         tileIndex: 903,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 3 },
-        effects: { healingBonus: 1 },
+        effects: { healingBonus: 1, respawnFullHeal: true },
         description: '癒しの力を宿す泉。',
         buildCondition: { mapId: 'major_14', requiresOccupation: true, matchNation: true }
     },
@@ -636,7 +650,7 @@ const buildings = {
         tileIndex: 873,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 4 },
-        effects: { defenseBonus: 10 },
+        effects: { defenseBonus: 10, autoAttackTier: 'large', autoAttackRadius: 5 },
         description: '防衛力を高める裁きの塔。',
         buildCondition: { mapId: 'major_16', requiresOccupation: true, matchNation: true }
     },
@@ -650,7 +664,7 @@ const buildings = {
         tileIndex: 843,
         sizeLogic: { x: 3, y: 3 },
         sizeVisual: { x: 3, y: 3 },
-        effects: { visionRange: 5 },
+        effects: { visionRange: 5, watchGlobal: true, watchMinimap: true },
         description: '星を観測する天文台。',
         buildCondition: { mapId: 'major_17', requiresOccupation: true, matchNation: true }
     },
@@ -664,7 +678,7 @@ const buildings = {
         tileIndex: 846,
         sizeLogic: { x: 3, y: 3 },
         sizeVisual: { x: 3, y: 3 },
-        effects: { stealthBonus: 1 },
+        effects: { stealthBonus: 1, fogSlowRadius: 5, slowTier: 'medium' },
         description: '幻術と隠密に通じる社。',
         buildCondition: { mapId: 'major_18', requiresOccupation: true, matchNation: true }
     },
