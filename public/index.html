@@ -130,30 +130,11 @@
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">商品</div>
                                 <ul class="troy-menu-items">
-                                    <li>
-                                        ドリンク
-                                        <ul class="troy-menu-subitems">
-                                            <li>コーヒー</li>
-                                            <li>お茶</li>
-                                            <li>炭酸</li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        フード
-                                        <ul class="troy-menu-subitems">
-                                            <li>軽食</li>
-                                            <li>スイーツ</li>
-                                            <li>セット</li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        グッズ
-                                        <ul class="troy-menu-subitems">
-                                            <li>アパレル</li>
-                                            <li>雑貨</li>
-                                            <li>限定</li>
-                                        </ul>
-                                    </li>
+                                    <li class="troy-menu-item-button" data-menu-id="drink-alcohol">ドリンク/アルコール</li>
+                                    <li class="troy-menu-item-button" data-menu-id="soft-drink">ソフトドリンク</li>
+                                    <li class="troy-menu-item-button" data-menu-id="food">フード</li>
+                                    <li class="troy-menu-item-button" data-menu-id="goods">グッズ</li>
+                                    <li class="troy-menu-item-button" data-menu-id="points">ポイント</li>
                                 </ul>
                             </li>
                             <li class="troy-menu-group">
@@ -202,6 +183,15 @@
                                 </ul>
                             </li>
                         </ul>
+                    </div>
+                </div>
+                <div id="troyMenuModal" class="troy-menu-modal">
+                    <div class="troy-menu-modal-card">
+                        <div class="troy-menu-modal-header">
+                            <div id="troyMenuModalTitle" class="troy-menu-modal-title">メニュー</div>
+                            <button id="troyMenuModalClose" class="troy-menu-modal-close" type="button">×</button>
+                        </div>
+                        <div id="troyMenuModalList" class="troy-menu-modal-list"></div>
                     </div>
                 </div>
                 <div class="content-area">

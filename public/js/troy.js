@@ -9,6 +9,7 @@ import {
 
 let _wired = false;
 let _questWired = false;
+let _menuWired = false;
 let _pollTimer = null;
 let _lastStatus = null;
 let _questBetAmount = 0;
@@ -42,6 +43,53 @@ const QUEST_BET_THRESHOLDS = {
     bonus2: 1000
 };
 const QUEST_BET_MAX = 100000;
+
+const TROY_PRODUCT_MENUS = {
+    'drink-alcohol': {
+        title: 'ドリンク/アルコール',
+        items: [
+            { name: 'ラムコーク', price: '¥900' },
+            { name: 'ハイボール', price: '¥850' },
+            { name: '赤ワイン', price: '¥950' },
+            { name: 'カクテル各種', price: '¥900' }
+        ]
+    },
+    'soft-drink': {
+        title: 'ソフトドリンク',
+        items: [
+            { name: 'コーラ', price: '¥400' },
+            { name: 'ジンジャーエール', price: '¥400' },
+            { name: 'ウーロン茶', price: '¥350' },
+            { name: 'フルーツジュース', price: '¥450' }
+        ]
+    },
+    food: {
+        title: 'フード',
+        items: [
+            { name: '海賊ナッツ', price: '¥500' },
+            { name: 'スパイシーチキン', price: '¥850' },
+            { name: '塩焼きポテト', price: '¥600' },
+            { name: '日替わりプレート', price: '¥1200' }
+        ]
+    },
+    goods: {
+        title: 'グッズ',
+        items: [
+            { name: 'TROYロゴT', price: '¥2800' },
+            { name: '航海マグ', price: '¥1600' },
+            { name: 'バンダナ', price: '¥1200' },
+            { name: '限定バッジ', price: '¥900' }
+        ]
+    },
+    points: {
+        title: 'ポイント',
+        items: [
+            { name: '600Ps', price: '￥5000' },
+            { name: '350Ps', price: '￥3000' },
+            { name: '100Ps', price: '￥1000' }
+        ]
+    }
+};
 
 const TROY_QUESTS = [
     {
@@ -549,6 +597,62 @@ function setQuestBetAmount(value) {
     }
 }
 
+function getMenuModalElements() {
+    return {
+        modal: document.getElementById('troyMenuModal'),
+        title: document.getElementById('troyMenuModalTitle'),
+        list: document.getElementById('troyMenuModalList'),
+        close: document.getElementById('troyMenuModalClose')
+    };
+}
+
+function openMenuModal(menuId) {
+    const data = TROY_PRODUCT_MENUS[menuId];
+    if (!data) return;
+    const { modal, title, list } = getMenuModalElements();
+    if (!modal || !list) return;
+    if (title) title.textContent = data.title;
+    list.innerHTML = '';
+    data.items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'troy-menu-modal-item';
+        const name = document.createElement('span');
+        name.textContent = item.name;
+        const price = document.createElement('span');
+        price.className = 'troy-menu-modal-price';
+        price.textContent = item.price;
+        row.appendChild(name);
+        row.appendChild(price);
+        list.appendChild(row);
+    });
+    modal.style.display = 'flex';
+}
+
+function closeMenuModal() {
+    const { modal } = getMenuModalElements();
+    if (modal) modal.style.display = 'none';
+}
+
+function wireMenuPopups() {
+    if (_menuWired) return;
+    _menuWired = true;
+    const { modal, close } = getMenuModalElements();
+    if (close) {
+        close.addEventListener('click', closeMenuModal);
+    }
+    if (modal) {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeMenuModal();
+        });
+    }
+    const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
+    menuButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            openMenuModal(button.dataset.menuId);
+        });
+    });
+}
+
 function renderQuestList(list) {
     const container = document.getElementById('troyQuestList');
     if (!container) return;
@@ -833,6 +937,7 @@ function startPolling(playFabId) {
 
 export async function loadTroyPage(playFabId) {
     wireHandlers(playFabId);
+    wireMenuPopups();
     wireQuestFilters();
     updateQuestFilterLabel('クエスト一覧: 未選択');
     renderQuestList([]);
