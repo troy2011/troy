@@ -3,10 +3,13 @@
 
 const { addGlobalChatMessage } = require('./chat');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const QUEST_QR_PREFIX = 'quest:';
 const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
+const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
 const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
     .split(',')
     .map((value) => value.trim())
@@ -22,6 +25,7 @@ const QUEST_REWARD_ITEM_BY_TYPE = {
     item: process.env.QUEST_REWARD_ITEM_ITEM_ID || ''
 };
 const QUEST_ALLOWED_GACHA_TYPES = new Set(Object.keys(QUEST_REWARD_ITEM_BY_TYPE));
+let questRewardTablesCache = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -158,6 +162,46 @@ function resolveQuestRewardItemId(gachaType) {
     const key = String(gachaType || '').toLowerCase();
     if (!QUEST_ALLOWED_GACHA_TYPES.has(key)) return '';
     return QUEST_REWARD_ITEM_BY_TYPE[key] || '';
+}
+
+function loadQuestRewardTables() {
+    if (questRewardTablesCache) return questRewardTablesCache;
+    try {
+        const raw = fs.readFileSync(QUEST_REWARD_TABLE_PATH, 'utf8');
+        const parsed = JSON.parse(raw);
+        questRewardTablesCache = parsed?.tables || parsed || {};
+    } catch (error) {
+        console.warn('[quest-reward] Failed to load reward tables:', error?.message || error);
+        questRewardTablesCache = {};
+    }
+    return questRewardTablesCache;
+}
+
+function getQuestRewardPool(gachaType) {
+    const tables = loadQuestRewardTables();
+    const key = String(gachaType || '').toLowerCase();
+    const pool = tables?.[key];
+    return Array.isArray(pool) ? pool : [];
+}
+
+function pickWeightedItem(items) {
+    const pool = items.filter((item) => item && typeof item === 'object');
+    if (!pool.length) return null;
+    const weights = pool.map((item) => Math.max(1, Number(item.weight) || 1));
+    const total = weights.reduce((sum, value) => sum + value, 0);
+    let roll = Math.random() * total;
+    for (let i = 0; i < pool.length; i += 1) {
+        roll -= weights[i];
+        if (roll <= 0) return pool[i];
+    }
+    return pool[pool.length - 1];
+}
+
+function resolveQuestRewardFromTables(gachaType) {
+    const pool = getQuestRewardPool(gachaType);
+    const picked = pickWeightedItem(pool);
+    const itemId = picked?.itemId || picked?.id || '';
+    return itemId ? String(itemId) : '';
 }
 
 function getAvatarColorForNation(nation) {
@@ -915,7 +959,8 @@ function initializeNationRoutes(app, deps) {
         if (!secret) return res.status(500).json({ error: 'Quest QR secret is not configured' });
 
         const gachaKey = String(gachaType || '').toLowerCase();
-        if (!QUEST_ALLOWED_GACHA_TYPES.has(gachaKey)) {
+        const hasTable = getQuestRewardPool(gachaKey).length > 0;
+        if (!QUEST_ALLOWED_GACHA_TYPES.has(gachaKey) && !hasTable) {
             return res.status(400).json({ error: 'Invalid gachaType' });
         }
 
@@ -1008,7 +1053,7 @@ function initializeNationRoutes(app, deps) {
             }
 
             const rewardType = claimData.gachaType || basePayload.gachaType;
-            const rewardItemId = resolveQuestRewardItemId(rewardType);
+            const rewardItemId = resolveQuestRewardFromTables(rewardType) || resolveQuestRewardItemId(rewardType);
             if (!rewardItemId) {
                 return res.status(500).json({ error: 'RewardNotConfigured' });
             }

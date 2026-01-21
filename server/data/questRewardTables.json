@@ -1,0 +1,698 @@
+{
+  "generatedAt": "2026-01-21T05:21:58.127Z",
+  "tables": {
+    "sword": [
+      {
+        "itemId": "sword_01",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "sword_02",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "sword_03",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "sword_04",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "sword_05",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "sword_06",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "sword_07",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "sword_08",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "sword_09",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "sword_10",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "sword_11",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "sword_12",
+        "weight": 23,
+        "score": 34
+      },
+      {
+        "itemId": "sword_13",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "sword_big_01",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "sword_big_02",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "sword_big_03",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "sword_big_04",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "sword_big_05",
+        "weight": 13,
+        "score": 70
+      },
+      {
+        "itemId": "sword_big_06",
+        "weight": 12,
+        "score": 72
+      },
+      {
+        "itemId": "sword_big_07",
+        "weight": 12,
+        "score": 75
+      },
+      {
+        "itemId": "sword_big_08",
+        "weight": 11,
+        "score": 78
+      },
+      {
+        "itemId": "sword_big_09",
+        "weight": 11,
+        "score": 80
+      },
+      {
+        "itemId": "sword_big_10",
+        "weight": 11,
+        "score": 82
+      },
+      {
+        "itemId": "sword_big_11",
+        "weight": 11,
+        "score": 85
+      },
+      {
+        "itemId": "sword_big_12",
+        "weight": 10,
+        "score": 88
+      },
+      {
+        "itemId": "sword_big_13",
+        "weight": 10,
+        "score": 90
+      },
+      {
+        "itemId": "sword_big_14",
+        "weight": 10,
+        "score": 92
+      },
+      {
+        "itemId": "sword_big_15",
+        "weight": 10,
+        "score": 94
+      },
+      {
+        "itemId": "sword_big_16",
+        "weight": 10,
+        "score": 95
+      },
+      {
+        "itemId": "sword_big_20",
+        "weight": 9,
+        "score": 96
+      },
+      {
+        "itemId": "sword_big_19",
+        "weight": 9,
+        "score": 97
+      },
+      {
+        "itemId": "sword_big_18",
+        "weight": 9,
+        "score": 98
+      },
+      {
+        "itemId": "sword_big_17",
+        "weight": 9,
+        "score": 99
+      }
+    ],
+    "axe": [
+      {
+        "itemId": "axe_19",
+        "weight": 50,
+        "score": 10
+      },
+      {
+        "itemId": "axe_18",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "axe_01",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "axe_02",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "axe_17",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "axe_03",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "axe_04",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "axe_05",
+        "weight": 26,
+        "score": 29
+      },
+      {
+        "itemId": "axe_06",
+        "weight": 24,
+        "score": 31
+      },
+      {
+        "itemId": "axe_07",
+        "weight": 23,
+        "score": 33
+      },
+      {
+        "itemId": "axe_08",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "axe_09",
+        "weight": 21,
+        "score": 37
+      },
+      {
+        "itemId": "axe_10",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "axe_11",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "axe_12",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "axe_big_01",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "axe_13",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "axe_big_02",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "axe_14",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "axe_15",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "axe_big_03",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "axe_big_04",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "axe_16",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "axe_big_05",
+        "weight": 14,
+        "score": 60
+      }
+    ],
+    "spear": [],
+    "staff": [
+      {
+        "itemId": "staff_01",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "staff_04",
+        "weight": 45,
+        "score": 12
+      },
+      {
+        "itemId": "staff_05",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "staff_06",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "staff_07",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "staff_08",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "staff_09",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "staff_10",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "staff_12",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "staff_13",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "staff_14",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "staff_15",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "staff_16",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "staff_17",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "staff_18",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "staff_19",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "staff_20",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "staff_21",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "staff_22",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "staff_23",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "staff_24",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "staff_25",
+        "weight": 13,
+        "score": 70
+      }
+    ],
+    "gun": [],
+    "helmet": [],
+    "shield": [
+      {
+        "itemId": "shield_26",
+        "weight": 77,
+        "score": 3
+      },
+      {
+        "itemId": "shield_01",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "shield_02",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "shield_03",
+        "weight": 50,
+        "score": 10
+      },
+      {
+        "itemId": "shield_04",
+        "weight": 45,
+        "score": 12
+      },
+      {
+        "itemId": "shield_05",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "shield_06",
+        "weight": 38,
+        "score": 16
+      },
+      {
+        "itemId": "shield_07",
+        "weight": 37,
+        "score": 17
+      },
+      {
+        "itemId": "shield_08",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "shield_09",
+        "weight": 34,
+        "score": 19
+      },
+      {
+        "itemId": "shield_10",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "shield_11",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "shield_12",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "shield_13",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "shield_14",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "shield_15",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "shield_17",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "shield_18",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "shield_27",
+        "weight": 23,
+        "score": 33
+      },
+      {
+        "itemId": "shield_19",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "shield_28",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "shield_20",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "shield_29",
+        "weight": 20,
+        "score": 39
+      },
+      {
+        "itemId": "shield_21",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "shield_30",
+        "weight": 20,
+        "score": 41
+      },
+      {
+        "itemId": "shield_22",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "shield_24",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "shield_25",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "shield_23",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "shield_35",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "shield_34",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "shield_33",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "shield_32",
+        "weight": 15,
+        "score": 58
+      },
+      {
+        "itemId": "shield_31",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "shield_36",
+        "weight": 14,
+        "score": 62
+      },
+      {
+        "itemId": "shield_37",
+        "weight": 14,
+        "score": 64
+      },
+      {
+        "itemId": "shield_38",
+        "weight": 13,
+        "score": 66
+      },
+      {
+        "itemId": "shield_39",
+        "weight": 13,
+        "score": 68
+      },
+      {
+        "itemId": "shield_40",
+        "weight": 13,
+        "score": 70
+      },
+      {
+        "itemId": "shield_41",
+        "weight": 12,
+        "score": 72
+      },
+      {
+        "itemId": "shield_42",
+        "weight": 12,
+        "score": 75
+      },
+      {
+        "itemId": "shield_43",
+        "weight": 11,
+        "score": 78
+      },
+      {
+        "itemId": "shield_44",
+        "weight": 11,
+        "score": 80
+      },
+      {
+        "itemId": "shield_45",
+        "weight": 11,
+        "score": 82
+      },
+      {
+        "itemId": "shield_46",
+        "weight": 11,
+        "score": 85
+      },
+      {
+        "itemId": "shield_47",
+        "weight": 10,
+        "score": 88
+      },
+      {
+        "itemId": "shield_48",
+        "weight": 10,
+        "score": 90
+      },
+      {
+        "itemId": "shield_49",
+        "weight": 10,
+        "score": 92
+      },
+      {
+        "itemId": "shield_50",
+        "weight": 10,
+        "score": 94
+      },
+      {
+        "itemId": "shield_51",
+        "weight": 10,
+        "score": 95
+      },
+      {
+        "itemId": "shield_52",
+        "weight": 9,
+        "score": 96
+      },
+      {
+        "itemId": "shield_53",
+        "weight": 9,
+        "score": 97
+      },
+      {
+        "itemId": "shield_54",
+        "weight": 9,
+        "score": 98
+      },
+      {
+        "itemId": "shield_55",
+        "weight": 9,
+        "score": 99
+      },
+      {
+        "itemId": "shield_56",
+        "weight": 9,
+        "score": 99
+      }
+    ],
+    "item": [
+      {
+        "itemId": "potion_hp",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "potion_mp",
+        "weight": 33,
+        "score": 20
+      }
+    ]
+  }
+}
