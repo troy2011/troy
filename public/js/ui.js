@@ -380,12 +380,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     break;
                 case 'king':
                     await NationKing.loadKingPage(playerInfo.playFabId);
+                    await QuestApproval.loadQuestApproval(playerInfo.playFabId);
                     break;
                 case 'qr':
                     await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     await Guild.loadGuildInfo(playerInfo.playFabId);
-                    await QuestApproval.loadQuestApproval(playerInfo.playFabId);
                     break;
                 case 'map': {
                     const triggerFirstMapMessages = () => {
