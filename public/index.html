@@ -125,7 +125,7 @@
                 <div class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">ゲームの最下層はクエスト。クリアして王の承認を得ると宝箱ガチャ（BET量でランク変動）。</div>
+                        <div class="troy-menu-note">ゲームの最下層はクエスト。クリアして王の承認を得ると宝箱報酬（BET量でランク変動）。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">商品</div>
@@ -162,41 +162,41 @@
                                     <li>
                                         ビリヤード
                                         <ul class="troy-menu-subitems">
-                                            <li>9ボール</li>
-                                            <li>8ボール</li>
-                                            <li>ボーラード</li>
+                                            <li data-quest-key="billiard-9" data-quest-label="ビリヤード / 9ボール">9ボール</li>
+                                            <li data-quest-key="billiard-8" data-quest-label="ビリヤード / 8ボール">8ボール</li>
+                                            <li data-quest-key="billiard-bowrad" data-quest-label="ビリヤード / ボーラード">ボーラード</li>
                                         </ul>
                                     </li>
                                     <li>
                                         カラオケ
                                         <ul class="troy-menu-subitems">
-                                            <li>シングル</li>
-                                            <li>デュエット</li>
+                                            <li data-quest-key="karaoke-single" data-quest-label="カラオケ / シングル">シングル</li>
+                                            <li data-quest-key="karaoke-duet" data-quest-label="カラオケ / デュエット">デュエット</li>
                                         </ul>
                                     </li>
                                     <li>
                                         ダーツ
                                         <ul class="troy-menu-subitems">
-                                            <li>カウントアップ</li>
-                                            <li>01</li>
-                                            <li>クリケット</li>
-                                            <li>他</li>
+                                            <li data-quest-key="darts-countup" data-quest-label="ダーツ / カウントアップ">カウントアップ</li>
+                                            <li data-quest-key="darts-01" data-quest-label="ダーツ / 01">01</li>
+                                            <li data-quest-key="darts-cricket" data-quest-label="ダーツ / クリケット">クリケット</li>
+                                            <li data-quest-key="darts-other" data-quest-label="ダーツ / 他">他</li>
                                         </ul>
                                     </li>
                                     <li>
                                         トランプ
                                         <ul class="troy-menu-subitems">
-                                            <li>ポーカー</li>
-                                            <li>ブラックジャック</li>
-                                            <li>大富豪</li>
+                                            <li data-quest-key="cards-poker" data-quest-label="トランプ / ポーカー">ポーカー</li>
+                                            <li data-quest-key="cards-blackjack" data-quest-label="トランプ / ブラックジャック">ブラックジャック</li>
+                                            <li data-quest-key="cards-daifugo" data-quest-label="トランプ / 大富豪">大富豪</li>
                                         </ul>
                                     </li>
                                     <li>
                                         その他
                                         <ul class="troy-menu-subitems">
-                                            <li>ボードゲーム</li>
-                                            <li>ミニゲーム</li>
-                                            <li>黒ひげ</li>
+                                            <li data-quest-key="other-board" data-quest-label="その他 / ボードゲーム">ボードゲーム</li>
+                                            <li data-quest-key="other-mini" data-quest-label="その他 / ミニゲーム">ミニゲーム</li>
+                                            <li data-quest-key="other-kurohige" data-quest-label="その他 / 黒ひげ">黒ひげ</li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -207,6 +207,7 @@
                 <div class="content-area">
                     <div class="troy-quest">
                         <div class="troy-quest-title">クエスト</div>
+                        <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: すべて</div>
                         <div id="troyQuestList" class="troy-quest-list"></div>
                     </div>
                 </div>

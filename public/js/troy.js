@@ -7,6 +7,7 @@ import {
 } from './playfabClient.js';
 
 let _wired = false;
+let _questWired = false;
 let _pollTimer = null;
 let _lastStatus = null;
 
@@ -22,21 +23,21 @@ const TROY_GACHA_LABELS = {
 };
 
 const TROY_QUESTS = [
-    { game: 'ビリヤード', name: '精密ショット', detail: '9ボールでノーミス勝利', gachaType: 'sword' },
-    { game: 'ビリヤード', name: '重戦車ブレイク', detail: '8ボールで3連続ブレイク成功', gachaType: 'axe' },
-    { game: 'ビリヤード', name: '技巧の連鎖', detail: 'ボーラードで120点以上', gachaType: 'spear' },
-    { game: 'カラオケ', name: '音の射抜き', detail: 'シングルで90点以上', gachaType: 'gun' },
-    { game: 'カラオケ', name: '響きの護符', detail: 'デュエットでハモリ判定S', gachaType: 'helmet' },
-    { game: 'ダーツ', name: '集中の一投', detail: 'カウントアップで450点以上', gachaType: 'shield' },
-    { game: 'ダーツ', name: 'ゼロワン猛追', detail: '01を15ラウンド以内でクリア', gachaType: 'spear' },
-    { game: 'ダーツ', name: '陣地制圧', detail: 'クリケットで全クローズ達成', gachaType: 'staff' },
-    { game: 'ダーツ', name: '変化球', detail: 'その他ルールで連勝', gachaType: 'item' },
-    { game: 'トランプ', name: '王の一手', detail: 'ポーカーでフラッシュ成立', gachaType: 'sword' },
-    { game: 'トランプ', name: '黒の祝福', detail: 'ブラックジャックで21ジャスト', gachaType: 'helmet' },
-    { game: 'トランプ', name: '富の凱旋', detail: '大富豪で2連勝', gachaType: 'axe' },
-    { game: 'その他', name: '黒ひげ回避', detail: '黒ひげで王冠を回避', gachaType: 'shield' },
-    { game: 'その他', name: '連勝街道', detail: 'ミニゲームで3連勝', gachaType: 'item' },
-    { game: 'その他', name: '盤上の知恵', detail: 'ボードゲームでノーミス勝利', gachaType: 'staff' }
+    { game: 'ビリヤード', name: '精密ショット', detail: '9ボールでノーミス勝利', gachaType: 'sword', questKey: 'billiard-9' },
+    { game: 'ビリヤード', name: '重戦車ブレイク', detail: '8ボールで3連続ブレイク成功', gachaType: 'axe', questKey: 'billiard-8' },
+    { game: 'ビリヤード', name: '技巧の連鎖', detail: 'ボーラードで120点以上', gachaType: 'spear', questKey: 'billiard-bowrad' },
+    { game: 'カラオケ', name: '音の射抜き', detail: 'シングルで90点以上', gachaType: 'gun', questKey: 'karaoke-single' },
+    { game: 'カラオケ', name: '響きの護符', detail: 'デュエットでハモリ判定S', gachaType: 'helmet', questKey: 'karaoke-duet' },
+    { game: 'ダーツ', name: '集中の一投', detail: 'カウントアップで450点以上', gachaType: 'shield', questKey: 'darts-countup' },
+    { game: 'ダーツ', name: 'ゼロワン猛追', detail: '01を15ラウンド以内でクリア', gachaType: 'spear', questKey: 'darts-01' },
+    { game: 'ダーツ', name: '陣地制圧', detail: 'クリケットで全クローズ達成', gachaType: 'staff', questKey: 'darts-cricket' },
+    { game: 'ダーツ', name: '変化球', detail: 'その他ルールで連勝', gachaType: 'item', questKey: 'darts-other' },
+    { game: 'トランプ', name: '王の一手', detail: 'ポーカーでフラッシュ成立', gachaType: 'sword', questKey: 'cards-poker' },
+    { game: 'トランプ', name: '黒の祝福', detail: 'ブラックジャックで21ジャスト', gachaType: 'helmet', questKey: 'cards-blackjack' },
+    { game: 'トランプ', name: '富の凱旋', detail: '大富豪で2連勝', gachaType: 'axe', questKey: 'cards-daifugo' },
+    { game: 'その他', name: '黒ひげ回避', detail: '黒ひげで王冠を回避', gachaType: 'shield', questKey: 'other-kurohige' },
+    { game: 'その他', name: '連勝街道', detail: 'ミニゲームで3連勝', gachaType: 'item', questKey: 'other-mini' },
+    { game: 'その他', name: '盤上の知恵', detail: 'ボードゲームでノーミス勝利', gachaType: 'staff', questKey: 'other-board' }
 ];
 
 function normalizeGachaType(type) {
@@ -55,7 +56,15 @@ function renderQuestList(list) {
     const container = document.getElementById('troyQuestList');
     if (!container) return;
     container.innerHTML = '';
-    list.forEach((quest) => {
+    const quests = Array.isArray(list) ? list : [];
+    if (!quests.length) {
+        const empty = document.createElement('div');
+        empty.className = 'troy-quest-empty';
+        empty.textContent = '該当するクエストはありません';
+        container.appendChild(empty);
+        return;
+    }
+    quests.forEach((quest) => {
         const card = document.createElement('div');
         card.className = 'troy-quest-card';
         card.dataset.gachaType = quest.gachaType;
@@ -75,13 +84,38 @@ function renderQuestList(list) {
         const gacha = document.createElement('div');
         gacha.className = 'troy-quest-gacha';
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
-        gacha.textContent = `ガチャ: ${label}`;
+        gacha.textContent = `報酬: ${label}`;
 
         card.appendChild(game);
         card.appendChild(name);
         card.appendChild(detail);
         card.appendChild(gacha);
         container.appendChild(card);
+    });
+}
+
+function updateQuestFilterLabel(text) {
+    const filter = document.getElementById('troyQuestFilter');
+    if (filter) {
+        filter.textContent = text;
+    }
+}
+
+function wireQuestFilters() {
+    if (_questWired) return;
+    _questWired = true;
+    const questItems = Array.from(document.querySelectorAll('.troy-menu-subitems li[data-quest-key]'));
+    if (!questItems.length) return;
+    questItems.forEach((item) => {
+        item.classList.add('troy-quest-item');
+        item.addEventListener('click', () => {
+            const key = item.dataset.questKey;
+            const label = item.dataset.questLabel || item.textContent.trim();
+            const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
+            questItems.forEach((node) => node.classList.toggle('is-active', node === item));
+            updateQuestFilterLabel(`クエスト一覧: ${label}`);
+            renderQuestList(filtered);
+        });
     });
 }
 
@@ -179,6 +213,8 @@ function startPolling(playFabId) {
 
 export async function loadTroyPage(playFabId) {
     wireHandlers(playFabId);
+    wireQuestFilters();
+    updateQuestFilterLabel('クエスト一覧: すべて');
     renderQuestList(TROY_QUESTS);
     await refreshStatus(playFabId);
     startPolling(playFabId);
