@@ -4,7 +4,8 @@ import {
     getTroyStatus,
     joinTroy,
     leaveTroy,
-    claimTroyQuest
+    claimTroyQuest,
+    getTroyQuestLevels
 } from './playfabClient.js';
 
 let _wired = false;
@@ -14,6 +15,7 @@ let _pollTimer = null;
 let _lastStatus = null;
 let _questBetAmount = 0;
 let _lastQuestList = [];
+let _questLevels = {};
 
 const TROY_GACHA_LABELS = {
     sword: '剣',
@@ -88,6 +90,17 @@ const TROY_PRODUCT_MENUS = {
             { name: '350Ps', price: '￥3000' },
             { name: '100Ps', price: '￥1000' }
         ]
+    }
+};
+
+const TROY_QUEST_PROGRESSIONS = {
+    'karaoke-single': {
+        thresholds: [80, 85, 90, 95, 99],
+        unit: '点以上'
+    },
+    'karaoke-duet': {
+        thresholds: [80, 85, 90, 95, 99],
+        unit: '点以上'
     }
 };
 
@@ -597,6 +610,38 @@ function setQuestBetAmount(value) {
     }
 }
 
+function getQuestProgression(questKey) {
+    return TROY_QUEST_PROGRESSIONS[questKey] || null;
+}
+
+function getQuestLevel(questKey) {
+    const level = Number(_questLevels[questKey] || 1);
+    return Number.isFinite(level) && level > 0 ? level : 1;
+}
+
+function buildQuestProgressText(questKey) {
+    const progression = getQuestProgression(questKey);
+    if (!progression) return '';
+    const thresholds = progression.thresholds || [];
+    const maxLevel = thresholds.length;
+    if (!maxLevel) return '';
+    const level = Math.min(getQuestLevel(questKey), maxLevel);
+    const required = thresholds[level - 1];
+    const unit = progression.unit || '';
+    return `Lv${level}/${maxLevel} 条件: ${required}${unit}`;
+}
+
+async function refreshQuestLevels(playFabId) {
+    if (!playFabId) return;
+    try {
+        const result = await getTroyQuestLevels(playFabId, { isSilent: true });
+        _questLevels = result?.levels && typeof result.levels === 'object' ? result.levels : {};
+    } catch (error) {
+        console.warn('[TroyQuest] Failed to load quest levels:', error);
+        _questLevels = {};
+    }
+}
+
 function getMenuModalElements() {
     return {
         modal: document.getElementById('troyMenuModal'),
@@ -699,6 +744,11 @@ function renderQuestList(list) {
         flavor.className = 'troy-quest-flavor';
         flavor.textContent = quest.flavor || '';
 
+        const progressText = buildQuestProgressText(quest.questKey);
+        const progress = document.createElement('div');
+        progress.className = 'troy-quest-progress';
+        progress.textContent = progressText;
+
         const gacha = document.createElement('div');
         gacha.className = 'troy-quest-gacha';
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
@@ -724,6 +774,9 @@ function renderQuestList(list) {
         card.appendChild(detail);
         if (quest.flavor) {
             card.appendChild(flavor);
+        }
+        if (progressText) {
+            card.appendChild(progress);
         }
         card.appendChild(gacha);
         card.appendChild(rewardTier);
@@ -830,7 +883,7 @@ function wireQuestFilters() {
     if (!questItems.length) return;
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const key = item.dataset.questKey;
             const label = item.dataset.questLabel || item.textContent.trim();
             const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
@@ -838,6 +891,7 @@ function wireQuestFilters() {
             if (panel) panel.classList.add('active');
             if (title) title.textContent = label;
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
+            await refreshQuestLevels(window.myPlayFabId);
             renderQuestList(filtered);
         });
     });
@@ -940,6 +994,7 @@ export async function loadTroyPage(playFabId) {
     wireMenuPopups();
     wireQuestFilters();
     updateQuestFilterLabel('クエスト一覧: 未選択');
+    await refreshQuestLevels(playFabId);
     renderQuestList([]);
     await refreshStatus(playFabId);
     startPolling(playFabId);

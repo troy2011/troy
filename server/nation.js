@@ -10,6 +10,7 @@ const QUEST_QR_PREFIX = 'quest:';
 const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
 const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
+const QUEST_LEVEL_DATA_KEY = 'troyQuestLevels';
 const QUEST_REWARD_RARITY_LEVELS = ['common', 'rare', 'epic'];
 const QUEST_REWARD_TIER_MIX = {
     common: { common: 1 },
@@ -21,6 +22,14 @@ const QUEST_BET_TIER_THRESHOLDS = {
     bonus2: 1000
 };
 const QUEST_BET_MAX = 100000;
+const QUEST_PROGRESSIONS = {
+    'karaoke-single': {
+        thresholds: [80, 85, 90, 95, 99]
+    },
+    'karaoke-duet': {
+        thresholds: [80, 85, 90, 95, 99]
+    }
+};
 const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
     .split(',')
     .map((value) => value.trim())
@@ -97,6 +106,23 @@ function resolveQuestRewardTier(difficulty, betAmount) {
     const bonusTier = getQuestBetTier(betAmount);
     const tierIndex = Math.min(2, baseTier + bonusTier);
     return QUEST_REWARD_RARITY_LEVELS[tierIndex] || 'common';
+}
+
+function getQuestProgressionMaxLevel(questKey) {
+    const progression = QUEST_PROGRESSIONS[questKey];
+    const thresholds = progression?.thresholds;
+    return Array.isArray(thresholds) ? thresholds.length : 0;
+}
+
+function parseQuestLevels(rawValue) {
+    if (!rawValue) return {};
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+    } catch {
+        return {};
+    }
 }
 
 function base64UrlEncode(input) {
@@ -1023,6 +1049,24 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // TROYクエスト: レベル取得
+    app.post('/api/get-quest-levels', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: [QUEST_LEVEL_DATA_KEY]
+            });
+            const raw = result?.Data?.[QUEST_LEVEL_DATA_KEY]?.Value || '';
+            const levels = parseQuestLevels(raw);
+            res.json({ success: true, levels });
+        } catch (error) {
+            console.error('[get-quest-levels] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get quest levels' });
+        }
+    });
+
     // TROYクエスト: 承認QR発行
     app.post('/api/quest-claim', async (req, res) => {
         const { playFabId, questId, questKey, gachaType } = req.body || {};
@@ -1145,6 +1189,33 @@ function initializeNationRoutes(app, deps) {
                 idempotencyId: `quest-${basePayload.claimId}`
             });
 
+            let nextQuestLevel = null;
+            const progressionKey = String(claimData.questKey || basePayload.questKey || '');
+            const maxLevel = getQuestProgressionMaxLevel(progressionKey);
+            if (maxLevel > 0) {
+                try {
+                    const levelResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: basePayload.playerId,
+                        Keys: [QUEST_LEVEL_DATA_KEY]
+                    });
+                    const rawLevels = levelResult?.Data?.[QUEST_LEVEL_DATA_KEY]?.Value || '';
+                    const levels = parseQuestLevels(rawLevels);
+                    const currentLevel = Math.max(1, Number(levels[progressionKey] || 1));
+                    nextQuestLevel = Math.min(maxLevel, currentLevel + 1);
+                    if (nextQuestLevel !== currentLevel) {
+                        levels[progressionKey] = nextQuestLevel;
+                        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                            PlayFabId: basePayload.playerId,
+                            Data: {
+                                [QUEST_LEVEL_DATA_KEY]: JSON.stringify(levels)
+                            }
+                        });
+                    }
+                } catch (levelError) {
+                    console.warn('[quest-approve] Failed to update quest level:', levelError?.message || levelError);
+                }
+            }
+
             await claimRef.set({
                 status: 'approved',
                 approvedBy: normalizePlayFabId(playFabId),
@@ -1159,7 +1230,8 @@ function initializeNationRoutes(app, deps) {
                 claimId: basePayload.claimId,
                 rewardItemId,
                 rewardLabel: rewardType,
-                rewardTier
+                rewardTier,
+                questLevel: nextQuestLevel
             });
         } catch (error) {
             console.error('[quest-approve] Error:', error?.message || error);

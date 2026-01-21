@@ -144,6 +144,10 @@ export function claimTroyQuest(playFabId, questId, questKey, gachaType, meta = {
     return callApiWithLoader('/api/quest-claim', { playFabId, questId, questKey, gachaType, ...meta }, options);
 }
 
+export function getTroyQuestLevels(playFabId, options) {
+    return callApiWithLoader('/api/get-quest-levels', { playFabId }, options);
+}
+
 export function approveTroyQuest(playFabId, qrValue, options) {
     return callApiWithLoader('/api/quest-approve', { playFabId, qrValue }, options);
 }
