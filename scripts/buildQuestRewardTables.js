@@ -45,8 +45,11 @@ function classifyItem(item) {
 
     if (id.startsWith('sword_') || id.startsWith('sword_big_')) return { key: 'sword', id, score };
     if (id.startsWith('axe_') || id.startsWith('axe_big_')) return { key: 'axe', id, score };
+    if (id.startsWith('polearm_')) return { key: 'spear', id, score };
     if (id.startsWith('staff_')) return { key: 'staff', id, score };
+    if (id.startsWith('gun_')) return { key: 'gun', id, score };
     if (id.startsWith('shield_')) return { key: 'shield', id, score };
+    if (category === 'armor') return { key: 'helmet', id, score };
     if (category === 'consumable') return { key: 'item', id, score };
     return null;
 }

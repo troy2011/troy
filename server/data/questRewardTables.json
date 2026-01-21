@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-01-21T05:21:58.127Z",
+  "generatedAt": "2026-01-21T05:41:03.937Z",
   "tables": {
     "sword": [
       {
@@ -290,7 +290,183 @@
         "score": 60
       }
     ],
-    "spear": [],
+    "spear": [
+      {
+        "itemId": "polearm_28",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "polearm_29",
+        "weight": 50,
+        "score": 10
+      },
+      {
+        "itemId": "polearm_30",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "polearm_31",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "polearm_32",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "polearm_33",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "polearm_34",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "polearm_01",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "polearm_35",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "polearm_02",
+        "weight": 23,
+        "score": 33
+      },
+      {
+        "itemId": "polearm_03",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "polearm_04",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "polearm_05",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "polearm_06",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "polearm_07",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "polearm_08",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "polearm_09",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "polearm_10",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "polearm_11",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "polearm_12",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "polearm_13",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "polearm_14",
+        "weight": 13,
+        "score": 70
+      },
+      {
+        "itemId": "polearm_15",
+        "weight": 12,
+        "score": 75
+      },
+      {
+        "itemId": "polearm_16",
+        "weight": 11,
+        "score": 80
+      },
+      {
+        "itemId": "polearm_17",
+        "weight": 11,
+        "score": 82
+      },
+      {
+        "itemId": "polearm_18",
+        "weight": 11,
+        "score": 85
+      },
+      {
+        "itemId": "polearm_19",
+        "weight": 10,
+        "score": 88
+      },
+      {
+        "itemId": "polearm_20",
+        "weight": 10,
+        "score": 90
+      },
+      {
+        "itemId": "polearm_21",
+        "weight": 10,
+        "score": 92
+      },
+      {
+        "itemId": "polearm_22",
+        "weight": 10,
+        "score": 94
+      },
+      {
+        "itemId": "polearm_23",
+        "weight": 10,
+        "score": 95
+      },
+      {
+        "itemId": "polearm_24",
+        "weight": 9,
+        "score": 96
+      },
+      {
+        "itemId": "polearm_25",
+        "weight": 9,
+        "score": 97
+      },
+      {
+        "itemId": "polearm_26",
+        "weight": 9,
+        "score": 98
+      },
+      {
+        "itemId": "polearm_27",
+        "weight": 9,
+        "score": 99
+      }
+    ],
     "staff": [
       {
         "itemId": "staff_01",
@@ -403,8 +579,810 @@
         "score": 70
       }
     ],
-    "gun": [],
-    "helmet": [],
+    "gun": [
+      {
+        "itemId": "gun_01",
+        "weight": 42,
+        "score": 14
+      },
+      {
+        "itemId": "gun_02",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "gun_03",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "gun_04",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "gun_05",
+        "weight": 25,
+        "score": 30
+      }
+    ],
+    "helmet": [
+      {
+        "itemId": "hat_straw_01",
+        "weight": 77,
+        "score": 3
+      },
+      {
+        "itemId": "hat_black_01",
+        "weight": 71,
+        "score": 4
+      },
+      {
+        "itemId": "hat_straw_02",
+        "weight": 71,
+        "score": 4
+      },
+      {
+        "itemId": "hat_black_02",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "hat_straw_03",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "metal_25",
+        "weight": 67,
+        "score": 5
+      },
+      {
+        "itemId": "hat_straw_04",
+        "weight": 63,
+        "score": 6
+      },
+      {
+        "itemId": "hat_black_03",
+        "weight": 59,
+        "score": 7
+      },
+      {
+        "itemId": "hat_black_04",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "hat_black_11",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "hat_straw_05",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "metal_26",
+        "weight": 56,
+        "score": 8
+      },
+      {
+        "itemId": "hat_black_05",
+        "weight": 53,
+        "score": 9
+      },
+      {
+        "itemId": "hat_black_06",
+        "weight": 50,
+        "score": 10
+      },
+      {
+        "itemId": "hat_black_07",
+        "weight": 48,
+        "score": 11
+      },
+      {
+        "itemId": "hat_black_08",
+        "weight": 45,
+        "score": 12
+      },
+      {
+        "itemId": "leather01_01",
+        "weight": 45,
+        "score": 12
+      },
+      {
+        "itemId": "hat_black_09",
+        "weight": 43,
+        "score": 13
+      },
+      {
+        "itemId": "leather01_02",
+        "weight": 43,
+        "score": 13
+      },
+      {
+        "itemId": "hat_black_10",
+        "weight": 42,
+        "score": 14
+      },
+      {
+        "itemId": "leather01_03",
+        "weight": 42,
+        "score": 14
+      },
+      {
+        "itemId": "leather02_01",
+        "weight": 42,
+        "score": 14
+      },
+      {
+        "itemId": "hat_black_12",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "leather01_04",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "metal_01",
+        "weight": 40,
+        "score": 15
+      },
+      {
+        "itemId": "hat_black_13",
+        "weight": 38,
+        "score": 16
+      },
+      {
+        "itemId": "leather01_05",
+        "weight": 38,
+        "score": 16
+      },
+      {
+        "itemId": "leather02_02",
+        "weight": 38,
+        "score": 16
+      },
+      {
+        "itemId": "hat_black_14",
+        "weight": 37,
+        "score": 17
+      },
+      {
+        "itemId": "leather01_06",
+        "weight": 37,
+        "score": 17
+      },
+      {
+        "itemId": "metal_02",
+        "weight": 37,
+        "score": 17
+      },
+      {
+        "itemId": "hat_black_16",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "leather01_07",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "leather02_03",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "metal_03",
+        "weight": 36,
+        "score": 18
+      },
+      {
+        "itemId": "hat_black_17",
+        "weight": 34,
+        "score": 19
+      },
+      {
+        "itemId": "leather01_08",
+        "weight": 34,
+        "score": 19
+      },
+      {
+        "itemId": "hat_black_15",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "leather01_09",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "leather02_04",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "metal_04",
+        "weight": 33,
+        "score": 20
+      },
+      {
+        "itemId": "hat_black_18",
+        "weight": 32,
+        "score": 21
+      },
+      {
+        "itemId": "leather01_10",
+        "weight": 32,
+        "score": 21
+      },
+      {
+        "itemId": "hat_black_19",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "leather01_11",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "metal_05",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "metal_black_01",
+        "weight": 31,
+        "score": 22
+      },
+      {
+        "itemId": "hat_black_20",
+        "weight": 30,
+        "score": 23
+      },
+      {
+        "itemId": "hat_black_22",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "leather01_12",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "metal_06",
+        "weight": 29,
+        "score": 24
+      },
+      {
+        "itemId": "hat_black_21",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "leather01_13",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "metal_31",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "metal_black_02",
+        "weight": 29,
+        "score": 25
+      },
+      {
+        "itemId": "hat_black_23",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "leather01_14",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "metal_07",
+        "weight": 28,
+        "score": 26
+      },
+      {
+        "itemId": "hat_black_24",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "leather01_15",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "metal_08",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "metal_30",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "metal_black_03",
+        "weight": 26,
+        "score": 28
+      },
+      {
+        "itemId": "hat_black_25",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "leather01_16",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "metal_09",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "metal_29",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "metal_black_04",
+        "weight": 25,
+        "score": 30
+      },
+      {
+        "itemId": "hat_black_26",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "leather01_17",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "metal_10",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "metal_black_05",
+        "weight": 24,
+        "score": 32
+      },
+      {
+        "itemId": "metal_28",
+        "weight": 23,
+        "score": 33
+      },
+      {
+        "itemId": "hat_black_27",
+        "weight": 23,
+        "score": 34
+      },
+      {
+        "itemId": "leather01_18",
+        "weight": 23,
+        "score": 34
+      },
+      {
+        "itemId": "metal_11",
+        "weight": 23,
+        "score": 34
+      },
+      {
+        "itemId": "metal_black_06",
+        "weight": 23,
+        "score": 34
+      },
+      {
+        "itemId": "hat_black_28",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "leather01_19",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "metal_27",
+        "weight": 22,
+        "score": 35
+      },
+      {
+        "itemId": "hat_black_29",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "leather01_20",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "metal_12",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "metal_black_07",
+        "weight": 22,
+        "score": 36
+      },
+      {
+        "itemId": "hat_black_30",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "leather01_21",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "metal_13",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "metal_black_08",
+        "weight": 21,
+        "score": 38
+      },
+      {
+        "itemId": "hat_black_31",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "leather01_22",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "metal_14",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "metal_32",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "metal_black_09",
+        "weight": 20,
+        "score": 40
+      },
+      {
+        "itemId": "hat_black_32",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "leather01_23",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "metal_15",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "metal_black_10",
+        "weight": 19,
+        "score": 42
+      },
+      {
+        "itemId": "hat_black_33",
+        "weight": 19,
+        "score": 44
+      },
+      {
+        "itemId": "leather01_24",
+        "weight": 19,
+        "score": 44
+      },
+      {
+        "itemId": "metal_33",
+        "weight": 19,
+        "score": 44
+      },
+      {
+        "itemId": "metal_black_11",
+        "weight": 19,
+        "score": 44
+      },
+      {
+        "itemId": "hat_black_34",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "leather01_25",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "metal_16",
+        "weight": 18,
+        "score": 45
+      },
+      {
+        "itemId": "hat_black_35",
+        "weight": 18,
+        "score": 46
+      },
+      {
+        "itemId": "leather01_26",
+        "weight": 18,
+        "score": 46
+      },
+      {
+        "itemId": "metal_34",
+        "weight": 18,
+        "score": 46
+      },
+      {
+        "itemId": "metal_black_12",
+        "weight": 18,
+        "score": 46
+      },
+      {
+        "itemId": "metal_35",
+        "weight": 18,
+        "score": 47
+      },
+      {
+        "itemId": "hat_black_36",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "leather01_27",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "metal_17",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "metal_black_13",
+        "weight": 17,
+        "score": 48
+      },
+      {
+        "itemId": "metal_36",
+        "weight": 17,
+        "score": 49
+      },
+      {
+        "itemId": "hat_black_37",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "leather01_28",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "metal_18",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "metal_black_14",
+        "weight": 17,
+        "score": 50
+      },
+      {
+        "itemId": "metal_37",
+        "weight": 16,
+        "score": 51
+      },
+      {
+        "itemId": "hat_black_38",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "leather01_29",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "metal_19",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "metal_black_15",
+        "weight": 16,
+        "score": 52
+      },
+      {
+        "itemId": "hat_black_39",
+        "weight": 16,
+        "score": 54
+      },
+      {
+        "itemId": "leather01_30",
+        "weight": 16,
+        "score": 54
+      },
+      {
+        "itemId": "metal_black_16",
+        "weight": 16,
+        "score": 54
+      },
+      {
+        "itemId": "hat_black_40",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "leather01_31",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "metal_21",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "metal_black_17",
+        "weight": 15,
+        "score": 55
+      },
+      {
+        "itemId": "hat_black_41",
+        "weight": 15,
+        "score": 56
+      },
+      {
+        "itemId": "leather01_32",
+        "weight": 15,
+        "score": 56
+      },
+      {
+        "itemId": "metal_black_18",
+        "weight": 15,
+        "score": 56
+      },
+      {
+        "itemId": "hat_black_42",
+        "weight": 15,
+        "score": 58
+      },
+      {
+        "itemId": "leather01_33",
+        "weight": 15,
+        "score": 58
+      },
+      {
+        "itemId": "metal_22",
+        "weight": 15,
+        "score": 58
+      },
+      {
+        "itemId": "metal_black_19",
+        "weight": 15,
+        "score": 58
+      },
+      {
+        "itemId": "hat_black_43",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "leather01_34",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "metal_23",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "metal_black_20",
+        "weight": 14,
+        "score": 60
+      },
+      {
+        "itemId": "hat_black_44",
+        "weight": 14,
+        "score": 62
+      },
+      {
+        "itemId": "leather01_35",
+        "weight": 14,
+        "score": 62
+      },
+      {
+        "itemId": "metal_24",
+        "weight": 14,
+        "score": 62
+      },
+      {
+        "itemId": "metal_black_21",
+        "weight": 14,
+        "score": 62
+      },
+      {
+        "itemId": "hat_black_45",
+        "weight": 14,
+        "score": 64
+      },
+      {
+        "itemId": "leather01_36",
+        "weight": 14,
+        "score": 64
+      },
+      {
+        "itemId": "metal_black_22",
+        "weight": 14,
+        "score": 64
+      },
+      {
+        "itemId": "hat_black_46",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "leather01_37",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "metal_20",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "metal_black_23",
+        "weight": 13,
+        "score": 65
+      },
+      {
+        "itemId": "hat_black_47",
+        "weight": 13,
+        "score": 66
+      },
+      {
+        "itemId": "hat_black_48",
+        "weight": 13,
+        "score": 68
+      },
+      {
+        "itemId": "hat_black_49",
+        "weight": 13,
+        "score": 70
+      }
+    ],
     "shield": [
       {
         "itemId": "shield_26",
