@@ -93,6 +93,46 @@ const buildings = {
         }
     },
 
+    teslatower: {
+        id: 'teslatower',
+        name: '電磁塔',
+        category: 'military',
+        slotsRequired: 1,
+        buildTime: 1800, // 30分
+        cost: { PS: 200 },
+        sizeLogic: { x: 1, y: 1 },
+        sizeVisual: { x: 1, y: 1 },
+        effects: {
+            visionRange: 10,
+            earlyWarning: true,
+            watchRadius: 6,
+            watchNotify: true,
+            watchNotifyScope: 'nation'
+        },
+        description: '電磁波を放ち、船の動きを遅くする塔',
+        levelLabel: false,
+        levels: {
+            1: {
+                tileIndex: 835,
+                sizeVisual: { x: 1, y: 1 },
+                maxHp: 100,
+                stats: { visionRange: 10 }
+            },
+            2: {
+                tileIndex: 899,
+                sizeVisual: { x: 1, y: 2 },
+                maxHp: 140,
+                stats: { visionRange: 14 }
+            },
+            3: {
+                tileIndex: 868,
+                sizeVisual: { x: 1, y: 4 },
+                maxHp: 200,
+                stats: { visionRange: 18 }
+            }
+        }
+    },
+
     coastal_battery: {
         id: 'coastal_battery',
         name: '沿岸砲台',
@@ -346,7 +386,6 @@ const buildings = {
             paidHealMp: true
         },
         description: '温泉施設。疲労回復と士気が少し上がります。',
-        nationTileOffset: true
     },
 
     repair_dock: {
@@ -439,6 +478,7 @@ const buildings = {
         tileIndex: 720,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'かしこさ': 2 },
         description: 'かしこさが上がる魔法学校。',
         buildCondition: { mapId: 'major_01', requiresOccupation: true, matchNation: true }
@@ -453,6 +493,7 @@ const buildings = {
         tileIndex: 656,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'きようさ': 2 },
         description: 'きようさが上がる噴水の宮殿。',
         buildCondition: { mapId: 'major_02', requiresOccupation: true, matchNation: true }
@@ -467,6 +508,7 @@ const buildings = {
         tileIndex: 712,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'みのまもり': 2 },
         description: 'みのまもりが上がる温室庭園。',
         buildCondition: { mapId: 'major_03', requiresOccupation: true, matchNation: true }
@@ -481,6 +523,7 @@ const buildings = {
         tileIndex: 728,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'ちから': 2 },
         description: 'ちからが上がる訓練所。',
         buildCondition: { mapId: 'major_04', requiresOccupation: true, matchNation: true }
@@ -495,6 +538,7 @@ const buildings = {
         tileIndex: 704,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'かしこさ': 4 },
         description: 'かしこさが大きく上がる魔法研究所。',
         buildCondition: { mapId: 'major_05', requiresOccupation: true, matchNation: true }
@@ -509,6 +553,7 @@ const buildings = {
         tileIndex: 664,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'きようさ': 4 },
         description: 'きようさが大きく上がる宮殿。',
         buildCondition: { mapId: 'major_06', requiresOccupation: true, matchNation: true }
@@ -523,6 +568,7 @@ const buildings = {
         tileIndex: 648,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 2 },
+        nationTileOffset: true,
         effects: { 'みのまもり': 4 },
         description: 'みのまもりが大きく上がる工廠。',
         buildCondition: { mapId: 'major_07', requiresOccupation: true, matchNation: true }
@@ -537,6 +583,7 @@ const buildings = {
         tileIndex: 600,
         sizeLogic: { x: 2, y: 2 },
         sizeVisual: { x: 2, y: 3 },
+        nationTileOffset: true,
         effects: { 'ちから': 4 },
         description: 'ちからが大きく上がる城塞。',
         buildCondition: { mapId: 'major_08', requiresOccupation: true, matchNation: true }

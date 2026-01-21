@@ -1741,6 +1741,23 @@ body[data-sea-tone="night"] .home-hero-card {
     gap: 12px;
 }
 
+.troy-quest-panel {
+    pointer-events: auto;
+}
+
+.troy-quest-panel-inner {
+    display: grid;
+    gap: 10px;
+}
+
+.troy-quest-panel-body {
+    display: grid;
+    gap: 10px;
+    max-height: min(52vh, 420px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
 .troy-quest-title {
     font-size: 14px;
     font-weight: 800;

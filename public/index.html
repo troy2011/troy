@@ -205,13 +205,6 @@
                     </div>
                 </div>
                 <div class="content-area">
-                    <div class="troy-quest">
-                        <div class="troy-quest-title">クエスト</div>
-                        <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: すべて</div>
-                        <div id="troyQuestList" class="troy-quest-list"></div>
-                    </div>
-                </div>
-                <div class="content-area">
                     <div id="troyChatArea" class="map-chat-area">
                         <h2>チャット</h2>
                         <div class="map-chat-tabs">
@@ -224,6 +217,21 @@
                             <input type="text" id="troyChatInput" placeholder="メッセージ...">
                             <button id="btnSendTroyChat">送信</button>
                         </form>
+                    </div>
+                </div>
+                <div id="troyQuestPanel" class="troy-quest-panel island-command-panel">
+                    <div class="troy-quest-panel-inner">
+                        <div class="island-command-header">
+                            <div class="respawn-info">
+                                <span class="respawn-label">クエスト:</span>
+                                <h3 id="troyQuestTitle">未選択</h3>
+                            </div>
+                            <button id="troyQuestClose" class="island-command-close">×</button>
+                        </div>
+                        <div class="troy-quest-panel-body">
+                            <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: 未選択</div>
+                            <div id="troyQuestList" class="troy-quest-list"></div>
+                        </div>
                     </div>
                 </div>
             </div>

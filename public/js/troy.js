@@ -543,10 +543,31 @@ function updateQuestFilterLabel(text) {
     }
 }
 
+function getQuestPanelElements() {
+    return {
+        panel: document.getElementById('troyQuestPanel'),
+        title: document.getElementById('troyQuestTitle'),
+        close: document.getElementById('troyQuestClose')
+    };
+}
+
+function closeQuestPanel(items) {
+    const { panel, title } = getQuestPanelElements();
+    if (panel) panel.classList.remove('active');
+    if (title) title.textContent = '未選択';
+    updateQuestFilterLabel('クエスト一覧: 未選択');
+    renderQuestList([]);
+    items.forEach((node) => node.classList.remove('is-active'));
+}
+
 function wireQuestFilters() {
     if (_questWired) return;
     _questWired = true;
     const questItems = Array.from(document.querySelectorAll('.troy-menu-subitems li[data-quest-key]'));
+    const { panel, title, close } = getQuestPanelElements();
+    if (close) {
+        close.addEventListener('click', () => closeQuestPanel(questItems));
+    }
     if (!questItems.length) return;
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
@@ -555,6 +576,8 @@ function wireQuestFilters() {
             const label = item.dataset.questLabel || item.textContent.trim();
             const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
             questItems.forEach((node) => node.classList.toggle('is-active', node === item));
+            if (panel) panel.classList.add('active');
+            if (title) title.textContent = label;
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
             renderQuestList(filtered);
         });
