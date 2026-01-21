@@ -1774,6 +1774,58 @@ body[data-sea-tone="night"] .home-hero-card {
     width: fit-content;
 }
 
+.troy-quest-bet {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.troy-quest-bet-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--text-sub);
+}
+
+.troy-quest-bet-controls {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.troy-quest-bet-btn {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(15, 23, 42, 0.75);
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.troy-quest-bet-btn.is-active {
+    border-color: var(--accent-color);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.troy-quest-bet-input {
+    width: 90px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.65);
+    color: #f8fafc;
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
 .troy-quest-list {
     display: grid;
     gap: 10px;
@@ -1877,6 +1929,38 @@ body[data-sea-tone="night"] .home-hero-card {
     padding: 4px 8px;
     border-radius: 999px;
     width: fit-content;
+}
+
+.troy-quest-reward-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 999px;
+    width: fit-content;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(148, 163, 184, 0.18);
+}
+
+.troy-quest-reward-tier-common {
+    border-color: rgba(14, 116, 144, 0.5);
+    background: rgba(14, 116, 144, 0.2);
+    color: #e0f2fe;
+}
+
+.troy-quest-reward-tier-rare {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: rgba(245, 158, 11, 0.2);
+    color: #fef3c7;
+}
+
+.troy-quest-reward-tier-epic {
+    border-color: rgba(168, 85, 247, 0.55);
+    background: rgba(168, 85, 247, 0.2);
+    color: #f3e8ff;
 }
 
 .troy-quest-actions {

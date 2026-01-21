@@ -37,6 +37,21 @@ function pushReward(tables, key, itemId, score) {
     });
 }
 
+function splitIntoTiers(items) {
+    const list = Array.isArray(items) ? [...items] : [];
+    if (!list.length) {
+        return { common: [], rare: [], epic: [] };
+    }
+    const total = list.length;
+    const commonEnd = Math.max(1, Math.floor(total * 0.6));
+    const rareEnd = Math.max(commonEnd + 1, Math.floor(total * 0.9));
+    return {
+        common: list.slice(0, commonEnd),
+        rare: list.slice(commonEnd, rareEnd),
+        epic: list.slice(rareEnd)
+    };
+}
+
 function classifyItem(item) {
     const id = getFriendlyId(item);
     const display = getDisplay(item);
@@ -55,7 +70,7 @@ function classifyItem(item) {
 }
 
 function buildTables(items) {
-    const tables = {
+    const flatTables = {
         sword: [],
         axe: [],
         spear: [],
@@ -65,13 +80,16 @@ function buildTables(items) {
         shield: [],
         item: []
     };
+    const tables = {};
     items.forEach((item) => {
         const result = classifyItem(item);
         if (!result) return;
-        pushReward(tables, result.key, result.id, result.score);
+        pushReward(flatTables, result.key, result.id, result.score);
     });
-    Object.keys(tables).forEach((key) => {
-        tables[key].sort((a, b) => a.score - b.score);
+    Object.keys(flatTables).forEach((key) => {
+        const list = flatTables[key];
+        list.sort((a, b) => a.score - b.score);
+        tables[key] = splitIntoTiers(list);
     });
     return tables;
 }
@@ -82,7 +100,12 @@ function main() {
     const items = Array.isArray(catalog?.Items) ? catalog.Items : [];
     const tables = buildTables(items);
     const payload = {
+        schemaVersion: 2,
         generatedAt: new Date().toISOString(),
+        tiers: {
+            common: 0.6,
+            rare: 0.9
+        },
         tables
     };
     fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2));

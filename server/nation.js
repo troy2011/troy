@@ -10,6 +10,17 @@ const QUEST_QR_PREFIX = 'quest:';
 const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
 const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
+const QUEST_REWARD_RARITY_LEVELS = ['common', 'rare', 'epic'];
+const QUEST_REWARD_TIER_MIX = {
+    common: { common: 1 },
+    rare: { common: 1, rare: 0.8, epic: 0.25 },
+    epic: { rare: 0.8, epic: 1.2 }
+};
+const QUEST_BET_TIER_THRESHOLDS = {
+    bonus1: 500,
+    bonus2: 1000
+};
+const QUEST_BET_MAX = 100000;
 const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
     .split(',')
     .map((value) => value.trim())
@@ -62,6 +73,32 @@ function normalizePlayFabId(value) {
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
 }
 
+function normalizeQuestDifficulty(value) {
+    const key = String(value || '').toLowerCase();
+    if (key === 'easy' || key === 'normal' || key === 'hard') return key;
+    return 'normal';
+}
+
+function normalizeQuestBetAmount(value) {
+    const amount = Math.floor(Number(value) || 0);
+    if (!Number.isFinite(amount) || amount < 0) return 0;
+    return Math.min(amount, QUEST_BET_MAX);
+}
+
+function getQuestBetTier(betAmount) {
+    if (betAmount >= QUEST_BET_TIER_THRESHOLDS.bonus2) return 2;
+    if (betAmount >= QUEST_BET_TIER_THRESHOLDS.bonus1) return 1;
+    return 0;
+}
+
+function resolveQuestRewardTier(difficulty, betAmount) {
+    const difficultyKey = normalizeQuestDifficulty(difficulty);
+    const baseTier = difficultyKey === 'easy' ? 0 : difficultyKey === 'hard' ? 2 : 1;
+    const bonusTier = getQuestBetTier(betAmount);
+    const tierIndex = Math.min(2, baseTier + bonusTier);
+    return QUEST_REWARD_RARITY_LEVELS[tierIndex] || 'common';
+}
+
 function base64UrlEncode(input) {
     return Buffer.from(input, 'utf8')
         .toString('base64')
@@ -93,6 +130,12 @@ function buildQuestPayloadString(payload) {
         issuedAt: payload.issuedAt,
         expiresAt: payload.expiresAt
     };
+    if (payload.difficulty) {
+        ordered.difficulty = payload.difficulty;
+    }
+    if (payload.betAmount !== undefined) {
+        ordered.betAmount = payload.betAmount;
+    }
     return JSON.stringify(ordered);
 }
 
@@ -177,11 +220,42 @@ function loadQuestRewardTables() {
     return questRewardTablesCache;
 }
 
+function flattenQuestRewardTable(entry) {
+    if (Array.isArray(entry)) return entry;
+    if (!entry || typeof entry !== 'object') return [];
+    const merged = [];
+    QUEST_REWARD_RARITY_LEVELS.forEach((tier) => {
+        const list = entry[tier];
+        if (Array.isArray(list)) merged.push(...list);
+    });
+    return merged;
+}
+
 function getQuestRewardPool(gachaType) {
     const tables = loadQuestRewardTables();
     const key = String(gachaType || '').toLowerCase();
-    const pool = tables?.[key];
-    return Array.isArray(pool) ? pool : [];
+    return flattenQuestRewardTable(tables?.[key]);
+}
+
+function getQuestRewardPoolForTier(gachaType, tier) {
+    const tables = loadQuestRewardTables();
+    const key = String(gachaType || '').toLowerCase();
+    const entry = tables?.[key];
+    if (Array.isArray(entry)) return entry;
+    if (!entry || typeof entry !== 'object') return [];
+    const tierKey = QUEST_REWARD_RARITY_LEVELS.includes(tier) ? tier : 'common';
+    const mix = QUEST_REWARD_TIER_MIX[tierKey] || QUEST_REWARD_TIER_MIX.common;
+    const pool = [];
+    Object.keys(mix).forEach((bucket) => {
+        const multiplier = mix[bucket];
+        const list = entry[bucket];
+        if (!Array.isArray(list)) return;
+        list.forEach((item) => {
+            const weight = Math.max(1, Math.round((Number(item.weight) || 1) * multiplier));
+            pool.push({ ...item, weight });
+        });
+    });
+    return pool;
 }
 
 function pickWeightedItem(items) {
@@ -197,8 +271,8 @@ function pickWeightedItem(items) {
     return pool[pool.length - 1];
 }
 
-function resolveQuestRewardFromTables(gachaType) {
-    const pool = getQuestRewardPool(gachaType);
+function resolveQuestRewardFromTables(gachaType, tier) {
+    const pool = getQuestRewardPoolForTier(gachaType, tier);
     const picked = pickWeightedItem(pool);
     const itemId = picked?.itemId || picked?.id || '';
     return itemId ? String(itemId) : '';
@@ -963,6 +1037,8 @@ function initializeNationRoutes(app, deps) {
         if (!QUEST_ALLOWED_GACHA_TYPES.has(gachaKey) && !hasTable) {
             return res.status(400).json({ error: 'Invalid gachaType' });
         }
+        const difficulty = normalizeQuestDifficulty(req.body?.difficulty);
+        const betAmount = normalizeQuestBetAmount(req.body?.betAmount);
 
         try {
             const claimId = generateQuestClaimId();
@@ -974,6 +1050,8 @@ function initializeNationRoutes(app, deps) {
                 questId: String(questId),
                 questKey: String(questKey),
                 gachaType: gachaKey,
+                difficulty,
+                betAmount,
                 nonce: crypto.randomBytes(8).toString('hex'),
                 issuedAt: now,
                 expiresAt
@@ -1053,7 +1131,12 @@ function initializeNationRoutes(app, deps) {
             }
 
             const rewardType = claimData.gachaType || basePayload.gachaType;
-            const rewardItemId = resolveQuestRewardFromTables(rewardType) || resolveQuestRewardItemId(rewardType);
+            const rewardTier = resolveQuestRewardTier(
+                claimData.difficulty || basePayload.difficulty,
+                normalizeQuestBetAmount(claimData.betAmount ?? basePayload.betAmount)
+            );
+            const rewardItemId = resolveQuestRewardFromTables(rewardType, rewardTier)
+                || resolveQuestRewardItemId(rewardType);
             if (!rewardItemId) {
                 return res.status(500).json({ error: 'RewardNotConfigured' });
             }
@@ -1066,6 +1149,7 @@ function initializeNationRoutes(app, deps) {
                 status: 'approved',
                 approvedBy: normalizePlayFabId(playFabId),
                 approverRole,
+                rewardTier,
                 approvedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
@@ -1074,7 +1158,8 @@ function initializeNationRoutes(app, deps) {
                 success: true,
                 claimId: basePayload.claimId,
                 rewardItemId,
-                rewardLabel: rewardType
+                rewardLabel: rewardType,
+                rewardTier
             });
         } catch (error) {
             console.error('[quest-approve] Error:', error?.message || error);

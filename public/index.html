@@ -229,6 +229,15 @@
                             <button id="troyQuestClose" class="island-command-close">×</button>
                         </div>
                         <div class="troy-quest-panel-body">
+                            <div class="troy-quest-bet">
+                                <div class="troy-quest-bet-label">BET</div>
+                                <div class="troy-quest-bet-controls">
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="0">0</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="500">500</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="1000">1000</button>
+                                </div>
+                                <input id="troyQuestBetInput" class="troy-quest-bet-input" type="number" min="0" step="100" value="0" />
+                            </div>
                             <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: 未選択</div>
                             <div id="troyQuestList" class="troy-quest-list"></div>
                         </div>

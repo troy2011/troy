@@ -11,6 +11,8 @@ let _wired = false;
 let _questWired = false;
 let _pollTimer = null;
 let _lastStatus = null;
+let _questBetAmount = 0;
+let _lastQuestList = [];
 
 const TROY_GACHA_LABELS = {
     sword: '剣',
@@ -28,6 +30,18 @@ const DIFFICULTY_LABELS = {
     normal: '普',
     hard: '難'
 };
+
+const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
+const QUEST_DIFFICULTY_BASE = {
+    easy: 0,
+    normal: 1,
+    hard: 2
+};
+const QUEST_BET_THRESHOLDS = {
+    bonus1: 500,
+    bonus2: 1000
+};
+const QUEST_BET_MAX = 100000;
 
 const TROY_QUESTS = [
     {
@@ -476,6 +490,33 @@ function assignQuestIds(list) {
 
 assignQuestIds(TROY_QUESTS);
 
+function normalizeQuestBetAmount(value) {
+    const amount = Math.floor(Number(value) || 0);
+    if (!Number.isFinite(amount) || amount < 0) return 0;
+    return Math.min(amount, QUEST_BET_MAX);
+}
+
+function getQuestBetTier(amount) {
+    if (amount >= QUEST_BET_THRESHOLDS.bonus2) return 2;
+    if (amount >= QUEST_BET_THRESHOLDS.bonus1) return 1;
+    return 0;
+}
+
+function getQuestRewardTierIndex(difficulty, betAmount) {
+    const baseTier = QUEST_DIFFICULTY_BASE[difficulty] ?? 1;
+    return Math.min(2, baseTier + getQuestBetTier(betAmount));
+}
+
+function getQuestRewardTierKey(difficulty, betAmount) {
+    const key = ['common', 'rare', 'epic'][getQuestRewardTierIndex(difficulty, betAmount)];
+    return key || 'common';
+}
+
+function getQuestRewardTierLabel(difficulty, betAmount) {
+    const index = getQuestRewardTierIndex(difficulty, betAmount);
+    return QUEST_REWARD_TIERS[index] || QUEST_REWARD_TIERS[0];
+}
+
 function normalizeGachaType(type) {
     if (!type) return null;
     const key = String(type).toLowerCase();
@@ -488,11 +529,32 @@ export function getTroyQuestsByGachaType(type) {
     return TROY_QUESTS.filter((quest) => quest.gachaType === key);
 }
 
+function updateQuestBetControls() {
+    const input = document.getElementById('troyQuestBetInput');
+    if (input && document.activeElement !== input) {
+        input.value = String(_questBetAmount);
+    }
+    const buttons = document.querySelectorAll('.troy-quest-bet-btn');
+    buttons.forEach((button) => {
+        const value = Number(button.dataset.bet || 0);
+        button.classList.toggle('is-active', value === _questBetAmount);
+    });
+}
+
+function setQuestBetAmount(value) {
+    _questBetAmount = normalizeQuestBetAmount(value);
+    updateQuestBetControls();
+    if (_lastQuestList.length) {
+        renderQuestList(_lastQuestList);
+    }
+}
+
 function renderQuestList(list) {
     const container = document.getElementById('troyQuestList');
     if (!container) return;
     container.innerHTML = '';
     const quests = Array.isArray(list) ? list : [];
+    _lastQuestList = quests;
     if (!quests.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-quest-empty';
@@ -538,6 +600,12 @@ function renderQuestList(list) {
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
         gacha.textContent = `報酬: ${label}`;
 
+        const rewardTierKey = getQuestRewardTierKey(difficultyKey, _questBetAmount);
+        const rewardTierLabel = getQuestRewardTierLabel(difficultyKey, _questBetAmount);
+        const rewardTier = document.createElement('div');
+        rewardTier.className = `troy-quest-reward-tier troy-quest-reward-tier-${rewardTierKey}`;
+        rewardTier.textContent = `繝ｩ繝ｳ繧ｯ: ${rewardTierLabel}`;
+
         const actions = document.createElement('div');
         actions.className = 'troy-quest-actions';
 
@@ -554,6 +622,7 @@ function renderQuestList(list) {
             card.appendChild(flavor);
         }
         card.appendChild(gacha);
+        card.appendChild(rewardTier);
         card.appendChild(actions);
         container.appendChild(card);
     });
@@ -591,7 +660,10 @@ async function requestQuestClaim(quest) {
         return;
     }
     try {
-        const result = await claimTroyQuest(playFabId, quest.questId, quest.questKey, quest.gachaType);
+        const result = await claimTroyQuest(playFabId, quest.questId, quest.questKey, quest.gachaType, {
+            difficulty: quest.difficulty,
+            betAmount: _questBetAmount
+        });
         if (!result?.qrValue) {
             if (window.showRpgMessage) window.showRpgMessage(result?.error || 'QRの発行に失敗しました');
             return;
@@ -639,6 +711,18 @@ function wireQuestFilters() {
     if (qrClose) {
         qrClose.addEventListener('click', closeQuestQrModal);
     }
+    const betInput = document.getElementById('troyQuestBetInput');
+    const betButtons = Array.from(document.querySelectorAll('.troy-quest-bet-btn'));
+    if (betInput) {
+        betInput.addEventListener('change', () => setQuestBetAmount(betInput.value));
+        betInput.addEventListener('blur', () => setQuestBetAmount(betInput.value));
+    }
+    betButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            setQuestBetAmount(button.dataset.bet || 0);
+        });
+    });
+    updateQuestBetControls();
     if (!questItems.length) return;
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
