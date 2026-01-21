@@ -1771,11 +1771,48 @@ body[data-sea-tone="night"] .home-hero-card {
     gap: 6px;
 }
 
+.troy-quest-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .troy-quest-game {
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.06em;
     color: var(--text-sub);
+}
+
+.troy-quest-difficulty {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(148, 163, 184, 0.15);
+    color: #f8fafc;
+}
+
+.troy-quest-difficulty-easy {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.18);
+    color: #dcfce7;
+}
+
+.troy-quest-difficulty-normal {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: rgba(245, 158, 11, 0.18);
+    color: #fef3c7;
+}
+
+.troy-quest-difficulty-hard {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.18);
+    color: #fee2e2;
 }
 
 .troy-quest-name {
@@ -1787,6 +1824,12 @@ body[data-sea-tone="night"] .home-hero-card {
 .troy-quest-detail {
     font-size: 12px;
     color: #cbd5f5;
+    line-height: 1.6;
+}
+
+.troy-quest-flavor {
+    font-size: 11px;
+    color: rgba(226, 232, 240, 0.8);
     line-height: 1.6;
 }
 
