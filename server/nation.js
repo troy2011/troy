@@ -23,11 +23,10 @@ const QUEST_BET_TIER_THRESHOLDS = {
 };
 const QUEST_BET_MAX = 100000;
 const QUEST_PROGRESSIONS = {
-    'karaoke-single': {
-        thresholds: [80, 85, 90, 95, 99]
-    },
-    'karaoke-duet': {
-        thresholds: [80, 85, 90, 95, 99]
+    'karaoke-single-score': {
+        start: 80,
+        step: 5,
+        max: 100
     }
 };
 const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
@@ -110,8 +109,13 @@ function resolveQuestRewardTier(difficulty, betAmount) {
 
 function getQuestProgressionMaxLevel(questKey) {
     const progression = QUEST_PROGRESSIONS[questKey];
-    const thresholds = progression?.thresholds;
-    return Array.isArray(thresholds) ? thresholds.length : 0;
+    const start = Number(progression?.start || 0);
+    const step = Number(progression?.step || 0);
+    const maxValue = Number(progression?.max || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
+        return 0;
+    }
+    return Math.floor((maxValue - start) / step) + 1;
 }
 
 function parseQuestLevels(rawValue) {
@@ -158,6 +162,9 @@ function buildQuestPayloadString(payload) {
     };
     if (payload.difficulty) {
         ordered.difficulty = payload.difficulty;
+    }
+    if (payload.progressionKey) {
+        ordered.progressionKey = payload.progressionKey;
     }
     if (payload.betAmount !== undefined) {
         ordered.betAmount = payload.betAmount;
@@ -1083,6 +1090,7 @@ function initializeNationRoutes(app, deps) {
         }
         const difficulty = normalizeQuestDifficulty(req.body?.difficulty);
         const betAmount = normalizeQuestBetAmount(req.body?.betAmount);
+        const progressionKey = String(req.body?.progressionKey || '').trim();
 
         try {
             const claimId = generateQuestClaimId();
@@ -1095,6 +1103,7 @@ function initializeNationRoutes(app, deps) {
                 questKey: String(questKey),
                 gachaType: gachaKey,
                 difficulty,
+                progressionKey,
                 betAmount,
                 nonce: crypto.randomBytes(8).toString('hex'),
                 issuedAt: now,
@@ -1190,7 +1199,7 @@ function initializeNationRoutes(app, deps) {
             });
 
             let nextQuestLevel = null;
-            const progressionKey = String(claimData.questKey || basePayload.questKey || '');
+            const progressionKey = String(claimData.progressionKey || basePayload.progressionKey || '');
             const maxLevel = getQuestProgressionMaxLevel(progressionKey);
             if (maxLevel > 0) {
                 try {

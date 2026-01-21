@@ -94,12 +94,10 @@ const TROY_PRODUCT_MENUS = {
 };
 
 const TROY_QUEST_PROGRESSIONS = {
-    'karaoke-single': {
-        thresholds: [80, 85, 90, 95, 99],
-        unit: '点以上'
-    },
-    'karaoke-duet': {
-        thresholds: [80, 85, 90, 95, 99],
+    'karaoke-single-score': {
+        start: 80,
+        step: 5,
+        max: 100,
         unit: '点以上'
     }
 };
@@ -207,10 +205,11 @@ const TROY_QUESTS = [
     {
         game: 'カラオケ',
         name: '音の射抜き',
-        detail: 'シングルで90点以上',
+        detail: 'シングルで{target}点以上',
         gachaType: 'gun',
         questKey: 'karaoke-single',
         difficulty: 'easy',
+        progressionKey: 'karaoke-single-score',
         flavor: '歌声は海賊の銃声。'
     },
     {
@@ -610,25 +609,73 @@ function setQuestBetAmount(value) {
     }
 }
 
-function getQuestProgression(questKey) {
-    return TROY_QUEST_PROGRESSIONS[questKey] || null;
+function getQuestProgression(progressionKey) {
+    if (!progressionKey) return null;
+    return TROY_QUEST_PROGRESSIONS[progressionKey] || null;
 }
 
-function getQuestLevel(questKey) {
-    const level = Number(_questLevels[questKey] || 1);
+function getQuestLevel(progressionKey) {
+    const level = Number(_questLevels[progressionKey] || 1);
     return Number.isFinite(level) && level > 0 ? level : 1;
 }
 
-function buildQuestProgressText(questKey) {
-    const progression = getQuestProgression(questKey);
+function buildQuestProgressText(progressionKey) {
+    const progression = getQuestProgression(progressionKey);
     if (!progression) return '';
-    const thresholds = progression.thresholds || [];
-    const maxLevel = thresholds.length;
-    if (!maxLevel) return '';
-    const level = Math.min(getQuestLevel(questKey), maxLevel);
-    const required = thresholds[level - 1];
+    const start = Number(progression.start || 0);
+    const step = Number(progression.step || 0);
+    const maxValue = Number(progression.max || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
+        return '';
+    }
+    const maxLevel = Math.floor((maxValue - start) / step) + 1;
+    if (maxLevel <= 0) return '';
+    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
+    const required = Math.min(maxValue, start + step * (level - 1));
     const unit = progression.unit || '';
     return `Lv${level}/${maxLevel} 条件: ${required}${unit}`;
+}
+
+function resolveProgressDifficulty(level, maxLevel) {
+    if (maxLevel <= 1) return 'easy';
+    const ratio = level / maxLevel;
+    if (ratio >= 0.8) return 'hard';
+    if (ratio >= 0.5) return 'normal';
+    return 'easy';
+}
+
+function buildQuestDetail(quest) {
+    if (!quest) return '';
+    const template = quest.detail || '';
+    if (!template.includes('{target}')) return template;
+    const progressionKey = quest.progressionKey;
+    const progression = getQuestProgression(progressionKey);
+    if (!progression) return template;
+    const start = Number(progression.start || 0);
+    const step = Number(progression.step || 0);
+    const maxValue = Number(progression.max || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
+        return template;
+    }
+    const maxLevel = Math.floor((maxValue - start) / step) + 1;
+    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
+    const target = Math.min(maxValue, start + step * (level - 1));
+    return template.replace('{target}', String(target));
+}
+
+function resolveQuestDifficulty(quest) {
+    const progressionKey = quest?.progressionKey;
+    const progression = getQuestProgression(progressionKey);
+    if (!progression) return quest?.difficulty || 'normal';
+    const start = Number(progression.start || 0);
+    const step = Number(progression.step || 0);
+    const maxValue = Number(progression.max || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
+        return quest?.difficulty || 'normal';
+    }
+    const maxLevel = Math.floor((maxValue - start) / step) + 1;
+    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
+    return resolveProgressDifficulty(level, maxLevel);
 }
 
 async function refreshQuestLevels(playFabId) {
@@ -722,7 +769,7 @@ function renderQuestList(list) {
         game.textContent = quest.game;
 
         const difficulty = document.createElement('div');
-        const difficultyKey = quest.difficulty || 'normal';
+        const difficultyKey = resolveQuestDifficulty(quest);
         const difficultyLabel = DIFFICULTY_LABELS[difficultyKey] || difficultyKey;
         difficulty.className = `troy-quest-difficulty troy-quest-difficulty-${difficultyKey}`;
         difficulty.textContent = `難易度: ${difficultyLabel}`;
@@ -738,13 +785,13 @@ function renderQuestList(list) {
 
         const detail = document.createElement('div');
         detail.className = 'troy-quest-detail';
-        detail.textContent = quest.detail;
+        detail.textContent = buildQuestDetail(quest);
 
         const flavor = document.createElement('div');
         flavor.className = 'troy-quest-flavor';
         flavor.textContent = quest.flavor || '';
 
-        const progressText = buildQuestProgressText(quest.questKey);
+        const progressText = buildQuestProgressText(quest.progressionKey);
         const progress = document.createElement('div');
         progress.className = 'troy-quest-progress';
         progress.textContent = progressText;
@@ -818,8 +865,9 @@ async function requestQuestClaim(quest) {
     }
     try {
         const result = await claimTroyQuest(playFabId, quest.questId, quest.questKey, quest.gachaType, {
-            difficulty: quest.difficulty,
-            betAmount: _questBetAmount
+            difficulty: resolveQuestDifficulty(quest),
+            betAmount: _questBetAmount,
+            progressionKey: quest.progressionKey || null
         });
         if (!result?.qrValue) {
             if (window.showRpgMessage) window.showRpgMessage(result?.error || '承認QRの生成に失敗しました');
