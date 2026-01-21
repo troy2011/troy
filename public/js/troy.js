@@ -15,23 +15,23 @@ let _questBetAmount = 0;
 let _lastQuestList = [];
 
 const TROY_GACHA_LABELS = {
-    sword: '剣',
-    axe: '斧',
-    spear: '槍',
-    staff: '杖',
-    gun: '銃(弓)',
-    helmet: '兜',
-    shield: '盾',
-    item: '道具'
+    sword: '\u5263',
+    axe: '\u65a7',
+    spear: '\u69cd',
+    staff: '\u6756',
+    gun: '\u9283(\u5f13)',
+    helmet: '\u515c',
+    shield: '\u76fe',
+    item: '\u9053\u5177'
 };
 
 const DIFFICULTY_LABELS = {
-    easy: '易',
-    normal: '普',
-    hard: '難'
+    easy: '\u6613',
+    normal: '\u666e',
+    hard: '\u96e3'
 };
 
-const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
+const QUEST_REWARD_TIERS = ['\\u30b3\\u30e2\\u30f3', '\\u30ec\\u30a2', '\\u30a8\\u30d4\\u30c3\\u30af'];
 const QUEST_DIFFICULTY_BASE = {
     easy: 0,
     normal: 1,
@@ -63,22 +63,22 @@ const TROY_QUESTS = [
         flavor: '荒波を割るように最初の一打を決めろ。'
     },
     {
-        game: 'ビリヤード',
-        name: '狙撃の一閃',
-        detail: '9ボールでロングショット3回成功',
+        game: '\u30d3\u30ea\u30e4\u30fc\u30c9',
+        name: '\u72d9\u6483\u306e\u4e00\u9583',
+        detail: '9\u30dc\u30fc\u30eb\u3067\u30ed\u30f3\u30b0\u30b7\u30e7\u30c3\u30c83\u56de\u6210\u529f',
         gachaType: 'gun',
         questKey: 'billiard-9',
-        difficulty: 'hard',
-        flavor: '遠距離でも迷わぬ砲撃が海賊の誉れ。'
+        difficulty: 'easy',
+        flavor: '\u9060\u8ddd\u96e2\u3067\u3082\u8ff7\u308f\u306c\u7832\u6483\u304c\u6d77\u8cca\u306e\u8a89\u308c\u3002'
     },
     {
-        game: 'ビリヤード',
-        name: '舵取りセーフ',
-        detail: '9ボールでセーフティ成功を2回',
+        game: '\u30d3\u30ea\u30e4\u30fc\u30c9',
+        name: '\u8235\u53d6\u308a\u30bb\u30fc\u30d5',
+        detail: '9\u30dc\u30fc\u30eb\u3067\u30bb\u30fc\u30d5\u30c6\u30a3\u6210\u529f\u30922\u56de',
         gachaType: 'shield',
         questKey: 'billiard-9',
         difficulty: 'easy',
-        flavor: '防御の構えも勝利の航路。'
+        flavor: '\u9632\u5fa1\u306e\u69cb\u3048\u3082\u52dd\u5229\u306e\u822a\u8def\u3002'
     },
     {
         game: 'ビリヤード',
@@ -558,7 +558,7 @@ function renderQuestList(list) {
     if (!quests.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-quest-empty';
-        empty.textContent = '該当するクエストはありません';
+        empty.textContent = '\u30af\u30a8\u30b9\u30c8\u304c\u3042\u308a\u307e\u305b\u3093';
         container.appendChild(empty);
         return;
     }
@@ -576,7 +576,7 @@ function renderQuestList(list) {
         const difficultyKey = quest.difficulty || 'normal';
         const difficultyLabel = DIFFICULTY_LABELS[difficultyKey] || difficultyKey;
         difficulty.className = `troy-quest-difficulty troy-quest-difficulty-${difficultyKey}`;
-        difficulty.textContent = `難易度: ${difficultyLabel}`;
+        difficulty.textContent = `\u96e3\u6613\u5ea6: ${difficultyLabel}`;
 
         const meta = document.createElement('div');
         meta.className = 'troy-quest-meta';
@@ -598,20 +598,20 @@ function renderQuestList(list) {
         const gacha = document.createElement('div');
         gacha.className = 'troy-quest-gacha';
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
-        gacha.textContent = `報酬: ${label}`;
+        gacha.textContent = `\u5831\u916c: ${label}`;
 
         const rewardTierKey = getQuestRewardTierKey(difficultyKey, _questBetAmount);
         const rewardTierLabel = getQuestRewardTierLabel(difficultyKey, _questBetAmount);
         const rewardTier = document.createElement('div');
         rewardTier.className = `troy-quest-reward-tier troy-quest-reward-tier-${rewardTierKey}`;
-        rewardTier.textContent = `繝ｩ繝ｳ繧ｯ: ${rewardTierLabel}`;
+        rewardTier.textContent = `\u30e9\u30f3\u30af: ${rewardTierLabel}`;
 
         const actions = document.createElement('div');
         actions.className = 'troy-quest-actions';
 
         const qrBtn = document.createElement('button');
         qrBtn.className = 'troy-quest-qr';
-        qrBtn.textContent = '承認QR';
+        qrBtn.textContent = '\u627f\u8a8dQR';
         qrBtn.addEventListener('click', () => requestQuestClaim(quest));
 
         actions.appendChild(qrBtn);
@@ -634,7 +634,7 @@ function openQuestQrModal(quest, qrValue, expiresAt) {
     const title = document.getElementById('troyQuestQrTitle');
     const expires = document.getElementById('troyQuestQrExpires');
     if (!modal || !canvas) return;
-    if (title) title.textContent = quest?.name || 'クエスト承認QR';
+    if (title) title.textContent = quest?.name || '\u30af\u30a8\u30b9\u30c8\u627f\u8a8dQR';
     if (expires) {
         expires.textContent = expiresAt ? new Date(expiresAt).toLocaleString('ja-JP') : '';
     }
@@ -656,7 +656,7 @@ function closeQuestQrModal() {
 async function requestQuestClaim(quest) {
     const playFabId = window.myPlayFabId;
     if (!playFabId) {
-        if (window.showRpgMessage) window.showRpgMessage('PlayFabIdがありません');
+        if (window.showRpgMessage) window.showRpgMessage('\u30d7\u30ec\u30a4\u30e4\u30fcID\u304c\u3042\u308a\u307e\u305b\u3093');
         return;
     }
     try {
@@ -665,13 +665,13 @@ async function requestQuestClaim(quest) {
             betAmount: _questBetAmount
         });
         if (!result?.qrValue) {
-            if (window.showRpgMessage) window.showRpgMessage(result?.error || 'QRの発行に失敗しました');
+            if (window.showRpgMessage) window.showRpgMessage(result?.error || '\u627f\u8a8dQR\u306e\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f');
             return;
         }
         openQuestQrModal(quest, result.qrValue, result.expiresAt);
     } catch (error) {
         console.error('[TroyQuest] claim failed:', error);
-        if (window.showRpgMessage) window.showRpgMessage('QRの発行に失敗しました');
+        if (window.showRpgMessage) window.showRpgMessage('\u627f\u8a8dQR\u306e\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f');
     }
 }
 
@@ -693,7 +693,7 @@ function getQuestPanelElements() {
 function closeQuestPanel(items) {
     const { panel, title } = getQuestPanelElements();
     if (panel) panel.classList.remove('active');
-    if (title) title.textContent = '未選択';
+    if (title) title.textContent = quest?.name || '\\u30af\\u30a8\\u30b9\\u30c8\\u627f\\u8a8dQR';
     updateQuestFilterLabel('クエスト一覧: 未選択');
     renderQuestList([]);
     items.forEach((node) => node.classList.remove('is-active'));
@@ -732,7 +732,7 @@ function wireQuestFilters() {
             const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
             questItems.forEach((node) => node.classList.toggle('is-active', node === item));
             if (panel) panel.classList.add('active');
-            if (title) title.textContent = label;
+            if (title) title.textContent = quest?.name || '\\u30af\\u30a8\\u30b9\\u30c8\\u627f\\u8a8dQR';
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
             renderQuestList(filtered);
         });
