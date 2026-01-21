@@ -655,8 +655,8 @@ function startPolling(playFabId) {
 export async function loadTroyPage(playFabId) {
     wireHandlers(playFabId);
     wireQuestFilters();
-    updateQuestFilterLabel('クエスト一覧: すべて');
-    renderQuestList(TROY_QUESTS);
+    updateQuestFilterLabel('クエスト一覧: 未選択');
+    renderQuestList([]);
     await refreshStatus(playFabId);
     startPolling(playFabId);
 }
