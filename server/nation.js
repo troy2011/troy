@@ -11,6 +11,7 @@ const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
 const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
 const QUEST_LEVEL_DATA_KEY = 'troyQuestLevels';
+const QUEST_CLEAR_DATA_KEY = 'troyQuestClears';
 const QUEST_REWARD_RARITY_LEVELS = ['common', 'rare', 'epic'];
 const QUEST_REWARD_TIER_MIX = {
     common: { common: 1 },
@@ -119,6 +120,17 @@ function getQuestProgressionMaxLevel(questKey) {
 }
 
 function parseQuestLevels(rawValue) {
+    if (!rawValue) return {};
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+    } catch {
+        return {};
+    }
+}
+
+function parseQuestClears(rawValue) {
     if (!rawValue) return {};
     try {
         const parsed = JSON.parse(rawValue);
@@ -1074,6 +1086,24 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // TROYクエスト: クリア状況取得
+    app.post('/api/get-quest-clears', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        try {
+            const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: [QUEST_CLEAR_DATA_KEY]
+            });
+            const raw = result?.Data?.[QUEST_CLEAR_DATA_KEY]?.Value || '';
+            const clears = parseQuestClears(raw);
+            res.json({ success: true, clears });
+        } catch (error) {
+            console.error('[get-quest-clears] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get quest clears' });
+        }
+    });
+
     // TROYクエスト: 承認QR発行
     app.post('/api/quest-claim', async (req, res) => {
         const { playFabId, questId, questKey, gachaType } = req.body || {};
@@ -1225,6 +1255,31 @@ function initializeNationRoutes(app, deps) {
                 }
             }
 
+            let questCleared = false;
+            const questIdKey = String(claimData.questId || basePayload.questId || '').trim();
+            if (questIdKey) {
+                try {
+                    const clearResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: basePayload.playerId,
+                        Keys: [QUEST_CLEAR_DATA_KEY]
+                    });
+                    const rawClears = clearResult?.Data?.[QUEST_CLEAR_DATA_KEY]?.Value || '';
+                    const clears = parseQuestClears(rawClears);
+                    if (!clears[questIdKey]) {
+                        clears[questIdKey] = true;
+                        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                            PlayFabId: basePayload.playerId,
+                            Data: {
+                                [QUEST_CLEAR_DATA_KEY]: JSON.stringify(clears)
+                            }
+                        });
+                    }
+                    questCleared = true;
+                } catch (clearError) {
+                    console.warn('[quest-approve] Failed to update quest clears:', clearError?.message || clearError);
+                }
+            }
+
             await claimRef.set({
                 status: 'approved',
                 approvedBy: normalizePlayFabId(playFabId),
@@ -1240,7 +1295,8 @@ function initializeNationRoutes(app, deps) {
                 rewardItemId,
                 rewardLabel: rewardType,
                 rewardTier,
-                questLevel: nextQuestLevel
+                questLevel: nextQuestLevel,
+                questCleared
             });
         } catch (error) {
             console.error('[quest-approve] Error:', error?.message || error);

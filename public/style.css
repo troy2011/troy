@@ -1826,6 +1826,14 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 11px;
 }
 
+.troy-quest-section {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--text-sub);
+    margin-top: 4px;
+}
+
 .troy-quest-list {
     display: grid;
     gap: 10px;

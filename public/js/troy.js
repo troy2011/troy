@@ -5,7 +5,8 @@ import {
     joinTroy,
     leaveTroy,
     claimTroyQuest,
-    getTroyQuestLevels
+    getTroyQuestLevels,
+    getTroyQuestClears
 } from './playfabClient.js';
 
 let _wired = false;
@@ -16,6 +17,7 @@ let _lastStatus = null;
 let _questBetAmount = 0;
 let _lastQuestList = [];
 let _questLevels = {};
+let _questClears = {};
 
 const TROY_GACHA_LABELS = {
     sword: '剣',
@@ -45,6 +47,17 @@ const QUEST_BET_THRESHOLDS = {
     bonus2: 1000
 };
 const QUEST_BET_MAX = 100000;
+const QUEST_TIER_ORDER = ['beginner', 'intermediate', 'advanced'];
+const QUEST_TIER_LABELS = {
+    beginner: '初級',
+    intermediate: '中級',
+    advanced: '上級'
+};
+const QUEST_TIER_DIFFICULTY = {
+    beginner: 'easy',
+    intermediate: 'normal',
+    advanced: 'hard'
+};
 
 const TROY_PRODUCT_MENUS = {
     'drink-alcohol': {
@@ -538,17 +551,29 @@ const TROY_QUESTS = [
     }
 ];
 
-function assignQuestIds(list) {
+const TROY_GAME_KEYS = {
+    ビリヤード: 'billiard',
+    カラオケ: 'karaoke',
+    ダーツ: 'darts',
+    トランプ: 'cards',
+    その他: 'other'
+};
+
+function assignQuestMeta(list) {
     const counts = new Map();
     list.forEach((quest) => {
-        const key = quest.questKey || 'quest';
+        const gameKey = TROY_GAME_KEYS[quest.game] || 'other';
+        quest.gameKey = quest.gameKey || gameKey;
+        const tier = quest.tier || (quest.difficulty === 'easy' ? 'beginner' : quest.difficulty === 'hard' ? 'advanced' : 'intermediate');
+        quest.tier = tier;
+        const key = quest.gameKey || 'quest';
         const next = (counts.get(key) || 0) + 1;
         counts.set(key, next);
         quest.questId = `${key}-${String(next).padStart(2, '0')}`;
     });
 }
 
-assignQuestIds(TROY_QUESTS);
+assignQuestMeta(TROY_QUESTS);
 
 function normalizeQuestBetAmount(value) {
     const amount = Math.floor(Number(value) || 0);
@@ -619,6 +644,10 @@ function getQuestLevel(progressionKey) {
     return Number.isFinite(level) && level > 0 ? level : 1;
 }
 
+function isQuestCleared(questId) {
+    return !!_questClears[questId];
+}
+
 function buildQuestProgressText(progressionKey) {
     const progression = getQuestProgression(progressionKey);
     if (!progression) return '';
@@ -634,14 +663,6 @@ function buildQuestProgressText(progressionKey) {
     const required = Math.min(maxValue, start + step * (level - 1));
     const unit = progression.unit || '';
     return `Lv${level}/${maxLevel} 条件: ${required}${unit}`;
-}
-
-function resolveProgressDifficulty(level, maxLevel) {
-    if (maxLevel <= 1) return 'easy';
-    const ratio = level / maxLevel;
-    if (ratio >= 0.8) return 'hard';
-    if (ratio >= 0.5) return 'normal';
-    return 'easy';
 }
 
 function buildQuestDetail(quest) {
@@ -664,18 +685,10 @@ function buildQuestDetail(quest) {
 }
 
 function resolveQuestDifficulty(quest) {
-    const progressionKey = quest?.progressionKey;
-    const progression = getQuestProgression(progressionKey);
-    if (!progression) return quest?.difficulty || 'normal';
-    const start = Number(progression.start || 0);
-    const step = Number(progression.step || 0);
-    const maxValue = Number(progression.max || 0);
-    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
-        return quest?.difficulty || 'normal';
+    if (quest?.tier && QUEST_TIER_DIFFICULTY[quest.tier]) {
+        return QUEST_TIER_DIFFICULTY[quest.tier];
     }
-    const maxLevel = Math.floor((maxValue - start) / step) + 1;
-    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
-    return resolveProgressDifficulty(level, maxLevel);
+    return quest?.difficulty || 'normal';
 }
 
 async function refreshQuestLevels(playFabId) {
@@ -686,6 +699,17 @@ async function refreshQuestLevels(playFabId) {
     } catch (error) {
         console.warn('[TroyQuest] Failed to load quest levels:', error);
         _questLevels = {};
+    }
+}
+
+async function refreshQuestClears(playFabId) {
+    if (!playFabId) return;
+    try {
+        const result = await getTroyQuestClears(playFabId, { isSilent: true });
+        _questClears = result?.clears && typeof result.clears === 'object' ? result.clears : {};
+    } catch (error) {
+        console.warn('[TroyQuest] Failed to load quest clears:', error);
+        _questClears = {};
     }
 }
 
@@ -745,24 +769,59 @@ function wireMenuPopups() {
     });
 }
 
+function isTierUnlocked(quests, tier) {
+    if (tier === 'beginner') return true;
+    if (tier === 'intermediate') {
+        const beginner = quests.filter((quest) => quest.tier === 'beginner');
+        return beginner.length > 0 && beginner.every((quest) => isQuestCleared(quest.questId));
+    }
+    if (tier === 'advanced') {
+        const intermediate = quests.filter((quest) => quest.tier === 'intermediate');
+        return intermediate.length > 0 && intermediate.every((quest) => isQuestCleared(quest.questId));
+    }
+    return false;
+}
+
+function buildQuestSections(quests) {
+    const sections = [];
+    QUEST_TIER_ORDER.forEach((tier) => {
+        const tierQuests = quests.filter((quest) => quest.tier === tier);
+        if (!tierQuests.length) return;
+        if (!isTierUnlocked(quests, tier)) return;
+        sections.push({
+            tier,
+            label: QUEST_TIER_LABELS[tier] || tier,
+            quests: tierQuests
+        });
+    });
+    return sections;
+}
+
 function renderQuestList(list) {
     const container = document.getElementById('troyQuestList');
     if (!container) return;
     container.innerHTML = '';
     const quests = Array.isArray(list) ? list : [];
     _lastQuestList = quests;
-    if (!quests.length) {
+    const sections = buildQuestSections(quests);
+    if (!sections.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-quest-empty';
         empty.textContent = 'クエストがありません';
         container.appendChild(empty);
         return;
     }
-    quests.forEach((quest, index) => {
-        const card = document.createElement('div');
-        card.className = 'troy-quest-card is-animated';
-        card.dataset.gachaType = quest.gachaType;
-        card.style.animationDelay = `${index * 40}ms`;
+
+    sections.forEach((section) => {
+        const sectionHeader = document.createElement('div');
+        sectionHeader.className = 'troy-quest-section';
+        sectionHeader.textContent = section.label;
+        container.appendChild(sectionHeader);
+        section.quests.forEach((quest, index) => {
+            const card = document.createElement('div');
+            card.className = 'troy-quest-card is-animated';
+            card.dataset.gachaType = quest.gachaType;
+            card.style.animationDelay = `${index * 40}ms`;
 
         const game = document.createElement('div');
         game.className = 'troy-quest-game';
@@ -829,6 +888,7 @@ function renderQuestList(list) {
         card.appendChild(rewardTier);
         card.appendChild(actions);
         container.appendChild(card);
+        });
     });
 }
 
@@ -864,7 +924,7 @@ async function requestQuestClaim(quest) {
         return;
     }
     try {
-        const result = await claimTroyQuest(playFabId, quest.questId, quest.questKey, quest.gachaType, {
+        const result = await claimTroyQuest(playFabId, quest.questId, quest.gameKey, quest.gachaType, {
             difficulty: resolveQuestDifficulty(quest),
             betAmount: _questBetAmount,
             progressionKey: quest.progressionKey || null
@@ -907,7 +967,7 @@ function closeQuestPanel(items) {
 function wireQuestFilters() {
     if (_questWired) return;
     _questWired = true;
-    const questItems = Array.from(document.querySelectorAll('.troy-menu-subitems li[data-quest-key]'));
+    const questItems = Array.from(document.querySelectorAll('.troy-menu-items li[data-game-key]'));
     const { panel, title, close } = getQuestPanelElements();
     if (close) {
         close.addEventListener('click', () => closeQuestPanel(questItems));
@@ -932,14 +992,15 @@ function wireQuestFilters() {
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
         item.addEventListener('click', async () => {
-            const key = item.dataset.questKey;
-            const label = item.dataset.questLabel || item.textContent.trim();
-            const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
+            const key = item.dataset.gameKey;
+            const label = item.textContent.trim();
+            const filtered = TROY_QUESTS.filter((quest) => quest.gameKey === key);
             questItems.forEach((node) => node.classList.toggle('is-active', node === item));
             if (panel) panel.classList.add('active');
             if (title) title.textContent = label;
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
             await refreshQuestLevels(window.myPlayFabId);
+            await refreshQuestClears(window.myPlayFabId);
             renderQuestList(filtered);
         });
     });
@@ -1043,6 +1104,7 @@ export async function loadTroyPage(playFabId) {
     wireQuestFilters();
     updateQuestFilterLabel('クエスト一覧: 未選択');
     await refreshQuestLevels(playFabId);
+    await refreshQuestClears(playFabId);
     renderQuestList([]);
     await refreshStatus(playFabId);
     startPolling(playFabId);

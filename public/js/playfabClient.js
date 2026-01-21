@@ -148,6 +148,10 @@ export function getTroyQuestLevels(playFabId, options) {
     return callApiWithLoader('/api/get-quest-levels', { playFabId }, options);
 }
 
+export function getTroyQuestClears(playFabId, options) {
+    return callApiWithLoader('/api/get-quest-clears', { playFabId }, options);
+}
+
 export function approveTroyQuest(playFabId, qrValue, options) {
     return callApiWithLoader('/api/quest-approve', { playFabId, qrValue }, options);
 }
