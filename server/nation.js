@@ -10,7 +10,6 @@ const QUEST_QR_PREFIX = 'quest:';
 const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
 const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
-const QUEST_LEVEL_DATA_KEY = 'troyQuestLevels';
 const QUEST_CLEAR_DATA_KEY = 'troyQuestClears';
 const QUEST_REWARD_RARITY_LEVELS = ['common', 'rare', 'epic'];
 const QUEST_REWARD_TIER_MIX = {
@@ -23,13 +22,6 @@ const QUEST_BET_TIER_THRESHOLDS = {
     bonus2: 1000
 };
 const QUEST_BET_MAX = 100000;
-const QUEST_PROGRESSIONS = {
-    'karaoke-single-score': {
-        start: 80,
-        step: 5,
-        max: 100
-    }
-};
 const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
     .split(',')
     .map((value) => value.trim())
@@ -108,28 +100,6 @@ function resolveQuestRewardTier(difficulty, betAmount) {
     return QUEST_REWARD_RARITY_LEVELS[tierIndex] || 'common';
 }
 
-function getQuestProgressionMaxLevel(questKey) {
-    const progression = QUEST_PROGRESSIONS[questKey];
-    const start = Number(progression?.start || 0);
-    const step = Number(progression?.step || 0);
-    const maxValue = Number(progression?.max || 0);
-    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
-        return 0;
-    }
-    return Math.floor((maxValue - start) / step) + 1;
-}
-
-function parseQuestLevels(rawValue) {
-    if (!rawValue) return {};
-    try {
-        const parsed = JSON.parse(rawValue);
-        if (!parsed || typeof parsed !== 'object') return {};
-        return parsed;
-    } catch {
-        return {};
-    }
-}
-
 function parseQuestClears(rawValue) {
     if (!rawValue) return {};
     try {
@@ -174,9 +144,6 @@ function buildQuestPayloadString(payload) {
     };
     if (payload.difficulty) {
         ordered.difficulty = payload.difficulty;
-    }
-    if (payload.progressionKey) {
-        ordered.progressionKey = payload.progressionKey;
     }
     if (payload.betAmount !== undefined) {
         ordered.betAmount = payload.betAmount;
@@ -1068,24 +1035,6 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // TROYクエスト: レベル取得
-    app.post('/api/get-quest-levels', async (req, res) => {
-        const { playFabId } = req.body || {};
-        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
-        try {
-            const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
-                Keys: [QUEST_LEVEL_DATA_KEY]
-            });
-            const raw = result?.Data?.[QUEST_LEVEL_DATA_KEY]?.Value || '';
-            const levels = parseQuestLevels(raw);
-            res.json({ success: true, levels });
-        } catch (error) {
-            console.error('[get-quest-levels] Error:', error?.message || error);
-            res.status(500).json({ error: 'Failed to get quest levels' });
-        }
-    });
-
     // TROYクエスト: クリア状況取得
     app.post('/api/get-quest-clears', async (req, res) => {
         const { playFabId } = req.body || {};
@@ -1120,7 +1069,6 @@ function initializeNationRoutes(app, deps) {
         }
         const difficulty = normalizeQuestDifficulty(req.body?.difficulty);
         const betAmount = normalizeQuestBetAmount(req.body?.betAmount);
-        const progressionKey = String(req.body?.progressionKey || '').trim();
 
         try {
             const claimId = generateQuestClaimId();
@@ -1133,7 +1081,6 @@ function initializeNationRoutes(app, deps) {
                 questKey: String(questKey),
                 gachaType: gachaKey,
                 difficulty,
-                progressionKey,
                 betAmount,
                 nonce: crypto.randomBytes(8).toString('hex'),
                 issuedAt: now,
@@ -1228,33 +1175,6 @@ function initializeNationRoutes(app, deps) {
                 idempotencyId: `quest-${basePayload.claimId}`
             });
 
-            let nextQuestLevel = null;
-            const progressionKey = String(claimData.progressionKey || basePayload.progressionKey || '');
-            const maxLevel = getQuestProgressionMaxLevel(progressionKey);
-            if (maxLevel > 0) {
-                try {
-                    const levelResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                        PlayFabId: basePayload.playerId,
-                        Keys: [QUEST_LEVEL_DATA_KEY]
-                    });
-                    const rawLevels = levelResult?.Data?.[QUEST_LEVEL_DATA_KEY]?.Value || '';
-                    const levels = parseQuestLevels(rawLevels);
-                    const currentLevel = Math.max(1, Number(levels[progressionKey] || 1));
-                    nextQuestLevel = Math.min(maxLevel, currentLevel + 1);
-                    if (nextQuestLevel !== currentLevel) {
-                        levels[progressionKey] = nextQuestLevel;
-                        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                            PlayFabId: basePayload.playerId,
-                            Data: {
-                                [QUEST_LEVEL_DATA_KEY]: JSON.stringify(levels)
-                            }
-                        });
-                    }
-                } catch (levelError) {
-                    console.warn('[quest-approve] Failed to update quest level:', levelError?.message || levelError);
-                }
-            }
-
             let questCleared = false;
             const questIdKey = String(claimData.questId || basePayload.questId || '').trim();
             if (questIdKey) {
@@ -1295,7 +1215,6 @@ function initializeNationRoutes(app, deps) {
                 rewardItemId,
                 rewardLabel: rewardType,
                 rewardTier,
-                questLevel: nextQuestLevel,
                 questCleared
             });
         } catch (error) {

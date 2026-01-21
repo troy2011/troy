@@ -5,7 +5,6 @@ import {
     joinTroy,
     leaveTroy,
     claimTroyQuest,
-    getTroyQuestLevels,
     getTroyQuestClears
 } from './playfabClient.js';
 
@@ -16,7 +15,6 @@ let _pollTimer = null;
 let _lastStatus = null;
 let _questBetAmount = 0;
 let _lastQuestList = [];
-let _questLevels = {};
 let _questClears = {};
 
 const TROY_GACHA_LABELS = {
@@ -103,15 +101,6 @@ const TROY_PRODUCT_MENUS = {
             { name: '350Ps', price: '￥3000' },
             { name: '100Ps', price: '￥1000' }
         ]
-    }
-};
-
-const TROY_QUEST_PROGRESSIONS = {
-    'karaoke-single-score': {
-        start: 80,
-        step: 5,
-        max: 100,
-        unit: '点以上'
     }
 };
 
@@ -218,11 +207,10 @@ const TROY_QUESTS = [
     {
         game: 'カラオケ',
         name: '音の射抜き',
-        detail: 'シングルで{target}点以上',
+        detail: 'シングルで80点以上',
         gachaType: 'gun',
         questKey: 'karaoke-single',
         difficulty: 'easy',
-        progressionKey: 'karaoke-single-score',
         flavor: '歌声は海賊の銃声。'
     },
     {
@@ -634,54 +622,8 @@ function setQuestBetAmount(value) {
     }
 }
 
-function getQuestProgression(progressionKey) {
-    if (!progressionKey) return null;
-    return TROY_QUEST_PROGRESSIONS[progressionKey] || null;
-}
-
-function getQuestLevel(progressionKey) {
-    const level = Number(_questLevels[progressionKey] || 1);
-    return Number.isFinite(level) && level > 0 ? level : 1;
-}
-
 function isQuestCleared(questId) {
     return !!_questClears[questId];
-}
-
-function buildQuestProgressText(progressionKey) {
-    const progression = getQuestProgression(progressionKey);
-    if (!progression) return '';
-    const start = Number(progression.start || 0);
-    const step = Number(progression.step || 0);
-    const maxValue = Number(progression.max || 0);
-    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
-        return '';
-    }
-    const maxLevel = Math.floor((maxValue - start) / step) + 1;
-    if (maxLevel <= 0) return '';
-    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
-    const required = Math.min(maxValue, start + step * (level - 1));
-    const unit = progression.unit || '';
-    return `Lv${level}/${maxLevel} 条件: ${required}${unit}`;
-}
-
-function buildQuestDetail(quest) {
-    if (!quest) return '';
-    const template = quest.detail || '';
-    if (!template.includes('{target}')) return template;
-    const progressionKey = quest.progressionKey;
-    const progression = getQuestProgression(progressionKey);
-    if (!progression) return template;
-    const start = Number(progression.start || 0);
-    const step = Number(progression.step || 0);
-    const maxValue = Number(progression.max || 0);
-    if (!Number.isFinite(start) || !Number.isFinite(step) || !Number.isFinite(maxValue) || step <= 0) {
-        return template;
-    }
-    const maxLevel = Math.floor((maxValue - start) / step) + 1;
-    const level = Math.min(getQuestLevel(progressionKey), maxLevel);
-    const target = Math.min(maxValue, start + step * (level - 1));
-    return template.replace('{target}', String(target));
 }
 
 function resolveQuestDifficulty(quest) {
@@ -689,17 +631,6 @@ function resolveQuestDifficulty(quest) {
         return QUEST_TIER_DIFFICULTY[quest.tier];
     }
     return quest?.difficulty || 'normal';
-}
-
-async function refreshQuestLevels(playFabId) {
-    if (!playFabId) return;
-    try {
-        const result = await getTroyQuestLevels(playFabId, { isSilent: true });
-        _questLevels = result?.levels && typeof result.levels === 'object' ? result.levels : {};
-    } catch (error) {
-        console.warn('[TroyQuest] Failed to load quest levels:', error);
-        _questLevels = {};
-    }
 }
 
 async function refreshQuestClears(playFabId) {
@@ -844,16 +775,11 @@ function renderQuestList(list) {
 
         const detail = document.createElement('div');
         detail.className = 'troy-quest-detail';
-        detail.textContent = buildQuestDetail(quest);
+        detail.textContent = quest.detail;
 
         const flavor = document.createElement('div');
         flavor.className = 'troy-quest-flavor';
         flavor.textContent = quest.flavor || '';
-
-        const progressText = buildQuestProgressText(quest.progressionKey);
-        const progress = document.createElement('div');
-        progress.className = 'troy-quest-progress';
-        progress.textContent = progressText;
 
         const gacha = document.createElement('div');
         gacha.className = 'troy-quest-gacha';
@@ -880,9 +806,6 @@ function renderQuestList(list) {
         card.appendChild(detail);
         if (quest.flavor) {
             card.appendChild(flavor);
-        }
-        if (progressText) {
-            card.appendChild(progress);
         }
         card.appendChild(gacha);
         card.appendChild(rewardTier);
@@ -926,8 +849,7 @@ async function requestQuestClaim(quest) {
     try {
         const result = await claimTroyQuest(playFabId, quest.questId, quest.gameKey, quest.gachaType, {
             difficulty: resolveQuestDifficulty(quest),
-            betAmount: _questBetAmount,
-            progressionKey: quest.progressionKey || null
+            betAmount: _questBetAmount
         });
         if (!result?.qrValue) {
             if (window.showRpgMessage) window.showRpgMessage(result?.error || '承認QRの生成に失敗しました');
@@ -999,7 +921,6 @@ function wireQuestFilters() {
             if (panel) panel.classList.add('active');
             if (title) title.textContent = label;
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
-            await refreshQuestLevels(window.myPlayFabId);
             await refreshQuestClears(window.myPlayFabId);
             renderQuestList(filtered);
         });
@@ -1103,7 +1024,6 @@ export async function loadTroyPage(playFabId) {
     wireMenuPopups();
     wireQuestFilters();
     updateQuestFilterLabel('クエスト一覧: 未選択');
-    await refreshQuestLevels(playFabId);
     await refreshQuestClears(playFabId);
     renderQuestList([]);
     await refreshStatus(playFabId);
