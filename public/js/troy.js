@@ -3,7 +3,8 @@
 import {
     getTroyStatus,
     joinTroy,
-    leaveTroy
+    leaveTroy,
+    claimTroyQuest
 } from './playfabClient.js';
 
 let _wired = false;
@@ -463,6 +464,18 @@ const TROY_QUESTS = [
     }
 ];
 
+function assignQuestIds(list) {
+    const counts = new Map();
+    list.forEach((quest) => {
+        const key = quest.questKey || 'quest';
+        const next = (counts.get(key) || 0) + 1;
+        counts.set(key, next);
+        quest.questId = `${key}-${String(next).padStart(2, '0')}`;
+    });
+}
+
+assignQuestIds(TROY_QUESTS);
+
 function normalizeGachaType(type) {
     if (!type) return null;
     const key = String(type).toLowerCase();
@@ -525,6 +538,15 @@ function renderQuestList(list) {
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
         gacha.textContent = `報酬: ${label}`;
 
+        const actions = document.createElement('div');
+        actions.className = 'troy-quest-actions';
+
+        const qrBtn = document.createElement('button');
+        qrBtn.className = 'troy-quest-qr';
+        qrBtn.textContent = '承認QR';
+        qrBtn.addEventListener('click', () => requestQuestClaim(quest));
+
+        actions.appendChild(qrBtn);
         card.appendChild(meta);
         card.appendChild(name);
         card.appendChild(detail);
@@ -532,8 +554,53 @@ function renderQuestList(list) {
             card.appendChild(flavor);
         }
         card.appendChild(gacha);
+        card.appendChild(actions);
         container.appendChild(card);
     });
+}
+
+function openQuestQrModal(quest, qrValue, expiresAt) {
+    const modal = document.getElementById('troyQuestQrModal');
+    const canvas = document.getElementById('troyQuestQrCanvas');
+    const title = document.getElementById('troyQuestQrTitle');
+    const expires = document.getElementById('troyQuestQrExpires');
+    if (!modal || !canvas) return;
+    if (title) title.textContent = quest?.name || 'クエスト承認QR';
+    if (expires) {
+        expires.textContent = expiresAt ? new Date(expiresAt).toLocaleString('ja-JP') : '';
+    }
+    if (typeof window.QRious === 'function') {
+        new window.QRious({
+            element: canvas,
+            value: qrValue,
+            size: 190
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+function closeQuestQrModal() {
+    const modal = document.getElementById('troyQuestQrModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function requestQuestClaim(quest) {
+    const playFabId = window.myPlayFabId;
+    if (!playFabId) {
+        if (window.showRpgMessage) window.showRpgMessage('PlayFabIdがありません');
+        return;
+    }
+    try {
+        const result = await claimTroyQuest(playFabId, quest.questId, quest.questKey, quest.gachaType);
+        if (!result?.qrValue) {
+            if (window.showRpgMessage) window.showRpgMessage(result?.error || 'QRの発行に失敗しました');
+            return;
+        }
+        openQuestQrModal(quest, result.qrValue, result.expiresAt);
+    } catch (error) {
+        console.error('[TroyQuest] claim failed:', error);
+        if (window.showRpgMessage) window.showRpgMessage('QRの発行に失敗しました');
+    }
 }
 
 function updateQuestFilterLabel(text) {
@@ -567,6 +634,10 @@ function wireQuestFilters() {
     const { panel, title, close } = getQuestPanelElements();
     if (close) {
         close.addEventListener('click', () => closeQuestPanel(questItems));
+    }
+    const qrClose = document.getElementById('troyQuestQrClose');
+    if (qrClose) {
+        qrClose.addEventListener('click', closeQuestQrModal);
     }
     if (!questItems.length) return;
     questItems.forEach((item) => {

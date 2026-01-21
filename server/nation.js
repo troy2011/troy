@@ -2,6 +2,26 @@
 // 国家関連のAPI
 
 const { addGlobalChatMessage } = require('./chat');
+const crypto = require('crypto');
+
+const QUEST_QR_PREFIX = 'quest:';
+const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
+const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
+const QUEST_APPROVER_ADMIN_LINE_IDS = (process.env.QUEST_APPROVER_ADMIN_LINE_IDS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value);
+const QUEST_REWARD_ITEM_BY_TYPE = {
+    sword: process.env.QUEST_REWARD_SWORD_ITEM_ID || '',
+    axe: process.env.QUEST_REWARD_AXE_ITEM_ID || '',
+    spear: process.env.QUEST_REWARD_SPEAR_ITEM_ID || '',
+    staff: process.env.QUEST_REWARD_STAFF_ITEM_ID || '',
+    gun: process.env.QUEST_REWARD_GUN_ITEM_ID || '',
+    helmet: process.env.QUEST_REWARD_HELMET_ITEM_ID || '',
+    shield: process.env.QUEST_REWARD_SHIELD_ITEM_ID || '',
+    item: process.env.QUEST_REWARD_ITEM_ITEM_ID || ''
+};
+const QUEST_ALLOWED_GACHA_TYPES = new Set(Object.keys(QUEST_REWARD_ITEM_BY_TYPE));
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -36,6 +56,108 @@ function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function base64UrlEncode(input) {
+    return Buffer.from(input, 'utf8')
+        .toString('base64')
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+}
+
+function base64UrlDecode(input) {
+    const normalized = String(input || '')
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    return Buffer.from(padded, 'base64').toString('utf8');
+}
+
+function getQuestClaimDoc(firestore, claimId) {
+    return firestore.collection(QUEST_CLAIM_COLLECTION).doc(claimId);
+}
+
+function buildQuestPayloadString(payload) {
+    const ordered = {
+        claimId: payload.claimId,
+        playerId: payload.playerId,
+        questId: payload.questId,
+        questKey: payload.questKey,
+        gachaType: payload.gachaType,
+        nonce: payload.nonce,
+        issuedAt: payload.issuedAt,
+        expiresAt: payload.expiresAt
+    };
+    return JSON.stringify(ordered);
+}
+
+function signQuestPayload(payload, secret) {
+    const body = buildQuestPayloadString(payload);
+    return crypto.createHmac('sha256', secret).update(body).digest('hex');
+}
+
+function encodeQuestQrValue(payload) {
+    return `${QUEST_QR_PREFIX}${base64UrlEncode(JSON.stringify(payload))}`;
+}
+
+function decodeQuestQrValue(rawValue) {
+    const value = String(rawValue || '').trim();
+    if (!value.startsWith(QUEST_QR_PREFIX)) return null;
+    const encoded = value.slice(QUEST_QR_PREFIX.length);
+    if (!encoded) return null;
+    try {
+        const decoded = base64UrlDecode(encoded);
+        return JSON.parse(decoded);
+    } catch {
+        return null;
+    }
+}
+
+function generateQuestClaimId() {
+    if (typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return crypto.randomBytes(16).toString('hex');
+}
+
+async function getLineUserId(playFabId, deps) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: ['lineUserId']
+    });
+    const lineUserId = result?.Data?.lineUserId?.Value;
+    return lineUserId ? String(lineUserId) : '';
+}
+
+async function isAdminApprover(playFabId, deps) {
+    if (!QUEST_APPROVER_ADMIN_LINE_IDS.length) return false;
+    const lineUserId = await getLineUserId(playFabId, deps);
+    if (!lineUserId) return false;
+    return QUEST_APPROVER_ADMIN_LINE_IDS.includes(lineUserId);
+}
+
+async function isGuildLeader(playFabId, deps) {
+    const { promisifyPlayFab, PlayFabServer, PlayFabGroups, ensureTitleEntityToken } = deps;
+    await ensureTitleEntityToken();
+    const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+        PlayFabId: playFabId,
+        ProfileConstraints: { ShowEntity: true }
+    });
+    const entity = profile?.PlayerProfile?.Entity;
+    if (!entity?.Id || !entity?.Type) return false;
+    const membership = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+        Entity: { Id: entity.Id, Type: entity.Type }
+    });
+    const groups = membership?.Groups || [];
+    return groups.some((group) => String(group.RoleName || '').toLowerCase() === 'admins');
+}
+
+function resolveQuestRewardItemId(gachaType) {
+    const key = String(gachaType || '').toLowerCase();
+    if (!QUEST_ALLOWED_GACHA_TYPES.has(key)) return '';
+    return QUEST_REWARD_ITEM_BY_TYPE[key] || '';
 }
 
 function getAvatarColorForNation(nation) {
@@ -780,6 +902,138 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[send-troy-chat] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to send troy chat' });
+        }
+    });
+
+    // TROYクエスト: 承認QR発行
+    app.post('/api/quest-claim', async (req, res) => {
+        const { playFabId, questId, questKey, gachaType } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!questId) return res.status(400).json({ error: 'questId is required' });
+        if (!questKey) return res.status(400).json({ error: 'questKey is required' });
+        const secret = process.env.QUEST_QR_SECRET;
+        if (!secret) return res.status(500).json({ error: 'Quest QR secret is not configured' });
+
+        const gachaKey = String(gachaType || '').toLowerCase();
+        if (!QUEST_ALLOWED_GACHA_TYPES.has(gachaKey)) {
+            return res.status(400).json({ error: 'Invalid gachaType' });
+        }
+
+        try {
+            const claimId = generateQuestClaimId();
+            const now = Date.now();
+            const expiresAt = now + QUEST_CLAIM_TTL_MS;
+            const payload = {
+                claimId,
+                playerId: normalizePlayFabId(playFabId),
+                questId: String(questId),
+                questKey: String(questKey),
+                gachaType: gachaKey,
+                nonce: crypto.randomBytes(8).toString('hex'),
+                issuedAt: now,
+                expiresAt
+            };
+            const sig = signQuestPayload(payload, secret);
+            const signedPayload = { ...payload, sig };
+            const qrValue = encodeQuestQrValue(signedPayload);
+
+            await getQuestClaimDoc(firestore, claimId).set({
+                ...payload,
+                sig,
+                status: 'pending',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            res.json({ success: true, claimId, qrValue, expiresAt });
+        } catch (error) {
+            console.error('[quest-claim] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to create quest claim' });
+        }
+    });
+
+    // TROYクエスト: 承認と報酬付与
+    app.post('/api/quest-approve', async (req, res) => {
+        const { playFabId, qrValue } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!qrValue) return res.status(400).json({ error: 'qrValue is required' });
+        const secret = process.env.QUEST_QR_SECRET;
+        if (!secret) return res.status(500).json({ error: 'Quest QR secret is not configured' });
+
+        const payload = decodeQuestQrValue(qrValue);
+        if (!payload) return res.status(400).json({ error: 'Invalid QR value' });
+
+        const { sig, ...basePayload } = payload;
+        if (!sig || signQuestPayload(basePayload, secret) !== sig) {
+            return res.status(400).json({ error: 'Invalid QR signature' });
+        }
+        if (Date.now() > Number(basePayload.expiresAt || 0)) {
+            return res.status(400).json({ error: 'Quest claim has expired' });
+        }
+
+        try {
+            let approverRole = null;
+            try {
+                await requireKingContext(playFabId, firestore, nationDeps);
+                approverRole = 'king';
+            } catch (error) {
+                const msg = error?.errorMessage || error?.message || error;
+                if (!String(msg).includes('NotKing')) {
+                    console.warn('[quest-approve] King check failed:', msg);
+                }
+            }
+            if (!approverRole && await isAdminApprover(playFabId, nationDeps)) {
+                approverRole = 'admin';
+            }
+            if (!approverRole && await isGuildLeader(playFabId, nationDeps)) {
+                approverRole = 'guild';
+            }
+            if (!approverRole) {
+                return res.status(403).json({ error: 'NotApprover' });
+            }
+
+            const claimRef = getQuestClaimDoc(firestore, basePayload.claimId);
+            const claimSnap = await claimRef.get();
+            if (!claimSnap.exists) return res.status(404).json({ error: 'ClaimNotFound' });
+            const claimData = claimSnap.data() || {};
+            if (claimData.status === 'approved') {
+                return res.status(400).json({ error: 'AlreadyApproved' });
+            }
+            if (claimData.playerId && claimData.playerId !== basePayload.playerId) {
+                return res.status(400).json({ error: 'PlayerMismatch' });
+            }
+
+            if (claimData.gachaType && claimData.gachaType !== basePayload.gachaType) {
+                return res.status(400).json({ error: 'ClaimMismatch' });
+            }
+
+            const rewardType = claimData.gachaType || basePayload.gachaType;
+            const rewardItemId = resolveQuestRewardItemId(rewardType);
+            if (!rewardItemId) {
+                return res.status(500).json({ error: 'RewardNotConfigured' });
+            }
+
+            await addEconomyItem(basePayload.playerId, rewardItemId, 1, {
+                idempotencyId: `quest-${basePayload.claimId}`
+            });
+
+            await claimRef.set({
+                status: 'approved',
+                approvedBy: normalizePlayFabId(playFabId),
+                approverRole,
+                approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            res.json({
+                success: true,
+                claimId: basePayload.claimId,
+                rewardItemId,
+                rewardLabel: rewardType
+            });
+        } catch (error) {
+            console.error('[quest-approve] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to approve quest' });
         }
     });
 

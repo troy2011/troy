@@ -7,6 +7,7 @@ import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
 import * as Troy from './troy.js';
+import * as QuestApproval from './questApproval.js';
 import { getNationKingPage } from './playfabClient.js';
 
 const TAROT_AREAS = [
@@ -384,6 +385,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     await Guild.loadGuildInfo(playerInfo.playFabId);
+                    await QuestApproval.loadQuestApproval(playerInfo.playFabId);
                     break;
                 case 'map': {
                     const triggerFirstMapMessages = () => {
