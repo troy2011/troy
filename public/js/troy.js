@@ -487,10 +487,11 @@ function renderQuestList(list) {
         container.appendChild(empty);
         return;
     }
-    quests.forEach((quest) => {
+    quests.forEach((quest, index) => {
         const card = document.createElement('div');
-        card.className = 'troy-quest-card';
+        card.className = 'troy-quest-card is-animated';
         card.dataset.gachaType = quest.gachaType;
+        card.style.animationDelay = `${index * 40}ms`;
 
         const game = document.createElement('div');
         game.className = 'troy-quest-game';

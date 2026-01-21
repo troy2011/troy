@@ -1771,6 +1771,21 @@ body[data-sea-tone="night"] .home-hero-card {
     gap: 6px;
 }
 
+.troy-quest-card.is-animated {
+    animation: troyQuestRise 0.38s ease-out both;
+}
+
+@keyframes troyQuestRise {
+    0% {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .troy-quest-meta {
     display: flex;
     align-items: center;
