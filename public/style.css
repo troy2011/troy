@@ -1736,6 +1736,64 @@ body[data-sea-tone="night"] .home-hero-card {
     line-height: 1.6;
 }
 
+.troy-quest {
+    display: grid;
+    gap: 12px;
+}
+
+.troy-quest-title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.troy-quest-list {
+    display: grid;
+    gap: 10px;
+}
+
+.troy-quest-card {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.45);
+    display: grid;
+    gap: 6px;
+}
+
+.troy-quest-game {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text-sub);
+}
+
+.troy-quest-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: #e2e8f0;
+}
+
+.troy-quest-detail {
+    font-size: 12px;
+    color: #cbd5f5;
+    line-height: 1.6;
+}
+
+.troy-quest-gacha {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f8fafc;
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    padding: 4px 8px;
+    border-radius: 999px;
+    width: fit-content;
+}
+
 .troy-menu-list {
     list-style: none;
     margin: 0;
