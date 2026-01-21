@@ -738,7 +738,7 @@ function openQuestQrModal(quest, qrValue, expiresAt) {
     const title = document.getElementById('troyQuestQrTitle');
     const expires = document.getElementById('troyQuestQrExpires');
     if (!modal || !canvas) return;
-    if (title) title.textContent = quest?.name || 'クエスト承認QR';
+    if (title) title.textContent = '未選択';
     if (expires) {
         expires.textContent = expiresAt ? new Date(expiresAt).toLocaleString('ja-JP') : '';
     }
@@ -836,7 +836,7 @@ function wireQuestFilters() {
             const filtered = TROY_QUESTS.filter((quest) => quest.questKey === key);
             questItems.forEach((node) => node.classList.toggle('is-active', node === item));
             if (panel) panel.classList.add('active');
-            if (title) title.textContent = quest?.name || 'クエスト承認QR';
+            if (title) title.textContent = label;
             updateQuestFilterLabel(`クエスト一覧: ${label}`);
             renderQuestList(filtered);
         });
