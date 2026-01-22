@@ -31,10 +31,10 @@ const TROY_GACHA_LABELS = {
     item: '道具'
 };
 
-const DIFFICULTY_LABELS = {
-    easy: '易',
-    normal: '普',
-    hard: '難'
+const DIFFICULTY_STARS = {
+    easy: 1,
+    normal: 2,
+    hard: 3
 };
 
 const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
@@ -556,6 +556,29 @@ const TROY_GAME_KEYS = {
     その他: 'other'
 };
 
+const TROY_GAME_ORDER = ['ビリヤード', 'カラオケ', 'ダーツ', 'トランプ', 'その他'];
+const QUEST_MODE_ORDER = ['solo', 'battle'];
+const QUEST_DIFFICULTY_ORDER = ['easy', 'normal', 'hard'];
+
+function compareByOrder(value, order) {
+    const index = order.indexOf(value);
+    return index === -1 ? order.length : index;
+}
+
+function sortTroyQuests(list) {
+    list.sort((a, b) => {
+        const gameDiff = compareByOrder(a.game, TROY_GAME_ORDER) - compareByOrder(b.game, TROY_GAME_ORDER);
+        if (gameDiff !== 0) return gameDiff;
+        const modeDiff = compareByOrder(a.mode || 'solo', QUEST_MODE_ORDER) - compareByOrder(b.mode || 'solo', QUEST_MODE_ORDER);
+        if (modeDiff !== 0) return modeDiff;
+        const difficultyDiff =
+            compareByOrder(a.difficulty || 'normal', QUEST_DIFFICULTY_ORDER) -
+            compareByOrder(b.difficulty || 'normal', QUEST_DIFFICULTY_ORDER);
+        if (difficultyDiff !== 0) return difficultyDiff;
+        return (a.name || '').localeCompare(b.name || '', 'ja');
+    });
+}
+
 function assignQuestMeta(list) {
     const counts = new Map();
     list.forEach((quest) => {
@@ -571,6 +594,7 @@ function assignQuestMeta(list) {
     });
 }
 
+sortTroyQuests(TROY_QUESTS);
 assignQuestMeta(TROY_QUESTS);
 
 function normalizeQuestBetAmount(value) {
@@ -641,6 +665,11 @@ function resolveQuestDifficulty(quest) {
         return QUEST_TIER_DIFFICULTY[quest.tier];
     }
     return quest?.difficulty || 'normal';
+}
+
+function getQuestDifficultyStars(difficultyKey) {
+    const count = DIFFICULTY_STARS[difficultyKey] || 1;
+    return '★'.repeat(count);
 }
 
 async function refreshQuestClears(playFabId) {
@@ -770,9 +799,8 @@ function renderQuestList(list) {
 
         const difficulty = document.createElement('div');
         const difficultyKey = resolveQuestDifficulty(quest);
-        const difficultyLabel = DIFFICULTY_LABELS[difficultyKey] || difficultyKey;
         difficulty.className = `troy-quest-difficulty troy-quest-difficulty-${difficultyKey}`;
-        difficulty.textContent = `難易度: ${difficultyLabel}`;
+        difficulty.textContent = `難易度: ${getQuestDifficultyStars(difficultyKey)}`;
 
         const meta = document.createElement('div');
         meta.className = 'troy-quest-meta';
