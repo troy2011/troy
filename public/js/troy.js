@@ -5,7 +5,8 @@ import {
     joinTroy,
     leaveTroy,
     claimTroyQuest,
-    getTroyQuestClears
+    getTroyQuestClears,
+    usePoints
 } from './playfabClient.js';
 
 let _wired = false;
@@ -13,12 +14,14 @@ let _questWired = false;
 let _menuWired = false;
 let _pollTimer = null;
 let _lastStatus = null;
-let _questBetAmount = 0;
+let _questBetAmount = 50;
 let _lastQuestList = [];
 let _questClears = {};
 let _questMode = 'solo';
 let _activeQuestGameKey = '';
 let _activeQuestGameLabel = '未選択';
+let _questSelections = {};
+let _questSelectionTimer = null;
 
 const TROY_GACHA_LABELS = {
     sword: '剣',
@@ -41,11 +44,13 @@ const DIFFICULTY_ALIASES = {
 };
 
 const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
+const QUEST_BET_OPTIONS = [50, 100, 500, 1000];
 const QUEST_BET_THRESHOLDS = {
     bonus1: 500,
     bonus2: 1000
 };
 const QUEST_BET_MAX = 100000;
+const QUEST_SELECTION_TTL_MS = 30 * 60 * 1000;
 const QUEST_TIER_ORDER = ['beginner', 'intermediate', 'advanced'];
 const QUEST_TIER_LABELS = {
     beginner: '初級',
@@ -621,8 +626,9 @@ assignQuestMeta(TROY_QUESTS);
 
 function normalizeQuestBetAmount(value) {
     const amount = Math.floor(Number(value) || 0);
-    if (!Number.isFinite(amount) || amount < 0) return 0;
-    return Math.min(amount, QUEST_BET_MAX);
+    if (!Number.isFinite(amount) || amount <= 0) return QUEST_BET_OPTIONS[0];
+    const allowed = QUEST_BET_OPTIONS.includes(amount) ? amount : QUEST_BET_OPTIONS[0];
+    return Math.min(allowed, QUEST_BET_MAX);
 }
 
 function getQuestBetTier(amount) {
@@ -677,6 +683,81 @@ function setQuestBetAmount(value) {
     if (_lastQuestList.length) {
         renderQuestList(_lastQuestList);
     }
+}
+
+function getQuestSelectionStorageKey(playFabId) {
+    return `troyQuestSelection:${playFabId}`;
+}
+
+function loadQuestSelections(playFabId) {
+    if (!playFabId) {
+        _questSelections = {};
+        return;
+    }
+    try {
+        const raw = localStorage.getItem(getQuestSelectionStorageKey(playFabId));
+        _questSelections = raw ? JSON.parse(raw) : {};
+    } catch (error) {
+        console.warn('[TroyQuest] Failed to load selections:', error);
+        _questSelections = {};
+    }
+}
+
+function saveQuestSelections(playFabId) {
+    if (!playFabId) return;
+    try {
+        localStorage.setItem(getQuestSelectionStorageKey(playFabId), JSON.stringify(_questSelections));
+    } catch (error) {
+        console.warn('[TroyQuest] Failed to save selections:', error);
+    }
+}
+
+function getQuestSelection(questId) {
+    const selection = _questSelections[questId];
+    if (!selection) return null;
+    const elapsed = Date.now() - selection.selectedAt;
+    if (elapsed > QUEST_SELECTION_TTL_MS) {
+        delete _questSelections[questId];
+        return null;
+    }
+    return selection;
+}
+
+function clearExpiredQuestSelections() {
+    let changed = false;
+    Object.keys(_questSelections).forEach((questId) => {
+        const selection = _questSelections[questId];
+        if (!selection) return;
+        const elapsed = Date.now() - selection.selectedAt;
+        if (elapsed > QUEST_SELECTION_TTL_MS) {
+            delete _questSelections[questId];
+            changed = true;
+        }
+    });
+    return changed;
+}
+
+function scheduleQuestSelectionRefresh() {
+    if (_questSelectionTimer) {
+        clearTimeout(_questSelectionTimer);
+        _questSelectionTimer = null;
+    }
+    const timestamps = Object.values(_questSelections)
+        .map((selection) => selection?.selectedAt)
+        .filter((value) => typeof value === 'number');
+    if (!timestamps.length) return;
+    const nextExpiry = Math.min(...timestamps.map((ts) => ts + QUEST_SELECTION_TTL_MS));
+    const delay = Math.max(1000, nextExpiry - Date.now());
+    _questSelectionTimer = setTimeout(() => {
+        const changed = clearExpiredQuestSelections();
+        if (changed) {
+            saveQuestSelections(window.myPlayFabId);
+            if (_lastQuestList.length) {
+                renderQuestList(_lastQuestList);
+            }
+        }
+        scheduleQuestSelectionRefresh();
+    }, delay);
 }
 
 function isQuestCleared(questId) {
@@ -793,6 +874,10 @@ function renderQuestList(list) {
     container.innerHTML = '';
     const quests = Array.isArray(list) ? list : [];
     _lastQuestList = quests;
+    const expired = clearExpiredQuestSelections();
+    if (expired) {
+        saveQuestSelections(window.myPlayFabId);
+    }
     const sections = buildQuestSections(quests);
     if (!sections.length) {
         const empty = document.createElement('div');
@@ -854,10 +939,15 @@ function renderQuestList(list) {
         const actions = document.createElement('div');
         actions.className = 'troy-quest-actions';
 
+        const selection = getQuestSelection(quest.questId);
         const qrBtn = document.createElement('button');
         qrBtn.className = 'troy-quest-qr';
-        qrBtn.textContent = '承認QR';
-        qrBtn.addEventListener('click', () => requestQuestClaim(quest));
+        qrBtn.textContent = selection ? '承認QR' : '選択';
+        if (selection) {
+            qrBtn.addEventListener('click', () => requestQuestClaim(quest, selection.betAmount));
+        } else {
+            qrBtn.addEventListener('click', () => selectQuest(quest));
+        }
 
         actions.appendChild(qrBtn);
         card.appendChild(meta);
@@ -899,16 +989,46 @@ function closeQuestQrModal() {
     if (modal) modal.style.display = 'none';
 }
 
-async function requestQuestClaim(quest) {
+async function selectQuest(quest) {
     const playFabId = window.myPlayFabId;
     if (!playFabId) {
         if (window.showRpgMessage) window.showRpgMessage('プレイヤーIDがありません');
         return;
     }
+    const betAmount = normalizeQuestBetAmount(_questBetAmount);
+    const ok = window.confirm(`BET ${betAmount}PS を消費して「${quest.name}」を選択しますか？`);
+    if (!ok) return;
+    try {
+        await usePoints(playFabId, betAmount, { isSilent: true });
+        _questSelections[quest.questId] = {
+            selectedAt: Date.now(),
+            betAmount
+        };
+        saveQuestSelections(playFabId);
+        scheduleQuestSelectionRefresh();
+        if (_lastQuestList.length) {
+            renderQuestList(_lastQuestList);
+        }
+        if (window.showRpgMessage) window.showRpgMessage(`BET ${betAmount}PS を消費しました。`);
+    } catch (error) {
+        console.error('[TroyQuest] bet failed:', error);
+        if (window.showRpgMessage) {
+            window.showRpgMessage(error?.error || 'ポイントが不足しています。');
+        }
+    }
+}
+
+async function requestQuestClaim(quest, betAmountOverride) {
+    const playFabId = window.myPlayFabId;
+    if (!playFabId) {
+        if (window.showRpgMessage) window.showRpgMessage('プレイヤーIDがありません');
+        return;
+    }
+    const betAmount = normalizeQuestBetAmount(betAmountOverride ?? _questBetAmount);
     try {
         const result = await claimTroyQuest(playFabId, quest.questId, quest.gameKey, quest.gachaType, {
             difficulty: resolveQuestDifficulty(quest),
-            betAmount: _questBetAmount
+            betAmount
         });
         if (!result?.qrValue) {
             if (window.showRpgMessage) window.showRpgMessage(result?.error || '承認QRの生成に失敗しました');
@@ -984,6 +1104,9 @@ function wireQuestFilters() {
     const questItems = Array.from(document.querySelectorAll('.troy-menu-items li[data-game-key]'));
     const modeButtons = Array.from(document.querySelectorAll('.troy-menu-toggle-btn[data-quest-mode]'));
     const { panel, title, close } = getQuestPanelElements();
+    loadQuestSelections(window.myPlayFabId);
+    clearExpiredQuestSelections();
+    scheduleQuestSelectionRefresh();
     if (close) {
         close.addEventListener('click', () => closeQuestPanel(questItems));
     }
