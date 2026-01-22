@@ -31,18 +31,16 @@ const TROY_GACHA_LABELS = {
     item: '道具'
 };
 
-const DIFFICULTY_STARS = {
-    easy: 1,
-    normal: 2,
-    hard: 3
+const DIFFICULTY_MIN = 1;
+const DIFFICULTY_MAX = 6;
+const DIFFICULTY_FALLBACK = 4;
+const DIFFICULTY_ALIASES = {
+    easy: 2,
+    normal: 4,
+    hard: 6
 };
 
 const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
-const QUEST_DIFFICULTY_BASE = {
-    easy: 0,
-    normal: 1,
-    hard: 2
-};
 const QUEST_BET_THRESHOLDS = {
     bonus1: 500,
     bonus2: 1000
@@ -53,11 +51,6 @@ const QUEST_TIER_LABELS = {
     beginner: '初級',
     intermediate: '中級',
     advanced: '上級'
-};
-const QUEST_TIER_DIFFICULTY = {
-    beginner: 'easy',
-    intermediate: 'normal',
-    advanced: 'hard'
 };
 const QUEST_MODE_LABELS = {
     solo: 'ソロ/チーム',
@@ -558,7 +551,33 @@ const TROY_GAME_KEYS = {
 
 const TROY_GAME_ORDER = ['ビリヤード', 'カラオケ', 'ダーツ', 'トランプ', 'その他'];
 const QUEST_MODE_ORDER = ['solo', 'battle'];
-const QUEST_DIFFICULTY_ORDER = ['easy', 'normal', 'hard'];
+function normalizeQuestDifficultyValue(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.min(DIFFICULTY_MAX, Math.max(DIFFICULTY_MIN, Math.round(value)));
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim().toLowerCase();
+        if (DIFFICULTY_ALIASES[trimmed]) {
+            return DIFFICULTY_ALIASES[trimmed];
+        }
+        const numeric = Number(trimmed);
+        if (Number.isFinite(numeric)) {
+            return Math.min(DIFFICULTY_MAX, Math.max(DIFFICULTY_MIN, Math.round(numeric)));
+        }
+    }
+    return DIFFICULTY_FALLBACK;
+}
+
+function getQuestDifficultyTierIndex(difficulty) {
+    if (difficulty <= 2) return 0;
+    if (difficulty <= 4) return 1;
+    return 2;
+}
+
+function getQuestDifficultyTierKey(difficulty) {
+    const index = getQuestDifficultyTierIndex(difficulty);
+    return ['easy', 'normal', 'hard'][index] || 'normal';
+}
 
 function compareByOrder(value, order) {
     const index = order.indexOf(value);
@@ -571,9 +590,7 @@ function sortTroyQuests(list) {
         if (gameDiff !== 0) return gameDiff;
         const modeDiff = compareByOrder(a.mode || 'solo', QUEST_MODE_ORDER) - compareByOrder(b.mode || 'solo', QUEST_MODE_ORDER);
         if (modeDiff !== 0) return modeDiff;
-        const difficultyDiff =
-            compareByOrder(a.difficulty || 'normal', QUEST_DIFFICULTY_ORDER) -
-            compareByOrder(b.difficulty || 'normal', QUEST_DIFFICULTY_ORDER);
+        const difficultyDiff = normalizeQuestDifficultyValue(a.difficulty) - normalizeQuestDifficultyValue(b.difficulty);
         if (difficultyDiff !== 0) return difficultyDiff;
         return (a.name || '').localeCompare(b.name || '', 'ja');
     });
@@ -585,7 +602,10 @@ function assignQuestMeta(list) {
         const gameKey = TROY_GAME_KEYS[quest.game] || 'other';
         quest.gameKey = quest.gameKey || gameKey;
         quest.mode = quest.mode || 'solo';
-        const tier = quest.tier || (quest.difficulty === 'easy' ? 'beginner' : quest.difficulty === 'hard' ? 'advanced' : 'intermediate');
+        quest.difficulty = normalizeQuestDifficultyValue(quest.difficulty);
+        const tier =
+            quest.tier ||
+            (quest.difficulty <= 2 ? 'beginner' : quest.difficulty <= 4 ? 'intermediate' : 'advanced');
         quest.tier = tier;
         const key = quest.gameKey || 'quest';
         const next = (counts.get(key) || 0) + 1;
@@ -610,7 +630,8 @@ function getQuestBetTier(amount) {
 }
 
 function getQuestRewardTierIndex(difficulty, betAmount) {
-    const baseTier = QUEST_DIFFICULTY_BASE[difficulty] ?? 1;
+    const normalized = normalizeQuestDifficultyValue(difficulty);
+    const baseTier = getQuestDifficultyTierIndex(normalized);
     return Math.min(2, baseTier + getQuestBetTier(betAmount));
 }
 
@@ -661,14 +682,11 @@ function isQuestCleared(questId) {
 }
 
 function resolveQuestDifficulty(quest) {
-    if (quest?.tier && QUEST_TIER_DIFFICULTY[quest.tier]) {
-        return QUEST_TIER_DIFFICULTY[quest.tier];
-    }
-    return quest?.difficulty || 'normal';
+    return normalizeQuestDifficultyValue(quest?.difficulty);
 }
 
-function getQuestDifficultyStars(difficultyKey) {
-    const count = DIFFICULTY_STARS[difficultyKey] || 1;
+function getQuestDifficultyStars(difficultyValue) {
+    const count = normalizeQuestDifficultyValue(difficultyValue);
     return '★'.repeat(count);
 }
 
@@ -798,9 +816,10 @@ function renderQuestList(list) {
         game.textContent = quest.game;
 
         const difficulty = document.createElement('div');
-        const difficultyKey = resolveQuestDifficulty(quest);
-        difficulty.className = `troy-quest-difficulty troy-quest-difficulty-${difficultyKey}`;
-        difficulty.textContent = `難易度: ${getQuestDifficultyStars(difficultyKey)}`;
+        const difficultyValue = resolveQuestDifficulty(quest);
+        const difficultyTierKey = getQuestDifficultyTierKey(difficultyValue);
+        difficulty.className = `troy-quest-difficulty troy-quest-difficulty-${difficultyTierKey}`;
+        difficulty.textContent = `難易度: ${getQuestDifficultyStars(difficultyValue)}`;
 
         const meta = document.createElement('div');
         meta.className = 'troy-quest-meta';
@@ -824,8 +843,8 @@ function renderQuestList(list) {
         const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
         gacha.textContent = `報酬: ${label}`;
 
-        const rewardTierKey = getQuestRewardTierKey(difficultyKey, _questBetAmount);
-        const rewardTierLabel = getQuestRewardTierLabel(difficultyKey, _questBetAmount);
+        const rewardTierKey = getQuestRewardTierKey(difficultyValue, _questBetAmount);
+        const rewardTierLabel = getQuestRewardTierLabel(difficultyValue, _questBetAmount);
         const rewardTier = document.createElement('div');
         rewardTier.className = `troy-quest-reward-tier troy-quest-reward-tier-${rewardTierKey}`;
         rewardTier.textContent = `ランク: ${rewardTierLabel}`;
