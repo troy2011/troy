@@ -127,7 +127,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "港の得点",
         "detail": "ボーラードで1フレームで1点以上",
-        "gachaType": "blunt",
+        "gachaType": "wand",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
         "flavor": "港の得点で流れを掴め。"
@@ -136,7 +136,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "見張りの完走",
         "detail": "ストップショットで白球を当てた場所に止める",
-        "gachaType": "leather",
+        "gachaType": "dagger",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
         "flavor": "止めの精度で見張りを任せろ。"
@@ -145,7 +145,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "舵の連打",
         "detail": "クッションバンクで的球を入れる",
-        "gachaType": "polearm",
+        "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
         "flavor": "舵の切り返しで道を開け。"
@@ -163,7 +163,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "静かな連続",
         "detail": "センターショット連続成功2回",
-        "gachaType": "wand",
+        "gachaType": "blunt",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
         "flavor": "静けさの中で精度を重ねろ。"
@@ -181,7 +181,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "砲門の精度",
         "detail": "クッションバンク2回成功",
-        "gachaType": "dagger",
+        "gachaType": "polearm",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
         "flavor": "反射の読みで砲門を貫け。"
@@ -190,7 +190,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "帆走の維持",
         "detail": "フォローで白球を奥に送るショット2回成功",
-        "gachaType": "staff",
+        "gachaType": "leather",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
         "flavor": "帆走を維持して航路を伸ばせ。"
@@ -199,7 +199,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "狙撃の締め",
         "detail": "ロングショットで的球を入れる",
-        "gachaType": "gun",
+        "gachaType": "metal",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "狙撃の精度で締めくくれ。"
@@ -208,7 +208,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "鋼の逆転",
         "detail": "ボーラードで最終フレームで逆転勝利",
-        "gachaType": "metal",
+        "gachaType": "staff",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "鋼の胆力で逆転を奪え。"
@@ -217,7 +217,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "剣の連鎖",
         "detail": "センターショット連続3回成功",
-        "gachaType": "sword",
+        "gachaType": "gun",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "剣の連鎖で精度を刻め。"
@@ -228,7 +228,7 @@ const TROY_QUESTS = [
         "name": "開戦の一打",
         "detail": "9ボールで1球以上入れる",
         "gachaType": "skill",
-        "skillType": "weapon",
+        "skillType": "passive",
         "skillName": "開戦の一打",
         "questKey": "billiard-9",
         "difficulty": 1,
@@ -256,7 +256,8 @@ const TROY_QUESTS = [
         "skillName": "初動ブレイク",
         "questKey": "billiard-9",
         "difficulty": 1,
-        "flavor": "初動の一撃で主導権を取れ。"
+        "flavor": "初動の一撃で主導権を取れ。",
+        "skillWeapon": "sword"
     },
     {
         "game": "ビリヤード",
@@ -268,7 +269,8 @@ const TROY_QUESTS = [
         "skillName": "舵の勝利",
         "questKey": "billiard-9",
         "difficulty": 3,
-        "flavor": "舵を握り勝利へ導け。"
+        "flavor": "舵を握り勝利へ導け。",
+        "skillWeapon": "axe"
     },
     {
         "game": "ビリヤード",
@@ -292,7 +294,8 @@ const TROY_QUESTS = [
         "skillName": "連続ポケット",
         "questKey": "billiard-9",
         "difficulty": 3,
-        "flavor": "連続の一撃で差を広げよ。"
+        "flavor": "連続の一撃で差を広げよ。",
+        "skillWeapon": "polearm"
     },
     {
         "game": "ビリヤード",
@@ -304,7 +307,8 @@ const TROY_QUESTS = [
         "skillName": "旗艦連勝",
         "questKey": "billiard-9",
         "difficulty": 5,
-        "flavor": "旗艦の連勝で支配せよ。"
+        "flavor": "旗艦の連勝で支配せよ。",
+        "skillWeapon": "dagger"
     },
     {
         "game": "ビリヤード",
@@ -328,7 +332,8 @@ const TROY_QUESTS = [
         "skillName": "連続ブレイク",
         "questKey": "billiard-8",
         "difficulty": 5,
-        "flavor": "連続ブレイクで押し切れ。"
+        "flavor": "連続ブレイクで押し切れ。",
+        "skillWeapon": "staff"
     },
     {
         "game": "ビリヤード",
@@ -340,7 +345,8 @@ const TROY_QUESTS = [
         "skillName": "沈黙の掃討",
         "questKey": "billiard-9",
         "difficulty": 6,
-        "flavor": "沈黙の掃討で敵を沈めろ。"
+        "flavor": "沈黙の掃討で敵を沈めろ。",
+        "skillWeapon": "wand"
     },
     {
         "game": "ビリヤード",
@@ -364,7 +370,8 @@ const TROY_QUESTS = [
         "skillName": "一閃の制圧",
         "questKey": "billiard-9",
         "difficulty": 6,
-        "flavor": "一閃の制圧で決着をつけろ。"
+        "flavor": "一閃の制圧で決着をつけろ。",
+        "skillWeapon": "gun"
     },
     {
         "game": "カラオケ",
@@ -379,7 +386,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "甲板の合図",
         "detail": "シングルで採点結果を表示する",
-        "gachaType": "leather",
+        "gachaType": "wand",
         "questKey": "karaoke-single",
         "difficulty": 1,
         "flavor": "甲板で合図を出すように歌え。"
@@ -388,7 +395,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "波乗りの声",
         "detail": "シングルで65点以上",
-        "gachaType": "wand",
+        "gachaType": "dagger",
         "questKey": "karaoke-single",
         "difficulty": 1,
         "flavor": "波に乗る声を響かせろ。"
@@ -397,7 +404,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "帆走のリズム",
         "detail": "シングルで75点以上",
-        "gachaType": "polearm",
+        "gachaType": "sword",
         "questKey": "karaoke-single",
         "difficulty": 3,
         "flavor": "帆走のリズムを揃えよ。"
@@ -406,7 +413,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "航海のコンボ",
         "detail": "シングルでコンボ10以上",
-        "gachaType": "dagger",
+        "gachaType": "axe",
         "questKey": "karaoke-single",
         "difficulty": 3,
         "flavor": "連続の刃で航海を進め。"
@@ -415,7 +422,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "灯台の高音",
         "detail": "シングルで安定度70%以上",
-        "gachaType": "staff",
+        "gachaType": "blunt",
         "questKey": "karaoke-single",
         "difficulty": 3,
         "flavor": "灯台の高音で道を照らせ。"
@@ -424,7 +431,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "航海の誓い",
         "detail": "シングルで85点以上",
-        "gachaType": "sword",
+        "gachaType": "shield",
         "questKey": "karaoke-single",
         "difficulty": 5,
         "flavor": "航海の誓いを高らかに。"
@@ -433,7 +440,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "嵐越え",
         "detail": "シングルでコンボ25以上",
-        "gachaType": "gun",
+        "gachaType": "polearm",
         "questKey": "karaoke-single",
         "difficulty": 5,
         "flavor": "嵐を越える声を撃て。"
@@ -442,7 +449,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "鋼の響き",
         "detail": "シングルで抑揚80%以上",
-        "gachaType": "metal",
+        "gachaType": "leather",
         "questKey": "karaoke-single",
         "difficulty": 5,
         "flavor": "鋼の響きで耐え抜け。"
@@ -451,7 +458,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "覇者の歌",
         "detail": "シングルで95点以上",
-        "gachaType": "sword",
+        "gachaType": "metal",
         "questKey": "karaoke-single",
         "difficulty": 6,
         "flavor": "覇者の剣は歌で輝く。"
@@ -460,7 +467,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "疾風の一声",
         "detail": "シングルでコンボ40以上",
-        "gachaType": "gun",
+        "gachaType": "staff",
         "questKey": "karaoke-single",
         "difficulty": 6,
         "flavor": "疾風の一声で突き抜けろ。"
@@ -469,7 +476,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "極みの抑揚",
         "detail": "シングルで抑揚90%以上",
-        "gachaType": "metal",
+        "gachaType": "gun",
         "questKey": "karaoke-single",
         "difficulty": 6,
         "flavor": "極みの抑揚で王座を掴め。"
@@ -492,7 +499,7 @@ const TROY_QUESTS = [
         "name": "初戦の旋律",
         "detail": "1対1で65点以上",
         "gachaType": "skill",
-        "skillType": "weapon",
+        "skillType": "passive",
         "skillName": "初戦の旋律",
         "questKey": "karaoke-battle",
         "difficulty": 1,
@@ -508,7 +515,8 @@ const TROY_QUESTS = [
         "skillName": "小波連打",
         "questKey": "karaoke-battle",
         "difficulty": 1,
-        "flavor": "小波の連打でテンポを掴め。"
+        "flavor": "小波の連打でテンポを掴め。",
+        "skillWeapon": "blunt"
     },
     {
         "game": "カラオケ",
@@ -520,7 +528,8 @@ const TROY_QUESTS = [
         "skillName": "旗揚げコール",
         "questKey": "karaoke-battle",
         "difficulty": 3,
-        "flavor": "旗揚げの声で差をつけろ。"
+        "flavor": "旗揚げの声で差をつけろ。",
+        "skillWeapon": "sword"
     },
     {
         "game": "カラオケ",
@@ -556,7 +565,8 @@ const TROY_QUESTS = [
         "skillName": "双帆の旋律",
         "questKey": "karaoke-battle",
         "difficulty": 5,
-        "flavor": "双帆の旋律で差を広げろ。"
+        "flavor": "双帆の旋律で差を広げろ。",
+        "skillWeapon": "axe"
     },
     {
         "game": "カラオケ",
@@ -568,7 +578,8 @@ const TROY_QUESTS = [
         "skillName": "嵐越え",
         "questKey": "karaoke-battle",
         "difficulty": 5,
-        "flavor": "嵐越えの声で押し切れ。"
+        "flavor": "嵐越えの声で押し切れ。",
+        "skillWeapon": "polearm"
     },
     {
         "game": "カラオケ",
@@ -592,7 +603,8 @@ const TROY_QUESTS = [
         "skillName": "覇者の合唱",
         "questKey": "karaoke-battle",
         "difficulty": 6,
-        "flavor": "覇者の合唱で王座を奪え。"
+        "flavor": "覇者の合唱で王座を奪え。",
+        "skillWeapon": "staff"
     },
     {
         "game": "カラオケ",
@@ -604,7 +616,8 @@ const TROY_QUESTS = [
         "skillName": "勝鬨コンボ",
         "questKey": "karaoke-battle",
         "difficulty": 6,
-        "flavor": "勝鬨の連打で勝負を決めろ。"
+        "flavor": "勝鬨の連打で勝負を決めろ。",
+        "skillWeapon": "dagger"
     },
     {
         "game": "カラオケ",
@@ -631,7 +644,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "海図の01",
         "detail": "01を1ゲーム完走（勝敗不問）",
-        "gachaType": "leather",
+        "gachaType": "wand",
         "questKey": "darts-01",
         "difficulty": 1,
         "flavor": "海図の航路を完走せよ。"
@@ -640,7 +653,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "初クローズ",
         "detail": "クリケットで任意ナンバー1つクローズ",
-        "gachaType": "wand",
+        "gachaType": "dagger",
         "questKey": "darts-cricket",
         "difficulty": 1,
         "flavor": "初クローズで陣地を開け。"
@@ -649,7 +662,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "照準の一閃",
         "detail": "カウントアップで220点以上",
-        "gachaType": "gun",
+        "gachaType": "sword",
         "questKey": "darts-countup",
         "difficulty": 3,
         "flavor": "照準の一閃で点を刻め。"
@@ -658,7 +671,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "舵取りフィニッシュ",
         "detail": "01でダブルフィニッシュ成功",
-        "gachaType": "polearm",
+        "gachaType": "axe",
         "questKey": "darts-01",
         "difficulty": 3,
         "flavor": "舵取りの二重で決めろ。"
@@ -667,7 +680,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "陣地制圧",
         "detail": "クリケットで3クローズ達成",
-        "gachaType": "shield",
+        "gachaType": "blunt",
         "questKey": "darts-cricket",
         "difficulty": 3,
         "flavor": "陣地制圧で守りを固めろ。"
@@ -676,7 +689,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "疾風連打",
         "detail": "カウントアップで320点以上",
-        "gachaType": "axe",
+        "gachaType": "shield",
         "questKey": "darts-countup",
         "difficulty": 5,
         "flavor": "疾風の連打で切り開け。"
@@ -685,7 +698,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "砲撃フィニッシュ",
         "detail": "01で15ラウンド以内にクリア",
-        "gachaType": "sword",
+        "gachaType": "polearm",
         "questKey": "darts-01",
         "difficulty": 5,
         "flavor": "砲撃の速さで決着を。"
@@ -694,7 +707,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "防衛線",
         "detail": "クリケットで5クローズ達成",
-        "gachaType": "metal",
+        "gachaType": "leather",
         "questKey": "darts-cricket",
         "difficulty": 5,
         "flavor": "防衛線を敷いて守れ。"
@@ -703,7 +716,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "制圧の嵐",
         "detail": "カウントアップで450点以上",
-        "gachaType": "gun",
+        "gachaType": "metal",
         "questKey": "darts-countup",
         "difficulty": 6,
         "flavor": "制圧の嵐で主導権を奪え。"
@@ -712,7 +725,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "決戦フィニッシュ",
         "detail": "01で10ラウンド以内に勝利",
-        "gachaType": "sword",
+        "gachaType": "staff",
         "questKey": "darts-01",
         "difficulty": 6,
         "flavor": "決戦の一矢で決めろ。"
@@ -721,7 +734,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "完全封鎖",
         "detail": "クリケットで全クローズ達成",
-        "gachaType": "metal",
+        "gachaType": "gun",
         "questKey": "darts-cricket",
         "difficulty": 6,
         "flavor": "完全封鎖で勝利を固めろ。"
@@ -732,7 +745,7 @@ const TROY_QUESTS = [
         "name": "援護射撃",
         "detail": "1対1でカウントアップ180点以上",
         "gachaType": "skill",
-        "skillType": "weapon",
+        "skillType": "passive",
         "skillName": "援護射撃",
         "questKey": "darts-countup",
         "difficulty": 1,
@@ -748,7 +761,8 @@ const TROY_QUESTS = [
         "skillName": "初戦フィニッシュ",
         "questKey": "darts-01",
         "difficulty": 1,
-        "flavor": "初戦の一矢で勝利を掴め。"
+        "flavor": "初戦の一矢で勝利を掴め。",
+        "skillWeapon": "gun"
     },
     {
         "game": "ダーツ",
@@ -772,7 +786,8 @@ const TROY_QUESTS = [
         "skillName": "旗印連射",
         "questKey": "darts-countup",
         "difficulty": 3,
-        "flavor": "旗印の連射で優位を築け。"
+        "flavor": "旗印の連射で優位を築け。",
+        "skillWeapon": "wand"
     },
     {
         "game": "ダーツ",
@@ -808,7 +823,8 @@ const TROY_QUESTS = [
         "skillName": "制圧砲撃",
         "questKey": "darts-countup",
         "difficulty": 5,
-        "flavor": "制圧の嵐で主導権を奪え。"
+        "flavor": "制圧の嵐で主導権を奪え。",
+        "skillWeapon": "sword"
     },
     {
         "game": "ダーツ",
@@ -820,7 +836,8 @@ const TROY_QUESTS = [
         "skillName": "決戦フィニッシュ",
         "questKey": "darts-01",
         "difficulty": 5,
-        "flavor": "決戦の一矢で決めろ。"
+        "flavor": "決戦の一矢で決めろ。",
+        "skillWeapon": "blunt"
     },
     {
         "game": "ダーツ",
@@ -844,7 +861,8 @@ const TROY_QUESTS = [
         "skillName": "制圧砲撃・極",
         "questKey": "darts-countup",
         "difficulty": 6,
-        "flavor": "極限の制圧で突き放せ。"
+        "flavor": "極限の制圧で突き放せ。",
+        "skillWeapon": "polearm"
     },
     {
         "game": "ダーツ",
@@ -856,7 +874,8 @@ const TROY_QUESTS = [
         "skillName": "決戦フィニッシュ・極",
         "questKey": "darts-01",
         "difficulty": 6,
-        "flavor": "極限の決戦で勝利を掴め。"
+        "flavor": "極限の決戦で勝利を掴め。",
+        "skillWeapon": "axe"
     },
     {
         "game": "ダーツ",
@@ -874,7 +893,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "船乗りの手札",
         "detail": "ポーカーでワンペア以上を1回成立",
-        "gachaType": "dagger",
+        "gachaType": "hat",
         "questKey": "cards-poker",
         "difficulty": 1,
         "flavor": "船乗りの手札で勝負せよ。"
@@ -883,7 +902,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "静かな勝負",
         "detail": "ブラックジャックで1勝",
-        "gachaType": "shield",
+        "gachaType": "wand",
         "questKey": "cards-blackjack",
         "difficulty": 1,
         "flavor": "静かな勝負で守り切れ。"
@@ -892,7 +911,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "波間の一抜け",
         "detail": "大富豪で1回上がる",
-        "gachaType": "blunt",
+        "gachaType": "dagger",
         "questKey": "cards-daifugo",
         "difficulty": 1,
         "flavor": "波間の一抜けで先手を取れ。"
@@ -901,7 +920,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "旗揚げストレート",
         "detail": "ポーカーでストレート以上を1回成立",
-        "gachaType": "polearm",
+        "gachaType": "sword",
         "questKey": "cards-poker",
         "difficulty": 3,
         "flavor": "旗揚げの一列で勝負を決めろ。"
@@ -910,7 +929,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "21の一撃",
         "detail": "ブラックジャックで21を1回達成",
-        "gachaType": "gun",
+        "gachaType": "axe",
         "questKey": "cards-blackjack",
         "difficulty": 3,
         "flavor": "一撃の21で決めろ。"
@@ -919,7 +938,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "連勝の航路",
         "detail": "大富豪で連勝2回",
-        "gachaType": "axe",
+        "gachaType": "blunt",
         "questKey": "cards-daifugo",
         "difficulty": 3,
         "flavor": "連勝の航路で押し切れ。"
@@ -928,7 +947,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "王手のフルハウス",
         "detail": "ポーカーでフルハウス以上を1回成立",
-        "gachaType": "sword",
+        "gachaType": "shield",
         "questKey": "cards-poker",
         "difficulty": 5,
         "flavor": "王手の剣で勝負を終えよ。"
@@ -937,7 +956,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "守護の連勝",
         "detail": "ブラックジャックで2連勝",
-        "gachaType": "metal",
+        "gachaType": "polearm",
         "questKey": "cards-blackjack",
         "difficulty": 5,
         "flavor": "守護の連勝で相手を封じろ。"
@@ -946,7 +965,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "覇権の大富豪",
         "detail": "大富豪で1位を2回",
-        "gachaType": "staff",
+        "gachaType": "leather",
         "questKey": "cards-daifugo",
         "difficulty": 5,
         "flavor": "覇権の席を譲るな。"
@@ -955,7 +974,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "王手の四枚",
         "detail": "ポーカーでフォーカード以上を1回成立",
-        "gachaType": "sword",
+        "gachaType": "metal",
         "questKey": "cards-poker",
         "difficulty": 6,
         "flavor": "王手の四枚で決着をつけろ。"
@@ -964,7 +983,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "覇者の連勝",
         "detail": "ブラックジャックで3連勝",
-        "gachaType": "metal",
+        "gachaType": "staff",
         "questKey": "cards-blackjack",
         "difficulty": 6,
         "flavor": "覇者の連勝で勝ち切れ。"
@@ -973,7 +992,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "覇権の戴冠",
         "detail": "大富豪で1位を3回",
-        "gachaType": "staff",
+        "gachaType": "gun",
         "questKey": "cards-daifugo",
         "difficulty": 6,
         "flavor": "覇権の戴冠で栄冠を掴め。"
@@ -1008,7 +1027,7 @@ const TROY_QUESTS = [
         "name": "決闘上がり",
         "detail": "1対1大富豪で1回上がり",
         "gachaType": "skill",
-        "skillType": "weapon",
+        "skillType": "passive",
         "skillName": "決闘上がり",
         "questKey": "cards-daifugo",
         "difficulty": 1,
@@ -1024,7 +1043,8 @@ const TROY_QUESTS = [
         "skillName": "隊列整列",
         "questKey": "cards-poker",
         "difficulty": 3,
-        "flavor": "隊列を揃えて札を並べろ。"
+        "flavor": "隊列を揃えて札を並べろ。",
+        "skillWeapon": "staff"
     },
     {
         "game": "トランプ",
@@ -1036,7 +1056,8 @@ const TROY_QUESTS = [
         "skillName": "艦隊の強運",
         "questKey": "cards-blackjack",
         "difficulty": 3,
-        "flavor": "艦隊の強運で21を掴め。"
+        "flavor": "艦隊の強運で21を掴め。",
+        "skillWeapon": "dagger"
     },
     {
         "game": "トランプ",
@@ -1060,7 +1081,8 @@ const TROY_QUESTS = [
         "skillName": "王手号令",
         "questKey": "cards-poker",
         "difficulty": 5,
-        "flavor": "王手の号令で締めくくれ。"
+        "flavor": "王手の号令で締めくくれ。",
+        "skillWeapon": "gun"
     },
     {
         "game": "トランプ",
@@ -1084,7 +1106,8 @@ const TROY_QUESTS = [
         "skillName": "覇権掌握",
         "questKey": "cards-daifugo",
         "difficulty": 5,
-        "flavor": "覇権の上がりで差を広げよ。"
+        "flavor": "覇権の上がりで差を広げよ。",
+        "skillWeapon": "wand"
     },
     {
         "game": "トランプ",
@@ -1096,7 +1119,8 @@ const TROY_QUESTS = [
         "skillName": "王手の四枚",
         "questKey": "cards-poker",
         "difficulty": 6,
-        "flavor": "王手の四枚で決着をつけろ。"
+        "flavor": "王手の四枚で決着をつけろ。",
+        "skillWeapon": "blunt"
     },
     {
         "game": "トランプ",
@@ -1120,7 +1144,8 @@ const TROY_QUESTS = [
         "skillName": "覇権の戴冠",
         "questKey": "cards-daifugo",
         "difficulty": 6,
-        "flavor": "覇権の戴冠で栄冠を掴め。"
+        "flavor": "覇権の戴冠で栄冠を掴め。",
+        "skillWeapon": "sword"
     },
     {
         "game": "その他",
@@ -1135,7 +1160,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "小舟の冒険",
         "detail": "ミニゲームを1回クリア",
-        "gachaType": "dagger",
+        "gachaType": "wand",
         "questKey": "other-mini",
         "difficulty": 1,
         "flavor": "小舟の冒険で腕を磨け。"
@@ -1144,7 +1169,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "黒ひげの試し",
         "detail": "黒ひげでセーフを1回出す",
-        "gachaType": "leather",
+        "gachaType": "dagger",
         "questKey": "other-kurohige",
         "difficulty": 1,
         "flavor": "黒ひげの試しを乗り越えよ。"
@@ -1153,7 +1178,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "防衛の勝利",
         "detail": "ボードゲームで1勝",
-        "gachaType": "shield",
+        "gachaType": "sword",
         "questKey": "other-board",
         "difficulty": 3,
         "flavor": "防衛の勝利で士気を上げろ。"
@@ -1162,7 +1187,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "潮流突破",
         "detail": "ミニゲームで時間内クリア",
-        "gachaType": "polearm",
+        "gachaType": "axe",
         "questKey": "other-mini",
         "difficulty": 3,
         "flavor": "潮流を突破して進め。"
@@ -1180,7 +1205,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "大海防衛線",
         "detail": "ボードゲームで連勝2回",
-        "gachaType": "sword",
+        "gachaType": "shield",
         "questKey": "other-board",
         "difficulty": 5,
         "flavor": "大海防衛線で押し切れ。"
@@ -1189,7 +1214,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "疾風の航路",
         "detail": "ミニゲームでノーダメージクリア",
-        "gachaType": "gun",
+        "gachaType": "polearm",
         "questKey": "other-mini",
         "difficulty": 5,
         "flavor": "疾風の航路で無傷を狙え。"
@@ -1198,7 +1223,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "黒旗の運命",
         "detail": "黒ひげで連続セーフ3回",
-        "gachaType": "metal",
+        "gachaType": "leather",
         "questKey": "other-kurohige",
         "difficulty": 5,
         "flavor": "黒旗の運命を味方にせよ。"
@@ -1207,7 +1232,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "大海防衛線・極",
         "detail": "ボードゲームで完全勝利",
-        "gachaType": "sword",
+        "gachaType": "metal",
         "questKey": "other-board",
         "difficulty": 6,
         "flavor": "完全勝利で防衛線を守り切れ。"
@@ -1216,7 +1241,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "疾風の航路・極",
         "detail": "ミニゲームで連続パーフェクト2回",
-        "gachaType": "gun",
+        "gachaType": "staff",
         "questKey": "other-mini",
         "difficulty": 6,
         "flavor": "疾風の航路で完璧を刻め。"
@@ -1225,7 +1250,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "黒旗の運命・極",
         "detail": "黒ひげでセーフのみで勝利",
-        "gachaType": "metal",
+        "gachaType": "gun",
         "questKey": "other-kurohige",
         "difficulty": 6,
         "flavor": "黒旗の運命を味方にせよ。"
@@ -1252,7 +1277,8 @@ const TROY_QUESTS = [
         "skillName": "小舟支援",
         "questKey": "other-mini",
         "difficulty": 1,
-        "flavor": "小舟支援で先に進め。"
+        "flavor": "小舟支援で先に進め。",
+        "skillWeapon": "axe"
     },
     {
         "game": "その他",
@@ -1276,7 +1302,8 @@ const TROY_QUESTS = [
         "skillName": "迎撃隊形",
         "questKey": "other-board",
         "difficulty": 3,
-        "flavor": "港湾迎撃で勝利を掴め。"
+        "flavor": "港湾迎撃で勝利を掴め。",
+        "skillWeapon": "polearm"
     },
     {
         "game": "その他",
@@ -1300,7 +1327,8 @@ const TROY_QUESTS = [
         "skillName": "包囲網",
         "questKey": "other-kurohige",
         "difficulty": 3,
-        "flavor": "包囲網で黒ひげを攻略せよ。"
+        "flavor": "包囲網で黒ひげを攻略せよ。",
+        "skillWeapon": "dagger"
     },
     {
         "game": "その他",
@@ -1312,7 +1340,8 @@ const TROY_QUESTS = [
         "skillName": "防衛線強化",
         "questKey": "other-board",
         "difficulty": 5,
-        "flavor": "防衛線を強化して勝ち切れ。"
+        "flavor": "防衛線を強化して勝ち切れ。",
+        "skillWeapon": "gun"
     },
     {
         "game": "その他",
@@ -1324,7 +1353,8 @@ const TROY_QUESTS = [
         "skillName": "疾風連携",
         "questKey": "other-mini",
         "difficulty": 5,
-        "flavor": "疾風連携で無傷を狙え。"
+        "flavor": "疾風連携で無傷を狙え。",
+        "skillWeapon": "staff"
     },
     {
         "game": "その他",
@@ -1348,7 +1378,8 @@ const TROY_QUESTS = [
         "skillName": "防衛線強化・極",
         "questKey": "other-board",
         "difficulty": 6,
-        "flavor": "完全勝利で海を守り切れ。"
+        "flavor": "完全勝利で海を守り切れ。",
+        "skillWeapon": "blunt"
     },
     {
         "game": "その他",
@@ -1360,7 +1391,8 @@ const TROY_QUESTS = [
         "skillName": "疾風連携・極",
         "questKey": "other-mini",
         "difficulty": 6,
-        "flavor": "疾風連携で完璧を刻め。"
+        "flavor": "疾風連携で完璧を刻め。",
+        "skillWeapon": "wand"
     },
     {
         "game": "その他",
