@@ -16,6 +16,9 @@ let _lastStatus = null;
 let _questBetAmount = 0;
 let _lastQuestList = [];
 let _questClears = {};
+let _questMode = 'solo';
+let _activeQuestGameKey = '';
+let _activeQuestGameLabel = '未選択';
 
 const TROY_GACHA_LABELS = {
     sword: '剣',
@@ -55,6 +58,10 @@ const QUEST_TIER_DIFFICULTY = {
     beginner: 'easy',
     intermediate: 'normal',
     advanced: 'hard'
+};
+const QUEST_MODE_LABELS = {
+    solo: 'ソロ/チーム',
+    battle: 'バトル'
 };
 
 const TROY_PRODUCT_MENUS = {
@@ -262,6 +269,7 @@ const TROY_QUESTS = [
         game: 'ダーツ',
         name: '集中の一投',
         detail: 'カウントアップで450点以上',
+        mode: 'solo',
         gachaType: 'shield',
         questKey: 'darts-countup',
         difficulty: 'easy',
@@ -325,6 +333,7 @@ const TROY_QUESTS = [
         game: 'ダーツ',
         name: '陣地制圧',
         detail: 'クリケットで全クローズ達成',
+        mode: 'battle',
         gachaType: 'staff',
         questKey: 'darts-cricket',
         difficulty: 'normal',
@@ -552,6 +561,7 @@ function assignQuestMeta(list) {
     list.forEach((quest) => {
         const gameKey = TROY_GAME_KEYS[quest.game] || 'other';
         quest.gameKey = quest.gameKey || gameKey;
+        quest.mode = quest.mode || 'solo';
         const tier = quest.tier || (quest.difficulty === 'easy' ? 'beginner' : quest.difficulty === 'hard' ? 'advanced' : 'intermediate');
         quest.tier = tier;
         const key = quest.gameKey || 'quest';
@@ -862,10 +872,41 @@ async function requestQuestClaim(quest) {
     }
 }
 
-function updateQuestFilterLabel(text) {
+function getQuestModeLabel(mode) {
+    return QUEST_MODE_LABELS[mode] || QUEST_MODE_LABELS.solo;
+}
+
+function buildQuestFilterLabel(label) {
+    return `クエスト一覧: ${label} / ${getQuestModeLabel(_questMode)}`;
+}
+
+function updateQuestFilterLabel(label) {
     const filter = document.getElementById('troyQuestFilter');
     if (filter) {
-        filter.textContent = text;
+        filter.textContent = buildQuestFilterLabel(label);
+    }
+}
+
+function updateQuestModeButtons() {
+    const buttons = Array.from(document.querySelectorAll('.troy-menu-toggle-btn[data-quest-mode]'));
+    buttons.forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.questMode === _questMode);
+    });
+}
+
+function getQuestsForGame(gameKey) {
+    return TROY_QUESTS.filter((quest) => quest.gameKey === gameKey && quest.mode === _questMode);
+}
+
+function setQuestMode(mode) {
+    const next = QUEST_MODE_LABELS[mode] ? mode : 'solo';
+    if (_questMode === next) return;
+    _questMode = next;
+    updateQuestModeButtons();
+    if (_activeQuestGameKey) {
+        const filtered = getQuestsForGame(_activeQuestGameKey);
+        updateQuestFilterLabel(_activeQuestGameLabel);
+        renderQuestList(filtered);
     }
 }
 
@@ -880,8 +921,10 @@ function getQuestPanelElements() {
 function closeQuestPanel(items) {
     const { panel, title } = getQuestPanelElements();
     if (panel) panel.classList.remove('active');
-    if (title) title.textContent = quest?.name || 'クエスト承認QR';
-    updateQuestFilterLabel('クエスト一覧: 未選択');
+    if (title) title.textContent = '未選択';
+    _activeQuestGameKey = '';
+    _activeQuestGameLabel = '未選択';
+    updateQuestFilterLabel('未選択');
     renderQuestList([]);
     items.forEach((node) => node.classList.remove('is-active'));
 }
@@ -890,6 +933,7 @@ function wireQuestFilters() {
     if (_questWired) return;
     _questWired = true;
     const questItems = Array.from(document.querySelectorAll('.troy-menu-items li[data-game-key]'));
+    const modeButtons = Array.from(document.querySelectorAll('.troy-menu-toggle-btn[data-quest-mode]'));
     const { panel, title, close } = getQuestPanelElements();
     if (close) {
         close.addEventListener('click', () => closeQuestPanel(questItems));
@@ -909,18 +953,26 @@ function wireQuestFilters() {
             setQuestBetAmount(button.dataset.bet || 0);
         });
     });
+    modeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            setQuestMode(button.dataset.questMode);
+        });
+    });
     updateQuestBetControls();
+    updateQuestModeButtons();
     if (!questItems.length) return;
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
         item.addEventListener('click', async () => {
             const key = item.dataset.gameKey;
             const label = item.textContent.trim();
-            const filtered = TROY_QUESTS.filter((quest) => quest.gameKey === key);
+            _activeQuestGameKey = key;
+            _activeQuestGameLabel = label;
+            const filtered = getQuestsForGame(key);
             questItems.forEach((node) => node.classList.toggle('is-active', node === item));
             if (panel) panel.classList.add('active');
             if (title) title.textContent = label;
-            updateQuestFilterLabel(`クエスト一覧: ${label}`);
+            updateQuestFilterLabel(label);
             await refreshQuestClears(window.myPlayFabId);
             renderQuestList(filtered);
         });
