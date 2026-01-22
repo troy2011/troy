@@ -111,438 +111,933 @@ const TROY_PRODUCT_MENUS = {
 
 const TROY_QUESTS = [
     {
+                game: 'ビリヤード',
+                name: '船底ポケット',
+                detail: '8ボールでバンクショット2回成功',
+                gachaType: 'spear',
+                questKey: 'billiard-8',
+                difficulty: 'easy',
+                flavor: '槍のように角度を突け。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '狙撃の一閃',
+                detail: '9ボールでロングショット3回成功',
+                gachaType: 'gun',
+                questKey: 'billiard-9',
+                difficulty: 'easy',
+                flavor: '遠距離でも迷わぬ砲撃が海賊の誉れ。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '舵取りセーフ',
+                detail: '9ボールでセーフティ成功を2回',
+                gachaType: 'shield',
+                questKey: 'billiard-9',
+                difficulty: 'easy',
+                flavor: '防御の構えも勝利の航路。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '白波ブレイク',
+                detail: '9ボールでブレイク成功を2連続',
+                gachaType: 'axe',
+                questKey: 'billiard-9',
+                difficulty: 'easy',
+                flavor: '荒波を割るように最初の一打を決めろ。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '技巧の連鎖',
+                detail: 'ボーラードで120点以上',
+                gachaType: 'spear',
+                questKey: 'billiard-bowrad',
+                difficulty: 'normal',
+                flavor: '槍の連撃で点を積み上げろ。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '重戦車ブレイク',
+                detail: '8ボールで3連続ブレイク成功',
+                gachaType: 'axe',
+                questKey: 'billiard-8',
+                difficulty: 'normal',
+                flavor: '港を揺らす一撃で流れを奪え。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '精密ショット',
+                detail: '9ボールでノーミス勝利',
+                gachaType: 'sword',
+                questKey: 'billiard-9',
+                difficulty: 'normal',
+                flavor: '船長の狙いを一撃で示せ。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '静寂の測定',
+                detail: 'ボーラードでミス2回以内',
+                gachaType: 'staff',
+                questKey: 'billiard-bowrad',
+                difficulty: 'normal',
+                flavor: '魔導士のように静かに狙いを定める。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '砲門ロック',
+                detail: '8ボールで終盤の8番を一発沈め',
+                gachaType: 'helmet',
+                questKey: 'billiard-8',
+                difficulty: 'normal',
+                flavor: '兜を締め、決定打を逃すな。'
+            },
+    {
+                game: 'ビリヤード',
+                name: '逆転の連鎖',
+                detail: '8ボールで残り1球から逆転勝利',
+                gachaType: 'sword',
+                questKey: 'billiard-8',
+                difficulty: 'hard',
+                flavor: '土壇場でも刃は鈍らない。'
+            },
+    {
             game: 'ビリヤード',
-            name: '船底ポケット',
-            detail: '8ボールでバンクショット2回成功',
+            name: '黒旗の一掃',
+            detail: '8ボールでブレイクラン成功',
+            gachaType: 'sword',
+            questKey: 'billiard-8',
+            difficulty: 6,
+            flavor: '黒旗の一撃で卓を制圧せよ。'
+        },
+    {
+                game: 'ビリヤード',
+                name: '霧中の計算',
+                detail: 'ボーラードでバンクショット3回成功',
+                gachaType: 'item',
+                questKey: 'billiard-bowrad',
+                difficulty: 'hard',
+                flavor: '霧の海でも道具を使いこなせ。'
+            },
+    {
+            game: 'ビリヤード',
+            mode: 'battle',
+            name: '合図のバンク',
+            detail: '8ボールでチーム合計バンクショット2回成功',
             gachaType: 'spear',
             questKey: 'billiard-8',
-            difficulty: 'easy',
-            flavor: '槍のように角度を突け。'
+            difficulty: 2,
+            flavor: '合図一つで槍の角度を決めろ。'
         },
     {
             game: 'ビリヤード',
-            name: '狙撃の一閃',
-            detail: '9ボールでロングショット3回成功',
-            gachaType: 'gun',
+            mode: 'battle',
+            name: '守備布陣',
+            detail: '9ボールでセーフティ成功を合計2回',
+            gachaType: 'helmet',
             questKey: 'billiard-9',
-            difficulty: 'easy',
-            flavor: '遠距離でも迷わぬ砲撃が海賊の誉れ。'
+            difficulty: 2,
+            flavor: '兜を固めて守りを敷け。'
         },
     {
             game: 'ビリヤード',
-            name: '舵取りセーフ',
-            detail: '9ボールでセーフティ成功を2回',
+            mode: 'battle',
+            name: '連携ブレイク',
+            detail: '9ボールでチーム連続ブレイク成功',
             gachaType: 'shield',
             questKey: 'billiard-9',
-            difficulty: 'easy',
-            flavor: '防御の構えも勝利の航路。'
+            difficulty: 2,
+            flavor: '盾を合わせて戦端を開け。'
         },
     {
             game: 'ビリヤード',
-            name: '白波ブレイク',
-            detail: '9ボールでブレイク成功を2連続',
-            gachaType: 'axe',
+            mode: 'battle',
+            name: '旗艦ラリー',
+            detail: '9ボールでチーム連続ポケット5回',
+            gachaType: 'gun',
             questKey: 'billiard-9',
-            difficulty: 'easy',
-            flavor: '荒波を割るように最初の一打を決めろ。'
+            difficulty: 4,
+            flavor: '旗艦の号令で砲撃を繋げ。'
         },
     {
             game: 'ビリヤード',
-            name: '技巧の連鎖',
-            detail: 'ボーラードで120点以上',
-            gachaType: 'spear',
-            questKey: 'billiard-bowrad',
-            difficulty: 'normal',
-            flavor: '槍の連撃で点を積み上げろ。'
-        },
-    {
-            game: 'ビリヤード',
-            name: '重戦車ブレイク',
-            detail: '8ボールで3連続ブレイク成功',
+            mode: 'battle',
+            name: '包囲ブレイク',
+            detail: '8ボールでブレイク後に連続ポケット3回',
             gachaType: 'axe',
             questKey: 'billiard-8',
-            difficulty: 'normal',
-            flavor: '港を揺らす一撃で流れを奪え。'
+            difficulty: 4,
+            flavor: '斧で包囲網を断ち切れ。'
         },
     {
             game: 'ビリヤード',
-            name: '精密ショット',
+            mode: 'battle',
+            name: '連携ボーラード',
+            detail: 'ボーラードでチーム合計120点以上',
+            gachaType: 'staff',
+            questKey: 'billiard-bowrad',
+            difficulty: 4,
+            flavor: '杖の導きで点を積め。'
+        },
+    {
+            game: 'ビリヤード',
+            mode: 'battle',
+            name: '撃沈の号令',
             detail: '9ボールでノーミス勝利',
             gachaType: 'sword',
             questKey: 'billiard-9',
-            difficulty: 'normal',
-            flavor: '船長の狙いを一撃で示せ。'
+            difficulty: 6,
+            flavor: '剣の号令で敵を沈めろ。'
         },
     {
             game: 'ビリヤード',
-            name: '静寂の測定',
-            detail: 'ボーラードでミス2回以内',
-            gachaType: 'staff',
-            questKey: 'billiard-bowrad',
-            difficulty: 'normal',
-            flavor: '魔導士のように静かに狙いを定める。'
-        },
-    {
-            game: 'ビリヤード',
-            name: '砲門ロック',
-            detail: '8ボールで終盤の8番を一発沈め',
-            gachaType: 'helmet',
-            questKey: 'billiard-8',
-            difficulty: 'normal',
-            flavor: '兜を締め、決定打を逃すな。'
-        },
-    {
-            game: 'ビリヤード',
-            name: '逆転の連鎖',
-            detail: '8ボールで残り1球から逆転勝利',
-            gachaType: 'sword',
-            questKey: 'billiard-8',
-            difficulty: 'hard',
-            flavor: '土壇場でも刃は鈍らない。'
-        },
-    {
-            game: 'ビリヤード',
-            name: '霧中の計算',
-            detail: 'ボーラードでバンクショット3回成功',
+            mode: 'battle',
+            name: '精密制圧',
+            detail: 'ボーラードでチーム合計150点以上',
             gachaType: 'item',
             questKey: 'billiard-bowrad',
-            difficulty: 'hard',
-            flavor: '霧の海でも道具を使いこなせ。'
+            difficulty: 6,
+            flavor: '道具を駆使して精密に制圧せよ。'
         },
     {
-            game: 'カラオケ',
-            name: '音の射抜き',
-            detail: 'シングルで80点以上',
-            gachaType: 'gun',
-            questKey: 'karaoke-single',
-            difficulty: 'easy',
-            flavor: '歌声は海賊の銃声。'
-        },
-    {
-            game: 'カラオケ',
-            name: '響きの護符',
-            detail: 'デュエットでハモリ判定S',
-            gachaType: 'helmet',
-            questKey: 'karaoke-duet',
-            difficulty: 'easy',
-            flavor: '兜に誓った絆の音色。'
-        },
-    {
-            game: 'カラオケ',
-            name: '双帆のハーモニー',
-            detail: 'デュエットで安定度90%以上',
+            game: 'ビリヤード',
+            mode: 'battle',
+            name: '連携逆転',
+            detail: '8ボールで残り2球から逆転勝利',
             gachaType: 'shield',
-            questKey: 'karaoke-duet',
-            difficulty: 'normal',
-            flavor: '盾を合わせて荒波を越えろ。'
+            questKey: 'billiard-8',
+            difficulty: 6,
+            flavor: '盾を合わせて逆転の波を掴め。'
         },
     {
+                game: 'カラオケ',
+                name: '音の射抜き',
+                detail: 'シングルで80点以上',
+                gachaType: 'gun',
+                questKey: 'karaoke-single',
+                difficulty: 'easy',
+                flavor: '歌声は海賊の銃声。'
+            },
+    {
+                game: 'カラオケ',
+                name: '響きの護符',
+                detail: 'デュエットでハモリ判定S',
+                gachaType: 'helmet',
+                questKey: 'karaoke-duet',
+                difficulty: 'easy',
+                flavor: '兜に誓った絆の音色。'
+            },
+    {
             game: 'カラオケ',
-            name: '波止場の独唱',
-            detail: 'シングルで連続高音判定S',
+            name: '風待ちの合図',
+            detail: 'シングルで75点以上',
+            gachaType: 'item',
+            questKey: 'karaoke-single',
+            difficulty: 2,
+            flavor: '風を待つ合図で歌い出せ。'
+        },
+    {
+                game: 'カラオケ',
+                name: '双帆のハーモニー',
+                detail: 'デュエットで安定度90%以上',
+                gachaType: 'shield',
+                questKey: 'karaoke-duet',
+                difficulty: 'normal',
+                flavor: '盾を合わせて荒波を越えろ。'
+            },
+    {
+            game: 'カラオケ',
+            name: '波間の旋律',
+            detail: 'シングルで88点以上',
             gachaType: 'staff',
             questKey: 'karaoke-single',
-            difficulty: 'normal',
-            flavor: '港の灯りに響く魔法の独唱。'
+            difficulty: 4,
+            flavor: '杖の旋律で波を越えろ。'
+        },
+    {
+                game: 'カラオケ',
+                name: '波止場の独唱',
+                detail: 'シングルで連続高音判定S',
+                gachaType: 'staff',
+                questKey: 'karaoke-single',
+                difficulty: 'normal',
+                flavor: '港の灯りに響く魔法の独唱。'
+            },
+    {
+                game: 'カラオケ',
+                name: '契約の重唱',
+                detail: 'デュエットでコンボ30以上',
+                gachaType: 'axe',
+                questKey: 'karaoke-duet',
+                difficulty: 'hard',
+                flavor: '斧の重さで契りを刻め。'
+            },
+    {
+                game: 'カラオケ',
+                name: '赤旗ハイトーン',
+                detail: 'シングルで95点以上',
+                gachaType: 'sword',
+                questKey: 'karaoke-single',
+                difficulty: 'hard',
+                flavor: '高音で赤旗を掲げろ。'
+            },
+    {
+            game: 'カラオケ',
+            name: '覇者の高音',
+            detail: 'シングルで99点以上',
+            gachaType: 'sword',
+            questKey: 'karaoke-single',
+            difficulty: 6,
+            flavor: '覇者の剣は高音で輝く。'
         },
     {
             game: 'カラオケ',
-            name: '契約の重唱',
-            detail: 'デュエットでコンボ30以上',
+            mode: 'battle',
+            name: '掛け声一斉',
+            detail: 'デュエットで90点以上',
             gachaType: 'axe',
             questKey: 'karaoke-duet',
-            difficulty: 'hard',
-            flavor: '斧の重さで契りを刻め。'
+            difficulty: 2,
+            flavor: '掛け声を揃えて進め。'
         },
     {
             game: 'カラオケ',
-            name: '赤旗ハイトーン',
-            detail: 'シングルで95点以上',
-            gachaType: 'sword',
-            questKey: 'karaoke-single',
-            difficulty: 'hard',
-            flavor: '高音で赤旗を掲げろ。'
-        },
-    {
-            game: 'ダーツ',
-            name: '集中の一投',
-            detail: 'カウントアップで450点以上',
-            mode: 'solo',
+            mode: 'battle',
+            name: '合唱の帆',
+            detail: 'デュエットで安定度85%以上',
             gachaType: 'shield',
-            questKey: 'darts-countup',
-            difficulty: 'easy',
-            flavor: '盾の集中で的を守り抜け。'
+            questKey: 'karaoke-duet',
+            difficulty: 2,
+            flavor: '帆を揃えて歌を広げろ。'
         },
     {
-            game: 'ダーツ',
-            name: '盾壁キープ',
-            detail: 'クリケットで相手にスコアを与えない',
-            gachaType: 'shield',
-            questKey: 'darts-cricket',
-            difficulty: 'easy',
-            flavor: '盾壁を崩さず守り抜け。'
-        },
-    {
-            game: 'ダーツ',
-            name: '碇のリズム',
-            detail: 'カウントアップで連続得点5回',
-            gachaType: 'staff',
-            questKey: 'darts-countup',
-            difficulty: 'easy',
-            flavor: '碇の鼓動で狙いを整える。'
-        },
-    {
-            game: 'ダーツ',
-            name: '変化球',
-            detail: 'その他ルールで連勝',
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '連携ビブラート',
+            detail: 'デュエットでハモり成功2回',
             gachaType: 'item',
-            questKey: 'darts-other',
-            difficulty: 'easy',
-            flavor: '道具で勝負の流れを変える。'
+            questKey: 'karaoke-duet',
+            difficulty: 2,
+            flavor: '道具より鋭い響きを合わせろ。'
         },
     {
-            game: 'ダーツ',
-            name: 'ゼロワン猛追',
-            detail: '01を15ラウンド以内でクリア',
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '旗揚げコール',
+            detail: 'デュエットでコンボ20以上',
             gachaType: 'spear',
-            questKey: 'darts-01',
-            difficulty: 'normal',
-            flavor: '槍のように一直線で追い詰めろ。'
+            questKey: 'karaoke-duet',
+            difficulty: 4,
+            flavor: '槍の旗で声を揃えろ。'
+        },
+    {
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '響き合わせ',
+            detail: 'デュエットで抑揚80%以上',
+            gachaType: 'staff',
+            questKey: 'karaoke-duet',
+            difficulty: 4,
+            flavor: '杖の響きで抑揚を操れ。'
+        },
+    {
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '合唱の大波',
+            detail: 'デュエットで95点以上',
+            gachaType: 'gun',
+            questKey: 'karaoke-duet',
+            difficulty: 4,
+            flavor: '砲声のような歌で押し切れ。'
+        },
+    {
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '大合唱の覇権',
+            detail: 'デュエットで98点以上',
+            gachaType: 'sword',
+            questKey: 'karaoke-duet',
+            difficulty: 6,
+            flavor: '剣の覇権を歌で示せ。'
+        },
+    {
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '二重旋律の勝鬨',
+            detail: 'デュエットでコンボ40以上',
+            gachaType: 'helmet',
+            questKey: 'karaoke-duet',
+            difficulty: 6,
+            flavor: '兜の勝鬨で旋律を刻め。'
+        },
+    {
+            game: 'カラオケ',
+            mode: 'battle',
+            name: '嵐越えのハモり',
+            detail: 'デュエットで安定度95%以上',
+            gachaType: 'shield',
+            questKey: 'karaoke-duet',
+            difficulty: 6,
+            flavor: '盾を合わせて嵐を越えろ。'
+        },
+    {
+                game: 'ダーツ',
+                name: '集中の一投',
+                detail: 'カウントアップで450点以上',
+                mode: 'solo',
+                gachaType: 'shield',
+                questKey: 'darts-countup',
+                difficulty: 'easy',
+                flavor: '盾の集中で的を守り抜け。'
+            },
+    {
+                game: 'ダーツ',
+                name: '盾壁キープ',
+                detail: 'クリケットで相手にスコアを与えない',
+                gachaType: 'shield',
+                questKey: 'darts-cricket',
+                difficulty: 'easy',
+                flavor: '盾壁を崩さず守り抜け。'
+            },
+    {
+                game: 'ダーツ',
+                name: '碇のリズム',
+                detail: 'カウントアップで連続得点5回',
+                gachaType: 'staff',
+                questKey: 'darts-countup',
+                difficulty: 'easy',
+                flavor: '碇の鼓動で狙いを整える。'
+            },
+    {
+                game: 'ダーツ',
+                name: '変化球',
+                detail: 'その他ルールで連勝',
+                gachaType: 'item',
+                questKey: 'darts-other',
+                difficulty: 'easy',
+                flavor: '道具で勝負の流れを変える。'
+            },
+    {
+                game: 'ダーツ',
+                name: 'ゼロワン猛追',
+                detail: '01を15ラウンド以内でクリア',
+                gachaType: 'spear',
+                questKey: 'darts-01',
+                difficulty: 'normal',
+                flavor: '槍のように一直線で追い詰めろ。'
+            },
+    {
+                game: 'ダーツ',
+                name: '独航の一矢',
+                detail: '01でダブルフィニッシュ成功',
+                gachaType: 'gun',
+                questKey: 'darts-01',
+                difficulty: 'normal',
+                flavor: '孤高の一矢を見せつけろ。'
+            },
+    {
+                game: 'ダーツ',
+                name: '波間の奇襲',
+                detail: 'その他ルールでダブル3回成功',
+                gachaType: 'spear',
+                questKey: 'darts-other',
+                difficulty: 'normal',
+                flavor: '槍の奇襲で波間を裂け。'
+            },
+    {
+                game: 'ダーツ',
+                name: '風読みの矢',
+                detail: 'カウントアップでトリプル3回成功',
+                gachaType: 'gun',
+                questKey: 'darts-countup',
+                difficulty: 'normal',
+                flavor: '風を読めば矢は真っ直ぐ飛ぶ。'
+            },
+    {
+                game: 'ダーツ',
+                name: '砦割り三連',
+                detail: 'クリケットで3連続クローズ',
+                gachaType: 'axe',
+                questKey: 'darts-cricket',
+                difficulty: 'hard',
+                flavor: '斧で砦を割るように攻めろ。'
+            },
+    {
+                game: 'ダーツ',
+                name: '船長の合図',
+                detail: 'カウントアップで500点以上',
+                gachaType: 'sword',
+                questKey: 'darts-countup',
+                difficulty: 'hard',
+                flavor: '船長の合図で勝負は決まる。'
+            },
+    {
+                game: 'ダーツ',
+                name: '早駆け帰港',
+                detail: '01を10ラウンド以内でクリア',
+                gachaType: 'axe',
+                questKey: 'darts-01',
+                difficulty: 'hard',
+                flavor: '斧の一振りで港へ帰れ。'
+            },
+    {
+                game: 'ダーツ',
+                name: '灯台サイン',
+                detail: 'その他ルールでフィニッシュを2連続',
+                gachaType: 'helmet',
+                questKey: 'darts-other',
+                difficulty: 'hard',
+                flavor: '灯台の光のように正確に締めろ。'
+            },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '援護射撃',
+            detail: 'カウントアップでチーム合計400点以上',
+            gachaType: 'gun',
+            questKey: 'darts-countup',
+            difficulty: 2,
+            flavor: '援護砲撃で点を重ねろ。'
         },
     {
             game: 'ダーツ',
-            name: '独航の一矢',
+            mode: 'battle',
+            name: '守備陣形',
+            detail: '01でチーム合計フィニッシュ成功',
+            gachaType: 'shield',
+            questKey: 'darts-01',
+            difficulty: 2,
+            flavor: '盾の陣形で決めきれ。'
+        },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '連携トリプル',
+            detail: 'カウントアップでトリプル2回成功',
+            gachaType: 'spear',
+            questKey: 'darts-countup',
+            difficulty: 2,
+            flavor: '槍の連携で的を貫け。'
+        },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '援護封鎖',
+            detail: 'クリケットでチーム合計スコア100以上',
+            gachaType: 'item',
+            questKey: 'darts-cricket',
+            difficulty: 4,
+            flavor: '道具で封鎖網を作れ。'
+        },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '旗印の連射',
+            detail: '01でチーム合計10ラウンド以内に勝利',
+            gachaType: 'axe',
+            questKey: 'darts-01',
+            difficulty: 4,
+            flavor: '斧の連射で旗印を上げろ。'
+        },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '陣地共有',
+            detail: 'クリケットでチーム合計クローズ4箇所',
+            gachaType: 'staff',
+            questKey: 'darts-cricket',
+            difficulty: 4,
+            flavor: '杖の陣地を共有せよ。'
+        },
+    {
+                game: 'ダーツ',
+                name: '陣地制圧',
+                detail: 'クリケットで全クローズ達成',
+                mode: 'battle',
+                gachaType: 'staff',
+                questKey: 'darts-cricket',
+                difficulty: 'normal',
+                flavor: '魔導師の陣形で領域を守れ。'
+            },
+    {
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '決戦フィニッシュ',
             detail: '01でダブルフィニッシュ成功',
             gachaType: 'gun',
             questKey: 'darts-01',
-            difficulty: 'normal',
-            flavor: '孤高の一矢を見せつけろ。'
+            difficulty: 6,
+            flavor: '砲火の二重で決めろ。'
         },
     {
             game: 'ダーツ',
-            name: '波間の奇襲',
-            detail: 'その他ルールでダブル3回成功',
-            gachaType: 'spear',
-            questKey: 'darts-other',
-            difficulty: 'normal',
-            flavor: '槍の奇襲で波間を裂け。'
-        },
-    {
-            game: 'ダーツ',
-            name: '風読みの矢',
-            detail: 'カウントアップでトリプル3回成功',
-            gachaType: 'gun',
-            questKey: 'darts-countup',
-            difficulty: 'normal',
-            flavor: '風を読めば矢は真っ直ぐ飛ぶ。'
-        },
-    {
-            game: 'ダーツ',
-            name: '砦割り三連',
-            detail: 'クリケットで3連続クローズ',
-            gachaType: 'axe',
-            questKey: 'darts-cricket',
-            difficulty: 'hard',
-            flavor: '斧で砦を割るように攻めろ。'
-        },
-    {
-            game: 'ダーツ',
-            name: '船長の合図',
-            detail: 'カウントアップで500点以上',
-            gachaType: 'sword',
-            questKey: 'darts-countup',
-            difficulty: 'hard',
-            flavor: '船長の合図で勝負は決まる。'
-        },
-    {
-            game: 'ダーツ',
-            name: '早駆け帰港',
-            detail: '01を10ラウンド以内でクリア',
-            gachaType: 'axe',
-            questKey: 'darts-01',
-            difficulty: 'hard',
-            flavor: '斧の一振りで港へ帰れ。'
-        },
-    {
-            game: 'ダーツ',
-            name: '灯台サイン',
-            detail: 'その他ルールでフィニッシュを2連続',
-            gachaType: 'helmet',
-            questKey: 'darts-other',
-            difficulty: 'hard',
-            flavor: '灯台の光のように正確に締めろ。'
-        },
-    {
-            game: 'ダーツ',
-            name: '陣地制圧',
-            detail: 'クリケットで全クローズ達成',
             mode: 'battle',
-            gachaType: 'staff',
+            name: '制圧の嵐',
+            detail: 'クリケットで5マーク連続成功',
+            gachaType: 'sword',
             questKey: 'darts-cricket',
-            difficulty: 'normal',
-            flavor: '魔導師の陣形で領域を守れ。'
+            difficulty: 6,
+            flavor: '剣風で陣地を制圧せよ。'
         },
     {
-            game: 'トランプ',
-            name: '王都の税回収',
-            detail: '大富豪で上がりを3回達成',
-            gachaType: 'item',
-            questKey: 'cards-daifugo',
-            difficulty: 'easy',
-            flavor: '道具を集めて財を築け。'
-        },
-    {
-            game: 'トランプ',
-            name: '黒の祝福',
-            detail: 'ブラックジャックで21ジャスト',
+            game: 'ダーツ',
+            mode: 'battle',
+            name: '連携パーフェクト',
+            detail: 'カウントアップでチーム合計600点以上',
             gachaType: 'helmet',
-            questKey: 'cards-blackjack',
-            difficulty: 'easy',
-            flavor: '兜に宿る幸運を引き寄せろ。'
+            questKey: 'darts-countup',
+            difficulty: 6,
+            flavor: '兜の連携で満点を狙え。'
         },
     {
-            game: 'トランプ',
-            name: '21の舵',
-            detail: 'ブラックジャックで2連勝',
-            gachaType: 'shield',
-            questKey: 'cards-blackjack',
-            difficulty: 'normal',
-            flavor: '舵を握るように流れを制す。'
-        },
+                game: 'トランプ',
+                name: '王都の税回収',
+                detail: '大富豪で上がりを3回達成',
+                gachaType: 'item',
+                questKey: 'cards-daifugo',
+                difficulty: 'easy',
+                flavor: '道具を集めて財を築け。'
+            },
+    {
+                game: 'トランプ',
+                name: '黒の祝福',
+                detail: 'ブラックジャックで21ジャスト',
+                gachaType: 'helmet',
+                questKey: 'cards-blackjack',
+                difficulty: 'easy',
+                flavor: '兜に宿る幸運を引き寄せろ。'
+            },
     {
             game: 'トランプ',
-            name: '王の一手',
-            detail: 'ポーカーでフラッシュ成立',
-            gachaType: 'sword',
-            questKey: 'cards-poker',
-            difficulty: 'normal',
-            flavor: '刃のように鋭い一手を放て。'
-        },
-    {
-            game: 'トランプ',
-            name: '富の凱旋',
-            detail: '大富豪で2連勝',
-            gachaType: 'sword',
-            questKey: 'cards-daifugo',
-            difficulty: 'normal',
-            flavor: '剣の誉れを掲げて凱旋せよ。'
-        },
-    {
-            game: 'トランプ',
-            name: '密輸のブラフ',
-            detail: 'ポーカーでブラフ勝利を2回',
+            name: '静かな切り札',
+            detail: 'ポーカーでワンペア以上を2回成立',
             gachaType: 'item',
             questKey: 'cards-poker',
-            difficulty: 'normal',
-            flavor: '密輸船のように姿を隠せ。'
+            difficulty: 2,
+            flavor: '静かな切り札で波を制せ。'
         },
     {
+                game: 'トランプ',
+                name: '21の舵',
+                detail: 'ブラックジャックで2連勝',
+                gachaType: 'shield',
+                questKey: 'cards-blackjack',
+                difficulty: 'normal',
+                flavor: '舵を握るように流れを制す。'
+            },
+    {
+                game: 'トランプ',
+                name: '王の一手',
+                detail: 'ポーカーでフラッシュ成立',
+                gachaType: 'sword',
+                questKey: 'cards-poker',
+                difficulty: 'normal',
+                flavor: '刃のように鋭い一手を放て。'
+            },
+    {
+                game: 'トランプ',
+                name: '富の凱旋',
+                detail: '大富豪で2連勝',
+                gachaType: 'sword',
+                questKey: 'cards-daifugo',
+                difficulty: 'normal',
+                flavor: '剣の誉れを掲げて凱旋せよ。'
+            },
+    {
+                game: 'トランプ',
+                name: '密輸のブラフ',
+                detail: 'ポーカーでブラフ勝利を2回',
+                gachaType: 'item',
+                questKey: 'cards-poker',
+                difficulty: 'normal',
+                flavor: '密輸船のように姿を隠せ。'
+            },
+    {
+                game: 'トランプ',
+                name: '船団のレイズ',
+                detail: 'ポーカーでレイズ3回成功',
+                gachaType: 'axe',
+                questKey: 'cards-poker',
+                difficulty: 'hard',
+                flavor: '船団の勢いで勝負を押し切れ。'
+            },
+    {
+                game: 'トランプ',
+                name: '奪回の切り札',
+                detail: '大富豪で革命成功',
+                gachaType: 'spear',
+                questKey: 'cards-daifugo',
+                difficulty: 'hard',
+                flavor: '槍の一突きで秩序を覆せ。'
+            },
+    {
+                game: 'トランプ',
+                name: '熱風のダブル',
+                detail: 'ブラックジャックでダブルダウン成功',
+                gachaType: 'gun',
+                questKey: 'cards-blackjack',
+                difficulty: 'hard',
+                flavor: '熱風の中でも引き金を引け。'
+            },
+    {
             game: 'トランプ',
-            name: '船団のレイズ',
-            detail: 'ポーカーでレイズ3回成功',
+            mode: 'battle',
+            name: '協力大富豪',
+            detail: '大富豪でチーム合計上がり1回',
             gachaType: 'axe',
-            questKey: 'cards-poker',
-            difficulty: 'hard',
-            flavor: '船団の勢いで勝負を押し切れ。'
+            questKey: 'cards-daifugo',
+            difficulty: 2,
+            flavor: '斧を揃えて最初に上がれ。'
         },
     {
             game: 'トランプ',
-            name: '奪回の切り札',
-            detail: '大富豪で革命成功',
+            mode: 'battle',
+            name: '護衛ブラックジャック',
+            detail: 'ブラックジャックでチーム合計勝利2回',
+            gachaType: 'shield',
+            questKey: 'cards-blackjack',
+            difficulty: 2,
+            flavor: '盾で護衛し勝利を守れ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '連携ポーカー',
+            detail: 'ポーカーでチーム合計ワンペア以上を3回成立',
+            gachaType: 'spear',
+            questKey: 'cards-poker',
+            difficulty: 2,
+            flavor: '槍の連携で札を揃えろ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '艦隊ブラックジャック',
+            detail: 'ブラックジャックでチーム合計21を1回達成',
+            gachaType: 'helmet',
+            questKey: 'cards-blackjack',
+            difficulty: 4,
+            flavor: '兜の気迫で21を掴め。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '旗揚げストレート',
+            detail: 'ポーカーでストレート以上を1回成立',
+            gachaType: 'gun',
+            questKey: 'cards-poker',
+            difficulty: 4,
+            flavor: '砲火のような札を並べよ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '連携フィニッシュ',
+            detail: '大富豪でチーム合計上がり2回',
+            gachaType: 'staff',
+            questKey: 'cards-daifugo',
+            difficulty: 4,
+            flavor: '杖の導きで終幕を飾れ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '王手のフルハウス',
+            detail: 'ポーカーでフルハウス以上を1回成立',
+            gachaType: 'sword',
+            questKey: 'cards-poker',
+            difficulty: 6,
+            flavor: '剣で王手を突きつけろ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '逆転ブラックジャック',
+            detail: 'ブラックジャックでディーラーに2連勝',
+            gachaType: 'shield',
+            questKey: 'cards-blackjack',
+            difficulty: 6,
+            flavor: '盾を構えて逆転を決めろ。'
+        },
+    {
+            game: 'トランプ',
+            mode: 'battle',
+            name: '覇権の大富豪',
+            detail: '大富豪でチーム合計上がり3回',
             gachaType: 'spear',
             questKey: 'cards-daifugo',
-            difficulty: 'hard',
-            flavor: '槍の一突きで秩序を覆せ。'
+            difficulty: 6,
+            flavor: '槍を掲げて覇権を掴め。'
         },
     {
-            game: 'トランプ',
-            name: '熱風のダブル',
-            detail: 'ブラックジャックでダブルダウン成功',
-            gachaType: 'gun',
-            questKey: 'cards-blackjack',
-            difficulty: 'hard',
-            flavor: '熱風の中でも引き金を引け。'
-        },
+                game: 'その他',
+                name: '海図の策略',
+                detail: 'ボードゲームで2連勝',
+                gachaType: 'helmet',
+                questKey: 'other-board',
+                difficulty: 'easy',
+                flavor: '兜の内で海図を読み解け。'
+            },
+    {
+                game: 'その他',
+                name: '黒ひげ回避',
+                detail: '黒ひげで王冠を回避',
+                gachaType: 'helmet',
+                questKey: 'other-kurohige',
+                difficulty: 'easy',
+                flavor: '兜をかぶり運命の刃を避けろ。'
+            },
+    {
+                game: 'その他',
+                name: '連勝街道',
+                detail: 'ミニゲームで3連勝',
+                gachaType: 'item',
+                questKey: 'other-mini',
+                difficulty: 'easy',
+                flavor: '道具を手に勝利の道を走れ。'
+            },
+    {
+                game: 'その他',
+                name: '火薬の覚悟',
+                detail: '黒ひげでセーフゾーンを3回通す',
+                gachaType: 'staff',
+                questKey: 'other-kurohige',
+                difficulty: 'normal',
+                flavor: '火薬の気配を読んで耐えよ。'
+            },
+    {
+                game: 'その他',
+                name: '盤上の知恵',
+                detail: 'ボードゲームでノーミス勝利',
+                gachaType: 'staff',
+                questKey: 'other-board',
+                difficulty: 'normal',
+                flavor: '魔導の盤面で知恵を示せ。'
+            },
+    {
+                game: 'その他',
+                name: '砲撃チャレンジ',
+                detail: 'ミニゲームで高得点を獲得',
+                gachaType: 'gun',
+                questKey: 'other-mini',
+                difficulty: 'normal',
+                flavor: '砲撃の精度で賞賛を得よ。'
+            },
+    {
+                game: 'その他',
+                name: '港町の防衛戦',
+                detail: 'ボードゲームで防衛側勝利',
+                gachaType: 'shield',
+                questKey: 'other-board',
+                difficulty: 'hard',
+                flavor: '盾を掲げて港町を守れ。'
+            },
+    {
+                game: 'その他',
+                name: '撤退判断',
+                detail: '黒ひげで連続セーフを達成',
+                gachaType: 'item',
+                questKey: 'other-kurohige',
+                difficulty: 'hard',
+                flavor: '道具を手に撤退の判断を下せ。'
+            },
+    {
+                game: 'その他',
+                name: '風読み勝負',
+                detail: 'ミニゲームで無傷クリア',
+                gachaType: 'spear',
+                questKey: 'other-mini',
+                difficulty: 'hard',
+                flavor: '槍先で風を読み勝負に挑め。'
+            },
     {
             game: 'その他',
-            name: '海図の策略',
-            detail: 'ボードゲームで2連勝',
-            gachaType: 'helmet',
-            questKey: 'other-board',
-            difficulty: 'easy',
-            flavor: '兜の内で海図を読み解け。'
-        },
-    {
-            game: 'その他',
-            name: '黒ひげ回避',
-            detail: '黒ひげで王冠を回避',
-            gachaType: 'helmet',
-            questKey: 'other-kurohige',
-            difficulty: 'easy',
-            flavor: '兜をかぶり運命の刃を避けろ。'
-        },
-    {
-            game: 'その他',
-            name: '連勝街道',
-            detail: 'ミニゲームで3連勝',
-            gachaType: 'item',
-            questKey: 'other-mini',
-            difficulty: 'easy',
-            flavor: '道具を手に勝利の道を走れ。'
-        },
-    {
-            game: 'その他',
-            name: '火薬の覚悟',
-            detail: '黒ひげでセーフゾーンを3回通す',
-            gachaType: 'staff',
-            questKey: 'other-kurohige',
-            difficulty: 'normal',
-            flavor: '火薬の気配を読んで耐えよ。'
-        },
-    {
-            game: 'その他',
-            name: '盤上の知恵',
-            detail: 'ボードゲームでノーミス勝利',
-            gachaType: 'staff',
-            questKey: 'other-board',
-            difficulty: 'normal',
-            flavor: '魔導の盤面で知恵を示せ。'
-        },
-    {
-            game: 'その他',
-            name: '砲撃チャレンジ',
-            detail: 'ミニゲームで高得点を獲得',
-            gachaType: 'gun',
-            questKey: 'other-mini',
-            difficulty: 'normal',
-            flavor: '砲撃の精度で賞賛を得よ。'
-        },
-    {
-            game: 'その他',
-            name: '港町の防衛戦',
-            detail: 'ボードゲームで防衛側勝利',
+            mode: 'battle',
+            name: '協力防衛',
+            detail: 'ボードゲームで協力勝利',
             gachaType: 'shield',
             questKey: 'other-board',
-            difficulty: 'hard',
-            flavor: '盾を掲げて港町を守れ。'
+            difficulty: 2,
+            flavor: '盾を並べて港を守れ。'
         },
     {
             game: 'その他',
-            name: '撤退判断',
-            detail: '黒ひげで連続セーフを達成',
+            mode: 'battle',
+            name: '黒ひげ援護',
+            detail: '黒ひげでチーム合計セーフ2回',
+            gachaType: 'axe',
+            questKey: 'other-kurohige',
+            difficulty: 2,
+            flavor: '斧の援護で安全を掴め。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '連携小舟',
+            detail: 'ミニゲームでチーム合計無傷クリア',
+            gachaType: 'item',
+            questKey: 'other-mini',
+            difficulty: 2,
+            flavor: '道具で小舟を守り切れ。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '港湾迎撃',
+            detail: 'ボードゲームで連勝2回',
+            gachaType: 'spear',
+            questKey: 'other-board',
+            difficulty: 4,
+            flavor: '槍の迎撃で連勝を守れ。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '黒ひげ包囲',
+            detail: '黒ひげで連続セーフ3回',
+            gachaType: 'helmet',
+            questKey: 'other-kurohige',
+            difficulty: 4,
+            flavor: '兜の包囲で危険を避けろ。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '潮流突破',
+            detail: 'ミニゲームで時間内クリア',
+            gachaType: 'staff',
+            questKey: 'other-mini',
+            difficulty: 4,
+            flavor: '杖の潮流で突破せよ。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '黒旗の運命',
+            detail: '黒ひげでセーフのみで勝利',
             gachaType: 'item',
             questKey: 'other-kurohige',
-            difficulty: 'hard',
-            flavor: '道具を手に撤退の判断を下せ。'
+            difficulty: 6,
+            flavor: '道具を手に運命を切り拓け。'
         },
     {
             game: 'その他',
-            name: '風読み勝負',
-            detail: 'ミニゲームで無傷クリア',
-            gachaType: 'spear',
+            mode: 'battle',
+            name: '疾風連携',
+            detail: 'ミニゲームで連続パーフェクト2回',
+            gachaType: 'gun',
             questKey: 'other-mini',
-            difficulty: 'hard',
-            flavor: '槍先で風を読み勝負に挑め。'
+            difficulty: 6,
+            flavor: '疾風の砲撃で連携を極めろ。'
+        },
+    {
+            game: 'その他',
+            mode: 'battle',
+            name: '大海防衛線',
+            detail: 'ボードゲームで完全勝利',
+            gachaType: 'sword',
+            questKey: 'other-board',
+            difficulty: 6,
+            flavor: '剣の防衛線で海を守れ。'
         }
 ];
 
