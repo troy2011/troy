@@ -596,8 +596,13 @@ function sortTroyQuests(list) {
     });
 }
 
+function buildQuestId(quest, gameKey) {
+    const key = quest.questKey || 'quest';
+    const name = quest.name || 'quest';
+    return encodeURIComponent(`${gameKey}-${key}-${name}`);
+}
+
 function assignQuestMeta(list) {
-    const counts = new Map();
     list.forEach((quest) => {
         const gameKey = TROY_GAME_KEYS[quest.game] || 'other';
         quest.gameKey = quest.gameKey || gameKey;
@@ -607,10 +612,7 @@ function assignQuestMeta(list) {
             quest.tier ||
             (quest.difficulty <= 2 ? 'beginner' : quest.difficulty <= 4 ? 'intermediate' : 'advanced');
         quest.tier = tier;
-        const key = quest.gameKey || 'quest';
-        const next = (counts.get(key) || 0) + 1;
-        counts.set(key, next);
-        quest.questId = `${key}-${String(next).padStart(2, '0')}`;
+        quest.questId = quest.questId || buildQuestId(quest, quest.gameKey || gameKey);
     });
 }
 
