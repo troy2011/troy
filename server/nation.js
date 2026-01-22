@@ -36,7 +36,26 @@ const QUEST_REWARD_ITEM_BY_TYPE = {
     shield: process.env.QUEST_REWARD_SHIELD_ITEM_ID || '',
     item: process.env.QUEST_REWARD_ITEM_ITEM_ID || ''
 };
-const QUEST_ALLOWED_GACHA_TYPES = new Set(Object.keys(QUEST_REWARD_ITEM_BY_TYPE));
+const QUEST_GACHA_TYPE_ALIASES = {
+    hat: 'helmet',
+    leather: 'helmet',
+    metal: 'helmet',
+    wand: 'staff',
+    staff: 'staff',
+    dagger: 'sword',
+    sword: 'sword',
+    axe: 'axe',
+    blunt: 'axe',
+    shield: 'shield',
+    polearm: 'spear',
+    gun: 'gun'
+};
+const QUEST_REWARD_GACHA_TYPES = new Set(Object.keys(QUEST_REWARD_ITEM_BY_TYPE));
+const QUEST_ALLOWED_GACHA_TYPES = new Set([
+    ...Object.keys(QUEST_REWARD_ITEM_BY_TYPE),
+    ...Object.keys(QUEST_GACHA_TYPE_ALIASES),
+    'skill'
+]);
 let questRewardTablesCache = null;
 
 const NATION_GROUP_BY_RACE = {
@@ -75,8 +94,19 @@ function normalizePlayFabId(value) {
 }
 
 function normalizeQuestDifficulty(value) {
-    const key = String(value || '').toLowerCase();
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        if (value <= 2) return 'easy';
+        if (value <= 4) return 'normal';
+        return 'hard';
+    }
+    const key = String(value || '').toLowerCase().trim();
     if (key === 'easy' || key === 'normal' || key === 'hard') return key;
+    const numeric = Number(key);
+    if (Number.isFinite(numeric)) {
+        if (numeric <= 2) return 'easy';
+        if (numeric <= 4) return 'normal';
+        return 'hard';
+    }
     return 'normal';
 }
 
@@ -84,6 +114,15 @@ function normalizeQuestBetAmount(value) {
     const amount = Math.floor(Number(value) || 0);
     if (!Number.isFinite(amount) || amount < 0) return 0;
     return Math.min(amount, QUEST_BET_MAX);
+}
+
+function normalizeQuestGachaType(gachaType) {
+    const raw = String(gachaType || '').toLowerCase().trim();
+    if (raw === 'skill') {
+        return { raw, rewardKey: '', isSkill: true };
+    }
+    const rewardKey = QUEST_GACHA_TYPE_ALIASES[raw] || raw;
+    return { raw, rewardKey, isSkill: false };
 }
 
 function getQuestBetTier(betAmount) {
@@ -214,9 +253,10 @@ async function isGuildLeader(playFabId, deps) {
 }
 
 function resolveQuestRewardItemId(gachaType) {
-    const key = String(gachaType || '').toLowerCase();
-    if (!QUEST_ALLOWED_GACHA_TYPES.has(key)) return '';
-    return QUEST_REWARD_ITEM_BY_TYPE[key] || '';
+    const normalized = normalizeQuestGachaType(gachaType);
+    if (!normalized.rewardKey) return '';
+    if (!QUEST_REWARD_GACHA_TYPES.has(normalized.rewardKey)) return '';
+    return QUEST_REWARD_ITEM_BY_TYPE[normalized.rewardKey] || '';
 }
 
 function loadQuestRewardTables() {
@@ -245,14 +285,16 @@ function flattenQuestRewardTable(entry) {
 
 function getQuestRewardPool(gachaType) {
     const tables = loadQuestRewardTables();
-    const key = String(gachaType || '').toLowerCase();
-    return flattenQuestRewardTable(tables?.[key]);
+    const normalized = normalizeQuestGachaType(gachaType);
+    if (!normalized.rewardKey) return [];
+    return flattenQuestRewardTable(tables?.[normalized.rewardKey]);
 }
 
 function getQuestRewardPoolForTier(gachaType, tier) {
     const tables = loadQuestRewardTables();
-    const key = String(gachaType || '').toLowerCase();
-    const entry = tables?.[key];
+    const normalized = normalizeQuestGachaType(gachaType);
+    if (!normalized.rewardKey) return [];
+    const entry = tables?.[normalized.rewardKey];
     if (Array.isArray(entry)) return entry;
     if (!entry || typeof entry !== 'object') return [];
     const tierKey = QUEST_REWARD_RARITY_LEVELS.includes(tier) ? tier : 'common';
@@ -1062,10 +1104,15 @@ function initializeNationRoutes(app, deps) {
         const secret = process.env.QUEST_QR_SECRET;
         if (!secret) return res.status(500).json({ error: 'Quest QR secret is not configured' });
 
-        const gachaKey = String(gachaType || '').toLowerCase();
-        const hasTable = getQuestRewardPool(gachaKey).length > 0;
-        if (!QUEST_ALLOWED_GACHA_TYPES.has(gachaKey) && !hasTable) {
+        const gacha = normalizeQuestGachaType(gachaType);
+        if (!QUEST_ALLOWED_GACHA_TYPES.has(gacha.raw)) {
             return res.status(400).json({ error: 'Invalid gachaType' });
+        }
+        if (!gacha.isSkill) {
+            const hasTable = getQuestRewardPool(gacha.rewardKey).length > 0;
+            if (!QUEST_REWARD_GACHA_TYPES.has(gacha.rewardKey) && !hasTable) {
+                return res.status(400).json({ error: 'Invalid gachaType' });
+            }
         }
         const difficulty = normalizeQuestDifficulty(req.body?.difficulty);
         const betAmount = normalizeQuestBetAmount(req.body?.betAmount);
@@ -1079,7 +1126,7 @@ function initializeNationRoutes(app, deps) {
                 playerId: normalizePlayFabId(playFabId),
                 questId: String(questId),
                 questKey: String(questKey),
-                gachaType: gachaKey,
+                gachaType: gacha.raw,
                 difficulty,
                 betAmount,
                 nonce: crypto.randomBytes(8).toString('hex'),
@@ -1165,15 +1212,18 @@ function initializeNationRoutes(app, deps) {
                 claimData.difficulty || basePayload.difficulty,
                 normalizeQuestBetAmount(claimData.betAmount ?? basePayload.betAmount)
             );
-            const rewardItemId = resolveQuestRewardFromTables(rewardType, rewardTier)
-                || resolveQuestRewardItemId(rewardType);
-            if (!rewardItemId) {
-                return res.status(500).json({ error: 'RewardNotConfigured' });
+            const normalizedReward = normalizeQuestGachaType(rewardType);
+            let rewardItemId = '';
+            if (!normalizedReward.isSkill) {
+                rewardItemId = resolveQuestRewardFromTables(normalizedReward.rewardKey, rewardTier)
+                    || resolveQuestRewardItemId(normalizedReward.rewardKey);
+                if (!rewardItemId) {
+                    return res.status(500).json({ error: 'RewardNotConfigured' });
+                }
+                await addEconomyItem(basePayload.playerId, rewardItemId, 1, {
+                    idempotencyId: `quest-${basePayload.claimId}`
+                });
             }
-
-            await addEconomyItem(basePayload.playerId, rewardItemId, 1, {
-                idempotencyId: `quest-${basePayload.claimId}`
-            });
 
             let questCleared = false;
             const questIdKey = String(claimData.questId || basePayload.questId || '').trim();
@@ -1212,7 +1262,7 @@ function initializeNationRoutes(app, deps) {
             res.json({
                 success: true,
                 claimId: basePayload.claimId,
-                rewardItemId,
+                rewardItemId: rewardItemId || null,
                 rewardLabel: rewardType,
                 rewardTier,
                 questCleared
