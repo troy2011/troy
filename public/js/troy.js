@@ -1791,9 +1791,14 @@ function renderQuestList(list) {
         gacha.className = 'troy-quest-gacha';
         const isBattleMode = quest.mode === 'battle' || quest.gachaType === 'skill';
         if (isBattleMode) {
-            const skillKind = quest.skillType === 'weapon' ? '武器固定スキル' : 'パッシブスキル';
+            const isWeaponSkill = quest.skillType === 'weapon';
+            const skillKind = isWeaponSkill ? '武器固定スキル' : 'パッシブスキル';
             const skillName = quest.skillName || '未設定スキル';
-            gacha.textContent = `報酬: ${skillKind}『${skillName}』`;
+            const weaponLabel = isWeaponSkill
+                ? TROY_GACHA_LABELS[quest.skillWeapon] || quest.skillWeapon || ''
+                : '';
+            const weaponSuffix = weaponLabel ? `（${weaponLabel}）` : '';
+            gacha.textContent = `報酬: ${skillKind}『${skillName}』${weaponSuffix}`;
         } else {
             const label = TROY_GACHA_LABELS[quest.gachaType] || quest.gachaType;
             gacha.textContent = `報酬: ${label}`;
