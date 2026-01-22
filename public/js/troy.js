@@ -117,11 +117,11 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "name": "初球の確認",
-        "detail": "ボーラードで1球以上入れる",
+        "detail": "センターショットで的球を真っ直ぐ入れる",
         "gachaType": "hat",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "まずは一球、航路を示せ。"
+        "flavor": "真っ直ぐの一球で航路を示せ。"
     },
     {
         "game": "ビリヤード",
@@ -135,20 +135,20 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "name": "見張りの完走",
-        "detail": "ボーラードで1フレーム完走（勝敗不問）",
+        "detail": "ストップショットで白球を当てた場所に止める",
         "gachaType": "leather",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "見張りの任務は完走から。"
+        "flavor": "止めの精度で見張りを任せろ。"
     },
     {
         "game": "ビリヤード",
         "name": "舵の連打",
-        "detail": "ボーラードで連続得点2回",
+        "detail": "クッションバンクで的球を入れる",
         "gachaType": "polearm",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "舵の連打で点を刻め。"
+        "flavor": "舵の切り返しで道を開け。"
     },
     {
         "game": "ビリヤード",
@@ -162,43 +162,43 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "name": "静かな連続",
-        "detail": "ボーラードで2フレーム連続得点",
+        "detail": "センターショット連続成功2回",
         "gachaType": "wand",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "静けさの中で連続を刻め。"
+        "flavor": "静けさの中で精度を重ねろ。"
     },
     {
         "game": "ビリヤード",
         "name": "波間の計算",
-        "detail": "ボーラードで合計80点以上",
+        "detail": "手前戻し（ドロー）で白球を手前に戻す",
         "gachaType": "shield",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "波間の計算で点を積め。"
+        "flavor": "引きの計算で波間を制せ。"
     },
     {
         "game": "ビリヤード",
         "name": "砲門の精度",
-        "detail": "ボーラードでストライク1回",
+        "detail": "クッションバンク2回成功",
         "gachaType": "dagger",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "精度の砲門で卓を制せ。"
+        "flavor": "反射の読みで砲門を貫け。"
     },
     {
         "game": "ビリヤード",
         "name": "帆走の維持",
-        "detail": "ボーラードで3フレーム連続得点",
+        "detail": "フォローで白球を奥に送るショット2回成功",
         "gachaType": "staff",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "帆走を維持して航路を守れ。"
+        "flavor": "帆走を維持して航路を伸ばせ。"
     },
     {
         "game": "ビリヤード",
         "name": "狙撃の締め",
-        "detail": "ボーラードで120点以上",
+        "detail": "ロングショットで的球を入れる",
         "gachaType": "gun",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
@@ -216,11 +216,11 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "name": "剣の連鎖",
-        "detail": "ボーラードでストライク2回",
+        "detail": "センターショット連続3回成功",
         "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "剣の連鎖で卓を制圧せよ。"
+        "flavor": "剣の連鎖で精度を刻め。"
     },
     {
         "game": "ビリヤード",
