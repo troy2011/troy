@@ -1977,6 +1977,61 @@ function closeQuestPanel(items) {
     items.forEach((node) => node.classList.remove('is-active'));
 }
 
+function wireQuestPanelPullToClose(panel, body, items) {
+    if (!panel || !body) return;
+    let pulling = false;
+    let canPull = false;
+    let startY = 0;
+    let lastPull = 0;
+    let baseOffset = 0;
+    const closeThreshold = 70;
+    const maxPull = 110;
+
+    const onStart = (event) => {
+        if (!panel.classList.contains('active')) return;
+        if (body.scrollTop > 0) {
+            canPull = false;
+            return;
+        }
+        const touch = event.touches[0];
+        if (!touch) return;
+        pulling = true;
+        canPull = true;
+        startY = touch.clientY;
+        lastPull = 0;
+        baseOffset = panel.classList.contains('active') ? -16 : 0;
+        panel.style.transition = 'none';
+    };
+
+    const onMove = (event) => {
+        if (!pulling || !canPull) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        const delta = touch.clientY - startY;
+        if (delta <= 0) return;
+        event.preventDefault();
+        lastPull = Math.min(delta, maxPull);
+        panel.style.transform = `translateY(${baseOffset + lastPull}px)`;
+    };
+
+    const onEnd = () => {
+        if (!pulling) return;
+        pulling = false;
+        canPull = false;
+        panel.style.transition = '';
+        panel.style.transform = '';
+        if (lastPull >= closeThreshold) {
+            closeQuestPanel(items);
+        }
+        lastPull = 0;
+    };
+
+    body.addEventListener('touchstart', onStart, { passive: true });
+    body.addEventListener('touchmove', onMove, { passive: false });
+    body.addEventListener('touchend', onEnd, { passive: true });
+    body.addEventListener('touchcancel', onEnd, { passive: true });
+}
+
 function wireQuestFilters() {
     if (_questWired) return;
     _questWired = true;
@@ -2012,6 +2067,8 @@ function wireQuestFilters() {
     updateQuestBetControls();
     updateQuestModeButtons();
     if (!questItems.length) return;
+    const questPanelBody = document.querySelector('#troyQuestPanel .troy-quest-panel-body');
+    wireQuestPanelPullToClose(panel, questPanelBody, questItems);
     questItems.forEach((item) => {
         item.classList.add('troy-quest-item');
         item.addEventListener('click', async () => {
