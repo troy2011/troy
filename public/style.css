@@ -1421,6 +1421,10 @@ body[data-sea-tone="night"] .home-hero-card {
     transform: translateY(0);
 }
 
+.troy-quest-panel.island-command-panel.active {
+    transform: translateY(-16px);
+}
+
 .island-command-header {
     display: flex;
     justify-content: space-between;
