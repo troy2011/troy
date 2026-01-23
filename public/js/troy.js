@@ -51,12 +51,7 @@ const DIFFICULTY_ALIASES = {
     hard: 6
 };
 
-const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
 const QUEST_BET_OPTIONS = [10, 50, 100, 300, 500, 1000];
-const QUEST_BET_THRESHOLDS = {
-    bonus1: 500,
-    bonus2: 1000
-};
 const QUEST_BET_MAX = 100000;
 const QUEST_SELECTION_TTL_MS = 30 * 60 * 1000;
 const QUEST_TIER_ORDER = ['beginner', 'intermediate', 'advanced'];
@@ -1497,28 +1492,6 @@ function normalizeQuestBetAmount(value) {
     return Math.min(allowed, QUEST_BET_MAX);
 }
 
-function getQuestBetTier(amount) {
-    if (amount >= QUEST_BET_THRESHOLDS.bonus2) return 2;
-    if (amount >= QUEST_BET_THRESHOLDS.bonus1) return 1;
-    return 0;
-}
-
-function getQuestRewardTierIndex(difficulty, betAmount) {
-    const normalized = normalizeQuestDifficultyValue(difficulty);
-    const baseTier = getQuestDifficultyTierIndex(normalized);
-    return Math.min(2, baseTier + getQuestBetTier(betAmount));
-}
-
-function getQuestRewardTierKey(difficulty, betAmount) {
-    const key = ['common', 'rare', 'epic'][getQuestRewardTierIndex(difficulty, betAmount)];
-    return key || 'common';
-}
-
-function getQuestRewardTierLabel(difficulty, betAmount) {
-    const index = getQuestRewardTierIndex(difficulty, betAmount);
-    return QUEST_REWARD_TIERS[index] || QUEST_REWARD_TIERS[0];
-}
-
 function normalizeGachaType(type) {
     if (!type) return null;
     const key = String(type).toLowerCase();
@@ -1971,15 +1944,6 @@ function renderQuestList(list) {
             gacha.textContent = `報酬: ${label}`;
         }
 
-        let rewardTier = null;
-        if (!isBattleMode) {
-            const rewardTierKey = getQuestRewardTierKey(difficultyValue, _questBetAmount);
-            const rewardTierLabel = getQuestRewardTierLabel(difficultyValue, _questBetAmount);
-            rewardTier = document.createElement('div');
-            rewardTier.className = `troy-quest-reward-tier troy-quest-reward-tier-${rewardTierKey}`;
-            rewardTier.textContent = `ランク: ${rewardTierLabel}`;
-        }
-
         const actions = document.createElement('div');
         actions.className = 'troy-quest-actions';
 
@@ -2001,9 +1965,6 @@ function renderQuestList(list) {
             card.appendChild(flavor);
         }
         card.appendChild(gacha);
-        if (rewardTier) {
-            card.appendChild(rewardTier);
-        }
         card.appendChild(actions);
         container.appendChild(card);
         });
