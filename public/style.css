@@ -1564,6 +1564,21 @@ body[data-sea-tone="night"] .home-hero-card {
     letter-spacing: 0.08em;
 }
 
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 12, 18, 0.7);
+    z-index: 4000;
+    pointer-events: auto;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
 #tabContentMap.map-ready .map-loading-overlay {
     opacity: 0;
     pointer-events: none;
