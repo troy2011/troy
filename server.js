@@ -461,6 +461,7 @@ function createDependencies() {
         PlayFabEconomy,
         firestore,
         admin,
+        lineClient,
         catalogCache,
         catalogCurrencyMap,
         ensureTitleEntityToken,

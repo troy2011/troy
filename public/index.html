@@ -156,6 +156,13 @@
                         </ul>
                     </div>
                 </div>
+                <div class="content-area">
+                    <div class="troy-checkout">
+                        <div class="troy-checkout-title">会計</div>
+                        <div class="troy-checkout-total">合計: <span id="troyOrderTotal">¥0</span></div>
+                        <div id="troyOrderList" class="troy-checkout-list"></div>
+                    </div>
+                </div>
                 <div id="troyMenuModal" class="troy-menu-modal modal-overlay">
                     <div class="troy-menu-modal-card">
                         <div class="troy-menu-modal-header">
@@ -163,6 +170,22 @@
                             <button id="troyMenuModalClose" class="troy-menu-modal-close" type="button">×</button>
                         </div>
                         <div id="troyMenuModalList" class="troy-menu-modal-list"></div>
+                    </div>
+                </div>
+                <div id="troyOrderModal" class="troy-order-modal modal-overlay">
+                    <div class="troy-order-modal-card">
+                        <div class="troy-order-modal-header">
+                            <div class="troy-order-modal-title">注文確認</div>
+                            <button id="troyOrderModalClose" class="troy-order-modal-close" type="button">×</button>
+                        </div>
+                        <div class="troy-order-modal-body">
+                            <div id="troyOrderItemName" class="troy-order-item-name"></div>
+                            <div id="troyOrderItemPrice" class="troy-order-item-price"></div>
+                            <div class="troy-order-modal-actions">
+                                <button id="troyOrderConfirm" class="troy-order-confirm" type="button">注文する</button>
+                                <button id="troyOrderCancel" class="troy-order-cancel" type="button">キャンセル</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="content-area">

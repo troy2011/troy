@@ -6,7 +6,8 @@ import {
     leaveTroy,
     claimTroyQuest,
     getTroyQuestClears,
-    usePoints
+    usePoints,
+    sendTroyOrder
 } from './playfabClient.js';
 
 let _wired = false;
@@ -22,6 +23,9 @@ let _activeQuestGameKey = '';
 let _activeQuestGameLabel = '未選択';
 let _questSelections = {};
 let _questSelectionTimer = null;
+let _orderTotal = 0;
+let _orderItems = [];
+let _pendingOrder = null;
 
 const TROY_GACHA_LABELS = {
     hat: '布帽子',
@@ -1655,6 +1659,106 @@ function getMenuModalElements() {
     };
 }
 
+function getOrderElements() {
+    return {
+        total: document.getElementById('troyOrderTotal'),
+        list: document.getElementById('troyOrderList')
+    };
+}
+
+function formatYen(value) {
+    const amount = Number(value) || 0;
+    return `¥${amount.toLocaleString('ja-JP')}`;
+}
+
+function parseYenPrice(value) {
+    const raw = String(value || '').replace(/[^\d]/g, '');
+    const amount = Number(raw);
+    return Number.isFinite(amount) ? amount : 0;
+}
+
+function renderOrderSummary() {
+    const { total, list } = getOrderElements();
+    if (total) total.textContent = formatYen(_orderTotal);
+    if (!list) return;
+    list.innerHTML = '';
+    if (!_orderItems.length) {
+        const empty = document.createElement('div');
+        empty.className = 'troy-checkout-empty';
+        empty.textContent = '注文はまだありません';
+        list.appendChild(empty);
+        return;
+    }
+    _orderItems.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'troy-checkout-item';
+        const name = document.createElement('span');
+        name.textContent = item.name;
+        const price = document.createElement('span');
+        price.textContent = formatYen(item.price * item.quantity);
+        row.appendChild(name);
+        row.appendChild(price);
+        list.appendChild(row);
+    });
+}
+
+function getOrderModalElements() {
+    return {
+        modal: document.getElementById('troyOrderModal'),
+        name: document.getElementById('troyOrderItemName'),
+        price: document.getElementById('troyOrderItemPrice'),
+        close: document.getElementById('troyOrderModalClose'),
+        confirm: document.getElementById('troyOrderConfirm'),
+        cancel: document.getElementById('troyOrderCancel')
+    };
+}
+
+function openOrderModal(item) {
+    const { modal, name, price } = getOrderModalElements();
+    if (!modal || !name || !price) return;
+    _pendingOrder = item;
+    name.textContent = item.name;
+    price.textContent = formatYen(item.price);
+    modal.style.display = 'flex';
+}
+
+function closeOrderModal() {
+    const { modal } = getOrderModalElements();
+    if (modal) modal.style.display = 'none';
+    _pendingOrder = null;
+}
+
+async function confirmOrder(playFabId) {
+    if (!_pendingOrder) return;
+    const item = _pendingOrder;
+    const quantity = item.quantity || 1;
+    const nextTotal = _orderTotal + item.price * quantity;
+    const buyerName = getDisplayName();
+    try {
+        await sendTroyOrder(playFabId, {
+            itemName: item.name,
+            price: item.price,
+            quantity,
+            total: nextTotal,
+            displayName: buyerName
+        });
+        _orderTotal = nextTotal;
+        _orderItems.push({ name: item.name, price: item.price, quantity });
+        renderOrderSummary();
+        closeOrderModal();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('注文を受け付けました。');
+        }
+    } catch (error) {
+        console.warn('[TroyOrder] Failed:', error?.message || error);
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('注文に失敗しました。');
+        } else {
+            alert('注文に失敗しました。');
+        }
+    }
+}
+
 function openMenuModal(menuId) {
     const data = TROY_PRODUCT_MENUS[menuId];
     if (!data) return;
@@ -1670,6 +1774,12 @@ function openMenuModal(menuId) {
         const price = document.createElement('span');
         price.className = 'troy-menu-modal-price';
         price.textContent = item.price;
+        const priceValue = parseYenPrice(item.price);
+        row.addEventListener('click', () => {
+            if (!priceValue) return;
+            closeMenuModal();
+            openOrderModal({ name: item.name, price: priceValue, quantity: 1 });
+        });
         row.appendChild(name);
         row.appendChild(price);
         list.appendChild(row);
@@ -1686,6 +1796,7 @@ function wireMenuPopups() {
     if (_menuWired) return;
     _menuWired = true;
     const { modal, close } = getMenuModalElements();
+    const orderModal = getOrderModalElements();
     if (close) {
         close.addEventListener('click', closeMenuModal);
     }
@@ -1694,12 +1805,29 @@ function wireMenuPopups() {
             if (event.target === modal) closeMenuModal();
         });
     }
+    if (orderModal.close) {
+        orderModal.close.addEventListener('click', closeOrderModal);
+    }
+    if (orderModal.cancel) {
+        orderModal.cancel.addEventListener('click', closeOrderModal);
+    }
+    if (orderModal.modal) {
+        orderModal.modal.addEventListener('click', (event) => {
+            if (event.target === orderModal.modal) closeOrderModal();
+        });
+    }
     const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
     menuButtons.forEach((button) => {
         button.addEventListener('click', () => {
             openMenuModal(button.dataset.menuId);
         });
     });
+    if (orderModal.confirm) {
+        orderModal.confirm.addEventListener('click', () => {
+            confirmOrder(window.myPlayFabId);
+        });
+    }
+    renderOrderSummary();
 }
 
 function isTierUnlocked(quests, tier) {

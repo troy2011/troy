@@ -949,6 +949,59 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // TROY注文通知
+    app.post('/api/troy-order', async (req, res) => {
+        const { playFabId, itemName, price, quantity, total, displayName } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!itemName) return res.status(400).json({ error: 'itemName is required' });
+        const { lineClient } = deps;
+        if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(400).json({ error: 'NationNotSet' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
+
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const roomSnap = await roomRef.get();
+            const roomData = roomSnap.data() || {};
+            if (!roomSnap.exists || !roomData.isOpen) {
+                return res.status(403).json({ error: 'TroyClosed' });
+            }
+            const kingPlayFabId = String(roomData.updatedBy || '').trim();
+            if (!kingPlayFabId) {
+                return res.status(404).json({ error: 'KingNotFound' });
+            }
+            const kingLineUserId = await getLineUserId(kingPlayFabId, { promisifyPlayFab, PlayFabServer });
+            if (!kingLineUserId) {
+                return res.status(404).json({ error: 'KingLineNotFound' });
+            }
+
+            const buyerName = String(displayName || '').trim()
+                || await getPlayerDisplayName(playFabId, { promisifyPlayFab, PlayFabServer })
+                || playFabId;
+            const safeQty = Number(quantity) || 1;
+            const priceValue = Number(price);
+            const totalValue = Number(total);
+            const priceLabel = Number.isFinite(priceValue) ? `¥${priceValue.toLocaleString('ja-JP')}` : '不明';
+            const totalLabel = Number.isFinite(totalValue) ? `¥${totalValue.toLocaleString('ja-JP')}` : '不明';
+            const orderLine = `${String(itemName)}${safeQty > 1 ? ` x${safeQty}` : ''}`;
+            const message = [
+                '【TROY注文】',
+                `注文者: ${buyerName}`,
+                `内容: ${orderLine}`,
+                `金額: ${priceLabel}`,
+                `会計合計: ${totalLabel}`
+            ].join('\n');
+
+            await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[troy-order] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to send order' });
+        }
+    });
+
     // TROY入店
     app.post('/api/troy-join', async (req, res) => {
         const { playFabId, displayName } = req.body || {};
