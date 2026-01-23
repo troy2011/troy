@@ -121,7 +121,7 @@ const TROY_QUESTS = [
         "gachaType": "hat",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "真っ直ぐの一球で航路を示せ。 布帽子の心得。"
+        "flavor": "真っ直ぐの一球で航路を示せ。"
     },
     {
         "game": "ビリヤード",
@@ -130,7 +130,7 @@ const TROY_QUESTS = [
         "gachaType": "wand",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "港の得点で流れを掴め。 ワンドの心得。"
+        "flavor": "港の得点で流れを掴め。"
     },
     {
         "game": "ビリヤード",
@@ -139,7 +139,7 @@ const TROY_QUESTS = [
         "gachaType": "dagger",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "止めの精度で見張りを任せろ。 ナイフの心得。"
+        "flavor": "止めの精度で見張りを任せろ。"
     },
     {
         "game": "ビリヤード",
@@ -148,7 +148,7 @@ const TROY_QUESTS = [
         "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "舵の切り返しで道を開け。 ソードの心得。"
+        "flavor": "舵の切り返しで道を開け。"
     },
     {
         "game": "ビリヤード",
@@ -157,7 +157,7 @@ const TROY_QUESTS = [
         "gachaType": "axe",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "黒旗の積算で優位を築け。 斧の心得。"
+        "flavor": "黒旗の積算で優位を築け。"
     },
     {
         "game": "ビリヤード",
@@ -166,7 +166,7 @@ const TROY_QUESTS = [
         "gachaType": "blunt",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "静けさの中で精度を重ねろ。 こん棒の心得。"
+        "flavor": "静けさの中で精度を重ねろ。"
     },
     {
         "game": "ビリヤード",
@@ -175,7 +175,7 @@ const TROY_QUESTS = [
         "gachaType": "shield",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "引きの計算で波間を制せ。 盾の心得。"
+        "flavor": "引きの計算で波間を制せ。"
     },
     {
         "game": "ビリヤード",
@@ -184,7 +184,7 @@ const TROY_QUESTS = [
         "gachaType": "polearm",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "反射の読みで砲門を貫け。 槍の心得。"
+        "flavor": "反射の読みで砲門を貫け。"
     },
     {
         "game": "ビリヤード",
@@ -193,7 +193,7 @@ const TROY_QUESTS = [
         "gachaType": "leather",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "帆走を維持して航路を伸ばせ。 革兜の心得。"
+        "flavor": "帆走を維持して航路を伸ばせ。"
     },
     {
         "game": "ビリヤード",
@@ -202,7 +202,7 @@ const TROY_QUESTS = [
         "gachaType": "metal",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "狙撃の精度で締めくくれ。 鉄兜の心得。"
+        "flavor": "狙撃の精度で締めくくれ。"
     },
     {
         "game": "ビリヤード",
@@ -211,7 +211,7 @@ const TROY_QUESTS = [
         "gachaType": "staff",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "鋼の胆力で逆転を奪え。 杖の心得。"
+        "flavor": "鋼の胆力で逆転を奪え。"
     },
     {
         "game": "ビリヤード",
@@ -220,7 +220,7 @@ const TROY_QUESTS = [
         "gachaType": "gun",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "剣の連鎖で精度を刻め。 銃（弓）の心得。"
+        "flavor": "剣の連鎖で精度を刻め。"
     },
     {
         "game": "ビリヤード",
@@ -380,7 +380,7 @@ const TROY_QUESTS = [
         "gachaType": "hat",
         "questKey": "karaoke-single",
         "difficulty": 1,
-        "flavor": "潮騒に合わせて歌い切れ。 布帽子の心得。"
+        "flavor": "潮騒に合わせて歌い切れ。"
     },
     {
         "game": "カラオケ",
@@ -389,7 +389,7 @@ const TROY_QUESTS = [
         "gachaType": "wand",
         "questKey": "karaoke-single",
         "difficulty": 1,
-        "flavor": "甲板で合図を出すように歌え。 ワンドの心得。"
+        "flavor": "甲板で合図を出すように歌え。"
     },
     {
         "game": "カラオケ",
@@ -398,7 +398,7 @@ const TROY_QUESTS = [
         "gachaType": "dagger",
         "questKey": "karaoke-single",
         "difficulty": 1,
-        "flavor": "波に乗る声を響かせろ。 ナイフの心得。"
+        "flavor": "波に乗る声を響かせろ。"
     },
     {
         "game": "カラオケ",
@@ -407,7 +407,7 @@ const TROY_QUESTS = [
         "gachaType": "sword",
         "questKey": "karaoke-single",
         "difficulty": 3,
-        "flavor": "帆走のリズムを揃えよ。 ソードの心得。"
+        "flavor": "帆走のリズムを揃えよ。"
     },
     {
         "game": "カラオケ",
@@ -416,7 +416,7 @@ const TROY_QUESTS = [
         "gachaType": "axe",
         "questKey": "karaoke-single",
         "difficulty": 3,
-        "flavor": "連続の刃で航海を進め。 斧の心得。"
+        "flavor": "連続の刃で航海を進め。"
     },
     {
         "game": "カラオケ",
@@ -425,7 +425,7 @@ const TROY_QUESTS = [
         "gachaType": "blunt",
         "questKey": "karaoke-single",
         "difficulty": 3,
-        "flavor": "灯台の高音で道を照らせ。 こん棒の心得。"
+        "flavor": "灯台の高音で道を照らせ。"
     },
     {
         "game": "カラオケ",
@@ -434,7 +434,7 @@ const TROY_QUESTS = [
         "gachaType": "shield",
         "questKey": "karaoke-single",
         "difficulty": 5,
-        "flavor": "航海の誓いを高らかに。 盾の心得。"
+        "flavor": "航海の誓いを高らかに。"
     },
     {
         "game": "カラオケ",
@@ -443,7 +443,7 @@ const TROY_QUESTS = [
         "gachaType": "polearm",
         "questKey": "karaoke-single",
         "difficulty": 5,
-        "flavor": "嵐を越える声を撃て。 槍の心得。"
+        "flavor": "嵐を越える声を撃て。"
     },
     {
         "game": "カラオケ",
@@ -452,7 +452,7 @@ const TROY_QUESTS = [
         "gachaType": "leather",
         "questKey": "karaoke-single",
         "difficulty": 5,
-        "flavor": "鋼の響きで耐え抜け。 革兜の心得。"
+        "flavor": "鋼の響きで耐え抜け。"
     },
     {
         "game": "カラオケ",
@@ -461,7 +461,7 @@ const TROY_QUESTS = [
         "gachaType": "metal",
         "questKey": "karaoke-single",
         "difficulty": 6,
-        "flavor": "覇者の剣は歌で輝く。 鉄兜の心得。"
+        "flavor": "覇者の剣は歌で輝く。"
     },
     {
         "game": "カラオケ",
@@ -470,7 +470,7 @@ const TROY_QUESTS = [
         "gachaType": "staff",
         "questKey": "karaoke-single",
         "difficulty": 6,
-        "flavor": "疾風の一声で突き抜けろ。 杖の心得。"
+        "flavor": "疾風の一声で突き抜けろ。"
     },
     {
         "game": "カラオケ",
@@ -479,7 +479,7 @@ const TROY_QUESTS = [
         "gachaType": "gun",
         "questKey": "karaoke-single",
         "difficulty": 6,
-        "flavor": "極みの抑揚で王座を掴め。 銃（弓）の心得。"
+        "flavor": "極みの抑揚で王座を掴め。"
     },
     {
         "game": "カラオケ",
@@ -638,7 +638,7 @@ const TROY_QUESTS = [
         "gachaType": "hat",
         "questKey": "darts-countup",
         "difficulty": 1,
-        "flavor": "風向きの一投で始めよう。 布帽子の心得。"
+        "flavor": "風向きの一投で始めよう。"
     },
     {
         "game": "ダーツ",
@@ -647,7 +647,7 @@ const TROY_QUESTS = [
         "gachaType": "wand",
         "questKey": "darts-01",
         "difficulty": 1,
-        "flavor": "海図の航路を完走せよ。 ワンドの心得。"
+        "flavor": "海図の航路を完走せよ。"
     },
     {
         "game": "ダーツ",
@@ -656,7 +656,7 @@ const TROY_QUESTS = [
         "gachaType": "dagger",
         "questKey": "darts-cricket",
         "difficulty": 1,
-        "flavor": "初クローズで陣地を開け。 ナイフの心得。"
+        "flavor": "初クローズで陣地を開け。"
     },
     {
         "game": "ダーツ",
@@ -665,7 +665,7 @@ const TROY_QUESTS = [
         "gachaType": "sword",
         "questKey": "darts-countup",
         "difficulty": 3,
-        "flavor": "照準の一閃で点を刻め。 ソードの心得。"
+        "flavor": "照準の一閃で点を刻め。"
     },
     {
         "game": "ダーツ",
@@ -674,7 +674,7 @@ const TROY_QUESTS = [
         "gachaType": "axe",
         "questKey": "darts-01",
         "difficulty": 3,
-        "flavor": "舵取りの二重で決めろ。 斧の心得。"
+        "flavor": "舵取りの二重で決めろ。"
     },
     {
         "game": "ダーツ",
@@ -683,7 +683,7 @@ const TROY_QUESTS = [
         "gachaType": "blunt",
         "questKey": "darts-cricket",
         "difficulty": 3,
-        "flavor": "陣地制圧で守りを固めろ。 こん棒の心得。"
+        "flavor": "陣地制圧で守りを固めろ。"
     },
     {
         "game": "ダーツ",
@@ -692,7 +692,7 @@ const TROY_QUESTS = [
         "gachaType": "shield",
         "questKey": "darts-countup",
         "difficulty": 5,
-        "flavor": "疾風の連打で切り開け。 盾の心得。"
+        "flavor": "疾風の連打で切り開け。"
     },
     {
         "game": "ダーツ",
@@ -701,7 +701,7 @@ const TROY_QUESTS = [
         "gachaType": "polearm",
         "questKey": "darts-01",
         "difficulty": 5,
-        "flavor": "砲撃の速さで決着を。 槍の心得。"
+        "flavor": "砲撃の速さで決着を。"
     },
     {
         "game": "ダーツ",
@@ -710,7 +710,7 @@ const TROY_QUESTS = [
         "gachaType": "leather",
         "questKey": "darts-cricket",
         "difficulty": 5,
-        "flavor": "防衛線を敷いて守れ。 革兜の心得。"
+        "flavor": "防衛線を敷いて守れ。"
     },
     {
         "game": "ダーツ",
@@ -719,7 +719,7 @@ const TROY_QUESTS = [
         "gachaType": "metal",
         "questKey": "darts-countup",
         "difficulty": 6,
-        "flavor": "制圧の嵐で主導権を奪え。 鉄兜の心得。"
+        "flavor": "制圧の嵐で主導権を奪え。"
     },
     {
         "game": "ダーツ",
@@ -728,7 +728,7 @@ const TROY_QUESTS = [
         "gachaType": "staff",
         "questKey": "darts-01",
         "difficulty": 6,
-        "flavor": "決戦の一矢で決めろ。 杖の心得。"
+        "flavor": "決戦の一矢で決めろ。"
     },
     {
         "game": "ダーツ",
@@ -737,7 +737,7 @@ const TROY_QUESTS = [
         "gachaType": "gun",
         "questKey": "darts-cricket",
         "difficulty": 6,
-        "flavor": "完全封鎖で勝利を固めろ。 銃（弓）の心得。"
+        "flavor": "完全封鎖で勝利を固めろ。"
     },
     {
         "game": "ダーツ",
@@ -896,7 +896,7 @@ const TROY_QUESTS = [
         "gachaType": "hat",
         "questKey": "cards-poker",
         "difficulty": 1,
-        "flavor": "船乗りの手札で勝負せよ。 布帽子の心得。"
+        "flavor": "船乗りの手札で勝負せよ。"
     },
     {
         "game": "トランプ",
@@ -905,7 +905,7 @@ const TROY_QUESTS = [
         "gachaType": "wand",
         "questKey": "cards-blackjack",
         "difficulty": 1,
-        "flavor": "静かな勝負で守り切れ。 ワンドの心得。"
+        "flavor": "静かな勝負で守り切れ。"
     },
     {
         "game": "トランプ",
@@ -914,7 +914,7 @@ const TROY_QUESTS = [
         "gachaType": "dagger",
         "questKey": "cards-daifugo",
         "difficulty": 1,
-        "flavor": "波間の一抜けで先手を取れ。 ナイフの心得。"
+        "flavor": "波間の一抜けで先手を取れ。"
     },
     {
         "game": "トランプ",
@@ -923,7 +923,7 @@ const TROY_QUESTS = [
         "gachaType": "sword",
         "questKey": "cards-poker",
         "difficulty": 3,
-        "flavor": "旗揚げの一列で勝負を決めろ。 ソードの心得。"
+        "flavor": "旗揚げの一列で勝負を決めろ。"
     },
     {
         "game": "トランプ",
@@ -932,7 +932,7 @@ const TROY_QUESTS = [
         "gachaType": "axe",
         "questKey": "cards-blackjack",
         "difficulty": 3,
-        "flavor": "一撃の21で決めろ。 斧の心得。"
+        "flavor": "一撃の21で決めろ。"
     },
     {
         "game": "トランプ",
@@ -941,7 +941,7 @@ const TROY_QUESTS = [
         "gachaType": "blunt",
         "questKey": "cards-daifugo",
         "difficulty": 3,
-        "flavor": "連勝の航路で押し切れ。 こん棒の心得。"
+        "flavor": "連勝の航路で押し切れ。"
     },
     {
         "game": "トランプ",
@@ -950,7 +950,7 @@ const TROY_QUESTS = [
         "gachaType": "shield",
         "questKey": "cards-poker",
         "difficulty": 5,
-        "flavor": "王手の剣で勝負を終えよ。 盾の心得。"
+        "flavor": "王手の剣で勝負を終えよ。"
     },
     {
         "game": "トランプ",
@@ -959,7 +959,7 @@ const TROY_QUESTS = [
         "gachaType": "polearm",
         "questKey": "cards-blackjack",
         "difficulty": 5,
-        "flavor": "守護の連勝で相手を封じろ。 槍の心得。"
+        "flavor": "守護の連勝で相手を封じろ。"
     },
     {
         "game": "トランプ",
@@ -968,7 +968,7 @@ const TROY_QUESTS = [
         "gachaType": "leather",
         "questKey": "cards-daifugo",
         "difficulty": 5,
-        "flavor": "覇権の席を譲るな。 革兜の心得。"
+        "flavor": "覇権の席を譲るな。"
     },
     {
         "game": "トランプ",
@@ -977,7 +977,7 @@ const TROY_QUESTS = [
         "gachaType": "metal",
         "questKey": "cards-poker",
         "difficulty": 6,
-        "flavor": "王手の四枚で決着をつけろ。 鉄兜の心得。"
+        "flavor": "王手の四枚で決着をつけろ。"
     },
     {
         "game": "トランプ",
@@ -986,7 +986,7 @@ const TROY_QUESTS = [
         "gachaType": "staff",
         "questKey": "cards-blackjack",
         "difficulty": 6,
-        "flavor": "覇者の連勝で勝ち切れ。 杖の心得。"
+        "flavor": "覇者の連勝で勝ち切れ。"
     },
     {
         "game": "トランプ",
@@ -995,7 +995,7 @@ const TROY_QUESTS = [
         "gachaType": "gun",
         "questKey": "cards-daifugo",
         "difficulty": 6,
-        "flavor": "覇権の戴冠で栄冠を掴め。 銃（弓）の心得。"
+        "flavor": "覇権の戴冠で栄冠を掴め。"
     },
     {
         "game": "トランプ",
@@ -1154,7 +1154,7 @@ const TROY_QUESTS = [
         "gachaType": "hat",
         "questKey": "other-board",
         "difficulty": 1,
-        "flavor": "港で演習をこなせ。 布帽子の心得。"
+        "flavor": "港で演習をこなせ。"
     },
     {
         "game": "その他",
@@ -1163,7 +1163,7 @@ const TROY_QUESTS = [
         "gachaType": "wand",
         "questKey": "other-mini",
         "difficulty": 1,
-        "flavor": "小舟の冒険で腕を磨け。 ワンドの心得。"
+        "flavor": "小舟の冒険で腕を磨け。"
     },
     {
         "game": "その他",
@@ -1172,7 +1172,7 @@ const TROY_QUESTS = [
         "gachaType": "dagger",
         "questKey": "other-kurohige",
         "difficulty": 1,
-        "flavor": "黒ひげの試しを乗り越えよ。 ナイフの心得。"
+        "flavor": "黒ひげの試しを乗り越えよ。"
     },
     {
         "game": "その他",
@@ -1181,7 +1181,7 @@ const TROY_QUESTS = [
         "gachaType": "sword",
         "questKey": "other-board",
         "difficulty": 3,
-        "flavor": "防衛の勝利で士気を上げろ。 ソードの心得。"
+        "flavor": "防衛の勝利で士気を上げろ。"
     },
     {
         "game": "その他",
@@ -1190,7 +1190,7 @@ const TROY_QUESTS = [
         "gachaType": "axe",
         "questKey": "other-mini",
         "difficulty": 3,
-        "flavor": "潮流を突破して進め。 斧の心得。"
+        "flavor": "潮流を突破して進め。"
     },
     {
         "game": "その他",
@@ -1199,7 +1199,7 @@ const TROY_QUESTS = [
         "gachaType": "blunt",
         "questKey": "other-kurohige",
         "difficulty": 3,
-        "flavor": "綱渡りの集中で乗り切れ。 こん棒の心得。"
+        "flavor": "綱渡りの集中で乗り切れ。"
     },
     {
         "game": "その他",
@@ -1208,7 +1208,7 @@ const TROY_QUESTS = [
         "gachaType": "shield",
         "questKey": "other-board",
         "difficulty": 5,
-        "flavor": "大海防衛線で押し切れ。 盾の心得。"
+        "flavor": "大海防衛線で押し切れ。"
     },
     {
         "game": "その他",
@@ -1217,7 +1217,7 @@ const TROY_QUESTS = [
         "gachaType": "polearm",
         "questKey": "other-mini",
         "difficulty": 5,
-        "flavor": "疾風の航路で無傷を狙え。 槍の心得。"
+        "flavor": "疾風の航路で無傷を狙え。"
     },
     {
         "game": "その他",
@@ -1226,7 +1226,7 @@ const TROY_QUESTS = [
         "gachaType": "leather",
         "questKey": "other-kurohige",
         "difficulty": 5,
-        "flavor": "黒旗の運命を味方にせよ。 革兜の心得。"
+        "flavor": "黒旗の運命を味方にせよ。"
     },
     {
         "game": "その他",
@@ -1235,7 +1235,7 @@ const TROY_QUESTS = [
         "gachaType": "metal",
         "questKey": "other-board",
         "difficulty": 6,
-        "flavor": "完全勝利で防衛線を守り切れ。 鉄兜の心得。"
+        "flavor": "完全勝利で防衛線を守り切れ。"
     },
     {
         "game": "その他",
@@ -1244,7 +1244,7 @@ const TROY_QUESTS = [
         "gachaType": "staff",
         "questKey": "other-mini",
         "difficulty": 6,
-        "flavor": "疾風の航路で完璧を刻め。 杖の心得。"
+        "flavor": "疾風の航路で完璧を刻め。"
     },
     {
         "game": "その他",
@@ -1253,7 +1253,7 @@ const TROY_QUESTS = [
         "gachaType": "gun",
         "questKey": "other-kurohige",
         "difficulty": 6,
-        "flavor": "黒旗の運命を味方にせよ。 銃（弓）の心得。"
+        "flavor": "黒旗の運命を味方にせよ。"
     },
     {
         "game": "その他",
