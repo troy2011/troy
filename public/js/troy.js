@@ -1671,6 +1671,15 @@ function formatYen(value) {
     return `¥${amount.toLocaleString('ja-JP')}`;
 }
 
+function updatePointsDisplays(points) {
+    const value = Number(points);
+    if (!Number.isFinite(value)) return;
+    const currentPointsEl = document.getElementById('currentPoints');
+    if (currentPointsEl) currentPointsEl.innerText = String(value);
+    const globalPointsEl = document.getElementById('globalPoints');
+    if (globalPointsEl) globalPointsEl.innerText = String(value);
+}
+
 function parseYenPrice(value) {
     const raw = String(value || '').replace(/[^\d]/g, '');
     const amount = Number(raw);
@@ -2006,7 +2015,7 @@ async function selectQuest(quest) {
     const ok = window.confirm(`BET ${betAmount}PS を消費して「${quest.name}」を選択しますか？`);
     if (!ok) return;
     try {
-        await usePoints(playFabId, betAmount, { isSilent: true });
+        const result = await usePoints(playFabId, betAmount, { isSilent: true });
         _questSelections[quest.questId] = {
             selectedAt: Date.now(),
             betAmount
@@ -2015,6 +2024,9 @@ async function selectQuest(quest) {
         scheduleQuestSelectionRefresh();
         if (_lastQuestList.length) {
             renderQuestList(_lastQuestList);
+        }
+        if (Number.isFinite(result?.newBalance)) {
+            updatePointsDisplays(result.newBalance);
         }
         if (window.showRpgMessage) window.showRpgMessage(`BET ${betAmount}PS を消費しました。`);
     } catch (error) {
