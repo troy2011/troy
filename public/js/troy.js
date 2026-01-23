@@ -199,7 +199,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "狙撃の締め",
         "detail": "ロングショットで的球を入れる",
-        "gachaType": "metal",
+        "gachaType": "gun",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "狙撃の精度で締めくくれ。"
@@ -208,7 +208,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "鋼の逆転",
         "detail": "ボーラードで最終フレームで逆転勝利",
-        "gachaType": "staff",
+        "gachaType": "metal",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "鋼の胆力で逆転を奪え。"
@@ -217,7 +217,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "name": "剣の連鎖",
         "detail": "センターショット連続3回成功",
-        "gachaType": "gun",
+        "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "剣の連鎖で精度を刻め。"
@@ -413,7 +413,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "航海のコンボ",
         "detail": "シングルでコンボ10以上",
-        "gachaType": "axe",
+        "gachaType": "dagger",
         "questKey": "karaoke-single",
         "difficulty": 3,
         "flavor": "連続の刃で航海を進め。"
@@ -449,7 +449,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "鋼の響き",
         "detail": "シングルで抑揚80%以上",
-        "gachaType": "leather",
+        "gachaType": "metal",
         "questKey": "karaoke-single",
         "difficulty": 5,
         "flavor": "鋼の響きで耐え抜け。"
@@ -458,7 +458,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "覇者の歌",
         "detail": "シングルで95点以上",
-        "gachaType": "metal",
+        "gachaType": "sword",
         "questKey": "karaoke-single",
         "difficulty": 6,
         "flavor": "覇者の剣は歌で輝く。"
@@ -467,7 +467,7 @@ const TROY_QUESTS = [
         "game": "カラオケ",
         "name": "疾風の一声",
         "detail": "シングルでコンボ40以上",
-        "gachaType": "staff",
+        "gachaType": "polearm",
         "questKey": "karaoke-single",
         "difficulty": 6,
         "flavor": "疾風の一声で突き抜けろ。"
@@ -680,7 +680,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "陣地制圧",
         "detail": "クリケットで3クローズ達成",
-        "gachaType": "blunt",
+        "gachaType": "shield",
         "questKey": "darts-cricket",
         "difficulty": 3,
         "flavor": "陣地制圧で守りを固めろ。"
@@ -707,7 +707,7 @@ const TROY_QUESTS = [
         "game": "ダーツ",
         "name": "防衛線",
         "detail": "クリケットで5クローズ達成",
-        "gachaType": "leather",
+        "gachaType": "shield",
         "questKey": "darts-cricket",
         "difficulty": 5,
         "flavor": "防衛線を敷いて守れ。"
@@ -902,7 +902,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "静かな勝負",
         "detail": "ブラックジャックで1勝",
-        "gachaType": "wand",
+        "gachaType": "shield",
         "questKey": "cards-blackjack",
         "difficulty": 1,
         "flavor": "静かな勝負で守り切れ。"
@@ -947,7 +947,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "王手のフルハウス",
         "detail": "ポーカーでフルハウス以上を1回成立",
-        "gachaType": "shield",
+        "gachaType": "sword",
         "questKey": "cards-poker",
         "difficulty": 5,
         "flavor": "王手の剣で勝負を終えよ。"
@@ -956,7 +956,7 @@ const TROY_QUESTS = [
         "game": "トランプ",
         "name": "守護の連勝",
         "detail": "ブラックジャックで2連勝",
-        "gachaType": "polearm",
+        "gachaType": "shield",
         "questKey": "cards-blackjack",
         "difficulty": 5,
         "flavor": "守護の連勝で相手を封じろ。"
@@ -1178,7 +1178,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "防衛の勝利",
         "detail": "ボードゲームで1勝",
-        "gachaType": "sword",
+        "gachaType": "shield",
         "questKey": "other-board",
         "difficulty": 3,
         "flavor": "防衛の勝利で士気を上げろ。"
@@ -1214,7 +1214,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "疾風の航路",
         "detail": "ミニゲームでノーダメージクリア",
-        "gachaType": "polearm",
+        "gachaType": "gun",
         "questKey": "other-mini",
         "difficulty": 5,
         "flavor": "疾風の航路で無傷を狙え。"
@@ -1232,7 +1232,7 @@ const TROY_QUESTS = [
         "game": "その他",
         "name": "大海防衛線・極",
         "detail": "ボードゲームで完全勝利",
-        "gachaType": "metal",
+        "gachaType": "shield",
         "questKey": "other-board",
         "difficulty": 6,
         "flavor": "完全勝利で防衛線を守り切れ。"
