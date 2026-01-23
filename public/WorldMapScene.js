@@ -2479,6 +2479,8 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
+        this.wireIslandCommandPullToClose();
+
         if (this.isShipInBattle(this.playerInfo?.playFabId) || this.isShipInBattle(targetPlayFabId)) {
             this.showMessage('戦闘中は乗り込めません。');
             return;
@@ -3286,6 +3288,8 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
+        this.wireIslandCommandPullToClose();
+
         title.textContent = islandData.name;
 
         const myPlayFabId = this.playerInfo?.playFabId;
@@ -3435,6 +3439,63 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.commandMenuOpen = false;
         this.collidingIsland = null;
+    }
+
+    wireIslandCommandPullToClose() {
+        const panel = document.getElementById('islandCommandPanel');
+        if (!panel || panel.dataset.pullToCloseInstalled) return;
+        panel.dataset.pullToCloseInstalled = '1';
+
+        let pulling = false;
+        let startY = 0;
+        let lastPull = 0;
+        const closeThreshold = 70;
+        const maxPull = 110;
+
+        const closePanel = () => {
+            if (this.boardingTargetId) {
+                this.hideShipCommandMenu();
+            } else {
+                this.hideIslandCommandMenu();
+            }
+        };
+
+        const onStart = (event) => {
+            if (!panel.classList.contains('active')) return;
+            const touch = event.touches[0];
+            if (!touch) return;
+            pulling = true;
+            startY = touch.clientY;
+            lastPull = 0;
+            panel.style.transition = 'none';
+        };
+
+        const onMove = (event) => {
+            if (!pulling) return;
+            const touch = event.touches[0];
+            if (!touch) return;
+            const delta = touch.clientY - startY;
+            if (delta <= 0) return;
+            event.preventDefault();
+            lastPull = Math.min(delta, maxPull);
+            panel.style.transform = `translateY(${lastPull}px)`;
+        };
+
+        const onEnd = () => {
+            if (!pulling) return;
+            pulling = false;
+            panel.style.transition = '';
+            panel.style.transform = '';
+            if (lastPull >= closeThreshold) {
+                closePanel();
+            }
+            lastPull = 0;
+        };
+
+        panel.addEventListener('touchstart', onStart, { passive: true });
+        panel.addEventListener('touchmove', onMove, { passive: false });
+        panel.addEventListener('touchend', onEnd, { passive: true });
+        panel.addEventListener('touchcancel', onEnd, { passive: true });
     }
     
     hideCommandMenu() {
