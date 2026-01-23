@@ -15,7 +15,7 @@ let _questWired = false;
 let _menuWired = false;
 let _pollTimer = null;
 let _lastStatus = null;
-let _questBetAmount = 50;
+let _questBetAmount = 10;
 let _lastQuestList = [];
 let _questClears = {};
 let _questMode = 'solo';
@@ -52,7 +52,7 @@ const DIFFICULTY_ALIASES = {
 };
 
 const QUEST_REWARD_TIERS = ['コモン', 'レア', 'エピック'];
-const QUEST_BET_OPTIONS = [50, 100, 500, 1000];
+const QUEST_BET_OPTIONS = [10, 50, 100, 300, 500, 1000];
 const QUEST_BET_THRESHOLDS = {
     bonus1: 500,
     bonus2: 1000
@@ -1639,6 +1639,30 @@ function getQuestDifficultyStars(difficultyValue) {
     return '★'.repeat(count);
 }
 
+function getQuestDifficultyByBetAmount(amount) {
+    switch (Number(amount)) {
+        case 10:
+            return 1;
+        case 50:
+            return 2;
+        case 100:
+            return 3;
+        case 300:
+            return 4;
+        case 500:
+            return 5;
+        case 1000:
+            return 6;
+        default:
+            return normalizeQuestDifficultyValue(DIFFICULTY_FALLBACK);
+    }
+}
+
+function getQuestBetLabel() {
+    const difficulty = getQuestDifficultyByBetAmount(_questBetAmount);
+    return `難易度: ${getQuestDifficultyStars(difficulty)}`;
+}
+
 async function refreshQuestClears(playFabId) {
     if (!playFabId) return;
     try {
@@ -1873,18 +1897,24 @@ function renderQuestList(list) {
     container.innerHTML = '';
     const quests = Array.isArray(list) ? list : [];
     _lastQuestList = quests;
+    const betDifficulty = getQuestDifficultyByBetAmount(_questBetAmount);
+    const filteredQuests = quests.filter((quest) => resolveQuestDifficulty(quest) === betDifficulty);
     const expired = clearExpiredQuestSelections();
     if (expired) {
         saveQuestSelections(window.myPlayFabId);
     }
-    const sections = buildQuestSections(quests);
-    if (!sections.length) {
+    if (!filteredQuests.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-quest-empty';
-        empty.textContent = 'クエストがありません';
+        empty.textContent = '該当クエストがありません';
         container.appendChild(empty);
         return;
     }
+    const sections = [{
+        tier: 'bet',
+        label: getQuestBetLabel(),
+        quests: filteredQuests
+    }];
 
     sections.forEach((section) => {
         const sectionHeader = document.createElement('div');
@@ -2065,7 +2095,7 @@ function getQuestModeLabel(mode) {
 }
 
 function buildQuestFilterLabel(label) {
-    return `クエスト一覧: ${label} / ${getQuestModeLabel(_questMode)}`;
+    return `クエスト一覧: ${label} / ${getQuestModeLabel(_questMode)} / ${getQuestBetLabel()}`;
 }
 
 function updateQuestFilterLabel(label) {
