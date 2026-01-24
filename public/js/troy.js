@@ -3002,6 +3002,10 @@ function wireHandlers(playFabId) {
 
     if (leaveBtn) {
         leaveBtn.addEventListener('click', async () => {
+            if (_orderTotal > 0) {
+                const ok = confirm('会計前です。退店すると会計がリセットされます。続行しますか？');
+                if (!ok) return;
+            }
             const result = await leaveTroy(playFabId);
             if (result) {
                 await refreshStatus(playFabId, { isSilent: true });
