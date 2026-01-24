@@ -1549,7 +1549,7 @@ body[data-sea-tone="night"] .home-hero-card {
 .map-loading-overlay {
     position: absolute;
     inset: 0;
-    background: #000;
+    background: radial-gradient(circle at 30% 20%, rgba(15, 23, 42, 0.95), #020617 55%, #000 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1558,10 +1558,87 @@ body[data-sea-tone="night"] .home-hero-card {
     transition: opacity 0.4s ease;
 }
 
-.map-loading-text {
-    color: #f3f4f6;
-    font-size: 16px;
-    letter-spacing: 0.08em;
+.map-loading-world {
+    position: relative;
+    width: min(78vw, 420px);
+    aspect-ratio: 1 / 1;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    transform: scale(1);
+    opacity: 1;
+}
+
+.map-loading-world.is-animating {
+    animation: mapZoomIn 1.35s ease forwards;
+}
+
+.map-loading-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+    background-size: 20% 20%;
+    opacity: 0.8;
+}
+
+.map-loading-target {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    left: 40%;
+    top: 40%;
+    border-radius: 12px;
+    border: 2px solid rgba(56, 189, 248, 0.9);
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+    background: rgba(15, 23, 42, 0.35);
+}
+
+.map-loading-labels {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #f8fafc;
+}
+
+.map-loading-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.map-loading-current {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.map-loading-sub {
+    font-size: 11px;
+    color: rgba(226, 232, 240, 0.7);
+}
+
+@keyframes mapZoomIn {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    70% {
+        transform: scale(2.1);
+        opacity: 0.95;
+    }
+    100% {
+        transform: scale(2.4);
+        opacity: 0.85;
+    }
 }
 
 .modal-overlay {

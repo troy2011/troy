@@ -448,6 +448,17 @@ export default class WorldMapScene extends Phaser.Scene {
             container.classList.remove('map-ready');
             const overlay = container.querySelector('.map-loading-overlay');
             if (overlay) {
+                const label = overlay.querySelector('#mapLoadingLabel');
+                if (label && typeof window !== 'undefined') {
+                    const mapLabel = window.__currentMapLabel || window.__currentMapId || '-';
+                    label.textContent = `目的地: ${mapLabel}`;
+                }
+                const world = overlay.querySelector('.map-loading-world');
+                if (world) {
+                    world.classList.remove('is-animating');
+                    void world.offsetWidth;
+                    world.classList.add('is-animating');
+                }
                 overlay.style.display = '';
                 overlay.style.opacity = '';
                 overlay.style.pointerEvents = '';

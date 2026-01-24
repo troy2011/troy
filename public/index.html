@@ -307,7 +307,15 @@
             <!-- 2. 地図タブ -->
             <div id="tabContentMap" class="tab-content" style="display: none;">
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
-                    <div class="map-loading-text">読み込み中...</div>
+                    <div id="mapLoadingWorld" class="map-loading-world">
+                        <div class="map-loading-grid"></div>
+                        <div class="map-loading-target"></div>
+                        <div class="map-loading-labels">
+                            <div class="map-loading-title">世界地図</div>
+                            <div id="mapLoadingLabel" class="map-loading-current">目的地: -</div>
+                            <div class="map-loading-sub">ズーム中...</div>
+                        </div>
+                    </div>
                 </div>
                 <div id="phaser-container" class="map-stage"></div>
         <div id="mapNavHud" style="position:absolute; top:12px; left:12px; z-index: 1200; display:none; align-items:center; gap:8px; padding:6px 10px; border-radius:10px; background: rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:12px;">
