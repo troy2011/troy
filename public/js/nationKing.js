@@ -87,7 +87,6 @@ export async function loadKingPage(playFabId) {
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const grantCardEl = document.getElementById('kingGrantCard');
-    const grantCardEl = document.getElementById('kingGrantCard');
 
     if (currentEl) currentEl.innerText = (data.announcement && data.announcement.message) ? data.announcement.message : '(未設定)';
     if (metaEl) {
@@ -264,6 +263,7 @@ function _wireHandlers(playFabId) {
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
                 if (grantCardEl) grantCardEl.style.display = '';
+                await loadKingPage(playFabId);
                 _setMessage('TROYをOPENにしました。');
             }
         });
@@ -275,6 +275,7 @@ function _wireHandlers(playFabId) {
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
                 if (grantCardEl) grantCardEl.style.display = 'none';
+                await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
             }
         });
