@@ -449,9 +449,33 @@ export default class WorldMapScene extends Phaser.Scene {
             const overlay = container.querySelector('.map-loading-overlay');
             if (overlay) {
                 const label = overlay.querySelector('#mapLoadingLabel');
+                const mapId = typeof window !== 'undefined' ? (window.__currentMapId || '') : '';
+                const mapLabel = typeof window !== 'undefined' ? (window.__currentMapLabel || mapId || '-') : '-';
                 if (label && typeof window !== 'undefined') {
-                    const mapLabel = window.__currentMapLabel || window.__currentMapId || '-';
                     label.textContent = `目的地: ${mapLabel}`;
+                }
+                const cells = overlay.querySelectorAll('.map-loading-cell');
+                if (cells.length) {
+                    let matched = false;
+                    const majorMatch = String(mapId).match(/major_(\d{2})/);
+                    const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
+                    cells.forEach((cell) => {
+                        cell.classList.remove('is-active');
+                        const labelKey = String(cell.dataset.mapLabel || '').trim();
+                        if (!labelKey) return;
+                        if (!matched && mapLabel.includes(labelKey)) {
+                            cell.classList.add('is-active');
+                            matched = true;
+                            return;
+                        }
+                        if (!matched && Number.isFinite(majorNumber)) {
+                            const numMatch = labelKey.match(/^(\d+)\./);
+                            if (numMatch && Number(numMatch[1]) === majorNumber) {
+                                cell.classList.add('is-active');
+                                matched = true;
+                            }
+                        }
+                    });
                 }
                 const world = overlay.querySelector('.map-loading-world');
                 if (world) {
