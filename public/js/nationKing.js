@@ -86,6 +86,8 @@ export async function loadKingPage(playFabId) {
     const previewEl = document.getElementById('kingGrantPreview');
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
+    const grantCardEl = document.getElementById('kingGrantCard');
+    const grantCardEl = document.getElementById('kingGrantCard');
 
     if (currentEl) currentEl.innerText = (data.announcement && data.announcement.message) ? data.announcement.message : '(未設定)';
     if (metaEl) {
@@ -103,9 +105,10 @@ export async function loadKingPage(playFabId) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
         treasuryEl.innerText = `国庫: ${treasuryPs} Ps`;
     }
-    if (troyStatusEl) {
+    if (troyStatusEl || grantCardEl) {
         const isOpen = !!data.troyOpen;
-        troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
+        if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
+        if (grantCardEl) grantCardEl.style.display = isOpen ? '' : 'none';
     }
     if (previewEl && grantAmountEl) {
         const p = _grantPreview(grantAmountEl.value, data.grantMultiplier);
@@ -132,6 +135,7 @@ function _wireHandlers(playFabId) {
     const troyOpenBtn = document.getElementById('btnKingTroyOpen');
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
     const troyStatusEl = document.getElementById('kingTroyStatus');
+    const grantCardEl = document.getElementById('kingGrantCard');
     const scanReceiverBtn = document.getElementById('btnKingScanReceiver');
     const clearReceiverBtn = document.getElementById('btnKingClearReceiver');
     const transferTargetEl = document.getElementById('kingTransferTargetId');
@@ -259,6 +263,7 @@ function _wireHandlers(playFabId) {
             const result = await setTroyOpen(playFabId, true);
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
+                if (grantCardEl) grantCardEl.style.display = '';
                 _setMessage('TROYをOPENにしました。');
             }
         });
@@ -269,6 +274,7 @@ function _wireHandlers(playFabId) {
             const result = await setTroyOpen(playFabId, false);
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
+                if (grantCardEl) grantCardEl.style.display = 'none';
                 _setMessage('TROYをCLOSEにしました。');
             }
         });
