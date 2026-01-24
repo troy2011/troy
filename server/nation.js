@@ -968,6 +968,11 @@ function initializeNationRoutes(app, deps) {
             if (!roomSnap.exists || !roomData.isOpen) {
                 return res.status(403).json({ error: 'TroyClosed' });
             }
+            const memberId = normalizePlayFabId(playFabId);
+            const memberSnap = await roomRef.collection('members').doc(memberId).get();
+            if (!memberSnap.exists) {
+                return res.status(403).json({ error: 'NotInTroy' });
+            }
             const kingPlayFabId = String(roomData.updatedBy || '').trim();
             if (!kingPlayFabId) {
                 return res.status(404).json({ error: 'KingNotFound' });
@@ -980,8 +985,9 @@ function initializeNationRoutes(app, deps) {
             const buyerName = String(displayName || '').trim()
                 || await getPlayerDisplayName(playFabId, { promisifyPlayFab, PlayFabServer })
                 || playFabId;
-            const safeQty = Number(quantity) || 1;
-            const priceValue = Number(price);
+            const safeQty = Math.max(1, Math.floor(Number(quantity) || 1));
+            const priceValue = Math.max(0, Math.floor(Number(price) || 0));
+            const orderAmount = Math.max(0, priceValue * safeQty);
             const totalValue = Number(total);
             const priceLabel = Number.isFinite(priceValue) ? `¥${priceValue.toLocaleString('ja-JP')}` : '不明';
             const totalLabel = Number.isFinite(totalValue) ? `¥${totalValue.toLocaleString('ja-JP')}` : '不明';
@@ -994,8 +1000,57 @@ function initializeNationRoutes(app, deps) {
                 `会計合計: ${totalLabel}`
             ].join('\n');
 
-            await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
-            res.json({ success: true });
+            let treasuryUpdated = false;
+            let treasuryPs = null;
+            let treasuryError = null;
+            let grantAmount = 0;
+            let grantMultiplier = 1;
+            let grantApplied = false;
+            let grantError = null;
+
+            if (orderAmount > 0) {
+                try {
+                    const treasuryResult = await addNationTreasury(nation, orderAmount, firestore, nationDeps);
+                    treasuryUpdated = true;
+                    treasuryPs = treasuryResult?.treasuryPs ?? null;
+                    const groupId = treasuryResult?.groupId || await getNationGroupIdByNation(nation, firestore, nationDeps);
+                    if (groupId) {
+                        const multiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
+                        const multiplierValue = Number(multiplierRaw);
+                        grantMultiplier = Number.isFinite(multiplierValue) && multiplierValue >= 0 ? multiplierValue : 1;
+                    }
+                    grantAmount = Math.floor(orderAmount * 0.1 * grantMultiplier);
+                    if (grantAmount > 0) {
+                        await addEconomyItem(playFabId, 'PS', grantAmount);
+                        grantApplied = true;
+                    }
+                } catch (error) {
+                    const msg = error?.errorMessage || error?.message || String(error);
+                    if (!treasuryUpdated) {
+                        treasuryError = msg;
+                    } else {
+                        grantError = msg;
+                    }
+                    console.warn('[troy-order] Treasury/Grant failed:', msg);
+                }
+            }
+
+            try {
+                await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
+            } catch (lineError) {
+                console.warn('[troy-order] Line notify failed:', lineError?.message || lineError);
+            }
+            res.json({
+                success: true,
+                orderAmount,
+                treasuryUpdated,
+                treasuryPs,
+                treasuryError,
+                grantAmount,
+                grantMultiplier,
+                grantApplied,
+                grantError
+            });
         } catch (error) {
             console.error('[troy-order] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to send order' });
