@@ -329,6 +329,19 @@ export async function showTab(tabId, playerInfo, options = {}) {
         await showKingAnnouncementOnMap();
     }
 
+    if (tabId === 'king') {
+        if (!playerInfo?.playFabId) {
+            console.warn('[showTab] king tab requires playFabId');
+            return;
+        }
+        const allowed = await NationKing.refreshKingNav(playerInfo.playFabId);
+        if (!allowed) {
+            console.warn('[showTab] king tab is not allowed for this user');
+            await showTab('home', playerInfo, { skipMapSelect: true });
+            return;
+        }
+    }
+
     // 船タブから離れる場合はリスナーをクリーンアップ
     if (currentActiveTab && currentActiveTab.id === 'navShips' && tabId !== 'ships') {
         console.log('[showTab] Leaving ships tab, cleaning up listeners');
