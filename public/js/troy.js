@@ -2303,6 +2303,24 @@ function getOrderElements() {
     };
 }
 
+function isTroyMember(status, playFabId) {
+    const members = status?.members;
+    if (!Array.isArray(members) || !playFabId) return false;
+    const target = String(playFabId).toLowerCase();
+    return members.some((member) => String(member?.playFabId || member?.id || '').toLowerCase() === target);
+}
+
+function updateOrderAvailability(isMember) {
+    const menuButtons = document.querySelectorAll('.troy-menu-item-button[data-menu-id]');
+    menuButtons.forEach((button) => {
+        button.style.display = isMember ? '' : 'none';
+    });
+    if (!isMember) {
+        closeMenuModal();
+        closeOrderModal();
+    }
+}
+
 function formatYen(value) {
     const amount = Number(value) || 0;
     return `¥${amount.toLocaleString('ja-JP')}`;
@@ -2346,6 +2364,15 @@ function renderOrderSummary() {
         row.appendChild(price);
         list.appendChild(row);
     });
+}
+
+function addOrderItemLocal(name, price, quantity = 1) {
+    const normalizedPrice = Number(price) || 0;
+    if (!normalizedPrice) return;
+    const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+    _orderTotal += normalizedPrice * qty;
+    _orderItems.push({ name, price: normalizedPrice, quantity: qty });
+    renderOrderSummary();
 }
 
 function getOrderModalElements() {
@@ -2406,6 +2433,14 @@ async function confirmOrder(playFabId) {
 }
 
 function openMenuModal(menuId) {
+    if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('入店してから注文できます。');
+        } else {
+            alert('入店してから注文できます。');
+        }
+        return;
+    }
     const data = TROY_PRODUCT_MENUS[menuId];
     if (!data) return;
     const { modal, title, list } = getMenuModalElements();
@@ -2907,6 +2942,7 @@ function renderStatus(data) {
     if (section) {
         section.style.display = data?.isOpen ? 'block' : 'none';
     }
+    updateOrderAvailability(isTroyMember(data, window.myPlayFabId));
     renderEntryList(data?.members);
 }
 
@@ -2924,9 +2960,14 @@ function wireHandlers(playFabId) {
     if (joinBtn) {
         joinBtn.addEventListener('click', async () => {
             const name = getDisplayName();
+            const wasMember = isTroyMember(_lastStatus, playFabId);
             const result = await joinTroy(playFabId, name);
             if (result) {
                 await refreshStatus(playFabId, { isSilent: true });
+                const isMember = isTroyMember(_lastStatus, playFabId);
+                if (!wasMember && isMember) {
+                    addOrderItemLocal('入店チャージ', 500, 1);
+                }
             }
         });
     }
