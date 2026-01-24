@@ -115,12 +115,12 @@ const TROY_PRODUCT_MENUS = {
 const TROY_QUESTS = [
     {
         "game": "ビリヤード",
-        "name": "初球の確認",
-        "detail": "センターショットで的球を真っ直ぐ入れる",
-        "gachaType": "hat",
+        "name": "見張りの完走",
+        "detail": "ストップショットで白球を当てた場所に止める",
+        "gachaType": "dagger",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "真っ直ぐの一球で航路を示せ。"
+        "flavor": "止めの精度で見張りを任せろ。"
     },
     {
         "game": "ビリヤード",
@@ -133,21 +133,39 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "見張りの完走",
-        "detail": "ストップショットで白球を当てた場所に止める",
-        "gachaType": "dagger",
+        "name": "初球の確認",
+        "detail": "センターショットで的球を真っ直ぐ入れる",
+        "gachaType": "hat",
         "questKey": "billiard-bowrad",
         "difficulty": 1,
-        "flavor": "止めの精度で見張りを任せろ。"
+        "flavor": "真っ直ぐの一球で航路を示せ。"
     },
     {
         "game": "ビリヤード",
-        "name": "舵の連打",
-        "detail": "クッションバンクで的球を入れる",
-        "gachaType": "sword",
+        "name": "岸への返し",
+        "detail": "クッションに当てて白球を手前ぎりぎりに戻す",
+        "gachaType": "staff",
         "questKey": "billiard-bowrad",
-        "difficulty": 3,
-        "flavor": "舵の切り返しで道を開け。"
+        "difficulty": 2,
+        "flavor": "岸への返しで距離感を掴め。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "手前止めの基本",
+        "detail": "ストップショットで白球を手前に止める",
+        "gachaType": "leather",
+        "questKey": "billiard-bowrad",
+        "difficulty": 2,
+        "flavor": "止めの基本で航路を整えよ。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "芯のセンター",
+        "detail": "センターショットで的球を2回連続で入れる",
+        "gachaType": "wand",
+        "questKey": "billiard-bowrad",
+        "difficulty": 2,
+        "flavor": "芯を射抜く一撃で道を示せ。"
     },
     {
         "game": "ビリヤード",
@@ -169,21 +187,48 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
+        "name": "舵の連打",
+        "detail": "クッションバンクで的球を入れる",
+        "gachaType": "sword",
+        "questKey": "billiard-bowrad",
+        "difficulty": 3,
+        "flavor": "舵の切り返しで道を開け。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "フォローの伸び",
+        "detail": "フォローショットで白球を奥に送ってポジションを取る",
+        "gachaType": "polearm",
+        "questKey": "billiard-bowrad",
+        "difficulty": 4,
+        "flavor": "伸びる一球で優位を掴め。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "二枚クッション",
+        "detail": "2クッションで的球を入れる",
+        "gachaType": "blunt",
+        "questKey": "billiard-bowrad",
+        "difficulty": 4,
+        "flavor": "二枚の反射で道を拓け。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "薄当ての配置",
+        "detail": "薄い当てで次球を狙える位置に出す",
+        "gachaType": "axe",
+        "questKey": "billiard-bowrad",
+        "difficulty": 4,
+        "flavor": "薄当ての配置で航路を作れ。"
+    },
+    {
+        "game": "ビリヤード",
         "name": "波間の計算",
         "detail": "手前戻し（ドロー）で白球を手前に戻す",
         "gachaType": "shield",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
         "flavor": "引きの計算で波間を制せ。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "砲門の精度",
-        "detail": "クッションバンク2回成功",
-        "gachaType": "polearm",
-        "questKey": "billiard-bowrad",
-        "difficulty": 5,
-        "flavor": "反射の読みで砲門を貫け。"
     },
     {
         "game": "ビリヤード",
@@ -196,12 +241,21 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "狙撃の締め",
-        "detail": "ロングショットで的球を入れる",
-        "gachaType": "gun",
+        "name": "砲門の精度",
+        "detail": "クッションバンク2回成功",
+        "gachaType": "polearm",
+        "questKey": "billiard-bowrad",
+        "difficulty": 5,
+        "flavor": "反射の読みで砲門を貫け。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "剣の連鎖",
+        "detail": "センターショット連続3回成功",
+        "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "狙撃の精度で締めくくれ。"
+        "flavor": "剣の連鎖で精度を刻め。"
     },
     {
         "game": "ビリヤード",
@@ -214,12 +268,12 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "剣の連鎖",
-        "detail": "センターショット連続3回成功",
-        "gachaType": "sword",
+        "name": "狙撃の締め",
+        "detail": "ロングショットで的球を入れる",
+        "gachaType": "gun",
         "questKey": "billiard-bowrad",
         "difficulty": 6,
-        "flavor": "剣の連鎖で精度を刻め。"
+        "flavor": "狙撃の精度で締めくくれ。"
     },
     {
         "game": "ビリヤード",
@@ -253,23 +307,47 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "初動ブレイク",
+        "skillWeapon": "sword",
         "questKey": "billiard-9",
         "difficulty": 1,
-        "flavor": "初動の一撃で主導権を取れ。",
-        "skillWeapon": "sword"
+        "flavor": "初動の一撃で主導権を取れ。"
     },
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "舵の勝利",
-        "detail": "9ボールで1勝する",
+        "name": "ブレイク追撃",
+        "detail": "9ボールでブレイク後に1球入れる",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "舵の勝利",
+        "skillName": "ブレイク追撃",
+        "skillWeapon": "sword",
         "questKey": "billiard-9",
-        "difficulty": 3,
-        "flavor": "舵を握り勝利へ導け。",
-        "skillWeapon": "axe"
+        "difficulty": 2,
+        "flavor": "追撃の一球で差をつけろ。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "色の確保",
+        "detail": "8ボールで自分の色を3球入れる",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "色の確保",
+        "questKey": "billiard-8",
+        "difficulty": 2,
+        "flavor": "色を確保して主導権を取れ。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "二球先取",
+        "detail": "9ボールで2球以上入れる",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "二球先取",
+        "questKey": "billiard-9",
+        "difficulty": 2,
+        "flavor": "先取の二球で流れを掴め。"
     },
     {
         "game": "ビリヤード",
@@ -286,15 +364,65 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "mode": "battle",
+        "name": "舵の勝利",
+        "detail": "9ボールで1勝する",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "舵の勝利",
+        "skillWeapon": "axe",
+        "questKey": "billiard-9",
+        "difficulty": 3,
+        "flavor": "舵を握り勝利へ導け。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
         "name": "連続ポケット",
         "detail": "9ボールで連続ポケット2回",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "連続ポケット",
+        "skillWeapon": "polearm",
         "questKey": "billiard-9",
         "difficulty": 3,
-        "flavor": "連続の一撃で差を広げよ。",
-        "skillWeapon": "polearm"
+        "flavor": "連続の一撃で差を広げよ。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "攻めの継続",
+        "detail": "9ボールでブレイク後に連続ポケット2回",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "攻めの継続",
+        "questKey": "billiard-9",
+        "difficulty": 4,
+        "flavor": "攻めの継続で盤面を支配せよ。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "色の制圧",
+        "detail": "8ボールで自分の色を5球入れる",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "色の制圧",
+        "questKey": "billiard-8",
+        "difficulty": 4,
+        "flavor": "色の制圧で道を切り開け。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "連続三球",
+        "detail": "9ボールで連続ポケット3回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "連続三球",
+        "skillWeapon": "gun",
+        "questKey": "billiard-9",
+        "difficulty": 4,
+        "flavor": "連続の三球で主導権を奪え。"
     },
     {
         "game": "ビリヤード",
@@ -304,10 +432,10 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "旗艦連勝",
+        "skillWeapon": "dagger",
         "questKey": "billiard-9",
         "difficulty": 5,
-        "flavor": "旗艦の連勝で支配せよ。",
-        "skillWeapon": "dagger"
+        "flavor": "旗艦の連勝で支配せよ。"
     },
     {
         "game": "ビリヤード",
@@ -329,23 +457,23 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "連続ブレイク",
+        "skillWeapon": "staff",
         "questKey": "billiard-8",
         "difficulty": 5,
-        "flavor": "連続ブレイクで押し切れ。",
-        "skillWeapon": "staff"
+        "flavor": "連続ブレイクで押し切れ。"
     },
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "沈黙の掃討",
-        "detail": "9ボールでノーミス勝利",
+        "name": "一閃の制圧",
+        "detail": "9ボールでブレイクラン成功",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "沈黙の掃討",
+        "skillName": "一閃の制圧",
+        "skillWeapon": "gun",
         "questKey": "billiard-9",
         "difficulty": 6,
-        "flavor": "沈黙の掃討で敵を沈めろ。",
-        "skillWeapon": "wand"
+        "flavor": "一閃の制圧で決着をつけろ。"
     },
     {
         "game": "ビリヤード",
@@ -362,24 +490,15 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "一閃の制圧",
-        "detail": "9ボールでブレイクラン成功",
+        "name": "沈黙の掃討",
+        "detail": "9ボールでノーミス勝利",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "一閃の制圧",
+        "skillName": "沈黙の掃討",
+        "skillWeapon": "wand",
         "questKey": "billiard-9",
         "difficulty": 6,
-        "flavor": "一閃の制圧で決着をつけろ。",
-        "skillWeapon": "gun"
-    },
-    {
-        "game": "カラオケ",
-        "name": "潮騒の一曲",
-        "detail": "シングルで歌い切る（完走）",
-        "gachaType": "hat",
-        "questKey": "karaoke-single",
-        "difficulty": 1,
-        "flavor": "潮騒に合わせて歌い切れ。"
+        "flavor": "沈黙の掃討で敵を沈めろ。"
     },
     {
         "game": "カラオケ",
@@ -392,6 +511,15 @@ const TROY_QUESTS = [
     },
     {
         "game": "カラオケ",
+        "name": "潮騒の一曲",
+        "detail": "シングルで歌い切る（完走）",
+        "gachaType": "hat",
+        "questKey": "karaoke-single",
+        "difficulty": 1,
+        "flavor": "潮騒に合わせて歌い切れ。"
+    },
+    {
+        "game": "カラオケ",
         "name": "波乗りの声",
         "detail": "シングルで65点以上",
         "gachaType": "dagger",
@@ -401,12 +529,30 @@ const TROY_QUESTS = [
     },
     {
         "game": "カラオケ",
-        "name": "帆走のリズム",
-        "detail": "シングルで75点以上",
-        "gachaType": "sword",
+        "name": "小波のコンボ",
+        "detail": "シングルでコンボ5以上",
+        "gachaType": "dagger",
         "questKey": "karaoke-single",
-        "difficulty": 3,
-        "flavor": "帆走のリズムを揃えよ。"
+        "difficulty": 2,
+        "flavor": "小波の連打で流れを作れ。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "息継ぎの安定",
+        "detail": "シングルで安定度65%以上",
+        "gachaType": "staff",
+        "questKey": "karaoke-single",
+        "difficulty": 2,
+        "flavor": "安定した息で航路を守れ。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "潮風の声",
+        "detail": "シングルで70点以上",
+        "gachaType": "hat",
+        "questKey": "karaoke-single",
+        "difficulty": 2,
+        "flavor": "潮風の声で士気を上げよ。"
     },
     {
         "game": "カラオケ",
@@ -428,21 +574,48 @@ const TROY_QUESTS = [
     },
     {
         "game": "カラオケ",
+        "name": "帆走のリズム",
+        "detail": "シングルで75点以上",
+        "gachaType": "sword",
+        "questKey": "karaoke-single",
+        "difficulty": 3,
+        "flavor": "帆走のリズムを揃えよ。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "響きの連鎖",
+        "detail": "シングルでコンボ18以上",
+        "gachaType": "axe",
+        "questKey": "karaoke-single",
+        "difficulty": 4,
+        "flavor": "響きの連鎖で一気に畳みかけろ。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "波越えの声",
+        "detail": "シングルで80点以上",
+        "gachaType": "wand",
+        "questKey": "karaoke-single",
+        "difficulty": 4,
+        "flavor": "波越えの声で頂を狙え。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "抑揚の灯",
+        "detail": "シングルで抑揚75%以上",
+        "gachaType": "metal",
+        "questKey": "karaoke-single",
+        "difficulty": 4,
+        "flavor": "抑揚の灯で道を照らせ。"
+    },
+    {
+        "game": "カラオケ",
         "name": "航海の誓い",
         "detail": "シングルで85点以上",
         "gachaType": "shield",
         "questKey": "karaoke-single",
         "difficulty": 5,
         "flavor": "航海の誓いを高らかに。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "嵐越え",
-        "detail": "シングルでコンボ25以上",
-        "gachaType": "polearm",
-        "questKey": "karaoke-single",
-        "difficulty": 5,
-        "flavor": "嵐を越える声を撃て。"
     },
     {
         "game": "カラオケ",
@@ -455,21 +628,12 @@ const TROY_QUESTS = [
     },
     {
         "game": "カラオケ",
-        "name": "覇者の歌",
-        "detail": "シングルで95点以上",
-        "gachaType": "sword",
-        "questKey": "karaoke-single",
-        "difficulty": 6,
-        "flavor": "覇者の剣は歌で輝く。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "疾風の一声",
-        "detail": "シングルでコンボ40以上",
+        "name": "嵐越え",
+        "detail": "シングルでコンボ25以上",
         "gachaType": "polearm",
         "questKey": "karaoke-single",
-        "difficulty": 6,
-        "flavor": "疾風の一声で突き抜けろ。"
+        "difficulty": 5,
+        "flavor": "嵐を越える声を撃て。"
     },
     {
         "game": "カラオケ",
@@ -482,15 +646,21 @@ const TROY_QUESTS = [
     },
     {
         "game": "カラオケ",
-        "mode": "battle",
-        "name": "対戦の合図",
-        "detail": "1対1で採点結果を表示する",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "対戦の合図",
-        "questKey": "karaoke-battle",
-        "difficulty": 1,
-        "flavor": "合図の一声で勝負を始めろ。"
+        "name": "疾風の一声",
+        "detail": "シングルでコンボ40以上",
+        "gachaType": "polearm",
+        "questKey": "karaoke-single",
+        "difficulty": 6,
+        "flavor": "疾風の一声で突き抜けろ。"
+    },
+    {
+        "game": "カラオケ",
+        "name": "覇者の歌",
+        "detail": "シングルで95点以上",
+        "gachaType": "sword",
+        "questKey": "karaoke-single",
+        "difficulty": 6,
+        "flavor": "覇者の剣は歌で輝く。"
     },
     {
         "game": "カラオケ",
@@ -512,35 +682,59 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "小波連打",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 1,
-        "flavor": "小波の連打でテンポを掴め。",
-        "skillWeapon": "blunt"
+        "flavor": "小波の連打でテンポを掴め。"
     },
     {
         "game": "カラオケ",
         "mode": "battle",
-        "name": "旗揚げコール",
-        "detail": "1対1で75点以上",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "旗揚げコール",
-        "questKey": "karaoke-battle",
-        "difficulty": 3,
-        "flavor": "旗揚げの声で差をつけろ。",
-        "skillWeapon": "sword"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "共鳴の航路",
-        "detail": "1対1でコンボ15以上",
+        "name": "対戦の合図",
+        "detail": "1対1で採点結果を表示する",
         "gachaType": "skill",
         "skillType": "passive",
-        "skillName": "共鳴の航路",
+        "skillName": "対戦の合図",
         "questKey": "karaoke-battle",
-        "difficulty": 3,
-        "flavor": "共鳴の航路で勝負を進めろ。"
+        "difficulty": 1,
+        "flavor": "合図の一声で勝負を始めろ。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "鼓動のコンボ",
+        "detail": "1対1でコンボ10以上",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "鼓動のコンボ",
+        "skillWeapon": "axe",
+        "questKey": "karaoke-battle",
+        "difficulty": 2,
+        "flavor": "鼓動の連打で差をつけろ。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "対戦の旋律",
+        "detail": "1対1で70点以上",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "対戦の旋律",
+        "questKey": "karaoke-battle",
+        "difficulty": 2,
+        "flavor": "対戦の旋律で先手を取れ。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "帆走の安定",
+        "detail": "1対1で安定度70%以上",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "帆走の安定",
+        "questKey": "karaoke-battle",
+        "difficulty": 2,
+        "flavor": "帆走の安定で揺れを抑えよ。"
     },
     {
         "game": "カラオケ",
@@ -557,28 +751,64 @@ const TROY_QUESTS = [
     {
         "game": "カラオケ",
         "mode": "battle",
-        "name": "双帆の旋律",
-        "detail": "1対1で85点以上",
+        "name": "旗揚げコール",
+        "detail": "1対1で75点以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "双帆の旋律",
+        "skillName": "旗揚げコール",
+        "skillWeapon": "sword",
         "questKey": "karaoke-battle",
-        "difficulty": 5,
-        "flavor": "双帆の旋律で差を広げろ。",
-        "skillWeapon": "axe"
+        "difficulty": 3,
+        "flavor": "旗揚げの声で差をつけろ。"
     },
     {
         "game": "カラオケ",
         "mode": "battle",
-        "name": "嵐越え",
-        "detail": "1対1でコンボ30以上",
+        "name": "共鳴の航路",
+        "detail": "1対1でコンボ15以上",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "共鳴の航路",
+        "questKey": "karaoke-battle",
+        "difficulty": 3,
+        "flavor": "共鳴の航路で勝負を進めろ。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "旗声の80",
+        "detail": "1対1で80点以上",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "旗声の80",
+        "questKey": "karaoke-battle",
+        "difficulty": 4,
+        "flavor": "旗声で主導権を奪え。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "抑揚の波",
+        "detail": "1対1で抑揚80%以上",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "抑揚の波",
+        "questKey": "karaoke-battle",
+        "difficulty": 4,
+        "flavor": "抑揚の波で響きを刻め。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "嵐越えの20",
+        "detail": "1対1でコンボ20以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "嵐越え",
+        "skillName": "嵐越えの20",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
-        "difficulty": 5,
-        "flavor": "嵐越えの声で押し切れ。",
-        "skillWeapon": "polearm"
+        "difficulty": 4,
+        "flavor": "嵐越えの連打で押し切れ。"
     },
     {
         "game": "カラオケ",
@@ -595,28 +825,28 @@ const TROY_QUESTS = [
     {
         "game": "カラオケ",
         "mode": "battle",
-        "name": "覇者の合唱",
-        "detail": "1対1で95点以上",
+        "name": "双帆の旋律",
+        "detail": "1対1で85点以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "覇者の合唱",
+        "skillName": "双帆の旋律",
+        "skillWeapon": "axe",
         "questKey": "karaoke-battle",
-        "difficulty": 6,
-        "flavor": "覇者の合唱で王座を奪え。",
-        "skillWeapon": "staff"
+        "difficulty": 5,
+        "flavor": "双帆の旋律で差を広げろ。"
     },
     {
         "game": "カラオケ",
         "mode": "battle",
-        "name": "勝鬨コンボ",
-        "detail": "1対1でコンボ45以上",
+        "name": "嵐越え",
+        "detail": "1対1でコンボ30以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "勝鬨コンボ",
+        "skillName": "嵐越え",
+        "skillWeapon": "polearm",
         "questKey": "karaoke-battle",
-        "difficulty": 6,
-        "flavor": "勝鬨の連打で勝負を決めろ。",
-        "skillWeapon": "dagger"
+        "difficulty": 5,
+        "flavor": "嵐越えの声で押し切れ。"
     },
     {
         "game": "カラオケ",
@@ -631,13 +861,30 @@ const TROY_QUESTS = [
         "flavor": "極限の抑揚で圧倒せよ。"
     },
     {
-        "game": "ダーツ",
-        "name": "風向き一投",
-        "detail": "カウントアップで120点以上",
-        "gachaType": "hat",
-        "questKey": "darts-countup",
-        "difficulty": 1,
-        "flavor": "風向きの一投で始めよう。"
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "勝鬨コンボ",
+        "detail": "1対1でコンボ45以上",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "勝鬨コンボ",
+        "skillWeapon": "dagger",
+        "questKey": "karaoke-battle",
+        "difficulty": 6,
+        "flavor": "勝鬨の連打で勝負を決めろ。"
+    },
+    {
+        "game": "カラオケ",
+        "mode": "battle",
+        "name": "覇者の合唱",
+        "detail": "1対1で95点以上",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "覇者の合唱",
+        "skillWeapon": "staff",
+        "questKey": "karaoke-battle",
+        "difficulty": 6,
+        "flavor": "覇者の合唱で王座を奪え。"
     },
     {
         "game": "ダーツ",
@@ -659,12 +906,57 @@ const TROY_QUESTS = [
     },
     {
         "game": "ダーツ",
+        "name": "風向き一投",
+        "detail": "カウントアップで120点以上",
+        "gachaType": "hat",
+        "questKey": "darts-countup",
+        "difficulty": 1,
+        "flavor": "風向きの一投で始めよう。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "航路のダブル",
+        "detail": "01でダブルに1回当てる",
+        "gachaType": "polearm",
+        "questKey": "darts-01",
+        "difficulty": 2,
+        "flavor": "航路の二重で流れを作れ。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "二重クローズ",
+        "detail": "クリケットで2クローズ達成",
+        "gachaType": "leather",
+        "questKey": "darts-cricket",
+        "difficulty": 2,
+        "flavor": "二重クローズで陣地を固めろ。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "風向き二投",
+        "detail": "カウントアップで170点以上",
+        "gachaType": "blunt",
+        "questKey": "darts-countup",
+        "difficulty": 2,
+        "flavor": "二投の風向きで道を作れ。"
+    },
+    {
+        "game": "ダーツ",
         "name": "照準の一閃",
         "detail": "カウントアップで220点以上",
         "gachaType": "sword",
         "questKey": "darts-countup",
         "difficulty": 3,
         "flavor": "照準の一閃で点を刻め。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "陣地制圧",
+        "detail": "クリケットで3クローズ達成",
+        "gachaType": "shield",
+        "questKey": "darts-cricket",
+        "difficulty": 3,
+        "flavor": "陣地制圧で守りを固めろ。"
     },
     {
         "game": "ダーツ",
@@ -677,12 +969,30 @@ const TROY_QUESTS = [
     },
     {
         "game": "ダーツ",
-        "name": "陣地制圧",
-        "detail": "クリケットで3クローズ達成",
-        "gachaType": "shield",
+        "name": "四つの封鎖",
+        "detail": "クリケットで4クローズ達成",
+        "gachaType": "metal",
         "questKey": "darts-cricket",
-        "difficulty": 3,
-        "flavor": "陣地制圧で守りを固めろ。"
+        "difficulty": 4,
+        "flavor": "四つの封鎖で守りを固めろ。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "疾風の照準",
+        "detail": "カウントアップで300点以上",
+        "gachaType": "staff",
+        "questKey": "darts-countup",
+        "difficulty": 4,
+        "flavor": "疾風の照準で差を広げよ。"
+    },
+    {
+        "game": "ダーツ",
+        "name": "速攻01",
+        "detail": "01で13ラウンド以内に勝利",
+        "gachaType": "wand",
+        "questKey": "darts-01",
+        "difficulty": 4,
+        "flavor": "速攻の一矢で決着を狙え。"
     },
     {
         "game": "ダーツ",
@@ -713,12 +1023,12 @@ const TROY_QUESTS = [
     },
     {
         "game": "ダーツ",
-        "name": "制圧の嵐",
-        "detail": "カウントアップで450点以上",
-        "gachaType": "metal",
-        "questKey": "darts-countup",
+        "name": "完全封鎖",
+        "detail": "クリケットで全クローズ達成",
+        "gachaType": "gun",
+        "questKey": "darts-cricket",
         "difficulty": 6,
-        "flavor": "制圧の嵐で主導権を奪え。"
+        "flavor": "完全封鎖で勝利を固めろ。"
     },
     {
         "game": "ダーツ",
@@ -731,12 +1041,12 @@ const TROY_QUESTS = [
     },
     {
         "game": "ダーツ",
-        "name": "完全封鎖",
-        "detail": "クリケットで全クローズ達成",
-        "gachaType": "gun",
-        "questKey": "darts-cricket",
+        "name": "制圧の嵐",
+        "detail": "カウントアップで450点以上",
+        "gachaType": "metal",
+        "questKey": "darts-countup",
         "difficulty": 6,
-        "flavor": "完全封鎖で勝利を固めろ。"
+        "flavor": "制圧の嵐で主導権を奪え。"
     },
     {
         "game": "ダーツ",
@@ -758,10 +1068,10 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "初戦フィニッシュ",
+        "skillWeapon": "gun",
         "questKey": "darts-01",
         "difficulty": 1,
-        "flavor": "初戦の一矢で勝利を掴め。",
-        "skillWeapon": "gun"
+        "flavor": "初戦の一矢で勝利を掴め。"
     },
     {
         "game": "ダーツ",
@@ -778,15 +1088,52 @@ const TROY_QUESTS = [
     {
         "game": "ダーツ",
         "mode": "battle",
+        "name": "ブルの先制",
+        "detail": "1対1でクリケットでブルを1回ヒット",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "ブルの先制",
+        "questKey": "darts-cricket",
+        "difficulty": 2,
+        "flavor": "ブルの先制で主導権を取れ。"
+    },
+    {
+        "game": "ダーツ",
+        "mode": "battle",
+        "name": "援護射撃・改",
+        "detail": "1対1でカウントアップ220点以上",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "援護射撃・改",
+        "skillWeapon": "dagger",
+        "questKey": "darts-countup",
+        "difficulty": 2,
+        "flavor": "援護射撃で点を刻め。"
+    },
+    {
+        "game": "ダーツ",
+        "mode": "battle",
+        "name": "包囲01・改",
+        "detail": "1対1で01を18ラウンド以内に勝利",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "包囲01・改",
+        "questKey": "darts-01",
+        "difficulty": 2,
+        "flavor": "包囲の形で早期決着を狙え。"
+    },
+    {
+        "game": "ダーツ",
+        "mode": "battle",
         "name": "旗印の連射",
         "detail": "1対1でカウントアップ260点以上",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "旗印連射",
+        "skillWeapon": "wand",
         "questKey": "darts-countup",
         "difficulty": 3,
-        "flavor": "旗印の連射で優位を築け。",
-        "skillWeapon": "wand"
+        "flavor": "旗印の連射で優位を築け。"
     },
     {
         "game": "ダーツ",
@@ -815,28 +1162,39 @@ const TROY_QUESTS = [
     {
         "game": "ダーツ",
         "mode": "battle",
-        "name": "制圧の嵐",
-        "detail": "1対1でカウントアップ360点以上",
+        "name": "旗印の連射・改",
+        "detail": "1対1でカウントアップ300点以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "制圧砲撃",
+        "skillName": "旗印の連射・改",
+        "skillWeapon": "polearm",
         "questKey": "darts-countup",
-        "difficulty": 5,
-        "flavor": "制圧の嵐で主導権を奪え。",
-        "skillWeapon": "sword"
+        "difficulty": 4,
+        "flavor": "旗印の連射で押し切れ。"
     },
     {
         "game": "ダーツ",
         "mode": "battle",
-        "name": "決戦フィニッシュ",
-        "detail": "1対1で01を12ラウンド以内に勝利",
+        "name": "四重封鎖",
+        "detail": "1対1でクリケット4クローズ達成",
         "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "決戦フィニッシュ",
+        "skillType": "passive",
+        "skillName": "四重封鎖",
+        "questKey": "darts-cricket",
+        "difficulty": 4,
+        "flavor": "四重封鎖で勝利を固めよ。"
+    },
+    {
+        "game": "ダーツ",
+        "mode": "battle",
+        "name": "包囲01・強",
+        "detail": "1対1で01を13ラウンド以内に勝利",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "包囲01・強",
         "questKey": "darts-01",
-        "difficulty": 5,
-        "flavor": "決戦の一矢で決めろ。",
-        "skillWeapon": "blunt"
+        "difficulty": 4,
+        "flavor": "包囲を強めて早期決着へ。"
     },
     {
         "game": "ダーツ",
@@ -853,28 +1211,28 @@ const TROY_QUESTS = [
     {
         "game": "ダーツ",
         "mode": "battle",
-        "name": "制圧の嵐・極",
-        "detail": "1対1でカウントアップ500点以上",
+        "name": "決戦フィニッシュ",
+        "detail": "1対1で01を12ラウンド以内に勝利",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "制圧砲撃・極",
-        "questKey": "darts-countup",
-        "difficulty": 6,
-        "flavor": "極限の制圧で突き放せ。",
-        "skillWeapon": "polearm"
+        "skillName": "決戦フィニッシュ",
+        "skillWeapon": "blunt",
+        "questKey": "darts-01",
+        "difficulty": 5,
+        "flavor": "決戦の一矢で決めろ。"
     },
     {
         "game": "ダーツ",
         "mode": "battle",
-        "name": "決戦フィニッシュ・極",
-        "detail": "1対1で01を10ラウンド以内に勝利",
+        "name": "制圧の嵐",
+        "detail": "1対1でカウントアップ360点以上",
         "gachaType": "skill",
         "skillType": "weapon",
-        "skillName": "決戦フィニッシュ・極",
-        "questKey": "darts-01",
-        "difficulty": 6,
-        "flavor": "極限の決戦で勝利を掴め。",
-        "skillWeapon": "axe"
+        "skillName": "制圧砲撃",
+        "skillWeapon": "sword",
+        "questKey": "darts-countup",
+        "difficulty": 5,
+        "flavor": "制圧の嵐で主導権を奪え。"
     },
     {
         "game": "ダーツ",
@@ -889,13 +1247,30 @@ const TROY_QUESTS = [
         "flavor": "極限の封鎖で勝ち切れ。"
     },
     {
-        "game": "トランプ",
-        "name": "船乗りの手札",
-        "detail": "ポーカーでワンペア以上を1回成立",
-        "gachaType": "hat",
-        "questKey": "cards-poker",
-        "difficulty": 1,
-        "flavor": "船乗りの手札で勝負せよ。"
+        "game": "ダーツ",
+        "mode": "battle",
+        "name": "決戦フィニッシュ・極",
+        "detail": "1対1で01を10ラウンド以内に勝利",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "決戦フィニッシュ・極",
+        "skillWeapon": "axe",
+        "questKey": "darts-01",
+        "difficulty": 6,
+        "flavor": "極限の決戦で勝利を掴め。"
+    },
+    {
+        "game": "ダーツ",
+        "mode": "battle",
+        "name": "制圧の嵐・極",
+        "detail": "1対1でカウントアップ500点以上",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "制圧砲撃・極",
+        "skillWeapon": "polearm",
+        "questKey": "darts-countup",
+        "difficulty": 6,
+        "flavor": "極限の制圧で突き放せ。"
     },
     {
         "game": "トランプ",
@@ -908,6 +1283,15 @@ const TROY_QUESTS = [
     },
     {
         "game": "トランプ",
+        "name": "船乗りの手札",
+        "detail": "ポーカーでワンペア以上を1回成立",
+        "gachaType": "hat",
+        "questKey": "cards-poker",
+        "difficulty": 1,
+        "flavor": "船乗りの手札で勝負せよ。"
+    },
+    {
+        "game": "トランプ",
         "name": "波間の一抜け",
         "detail": "大富豪で1回上がる",
         "gachaType": "dagger",
@@ -917,12 +1301,30 @@ const TROY_QUESTS = [
     },
     {
         "game": "トランプ",
-        "name": "旗揚げストレート",
-        "detail": "ポーカーでストレート以上を1回成立",
-        "gachaType": "sword",
+        "name": "20の堅守",
+        "detail": "ブラックジャックで20以上を1回達成",
+        "gachaType": "leather",
+        "questKey": "cards-blackjack",
+        "difficulty": 2,
+        "flavor": "堅守の20で勝負を支えよ。"
+    },
+    {
+        "game": "トランプ",
+        "name": "二重旗",
+        "detail": "ポーカーでツーペア以上を1回成立",
+        "gachaType": "hat",
         "questKey": "cards-poker",
-        "difficulty": 3,
-        "flavor": "旗揚げの一列で勝負を決めろ。"
+        "difficulty": 2,
+        "flavor": "二重旗で勝負の流れを作れ。"
+    },
+    {
+        "game": "トランプ",
+        "name": "波間の二抜け",
+        "detail": "大富豪で2回上がる",
+        "gachaType": "staff",
+        "questKey": "cards-daifugo",
+        "difficulty": 2,
+        "flavor": "二抜けで主導権を掴め。"
     },
     {
         "game": "トランプ",
@@ -935,12 +1337,48 @@ const TROY_QUESTS = [
     },
     {
         "game": "トランプ",
+        "name": "旗揚げストレート",
+        "detail": "ポーカーでストレート以上を1回成立",
+        "gachaType": "sword",
+        "questKey": "cards-poker",
+        "difficulty": 3,
+        "flavor": "旗揚げの一列で勝負を決めろ。"
+    },
+    {
+        "game": "トランプ",
         "name": "連勝の航路",
         "detail": "大富豪で連勝2回",
         "gachaType": "blunt",
         "questKey": "cards-daifugo",
         "difficulty": 3,
         "flavor": "連勝の航路で押し切れ。"
+    },
+    {
+        "game": "トランプ",
+        "name": "21の勝利",
+        "detail": "ブラックジャックで21を出して勝利",
+        "gachaType": "axe",
+        "questKey": "cards-blackjack",
+        "difficulty": 4,
+        "flavor": "勝利の21で決めろ。"
+    },
+    {
+        "game": "トランプ",
+        "name": "潮流フラッシュ",
+        "detail": "ポーカーでフラッシュ以上を1回成立",
+        "gachaType": "wand",
+        "questKey": "cards-poker",
+        "difficulty": 4,
+        "flavor": "潮流のフラッシュで切り開け。"
+    },
+    {
+        "game": "トランプ",
+        "name": "連覇の合図",
+        "detail": "大富豪で2連勝",
+        "gachaType": "metal",
+        "questKey": "cards-daifugo",
+        "difficulty": 4,
+        "flavor": "連覇の合図で流れを掴め。"
     },
     {
         "game": "トランプ",
@@ -980,21 +1418,21 @@ const TROY_QUESTS = [
     },
     {
         "game": "トランプ",
-        "name": "覇者の連勝",
-        "detail": "ブラックジャックで3連勝",
-        "gachaType": "staff",
-        "questKey": "cards-blackjack",
-        "difficulty": 6,
-        "flavor": "覇者の連勝で勝ち切れ。"
-    },
-    {
-        "game": "トランプ",
         "name": "覇権の戴冠",
         "detail": "大富豪で1位を3回",
         "gachaType": "gun",
         "questKey": "cards-daifugo",
         "difficulty": 6,
         "flavor": "覇権の戴冠で栄冠を掴め。"
+    },
+    {
+        "game": "トランプ",
+        "name": "覇者の連勝",
+        "detail": "ブラックジャックで3連勝",
+        "gachaType": "staff",
+        "questKey": "cards-blackjack",
+        "difficulty": 6,
+        "flavor": "覇者の連勝で勝ち切れ。"
     },
     {
         "game": "トランプ",
@@ -1011,18 +1449,6 @@ const TROY_QUESTS = [
     {
         "game": "トランプ",
         "mode": "battle",
-        "name": "護衛BJ",
-        "detail": "1対1ブラックジャックで1勝",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "護衛の構え",
-        "questKey": "cards-blackjack",
-        "difficulty": 1,
-        "flavor": "護衛の構えで勝利を守れ。"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
         "name": "決闘上がり",
         "detail": "1対1大富豪で1回上がり",
         "gachaType": "skill",
@@ -1035,813 +1461,14 @@ const TROY_QUESTS = [
     {
         "game": "トランプ",
         "mode": "battle",
-        "name": "隊列ストレート",
-        "detail": "1対1ポーカーでストレート以上を1回成立",
+        "name": "護衛BJ",
+        "detail": "1対1ブラックジャックで1勝",
         "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "隊列整列",
-        "questKey": "cards-poker",
-        "difficulty": 3,
-        "flavor": "隊列を揃えて札を並べろ。",
-        "skillWeapon": "staff"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "艦隊21",
-        "detail": "1対1ブラックジャックで21を1回達成",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "艦隊の強運",
+        "skillType": "passive",
+        "skillName": "護衛の構え",
         "questKey": "cards-blackjack",
-        "difficulty": 3,
-        "flavor": "艦隊の強運で21を掴め。",
-        "skillWeapon": "dagger"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "連携大富豪",
-        "detail": "1対1大富豪で1位を1回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "連携突撃",
-        "questKey": "cards-daifugo",
-        "difficulty": 3,
-        "flavor": "一対一の上がりで優位を取れ。"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "王手のフルハウス",
-        "detail": "1対1ポーカーでフルハウス以上を1回成立",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "王手号令",
-        "questKey": "cards-poker",
-        "difficulty": 5,
-        "flavor": "王手の号令で締めくくれ。",
-        "skillWeapon": "gun"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "逆転ブラックジャック",
-        "detail": "1対1ブラックジャックで2連勝",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "逆転手",
-        "questKey": "cards-blackjack",
-        "difficulty": 5,
-        "flavor": "逆転手で連勝を刻め。"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "覇権の上がり",
-        "detail": "1対1大富豪で1位を2回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "覇権掌握",
-        "questKey": "cards-daifugo",
-        "difficulty": 5,
-        "flavor": "覇権の上がりで差を広げよ。",
-        "skillWeapon": "wand"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "王手の四枚",
-        "detail": "1対1ポーカーでフォーカード以上を1回成立",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "王手の四枚",
-        "questKey": "cards-poker",
-        "difficulty": 6,
-        "flavor": "王手の四枚で決着をつけろ。",
-        "skillWeapon": "blunt"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "覇者の連勝",
-        "detail": "1対1ブラックジャックで3連勝",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "覇者の連勝",
-        "questKey": "cards-blackjack",
-        "difficulty": 6,
-        "flavor": "覇者の連勝で勝ち切れ。"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "覇権の戴冠",
-        "detail": "1対1大富豪で1位を3回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "覇権の戴冠",
-        "questKey": "cards-daifugo",
-        "difficulty": 6,
-        "flavor": "覇権の戴冠で栄冠を掴め。",
-        "skillWeapon": "sword"
-    },
-    {
-        "game": "その他",
-        "name": "港の演習",
-        "detail": "ボードゲームを1回プレイ",
-        "gachaType": "hat",
-        "questKey": "other-board",
         "difficulty": 1,
-        "flavor": "港で演習をこなせ。"
-    },
-    {
-        "game": "その他",
-        "name": "小舟の冒険",
-        "detail": "ミニゲームを1回クリア",
-        "gachaType": "wand",
-        "questKey": "other-mini",
-        "difficulty": 1,
-        "flavor": "小舟の冒険で腕を磨け。"
-    },
-    {
-        "game": "その他",
-        "name": "黒ひげの試し",
-        "detail": "黒ひげでセーフを1回出す",
-        "gachaType": "dagger",
-        "questKey": "other-kurohige",
-        "difficulty": 1,
-        "flavor": "黒ひげの試しを乗り越えよ。"
-    },
-    {
-        "game": "その他",
-        "name": "防衛の勝利",
-        "detail": "ボードゲームで1勝",
-        "gachaType": "shield",
-        "questKey": "other-board",
-        "difficulty": 3,
-        "flavor": "防衛の勝利で士気を上げろ。"
-    },
-    {
-        "game": "その他",
-        "name": "潮流突破",
-        "detail": "ミニゲームで時間内クリア",
-        "gachaType": "axe",
-        "questKey": "other-mini",
-        "difficulty": 3,
-        "flavor": "潮流を突破して進め。"
-    },
-    {
-        "game": "その他",
-        "name": "綱渡り",
-        "detail": "黒ひげで連続セーフ2回",
-        "gachaType": "blunt",
-        "questKey": "other-kurohige",
-        "difficulty": 3,
-        "flavor": "綱渡りの集中で乗り切れ。"
-    },
-    {
-        "game": "その他",
-        "name": "大海防衛線",
-        "detail": "ボードゲームで連勝2回",
-        "gachaType": "shield",
-        "questKey": "other-board",
-        "difficulty": 5,
-        "flavor": "大海防衛線で押し切れ。"
-    },
-    {
-        "game": "その他",
-        "name": "疾風の航路",
-        "detail": "ミニゲームでノーダメージクリア",
-        "gachaType": "gun",
-        "questKey": "other-mini",
-        "difficulty": 5,
-        "flavor": "疾風の航路で無傷を狙え。"
-    },
-    {
-        "game": "その他",
-        "name": "黒旗の運命",
-        "detail": "黒ひげで連続セーフ3回",
-        "gachaType": "leather",
-        "questKey": "other-kurohige",
-        "difficulty": 5,
-        "flavor": "黒旗の運命を味方にせよ。"
-    },
-    {
-        "game": "その他",
-        "name": "大海防衛線・極",
-        "detail": "ボードゲームで完全勝利",
-        "gachaType": "shield",
-        "questKey": "other-board",
-        "difficulty": 6,
-        "flavor": "完全勝利で防衛線を守り切れ。"
-    },
-    {
-        "game": "その他",
-        "name": "疾風の航路・極",
-        "detail": "ミニゲームで連続パーフェクト2回",
-        "gachaType": "staff",
-        "questKey": "other-mini",
-        "difficulty": 6,
-        "flavor": "疾風の航路で完璧を刻め。"
-    },
-    {
-        "game": "その他",
-        "name": "黒旗の運命・極",
-        "detail": "黒ひげでセーフのみで勝利",
-        "gachaType": "gun",
-        "questKey": "other-kurohige",
-        "difficulty": 6,
-        "flavor": "黒旗の運命を味方にせよ。"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "協力防衛",
-        "detail": "1対1でボードゲームを1回プレイ",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "防衛構え",
-        "questKey": "other-board",
-        "difficulty": 1,
-        "flavor": "1対1の演習で準備を整えよ。"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "連携小舟",
-        "detail": "1対1でミニゲームを1回クリア",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "小舟支援",
-        "questKey": "other-mini",
-        "difficulty": 1,
-        "flavor": "小舟支援で先に進め。",
-        "skillWeapon": "axe"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "黒ひげ援護",
-        "detail": "1対1で黒ひげセーフ1回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "援護板",
-        "questKey": "other-kurohige",
-        "difficulty": 1,
-        "flavor": "援護板で危機を避けろ。"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "港湾迎撃",
-        "detail": "1対1でボードゲームに勝利",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "迎撃隊形",
-        "questKey": "other-board",
-        "difficulty": 3,
-        "flavor": "港湾迎撃で勝利を掴め。",
-        "skillWeapon": "polearm"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "潮流突破",
-        "detail": "1対1でミニゲーム時間内クリア",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "潮流突破",
-        "questKey": "other-mini",
-        "difficulty": 3,
-        "flavor": "潮流突破で進路を確保せよ。"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "黒ひげ包囲",
-        "detail": "1対1で黒ひげ連続セーフ2回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "包囲網",
-        "questKey": "other-kurohige",
-        "difficulty": 3,
-        "flavor": "包囲網で黒ひげを攻略せよ。",
-        "skillWeapon": "dagger"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "大海防衛線",
-        "detail": "1対1でボードゲーム連勝2回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "防衛線強化",
-        "questKey": "other-board",
-        "difficulty": 5,
-        "flavor": "防衛線を強化して勝ち切れ。",
-        "skillWeapon": "gun"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "疾風連携",
-        "detail": "1対1でミニゲームノーダメージクリア",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "疾風連携",
-        "questKey": "other-mini",
-        "difficulty": 5,
-        "flavor": "疾風連携で無傷を狙え。",
-        "skillWeapon": "staff"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "黒旗の運命",
-        "detail": "1対1で黒ひげ連続セーフ3回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "黒旗の運命",
-        "questKey": "other-kurohige",
-        "difficulty": 5,
-        "flavor": "黒旗の運命を味方にせよ。"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "大海防衛線・極",
-        "detail": "1対1でボードゲーム完全勝利",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "防衛線強化・極",
-        "questKey": "other-board",
-        "difficulty": 6,
-        "flavor": "完全勝利で海を守り切れ。",
-        "skillWeapon": "blunt"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "疾風連携・極",
-        "detail": "1対1でミニゲーム連続パーフェクト2回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "疾風連携・極",
-        "questKey": "other-mini",
-        "difficulty": 6,
-        "flavor": "疾風連携で完璧を刻め。",
-        "skillWeapon": "wand"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "黒旗の運命・極",
-        "detail": "1対1で黒ひげセーフのみで勝利",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "黒旗の運命・極",
-        "questKey": "other-kurohige",
-        "difficulty": 6,
-        "flavor": "黒旗の運命で勝利を掴め。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "手前止めの基本",
-        "detail": "ストップショットで白球を手前に止める",
-        "gachaType": "leather",
-        "questKey": "billiard-bowrad",
-        "difficulty": 2,
-        "flavor": "止めの基本で航路を整えよ。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "岸への返し",
-        "detail": "クッションに当てて白球を手前ぎりぎりに戻す",
-        "gachaType": "staff",
-        "questKey": "billiard-bowrad",
-        "difficulty": 2,
-        "flavor": "岸への返しで距離感を掴め。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "芯のセンター",
-        "detail": "センターショットで的球を2回連続で入れる",
-        "gachaType": "wand",
-        "questKey": "billiard-bowrad",
-        "difficulty": 2,
-        "flavor": "芯を射抜く一撃で道を示せ。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "薄当ての配置",
-        "detail": "薄い当てで次球を狙える位置に出す",
-        "gachaType": "axe",
-        "questKey": "billiard-bowrad",
-        "difficulty": 4,
-        "flavor": "薄当ての配置で航路を作れ。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "二枚クッション",
-        "detail": "2クッションで的球を入れる",
-        "gachaType": "blunt",
-        "questKey": "billiard-bowrad",
-        "difficulty": 4,
-        "flavor": "二枚の反射で道を拓け。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "フォローの伸び",
-        "detail": "フォローショットで白球を奥に送ってポジションを取る",
-        "gachaType": "polearm",
-        "questKey": "billiard-bowrad",
-        "difficulty": 4,
-        "flavor": "伸びる一球で優位を掴め。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "二球先取",
-        "detail": "9ボールで2球以上入れる",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "二球先取",
-        "questKey": "billiard-9",
-        "difficulty": 2,
-        "flavor": "先取の二球で流れを掴め。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "色の確保",
-        "detail": "8ボールで自分の色を3球入れる",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "色の確保",
-        "questKey": "billiard-8",
-        "difficulty": 2,
-        "flavor": "色を確保して主導権を取れ。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "ブレイク追撃",
-        "detail": "9ボールでブレイク後に1球入れる",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "ブレイク追撃",
-        "questKey": "billiard-9",
-        "difficulty": 2,
-        "flavor": "追撃の一球で差をつけろ。",
-        "skillWeapon": "sword"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "連続三球",
-        "detail": "9ボールで連続ポケット3回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "連続三球",
-        "questKey": "billiard-9",
-        "difficulty": 4,
-        "flavor": "連続の三球で主導権を奪え。",
-        "skillWeapon": "gun"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "色の制圧",
-        "detail": "8ボールで自分の色を5球入れる",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "色の制圧",
-        "questKey": "billiard-8",
-        "difficulty": 4,
-        "flavor": "色の制圧で道を切り開け。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "攻めの継続",
-        "detail": "9ボールでブレイク後に連続ポケット2回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "攻めの継続",
-        "questKey": "billiard-9",
-        "difficulty": 4,
-        "flavor": "攻めの継続で盤面を支配せよ。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "潮風の声",
-        "detail": "シングルで70点以上",
-        "gachaType": "hat",
-        "questKey": "karaoke-single",
-        "difficulty": 2,
-        "flavor": "潮風の声で士気を上げよ。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "小波のコンボ",
-        "detail": "シングルでコンボ5以上",
-        "gachaType": "dagger",
-        "questKey": "karaoke-single",
-        "difficulty": 2,
-        "flavor": "小波の連打で流れを作れ。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "息継ぎの安定",
-        "detail": "シングルで安定度65%以上",
-        "gachaType": "staff",
-        "questKey": "karaoke-single",
-        "difficulty": 2,
-        "flavor": "安定した息で航路を守れ。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "波越えの声",
-        "detail": "シングルで80点以上",
-        "gachaType": "wand",
-        "questKey": "karaoke-single",
-        "difficulty": 4,
-        "flavor": "波越えの声で頂を狙え。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "響きの連鎖",
-        "detail": "シングルでコンボ18以上",
-        "gachaType": "axe",
-        "questKey": "karaoke-single",
-        "difficulty": 4,
-        "flavor": "響きの連鎖で一気に畳みかけろ。"
-    },
-    {
-        "game": "カラオケ",
-        "name": "抑揚の灯",
-        "detail": "シングルで抑揚75%以上",
-        "gachaType": "metal",
-        "questKey": "karaoke-single",
-        "difficulty": 4,
-        "flavor": "抑揚の灯で道を照らせ。"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "対戦の旋律",
-        "detail": "1対1で70点以上",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "対戦の旋律",
-        "questKey": "karaoke-battle",
-        "difficulty": 2,
-        "flavor": "対戦の旋律で先手を取れ。"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "鼓動のコンボ",
-        "detail": "1対1でコンボ10以上",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "鼓動のコンボ",
-        "questKey": "karaoke-battle",
-        "difficulty": 2,
-        "flavor": "鼓動の連打で差をつけろ。",
-        "skillWeapon": "axe"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "帆走の安定",
-        "detail": "1対1で安定度70%以上",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "帆走の安定",
-        "questKey": "karaoke-battle",
-        "difficulty": 2,
-        "flavor": "帆走の安定で揺れを抑えよ。"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "旗声の80",
-        "detail": "1対1で80点以上",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "旗声の80",
-        "questKey": "karaoke-battle",
-        "difficulty": 4,
-        "flavor": "旗声で主導権を奪え。"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "嵐越えの20",
-        "detail": "1対1でコンボ20以上",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "嵐越えの20",
-        "questKey": "karaoke-battle",
-        "difficulty": 4,
-        "flavor": "嵐越えの連打で押し切れ。",
-        "skillWeapon": "blunt"
-    },
-    {
-        "game": "カラオケ",
-        "mode": "battle",
-        "name": "抑揚の波",
-        "detail": "1対1で抑揚80%以上",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "抑揚の波",
-        "questKey": "karaoke-battle",
-        "difficulty": 4,
-        "flavor": "抑揚の波で響きを刻め。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "風向き二投",
-        "detail": "カウントアップで170点以上",
-        "gachaType": "blunt",
-        "questKey": "darts-countup",
-        "difficulty": 2,
-        "flavor": "二投の風向きで道を作れ。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "航路のダブル",
-        "detail": "01でダブルに1回当てる",
-        "gachaType": "polearm",
-        "questKey": "darts-01",
-        "difficulty": 2,
-        "flavor": "航路の二重で流れを作れ。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "二重クローズ",
-        "detail": "クリケットで2クローズ達成",
-        "gachaType": "leather",
-        "questKey": "darts-cricket",
-        "difficulty": 2,
-        "flavor": "二重クローズで陣地を固めろ。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "疾風の照準",
-        "detail": "カウントアップで300点以上",
-        "gachaType": "staff",
-        "questKey": "darts-countup",
-        "difficulty": 4,
-        "flavor": "疾風の照準で差を広げよ。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "速攻01",
-        "detail": "01で13ラウンド以内に勝利",
-        "gachaType": "wand",
-        "questKey": "darts-01",
-        "difficulty": 4,
-        "flavor": "速攻の一矢で決着を狙え。"
-    },
-    {
-        "game": "ダーツ",
-        "name": "四つの封鎖",
-        "detail": "クリケットで4クローズ達成",
-        "gachaType": "metal",
-        "questKey": "darts-cricket",
-        "difficulty": 4,
-        "flavor": "四つの封鎖で守りを固めろ。"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "援護射撃・改",
-        "detail": "1対1でカウントアップ220点以上",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "援護射撃・改",
-        "questKey": "darts-countup",
-        "difficulty": 2,
-        "flavor": "援護射撃で点を刻め。",
-        "skillWeapon": "dagger"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "包囲01・改",
-        "detail": "1対1で01を18ラウンド以内に勝利",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "包囲01・改",
-        "questKey": "darts-01",
-        "difficulty": 2,
-        "flavor": "包囲の形で早期決着を狙え。"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "ブルの先制",
-        "detail": "1対1でクリケットでブルを1回ヒット",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "ブルの先制",
-        "questKey": "darts-cricket",
-        "difficulty": 2,
-        "flavor": "ブルの先制で主導権を取れ。"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "旗印の連射・改",
-        "detail": "1対1でカウントアップ300点以上",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "旗印の連射・改",
-        "questKey": "darts-countup",
-        "difficulty": 4,
-        "flavor": "旗印の連射で押し切れ。",
-        "skillWeapon": "polearm"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "包囲01・強",
-        "detail": "1対1で01を13ラウンド以内に勝利",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "包囲01・強",
-        "questKey": "darts-01",
-        "difficulty": 4,
-        "flavor": "包囲を強めて早期決着へ。"
-    },
-    {
-        "game": "ダーツ",
-        "mode": "battle",
-        "name": "四重封鎖",
-        "detail": "1対1でクリケット4クローズ達成",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "四重封鎖",
-        "questKey": "darts-cricket",
-        "difficulty": 4,
-        "flavor": "四重封鎖で勝利を固めよ。"
-    },
-    {
-        "game": "トランプ",
-        "name": "二重旗",
-        "detail": "ポーカーでツーペア以上を1回成立",
-        "gachaType": "hat",
-        "questKey": "cards-poker",
-        "difficulty": 2,
-        "flavor": "二重旗で勝負の流れを作れ。"
-    },
-    {
-        "game": "トランプ",
-        "name": "20の堅守",
-        "detail": "ブラックジャックで20以上を1回達成",
-        "gachaType": "leather",
-        "questKey": "cards-blackjack",
-        "difficulty": 2,
-        "flavor": "堅守の20で勝負を支えよ。"
-    },
-    {
-        "game": "トランプ",
-        "name": "波間の二抜け",
-        "detail": "大富豪で2回上がる",
-        "gachaType": "staff",
-        "questKey": "cards-daifugo",
-        "difficulty": 2,
-        "flavor": "二抜けで主導権を掴め。"
-    },
-    {
-        "game": "トランプ",
-        "name": "潮流フラッシュ",
-        "detail": "ポーカーでフラッシュ以上を1回成立",
-        "gachaType": "wand",
-        "questKey": "cards-poker",
-        "difficulty": 4,
-        "flavor": "潮流のフラッシュで切り開け。"
-    },
-    {
-        "game": "トランプ",
-        "name": "21の勝利",
-        "detail": "ブラックジャックで21を出して勝利",
-        "gachaType": "axe",
-        "questKey": "cards-blackjack",
-        "difficulty": 4,
-        "flavor": "勝利の21で決めろ。"
-    },
-    {
-        "game": "トランプ",
-        "name": "連覇の合図",
-        "detail": "大富豪で2連勝",
-        "gachaType": "metal",
-        "questKey": "cards-daifugo",
-        "difficulty": 4,
-        "flavor": "連覇の合図で流れを掴め。"
+        "flavor": "護衛の構えで勝利を守れ。"
     },
     {
         "game": "トランプ",
@@ -1851,22 +1478,10 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "決闘ツーペア",
+        "skillWeapon": "staff",
         "questKey": "cards-poker",
         "difficulty": 2,
-        "flavor": "決闘の二重札で流れを掴め。",
-        "skillWeapon": "staff"
-    },
-    {
-        "game": "トランプ",
-        "mode": "battle",
-        "name": "堅守20",
-        "detail": "1対1ブラックジャックで20以上を1回達成",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "堅守20",
-        "questKey": "cards-blackjack",
-        "difficulty": 2,
-        "flavor": "堅守の20で勝利を呼べ。"
+        "flavor": "決闘の二重札で流れを掴め。"
     },
     {
         "game": "トランプ",
@@ -1883,15 +1498,65 @@ const TROY_QUESTS = [
     {
         "game": "トランプ",
         "mode": "battle",
+        "name": "堅守20",
+        "detail": "1対1ブラックジャックで20以上を1回達成",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "堅守20",
+        "questKey": "cards-blackjack",
+        "difficulty": 2,
+        "flavor": "堅守の20で勝利を呼べ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "艦隊21",
+        "detail": "1対1ブラックジャックで21を1回達成",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "艦隊の強運",
+        "skillWeapon": "dagger",
+        "questKey": "cards-blackjack",
+        "difficulty": 3,
+        "flavor": "艦隊の強運で21を掴め。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "隊列ストレート",
+        "detail": "1対1ポーカーでストレート以上を1回成立",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "隊列整列",
+        "skillWeapon": "staff",
+        "questKey": "cards-poker",
+        "difficulty": 3,
+        "flavor": "隊列を揃えて札を並べろ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "連携大富豪",
+        "detail": "1対1大富豪で1位を1回",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "連携突撃",
+        "questKey": "cards-daifugo",
+        "difficulty": 3,
+        "flavor": "一対一の上がりで優位を取れ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
         "name": "決闘フラッシュ",
         "detail": "1対1ポーカーでフラッシュ以上を1回成立",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "決闘フラッシュ",
+        "skillWeapon": "wand",
         "questKey": "cards-poker",
         "difficulty": 4,
-        "flavor": "決闘のフラッシュで勝負を決めろ。",
-        "skillWeapon": "wand"
+        "flavor": "決闘のフラッシュで勝負を決めろ。"
     },
     {
         "game": "トランプ",
@@ -1918,6 +1583,109 @@ const TROY_QUESTS = [
         "flavor": "覇権の連勝で差を広げよ。"
     },
     {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "王手のフルハウス",
+        "detail": "1対1ポーカーでフルハウス以上を1回成立",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "王手号令",
+        "skillWeapon": "gun",
+        "questKey": "cards-poker",
+        "difficulty": 5,
+        "flavor": "王手の号令で締めくくれ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "逆転ブラックジャック",
+        "detail": "1対1ブラックジャックで2連勝",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "逆転手",
+        "questKey": "cards-blackjack",
+        "difficulty": 5,
+        "flavor": "逆転手で連勝を刻め。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "覇権の上がり",
+        "detail": "1対1大富豪で1位を2回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "覇権掌握",
+        "skillWeapon": "wand",
+        "questKey": "cards-daifugo",
+        "difficulty": 5,
+        "flavor": "覇権の上がりで差を広げよ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "王手の四枚",
+        "detail": "1対1ポーカーでフォーカード以上を1回成立",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "王手の四枚",
+        "skillWeapon": "blunt",
+        "questKey": "cards-poker",
+        "difficulty": 6,
+        "flavor": "王手の四枚で決着をつけろ。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "覇権の戴冠",
+        "detail": "1対1大富豪で1位を3回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "覇権の戴冠",
+        "skillWeapon": "sword",
+        "questKey": "cards-daifugo",
+        "difficulty": 6,
+        "flavor": "覇権の戴冠で栄冠を掴め。"
+    },
+    {
+        "game": "トランプ",
+        "mode": "battle",
+        "name": "覇者の連勝",
+        "detail": "1対1ブラックジャックで3連勝",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "覇者の連勝",
+        "questKey": "cards-blackjack",
+        "difficulty": 6,
+        "flavor": "覇者の連勝で勝ち切れ。"
+    },
+    {
+        "game": "その他",
+        "name": "港の演習",
+        "detail": "ボードゲームを1回プレイ",
+        "gachaType": "hat",
+        "questKey": "other-board",
+        "difficulty": 1,
+        "flavor": "港で演習をこなせ。"
+    },
+    {
+        "game": "その他",
+        "name": "黒ひげの試し",
+        "detail": "黒ひげでセーフを1回出す",
+        "gachaType": "dagger",
+        "questKey": "other-kurohige",
+        "difficulty": 1,
+        "flavor": "黒ひげの試しを乗り越えよ。"
+    },
+    {
+        "game": "その他",
+        "name": "小舟の冒険",
+        "detail": "ミニゲームを1回クリア",
+        "gachaType": "wand",
+        "questKey": "other-mini",
+        "difficulty": 1,
+        "flavor": "小舟の冒険で腕を磨け。"
+    },
+    {
         "game": "その他",
         "name": "港の再戦",
         "detail": "ボードゲームを2回プレイ",
@@ -1925,15 +1693,6 @@ const TROY_QUESTS = [
         "questKey": "other-board",
         "difficulty": 2,
         "flavor": "再戦の港で準備を整えよ。"
-    },
-    {
-        "game": "その他",
-        "name": "小舟の連続",
-        "detail": "ミニゲームを2回連続でクリア",
-        "gachaType": "polearm",
-        "questKey": "other-mini",
-        "difficulty": 2,
-        "flavor": "小舟の連続で流れを掴め。"
     },
     {
         "game": "その他",
@@ -1946,21 +1705,39 @@ const TROY_QUESTS = [
     },
     {
         "game": "その他",
-        "name": "防衛の連勝",
-        "detail": "ボードゲームで2連勝",
-        "gachaType": "staff",
-        "questKey": "other-board",
-        "difficulty": 4,
-        "flavor": "防衛の連勝で陣地を守れ。"
+        "name": "小舟の連続",
+        "detail": "ミニゲームを2回連続でクリア",
+        "gachaType": "polearm",
+        "questKey": "other-mini",
+        "difficulty": 2,
+        "flavor": "小舟の連続で流れを掴め。"
     },
     {
         "game": "その他",
-        "name": "潮流三連",
-        "detail": "ミニゲームを連続クリア3回",
-        "gachaType": "gun",
+        "name": "綱渡り",
+        "detail": "黒ひげで連続セーフ2回",
+        "gachaType": "blunt",
+        "questKey": "other-kurohige",
+        "difficulty": 3,
+        "flavor": "綱渡りの集中で乗り切れ。"
+    },
+    {
+        "game": "その他",
+        "name": "潮流突破",
+        "detail": "ミニゲームで時間内クリア",
+        "gachaType": "axe",
         "questKey": "other-mini",
-        "difficulty": 4,
-        "flavor": "潮流三連で勢いを掴め。"
+        "difficulty": 3,
+        "flavor": "潮流を突破して進め。"
+    },
+    {
+        "game": "その他",
+        "name": "防衛の勝利",
+        "detail": "ボードゲームで1勝",
+        "gachaType": "shield",
+        "questKey": "other-board",
+        "difficulty": 3,
+        "flavor": "防衛の勝利で士気を上げろ。"
     },
     {
         "game": "その他",
@@ -1973,28 +1750,125 @@ const TROY_QUESTS = [
     },
     {
         "game": "その他",
+        "name": "潮流三連",
+        "detail": "ミニゲームを連続クリア3回",
+        "gachaType": "gun",
+        "questKey": "other-mini",
+        "difficulty": 4,
+        "flavor": "潮流三連で勢いを掴め。"
+    },
+    {
+        "game": "その他",
+        "name": "防衛の連勝",
+        "detail": "ボードゲームで2連勝",
+        "gachaType": "staff",
+        "questKey": "other-board",
+        "difficulty": 4,
+        "flavor": "防衛の連勝で陣地を守れ。"
+    },
+    {
+        "game": "その他",
+        "name": "黒旗の運命",
+        "detail": "黒ひげで連続セーフ3回",
+        "gachaType": "leather",
+        "questKey": "other-kurohige",
+        "difficulty": 5,
+        "flavor": "黒旗の運命を味方にせよ。"
+    },
+    {
+        "game": "その他",
+        "name": "疾風の航路",
+        "detail": "ミニゲームでノーダメージクリア",
+        "gachaType": "gun",
+        "questKey": "other-mini",
+        "difficulty": 5,
+        "flavor": "疾風の航路で無傷を狙え。"
+    },
+    {
+        "game": "その他",
+        "name": "大海防衛線",
+        "detail": "ボードゲームで連勝2回",
+        "gachaType": "shield",
+        "questKey": "other-board",
+        "difficulty": 5,
+        "flavor": "大海防衛線で押し切れ。"
+    },
+    {
+        "game": "その他",
+        "name": "黒旗の運命・極",
+        "detail": "黒ひげでセーフのみで勝利",
+        "gachaType": "gun",
+        "questKey": "other-kurohige",
+        "difficulty": 6,
+        "flavor": "黒旗の運命を味方にせよ。"
+    },
+    {
+        "game": "その他",
+        "name": "疾風の航路・極",
+        "detail": "ミニゲームで連続パーフェクト2回",
+        "gachaType": "staff",
+        "questKey": "other-mini",
+        "difficulty": 6,
+        "flavor": "疾風の航路で完璧を刻め。"
+    },
+    {
+        "game": "その他",
+        "name": "大海防衛線・極",
+        "detail": "ボードゲームで完全勝利",
+        "gachaType": "shield",
+        "questKey": "other-board",
+        "difficulty": 6,
+        "flavor": "完全勝利で防衛線を守り切れ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "協力防衛",
+        "detail": "1対1でボードゲームを1回プレイ",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "防衛構え",
+        "questKey": "other-board",
+        "difficulty": 1,
+        "flavor": "1対1の演習で準備を整えよ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "黒ひげ援護",
+        "detail": "1対1で黒ひげセーフ1回",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "援護板",
+        "questKey": "other-kurohige",
+        "difficulty": 1,
+        "flavor": "援護板で危機を避けろ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "連携小舟",
+        "detail": "1対1でミニゲームを1回クリア",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "小舟支援",
+        "skillWeapon": "axe",
+        "questKey": "other-mini",
+        "difficulty": 1,
+        "flavor": "小舟支援で先に進め。"
+    },
+    {
+        "game": "その他",
         "mode": "battle",
         "name": "港湾演習・改",
         "detail": "1対1でボードゲームを2回プレイ",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "港湾演習・改",
+        "skillWeapon": "sword",
         "questKey": "other-board",
         "difficulty": 2,
-        "flavor": "港湾演習で備えを整えよ。",
-        "skillWeapon": "sword"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "小舟連携・改",
-        "detail": "1対1でミニゲームを2回クリア",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "小舟連携・改",
-        "questKey": "other-mini",
-        "difficulty": 2,
-        "flavor": "小舟連携で前へ進め。"
+        "flavor": "港湾演習で備えを整えよ。"
     },
     {
         "game": "その他",
@@ -2011,27 +1885,65 @@ const TROY_QUESTS = [
     {
         "game": "その他",
         "mode": "battle",
+        "name": "小舟連携・改",
+        "detail": "1対1でミニゲームを2回クリア",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "小舟連携・改",
+        "questKey": "other-mini",
+        "difficulty": 2,
+        "flavor": "小舟連携で前へ進め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "港湾迎撃",
+        "detail": "1対1でボードゲームに勝利",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "迎撃隊形",
+        "skillWeapon": "polearm",
+        "questKey": "other-board",
+        "difficulty": 3,
+        "flavor": "港湾迎撃で勝利を掴め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "黒ひげ包囲",
+        "detail": "1対1で黒ひげ連続セーフ2回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "包囲網",
+        "skillWeapon": "dagger",
+        "questKey": "other-kurohige",
+        "difficulty": 3,
+        "flavor": "包囲網で黒ひげを攻略せよ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "潮流突破",
+        "detail": "1対1でミニゲーム時間内クリア",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "潮流突破",
+        "questKey": "other-mini",
+        "difficulty": 3,
+        "flavor": "潮流突破で進路を確保せよ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
         "name": "港湾迎撃・強",
         "detail": "1対1でボードゲーム1勝＋追加プレイ1回",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "港湾迎撃・強",
+        "skillWeapon": "gun",
         "questKey": "other-board",
         "difficulty": 4,
-        "flavor": "迎撃の連戦で守り切れ。",
-        "skillWeapon": "gun"
-    },
-    {
-        "game": "その他",
-        "mode": "battle",
-        "name": "疾風連携・弐",
-        "detail": "1対1でミニゲームでパーフェクト1回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "疾風連携・弐",
-        "questKey": "other-mini",
-        "difficulty": 4,
-        "flavor": "疾風連携で完璧を刻め。"
+        "flavor": "迎撃の連戦で守り切れ。"
     },
     {
         "game": "その他",
@@ -2044,6 +1956,94 @@ const TROY_QUESTS = [
         "questKey": "other-kurohige",
         "difficulty": 4,
         "flavor": "包囲の圧で勝利を掴め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "疾風連携・弐",
+        "detail": "1対1でミニゲームをパーフェクト1回",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "疾風連携・弐",
+        "questKey": "other-mini",
+        "difficulty": 4,
+        "flavor": "疾風連携で完璧を刻め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "黒旗の運命",
+        "detail": "1対1で黒ひげ連続セーフ3回",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "黒旗の運命",
+        "questKey": "other-kurohige",
+        "difficulty": 5,
+        "flavor": "黒旗の運命を味方にせよ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "疾風連携",
+        "detail": "1対1でミニゲームノーダメージクリア",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "疾風連携",
+        "skillWeapon": "staff",
+        "questKey": "other-mini",
+        "difficulty": 5,
+        "flavor": "疾風連携で無傷を狙え。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "大海防衛線",
+        "detail": "1対1でボードゲーム連勝2回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "防衛線強化",
+        "skillWeapon": "gun",
+        "questKey": "other-board",
+        "difficulty": 5,
+        "flavor": "防衛線を強化して勝ち切れ。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "黒旗の運命・極",
+        "detail": "1対1で黒ひげセーフのみで勝利",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "黒旗の運命・極",
+        "questKey": "other-kurohige",
+        "difficulty": 6,
+        "flavor": "黒旗の運命で勝利を掴め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "疾風連携・極",
+        "detail": "1対1でミニゲーム連続パーフェクト2回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "疾風連携・極",
+        "skillWeapon": "wand",
+        "questKey": "other-mini",
+        "difficulty": 6,
+        "flavor": "疾風連携で完璧を刻め。"
+    },
+    {
+        "game": "その他",
+        "mode": "battle",
+        "name": "大海防衛線・極",
+        "detail": "1対1でボードゲーム完全勝利",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "防衛線強化・極",
+        "skillWeapon": "blunt",
+        "questKey": "other-board",
+        "difficulty": 6,
+        "flavor": "完全勝利で海を守り切れ。"
     }
 ];
 
