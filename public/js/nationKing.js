@@ -65,8 +65,12 @@ export async function refreshKingNav(playFabId) {
     const nav = document.getElementById('navKing');
     if (!nav) return false;
 
-    const data = await getNationKingPage(playFabId, { isSilent: true });
-    _isKing = !!data;
+    try {
+        const data = await getNationKingPage(playFabId, { isSilent: true });
+        _isKing = !!data;
+    } catch (error) {
+        _isKing = false;
+    }
     nav.style.display = _isKing ? '' : 'none';
     return _isKing;
 }
