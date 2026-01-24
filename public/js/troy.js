@@ -152,7 +152,7 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "name": "手前止めの基本",
-        "detail": "ストップショットで白球を手前に止める",
+        "detail": "ストップショットで白球を手前の手球長以内に止める",
         "gachaType": "leather",
         "questKey": "billiard-bowrad",
         "difficulty": 2,
@@ -187,12 +187,12 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "舵の連打",
-        "detail": "クッションバンクで的球を入れる",
-        "gachaType": "sword",
+        "name": "波間の計算",
+        "detail": "手前戻し（ドロー）で白球を手前に戻す",
+        "gachaType": "shield",
         "questKey": "billiard-bowrad",
         "difficulty": 3,
-        "flavor": "舵の切り返しで道を開け。"
+        "flavor": "引きの計算で波間を制せ。"
     },
     {
         "game": "ビリヤード",
@@ -205,17 +205,17 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "二枚クッション",
-        "detail": "2クッションで的球を入れる",
-        "gachaType": "blunt",
+        "name": "舵の連打",
+        "detail": "クッションバンクで的球を入れる",
+        "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 4,
-        "flavor": "二枚の反射で道を拓け。"
+        "flavor": "舵の切り返しで道を開け。"
     },
     {
         "game": "ビリヤード",
         "name": "薄当ての配置",
-        "detail": "薄い当てで次球を狙える位置に出す",
+        "detail": "薄い当てで白球を中央付近に止める",
         "gachaType": "axe",
         "questKey": "billiard-bowrad",
         "difficulty": 4,
@@ -223,12 +223,21 @@ const TROY_QUESTS = [
     },
     {
         "game": "ビリヤード",
-        "name": "波間の計算",
-        "detail": "手前戻し（ドロー）で白球を手前に戻す",
-        "gachaType": "shield",
+        "name": "剣の連鎖",
+        "detail": "センターショット連続3回成功",
+        "gachaType": "sword",
         "questKey": "billiard-bowrad",
         "difficulty": 5,
-        "flavor": "引きの計算で波間を制せ。"
+        "flavor": "剣の連鎖で精度を刻め。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "二枚クッション",
+        "detail": "2クッションで的球を入れる",
+        "gachaType": "blunt",
+        "questKey": "billiard-bowrad",
+        "difficulty": 5,
+        "flavor": "二枚の反射で道を拓け。"
     },
     {
         "game": "ビリヤード",
@@ -238,24 +247,6 @@ const TROY_QUESTS = [
         "questKey": "billiard-bowrad",
         "difficulty": 5,
         "flavor": "帆走を維持して航路を伸ばせ。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "砲門の精度",
-        "detail": "クッションバンク2回成功",
-        "gachaType": "polearm",
-        "questKey": "billiard-bowrad",
-        "difficulty": 5,
-        "flavor": "反射の読みで砲門を貫け。"
-    },
-    {
-        "game": "ビリヤード",
-        "name": "剣の連鎖",
-        "detail": "センターショット連続3回成功",
-        "gachaType": "sword",
-        "questKey": "billiard-bowrad",
-        "difficulty": 6,
-        "flavor": "剣の連鎖で精度を刻め。"
     },
     {
         "game": "ビリヤード",
@@ -274,6 +265,15 @@ const TROY_QUESTS = [
         "questKey": "billiard-bowrad",
         "difficulty": 6,
         "flavor": "狙撃の精度で締めくくれ。"
+    },
+    {
+        "game": "ビリヤード",
+        "name": "砲門の精度",
+        "detail": "クッションバンク2回成功",
+        "gachaType": "polearm",
+        "questKey": "billiard-bowrad",
+        "difficulty": 6,
+        "flavor": "反射の読みで砲門を貫け。"
     },
     {
         "game": "ビリヤード",
@@ -316,7 +316,7 @@ const TROY_QUESTS = [
         "game": "ビリヤード",
         "mode": "battle",
         "name": "ブレイク追撃",
-        "detail": "9ボールでブレイク後に1球入れる",
+        "detail": "9ボールでブレイク後に連続で1球入れる",
         "gachaType": "skill",
         "skillType": "weapon",
         "skillName": "ブレイク追撃",
@@ -328,14 +328,14 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "色の確保",
-        "detail": "8ボールで自分の色を3球入れる",
+        "name": "黒旗の勝利",
+        "detail": "8ボールで1勝する",
         "gachaType": "skill",
         "skillType": "passive",
-        "skillName": "色の確保",
+        "skillName": "黒旗の勝利",
         "questKey": "billiard-8",
         "difficulty": 2,
-        "flavor": "色を確保して主導権を取れ。"
+        "flavor": "黒旗を掲げて勝利を掴め。"
     },
     {
         "game": "ビリヤード",
@@ -352,14 +352,26 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "黒旗の勝利",
-        "detail": "8ボールで1勝する",
+        "name": "攻めの継続",
+        "detail": "9ボールでブレイク後に連続ポケット2回",
         "gachaType": "skill",
         "skillType": "passive",
-        "skillName": "黒旗の勝利",
+        "skillName": "攻めの継続",
+        "questKey": "billiard-9",
+        "difficulty": 3,
+        "flavor": "攻めの継続で盤面を支配せよ。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "色の確保",
+        "detail": "8ボールで自分の色を3球入れる",
+        "gachaType": "skill",
+        "skillType": "passive",
+        "skillName": "色の確保",
         "questKey": "billiard-8",
         "difficulty": 3,
-        "flavor": "黒旗を掲げて勝利を掴め。"
+        "flavor": "色を確保して主導権を取れ。"
     },
     {
         "game": "ビリヤード",
@@ -377,31 +389,6 @@ const TROY_QUESTS = [
     {
         "game": "ビリヤード",
         "mode": "battle",
-        "name": "連続ポケット",
-        "detail": "9ボールで連続ポケット2回",
-        "gachaType": "skill",
-        "skillType": "weapon",
-        "skillName": "連続ポケット",
-        "skillWeapon": "polearm",
-        "questKey": "billiard-9",
-        "difficulty": 3,
-        "flavor": "連続の一撃で差を広げよ。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
-        "name": "攻めの継続",
-        "detail": "9ボールでブレイク後に連続ポケット2回",
-        "gachaType": "skill",
-        "skillType": "passive",
-        "skillName": "攻めの継続",
-        "questKey": "billiard-9",
-        "difficulty": 4,
-        "flavor": "攻めの継続で盤面を支配せよ。"
-    },
-    {
-        "game": "ビリヤード",
-        "mode": "battle",
         "name": "色の制圧",
         "detail": "8ボールで自分の色を5球入れる",
         "gachaType": "skill",
@@ -410,6 +397,19 @@ const TROY_QUESTS = [
         "questKey": "billiard-8",
         "difficulty": 4,
         "flavor": "色の制圧で道を切り開け。"
+    },
+    {
+        "game": "ビリヤード",
+        "mode": "battle",
+        "name": "連続ポケット",
+        "detail": "9ボールで連続ポケット2回",
+        "gachaType": "skill",
+        "skillType": "weapon",
+        "skillName": "連続ポケット",
+        "skillWeapon": "polearm",
+        "questKey": "billiard-9",
+        "difficulty": 4,
+        "flavor": "連続の一撃で差を広げよ。"
     },
     {
         "game": "ビリヤード",
