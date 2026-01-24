@@ -2966,7 +2966,25 @@ function wireHandlers(playFabId) {
                 await refreshStatus(playFabId, { isSilent: true });
                 const isMember = isTroyMember(_lastStatus, playFabId);
                 if (!wasMember && isMember) {
-                    addOrderItemLocal('入店チャージ', 500, 1);
+                    const entryPrice = 500;
+                    const nextTotal = _orderTotal + entryPrice;
+                    try {
+                        await sendTroyOrder(playFabId, {
+                            itemName: '入店チャージ',
+                            price: entryPrice,
+                            quantity: 1,
+                            total: nextTotal,
+                            displayName: name
+                        }, { isSilent: true });
+                        addOrderItemLocal('入店チャージ', entryPrice, 1);
+                    } catch (error) {
+                        console.warn('[TroyOrder] Entry charge failed:', error?.message || error);
+                        if (typeof window.showRpgMessage === 'function') {
+                            window.showRpgMessage('入店チャージの登録に失敗しました。');
+                        } else {
+                            alert('入店チャージの登録に失敗しました。');
+                        }
+                    }
                 }
             }
         });
