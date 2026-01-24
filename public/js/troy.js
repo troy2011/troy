@@ -2366,6 +2366,12 @@ function renderOrderSummary() {
     });
 }
 
+function resetOrderSummary() {
+    _orderTotal = 0;
+    _orderItems = [];
+    renderOrderSummary();
+}
+
 function addOrderItemLocal(name, price, quantity = 1) {
     const normalizedPrice = Number(price) || 0;
     if (!normalizedPrice) return;
@@ -2995,6 +3001,7 @@ function wireHandlers(playFabId) {
             const result = await leaveTroy(playFabId);
             if (result) {
                 await refreshStatus(playFabId, { isSilent: true });
+                resetOrderSummary();
             }
         });
     }
