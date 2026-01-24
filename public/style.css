@@ -1797,6 +1797,34 @@ body[data-sea-tone="night"] .home-hero-card {
     opacity: 0.7;
 }
 
+.troy-checkout-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.troy-checkout-status {
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.troy-checkout-confirm {
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.troy-checkout-confirm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .troy-order-modal-card {
     width: min(360px, 88vw);
     border-radius: 16px;

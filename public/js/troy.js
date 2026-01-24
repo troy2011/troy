@@ -3,11 +3,10 @@
 import {
     getTroyStatus,
     joinTroy,
-    leaveTroy,
     claimTroyQuest,
     getTroyQuestClears,
     usePoints,
-    sendTroyOrder
+    sendTroyCheckout
 } from './playfabClient.js';
 
 let _wired = false;
@@ -26,6 +25,8 @@ let _questSelectionTimer = null;
 let _orderTotal = 0;
 let _orderItems = [];
 let _pendingOrder = null;
+let _checkoutSession = null;
+let _checkoutLocked = false;
 
 const TROY_GACHA_LABELS = {
     hat: '布帽子',
@@ -2299,7 +2300,9 @@ function getMenuModalElements() {
 function getOrderElements() {
     return {
         total: document.getElementById('troyOrderTotal'),
-        list: document.getElementById('troyOrderList')
+        list: document.getElementById('troyOrderList'),
+        status: document.getElementById('troyCheckoutStatus'),
+        checkoutBtn: document.getElementById('btnTroyCheckout')
     };
 }
 
@@ -2312,13 +2315,15 @@ function isTroyMember(status, playFabId) {
 
 function updateOrderAvailability(isMember) {
     const menuButtons = document.querySelectorAll('.troy-menu-item-button[data-menu-id]');
+    const canOrder = isMember && !_checkoutLocked;
     menuButtons.forEach((button) => {
-        button.style.display = isMember ? '' : 'none';
+        button.style.display = canOrder ? '' : 'none';
     });
-    if (!isMember) {
+    if (!canOrder) {
         closeMenuModal();
         closeOrderModal();
     }
+    updateCheckoutStatus();
 }
 
 function formatYen(value) {
@@ -2351,6 +2356,7 @@ function renderOrderSummary() {
         empty.className = 'troy-checkout-empty';
         empty.textContent = '注文はまだありません';
         list.appendChild(empty);
+        updateCheckoutStatus();
         return;
     }
     _orderItems.forEach((item) => {
@@ -2364,6 +2370,52 @@ function renderOrderSummary() {
         row.appendChild(price);
         list.appendChild(row);
     });
+    updateCheckoutStatus();
+}
+
+function updateCheckoutStatus() {
+    const { status, checkoutBtn } = getOrderElements();
+    const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
+    const pending = _checkoutLocked && _checkoutSession?.status === 'pending';
+    if (status) {
+        status.textContent = pending ? '承認待ち' : '未会計';
+    }
+    if (checkoutBtn) {
+        const hasOrder = _orderTotal > 0;
+        checkoutBtn.disabled = pending || !isMember || !hasOrder;
+        checkoutBtn.textContent = pending ? '承認待ち' : '会計する';
+    }
+}
+
+function applyCheckoutFromStatus(data) {
+    const checkout = data?.checkout || null;
+    const wasLocked = _checkoutLocked;
+    const wasPending = _checkoutSession?.status === 'pending';
+
+    if (checkout && checkout.status === 'pending') {
+        _checkoutSession = checkout;
+        _checkoutLocked = true;
+        _orderItems = Array.isArray(checkout.items) ? checkout.items : [];
+        _orderTotal = Number(checkout.total || 0);
+        renderOrderSummary();
+        return;
+    }
+
+    if (checkout && checkout.status === 'approved') {
+        _checkoutSession = checkout;
+        _checkoutLocked = false;
+        resetOrderSummary();
+        if (wasPending && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計が承認されました。退店しました。');
+        }
+        return;
+    }
+
+    if (wasLocked && wasPending && !checkout) {
+        _checkoutSession = null;
+        _checkoutLocked = false;
+        resetOrderSummary();
+    }
 }
 
 function resetOrderSummary() {
@@ -2409,31 +2461,73 @@ function closeOrderModal() {
 
 async function confirmOrder(playFabId) {
     if (!_pendingOrder) return;
+    if (_checkoutLocked) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計待ちのため注文を追加できません。');
+        }
+        closeOrderModal();
+        return;
+    }
+    if (!isTroyMember(_lastStatus, playFabId)) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('入店してから注文できます。');
+        } else {
+            alert('入店してから注文できます。');
+        }
+        closeOrderModal();
+        return;
+    }
     const item = _pendingOrder;
     const quantity = item.quantity || 1;
     const nextTotal = _orderTotal + item.price * quantity;
-    const buyerName = getDisplayName();
-    try {
-        await sendTroyOrder(playFabId, {
-            itemName: item.name,
-            price: item.price,
-            quantity,
-            total: nextTotal,
-            displayName: buyerName
-        });
-        _orderTotal = nextTotal;
-        _orderItems.push({ name: item.name, price: item.price, quantity });
-        renderOrderSummary();
-        closeOrderModal();
+    _orderTotal = nextTotal;
+    _orderItems.push({ name: item.name, price: item.price, quantity });
+    renderOrderSummary();
+    closeOrderModal();
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage('注文を追加しました。');
+    }
+}
+
+async function submitCheckout(playFabId) {
+    if (_checkoutLocked) return;
+    if (!isTroyMember(_lastStatus, playFabId)) {
         if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('注文を受け付けました。');
+            window.showRpgMessage('入店してから会計できます。');
+        } else {
+            alert('入店してから会計できます。');
+        }
+        return;
+    }
+    if (!_orderItems.length || _orderTotal <= 0) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計する注文がありません。');
+        } else {
+            alert('会計する注文がありません。');
+        }
+        return;
+    }
+    try {
+        const result = await sendTroyCheckout(playFabId, {
+            items: _orderItems,
+            total: _orderTotal,
+            displayName: getDisplayName()
+        });
+        if (result?.checkout) {
+            _checkoutSession = result.checkout;
+            _checkoutLocked = true;
+            renderOrderSummary();
+            updateOrderAvailability(isTroyMember(_lastStatus, playFabId));
+            if (typeof window.showRpgMessage === 'function') {
+                window.showRpgMessage('会計を送信しました。承認待ちです。');
+            }
         }
     } catch (error) {
-        console.warn('[TroyOrder] Failed:', error?.message || error);
+        console.warn('[TroyCheckout] Failed:', error?.message || error);
         if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('注文に失敗しました。');
+            window.showRpgMessage('会計送信に失敗しました。');
         } else {
-            alert('注文に失敗しました。');
+            alert('会計送信に失敗しました。');
         }
     }
 }
@@ -2444,6 +2538,12 @@ function openMenuModal(menuId) {
             window.showRpgMessage('入店してから注文できます。');
         } else {
             alert('入店してから注文できます。');
+        }
+        return;
+    }
+    if (_checkoutLocked) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計待ちのため注文できません。');
         }
         return;
     }
@@ -2905,8 +3005,7 @@ function getTroyElements() {
         section: document.getElementById('troyEntrySection'),
         list: document.getElementById('troyEntryList'),
         empty: document.getElementById('troyEntryEmpty'),
-        joinBtn: document.getElementById('btnTroyJoin'),
-        leaveBtn: document.getElementById('btnTroyLeave')
+        joinBtn: document.getElementById('btnTroyJoin')
     };
 }
 
@@ -2953,7 +3052,12 @@ function renderStatus(data) {
     } else {
         renderEntryList(data?.members);
     }
-    updateOrderAvailability(isTroyMember(data, window.myPlayFabId));
+    const isMember = isTroyMember(data, window.myPlayFabId);
+    applyCheckoutFromStatus(data);
+    updateOrderAvailability(isMember);
+    if (!isMember && !_checkoutLocked) {
+        resetOrderSummary();
+    }
 }
 
 async function refreshStatus(playFabId, options = {}) {
@@ -2966,7 +3070,8 @@ function wireHandlers(playFabId) {
     if (_wired) return;
     _wired = true;
 
-    const { joinBtn, leaveBtn } = getTroyElements();
+    const { joinBtn } = getTroyElements();
+    const { checkoutBtn } = getOrderElements();
     if (joinBtn) {
         joinBtn.addEventListener('click', async () => {
             const name = getDisplayName();
@@ -2977,40 +3082,14 @@ function wireHandlers(playFabId) {
                 const isMember = isTroyMember(_lastStatus, playFabId);
                 if (!wasMember && isMember) {
                     const entryPrice = 500;
-                    const nextTotal = _orderTotal + entryPrice;
-                    try {
-                        await sendTroyOrder(playFabId, {
-                            itemName: '入店チャージ',
-                            price: entryPrice,
-                            quantity: 1,
-                            total: nextTotal,
-                            displayName: name
-                        }, { isSilent: true });
-                        addOrderItemLocal('入店チャージ', entryPrice, 1);
-                    } catch (error) {
-                        console.warn('[TroyOrder] Entry charge failed:', error?.message || error);
-                        if (typeof window.showRpgMessage === 'function') {
-                            window.showRpgMessage('入店チャージの登録に失敗しました。');
-                        } else {
-                            alert('入店チャージの登録に失敗しました。');
-                        }
-                    }
+                    addOrderItemLocal('入店チャージ', entryPrice, 1);
                 }
             }
         });
     }
-
-    if (leaveBtn) {
-        leaveBtn.addEventListener('click', async () => {
-            if (_orderTotal > 0) {
-                const ok = confirm('会計前です。退店すると会計がリセットされます。続行しますか？');
-                if (!ok) return;
-            }
-            const result = await leaveTroy(playFabId);
-            if (result) {
-                await refreshStatus(playFabId, { isSilent: true });
-                resetOrderSummary();
-            }
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', async () => {
+            await submitCheckout(playFabId);
         });
     }
 }

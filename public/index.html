@@ -115,7 +115,6 @@
                             <div class="troy-entry-title">入店リスト</div>
                             <div class="troy-entry-actions">
                                 <button id="btnTroyJoin" class="troy-entry-btn">入店</button>
-                                <button id="btnTroyLeave" class="troy-entry-btn alt">退店</button>
                             </div>
                         </div>
                         <div id="troyEntryList" class="troy-entry-list"></div>
@@ -155,6 +154,10 @@
                         <div class="troy-checkout-title">会計</div>
                         <div class="troy-checkout-total">合計: <span id="troyOrderTotal">¥0</span></div>
                         <div id="troyOrderList" class="troy-checkout-list"></div>
+                        <div class="troy-checkout-actions">
+                            <div id="troyCheckoutStatus" class="troy-checkout-status">未会計</div>
+                            <button id="btnTroyCheckout" class="troy-checkout-confirm" type="button">会計する</button>
+                        </div>
                     </div>
                 </div>
                 <div id="troyMenuModal" class="troy-menu-modal modal-overlay">

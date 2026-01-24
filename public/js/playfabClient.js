@@ -176,6 +176,10 @@ export function getTroyStatus(playFabId, options) {
     return callApiWithLoader('/api/get-troy-status', { playFabId }, options);
 }
 
+export function sendTroyCheckout(playFabId, payload, options) {
+    return callApiWithLoader('/api/troy-checkout', { playFabId, ...payload }, options);
+}
+
 export function sendTroyOrder(playFabId, order, options) {
     return callApiWithLoader('/api/troy-order', { playFabId, ...order }, options);
 }

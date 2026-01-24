@@ -941,11 +941,127 @@ function initializeNationRoutes(app, deps) {
                     joinedAt: data.joinedAt ? data.joinedAt.toMillis?.() || data.joinedAt : null
                 };
             });
+            const memberId = normalizePlayFabId(playFabId);
+            let checkout = null;
+            if (memberId) {
+                const checkoutSnap = await roomRef.collection('checkouts').doc(memberId).get();
+                if (checkoutSnap.exists) {
+                    const checkoutData = checkoutSnap.data() || {};
+                    checkout = {
+                        status: checkoutData.status || 'pending',
+                        total: Number(checkoutData.total || 0),
+                        items: Array.isArray(checkoutData.items) ? checkoutData.items : [],
+                        createdAt: checkoutData.createdAt ? checkoutData.createdAt.toMillis?.() || checkoutData.createdAt : null,
+                        approvedAt: checkoutData.approvedAt ? checkoutData.approvedAt.toMillis?.() || checkoutData.approvedAt : null
+                    };
+                }
+            }
 
-            res.json({ isOpen, members, nation });
+            res.json({ isOpen, members, nation, checkout });
         } catch (error) {
             console.error('[get-troy-status] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to get troy status' });
+        }
+    });
+
+    // TROY会計（セッション確定）
+    app.post('/api/troy-checkout', async (req, res) => {
+        const { playFabId, items, displayName } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const { lineClient } = deps;
+        if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
+        try {
+            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(400).json({ error: 'NationNotSet' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
+
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const roomSnap = await roomRef.get();
+            const roomData = roomSnap.data() || {};
+            if (!roomSnap.exists || !roomData.isOpen) {
+                return res.status(403).json({ error: 'TroyClosed' });
+            }
+
+            const memberId = normalizePlayFabId(playFabId);
+            const memberSnap = await roomRef.collection('members').doc(memberId).get();
+            if (!memberSnap.exists) {
+                return res.status(403).json({ error: 'NotInTroy' });
+            }
+
+            const safeItems = Array.isArray(items) ? items : [];
+            const normalizedItems = safeItems
+                .map((item) => {
+                    const name = String(item?.name || item?.itemName || '').trim();
+                    const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+                    const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+                    if (!name || !price) return null;
+                    return { name, price, quantity };
+                })
+                .filter(Boolean);
+            if (!normalizedItems.length) {
+                return res.status(400).json({ error: 'NoItems' });
+            }
+
+            const total = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            if (!Number.isFinite(total) || total <= 0) {
+                return res.status(400).json({ error: 'InvalidTotal' });
+            }
+
+            const checkoutRef = roomRef.collection('checkouts').doc(memberId);
+            const checkoutSnap = await checkoutRef.get();
+            if (checkoutSnap.exists && String(checkoutSnap.data()?.status || 'pending') === 'pending') {
+                return res.status(409).json({ error: 'CheckoutPending' });
+            }
+
+            const buyerName = String(displayName || '').trim()
+                || await getPlayerDisplayName(playFabId, { promisifyPlayFab, PlayFabServer })
+                || playFabId;
+
+            await checkoutRef.set({
+                playFabId: memberId,
+                displayName: buyerName,
+                items: normalizedItems,
+                total,
+                status: 'pending',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const kingPlayFabId = String(roomData.updatedBy || '').trim();
+            if (kingPlayFabId) {
+                const kingLineUserId = await getLineUserId(kingPlayFabId, { promisifyPlayFab, PlayFabServer });
+                if (kingLineUserId) {
+                    const itemLines = normalizedItems.map((item) => {
+                        const lineTotal = item.price * item.quantity;
+                        return `- ${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ''} / ¥${lineTotal.toLocaleString('ja-JP')}`;
+                    });
+                    const message = [
+                        '【TROY 会計確定】',
+                        `注文者: ${buyerName}`,
+                        '内容:',
+                        ...itemLines,
+                        `会計合計: ¥${total.toLocaleString('ja-JP')}`
+                    ].join('\n');
+                    try {
+                        await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
+                    } catch (lineError) {
+                        console.warn('[troy-checkout] Line notify failed:', lineError?.message || lineError);
+                    }
+                }
+            }
+
+            res.json({
+                success: true,
+                checkout: {
+                    status: 'pending',
+                    total,
+                    items: normalizedItems
+                }
+            });
+        } catch (error) {
+            console.error('[troy-checkout] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to checkout' });
         }
     });
 
@@ -1455,6 +1571,35 @@ function initializeNationRoutes(app, deps) {
                 }
             }
 
+            let checkoutApproved = false;
+            let checkoutTotal = null;
+            if (firestore && admin) {
+                try {
+                    const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
+                    const checkoutRef = roomRef.collection('checkouts').doc(receiverId);
+                    const checkoutSnap = await checkoutRef.get();
+                    if (checkoutSnap.exists) {
+                        const checkoutData = checkoutSnap.data() || {};
+                        const status = String(checkoutData.status || 'pending');
+                        const storedTotal = Number(checkoutData.total || 0);
+                        checkoutTotal = Number.isFinite(storedTotal) ? storedTotal : null;
+                        if (status === 'pending' && checkoutTotal === value) {
+                            await checkoutRef.set({
+                                status: 'approved',
+                                approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                approvedBy: context.kingId,
+                                receivedAmount: value,
+                                grantAmount
+                            }, { merge: true });
+                            await roomRef.collection('members').doc(receiverId).delete();
+                            checkoutApproved = true;
+                        }
+                    }
+                } catch (checkoutError) {
+                    console.warn('[king-grant-ps] Checkout approve failed:', checkoutError?.message || checkoutError);
+                }
+            }
+
             let receiverBalance = null;
             if (getCurrencyBalance) {
                 receiverBalance = await getCurrencyBalance(receiverId, 'PS');
@@ -1472,7 +1617,9 @@ function initializeNationRoutes(app, deps) {
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
                 receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
                 treasuryUpdated,
-                treasuryError: treasuryUpdated ? undefined : treasuryErrorMessage
+                treasuryError: treasuryUpdated ? undefined : treasuryErrorMessage,
+                checkoutApproved,
+                checkoutTotal
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
