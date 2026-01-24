@@ -2948,8 +2948,12 @@ function renderStatus(data) {
     if (section) {
         section.style.display = data?.isOpen ? 'block' : 'none';
     }
+    if (!data?.isOpen) {
+        renderEntryList([]);
+    } else {
+        renderEntryList(data?.members);
+    }
     updateOrderAvailability(isTroyMember(data, window.myPlayFabId));
-    renderEntryList(data?.members);
 }
 
 async function refreshStatus(playFabId, options = {}) {
