@@ -8,6 +8,7 @@ import {
     usePoints,
     sendTroyCheckout
 } from './playfabClient.js';
+import { isKing, refreshKingNav } from './nationKing.js';
 
 let _wired = false;
 let _questWired = false;
@@ -2326,6 +2327,28 @@ function updateOrderAvailability(isMember) {
     updateCheckoutStatus();
 }
 
+function updateTroyRoleUI() {
+    const kingControls = document.getElementById('troyKingControls');
+    const menuSection = document.getElementById('troyMenuSection');
+    const questPanel = document.getElementById('troyQuestPanel');
+    const questModal = document.getElementById('troyQuestQrModal');
+    const isKingUser = isKing();
+
+    if (kingControls) {
+        kingControls.style.display = isKingUser ? 'block' : 'none';
+    }
+    if (menuSection) {
+        menuSection.style.display = isKingUser ? 'none' : 'block';
+    }
+    if (questPanel) {
+        questPanel.style.display = isKingUser ? 'none' : '';
+        if (isKingUser) questPanel.classList.remove('active');
+    }
+    if (questModal && isKingUser) {
+        questModal.style.display = 'none';
+    }
+}
+
 function formatYen(value) {
     const amount = Number(value) || 0;
     return `¥${amount.toLocaleString('ja-JP')}`;
@@ -3058,6 +3081,7 @@ function renderStatus(data) {
     if (!isMember && !_checkoutLocked) {
         resetOrderSummary();
     }
+    updateTroyRoleUI();
 }
 
 async function refreshStatus(playFabId, options = {}) {
@@ -3110,6 +3134,8 @@ export async function loadTroyPage(playFabId) {
     updateQuestFilterLabel('クエスト一覧: 未選択');
     await refreshQuestClears(playFabId);
     renderQuestList([]);
+    await refreshKingNav(playFabId);
     await refreshStatus(playFabId);
+    updateTroyRoleUI();
     startPolling(playFabId);
 }
