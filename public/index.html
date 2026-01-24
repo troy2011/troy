@@ -138,13 +138,7 @@
                                 </ul>
                             </li>
                             <li class="troy-menu-group">
-                                <div class="troy-menu-label-row">
-                                    <div class="troy-menu-label">ゲーム</div>
-                                    <div class="troy-menu-toggle" role="group" aria-label="クエスト種別">
-                                        <button class="troy-menu-toggle-btn is-active" type="button" data-quest-mode="solo">ソロ/チーム</button>
-                                        <button class="troy-menu-toggle-btn" type="button" data-quest-mode="battle">バトル</button>
-                                    </div>
-                                </div>
+                                <div class="troy-menu-label">ゲーム</div>
                                 <ul class="troy-menu-items">
                                     <li class="troy-menu-item-button" data-game-key="billiard">ビリヤード</li>
                                     <li class="troy-menu-item-button" data-game-key="karaoke">カラオケ</li>
@@ -213,15 +207,22 @@
                             <button id="troyQuestClose" class="island-command-close">×</button>
                         </div>
                         <div class="troy-quest-panel-body">
+                            <div class="troy-quest-mode">
+                                <div class="troy-quest-mode-label">モード</div>
+                                <div class="troy-menu-toggle" role="group" aria-label="クエスト種別">
+                                    <button class="troy-menu-toggle-btn is-active" type="button" data-quest-mode="solo">ソロ/チーム</button>
+                                    <button class="troy-menu-toggle-btn" type="button" data-quest-mode="battle">バトル</button>
+                                </div>
+                            </div>
                             <div class="troy-quest-bet">
                                 <div class="troy-quest-bet-label">BET</div>
                                 <div class="troy-quest-bet-controls">
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="10">10★</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="50">50★★</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="100">100★★★</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="300">300★★★★</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="500">500★★★★★</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="1000">1000★★★★★★</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="10">★10Ps</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="50">★★50Ps</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="100">★★★100Ps</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="300">★★★★300Ps</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="500">★★★★★500Ps</button>
+                                    <button type="button" class="troy-quest-bet-btn" data-bet="1000">★★★★★★1000Ps</button>
                                 </div>
                             </div>
                             <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: 未選択</div>
