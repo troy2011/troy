@@ -1168,6 +1168,77 @@ body[data-sea-tone="night"] .home-hero-card {
     background: #4b5563;
 }
 
+.world-map-modal-card {
+    width: min(640px, 92vw);
+    max-height: 85vh;
+    overflow: auto;
+    background: #0b1220;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 16px;
+    color: #fff;
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.45);
+}
+
+.world-map-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.world-map-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.world-map-modal-close {
+    background: transparent;
+    color: #fff;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.world-map-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.world-map-modal-cell {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: 12px;
+    text-align: center;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.35;
+}
+
+.world-map-modal-cell.is-capital {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(96, 165, 250, 0.6);
+    font-weight: 700;
+}
+
+.world-map-modal-cell.is-world {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: rgba(251, 191, 36, 0.6);
+    font-weight: 700;
+}
+
+.world-map-modal-note {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-sub);
+    text-align: center;
+}
+
 /* チャット */
 #tabContentMap {
     position: relative;

@@ -193,6 +193,26 @@ function hideMapSelectModal() {
     modal.style.display = 'none';
 }
 
+function showWorldMapModal() {
+    const modal = document.getElementById('worldMapModal');
+    if (!modal) return;
+    if (!modal.dataset.bound) {
+        modal.dataset.bound = 'true';
+        const closeBtn = document.getElementById('worldMapModalClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
+
 let gameInstance = null;
 let launchGameFn = null;
 const tabLoaded = { home: false, troy: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
@@ -303,7 +323,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
             }
         }
         if (currentActiveTab && currentActiveTab.id === 'navMap') {
-            showMapSelectModal(playerInfo);
+            showWorldMapModal();
             if (mapLoadLabel) console.timeEnd(mapLoadLabel);
             return;
         }
