@@ -424,6 +424,47 @@ function getTroyRoomDoc(firestore, groupName) {
 
 const MAP_OCCUPATION_KEY = 'MapOccupationByMapId';
 
+const NATION_LEVEL_MAX = 14;
+
+function getArcanaPointValue(mapId) {
+    const key = String(mapId || '').trim();
+    if (!key.startsWith('major_')) return 0;
+    const raw = key.replace('major_', '');
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) return 0;
+    return Math.floor(value);
+}
+
+function calcNationLevel(points) {
+    const safePoints = Math.max(0, Math.floor(Number(points) || 0));
+    if (safePoints <= 10) return Math.max(1, safePoints);
+    if (safePoints <= 20) return 11;
+    if (safePoints <= 30) return 12;
+    if (safePoints <= 40) return 13;
+    return NATION_LEVEL_MAX;
+}
+
+async function updateNationArcanaPoints(nation, delta, deps) {
+    const { firestore, admin } = deps || {};
+    const mapping = getNationMappingByNation(nation);
+    if (!mapping || !firestore) return;
+    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+    await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const current = Math.max(0, Math.floor(Number(snap.data()?.arcanaPoints || 0)));
+        const next = Math.max(0, current + Math.floor(Number(delta) || 0));
+        const level = calcNationLevel(next);
+        const patch = {
+            arcanaPoints: next,
+            nationLevel: level
+        };
+        if (admin) {
+            patch.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        tx.set(docRef, patch, { merge: true });
+    });
+}
+
 async function getMapOccupationMap(deps) {
     const { promisifyPlayFab, PlayFabAdmin } = deps;
     const result = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [MAP_OCCUPATION_KEY] });
@@ -449,8 +490,10 @@ async function setMapOccupationNation(mapId, nation, deps) {
     const key = String(mapId || '').trim();
     if (!key) return null;
     const map = await getMapOccupationMap(deps);
-    if (nation) {
-        map[key] = String(nation).toLowerCase();
+    const prevNation = map[key] ? String(map[key]).toLowerCase() : null;
+    const nextNation = nation ? String(nation).toLowerCase() : null;
+    if (nextNation) {
+        map[key] = nextNation;
     } else {
         delete map[key];
     }
@@ -458,6 +501,15 @@ async function setMapOccupationNation(mapId, nation, deps) {
         Key: MAP_OCCUPATION_KEY,
         Value: JSON.stringify(map)
     });
+    const arcanaValue = getArcanaPointValue(key);
+    if (arcanaValue > 0 && prevNation !== nextNation) {
+        if (prevNation) {
+            await updateNationArcanaPoints(prevNation, -arcanaValue, deps);
+        }
+        if (nextNation) {
+            await updateNationArcanaPoints(nextNation, arcanaValue, deps);
+        }
+    }
     return map[key] || null;
 }
 
@@ -1813,6 +1865,25 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[get-nation-treasury-ranking] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to get nation treasury ranking' });
+        }
+    });
+
+    app.post('/api/get-nation-levels', async (_req, res) => {
+        try {
+            const levels = {};
+            for (const [nation, mapping] of Object.entries(NATION_GROUP_BY_NATION)) {
+                const docRef = getNationGroupDoc(firestore, mapping.groupName);
+                const snap = await docRef.get();
+                const points = Math.max(0, Math.floor(Number(snap.data()?.arcanaPoints || 0)));
+                levels[nation] = {
+                    arcanaPoints: points,
+                    nationLevel: calcNationLevel(points)
+                };
+            }
+            res.json({ levels });
+        } catch (error) {
+            console.error('[get-nation-levels] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get nation levels' });
         }
     });
 }

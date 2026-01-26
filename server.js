@@ -503,7 +503,7 @@ function createDependencies() {
         getNationTaxRateBps: (nation, fs, d) => require('./server/nation').getNationTaxRateBps(nation, fs || firestore, d || createDependencies()),
         addNationTreasury: (nation, amount, fs, d) => require('./server/nation').addNationTreasury(nation, amount, fs || firestore, d || createDependencies()),
         getMapOccupationNation: (mapId) => require('./server/nation').getMapOccupationNation(mapId, { promisifyPlayFab, PlayFabAdmin }),
-        setMapOccupationNation: (mapId, nation) => require('./server/nation').setMapOccupationNation(mapId, nation, { promisifyPlayFab, PlayFabAdmin }),
+        setMapOccupationNation: (mapId, nation) => require('./server/nation').setMapOccupationNation(mapId, nation, { promisifyPlayFab, PlayFabAdmin, firestore, admin }),
         // island関数
         transferOwnedIslands: (fs, fromId, toId, toNation) => island.transferOwnedIslands(fs, fromId, toId, toNation, { promisifyPlayFab, PlayFabServer }),
         createStarterIsland: createStarterIsland,

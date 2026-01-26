@@ -455,39 +455,72 @@ export default class WorldMapScene extends Phaser.Scene {
                     label.textContent = `目的地: ${mapLabel}`;
                 }
                 const cells = overlay.querySelectorAll('.map-loading-cell');
-                if (cells.length) {
-                    let matched = false;
+                const applyTarotIndex = (cell, tarotIndex) => {
+                    if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
+                    const col = tarotIndex % 10;
+                    const row = Math.floor(tarotIndex / 10);
+                    cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
+                    cell.style.backgroundRepeat = 'no-repeat';
+                    cell.style.backgroundSize = '800px 576px';
+                    cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+                };
+                const highlightCell = (cell, majorNumber, mapLabelText, matchedRef) => {
+                    const labelKey = String(cell.dataset.mapLabel || '').trim();
+                    if (!labelKey) return;
+                    if (!matchedRef.matched && mapLabelText.includes(labelKey)) {
+                        cell.classList.add('is-active');
+                        matchedRef.matched = true;
+                        return;
+                    }
+                    if (!matchedRef.matched && Number.isFinite(majorNumber)) {
+                        const numMatch = labelKey.match(/^(\d+)\./);
+                        if (numMatch && Number(numMatch[1]) === majorNumber) {
+                            cell.classList.add('is-active');
+                            matchedRef.matched = true;
+                        }
+                    }
+                };
+                const applyNationLevels = (levels) => {
+                    const baseByNation = { fire: 0, earth: 20, water: 40, wind: 60 };
+                    const clampLevel = (value) => {
+                        const num = Math.floor(Number(value) || 1);
+                        return Math.max(1, Math.min(14, num));
+                    };
+                    const matchedRef = { matched: false };
                     const majorMatch = String(mapId).match(/major_(\d{2})/);
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
                     cells.forEach((cell) => {
                         cell.classList.remove('is-active');
-                        const tarotIndexRaw = cell.dataset.tarotIndex;
-                        if (tarotIndexRaw) {
-                            const tarotIndex = Number(tarotIndexRaw);
-                            if (Number.isFinite(tarotIndex) && tarotIndex >= 0) {
-                                const col = tarotIndex % 10;
-                                const row = Math.floor(tarotIndex / 10);
-                                cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
-                                cell.style.backgroundRepeat = 'no-repeat';
-                                cell.style.backgroundSize = '800px 576px';
-                                cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+                        const nation = String(cell.dataset.nation || '').trim();
+                        if (nation && baseByNation[nation] !== undefined) {
+                            const levelRaw = levels?.[nation]?.nationLevel ?? levels?.[nation]?.level ?? 1;
+                            const level = clampLevel(levelRaw);
+                            applyTarotIndex(cell, baseByNation[nation] + (level - 1));
+                        } else {
+                            const tarotIndexRaw = cell.dataset.tarotIndex;
+                            if (tarotIndexRaw) {
+                                applyTarotIndex(cell, Number(tarotIndexRaw));
                             }
                         }
-                        const labelKey = String(cell.dataset.mapLabel || '').trim();
-                        if (!labelKey) return;
-                        if (!matched && mapLabel.includes(labelKey)) {
-                            cell.classList.add('is-active');
-                            matched = true;
-                            return;
-                        }
-                        if (!matched && Number.isFinite(majorNumber)) {
-                            const numMatch = labelKey.match(/^(\d+)\./);
-                            if (numMatch && Number(numMatch[1]) === majorNumber) {
-                                cell.classList.add('is-active');
-                                matched = true;
-                            }
-                        }
+                        highlightCell(cell, majorNumber, mapLabel, matchedRef);
                     });
+                };
+                if (cells.length) {
+                    const loadLevels = async () => {
+                        try {
+                            const response = await fetch('/api/get-nation-levels', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({})
+                            });
+                            if (!response.ok) throw new Error('Failed to fetch levels');
+                            const data = await response.json();
+                            applyNationLevels(data?.levels || {});
+                        } catch (error) {
+                            applyNationLevels(null);
+                        }
+                    };
+                    loadLevels();
                 }
                 const world = overlay.querySelector('.map-loading-world');
                 if (world) {
