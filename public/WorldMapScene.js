@@ -461,6 +461,18 @@ export default class WorldMapScene extends Phaser.Scene {
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
                     cells.forEach((cell) => {
                         cell.classList.remove('is-active');
+                        const tarotIndexRaw = cell.dataset.tarotIndex;
+                        if (tarotIndexRaw) {
+                            const tarotIndex = Number(tarotIndexRaw);
+                            if (Number.isFinite(tarotIndex) && tarotIndex >= 0) {
+                                const col = tarotIndex % 10;
+                                const row = Math.floor(tarotIndex / 10);
+                                cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
+                                cell.style.backgroundRepeat = 'no-repeat';
+                                cell.style.backgroundSize = '800px 576px';
+                                cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+                            }
+                        }
                         const labelKey = String(cell.dataset.mapLabel || '').trim();
                         if (!labelKey) return;
                         if (!matched && mapLabel.includes(labelKey)) {
