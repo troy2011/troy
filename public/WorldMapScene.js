@@ -486,10 +486,12 @@ export default class WorldMapScene extends Phaser.Scene {
                     const tileHeight = spriteMeta?.tileHeight || 80;
                     const sheetWidth = spriteMeta?.width || tileWidth * 10;
                     const sheetHeight = spriteMeta?.height || tileHeight * 12;
+                    const offsetX = (cell.clientWidth - tileWidth) / 2;
+                    const offsetY = (cell.clientHeight - tileHeight) / 2;
                     cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
                     cell.style.backgroundRepeat = 'no-repeat';
                     cell.style.backgroundSize = `${sheetWidth}px ${sheetHeight}px`;
-                    cell.style.backgroundPosition = `calc(50% - ${tileWidth / 2}px - ${col * tileWidth}px) calc(50% - ${tileHeight / 2}px - ${row * tileHeight}px)`;
+                    cell.style.backgroundPosition = `${offsetX - col * tileWidth}px ${offsetY - row * tileHeight}px`;
                 };
                 const highlightCell = (cell, majorNumber, mapLabelText, matchedRef) => {
                     const labelKey = String(cell.dataset.mapLabel || '').trim();
