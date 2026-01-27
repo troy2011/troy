@@ -409,6 +409,10 @@ function showWorldMapModal() {
             modal.classList.remove('is-modal');
             modal.style.opacity = '';
             modal.style.pointerEvents = '';
+            const mapContainer = document.getElementById('tabContentMap');
+            if (mapContainer?.classList.contains('map-ready')) {
+                modal.style.display = 'none';
+            }
             document.body.classList.remove('modal-lock');
         };
         const closeBtn = document.getElementById('mapLoadingClose');
@@ -424,6 +428,7 @@ function showWorldMapModal() {
     }
     document.body.classList.add('modal-lock');
     modal.classList.add('is-modal');
+    modal.style.display = 'flex';
     modal.style.opacity = '1';
     modal.style.pointerEvents = 'auto';
     loadTarotSpriteMeta().then((spriteMeta) => {
