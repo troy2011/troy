@@ -203,7 +203,7 @@ function showWorldMapModal() {
         cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
         cell.style.backgroundRepeat = 'no-repeat';
         cell.style.backgroundSize = '800px 576px';
-        cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+        cell.style.backgroundPosition = `calc(50% - 40px - ${col * 80}px) calc(50% - 24px - ${row * 48}px)`;
     };
     const applyNationLevels = (levels) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
