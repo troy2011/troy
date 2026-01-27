@@ -431,6 +431,12 @@ function showWorldMapModal() {
     modal.style.display = 'flex';
     modal.style.opacity = '1';
     modal.style.pointerEvents = 'auto';
+    const world = modal.querySelector('.map-loading-world');
+    if (world) {
+        world.classList.remove('is-animating');
+        world.style.transform = 'scale(1)';
+        world.style.opacity = '1';
+    }
     loadTarotSpriteMeta().then((spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
         fetch('/api/get-nation-levels', {
