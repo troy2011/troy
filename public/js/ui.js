@@ -293,9 +293,10 @@ function loadTarotSpriteMeta() {
     return tarotSpriteMetaPromise;
 }
 
-function showWorldMapModal() {
+function showWorldMapModal(playerInfo) {
     const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
+    const grid = modal.querySelector('#worldMapGrid');
     const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
         const col = tarotIndex % 10;
@@ -447,6 +448,21 @@ function showWorldMapModal() {
                 closeModal();
             }
         });
+        if (grid && !grid.dataset.navBound) {
+            grid.dataset.navBound = 'true';
+            grid.addEventListener('click', (event) => {
+                if (!modal.classList.contains('is-modal')) return;
+                const cell = event.target.closest('.world-map-modal-cell');
+                if (!cell) return;
+                const mapId = cell.dataset.mapId;
+                if (!mapId) return;
+                const mapLabel = cell.dataset.mapLabel || mapId;
+                closeModal();
+                if (playerInfo) {
+                    showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel });
+                }
+            });
+        }
         modal.dataset.closeHandler = 'true';
     }
     document.body.classList.add('modal-lock');
@@ -593,7 +609,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
             }
         }
         if (currentActiveTab && currentActiveTab.id === 'navMap') {
-            showWorldMapModal();
+            showWorldMapModal(playerInfo);
             if (mapLoadLabel) console.timeEnd(mapLoadLabel);
             return;
         }
