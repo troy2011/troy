@@ -454,7 +454,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 if (label && typeof window !== 'undefined') {
                     label.textContent = `目的地: ${mapLabel}`;
                 }
-                const cells = overlay.querySelectorAll('.map-loading-cell');
+                const cells = overlay.querySelectorAll('.world-map-modal-cell');
                 const loadTarotSpriteMeta = () => {
                     if (typeof window === 'undefined') return Promise.resolve(null);
                     if (window.__tarotSpriteMetaPromise) return window.__tarotSpriteMetaPromise;
@@ -494,18 +494,23 @@ export default class WorldMapScene extends Phaser.Scene {
                     cell.style.setProperty('--tarot-y', `${row * tileHeight}px`);
                     cell.classList.add('has-tarot');
                 };
-                const highlightCell = (cell, majorNumber, mapLabelText, matchedRef) => {
+                const highlightCell = (cell, majorNumber, mapLabelText, matchedRef, mapIdText) => {
                     const labelKey = String(cell.dataset.mapLabel || '').trim();
                     if (!labelKey) return;
+                    if (!matchedRef.matched && mapIdText && cell.dataset.mapId === mapIdText) {
+                        cell.classList.add('is-current');
+                        matchedRef.matched = true;
+                        return;
+                    }
                     if (!matchedRef.matched && mapLabelText.includes(labelKey)) {
-                        cell.classList.add('is-active');
+                        cell.classList.add('is-current');
                         matchedRef.matched = true;
                         return;
                     }
                     if (!matchedRef.matched && Number.isFinite(majorNumber)) {
                         const numMatch = labelKey.match(/^(\d+)\./);
                         if (numMatch && Number(numMatch[1]) === majorNumber) {
-                            cell.classList.add('is-active');
+                            cell.classList.add('is-current');
                             matchedRef.matched = true;
                         }
                     }
@@ -520,7 +525,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     const majorMatch = String(mapId).match(/major_(\d{2})/);
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
                     cells.forEach((cell) => {
-                        cell.classList.remove('is-active');
+                        cell.classList.remove('is-current');
                         const nation = String(cell.dataset.nation || '').trim();
                         if (nation && baseByNation[nation] !== undefined) {
                             const levelRaw = levels?.[nation]?.nationLevel ?? levels?.[nation]?.level ?? 1;
@@ -532,8 +537,41 @@ export default class WorldMapScene extends Phaser.Scene {
                                 applyTarotIndex(cell, Number(tarotIndexRaw), spriteMeta);
                             }
                         }
-                        highlightCell(cell, majorNumber, mapLabel, matchedRef);
+                        highlightCell(cell, majorNumber, mapLabel, matchedRef, mapId);
                     });
+                };
+                const applyOccupationColors = async (cellsList) => {
+                    const nationClassByKey = {
+                        fire: 'is-occupied-fire',
+                        water: 'is-occupied-water',
+                        earth: 'is-occupied-earth',
+                        wind: 'is-occupied-wind',
+                        neutral: 'is-occupied-neutral'
+                    };
+                    cellsList.forEach((cell) => {
+                        Object.values(nationClassByKey).forEach(cls => cell.classList.remove(cls));
+                    });
+                    const tasks = Array.from(cellsList).map(async (cell) => {
+                        const mapIdValue = cell.dataset.mapId;
+                        if (!mapIdValue) return;
+                        try {
+                            const res = await fetch('/api/get-map-occupation', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ mapId: mapIdValue })
+                            });
+                            if (!res.ok) throw new Error('Failed to get occupation');
+                            const data = await res.json();
+                            const nationKey = String(data?.nation || '').toLowerCase() || 'neutral';
+                            const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
+                            cell.classList.add(cls);
+                        } catch {
+                            const fallback = String(cell.dataset.nation || '').toLowerCase();
+                            const cls = nationClassByKey[fallback] || nationClassByKey.neutral;
+                            cell.classList.add(cls);
+                        }
+                    });
+                    await Promise.all(tasks);
                 };
                 if (cells.length) {
                     const loadLevels = async () => {
@@ -550,6 +588,8 @@ export default class WorldMapScene extends Phaser.Scene {
                         } catch (error) {
                             const spriteMeta = await loadTarotSpriteMeta();
                             applyNationLevels(null, spriteMeta);
+                        } finally {
+                            await applyOccupationColors(cells);
                         }
                     };
                     loadLevels();
