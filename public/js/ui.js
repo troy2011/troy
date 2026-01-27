@@ -370,6 +370,7 @@ function showWorldMapModal() {
         const mapId = String(window.__currentMapId || '');
         const mapLabel = String(window.__currentMapLabel || '');
         let matched = false;
+        let matchedCell = null;
         cells.forEach((cell) => cell.classList.remove('is-current'));
         if (mapId) {
             cells.forEach((cell) => {
@@ -377,6 +378,7 @@ function showWorldMapModal() {
                 if (cell.dataset.mapId && cell.dataset.mapId === mapId) {
                     cell.classList.add('is-current');
                     matched = true;
+                    matchedCell = cell;
                 }
             });
         }
@@ -391,6 +393,7 @@ function showWorldMapModal() {
                 if (mapLabel.includes(labelKey)) {
                     cell.classList.add('is-current');
                     matched = true;
+                    matchedCell = cell;
                     return;
                 }
                 if (!matched && Number.isFinite(majorNumber)) {
@@ -398,10 +401,30 @@ function showWorldMapModal() {
                     if (numMatch && Number(numMatch[1]) === majorNumber) {
                         cell.classList.add('is-current');
                         matched = true;
+                        matchedCell = cell;
                     }
                 }
             });
         }
+        return matchedCell;
+    };
+    const setZoomOrigin = (worldEl, targetCell) => {
+        if (!worldEl) return;
+        if (!targetCell) {
+            worldEl.style.transformOrigin = '50% 50%';
+            return;
+        }
+        const worldRect = worldEl.getBoundingClientRect();
+        const cellRect = targetCell.getBoundingClientRect();
+        if (!worldRect.width || !worldRect.height) {
+            worldEl.style.transformOrigin = '50% 50%';
+            return;
+        }
+        const centerX = cellRect.left + cellRect.width / 2 - worldRect.left;
+        const centerY = cellRect.top + cellRect.height / 2 - worldRect.top;
+        const originX = Math.max(0, Math.min(100, (centerX / worldRect.width) * 100));
+        const originY = Math.max(0, Math.min(100, (centerY / worldRect.height) * 100));
+        worldEl.style.transformOrigin = `${originX}% ${originY}%`;
     };
     if (!modal.dataset.bound) {
         modal.dataset.bound = 'true';
@@ -439,6 +462,7 @@ function showWorldMapModal() {
     }
     loadTarotSpriteMeta().then((spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
+        const world = modal.querySelector('.map-loading-world');
         fetch('/api/get-nation-levels', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -452,7 +476,8 @@ function showWorldMapModal() {
             .catch(() => applyNationLevels(null, spriteMeta))
             .finally(() => {
                 applyOccupationColors(cells).finally(() => {
-                    highlightCurrentCell(cells);
+                    const currentCell = highlightCurrentCell(cells);
+                    setZoomOrigin(world, currentCell);
                 });
             });
     });

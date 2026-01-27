@@ -500,11 +500,13 @@ export default class WorldMapScene extends Phaser.Scene {
                     if (!matchedRef.matched && mapIdText && cell.dataset.mapId === mapIdText) {
                         cell.classList.add('is-current');
                         matchedRef.matched = true;
+                        matchedRef.cell = cell;
                         return;
                     }
                     if (!matchedRef.matched && mapLabelText.includes(labelKey)) {
                         cell.classList.add('is-current');
                         matchedRef.matched = true;
+                        matchedRef.cell = cell;
                         return;
                     }
                     if (!matchedRef.matched && Number.isFinite(majorNumber)) {
@@ -512,6 +514,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         if (numMatch && Number(numMatch[1]) === majorNumber) {
                             cell.classList.add('is-current');
                             matchedRef.matched = true;
+                            matchedRef.cell = cell;
                         }
                     }
                 };
@@ -521,7 +524,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         const num = Math.floor(Number(value) || 1);
                         return Math.max(1, Math.min(14, num));
                     };
-                    const matchedRef = { matched: false };
+                    const matchedRef = { matched: false, cell: null };
                     const majorMatch = String(mapId).match(/major_(\d{2})/);
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
                     cells.forEach((cell) => {
@@ -539,6 +542,20 @@ export default class WorldMapScene extends Phaser.Scene {
                         }
                         highlightCell(cell, majorNumber, mapLabel, matchedRef, mapId);
                     });
+                    const world = overlay.querySelector('.map-loading-world');
+                    if (world && matchedRef.cell) {
+                        const worldRect = world.getBoundingClientRect();
+                        const cellRect = matchedRef.cell.getBoundingClientRect();
+                        if (worldRect.width && worldRect.height) {
+                            const centerX = cellRect.left + cellRect.width / 2 - worldRect.left;
+                            const centerY = cellRect.top + cellRect.height / 2 - worldRect.top;
+                            const originX = Math.max(0, Math.min(100, (centerX / worldRect.width) * 100));
+                            const originY = Math.max(0, Math.min(100, (centerY / worldRect.height) * 100));
+                            world.style.transformOrigin = `${originX}% ${originY}%`;
+                        } else {
+                            world.style.transformOrigin = '50% 50%';
+                        }
+                    }
                 };
                 const applyOccupationColors = async (cellsList) => {
                     const nationClassByKey = {
