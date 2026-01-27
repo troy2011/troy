@@ -597,7 +597,8 @@ export default class WorldMapScene extends Phaser.Scene {
             const panels = [
                 document.getElementById('islandCommandPanel'),
                 document.getElementById('mapChatArea'),
-                document.getElementById('mapSelectModal')
+                document.getElementById('mapSelectModal'),
+                document.getElementById('worldMapModal')
             ];
             panels.forEach((panel) => {
                 if (!panel || panel.dataset.phaserBlockerInstalled) return;
