@@ -220,7 +220,7 @@ function loadTarotSpriteMeta() {
 }
 
 function showWorldMapModal() {
-    const modal = document.getElementById('worldMapModal');
+    const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
     const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
@@ -332,10 +332,12 @@ function showWorldMapModal() {
     if (!modal.dataset.bound) {
         modal.dataset.bound = 'true';
         const closeModal = () => {
-            modal.style.display = 'none';
+            modal.classList.remove('is-modal');
+            modal.style.opacity = '';
+            modal.style.pointerEvents = '';
             document.body.classList.remove('modal-lock');
         };
-        const closeBtn = document.getElementById('worldMapModalClose');
+        const closeBtn = document.getElementById('mapLoadingClose');
         if (closeBtn) {
             closeBtn.addEventListener('click', closeModal);
         }
@@ -347,7 +349,9 @@ function showWorldMapModal() {
         modal.dataset.closeHandler = 'true';
     }
     document.body.classList.add('modal-lock');
-    modal.style.display = 'flex';
+    modal.classList.add('is-modal');
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
     loadTarotSpriteMeta().then((spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
         fetch('/api/get-nation-levels', {
