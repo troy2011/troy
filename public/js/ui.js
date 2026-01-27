@@ -868,3 +868,38 @@ export function showConfirmationModal(amount, receiverId, receiverName, onConfir
         document.getElementById('pointMessage').innerText = "キャンセルしました。";
     });
 }
+
+export function showMapTransitionModal(options = [], onSelect = () => {}) {
+    const modal = document.getElementById('mapTransitionModal');
+    const list = document.getElementById('mapTransitionOptions');
+    const cancelBtn = document.getElementById('mapTransitionCancel');
+    if (!modal || !list || !cancelBtn) return;
+    list.innerHTML = '';
+    const entries = Array.isArray(options) ? options : [];
+    if (entries.length === 0) return;
+    entries.forEach((entry) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const label = entry.label || entry.mapLabel || entry.mapId || '移動';
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-lock');
+            onSelect(entry);
+        });
+        list.appendChild(btn);
+    });
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    newCancelBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-lock');
+        onSelect(null);
+    });
+    modal.style.display = 'flex';
+    document.body.classList.add('modal-lock');
+}
+
+if (typeof window !== 'undefined') {
+    window.showMapTransitionModal = showMapTransitionModal;
+}

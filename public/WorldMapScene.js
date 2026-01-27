@@ -687,7 +687,8 @@ export default class WorldMapScene extends Phaser.Scene {
                 document.getElementById('islandCommandPanel'),
                 document.getElementById('mapChatArea'),
                 document.getElementById('mapSelectModal'),
-                document.getElementById('mapLoadingOverlay')
+                document.getElementById('mapLoadingOverlay'),
+                document.getElementById('mapTransitionModal')
             ];
             panels.forEach((panel) => {
                 if (!panel || panel.dataset.phaserBlockerInstalled) return;
@@ -3739,20 +3740,48 @@ export default class WorldMapScene extends Phaser.Scene {
     checkMapEdgeTransition() {
         if (!this.playerShip || !this.mapId) return;
         if (this.mapTransitionCooldownUntil && Date.now() < this.mapTransitionCooldownUntil) return;
+        if (this.mapTransitionPromptOpen) return;
         const margin = Math.max(12, Math.floor(this.TILE_SIZE * 0.75));
         const maxX = this.mapPixelSize - margin;
         const maxY = this.mapPixelSize - margin;
-        let direction = null;
-        if (this.playerShip.y <= margin) direction = 'north';
-        else if (this.playerShip.y >= maxY) direction = 'south';
-        else if (this.playerShip.x <= margin) direction = 'west';
-        else if (this.playerShip.x >= maxX) direction = 'east';
-        if (!direction) return;
-        const neighbor = this.getAdjacentMapByDirection(direction);
-        if (!neighbor?.mapId) return;
-        const sideByDirection = { north: 'south', south: 'north', west: 'east', east: 'west' };
-        const entrySide = sideByDirection[direction] || 'south';
-        this.mapTransitionCooldownUntil = Date.now() + 2500;
+        const hitNorth = this.playerShip.y <= margin;
+        const hitSouth = this.playerShip.y >= maxY;
+        const hitWest = this.playerShip.x <= margin;
+        const hitEast = this.playerShip.x >= maxX;
+        if (!hitNorth && !hitSouth && !hitWest && !hitEast) return;
+        const options = [];
+        const pushOption = (direction, label, mapDelta) => {
+            const neighbor = this.getAdjacentMapByOffset(mapDelta.r, mapDelta.c);
+            if (!neighbor?.mapId) return;
+            const entrySideByDir = {
+                north: 'south',
+                south: 'north',
+                west: 'east',
+                east: 'west',
+                northwest: 'southeast',
+                northeast: 'southwest',
+                southwest: 'northeast',
+                southeast: 'northwest'
+            };
+            const entrySide = entrySideByDir[direction] || 'south';
+            options.push({
+                direction,
+                label: label ? `${label}（${neighbor.mapLabel || neighbor.mapId}）` : neighbor.mapLabel || neighbor.mapId,
+                mapId: neighbor.mapId,
+                mapLabel: neighbor.mapLabel || neighbor.mapId,
+                entrySide
+            });
+        };
+        if (hitNorth) pushOption('north', '北へ移動', { r: -1, c: 0 });
+        if (hitSouth) pushOption('south', '南へ移動', { r: 1, c: 0 });
+        if (hitWest) pushOption('west', '西へ移動', { r: 0, c: -1 });
+        if (hitEast) pushOption('east', '東へ移動', { r: 0, c: 1 });
+        if (hitNorth && hitWest) pushOption('northwest', '北西へ移動', { r: -1, c: -1 });
+        if (hitNorth && hitEast) pushOption('northeast', '北東へ移動', { r: -1, c: 1 });
+        if (hitSouth && hitWest) pushOption('southwest', '南西へ移動', { r: 1, c: -1 });
+        if (hitSouth && hitEast) pushOption('southeast', '南東へ移動', { r: 1, c: 1 });
+        if (options.length === 0) return;
+        this.mapTransitionPromptOpen = true;
         if (this.shipMoving) {
             this.shipMoving = false;
             this.playerShip.body.setVelocity(0, 0);
@@ -3761,17 +3790,27 @@ export default class WorldMapScene extends Phaser.Scene {
             this.stopShipAnimation();
             this.updateMyShipStoppedPosition();
         }
-        if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
-            window.showTab('map', this.playerInfo || window.__phaserPlayerInfo || null, {
-                skipMapSelect: true,
-                mapId: neighbor.mapId,
-                mapLabel: neighbor.mapLabel || neighbor.mapId,
-                entrySide
-            });
+        const onSelect = (selected) => {
+            this.mapTransitionPromptOpen = false;
+            this.mapTransitionCooldownUntil = Date.now() + 2000;
+            if (!selected) return;
+            if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
+                window.showTab('map', this.playerInfo || window.__phaserPlayerInfo || null, {
+                    skipMapSelect: true,
+                    mapId: selected.mapId,
+                    mapLabel: selected.mapLabel || selected.mapId,
+                    entrySide: selected.entrySide
+                });
+            }
+        };
+        if (typeof window !== 'undefined' && typeof window.showMapTransitionModal === 'function') {
+            window.showMapTransitionModal(options, onSelect);
+        } else {
+            onSelect(options[0]);
         }
     }
 
-    getAdjacentMapByDirection(direction) {
+    getAdjacentMapByOffset(rowDelta, colDelta) {
         if (typeof document === 'undefined') return null;
         const grid = document.getElementById('worldMapGrid') || document.querySelector('.map-loading-overlay .world-map-modal-grid');
         if (!grid) return null;
@@ -3786,15 +3825,8 @@ export default class WorldMapScene extends Phaser.Scene {
         if (index < 0) return null;
         const row = Math.floor(index / 5);
         const col = index % 5;
-        const delta = {
-            north: { r: -1, c: 0 },
-            south: { r: 1, c: 0 },
-            west: { r: 0, c: -1 },
-            east: { r: 0, c: 1 }
-        }[direction];
-        if (!delta) return null;
-        const nextRow = row + delta.r;
-        const nextCol = col + delta.c;
+        const nextRow = row + rowDelta;
+        const nextCol = col + colDelta;
         if (nextRow < 0 || nextRow > 4 || nextCol < 0 || nextCol > 4) return null;
         const nextIndex = nextRow * 5 + nextCol;
         const nextCell = cells[nextIndex];
