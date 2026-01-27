@@ -201,11 +201,16 @@ function loadTarotSpriteMeta() {
     tarotSpriteMetaPromise = new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
+            const expectedWidth = 48 * 10;
+            const expectedHeight = 80 * 12;
+            const usesPadding = img.naturalWidth !== expectedWidth || img.naturalHeight !== expectedHeight;
+            const tileWidth = usesPadding ? 48 : img.naturalWidth / 10;
+            const tileHeight = usesPadding ? 80 : img.naturalHeight / 12;
             resolve({
                 width: img.naturalWidth,
                 height: img.naturalHeight,
-                tileWidth: Math.floor(img.naturalWidth / 10),
-                tileHeight: Math.floor(img.naturalHeight / 12)
+                tileWidth,
+                tileHeight
             });
         };
         img.onerror = () => resolve(null);

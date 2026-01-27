@@ -455,14 +455,41 @@ export default class WorldMapScene extends Phaser.Scene {
                     label.textContent = `目的地: ${mapLabel}`;
                 }
                 const cells = overlay.querySelectorAll('.map-loading-cell');
-                const applyTarotIndex = (cell, tarotIndex) => {
+                const loadTarotSpriteMeta = () => {
+                    if (typeof window === 'undefined') return Promise.resolve(null);
+                    if (window.__tarotSpriteMetaPromise) return window.__tarotSpriteMetaPromise;
+                    window.__tarotSpriteMetaPromise = new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const expectedWidth = 48 * 10;
+                            const expectedHeight = 80 * 12;
+                            const usesPadding = img.naturalWidth !== expectedWidth || img.naturalHeight !== expectedHeight;
+                            const tileWidth = usesPadding ? 48 : img.naturalWidth / 10;
+                            const tileHeight = usesPadding ? 80 : img.naturalHeight / 12;
+                            resolve({
+                                width: img.naturalWidth,
+                                height: img.naturalHeight,
+                                tileWidth,
+                                tileHeight
+                            });
+                        };
+                        img.onerror = () => resolve(null);
+                        img.src = 'Sprites/Buildings/tarot.png';
+                    });
+                    return window.__tarotSpriteMetaPromise;
+                };
+                const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
                     if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
                     const col = tarotIndex % 10;
                     const row = Math.floor(tarotIndex / 10);
+                    const tileWidth = spriteMeta?.tileWidth || 48;
+                    const tileHeight = spriteMeta?.tileHeight || 80;
+                    const sheetWidth = spriteMeta?.width || tileWidth * 10;
+                    const sheetHeight = spriteMeta?.height || tileHeight * 12;
                     cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
                     cell.style.backgroundRepeat = 'no-repeat';
-                    cell.style.backgroundSize = '800px 576px';
-                    cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+                    cell.style.backgroundSize = `${sheetWidth}px ${sheetHeight}px`;
+                    cell.style.backgroundPosition = `calc(50% - ${tileWidth / 2}px - ${col * tileWidth}px) calc(50% - ${tileHeight / 2}px - ${row * tileHeight}px)`;
                 };
                 const highlightCell = (cell, majorNumber, mapLabelText, matchedRef) => {
                     const labelKey = String(cell.dataset.mapLabel || '').trim();
@@ -480,7 +507,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         }
                     }
                 };
-                const applyNationLevels = (levels) => {
+                const applyNationLevels = (levels, spriteMeta) => {
                     const baseByNation = { fire: 0, earth: 20, water: 40, wind: 60 };
                     const clampLevel = (value) => {
                         const num = Math.floor(Number(value) || 1);
@@ -495,11 +522,11 @@ export default class WorldMapScene extends Phaser.Scene {
                         if (nation && baseByNation[nation] !== undefined) {
                             const levelRaw = levels?.[nation]?.nationLevel ?? levels?.[nation]?.level ?? 1;
                             const level = clampLevel(levelRaw);
-                            applyTarotIndex(cell, baseByNation[nation] + (level - 1));
+                            applyTarotIndex(cell, baseByNation[nation] + (level - 1), spriteMeta);
                         } else {
                             const tarotIndexRaw = cell.dataset.tarotIndex;
                             if (tarotIndexRaw) {
-                                applyTarotIndex(cell, Number(tarotIndexRaw));
+                                applyTarotIndex(cell, Number(tarotIndexRaw), spriteMeta);
                             }
                         }
                         highlightCell(cell, majorNumber, mapLabel, matchedRef);
@@ -508,6 +535,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 if (cells.length) {
                     const loadLevels = async () => {
                         try {
+                            const spriteMeta = await loadTarotSpriteMeta();
                             const response = await fetch('/api/get-nation-levels', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -515,9 +543,10 @@ export default class WorldMapScene extends Phaser.Scene {
                             });
                             if (!response.ok) throw new Error('Failed to fetch levels');
                             const data = await response.json();
-                            applyNationLevels(data?.levels || {});
+                            applyNationLevels(data?.levels || {}, spriteMeta);
                         } catch (error) {
-                            applyNationLevels(null);
+                            const spriteMeta = await loadTarotSpriteMeta();
+                            applyNationLevels(null, spriteMeta);
                         }
                     };
                     loadLevels();
