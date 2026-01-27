@@ -1213,7 +1213,7 @@ body[data-sea-tone="night"] .home-hero-card {
     padding: 10px 8px;
     font-size: 12px;
     text-align: center;
-    min-height: 54px;
+    aspect-ratio: 1 / 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1241,10 +1241,13 @@ body[data-sea-tone="night"] .home-hero-card {
 
 body.modal-lock {
     overflow: hidden;
+    touch-action: none;
 }
 
 body.modal-lock #tabContainer,
-body.modal-lock #bottomNav {
+body.modal-lock #bottomNav,
+body.modal-lock #phaser-container,
+body.modal-lock canvas {
     pointer-events: none;
 }
 
