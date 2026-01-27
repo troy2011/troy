@@ -69,6 +69,72 @@ const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
     return acc;
 }, {});
 
+const WORLD_MAP_GRID = [
+    [
+        { mapId: 'pentacles', mapLabel: 'オーク本拠地', tarotIndex: 110, nation: 'earth', label: '【オーク本拠地】', isCapital: true },
+        { mapId: 'major_01', mapLabel: '1. 魔術師', tarotIndex: 110 },
+        { mapId: 'major_06', mapLabel: '6. 恋人', tarotIndex: 110 },
+        { mapId: 'major_04', mapLabel: '4. 皇帝', tarotIndex: 110 },
+        { mapId: 'swords', mapLabel: 'エルフ本拠地', tarotIndex: 110, nation: 'wind', label: '【エルフ本拠地】', isCapital: true }
+    ],
+    [
+        { mapId: 'major_02', mapLabel: '2. 女教皇', tarotIndex: 110 },
+        { mapId: 'major_11', mapLabel: '11. 正義', tarotIndex: 110 },
+        { mapId: 'major_17', mapLabel: '17. 星', tarotIndex: 110 },
+        { mapId: 'major_08', mapLabel: '8. 力', tarotIndex: 110 },
+        { mapId: 'major_19', mapLabel: '19. 太陽', tarotIndex: 110 }
+    ],
+    [
+        { mapId: 'major_07', mapLabel: '7. 戦車', tarotIndex: 110 },
+        { mapId: 'major_12', mapLabel: '12. 吊るされた男', tarotIndex: 110 },
+        { mapId: 'major_21', mapLabel: '21. 世界', tarotIndex: 80, label: '★ 21. 世界', isWorld: true },
+        { mapId: 'major_10', mapLabel: '10. 運命の輪', tarotIndex: 110 },
+        { mapId: 'major_16', mapLabel: '16. 塔', tarotIndex: 110 }
+    ],
+    [
+        { mapId: 'major_09', mapLabel: '9. 隠者', tarotIndex: 110 },
+        { mapId: 'major_14', mapLabel: '14. 節制', tarotIndex: 110 },
+        { mapId: 'major_20', mapLabel: '20. 審判', tarotIndex: 110 },
+        { mapId: 'major_13', mapLabel: '13. 死神', tarotIndex: 110 },
+        { mapId: 'major_18', mapLabel: '18. 月', tarotIndex: 110 }
+    ],
+    [
+        { mapId: 'cups', mapLabel: 'ゴブリン本拠地', tarotIndex: 110, nation: 'water', label: '【ゴブリン本拠地】', isCapital: true },
+        { mapId: 'major_05', mapLabel: '5. 法王', tarotIndex: 110 },
+        { mapId: 'major_15', mapLabel: '15. 悪魔', tarotIndex: 110 },
+        { mapId: 'major_03', mapLabel: '3. 女帝', tarotIndex: 110 },
+        { mapId: 'wands', mapLabel: 'ヒューマン本拠地', tarotIndex: 110, nation: 'fire', label: '【ヒューマン本拠地】', isCapital: true }
+    ]
+];
+
+const WORLD_MAP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
+
+function renderWorldMapGrid() {
+    const container = document.getElementById('worldMapGrid');
+    if (!container) return;
+    container.innerHTML = '';
+    let letterIndex = 0;
+    WORLD_MAP_GRID.forEach((row) => {
+        row.forEach((cellData) => {
+            const cell = document.createElement('div');
+            cell.className = 'world-map-modal-cell';
+            if (cellData.isCapital) cell.classList.add('is-capital');
+            if (cellData.isWorld) cell.classList.add('is-world');
+            if (cellData.mapId) cell.dataset.mapId = cellData.mapId;
+            if (cellData.mapLabel) cell.dataset.mapLabel = cellData.mapLabel;
+            if (cellData.tarotIndex !== undefined) cell.dataset.tarotIndex = String(cellData.tarotIndex);
+            if (cellData.nation) cell.dataset.nation = cellData.nation;
+            const isCorner = !!cellData.isCapital;
+            if (!isCorner && letterIndex < WORLD_MAP_LETTERS.length) {
+                cell.dataset.letter = WORLD_MAP_LETTERS[letterIndex];
+                letterIndex += 1;
+            }
+            cell.textContent = cellData.label || '';
+            container.appendChild(cell);
+        });
+    });
+}
+
 async function waitForContainerSize(container, timeoutMs = 5000) {
     if (!container) return false;
     if (container.clientWidth > 0 && container.clientHeight > 0) return true;
@@ -115,6 +181,14 @@ const getEntrySideForNation = (nation) => {
     const options = ['north', 'south', 'east', 'west'];
     return options[Math.floor(Math.random() * options.length)];
 };
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderWorldMapGrid);
+    } else {
+        renderWorldMapGrid();
+    }
+}
 
 function showMapSelectModal(playerInfo) {
     const modal = document.getElementById('mapSelectModal');
