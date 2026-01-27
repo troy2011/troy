@@ -296,7 +296,6 @@ function loadTarotSpriteMeta() {
 function showWorldMapModal(playerInfo) {
     const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
-    const grid = modal.querySelector('#worldMapGrid');
     const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
         const col = tarotIndex % 10;
@@ -448,21 +447,6 @@ function showWorldMapModal(playerInfo) {
                 closeModal();
             }
         });
-        if (grid && !grid.dataset.navBound) {
-            grid.dataset.navBound = 'true';
-            grid.addEventListener('click', (event) => {
-                if (!modal.classList.contains('is-modal')) return;
-                const cell = event.target.closest('.world-map-modal-cell');
-                if (!cell) return;
-                const mapId = cell.dataset.mapId;
-                if (!mapId) return;
-                const mapLabel = cell.dataset.mapLabel || mapId;
-                closeModal();
-                if (playerInfo) {
-                    showTab('map', playerInfo, { skipMapSelect: true, mapId, mapLabel });
-                }
-            });
-        }
         modal.dataset.closeHandler = 'true';
     }
     document.body.classList.add('modal-lock');
@@ -580,14 +564,15 @@ export async function showTab(tabId, playerInfo, options = {}) {
     const mapSelectOptions = {
         skipMapSelect: !!options.skipMapSelect,
         mapId: options.mapId || null,
-        mapLabel: options.mapLabel || null
+        mapLabel: options.mapLabel || null,
+        entrySide: options.entrySide || null
     };
     if (tabId === 'map' && mapSelectOptions.mapId) {
         const prevMapId = window.__currentMapId;
         if (prevMapId && prevMapId !== mapSelectOptions.mapId) {
             window.__pendingMapSpawn = {
                 mapId: mapSelectOptions.mapId,
-                side: getEntrySideForNation(playerInfo?.nation)
+                side: mapSelectOptions.entrySide || getEntrySideForNation(playerInfo?.nation)
             };
         }
         if (prevMapId && prevMapId !== mapSelectOptions.mapId && gameInstance) {

@@ -3717,6 +3717,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     update() {
+        this.checkMapEdgeTransition();
         this.updateAreaControlState();
         this.drawFogOfWar();
         this.updateNavigationHud();
@@ -3733,6 +3734,77 @@ export default class WorldMapScene extends Phaser.Scene {
         this.clearCollidingIslandWhenFar();
         this.updateShipActionEffects();
         this.updateShipActionUi();
+    }
+
+    checkMapEdgeTransition() {
+        if (!this.playerShip || !this.mapId) return;
+        if (this.mapTransitionCooldownUntil && Date.now() < this.mapTransitionCooldownUntil) return;
+        const margin = Math.max(12, Math.floor(this.TILE_SIZE * 0.75));
+        const maxX = this.mapPixelSize - margin;
+        const maxY = this.mapPixelSize - margin;
+        let direction = null;
+        if (this.playerShip.y <= margin) direction = 'north';
+        else if (this.playerShip.y >= maxY) direction = 'south';
+        else if (this.playerShip.x <= margin) direction = 'west';
+        else if (this.playerShip.x >= maxX) direction = 'east';
+        if (!direction) return;
+        const neighbor = this.getAdjacentMapByDirection(direction);
+        if (!neighbor?.mapId) return;
+        const sideByDirection = { north: 'south', south: 'north', west: 'east', east: 'west' };
+        const entrySide = sideByDirection[direction] || 'south';
+        this.mapTransitionCooldownUntil = Date.now() + 2500;
+        if (this.shipMoving) {
+            this.shipMoving = false;
+            this.playerShip.body.setVelocity(0, 0);
+            if (this.shipTween) this.shipTween.stop();
+            if (this.shipArrivalTimer) this.shipArrivalTimer.remove();
+            this.stopShipAnimation();
+            this.updateMyShipStoppedPosition();
+        }
+        if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
+            window.showTab('map', this.playerInfo || window.__phaserPlayerInfo || null, {
+                skipMapSelect: true,
+                mapId: neighbor.mapId,
+                mapLabel: neighbor.mapLabel || neighbor.mapId,
+                entrySide
+            });
+        }
+    }
+
+    getAdjacentMapByDirection(direction) {
+        if (typeof document === 'undefined') return null;
+        const grid = document.getElementById('worldMapGrid') || document.querySelector('.map-loading-overlay .world-map-modal-grid');
+        if (!grid) return null;
+        const cells = Array.from(grid.querySelectorAll('.world-map-modal-cell'));
+        if (cells.length < 25) return null;
+        const mapId = String(this.mapId || '').trim();
+        const mapLabel = String(window.__currentMapLabel || '').trim();
+        let index = cells.findIndex(cell => String(cell.dataset.mapId || '') === mapId);
+        if (index < 0 && mapLabel) {
+            index = cells.findIndex(cell => String(cell.dataset.mapLabel || '') === mapLabel);
+        }
+        if (index < 0) return null;
+        const row = Math.floor(index / 5);
+        const col = index % 5;
+        const delta = {
+            north: { r: -1, c: 0 },
+            south: { r: 1, c: 0 },
+            west: { r: 0, c: -1 },
+            east: { r: 0, c: 1 }
+        }[direction];
+        if (!delta) return null;
+        const nextRow = row + delta.r;
+        const nextCol = col + delta.c;
+        if (nextRow < 0 || nextRow > 4 || nextCol < 0 || nextCol > 4) return null;
+        const nextIndex = nextRow * 5 + nextCol;
+        const nextCell = cells[nextIndex];
+        if (!nextCell) return null;
+        const nextMapId = nextCell.dataset.mapId;
+        if (!nextMapId) return null;
+        return {
+            mapId: nextMapId,
+            mapLabel: nextCell.dataset.mapLabel || nextCell.textContent || nextMapId
+        };
     }
 
     clearCollidingIslandWhenFar() {
