@@ -193,19 +193,44 @@ function hideMapSelectModal() {
     modal.style.display = 'none';
 }
 
+const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
+let tarotSpriteMetaPromise = null;
+
+function loadTarotSpriteMeta() {
+    if (tarotSpriteMetaPromise) return tarotSpriteMetaPromise;
+    tarotSpriteMetaPromise = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            resolve({
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                tileWidth: Math.floor(img.naturalWidth / 10),
+                tileHeight: Math.floor(img.naturalHeight / 12)
+            });
+        };
+        img.onerror = () => resolve(null);
+        img.src = TAROT_SPRITE_SRC;
+    });
+    return tarotSpriteMetaPromise;
+}
+
 function showWorldMapModal() {
     const modal = document.getElementById('worldMapModal');
     if (!modal) return;
-    const applyTarotIndex = (cell, tarotIndex) => {
+    const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
         const col = tarotIndex % 10;
         const row = Math.floor(tarotIndex / 10);
+        const tileWidth = spriteMeta?.tileWidth || 48;
+        const tileHeight = spriteMeta?.tileHeight || 80;
+        const sheetWidth = spriteMeta?.width || tileWidth * 10;
+        const sheetHeight = spriteMeta?.height || tileHeight * 12;
         cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
         cell.style.backgroundRepeat = 'no-repeat';
-        cell.style.backgroundSize = '480px 960px';
-        cell.style.backgroundPosition = `calc(50% - 24px - ${col * 48}px) calc(50% - 40px - ${row * 80}px)`;
+        cell.style.backgroundSize = `${sheetWidth}px ${sheetHeight}px`;
+        cell.style.backgroundPosition = `calc(50% - ${tileWidth / 2}px - ${col * tileWidth}px) calc(50% - ${tileHeight / 2}px - ${row * tileHeight}px)`;
     };
-    const applyNationLevels = (levels) => {
+    const applyNationLevels = (levels, spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
         const baseByNation = { fire: 0, earth: 20, water: 40, wind: 60 };
         const clampLevel = (value) => {
@@ -217,12 +242,12 @@ function showWorldMapModal() {
             if (nation && baseByNation[nation] !== undefined) {
                 const levelRaw = levels?.[nation]?.nationLevel ?? levels?.[nation]?.level ?? 1;
                 const level = clampLevel(levelRaw);
-                applyTarotIndex(cell, baseByNation[nation] + (level - 1));
+                applyTarotIndex(cell, baseByNation[nation] + (level - 1), spriteMeta);
                 return;
             }
             const tarotIndexRaw = cell.dataset.tarotIndex;
             if (tarotIndexRaw) {
-                applyTarotIndex(cell, Number(tarotIndexRaw));
+                applyTarotIndex(cell, Number(tarotIndexRaw), spriteMeta);
             }
         });
     };
@@ -245,17 +270,19 @@ function showWorldMapModal() {
     }
     document.body.classList.add('modal-lock');
     modal.style.display = 'flex';
-    fetch('/api/get-nation-levels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-    })
-        .then((response) => {
-            if (!response.ok) throw new Error('Failed to fetch levels');
-            return response.json();
+    loadTarotSpriteMeta().then((spriteMeta) => {
+        fetch('/api/get-nation-levels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
         })
-        .then((data) => applyNationLevels(data?.levels || {}))
-        .catch(() => applyNationLevels(null));
+            .then((response) => {
+                if (!response.ok) throw new Error('Failed to fetch levels');
+                return response.json();
+            })
+            .then((data) => applyNationLevels(data?.levels || {}, spriteMeta))
+            .catch(() => applyNationLevels(null, spriteMeta));
+    });
 }
 
 let gameInstance = null;
