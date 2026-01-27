@@ -230,12 +230,13 @@ function showWorldMapModal() {
         const tileHeight = spriteMeta?.tileHeight || 80;
         const sheetWidth = spriteMeta?.width || tileWidth * 10;
         const sheetHeight = spriteMeta?.height || tileHeight * 12;
-        const offsetX = (cell.clientWidth - tileWidth) / 2;
-        const offsetY = (cell.clientHeight - tileHeight) / 2;
-        cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
-        cell.style.backgroundRepeat = 'no-repeat';
-        cell.style.backgroundSize = `${sheetWidth}px ${sheetHeight}px`;
-        cell.style.backgroundPosition = `${offsetX - col * tileWidth}px ${offsetY - row * tileHeight}px`;
+        cell.style.setProperty('--tarot-sheet-w', `${sheetWidth}px`);
+        cell.style.setProperty('--tarot-sheet-h', `${sheetHeight}px`);
+        cell.style.setProperty('--tarot-tile-w', `${tileWidth}px`);
+        cell.style.setProperty('--tarot-tile-h', `${tileHeight}px`);
+        cell.style.setProperty('--tarot-x', `${col * tileWidth}px`);
+        cell.style.setProperty('--tarot-y', `${row * tileHeight}px`);
+        cell.classList.add('has-tarot');
     };
     const applyNationLevels = (levels, spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
