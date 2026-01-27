@@ -196,21 +196,66 @@ function hideMapSelectModal() {
 function showWorldMapModal() {
     const modal = document.getElementById('worldMapModal');
     if (!modal) return;
+    const applyTarotIndex = (cell, tarotIndex) => {
+        if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
+        const col = tarotIndex % 10;
+        const row = Math.floor(tarotIndex / 10);
+        cell.style.backgroundImage = "url('Sprites/Buildings/tarot.png')";
+        cell.style.backgroundRepeat = 'no-repeat';
+        cell.style.backgroundSize = '800px 576px';
+        cell.style.backgroundPosition = `${-col * 80}px ${-row * 48}px`;
+    };
+    const applyNationLevels = (levels) => {
+        const cells = modal.querySelectorAll('.world-map-modal-cell');
+        const baseByNation = { fire: 0, earth: 20, water: 40, wind: 60 };
+        const clampLevel = (value) => {
+            const num = Math.floor(Number(value) || 1);
+            return Math.max(1, Math.min(14, num));
+        };
+        cells.forEach((cell) => {
+            const nation = String(cell.dataset.nation || '').trim();
+            if (nation && baseByNation[nation] !== undefined) {
+                const levelRaw = levels?.[nation]?.nationLevel ?? levels?.[nation]?.level ?? 1;
+                const level = clampLevel(levelRaw);
+                applyTarotIndex(cell, baseByNation[nation] + (level - 1));
+                return;
+            }
+            const tarotIndexRaw = cell.dataset.tarotIndex;
+            if (tarotIndexRaw) {
+                applyTarotIndex(cell, Number(tarotIndexRaw));
+            }
+        });
+    };
     if (!modal.dataset.bound) {
         modal.dataset.bound = 'true';
+        const closeModal = () => {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-lock');
+        };
         const closeBtn = document.getElementById('worldMapModalClose');
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-            });
+            closeBtn.addEventListener('click', closeModal);
         }
         modal.addEventListener('click', (event) => {
             if (event.target === modal) {
-                modal.style.display = 'none';
+                closeModal();
             }
         });
+        modal.dataset.closeHandler = 'true';
     }
+    document.body.classList.add('modal-lock');
     modal.style.display = 'flex';
+    fetch('/api/get-nation-levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+        .then((response) => {
+            if (!response.ok) throw new Error('Failed to fetch levels');
+            return response.json();
+        })
+        .then((data) => applyNationLevels(data?.levels || {}))
+        .catch(() => applyNationLevels(null));
 }
 
 let gameInstance = null;

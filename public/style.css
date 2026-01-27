@@ -1207,7 +1207,7 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 .world-map-modal-cell {
-    background: rgba(15, 23, 42, 0.9);
+    background: rgba(15, 23, 42, 0.45);
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
     padding: 10px 8px;
@@ -1237,6 +1237,19 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 11px;
     color: var(--text-sub);
     text-align: center;
+}
+
+body.modal-lock {
+    overflow: hidden;
+}
+
+body.modal-lock #tabContainer,
+body.modal-lock #bottomNav {
+    pointer-events: none;
+}
+
+body.modal-lock .modal-overlay {
+    pointer-events: auto;
 }
 
 /* チャット */
