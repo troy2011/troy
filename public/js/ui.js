@@ -259,6 +259,76 @@ function showWorldMapModal() {
             }
         });
     };
+    const applyOccupationColors = (cells) => {
+        const nationClassByKey = {
+            fire: 'is-occupied-fire',
+            water: 'is-occupied-water',
+            earth: 'is-occupied-earth',
+            wind: 'is-occupied-wind',
+            neutral: 'is-occupied-neutral'
+        };
+        cells.forEach((cell) => {
+            Object.values(nationClassByKey).forEach(cls => cell.classList.remove(cls));
+        });
+        const tasks = Array.from(cells).map(async (cell) => {
+            const mapId = cell.dataset.mapId;
+            if (!mapId) return;
+            try {
+                const res = await fetch('/api/get-map-occupation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mapId })
+                });
+                if (!res.ok) throw new Error('Failed to get occupation');
+                const data = await res.json();
+                const nationKey = String(data?.nation || '').toLowerCase() || 'neutral';
+                const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
+                cell.classList.add(cls);
+            } catch {
+                const fallback = String(cell.dataset.nation || '').toLowerCase();
+                const cls = nationClassByKey[fallback] || nationClassByKey.neutral;
+                cell.classList.add(cls);
+            }
+        });
+        return Promise.all(tasks);
+    };
+    const highlightCurrentCell = (cells) => {
+        const mapId = String(window.__currentMapId || '');
+        const mapLabel = String(window.__currentMapLabel || '');
+        let matched = false;
+        cells.forEach((cell) => cell.classList.remove('is-current'));
+        if (mapId) {
+            cells.forEach((cell) => {
+                if (matched) return;
+                if (cell.dataset.mapId && cell.dataset.mapId === mapId) {
+                    cell.classList.add('is-current');
+                    matched = true;
+                }
+            });
+        }
+        if (matched) return;
+        if (mapLabel) {
+            const majorMatch = mapId.match(/major_(\d{2})/);
+            const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
+            cells.forEach((cell) => {
+                if (matched) return;
+                const labelKey = String(cell.dataset.mapLabel || '').trim();
+                if (!labelKey) return;
+                if (mapLabel.includes(labelKey)) {
+                    cell.classList.add('is-current');
+                    matched = true;
+                    return;
+                }
+                if (!matched && Number.isFinite(majorNumber)) {
+                    const numMatch = labelKey.match(/^(\d+)\./);
+                    if (numMatch && Number(numMatch[1]) === majorNumber) {
+                        cell.classList.add('is-current');
+                        matched = true;
+                    }
+                }
+            });
+        }
+    };
     if (!modal.dataset.bound) {
         modal.dataset.bound = 'true';
         const closeModal = () => {
@@ -279,6 +349,7 @@ function showWorldMapModal() {
     document.body.classList.add('modal-lock');
     modal.style.display = 'flex';
     loadTarotSpriteMeta().then((spriteMeta) => {
+        const cells = modal.querySelectorAll('.world-map-modal-cell');
         fetch('/api/get-nation-levels', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -289,7 +360,12 @@ function showWorldMapModal() {
                 return response.json();
             })
             .then((data) => applyNationLevels(data?.levels || {}, spriteMeta))
-            .catch(() => applyNationLevels(null, spriteMeta));
+            .catch(() => applyNationLevels(null, spriteMeta))
+            .finally(() => {
+                applyOccupationColors(cells).finally(() => {
+                    highlightCurrentCell(cells);
+                });
+            });
     });
 }
 
