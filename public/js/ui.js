@@ -212,6 +212,8 @@ if (typeof document !== 'undefined') {
     const initGrid = () => {
         renderWorldMapGrid();
         loadWorldMapLayout().then(layout => renderWorldMapGrid(layout));
+        preloadTarotSprite();
+        loadTarotSpriteMeta();
     };
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initGrid);
@@ -299,12 +301,14 @@ function hideMapSelectModal() {
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 let tarotSpriteMetaPromise = null;
+let tarotSpriteImage = null;
 
 function loadTarotSpriteMeta() {
     if (tarotSpriteMetaPromise) return tarotSpriteMetaPromise;
     tarotSpriteMetaPromise = new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
+        const img = tarotSpriteImage || new Image();
+        tarotSpriteImage = img;
+        const resolveMeta = () => {
             const expectedWidth = 48 * 10;
             const expectedHeight = 80 * 12;
             const usesPadding = img.naturalWidth !== expectedWidth || img.naturalHeight !== expectedHeight;
@@ -317,10 +321,25 @@ function loadTarotSpriteMeta() {
                 tileHeight
             });
         };
+        if (img.complete && img.naturalWidth) {
+            resolveMeta();
+            return;
+        }
+        img.onload = resolveMeta;
         img.onerror = () => resolve(null);
-        img.src = TAROT_SPRITE_SRC;
+        if (!img.src) {
+            img.decoding = 'async';
+            img.src = TAROT_SPRITE_SRC;
+        }
     });
     return tarotSpriteMetaPromise;
+}
+
+function preloadTarotSprite() {
+    if (tarotSpriteImage) return;
+    tarotSpriteImage = new Image();
+    tarotSpriteImage.decoding = 'async';
+    tarotSpriteImage.src = TAROT_SPRITE_SRC;
 }
 
 function showWorldMapSwapConfirm(message = '') {
@@ -605,36 +624,47 @@ function showWorldMapModal(playerInfo) {
         world.style.transform = 'scale(1)';
         world.style.opacity = '1';
     }
+    const getLayoutKey = (layout) => (Array.isArray(layout) ? layout.join('|') : '');
+    const renderLayoutIfNeeded = (layout) => {
+        if (!grid) return;
+        const key = getLayoutKey(layout);
+        if (grid.dataset.layoutKey === key) return;
+        renderWorldMapGrid(layout);
+        grid.dataset.layoutKey = key;
+    };
     const refreshGrid = () => {
         const layout = worldMapLayoutCache && worldMapLayoutCache.length === WORLD_MAP_DEFAULT_LAYOUT.length
             ? worldMapLayoutCache
             : WORLD_MAP_DEFAULT_LAYOUT;
-        renderWorldMapGrid(layout);
+        renderLayoutIfNeeded(layout);
     };
     refreshGrid();
     loadWorldMapLayout().then((layout) => {
-        renderWorldMapGrid(layout);
+        renderLayoutIfNeeded(layout);
     }).finally(() => {
         loadTarotSpriteMeta().then((spriteMeta) => {
-        const cells = modal.querySelectorAll('.world-map-modal-cell');
-        const world = modal.querySelector('.map-loading-world');
-        fetch('/api/get-nation-levels', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
-            .then((response) => {
-                if (!response.ok) throw new Error('Failed to fetch levels');
-                return response.json();
+            const cells = modal.querySelectorAll('.world-map-modal-cell');
+            const world = modal.querySelector('.map-loading-world');
+            if (spriteMeta) {
+                applyNationLevels(null, spriteMeta);
+            }
+            fetch('/api/get-nation-levels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
             })
-            .then((data) => applyNationLevels(data?.levels || {}, spriteMeta))
-            .catch(() => applyNationLevels(null, spriteMeta))
-            .finally(() => {
-                applyOccupationColors(cells).finally(() => {
-                    const currentCell = highlightCurrentCell(cells);
-                    setZoomOrigin(world, currentCell);
+                .then((response) => {
+                    if (!response.ok) throw new Error('Failed to fetch levels');
+                    return response.json();
+                })
+                .then((data) => applyNationLevels(data?.levels || {}, spriteMeta))
+                .catch(() => applyNationLevels(null, spriteMeta))
+                .finally(() => {
+                    applyOccupationColors(cells).finally(() => {
+                        const currentCell = highlightCurrentCell(cells);
+                        setZoomOrigin(world, currentCell);
+                    });
                 });
-            });
         });
     });
 }
