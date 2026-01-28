@@ -1266,6 +1266,11 @@ body[data-sea-tone="night"] .home-hero-card {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.5);
 }
 
+.world-map-modal-cell.is-selected {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.6), 0 0 12px rgba(56, 189, 248, 0.45);
+}
+
 .world-map-modal-cell.is-occupied-fire {
     background: rgba(239, 68, 68, 0.22);
 }

@@ -423,8 +423,17 @@ function getTroyRoomDoc(firestore, groupName) {
 }
 
 const MAP_OCCUPATION_KEY = 'MapOccupationByMapId';
+const WORLD_MAP_LAYOUT_KEY = 'WorldMapLayoutV1';
 
 const NATION_LEVEL_MAX = 14;
+
+const WORLD_MAP_DEFAULT_LAYOUT = [
+    'pentacles', 'major_01', 'major_06', 'major_04', 'swords',
+    'major_02', 'major_11', 'major_17', 'major_08', 'major_19',
+    'major_07', 'major_12', 'major_21', 'major_10', 'major_16',
+    'major_09', 'major_14', 'major_20', 'major_13', 'major_18',
+    'cups', 'major_05', 'major_15', 'major_03', 'wands'
+];
 
 function getArcanaPointValue(mapId) {
     const key = String(mapId || '').trim();
@@ -484,6 +493,34 @@ async function getMapOccupationNation(mapId, deps) {
     const map = await getMapOccupationMap(deps);
     const value = map?.[key];
     return value ? String(value).toLowerCase() : null;
+}
+
+async function getWorldMapLayout(deps) {
+    const { promisifyPlayFab, PlayFabAdmin } = deps;
+    const result = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [WORLD_MAP_LAYOUT_KEY] });
+    const raw = result?.Data?.[WORLD_MAP_LAYOUT_KEY] || '';
+    if (!raw) return WORLD_MAP_DEFAULT_LAYOUT.slice();
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
+            return parsed;
+        }
+    } catch {
+        // ignore
+    }
+    return WORLD_MAP_DEFAULT_LAYOUT.slice();
+}
+
+async function setWorldMapLayout(layout, deps) {
+    const { promisifyPlayFab, PlayFabAdmin } = deps;
+    if (!Array.isArray(layout) || layout.length !== WORLD_MAP_DEFAULT_LAYOUT.length) {
+        throw new Error('InvalidLayout');
+    }
+    await promisifyPlayFab(PlayFabAdmin.SetTitleData, {
+        Key: WORLD_MAP_LAYOUT_KEY,
+        Value: JSON.stringify(layout)
+    });
+    return layout;
 }
 
 async function setMapOccupationNation(mapId, nation, deps) {
@@ -1855,6 +1892,54 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[GetMapOccupation] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to get map occupation' });
+        }
+    });
+
+    app.post('/api/get-world-map-layout', async (_req, res) => {
+        try {
+            const layout = await getWorldMapLayout({ promisifyPlayFab, PlayFabAdmin });
+            res.json({ layout });
+        } catch (error) {
+            console.error('[get-world-map-layout] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get world map layout' });
+        }
+    });
+
+    app.post('/api/swap-world-map-cells', async (req, res) => {
+        const { playFabId, fromMapId, toMapId } = req.body || {};
+        if (!playFabId || !fromMapId || !toMapId) {
+            return res.status(400).json({ error: 'playFabId/fromMapId/toMapId are required' });
+        }
+        try {
+            const kingContext = await requireKingContext(playFabId, firestore, { promisifyPlayFab, PlayFabServer });
+            const kingNation = String(kingContext.nation || '').toLowerCase();
+            const fixedIds = new Set(['wands', 'swords', 'cups', 'pentacles']);
+            if (fixedIds.has(fromMapId) || fixedIds.has(toMapId)) {
+                return res.status(400).json({ error: 'FixedMapCannotSwap' });
+            }
+            const [fromNation, toNation] = await Promise.all([
+                getMapOccupationNation(fromMapId, { promisifyPlayFab, PlayFabAdmin }),
+                getMapOccupationNation(toMapId, { promisifyPlayFab, PlayFabAdmin })
+            ]);
+            if (!fromNation || !toNation || fromNation !== toNation || fromNation !== kingNation) {
+                return res.status(403).json({ error: 'NotOwnedByNation' });
+            }
+            const layout = await getWorldMapLayout({ promisifyPlayFab, PlayFabAdmin });
+            const fromIdx = layout.indexOf(fromMapId);
+            const toIdx = layout.indexOf(toMapId);
+            if (fromIdx < 0 || toIdx < 0) {
+                return res.status(400).json({ error: 'MapNotInLayout' });
+            }
+            const nextLayout = layout.slice();
+            nextLayout[fromIdx] = toMapId;
+            nextLayout[toIdx] = fromMapId;
+            await setWorldMapLayout(nextLayout, { promisifyPlayFab, PlayFabAdmin });
+            res.json({ layout: nextLayout });
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'NotKing') return res.status(403).json({ error: 'NotKing' });
+            console.error('[swap-world-map-cells] Error:', msg);
+            res.status(500).json({ error: 'Failed to swap world map cells', details: msg });
         }
     });
 

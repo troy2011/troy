@@ -107,31 +107,57 @@ const WORLD_MAP_GRID = [
     ]
 ];
 
+const WORLD_MAP_DEFAULT_LAYOUT = WORLD_MAP_GRID.flat().map(cell => cell.mapId);
+const WORLD_MAP_CELL_META = WORLD_MAP_GRID.flat().reduce((acc, cell) => {
+    acc[cell.mapId] = { ...cell };
+    return acc;
+}, {});
 const WORLD_MAP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
+let worldMapLayoutCache = null;
 
-function renderWorldMapGrid() {
+async function loadWorldMapLayout() {
+    try {
+        const res = await fetch('/api/get-world-map-layout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        if (!res.ok) throw new Error('Failed to fetch map layout');
+        const data = await res.json();
+        const layout = Array.isArray(data?.layout) ? data.layout : null;
+        if (layout && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
+            worldMapLayoutCache = layout.slice();
+            return worldMapLayoutCache;
+        }
+    } catch (error) {
+        // ignore and fallback
+    }
+    worldMapLayoutCache = WORLD_MAP_DEFAULT_LAYOUT.slice();
+    return worldMapLayoutCache;
+}
+
+function renderWorldMapGrid(layout = WORLD_MAP_DEFAULT_LAYOUT) {
     const container = document.getElementById('worldMapGrid');
     if (!container) return;
     container.innerHTML = '';
     let letterIndex = 0;
-    WORLD_MAP_GRID.forEach((row) => {
-        row.forEach((cellData) => {
-            const cell = document.createElement('div');
-            cell.className = 'world-map-modal-cell';
-            if (cellData.isCapital) cell.classList.add('is-capital');
-            if (cellData.isWorld) cell.classList.add('is-world');
-            if (cellData.mapId) cell.dataset.mapId = cellData.mapId;
-            if (cellData.mapLabel) cell.dataset.mapLabel = cellData.mapLabel;
-            if (cellData.tarotIndex !== undefined) cell.dataset.tarotIndex = String(cellData.tarotIndex);
-            if (cellData.nation) cell.dataset.nation = cellData.nation;
-            const isCorner = !!cellData.isCapital;
-            if (!isCorner && letterIndex < WORLD_MAP_LETTERS.length) {
-                cell.dataset.letter = WORLD_MAP_LETTERS[letterIndex];
-                letterIndex += 1;
-            }
-            cell.textContent = cellData.label || '';
-            container.appendChild(cell);
-        });
+    layout.forEach((mapId) => {
+        const cellData = WORLD_MAP_CELL_META[mapId] || { mapId };
+        const cell = document.createElement('div');
+        cell.className = 'world-map-modal-cell';
+        if (cellData.isCapital) cell.classList.add('is-capital');
+        if (cellData.isWorld) cell.classList.add('is-world');
+        if (cellData.mapId) cell.dataset.mapId = cellData.mapId;
+        if (cellData.mapLabel) cell.dataset.mapLabel = cellData.mapLabel;
+        if (cellData.tarotIndex !== undefined) cell.dataset.tarotIndex = String(cellData.tarotIndex);
+        if (cellData.nation) cell.dataset.nation = cellData.nation;
+        const isCorner = !!cellData.isCapital;
+        if (!isCorner && letterIndex < WORLD_MAP_LETTERS.length) {
+            cell.dataset.letter = WORLD_MAP_LETTERS[letterIndex];
+            letterIndex += 1;
+        }
+        cell.textContent = cellData.label || '';
+        container.appendChild(cell);
     });
 }
 
@@ -183,10 +209,14 @@ const getEntrySideForNation = (nation) => {
 };
 
 if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', renderWorldMapGrid);
-    } else {
+    const initGrid = () => {
         renderWorldMapGrid();
+        loadWorldMapLayout().then(layout => renderWorldMapGrid(layout));
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGrid);
+    } else {
+        initGrid();
     }
 }
 
@@ -296,6 +326,10 @@ function loadTarotSpriteMeta() {
 function showWorldMapModal(playerInfo) {
     const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
+    const grid = modal.querySelector('#worldMapGrid');
+    const isKingUser = !!(NationKing?.isKing && NationKing.isKing());
+    const fixedMapIds = new Set(['wands', 'swords', 'cups', 'pentacles']);
+    let swapSelection = null;
     const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
         const col = tarotIndex % 10;
@@ -447,6 +481,55 @@ function showWorldMapModal(playerInfo) {
                 closeModal();
             }
         });
+        if (grid && !grid.dataset.swapBound) {
+            grid.dataset.swapBound = 'true';
+            grid.addEventListener('click', async (event) => {
+                if (!modal.classList.contains('is-modal')) return;
+                if (!isKingUser) return;
+                const cell = event.target.closest('.world-map-modal-cell');
+                if (!cell) return;
+                const mapId = cell.dataset.mapId;
+                if (!mapId || fixedMapIds.has(mapId)) return;
+                if (!swapSelection) {
+                    swapSelection = mapId;
+                    grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
+                    cell.classList.add('is-selected');
+                    return;
+                }
+                if (swapSelection === mapId) {
+                    swapSelection = null;
+                    cell.classList.remove('is-selected');
+                    return;
+                }
+                const fromMapId = swapSelection;
+                const toMapId = mapId;
+                swapSelection = null;
+                grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
+                try {
+                    const res = await fetch('/api/swap-world-map-cells', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            playFabId: playerInfo?.playFabId || null,
+                            fromMapId,
+                            toMapId
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data?.error || 'Swap failed');
+                    const layout = Array.isArray(data?.layout) ? data.layout : null;
+                    if (layout && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
+                        worldMapLayoutCache = layout.slice();
+                        renderWorldMapGrid(worldMapLayoutCache);
+                    }
+                    showWorldMapModal(playerInfo);
+                } catch (error) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage(error?.message || '入れ替えに失敗しました。');
+                    }
+                }
+            });
+        }
         modal.dataset.closeHandler = 'true';
     }
     document.body.classList.add('modal-lock');
@@ -460,7 +543,17 @@ function showWorldMapModal(playerInfo) {
         world.style.transform = 'scale(1)';
         world.style.opacity = '1';
     }
-    loadTarotSpriteMeta().then((spriteMeta) => {
+    const refreshGrid = () => {
+        const layout = worldMapLayoutCache && worldMapLayoutCache.length === WORLD_MAP_DEFAULT_LAYOUT.length
+            ? worldMapLayoutCache
+            : WORLD_MAP_DEFAULT_LAYOUT;
+        renderWorldMapGrid(layout);
+    };
+    refreshGrid();
+    loadWorldMapLayout().then((layout) => {
+        renderWorldMapGrid(layout);
+    }).finally(() => {
+        loadTarotSpriteMeta().then((spriteMeta) => {
         const cells = modal.querySelectorAll('.world-map-modal-cell');
         const world = modal.querySelector('.map-loading-world');
         fetch('/api/get-nation-levels', {
@@ -480,6 +573,7 @@ function showWorldMapModal(playerInfo) {
                     setZoomOrigin(world, currentCell);
                 });
             });
+        });
     });
 }
 
