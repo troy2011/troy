@@ -323,6 +323,32 @@ function loadTarotSpriteMeta() {
     return tarotSpriteMetaPromise;
 }
 
+function showWorldMapSwapConfirm(message = '') {
+    const modal = document.getElementById('worldMapSwapModal');
+    const messageEl = document.getElementById('worldMapSwapMessage');
+    const confirmBtn = document.getElementById('worldMapSwapConfirm');
+    const cancelBtn = document.getElementById('worldMapSwapCancel');
+    if (!modal || !messageEl || !confirmBtn || !cancelBtn) {
+        return Promise.resolve(false);
+    }
+    messageEl.textContent = message || '配置を入れ替えますか？';
+    modal.style.display = 'flex';
+    return new Promise((resolve) => {
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        newConfirmBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            resolve(true);
+        });
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        newCancelBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            resolve(false);
+        });
+    });
+}
+
 function showWorldMapModal(playerInfo) {
     const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
@@ -330,6 +356,23 @@ function showWorldMapModal(playerInfo) {
     const isKingUser = !!(NationKing?.isKing && NationKing.isKing());
     const fixedMapIds = new Set(['wands', 'swords', 'cups', 'pentacles']);
     let swapSelection = null;
+    const swapErrorMessages = {
+        NotKing: '王のみ入れ替えできます。',
+        FixedMapCannotSwap: '本拠地マップは入れ替えできません。',
+        NotOwnedByNation: '自国が占領している海域同士のみ入れ替えできます。',
+        MapNotInLayout: '選択した海域がレイアウトに存在しません。',
+        LayoutNotConfigured: '配置データが未設定です。'
+    };
+    const escapeSelector = (value) => {
+        if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(value);
+        return String(value).replace(/["\\]/g, '\\$&');
+    };
+    const getCellLabel = (mapId) => {
+        if (!grid || !mapId) return String(mapId || '');
+        const selector = `[data-map-id="${escapeSelector(mapId)}"]`;
+        const cell = grid.querySelector(selector);
+        return cell?.dataset?.mapLabel || cell?.textContent || String(mapId);
+    };
     const applyTarotIndex = (cell, tarotIndex, spriteMeta) => {
         if (!Number.isFinite(tarotIndex) || tarotIndex < 0) return;
         const col = tarotIndex % 10;
@@ -485,11 +528,22 @@ function showWorldMapModal(playerInfo) {
             grid.dataset.swapBound = 'true';
             grid.addEventListener('click', async (event) => {
                 if (!modal.classList.contains('is-modal')) return;
-                if (!isKingUser) return;
+                if (!isKingUser) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage('王のみ配置を入れ替えできます。');
+                    }
+                    return;
+                }
                 const cell = event.target.closest('.world-map-modal-cell');
                 if (!cell) return;
                 const mapId = cell.dataset.mapId;
-                if (!mapId || fixedMapIds.has(mapId)) return;
+                if (!mapId) return;
+                if (fixedMapIds.has(mapId)) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage('本拠地マップは入れ替えできません。');
+                    }
+                    return;
+                }
                 if (!swapSelection) {
                     swapSelection = mapId;
                     grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
@@ -506,6 +560,10 @@ function showWorldMapModal(playerInfo) {
                 swapSelection = null;
                 grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
                 try {
+                    const fromLabel = getCellLabel(fromMapId);
+                    const toLabel = getCellLabel(toMapId);
+                    const confirmed = await showWorldMapSwapConfirm(`${fromLabel} と ${toLabel} を入れ替えます。よろしいですか？`);
+                    if (!confirmed) return;
                     const res = await fetch('/api/swap-world-map-cells', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -515,8 +573,12 @@ function showWorldMapModal(playerInfo) {
                             toMapId
                         })
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data?.error || 'Swap failed');
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const errorCode = data?.error;
+                        const message = swapErrorMessages[errorCode] || data?.message || '入れ替えに失敗しました。';
+                        throw new Error(message);
+                    }
                     const layout = Array.isArray(data?.layout) ? data.layout : null;
                     if (layout && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
                         worldMapLayoutCache = layout.slice();
