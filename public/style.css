@@ -1258,7 +1258,7 @@ body[data-sea-tone="night"] .home-hero-card {
     z-index: 2;
     margin-top: auto;
     display: inline-block;
-    max-width: 90%;
+    max-width: 100%;
     padding: 4px 8px;
     font-weight: 700;
     font-size: clamp(9px, 2.2vw, 12px);
