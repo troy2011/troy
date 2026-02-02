@@ -3795,7 +3795,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!this.playerShip || !this.mapId) return;
         if (this.mapTransitionCooldownUntil && Date.now() < this.mapTransitionCooldownUntil) return;
         if (this.mapTransitionPromptOpen) return;
-        const margin = Math.max(12, Math.floor(this.TILE_SIZE * 10));
+        const margin = Math.max(12, Math.floor(this.TILE_SIZE * 2));
         const maxX = this.mapPixelSize - margin;
         const maxY = this.mapPixelSize - margin;
         const hitNorth = this.playerShip.y <= margin;
