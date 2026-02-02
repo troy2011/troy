@@ -418,6 +418,7 @@ function showWorldMapModal(playerInfo) {
     const modal = document.getElementById('mapLoadingOverlay');
     if (!modal) return;
     const grid = modal.querySelector('#worldMapGrid');
+    const statusEl = modal.querySelector('#mapLoadingStatus');
     const isKingUser = !!(NationKing?.isKing && NationKing.isKing());
     const fixedMapIds = new Set(['wands', 'swords', 'cups', 'pentacles']);
     let swapSelection = null;
@@ -716,6 +717,13 @@ function showWorldMapModal(playerInfo) {
             : WORLD_MAP_DEFAULT_LAYOUT;
         renderLayoutIfNeeded(layout);
     };
+    if (grid) {
+        grid.style.visibility = 'hidden';
+    }
+    if (statusEl) {
+        statusEl.textContent = '読み込み中...';
+        statusEl.classList.remove('is-hidden');
+    }
     refreshGrid();
     loadWorldMapLayout().then((layout) => {
         renderLayoutIfNeeded(layout);
@@ -741,6 +749,8 @@ function showWorldMapModal(playerInfo) {
                     applyOccupationColors(cells).finally(() => {
                         const currentCell = highlightCurrentCell(cells);
                         setZoomOrigin(world, currentCell);
+                        if (grid) grid.style.visibility = '';
+                        if (statusEl) statusEl.classList.add('is-hidden');
                     });
                 });
         });

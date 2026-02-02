@@ -455,6 +455,15 @@ export default class WorldMapScene extends Phaser.Scene {
                 const mapId = typeof window !== 'undefined' ? (window.__currentMapId || '') : '';
                 const mapLabel = typeof window !== 'undefined' ? (window.__currentMapLabel || mapId || '-') : '-';
                 const cells = overlay.querySelectorAll('.world-map-modal-cell');
+                const statusEl = overlay.querySelector('#mapLoadingStatus');
+                const grid = overlay.querySelector('#worldMapGrid');
+                if (grid) {
+                    grid.style.visibility = 'hidden';
+                }
+                if (statusEl) {
+                    statusEl.textContent = '読み込み中...';
+                    statusEl.classList.remove('is-hidden');
+                }
                 const loadTarotSpriteMeta = () => {
                     if (typeof window === 'undefined') return Promise.resolve(null);
                     if (window.__tarotSpriteMetaPromise) return window.__tarotSpriteMetaPromise;
@@ -618,13 +627,16 @@ export default class WorldMapScene extends Phaser.Scene {
                             await applyOccupationColors(cells);
                         }
                     };
-                    loadLevels();
-                }
-                const world = overlay.querySelector('.map-loading-world');
-                if (world) {
-                    world.classList.remove('is-animating');
-                    void world.offsetWidth;
-                    world.classList.add('is-animating');
+                    loadLevels().finally(() => {
+                        if (grid) grid.style.visibility = '';
+                        if (statusEl) statusEl.classList.add('is-hidden');
+                        const world = overlay.querySelector('.map-loading-world');
+                        if (world) {
+                            world.classList.remove('is-animating');
+                            void world.offsetWidth;
+                            world.classList.add('is-animating');
+                        }
+                    });
                 }
                 overlay.style.display = '';
                 overlay.style.opacity = '';
