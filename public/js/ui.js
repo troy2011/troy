@@ -208,6 +208,49 @@ const getEntrySideForNation = (nation) => {
     return options[Math.floor(Math.random() * options.length)];
 };
 
+const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
+let tarotSpriteMetaPromise = null;
+let tarotSpriteImage = null;
+
+function loadTarotSpriteMeta() {
+    if (tarotSpriteMetaPromise) return tarotSpriteMetaPromise;
+    tarotSpriteMetaPromise = new Promise((resolve) => {
+        const img = tarotSpriteImage || new Image();
+        tarotSpriteImage = img;
+        const resolveMeta = () => {
+            const expectedWidth = 48 * 10;
+            const expectedHeight = 80 * 12;
+            const usesPadding = img.naturalWidth !== expectedWidth || img.naturalHeight !== expectedHeight;
+            const tileWidth = usesPadding ? 48 : img.naturalWidth / 10;
+            const tileHeight = usesPadding ? 80 : img.naturalHeight / 12;
+            resolve({
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                tileWidth,
+                tileHeight
+            });
+        };
+        if (img.complete && img.naturalWidth) {
+            resolveMeta();
+            return;
+        }
+        img.onload = resolveMeta;
+        img.onerror = () => resolve(null);
+        if (!img.src) {
+            img.decoding = 'async';
+            img.src = TAROT_SPRITE_SRC;
+        }
+    });
+    return tarotSpriteMetaPromise;
+}
+
+function preloadTarotSprite() {
+    if (tarotSpriteImage) return;
+    tarotSpriteImage = new Image();
+    tarotSpriteImage.decoding = 'async';
+    tarotSpriteImage.src = TAROT_SPRITE_SRC;
+}
+
 if (typeof document !== 'undefined') {
     const initGrid = () => {
         renderWorldMapGrid();
@@ -297,49 +340,6 @@ function hideMapSelectModal() {
     const modal = document.getElementById('mapSelectModal');
     if (!modal) return;
     modal.style.display = 'none';
-}
-
-const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
-let tarotSpriteMetaPromise = null;
-let tarotSpriteImage = null;
-
-function loadTarotSpriteMeta() {
-    if (tarotSpriteMetaPromise) return tarotSpriteMetaPromise;
-    tarotSpriteMetaPromise = new Promise((resolve) => {
-        const img = tarotSpriteImage || new Image();
-        tarotSpriteImage = img;
-        const resolveMeta = () => {
-            const expectedWidth = 48 * 10;
-            const expectedHeight = 80 * 12;
-            const usesPadding = img.naturalWidth !== expectedWidth || img.naturalHeight !== expectedHeight;
-            const tileWidth = usesPadding ? 48 : img.naturalWidth / 10;
-            const tileHeight = usesPadding ? 80 : img.naturalHeight / 12;
-            resolve({
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-                tileWidth,
-                tileHeight
-            });
-        };
-        if (img.complete && img.naturalWidth) {
-            resolveMeta();
-            return;
-        }
-        img.onload = resolveMeta;
-        img.onerror = () => resolve(null);
-        if (!img.src) {
-            img.decoding = 'async';
-            img.src = TAROT_SPRITE_SRC;
-        }
-    });
-    return tarotSpriteMetaPromise;
-}
-
-function preloadTarotSprite() {
-    if (tarotSpriteImage) return;
-    tarotSpriteImage = new Image();
-    tarotSpriteImage.decoding = 'async';
-    tarotSpriteImage.src = TAROT_SPRITE_SRC;
 }
 
 function showWorldMapSwapConfirm(message = '') {
