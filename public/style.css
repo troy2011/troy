@@ -1261,6 +1261,7 @@ body[data-sea-tone="night"] .home-hero-card {
     max-width: 90%;
     padding: 4px 8px;
     font-weight: 700;
+    font-size: clamp(9px, 2.2vw, 12px);
     color: rgba(248, 250, 252, 0.95);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     background: rgba(15, 23, 42, 0.75);
@@ -1268,8 +1269,6 @@ body[data-sea-tone="night"] .home-hero-card {
     border-radius: 8px;
     box-sizing: border-box;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .world-map-modal-cell.has-tarot {
