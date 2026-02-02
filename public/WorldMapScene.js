@@ -458,11 +458,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 const statusEl = overlay.querySelector('#mapLoadingStatus');
                 const grid = overlay.querySelector('#worldMapGrid');
                 if (grid) {
-                    grid.style.visibility = 'hidden';
+                    grid.style.visibility = '';
                 }
                 if (statusEl) {
-                    statusEl.textContent = '読み込み中...';
-                    statusEl.classList.remove('is-hidden');
+                    statusEl.classList.add('is-hidden');
                 }
                 const loadTarotSpriteMeta = () => {
                     if (typeof window === 'undefined') return Promise.resolve(null);

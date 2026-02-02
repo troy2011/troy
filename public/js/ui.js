@@ -717,17 +717,11 @@ function showWorldMapModal(playerInfo) {
             : WORLD_MAP_DEFAULT_LAYOUT;
         renderLayoutIfNeeded(layout);
     };
-    const isWarmOpen = modal.dataset.worldMapReady === 'true';
     if (grid) {
-        grid.style.visibility = isWarmOpen ? '' : 'hidden';
+        grid.style.visibility = '';
     }
     if (statusEl) {
-        if (isWarmOpen) {
-            statusEl.classList.add('is-hidden');
-        } else {
-            statusEl.textContent = '読み込み中...';
-            statusEl.classList.remove('is-hidden');
-        }
+        statusEl.classList.add('is-hidden');
     }
     refreshGrid();
     loadWorldMapLayout().then((layout) => {
