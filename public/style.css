@@ -1205,6 +1205,8 @@ body[data-sea-tone="night"] .home-hero-card {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
     gap: 8px;
+    width: 100%;
+    aspect-ratio: 3 / 5;
 }
 
 .world-map-modal-cell {
@@ -1265,6 +1267,9 @@ body[data-sea-tone="night"] .home-hero-card {
     border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 8px;
     box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .world-map-modal-cell.has-tarot {
@@ -1735,8 +1740,8 @@ body.modal-lock .modal-overlay {
 
 .map-loading-world {
     position: relative;
-    width: min(90vw, 88vh, 520px);
-    aspect-ratio: 1 / 1;
+    width: min(90vw, 72vh, 520px);
+    aspect-ratio: 3 / 5;
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.4);
     background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
