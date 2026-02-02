@@ -1203,6 +1203,7 @@ body[data-sea-tone="night"] .home-hero-card {
 .world-map-modal-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(5, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -1210,13 +1211,13 @@ body[data-sea-tone="night"] .home-hero-card {
     background: rgba(15, 23, 42, 0.45);
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 10px;
-    padding: 10px 8px;
+    padding: 10px 8px 12px;
     font-size: 12px;
     text-align: center;
-    aspect-ratio: 1 / 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     line-height: 1.35;
     position: relative;
     z-index: 0;
@@ -1238,7 +1239,7 @@ body[data-sea-tone="night"] .home-hero-card {
     content: '';
     position: absolute;
     left: 50%;
-    top: 10px;
+    top: 8px;
     width: var(--tarot-tile-w, 48px);
     height: var(--tarot-tile-h, 80px);
     transform: translateX(-50%);
@@ -1250,15 +1251,18 @@ body[data-sea-tone="night"] .home-hero-card {
     image-rendering: pixelated;
 }
 
-.world-map-modal-cell.has-tarot > * {
+.world-map-modal-label {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    margin-top: auto;
+    padding-top: 6px;
+    font-weight: 700;
+    color: rgba(248, 250, 252, 0.95);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .world-map-modal-cell.has-tarot {
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: calc(var(--tarot-tile-h, 80px) + 16px);
+    padding-top: calc(var(--tarot-tile-h, 80px) + 10px);
 }
 
 .world-map-modal-cell.is-current {
@@ -1294,13 +1298,13 @@ body[data-sea-tone="night"] .home-hero-card {
 .world-map-modal-cell[data-letter]::after {
     content: attr(data-letter);
     position: absolute;
-    top: 6px;
+    bottom: 6px;
     left: 8px;
     font-size: 10px;
     font-weight: 700;
     color: rgba(226, 232, 240, 0.9);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    z-index: 1;
+    z-index: 3;
 }
 
 .world-map-modal-note {
@@ -1725,8 +1729,8 @@ body.modal-lock .modal-overlay {
 
 .map-loading-world {
     position: relative;
-    width: min(78vw, 420px);
-    aspect-ratio: 1 / 1;
+    width: min(90vw, 520px);
+    height: min(88vh, 620px);
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.4);
     background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
@@ -1777,20 +1781,20 @@ body.modal-lock .modal-overlay {
     inset: 0;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: repeat(5, minmax(0, 1fr));
-    gap: 0;
-    padding: 6px;
+    gap: 6px;
+    padding: 10px;
     pointer-events: none;
 }
 
 .map-loading-world .world-map-modal-cell {
-    padding: 6px 6px 4px 6px;
+    padding: 8px 6px 10px;
     border: 1px solid rgba(148, 163, 184, 0.08);
     line-height: 1.2;
-    font-size: 9px;
-    color: rgba(226, 232, 240, 0.8);
+    font-size: 10px;
+    color: rgba(226, 232, 240, 0.9);
     background: rgba(15, 23, 42, 0.35);
-    align-items: flex-start;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: flex-end;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 

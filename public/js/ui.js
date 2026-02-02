@@ -79,11 +79,11 @@ const AREA_LABEL_BY_ID = TAROT_AREAS.reduce((acc, area) => {
 
 const WORLD_MAP_GRID = [
     [
-        { mapId: 'pentacles', mapLabel: 'オーク本拠地', tarotIndex: 110, nation: 'earth', label: '【オーク本拠地】', isCapital: true },
+        { mapId: 'pentacles', mapLabel: '地の国', tarotIndex: 110, nation: 'earth', label: '地の国', isCapital: true },
         { mapId: 'major_01', mapLabel: '1. 魔術師', tarotIndex: 110 },
         { mapId: 'major_06', mapLabel: '6. 恋人', tarotIndex: 110 },
         { mapId: 'major_04', mapLabel: '4. 皇帝', tarotIndex: 110 },
-        { mapId: 'swords', mapLabel: 'エルフ本拠地', tarotIndex: 110, nation: 'wind', label: '【エルフ本拠地】', isCapital: true }
+        { mapId: 'swords', mapLabel: '風の国', tarotIndex: 110, nation: 'wind', label: '風の国', isCapital: true }
     ],
     [
         { mapId: 'major_02', mapLabel: '2. 女教皇', tarotIndex: 110 },
@@ -107,11 +107,11 @@ const WORLD_MAP_GRID = [
         { mapId: 'major_18', mapLabel: '18. 月', tarotIndex: 110 }
     ],
     [
-        { mapId: 'cups', mapLabel: 'ゴブリン本拠地', tarotIndex: 110, nation: 'water', label: '【ゴブリン本拠地】', isCapital: true },
+        { mapId: 'cups', mapLabel: '水の国', tarotIndex: 110, nation: 'water', label: '水の国', isCapital: true },
         { mapId: 'major_05', mapLabel: '5. 法王', tarotIndex: 110 },
         { mapId: 'major_15', mapLabel: '15. 悪魔', tarotIndex: 110 },
         { mapId: 'major_03', mapLabel: '3. 女帝', tarotIndex: 110 },
-        { mapId: 'wands', mapLabel: 'ヒューマン本拠地', tarotIndex: 110, nation: 'fire', label: '【ヒューマン本拠地】', isCapital: true }
+        { mapId: 'wands', mapLabel: '火の国', tarotIndex: 110, nation: 'fire', label: '火の国', isCapital: true }
     ]
 ];
 
@@ -189,7 +189,13 @@ function renderWorldMapGrid(layout = WORLD_MAP_DEFAULT_LAYOUT) {
             cell.dataset.letter = WORLD_MAP_LETTERS[letterIndex];
             letterIndex += 1;
         }
-        cell.textContent = cellData.label || '';
+        const labelText = cellData.label || '';
+        if (labelText) {
+            const label = document.createElement('span');
+            label.className = 'world-map-modal-label';
+            label.textContent = labelText;
+            cell.appendChild(label);
+        }
         container.appendChild(cell);
     });
 }
@@ -492,7 +498,8 @@ function showWorldMapModal(playerInfo) {
                 });
                 if (!res.ok) throw new Error('Failed to get occupation');
                 const data = await res.json();
-                const nationKey = String(data?.nation || '').toLowerCase() || 'neutral';
+                const fallbackNation = String(cell.dataset.nation || '').toLowerCase();
+                const nationKey = String(data?.nation || fallbackNation || '').toLowerCase() || 'neutral';
                 const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
                 cell.classList.add(cls);
             } catch {
