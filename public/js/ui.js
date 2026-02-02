@@ -51,6 +51,14 @@ const MAJOR_ARCANA_BY_AREA = {
     joker: [0, 1, 6, 13, 20, 21]
 };
 
+const EMPTY_MAP_ID = 'empty';
+const EMPTY_CELL_META = {
+    mapId: EMPTY_MAP_ID,
+    mapLabel: '未設置',
+    tarotIndex: 110,
+    label: ''
+};
+
 const AREA_BY_NATION = {
     fire: 'wands',
     earth: 'pentacles',
@@ -107,13 +115,30 @@ const WORLD_MAP_GRID = [
     ]
 ];
 
-const WORLD_MAP_DEFAULT_LAYOUT = WORLD_MAP_GRID.flat().map(cell => cell.mapId);
+const WORLD_MAP_DEFAULT_LAYOUT = [
+    'pentacles', EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, 'swords',
+    EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID,
+    EMPTY_MAP_ID, EMPTY_MAP_ID, 'major_00', EMPTY_MAP_ID, EMPTY_MAP_ID,
+    EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID,
+    'cups', EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, 'wands'
+];
 const WORLD_MAP_CELL_META = WORLD_MAP_GRID.flat().reduce((acc, cell) => {
     acc[cell.mapId] = { ...cell };
     return acc;
 }, {});
+WORLD_MAP_CELL_META[EMPTY_MAP_ID] = { ...EMPTY_CELL_META };
+MAJOR_ARCANA.forEach((arcana) => {
+    const mapId = `major_${String(arcana.number).padStart(2, '0')}`;
+    const existing = WORLD_MAP_CELL_META[mapId] || { mapId };
+    if (!existing.mapLabel) {
+        existing.mapLabel = `${arcana.number}. ${arcana.name}`;
+    }
+    existing.tarotIndex = 80 + arcana.number;
+    WORLD_MAP_CELL_META[mapId] = existing;
+});
 const WORLD_MAP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
 let worldMapLayoutCache = null;
+let worldMapPlacementOpen = true;
 
 async function loadWorldMapLayout() {
     try {
@@ -124,6 +149,11 @@ async function loadWorldMapLayout() {
         });
         if (!res.ok) throw new Error('Failed to fetch map layout');
         const data = await res.json();
+        if (typeof data?.placementOpen === 'boolean') {
+            worldMapPlacementOpen = data.placementOpen;
+        } else {
+            worldMapPlacementOpen = true;
+        }
         const layout = Array.isArray(data?.layout) ? data.layout : null;
         if (layout && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
             worldMapLayoutCache = layout.slice();
@@ -132,6 +162,7 @@ async function loadWorldMapLayout() {
     } catch (error) {
         // ignore and fallback
     }
+    worldMapPlacementOpen = true;
     worldMapLayoutCache = WORLD_MAP_DEFAULT_LAYOUT.slice();
     return worldMapLayoutCache;
 }
@@ -141,16 +172,18 @@ function renderWorldMapGrid(layout = WORLD_MAP_DEFAULT_LAYOUT) {
     if (!container) return;
     container.innerHTML = '';
     let letterIndex = 0;
-    layout.forEach((mapId) => {
+    layout.forEach((mapId, index) => {
         const cellData = WORLD_MAP_CELL_META[mapId] || { mapId };
         const cell = document.createElement('div');
         cell.className = 'world-map-modal-cell';
         if (cellData.isCapital) cell.classList.add('is-capital');
         if (cellData.isWorld) cell.classList.add('is-world');
+        if (cellData.mapId === EMPTY_MAP_ID) cell.classList.add('is-empty');
         if (cellData.mapId) cell.dataset.mapId = cellData.mapId;
         if (cellData.mapLabel) cell.dataset.mapLabel = cellData.mapLabel;
         if (cellData.tarotIndex !== undefined) cell.dataset.tarotIndex = String(cellData.tarotIndex);
         if (cellData.nation) cell.dataset.nation = cellData.nation;
+        cell.dataset.index = String(index);
         const isCorner = !!cellData.isCapital;
         if (!isCorner && letterIndex < WORLD_MAP_LETTERS.length) {
             cell.dataset.letter = WORLD_MAP_LETTERS[letterIndex];
@@ -377,10 +410,13 @@ function showWorldMapModal(playerInfo) {
     let swapSelection = null;
     const swapErrorMessages = {
         NotKing: '王のみ入れ替えできます。',
+        PlacementClosed: '配置変更の期間外です。',
         FixedMapCannotSwap: '本拠地マップは入れ替えできません。',
         NotOwnedByNation: '自国が占領している海域同士のみ入れ替えできます。',
         MapNotInLayout: '選択した海域がレイアウトに存在しません。',
-        LayoutNotConfigured: '配置データが未設定です。'
+        LayoutNotConfigured: '配置データが未設定です。',
+        EmptySwapNotAllowed: '空きマス同士は入れ替えできません。',
+        InvalidSwapIndex: '配置の位置情報が不正です。'
     };
     const escapeSelector = (value) => {
         if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(value);
@@ -388,6 +424,7 @@ function showWorldMapModal(playerInfo) {
     };
     const getCellLabel = (mapId) => {
         if (!grid || !mapId) return String(mapId || '');
+        if (mapId === EMPTY_MAP_ID) return '空きマス';
         const selector = `[data-map-id="${escapeSelector(mapId)}"]`;
         const cell = grid.querySelector(selector);
         return cell?.dataset?.mapLabel || cell?.textContent || String(mapId);
@@ -443,6 +480,10 @@ function showWorldMapModal(playerInfo) {
         const tasks = Array.from(cells).map(async (cell) => {
             const mapId = cell.dataset.mapId;
             if (!mapId) return;
+            if (mapId === EMPTY_MAP_ID) {
+                cell.classList.add(nationClassByKey.neutral);
+                return;
+            }
             try {
                 const res = await fetch('/api/get-map-occupation', {
                     method: 'POST',
@@ -553,10 +594,23 @@ function showWorldMapModal(playerInfo) {
                     }
                     return;
                 }
+                if (!worldMapPlacementOpen) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage('配置変更の期間外です。');
+                    }
+                    return;
+                }
                 const cell = event.target.closest('.world-map-modal-cell');
                 if (!cell) return;
                 const mapId = cell.dataset.mapId;
                 if (!mapId) return;
+                const mapIndex = Number(cell.dataset.index);
+                if (!Number.isFinite(mapIndex)) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage('配置の位置情報が不正です。');
+                    }
+                    return;
+                }
                 if (fixedMapIds.has(mapId)) {
                     if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
                         window.showRpgMessage('本拠地マップは入れ替えできません。');
@@ -564,20 +618,28 @@ function showWorldMapModal(playerInfo) {
                     return;
                 }
                 if (!swapSelection) {
-                    swapSelection = mapId;
+                    swapSelection = { mapId, index: mapIndex };
                     grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
                     cell.classList.add('is-selected');
                     return;
                 }
-                if (swapSelection === mapId) {
+                if (swapSelection?.index === mapIndex) {
                     swapSelection = null;
                     cell.classList.remove('is-selected');
                     return;
                 }
-                const fromMapId = swapSelection;
+                const fromMapId = swapSelection.mapId;
+                const fromIndex = swapSelection.index;
                 const toMapId = mapId;
+                const toIndex = mapIndex;
                 swapSelection = null;
                 grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
+                if (fromMapId === EMPTY_MAP_ID && toMapId === EMPTY_MAP_ID) {
+                    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage('空きマス同士は入れ替えできません。');
+                    }
+                    return;
+                }
                 try {
                     const fromLabel = getCellLabel(fromMapId);
                     const toLabel = getCellLabel(toMapId);
@@ -589,7 +651,9 @@ function showWorldMapModal(playerInfo) {
                         body: JSON.stringify({
                             playFabId: playerInfo?.playFabId || null,
                             fromMapId,
-                            toMapId
+                            toMapId,
+                            fromIndex,
+                            toIndex
                         })
                     });
                     const data = await res.json().catch(() => ({}));

@@ -3798,7 +3798,12 @@ export default class WorldMapScene extends Phaser.Scene {
         if (hitNorth && hitEast) pushOption('northeast', '北東へ移動', { r: -1, c: 1 });
         if (hitSouth && hitWest) pushOption('southwest', '南西へ移動', { r: 1, c: -1 });
         if (hitSouth && hitEast) pushOption('southeast', '南東へ移動', { r: 1, c: 1 });
-        if (options.length === 0) return;
+        if (options.length === 0) {
+            this.mapTransitionRequireLeave = true;
+            this.mapTransitionCooldownUntil = Date.now() + 2000;
+            this.showMessage('隣の海域にカードが設置されていないため移動できません。');
+            return;
+        }
         this.mapTransitionPromptOpen = true;
         if (this.shipMoving) {
             this.shipMoving = false;
@@ -3854,7 +3859,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const nextCell = cells[nextIndex];
         if (!nextCell) return null;
         const nextMapId = nextCell.dataset.mapId;
-        if (!nextMapId) return null;
+        if (!nextMapId || nextMapId === 'empty') return null;
         return {
             mapId: nextMapId,
             mapLabel: nextCell.dataset.mapLabel || nextCell.textContent || nextMapId
