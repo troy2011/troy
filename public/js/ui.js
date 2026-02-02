@@ -491,32 +491,55 @@ function showWorldMapModal(playerInfo) {
         cells.forEach((cell) => {
             Object.values(nationClassByKey).forEach(cls => cell.classList.remove(cls));
         });
-        const tasks = Array.from(cells).map(async (cell) => {
+        const mapIds = [];
+        const fallbackByMapId = {};
+        cells.forEach((cell) => {
             const mapId = cell.dataset.mapId;
             if (!mapId) return;
             if (mapId === EMPTY_MAP_ID) {
                 cell.classList.add(nationClassByKey.neutral);
                 return;
             }
-            try {
-                const res = await fetch('/api/get-map-occupation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mapId })
-                });
-                if (!res.ok) throw new Error('Failed to get occupation');
-                const data = await res.json();
-                const fallbackNation = String(cell.dataset.nation || '').toLowerCase();
-                const nationKey = String(data?.nation || fallbackNation || '').toLowerCase() || 'neutral';
+            mapIds.push(mapId);
+            fallbackByMapId[mapId] = String(cell.dataset.nation || '').toLowerCase();
+        });
+        const applyFromMap = (occupationMap) => {
+            cells.forEach((cell) => {
+                const mapId = cell.dataset.mapId;
+                if (!mapId || mapId === EMPTY_MAP_ID) return;
+                const fallback = fallbackByMapId[mapId] || '';
+                const nationKey = String(occupationMap?.[mapId] || fallback || '').toLowerCase() || 'neutral';
                 const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
                 cell.classList.add(cls);
-            } catch {
-                const fallback = String(cell.dataset.nation || '').toLowerCase();
-                const cls = nationClassByKey[fallback] || nationClassByKey.neutral;
-                cell.classList.add(cls);
-            }
-        });
-        return Promise.all(tasks);
+            });
+        };
+        const now = Date.now();
+        const cached = window.__worldMapOccupationMap;
+        const cachedAt = Number(window.__worldMapOccupationFetchedAt || 0);
+        const cacheFresh = cached && cachedAt && now - cachedAt < 60000;
+        if (cacheFresh) {
+            applyFromMap(cached);
+            return Promise.resolve();
+        }
+        if (!mapIds.length) return Promise.resolve();
+        return fetch('/api/get-map-occupation-map', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mapIds })
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error('Failed to get occupation map');
+                return res.json();
+            })
+            .then((data) => {
+                const map = data?.map || {};
+                window.__worldMapOccupationMap = map;
+                window.__worldMapOccupationFetchedAt = Date.now();
+                applyFromMap(map);
+            })
+            .catch(() => {
+                applyFromMap(null);
+            });
     };
     const highlightCurrentCell = (cells) => {
         const mapId = String(window.__currentMapId || '');

@@ -1935,6 +1935,27 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // マップ占領状態一括取得
+    app.post('/api/get-map-occupation-map', async (req, res) => {
+        const { mapIds } = req.body || {};
+        try {
+            const map = await getMapOccupationMap({ promisifyPlayFab, PlayFabAdmin });
+            if (Array.isArray(mapIds) && mapIds.length) {
+                const filtered = {};
+                mapIds.forEach((id) => {
+                    const key = String(id || '').trim();
+                    if (!key) return;
+                    if (map[key]) filtered[key] = map[key];
+                });
+                return res.json({ map: filtered });
+            }
+            res.json({ map });
+        } catch (error) {
+            console.error('[GetMapOccupationMap] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to get map occupation map' });
+        }
+    });
+
     app.post('/api/get-world-map-layout', async (_req, res) => {
         try {
             const layout = await getWorldMapLayout({ promisifyPlayFab, PlayFabAdmin });

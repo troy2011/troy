@@ -583,28 +583,52 @@ export default class WorldMapScene extends Phaser.Scene {
                     cellsList.forEach((cell) => {
                         Object.values(nationClassByKey).forEach(cls => cell.classList.remove(cls));
                     });
-                    const tasks = Array.from(cellsList).map(async (cell) => {
+                    const mapIds = [];
+                    const fallbackByMapId = {};
+                    cellsList.forEach((cell) => {
                         const mapIdValue = cell.dataset.mapId;
                         if (!mapIdValue) return;
-                        try {
-                            const res = await fetch('/api/get-map-occupation', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ mapId: mapIdValue })
-                            });
-                            if (!res.ok) throw new Error('Failed to get occupation');
-                            const data = await res.json();
-                            const fallback = String(cell.dataset.nation || '').toLowerCase();
-                            const nationKey = String(data?.nation || fallback || '').toLowerCase() || 'neutral';
+                        if (mapIdValue === EMPTY_MAP_ID) {
+                            cell.classList.add(nationClassByKey.neutral);
+                            return;
+                        }
+                        mapIds.push(mapIdValue);
+                        fallbackByMapId[mapIdValue] = String(cell.dataset.nation || '').toLowerCase();
+                    });
+                    const applyFromMap = (occupationMap) => {
+                        cellsList.forEach((cell) => {
+                            const mapIdValue = cell.dataset.mapId;
+                            if (!mapIdValue || mapIdValue === EMPTY_MAP_ID) return;
+                            const fallback = fallbackByMapId[mapIdValue] || '';
+                            const nationKey = String(occupationMap?.[mapIdValue] || fallback || '').toLowerCase() || 'neutral';
                             const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
                             cell.classList.add(cls);
-                        } catch {
-                            const fallback = String(cell.dataset.nation || '').toLowerCase();
-                            const cls = nationClassByKey[fallback] || nationClassByKey.neutral;
-                            cell.classList.add(cls);
-                        }
-                    });
-                    await Promise.all(tasks);
+                        });
+                    };
+                    const now = Date.now();
+                    const cached = window.__worldMapOccupationMap;
+                    const cachedAt = Number(window.__worldMapOccupationFetchedAt || 0);
+                    const cacheFresh = cached && cachedAt && now - cachedAt < 60000;
+                    if (cacheFresh) {
+                        applyFromMap(cached);
+                        return;
+                    }
+                    if (!mapIds.length) return;
+                    try {
+                        const res = await fetch('/api/get-map-occupation-map', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ mapIds })
+                        });
+                        if (!res.ok) throw new Error('Failed to get occupation map');
+                        const data = await res.json();
+                        const map = data?.map || {};
+                        window.__worldMapOccupationMap = map;
+                        window.__worldMapOccupationFetchedAt = Date.now();
+                        applyFromMap(map);
+                    } catch {
+                        applyFromMap(null);
+                    }
                 };
                 if (cells.length) {
                     applyNationLevels(null, null);
