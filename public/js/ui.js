@@ -139,6 +139,7 @@ MAJOR_ARCANA.forEach((arcana) => {
 const WORLD_MAP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
 let worldMapLayoutCache = null;
 let worldMapPlacementOpen = true;
+let worldMapOccupationPrefetchPromise = null;
 
 async function loadWorldMapLayout() {
     try {
@@ -251,6 +252,34 @@ const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 let tarotSpriteMetaPromise = null;
 let tarotSpriteImage = null;
 
+function prefetchWorldMapOccupationMap() {
+    if (typeof window === 'undefined') return null;
+    if (window.__worldMapOccupationMap) return Promise.resolve(window.__worldMapOccupationMap);
+    if (worldMapOccupationPrefetchPromise) return worldMapOccupationPrefetchPromise;
+    const layout = (worldMapLayoutCache && worldMapLayoutCache.length === WORLD_MAP_DEFAULT_LAYOUT.length)
+        ? worldMapLayoutCache
+        : WORLD_MAP_DEFAULT_LAYOUT;
+    const mapIds = layout.filter(id => id && id !== EMPTY_MAP_ID);
+    if (!mapIds.length) return Promise.resolve({});
+    worldMapOccupationPrefetchPromise = fetch('/api/get-map-occupation-map', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mapIds })
+    })
+        .then((res) => {
+            if (!res.ok) throw new Error('Failed to get occupation map');
+            return res.json();
+        })
+        .then((data) => {
+            const map = data?.map || {};
+            window.__worldMapOccupationMap = map;
+            window.__worldMapOccupationFetchedAt = Date.now();
+            return map;
+        })
+        .catch(() => ({}));
+    return worldMapOccupationPrefetchPromise;
+}
+
 function loadTarotSpriteMeta() {
     if (tarotSpriteMetaPromise) return tarotSpriteMetaPromise;
     tarotSpriteMetaPromise = new Promise((resolve) => {
@@ -300,7 +329,11 @@ function preloadTarotSprite() {
 if (typeof document !== 'undefined') {
     const initGrid = () => {
         renderWorldMapGrid();
-        loadWorldMapLayout().then(layout => renderWorldMapGrid(layout));
+        prefetchWorldMapOccupationMap();
+        loadWorldMapLayout().then((layout) => {
+            renderWorldMapGrid(layout);
+            prefetchWorldMapOccupationMap();
+        });
         preloadTarotSprite();
         loadTarotSpriteMeta();
     };
