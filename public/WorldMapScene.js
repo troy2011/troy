@@ -191,6 +191,9 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playerInfo = { playFabId: null, race: null };
         this.mapId = null;
         this.mapLabel = null;
+        this.mapTransitionCooldownUntil = 0;
+        this.mapTransitionPromptOpen = false;
+        this.mapTransitionRequireLeave = false;
 
         this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
         this.baseShipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
@@ -3758,7 +3761,12 @@ export default class WorldMapScene extends Phaser.Scene {
         const hitSouth = this.playerShip.y >= maxY;
         const hitWest = this.playerShip.x <= margin;
         const hitEast = this.playerShip.x >= maxX;
-        if (!hitNorth && !hitSouth && !hitWest && !hitEast) return;
+        const isAtEdge = hitNorth || hitSouth || hitWest || hitEast;
+        if (!isAtEdge) {
+            this.mapTransitionRequireLeave = false;
+            return;
+        }
+        if (this.mapTransitionRequireLeave) return;
         const options = [];
         const pushOption = (direction, label, mapDelta) => {
             const neighbor = this.getAdjacentMapByOffset(mapDelta.r, mapDelta.c);
@@ -3803,7 +3811,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const onSelect = (selected) => {
             this.mapTransitionPromptOpen = false;
             this.mapTransitionCooldownUntil = Date.now() + 2000;
-            if (!selected) return;
+            if (!selected) {
+                this.mapTransitionRequireLeave = true;
+                return;
+            }
+            this.mapTransitionRequireLeave = false;
             if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
                 window.showTab('map', this.playerInfo || window.__phaserPlayerInfo || null, {
                     skipMapSelect: true,
