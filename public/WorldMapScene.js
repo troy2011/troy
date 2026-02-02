@@ -194,6 +194,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.shipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
         this.baseShipVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
+        this.currentVisionRange = GAME_CONFIG.SHIP_VISION_RANGE;
         this.shipSpeed = GAME_CONFIG.SHIP_SPEED;
         this.shipBaseSpeed = GAME_CONFIG.SHIP_SPEED;
 
@@ -1258,8 +1259,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const visionRange = this.getEffectiveVisionRange();
         if (!cam || !Number.isFinite(visionRange) || visionRange <= 0) return;
         const screenWidth = this.scale?.width || cam.width;
-        const zoom = screenWidth / (visionRange * 2);
+        if (!Number.isFinite(screenWidth) || screenWidth <= 0) return;
+        const idealZoom = screenWidth / (visionRange * 2);
+        const zoom = Math.max(1, Math.floor(idealZoom));
         cam.setZoom(zoom);
+        this.currentVisionRange = screenWidth / (zoom * 2);
     }
 
     getEffectiveVisionRange() {
@@ -1272,6 +1276,12 @@ export default class WorldMapScene extends Phaser.Scene {
             : Number(this.shipVisionRange);
         if (this.isInOwnedArea) return base;
         return Math.max(50, Math.floor(base * OUTSIDE_VISION_MULTIPLIER));
+    }
+
+    getCurrentVisionRange() {
+        const value = Number(this.currentVisionRange);
+        if (Number.isFinite(value) && value > 0) return value;
+        return this.getEffectiveVisionRange();
     }
 
     getIslandCenterPoint(islandData) {
@@ -4551,7 +4561,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 shipObject.sprite.x,
                 shipObject.sprite.y
             );
-            const keepRange = this.shipVisionRange * 1.25;
+            const keepRange = this.getCurrentVisionRange() * 1.25;
             if (distance <= keepRange) {
                 return;
             }
@@ -4565,7 +4575,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!this.playerShip) return;
 
         const now = Date.now();
-        const hysteresisRange = this.shipVisionRange * 1.25;
+        const hysteresisRange = this.getCurrentVisionRange() * 1.25;
         const removeGraceMs = 5000;
 
         this.otherShips.forEach((shipObject, playFabId) => {
@@ -4619,7 +4629,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const center = { x: this.playerShip.x, y: this.playerShip.y };
         if (!force && this.lastShipQueryCenter) {
             const delta = Phaser.Math.Distance.Between(center.x, center.y, this.lastShipQueryCenter.x, this.lastShipQueryCenter.y);
-            if (delta < this.shipVisionRange * GAME_CONFIG.SHIP_QUERY_REFRESH_THRESHOLD) {
+            if (delta < this.getCurrentVisionRange() * GAME_CONFIG.SHIP_QUERY_REFRESH_THRESHOLD) {
                 return;
             }
         }
@@ -4630,7 +4640,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         try {
             const { collection, onSnapshot, query, orderBy, startAt, endAt, where } = await import('firebase/firestore');
-            const radiusTiles = this.shipVisionRange / this.gridSize;
+            const radiusTiles = this.getCurrentVisionRange() / this.gridSize;
             const radiusMeters = radiusTiles * this.metersPerTile;
             const centerGeo = this.worldToLatLng(center);
             const bounds = geohashQueryBounds([centerGeo.lat, centerGeo.lng], radiusMeters);
