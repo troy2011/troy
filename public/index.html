@@ -312,11 +312,6 @@
                         <div class="map-loading-grid"></div>
                         <div id="worldMapGrid" class="world-map-modal-grid"></div>
                         <div class="map-loading-target"></div>
-                        <div class="map-loading-labels">
-                            <div class="map-loading-title">世界地図</div>
-                            <div id="mapLoadingLabel" class="map-loading-current">目的地: -</div>
-                            <div class="map-loading-sub">ズーム中...</div>
-                        </div>
                     </div>
                 </div>
                 <div id="phaser-container" class="map-stage"></div>
@@ -828,6 +823,17 @@
             <p style="font-size:12px; color:var(--text-sub);">隣の海域へ移動しますか？</p>
             <div id="mapTransitionOptions" class="modal-buttons" style="flex-direction: column;"></div>
             <button id="mapTransitionCancel" style="margin-top: 12px; background:#4b5563;">キャンセル</button>
+        </div>
+    </div>
+
+    <div id="worldMapSwapModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>配置の入れ替え</h3>
+            <p id="worldMapSwapMessage" style="font-size:12px; color:var(--text-sub);"></p>
+            <div class="modal-buttons">
+                <button id="worldMapSwapConfirm" style="background: var(--accent-color);">入れ替える</button>
+                <button id="worldMapSwapCancel" style="background:#4b5563;">キャンセル</button>
+            </div>
         </div>
     </div>
     

@@ -452,18 +452,15 @@ export default class WorldMapScene extends Phaser.Scene {
             container.classList.remove('map-ready');
             const overlay = container.querySelector('.map-loading-overlay');
             if (overlay) {
-                const label = overlay.querySelector('#mapLoadingLabel');
                 const mapId = typeof window !== 'undefined' ? (window.__currentMapId || '') : '';
                 const mapLabel = typeof window !== 'undefined' ? (window.__currentMapLabel || mapId || '-') : '-';
-                if (label && typeof window !== 'undefined') {
-                    label.textContent = `目的地: ${mapLabel}`;
-                }
                 const cells = overlay.querySelectorAll('.world-map-modal-cell');
                 const loadTarotSpriteMeta = () => {
                     if (typeof window === 'undefined') return Promise.resolve(null);
                     if (window.__tarotSpriteMetaPromise) return window.__tarotSpriteMetaPromise;
                     window.__tarotSpriteMetaPromise = new Promise((resolve) => {
-                        const img = new Image();
+                        const img = window.__tarotSpriteImage || new Image();
+                        window.__tarotSpriteImage = img;
                         img.onload = () => {
                             const expectedWidth = 48 * 10;
                             const expectedHeight = 80 * 12;
@@ -478,7 +475,10 @@ export default class WorldMapScene extends Phaser.Scene {
                             });
                         };
                         img.onerror = () => resolve(null);
-                        img.src = 'Sprites/Buildings/tarot.png';
+                        if (!img.src) {
+                            img.decoding = 'async';
+                            img.src = 'Sprites/Buildings/tarot.png';
+                        }
                     });
                     return window.__tarotSpriteMetaPromise;
                 };
@@ -531,6 +531,9 @@ export default class WorldMapScene extends Phaser.Scene {
                     const matchedRef = { matched: false, cell: null };
                     const majorMatch = String(mapId).match(/major_(\d{2})/);
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
+                    if (!spriteMeta) {
+                        spriteMeta = { width: 480, height: 960, tileWidth: 48, tileHeight: 80 };
+                    }
                     cells.forEach((cell) => {
                         cell.classList.remove('is-current');
                         const nation = String(cell.dataset.nation || '').trim();
@@ -583,7 +586,8 @@ export default class WorldMapScene extends Phaser.Scene {
                             });
                             if (!res.ok) throw new Error('Failed to get occupation');
                             const data = await res.json();
-                            const nationKey = String(data?.nation || '').toLowerCase() || 'neutral';
+                            const fallback = String(cell.dataset.nation || '').toLowerCase();
+                            const nationKey = String(data?.nation || fallback || '').toLowerCase() || 'neutral';
                             const cls = nationClassByKey[nationKey] || nationClassByKey.neutral;
                             cell.classList.add(cls);
                         } catch {
@@ -595,6 +599,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     await Promise.all(tasks);
                 };
                 if (cells.length) {
+                    applyNationLevels(null, null);
                     const loadLevels = async () => {
                         try {
                             const spriteMeta = await loadTarotSpriteMeta();

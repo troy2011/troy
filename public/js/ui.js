@@ -280,6 +280,10 @@ function loadTarotSpriteMeta() {
             img.src = TAROT_SPRITE_SRC;
         }
     });
+    if (typeof window !== 'undefined') {
+        window.__tarotSpriteMetaPromise = tarotSpriteMetaPromise;
+        window.__tarotSpriteImage = tarotSpriteImage;
+    }
     return tarotSpriteMetaPromise;
 }
 
@@ -288,6 +292,9 @@ function preloadTarotSprite() {
     tarotSpriteImage = new Image();
     tarotSpriteImage.decoding = 'async';
     tarotSpriteImage.src = TAROT_SPRITE_SRC;
+    if (typeof window !== 'undefined') {
+        window.__tarotSpriteImage = tarotSpriteImage;
+    }
 }
 
 if (typeof document !== 'undefined') {
