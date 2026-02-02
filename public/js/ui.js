@@ -482,8 +482,9 @@ function showWorldMapModal(playerInfo) {
         const row = Math.floor(tarotIndex / 10);
         const tileWidth = spriteMeta?.tileWidth || 48;
         const tileHeight = spriteMeta?.tileHeight || 80;
-        const sheetWidth = spriteMeta?.width || tileWidth * 10;
-        const sheetHeight = spriteMeta?.height || tileHeight * 12;
+        const image = (typeof window !== 'undefined' && window.__tarotSpriteImage) ? window.__tarotSpriteImage : null;
+        const sheetWidth = spriteMeta?.width || image?.naturalWidth || tileWidth * 10;
+        const sheetHeight = spriteMeta?.height || image?.naturalHeight || tileHeight * 12;
         cell.style.setProperty('--tarot-sheet-w', `${sheetWidth}px`);
         cell.style.setProperty('--tarot-sheet-h', `${sheetHeight}px`);
         cell.style.setProperty('--tarot-tile-w', `${tileWidth}px`);
