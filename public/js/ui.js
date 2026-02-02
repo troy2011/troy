@@ -717,12 +717,17 @@ function showWorldMapModal(playerInfo) {
             : WORLD_MAP_DEFAULT_LAYOUT;
         renderLayoutIfNeeded(layout);
     };
+    const isWarmOpen = modal.dataset.worldMapReady === 'true';
     if (grid) {
-        grid.style.visibility = 'hidden';
+        grid.style.visibility = isWarmOpen ? '' : 'hidden';
     }
     if (statusEl) {
-        statusEl.textContent = '読み込み中...';
-        statusEl.classList.remove('is-hidden');
+        if (isWarmOpen) {
+            statusEl.classList.add('is-hidden');
+        } else {
+            statusEl.textContent = '読み込み中...';
+            statusEl.classList.remove('is-hidden');
+        }
     }
     refreshGrid();
     loadWorldMapLayout().then((layout) => {
@@ -751,6 +756,7 @@ function showWorldMapModal(playerInfo) {
                         setZoomOrigin(world, currentCell);
                         if (grid) grid.style.visibility = '';
                         if (statusEl) statusEl.classList.add('is-hidden');
+                        modal.dataset.worldMapReady = 'true';
                     });
                 });
         });
