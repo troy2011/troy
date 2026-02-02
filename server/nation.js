@@ -426,6 +426,7 @@ const MAP_OCCUPATION_KEY = 'MapOccupationByMapId';
 const WORLD_MAP_LAYOUT_KEY = 'WorldMapLayoutV1';
 const WORLD_MAP_PLACEMENT_OPEN_KEY = 'WorldMapPlacementOpen';
 const EMPTY_MAP_ID = 'empty';
+const WORLD_MAP_PLACEMENT_WEEKDAYS_JST = new Set([0]); // Sunday only
 
 const NATION_LEVEL_MAX = 14;
 
@@ -441,7 +442,7 @@ async function getWorldMapPlacementOpen(deps) {
     const { promisifyPlayFab, PlayFabAdmin } = deps;
     const result = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [WORLD_MAP_PLACEMENT_OPEN_KEY] });
     const raw = result?.Data?.[WORLD_MAP_PLACEMENT_OPEN_KEY];
-    if (!raw) return true;
+    if (!raw) return isPlacementAllowedByWeekday();
     if (raw === 'true' || raw === '1') return true;
     if (raw === 'false' || raw === '0') return false;
     try {
@@ -457,7 +458,21 @@ async function getWorldMapPlacementOpen(deps) {
     } catch {
         // ignore
     }
-    return true;
+    return isPlacementAllowedByWeekday();
+}
+
+function getJapanWeekdayNumber(date = new Date()) {
+    try {
+        const jstDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        return jstDate.getDay();
+    } catch {
+        return date.getUTCDay();
+    }
+}
+
+function isPlacementAllowedByWeekday(date = new Date()) {
+    const weekday = getJapanWeekdayNumber(date);
+    return WORLD_MAP_PLACEMENT_WEEKDAYS_JST.has(weekday);
 }
 
 function getArcanaPointValue(mapId) {
