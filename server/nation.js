@@ -11,6 +11,7 @@ const QUEST_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 const QUEST_CLAIM_COLLECTION = 'troy_quest_claims';
 const QUEST_REWARD_TABLE_PATH = path.join(__dirname, 'data', 'questRewardTables.json');
 const QUEST_CLEAR_DATA_KEY = 'troyQuestClears';
+const QUEST_SKILL_DATA_KEY = 'troyQuestSkills';
 const QUEST_REWARD_RARITY_LEVELS = ['common', 'rare', 'epic'];
 const QUEST_REWARD_TIER_MIX = {
     common: { common: 1 },
@@ -146,6 +147,17 @@ function parseQuestClears(rawValue) {
         if (!parsed || typeof parsed !== 'object') return {};
         return parsed;
     } catch {
+        return {};
+    }
+}
+
+function parseQuestSkills(rawValue) {
+    if (!rawValue) return {};
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+    } catch (error) {
         return {};
     }
 }
@@ -1469,6 +1481,9 @@ function initializeNationRoutes(app, deps) {
         }
         const difficulty = normalizeQuestDifficulty(req.body?.difficulty);
         const betAmount = normalizeQuestBetAmount(req.body?.betAmount);
+        const skillName = String(req.body?.skillName || '').trim();
+        const skillType = String(req.body?.skillType || '').trim();
+        const skillWeapon = String(req.body?.skillWeapon || '').trim();
 
         try {
             const claimId = generateQuestClaimId();
@@ -1482,6 +1497,9 @@ function initializeNationRoutes(app, deps) {
                 gachaType: gacha.raw,
                 difficulty,
                 betAmount,
+                skillName,
+                skillType,
+                skillWeapon,
                 nonce: crypto.randomBytes(8).toString('hex'),
                 issuedAt: now,
                 expiresAt
@@ -1576,6 +1594,39 @@ function initializeNationRoutes(app, deps) {
                 await addEconomyItem(basePayload.playerId, rewardItemId, 1, {
                     idempotencyId: `quest-${basePayload.claimId}`
                 });
+            }
+
+            if (normalizedReward.isSkill) {
+                const skillIdKey = String(claimData.questId || basePayload.questId || '').trim();
+                const skillName = String(claimData.skillName || basePayload.skillName || '').trim();
+                const skillType = String(claimData.skillType || basePayload.skillType || '').trim();
+                const skillWeapon = String(claimData.skillWeapon || basePayload.skillWeapon || '').trim();
+                if (skillIdKey && skillName) {
+                    try {
+                        const skillResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                            PlayFabId: basePayload.playerId,
+                            Keys: [QUEST_SKILL_DATA_KEY]
+                        });
+                        const rawSkills = skillResult?.Data?.[QUEST_SKILL_DATA_KEY]?.Value || '';
+                        const skills = parseQuestSkills(rawSkills);
+                        if (!skills[skillIdKey]) {
+                            skills[skillIdKey] = {
+                                name: skillName,
+                                type: skillType || 'passive',
+                                weapon: skillWeapon || '',
+                                acquiredAt: Date.now()
+                            };
+                            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                                PlayFabId: basePayload.playerId,
+                                Data: {
+                                    [QUEST_SKILL_DATA_KEY]: JSON.stringify(skills)
+                                }
+                            });
+                        }
+                    } catch (skillError) {
+                        console.warn('[quest-approve] Failed to update quest skills:', skillError?.message || skillError);
+                    }
+                }
             }
 
             let questCleared = false;

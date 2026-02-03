@@ -95,12 +95,14 @@ async function getPlayerFullProfile(playFabId) {
         throw new Error('battle.js is not initialized.');
     }
 
+    const QUEST_SKILL_DATA_KEY = 'troyQuestSkills';
     const statsPromise = _promisifyPlayFab(_PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
         // ★ v122: アバター情報も取得するようにキーを追加
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "lineUserId",
-            "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex"
+            "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
+            QUEST_SKILL_DATA_KEY
         ]
     });
     const profilePromise = _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
@@ -134,6 +136,7 @@ async function getPlayerFullProfile(playFabId) {
     const equipment = {}; // ここには最終的に ItemId を格納する
     const avatar = {}; // ★ v122: アバター情報を格納するオブジェクト
     let lineUserId = null;
+    let skills = {};
     if (equipmentResult.Data) {
         // ★★★ 修正点: InstanceId から ItemId に変換して格納する ★★★
         const rightHandInstanceId = equipmentResult.Data.Equipped_RightHand ? equipmentResult.Data.Equipped_RightHand.Value : null;
@@ -153,6 +156,15 @@ async function getPlayerFullProfile(playFabId) {
         if (equipmentResult.Data.SkinColorIndex) avatar.SkinColorIndex = equipmentResult.Data.SkinColorIndex.Value;
         if (equipmentResult.Data.FaceIndex) avatar.FaceIndex = equipmentResult.Data.FaceIndex.Value;
         if (equipmentResult.Data.HairStyleIndex) avatar.HairStyleIndex = equipmentResult.Data.HairStyleIndex.Value;
+        const rawSkills = equipmentResult.Data[QUEST_SKILL_DATA_KEY]?.Value || '';
+        if (rawSkills) {
+            try {
+                const parsed = JSON.parse(rawSkills);
+                if (parsed && typeof parsed === 'object') skills = parsed;
+            } catch (error) {
+                skills = {};
+            }
+        }
     }
 
     const equipmentStats = { Power: 0, Defense: 0 };
@@ -171,7 +183,7 @@ async function getPlayerFullProfile(playFabId) {
         if (armorData.Category === 'Armor' && armorData.Defense) equipmentStats.Defense = armorData.Defense;
     }
 
-    return { id: playFabId, lineUserId: lineUserId, stats: stats, equipment: equipment, equipmentStats: equipmentStats, avatar: avatar, level: stats.Level };
+    return { id: playFabId, lineUserId: lineUserId, stats: stats, equipment: equipment, equipmentStats: equipmentStats, avatar: avatar, level: stats.Level, skills };
 }
 
 // ----------------------------------------------------
@@ -183,16 +195,51 @@ async function runBattle(playerA, playerB) {
         throw new Error('battle.js is not initialized.');
     }
 
+    const resolveWeaponType = (weaponId) => {
+        const id = String(weaponId || '').toLowerCase();
+        if (!id) return '';
+        if (id.includes('gun') || id.includes('bow') || id.includes('pistol') || id.includes('rifle')) return 'gun';
+        if (id.includes('spear') || id.includes('polearm')) return 'spear';
+        if (id.includes('staff') || id.includes('wand')) return 'staff';
+        if (id.includes('shield')) return 'shield';
+        if (id.includes('dagger') || id.includes('knife')) return 'dagger';
+        if (id.includes('sword')) return 'sword';
+        if (id.includes('axe') || id.includes('blunt') || id.includes('club') || id.includes('mace') || id.includes('hammer')) return 'axe';
+        return '';
+    };
+    const normalizeSkillWeapon = (weapon) => {
+        const key = String(weapon || '').toLowerCase();
+        if (!key) return '';
+        if (key === 'polearm') return 'spear';
+        if (key === 'wand') return 'staff';
+        if (key === 'blunt') return 'axe';
+        return key;
+    };
+    const getEquippedWeaponTypes = (player) => {
+        const types = new Set();
+        const right = resolveWeaponType(player?.equipment?.RightHand);
+        const left = resolveWeaponType(player?.equipment?.LeftHand);
+        if (right) types.add(right);
+        if (left) types.add(left);
+        return types;
+    };
     const getWeaponRange = (player) => {
-        const rightHand = String(player?.equipment?.RightHand || '').toLowerCase();
-        const leftHand = String(player?.equipment?.LeftHand || '').toLowerCase();
-        const weaponId = rightHand || leftHand;
-        if (!weaponId) return 1;
-        if (weaponId.includes('gun') || weaponId.includes('bow') || weaponId.includes('pistol') || weaponId.includes('rifle')) return 3;
-        if (weaponId.includes('spear') || weaponId.includes('polearm')) return 2;
-        if (weaponId.includes('staff') || weaponId.includes('wand')) return 2;
-        if (weaponId.includes('sword') || weaponId.includes('axe') || weaponId.includes('dagger') || weaponId.includes('knife') || weaponId.includes('blunt') || weaponId.includes('club') || weaponId.includes('mace') || weaponId.includes('hammer')) return 1;
+        const types = getEquippedWeaponTypes(player);
+        if (types.has('gun')) return 3;
+        if (types.has('spear') || types.has('staff')) return 2;
         return 1;
+    };
+    const getPlayerSkills = (player) => {
+        const raw = player?.skills || {};
+        return Object.values(raw).filter(entry => entry && typeof entry === 'object' && entry.name);
+    };
+    const getMatchingSkills = (player) => {
+        const types = getEquippedWeaponTypes(player);
+        return getPlayerSkills(player).filter((entry) => {
+            const weapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon || '');
+            if (!weapon) return false;
+            return types.has(weapon);
+        });
     };
 
     // ★★★ 改良案: 逃走判定 ★★★
@@ -242,22 +289,65 @@ async function runBattle(playerA, playerB) {
         [playerA.id, getWeaponRange(playerA)],
         [playerB.id, getWeaponRange(playerB)]
     ]);
+    const skillState = new Map([
+        [playerA.id, { charged: false }],
+        [playerB.id, { charged: false }]
+    ]);
     await sendLogToBoth(`戦闘開始！ ${attacker.stats.DisplayName} の先攻！`);
     await sendLogToBoth(`両者の距離は ${distance} マスだ！`);
 
     for (let i = 0; i < 20; i++) {
         const attackerRange = rangeMap.get(attacker.id) || 1;
+        const attackerSkills = getMatchingSkills(attacker);
+        const defenderSkills = getMatchingSkills(defender);
         if (distance > attackerRange) {
             distance = Math.max(1, distance - 1);
             await sendLogToBoth(`${attacker.stats.DisplayName} は前進した！ (距離: ${distance})`);
         } else {
+            const defenderShieldSkill = defenderSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'shield' && entry.type === 'passive');
+            if (defenderShieldSkill && Math.random() < 0.25) {
+                distance = Math.min(5, distance + 1);
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${defenderShieldSkill.name} を発動！ ノックバック！ (距離: ${distance})`);
+                [attacker, defender] = [defender, attacker];
+                continue;
+            }
+            const attackerChargeSkill = attackerSkills.find(entry => {
+                const weapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon);
+                return (weapon === 'staff') && entry.type === 'weapon';
+            });
+            const attackerState = skillState.get(attacker.id) || { charged: false };
+            if (!attackerState.charged && attackerChargeSkill && Math.random() < 0.2) {
+                distance = Math.min(5, distance + 1);
+                attackerState.charged = true;
+                skillState.set(attacker.id, attackerState);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${attackerChargeSkill.name} で一歩下がって力をためた！ (距離: ${distance})`);
+                [attacker, defender] = [defender, attacker];
+                continue;
+            }
             const weaponPower = attacker.equipmentStats.Power || 0;
             const enemyDefense = (defender.stats.みのまもり || 0) + (defender.equipmentStats.Defense || 0);
             const skillPower = 1.0;
             const baseDamage = (weaponPower * skillPower) - enemyDefense;
             const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
+            let skillMultiplier = 1;
+            if (attackerState.charged) {
+                skillMultiplier *= 1.4;
+                attackerState.charged = false;
+                skillState.set(attacker.id, attackerState);
+                await sendLogToBoth(`${attacker.stats.DisplayName} の溜め攻撃！`);
+            }
+            const gunSkill = attackerSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'gun' && entry.type === 'weapon');
+            if (gunSkill && distance >= 2) {
+                skillMultiplier *= 1.3;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${gunSkill.name} を発動！`);
+            }
+            const spearSkill = attackerSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'spear' && entry.type === 'weapon');
+            if (spearSkill && distance === 2) {
+                skillMultiplier *= 1.2;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${spearSkill.name} を発動！`);
+            }
             // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
-            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier));
+            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier));
 
             defender.stats.CurrentHP -= finalDamage;
 

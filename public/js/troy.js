@@ -2840,9 +2840,17 @@ async function requestQuestClaim(quest, betAmountOverride) {
     }
     const betAmount = normalizeQuestBetAmount(betAmountOverride ?? _questBetAmount);
     try {
+        const skillMeta = quest.gachaType === 'skill'
+            ? {
+                skillName: quest.skillName || '',
+                skillType: quest.skillType || '',
+                skillWeapon: quest.skillWeapon || ''
+            }
+            : {};
         const result = await claimTroyQuest(playFabId, quest.questId, quest.gameKey, quest.gachaType, {
             difficulty: resolveQuestDifficulty(quest),
-            betAmount
+            betAmount,
+            ...skillMeta
         });
         if (!result?.qrValue) {
             if (window.showRpgMessage) window.showRpgMessage(result?.error || '承認QRの生成に失敗しました');
