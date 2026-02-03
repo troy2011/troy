@@ -17,6 +17,12 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 
     if (!imageUrl || spriteIndex < 0) {
         layer.style.backgroundImage = 'none';
+        layer.dataset.spriteWidth = '';
+        layer.dataset.spriteHeight = '';
+        layer.dataset.sheetColumns = '';
+        layer.dataset.scale = '';
+        layer.dataset.spriteIndex = '';
+        layer.dataset.baseTransform = '';
         return;
     }
 
@@ -61,7 +67,9 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
         }
 
-        layer.style.transform = transformValue.trim() || 'none';
+        const baseTransform = transformValue.trim() || 'none';
+        layer.style.transform = baseTransform;
+        layer.dataset.baseTransform = baseTransform;
 
         // スプライトシートの表示位置を計算
         const sheetColumns = Math.floor(img.width / spriteWidth);
@@ -71,7 +79,59 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         const posX = -(col * spriteWidth * scale);
         const posY = -(row * spriteHeight * scale);
         layer.style.backgroundPosition = `${posX}px ${posY}px`;
+
+        layer.dataset.spriteWidth = String(spriteWidth);
+        layer.dataset.spriteHeight = String(spriteHeight);
+        layer.dataset.sheetColumns = String(sheetColumns);
+        layer.dataset.scale = String(scale);
+        layer.dataset.spriteIndex = String(spriteIndex);
     };
+}
+
+const homeAvatarTimers = new Map();
+const HOME_AVATAR_FRAMES = [0, 1, 2, 3];
+
+function applyHomeAvatarFrame(prefix, frameIndex) {
+    const container = document.getElementById(prefix);
+    if (!container) return;
+    const bodyLayer = document.getElementById(`${prefix}-layer-body`);
+    if (bodyLayer) {
+        const spriteWidth = Number(bodyLayer.dataset.spriteWidth || 32);
+        const spriteHeight = Number(bodyLayer.dataset.spriteHeight || 32);
+        const sheetColumns = Number(bodyLayer.dataset.sheetColumns || 1);
+        const scale = Number(bodyLayer.dataset.scale || 2);
+        const col = frameIndex % sheetColumns;
+        const row = Math.floor(frameIndex / sheetColumns);
+        const posX = -(col * spriteWidth * scale);
+        const posY = -(row * spriteHeight * scale);
+        bodyLayer.style.backgroundPosition = `${posX}px ${posY}px`;
+        bodyLayer.dataset.spriteIndex = String(frameIndex);
+    }
+    const shiftDown = frameIndex === 2 ? 1 : 0;
+    const layers = container.querySelectorAll('.avatar-layer');
+    layers.forEach((layer) => {
+        if (!layer || layer.id === `${prefix}-layer-body`) return;
+        const baseTransform = layer.dataset.baseTransform || 'none';
+        if (shiftDown) {
+            layer.style.transform = `${baseTransform === 'none' ? '' : baseTransform} translateY(1px)`.trim();
+        } else {
+            layer.style.transform = baseTransform;
+        }
+    });
+}
+
+function startHomeAvatarAnimation(prefix) {
+    if (homeAvatarTimers.has(prefix)) {
+        clearInterval(homeAvatarTimers.get(prefix));
+        homeAvatarTimers.delete(prefix);
+    }
+    let frameIndex = 0;
+    applyHomeAvatarFrame(prefix, HOME_AVATAR_FRAMES[frameIndex]);
+    const timer = setInterval(() => {
+        frameIndex = (frameIndex + 1) % HOME_AVATAR_FRAMES.length;
+        applyHomeAvatarFrame(prefix, HOME_AVATAR_FRAMES[frameIndex]);
+    }, 500);
+    homeAvatarTimers.set(prefix, timer);
 }
 
 /**
@@ -141,6 +201,10 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     drawItem('weapon-right', finalRightHandItem);
     drawItem('shield-left', finalLeftHandItem);
     drawItem('armor', armorItem);
+
+    if (prefix === 'home-avatar') {
+        startHomeAvatarAnimation(prefix);
+    }
 
     // 4. ホーム画面の装備名表示を更新（洗練されたUI対応）
     if (prefix === 'avatar') {
