@@ -278,7 +278,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const isNight = nowHour % 2 === 0;
         const mapTilesSrc = isNight ? 'Sprites/Buildings/buildings2.png' : 'Sprites/Buildings/buildings.png';
         this.load.spritesheet('map_tiles', mapTilesSrc, { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('building_tiles', 'Sprites/Buildings/buildings.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('building_tiles', mapTilesSrc, { frameWidth: 32, frameHeight: 32 });
     }
 
     init(data) {
