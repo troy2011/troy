@@ -464,16 +464,41 @@ async function startBattleWithOpponent(opponentId) {
         console.warn('[Battle] myPlayFabId not initialized yet.');
         return;
     }
-
-    try {
-        const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
-        if (data && data.battleId) {
-            showBattleModal(data.battleId);
-        } else {
-            console.warn('[Battle] start-battle returned no battleId:', data);
+    const activeUntil = Number(window.__battleActiveUntil || 0);
+    if (activeUntil > Date.now()) {
+        const battleResultEl = document.getElementById('battleResult');
+        const msg = '戦闘中のため新しいバトルを開始できません。';
+        if (battleResultEl) {
+            battleResultEl.innerText = msg;
+            battleResultEl.style.color = 'orange';
         }
-    } catch (error) {
-        console.error('[Battle] startBattleWithOpponent error:', error);
+        if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(msg);
+        }
+        return;
+    }
+
+    const attemptStartBattle = async (attempt = 1) => {
+        try {
+            const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
+            if (data && data.battleId) {
+                showBattleModal(data.battleId);
+                return true;
+            }
+            console.warn('[Battle] start-battle returned no battleId:', data);
+        } catch (error) {
+            console.error('[Battle] startBattleWithOpponent error:', error);
+        }
+        return false;
+    };
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const ok = await attemptStartBattle(attempt);
+        if (ok) return;
+        if (attempt < maxAttempts) {
+            const delayMs = 400 * attempt;
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
     }
 }
 function returnToMapAfterBattle() {

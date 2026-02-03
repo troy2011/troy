@@ -2859,6 +2859,13 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage('戦闘中は乗り込めません。');
             return;
         }
+        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const target = this.otherShips.get(targetPlayFabId);
+        const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
+        if (myNation && targetNation && myNation === targetNation) {
+            this.showMessage('同じ国の船には乗り込めません。');
+            return;
+        }
 
         this.boardingTargetId = targetPlayFabId;
         console.log('[Boarding] showShipCommandMenu', { targetPlayFabId, displayName });
