@@ -517,6 +517,9 @@ function showWorldMapModal(playerInfo) {
             }
         });
     };
+    if (grid) {
+        grid.querySelectorAll('.world-map-modal-cell').forEach(el => el.classList.remove('is-selected'));
+    }
     const applyOccupationColors = (cells) => {
         const nationClassByKey = {
             fire: 'is-occupied-fire',
