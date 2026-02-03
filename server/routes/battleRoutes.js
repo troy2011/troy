@@ -183,6 +183,18 @@ async function runBattle(playerA, playerB) {
         throw new Error('battle.js is not initialized.');
     }
 
+    const getWeaponRange = (player) => {
+        const rightHand = String(player?.equipment?.RightHand || '').toLowerCase();
+        const leftHand = String(player?.equipment?.LeftHand || '').toLowerCase();
+        const weaponId = rightHand || leftHand;
+        if (!weaponId) return 1;
+        if (weaponId.includes('gun') || weaponId.includes('bow') || weaponId.includes('pistol') || weaponId.includes('rifle')) return 3;
+        if (weaponId.includes('spear') || weaponId.includes('polearm')) return 2;
+        if (weaponId.includes('staff') || weaponId.includes('wand')) return 2;
+        if (weaponId.includes('sword') || weaponId.includes('axe') || weaponId.includes('dagger') || weaponId.includes('knife') || weaponId.includes('blunt') || weaponId.includes('club') || weaponId.includes('mace') || weaponId.includes('hammer')) return 1;
+        return 1;
+    };
+
     // ★★★ 改良案: 逃走判定 ★★★
     // すばやさが高い方が、その差に応じて逃げやすくなる
     const agilityA = playerA.stats.すばやさ || 1;
@@ -225,24 +237,36 @@ async function runBattle(playerA, playerB) {
         attacker = playerB; defender = playerA;
     }
 
+    let distance = 5;
+    const rangeMap = new Map([
+        [playerA.id, getWeaponRange(playerA)],
+        [playerB.id, getWeaponRange(playerB)]
+    ]);
     await sendLogToBoth(`戦闘開始！ ${attacker.stats.DisplayName} の先攻！`);
+    await sendLogToBoth(`両者の距離は ${distance} マスだ！`);
 
     for (let i = 0; i < 20; i++) {
-        const weaponPower = attacker.equipmentStats.Power || 0;
-        const enemyDefense = (defender.stats.みのまもり || 0) + (defender.equipmentStats.Defense || 0);
-        const skillPower = 1.0;
-        const baseDamage = (weaponPower * skillPower) - enemyDefense;
-        const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
-        // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
-        const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier));
+        const attackerRange = rangeMap.get(attacker.id) || 1;
+        if (distance > attackerRange) {
+            distance = Math.max(1, distance - 1);
+            await sendLogToBoth(`${attacker.stats.DisplayName} は前進した！ (距離: ${distance})`);
+        } else {
+            const weaponPower = attacker.equipmentStats.Power || 0;
+            const enemyDefense = (defender.stats.みのまもり || 0) + (defender.equipmentStats.Defense || 0);
+            const skillPower = 1.0;
+            const baseDamage = (weaponPower * skillPower) - enemyDefense;
+            const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
+            // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
+            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier));
 
-        defender.stats.CurrentHP -= finalDamage;
+            defender.stats.CurrentHP -= finalDamage;
 
-        await sendLogToBoth(`${attacker.stats.DisplayName} のこうげき！ ${defender.stats.DisplayName} に ${finalDamage} のダメージ！ (残りHP: ${defender.stats.CurrentHP})`);
+            await sendLogToBoth(`${attacker.stats.DisplayName} のこうげき！ ${defender.stats.DisplayName} に ${finalDamage} のダメージ！ (残りHP: ${defender.stats.CurrentHP})`);
 
-        if (defender.stats.CurrentHP <= 0) {
-            await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
-            return { winner: attacker, loser: defender, logs: logs };
+            if (defender.stats.CurrentHP <= 0) {
+                await sendLogToBoth(`${defender.stats.DisplayName} はたおれた！`);
+                return { winner: attacker, loser: defender, logs: logs };
+            }
         }
 
         [attacker, defender] = [defender, attacker];
