@@ -7,6 +7,8 @@ let battleInterval = null;
 let isMyActionReady = false;
 let battleAutoCloseTimer = null;
 const battleEventEmitted = new Set();
+const battleLogAnimatedFor = new Set();
+let battleLogRenderToken = 0;
 
 // ★ v184: バトルループで常に最新の情報を参照するための変数
 let localBattleState = null;
@@ -218,38 +220,36 @@ function showBattleModal(battleId) {
         await renderMyAvatar(me, battleDependencies.renderAvatar);
 
         const logContainer = document.getElementById('battleLogContainer');
-        logContainer.innerHTML = '';
-        if (battleState.log) {
-            Object.keys(battleState.log).sort().forEach(key => {
-                const p = document.createElement('p');
-                p.innerText = battleState.log[key];
-                logContainer.appendChild(p);
-            });
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-
         const commandArea = document.getElementById('battleCommandArea');
-        commandArea.innerHTML = '';
-        if (battleState.status === 'finished') {
-            // (勝敗表示ロジック...ここはそのまま)
-            if (battleInterval) {
-                // ★★★ 修正: バトル終了時にonDisconnectハンドラを解除 ★★★
-                dbOnDisconnect(myPlayerOnlineRef).cancel();
-                dbSet(myPlayerOnlineRef, false); // 正常終了時もオフラインにする
+        if (commandArea) commandArea.innerHTML = '';
+        const renderImmediate = () => {
+            renderBattleLog(logContainer, battleState.log || null, { animate: false });
+        };
+        const renderWithAnimation = () => {
+            const logCount = battleState.log ? Object.keys(battleState.log).length : 0;
+            const extraMs = Math.min(12000, Math.max(6000, logCount * 380 + 2000));
+            resetBattleAutoClose(extraMs);
+            renderBattleLog(logContainer, battleState.log || null, {
+                animate: true,
+                onComplete: () => showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef)
+            });
+        };
 
-                clearInterval(battleInterval);
-                battleInterval = null;
+        if (battleState.status === 'finished') {
+            if (commandArea) {
+                commandArea.innerHTML = '<p style="color: #94a3b8;">戦闘解析中...</p>';
             }
-            const resultMsg = (battleState.winner === myId) ? '<h3 style="color: gold;">YOU WIN!</h3>' : '<h3 style="color: red;">YOU LOSE...</h3>';
-            commandArea.innerHTML = resultMsg + '<button onclick="returnToMapAfterBattle()">戻る</button>';
-            if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
-                const msg = (battleState.winner === myId)
-                    ? (window.rpgSay?.battleWin ? window.rpgSay.battleWin() : 'しょうり！')
-                    : (window.rpgSay?.battleLose ? window.rpgSay.battleLose() : 'まけてしまった…');
-                window.showRpgMessage(msg);
+            if (!battleLogAnimatedFor.has(battleId)) {
+                battleLogAnimatedFor.add(battleId);
+                renderWithAnimation();
+            } else {
+                renderImmediate();
+                showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef);
             }
+            // (勝敗表示ロジック...ここはそのまま)
             return;
         }
+        renderImmediate();
 
         // ★★★ 修正: 相手の切断を検知して不戦勝を申告する ★★★
         if (opponent && opponent.online === false) {
@@ -274,6 +274,76 @@ function showBattleModal(battleId) {
         commandArea.innerHTML = '<p style="color: #cbd5e0; font-size: 0.9em;">オートバトル進行中...</p>';
 
     });
+}
+
+function resetBattleAutoClose(delayMs) {
+    const battleModal = document.getElementById('battleModal');
+    if (!battleModal) return;
+    if (battleAutoCloseTimer) {
+        clearTimeout(battleAutoCloseTimer);
+        battleAutoCloseTimer = null;
+    }
+    battleAutoCloseTimer = setTimeout(() => {
+        battleModal.style.display = 'none';
+        if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
+            window.__battleActiveUntil = 0;
+        }
+    }, delayMs);
+}
+
+function renderBattleLog(container, logData, { animate = false, onComplete = null } = {}) {
+    if (!container) return;
+    container.innerHTML = '';
+    if (!logData) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+    }
+    const entries = Object.keys(logData).sort().map(key => logData[key]);
+    if (!animate) {
+        entries.forEach(line => {
+            const p = document.createElement('p');
+            p.innerText = line;
+            container.appendChild(p);
+        });
+        container.scrollTop = container.scrollHeight;
+        if (typeof onComplete === 'function') onComplete();
+        return;
+    }
+    battleLogRenderToken += 1;
+    const token = battleLogRenderToken;
+    const baseDelay = 320;
+    entries.forEach((line, index) => {
+        setTimeout(() => {
+            if (token !== battleLogRenderToken) return;
+            const p = document.createElement('p');
+            p.innerText = line;
+            container.appendChild(p);
+            container.scrollTop = container.scrollHeight;
+            if (index === entries.length - 1 && typeof onComplete === 'function') {
+                onComplete();
+            }
+        }, baseDelay * index);
+    });
+}
+
+function showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef) {
+    if (!commandArea || !battleState) return;
+    if (battleInterval) {
+        // ★★★ 修正: バトル終了時にonDisconnectハンドラを解除 ★★★
+        dbOnDisconnect(myPlayerOnlineRef).cancel();
+        dbSet(myPlayerOnlineRef, false); // 正常終了時もオフラインにする
+
+        clearInterval(battleInterval);
+        battleInterval = null;
+    }
+    const resultMsg = (battleState.winner === myId) ? '<h3 style="color: gold;">YOU WIN!</h3>' : '<h3 style="color: red;">YOU LOSE...</h3>';
+    commandArea.innerHTML = resultMsg + '<button onclick="returnToMapAfterBattle()">戻る</button>';
+    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+        const msg = (battleState.winner === myId)
+            ? (window.rpgSay?.battleWin ? window.rpgSay.battleWin() : 'しょうり！')
+            : (window.rpgSay?.battleLose ? window.rpgSay.battleLose() : 'まけてしまった…');
+        window.showRpgMessage(msg);
+    }
 }
 
 function startBattleLoop(initialBattleState) {
