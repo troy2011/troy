@@ -254,6 +254,9 @@ export default class WorldMapScene extends Phaser.Scene {
         this.boardingButton = null;
         this.boardingTargetId = null;
         this.boardingVisible = false;
+        this.ghostShip = null;
+        this.ghostShipTween = null;
+        this.ghostShipCheckTimer = null;
 
         this.constructionSprites = [];
         this.constructionUnsubscribe = null;
@@ -279,6 +282,56 @@ export default class WorldMapScene extends Phaser.Scene {
         const mapTilesSrc = isNight ? 'Sprites/Buildings/buildings2.png' : 'Sprites/Buildings/buildings.png';
         this.load.spritesheet('map_tiles', mapTilesSrc, { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('building_tiles', mapTilesSrc, { frameWidth: 32, frameHeight: 32 });
+    }
+
+    isNightHour() {
+        const hour = new Date().getHours();
+        return hour % 2 === 0;
+    }
+
+    spawnGhostShip() {
+        if (this.ghostShip) return;
+        if (this.isAirDomain(this.playerShipDomain)) return;
+        const margin = this.TILE_SIZE * 6;
+        const maxX = this.mapPixelSize - margin;
+        const maxY = this.mapPixelSize - margin;
+        const x = Phaser.Math.Between(margin, maxX);
+        const y = Phaser.Math.Between(margin, maxY);
+        const sprite = this.add.sprite(x, y, 'ship_sprite_blue', 0);
+        sprite.setAlpha(0.65);
+        sprite.setDepth(GAME_CONFIG.DEPTH.SEA + 2);
+        sprite.setTint(0x9cc5ff);
+        sprite.__isGhost = true;
+        this.ghostShip = sprite;
+        this.ignoreOnUiCamera(sprite);
+        const bobDistance = 6;
+        this.ghostShipTween = this.tweens.add({
+            targets: sprite,
+            y: y - bobDistance,
+            duration: 2200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    removeGhostShip() {
+        if (this.ghostShipTween) {
+            this.ghostShipTween.stop();
+            this.ghostShipTween = null;
+        }
+        if (this.ghostShip) {
+            this.ghostShip.destroy();
+            this.ghostShip = null;
+        }
+    }
+
+    refreshGhostShipByTime() {
+        if (this.isNightHour()) {
+            this.spawnGhostShip();
+        } else {
+            this.removeGhostShip();
+        }
     }
 
     init(data) {
@@ -348,6 +401,12 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.shipBattleSmokeTimers) {
             this.shipBattleSmokeTimers.forEach(timer => timer?.remove?.());
             this.shipBattleSmokeTimers.clear();
+        }
+
+        this.removeGhostShip();
+        if (this.ghostShipCheckTimer) {
+            this.ghostShipCheckTimer.remove();
+            this.ghostShipCheckTimer = null;
         }
 
         // 他の船のスプライトを破棄
@@ -1010,6 +1069,16 @@ export default class WorldMapScene extends Phaser.Scene {
             ]);
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
+
+        this.refreshGhostShipByTime();
+        if (this.ghostShipCheckTimer) {
+            this.ghostShipCheckTimer.remove();
+        }
+        this.ghostShipCheckTimer = this.time.addEvent({
+            delay: 60_000,
+            loop: true,
+            callback: () => this.refreshGhostShipByTime()
+        });
 
         this.setMapReady(true, { fadeMs: 1350 });
     }
