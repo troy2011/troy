@@ -133,6 +133,9 @@ MAJOR_ARCANA.forEach((arcana) => {
     if (!existing.mapLabel) {
         existing.mapLabel = `${arcana.number}. ${arcana.name}`;
     }
+    if (mapId === 'major_00' && !existing.label) {
+        existing.label = existing.mapLabel;
+    }
     existing.tarotIndex = 80 + arcana.number;
     WORLD_MAP_CELL_META[mapId] = existing;
 });
