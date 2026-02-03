@@ -67,6 +67,366 @@ const QUEST_MODE_LABELS = {
     battle: 'バトル'
 };
 
+const QUEST_CONTENT_FLAVOR = {
+    solo: [
+        'ハイスコアで装備の鍛造が進む。',
+        '結果が積み上がるほど完成に近づく。',
+        '高記録が職人の仕上げになる。'
+    ],
+    battle: [
+        '勝負中の妙技でスキルが刻まれる。',
+        'トリック成功が新たな技を呼ぶ。',
+        '駆け引きの一手が技の鍵になる。'
+    ]
+};
+
+const QUEST_CONTENT_MAP = {
+    solo: {
+        'ビリヤード': [
+            [
+                { name: '工房の芯合わせ', detail: 'センターショットで的球を1回入れる' },
+                { name: '止めの基礎', detail: 'ストップショットで白球を当てた場所に止める' },
+                { name: '序盤の採点', detail: 'ボーラードで合計10点以上' }
+            ],
+            [
+                { name: '芯合わせ二連', detail: 'センターショット連続2回成功' },
+                { name: '戻しの刻み', detail: 'ドローで白球を手前に戻す2回成功' },
+                { name: '中盤の採点', detail: 'ボーラードで合計25点以上' }
+            ],
+            [
+                { name: '薄当て制御', detail: '薄当てで白球を中央付近に止める2回成功' },
+                { name: 'フォロー加工', detail: 'フォローで白球を奥に送る2回成功' },
+                { name: '上積み採点', detail: 'ボーラードで合計45点以上' }
+            ],
+            [
+                { name: '反射の設計', detail: '1クッションバンク成功2回' },
+                { name: '連続加工', detail: 'センターショット連続3回成功' },
+                { name: '精密採点', detail: 'ボーラードで合計65点以上' }
+            ],
+            [
+                { name: '二枚反射', detail: '2クッションバンク成功' },
+                { name: 'ロング加工', detail: 'ロングショット成功2回' },
+                { name: '高品質採点', detail: 'ボーラードで合計90点以上' }
+            ],
+            [
+                { name: '精密連鎖', detail: 'センターショット連続4回成功' },
+                { name: '反射連鎖', detail: 'クッションバンク連続3回成功' },
+                { name: '最終採点', detail: 'ボーラードで合計120点以上' }
+            ]
+        ],
+        'カラオケ': [
+            [
+                { name: '一曲鍛錬', detail: 'シングルで完走' },
+                { name: '採点の起点', detail: 'シングルで採点結果を表示する' },
+                { name: '序盤スコア', detail: 'シングルで70点以上' }
+            ],
+            [
+                { name: '基礎スコア', detail: 'シングルで78点以上' },
+                { name: 'リズム刻み', detail: 'シングルでコンボ10以上' },
+                { name: '安定の土台', detail: 'シングルで安定度70%以上' }
+            ],
+            [
+                { name: '中盤スコア', detail: 'シングルで85点以上' },
+                { name: '抑揚の彫り', detail: 'シングルで抑揚75%以上' },
+                { name: '連続刻み', detail: 'シングルでコンボ25以上' }
+            ],
+            [
+                { name: '上昇スコア', detail: 'シングルで90点以上' },
+                { name: '安定の上積み', detail: 'シングルで安定度82%以上' },
+                { name: '長段コンボ', detail: 'シングルでコンボ35以上' }
+            ],
+            [
+                { name: '高品質スコア', detail: 'シングルで94点以上' },
+                { name: '抑揚仕上げ', detail: 'シングルで抑揚88%以上' },
+                { name: '連続仕上げ', detail: 'シングルでコンボ45以上' }
+            ],
+            [
+                { name: '完成スコア', detail: 'シングルで98点以上' },
+                { name: '極限抑揚', detail: 'シングルで抑揚93%以上' },
+                { name: '極限コンボ', detail: 'シングルでコンボ55以上' }
+            ]
+        ],
+        'ダーツ': [
+            [
+                { name: '初投の計測', detail: 'カウントアップで180点以上' },
+                { name: '01の完走', detail: '01を1ゲーム完走（勝敗不問）' },
+                { name: '初クローズ', detail: 'クリケットで任意ナンバー1つクローズ' }
+            ],
+            [
+                { name: '刻みの計測', detail: 'カウントアップで260点以上' },
+                { name: 'ダブルの仕上げ', detail: '01でダブルフィニッシュ成功' },
+                { name: '二枚封鎖', detail: 'クリケットで2クローズ達成' }
+            ],
+            [
+                { name: '精密の計測', detail: 'カウントアップで320点以上' },
+                { name: '短縮航路', detail: '01を15ラウンド以内にクリア' },
+                { name: '三枚封鎖', detail: 'クリケットで3クローズ達成' }
+            ],
+            [
+                { name: '高精度計測', detail: 'カウントアップで380点以上' },
+                { name: '短縮勝利', detail: '01を12ラウンド以内に勝利' },
+                { name: '四枚封鎖', detail: 'クリケットで4クローズ達成' }
+            ],
+            [
+                { name: '上位計測', detail: 'カウントアップで450点以上' },
+                { name: '速攻勝利', detail: '01を10ラウンド以内に勝利' },
+                { name: '五枚封鎖', detail: 'クリケットで5クローズ達成' }
+            ],
+            [
+                { name: '最終計測', detail: 'カウントアップで520点以上' },
+                { name: '極短勝利', detail: '01を8ラウンド以内に勝利' },
+                { name: '完全封鎖', detail: 'クリケットで全クローズ達成' }
+            ]
+        ],
+        'トランプ': [
+            [
+                { name: '手札の起点', detail: 'ポーカーでワンペア以上を1回成立' },
+                { name: '静かな勝負', detail: 'ブラックジャックで1勝' },
+                { name: '初上がり', detail: '大富豪で1回上がる' }
+            ],
+            [
+                { name: '二枚の形', detail: 'ポーカーでツーペア以上を1回成立' },
+                { name: '21の達成', detail: 'ブラックジャックで21を1回達成' },
+                { name: '上位着', detail: '大富豪で2位以内を1回' }
+            ],
+            [
+                { name: '三枚の形', detail: 'ポーカーでスリーカード以上を1回成立' },
+                { name: '連勝の波', detail: 'ブラックジャックで2連勝' },
+                { name: '覇権の一位', detail: '大富豪で1位を1回' }
+            ],
+            [
+                { name: '直線の形', detail: 'ポーカーでストレート以上を1回成立' },
+                { name: '連勝の維持', detail: 'ブラックジャックで3連勝' },
+                { name: '覇権の二連', detail: '大富豪で1位を2回' }
+            ],
+            [
+                { name: '満ちる札', detail: 'ポーカーでフルハウス以上を1回成立' },
+                { name: '連勝の壁', detail: 'ブラックジャックで4連勝' },
+                { name: '覇権の三連', detail: '大富豪で1位を3回' }
+            ],
+            [
+                { name: '王手の札', detail: 'ポーカーでフォーカード以上を1回成立' },
+                { name: '連勝の極', detail: 'ブラックジャックで5連勝' },
+                { name: '覇権の連覇', detail: '大富豪で1位を4回' }
+            ]
+        ],
+        'その他': [
+            [
+                { name: '港の演習', detail: 'ボードゲームを1回プレイ' },
+                { name: '小舟の試運転', detail: 'ミニゲームを1回クリア' },
+                { name: '黒ひげ試し', detail: '黒ひげでセーフ1回' }
+            ],
+            [
+                { name: '港の勝利', detail: 'ボードゲームで1勝' },
+                { name: '潮流突破', detail: 'ミニゲームで時間内クリア' },
+                { name: '黒ひげ連続', detail: '黒ひげで連続セーフ2回' }
+            ],
+            [
+                { name: '港の連勝', detail: 'ボードゲームで2連勝' },
+                { name: '無傷航行', detail: 'ミニゲームでノーダメージクリア' },
+                { name: '黒ひげ安定', detail: '黒ひげで連続セーフ3回' }
+            ],
+            [
+                { name: '港の制圧', detail: 'ボードゲームで3連勝' },
+                { name: '完璧航行', detail: 'ミニゲームでパーフェクト1回' },
+                { name: '黒ひげ熟練', detail: '黒ひげで連続セーフ4回' }
+            ],
+            [
+                { name: '港の覇者', detail: 'ボードゲームで4連勝' },
+                { name: '完璧連続', detail: 'ミニゲームでパーフェクト2回' },
+                { name: '黒ひげ達人', detail: '黒ひげで連続セーフ5回' }
+            ],
+            [
+                { name: '港の極覇', detail: 'ボードゲームで5連勝' },
+                { name: '完璧連鎖', detail: 'ミニゲームでパーフェクト3回' },
+                { name: '黒ひげ極', detail: '黒ひげでセーフのみで勝利' }
+            ]
+        ]
+    },
+    battle: {
+        'ビリヤード': [
+            [
+                { name: '先制の布石', detail: '9ボールで先に1球入れる' },
+                { name: '初手の制圧', detail: 'ブレイクで1球以上入れる' },
+                { name: '開戦の一打', detail: '9ボールで1球以上入れる' }
+            ],
+            [
+                { name: '二連ポケット', detail: '9ボールで連続ポケット2回' },
+                { name: '色の確保', detail: '8ボールで自分の色を2球入れる' },
+                { name: '黒旗の勝利', detail: '8ボールで1勝する' }
+            ],
+            [
+                { name: '連続三球', detail: '9ボールで連続ポケット3回' },
+                { name: '色の制圧', detail: '8ボールで自分の色を4球入れる' },
+                { name: '舵の勝利', detail: '9ボールで1勝する' }
+            ],
+            [
+                { name: '攻めの継続', detail: '9ボールでブレイク後に連続ポケット2回' },
+                { name: '包囲の8番', detail: '8ボールで2連勝' },
+                { name: '連続ブレイク', detail: '8ボールでブレイク後に連続ポケット2回' }
+            ],
+            [
+                { name: '旗艦連勝', detail: '9ボールで2連勝' },
+                { name: '沈黙の掃討', detail: '9ボールでノーミス勝利' },
+                { name: '鋼の決着', detail: '8ボールでノーミス勝利' }
+            ],
+            [
+                { name: '一閃の制圧', detail: '9ボールでブレイクラン成功' },
+                { name: '鋼の決着・極', detail: '8ボールでブレイクラン成功' },
+                { name: '沈黙の掃討・極', detail: '9ボールでノーミス勝利' }
+            ]
+        ],
+        'カラオケ': [
+            [
+                { name: '採点の合図', detail: '1対1で採点結果を表示する' },
+                { name: '開戦の声', detail: '1対1で70点以上' },
+                { name: '先制コンボ', detail: '1対1でコンボ5以上' }
+            ],
+            [
+                { name: '追撃の旋律', detail: '1対1で相手より高得点' },
+                { name: '逆風の一声', detail: '1対1で80点以上' },
+                { name: '切り返しコンボ', detail: '1対1でコンボ15以上' }
+            ],
+            [
+                { name: '勝ち越し旋律', detail: '1対1で85点以上' },
+                { name: '抑揚の読み', detail: '1対1で抑揚80%以上' },
+                { name: '押し切りコンボ', detail: '1対1でコンボ25以上' }
+            ],
+            [
+                { name: '決めの声', detail: '1対1で90点以上' },
+                { name: '安定の差', detail: '1対1で安定度85%以上' },
+                { name: '連打の勝鬨', detail: '1対1でコンボ35以上' }
+            ],
+            [
+                { name: '王手の声', detail: '1対1で95点以上' },
+                { name: '抑揚の決着', detail: '1対1で抑揚90%以上' },
+                { name: '圧勝コンボ', detail: '1対1でコンボ45以上' }
+            ],
+            [
+                { name: '覇者の声', detail: '1対1で98点以上' },
+                { name: '極限抑揚', detail: '1対1で抑揚95%以上' },
+                { name: '極限コンボ', detail: '1対1でコンボ55以上' }
+            ]
+        ],
+        'ダーツ': [
+            [
+                { name: '先制照準', detail: '1対1でカウントアップ200点以上' },
+                { name: '初戦01', detail: '1対1で01を1勝' },
+                { name: '初陣クローズ', detail: '1対1でクリケット2クローズ達成' }
+            ],
+            [
+                { name: '牽制連射', detail: '1対1でカウントアップ280点以上' },
+                { name: '速攻01', detail: '1対1で01を15ラウンド以内に勝利' },
+                { name: '陣地拡張', detail: '1対1でクリケット3クローズ達成' }
+            ],
+            [
+                { name: '追撃連射', detail: '1対1でカウントアップ340点以上' },
+                { name: '短縮01', detail: '1対1で01を12ラウンド以内に勝利' },
+                { name: '陣地制圧', detail: '1対1でクリケット4クローズ達成' }
+            ],
+            [
+                { name: '圧力連射', detail: '1対1でカウントアップ400点以上' },
+                { name: '速攻01+', detail: '1対1で01を10ラウンド以内に勝利' },
+                { name: '陣地封鎖', detail: '1対1でクリケット5クローズ達成' }
+            ],
+            [
+                { name: '決戦連射', detail: '1対1でカウントアップ470点以上' },
+                { name: '決戦01', detail: '1対1で01を9ラウンド以内に勝利' },
+                { name: '完全封鎖', detail: '1対1でクリケット全クローズ達成' }
+            ],
+            [
+                { name: '極限連射', detail: '1対1でカウントアップ520点以上' },
+                { name: '極短01', detail: '1対1で01を8ラウンド以内に勝利' },
+                { name: '完全封鎖・極', detail: '1対1でクリケット全クローズ達成' }
+            ]
+        ],
+        'トランプ': [
+            [
+                { name: '決闘の手札', detail: '1対1ポーカーでワンペア以上を1回成立' },
+                { name: '決闘BJ', detail: '1対1ブラックジャックで1勝' },
+                { name: '決闘上がり', detail: '1対1大富豪で1回上がり' }
+            ],
+            [
+                { name: '決闘二枚', detail: '1対1ポーカーでツーペア以上を1回成立' },
+                { name: '決闘21', detail: '1対1ブラックジャックで21を1回達成' },
+                { name: '決闘上位', detail: '1対1大富豪で2位以内を1回' }
+            ],
+            [
+                { name: '決闘三枚', detail: '1対1ポーカーでスリーカード以上を1回成立' },
+                { name: '決闘連勝', detail: '1対1ブラックジャックで2連勝' },
+                { name: '決闘首位', detail: '1対1大富豪で1位を1回' }
+            ],
+            [
+                { name: '決闘直線', detail: '1対1ポーカーでストレート以上を1回成立' },
+                { name: '決闘連勝2', detail: '1対1ブラックジャックで3連勝' },
+                { name: '決闘連覇', detail: '1対1大富豪で1位を2回' }
+            ],
+            [
+                { name: '決闘満ち札', detail: '1対1ポーカーでフルハウス以上を1回成立' },
+                { name: '決闘連勝3', detail: '1対1ブラックジャックで4連勝' },
+                { name: '決闘覇権', detail: '1対1大富豪で1位を3回' }
+            ],
+            [
+                { name: '決闘王手', detail: '1対1ポーカーでフォーカード以上を1回成立' },
+                { name: '決闘連勝極', detail: '1対1ブラックジャックで5連勝' },
+                { name: '決闘戴冠', detail: '1対1大富豪で1位を4回' }
+            ]
+        ],
+        'その他': [
+            [
+                { name: '演習決闘', detail: '1対1でボードゲームを1回プレイ' },
+                { name: '小舟決闘', detail: '1対1でミニゲームを1回クリア' },
+                { name: '黒ひげ決闘', detail: '1対1で黒ひげセーフ1回' }
+            ],
+            [
+                { name: '港湾決闘', detail: '1対1でボードゲームに勝利' },
+                { name: '潮流決闘', detail: '1対1でミニゲーム時間内クリア' },
+                { name: '黒ひげ二連', detail: '1対1で黒ひげ連続セーフ2回' }
+            ],
+            [
+                { name: '港湾連勝', detail: '1対1でボードゲーム2連勝' },
+                { name: '無傷決闘', detail: '1対1でミニゲームノーダメージクリア' },
+                { name: '黒ひげ三連', detail: '1対1で黒ひげ連続セーフ3回' }
+            ],
+            [
+                { name: '港湾制圧', detail: '1対1でボードゲーム3連勝' },
+                { name: '完璧決闘', detail: '1対1でミニゲームパーフェクト1回' },
+                { name: '黒ひげ四連', detail: '1対1で黒ひげ連続セーフ4回' }
+            ],
+            [
+                { name: '港湾覇者', detail: '1対1でボードゲーム4連勝' },
+                { name: '完璧連勝', detail: '1対1でミニゲームパーフェクト2回' },
+                { name: '黒ひげ五連', detail: '1対1で黒ひげ連続セーフ5回' }
+            ],
+            [
+                { name: '港湾極覇', detail: '1対1でボードゲーム5連勝' },
+                { name: '完璧連鎖', detail: '1対1でミニゲームパーフェクト3回' },
+                { name: '黒ひげ極', detail: '1対1で黒ひげセーフのみで勝利' }
+            ]
+        ]
+    }
+};
+
+function refineQuestContent(quests) {
+    const counters = new Map();
+    return quests.map((quest) => {
+        const modeKey = quest.mode === 'battle' || quest.gachaType === 'skill' ? 'battle' : 'solo';
+        const catalog = QUEST_CONTENT_MAP[modeKey] && QUEST_CONTENT_MAP[modeKey][quest.game];
+        if (!catalog) return quest;
+        const diffIndex = Math.max(DIFFICULTY_MIN, Math.min(DIFFICULTY_MAX, Number(quest.difficulty || DIFFICULTY_FALLBACK))) - 1;
+        const bucket = catalog[diffIndex];
+        if (!bucket || !bucket.length) return quest;
+        const key = `${modeKey}|${quest.game}|${diffIndex}`;
+        const used = counters.get(key) || 0;
+        if (used >= bucket.length) return quest;
+        counters.set(key, used + 1);
+        const entry = bucket[used];
+        const flavorPool = QUEST_CONTENT_FLAVOR[modeKey];
+        const flavor = entry.flavor || flavorPool[used % flavorPool.length];
+        return { ...quest, name: entry.name, detail: entry.detail, flavor };
+    });
+}
+
 const TROY_PRODUCT_MENUS = {
     'drink-alcohol': {
         title: 'ドリンク/アルコール',
@@ -114,7 +474,7 @@ const TROY_PRODUCT_MENUS = {
     }
 };
 
-const TROY_QUESTS = [
+const TROY_QUESTS = refineQuestContent([
     {
         "game": "ビリヤード",
         "name": "見張りの完走",
@@ -2095,7 +2455,7 @@ const TROY_QUESTS = [
         "difficulty": 6,
         "flavor": "完全勝利で海を守り切れ。"
     }
-];
+]);
 
 const TROY_GAME_KEYS = {
     ビリヤード: 'billiard',
