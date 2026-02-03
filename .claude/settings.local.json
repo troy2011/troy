@@ -8,7 +8,8 @@
       "Bash(dir:*)",
       "Bash(find:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node --version:*)"
     ],
     "deny": [],
     "ask": []

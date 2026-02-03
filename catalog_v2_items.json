@@ -1470,6 +1470,202 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
+          "Value": "dagger_08"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シャドウエッジ",
+        "ja-JP": "シャドウエッジ"
+      },
+      "Description": {
+        "NEUTRAL": "闇に溶け込む漆黒の刃を持つ短剣。",
+        "ja-JP": "闇に溶け込む漆黒の刃を持つ短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 27,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 7,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_09"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "クリスタルダガー",
+        "ja-JP": "クリスタルダガー"
+      },
+      "Description": {
+        "NEUTRAL": "硬質な水晶を削り出して作られた、美しくも鋭い短剣。",
+        "ja-JP": "硬質な水晶を削り出して作られた、美しくも鋭い短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 8,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_10"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ドラゴントゥース",
+        "ja-JP": "ドラゴントゥース"
+      },
+      "Description": {
+        "NEUTRAL": "竜の牙を加工して作られた、強靭な短剣。",
+        "ja-JP": "竜の牙を加工して作られた、強靭な短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 34,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 9,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_11"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファントムナイフ",
+        "ja-JP": "ファントムナイフ"
+      },
+      "Description": {
+        "NEUTRAL": "実体があるようでないような、幻影を纏った短剣。",
+        "ja-JP": "実体があるようでないような、幻影を纏った短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 38,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 10,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_12"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブラッドラスト",
+        "ja-JP": "ブラッドラスト"
+      },
+      "Description": {
+        "NEUTRAL": "敵の生き血を啜ることで輝きを増す、呪われた短剣。",
+        "ja-JP": "敵の生き血を啜ることで輝きを増す、呪われた短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 42,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 11,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_13"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ルーンダガー",
+        "ja-JP": "ルーンダガー"
+      },
+      "Description": {
+        "NEUTRAL": "古代のルーン文字が刻まれ、魔法の力を宿した短剣。",
+        "ja-JP": "古代のルーン文字が刻まれ、魔法の力を宿した短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 46,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 12,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_14"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "神殺しの短剣",
+        "ja-JP": "神殺しの短剣"
+      },
+      "Description": {
+        "NEUTRAL": "かつて神に挑んだ者が使ったとされる、究極の短剣。",
+        "ja-JP": "かつて神に挑んだ者が使ったとされる、究極の短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 55,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 13,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
           "Value": "hat_black_01"
         }
       ],
@@ -5830,7 +6026,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 0,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5858,7 +6054,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 1,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5886,7 +6082,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 2,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5914,7 +6110,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 3,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5942,7 +6138,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 4,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5970,7 +6166,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 5,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5998,7 +6194,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 6,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6026,7 +6222,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 7,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6054,7 +6250,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 8,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6082,7 +6278,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 9,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6110,7 +6306,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 10,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6138,7 +6334,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 11,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6166,7 +6362,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 12,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6194,7 +6390,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 13,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6222,7 +6418,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 14,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6250,7 +6446,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 15,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6278,7 +6474,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 16,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6306,7 +6502,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 17,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6334,7 +6530,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 18,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6362,7 +6558,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 19,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6390,7 +6586,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 20,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6418,7 +6614,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 21,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6446,7 +6642,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 22,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6474,7 +6670,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 23,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6502,7 +6698,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 24,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6530,7 +6726,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 25,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6558,7 +6754,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 26,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6586,7 +6782,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 27,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6614,7 +6810,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 28,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6642,7 +6838,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 29,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6670,7 +6866,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 30,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6698,7 +6894,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 31,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6726,7 +6922,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 32,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6754,7 +6950,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 33,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6782,7 +6978,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 34,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6795,12 +6991,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フリントピストル",
-        "ja-JP": "フリントピストル"
+        "NEUTRAL": "マフ・ピストル",
+        "ja-JP": "マフ・ピストル"
       },
       "Description": {
-        "NEUTRAL": "携帯性に優れた短銃。",
-        "ja-JP": "携帯性に優れた短銃。"
+        "NEUTRAL": "手のひらに収まるほど極小のピストル。",
+        "ja-JP": "手のひらに収まるほど極小のピストル。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -6818,7 +7014,148 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
-          "Value": "gun_02"
+          "Value": "gun_01"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シーサービス",
+        "ja-JP": "シーサービス"
+      },
+      "Description": {
+        "NEUTRAL": "海軍や私掠船支給された標準的な官給品",
+        "ja-JP": "海軍や私掠船支給された標準的な官給品"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 4,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_01"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ドラゴン",
+        "ja-JP": "ドラゴン"
+      },
+      "Description": {
+        "NEUTRAL": "片手で撃てる散弾銃。",
+        "ja-JP": "片手で撃てる散弾銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 8,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+        {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_01"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "フリントロック",
+        "ja-JP": "フリントロック"
+      },
+      "Description": {
+        "NEUTRAL": "海賊の代名詞とも言える、片手で扱える小型の銃。",
+        "ja-JP": "海賊の代名詞とも言える、片手で扱える小型の銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 12,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_05"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "クイーン・アン",
+        "ja-JP": "クイーン・アン"
+      },
+      "Description": {
+        "NEUTRAL": "アン女王の時代に流行した、ネジ込み式銃身を持つピストル。",
+        "ja-JP": "アン女王の時代に流行した、ネジ込み式銃身を持つピストル。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 16,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_06"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ペッパーボックス",
+        "ja-JP": "ペッパーボックス"
+      },
+      "Description": {
+        "NEUTRAL": "、手動で銃身全体を回転させて次弾を撃つ回転式拳銃。",
+        "ja-JP": "、手動で銃身全体を回転させて次弾を撃つ回転式拳銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 20,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_01"
         }
       ],
       "Type": "catalogItem",
@@ -6835,18 +7172,47 @@
       "DisplayProperties": {
         "Category": "Weapon",
         "Power": 18,
-        "sprite_path": "./Sprites/weapons/ranged weapons/blunderbuss.png",
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
         "sprite_index": 0,
-        "sprite_w": 32,
+        "sprite_w": 64,
         "sprite_h": 32,
         "sprite_cols": 10
       }
     },
+        {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_02"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ビッグブランダーバス",
+        "ja-JP": "ビッグブランダーバス"
+      },
+      "Description": {
+        "NEUTRAL": "銃口がラッパ状に広がった短い前装式散弾銃。",
+        "ja-JP": "銃口がラッパ状に広がった短い前装式散弾銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 18,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 5,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+
     {
       "AlternateIds": [
         {
           "Type": "FriendlyId",
-          "Value": "gun_03"
+          "Value": "gun_big_03"
         }
       ],
       "Type": "catalogItem",
@@ -6863,37 +7229,66 @@
       "DisplayProperties": {
         "Category": "Weapon",
         "Power": 22,
-        "sprite_path": "./Sprites/weapons/ranged weapons/musket.png",
-        "sprite_index": 0,
-        "sprite_w": 32,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 10,
+        "sprite_w": 64,
         "sprite_h": 32,
         "sprite_cols": 10
       }
     },
-    {
+        {
       "AlternateIds": [
         {
           "Type": "FriendlyId",
-          "Value": "gun_04"
+          "Value": "gun_big_04"
         }
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クロスボウ",
-        "ja-JP": "クロスボウ"
+        "NEUTRAL": "ブラウン・ベス",
+        "ja-JP": "ブラウン・ベス"
       },
       "Description": {
-        "NEUTRAL": "機械式の弓。安定した射撃が可能。",
-        "ja-JP": "機械式の弓。安定した射撃が可能。"
+        "NEUTRAL": "イギリス軍の象徴であり、世界で最も有名なマスケット銃。",
+        "ja-JP": "イギリス軍の象徴であり、世界で最も有名なマスケット銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 22,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 15,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_05"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ノック・ガン",
+        "ja-JP": "ノック・ガン"
+      },
+      "Description": {
+        "NEUTRAL": "7本の銃身を持つ特殊なフリントロック式多銃身火器。",
+        "ja-JP": "7本の銃身を持つ特殊なフリントロック式多銃身火器。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Weapon",
         "Power": 26,
-        "sprite_path": "./Sprites/weapons/ranged weapons/crossbow.png",
-        "sprite_index": 0,
-        "sprite_w": 32,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 20,
+        "sprite_w": 64,
         "sprite_h": 32,
         "sprite_cols": 4
       }
@@ -6902,26 +7297,54 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
-          "Value": "gun_05"
+          "Value": "gun_big_06"
         }
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ロングボウ",
-        "ja-JP": "ロングボウ"
+        "NEUTRAL": "ペンシルベニア",
+        "ja-JP": "ペンシルベニア"
       },
       "Description": {
-        "NEUTRAL": "遠距離射撃に適した長弓。",
-        "ja-JP": "遠距離射撃に適した長弓。"
+        "NEUTRAL": "マスト上からの狙撃武器としては最強クラス。",
+        "ja-JP": "マスト上からの狙撃武器としては最強クラス。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Weapon",
         "Power": 30,
-        "sprite_path": "./Sprites/weapons/ranged weapons/bow.png",
-        "sprite_index": 0,
-        "sprite_w": 32,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 25,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_07"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジェザイル",
+        "ja-JP": "ジェザイル"
+      },
+      "Description": {
+        "NEUTRAL": "極めて長い射程距離と高い精度を誇る。",
+        "ja-JP": "極めて長い射程距離と高い精度を誇る。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 30,
+        "sprite_w": 64,
         "sprite_h": 32,
         "sprite_cols": 7
       }
