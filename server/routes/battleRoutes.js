@@ -278,6 +278,19 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         LEADERBOARD_NAME,
         BATTLE_REWARD_POINTS
     } = constants;
+    const battlePairCooldownMs = 60 * 1000;
+    const recentBattlePairs = new Map();
+    const pruneBattlePairs = () => {
+        const now = Date.now();
+        for (const [key, expiresAt] of recentBattlePairs.entries()) {
+            if (expiresAt <= now) recentBattlePairs.delete(key);
+        }
+    };
+    const getPairKey = (a, b) => {
+        const left = String(a || '');
+        const right = String(b || '');
+        return left < right ? `${left}|${right}` : `${right}|${left}`;
+    };
 
     // ----------------------------------------------------
     // API 11: バトル実行 (自動戦闘・即時決着)
@@ -286,6 +299,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const { attackerId, defenderId } = req.body;
         if (!attackerId || !defenderId) return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
         if (attackerId === defenderId) return res.status(400).json({ error: '自分自身とは対戦できません。' });
+        pruneBattlePairs();
+        const pairKey = getPairKey(attackerId, defenderId);
+        const blockedUntil = recentBattlePairs.get(pairKey) || 0;
+        if (blockedUntil > Date.now()) {
+            return res.status(429).json({ error: '同一ペアの連続戦闘は一定時間できません。' });
+        }
 
         console.log(`[バトル開始] ${attackerId} vs ${defenderId}`);
         try {
@@ -339,6 +358,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
             await battleRef.set(finalBattleState);
             console.log(`[自動戦闘] バトル結果を保存しました: ${battleId}`);
+            recentBattlePairs.set(pairKey, Date.now() + battlePairCooldownMs);
 
             // --- 4. 招待通知 (オンラインなら即モーダル表示) ---
             const invitationRef = db.ref('invitations').push();
@@ -679,6 +699,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const loserInventory = await getAllInventoryItems(loserId);
         const loserPs = getCurrencyBalanceFromItems(loserInventory, VIRTUAL_CURRENCY_CODE);
         const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
+        const rewardLogUpdates = {};
 
         // ★★★ 修正: 奪う金額の計算ロジックを変更 ★★★
         // 1. 所持金(Ps)の10%～30%を計算
@@ -691,7 +712,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         if (pointsToSteal <= 0) {
             console.log('[報酬処理] 奪う金額が0のため、報酬はありません。');
             const battleRef = db.ref(`battles/${battleId}`);
-            await battleRef.child('log').update({ [Date.now()]: `しかし、奪えるものが何もなかった！` });
+            rewardLogUpdates[`log/${Date.now()}`] = 'しかし、奪えるものが何もなかった！';
+            await battleRef.update(rewardLogUpdates);
             return;
         }
 
@@ -728,9 +750,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         // バトルログに報酬情報を追記
         const battleRef = db.ref(`battles/${battleId}`);
-        await battleRef.child('log').update({
-            [Date.now()]: `勝者は ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`
-        });
+        rewardLogUpdates[`log/${Date.now()}`] = `勝者は ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`;
 
         // 両者のランキングスコアを更新
         const winnerInventory = await getAllInventoryItems(winnerId);
@@ -739,14 +759,13 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const winnerNewBounty = getCurrencyBalanceFromItems(winnerInventory, 'BT');
         const loserNewBounty = Math.max(0, loserBounty - bountyTransfer);
         if (bountyTransfer > 0 && bountyTransfer < pointsToSteal) {
-            await battleRef.child('log').update({
-                [Date.now()]: `懸賞金が不足していたため、BTの移動は${bountyTransfer}に抑えられた。`
-            });
+            rewardLogUpdates[`log/${Date.now()}`] = `懸賞金が不足していたため、BTの移動は${bountyTransfer}に抑えられた。`;
         }
         if (bountyTransferFailed) {
-            await battleRef.child('log').update({
-                [Date.now()]: `懸賞金の移動に失敗したため、BTは変動しなかった。`
-            });
+            rewardLogUpdates[`log/${Date.now()}`] = '懸賞金の移動に失敗したため、BTは変動しなかった。';
+        }
+        if (Object.keys(rewardLogUpdates).length > 0) {
+            await battleRef.update(rewardLogUpdates);
         }
 
         // ★★★ 修正: Psランキングと懸賞金ランキングを同時に更新 ★★★

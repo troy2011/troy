@@ -254,6 +254,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.boardingButton = null;
         this.boardingTargetId = null;
         this.boardingVisible = false;
+        this.lastBoardingAt = 0;
+        this.boardingCooldownMs = 60 * 1000;
         this.ghostShip = null;
         this.ghostShipTween = null;
         this.ghostShipCheckTimer = null;
@@ -2876,6 +2878,13 @@ export default class WorldMapScene extends Phaser.Scene {
         const onClick = () => {
             console.log('[Boarding] clicked', { target: this.boardingTargetId });
             if (!this.boardingTargetId) return;
+            const now = Date.now();
+            if (now - this.lastBoardingAt < this.boardingCooldownMs) {
+                const remainMs = this.boardingCooldownMs - (now - this.lastBoardingAt);
+                const remainSec = Math.ceil(remainMs / 1000);
+                this.showMessage(`連続乗り込みは${remainSec}秒後に可能です。`);
+                return;
+            }
             const target = this.otherShips.get(this.boardingTargetId);
             const distance = target?.sprite
                 ? Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, target.sprite.x, target.sprite.y)
@@ -2888,6 +2897,7 @@ export default class WorldMapScene extends Phaser.Scene {
             }
             if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
                 console.log('[Boarding] startBattleWithOpponent', { opponentId: this.boardingTargetId });
+                this.lastBoardingAt = now;
                 window.startBattleWithOpponent(this.boardingTargetId);
                 this.hideShipCommandMenu();
             } else {
