@@ -1846,21 +1846,6 @@ body.modal-lock .modal-overlay {
     box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
-.map-loading-target {
-    position: absolute;
-    width: 20%;
-    height: 20%;
-    left: 40%;
-    top: 40%;
-    border-radius: 12px;
-    border: 2px solid rgba(56, 189, 248, 0.9);
-    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
-    background: rgba(15, 23, 42, 0.35);
-}
-
-.map-loading-overlay.is-modal .map-loading-target {
-    display: none;
-}
 
 .map-loading-labels {
     position: absolute;
