@@ -699,19 +699,25 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const loserInventory = await getAllInventoryItems(loserId);
         const loserPs = getCurrencyBalanceFromItems(loserInventory, VIRTUAL_CURRENCY_CODE);
         const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
+        const battleRef = db.ref(`battles/${battleId}`);
+        const rewardFlagRef = battleRef.child('rewardProcessed');
+        const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
+            if (current) return;
+            return { at: Date.now(), winnerId, loserId };
+        });
+        if (!rewardLockSnapshot.committed) {
+            console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId}`);
+            return;
+        }
         const rewardLogUpdates = {};
 
         // ★★★ 修正: 奪う金額の計算ロジックを変更 ★★★
         // 1. 所持金(Ps)の10%～30%を計算
         const randomRate = Math.random() * (0.3 - 0.1) + 0.1;
-        const pointsToStealFromPs = Math.floor(loserPs * randomRate);
-
-        // 2. 「Psから計算した額」と「懸賞金(BT)」の高い方を、実際に奪う額とする
-        const pointsToSteal = Math.max(pointsToStealFromPs, loserBounty);
+        const pointsToSteal = Math.floor(loserPs * randomRate);
 
         if (pointsToSteal <= 0) {
             console.log('[報酬処理] 奪う金額が0のため、報酬はありません。');
-            const battleRef = db.ref(`battles/${battleId}`);
             rewardLogUpdates[`log/${Date.now()}`] = 'しかし、奪えるものが何もなかった！';
             await battleRef.update(rewardLogUpdates);
             return;
@@ -724,32 +730,29 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         // ★★★ 修正: 勝者の懸賞金(BT)を奪った額だけ上げ、敗者から同額を減らす ★★★
         await economy.addEconomyItem(winnerId, VIRTUAL_CURRENCY_CODE, pointsToSteal, getEconomyDeps());
-        const bountyTransfer = Math.min(Math.max(0, loserBounty), pointsToSteal);
+        let bountyTransfer = 0;
         let bountyTransferFailed = false;
-        if (bountyTransfer > 0) {
-            await economy.subtractEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
-            try {
-                await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
-            } catch (bountyAddError) {
-                bountyTransferFailed = true;
-                console.warn('[報酬処理] BT付与に失敗。返金を試みます。', bountyAddError?.errorMessage || bountyAddError?.message || bountyAddError);
+        if (loserBounty > 0) {
+            bountyTransfer = Math.min(loserBounty, pointsToSteal);
+            if (bountyTransfer > 0) {
+                await economy.subtractEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
                 try {
-                    await economy.addEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
-                } catch (refundError) {
-                    console.warn('[報酬処理] BT返金に失敗。', refundError?.errorMessage || refundError?.message || refundError);
+                    await economy.addEconomyItem(winnerId, 'BT', bountyTransfer, getEconomyDeps());
+                } catch (bountyAddError) {
+                    bountyTransferFailed = true;
+                    console.warn('[報酬処理] BT付与に失敗。返金を試みます。', bountyAddError?.errorMessage || bountyAddError?.message || bountyAddError);
+                    try {
+                        await economy.addEconomyItem(loserId, 'BT', bountyTransfer, getEconomyDeps());
+                    } catch (refundError) {
+                        console.warn('[報酬処理] BT返金に失敗。', refundError?.errorMessage || refundError?.message || refundError);
+                    }
                 }
             }
         }
 
-
-
-
-        console.log(`[報酬処理] ${winnerId} の懸賞金が ${pointsToSteal}BT 上がった！`);
-
         console.log(`[報酬処理] ${winnerId} が ${loserId} から ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`);
 
         // バトルログに報酬情報を追記
-        const battleRef = db.ref(`battles/${battleId}`);
         rewardLogUpdates[`log/${Date.now()}`] = `勝者は ${pointsToSteal}${VIRTUAL_CURRENCY_CODE} を奪った！`;
 
         // 両者のランキングスコアを更新
