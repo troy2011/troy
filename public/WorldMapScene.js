@@ -276,6 +276,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.load.spritesheet('ship_sprite_blue', 'Sprites/Ships/ships_blue.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_yellow', 'Sprites/Ships/ships_yellow.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('ship_sprite_green', 'Sprites/Ships/ships_green.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('ship_sprite_black', 'Sprites/Ships/ships_black.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('guild_ship_sprite', 'Sprites/Ships/guildShips.png', { frameWidth: 48, frameHeight: 48 });
         const nowHour = new Date().getHours();
         const isNight = nowHour % 2 === 0;
@@ -289,6 +290,24 @@ export default class WorldMapScene extends Phaser.Scene {
         return hour % 2 === 0;
     }
 
+    getRandomGhostBaseFrame() {
+        if (typeof window === 'undefined') return 0;
+        const catalog = window.shipCatalog;
+        if (!catalog || typeof catalog !== 'object') return 0;
+        const entries = Object.values(catalog)
+            .map(item => Number(item?.baseFrame))
+            .filter(frame => Number.isFinite(frame));
+        if (!entries.length) return 0;
+        return entries[Math.floor(Math.random() * entries.length)];
+    }
+
+    getGhostIdleFrame(baseFrame) {
+        const sheetCols = 32;
+        const baseRow = Math.floor(baseFrame / sheetCols);
+        const baseCol = baseFrame % sheetCols;
+        return (baseRow * sheetCols) + (baseCol + 1);
+    }
+
     spawnGhostShip() {
         if (this.ghostShip) return;
         if (this.isAirDomain(this.playerShipDomain)) return;
@@ -297,7 +316,9 @@ export default class WorldMapScene extends Phaser.Scene {
         const maxY = this.mapPixelSize - margin;
         const x = Phaser.Math.Between(margin, maxX);
         const y = Phaser.Math.Between(margin, maxY);
-        const sprite = this.add.sprite(x, y, 'ship_sprite_blue', 0);
+        const baseFrame = this.getRandomGhostBaseFrame();
+        const idleFrame = this.getGhostIdleFrame(baseFrame);
+        const sprite = this.add.sprite(x, y, 'ship_sprite_black', idleFrame);
         sprite.setAlpha(0.65);
         sprite.setDepth(GAME_CONFIG.DEPTH.SEA + 2);
         sprite.setTint(0x9cc5ff);
