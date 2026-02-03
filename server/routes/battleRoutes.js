@@ -233,13 +233,31 @@ async function runBattle(playerA, playerB) {
         const raw = player?.skills || {};
         return Object.values(raw).filter(entry => entry && typeof entry === 'object' && entry.name);
     };
-    const getMatchingSkills = (player) => {
-        const types = getEquippedWeaponTypes(player);
-        return getPlayerSkills(player).filter((entry) => {
-            const weapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon || '');
-            if (!weapon) return false;
-            return types.has(weapon);
+    const getSkillLabel = (entry, fallback) => entry?.name || fallback;
+    const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
+    const rollChance = (chance) => Math.random() < clampValue(chance, 0, 1);
+    const getSkillForWeapon = (skills, weapon, type, allowGeneric = false) => {
+        if (!Array.isArray(skills) || !skills.length) return null;
+        const target = normalizeSkillWeapon(weapon);
+        if (!target) return null;
+        const match = skills.find((entry) => {
+            if (type && entry.type !== type) return false;
+            const entryWeapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon || '');
+            if (entryWeapon) return entryWeapon === target;
+            return allowGeneric;
         });
+        return match || null;
+    };
+    const buildPassiveResolver = (skills) => {
+        let usedGeneric = false;
+        return (weapon) => {
+            const specific = getSkillForWeapon(skills, weapon, 'passive', false);
+            if (specific) return specific;
+            if (usedGeneric) return null;
+            const generic = skills.find(entry => entry.type === 'passive' && !normalizeSkillWeapon(entry.weapon || entry.skillWeapon || ''));
+            if (generic) usedGeneric = true;
+            return generic || null;
+        };
     };
 
     // ★★★ 改良案: 逃走判定 ★★★
@@ -298,29 +316,65 @@ async function runBattle(playerA, playerB) {
 
     for (let i = 0; i < 20; i++) {
         const attackerRange = rangeMap.get(attacker.id) || 1;
-        const attackerSkills = getMatchingSkills(attacker);
-        const defenderSkills = getMatchingSkills(defender);
+        const attackerSkills = getPlayerSkills(attacker);
+        const defenderSkills = getPlayerSkills(defender);
+        const attackerWeapons = getEquippedWeaponTypes(attacker);
+        const defenderWeapons = getEquippedWeaponTypes(defender);
+        const attackerSpeed = attacker.stats.すばやさ || 1;
+        const defenderSpeed = defender.stats.すばやさ || 1;
+        const speedDelta = clampValue((attackerSpeed - defenderSpeed) / 200, -0.1, 0.1);
+        const defenderSpeedDelta = clampValue((defenderSpeed - attackerSpeed) / 200, -0.1, 0.1);
+        const attackerPassive = buildPassiveResolver(attackerSkills);
+        const defenderPassive = buildPassiveResolver(defenderSkills);
         if (distance > attackerRange) {
-            distance = Math.max(1, distance - 1);
+            let step = 1;
+            let dashSkill = null;
+            if (attackerWeapons.has('dagger')) dashSkill = attackerPassive('dagger');
+            if (!dashSkill && attackerWeapons.has('axe')) dashSkill = attackerPassive('axe');
+            if (!dashSkill && attackerWeapons.has('sword')) dashSkill = attackerPassive('sword');
+            if (dashSkill && rollChance(0.3 + speedDelta)) {
+                step = 2;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(dashSkill, 'ダッシュ')} で大きく踏み込んだ！`);
+            } else {
+                const spearLunge = attackerWeapons.has('spear') ? getSkillForWeapon(attackerSkills, 'spear', 'weapon', false) : null;
+                if (spearLunge && distance === attackerRange + 1 && rollChance(0.25 + speedDelta)) {
+                    step = 2;
+                    await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(spearLunge, '突進')} で距離を詰めた！`);
+                }
+            }
+            distance = Math.max(1, distance - step);
             await sendLogToBoth(`${attacker.stats.DisplayName} は前進した！ (距離: ${distance})`);
         } else {
-            const defenderShieldSkill = defenderSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'shield' && entry.type === 'passive');
-            if (defenderShieldSkill && Math.random() < 0.25) {
-                distance = Math.min(5, distance + 1);
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${defenderShieldSkill.name} を発動！ ノックバック！ (距離: ${distance})`);
+            const defenderShieldSkill = defenderWeapons.has('shield') ? defenderPassive('shield') : null;
+            if (defenderShieldSkill && rollChance(0.22 + defenderSpeedDelta)) {
+                const knockStep = rollChance(0.35) ? 2 : 1;
+                distance = Math.min(5, distance + knockStep);
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderShieldSkill, '盾の構え')} を発動！ ノックバック！ (距離: ${distance})`);
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
-            const attackerChargeSkill = attackerSkills.find(entry => {
-                const weapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon);
-                return (weapon === 'staff') && entry.type === 'weapon';
-            });
-            const attackerState = skillState.get(attacker.id) || { charged: false };
-            if (!attackerState.charged && attackerChargeSkill && Math.random() < 0.2) {
+            const defenderDaggerSkill = defenderWeapons.has('dagger') ? defenderPassive('dagger') : null;
+            if (defenderDaggerSkill && rollChance(0.2 + defenderSpeedDelta)) {
                 distance = Math.min(5, distance + 1);
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderDaggerSkill, '回避')} で攻撃をかわした！ (距離: ${distance})`);
+                [attacker, defender] = [defender, attacker];
+                continue;
+            }
+
+            const attackerGunPassive = attackerWeapons.has('gun') ? attackerPassive('gun') : null;
+            if (attackerGunPassive && distance + 1 <= attackerRange && rollChance(0.18 + speedDelta)) {
+                distance = Math.min(5, distance + 1);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(attackerGunPassive, '距離調整')} で間合いを取った！ (距離: ${distance})`);
+            }
+
+            const attackerChargeSkill = attackerWeapons.has('staff') ? getSkillForWeapon(attackerSkills, 'staff', 'weapon', false) : null;
+            const attackerState = skillState.get(attacker.id) || { charged: false };
+            if (!attackerState.charged && attackerChargeSkill && rollChance(0.18 + speedDelta)) {
+                const stepBack = rollChance(0.3) ? 2 : 1;
+                distance = Math.min(5, distance + stepBack);
                 attackerState.charged = true;
                 skillState.set(attacker.id, attackerState);
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${attackerChargeSkill.name} で一歩下がって力をためた！ (距離: ${distance})`);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(attackerChargeSkill, '溜め')} で力をためた！ (距離: ${distance})`);
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
@@ -330,24 +384,60 @@ async function runBattle(playerA, playerB) {
             const baseDamage = (weaponPower * skillPower) - enemyDefense;
             const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
             let skillMultiplier = 1;
+            let defenseMultiplier = 1;
             if (attackerState.charged) {
                 skillMultiplier *= 1.4;
                 attackerState.charged = false;
                 skillState.set(attacker.id, attackerState);
                 await sendLogToBoth(`${attacker.stats.DisplayName} の溜め攻撃！`);
             }
-            const gunSkill = attackerSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'gun' && entry.type === 'weapon');
-            if (gunSkill && distance >= 2) {
+            const gunSkill = attackerWeapons.has('gun') ? getSkillForWeapon(attackerSkills, 'gun', 'weapon', false) : null;
+            if (gunSkill && distance >= 2 && rollChance(0.2 + 0.08 * (distance - 1) + speedDelta)) {
                 skillMultiplier *= 1.3;
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${gunSkill.name} を発動！`);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(gunSkill, '狙撃')} を発動！`);
             }
-            const spearSkill = attackerSkills.find(entry => normalizeSkillWeapon(entry.weapon || entry.skillWeapon) === 'spear' && entry.type === 'weapon');
-            if (spearSkill && distance === 2) {
+            const spearSkill = attackerWeapons.has('spear') ? getSkillForWeapon(attackerSkills, 'spear', 'weapon', false) : null;
+            if (spearSkill && distance === 2 && rollChance(0.25 + speedDelta)) {
                 skillMultiplier *= 1.2;
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${spearSkill.name} を発動！`);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(spearSkill, '突刺し')} を発動！`);
+            }
+            const daggerSkill = attackerWeapons.has('dagger') ? getSkillForWeapon(attackerSkills, 'dagger', 'weapon', false) : null;
+            if (daggerSkill && distance === 1 && rollChance(0.25 + speedDelta)) {
+                skillMultiplier *= 1.25;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(daggerSkill, '急所突き')} を発動！`);
+            }
+            const swordSkill = attackerWeapons.has('sword') ? getSkillForWeapon(attackerSkills, 'sword', 'weapon', false) : null;
+            if (swordSkill && distance === 1 && rollChance(0.2 + speedDelta)) {
+                skillMultiplier *= 1.2;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(swordSkill, '連撃')} を発動！`);
+            }
+            const axeSkill = attackerWeapons.has('axe') ? getSkillForWeapon(attackerSkills, 'axe', 'weapon', false) : null;
+            if (axeSkill && distance === 1 && rollChance(0.2 + speedDelta)) {
+                skillMultiplier *= 1.25;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(axeSkill, '強撃')} を発動！`);
+            }
+            const axePassive = attackerWeapons.has('axe') ? attackerPassive('axe') : null;
+            if (axePassive && rollChance(0.15 + speedDelta)) {
+                skillMultiplier *= 1.15;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(axePassive, '猛攻')} で勢いを増した！`);
+            }
+            const defenderSwordSkill = defenderWeapons.has('sword') ? defenderPassive('sword') : null;
+            if (defenderSwordSkill && rollChance(0.18 + defenderSpeedDelta)) {
+                defenseMultiplier *= 0.8;
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderSwordSkill, '受け流し')} で被害を抑えた！`);
+            }
+            const defenderStaffSkill = defenderWeapons.has('staff') ? defenderPassive('staff') : null;
+            if (defenderStaffSkill && rollChance(0.2 + defenderSpeedDelta)) {
+                defenseMultiplier *= 0.7;
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderStaffSkill, '障壁')} でダメージを軽減した！`);
+            }
+            const defenderAxeSkill = defenderWeapons.has('axe') ? defenderPassive('axe') : null;
+            if (defenderAxeSkill && rollChance(0.16 + defenderSpeedDelta)) {
+                defenseMultiplier *= 0.85;
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderAxeSkill, '耐え構え')} で踏みとどまった！`);
             }
             // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
-            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier));
+            const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier * defenseMultiplier));
 
             defender.stats.CurrentHP -= finalDamage;
 
