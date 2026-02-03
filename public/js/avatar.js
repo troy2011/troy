@@ -115,8 +115,10 @@ function applyHomeAvatarFrame(prefix, frameIndex) {
     layers.forEach((layer) => {
         if (!layer || layer.id === `${prefix}-layer-body`) return;
         const baseTransform = layer.dataset.baseTransform || 'none';
-        if (shiftDown) {
-            layer.style.transform = `${baseTransform === 'none' ? '' : baseTransform} translateY(1px)`.trim();
+        const scale = Number(layer.dataset.scale || 2);
+        const shiftPx = shiftDown * scale;
+        if (shiftPx) {
+            layer.style.transform = `${baseTransform === 'none' ? '' : baseTransform} translateY(${shiftPx}px)`.trim();
         } else {
             layer.style.transform = baseTransform;
         }
