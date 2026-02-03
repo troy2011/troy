@@ -107,7 +107,10 @@ function applyHomeAvatarFrame(prefix, frameIndex) {
         bodyLayer.style.backgroundPosition = `${posX}px ${posY}px`;
         bodyLayer.dataset.spriteIndex = String(frameIndex);
     }
-    const shiftDown = frameIndex === 2 ? 1 : 0;
+    let shiftDown = 0;
+    if (frameIndex === 1) shiftDown = 1;
+    else if (frameIndex === 2) shiftDown = 2;
+    else if (frameIndex === 3) shiftDown = 1;
     const layers = container.querySelectorAll('.avatar-layer');
     layers.forEach((layer) => {
         if (!layer || layer.id === `${prefix}-layer-body`) return;
