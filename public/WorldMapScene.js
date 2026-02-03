@@ -541,7 +541,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     const majorMatch = String(mapId).match(/major_(\d{2})/);
                     const majorNumber = majorMatch ? Number(majorMatch[1]) : null;
                     if (!spriteMeta) {
-                        spriteMeta = { width: 480, height: 960, tileWidth: 48, tileHeight: 80 };
+                        spriteMeta = { width: 512, height: 1024, tileWidth: 48, tileHeight: 80 };
                     }
                     cells.forEach((cell) => {
                         cell.classList.remove('is-current');
