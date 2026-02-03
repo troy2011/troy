@@ -427,7 +427,7 @@ export default class WorldMapScene extends Phaser.Scene {
         return objects;
     }
 
-    setMapReady(ready) {
+    setMapReady(ready, options = {}) {
         if (typeof document === 'undefined') return;
         const container = document.getElementById('tabContentMap');
         if (!container) return;
@@ -437,9 +437,15 @@ export default class WorldMapScene extends Phaser.Scene {
             if (overlay) {
                 overlay.style.opacity = '0';
                 overlay.style.pointerEvents = 'none';
-                requestAnimationFrame(() => {
+                const delayMs = Number(options.delayMs || 0);
+                const hideOverlay = () => {
                     overlay.style.display = 'none';
-                });
+                };
+                if (delayMs > 0) {
+                    setTimeout(hideOverlay, delayMs);
+                } else {
+                    requestAnimationFrame(hideOverlay);
+                }
             }
             if (typeof window !== 'undefined' && window.__pendingFirstMapNav?.islandId) {
                 const targetId = window.__pendingFirstMapNav.islandId;
@@ -998,7 +1004,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
 
-        this.setMapReady(true);
+        this.setMapReady(true, { delayMs: 1350 });
     }
 
     createObstacle(data) {
