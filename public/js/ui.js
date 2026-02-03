@@ -893,6 +893,15 @@ export function escapeHtml(str) {
     })[match]);
 }
 
+function updateHomeAvatarSeaTone() {
+    if (typeof document === 'undefined') return;
+    const avatar = document.getElementById('home-avatar');
+    if (!avatar) return;
+    const hour = new Date().getHours();
+    const tone = hour % 2 === 1 ? 'day' : 'night';
+    avatar.dataset.seaTone = tone;
+}
+
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     const currentActiveTab = document.querySelector('.nav-button.active');
@@ -1122,6 +1131,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 }
             }
             tabLoaded[tabId] = true;
+        }
+
+        if (tabId === 'home') {
+            updateHomeAvatarSeaTone();
         }
 
         if (tabId === 'map' && gameInstance) {

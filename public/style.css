@@ -1542,6 +1542,19 @@ body.modal-lock .modal-overlay {
     transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
     transform-origin: center center;
     margin: 0;
+    border-radius: 14px;
+    padding: 6px;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.home-ship-avatar[data-sea-tone="day"] {
+    background: radial-gradient(circle at 40% 30%, rgba(125, 211, 252, 0.65), rgba(14, 116, 144, 0.35) 70%);
+    box-shadow: 0 8px 18px rgba(14, 116, 144, 0.35);
+}
+
+.home-ship-avatar[data-sea-tone="night"] {
+    background: radial-gradient(circle at 40% 30%, rgba(30, 41, 59, 0.85), rgba(2, 6, 23, 0.9) 70%);
+    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
 }
 
 @keyframes homeShipBob {
