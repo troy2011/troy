@@ -435,16 +435,20 @@ export default class WorldMapScene extends Phaser.Scene {
             container.classList.add('map-ready');
             const overlay = container.querySelector('.map-loading-overlay');
             if (overlay) {
-                overlay.style.opacity = '0';
                 overlay.style.pointerEvents = 'none';
-                const delayMs = Number(options.delayMs || 0);
-                const hideOverlay = () => {
-                    overlay.style.display = 'none';
-                };
-                if (delayMs > 0) {
-                    setTimeout(hideOverlay, delayMs);
+                const fadeMs = Number(options.fadeMs || 0);
+                if (fadeMs > 0) {
+                    overlay.style.transition = `opacity ${fadeMs}ms ease`;
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        overlay.style.transition = '';
+                    }, fadeMs);
                 } else {
-                    requestAnimationFrame(hideOverlay);
+                    overlay.style.opacity = '0';
+                    requestAnimationFrame(() => {
+                        overlay.style.display = 'none';
+                    });
                 }
             }
             if (typeof window !== 'undefined' && window.__pendingFirstMapNav?.islandId) {
@@ -1004,7 +1008,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.uiCamera.ignore(this.children.list.filter(child => !uiKeep.has(child)));
         }
 
-        this.setMapReady(true, { delayMs: 1350 });
+        this.setMapReady(true, { fadeMs: 1350 });
     }
 
     createObstacle(data) {
