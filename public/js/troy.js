@@ -285,6 +285,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "開戦の一打",
+        "skillWeapon": "sword",
         "questKey": "billiard-9",
         "difficulty": 1,
         "flavor": "一対一の一打で流れを掴め。"
@@ -297,6 +298,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "港の一球",
+        "skillWeapon": "sword",
         "questKey": "billiard-8",
         "difficulty": 1,
         "flavor": "港の一球で戦端を開け。"
@@ -335,6 +337,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "黒旗の勝利",
+        "skillWeapon": "sword",
         "questKey": "billiard-8",
         "difficulty": 2,
         "flavor": "黒旗を掲げて勝利を掴め。"
@@ -347,6 +350,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "二球先取",
+        "skillWeapon": "sword",
         "questKey": "billiard-9",
         "difficulty": 2,
         "flavor": "先取の二球で流れを掴め。"
@@ -359,6 +363,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "攻めの継続",
+        "skillWeapon": "sword",
         "questKey": "billiard-9",
         "difficulty": 3,
         "flavor": "攻めの継続で盤面を支配せよ。"
@@ -371,6 +376,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "色の確保",
+        "skillWeapon": "sword",
         "questKey": "billiard-8",
         "difficulty": 3,
         "flavor": "色を確保して主導権を取れ。"
@@ -396,6 +402,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "色の制圧",
+        "skillWeapon": "axe",
         "questKey": "billiard-8",
         "difficulty": 4,
         "flavor": "色の制圧で道を切り開け。"
@@ -447,6 +454,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "包囲の8番",
+        "skillWeapon": "axe",
         "questKey": "billiard-8",
         "difficulty": 5,
         "flavor": "包囲の8番で勝利を重ねろ。"
@@ -485,6 +493,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "鋼の決着",
+        "skillWeapon": "axe",
         "questKey": "billiard-8",
         "difficulty": 6,
         "flavor": "鋼の決着で勝利を掴め。"
@@ -672,6 +681,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "初戦の旋律",
+        "skillWeapon": "axe",
         "questKey": "karaoke-battle",
         "difficulty": 1,
         "flavor": "初戦の旋律で響きを示せ。"
@@ -697,6 +707,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "対戦の合図",
+        "skillWeapon": "axe",
         "questKey": "karaoke-battle",
         "difficulty": 1,
         "flavor": "合図の一声で勝負を始めろ。"
@@ -722,6 +733,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "対戦の旋律",
+        "skillWeapon": "axe",
         "questKey": "karaoke-battle",
         "difficulty": 2,
         "flavor": "対戦の旋律で先手を取れ。"
@@ -734,6 +746,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "帆走の安定",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 2,
         "flavor": "帆走の安定で揺れを抑えよ。"
@@ -746,6 +759,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "安定の帆",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 3,
         "flavor": "安定の帆で揺れを抑えよ。"
@@ -771,6 +785,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "共鳴の航路",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 3,
         "flavor": "共鳴の航路で勝負を進めろ。"
@@ -783,6 +798,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "旗声の80",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 4,
         "flavor": "旗声で主導権を奪え。"
@@ -795,6 +811,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "抑揚の波",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 4,
         "flavor": "抑揚の波で響きを刻め。"
@@ -820,6 +837,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "響き合わせ",
+        "skillWeapon": "blunt",
         "questKey": "karaoke-battle",
         "difficulty": 5,
         "flavor": "響きを合わせて勝利を掴め。"
@@ -858,6 +876,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "極限抑揚",
+        "skillWeapon": "dagger",
         "questKey": "karaoke-battle",
         "difficulty": 6,
         "flavor": "極限の抑揚で圧倒せよ。"
@@ -1058,6 +1077,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "援護射撃",
+        "skillWeapon": "dagger",
         "questKey": "darts-countup",
         "difficulty": 1,
         "flavor": "援護射撃で点を重ねろ。"
@@ -1083,6 +1103,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "陣地共有",
+        "skillWeapon": "dagger",
         "questKey": "darts-cricket",
         "difficulty": 1,
         "flavor": "陣地を共有して押し切れ。"
@@ -1095,6 +1116,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "ブルの先制",
+        "skillWeapon": "dagger",
         "questKey": "darts-cricket",
         "difficulty": 2,
         "flavor": "ブルの先制で主導権を取れ。"
@@ -1120,6 +1142,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "包囲01・改",
+        "skillWeapon": "dagger",
         "questKey": "darts-01",
         "difficulty": 2,
         "flavor": "包囲の形で早期決着を狙え。"
@@ -1145,6 +1168,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "包囲01",
+        "skillWeapon": "dagger",
         "questKey": "darts-01",
         "difficulty": 3,
         "flavor": "包囲陣形で早期決着を狙え。"
@@ -1157,6 +1181,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "防衛ライン",
+        "skillWeapon": "shield",
         "questKey": "darts-cricket",
         "difficulty": 3,
         "flavor": "防衛ラインを敷いて守れ。"
@@ -1182,6 +1207,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "四重封鎖",
+        "skillWeapon": "shield",
         "questKey": "darts-cricket",
         "difficulty": 4,
         "flavor": "四重封鎖で勝利を固めよ。"
@@ -1194,6 +1220,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "包囲01・強",
+        "skillWeapon": "shield",
         "questKey": "darts-01",
         "difficulty": 4,
         "flavor": "包囲を強めて早期決着へ。"
@@ -1206,6 +1233,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "完全封鎖",
+        "skillWeapon": "shield",
         "questKey": "darts-cricket",
         "difficulty": 5,
         "flavor": "完全封鎖で勝利を固めろ。"
@@ -1244,6 +1272,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "完全封鎖・極",
+        "skillWeapon": "shield",
         "questKey": "darts-cricket",
         "difficulty": 6,
         "flavor": "極限の封鎖で勝ち切れ。"
@@ -1444,6 +1473,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "決闘の札読み",
+        "skillWeapon": "shield",
         "questKey": "cards-poker",
         "difficulty": 1,
         "flavor": "決闘の札読みで先手を取れ。"
@@ -1456,6 +1486,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "決闘上がり",
+        "skillWeapon": "polearm",
         "questKey": "cards-daifugo",
         "difficulty": 1,
         "flavor": "決闘の上がりで先手を掴め。"
@@ -1468,6 +1499,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "護衛の構え",
+        "skillWeapon": "polearm",
         "questKey": "cards-blackjack",
         "difficulty": 1,
         "flavor": "護衛の構えで勝利を守れ。"
@@ -1493,6 +1525,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "決闘二抜け",
+        "skillWeapon": "polearm",
         "questKey": "cards-daifugo",
         "difficulty": 2,
         "flavor": "二抜けで優位を築け。"
@@ -1505,6 +1538,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "堅守20",
+        "skillWeapon": "polearm",
         "questKey": "cards-blackjack",
         "difficulty": 2,
         "flavor": "堅守の20で勝利を呼べ。"
@@ -1543,6 +1577,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "連携突撃",
+        "skillWeapon": "polearm",
         "questKey": "cards-daifugo",
         "difficulty": 3,
         "flavor": "一対一の上がりで優位を取れ。"
@@ -1568,6 +1603,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "勝利の21",
+        "skillWeapon": "polearm",
         "questKey": "cards-blackjack",
         "difficulty": 4,
         "flavor": "勝利の21で王座を掴め。"
@@ -1580,6 +1616,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "覇権の連勝",
+        "skillWeapon": "staff",
         "questKey": "cards-daifugo",
         "difficulty": 4,
         "flavor": "覇権の連勝で差を広げよ。"
@@ -1605,6 +1642,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "逆転手",
+        "skillWeapon": "staff",
         "questKey": "cards-blackjack",
         "difficulty": 5,
         "flavor": "逆転手で連勝を刻め。"
@@ -1656,6 +1694,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "覇者の連勝",
+        "skillWeapon": "staff",
         "questKey": "cards-blackjack",
         "difficulty": 6,
         "flavor": "覇者の連勝で勝ち切れ。"
@@ -1830,6 +1869,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "防衛構え",
+        "skillWeapon": "staff",
         "questKey": "other-board",
         "difficulty": 1,
         "flavor": "1対1の演習で準備を整えよ。"
@@ -1842,6 +1882,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "援護板",
+        "skillWeapon": "staff",
         "questKey": "other-kurohige",
         "difficulty": 1,
         "flavor": "援護板で危機を避けろ。"
@@ -1880,6 +1921,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "黒ひげ援護・改",
+        "skillWeapon": "staff",
         "questKey": "other-kurohige",
         "difficulty": 2,
         "flavor": "援護の板で危機を避けよ。"
@@ -1892,6 +1934,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "小舟連携・改",
+        "skillWeapon": "gun",
         "questKey": "other-mini",
         "difficulty": 2,
         "flavor": "小舟連携で前へ進め。"
@@ -1930,6 +1973,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "潮流突破",
+        "skillWeapon": "gun",
         "questKey": "other-mini",
         "difficulty": 3,
         "flavor": "潮流突破で進路を確保せよ。"
@@ -1955,6 +1999,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "黒ひげ包囲・弐",
+        "skillWeapon": "gun",
         "questKey": "other-kurohige",
         "difficulty": 4,
         "flavor": "包囲の圧で勝利を掴め。"
@@ -1967,6 +2012,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "疾風連携・弐",
+        "skillWeapon": "gun",
         "questKey": "other-mini",
         "difficulty": 4,
         "flavor": "疾風連携で完璧を刻め。"
@@ -1979,6 +2025,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "黒旗の運命",
+        "skillWeapon": "gun",
         "questKey": "other-kurohige",
         "difficulty": 5,
         "flavor": "黒旗の運命を味方にせよ。"
@@ -2017,6 +2064,7 @@ const TROY_QUESTS = [
         "gachaType": "skill",
         "skillType": "passive",
         "skillName": "黒旗の運命・極",
+        "skillWeapon": "gun",
         "questKey": "other-kurohige",
         "difficulty": 6,
         "flavor": "黒旗の運命で勝利を掴め。"

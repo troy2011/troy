@@ -199,20 +199,20 @@ async function runBattle(playerA, playerB) {
         const id = String(weaponId || '').toLowerCase();
         if (!id) return '';
         if (id.includes('gun') || id.includes('bow') || id.includes('pistol') || id.includes('rifle')) return 'gun';
-        if (id.includes('spear') || id.includes('polearm')) return 'spear';
+        if (id.includes('spear') || id.includes('polearm')) return 'polearm';
         if (id.includes('staff') || id.includes('wand')) return 'staff';
         if (id.includes('shield')) return 'shield';
         if (id.includes('dagger') || id.includes('knife')) return 'dagger';
         if (id.includes('sword')) return 'sword';
-        if (id.includes('axe') || id.includes('blunt') || id.includes('club') || id.includes('mace') || id.includes('hammer')) return 'axe';
+        if (id.includes('axe')) return 'axe';
+        if (id.includes('blunt') || id.includes('club') || id.includes('mace') || id.includes('hammer')) return 'blunt';
         return '';
     };
     const normalizeSkillWeapon = (weapon) => {
         const key = String(weapon || '').toLowerCase();
         if (!key) return '';
-        if (key === 'polearm') return 'spear';
+        if (key === 'spear') return 'polearm';
         if (key === 'wand') return 'staff';
-        if (key === 'blunt') return 'axe';
         return key;
     };
     const getEquippedWeaponTypes = (player) => {
@@ -226,7 +226,7 @@ async function runBattle(playerA, playerB) {
     const getWeaponRange = (player) => {
         const types = getEquippedWeaponTypes(player);
         if (types.has('gun')) return 3;
-        if (types.has('spear') || types.has('staff')) return 2;
+        if (types.has('polearm') || types.has('staff')) return 2;
         return 1;
     };
     const getPlayerSkills = (player) => {
@@ -248,16 +248,59 @@ async function runBattle(playerA, playerB) {
         });
         return match || null;
     };
-    const buildPassiveResolver = (skills) => {
-        let usedGeneric = false;
-        return (weapon) => {
-            const specific = getSkillForWeapon(skills, weapon, 'passive', false);
-            if (specific) return specific;
-            if (usedGeneric) return null;
-            const generic = skills.find(entry => entry.type === 'passive' && !normalizeSkillWeapon(entry.weapon || entry.skillWeapon || ''));
-            if (generic) usedGeneric = true;
-            return generic || null;
+    const buildPassiveCounts = (skills, weapons) => {
+        const counts = {
+            sword: 0,
+            axe: 0,
+            blunt: 0,
+            dagger: 0,
+            shield: 0,
+            polearm: 0,
+            staff: 0,
+            gun: 0
         };
+        if (!Array.isArray(skills) || !skills.length) return counts;
+        skills.forEach((entry) => {
+            if (!entry || entry.type !== 'passive') return;
+            const weapon = normalizeSkillWeapon(entry.weapon || entry.skillWeapon || '');
+            if (!weapon || !(weapon in counts)) return;
+            if (weapons && weapons.size && !weapons.has(weapon)) return;
+            counts[weapon] += 1;
+        });
+        return counts;
+    };
+    const buildPassiveBonuses = (counts) => {
+        const safe = (value, min, max) => clampValue(value, min, max);
+        const sword = counts.sword || 0;
+        const axe = counts.axe || 0;
+        const blunt = counts.blunt || 0;
+        const dagger = counts.dagger || 0;
+        const shield = counts.shield || 0;
+        const polearm = counts.polearm || 0;
+        const staff = counts.staff || 0;
+        const gun = counts.gun || 0;
+        return {
+            attackMultiplier: safe(1 + 0.02 * sword + 0.03 * axe + 0.02 * blunt + 0.02 * dagger + 0.02 * polearm + 0.02 * gun + 0.015 * staff, 1, 1.35),
+            defenseMultiplier: safe(1 - 0.02 * shield - 0.01 * staff - 0.01 * blunt - 0.01 * sword, 0.7, 1),
+            dashBonus: 0.02 * dagger + 0.015 * axe + 0.01 * sword + 0.01 * blunt,
+            knockbackBonus: 0.02 * shield,
+            chargeBonus: 0.02 * staff,
+            lungeBonus: 0.02 * polearm,
+            snipeBonus: 0.02 * gun,
+            evadeBonus: 0.02 * dagger,
+            repositionBonus: 0.02 * gun,
+            bluntBonus: 0.02 * blunt,
+            daggerBonus: 0.015 * dagger,
+            swordBonus: 0.015 * sword,
+            axeBonus: 0.015 * axe,
+            polearmBonus: 0.015 * polearm,
+            gunBonus: 0.015 * gun,
+            staffBonus: 0.015 * staff
+        };
+    };
+    const getPassiveLabel = (skills, weapon, fallback) => {
+        const entry = getSkillForWeapon(skills, weapon, 'passive', false);
+        return getSkillLabel(entry, fallback);
     };
 
     // ★★★ 改良案: 逃走判定 ★★★
@@ -311,66 +354,89 @@ async function runBattle(playerA, playerB) {
         [playerA.id, { charged: false }],
         [playerB.id, { charged: false }]
     ]);
+    const skillMap = new Map([
+        [playerA.id, getPlayerSkills(playerA)],
+        [playerB.id, getPlayerSkills(playerB)]
+    ]);
+    const weaponMap = new Map([
+        [playerA.id, getEquippedWeaponTypes(playerA)],
+        [playerB.id, getEquippedWeaponTypes(playerB)]
+    ]);
+    const passiveCountMap = new Map([
+        [playerA.id, buildPassiveCounts(skillMap.get(playerA.id), weaponMap.get(playerA.id))],
+        [playerB.id, buildPassiveCounts(skillMap.get(playerB.id), weaponMap.get(playerB.id))]
+    ]);
+    const passiveBonusMap = new Map([
+        [playerA.id, buildPassiveBonuses(passiveCountMap.get(playerA.id))],
+        [playerB.id, buildPassiveBonuses(passiveCountMap.get(playerB.id))]
+    ]);
+    const EMPTY_PASSIVE = buildPassiveBonuses({});
     await sendLogToBoth(`戦闘開始！ ${attacker.stats.DisplayName} の先攻！`);
     await sendLogToBoth(`両者の距離は ${distance} マスだ！`);
 
     for (let i = 0; i < 20; i++) {
         const attackerRange = rangeMap.get(attacker.id) || 1;
-        const attackerSkills = getPlayerSkills(attacker);
-        const defenderSkills = getPlayerSkills(defender);
-        const attackerWeapons = getEquippedWeaponTypes(attacker);
-        const defenderWeapons = getEquippedWeaponTypes(defender);
+        const attackerSkills = skillMap.get(attacker.id) || [];
+        const defenderSkills = skillMap.get(defender.id) || [];
+        const attackerWeapons = weaponMap.get(attacker.id) || new Set();
+        const defenderWeapons = weaponMap.get(defender.id) || new Set();
         const attackerSpeed = attacker.stats.すばやさ || 1;
         const defenderSpeed = defender.stats.すばやさ || 1;
         const speedDelta = clampValue((attackerSpeed - defenderSpeed) / 200, -0.1, 0.1);
         const defenderSpeedDelta = clampValue((defenderSpeed - attackerSpeed) / 200, -0.1, 0.1);
-        const attackerPassive = buildPassiveResolver(attackerSkills);
-        const defenderPassive = buildPassiveResolver(defenderSkills);
+        const attackerPassive = passiveBonusMap.get(attacker.id) || EMPTY_PASSIVE;
+        const defenderPassive = passiveBonusMap.get(defender.id) || EMPTY_PASSIVE;
         if (distance > attackerRange) {
             let step = 1;
-            let dashSkill = null;
-            if (attackerWeapons.has('dagger')) dashSkill = attackerPassive('dagger');
-            if (!dashSkill && attackerWeapons.has('axe')) dashSkill = attackerPassive('axe');
-            if (!dashSkill && attackerWeapons.has('sword')) dashSkill = attackerPassive('sword');
-            if (dashSkill && rollChance(0.3 + speedDelta)) {
+            const dashWeapon = attackerWeapons.has('dagger')
+                ? 'dagger'
+                : attackerWeapons.has('axe')
+                    ? 'axe'
+                    : attackerWeapons.has('sword')
+                        ? 'sword'
+                        : attackerWeapons.has('blunt')
+                            ? 'blunt'
+                            : '';
+            const dashChance = 0.12 + speedDelta + attackerPassive.dashBonus;
+            if (dashWeapon && rollChance(dashChance)) {
                 step = 2;
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(dashSkill, 'ダッシュ')} で大きく踏み込んだ！`);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getPassiveLabel(attackerSkills, dashWeapon, '踏み込み')} で距離を詰めた！`);
             } else {
-                const spearLunge = attackerWeapons.has('spear') ? getSkillForWeapon(attackerSkills, 'spear', 'weapon', false) : null;
-                if (spearLunge && distance === attackerRange + 1 && rollChance(0.25 + speedDelta)) {
+                const polearmLunge = attackerWeapons.has('polearm') ? getSkillForWeapon(attackerSkills, 'polearm', 'weapon', false) : null;
+                if (polearmLunge && distance === attackerRange + 1 && rollChance(0.2 + speedDelta + attackerPassive.lungeBonus)) {
                     step = 2;
-                    await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(spearLunge, '突進')} で距離を詰めた！`);
+                    await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(polearmLunge, '突進')} で一気に詰めた！`);
                 }
             }
             distance = Math.max(1, distance - step);
             await sendLogToBoth(`${attacker.stats.DisplayName} は前進した！ (距離: ${distance})`);
         } else {
-            const defenderShieldSkill = defenderWeapons.has('shield') ? defenderPassive('shield') : null;
-            if (defenderShieldSkill && rollChance(0.22 + defenderSpeedDelta)) {
-                const knockStep = rollChance(0.35) ? 2 : 1;
+            const shieldKnockChance = 0.08 + defenderSpeedDelta + defenderPassive.knockbackBonus;
+            if (defenderWeapons.has('shield') && rollChance(shieldKnockChance)) {
+                const knockStep = rollChance(0.25 + defenderPassive.knockbackBonus) ? 2 : 1;
                 distance = Math.min(5, distance + knockStep);
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderShieldSkill, '盾の構え')} を発動！ ノックバック！ (距離: ${distance})`);
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getPassiveLabel(defenderSkills, 'shield', '盾の構え')} で弾き返した！ (距離: ${distance})`);
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
-            const defenderDaggerSkill = defenderWeapons.has('dagger') ? defenderPassive('dagger') : null;
-            if (defenderDaggerSkill && rollChance(0.2 + defenderSpeedDelta)) {
+            const evadeChance = 0.05 + defenderSpeedDelta + defenderPassive.evadeBonus;
+            if (defenderWeapons.has('dagger') && rollChance(evadeChance)) {
                 distance = Math.min(5, distance + 1);
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderDaggerSkill, '回避')} で攻撃をかわした！ (距離: ${distance})`);
+                await sendLogToBoth(`${defender.stats.DisplayName} は ${getPassiveLabel(defenderSkills, 'dagger', '回避')} で攻撃をかわした！ (距離: ${distance})`);
                 [attacker, defender] = [defender, attacker];
                 continue;
             }
 
-            const attackerGunPassive = attackerWeapons.has('gun') ? attackerPassive('gun') : null;
-            if (attackerGunPassive && distance + 1 <= attackerRange && rollChance(0.18 + speedDelta)) {
+            const repositionChance = 0.08 + speedDelta + attackerPassive.repositionBonus;
+            if (attackerWeapons.has('gun') && distance + 1 <= attackerRange && rollChance(repositionChance)) {
                 distance = Math.min(5, distance + 1);
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(attackerGunPassive, '距離調整')} で間合いを取った！ (距離: ${distance})`);
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getPassiveLabel(attackerSkills, 'gun', '間合い操作')} で距離を取った！ (距離: ${distance})`);
             }
 
             const attackerChargeSkill = attackerWeapons.has('staff') ? getSkillForWeapon(attackerSkills, 'staff', 'weapon', false) : null;
             const attackerState = skillState.get(attacker.id) || { charged: false };
-            if (!attackerState.charged && attackerChargeSkill && rollChance(0.18 + speedDelta)) {
-                const stepBack = rollChance(0.3) ? 2 : 1;
+            if (!attackerState.charged && attackerChargeSkill && rollChance(0.15 + speedDelta + attackerPassive.chargeBonus)) {
+                const stepBack = rollChance(0.25 + attackerPassive.chargeBonus) ? 2 : 1;
                 distance = Math.min(5, distance + stepBack);
                 attackerState.charged = true;
                 skillState.set(attacker.id, attackerState);
@@ -383,58 +449,43 @@ async function runBattle(playerA, playerB) {
             const skillPower = 1.0;
             const baseDamage = (weaponPower * skillPower) - enemyDefense;
             const multiplier = ((attacker.stats.ちから * attacker.stats.Level / 128) + 2);
-            let skillMultiplier = 1;
-            let defenseMultiplier = 1;
+            let skillMultiplier = attackerPassive.attackMultiplier;
+            let defenseMultiplier = defenderPassive.defenseMultiplier;
             if (attackerState.charged) {
-                skillMultiplier *= 1.4;
+                skillMultiplier *= 1.3 + attackerPassive.staffBonus;
                 attackerState.charged = false;
                 skillState.set(attacker.id, attackerState);
                 await sendLogToBoth(`${attacker.stats.DisplayName} の溜め攻撃！`);
             }
             const gunSkill = attackerWeapons.has('gun') ? getSkillForWeapon(attackerSkills, 'gun', 'weapon', false) : null;
-            if (gunSkill && distance >= 2 && rollChance(0.2 + 0.08 * (distance - 1) + speedDelta)) {
+            if (gunSkill && distance >= 2 && rollChance(0.18 + 0.08 * (distance - 1) + speedDelta + attackerPassive.gunBonus + attackerPassive.snipeBonus)) {
                 skillMultiplier *= 1.3;
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(gunSkill, '狙撃')} を発動！`);
             }
-            const spearSkill = attackerWeapons.has('spear') ? getSkillForWeapon(attackerSkills, 'spear', 'weapon', false) : null;
-            if (spearSkill && distance === 2 && rollChance(0.25 + speedDelta)) {
-                skillMultiplier *= 1.2;
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(spearSkill, '突刺し')} を発動！`);
+            const polearmSkill = attackerWeapons.has('polearm') ? getSkillForWeapon(attackerSkills, 'polearm', 'weapon', false) : null;
+            if (polearmSkill && distance === 2 && rollChance(0.2 + speedDelta + attackerPassive.polearmBonus + attackerPassive.lungeBonus)) {
+                skillMultiplier *= 1.22;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(polearmSkill, '突刺し')} を発動！`);
             }
             const daggerSkill = attackerWeapons.has('dagger') ? getSkillForWeapon(attackerSkills, 'dagger', 'weapon', false) : null;
-            if (daggerSkill && distance === 1 && rollChance(0.25 + speedDelta)) {
+            if (daggerSkill && distance === 1 && rollChance(0.22 + speedDelta + attackerPassive.daggerBonus)) {
                 skillMultiplier *= 1.25;
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(daggerSkill, '急所突き')} を発動！`);
             }
             const swordSkill = attackerWeapons.has('sword') ? getSkillForWeapon(attackerSkills, 'sword', 'weapon', false) : null;
-            if (swordSkill && distance === 1 && rollChance(0.2 + speedDelta)) {
+            if (swordSkill && distance === 1 && rollChance(0.18 + speedDelta + attackerPassive.swordBonus)) {
                 skillMultiplier *= 1.2;
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(swordSkill, '連撃')} を発動！`);
             }
             const axeSkill = attackerWeapons.has('axe') ? getSkillForWeapon(attackerSkills, 'axe', 'weapon', false) : null;
-            if (axeSkill && distance === 1 && rollChance(0.2 + speedDelta)) {
+            if (axeSkill && distance === 1 && rollChance(0.18 + speedDelta + attackerPassive.axeBonus)) {
                 skillMultiplier *= 1.25;
                 await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(axeSkill, '強撃')} を発動！`);
             }
-            const axePassive = attackerWeapons.has('axe') ? attackerPassive('axe') : null;
-            if (axePassive && rollChance(0.15 + speedDelta)) {
-                skillMultiplier *= 1.15;
-                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(axePassive, '猛攻')} で勢いを増した！`);
-            }
-            const defenderSwordSkill = defenderWeapons.has('sword') ? defenderPassive('sword') : null;
-            if (defenderSwordSkill && rollChance(0.18 + defenderSpeedDelta)) {
-                defenseMultiplier *= 0.8;
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderSwordSkill, '受け流し')} で被害を抑えた！`);
-            }
-            const defenderStaffSkill = defenderWeapons.has('staff') ? defenderPassive('staff') : null;
-            if (defenderStaffSkill && rollChance(0.2 + defenderSpeedDelta)) {
-                defenseMultiplier *= 0.7;
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderStaffSkill, '障壁')} でダメージを軽減した！`);
-            }
-            const defenderAxeSkill = defenderWeapons.has('axe') ? defenderPassive('axe') : null;
-            if (defenderAxeSkill && rollChance(0.16 + defenderSpeedDelta)) {
-                defenseMultiplier *= 0.85;
-                await sendLogToBoth(`${defender.stats.DisplayName} は ${getSkillLabel(defenderAxeSkill, '耐え構え')} で踏みとどまった！`);
+            const bluntSkill = attackerWeapons.has('blunt') ? getSkillForWeapon(attackerSkills, 'blunt', 'weapon', false) : null;
+            if (bluntSkill && distance === 1 && rollChance(0.18 + speedDelta + attackerPassive.bluntBonus)) {
+                skillMultiplier *= 1.18;
+                await sendLogToBoth(`${attacker.stats.DisplayName} は ${getSkillLabel(bluntSkill, '粉砕撃')} を発動！`);
             }
             // ダメージ計算結果がマイナスにならないようにし、最低でも1ダメージは保証する
             const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier * skillMultiplier * defenseMultiplier));
