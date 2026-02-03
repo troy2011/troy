@@ -257,6 +257,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.ghostShip = null;
         this.ghostShipTween = null;
         this.ghostShipCheckTimer = null;
+        this.ghostShipVelocity = null;
+        this.ghostShipSpeed = 18;
 
         this.constructionSprites = [];
         this.constructionUnsubscribe = null;
@@ -325,15 +327,11 @@ export default class WorldMapScene extends Phaser.Scene {
         sprite.__isGhost = true;
         this.ghostShip = sprite;
         this.ignoreOnUiCamera(sprite);
-        const bobDistance = 6;
-        this.ghostShipTween = this.tweens.add({
-            targets: sprite,
-            y: y - bobDistance,
-            duration: 2200,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        const angle = Phaser.Math.DegToRad(Phaser.Math.Between(0, 359));
+        this.ghostShipVelocity = {
+            x: Math.cos(angle) * this.ghostShipSpeed,
+            y: Math.sin(angle) * this.ghostShipSpeed
+        };
     }
 
     removeGhostShip() {
@@ -345,6 +343,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.ghostShip.destroy();
             this.ghostShip = null;
         }
+        this.ghostShipVelocity = null;
     }
 
     refreshGhostShipByTime() {
@@ -353,6 +352,53 @@ export default class WorldMapScene extends Phaser.Scene {
         } else {
             this.removeGhostShip();
         }
+    }
+
+    updateGhostShip(deltaMs) {
+        if (!this.ghostShip || !this.ghostShipVelocity) return;
+        const dt = Math.max(0, Number(deltaMs || 0)) / 1000;
+        if (!dt) return;
+        const sprite = this.ghostShip;
+        const margin = this.TILE_SIZE * 3;
+        let nextX = sprite.x + this.ghostShipVelocity.x * dt;
+        let nextY = sprite.y + this.ghostShipVelocity.y * dt;
+        const minX = margin;
+        const minY = margin;
+        const maxX = this.mapPixelSize - margin;
+        const maxY = this.mapPixelSize - margin;
+        if (nextX <= minX || nextX >= maxX) {
+            this.ghostShipVelocity.x *= -1;
+            nextX = Phaser.Math.Clamp(nextX, minX, maxX);
+        }
+        if (nextY <= minY || nextY >= maxY) {
+            this.ghostShipVelocity.y *= -1;
+            nextY = Phaser.Math.Clamp(nextY, minY, maxY);
+        }
+        const buffer = this.TILE_SIZE * 2;
+        if (this.islandObjects && this.islandObjects.size > 0) {
+            for (const island of this.islandObjects.values()) {
+                const left = island.x - buffer;
+                const right = island.x + island.width + buffer;
+                const top = island.y - buffer;
+                const bottom = island.y + island.height + buffer;
+                if (nextX >= left && nextX <= right && nextY >= top && nextY <= bottom) {
+                    const distLeft = Math.abs(nextX - left);
+                    const distRight = Math.abs(right - nextX);
+                    const distTop = Math.abs(nextY - top);
+                    const distBottom = Math.abs(bottom - nextY);
+                    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+                    if (minDist === distLeft || minDist === distRight) {
+                        this.ghostShipVelocity.x *= -1;
+                    } else {
+                        this.ghostShipVelocity.y *= -1;
+                    }
+                    nextX = sprite.x + this.ghostShipVelocity.x * dt;
+                    nextY = sprite.y + this.ghostShipVelocity.y * dt;
+                    break;
+                }
+            }
+        }
+        sprite.setPosition(nextX, nextY);
     }
 
     init(data) {
@@ -3892,6 +3938,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.clearCollidingIslandWhenFar();
         this.updateShipActionEffects();
         this.updateShipActionUi();
+        this.updateGhostShip(this.game?.loop?.delta || 0);
     }
 
     checkMapEdgeTransition() {
