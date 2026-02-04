@@ -104,13 +104,13 @@ const QUEST_CONTENT_MAP = {
                 { name: 'ミニボーラード二連', detail: 'ミニボーラードで6個取り切りを2回連続で成功できれば達成' }
             ],
             [
-                { name: '交互センター', detail: '押し玉→引き玉→押し玉の順にセンターショットを3回チャレンジして全て成功できれば達成' },
-                { name: '交互センター改', detail: '引き玉→押し玉→引き玉の順にセンターショットを3回チャレンジして全て成功できれば達成' },
+                { name: '押し玉三連', detail: '押し玉(フォロー)でセンターショットを3回チャレンジして全て成功できれば達成' },
+                { name: '引き玉三連', detail: '引き玉(ドロー)でセンターショットを3回チャレンジして全て成功できれば達成' },
                 { name: 'ミニボーラード二連無傷', detail: 'ミニボーラードで6個取り切りを2回連続ノーミスで成功できれば達成' }
             ],
             [
-                { name: '交互センター極', detail: '押し玉→引き玉→押し玉の順にセンターショットを3回チャレンジして全て成功できれば達成' },
-                { name: '交互センター極改', detail: '引き玉→押し玉→引き玉の順にセンターショットを3回チャレンジして全て成功できれば達成' },
+                { name: '押し玉三連・極', detail: '押し玉(フォロー)でセンターショットを3回チャレンジして全て成功を2セット達成できれば成功' },
+                { name: '引き玉三連・極', detail: '引き玉(ドロー)でセンターショットを3回チャレンジして全て成功を2セット達成できれば成功' },
                 { name: 'ミニボーラード極', detail: 'ミニボーラードで6個取り切りを3回連続ノーミスで成功できれば達成' }
             ]
         ],
@@ -149,33 +149,33 @@ const QUEST_CONTENT_MAP = {
         'ダーツ': [
             [
                 { name: '初級アニマル', detail: 'ANIMAL BATTLE(vs CPU)でカバに勝利できれば成功' },
+                { name: '宝箱の探り', detail: 'TREASURE HUNTで合計300点以上なら成功' },
+                { name: 'KICK DOWN入門', detail: 'KICK DOWNで301をぴったりにしてクリアできれば成功' }
+            ],
+            [
                 { name: '草原の一騎', detail: 'ANIMAL BATTLE(vs CPU)でキリンに勝利できれば成功' },
-                { name: '湿地の一撃', detail: 'ANIMAL BATTLE(vs CPU)でワニに勝利できれば成功' }
+                { name: '宝箱の回収', detail: 'TREASURE HUNTで合計500点以上なら成功' },
+                { name: 'KICK DOWN精度', detail: 'KICK DOWNで501をぴったりにしてクリアできれば成功' }
+            ],
+            [
+                { name: '湿地の一撃', detail: 'ANIMAL BATTLE(vs CPU)でワニに勝利できれば成功' },
+                { name: '宝の積算', detail: 'TREASURE HUNTで合計800点以上なら成功' },
+                { name: 'KICK DOWN短縮', detail: 'KICK DOWNで301を10ラウンド以内にぴったりでクリアできれば成功' }
             ],
             [
                 { name: '密林の覇者', detail: 'ANIMAL BATTLE(vs CPU)でタイガーに勝利できれば成功' },
+                { name: '宝の連携', detail: 'TREASURE HUNTで合計1100点以上なら成功' },
+                { name: 'KICK DOWN緊張', detail: 'KICK DOWNで501を12ラウンド以内にぴったりでクリアできれば成功' }
+            ],
+            [
                 { name: '巨体の壁', detail: 'ANIMAL BATTLE(vs CPU)でゾウに勝利できれば成功' },
-                { name: '王の咆哮', detail: 'ANIMAL BATTLE(vs CPU)でライオンに勝利できれば成功' }
+                { name: '宝の高積み', detail: 'TREASURE HUNTで合計1400点以上なら成功' },
+                { name: 'KICK DOWN極短', detail: 'KICK DOWNで501を9ラウンド以内にぴったりでクリアできれば成功' }
             ],
             [
-                { name: '白虎の試練', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに勝利できれば成功' },
-                { name: '桃の巨獣', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに勝利できれば成功' },
-                { name: '黒獅子の牙', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに勝利できれば成功' }
-            ],
-            [
-                { name: '白虎連戦', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに2連勝できれば成功' },
-                { name: '桃の連戦', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに2連勝できれば成功' },
-                { name: '黒獅子連戦', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに2連勝できれば成功' }
-            ],
-            [
-                { name: '白虎三連', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに3連勝できれば成功' },
-                { name: '桃の三連', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに3連勝できれば成功' },
-                { name: '黒獅子三連', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに3連勝できれば成功' }
-            ],
-            [
-                { name: '白虎四連', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに4連勝できれば成功' },
-                { name: '桃の四連', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに4連勝できれば成功' },
-                { name: '黒獅子四連', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに4連勝できれば成功' }
+                { name: '王の咆哮', detail: 'ANIMAL BATTLE(vs CPU)でライオンに勝利できれば成功' },
+                { name: '宝の極致', detail: 'TREASURE HUNTで合計1700点以上なら成功' },
+                { name: 'KICK DOWN極', detail: 'KICK DOWNで501を8ラウンド以内にぴったりでクリアできれば成功' }
             ]
         ],
         'トランプ': [
