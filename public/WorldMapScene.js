@@ -114,24 +114,24 @@ const BIOME_ID_BY_JP = {
 
 const SHIP_ACTIONS = {
     ship_human_fighter: { type: 'fighter', label: '火炎噴射', emoji: ['🔥', '🌪️'], rangeTiles: 5, angle: 70, damage: 320, effect: 'flame_cone', cooldownMs: 55_000 },
-    ship_elf_fighter: { type: 'fighter', label: '爆雷', emoji: ['🧨', '💥'], radiusTiles: 4, damage: 360, cooldownMs: 65_000 },
+    ship_elf_fighter: { type: 'fighter', label: '爆雷', emoji: ['🧨', '💥'], radiusTiles: 4, damage: 360, effect: 'arcane_blast', cooldownMs: 65_000 },
     ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 50, damage: 380, effect: 'drill_burst', cooldownMs: 50_000 },
     ship_orc_fighter: { type: 'fighter', label: '大砲', emoji: ['💣', '💥'], rangeTiles: 6, angle: 35, damage: 400, effect: 'cannon_shot', cooldownMs: 75_000 },
 
-    ship_human_defender: { type: 'defender', label: '守護砲', emoji: ['🛡️', '🧱'], rangeTiles: 5, damage: 520, cooldownMs: 55_000 },
-    ship_elf_defender: { type: 'defender', label: '守護光', emoji: ['✨', '🛡️'], rangeTiles: 6, damage: 560, cooldownMs: 60_000 },
-    ship_goblin_defender: { type: 'defender', label: '掘削衝撃', emoji: ['🪨', '💥'], rangeTiles: 4, damage: 600, cooldownMs: 65_000 },
-    ship_orc_defender: { type: 'defender', label: '鋼壁砲', emoji: ['🛡️', '💥'], rangeTiles: 5, damage: 640, cooldownMs: 75_000 },
+    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', emoji: ['💣', '💥'], rangeTiles: 5, angle: 70, damage: 320, effect: 'broadside', cooldownMs: 60_000 },
+    ship_elf_defender: { type: 'defender_shield', label: '守護光', emoji: ['✨', '🛡️'], radiusTiles: 6, shieldRadiusTiles: 6, shieldDurationMs: 9000, shieldFactor: 0.65, effect: 'shield', cooldownMs: 60_000 },
+    ship_goblin_defender: { type: 'defender_shield', label: '防壁展開', emoji: ['🪨', '🛡️'], radiusTiles: 5, shieldRadiusTiles: 5, shieldDurationMs: 8000, shieldFactor: 0.6, effect: 'shield', cooldownMs: 65_000 },
+    ship_orc_defender: { type: 'defender_shield', label: '鋼壁陣', emoji: ['🛡️', '⚙️'], radiusTiles: 6, shieldRadiusTiles: 6, shieldDurationMs: 10000, shieldFactor: 0.55, effect: 'shield', cooldownMs: 75_000 },
 
-    ship_human_merchant: { type: 'merchant', label: '交易煙幕', emoji: ['💨', '🪙'], durationMs: 4000, cooldownMs: 55_000 },
-    ship_elf_merchant: { type: 'merchant', label: '幻惑', emoji: ['🦋', '✨'], durationMs: 4500, cooldownMs: 65_000 },
-    ship_goblin_merchant: { type: 'merchant', label: '煙突投下', emoji: ['🧯', '💨'], durationMs: 3500, cooldownMs: 50_000 },
-    ship_orc_merchant: { type: 'merchant', label: '濁流隠れ', emoji: ['🌫️', '💧'], durationMs: 4200, cooldownMs: 70_000 },
+    ship_human_merchant: { type: 'merchant', label: '交易煙幕', emoji: ['💨', '🪙'], durationMs: 4500, radiusTiles: 4, jamDurationMs: 4500, effect: 'jam', cooldownMs: 55_000 },
+    ship_elf_merchant: { type: 'merchant', label: '幻惑', emoji: ['🦋', '✨'], durationMs: 4500, radiusTiles: 5, jamDurationMs: 5000, effect: 'jam', cooldownMs: 65_000 },
+    ship_goblin_merchant: { type: 'merchant', label: '煙突投下', emoji: ['🧯', '💨'], durationMs: 3800, radiusTiles: 4, jamDurationMs: 4200, effect: 'jam', cooldownMs: 50_000 },
+    ship_orc_merchant: { type: 'merchant', label: '濁流隠れ', emoji: ['🌫️', '💧'], durationMs: 4200, radiusTiles: 5, jamDurationMs: 4800, effect: 'jam', cooldownMs: 70_000 },
 
-    ship_human_explorer: { type: 'explorer', label: '帆走加速', emoji: ['⛵', '💨'], durationMs: 4000, speedMultiplier: 1.5, cooldownMs: 55_000 },
-    ship_elf_explorer: { type: 'explorer', label: '風読み', emoji: ['🍃', '🌟'], durationMs: 3500, speedMultiplier: 1.6, cooldownMs: 60_000 },
-    ship_goblin_explorer: { type: 'explorer', label: '機関加速', emoji: ['⚙️', '💨'], durationMs: 3000, speedMultiplier: 1.7, cooldownMs: 65_000 },
-    ship_orc_explorer: { type: 'explorer', label: '踏破突進', emoji: ['🐗', '💨'], durationMs: 3000, speedMultiplier: 1.6, cooldownMs: 60_000 }
+    ship_human_explorer: { type: 'explorer', label: '帆走加速', emoji: ['⛵', '💨'], durationMs: 4500, speedMultiplier: 1.5, decoyCount: 1, decoyOffsetTiles: 3, cooldownMs: 55_000 },
+    ship_elf_explorer: { type: 'explorer', label: '風読み', emoji: ['🍃', '🌟'], durationMs: 3800, speedMultiplier: 1.6, decoyCount: 1, decoyOffsetTiles: 3, cooldownMs: 60_000 },
+    ship_goblin_explorer: { type: 'explorer', label: '機関加速', emoji: ['⚙️', '💨'], durationMs: 3400, speedMultiplier: 1.7, decoyCount: 1, decoyOffsetTiles: 4, cooldownMs: 65_000 },
+    ship_orc_explorer: { type: 'explorer', label: '踏破突進', emoji: ['🐗', '💨'], durationMs: 3400, speedMultiplier: 1.6, decoyCount: 1, decoyOffsetTiles: 4, cooldownMs: 60_000 }
 };
 
 const ISLAND_AUTO_ATTACK_CONFIG = {
@@ -207,6 +207,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionCooldownUntil = 0;
         this.shipActionSpeedBoostUntil = 0;
         this.shipActionInvisibleUntil = 0;
+        this.shipActionJammedUntil = 0;
         this.shipActionUiLastUpdate = 0;
         this.shipActionActive = false;
         this.shipActionButton = null;
@@ -2261,9 +2262,9 @@ export default class WorldMapScene extends Phaser.Scene {
         const byItem = SHIP_ACTIONS[itemId] || (friendlyId ? SHIP_ACTIONS[friendlyId] : null);
         if (byItem) return { ...byItem };
         const shipClass = this.playerShipClass;
-        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'] };
-        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['💨'] };
-        if (shipClass === 'defender') return { type: 'defender', label: 'Defender', emoji: ['🛡️'] };
+        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'], durationMs: 4000, speedMultiplier: 1.4 };
+        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['💨'], durationMs: 4000, radiusTiles: 4, jamDurationMs: 4000, effect: 'jam' };
+        if (shipClass === 'defender') return { type: 'defender_shield', label: 'Defender', emoji: ['🛡️'], radiusTiles: 5, shieldRadiusTiles: 5, shieldDurationMs: 7000, shieldFactor: 0.65, effect: 'shield' };
         if (shipClass === 'fighter') return { type: 'fighter', label: 'Fighter', emoji: ['⚔️'], rangeTiles: 5, angle: 50, damage: 300 };
         return { type: 'none', label: 'None' };
     }
@@ -2283,7 +2284,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const actionInfo = this.getShipActionType();
         const cooldownRemaining = Math.max(0, this.shipActionCooldownUntil - now);
-        const canUse = cooldownRemaining <= 0 && actionInfo.type !== 'none';
+        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
+        const canUse = cooldownRemaining <= 0 && jamRemaining <= 0 && actionInfo.type !== 'none';
 
         this.shipActionButton.disabled = !canUse;
         this.shipActionButton.textContent = actionInfo.type === 'none' ? 'No Action' : 'Action';
@@ -2293,7 +2295,10 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        if (cooldownRemaining > 0) {
+        if (jamRemaining > 0) {
+            const seconds = Math.ceil(jamRemaining / 1000);
+            this.shipActionStatus.textContent = `妨害中 (${seconds}s)`;
+        } else if (cooldownRemaining > 0) {
             const seconds = Math.ceil(cooldownRemaining / 1000);
             this.shipActionStatus.textContent = `Cooldown ${seconds}s`;
         } else {
@@ -2368,13 +2373,22 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage(`クールダウン中 (${seconds}s)`);
             return;
         }
+        if (now < this.shipActionJammedUntil) {
+            const seconds = Math.ceil((this.shipActionJammedUntil - now) / 1000);
+            this.showMessage(`妨害中 (${seconds}s)`);
+            return;
+        }
 
         if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
             this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16);
         }
-        if (actionInfo.type !== 'defender') {
-            this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
+        const eventInfo = { ...actionInfo };
+        if (actionInfo.type === 'defender_shield') {
+            eventInfo.radiusTiles = Number(actionInfo.shieldRadiusTiles) || Number(actionInfo.radiusTiles) || null;
+            eventInfo.effect = 'shield';
+            eventInfo.shieldDurationMs = Number(actionInfo.shieldDurationMs) || null;
         }
+        this.emitShipActionEvent(eventInfo, this.playerShip.x, this.playerShip.y);
 
         if (actionInfo.type === 'explorer') {
             const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
@@ -2382,12 +2396,13 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipActionSpeedBoostUntil = now + duration;
             this.shipSpeed = Math.max(1, this.shipBaseSpeed * multiplier);
             this.showMessage(`${actionInfo.label || '速度上昇'}!`);
+            this.spawnExplorerDecoys(actionInfo);
         } else if (actionInfo.type === 'merchant') {
             const duration = Number(actionInfo.durationMs) || GAME_CONFIG.SHIP_ACTION_DURATION_MS;
             this.shipActionInvisibleUntil = now + duration;
             this.setPlayerShipInvisible(true);
             this.showMessage(`${actionInfo.label || '姿を消しました'}`);
-        } else if (actionInfo.type === 'defender') {
+        } else if (actionInfo.type === 'defender' || actionInfo.type === 'defender_shield' || actionInfo.type === 'defender_broadside') {
             this.applyDefenderAction(actionInfo);
         } else if (actionInfo.type === 'fighter') {
             this.applyFighterAction(actionInfo);
@@ -2421,7 +2436,12 @@ export default class WorldMapScene extends Phaser.Scene {
     getTargetsInCone(rangePx, angleDeg) {
         if (!this.playerShip) return [];
         const origin = { x: this.playerShip.x, y: this.playerShip.y };
-        const facing = this.getPlayerFacingVector();
+        const heading = this.getFacingAngleRad();
+        return this.getTargetsInConeAt(origin, heading, rangePx, angleDeg);
+    }
+
+    getTargetsInConeAt(origin, headingRad, rangePx, angleDeg) {
+        const facing = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
         const cosThreshold = Math.cos(Phaser.Math.DegToRad(angleDeg / 2));
         const targets = [];
         this.otherShips.forEach((shipObject, otherId) => {
@@ -2482,6 +2502,60 @@ export default class WorldMapScene extends Phaser.Scene {
         } catch (e) {
             console.warn('[ShipAction] Damage request failed:', e);
             this.showMessage('攻撃に失敗しました');
+        }
+    }
+
+    async applyShipActionShield(targets, durationMs, shieldFactor) {
+        if (!targets.length) {
+            this.showMessage('味方がいません');
+            return;
+        }
+        const shieldDuration = Math.max(0, Number(durationMs) || 0);
+        if (shieldDuration <= 0) {
+            this.showMessage('守護時間がありません');
+            return;
+        }
+        const factorRaw = Number.isFinite(Number(shieldFactor)) ? Number(shieldFactor) : 0.6;
+        const factor = Math.min(1, Math.max(0.2, factorRaw));
+        try {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/ship-action-shield') : '/api/ship-action-shield'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    attackerId: this.playerInfo.playFabId,
+                    targets: targets.map(t => t.playFabId),
+                    durationMs: shieldDuration,
+                    shieldFactor: factor
+                })
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.success) {
+                this.showMessage('守護に失敗しました');
+            }
+        } catch (e) {
+            console.warn('[ShipAction] Shield request failed:', e);
+            this.showMessage('守護に失敗しました');
+        }
+    }
+
+    spawnExplorerDecoys(actionInfo = {}) {
+        if (!this.playerShip) return;
+        const count = Math.max(0, Number(actionInfo.decoyCount) || 0);
+        if (count <= 0) return;
+        const offsetTiles = Math.max(1, Number(actionInfo.decoyOffsetTiles) || 3);
+        const offsetPx = offsetTiles * this.TILE_SIZE;
+        const decoyInfo = {
+            type: actionInfo.type,
+            label: actionInfo.label,
+            emoji: ['💨', '❓'],
+            effect: 'decoy'
+        };
+        for (let i = 0; i < count; i += 1) {
+            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            const dist = Phaser.Math.FloatBetween(offsetPx * 0.6, offsetPx);
+            const x = this.playerShip.x + Math.cos(angle) * dist;
+            const y = this.playerShip.y + Math.sin(angle) * dist;
+            this.emitShipActionEvent(decoyInfo, x, y);
         }
     }
 
@@ -2615,67 +2689,71 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     async applyDefenderAction(actionInfo = {}) {
-        if (!this.playerShip || !this.firestore) return;
-        const facing = this.getPlayerFacingVector();
-        const range = this.TILE_SIZE * Math.max(1, Number(actionInfo.rangeTiles) || 5);
-        let closest = null;
+        if (!this.playerShip) return;
+        if (actionInfo.type === 'defender_broadside') {
+            this.applyDefenderBroadsideAction(actionInfo);
+            return;
+        }
+        await this.applyDefenderShieldAction(actionInfo);
+    }
 
-        this.islandObjects.forEach((islandData) => {
-            const centerX = islandData.x + islandData.width / 2;
-            const centerY = islandData.y + islandData.height / 2;
-            const dx = centerX - this.playerShip.x;
-            const dy = centerY - this.playerShip.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist > range || dist <= 0) return;
-            const dot = (dx / dist) * facing.x + (dy / dist) * facing.y;
-            if (dot < 0.5) return;
-            if (!closest || dist < closest.distance) {
-                closest = { id: islandData.id, distance: dist };
+    applyDefenderBroadsideAction(actionInfo = {}) {
+        if (!this.playerShip) return;
+        const tile = this.TILE_SIZE;
+        const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
+        const angle = Number(actionInfo?.angle) || 60;
+        const damage = Number(actionInfo?.damage) || 280;
+        const origin = { x: this.playerShip.x, y: this.playerShip.y };
+        const heading = this.getFacingAngleRad();
+        const leftHeading = heading - Math.PI / 2;
+        const rightHeading = heading + Math.PI / 2;
+        const leftTargets = this.getTargetsInConeAt(origin, leftHeading, range, angle);
+        const rightTargets = this.getTargetsInConeAt(origin, rightHeading, range, angle);
+        const targetMap = new Map();
+        [...leftTargets, ...rightTargets].forEach((target) => {
+            if (!target || !target.playFabId) return;
+            const existing = targetMap.get(target.playFabId);
+            if (!existing || target.distance < existing.distance) {
+                targetMap.set(target.playFabId, target);
             }
         });
+        const targets = Array.from(targetMap.values());
+        this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, 0xffd34d);
+        this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, 0xffd34d);
+        this.playCannonShot(origin.x, origin.y, range, leftHeading);
+        this.playCannonShot(origin.x, origin.y, range, rightHeading);
+        this.applyShipActionDamage(targets, damage);
+    }
 
-        if (!closest) {
-            this.showMessage('対象の島がありません');
+    async applyDefenderShieldAction(actionInfo = {}) {
+        if (!this.playerShip || !this.playerInfo?.playFabId) return;
+        const radiusTiles = Number(actionInfo?.shieldRadiusTiles) || Number(actionInfo?.radiusTiles) || 0;
+        const durationMs = Number(actionInfo?.shieldDurationMs) || 7000;
+        const shieldFactor = Number(actionInfo?.shieldFactor);
+        if (!Number.isFinite(radiusTiles) || radiusTiles <= 0) {
+            this.showMessage('守護範囲がありません');
             return;
         }
+        const radiusPx = radiusTiles * this.TILE_SIZE;
+        const myNation = String(this.playerInfo?.nation || this.playerInfo?.Nation || '').toLowerCase();
+        const targets = [];
+        this.otherShips.forEach((shipObject, otherId) => {
+            const sprite = shipObject?.sprite;
+            if (!sprite) return;
+            const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, sprite.x, sprite.y);
+            if (dist > radiusPx) return;
+            const otherNation = String(shipObject?.data?.nation || shipObject?.data?.Nation || sprite.__ownerNation || '').toLowerCase();
+            if (myNation && otherNation && myNation !== otherNation) return;
+            targets.push({ playFabId: otherId });
+        });
+        targets.push({ playFabId: this.playerInfo.playFabId });
 
-        const { doc, getDoc, updateDoc } = await import('firebase/firestore');
-        const islandRef = doc(this.firestore, this.getWorldMapCollectionName(), closest.id);
-        const snap = await getDoc(islandRef);
-        if (!snap.exists()) {
-            this.showMessage('島が見つかりません');
-            return;
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radiusPx, 0x7be495);
+        if (Array.isArray(actionInfo?.emoji) && actionInfo.emoji.length > 0) {
+            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 14);
         }
-        const data = snap.data() || {};
-        const islandData = this.islandObjects?.get(closest.id);
-        const centerX = islandData
-            ? islandData.x + islandData.width / 2
-            : (Number(data.coordinate?.x) * this.gridSize);
-        const centerY = islandData
-            ? islandData.y + islandData.height / 2
-            : (Number(data.coordinate?.y) * this.gridSize);
-        const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
-        const idx = buildings.findIndex(b => b && b.status !== 'demolished');
-        if (idx === -1) {
-            this.showMessage('建物がありません');
-            return;
-        }
-
-        const damage = Number(actionInfo.damage) || 600;
-        const b = buildings[idx];
-        const maxHp = Number(b.maxHp) || 0;
-        const current = Number.isFinite(Number(b.currentHp)) ? Number(b.currentHp) : maxHp;
-        const next = Math.max(0, current - damage);
-        buildings[idx] = { ...b, currentHp: next };
-        await updateDoc(islandRef, { buildings });
-        await this.reloadIslandFromFirestore(closest.id);
-        this.showMessage(`${actionInfo.label || '建物に大ダメージ'}`);
-        if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
-            if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
-                this.playEmojiBurst(actionInfo.emoji, centerX, centerY - 10);
-            }
-            this.emitShipActionEvent(actionInfo, centerX, centerY);
-        }
+        await this.applyShipActionShield(targets, durationMs, shieldFactor);
+        this.showMessage(`${actionInfo.label || '守護'}を展開`);
     }
 
     async damageBuildingOnIsland(islandId, damage = 300) {
@@ -3188,14 +3266,14 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius);
     }
 
-    playActionCircleEffectAt(x, y, radius) {
+    playActionCircleEffectAt(x, y, radius, color = 0x7bdff2) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         const graphics = this.add.graphics();
         graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.ignoreOnUiCamera(graphics);
-        graphics.lineStyle(2, 0x7bdff2, 0.6);
+        graphics.lineStyle(2, color, 0.6);
         graphics.strokeCircle(x, y, radius);
-        graphics.fillStyle(0x7bdff2, 0.12);
+        graphics.fillStyle(color, 0.12);
         graphics.fillCircle(x, y, radius);
         this.time.delayedCall(240, () => graphics.destroy());
     }
@@ -3288,12 +3366,15 @@ export default class WorldMapScene extends Phaser.Scene {
             type: actionInfo?.type || null,
             label: actionInfo?.label || null,
             emojis: Array.isArray(actionInfo?.emoji) ? actionInfo.emoji : [],
+            effect: actionInfo?.effect || null,
             x: Number(x),
             y: Number(y),
             rangeTiles: Number(actionInfo?.rangeTiles) || null,
             radiusTiles: Number(actionInfo?.radiusTiles) || null,
             angle: Number(actionInfo?.angle) || null,
             heading: this.getFacingAngleRad(),
+            jamDurationMs: Number(actionInfo?.jamDurationMs) || null,
+            shieldDurationMs: Number(actionInfo?.shieldDurationMs) || null,
             createdAt: Date.now()
         };
         try {
@@ -3337,12 +3418,29 @@ export default class WorldMapScene extends Phaser.Scene {
                 const y = Number(data.y);
                 if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
+                const effect = String(data.effect || '').toLowerCase();
                 if (Array.isArray(data.emojis) && data.emojis.length > 0) {
                     this.playEmojiBurst(data.emojis, x, y - 12);
                 }
                 if (Number.isFinite(Number(data.radiusTiles))) {
                     const radius = this.TILE_SIZE * Number(data.radiusTiles);
-                    this.playActionCircleEffectAt(x, y, radius);
+                    const color = effect === 'shield'
+                        ? 0x7be495
+                        : effect === 'jam'
+                            ? 0xb18cff
+                            : 0x7bdff2;
+                    this.playActionCircleEffectAt(x, y, radius, color);
+                    if (effect === 'jam' && this.playerShip) {
+                        const dist = Phaser.Math.Distance.Between(this.playerShip.x, this.playerShip.y, x, y);
+                        if (dist <= radius) {
+                            const jamDuration = Number(data.jamDurationMs) || 0;
+                            if (jamDuration > 0) {
+                                const until = Date.now() + jamDuration;
+                                this.shipActionJammedUntil = Math.max(this.shipActionJammedUntil, until);
+                                this.showMessage('妨害された...');
+                            }
+                        }
+                    }
                 } else if (Number.isFinite(Number(data.rangeTiles)) && Number.isFinite(Number(data.angle))) {
                     const range = this.TILE_SIZE * Number(data.rangeTiles);
                     const heading = Number(data.heading) || 0;

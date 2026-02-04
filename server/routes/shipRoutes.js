@@ -899,7 +899,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 }
 
                 const defenderSummary = await shipsCollection.doc(targetId).get();
-                const defenderShipId = defenderSummary.exists ? defenderSummary.data()?.shipId : null;
+                const defenderSummaryData = defenderSummary.exists ? (defenderSummary.data() || {}) : {};
+                const defenderShipId = defenderSummaryData.shipId || null;
                 if (!defenderShipId) {
                     results.push({ playFabId: targetId, error: 'Active ship not found' });
                     continue;
@@ -918,7 +919,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 const defenderShipData = JSON.parse(defenderShipDataRaw);
                 const defenderMaxHp = Number(defenderShipData?.Stats?.MaxHP) || 0;
                 const defenderHp = Number(defenderShipData?.Stats?.CurrentHP);
-                const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - damageValue);
+                const shieldUntil = Number(defenderSummaryData.shieldUntil) || 0;
+                const shieldFactor = Number(defenderSummaryData.shieldFactor);
+                const shieldActive = shieldUntil > Date.now()
+                    && Number.isFinite(shieldFactor)
+                    && shieldFactor > 0
+                    && shieldFactor < 1;
+                const appliedDamage = shieldActive
+                    ? Math.max(1, Math.round(damageValue * shieldFactor))
+                    : damageValue;
+                const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - appliedDamage);
                 const defenderRespawn = nextDefenderHp <= 0;
 
                 defenderShipData.Stats = defenderShipData.Stats || {};
@@ -934,7 +944,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     playFabId: targetId,
                     shipId: defenderShipId,
                     hp: defenderShipData.Stats.CurrentHP,
-                    damageTaken: damageValue,
+                    damageTaken: appliedDamage,
+                    shielded: shieldActive,
+                    shieldFactor: shieldActive ? shieldFactor : null,
                     respawned: defenderRespawn,
                     respawnPosition: respawnResult || null
                 });
@@ -948,6 +960,70 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         } catch (error) {
             console.error('[ShipActionDamage] Error:', error);
             return res.status(500).json({ error: 'Failed to apply ship action damage', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: Ship action shield (ally protection)
+     * POST /api/ship-action-shield
+     */
+    app.post('/api/ship-action-shield', async (req, res) => {
+        const { attackerId, targets, durationMs, shieldFactor } = req.body || {};
+        if (!attackerId || !Array.isArray(targets) || targets.length === 0) {
+            return res.status(400).json({ error: 'attackerId and targets are required' });
+        }
+        const durationValue = Number(durationMs);
+        if (!Number.isFinite(durationValue) || durationValue <= 0) {
+            return res.status(400).json({ error: 'durationMs must be a positive number' });
+        }
+        const factorRaw = Number.isFinite(Number(shieldFactor)) ? Number(shieldFactor) : 0.6;
+        const factorValue = Math.min(1, Math.max(0.2, factorRaw));
+
+        try {
+            const attackerNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: attackerId,
+                Keys: ['Nation']
+            });
+            const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+            const shieldUntil = Date.now() + durationValue;
+
+            const results = [];
+            for (const targetId of targets) {
+                if (!targetId) continue;
+                if (targetId === attackerId) {
+                    await shipsCollection.doc(targetId).set({
+                        shieldUntil,
+                        shieldFactor: factorValue,
+                        shieldSource: attackerId,
+                        shieldUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    results.push({ playFabId: targetId, shieldUntil, shieldFactor: factorValue });
+                    continue;
+                }
+
+                const defenderNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: targetId,
+                    Keys: ['Nation']
+                });
+                const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+                if (attackerNation && defenderNation && attackerNation !== defenderNation) {
+                    results.push({ playFabId: targetId, skipped: true, reason: 'different_nation' });
+                    continue;
+                }
+
+                await shipsCollection.doc(targetId).set({
+                    shieldUntil,
+                    shieldFactor: factorValue,
+                    shieldSource: attackerId,
+                    shieldUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                results.push({ playFabId: targetId, shieldUntil, shieldFactor: factorValue });
+            }
+
+            return res.json({ success: true, results });
+        } catch (error) {
+            console.error('[ShipActionShield] Error:', error);
+            return res.status(500).json({ error: 'Failed to apply ship action shield', details: error.errorMessage || error.message });
         }
     });
 
