@@ -19,6 +19,16 @@ const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId } = requir
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 const { invalidateMapCache } = require('./islandEffects');
 
+const RESOURCE_BIOME_JP = {
+    '火山': 'volcanic',
+    '岩場': 'rocky',
+    'キノコ': 'mushroom',
+    '湖': 'lake',
+    '森林': 'forest',
+    '聖地': 'sacred'
+};
+const RESOURCE_BIOMES = new Set(['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred']);
+
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
     const type = input?.Type || input?.type || null;
@@ -80,6 +90,28 @@ function normalizeConditionMapIds(conditionMapId) {
     if (!conditionMapId) return null;
     if (Array.isArray(conditionMapId)) return conditionMapId.map(id => String(id));
     return [String(conditionMapId)];
+}
+
+function normalizeBiomeKey(biome) {
+    if (!biome) return '';
+    const raw = String(biome).trim();
+    return (RESOURCE_BIOME_JP[raw] || raw).toLowerCase();
+}
+
+function canBuildToOccupy({ island, playerNation, mapOccupationNation }) {
+    const ownerId = island?.ownerId || null;
+    if (ownerId) return false;
+    const normalizedPlayerNation = String(playerNation || '').toLowerCase();
+    const normalizedMapNation = String(mapOccupationNation || '').toLowerCase();
+    const isOwnedArea = !normalizedMapNation || (!!normalizedPlayerNation && normalizedPlayerNation === normalizedMapNation);
+    if (!isOwnedArea) return false;
+    const biomeKey = normalizeBiomeKey(island?.biome);
+    if (RESOURCE_BIOMES.has(biomeKey)) return false;
+    const occupationStatus = String(island?.occupationStatus || '').toLowerCase();
+    if (occupationStatus === 'capital' || occupationStatus === 'sacred') return false;
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    const hasBuilding = buildings.some(b => b && b.status !== 'demolished');
+    return !hasBuilding;
 }
 
 function checkMapIdCondition(condition, mapId) {
@@ -345,12 +377,14 @@ function initializeShopRoutes(app, deps) {
 
             const baseDef = buildingDefs?.getBuildingById ? buildingDefs.getBuildingById(buildingId) : null;
             const condition = baseDef?.buildCondition || null;
+            let mapOccupationNation = null;
+            let playerNation = null;
             if (condition) {
                 const mapBuildingCounts = await getMapBuildingCounts(mapId, firestore);
-                const mapOccupationNation = mapId && typeof getMapOccupationNation === 'function'
+                mapOccupationNation = mapId && typeof getMapOccupationNation === 'function'
                     ? await getMapOccupationNation(mapId)
                     : null;
-                const playerNation = await getPlayerNation(playFabId, { promisifyPlayFab, PlayFabServer });
+                playerNation = await getPlayerNation(playFabId, { promisifyPlayFab, PlayFabServer });
                 const meets = checkMapIdCondition(condition, mapId)
                     && checkBuildingCountCondition(condition, mapBuildingCounts)
                     && checkOccupationCondition(condition, mapOccupationNation, playerNation);
@@ -373,6 +407,28 @@ function initializeShopRoutes(app, deps) {
                 } catch (e) {
                     console.warn('[StartBuildingConstruction] Tutorial flag check failed:', e?.errorMessage || e?.message || e);
                 }
+            }
+
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const preSnap = await ref.get();
+            if (!preSnap.exists) {
+                return res.status(404).json({ error: 'IslandNotFound' });
+            }
+            const preIsland = preSnap.data() || {};
+            const currentOwner = preIsland.ownerId || null;
+            if (currentOwner && currentOwner !== playFabId) {
+                return res.status(403).json({ error: 'NotOwner' });
+            }
+
+            if (!playerNation) {
+                playerNation = await getPlayerNation(playFabId, { promisifyPlayFab, PlayFabServer });
+            }
+            if (!mapOccupationNation && mapId && typeof getMapOccupationNation === 'function') {
+                mapOccupationNation = await getMapOccupationNation(mapId);
+            }
+
+            if (!currentOwner && !canBuildToOccupy({ island: preIsland, playerNation, mapOccupationNation })) {
+                return res.status(403).json({ error: 'BuildToOccupyNotAllowed' });
             }
 
             let costEntries = [];
@@ -407,7 +463,6 @@ function initializeShopRoutes(app, deps) {
             }
 
             let displayName = null;
-            let playerNation = null;
             try {
                 const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                     PlayFabId: playFabId,
@@ -417,98 +472,116 @@ function initializeShopRoutes(app, deps) {
             } catch (e) {
                 console.warn('[StartBuildingConstruction] GetPlayerProfile failed:', e?.errorMessage || e?.message || e);
             }
-            try {
-                const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                    PlayFabId: playFabId,
-                    Keys: ['Nation', 'Race']
-                });
-                const nationValue = ro?.Data?.Nation?.Value || null;
-                const raceValue = ro?.Data?.Race?.Value || null;
-                if (nationValue) {
-                    playerNation = String(nationValue).toLowerCase();
-                } else if (raceValue && NATION_GROUP_BY_RACE[raceValue]) {
-                    playerNation = NATION_GROUP_BY_RACE[raceValue].island;
+            if (!playerNation) {
+                try {
+                    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Keys: ['Nation', 'Race']
+                    });
+                    const nationValue = ro?.Data?.Nation?.Value || null;
+                    const raceValue = ro?.Data?.Race?.Value || null;
+                    if (nationValue) {
+                        playerNation = String(nationValue).toLowerCase();
+                    } else if (raceValue && NATION_GROUP_BY_RACE[raceValue]) {
+                        playerNation = NATION_GROUP_BY_RACE[raceValue].island;
+                    }
+                } catch (e) {
+                    console.warn('[StartBuildingConstruction] GetUserReadOnlyData failed:', e?.errorMessage || e?.message || e);
                 }
-            } catch (e) {
-                console.warn('[StartBuildingConstruction] GetUserReadOnlyData failed:', e?.errorMessage || e?.message || e);
             }
             const islandName = `${displayName || 'Player'}の${spec.DisplayName || buildingId}`;
 
-            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
             const now = Date.now();
 
-            const building = await firestore.runTransaction(async (tx) => {
-                const snap = await tx.get(ref);
-                if (!snap.exists) throw new Error('IslandNotFound');
+            let building = null;
+            try {
+                building = await firestore.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    if (!snap.exists) throw new Error('IslandNotFound');
 
-                const island = snap.data() || {};
-                if (island.ownerId && island.ownerId !== playFabId) throw new Error('NotOwner');
+                    const island = snap.data() || {};
+                    if (island.ownerId && island.ownerId !== playFabId) throw new Error('NotOwner');
+                    if (!island.ownerId && !canBuildToOccupy({ island, playerNation, mapOccupationNation })) {
+                        throw new Error('BuildToOccupyNotAllowed');
+                    }
 
-                const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
-                const existing = buildings.find(b => b && b.status !== 'demolished');
-                if (existing) throw new Error('AlreadyBuilt');
+                    const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
+                    const existing = buildings.find(b => b && b.status !== 'demolished');
+                    if (existing) throw new Error('AlreadyBuilt');
 
-                let sizeTag = getSizeTag(spec.Tags);
-                if (!sizeTag && typeof spec.Size === 'string' && spec.Size) {
-                    sizeTag = `size_${spec.Size.toLowerCase()}`;
+                    let sizeTag = getSizeTag(spec.Tags);
+                    if (!sizeTag && typeof spec.Size === 'string' && spec.Size) {
+                        sizeTag = `size_${spec.Size.toLowerCase()}`;
+                    }
+                    if (!sizeTag || !sizeTagMatchesIsland(sizeTag, island.size)) {
+                        throw new Error('InvalidBuildingSize');
+                    }
+
+                    const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
+                    const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
+
+                    const logicW = Math.max(1, Math.trunc(sizeLogic.x));
+                    const logicH = Math.max(1, Math.trunc(sizeLogic.y));
+                    const visualW = Math.max(1, Math.trunc(sizeVisual.x));
+                    const visualH = Math.max(1, Math.trunc(sizeVisual.y));
+
+                    const buildTimeSeconds = isTutorialBuild ? 0 : Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
+                    const durationMs = buildTimeSeconds * 1000;
+                    const status = isTutorialBuild ? 'completed' : 'constructing';
+
+                    const tileIndexRaw = spec.TileIndex;
+                    const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
+                    const maxHp = computeMaxHp(logicW, logicH, Number(spec.Level) || 1);
+                    const entry = {
+                        buildingId,
+                        status: status,
+                        level: Number.isFinite(Number(spec.Level)) ? Number(spec.Level) : 1,
+                        startTime: now,
+                        completionTime: now + durationMs,
+                        durationMs,
+                        buildTimeSeconds,
+                        helpers: [],
+                        width: logicW,
+                        height: logicH,
+                        visualWidth: visualW,
+                        visualHeight: visualH,
+                        tileIndex: tileIndexValue,
+                        maxHp,
+                        currentHp: maxHp
+                    };
+
+                    buildings.push(entry);
+
+                    const patch = {
+                        buildings,
+                        name: islandName,
+                        ownerId: island.ownerId || playFabId,
+                        ownerNation: island.ownerNation || playerNation,
+                        nation: island.nation || playerNation,
+                        occupationStatus: island.occupationStatus || 'occupied',
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (status === 'constructing') {
+                        patch.constructionStatus = 'constructing';
+                    } else {
+                        patch.constructionStatus = admin.firestore.FieldValue.delete();
+                    }
+                    tx.update(ref, patch);
+
+                    return entry;
+                });
+            } catch (error) {
+                if (costEntries.length > 0) {
+                    for (const [currency, amount] of costEntries) {
+                        try {
+                            await addEconomyItem(playFabId, currency, Number(amount), requestEntity);
+                        } catch (refundError) {
+                            console.warn('[StartBuildingConstruction] Refund failed:', refundError?.errorMessage || refundError?.message || refundError);
+                        }
+                    }
                 }
-                if (!sizeTag || !sizeTagMatchesIsland(sizeTag, island.size)) {
-                    throw new Error('InvalidBuildingSize');
-                }
-
-                const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
-                const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
-
-                const logicW = Math.max(1, Math.trunc(sizeLogic.x));
-                const logicH = Math.max(1, Math.trunc(sizeLogic.y));
-                const visualW = Math.max(1, Math.trunc(sizeVisual.x));
-                const visualH = Math.max(1, Math.trunc(sizeVisual.y));
-
-                const buildTimeSeconds = isTutorialBuild ? 0 : Math.max(1, Math.trunc(Number(spec.BuildTime) || 60));
-                const durationMs = buildTimeSeconds * 1000;
-                const status = isTutorialBuild ? 'completed' : 'constructing';
-
-                const tileIndexRaw = spec.TileIndex;
-                const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-                const maxHp = computeMaxHp(logicW, logicH, Number(spec.Level) || 1);
-                const entry = {
-                    buildingId,
-                    status: status,
-                    level: Number.isFinite(Number(spec.Level)) ? Number(spec.Level) : 1,
-                    startTime: now,
-                    completionTime: now + durationMs,
-                    durationMs,
-                    buildTimeSeconds,
-                    helpers: [],
-                    width: logicW,
-                    height: logicH,
-                    visualWidth: visualW,
-                    visualHeight: visualH,
-                    tileIndex: tileIndexValue,
-                    maxHp,
-                    currentHp: maxHp
-                };
-
-                buildings.push(entry);
-
-                const patch = {
-                    buildings,
-                    name: islandName,
-                    ownerId: island.ownerId || playFabId,
-                    ownerNation: island.ownerNation || playerNation,
-                    nation: island.nation || playerNation,
-                    occupationStatus: island.occupationStatus || 'occupied',
-                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-                };
-                if (status === 'constructing') {
-                    patch.constructionStatus = 'constructing';
-                } else {
-                    patch.constructionStatus = admin.firestore.FieldValue.delete();
-                }
-                tx.update(ref, patch);
-
-                return entry;
-            });
+                throw error;
+            }
 
             if (isTutorialBuild) {
                 try {
@@ -550,6 +623,7 @@ function initializeShopRoutes(app, deps) {
             if (msg === 'IslandNotFound') return res.status(404).json({ error: '島が見つかりません。' });
             if (msg === 'AlreadyBuilt') return res.status(400).json({ error: 'この島には既に建物があります。' });
             if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: 'この島のサイズに合っていません。' });
+            if (msg === 'BuildToOccupyNotAllowed') return res.status(403).json({ error: 'この島は建築して占領できません。' });
             console.error('[StartBuildingConstruction] Error:', error);
             res.status(500).json({ error: 'Failed to start building construction', details: msg });
         }
@@ -734,6 +808,7 @@ function initializeShopRoutes(app, deps) {
                     name: resolved?.name || building.name || building.id || key,
                     description: resolved?.description || building.description || '',
                     buildTime: Number(resolved?.buildTime || building.buildTime || 0),
+                    cost: resolved?.cost || building.cost || {},
                     tags: [sizeTag],
                     slotsRequired,
                     category: building.category || null,

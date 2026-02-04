@@ -388,6 +388,16 @@
     margin-bottom: 8px;
 }
 
+.building-cost {
+    font-size: 12px;
+    color: #b5b5b5;
+    margin-top: 6px;
+}
+
+.building-cost.insufficient {
+    color: #ff6b6b;
+}
+
 .building-stats {
     display: flex;
     gap: 12px;
@@ -420,7 +430,15 @@
 
 .btn-build:active {
     transform: scale(0.95);
-}/* ========================================
+}
+
+.btn-build:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+/* ========================================
    ���݂̌����\��
    ======================================== */
 

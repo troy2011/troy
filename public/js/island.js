@@ -859,7 +859,14 @@ async function loadBuildingList(category, island) {
     listContainer.innerHTML = '<div class="loading">読み込み中...</div>';
 
     try {
-        const buildings = await fetchBuildingsForCategory(category, island.size);
+        const playFabId = (typeof window !== 'undefined' && window.myPlayFabId)
+            ? window.myPlayFabId
+            : localStorage.getItem('playFabId');
+        const [buildings, inventoryResult] = await Promise.all([
+            fetchBuildingsForCategory(category, island.size),
+            playFabId ? fetchInventory(playFabId, { isSilent: true }) : Promise.resolve(null)
+        ]);
+        const balances = inventoryResult?.virtualCurrency || {};
         const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
 
         listContainer.innerHTML = buildings.map(building => `
@@ -872,8 +879,9 @@ async function loadBuildingList(category, island) {
                         <span class="stat">時間 ${Math.floor(building.buildTime / 60)}分</span>
                         <span class="stat">サイズ: ${getSizeLabelFromTag(building.tags)}</span>
                     </div>
+                    ${renderBuildingCost(building.cost, balances)}
                 </div>
-                <button class="btn-build" data-building-id="${building.id}" ${hasBuilding ? 'disabled' : ''}>${hasBuilding ? '建設済み' : '建設'}</button>
+                <button class="btn-build" data-building-id="${building.id}" ${getBuildButtonDisabled(building.cost, balances, hasBuilding) ? 'disabled' : ''}>${getBuildButtonLabel(building.cost, balances, hasBuilding)}</button>
             </div>
         `).join('');
 
@@ -887,6 +895,52 @@ async function loadBuildingList(category, island) {
         console.error('[LoadBuildingList] Error:', error);
         listContainer.innerHTML = '<div class="error">建物の読み込みに失敗しました</div>';
     }
+}
+
+function normalizeCostEntries(costs) {
+    const entries = Object.entries(costs || {})
+        .map(([code, amount]) => ({
+            code: String(code || '').trim(),
+            amount: Number(amount)
+        }))
+        .filter(entry => entry.code && Number.isFinite(entry.amount) && entry.amount > 0);
+    return entries;
+}
+
+function isCostAffordable(costs, balances) {
+    const entries = normalizeCostEntries(costs);
+    if (!entries.length) return true;
+    return entries.every(entry => Number(balances?.[entry.code] || 0) >= entry.amount);
+}
+
+function formatCostLabel(costs, balances) {
+    const entries = normalizeCostEntries(costs);
+    if (!entries.length) return '無料';
+    return entries.map(entry => {
+        const balance = Number(balances?.[entry.code] || 0);
+        const label = formatCurrencyLabel(entry.code);
+        return `${label} ${entry.amount} (所持 ${balance})`;
+    }).join(' / ');
+}
+
+function renderBuildingCost(costs, balances) {
+    const affordable = isCostAffordable(costs, balances);
+    const costLabel = formatCostLabel(costs, balances);
+    return `
+        <div class="building-cost ${affordable ? '' : 'insufficient'}">
+            コスト: ${costLabel}${affordable ? '' : ' / 不足'}
+        </div>
+    `;
+}
+
+function getBuildButtonDisabled(costs, balances, hasBuilding) {
+    if (hasBuilding) return true;
+    return !isCostAffordable(costs, balances);
+}
+
+function getBuildButtonLabel(costs, balances, hasBuilding) {
+    if (hasBuilding) return '建設済み';
+    return isCostAffordable(costs, balances) ? '建設' : '不足';
 }
 
 async function loadShopPanels(sheet, island, shopConfig, playFabId) {
@@ -1047,6 +1101,8 @@ async function handleBuildingConstruction(buildingId, island) {
             if (result.message) showRpgMessage(result.message);
             sheet.classList.remove('active');
             setTimeout(() => sheet.remove(), 300);
+        } else if (result) {
+            showRpgMessage(result.error || result.message || '建設に失敗しました。');
         }
     } catch (error) {
         const message = error?.message || '建設に失敗しました。';
