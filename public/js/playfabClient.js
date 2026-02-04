@@ -283,6 +283,10 @@ export function upgradeIslandLevel(playFabId, islandId, mapId, options) {
     return callApiWithLoader('/api/upgrade-island-level', { playFabId, islandId, mapId }, options);
 }
 
+export function upgradeBuilding(playFabId, islandId, mapId, options) {
+    return callApiWithLoader('/api/upgrade-building', { playFabId, islandId, mapId }, options);
+}
+
 export function checkBuildingCompletion(islandId, mapId, options) {
     return callApiWithLoader('/api/check-building-completion', { islandId, mapId }, options);
 }

@@ -9,6 +9,7 @@ import {
     collectResource as requestCollectResource,
     startBuildingConstruction as requestStartBuildingConstruction,
     upgradeIslandLevel as requestUpgradeIslandLevel,
+    upgradeBuilding as requestUpgradeBuilding,
     checkBuildingCompletion as requestCheckBuildingCompletion,
     helpConstruction as requestHelpConstruction,
     getShopState as fetchShopState,
@@ -171,6 +172,16 @@ export async function upgradeIslandLevel(playFabId, islandId) {
     return response;
 }
 
+export async function upgradeBuilding(playFabId, islandId) {
+    const response = await requestUpgradeBuilding(playFabId, islandId, window.__currentMapId || null);
+    if (response && response.success) {
+        const buildingId = response.buildingId || '';
+        const name = buildingId ? buildingId : '建物';
+        showRpgMessage(rpgSay.buildUpgraded(name));
+    }
+    return response;
+}
+
 export async function checkBuildingCompletion(islandId) {
     const response = await requestCheckBuildingCompletion(islandId, window.__currentMapId || null, { isSilent: true });
 
@@ -298,6 +309,10 @@ export function showBuildingMenu(island, playFabId) {
     const isOwner = !!playFabId && island.ownerId === playFabId;
     const canUpgrade = isOwner && hasBuilding && !isHarvestable && islandLevel < 5;
     const upgradeCostLabel = renderUpgradeCost(island.upgradeCost);
+    const buildingUpgradeCostLabel = renderUpgradeCost(island.buildingUpgradeCost);
+    const buildingUpgradeLevel = Number(island.buildingUpgradeLevel || 0);
+    const buildingUpgradeAvailable = island.buildingUpgradeAvailable === true && buildingUpgradeLevel > 0;
+    const buildingUpgradeReason = island.buildingUpgradeReason || null;
     const activeBuilding = (island.buildings || []).find(b => b && b.status !== 'demolished') || null;
     const activeBuildingId = activeBuilding ? (activeBuilding.buildingId || activeBuilding.id || '') : '';
     const shopConfig = getShopConfig(activeBuildingId);
@@ -475,6 +490,21 @@ export function showBuildingMenu(island, playFabId) {
                         <button class="btn-build shop-tab" data-tab="buy">購入</button>
                     </div>
                     ${isOwner ? `
+                    <div class="island-upgrade-section" style="margin-bottom:12px;">
+                        <button class="btn-upgrade" id="btnBuildingUpgrade" ${buildingUpgradeAvailable ? '' : 'disabled'}>
+                            ${buildingUpgradeAvailable ? `Lv ${buildingUpgradeLevel} に強化` : '強化不可'}
+                        </button>
+                        <div class="upgrade-cost">
+                            ${buildingUpgradeAvailable ? `コスト: ${buildingUpgradeCostLabel}` : getBuildingUpgradeReasonText(buildingUpgradeReason)}
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="island-upgrade-section" style="margin-bottom:12px;">
+                        <button class="btn-upgrade" id="btnBuildingUpgrade" disabled>強化</button>
+                        <div class="upgrade-cost">オーナーのみ実行できます</div>
+                    </div>
+                    `}
+                    ${isOwner ? `
                     <div class="resource-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                         <label>買い取り倍率 <input id="shopBuyMultiplier" type="number" step="0.1" min="0.1" max="5" value="0.7" style="width:80px;"></label>
                         <label>販売倍率 <input id="shopSellMultiplier" type="number" step="0.1" min="0.1" max="5" value="1.2" style="width:80px;"></label>
@@ -494,8 +524,15 @@ export function showBuildingMenu(island, playFabId) {
                     <div class="resource-row">利用できる行動</div>
                     <div class="resource-row" style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button class="btn-build" id="btnBuildingRepair">修理</button>
-                        <button class="btn-build" id="btnBuildingUpgrade">強化</button>
+                        <button class="btn-build" id="btnBuildingUpgrade" ${isOwner && buildingUpgradeAvailable ? '' : 'disabled'}>
+                            ${isOwner ? '強化' : '強化(不可)'}
+                        </button>
                         ${allowShipBuild ? `<button class="btn-build" id="btnBuildingAction">特殊</button>` : ''}
+                    </div>
+                    <div class="upgrade-cost" style="margin-top:8px;">
+                        ${isOwner
+                            ? (buildingUpgradeAvailable ? `コスト: ${buildingUpgradeCostLabel}` : getBuildingUpgradeReasonText(buildingUpgradeReason))
+                            : 'オーナーのみ実行できます'}
                     </div>
                 </div>
                 `}
@@ -768,8 +805,19 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
 
     const upgradeBuildingBtn = sheet.querySelector('#btnBuildingUpgrade');
     if (upgradeBuildingBtn) {
-        upgradeBuildingBtn.addEventListener('click', () => {
-            showRpgMessage('強化アクションは準備中です。');
+        upgradeBuildingBtn.addEventListener('click', async () => {
+            if (upgradeBuildingBtn.disabled) return;
+            const result = await upgradeBuilding(playFabId, island.id);
+            if (result && result.success) {
+                const refreshed = await getIslandDetails(island.id);
+                if (refreshed) {
+                    sheet.classList.remove('active');
+                    setTimeout(() => sheet.remove(), 200);
+                    showBuildingMenu(refreshed, playFabId);
+                }
+            } else if (result && result.error) {
+                showRpgMessage(result.error);
+            }
         });
     }
 
@@ -1136,6 +1184,23 @@ function renderUpgradeCost(costs) {
     return entries
         .map(([code, amount]) => `${escapeHtml(String(code))} ${Number(amount)}`)
         .join(', ');
+}
+
+function getBuildingUpgradeReasonText(reason) {
+    switch (reason) {
+        case 'NoBuilding':
+            return '建物がありません';
+        case 'NotCompleted':
+            return '建設中は強化できません';
+        case 'MaxLevel':
+            return '既に最大Lvです';
+        case 'UseIslandUpgrade':
+            return 'マイハウスは島Lvアップで強化します';
+        case 'BuildingSpecMissing':
+            return '強化情報が見つかりません';
+        default:
+            return '強化条件を満たしていません';
+    }
 }
 
 function renderNationDonateRows() {

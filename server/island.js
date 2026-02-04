@@ -495,6 +495,45 @@ function initializeIslandRoutes(app, deps) {
                 upgradeCost = priceAmounts.length > 0 ? priceAmounts : null;
             }
 
+            let buildingUpgradeCost = null;
+            let buildingUpgradeLevel = null;
+            let buildingUpgradeBuildingId = null;
+            let buildingUpgradeMaxLevel = null;
+            let buildingUpgradeAvailable = false;
+            let buildingUpgradeReason = null;
+            const activeBuilding = Array.isArray(data.buildings)
+                ? data.buildings.find(b => b && b.status !== 'demolished')
+                : null;
+            if (activeBuilding) {
+                const rawId = String(activeBuilding.buildingId || activeBuilding.id || '');
+                const currentLevel = Math.max(1, Math.trunc(Number(activeBuilding.level) || 1));
+                const resolvedBase = rawId ? buildingDefs.getBuildingById(rawId) : null;
+                const levels = resolvedBase?.levels || null;
+                const levelKeys = levels ? Object.keys(levels).map(n => Number(n)).filter(n => Number.isFinite(n)) : [];
+                buildingUpgradeMaxLevel = levelKeys.length > 0 ? Math.max(...levelKeys) : 5;
+                if (!rawId) {
+                    buildingUpgradeReason = 'BuildingNotFound';
+                } else if (rawId === 'my_house' || rawId.startsWith('my_house')) {
+                    buildingUpgradeReason = 'UseIslandUpgrade';
+                } else if (activeBuilding.status !== 'completed') {
+                    buildingUpgradeReason = 'NotCompleted';
+                } else if (currentLevel >= buildingUpgradeMaxLevel) {
+                    buildingUpgradeReason = 'MaxLevel';
+                } else {
+                    buildingUpgradeLevel = currentLevel + 1;
+                    buildingUpgradeBuildingId = rawId;
+                    const spec = getBuildingSpec(rawId, buildingUpgradeLevel);
+                    const priceAmounts = normalizePriceAmounts(spec?.PriceAmounts);
+                    buildingUpgradeCost = priceAmounts.length > 0 ? priceAmounts : null;
+                    buildingUpgradeAvailable = !!spec;
+                    if (!spec) {
+                        buildingUpgradeReason = 'BuildingSpecMissing';
+                    }
+                }
+            } else {
+                buildingUpgradeReason = 'NoBuilding';
+            }
+
             res.json({
                 success: true,
                 island: {
@@ -503,7 +542,13 @@ function initializeIslandRoutes(app, deps) {
                     biomeInfo,
                     upgradeCost,
                     upgradeHouseId,
-                    upgradeLevel
+                    upgradeLevel,
+                    buildingUpgradeCost,
+                    buildingUpgradeLevel,
+                    buildingUpgradeBuildingId,
+                    buildingUpgradeMaxLevel,
+                    buildingUpgradeAvailable,
+                    buildingUpgradeReason
                 }
             });
         } catch (error) {
@@ -861,6 +906,131 @@ function initializeIslandRoutes(app, deps) {
             if (msg === 'IslandNotFound') return res.status(404).json({ error: 'IslandNotFound' });
             console.error('[upgrade-island-level] Error:', error);
             res.status(500).json({ error: 'Failed to upgrade island level', details: error?.errorMessage || error?.message || error });
+        }
+    });
+
+    // 建物レベルアップ
+    app.post('/api/upgrade-building', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId) {
+            return res.status(400).json({ error: 'playFabId and islandId are required' });
+        }
+
+        try {
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const snap = await ref.get();
+            if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
+
+            const island = snap.data() || {};
+            if (island.ownerId !== playFabId) return res.status(403).json({ error: 'NotOwner' });
+
+            const buildings = Array.isArray(island.buildings) ? island.buildings.slice() : [];
+            const idx = buildings.findIndex(b => b && b.status !== 'demolished');
+            if (idx === -1) return res.status(400).json({ error: 'NoBuilding' });
+
+            const target = buildings[idx];
+            if (target.status !== 'completed') return res.status(400).json({ error: 'NotCompleted' });
+
+            const rawId = String(target.buildingId || target.id || '');
+            if (!rawId) return res.status(400).json({ error: 'BuildingNotFound' });
+            if (rawId === 'my_house' || rawId.startsWith('my_house')) {
+                return res.status(400).json({ error: 'UseIslandUpgrade' });
+            }
+
+            const currentLevel = Math.max(1, Math.trunc(Number(target.level) || 1));
+            const resolvedBase = buildingDefs.getBuildingById(rawId);
+            const levels = resolvedBase?.levels || null;
+            const levelKeys = levels ? Object.keys(levels).map(n => Number(n)).filter(n => Number.isFinite(n)) : [];
+            const maxLevel = levelKeys.length > 0 ? Math.max(...levelKeys) : 5;
+            if (currentLevel >= maxLevel) return res.status(400).json({ error: 'MaxLevel' });
+
+            const nextLevel = currentLevel + 1;
+            const spec = getBuildingSpec(rawId, nextLevel);
+            if (!spec) return res.status(400).json({ error: 'BuildingNotFound' });
+
+            const priceAmounts = normalizePriceAmounts(spec?.PriceAmounts);
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const items = await getAllInventoryItems(entityKey);
+            const balances = getVirtualCurrencyMap(items);
+            const costEntries = priceAmounts
+                .map((entry) => ({
+                    code: entry?.ItemId || entry?.itemId,
+                    amount: Number(entry?.Amount ?? entry?.amount ?? 0)
+                }))
+                .filter((entry) => entry.code && entry.amount > 0);
+            for (const entry of costEntries) {
+                const bal = Number(balances[entry.code] || 0);
+                if (bal < entry.amount) {
+                    return res.status(400).json({ error: 'InsufficientFunds', details: { currency: entry.code, required: entry.amount, balance: bal } });
+                }
+            }
+
+            let deducted = false;
+            try {
+                for (const entry of costEntries) {
+                    await subtractEconomyItem(playFabId, entry.code, entry.amount);
+                }
+                deducted = true;
+
+                const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
+                const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
+                const logicW = Math.max(1, Math.trunc(sizeLogic.x));
+                const logicH = Math.max(1, Math.trunc(sizeLogic.y));
+                const visualW = Math.max(1, Math.trunc(sizeVisual.x));
+                const visualH = Math.max(1, Math.trunc(sizeVisual.y));
+                const tileIndexRaw = spec.TileIndex;
+                const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : target.tileIndex;
+                const maxHp = computeMaxHp(logicW, logicH, nextLevel);
+
+                const updated = await firestore.runTransaction(async (tx) => {
+                    const snapTx = await tx.get(ref);
+                    if (!snapTx.exists) throw new Error('IslandNotFound');
+                    const data = snapTx.data() || {};
+                    if (data.ownerId !== playFabId) throw new Error('NotOwner');
+                    const list = Array.isArray(data.buildings) ? data.buildings.slice() : [];
+                    const i = list.findIndex(b => b && b.status !== 'demolished');
+                    if (i === -1) throw new Error('NoBuilding');
+                    const active = list[i];
+                    const activeId = String(active.buildingId || active.id || '');
+                    if (activeId !== rawId) throw new Error('BuildingChanged');
+                    const activeLevel = Math.max(1, Math.trunc(Number(active.level) || 1));
+                    if (activeLevel !== currentLevel) throw new Error('BuildingChanged');
+                    if (active.status !== 'completed') throw new Error('NotCompleted');
+
+                    list[i] = {
+                        ...active,
+                        level: nextLevel,
+                        width: logicW,
+                        height: logicH,
+                        visualWidth: visualW,
+                        visualHeight: visualH,
+                        tileIndex: tileIndexValue,
+                        maxHp,
+                        currentHp: maxHp,
+                        lastUpgradedAt: Date.now()
+                    };
+                    tx.update(ref, { buildings: list });
+                    return list[i];
+                });
+
+                res.json({ success: true, islandId, buildingId: rawId, nextLevel, building: updated });
+            } catch (error) {
+                if (deducted) {
+                    for (const entry of costEntries) {
+                        await addEconomyItem(playFabId, entry.code, entry.amount);
+                    }
+                }
+                throw error;
+            }
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'IslandNotFound' });
+            if (msg === 'NotOwner') return res.status(403).json({ error: 'NotOwner' });
+            if (msg === 'NoBuilding') return res.status(400).json({ error: 'NoBuilding' });
+            if (msg === 'NotCompleted') return res.status(400).json({ error: 'NotCompleted' });
+            if (msg === 'BuildingChanged') return res.status(409).json({ error: 'BuildingChanged' });
+            console.error('[upgrade-building] Error:', error);
+            res.status(500).json({ error: 'Failed to upgrade building', details: error?.errorMessage || error?.message || error });
         }
     });
 
