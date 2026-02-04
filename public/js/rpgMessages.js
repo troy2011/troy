@@ -34,7 +34,11 @@ export const rpgSay = {
     shipGained: () => 'ふねをてにいれた！',
     islandGained: (name) => `${name}をてにいれた！`,
     buildStarted: (name) => `${name}の建設をはじめた！`,
-    buildUpgraded: (name) => `${name}を強化した！`,
+    buildUpgraded: (name, level = null, effectText = '') => {
+        const levelPart = level ? `Lv${level}に` : '';
+        const effectPart = effectText ? ` ${effectText}` : '';
+        return `${name}を${levelPart}強化した！${effectPart}`.trim();
+    },
     buildCompleted: () => '建設が完了した！',
     resourceGained: (code, amount) => `${code} を ${amount} てにいれた！`,
     islandClaimed: (name) => `${name}を占領した！`,

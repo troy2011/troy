@@ -167,7 +167,8 @@ export async function upgradeIslandLevel(playFabId, islandId) {
     if (response && response.success) {
         const buildingId = response.buildingId || '';
         const name = buildingId ? buildingId : 'マイハウス';
-        showRpgMessage(rpgSay.buildUpgraded(name));
+        const level = Number(response.nextLevel || 0) || null;
+        showRpgMessage(rpgSay.buildUpgraded(name, level, '能力が上昇した！'));
     }
     return response;
 }
@@ -177,7 +178,8 @@ export async function upgradeBuilding(playFabId, islandId) {
     if (response && response.success) {
         const buildingId = response.buildingId || '';
         const name = buildingId ? buildingId : '建物';
-        showRpgMessage(rpgSay.buildUpgraded(name));
+        const level = Number(response.nextLevel || 0) || null;
+        showRpgMessage(rpgSay.buildUpgraded(name, level, '能力が上昇した！'));
     }
     return response;
 }

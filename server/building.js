@@ -61,7 +61,15 @@ function getBuildingSpec(buildingId, level = null) {
     const sizeLogic = building.sizeLogic || inferLogicSizeFromSlotsRequired(building.slotsRequired);
     const sizeVisual = building.sizeVisual || sizeLogic;
     const effects = { ...(building.effects || {}), ...(building.stats || {}) };
-    const priceAmounts = buildPriceAmounts(building.cost || {});
+    const levelMultiplier = Math.max(1, Math.trunc(Number(building.level) || 1));
+    const rawCost = building.cost || {};
+    const scaledCost = {};
+    Object.entries(rawCost).forEach(([code, amount]) => {
+        const value = Number(amount);
+        if (!code || !Number.isFinite(value) || value <= 0) return;
+        scaledCost[code] = Math.max(0, Math.round(value * levelMultiplier));
+    });
+    const priceAmounts = buildPriceAmounts(scaledCost);
 
     return {
         ItemId: building.id,
@@ -71,7 +79,7 @@ function getBuildingSpec(buildingId, level = null) {
         Category: building.category,
         SlotsRequired: building.slotsRequired,
         BuildTime: building.buildTime,
-        Cost: building.cost || {},
+        Cost: scaledCost,
         PriceAmounts: priceAmounts,
         Effects: effects,
         SizeLogic: sizeLogic,
