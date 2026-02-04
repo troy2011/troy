@@ -142,13 +142,13 @@ const QUEST_CONTENT_MAP = {
             ],
             [
                 { name: '完成スコア', detail: 'シングルで98点以上なら成功' },
-                { name: '極限抑揚', detail: 'シングルで抑揚13以上なら成功' },
+                { name: '極限抑揚', detail: 'シングルで抑揚14.5以上なら成功' },
                 { name: '極限テクニック', detail: 'シングルでテクニック5なら成功' }
             ]
         ],
         'ダーツ': [
             [
-                { name: '初投計測', detail: 'カウントアップで220点以上なら成功' },
+                { name: '初投計測', detail: 'カウントアップで200点以上なら成功' },
                 { name: '301完走', detail: '301をダブルフィニッシュできれば成功' },
                 { name: '初級アニマル', detail: 'ANIMAL BATTLE(vs CPU)でカバに勝利できれば成功' }
             ],
@@ -158,22 +158,22 @@ const QUEST_CONTENT_MAP = {
                 { name: '草原の一騎', detail: 'ANIMAL BATTLE(vs CPU)でキリンに勝利できれば成功' }
             ],
             [
-                { name: '精密計測', detail: 'カウントアップで320点以上なら成功' },
+                { name: '精密計測', detail: 'カウントアップで400点以上なら成功' },
                 { name: '501短縮', detail: '501を15ラウンド以内にクリアできれば成功' },
                 { name: '湿地の一撃', detail: 'ANIMAL BATTLE(vs CPU)でワニに勝利できれば成功' }
             ],
             [
-                { name: '高精度計測', detail: 'カウントアップで380点以上なら成功' },
+                { name: '高精度計測', detail: 'カウントアップで500点以上なら成功' },
                 { name: '701挑戦', detail: '701を1ゲームでクリアできれば成功' },
                 { name: '密林の覇者', detail: 'ANIMAL BATTLE(vs CPU)でタイガーに勝利できれば成功' }
             ],
             [
-                { name: '上位計測', detail: 'カウントアップで450点以上なら成功' },
+                { name: '上位計測', detail: 'カウントアップで700点以上なら成功' },
                 { name: '701短縮', detail: '701を12ラウンド以内にクリアできれば成功' },
                 { name: '巨体の壁', detail: 'ANIMAL BATTLE(vs CPU)でゾウに勝利できれば成功' }
             ],
             [
-                { name: '最終計測', detail: 'カウントアップで520点以上なら成功' },
+                { name: '最終計測', detail: 'カウントアップで900点以上なら成功' },
                 { name: '701極短', detail: '701を10ラウンド以内にクリアできれば成功' },
                 { name: '黒獅子の咆哮', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに勝利できれば成功' }
             ]
