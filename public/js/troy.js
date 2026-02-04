@@ -99,8 +99,8 @@ const QUEST_CONTENT_MAP = {
                 { name: 'ミニボーラード無傷', detail: 'ミニボーラードで6個のボールをノーミスで取り切れたら成功' }
             ],
             [
-                { name: '交互センター', detail: '押し玉→引き玉の順にセンターショットを2回連続で成功できれば達成' },
-                { name: '交互センター改', detail: '引き玉→押し玉の順にセンターショットを2回連続で成功できれば達成' },
+                { name: 'センター三連', detail: 'センターショットを3回チャレンジして全て成功できれば達成' },
+                { name: '押し引き二本立て', detail: '押し玉2回成功と引き玉2回成功を同じセット内で達成できれば成功' },
                 { name: 'ミニボーラード二連', detail: 'ミニボーラードで6個取り切りを2回連続で成功できれば達成' }
             ],
             [
@@ -148,34 +148,34 @@ const QUEST_CONTENT_MAP = {
         ],
         'ダーツ': [
             [
-                { name: '初級アニマル', detail: 'ANIMAL BATTLE(vs CPU)でカバに勝利できれば成功' },
-                { name: '宝箱の探り', detail: 'TREASURE HUNTで合計300点以上なら成功' },
-                { name: 'KICK DOWN入門', detail: 'KICK DOWNで301をぴったりにしてクリアできれば成功' }
+                { name: '初投計測', detail: 'カウントアップで220点以上なら成功' },
+                { name: '301完走', detail: '301をダブルフィニッシュできれば成功' },
+                { name: '二枚クローズ', detail: 'クリケットで任意ナンバー2つクローズできれば成功' }
             ],
             [
-                { name: '草原の一騎', detail: 'ANIMAL BATTLE(vs CPU)でキリンに勝利できれば成功' },
-                { name: '宝箱の回収', detail: 'TREASURE HUNTで合計500点以上なら成功' },
-                { name: 'KICK DOWN精度', detail: 'KICK DOWNで501をぴったりにしてクリアできれば成功' }
+                { name: '刻み計測', detail: 'カウントアップで300点以上なら成功' },
+                { name: '501完走', detail: '501を1ゲームでクリアできれば成功' },
+                { name: '三枚封鎖', detail: 'クリケットで3クローズ達成なら成功' }
             ],
             [
-                { name: '湿地の一撃', detail: 'ANIMAL BATTLE(vs CPU)でワニに勝利できれば成功' },
-                { name: '宝の積算', detail: 'TREASURE HUNTで合計800点以上なら成功' },
-                { name: 'KICK DOWN短縮', detail: 'KICK DOWNで301を10ラウンド以内にぴったりでクリアできれば成功' }
+                { name: '精密計測', detail: 'カウントアップで320点以上なら成功' },
+                { name: '501短縮', detail: '501を15ラウンド以内にクリアできれば成功' },
+                { name: '四枚封鎖', detail: 'クリケットで4クローズ達成なら成功' }
             ],
             [
-                { name: '密林の覇者', detail: 'ANIMAL BATTLE(vs CPU)でタイガーに勝利できれば成功' },
-                { name: '宝の連携', detail: 'TREASURE HUNTで合計1100点以上なら成功' },
-                { name: 'KICK DOWN緊張', detail: 'KICK DOWNで501を12ラウンド以内にぴったりでクリアできれば成功' }
+                { name: '高精度計測', detail: 'カウントアップで380点以上なら成功' },
+                { name: '701挑戦', detail: '701を1ゲームでクリアできれば成功' },
+                { name: '五枚封鎖', detail: 'クリケットで5クローズ達成なら成功' }
             ],
             [
-                { name: '巨体の壁', detail: 'ANIMAL BATTLE(vs CPU)でゾウに勝利できれば成功' },
-                { name: '宝の高積み', detail: 'TREASURE HUNTで合計1400点以上なら成功' },
-                { name: 'KICK DOWN極短', detail: 'KICK DOWNで501を9ラウンド以内にぴったりでクリアできれば成功' }
+                { name: '上位計測', detail: 'カウントアップで450点以上なら成功' },
+                { name: '701短縮', detail: '701を12ラウンド以内にクリアできれば成功' },
+                { name: '完全封鎖', detail: 'クリケットで全クローズ達成なら成功' }
             ],
             [
-                { name: '黒獅子の咆哮', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに勝利できれば成功' },
-                { name: '宝の極致', detail: 'TREASURE HUNTで合計1700点以上なら成功' },
-                { name: 'KICK DOWN極', detail: 'KICK DOWNで501を8ラウンド以内にぴったりでクリアできれば成功' }
+                { name: '最終計測', detail: 'カウントアップで520点以上なら成功' },
+                { name: '701極短', detail: '701を10ラウンド以内にクリアできれば成功' },
+                { name: '完全封鎖・極', detail: 'クリケットで全クローズ達成なら成功' }
             ]
         ],
         'トランプ': [
