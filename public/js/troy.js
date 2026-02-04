@@ -278,33 +278,33 @@ const QUEST_CONTENT_MAP = {
         ],
         'カラオケ': [
             [
-                { name: '開戦スコア', detail: '1対1で75点以上' },
-                { name: '先制音程', detail: '1対1で音程22以上' },
-                { name: '安定の一声', detail: '1対1で安定感18以上' }
+                { name: 'こぶしの一矢', detail: '1対1でこぶし10回以上' },
+                { name: 'しゃくりの波', detail: '1対1でしゃくり10回以上' },
+                { name: 'ビブラートの帆', detail: '1対1でビブラート10回以上' }
             ],
             [
-                { name: '追撃の旋律', detail: '1対1で相手より高得点' },
-                { name: '逆風の一声', detail: '1対1で82点以上' },
-                { name: '切り返し安定', detail: '1対1で安定感20以上' }
+                { name: 'こぶしの連撃', detail: '1対1でこぶし14回以上' },
+                { name: 'しゃくりの軌道', detail: '1対1でしゃくり14回以上' },
+                { name: 'ビブラートの航路', detail: '1対1でビブラート14回以上' }
             ],
             [
-                { name: '勝ち越し旋律', detail: '1対1で85点以上' },
-                { name: '抑揚の読み', detail: '1対1で抑揚8以上' },
-                { name: '押し切り音程', detail: '1対1で音程28以上' }
+                { name: '抑揚の巧み', detail: '1対1で抑揚10以上' },
+                { name: 'ロングの伸び', detail: '1対1でロングトーン7以上' },
+                { name: '音程の鋭さ', detail: '1対1で音程28以上' }
             ],
             [
-                { name: '決めの声', detail: '1対1で90点以上' },
-                { name: '安定の差', detail: '1対1で安定感24以上' },
-                { name: 'ロングの差', detail: '1対1でロングトーン7以上' }
+                { name: '安定の要塞', detail: '1対1で安定感24以上' },
+                { name: '音程の上積み', detail: '1対1で音程30以上' },
+                { name: '高鳴る声', detail: '1対1で90点以上' }
             ],
             [
-                { name: '王手の声', detail: '1対1で95点以上' },
+                { name: '王手スコア', detail: '1対1で95点以上' },
                 { name: '抑揚の決着', detail: '1対1で抑揚12以上' },
                 { name: '圧勝音程', detail: '1対1で音程34以上' }
             ],
             [
-                { name: '覇者の声', detail: '1対1で98点以上' },
-                { name: '極限抑揚', detail: '1対1で抑揚13以上' },
+                { name: '覇者スコア', detail: '1対1で98点以上' },
+                { name: '極限こぶし', detail: '1対1でこぶし20回以上' },
                 { name: '極限テクニック', detail: '1対1でテクニック5以上' }
             ]
         ],
@@ -423,7 +423,10 @@ function refineQuestContent(quests) {
         const entry = bucket[used];
         const flavorPool = QUEST_CONTENT_FLAVOR[modeKey];
         const flavor = entry.flavor || flavorPool[used % flavorPool.length];
-        return { ...quest, name: entry.name, detail: entry.detail, flavor };
+        const detail = modeKey === 'battle' && !entry.detail.includes('勝利必須')
+            ? `${entry.detail}（勝利必須）`
+            : entry.detail;
+        return { ...quest, name: entry.name, detail, flavor };
     });
 }
 
