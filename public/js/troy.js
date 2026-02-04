@@ -99,8 +99,8 @@ const QUEST_CONTENT_MAP = {
                 { name: 'ミニボーラード無傷', detail: 'ミニボーラードで6個のボールをノーミスで取り切れたら成功' }
             ],
             [
-                { name: '押し玉連続', detail: '押し玉(フォロー)でセンターショットを3回チャレンジして3回成功できれば達成' },
-                { name: '引き玉連続', detail: '引き玉(ドロー)でセンターショットを3回チャレンジして3回成功できれば達成' },
+                { name: '交互センター', detail: '押し玉→引き玉の順にセンターショットを2回連続で成功できれば達成' },
+                { name: '交互センター改', detail: '引き玉→押し玉の順にセンターショットを2回連続で成功できれば達成' },
                 { name: 'ミニボーラード二連', detail: 'ミニボーラードで6個取り切りを2回連続で成功できれば達成' }
             ],
             [
@@ -173,7 +173,7 @@ const QUEST_CONTENT_MAP = {
                 { name: 'KICK DOWN極短', detail: 'KICK DOWNで501を9ラウンド以内にぴったりでクリアできれば成功' }
             ],
             [
-                { name: '王の咆哮', detail: 'ANIMAL BATTLE(vs CPU)でライオンに勝利できれば成功' },
+                { name: '黒獅子の咆哮', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに勝利できれば成功' },
                 { name: '宝の極致', detail: 'TREASURE HUNTで合計1700点以上なら成功' },
                 { name: 'KICK DOWN極', detail: 'KICK DOWNで501を8ラウンド以内にぴったりでクリアできれば成功' }
             ]
