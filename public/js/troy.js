@@ -148,34 +148,34 @@ const QUEST_CONTENT_MAP = {
         ],
         'ダーツ': [
             [
-                { name: '初投計測', detail: 'カウントアップで220点以上なら成功' },
-                { name: '301完走', detail: '301をダブルフィニッシュできれば成功' },
-                { name: '二枚クローズ', detail: 'クリケットで任意ナンバー2つクローズできれば成功' }
+                { name: '初級アニマル', detail: 'ANIMAL BATTLE(vs CPU)でカバに勝利できれば成功' },
+                { name: '草原の一騎', detail: 'ANIMAL BATTLE(vs CPU)でキリンに勝利できれば成功' },
+                { name: '湿地の一撃', detail: 'ANIMAL BATTLE(vs CPU)でワニに勝利できれば成功' }
             ],
             [
-                { name: '刻み計測', detail: 'カウントアップで300点以上なら成功' },
-                { name: '501完走', detail: '501を1ゲームでクリアできれば成功' },
-                { name: '三枚封鎖', detail: 'クリケットで3クローズ達成なら成功' }
+                { name: '密林の覇者', detail: 'ANIMAL BATTLE(vs CPU)でタイガーに勝利できれば成功' },
+                { name: '巨体の壁', detail: 'ANIMAL BATTLE(vs CPU)でゾウに勝利できれば成功' },
+                { name: '王の咆哮', detail: 'ANIMAL BATTLE(vs CPU)でライオンに勝利できれば成功' }
             ],
             [
-                { name: '精密計測', detail: 'カウントアップで320点以上なら成功' },
-                { name: '501完走', detail: '501を1ゲームでクリアできれば成功' },
-                { name: '三枚封鎖', detail: 'クリケットで3クローズ達成なら成功' }
+                { name: '白虎の試練', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに勝利できれば成功' },
+                { name: '桃の巨獣', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに勝利できれば成功' },
+                { name: '黒獅子の牙', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに勝利できれば成功' }
             ],
             [
-                { name: '高精度計測', detail: 'カウントアップで380点以上なら成功' },
-                { name: '501短縮', detail: '501を15ラウンド以内にクリアできれば成功' },
-                { name: '四枚封鎖', detail: 'クリケットで4クローズ達成なら成功' }
+                { name: '白虎連戦', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに2連勝できれば成功' },
+                { name: '桃の連戦', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに2連勝できれば成功' },
+                { name: '黒獅子連戦', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに2連勝できれば成功' }
             ],
             [
-                { name: '上位計測', detail: 'カウントアップで450点以上なら成功' },
-                { name: '701挑戦', detail: '701を1ゲームでクリアできれば成功' },
-                { name: '五枚封鎖', detail: 'クリケットで5クローズ達成なら成功' }
+                { name: '白虎三連', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに3連勝できれば成功' },
+                { name: '桃の三連', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに3連勝できれば成功' },
+                { name: '黒獅子三連', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに3連勝できれば成功' }
             ],
             [
-                { name: '最終計測', detail: 'カウントアップで520点以上なら成功' },
-                { name: '701極短', detail: '701を10ラウンド以内にクリアできれば成功' },
-                { name: '完全封鎖', detail: 'クリケットで全クローズ達成なら成功' }
+                { name: '白虎四連', detail: 'ANIMAL BATTLE(vs CPU)でホワイトタイガーに4連勝できれば成功' },
+                { name: '桃の四連', detail: 'ANIMAL BATTLE(vs CPU)でピンクゾウに4連勝できれば成功' },
+                { name: '黒獅子四連', detail: 'ANIMAL BATTLE(vs CPU)で黒ライオンに4連勝できれば成功' }
             ]
         ],
         'トランプ': [
@@ -310,34 +310,34 @@ const QUEST_CONTENT_MAP = {
         ],
         'ダーツ': [
             [
-                { name: '先制照準', detail: '1対1でカウントアップ200点以上' },
-                { name: '初戦01', detail: '1対1で01を1勝' },
-                { name: '初陣クローズ', detail: '1対1でクリケット2クローズ達成' }
+                { name: '海賊砲撃', detail: 'PIRATESで相手の船を1隻沈めて勝利' },
+                { name: '蜘蛛の初狩り', detail: 'SPIDERで蜘蛛を2匹倒して勝利' },
+                { name: '宝箱の試掘', detail: 'TREASURE HUNTで合計300点以上で勝利' }
             ],
             [
-                { name: '牽制連射', detail: '1対1でカウントアップ280点以上' },
-                { name: '速攻01', detail: '1対1で01を15ラウンド以内に勝利' },
-                { name: '陣地拡張', detail: '1対1でクリケット3クローズ達成' }
+                { name: '砲門の連射', detail: 'PIRATESで相手の船を2隻沈めて勝利' },
+                { name: '蜘蛛の掃討', detail: 'SPIDERで蜘蛛を3匹倒して勝利' },
+                { name: 'KICK DOWN初勝', detail: 'KICK DOWNで301を先取して勝利' }
             ],
             [
-                { name: '追撃連射', detail: '1対1でカウントアップ340点以上' },
-                { name: '短縮01', detail: '1対1で01を12ラウンド以内に勝利' },
-                { name: '陣地制圧', detail: '1対1でクリケット4クローズ達成' }
+                { name: '艦隊撃沈', detail: 'PIRATESで相手の船を3隻沈めて勝利' },
+                { name: '蜘蛛の連戦', detail: 'SPIDERで蜘蛛を4匹倒して勝利' },
+                { name: '宝の収穫', detail: 'TREASURE HUNTで合計700点以上で勝利' }
             ],
             [
-                { name: '圧力連射', detail: '1対1でカウントアップ400点以上' },
-                { name: '速攻01+', detail: '1対1で01を10ラウンド以内に勝利' },
-                { name: '陣地封鎖', detail: '1対1でクリケット5クローズ達成' }
+                { name: 'KICK DOWN勝負', detail: 'KICK DOWNで501を先取して勝利' },
+                { name: '蜘蛛の包囲', detail: 'SPIDERで蜘蛛を6匹倒して勝利' },
+                { name: '宝の山', detail: 'TREASURE HUNTで合計1000点以上で勝利' }
             ],
             [
-                { name: '決戦連射', detail: '1対1でカウントアップ470点以上' },
-                { name: '決戦01', detail: '1対1で01を9ラウンド以内に勝利' },
-                { name: '完全封鎖', detail: '1対1でクリケット全クローズ達成' }
+                { name: '無傷の砲撃', detail: 'PIRATESで相手の船を3隻沈めてノーミス勝利' },
+                { name: '蜘蛛の刈り', detail: 'SPIDERで蜘蛛を8匹倒して勝利' },
+                { name: 'KICK DOWN決め', detail: 'KICK DOWNでKICK DOWNを1回決めて勝利' }
             ],
             [
-                { name: '極限連射', detail: '1対1でカウントアップ520点以上' },
-                { name: '極短01', detail: '1対1で01を8ラウンド以内に勝利' },
-                { name: '完全封鎖・極', detail: '1対1でクリケット全クローズ達成' }
+                { name: '宝の極致', detail: 'TREASURE HUNTで合計1500点以上で勝利' },
+                { name: '海賊連勝', detail: 'PIRATESで相手の船を3隻沈めて2連勝で勝利' },
+                { name: 'KICK DOWN極', detail: 'KICK DOWNで501を先取し、KICK DOWNを1回決めて勝利' }
             ]
         ],
         'トランプ': [
