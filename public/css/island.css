@@ -398,6 +398,12 @@
     color: #ff6b6b;
 }
 
+.building-reason {
+    font-size: 12px;
+    color: #ffb347;
+    margin-top: 6px;
+}
+
 .building-stats {
     display: flex;
     gap: 12px;

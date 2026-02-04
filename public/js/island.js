@@ -880,8 +880,9 @@ async function loadBuildingList(category, island) {
                         <span class="stat">サイズ: ${getSizeLabelFromTag(building.tags)}</span>
                     </div>
                     ${renderBuildingCost(building.cost, balances)}
+                    ${renderBuildingConditionReason(building)}
                 </div>
-                <button class="btn-build" data-building-id="${building.id}" ${getBuildButtonDisabled(building.cost, balances, hasBuilding) ? 'disabled' : ''}>${getBuildButtonLabel(building.cost, balances, hasBuilding)}</button>
+                <button class="btn-build" data-building-id="${building.id}" ${getBuildButtonDisabled(building, balances, hasBuilding) ? 'disabled' : ''}>${getBuildButtonLabel(building, balances, hasBuilding)}</button>
             </div>
         `).join('');
 
@@ -933,14 +934,22 @@ function renderBuildingCost(costs, balances) {
     `;
 }
 
-function getBuildButtonDisabled(costs, balances, hasBuilding) {
+function getBuildButtonDisabled(building, balances, hasBuilding) {
     if (hasBuilding) return true;
-    return !isCostAffordable(costs, balances);
+    if (building?.meetsCondition === false) return true;
+    return !isCostAffordable(building?.cost, balances);
 }
 
-function getBuildButtonLabel(costs, balances, hasBuilding) {
+function getBuildButtonLabel(building, balances, hasBuilding) {
     if (hasBuilding) return '建設済み';
-    return isCostAffordable(costs, balances) ? '建設' : '不足';
+    if (building?.meetsCondition === false) return '条件未達';
+    return isCostAffordable(building?.cost, balances) ? '建設' : '不足';
+}
+
+function renderBuildingConditionReason(building) {
+    if (!building || building.meetsCondition !== false) return '';
+    const reason = building.conditionReason || '建設条件を満たしていません';
+    return `<div class="building-reason">${escapeHtml(reason)}</div>`;
 }
 
 async function loadShopPanels(sheet, island, shopConfig, playFabId) {
@@ -1305,8 +1314,8 @@ export async function requestConstructionHelp(islandId, buildingName) {
     }
 }
 
-export async function helpConstruction(islandId, helperPlayFabId) {
-    const response = await requestHelpConstruction(islandId, helperPlayFabId, window.__currentMapId || null);
+export async function helpConstruction(islandId, playFabId) {
+    const response = await requestHelpConstruction(islandId, playFabId, window.__currentMapId || null);
 
     if (response && response.success) {
         const timerKey = `${islandId}`;

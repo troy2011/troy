@@ -287,8 +287,8 @@ export function checkBuildingCompletion(islandId, mapId, options) {
     return callApiWithLoader('/api/check-building-completion', { islandId, mapId }, options);
 }
 
-export function helpConstruction(islandId, helperPlayFabId, mapId, options) {
-    return callApiWithLoader('/api/help-construction', { islandId, helperPlayFabId, mapId }, options);
+export function helpConstruction(islandId, playFabId, mapId, options) {
+    return callApiWithLoader('/api/help-construction', { islandId, playFabId, helperPlayFabId: playFabId, mapId }, options);
 }
 
 export function getShopState(islandId, mapId, options) {

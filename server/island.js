@@ -22,6 +22,15 @@ const RESOURCE_BIOME_CURRENCY = {
     forest: 'RT',
     sacred: 'RS'
 };
+const RESOURCE_BIOME_JP = {
+    '火山': 'volcanic',
+    '岩場': 'rocky',
+    'キノコ': 'mushroom',
+    '湖': 'lake',
+    '森林': 'forest',
+    '聖地': 'sacred'
+};
+const RESOURCE_BIOMES = new Set(['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred']);
 const OWNED_MAP_IDS_KEY = 'OwnedMapIds';
 
 function getCentralIslandIdForMap(mapId) {
@@ -63,6 +72,28 @@ function normalizePriceAmounts(value) {
 function normalizeMapId(mapId) {
     const raw = String(mapId || '').trim();
     return raw ? raw : null;
+}
+
+function normalizeBiomeKey(biome) {
+    if (!biome) return '';
+    const raw = String(biome).trim();
+    return (RESOURCE_BIOME_JP[raw] || raw).toLowerCase();
+}
+
+function canBuildToOccupy({ island, playerNation, mapOccupationNation }) {
+    const ownerId = island?.ownerId || null;
+    if (ownerId) return false;
+    const normalizedPlayerNation = String(playerNation || '').toLowerCase();
+    const normalizedMapNation = String(mapOccupationNation || '').toLowerCase();
+    const isOwnedArea = !normalizedMapNation || (!!normalizedPlayerNation && normalizedPlayerNation === normalizedMapNation);
+    if (!isOwnedArea) return false;
+    const biomeKey = normalizeBiomeKey(island?.biome);
+    if (RESOURCE_BIOMES.has(biomeKey)) return false;
+    const occupationStatus = String(island?.occupationStatus || '').toLowerCase();
+    if (occupationStatus === 'capital' || occupationStatus === 'sacred') return false;
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    const hasBuilding = buildings.some(b => b && b.status !== 'demolished');
+    return !hasBuilding;
 }
 
 function parseOwnedMapIds(raw) {
@@ -311,7 +342,7 @@ async function getActiveShipCargoCapacity(playFabId, deps) {
 
 // APIルートを初期化
 function initializeIslandRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, firestore, admin, addEconomyItem, subtractEconomyItem, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, NATION_GROUP_BY_RACE, catalogCache } = deps;
+    const { promisifyPlayFab, PlayFabServer, firestore, admin, addEconomyItem, subtractEconomyItem, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getMapOccupationNation, NATION_GROUP_BY_RACE, catalogCache } = deps;
 
     const islandDeps = { promisifyPlayFab, PlayFabServer, admin };
 
@@ -327,6 +358,9 @@ function initializeIslandRoutes(app, deps) {
                 Keys: ['Nation']
             });
             const playerNation = String(nationRo?.Data?.Nation?.Value || '').toLowerCase();
+            const mapOccupationNation = (mapId && typeof getMapOccupationNation === 'function')
+                ? await getMapOccupationNation(mapId)
+                : null;
 
             const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
             const result = await firestore.runTransaction(async (tx) => {
@@ -335,6 +369,9 @@ function initializeIslandRoutes(app, deps) {
                 const data = snap.data() || {};
                 if (data.ownerId === playFabId) {
                     return { island: data, changed: false };
+                }
+                if (!canBuildToOccupy({ island: data, playerNation, mapOccupationNation })) {
+                    throw new Error('BuildToOccupyNotAllowed');
                 }
                 const patch = {
                     ownerId: playFabId,
@@ -345,10 +382,10 @@ function initializeIslandRoutes(app, deps) {
                 return { island: { ...data, ...patch }, changed: true };
             });
 
-            let mapOccupationNation = null;
+            let updatedMapOccupationNation = null;
             const centralId = getCentralIslandIdForMap(mapId);
             if (centralId && centralId === islandId && typeof setMapOccupationNation === 'function') {
-                mapOccupationNation = await setMapOccupationNation(mapId, playerNation || null);
+                updatedMapOccupationNation = await setMapOccupationNation(mapId, playerNation || null);
             }
 
             res.json({
@@ -357,11 +394,12 @@ function initializeIslandRoutes(app, deps) {
                 mapId,
                 ownerId: playFabId,
                 ownerNation: playerNation || null,
-                mapOccupationNation: mapOccupationNation || null
+                mapOccupationNation: updatedMapOccupationNation || null
             });
         } catch (error) {
             const msg = error?.message || String(error);
             if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'BuildToOccupyNotAllowed') return res.status(403).json({ error: 'BuildToOccupyNotAllowed' });
             console.error('[ClaimIsland] Error:', error);
             res.status(500).json({ error: 'Failed to claim island', details: msg });
         }
@@ -753,58 +791,69 @@ function initializeIslandRoutes(app, deps) {
                 }
             }
 
-            for (const entry of costEntries) {
-                await subtractEconomyItem(playFabId, entry.code, entry.amount);
+            let deducted = false;
+            try {
+                for (const entry of costEntries) {
+                    await subtractEconomyItem(playFabId, entry.code, entry.amount);
+                }
+                deducted = true;
+
+                const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
+                const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
+                const logicW = Math.max(1, Math.trunc(sizeLogic.x));
+                const logicH = Math.max(1, Math.trunc(sizeLogic.y));
+                const visualW = Math.max(1, Math.trunc(sizeVisual.x));
+                const visualH = Math.max(1, Math.trunc(sizeVisual.y));
+                const tileIndexRaw = spec.TileIndex;
+                const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
+                const maxHp = computeMaxHp(logicW, logicH, nextLevel);
+
+                await firestore.runTransaction(async (tx) => {
+                    const snapTx = await tx.get(ref);
+                    if (!snapTx.exists) throw new Error('IslandNotFound');
+                    const data = snapTx.data() || {};
+                    const existing = Array.isArray(data.buildings) ? data.buildings.slice() : [];
+
+                    const nextBuilding = {
+                        buildingId: houseId,
+                        status: 'completed',
+                        level: nextLevel,
+                        startTime: Date.now(),
+                        completionTime: Date.now(),
+                        durationMs: 0,
+                        helpers: [],
+                        width: logicW,
+                        height: logicH,
+                        visualWidth: visualW,
+                        visualHeight: visualH,
+                        tileIndex: tileIndexValue,
+                        maxHp: maxHp,
+                        currentHp: maxHp,
+                        x: 0,
+                        y: 0
+                    };
+
+                    const filtered = existing.filter(b => {
+                        if (!b) return true;
+                        const rawId = String(b.buildingId || b.id || '');
+                        if (rawId === 'my_house') return false;
+                        return !rawId.startsWith('my_house_lv');
+                    });
+                    filtered.push(nextBuilding);
+
+                    tx.update(ref, {
+                        islandLevel: nextLevel,
+                        buildings: filtered
+                    });
+                });
+            } catch (error) {
+                if (deducted) {
+                    for (const entry of costEntries) {
+                        await addEconomyItem(playFabId, entry.code, entry.amount);
+                    }
+                }
+                throw error;
             }
-
-            const sizeLogic = normalizeSize(spec.SizeLogic, inferLogicSizeFromSlotsRequired(spec.SlotsRequired));
-            const sizeVisual = normalizeSize(spec.SizeVisual, sizeLogic);
-            const logicW = Math.max(1, Math.trunc(sizeLogic.x));
-            const logicH = Math.max(1, Math.trunc(sizeLogic.y));
-            const visualW = Math.max(1, Math.trunc(sizeVisual.x));
-            const visualH = Math.max(1, Math.trunc(sizeVisual.y));
-            const tileIndexRaw = spec.TileIndex;
-            const tileIndexValue = Number.isFinite(Number(tileIndexRaw)) ? Number(tileIndexRaw) : 17;
-            const maxHp = computeMaxHp(logicW, logicH, nextLevel);
-
-            await firestore.runTransaction(async (tx) => {
-                const snapTx = await tx.get(ref);
-                if (!snapTx.exists) throw new Error('IslandNotFound');
-                const data = snapTx.data() || {};
-                const existing = Array.isArray(data.buildings) ? data.buildings.slice() : [];
-
-                const nextBuilding = {
-                    buildingId: houseId,
-                    status: 'completed',
-                    level: nextLevel,
-                    startTime: Date.now(),
-                    completionTime: Date.now(),
-                    durationMs: 0,
-                    helpers: [],
-                    width: logicW,
-                    height: logicH,
-                    visualWidth: visualW,
-                    visualHeight: visualH,
-                    tileIndex: tileIndexValue,
-                    maxHp: maxHp,
-                    currentHp: maxHp,
-                    x: 0,
-                    y: 0
-                };
-
-                const filtered = existing.filter(b => {
-                    if (!b) return true;
-                    const rawId = String(b.buildingId || b.id || '');
-                    if (rawId === 'my_house') return false;
-                    return !rawId.startsWith('my_house_lv');
-                });
-                filtered.push(nextBuilding);
-
-                tx.update(ref, {
-                    islandLevel: nextLevel,
-                    buildings: filtered
-                });
-            });
 
             res.json({ success: true, islandId, nextLevel, buildingId: houseId });
         } catch (error) {

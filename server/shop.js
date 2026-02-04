@@ -137,6 +137,14 @@ function checkOccupationCondition(condition, mapOccupationNation, playerNation) 
     return !!playerNation && playerNation === mapOccupationNation;
 }
 
+function getConditionReason(condition, mapId, mapBuildingCounts, mapOccupationNation, playerNation) {
+    if (!condition) return null;
+    if (!checkMapIdCondition(condition, mapId)) return '建設可能な海域ではありません';
+    if (!checkBuildingCountCondition(condition, mapBuildingCounts)) return '建設数条件を満たしていません';
+    if (!checkOccupationCondition(condition, mapOccupationNation, playerNation)) return '占領条件を満たしていません';
+    return null;
+}
+
 // APIルートを初期化
 function initializeShopRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getMapOccupationNation, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
@@ -699,10 +707,14 @@ function initializeShopRoutes(app, deps) {
 
     // 建設支援
     app.post('/api/help-construction', async (req, res) => {
-        const { islandId, helperPlayFabId, mapId } = req.body || {};
-        if (!islandId || !helperPlayFabId) {
-            return res.status(400).json({ error: 'islandId and helperPlayFabId are required' });
+        const { islandId, helperPlayFabId, mapId, playFabId } = req.body || {};
+        if (!islandId || !playFabId) {
+            return res.status(400).json({ error: 'islandId and playFabId are required' });
         }
+        if (helperPlayFabId && helperPlayFabId !== playFabId) {
+            return res.status(403).json({ error: 'InvalidHelper' });
+        }
+        const resolvedHelperId = playFabId;
 
         try {
             let ref = null;
@@ -727,8 +739,8 @@ function initializeShopRoutes(app, deps) {
 
                 const b = buildings[idx];
                 const helpers = Array.isArray(b.helpers) ? b.helpers.slice() : [];
-                if (!helpers.includes(helperPlayFabId)) {
-                    helpers.push(helperPlayFabId);
+                if (!helpers.includes(resolvedHelperId)) {
+                    helpers.push(resolvedHelperId);
                 }
 
                 const durationMs = Number(b.durationMs) || Math.max(0, (Number(b.completionTime) || now) - (Number(b.startTime) || now));
@@ -798,10 +810,12 @@ function initializeShopRoutes(app, deps) {
                 const sizeTag = `size_${slotsRequired === 1 ? 'small' : slotsRequired === 2 ? 'medium' : slotsRequired === 9 ? 'giant' : 'large'}`;
                 const condition = resolved?.buildCondition || building?.buildCondition || null;
                 let meetsCondition = true;
+                let conditionReason = null;
                 if (condition) {
                     meetsCondition = checkMapIdCondition(condition, mapId)
                         && checkBuildingCountCondition(condition, mapBuildingCounts)
                         && checkOccupationCondition(condition, mapOccupationNation, playerNation);
+                    conditionReason = meetsCondition ? null : getConditionReason(condition, mapId, mapBuildingCounts, mapOccupationNation, playerNation);
                 }
                 return {
                     id: building.id || key,
@@ -813,11 +827,12 @@ function initializeShopRoutes(app, deps) {
                     slotsRequired,
                     category: building.category || null,
                     buildCondition: condition || null,
-                    meetsCondition
+                    meetsCondition,
+                    conditionReason
                 };
             });
 
-            let filtered = buildings.filter((item) => item.meetsCondition !== false);
+            let filtered = buildings;
             if (islandSize) {
                 const tag = `size_${islandSize}`;
                 filtered = filtered.filter(item => !Array.isArray(item.tags) || item.tags.includes(tag));
