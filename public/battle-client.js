@@ -328,6 +328,35 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
         header.appendChild(roundsLabel);
         header.appendChild(winnerLabel);
         container.appendChild(header);
+
+        const summary = document.createElement('div');
+        summary.style.background = 'rgba(15,23,42,0.35)';
+        summary.style.border = '1px solid rgba(148,163,184,0.2)';
+        summary.style.borderRadius = '8px';
+        summary.style.padding = '6px 10px';
+        summary.style.marginBottom = '10px';
+
+        const summaryTitle = document.createElement('div');
+        summaryTitle.style.fontSize = '11px';
+        summaryTitle.style.fontWeight = '700';
+        summaryTitle.style.color = '#e2e8f0';
+        summaryTitle.style.marginBottom = '6px';
+        summaryTitle.innerText = 'ラウンド結果';
+        summary.appendChild(summaryTitle);
+
+        meta.rounds.forEach((roundInfo) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justifyContent = 'space-between';
+            row.style.fontSize = '11px';
+            row.style.color = '#cbd5f5';
+            row.style.padding = '2px 0';
+            const winnerName = meta.players?.[roundInfo.winnerId]?.name || roundInfo.winnerId || '???';
+            const loserName = meta.players?.[roundInfo.loserId]?.name || roundInfo.loserId || '???';
+            row.innerText = `第${roundInfo.round}戦: ${winnerName} 勝利 / ${loserName}`;
+            summary.appendChild(row);
+        });
+        container.appendChild(summary);
     }
     if (!logData) {
         if (typeof onComplete === 'function') onComplete();
