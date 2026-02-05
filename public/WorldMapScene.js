@@ -277,6 +277,16 @@ export default class WorldMapScene extends Phaser.Scene {
         this.boardingVisible = false;
         this.lastBoardingAt = 0;
         this.boardingCooldownMs = 60 * 1000;
+        this.rideRequestUnsubscribe = null;
+        this.rideStatusUnsubscribe = null;
+        this.rideSelfUnsubscribe = null;
+        this.rideRequestSeen = new Set();
+        this.ridingShipId = null;
+        this.ridingOwnerId = null;
+        this.ridingSince = null;
+        this.rideLeaveButton = null;
+        this.rideSyncTimer = null;
+        this.lastRideSyncAt = 0;
         this.ghostShip = null;
         this.ghostShipTween = null;
         this.ghostShipCheckTimer = null;
@@ -495,6 +505,29 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.shipBattleSmokeTimers) {
             this.shipBattleSmokeTimers.forEach(timer => timer?.remove?.());
             this.shipBattleSmokeTimers.clear();
+        }
+        if (this.rideRequestUnsubscribe) {
+            this.rideRequestUnsubscribe();
+            this.rideRequestUnsubscribe = null;
+        }
+        if (this.rideStatusUnsubscribe) {
+            this.rideStatusUnsubscribe();
+            this.rideStatusUnsubscribe = null;
+        }
+        if (this.rideSelfUnsubscribe) {
+            this.rideSelfUnsubscribe();
+            this.rideSelfUnsubscribe = null;
+        }
+        if (this.rideRequestSeen) {
+            this.rideRequestSeen.clear();
+        }
+        if (this.rideSyncTimer) {
+            this.rideSyncTimer.remove();
+            this.rideSyncTimer = null;
+        }
+        if (this.rideLeaveButton) {
+            this.rideLeaveButton.remove();
+            this.rideLeaveButton = null;
         }
 
         this.removeGhostShip();
@@ -914,6 +947,10 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         seaBackground.on('pointerup', (pointer) => {
+            if (this.ridingShipId) {
+                this.showMessage('同乗中は移動できません。');
+                return;
+            }
             if (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active')) return;
             if (typeof document !== 'undefined') {
                 const modal = document.getElementById('mapSelectModal');
@@ -1016,6 +1053,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.createBoardingButton();
         this.setupShipActionUi();
+        this.setupRideLeaveUi();
 
         this.scale.on('resize', () => {
             this.cameras.main.setViewport(0, 0, this.scale.width, this.scale.height);
@@ -1152,6 +1190,14 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 11. Firestore 初期化（ships同期など）
         await this.initializeFirestore();
+        await this.subscribeToRideRequests();
+        if (this.time) {
+            this.rideSyncTimer = this.time.addEvent({
+                delay: 250,
+                loop: true,
+                callback: () => this.syncRidePosition()
+            });
+        }
 
         // UI camera should only render fog + minimap.
         if (this.uiCamera) {
@@ -3286,7 +3332,25 @@ export default class WorldMapScene extends Phaser.Scene {
         const target = this.otherShips.get(targetPlayFabId);
         const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
         if (myNation && targetNation && myNation === targetNation) {
-            this.showMessage('同じ国の船には乗り込めません。');
+            this.boardingTargetId = targetPlayFabId;
+            title.textContent = displayName ? `船: ${displayName}` : '船';
+            actionBtn.textContent = '同乗申請';
+            actionBtn.className = 'island-command-btn info';
+            attackBtn.style.display = 'none';
+            const newActionBtn = actionBtn.cloneNode(true);
+            actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+            const newCloseBtn = closeBtn.cloneNode(true);
+            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+            newActionBtn.addEventListener('click', () => {
+                void this.requestRide(targetPlayFabId, displayName);
+            });
+            newCloseBtn.addEventListener('click', () => {
+                this.hideShipCommandMenu();
+            });
+            setTimeout(() => {
+                panel.classList.add('active');
+            }, 10);
+            this.commandMenuOpen = true;
             return;
         }
 
@@ -3360,6 +3424,220 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.boardingTargetId = null;
         this.commandMenuOpen = false;
+    }
+
+    setupRideLeaveUi() {
+        if (typeof document === 'undefined' || this.rideLeaveButton) return;
+        const button = document.createElement('button');
+        button.id = 'rideLeaveButton';
+        button.textContent = '下船する';
+        button.style.position = 'fixed';
+        button.style.right = '16px';
+        button.style.bottom = '120px';
+        button.style.zIndex = '9999';
+        button.style.padding = '10px 14px';
+        button.style.borderRadius = '10px';
+        button.style.border = '1px solid rgba(255,255,255,0.3)';
+        button.style.background = 'rgba(15,23,42,0.9)';
+        button.style.color = '#fff';
+        button.style.display = 'none';
+        button.addEventListener('click', () => {
+            void this.leaveRide();
+        });
+        document.body.appendChild(button);
+        this.rideLeaveButton = button;
+    }
+
+    updateRideLeaveUi() {
+        if (!this.rideLeaveButton) return;
+        this.rideLeaveButton.style.display = this.ridingShipId ? 'block' : 'none';
+    }
+
+    async requestRide(targetPlayFabId, displayName = '') {
+        if (!this.firestore || !this.playerInfo?.playFabId || !targetPlayFabId) return;
+        if (this.ridingShipId) {
+            this.showMessage('すでに同乗中です。下船してから申請してください。');
+            return;
+        }
+        try {
+            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+            const requestId = `${targetPlayFabId}_${this.playerInfo.playFabId}`;
+            const requestRef = doc(this.firestore, 'shipRideRequests', requestId);
+            await setDoc(requestRef, {
+                requestId,
+                requesterId: this.playerInfo.playFabId,
+                requesterName: window.myLineProfile?.displayName || 'Unknown',
+                targetId: targetPlayFabId,
+                targetName: displayName || '',
+                status: 'pending',
+                mapId: this.mapId || null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            this.showMessage('同乗申請を送りました。');
+        } catch (error) {
+            console.warn('[Ride] Failed to request ride:', error);
+            this.showMessage('同乗申請に失敗しました。');
+        }
+    }
+
+    async subscribeToRideRequests() {
+        if (!this.firestore || !this.playerInfo?.playFabId) return;
+        const { collection, query, where, onSnapshot, doc } = await import('firebase/firestore');
+        if (this.rideRequestUnsubscribe) {
+            this.rideRequestUnsubscribe();
+            this.rideRequestUnsubscribe = null;
+        }
+        const reqQuery = query(
+            collection(this.firestore, 'shipRideRequests'),
+            where('targetId', '==', this.playerInfo.playFabId),
+            where('status', '==', 'pending')
+        );
+        this.rideRequestUnsubscribe = onSnapshot(reqQuery, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type !== 'added') return;
+                const data = change.doc.data() || {};
+                const requestId = data.requestId || change.doc.id;
+                if (this.rideRequestSeen.has(requestId)) return;
+                this.rideRequestSeen.add(requestId);
+                void this.promptRideRequest(data);
+            });
+        });
+
+        const statusQuery = query(
+            collection(this.firestore, 'shipRideRequests'),
+            where('requesterId', '==', this.playerInfo.playFabId)
+        );
+        this.rideStatusUnsubscribe = onSnapshot(statusQuery, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data() || {};
+                if (data.status === 'accepted' && data.targetId) {
+                    this.showMessage('同乗が承認されました。');
+                } else if (data.status === 'denied') {
+                    this.showMessage('同乗が拒否されました。');
+                }
+            });
+        });
+
+        if (this.rideSelfUnsubscribe) {
+            this.rideSelfUnsubscribe();
+            this.rideSelfUnsubscribe = null;
+        }
+        const selfRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+        this.rideSelfUnsubscribe = onSnapshot(selfRef, (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.data() || {};
+            const ridingShipId = String(data?.ridingShipId || '').trim();
+            const ridingOwnerId = String(data?.ridingOwnerId || '').trim();
+            const changed = this.ridingShipId !== ridingShipId || this.ridingOwnerId !== ridingOwnerId;
+            this.ridingShipId = ridingShipId || null;
+            this.ridingOwnerId = ridingOwnerId || null;
+            this.ridingSince = data?.ridingSince || null;
+            this.canMove = !this.ridingShipId;
+            if (changed) {
+                this.updateRideLeaveUi();
+            }
+        });
+    }
+
+    async promptRideRequest(request) {
+        if (!request || !request.requesterId || !request.targetId) return;
+        if (this.ridingShipId) {
+            await this.respondRideRequest(request, false);
+            return;
+        }
+        const name = request.requesterName || '味方';
+        const accept = typeof window !== 'undefined' ? window.confirm(`${name}が同乗申請しています。承認しますか？`) : false;
+        await this.respondRideRequest(request, !!accept);
+    }
+
+    async respondRideRequest(request, accepted) {
+        try {
+            const { doc, setDoc, serverTimestamp, getDoc, query, collection, where, getDocs } = await import('firebase/firestore');
+            const requestId = request.requestId || `${request.targetId}_${request.requesterId}`;
+            const reqRef = doc(this.firestore, 'shipRideRequests', requestId);
+            if (!accepted) {
+                await setDoc(reqRef, {
+                    status: 'denied',
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                return;
+            }
+
+            const targetDoc = await getDoc(doc(this.firestore, 'ships', request.targetId));
+            const targetData = targetDoc.exists() ? targetDoc.data() : {};
+            const crewCapacity = Number(targetData?.crewCapacity);
+            if (Number.isFinite(crewCapacity) && crewCapacity > 0) {
+                const passengerQuery = query(
+                    collection(this.firestore, 'ships'),
+                    where('ridingOwnerId', '==', request.targetId)
+                );
+                const passengerSnap = await getDocs(passengerQuery);
+                const passengerCount = passengerSnap.size || 0;
+                if (passengerCount + 1 >= crewCapacity) {
+                    await setDoc(reqRef, {
+                        status: 'denied',
+                        updatedAt: serverTimestamp(),
+                        reason: 'CrewCapacityFull'
+                    }, { merge: true });
+                    this.showMessage('定員がいっぱいです。');
+                    return;
+                }
+            }
+            await setDoc(reqRef, {
+                status: 'accepted',
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            const targetShipId = targetData?.shipId || null;
+            const targetPos = targetData?.position || { x: targetData?.currentX, y: targetData?.currentY };
+            const passengerRef = doc(this.firestore, 'ships', request.requesterId);
+            await setDoc(passengerRef, {
+                ridingShipId: targetShipId || null,
+                ridingOwnerId: request.targetId,
+                ridingSince: Date.now(),
+                currentX: targetPos?.x ?? null,
+                currentY: targetPos?.y ?? null,
+                position: targetPos || null,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            this.showMessage('同乗を承認しました。');
+        } catch (error) {
+            console.warn('[Ride] Failed to respond ride request:', error);
+        }
+    }
+
+    async leaveRide() {
+        if (!this.firestore || !this.playerInfo?.playFabId) return;
+        try {
+            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+            const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+            await setDoc(shipRef, {
+                ridingShipId: null,
+                ridingOwnerId: null,
+                ridingSince: null,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            this.ridingShipId = null;
+            this.ridingOwnerId = null;
+            this.ridingSince = null;
+            this.canMove = true;
+            this.updateRideLeaveUi();
+            this.showMessage('下船しました。');
+        } catch (error) {
+            console.warn('[Ride] Failed to leave ride:', error);
+        }
+    }
+
+    syncRidePosition() {
+        if (!this.ridingShipId || !this.ridingOwnerId || !this.playerShip) return;
+        const targetShip = this.otherShips.get(this.ridingOwnerId);
+        const targetSprite = targetShip?.sprite;
+        if (!targetSprite) return;
+        this.playerShip.setPosition(targetSprite.x, targetSprite.y);
+        const now = Date.now();
+        if (now - this.lastRideSyncAt < 1000) return;
+        this.lastRideSyncAt = now;
+        void this.updateMyShipStoppedPosition();
     }
 
     async ramShipDamage(otherPlayFabId, shipObject) {
@@ -4955,6 +5233,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
                 lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
+                crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
+                ridingShipId: this.ridingShipId || null,
+                ridingOwnerId: this.ridingOwnerId || null,
+                ridingSince: this.ridingSince || null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: targetX,
@@ -5008,6 +5290,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 appearance: { color: this.normalizeShipColorKey(window.myAvatarBaseInfo?.AvatarColor) },
                 guildId: this.getMyGuildId(),
                 lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
+                crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
+                ridingShipId: this.ridingShipId || null,
+                ridingOwnerId: this.ridingOwnerId || null,
+                ridingSince: this.ridingSince || null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: currentX,
@@ -5049,6 +5335,13 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.shipVisionRange = storedVision;
                     this.baseShipVisionRange = storedVision;
                 }
+                const ridingShipId = String(data?.ridingShipId || '').trim();
+                const ridingOwnerId = String(data?.ridingOwnerId || '').trim();
+                this.ridingShipId = ridingShipId || null;
+                this.ridingOwnerId = ridingOwnerId || null;
+                this.ridingSince = data?.ridingSince || null;
+                this.canMove = !this.ridingShipId;
+                this.updateRideLeaveUi();
 
                 const activeShipId = data.shipId;
                 let shipId = data.shipId;
@@ -5220,6 +5513,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 nation: this.playerInfo.nation || this.playerInfo.Nation || null,
                 mapId: this.mapId || null,
                 guildId: this.getMyGuildId(),
+                crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
+                ridingShipId: this.ridingShipId || null,
+                ridingOwnerId: this.ridingOwnerId || null,
+                ridingSince: this.ridingSince || null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: currentX,
@@ -5246,6 +5543,7 @@ export default class WorldMapScene extends Phaser.Scene {
     async updateOtherShip(playFabId, shipData) {
         let shipObject = this.otherShips.get(playFabId);
         const now = Date.now();
+        const isPassenger = !!shipData?.ridingOwnerId;
 
         const shipId = shipData.shipId;
         let assetData = null;
@@ -5320,6 +5618,12 @@ export default class WorldMapScene extends Phaser.Scene {
             }
             if (shipObject.sprite?.texture?.key !== sheetKey) {
                 shipObject.sprite.setTexture(sheetKey);
+            }
+        }
+        if (shipObject?.sprite) {
+            shipObject.sprite.setVisible(!isPassenger);
+            if (shipObject.sprite.body) {
+                shipObject.sprite.body.enable = !isPassenger;
             }
         }
 
