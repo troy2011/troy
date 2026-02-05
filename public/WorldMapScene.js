@@ -952,7 +952,6 @@ export default class WorldMapScene extends Phaser.Scene {
 
         seaBackground.on('pointerup', (pointer) => {
             if (this.ridingShipId) {
-                this.showMessage('同乗中は移動できません。');
                 return;
             }
             if (typeof document !== 'undefined' && document.querySelector('.building-bottom-sheet.active')) return;
