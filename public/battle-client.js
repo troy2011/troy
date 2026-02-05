@@ -222,8 +222,13 @@ function showBattleModal(battleId) {
         const logContainer = document.getElementById('battleLogContainer');
         const commandArea = document.getElementById('battleCommandArea');
         if (commandArea) commandArea.innerHTML = '';
+        const logMeta = {
+            rounds: Array.isArray(battleState.rounds) ? battleState.rounds : [],
+            winnerId: battleState.winner || null,
+            players: battleState.players || {}
+        };
         const renderImmediate = () => {
-            renderBattleLog(logContainer, battleState.log || null, { animate: false });
+            renderBattleLog(logContainer, battleState.log || null, { animate: false, meta: logMeta });
         };
         const renderWithAnimation = () => {
             const logCount = battleState.log ? Object.keys(battleState.log).length : 0;
@@ -231,6 +236,7 @@ function showBattleModal(battleId) {
             resetBattleAutoClose(extraMs);
             renderBattleLog(logContainer, battleState.log || null, {
                 animate: true,
+                meta: logMeta,
                 onComplete: () => showBattleResult(commandArea, battleState, myId, myPlayerOnlineRef)
             });
         };
@@ -291,19 +297,61 @@ function resetBattleAutoClose(delayMs) {
     }, delayMs);
 }
 
-function renderBattleLog(container, logData, { animate = false, onComplete = null } = {}) {
+function renderBattleLog(container, logData, { animate = false, onComplete = null, meta = null } = {}) {
     if (!container) return;
     container.innerHTML = '';
+    if (meta && Array.isArray(meta.rounds) && meta.rounds.length > 0) {
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'space-between';
+        header.style.background = 'rgba(15,23,42,0.6)';
+        header.style.border = '1px solid rgba(148,163,184,0.25)';
+        header.style.borderRadius = '8px';
+        header.style.padding = '6px 10px';
+        header.style.marginBottom = '8px';
+
+        const roundsLabel = document.createElement('div');
+        roundsLabel.style.fontWeight = '700';
+        roundsLabel.style.color = '#f8fafc';
+        roundsLabel.style.fontSize = '12px';
+        roundsLabel.innerText = `連戦: ${meta.rounds.length}戦`;
+
+        const winnerName = meta.winnerId && meta.players?.[meta.winnerId]?.name
+            ? meta.players[meta.winnerId].name
+            : '';
+        const winnerLabel = document.createElement('div');
+        winnerLabel.style.fontSize = '11px';
+        winnerLabel.style.color = '#cbd5f5';
+        winnerLabel.innerText = winnerName ? `勝者: ${winnerName}` : '';
+
+        header.appendChild(roundsLabel);
+        header.appendChild(winnerLabel);
+        container.appendChild(header);
+    }
     if (!logData) {
         if (typeof onComplete === 'function') onComplete();
         return;
     }
     const entries = Object.keys(logData).sort().map(key => logData[key]);
+    const createLineElement = (line) => {
+        const p = document.createElement('p');
+        p.innerText = line;
+        p.style.margin = '2px 0';
+        if (typeof line === 'string' && line.startsWith('【連戦')) {
+            p.style.marginTop = '10px';
+            p.style.padding = '4px 8px';
+            p.style.borderRadius = '6px';
+            p.style.background = 'rgba(251,191,36,0.12)';
+            p.style.border = '1px solid rgba(251,191,36,0.35)';
+            p.style.color = '#fde68a';
+            p.style.fontWeight = '700';
+        }
+        return p;
+    };
     if (!animate) {
         entries.forEach(line => {
-            const p = document.createElement('p');
-            p.innerText = line;
-            container.appendChild(p);
+            container.appendChild(createLineElement(line));
         });
         container.scrollTop = container.scrollHeight;
         if (typeof onComplete === 'function') onComplete();
@@ -315,9 +363,7 @@ function renderBattleLog(container, logData, { animate = false, onComplete = nul
     entries.forEach((line, index) => {
         setTimeout(() => {
             if (token !== battleLogRenderToken) return;
-            const p = document.createElement('p');
-            p.innerText = line;
-            container.appendChild(p);
+            container.appendChild(createLineElement(line));
             container.scrollTop = container.scrollHeight;
             if (index === entries.length - 1 && typeof onComplete === 'function') {
                 onComplete();
