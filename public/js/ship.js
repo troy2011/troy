@@ -258,6 +258,14 @@ export function renderShipCard(ship) {
     };
 
     const catalogItem = resolveCatalogShip();
+    const actionInfo = (() => {
+        if (typeof window === 'undefined' || !window.SHIP_ACTIONS) return null;
+        const itemId = String(assetData?.ItemId || '').toLowerCase();
+        const friendlyId = String(catalogItem?.FriendlyId || catalogItem?.friendlyId || '').toLowerCase();
+        return window.SHIP_ACTIONS[itemId] || (friendlyId ? window.SHIP_ACTIONS[friendlyId] : null);
+    })();
+    const actionLabel = actionInfo?.label || 'なし';
+    const actionDescription = actionInfo?.description || '';
     const shipName = (() => {
         if (catalogItem?.DisplayName) return catalogItem.DisplayName;
         if (assetData?.DisplayName) return assetData.DisplayName;
@@ -302,6 +310,8 @@ export function renderShipCard(ship) {
                 })()}</b></div>
                 <div><span>位置:</span> <b>${positionLabel}</b></div>
                 <div><span>積荷:</span> <b>${assetData?.Cargo?.length ?? 0}/${assetData?.Stats?.CargoCapacity ?? 0}</b></div>
+                <div><span>アクション:</span> <b>${actionLabel}</b></div>
+                ${actionDescription ? `<div style="grid-column: 1 / -1; font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
             </div>
             ${isMoving ? `
             <div style="margin-top: 12px;">

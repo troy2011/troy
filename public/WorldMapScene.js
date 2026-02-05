@@ -113,26 +113,30 @@ const BIOME_ID_BY_JP = {
 };
 
 const SHIP_ACTIONS = {
-    ship_human_fighter: { type: 'fighter', label: '火炎噴射', emoji: ['🔥', '🌪️'], rangeTiles: 5, angle: 70, damage: 320, effect: 'flame_cone', cooldownMs: 55_000 },
-    ship_elf_fighter: { type: 'fighter', label: '毒ガス空爆', emoji: ['🧪', '☠️'], radiusTiles: 5, damage: 160, effect: 'poison_gas', cooldownMs: 75_000 },
-    ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 50, damage: 380, effect: 'drill_burst', cooldownMs: 50_000 },
-    ship_orc_fighter: { type: 'fighter', label: '直撃砲', emoji: ['💣', '💥'], rangeTiles: 6, angle: 30, damage: 520, effect: 'cannon_shot', cooldownMs: 85_000 },
+    ship_human_fighter: { type: 'fighter', label: '火炎噴射', description: '前方扇状に炎を噴射し、範囲内の敵船にダメージ。', emoji: ['🔥', '🌪️'], rangeTiles: 5, angle: 70, damage: 320, effect: 'flame_cone', cooldownMs: 55_000 },
+    ship_elf_fighter: { type: 'fighter', label: '毒ガス空爆', description: '範囲内の敵プレイヤーに毒ガスでHPダメージ。', emoji: ['🧪', '☠️'], radiusTiles: 5, damage: 160, effect: 'poison_gas', cooldownMs: 75_000 },
+    ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', description: '前方短距離に突撃し、命中した敵船に大ダメージ。', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 50, damage: 380, effect: 'drill_burst', cooldownMs: 50_000 },
+    ship_orc_fighter: { type: 'fighter', label: '直撃砲', description: '前方直線に高威力の砲撃を放つ。', emoji: ['💣', '💥'], rangeTiles: 6, angle: 30, damage: 520, effect: 'cannon_shot', cooldownMs: 85_000 },
 
-    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', emoji: ['💣', '💥'], rangeTiles: 5, angle: 70, damage: 320, effect: 'broadside', cooldownMs: 60_000 },
-    ship_elf_defender: { type: 'defender_gust', label: '疾風の渦', emoji: ['🌪️', '💨'], radiusTiles: 6, gustDistanceTiles: 4, effect: 'gust', cooldownMs: 70_000 },
-    ship_goblin_defender: { type: 'defender_jamstorm', label: '砂嵐ノイズ', emoji: ['📡', '⚡'], radiusTiles: 5, jamDurationMs: 5000, stormDurationMs: 5000, effect: 'jamstorm', cooldownMs: 70_000 },
-    ship_orc_defender: { type: 'defender_snare', label: '水中捕捉', emoji: ['🧊', '⚓'], rangeTiles: 5, snareDurationMs: 3500, effect: 'snare', cooldownMs: 75_000 },
+    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', description: '左右に一斉砲撃し、側面の敵船にダメージ。', emoji: ['💣', '💥'], rangeTiles: 5, angle: 70, damage: 320, effect: 'broadside', cooldownMs: 60_000 },
+    ship_elf_defender: { type: 'defender_gust', label: '疾風の渦', description: '範囲内の敵船の進路をランダムに上書きする。', emoji: ['🌪️', '💨'], radiusTiles: 6, gustDistanceTiles: 4, effect: 'gust', cooldownMs: 70_000 },
+    ship_goblin_defender: { type: 'defender_jamstorm', label: '砂嵐ノイズ', description: '範囲内の敵船アクションを妨害し、ミニマップを砂嵐化。', emoji: ['📡', '⚡'], radiusTiles: 5, jamDurationMs: 5000, stormDurationMs: 5000, effect: 'jamstorm', cooldownMs: 70_000 },
+    ship_orc_defender: { type: 'defender_snare', label: '水中捕捉', description: '最も近い敵船を一時拘束（移動停止）。', emoji: ['🧊', '⚓'], rangeTiles: 5, snareDurationMs: 3500, effect: 'snare', cooldownMs: 75_000 },
 
-    ship_human_merchant: { type: 'merchant', label: '水上滑走', emoji: ['🚤', '💨'], durationMs: 6000, effect: 'island_pass', cooldownMs: 70_000 },
-    ship_elf_merchant: { type: 'merchant', label: '視界縮小', emoji: ['🌫️', '👁️'], durationMs: 6000, radiusTiles: 5, visionMultiplier: 0.6, effect: 'vision_shrink', cooldownMs: 65_000 },
-    ship_goblin_merchant: { type: 'merchant', label: '水爆設置', emoji: ['💧', '💣'], mineDurationMs: 12000, mineRadiusTiles: 2, mineDamage: 220, effect: 'minefield', cooldownMs: 70_000 },
-    ship_orc_merchant: { type: 'merchant', label: '装甲展開', emoji: ['🛡️', '🧱'], durationMs: 5000, effect: 'damage_immune', cooldownMs: 80_000 },
+    ship_human_merchant: { type: 'merchant', label: '水上滑走', description: '一定時間、島を通過可能（衝突無効・島操作不可）。', emoji: ['🚤', '💨'], durationMs: 6000, effect: 'island_pass', cooldownMs: 70_000 },
+    ship_elf_merchant: { type: 'merchant', label: '視界縮小', description: '範囲内の敵の視界を一時的に縮小。', emoji: ['🌫️', '👁️'], durationMs: 6000, radiusTiles: 5, visionMultiplier: 0.6, effect: 'vision_shrink', cooldownMs: 65_000 },
+    ship_goblin_merchant: { type: 'merchant', label: '水爆設置', description: '触れると爆発する水爆地雷を設置。', emoji: ['💧', '💣'], mineDurationMs: 12000, mineRadiusTiles: 2, mineDamage: 220, effect: 'minefield', cooldownMs: 70_000 },
+    ship_orc_merchant: { type: 'merchant', label: '装甲展開', description: '一定時間、船アクションと体当たりのダメージを無効化。', emoji: ['🛡️', '🧱'], durationMs: 5000, effect: 'damage_immune', cooldownMs: 80_000 },
 
-    ship_human_explorer: { type: 'explorer', label: '追い風加速', emoji: ['⛵', '💨'], durationMs: 5000, speedMultiplier: 1.5, agilityMultiplier: 0.6, cooldownMs: 55_000 },
-    ship_elf_explorer: { type: 'explorer', label: '高度視認', emoji: ['🌟', '👁️'], durationMs: 5000, visionMultiplier: 1.5, minimapBoostMs: 5000, cooldownMs: 60_000 },
-    ship_goblin_explorer: { type: 'explorer', label: '泥沼散布', emoji: ['🟤', '🌫️'], radiusTiles: 4, slowMultiplier: 0.6, durationMs: 6000, effect: 'mud_slow', cooldownMs: 65_000 },
-    ship_orc_explorer: { type: 'explorer', label: '岩皮突進', emoji: ['🪨', '💨'], durationMs: 4500, speedMultiplier: 1.4, ignoreShipCollision: true, radiusTiles: 3, knockbackDistanceTiles: 2, effect: 'knockback', cooldownMs: 70_000 }
+    ship_human_explorer: { type: 'explorer', label: '追い風加速', description: '一定時間、移動速度と小回り性能が上昇。', emoji: ['⛵', '💨'], durationMs: 5000, speedMultiplier: 1.5, agilityMultiplier: 0.6, cooldownMs: 55_000 },
+    ship_elf_explorer: { type: 'explorer', label: '高度視認', description: '一定時間、視界拡大＋ミニマップ強化。', emoji: ['🌟', '👁️'], durationMs: 5000, visionMultiplier: 1.5, minimapBoostMs: 5000, cooldownMs: 60_000 },
+    ship_goblin_explorer: { type: 'explorer', label: '泥沼散布', description: '範囲内の敵船の移動速度を低下。', emoji: ['🟤', '🌫️'], radiusTiles: 4, slowMultiplier: 0.6, durationMs: 6000, effect: 'mud_slow', cooldownMs: 65_000 },
+    ship_orc_explorer: { type: 'explorer', label: '岩皮突進', description: '突進で速度上昇＋船衝突無視、接触した敵をノックバック。', emoji: ['🪨', '💨'], durationMs: 4500, speedMultiplier: 1.4, ignoreShipCollision: true, radiusTiles: 3, knockbackDistanceTiles: 2, effect: 'knockback', cooldownMs: 70_000 }
 };
+
+if (typeof window !== 'undefined') {
+    window.SHIP_ACTIONS = SHIP_ACTIONS;
+}
 
 const ISLAND_AUTO_ATTACK_CONFIG = {
     coastal_battery: { label: '沿岸砲台', emojis: ['💣'], hitChance: 0.5, mode: 'single', radiusTiles: 3, damage: 50, cooldownMs: 6000 },

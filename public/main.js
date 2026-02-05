@@ -775,6 +775,14 @@ function updateShipTypeDetails() {
 
     const catalogVision = Number(info.VisionRange);
     const visionValue = Number.isFinite(catalogVision) ? catalogVision : Number(info?.Stats?.VisionRange || 0);
+    const actionInfo = (() => {
+        if (typeof window === 'undefined' || !window.SHIP_ACTIONS) return null;
+        const key = String(shipItemId || '').toLowerCase();
+        const friendlyId = String(info?.FriendlyId || info?.friendlyId || '').toLowerCase();
+        return window.SHIP_ACTIONS[key] || (friendlyId ? window.SHIP_ACTIONS[friendlyId] : null);
+    })();
+    const actionLabel = actionInfo?.label || 'なし';
+    const actionDescription = actionInfo?.description || '';
 
     document.getElementById('shipTypeDetails').innerHTML = `
         <div>タイプ: ${domainLabel}</div>
@@ -783,6 +791,8 @@ function updateShipTypeDetails() {
         <div>視覚距離: ${visionValue}</div>
         <div>積荷容量: ${info.CargoCapacity}</div>
         <div>乗組員: ${info.CrewCapacity}人</div>
+        <div>アクション: ${actionLabel}</div>
+        ${actionDescription ? `<div style="font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
         <div style="margin-top: 8px; color: var(--accent-color);">建造費用: ${costString}</div>
     `;
 }
@@ -841,6 +851,14 @@ async function viewShipDetails(shipId) {
     const visionValue = Number.isFinite(catalogVision)
         ? catalogVision
         : Number(assetData?.Stats?.VisionRange || 0);
+    const actionInfo = (() => {
+        if (typeof window === 'undefined' || !window.SHIP_ACTIONS) return null;
+        const itemId = String(assetData?.ItemId || '').toLowerCase();
+        const friendlyId = String(catalogItem?.FriendlyId || catalogItem?.friendlyId || '').toLowerCase();
+        return window.SHIP_ACTIONS[itemId] || (friendlyId ? window.SHIP_ACTIONS[friendlyId] : null);
+    })();
+    const actionLabel = actionInfo?.label || 'なし';
+    const actionDescription = actionInfo?.description || '';
 
     document.getElementById('shipDetailsContent').innerHTML = `
         <div style="margin-bottom: 16px;">
@@ -857,7 +875,9 @@ async function viewShipDetails(shipId) {
                 <div>視覚距離: ${visionValue}</div>
                 <div>積荷: ${assetData.Cargo.length}/${assetData.Stats.CargoCapacity}</div>
                 <div>乗組員: ${assetData.Crew.length}/${assetData.Stats.CrewCapacity}</div>
+                <div>アクション: ${actionLabel}</div>
             </div>
+            ${actionDescription ? `<div style="margin-top: 8px; font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
         </div>
         <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4>装備</h4>
