@@ -15,7 +15,7 @@ const {
     computeConstructionStatus,
     buildingDefs
 } = require('./building');
-const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId } = require('./island');
+const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId, hasMyHouseOwned } = require('./island');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 const { invalidateMapCache } = require('./islandEffects');
 
@@ -401,8 +401,30 @@ function initializeShopRoutes(app, deps) {
                 }
             }
 
-            const isTutorialBuild = Boolean(req?.body?.tutorial) && buildingId === 'my_house';
-            if (isTutorialBuild) {
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const preSnap = await ref.get();
+            if (!preSnap.exists) {
+                return res.status(404).json({ error: 'IslandNotFound' });
+            }
+            const preIsland = preSnap.data() || {};
+            const currentOwner = preIsland.ownerId || null;
+            if (currentOwner && currentOwner !== playFabId) {
+                return res.status(403).json({ error: 'NotOwner' });
+            }
+
+            const isMyHouseBuild = buildingId === 'my_house';
+            const isTutorialBuild = Boolean(req?.body?.tutorial) && isMyHouseBuild;
+            const sizeKey = String(preIsland.size || '').toLowerCase();
+            const isSmallIsland = sizeKey === 'small' || sizeKey === 's';
+            let allowMyHouseRebuild = false;
+            if (isMyHouseBuild) {
+                const hasMyHouse = await hasMyHouseOwned(firestore, playFabId, { promisifyPlayFab, PlayFabServer }, mapId);
+                allowMyHouseRebuild = !hasMyHouse && isSmallIsland;
+                if (!isSmallIsland) {
+                    return res.status(400).json({ error: 'MyHouseSmallOnly' });
+                }
+            }
+            if (isTutorialBuild && !allowMyHouseRebuild) {
                 try {
                     const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                         PlayFabId: playFabId,
@@ -415,17 +437,6 @@ function initializeShopRoutes(app, deps) {
                 } catch (e) {
                     console.warn('[StartBuildingConstruction] Tutorial flag check failed:', e?.errorMessage || e?.message || e);
                 }
-            }
-
-            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
-            const preSnap = await ref.get();
-            if (!preSnap.exists) {
-                return res.status(404).json({ error: 'IslandNotFound' });
-            }
-            const preIsland = preSnap.data() || {};
-            const currentOwner = preIsland.ownerId || null;
-            if (currentOwner && currentOwner !== playFabId) {
-                return res.status(403).json({ error: 'NotOwner' });
             }
 
             if (!playerNation) {
@@ -520,6 +531,13 @@ function initializeShopRoutes(app, deps) {
                     let sizeTag = getSizeTag(spec.Tags);
                     if (!sizeTag && typeof spec.Size === 'string' && spec.Size) {
                         sizeTag = `size_${spec.Size.toLowerCase()}`;
+                    }
+                    if (buildingId === 'my_house') {
+                        const sizeKey = String(island.size || '').toLowerCase();
+                        const isSmallIsland = sizeKey === 'small' || sizeKey === 's';
+                        if (!isSmallIsland) {
+                            throw new Error('MyHouseSmallOnly');
+                        }
                     }
                     if (!sizeTag || !sizeTagMatchesIsland(sizeTag, island.size)) {
                         throw new Error('InvalidBuildingSize');
@@ -632,6 +650,8 @@ function initializeShopRoutes(app, deps) {
             if (msg === 'AlreadyBuilt') return res.status(400).json({ error: 'この島には既に建物があります。' });
             if (msg === 'InvalidBuildingSize') return res.status(400).json({ error: 'この島のサイズに合っていません。' });
             if (msg === 'BuildToOccupyNotAllowed') return res.status(403).json({ error: 'この島は建築して占領できません。' });
+            if (msg === 'MyHouseSmallOnly') return res.status(400).json({ error: 'マイハウスはスモール島専用です。' });
+            if (msg === 'TutorialAlreadyCompleted') return res.status(400).json({ error: 'マイハウスは既に建築済みです。' });
             console.error('[StartBuildingConstruction] Error:', error);
             res.status(500).json({ error: 'Failed to start building construction', details: msg });
         }

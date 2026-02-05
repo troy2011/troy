@@ -80,6 +80,11 @@ function normalizeBiomeKey(biome) {
     return (RESOURCE_BIOME_JP[raw] || raw).toLowerCase();
 }
 
+function isSmallIslandSize(size) {
+    const key = String(size || '').toLowerCase();
+    return key === 'small' || key === 's';
+}
+
 function canBuildToOccupy({ island, playerNation, mapOccupationNation }) {
     const ownerId = island?.ownerId || null;
     if (ownerId) return false;
@@ -192,6 +197,32 @@ async function resolveOwnedMapIds(firestore, playFabId, deps) {
         if (owned.length > 0) return owned;
     }
     return [];
+}
+
+async function hasMyHouseOwned(firestore, playFabId, deps, preferredMapId = null) {
+    if (!playFabId) return false;
+    const mapIds = [];
+    if (preferredMapId) mapIds.push(normalizeMapId(preferredMapId));
+    const owned = await resolveOwnedMapIds(firestore, playFabId, deps);
+    owned.forEach((id) => mapIds.push(id));
+    const unique = uniqueMapIds(mapIds);
+    if (unique.length === 0) return false;
+    for (const mapId of unique) {
+        const col = getWorldMapCollection(firestore, mapId);
+        const snapshot = await col.where('ownerId', '==', playFabId).get();
+        if (snapshot.empty) continue;
+        for (const doc of snapshot.docs) {
+            const data = doc.data() || {};
+            const buildings = Array.isArray(data.buildings) ? data.buildings : [];
+            const hasHouse = buildings.some((b) => {
+                if (!b || b.status === 'demolished') return false;
+                const rawId = String(b.buildingId || b.id || '');
+                return rawId === 'my_house' || rawId.startsWith('my_house');
+            });
+            if (hasHouse) return true;
+        }
+    }
+    return false;
 }
 
 function worldToLatLng(point) {
@@ -504,6 +535,17 @@ function initializeIslandRoutes(app, deps) {
             const activeBuilding = Array.isArray(data.buildings)
                 ? data.buildings.find(b => b && b.status !== 'demolished')
                 : null;
+            let playerHasMyHouse = false;
+            let allowMyHouseRebuild = false;
+            if (playFabId) {
+                try {
+                    playerHasMyHouse = await hasMyHouseOwned(firestore, playFabId, { promisifyPlayFab, PlayFabServer }, mapId);
+                } catch (error) {
+                    console.warn('[GetIslandDetails] Failed to resolve my house ownership:', error?.message || error);
+                }
+                const hasBuilding = Array.isArray(data.buildings) && data.buildings.some(b => b && b.status !== 'demolished');
+                allowMyHouseRebuild = !playerHasMyHouse && !hasBuilding && isSmallIslandSize(data.size);
+            }
             if (activeBuilding) {
                 const rawId = String(activeBuilding.buildingId || activeBuilding.id || '');
                 const currentLevel = Math.max(1, Math.trunc(Number(activeBuilding.level) || 1));
@@ -548,7 +590,9 @@ function initializeIslandRoutes(app, deps) {
                     buildingUpgradeBuildingId,
                     buildingUpgradeMaxLevel,
                     buildingUpgradeAvailable,
-                    buildingUpgradeReason
+                    buildingUpgradeReason,
+                    playerHasMyHouse,
+                    allowMyHouseRebuild
                 }
             });
         } catch (error) {
@@ -1114,6 +1158,7 @@ module.exports = {
     addOwnedMapId,
     removeOwnedMapId,
     resolveOwnedMapIds,
+    hasMyHouseOwned,
     relocateActiveShip,
     getActiveShipIdForResource,
     getActiveShipCargoCapacity,

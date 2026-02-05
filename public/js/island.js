@@ -322,7 +322,7 @@ export function showBuildingMenu(island, playFabId) {
     const allowHotSpring = isOwnNation && activeBuildingId === 'hot_spring';
     const allowMyHouseShips = isOwner && activeBuildingId === 'my_house';
 
-    if (isStarterIsland && !isHarvestable && !hasBuilding) {
+    if ((isStarterIsland || island.allowMyHouseRebuild) && !isHarvestable && !hasBuilding) {
         sheet.innerHTML = `
             <div class="bottom-sheet-overlay"></div>
             <div class="bottom-sheet-content">
@@ -350,7 +350,7 @@ export function showBuildingMenu(island, playFabId) {
                     </div>
                     <div class="building-actions">
                         <div class="resource-title">マイハウス建築</div>
-                        <div class="resource-row">チュートリアル用の建物です。</div>
+                        <div class="resource-row">${isStarterIsland ? 'チュートリアル用の建物です。' : 'マイハウス未所持のため建築できます。'}</div>
                         <div class="resource-row">
                             <button class="btn-build" id="btnBuildMyHouse">マイハウスを建てる</button>
                         </div>
