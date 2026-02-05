@@ -286,7 +286,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.ridingSince = null;
         this.rideLeaveButton = null;
         this.rideSyncTimer = null;
-        this.lastRideSyncAt = 0;
         this.myPassengerIcons = [];
         this.ghostShip = null;
         this.ghostShipTween = null;
