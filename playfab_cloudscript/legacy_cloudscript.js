@@ -112,9 +112,23 @@ function _setNationKing(groupId, playFabId) {
 
 function _requireNationKing(groupId) {
     var king = _getNationKing(groupId);
+    if (king && king.playFabId === currentPlayerId) return king;
+    try {
+        var ro = server.GetUserReadOnlyData({
+            PlayFabId: currentPlayerId,
+            Keys: ['IsKing', 'NationKingId']
+        });
+        var isKingFlag = ro && ro.Data && String(ro.Data.IsKing && ro.Data.IsKing.Value || '').toLowerCase() === 'true';
+        var roKingId = ro && ro.Data && ro.Data.NationKingId ? String(ro.Data.NationKingId.Value || '').trim() : '';
+        if (isKingFlag && (!roKingId || roKingId === currentPlayerId)) {
+            king = _setNationKing(groupId, currentPlayerId);
+            return king;
+        }
+    } catch (e) {
+        // ignore and fall through to error
+    }
     if (!king) throw 'NationKingNotSet';
-    if (king.playFabId !== currentPlayerId) throw 'NotKing';
-    return king;
+    throw 'NotKing';
 }
 
 handlers.AssignNationGroupByRace = function (args, context) {

@@ -922,6 +922,9 @@ function initializeNationRoutes(app, deps) {
             const selfId = normalizePlayFabId(playFabId);
             const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
             const roKingId = normalizePlayFabId(ro?.Data?.NationKingId?.Value || '');
+            if (!isKingFlag || (roKingId && roKingId !== selfId)) {
+                return res.status(403).json({ error: 'Only the king can view this page' });
+            }
             if (isKingFlag && (!roKingId || roKingId === selfId)) {
                 try {
                     const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
