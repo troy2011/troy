@@ -257,18 +257,6 @@ function showBattleModal(battleId) {
         }
         renderImmediate();
 
-        // ★★★ 修正: 相手の切断を検知して不戦勝を申告する ★★★
-        if (opponent && opponent.online === false) {
-            console.log('[Battle] Opponent disconnected. Claiming win...');
-            if (battleInterval) clearInterval(battleInterval); // 念のためループを止める
-            // サーバーに不戦勝を申告
-            await battleDependencies.callApiWithLoader('/api/claim-win-by-disconnect', {
-                playFabId: myPlayFabId,
-                battleId: currentBattleId
-            }, { isSilent: true });
-            return; // サーバーからの更新を待つため、以降の処理は行わない
-        }
-
         // ★★★ 修正: 手動ボタンのロジックを削除し、ATBゲージの状況やメッセージを表示する ★★★
         if (!battleInterval) {
             console.log("[Battle] Starting battle loop..."); // ★ デバッグログ
