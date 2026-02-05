@@ -3543,6 +3543,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.canMove = !this.ridingShipId;
             if (changed) {
                 this.updateRideLeaveUi();
+                this.updateRideCameraFollow();
             }
         });
     }
@@ -3629,6 +3630,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.ridingSince = null;
             this.canMove = true;
             this.updateRideLeaveUi();
+            this.updateRideCameraFollow();
             const passengerCount = Array.from(this.otherShips.values())
                 .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
                 .length;
@@ -3639,12 +3641,28 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    updateRideCameraFollow() {
+        if (!this.cameras?.main) return;
+        if (this.ridingShipId && this.ridingOwnerId) {
+            const targetShip = this.otherShips.get(this.ridingOwnerId);
+            const targetSprite = targetShip?.sprite;
+            if (targetSprite) {
+                this.cameras.main.startFollow(targetSprite, true, 0.1, 0.1);
+                return;
+            }
+        }
+        if (this.playerShip) {
+            this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+        }
+    }
+
     syncRidePosition() {
         if (!this.ridingShipId || !this.ridingOwnerId || !this.playerShip) return;
         const targetShip = this.otherShips.get(this.ridingOwnerId);
         const targetSprite = targetShip?.sprite;
         if (!targetSprite) return;
         this.playerShip.setPosition(targetSprite.x, targetSprite.y);
+        this.updateRideCameraFollow();
         const passengerCount = Array.from(this.otherShips.values())
             .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
             .length;
