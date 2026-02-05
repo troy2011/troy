@@ -546,6 +546,34 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const right = String(b || '');
         return left < right ? `${left}|${right}` : `${right}|${left}`;
     };
+    const getRidePartyIds = async (hostId) => {
+        const ids = [];
+        if (!hostId) return ids;
+        ids.push(hostId);
+        try {
+            const admin = require('firebase-admin');
+            const firestore = admin.firestore();
+            const snap = await firestore.collection('ships').where('ridingOwnerId', '==', hostId).get();
+            const passengers = [];
+            snap.forEach((docSnap) => {
+                const data = docSnap.data() || {};
+                const passengerId = docSnap.id;
+                if (!passengerId || passengerId === hostId) return;
+                passengers.push({
+                    id: passengerId,
+                    since: Number(data.ridingSince || 0)
+                });
+            });
+            passengers.sort((a, b) => {
+                if (a.since !== b.since) return a.since - b.since;
+                return String(a.id).localeCompare(String(b.id));
+            });
+            passengers.forEach((entry) => ids.push(entry.id));
+        } catch (error) {
+            console.warn('[RideBattle] Failed to load passengers:', error?.message || error);
+        }
+        return ids;
+    };
 
     // ----------------------------------------------------
     // API 11: バトル実行 (自動戦闘・即時決着)
@@ -563,52 +591,93 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         console.log(`[バトル開始] ${attackerId} vs ${defenderId}`);
         try {
-            // --- 1. 両プレイヤーの全ステータスを読み込む ---
-            const playerA = await getPlayerFullProfile(attackerId);
-            const playerB = await getPlayerFullProfile(defenderId);
+            // --- 1. 連戦パーティを取得 ---
+            const partyA = await getRidePartyIds(attackerId);
+            const partyB = await getRidePartyIds(defenderId);
 
-            // --- 2. 自動戦闘を即時実行 ---
-            const battleResult = await runBattle(playerA, playerB);
-
-            // --- 3. Firebase Realtime Databaseに「バトル結果」を作成 ---
+            // --- 2. Firebase Realtime Databaseに「バトル結果」を作成 ---
             const battleRef = db.ref('battles').push();
             const battleId = battleRef.key;
 
-            const playersPayload = {
-                [playerA.id]: {
-                    name: playerA.stats.DisplayName,
-                    hp: Math.max(0, Number(playerA.stats.CurrentHP || 0)),
-                    maxHp: playerA.stats.MaxHP,
+            const playersPayload = {};
+            const logEntries = {};
+            const roundResults = [];
+            let round = 1;
+            let currentAIndex = 0;
+            let currentBIndex = 0;
+            let lastWinnerId = null;
+            let lastLoserId = null;
+            let timeCursor = Date.now();
+            const appendLog = (line) => {
+                logEntries[timeCursor++] = line;
+            };
+            const rememberPlayer = (player) => {
+                if (!player?.id || playersPayload[player.id]) return;
+                playersPayload[player.id] = {
+                    name: player.stats.DisplayName,
+                    hp: Math.max(0, Number(player.stats.CurrentHP || 0)),
+                    maxHp: player.stats.MaxHP,
                     online: true,
-                    level: playerA.level,
-                    stats: { すばやさ: playerA.stats.すばやさ },
-                    avatar: playerA.avatar,
-                    equipment: playerA.equipment
-                },
-                [playerB.id]: {
-                    name: playerB.stats.DisplayName,
-                    hp: Math.max(0, Number(playerB.stats.CurrentHP || 0)),
-                    maxHp: playerB.stats.MaxHP,
-                    online: true,
-                    level: playerB.level,
-                    stats: { すばやさ: playerB.stats.すばやさ },
-                    avatar: playerB.avatar,
-                    equipment: playerB.equipment
-                }
+                    level: player.level,
+                    stats: { すばやさ: player.stats.すばやさ },
+                    avatar: player.avatar,
+                    equipment: player.equipment
+                };
             };
 
-            const logEntries = {};
-            const baseTime = Date.now();
-            (battleResult.logs || []).forEach((line, index) => {
-                logEntries[baseTime + index] = line;
-            });
+            while (currentAIndex < partyA.length && currentBIndex < partyB.length) {
+                const fighterAId = partyA[currentAIndex];
+                const fighterBId = partyB[currentBIndex];
+                const playerA = await getPlayerFullProfile(fighterAId);
+                const playerB = await getPlayerFullProfile(fighterBId);
+                rememberPlayer(playerA);
+                rememberPlayer(playerB);
+
+                appendLog(`【連戦 ${round}】${playerA.stats.DisplayName} vs ${playerB.stats.DisplayName}`);
+                const battleResult = await runBattle(playerA, playerB);
+                (battleResult.logs || []).forEach((line) => appendLog(line));
+
+                if (!battleResult?.winner || !battleResult?.loser) {
+                    appendLog('決着がつかなかった...');
+                    break;
+                }
+
+                const winnerId = battleResult.winner.id;
+                const loserId = battleResult.loser.id;
+                lastWinnerId = winnerId;
+                lastLoserId = loserId;
+                roundResults.push({
+                    round,
+                    attackerId: fighterAId,
+                    defenderId: fighterBId,
+                    winnerId,
+                    loserId
+                });
+
+                await Promise.all([
+                    savePlayerHpMp(battleResult.winner),
+                    savePlayerHpMp(battleResult.loser)
+                ]);
+                handleBattleRewards(battleId, winnerId, loserId, `round_${round}`).catch(rewardError => {
+                    console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
+                });
+                recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
+
+                if (winnerId === fighterAId) {
+                    currentBIndex += 1;
+                } else {
+                    currentAIndex += 1;
+                }
+                round += 1;
+            }
 
             const finalBattleState = {
                 status: 'finished',
-                winner: battleResult.winner ? battleResult.winner.id : null,
+                winner: lastWinnerId || null,
                 lastActionPlayer: null,
                 players: playersPayload,
-                log: logEntries
+                log: logEntries,
+                rounds: roundResults
             };
 
             await battleRef.set(finalBattleState);
@@ -618,26 +687,17 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             // --- 4. 招待通知 (オンラインなら即モーダル表示) ---
             const invitationRef = db.ref('invitations').push();
             const invitationId = invitationRef.key;
+            const attackerName = playersPayload[attackerId]?.name || attackerId;
+            const defenderName = playersPayload[defenderId]?.name || defenderId;
             await invitationRef.set({
                 status: 'started',
                 battleId,
-                from: { id: playerA.id, name: playerA.stats.DisplayName },
-                to: { id: playerB.id, name: playerB.stats.DisplayName },
+                from: { id: attackerId, name: attackerName },
+                to: { id: defenderId, name: defenderName },
                 createdAt: require('firebase-admin').database.ServerValue.TIMESTAMP
             });
 
-            // --- 5. HP/MP保存と報酬 ---
-            await Promise.all([
-                savePlayerHpMp(playerA),
-                savePlayerHpMp(playerB)
-            ]);
-            if (battleResult.winner && battleResult.loser) {
-                handleBattleRewards(battleId, battleResult.winner.id, battleResult.loser.id).catch(rewardError => {
-                    console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
-                });
-            }
-
-            // --- 6. 通知 (オフライン向け) ---
+            // --- 5. 通知 (オフライン向け) ---
             try {
                 const admin = require('firebase-admin');
                 const firestore = admin.firestore();
@@ -653,19 +713,21 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                             createdAt: admin.firestore.FieldValue.serverTimestamp()
                         });
                 };
-                const winnerId = battleResult.winner ? battleResult.winner.id : null;
-                const loserId = battleResult.loser ? battleResult.loser.id : null;
-                if (winnerId) {
-                    await notify(winnerId, { result: 'win', opponentId: loserId });
-                }
-                if (loserId) {
-                    await notify(loserId, { result: 'lose', opponentId: winnerId });
+                for (const roundInfo of roundResults) {
+                    const winnerId = roundInfo.winnerId || null;
+                    const loserId = roundInfo.loserId || null;
+                    if (winnerId) {
+                        await notify(winnerId, { result: 'win', opponentId: loserId, round: roundInfo.round });
+                    }
+                    if (loserId) {
+                        await notify(loserId, { result: 'lose', opponentId: winnerId, round: roundInfo.round });
+                    }
                 }
             } catch (notifyError) {
                 console.warn('[start-battle] Notification write failed:', notifyError?.message || notifyError);
             }
 
-            // --- 7. クライアントへ即時返却 ---
+            // --- 6. クライアントへ即時返却 ---
             res.json({
                 status: "Battle Finished",
                 battleId,
@@ -949,20 +1011,32 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
 
     // ★★★ 報酬処理用の非同期関数を追加 ★★★
-    async function handleBattleRewards(battleId, winnerId, loserId) {
+    async function handleBattleRewards(battleId, winnerId, loserId, roundKey = null) {
         console.log(`[報酬処理] 開始。 勝者: ${winnerId}, 敗者: ${loserId}`);
         const loserInventory = await getAllInventoryItems(loserId);
         const loserPs = getCurrencyBalanceFromItems(loserInventory, VIRTUAL_CURRENCY_CODE);
         const loserBounty = getCurrencyBalanceFromItems(loserInventory, 'BT');
         const battleRef = db.ref(`battles/${battleId}`);
-        const rewardFlagRef = battleRef.child('rewardProcessed');
-        const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
-            if (current) return;
-            return { at: Date.now(), winnerId, loserId };
-        });
-        if (!rewardLockSnapshot.committed) {
-            console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId}`);
-            return;
+        if (roundKey) {
+            const rewardFlagRef = battleRef.child(`rewardProcessedRounds/${roundKey}`);
+            const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
+                if (current) return;
+                return { at: Date.now(), winnerId, loserId };
+            });
+            if (!rewardLockSnapshot.committed) {
+                console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId} ${roundKey}`);
+                return;
+            }
+        } else {
+            const rewardFlagRef = battleRef.child('rewardProcessed');
+            const rewardLockSnapshot = await rewardFlagRef.transaction(current => {
+                if (current) return;
+                return { at: Date.now(), winnerId, loserId };
+            });
+            if (!rewardLockSnapshot.committed) {
+                console.log(`[報酬処理] 既に処理済みのためスキップ: ${battleId}`);
+                return;
+            }
         }
         const rewardLogUpdates = {};
 
