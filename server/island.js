@@ -2,6 +2,7 @@
 // 島関連のAPI
 
 const { geohashForLocation } = require('geofire-common');
+const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 const {
     getSizeTag,
     sizeTagMatchesIsland,
@@ -31,6 +32,18 @@ const RESOURCE_BIOME_JP = {
     '聖地': 'sacred'
 };
 const RESOURCE_BIOMES = new Set(['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred']);
+const RESOURCE_RATIO_BY_NATION = {
+    fire: { RR: 0.6, RG: 0.3, RT: 0.1 },
+    earth: { RG: 0.6, RR: 0.3, RT: 0.1 },
+    wind: { RY: 0.6, RB: 0.3, RT: 0.1 },
+    water: { RB: 0.6, RY: 0.3, RT: 0.1 }
+};
+const NATION_ALIAS = {
+    wands: 'fire',
+    pentacles: 'earth',
+    swords: 'wind',
+    cups: 'water'
+};
 const OWNED_MAP_IDS_KEY = 'OwnedMapIds';
 
 function getCentralIslandIdForMap(mapId) {
@@ -78,6 +91,53 @@ function normalizeBiomeKey(biome) {
     if (!biome) return '';
     const raw = String(biome).trim();
     return (RESOURCE_BIOME_JP[raw] || raw).toLowerCase();
+}
+
+function normalizeNationKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    return NATION_ALIAS[raw] || raw;
+}
+
+function computeBaseCostAmount(costEntries) {
+    const normalized = Array.isArray(costEntries) ? costEntries : [];
+    const ps = normalized
+        .filter((entry) => String(entry?.code || entry?.ItemId || '').toUpperCase() === VIRTUAL_CURRENCY_CODE)
+        .reduce((sum, entry) => sum + (Number(entry?.amount ?? entry?.Amount ?? 0) || 0), 0);
+    if (ps > 0) return ps;
+    return normalized.reduce((sum, entry) => sum + (Number(entry?.amount ?? entry?.Amount ?? 0) || 0), 0);
+}
+
+function mergeCostEntries(entries, extra) {
+    const map = new Map();
+    entries.forEach((entry) => {
+        const code = String(entry?.code || entry?.ItemId || '').trim();
+        if (!code) return;
+        map.set(code, (map.get(code) || 0) + (Number(entry?.amount ?? entry?.Amount ?? 0) || 0));
+    });
+    extra.forEach((entry) => {
+        const code = String(entry?.ItemId || '').trim();
+        if (!code) return;
+        map.set(code, (map.get(code) || 0) + (Number(entry?.Amount) || 0));
+    });
+    return Array.from(map.entries()).map(([code, amount]) => ({ code, amount }));
+}
+
+function applyNationResourceCosts(costEntries, nationKey, options = {}) {
+    const normalizedNation = normalizeNationKey(nationKey);
+    const ratios = normalizedNation ? RESOURCE_RATIO_BY_NATION[normalizedNation] : null;
+    if (!ratios) return costEntries;
+
+    const baseAmount = computeBaseCostAmount(costEntries);
+    if (baseAmount <= 0) return costEntries;
+
+    const useSacred = !!options.useSacred;
+    const resources = Object.entries(ratios).map(([code, ratio]) => {
+        const resolvedCode = useSacred && code === 'RT' ? 'RS' : code;
+        return { ItemId: resolvedCode, Amount: Math.max(1, Math.round(baseAmount * ratio)) };
+    });
+    if (options.onlyResource) return resources.map((entry) => ({ code: entry.ItemId, amount: entry.Amount }));
+    return mergeCostEntries(costEntries, resources);
 }
 
 function isSmallIslandSize(size) {
@@ -873,7 +933,12 @@ function initializeIslandRoutes(app, deps) {
                     amount: Number(entry?.Amount ?? entry?.amount ?? 0)
                 }))
                 .filter((entry) => entry.code && entry.amount > 0);
-            for (const entry of costEntries) {
+            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+            const resourceCosts = applyNationResourceCosts(costEntries, nationIsland, { useSacred: true, onlyResource: true });
+            const costEntriesWithResource = resourceCosts.length > 0 ? resourceCosts : costEntries;
+            const useResourcePayment = paymentMethod === 'resource';
+            const effectiveCosts = useResourcePayment ? costEntriesWithResource : costEntries;
+            for (const entry of effectiveCosts) {
                 const bal = Number(balances[entry.code] || 0);
                 if (bal < entry.amount) {
                     return res.status(400).json({ error: 'InsufficientFunds', details: { currency: entry.code, required: entry.amount, balance: bal } });
@@ -882,7 +947,7 @@ function initializeIslandRoutes(app, deps) {
 
             let deducted = false;
             try {
-                for (const entry of costEntries) {
+                for (const entry of effectiveCosts) {
                     await subtractEconomyItem(playFabId, entry.code, entry.amount);
                 }
                 deducted = true;
@@ -937,7 +1002,7 @@ function initializeIslandRoutes(app, deps) {
                 });
             } catch (error) {
                 if (deducted) {
-                    for (const entry of costEntries) {
+                    for (const entry of effectiveCosts) {
                         await addEconomyItem(playFabId, entry.code, entry.amount);
                     }
                 }
@@ -992,6 +1057,21 @@ function initializeIslandRoutes(app, deps) {
             const spec = getBuildingSpec(rawId, nextLevel);
             if (!spec) return res.status(400).json({ error: 'BuildingNotFound' });
 
+            let nationIsland = String(island.ownerNation || '').toLowerCase() || null;
+            if (!nationIsland) {
+                const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Keys: ['Nation', 'Race']
+                });
+                const nationValue = userReadOnly?.Data?.Nation?.Value || null;
+                const raceName = userReadOnly?.Data?.Race?.Value || null;
+                if (nationValue) {
+                    nationIsland = String(nationValue).toLowerCase();
+                } else if (raceName && NATION_GROUP_BY_RACE[raceName]) {
+                    nationIsland = NATION_GROUP_BY_RACE[raceName].island;
+                }
+            }
+
             const priceAmounts = normalizePriceAmounts(spec?.PriceAmounts);
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
@@ -1002,7 +1082,12 @@ function initializeIslandRoutes(app, deps) {
                     amount: Number(entry?.Amount ?? entry?.amount ?? 0)
                 }))
                 .filter((entry) => entry.code && entry.amount > 0);
-            for (const entry of costEntries) {
+            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+            const resourceCosts = applyNationResourceCosts(costEntries, nationIsland, { useSacred: true, onlyResource: true });
+            const costEntriesWithResource = resourceCosts.length > 0 ? resourceCosts : costEntries;
+            const useResourcePayment = paymentMethod === 'resource';
+            const effectiveCosts = useResourcePayment ? costEntriesWithResource : costEntries;
+            for (const entry of effectiveCosts) {
                 const bal = Number(balances[entry.code] || 0);
                 if (bal < entry.amount) {
                     return res.status(400).json({ error: 'InsufficientFunds', details: { currency: entry.code, required: entry.amount, balance: bal } });
@@ -1011,7 +1096,7 @@ function initializeIslandRoutes(app, deps) {
 
             let deducted = false;
             try {
-                for (const entry of costEntries) {
+                for (const entry of effectiveCosts) {
                     await subtractEconomyItem(playFabId, entry.code, entry.amount);
                 }
                 deducted = true;
@@ -1060,7 +1145,7 @@ function initializeIslandRoutes(app, deps) {
                 res.json({ success: true, islandId, buildingId: rawId, nextLevel, building: updated });
             } catch (error) {
                 if (deducted) {
-                    for (const entry of costEntries) {
+                    for (const entry of effectiveCosts) {
                         await addEconomyItem(playFabId, entry.code, entry.amount);
                     }
                 }

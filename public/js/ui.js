@@ -895,11 +895,23 @@ export function escapeHtml(str) {
 
 function updateHomeAvatarSeaTone() {
     if (typeof document === 'undefined') return;
-    const avatar = document.getElementById('home-avatar');
-    if (!avatar) return;
     const hour = new Date().getHours();
     const tone = hour % 2 === 1 ? 'day' : 'night';
-    avatar.dataset.seaTone = tone;
+    if (document.body) {
+        document.body.dataset.seaTone = tone;
+    }
+    const heroCard = document.querySelector('.home-hero-card');
+    if (heroCard) {
+        heroCard.dataset.seaTone = tone;
+    }
+    const shipStage = document.getElementById('homeShipStage');
+    if (shipStage) {
+        shipStage.dataset.seaTone = tone;
+    }
+    const avatar = document.getElementById('home-avatar');
+    if (avatar) {
+        avatar.removeAttribute('data-sea-tone');
+    }
 }
 
 export async function showTab(tabId, playerInfo, options = {}) {

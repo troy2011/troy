@@ -212,8 +212,8 @@ export function setActiveShip(playFabId, shipId, options) {
     return callApiWithLoader('/api/set-active-ship', { playFabId, shipId }, options);
 }
 
-export function createShip(playFabId, shipItemId, mapId, islandId, options) {
-    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, mapId, islandId }, options);
+export function createShip(playFabId, shipItemId, mapId, islandId, paymentMethod, options) {
+    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, mapId, islandId, paymentMethod }, options);
 }
 
 export function startShipVoyage(shipId, playFabId, destination, options) {
@@ -222,6 +222,10 @@ export function startShipVoyage(shipId, playFabId, destination, options) {
 
 export function stopShip(shipId, options) {
     return callApiWithLoader('/api/stop-ship', { shipId }, options);
+}
+
+export function upgradeShip(playFabId, shipId, paymentMethod, options) {
+    return callApiWithLoader('/api/upgrade-ship', { playFabId, shipId, paymentMethod }, options);
 }
 
 export function getPlayerShips(playFabId, options) {
@@ -279,12 +283,12 @@ export function startBuildingConstruction(playFabId, islandId, buildingId, mapId
     return callApiWithLoader('/api/start-building-construction', payload, options);
 }
 
-export function upgradeIslandLevel(playFabId, islandId, mapId, options) {
-    return callApiWithLoader('/api/upgrade-island-level', { playFabId, islandId, mapId }, options);
+export function upgradeIslandLevel(playFabId, islandId, mapId, paymentMethod, options) {
+    return callApiWithLoader('/api/upgrade-island-level', { playFabId, islandId, mapId, paymentMethod }, options);
 }
 
-export function upgradeBuilding(playFabId, islandId, mapId, options) {
-    return callApiWithLoader('/api/upgrade-building', { playFabId, islandId, mapId }, options);
+export function upgradeBuilding(playFabId, islandId, mapId, paymentMethod, options) {
+    return callApiWithLoader('/api/upgrade-building', { playFabId, islandId, mapId, paymentMethod }, options);
 }
 
 export function checkBuildingCompletion(islandId, mapId, options) {

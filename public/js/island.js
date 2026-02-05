@@ -28,6 +28,56 @@ import {
     getDemolishedIslands as fetchDemolishedIslands,
     getInventory as fetchInventory
 } from './playfabClient.js';
+
+function selectPaymentMethod(message = '支払い方法を選択してください') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.6)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '9999';
+
+        const panel = document.createElement('div');
+        panel.style.background = '#111';
+        panel.style.border = '1px solid rgba(255,255,255,0.15)';
+        panel.style.borderRadius = '10px';
+        panel.style.padding = '16px';
+        panel.style.minWidth = '240px';
+        panel.style.color = '#fff';
+        panel.innerHTML = `
+            <div style="font-size:14px; margin-bottom:12px;">${message}</div>
+            <div style="display:flex; gap:8px;">
+                <button id="payWithPsBtn" style="flex:1; padding:8px;">PSで支払う</button>
+                <button id="payWithResourceBtn" style="flex:1; padding:8px;">資源で支払う</button>
+            </div>
+            <div style="margin-top:10px; text-align:right;">
+                <button id="payCancelBtn" style="padding:6px 10px;">キャンセル</button>
+            </div>
+        `;
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        const cleanup = () => {
+            overlay.remove();
+        };
+
+        overlay.querySelector('#payWithPsBtn').addEventListener('click', () => {
+            cleanup();
+            resolve('ps');
+        });
+        overlay.querySelector('#payWithResourceBtn').addEventListener('click', () => {
+            cleanup();
+            resolve('resource');
+        });
+        overlay.querySelector('#payCancelBtn').addEventListener('click', () => {
+            cleanup();
+            resolve(null);
+        });
+    });
+}
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
 import { formatCurrencyLabel } from './config.js';
@@ -139,13 +189,15 @@ async function collectResource(playFabId, islandId) {
 
 
 export async function startBuildingConstruction(playFabId, islandId, buildingId, options = {}) {
+    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+    if (!paymentMethod) return null;
     const response = await requestStartBuildingConstruction(
         playFabId,
         islandId,
         buildingId,
         window.__currentMapId || null,
         null,
-        options
+        { ...options, paymentMethod }
     );
 
     if (response && response.success) {
@@ -162,7 +214,9 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId,
 }
 
 export async function upgradeIslandLevel(playFabId, islandId) {
-    const response = await requestUpgradeIslandLevel(playFabId, islandId, window.__currentMapId || null);
+    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+    if (!paymentMethod) return null;
+    const response = await requestUpgradeIslandLevel(playFabId, islandId, window.__currentMapId || null, paymentMethod);
 
     if (response && response.success) {
         const buildingId = response.buildingId || '';
@@ -174,7 +228,9 @@ export async function upgradeIslandLevel(playFabId, islandId) {
 }
 
 export async function upgradeBuilding(playFabId, islandId) {
-    const response = await requestUpgradeBuilding(playFabId, islandId, window.__currentMapId || null);
+    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+    if (!paymentMethod) return null;
+    const response = await requestUpgradeBuilding(playFabId, islandId, window.__currentMapId || null, paymentMethod);
     if (response && response.success) {
         const buildingId = response.buildingId || '';
         const name = buildingId ? buildingId : '建物';

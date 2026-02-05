@@ -28,6 +28,65 @@ const RESOURCE_BIOME_JP = {
     '聖地': 'sacred'
 };
 const RESOURCE_BIOMES = new Set(['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred']);
+const RESOURCE_RATIO_BY_NATION = {
+    fire: { RR: 0.6, RG: 0.3, RT: 0.1 },
+    earth: { RG: 0.6, RR: 0.3, RT: 0.1 },
+    wind: { RY: 0.6, RB: 0.3, RT: 0.1 },
+    water: { RB: 0.6, RY: 0.3, RT: 0.1 }
+};
+const NATION_ALIAS = {
+    wands: 'fire',
+    pentacles: 'earth',
+    swords: 'wind',
+    cups: 'water'
+};
+
+function normalizeNationKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    return NATION_ALIAS[raw] || raw;
+}
+
+function computeBaseCostAmount(costEntries) {
+    const normalized = Array.isArray(costEntries) ? costEntries : [];
+    const ps = normalized
+        .filter(([code]) => String(code || '').toUpperCase() === VIRTUAL_CURRENCY_CODE)
+        .reduce((sum, [, amount]) => sum + (Number(amount) || 0), 0);
+    if (ps > 0) return ps;
+    return normalized.reduce((sum, [, amount]) => sum + (Number(amount) || 0), 0);
+}
+
+function mergeCostEntries(entries, extra) {
+    const map = new Map();
+    entries.forEach(([code, amount]) => {
+        const key = String(code || '').trim();
+        if (!key) return;
+        map.set(key, (map.get(key) || 0) + (Number(amount) || 0));
+    });
+    extra.forEach(({ ItemId, Amount }) => {
+        const key = String(ItemId || '').trim();
+        if (!key) return;
+        map.set(key, (map.get(key) || 0) + (Number(Amount) || 0));
+    });
+    return Array.from(map.entries());
+}
+
+function applyNationResourceCosts(costEntries, nationKey, options = {}) {
+    const normalizedNation = normalizeNationKey(nationKey);
+    const ratios = normalizedNation ? RESOURCE_RATIO_BY_NATION[normalizedNation] : null;
+    if (!ratios) return costEntries;
+
+    const baseAmount = computeBaseCostAmount(costEntries);
+    if (baseAmount <= 0) return costEntries;
+
+    const useSacred = !!options.useSacred;
+    const resources = Object.entries(ratios).map(([code, ratio]) => {
+        const resolvedCode = useSacred && code === 'RT' ? 'RS' : code;
+        return { ItemId: resolvedCode, Amount: Math.max(1, Math.round(baseAmount * ratio)) };
+    });
+    if (options.onlyResource) return resources.map((entry) => [entry.ItemId, entry.Amount]);
+    return mergeCostEntries(costEntries, resources);
+}
 
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
@@ -461,6 +520,11 @@ function initializeShopRoutes(app, deps) {
                 costEntries = Object.entries(spec.Cost);
             }
             costEntries = costEntries.filter(([, amount]) => Number(amount) > 0);
+            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+            const resourceCosts = applyNationResourceCosts(costEntries, playerNation, { useSacred: false, onlyResource: true });
+            const costEntriesWithResource = resourceCosts.length > 0 ? resourceCosts : costEntries;
+            const useResourcePayment = paymentMethod === 'resource';
+            costEntries = useResourcePayment ? costEntriesWithResource : costEntries;
 
             if (costEntries.length > 0) {
                 const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);

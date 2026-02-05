@@ -813,6 +813,9 @@ async function confirmCreateShip(playFabId) {
     if (confirmBtn) confirmBtn.disabled = true;
 
     try {
+        const paymentMethod = await Ship.selectPaymentMethod('支払い方法を選択してください');
+        if (!paymentMethod) return;
+        shipCreateContext.paymentMethod = paymentMethod;
         const data = await Ship.createShip(playFabId, shipItemId, shipCreateContext);
         if (data) {
             document.getElementById('shipCreateModal').style.display = 'none';

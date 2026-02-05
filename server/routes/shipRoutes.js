@@ -49,7 +49,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
-    const { addEconomyItem, subtractEconomyItem } = require('../economy');
+    const { addEconomyItem, subtractEconomyItem, VIRTUAL_CURRENCY_CODE } = require('../economy');
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
 
@@ -84,6 +84,223 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
         }
         return costs;
+    };
+
+    const RESOURCE_RATIO_BY_NATION = {
+        fire: { RR: 0.6, RG: 0.3, RT: 0.1 },
+        earth: { RG: 0.6, RR: 0.3, RT: 0.1 },
+        wind: { RY: 0.6, RB: 0.3, RT: 0.1 },
+        water: { RB: 0.6, RY: 0.3, RT: 0.1 }
+    };
+    const NATION_ALIAS = {
+        wands: 'fire',
+        pentacles: 'earth',
+        swords: 'wind',
+        cups: 'water'
+    };
+
+    const SHIP_LEVEL_CAP = 5;
+
+    const normalizeShipLevel = (value) => {
+        const num = Math.floor(Number(value));
+        return Number.isFinite(num) && num > 0 ? num : 1;
+    };
+
+    const toInt = (value, fallback = 0) => {
+        const num = Number(value);
+        return Number.isFinite(num) ? Math.trunc(num) : fallback;
+    };
+
+    const buildScaledShipStats = (shipData) => {
+        const level = normalizeShipLevel(shipData?.Level);
+        const base = shipData?.BaseStats || shipData?.Stats || {};
+
+        const baseMaxHp = Math.max(1, toInt(base.MaxHP, toInt(shipData?.Stats?.MaxHP, 1)));
+        const baseSpeed = Math.max(1, toInt(base.Speed, toInt(shipData?.Stats?.Speed, 1)));
+        const baseVision = Math.max(1, toInt(base.VisionRange, toInt(shipData?.Stats?.VisionRange, 1)));
+        const baseCargo = Math.max(0, toInt(base.CargoCapacity, toInt(shipData?.Stats?.CargoCapacity, 0)));
+        const baseCrew = Math.max(0, toInt(base.CrewCapacity, toInt(shipData?.Stats?.CrewCapacity, 0)));
+
+        const scaledMaxHp = Math.max(1, Math.round(baseMaxHp * level));
+        const scaledSpeed = Math.max(1, Math.round(baseSpeed * level));
+        const scaledVision = Math.max(1, Math.round(baseVision * level));
+
+        const currentHpRaw = Number(shipData?.Stats?.CurrentHP);
+        const currentMaxRaw = Number(shipData?.Stats?.MaxHP);
+        let ratio = 1;
+        if (Number.isFinite(currentHpRaw) && Number.isFinite(currentMaxRaw) && currentMaxRaw > 0) {
+            ratio = currentHpRaw / currentMaxRaw;
+        }
+        const scaledCurrent = Number.isFinite(ratio)
+            ? Math.max(0, Math.min(scaledMaxHp, Math.round(scaledMaxHp * ratio)))
+            : scaledMaxHp;
+
+        return {
+            level,
+            baseStats: {
+                MaxHP: baseMaxHp,
+                Speed: baseSpeed,
+                CargoCapacity: baseCargo,
+                CrewCapacity: baseCrew,
+                VisionRange: baseVision
+            },
+            stats: {
+                MaxHP: scaledMaxHp,
+                CurrentHP: scaledCurrent,
+                Speed: scaledSpeed,
+                CargoCapacity: baseCargo,
+                CrewCapacity: baseCrew,
+                VisionRange: scaledVision
+            }
+        };
+    };
+
+    const applyShipLevelToShipData = (shipData) => {
+        if (!shipData || typeof shipData !== 'object') return shipData;
+        const { level, baseStats, stats } = buildScaledShipStats(shipData);
+        return { ...shipData, Level: level, BaseStats: baseStats, Stats: stats };
+    };
+
+    const resolveShipSpec = (shipData) => {
+        if (!shipData) return null;
+        if (shipData.ItemId && shipCatalog[shipData.ItemId]) return shipCatalog[shipData.ItemId];
+        const shipType = shipData.ShipType;
+        if (shipType) {
+            return Object.values(shipCatalog).find(item => item.DisplayName === shipType) || null;
+        }
+        return null;
+    };
+
+    const buildShipUpgradeCosts = (shipSpec, nextLevel) => {
+        const baseCosts = buildCostsFromItem(shipSpec);
+        if (!Array.isArray(baseCosts) || baseCosts.length === 0) return [];
+        const multiplier = Math.max(1, Number(nextLevel) || 1);
+        return baseCosts.map((entry) => ({
+            ...entry,
+            Amount: Math.max(1, Math.round((Number(entry.Amount) || 0) * multiplier))
+        }));
+    };
+
+    const normalizeNationKey = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (!raw) return null;
+        return NATION_ALIAS[raw] || raw;
+    };
+
+    const computeBaseCostAmount = (costEntries) => {
+        const normalized = Array.isArray(costEntries) ? costEntries : [];
+        const ps = normalized
+            .filter((entry) => String(entry?.ItemId || entry?.itemId || '').toUpperCase() === VIRTUAL_CURRENCY_CODE)
+            .reduce((sum, entry) => sum + (Number(entry?.Amount ?? entry?.amount ?? 0) || 0), 0);
+        if (ps > 0) return ps;
+        return normalized.reduce((sum, entry) => sum + (Number(entry?.Amount ?? entry?.amount ?? 0) || 0), 0);
+    };
+
+    const mergeCostEntries = (entries, extra) => {
+        const map = new Map();
+        (entries || []).forEach((entry) => {
+            const code = String(entry?.ItemId || entry?.itemId || '').trim();
+            if (!code) return;
+            map.set(code, (map.get(code) || 0) + (Number(entry?.Amount ?? entry?.amount ?? 0) || 0));
+        });
+        (extra || []).forEach((entry) => {
+            const code = String(entry?.ItemId || '').trim();
+            if (!code) return;
+            map.set(code, (map.get(code) || 0) + (Number(entry?.Amount) || 0));
+        });
+        return Array.from(map.entries()).map(([ItemId, Amount]) => ({ ItemId, Amount }));
+    };
+
+    const applyNationResourceCosts = (costEntries, nationKey, options = {}) => {
+        const normalizedNation = normalizeNationKey(nationKey);
+        const ratios = normalizedNation ? RESOURCE_RATIO_BY_NATION[normalizedNation] : null;
+        if (!ratios) return costEntries;
+        const baseAmount = computeBaseCostAmount(costEntries);
+        if (baseAmount <= 0) return costEntries;
+        const useSacred = !!options.useSacred;
+        const resources = Object.entries(ratios).map(([code, ratio]) => {
+            const resolvedCode = useSacred && code === 'RT' ? 'RS' : code;
+            return { ItemId: resolvedCode, Amount: Math.max(1, Math.round(baseAmount * ratio)) };
+        });
+        if (options.onlyResource) return resources.map((entry) => ({ ItemId: entry.ItemId, Amount: entry.Amount }));
+        return mergeCostEntries(costEntries, resources);
+    };
+
+    const resolvePlayerNation = async (playFabId) => {
+        if (!playFabId) return null;
+        try {
+            const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['Nation', 'Race']
+            });
+            const nationValue = userReadOnly?.Data?.Nation?.Value || null;
+            const raceValue = userReadOnly?.Data?.Race?.Value || null;
+            if (nationValue) return String(nationValue).toLowerCase();
+            if (raceValue && NATION_GROUP_BY_RACE[raceValue]) return NATION_GROUP_BY_RACE[raceValue].island;
+        } catch (error) {
+            console.warn('[ResolvePlayerNation] Failed:', error?.errorMessage || error?.message || error);
+        }
+        return null;
+    };
+
+    const normalizeShipLevel = (value) => {
+        const num = Math.floor(Number(value));
+        return Number.isFinite(num) && num > 0 ? num : 1;
+    };
+
+    const toInt = (value, fallback = 0) => {
+        const num = Number(value);
+        return Number.isFinite(num) ? Math.trunc(num) : fallback;
+    };
+
+    const buildScaledShipStats = (shipData) => {
+        const level = normalizeShipLevel(shipData?.Level);
+        const base = shipData?.BaseStats || shipData?.Stats || {};
+
+        const baseMaxHp = Math.max(1, toInt(base.MaxHP, toInt(shipData?.Stats?.MaxHP, 1)));
+        const baseSpeed = Math.max(1, toInt(base.Speed, toInt(shipData?.Stats?.Speed, 1)));
+        const baseVision = Math.max(1, toInt(base.VisionRange, toInt(shipData?.Stats?.VisionRange, 1)));
+        const baseCargo = Math.max(0, toInt(base.CargoCapacity, toInt(shipData?.Stats?.CargoCapacity, 0)));
+        const baseCrew = Math.max(0, toInt(base.CrewCapacity, toInt(shipData?.Stats?.CrewCapacity, 0)));
+
+        const scaledMaxHp = Math.max(1, Math.round(baseMaxHp * level));
+        const scaledSpeed = Math.max(1, Math.round(baseSpeed * level));
+        const scaledVision = Math.max(1, Math.round(baseVision * level));
+
+        const currentHpRaw = Number(shipData?.Stats?.CurrentHP);
+        const currentMaxRaw = Number(shipData?.Stats?.MaxHP);
+        let ratio = 1;
+        if (Number.isFinite(currentHpRaw) && Number.isFinite(currentMaxRaw) && currentMaxRaw > 0) {
+            ratio = currentHpRaw / currentMaxRaw;
+        }
+        const scaledCurrent = Number.isFinite(ratio)
+            ? Math.max(0, Math.min(scaledMaxHp, Math.round(scaledMaxHp * ratio)))
+            : scaledMaxHp;
+
+        return {
+            level,
+            baseStats: {
+                MaxHP: baseMaxHp,
+                Speed: baseSpeed,
+                CargoCapacity: baseCargo,
+                CrewCapacity: baseCrew,
+                VisionRange: baseVision
+            },
+            stats: {
+                MaxHP: scaledMaxHp,
+                CurrentHP: scaledCurrent,
+                Speed: scaledSpeed,
+                CargoCapacity: baseCargo,
+                CrewCapacity: baseCrew,
+                VisionRange: scaledVision
+            }
+        };
+    };
+
+    const applyShipLevelToShipData = (shipData) => {
+        if (!shipData || typeof shipData !== 'object') return shipData;
+        const { level, baseStats, stats } = buildScaledShipStats(shipData);
+        return { ...shipData, Level: level, BaseStats: baseStats, Stats: stats };
     };
 
     async function findIslandByBiome(biome) {
@@ -436,7 +653,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             });
         }
 
-        const costsToPay = buildCostsFromItem(shipSpec);
+        let costsToPay = buildCostsFromItem(shipSpec);
         if (costsToPay.length === 0) {
             try {
                 const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
@@ -476,6 +693,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             if (!playerNation) {
                 return res.status(403).json({ error: 'NationNotSet' });
             }
+            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+            const resourceCosts = applyNationResourceCosts(costsToPay, playerNation, { useSacred: false, onlyResource: true });
+            const resourceCostsResolved = resourceCosts.length > 0 ? resourceCosts : costsToPay;
+            const useResourcePayment = paymentMethod === 'resource';
+            costsToPay = useResourcePayment ? resourceCostsResolved : costsToPay;
             const shipRace = String(shipSpec.race || shipSpec.Race || '').toLowerCase().trim();
             if (shipRace && shipRace !== 'common' && playerRace && shipRace !== playerRace) {
                 return res.status(403).json({ error: 'Race restricted ship', details: { shipRace, playerRace } });
@@ -532,13 +754,21 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             shipData.Domain = shipSpec.Domain || 'sea_surface';
             const visionRange = Number(shipSpec.VisionRange);
             const resolvedVisionRange = Number.isFinite(visionRange) ? visionRange : 300;
-            shipData.Stats = {
+            shipData.Level = 1;
+            shipData.BaseStats = {
                 MaxHP: parseInt(shipSpec.MaxHP, 10),
-                CurrentHP: parseInt(shipSpec.MaxHP, 10),
                 Speed: parseInt(shipSpec.Speed, 10),
                 CargoCapacity: parseInt(shipSpec.CargoCapacity, 10),
                 CrewCapacity: parseInt(shipSpec.CrewCapacity, 10),
                 VisionRange: resolvedVisionRange
+            };
+            shipData.Stats = {
+                MaxHP: shipData.BaseStats.MaxHP,
+                CurrentHP: shipData.BaseStats.MaxHP,
+                Speed: shipData.BaseStats.Speed,
+                CargoCapacity: shipData.BaseStats.CargoCapacity,
+                CrewCapacity: shipData.BaseStats.CrewCapacity,
+                VisionRange: shipData.BaseStats.VisionRange
             };
             shipData.Skills = shipSpec.Skills || [];
             shipData.Equipment = { Cannon: null, Sail: null, Hull: null, Anchor: null };
@@ -546,11 +776,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             shipData.Crew = [{ PlayFabId: playFabId, Role: 'Captain' }];
             shipData.Owner = playFabId;
             shipData.CreatedAt = new Date().toISOString();
+            const resolvedShipData = applyShipLevelToShipData(shipData);
 
             await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
                 PlayFabId: playFabId,
                 Data: {
-                    [`Ship_${shipId}`]: JSON.stringify(shipData)
+                    [`Ship_${shipId}`]: JSON.stringify(resolvedShipData)
                 }
             });
 
@@ -590,7 +821,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 await setActiveShipId(playFabId, shipId, firestoreShipData);
             }
 
-            res.json({ success: true, shipId: shipId, shipData: shipData, firestoreData: firestoreShipData });
+            res.json({ success: true, shipId: shipId, shipData: resolvedShipData, firestoreData: firestoreShipData });
 
         } catch (error) {
             console.error('[CreateShip] Error:', error);
@@ -598,6 +829,84 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(402).json({ error: `建造費用が不足しています。(${cost} ${currencyCode} 必要)` });
             }
             res.status(500).json({ error: 'Failed to create ship', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: 船のレベルアップ
+     * POST /api/upgrade-ship
+     */
+    app.post('/api/upgrade-ship', async (req, res) => {
+        const { playFabId, shipId } = req.body || {};
+        if (!playFabId || !shipId) {
+            return res.status(400).json({ error: 'playFabId and shipId are required' });
+        }
+
+        try {
+            const shipDoc = await shipsCollection.doc(shipId).get();
+            if (!shipDoc.exists) return res.status(404).json({ error: 'Ship not found' });
+            const shipDocData = shipDoc.data() || {};
+            if (shipDocData.playFabId !== playFabId) {
+                return res.status(403).json({ error: 'Not your ship' });
+            }
+
+            const assetKey = `Ship_${shipId}`;
+            const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: [assetKey]
+            });
+            if (!assetResult?.Data?.[assetKey]?.Value) {
+                return res.status(404).json({ error: 'Ship asset not found' });
+            }
+
+            const rawShipData = JSON.parse(assetResult.Data[assetKey].Value);
+            const currentShipData = applyShipLevelToShipData(rawShipData);
+            const currentLevel = normalizeShipLevel(currentShipData.Level);
+            if (currentLevel >= SHIP_LEVEL_CAP) {
+                return res.status(400).json({ error: 'ShipLevelCap', level: currentLevel });
+            }
+
+            const nextLevel = currentLevel + 1;
+            const shipSpec = resolveShipSpec(currentShipData);
+            if (!shipSpec) {
+                return res.status(400).json({ error: 'ShipSpecNotFound' });
+            }
+
+            let upgradeCosts = buildShipUpgradeCosts(shipSpec, nextLevel);
+            const nationForCosts = await resolvePlayerNation(playFabId);
+            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+            const resourceCosts = applyNationResourceCosts(upgradeCosts, nationForCosts, { useSacred: true, onlyResource: true });
+            const resourceCostsResolved = resourceCosts.length > 0 ? resourceCosts : upgradeCosts;
+            const useResourcePayment = paymentMethod === 'resource';
+            upgradeCosts = useResourcePayment ? resourceCostsResolved : upgradeCosts;
+            if (upgradeCosts.length === 0) {
+                return res.status(400).json({ error: 'UpgradeCostNotConfigured' });
+            }
+
+            for (const costItem of upgradeCosts) {
+                await subtractEconomyItem(playFabId, costItem.ItemId, costItem.Amount, economyDeps);
+                console.log(`[UpgradeShip] ${playFabId} paid ${costItem.Amount} ${costItem.ItemId}`);
+            }
+
+            const leveledData = applyShipLevelToShipData({
+                ...currentShipData,
+                Level: nextLevel
+            });
+            leveledData.Stats = leveledData.Stats || {};
+            leveledData.Stats.CurrentHP = leveledData.Stats.MaxHP;
+
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: { [assetKey]: JSON.stringify(leveledData) }
+            });
+
+            res.json({ success: true, shipId, shipData: leveledData, level: nextLevel, costs: upgradeCosts });
+        } catch (error) {
+            console.error('[UpgradeShip] Error:', error);
+            if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
+                return res.status(402).json({ error: 'InsufficientFunds' });
+            }
+            return res.status(500).json({ error: 'Failed to upgrade ship', details: error.errorMessage || error.message });
         }
     });
 
@@ -762,8 +1071,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(404).json({ error: 'Ship asset not found for attacker/defender' });
             }
 
-            const attackerShipData = JSON.parse(attackerShipDataRaw);
-            const defenderShipData = JSON.parse(defenderShipDataRaw);
+            let attackerShipData = applyShipLevelToShipData(JSON.parse(attackerShipDataRaw));
+            let defenderShipData = applyShipLevelToShipData(JSON.parse(defenderShipDataRaw));
             const attackerDomain = String(attackerShipData?.Domain || '').toLowerCase();
             const defenderDomain = String(defenderShipData?.Domain || '').toLowerCase();
             const attackerItemId = attackerShipData?.ItemId;
@@ -926,7 +1235,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     continue;
                 }
 
-                const defenderShipData = JSON.parse(defenderShipDataRaw);
+                const defenderShipData = applyShipLevelToShipData(JSON.parse(defenderShipDataRaw));
                 const defenderMaxHp = Number(defenderShipData?.Stats?.MaxHP) || 0;
                 const defenderHp = Number(defenderShipData?.Stats?.CurrentHP);
                 const shieldUntil = Number(defenderSummaryData.shieldUntil) || 0;
@@ -1190,7 +1499,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.json({ success: false, missing: true, shipData: null });
             }
 
-            const shipData = JSON.parse(result.Data[`Ship_${shipId}`].Value);
+            const shipData = applyShipLevelToShipData(JSON.parse(result.Data[`Ship_${shipId}`].Value));
             res.json({ success: true, shipData: shipData });
 
         } catch (error) {
@@ -1243,7 +1552,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.json({ success: false, missing: true, shipData: null });
             }
 
-            const fullShipData = JSON.parse(result.Data[`Ship_${shipId}`].Value);
+            const fullShipData = applyShipLevelToShipData(JSON.parse(result.Data[`Ship_${shipId}`].Value));
 
             const lightShipData = {
                 ShipId: fullShipData.ShipId,
@@ -1432,7 +1741,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
                 let assetData = null;
                 if (assetResult.Data && assetResult.Data[`Ship_${firestoreData.shipId}`]) {
-                    assetData = JSON.parse(assetResult.Data[`Ship_${firestoreData.shipId}`].Value);
+                    assetData = applyShipLevelToShipData(JSON.parse(assetResult.Data[`Ship_${firestoreData.shipId}`].Value));
                 }
 
                 const currentPos = calculateCurrentPosition(firestoreData.movement);

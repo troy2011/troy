@@ -7,6 +7,7 @@ import {
     createShip as requestCreateShip,
     startShipVoyage as requestStartShipVoyage,
     stopShip as requestStopShip,
+    upgradeShip as requestUpgradeShip,
     getPlayerShips as fetchPlayerShips,
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
@@ -62,6 +63,64 @@ let cachedShipsData = new LRUCache(100);
 let assetDataCache = new LRUCache(200);
 const ASSET_CACHE_TTL = 5 * 60 * 1000;
 let activeShipIdCache = null;
+const SHIP_LEVEL_CAP = 5;
+
+function resolveCatalogShip(assetData) {
+    if (!assetData || !window.shipCatalog) return null;
+    if (assetData.ItemId && window.shipCatalog[assetData.ItemId]) return window.shipCatalog[assetData.ItemId];
+    const shipType = assetData.ShipType;
+    if (!shipType) return null;
+    return Object.values(window.shipCatalog).find(item => item.DisplayName === shipType) || null;
+}
+
+function buildCostsFromCatalogItem(item) {
+    if (!item) return [];
+    const costs = [];
+    const pushCost = (code, amount) => {
+        const id = code ? String(code) : '';
+        const value = Number(amount) || 0;
+        if (!id || value <= 0) return;
+        costs.push({ ItemId: id, Amount: value });
+    };
+    if (Array.isArray(item.PriceAmounts)) {
+        item.PriceAmounts.forEach((entry) => {
+            pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+        });
+    }
+    if (costs.length === 0 && item.PriceOptions) {
+        const options = Array.isArray(item.PriceOptions) ? item.PriceOptions : [item.PriceOptions];
+        options.forEach((option) => {
+            const prices = Array.isArray(option?.Prices) ? option.Prices : [];
+            prices.forEach((price) => {
+                const amounts = Array.isArray(price?.Amounts) ? price.Amounts : [];
+                amounts.forEach((entry) => {
+                    pushCost(entry?.ItemId || entry?.itemId, entry?.Amount ?? entry?.amount);
+                });
+            });
+        });
+    }
+    if (costs.length === 0 && item.VirtualCurrencyPrices) {
+        Object.entries(item.VirtualCurrencyPrices).forEach(([code, amount]) => {
+            pushCost(code, amount);
+        });
+    }
+    return costs;
+}
+
+function resolveUpgradeCosts(catalogItem, nextLevel) {
+    const baseCosts = buildCostsFromCatalogItem(catalogItem);
+    if (!baseCosts.length) return [];
+    const multiplier = Math.max(1, Number(nextLevel) || 1);
+    return baseCosts.map(entry => ({
+        ...entry,
+        Amount: Math.max(1, Math.round((Number(entry.Amount) || 0) * multiplier))
+    }));
+}
+
+function formatCostLabel(costs) {
+    if (!Array.isArray(costs) || costs.length === 0) return '不明';
+    return costs.map(cost => `${cost.Amount} ${cost.ItemId}`).join(' / ');
+}
 
 export async function getActiveShipId(playFabId) {
     const result = await fetchActiveShip(playFabId, { isSilent: true });
@@ -129,7 +188,8 @@ export async function createShip(playFabId, shipItemId, context) {
         playFabId,
         shipItemId,
         context?.mapId || null,
-        context?.islandId || null
+        context?.islandId || null,
+        context?.paymentMethod || null
     );
 
     if (data && data.success) {
@@ -140,6 +200,56 @@ export async function createShip(playFabId, shipItemId, context) {
     }
 
     return null;
+}
+
+export function selectPaymentMethod(message = '支払い方法を選択してください') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.6)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '9999';
+
+        const panel = document.createElement('div');
+        panel.style.background = '#111';
+        panel.style.border = '1px solid rgba(255,255,255,0.15)';
+        panel.style.borderRadius = '10px';
+        panel.style.padding = '16px';
+        panel.style.minWidth = '240px';
+        panel.style.color = '#fff';
+        panel.innerHTML = `
+            <div style="font-size:14px; margin-bottom:12px;">${message}</div>
+            <div style="display:flex; gap:8px;">
+                <button id="payWithPsBtn" style="flex:1; padding:8px;">PSで支払う</button>
+                <button id="payWithResourceBtn" style="flex:1; padding:8px;">資源で支払う</button>
+            </div>
+            <div style="margin-top:10px; text-align:right;">
+                <button id="payCancelBtn" style="padding:6px 10px;">キャンセル</button>
+            </div>
+        `;
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        const cleanup = () => {
+            overlay.remove();
+        };
+
+        overlay.querySelector('#payWithPsBtn').addEventListener('click', () => {
+            cleanup();
+            resolve('ps');
+        });
+        overlay.querySelector('#payWithResourceBtn').addEventListener('click', () => {
+            cleanup();
+            resolve('resource');
+        });
+        overlay.querySelector('#payCancelBtn').addEventListener('click', () => {
+            cleanup();
+            resolve(null);
+        });
+    });
 }
 
 export async function startShipVoyage(shipId, playFabId, destination) {
@@ -161,6 +271,38 @@ export async function stopShip(shipId) {
         return data;
     }
 
+    return null;
+}
+
+export async function upgradeShip(playFabId, shipId) {
+    if (!playFabId || !shipId) return null;
+    const assetData = await getShipAsset(playFabId, shipId, true);
+    if (!assetData) return null;
+
+    const currentLevel = Number(assetData?.Level) || 1;
+    if (currentLevel >= SHIP_LEVEL_CAP) {
+        showRpgMessage('この船は既に最大レベルです。');
+        return null;
+    }
+
+    const catalogItem = resolveCatalogShip(assetData);
+    const nextLevel = currentLevel + 1;
+    const costs = resolveUpgradeCosts(catalogItem, nextLevel);
+    const costLabel = formatCostLabel(costs);
+    const paymentMethod = await selectPaymentMethod(`船をLv${nextLevel}に強化しますか？\n費用: ${costLabel}`);
+    if (!paymentMethod) return null;
+
+    const data = await requestUpgradeShip(playFabId, shipId, paymentMethod);
+    if (data && data.success) {
+        assetDataCache.set(shipId, { data: data.shipData, updatedAt: Date.now() });
+        cachedShipsData.set(shipId, {
+            ...(cachedShipsData.get(shipId) || {}),
+            assetData: data.shipData
+        });
+        showRpgMessage(`船がLv${data.level}になりました！`);
+        await displayPlayerShips(playFabId);
+        return data;
+    }
     return null;
 }
 
@@ -249,15 +391,7 @@ export function renderShipCard(ship) {
     const currentPos = ship.currentPosition || positionData.position || { x: 0, y: 0 };
     const isActive = !!ship.isActive;
 
-    const resolveCatalogShip = () => {
-        if (!assetData || !window.shipCatalog) return null;
-        if (assetData.ItemId && window.shipCatalog[assetData.ItemId]) return window.shipCatalog[assetData.ItemId];
-        const shipType = assetData.ShipType;
-        if (!shipType) return null;
-        return Object.values(window.shipCatalog).find(item => item.DisplayName === shipType) || null;
-    };
-
-    const catalogItem = resolveCatalogShip();
+    const catalogItem = resolveCatalogShip(assetData);
     const actionInfo = (() => {
         if (typeof window === 'undefined' || !window.SHIP_ACTIONS) return null;
         const itemId = String(assetData?.ItemId || '').toLowerCase();
@@ -283,6 +417,8 @@ export function renderShipCard(ship) {
 
     const isMoving = !!movement.isMoving;
     const eta = isMoving ? formatETA(movement.arrivalTime) : '停泊中';
+    const shipLevel = Number(assetData?.Level) || 1;
+    const canUpgrade = shipLevel < SHIP_LEVEL_CAP;
 
     return `
         <div class="ship-card" data-ship-id="${ship.shipId}">
@@ -300,6 +436,7 @@ export function renderShipCard(ship) {
                 </div>
             </div>
             <div class="ship-card-meta">
+                <div><span>Lv:</span> <b>${shipLevel}</b></div>
                 <div><span>HP:</span> <b>${assetData?.Stats?.CurrentHP ?? 0}/${assetData?.Stats?.MaxHP ?? 0}</b></div>
                 <div><span>速度:</span> <b>${assetData?.Stats?.Speed ?? 0}</b></div>
                 <div><span>視覚距離:</span> <b>${(() => {
@@ -335,6 +472,11 @@ export function renderShipCard(ship) {
                 <button data-variant="danger" onclick="window.stopShip('${ship.shipId}')">停止</button>
                 ` : `
                 <button data-variant="accent" onclick="window.startShipVoyageUI('${ship.shipId}')">出航</button>
+                `}
+                ${canUpgrade ? `
+                <button data-variant="accent" onclick="window.upgradeShip('${ship.shipId}')">強化</button>
+                ` : `
+                <button disabled>Lv最大</button>
                 `}
                 <button data-role="active-button" onclick="window.setActiveShip('${ship.shipId}')" ${isActive ? 'disabled' : ''}>
                     ${isActive ? '使用中' : '使用する'}
@@ -715,4 +857,11 @@ export function cleanupShipListeners() {
     }
 
     cachedShipsData.clear();
+}
+
+if (typeof window !== 'undefined') {
+    window.upgradeShip = (shipId) => {
+        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        return upgradeShip(playFabId, shipId);
+    };
 }
