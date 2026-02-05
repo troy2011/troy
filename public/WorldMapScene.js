@@ -287,6 +287,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.rideLeaveButton = null;
         this.rideSyncTimer = null;
         this.lastRideSyncAt = 0;
+        this.myPassengerIcons = [];
         this.ghostShip = null;
         this.ghostShipTween = null;
         this.ghostShipCheckTimer = null;
@@ -520,6 +521,10 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         if (this.rideRequestSeen) {
             this.rideRequestSeen.clear();
+        }
+        if (this.myPassengerIcons && this.myPassengerIcons.length > 0) {
+            this.myPassengerIcons.forEach(icon => icon?.destroy?.());
+            this.myPassengerIcons = [];
         }
         if (this.rideSyncTimer) {
             this.rideSyncTimer.remove();
@@ -989,6 +994,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playerShip.body.setCollideWorldBounds(true);
         
         this.playerShip.clearTint();
+        this.updatePassengerIconsForHost(this.playerShip, 0, this.myPassengerIcons);
+        this.updatePassengerIconsForHost(this.playerShip, 0, this.myPassengerIcons);
 
         this.navArrow = this.add.triangle(0, 0, 0, -10, -7, 6, 7, 6, 0xffffff, 0.9);
         this.navArrow.setDepth(GAME_CONFIG.DEPTH.SHIP + 1);
@@ -1198,6 +1205,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 callback: () => this.syncRidePosition()
             });
         }
+        this.updatePassengerIconsForHost(this.playerShip, 0, this.myPassengerIcons);
 
         // UI camera should only render fog + minimap.
         if (this.uiCamera) {
@@ -3547,7 +3555,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         const name = request.requesterName || '味方';
-        const accept = typeof window !== 'undefined' ? window.confirm(`${name}が同乗申請しています。承認しますか？`) : false;
+        const accept = await this.showRideRequestModal(`${name}が同乗申請しています。`, request);
         await this.respondRideRequest(request, !!accept);
     }
 
@@ -3622,6 +3630,10 @@ export default class WorldMapScene extends Phaser.Scene {
             this.ridingSince = null;
             this.canMove = true;
             this.updateRideLeaveUi();
+            const passengerCount = Array.from(this.otherShips.values())
+                .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
+                .length;
+            this.updatePassengerIconsForHost(this.playerShip, passengerCount, this.myPassengerIcons);
             this.showMessage('下船しました。');
         } catch (error) {
             console.warn('[Ride] Failed to leave ride:', error);
@@ -3634,10 +3646,123 @@ export default class WorldMapScene extends Phaser.Scene {
         const targetSprite = targetShip?.sprite;
         if (!targetSprite) return;
         this.playerShip.setPosition(targetSprite.x, targetSprite.y);
+        const passengerCount = Array.from(this.otherShips.values())
+            .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
+            .length;
+        this.updatePassengerIconsForHost(this.playerShip, passengerCount, this.myPassengerIcons);
         const now = Date.now();
         if (now - this.lastRideSyncAt < 1000) return;
         this.lastRideSyncAt = now;
         void this.updateMyShipStoppedPosition();
+    }
+
+    updatePassengerIconsForHost(hostSprite, passengerCount, store) {
+        if (!hostSprite || !Number.isFinite(passengerCount)) return;
+        const maxIcons = Math.min(6, Math.max(0, passengerCount));
+        while (store.length > maxIcons) {
+            const icon = store.pop();
+            icon?.destroy?.();
+        }
+        while (store.length < maxIcons) {
+            const icon = this.add.circle(0, 0, 4, 0xffffff, 0.9);
+            icon.setDepth(GAME_CONFIG.DEPTH.SHIP + 2);
+            store.push(icon);
+        }
+        const spacing = 10;
+        const startX = hostSprite.x - ((maxIcons - 1) * spacing) / 2;
+        const y = hostSprite.y - 28;
+        store.forEach((icon, index) => {
+            icon.setPosition(startX + index * spacing, y);
+        });
+    }
+
+    showRideRequestModal(message, request) {
+        return new Promise((resolve) => {
+            if (typeof document === 'undefined') {
+                resolve(false);
+                return;
+            }
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.background = 'rgba(0,0,0,0.6)';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.zIndex = '9999';
+
+            const panel = document.createElement('div');
+            panel.style.background = 'linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98))';
+            panel.style.border = '1px solid rgba(148,163,184,0.35)';
+            panel.style.borderRadius = '12px';
+            panel.style.padding = '18px';
+            panel.style.minWidth = '260px';
+            panel.style.maxWidth = '320px';
+            panel.style.color = '#fff';
+            panel.style.boxShadow = '0 10px 28px rgba(0,0,0,0.45)';
+
+            const title = document.createElement('div');
+            title.textContent = '同乗申請';
+            title.style.fontSize = '14px';
+            title.style.fontWeight = '700';
+            title.style.marginBottom = '10px';
+
+            const body = document.createElement('div');
+            body.textContent = message || '同乗申請があります。';
+            body.style.fontSize = '13px';
+            body.style.lineHeight = '1.4';
+            body.style.marginBottom = '12px';
+
+            const detail = document.createElement('div');
+            detail.textContent = request?.targetName ? `船: ${request.targetName}` : '';
+            detail.style.fontSize = '12px';
+            detail.style.opacity = '0.75';
+            detail.style.marginBottom = '12px';
+
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '8px';
+
+            const approveBtn = document.createElement('button');
+            approveBtn.textContent = '承認';
+            approveBtn.style.flex = '1';
+            approveBtn.style.padding = '8px';
+            approveBtn.style.borderRadius = '8px';
+            approveBtn.style.border = '1px solid rgba(34,197,94,0.6)';
+            approveBtn.style.background = 'rgba(34,197,94,0.25)';
+            approveBtn.style.color = '#fff';
+
+            const denyBtn = document.createElement('button');
+            denyBtn.textContent = '拒否';
+            denyBtn.style.flex = '1';
+            denyBtn.style.padding = '8px';
+            denyBtn.style.borderRadius = '8px';
+            denyBtn.style.border = '1px solid rgba(239,68,68,0.6)';
+            denyBtn.style.background = 'rgba(239,68,68,0.2)';
+            denyBtn.style.color = '#fff';
+
+            actions.appendChild(approveBtn);
+            actions.appendChild(denyBtn);
+            panel.appendChild(title);
+            panel.appendChild(body);
+            if (detail.textContent) panel.appendChild(detail);
+            panel.appendChild(actions);
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+
+            const cleanup = () => {
+                overlay.remove();
+            };
+
+            approveBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(true);
+            });
+            denyBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(false);
+            });
+        });
     }
 
     async ramShipDamage(otherPlayFabId, shipObject) {
@@ -5632,6 +5757,13 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.applyShipDomainDepth(shipObject?.sprite, shipObject?.domain);
         this.setShipBattleVisibility(playFabId, !this.isShipInBattle(playFabId));
+        if (shipObject?.sprite) {
+            const passengerCount = Array.from(this.otherShips.values())
+                .filter((entry) => entry?.data?.ridingOwnerId === playFabId)
+                .length + (this.ridingOwnerId === playFabId ? 1 : 0);
+            if (!shipObject.passengerIcons) shipObject.passengerIcons = [];
+            this.updatePassengerIconsForHost(shipObject.sprite, passengerCount, shipObject.passengerIcons);
+        }
         if (assetData) {
             const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
             const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
