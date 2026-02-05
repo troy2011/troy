@@ -733,6 +733,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             ]);
             const attackerSummaryData = attackerSummary.exists ? (attackerSummary.data() || {}) : {};
             const defenderSummaryData = defenderSummary.exists ? (defenderSummary.data() || {}) : {};
+            const nowTs = Date.now();
+            const attackerImmune = Number(attackerSummaryData.immuneUntil) > nowTs;
+            const defenderImmune = Number(defenderSummaryData.immuneUntil) > nowTs;
             const attackerShipId = attackerSummaryData.shipId || null;
             const defenderShipId = defenderSummaryData.shipId || null;
             if (!attackerShipId || !defenderShipId) {
@@ -823,6 +826,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             attackerDamage += autoDamageToDefender;
             defenderDamage += autoDamageToAttacker;
 
+            if (defenderImmune) {
+                attackerDamage = 0;
+            }
+            if (attackerImmune) {
+                defenderDamage = 0;
+            }
+
             const nextAttackerHp = Math.max(0, (Number.isFinite(attackerHp) ? attackerHp : attackerMaxHp) - defenderDamage);
             const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - attackerDamage);
             const attackerRespawn = nextAttackerHp <= 0;
@@ -851,8 +861,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
             return res.json({
                 success: true,
-                attacker: { playFabId: attackerId, shipId: attackerShipId, hp: attackerShipData.Stats.CurrentHP, damageTaken: defenderDamage, respawned: attackerRespawn, respawnPosition: respawnResults[0] || null },
-                defender: { playFabId: defenderId, shipId: defenderShipId, hp: defenderShipData.Stats.CurrentHP, damageTaken: attackerDamage, respawned: defenderRespawn, respawnPosition: respawnResults[1] || null },
+                attacker: { playFabId: attackerId, shipId: attackerShipId, hp: attackerShipData.Stats.CurrentHP, damageTaken: defenderDamage, respawned: attackerRespawn, respawnPosition: respawnResults[0] || null, immuneActive: attackerImmune },
+                defender: { playFabId: defenderId, shipId: defenderShipId, hp: defenderShipData.Stats.CurrentHP, damageTaken: attackerDamage, respawned: defenderRespawn, respawnPosition: respawnResults[1] || null, immuneActive: defenderImmune },
                 baseDamage: baseDamage,
                 attackerDamage,
                 defenderDamage
@@ -925,6 +935,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     && Number.isFinite(shieldFactor)
                     && shieldFactor > 0
                     && shieldFactor < 1;
+                const immuneUntil = Number(defenderSummaryData.immuneUntil) || 0;
+                if (immuneUntil > Date.now()) {
+                    results.push({ playFabId: targetId, skipped: true, reason: 'immune' });
+                    continue;
+                }
                 const appliedDamage = shieldActive
                     ? Math.max(1, Math.round(damageValue * shieldFactor))
                     : damageValue;
@@ -960,6 +975,96 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         } catch (error) {
             console.error('[ShipActionDamage] Error:', error);
             return res.status(500).json({ error: 'Failed to apply ship action damage', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: Ship action player damage (HP only)
+     * POST /api/ship-action-player-damage
+     */
+    app.post('/api/ship-action-player-damage', async (req, res) => {
+        const { attackerId, targets, damage } = req.body || {};
+        if (!attackerId || !Array.isArray(targets) || targets.length === 0) {
+            return res.status(400).json({ error: 'attackerId and targets are required' });
+        }
+        const damageValue = Number(damage);
+        if (!Number.isFinite(damageValue) || damageValue <= 0) {
+            return res.status(400).json({ error: 'damage must be a positive number' });
+        }
+
+        try {
+            const attackerNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: attackerId,
+                Keys: ['Nation']
+            });
+            const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+
+            const results = [];
+            for (const targetId of targets) {
+                if (!targetId || targetId === attackerId) continue;
+                const defenderNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: targetId,
+                    Keys: ['Nation']
+                });
+                const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+                if (attackerNation && defenderNation && attackerNation === defenderNation) {
+                    results.push({ playFabId: targetId, skipped: true, reason: 'same_nation' });
+                    continue;
+                }
+
+                const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: targetId });
+                const stats = {};
+                if (Array.isArray(statsResult?.Statistics)) {
+                    statsResult.Statistics.forEach((entry) => {
+                        stats[entry.StatisticName] = entry.Value;
+                    });
+                }
+                const maxHp = Number(stats.MaxHP || stats.HP || 1);
+                const currentHp = Number.isFinite(Number(stats.HP)) ? Number(stats.HP) : maxHp;
+                const nextHp = Math.max(1, currentHp - damageValue);
+
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: targetId,
+                    Statistics: [{ StatisticName: 'HP', Value: nextHp }]
+                });
+
+                results.push({ playFabId: targetId, hp: nextHp, damageTaken: currentHp - nextHp });
+            }
+
+            return res.json({
+                success: true,
+                hits: results.filter(r => r && !r.skipped && !r.error).length,
+                results
+            });
+        } catch (error) {
+            console.error('[ShipActionPlayerDamage] Error:', error);
+            return res.status(500).json({ error: 'Failed to apply player damage', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: Ship action immune (no damage)
+     * POST /api/ship-action-immune
+     */
+    app.post('/api/ship-action-immune', async (req, res) => {
+        const { playFabId, durationMs } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        const durationValue = Number(durationMs);
+        if (!Number.isFinite(durationValue) || durationValue <= 0) {
+            return res.status(400).json({ error: 'durationMs must be a positive number' });
+        }
+        try {
+            const immuneUntil = Date.now() + durationValue;
+            await shipsCollection.doc(playFabId).set({
+                immuneUntil,
+                immuneUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            return res.json({ success: true, immuneUntil });
+        } catch (error) {
+            console.error('[ShipActionImmune] Error:', error);
+            return res.status(500).json({ error: 'Failed to apply immune', details: error.errorMessage || error.message });
         }
     });
 
