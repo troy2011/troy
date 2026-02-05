@@ -101,66 +101,6 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
     const SHIP_LEVEL_CAP = 5;
 
-    const normalizeShipLevel = (value) => {
-        const num = Math.floor(Number(value));
-        return Number.isFinite(num) && num > 0 ? num : 1;
-    };
-
-    const toInt = (value, fallback = 0) => {
-        const num = Number(value);
-        return Number.isFinite(num) ? Math.trunc(num) : fallback;
-    };
-
-    const buildScaledShipStats = (shipData) => {
-        const level = normalizeShipLevel(shipData?.Level);
-        const base = shipData?.BaseStats || shipData?.Stats || {};
-
-        const baseMaxHp = Math.max(1, toInt(base.MaxHP, toInt(shipData?.Stats?.MaxHP, 1)));
-        const baseSpeed = Math.max(1, toInt(base.Speed, toInt(shipData?.Stats?.Speed, 1)));
-        const baseVision = Math.max(1, toInt(base.VisionRange, toInt(shipData?.Stats?.VisionRange, 1)));
-        const baseCargo = Math.max(0, toInt(base.CargoCapacity, toInt(shipData?.Stats?.CargoCapacity, 0)));
-        const baseCrew = Math.max(0, toInt(base.CrewCapacity, toInt(shipData?.Stats?.CrewCapacity, 0)));
-
-        const scaledMaxHp = Math.max(1, Math.round(baseMaxHp * level));
-        const scaledSpeed = Math.max(1, Math.round(baseSpeed * level));
-        const scaledVision = Math.max(1, Math.round(baseVision * level));
-
-        const currentHpRaw = Number(shipData?.Stats?.CurrentHP);
-        const currentMaxRaw = Number(shipData?.Stats?.MaxHP);
-        let ratio = 1;
-        if (Number.isFinite(currentHpRaw) && Number.isFinite(currentMaxRaw) && currentMaxRaw > 0) {
-            ratio = currentHpRaw / currentMaxRaw;
-        }
-        const scaledCurrent = Number.isFinite(ratio)
-            ? Math.max(0, Math.min(scaledMaxHp, Math.round(scaledMaxHp * ratio)))
-            : scaledMaxHp;
-
-        return {
-            level,
-            baseStats: {
-                MaxHP: baseMaxHp,
-                Speed: baseSpeed,
-                CargoCapacity: baseCargo,
-                CrewCapacity: baseCrew,
-                VisionRange: baseVision
-            },
-            stats: {
-                MaxHP: scaledMaxHp,
-                CurrentHP: scaledCurrent,
-                Speed: scaledSpeed,
-                CargoCapacity: baseCargo,
-                CrewCapacity: baseCrew,
-                VisionRange: scaledVision
-            }
-        };
-    };
-
-    const applyShipLevelToShipData = (shipData) => {
-        if (!shipData || typeof shipData !== 'object') return shipData;
-        const { level, baseStats, stats } = buildScaledShipStats(shipData);
-        return { ...shipData, Level: level, BaseStats: baseStats, Stats: stats };
-    };
-
     const resolveShipSpec = (shipData) => {
         if (!shipData) return null;
         if (shipData.ItemId && shipCatalog[shipData.ItemId]) return shipCatalog[shipData.ItemId];
