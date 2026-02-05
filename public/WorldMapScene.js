@@ -3650,10 +3650,6 @@ export default class WorldMapScene extends Phaser.Scene {
             .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
             .length;
         this.updatePassengerIconsForHost(this.playerShip, passengerCount, this.myPassengerIcons);
-        const now = Date.now();
-        if (now - this.lastRideSyncAt < 1000) return;
-        this.lastRideSyncAt = now;
-        void this.updateMyShipStoppedPosition();
     }
 
     updatePassengerIconsForHost(hostSprite, passengerCount, store) {
