@@ -921,9 +921,19 @@ async function stopShip(shipId) {
     }
 }
 
-function startShipVoyageUI(shipId) {
-    showTab('map', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
-    showRpgMessage('地図上で目的地を選択して航海を開始してください。');
+async function startShipVoyageUI(shipId) {
+    if (!shipId) return;
+    try {
+        const result = await Ship.setActiveShip(myPlayFabId, shipId);
+        if (result && result.success) {
+            showRpgMessage('船を乗り換えました。');
+            await Ship.displayPlayerShips(myPlayFabId);
+            return;
+        }
+    } catch (error) {
+        console.warn('[startShipVoyageUI] Failed to switch ship:', error);
+    }
+    showRpgMessage('船の乗り換えに失敗しました。');
 }
 
 
