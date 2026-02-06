@@ -1812,7 +1812,13 @@ export default class WorldMapScene extends Phaser.Scene {
                 const vHeight = (building.visualHeight || bHeight);
                 const buildingMeta = buildingId ? getBuildingMeta(buildingId) : BUILDING_META_DEFAULT;
                 const nation = data?.nation;
-                const nationOffset = (buildingMeta?.nationTileOffset === true)
+                let buildingLevel = Number(building.level);
+                if (!Number.isFinite(buildingLevel)) {
+                    const match = String(buildingId || '').match(/_lv(\d+)$/i);
+                    buildingLevel = match ? Number(match[1]) : 1;
+                }
+                const disableNationOffset = String(buildingId || '').startsWith('my_house') && buildingLevel <= 1;
+                const nationOffset = (!disableNationOffset && buildingMeta?.nationTileOffset === true)
                     ? getNationTileOffset(nation, vWidth)
                     : 0;
                 const tileIndex = baseTileIndex + nationOffset;
