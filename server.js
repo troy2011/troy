@@ -106,6 +106,24 @@ function formatPoints(value) {
     return num.toLocaleString('ja-JP');
 }
 
+async function getPlayerDisplayName(playFabId) {
+    if (!playFabId) return '';
+    try {
+        const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowDisplayName: true }
+        });
+        return profile?.PlayerProfile?.DisplayName || '';
+    } catch (error) {
+        console.warn('[LINE] Failed to fetch display name:', error?.message || error);
+        return '';
+    }
+}
+
+function getTroyRoomDoc(groupName) {
+    return firestore.collection('troy_rooms').doc(groupName);
+}
+
 // LINE Webhook (Message)
 app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
     if (!lineConfig.channelSecret) {
@@ -136,7 +154,8 @@ app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
         if (!text) return;
         const isPoints = (text === 'ポイント確認');
         const isIdQr = (text === 'ID表示');
-        if (!isPoints && !isIdQr) return;
+        const isStatus = (text === '営業状況');
+        if (!isPoints && !isIdQr && !isStatus) return;
 
         const replyToken = event.replyToken;
         const lineUserId = event.source?.userId;
@@ -199,6 +218,60 @@ app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
                 }
             ];
             await lineClient.replyMessage(replyToken, messages);
+            return;
+        }
+
+        if (isStatus) {
+            if (!playFabId) {
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: '連携が完了していません。TROYにログイン後、もう一度お試しください。'
+                });
+                return;
+            }
+            try {
+                const nationValue = await nation.getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+                if (!nationValue) {
+                    await lineClient.replyMessage(replyToken, {
+                        type: 'text',
+                        text: '国情報が取得できませんでした。TROYに再ログインしてからお試しください。'
+                    });
+                    return;
+                }
+                const mapping = nation.getNationMappingByNation(nationValue);
+                if (!mapping) {
+                    await lineClient.replyMessage(replyToken, {
+                        type: 'text',
+                        text: '国情報が不正なため、営業状況を取得できませんでした。'
+                    });
+                    return;
+                }
+                const roomRef = getTroyRoomDoc(mapping.groupName);
+                const roomSnap = await roomRef.get();
+                const roomData = roomSnap.data() || {};
+                const isOpen = !!roomData.isOpen;
+                const kingPlayFabId = String(roomData.updatedBy || '').trim();
+                const kingName = await getPlayerDisplayName(kingPlayFabId);
+
+                const membersSnap = await roomRef.collection('members').get();
+                const memberCount = membersSnap.size || 0;
+
+                const statusText = isOpen ? 'OPEN' : 'CLOSE';
+                const displayKing = kingName || '王';
+                const message = [
+                    '【TROY 営業状況】',
+                    `状態: ${statusText}`,
+                    `王: ${displayKing}`,
+                    `入店人数: ${memberCount}人`
+                ].join('\n');
+                await lineClient.replyMessage(replyToken, { type: 'text', text: message });
+            } catch (error) {
+                console.warn('[LINE] Failed to fetch troy status:', error?.message || error);
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: '営業状況の取得に失敗しました。少し時間をおいて再度お試しください。'
+                });
+            }
         }
     };
 
