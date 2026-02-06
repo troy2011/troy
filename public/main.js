@@ -923,7 +923,7 @@ async function stopShip(shipId) {
 
 function startShipVoyageUI(shipId) {
     showTab('map', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
-    showRpgMessage('Select a destination on the map to start the voyage.');
+    showRpgMessage('地図上で目的地を選択して航海を開始してください。');
 }
 
 
