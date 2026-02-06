@@ -5,6 +5,7 @@ import {
     guardianBattleResult as requestGuardianBattleResult,
     getPlayerIslands as fetchPlayerIslands,
     getIslandDetails as fetchIslandDetails,
+    renameIsland as requestRenameIsland,
     getResourceStatus as fetchResourceStatus,
     collectResource as requestCollectResource,
     startBuildingConstruction as requestStartBuildingConstruction,
@@ -136,6 +137,14 @@ export async function getIslandDetails(islandId) {
         return response.island;
     }
 
+    return null;
+}
+
+export async function renameIsland(playFabId, islandId, name) {
+    const response = await requestRenameIsland(playFabId, islandId, window.__currentMapId || null, name, { isSilent: true });
+    if (response && response.success) {
+        return response;
+    }
     return null;
 }
 
@@ -377,6 +386,20 @@ export function showBuildingMenu(island, playFabId) {
     const allowShipBuild = isOwnNation && activeBuildingId === 'capital';
     const allowHotSpring = isOwnNation && activeBuildingId === 'hot_spring';
     const allowMyHouseShips = isOwner && activeBuildingId === 'my_house';
+    const maxNameLength = 24;
+    const renameSectionHtml = isOwner ? `
+        <div class="resource-section">
+            <div class="resource-title">島名変更</div>
+            <div class="resource-row">
+                <input id="islandRenameInput" type="text" maxlength="${maxNameLength}" value="${escapeHtml(island.name || '')}"
+                    style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff;">
+            </div>
+            <div class="resource-row" style="justify-content: space-between; gap: 8px;">
+                <span style="font-size: 12px; color: var(--text-sub);">最大${maxNameLength}文字</span>
+                <button class="btn-upgrade" id="btnRenameIsland">変更</button>
+            </div>
+        </div>
+    ` : '';
 
     if ((isStarterIsland || island.allowMyHouseRebuild) && !isHarvestable && !hasBuilding) {
         sheet.innerHTML = `
@@ -411,6 +434,7 @@ export function showBuildingMenu(island, playFabId) {
                             <button class="btn-build" id="btnBuildMyHouse">マイハウスを建てる</button>
                         </div>
                     </div>
+                    ${renameSectionHtml}
                 </div>
             </div>
         `;
@@ -458,6 +482,42 @@ export function showBuildingMenu(island, playFabId) {
                 }
             });
         }
+        const renameBtn = sheet.querySelector('#btnRenameIsland');
+        if (renameBtn) {
+            renameBtn.addEventListener('click', async () => {
+                const input = sheet.querySelector('#islandRenameInput');
+                if (!input) return;
+                const newName = String(input.value || '').replace(/\s+/g, ' ').trim();
+                if (!newName) {
+                    showRpgMessage('島名を入力してください。');
+                    return;
+                }
+                if (newName.length > maxNameLength) {
+                    showRpgMessage(`島名は${maxNameLength}文字以内にしてください。`);
+                    return;
+                }
+                renameBtn.disabled = true;
+                renameBtn.textContent = '変更中...';
+                const result = await renameIsland(playFabId, island.id, newName);
+                renameBtn.disabled = false;
+                renameBtn.textContent = '変更';
+                if (!result || !result.success) {
+                    showRpgMessage('島名の変更に失敗しました。');
+                    return;
+                }
+                island.name = result.name;
+                const header = sheet.querySelector('.bottom-sheet-header h2');
+                if (header) header.textContent = result.name;
+                if (window.worldMapScene?.islandObjects?.has(island.id)) {
+                    const islandObj = window.worldMapScene.islandObjects.get(island.id);
+                    if (islandObj) {
+                        islandObj.name = result.name;
+                        if (islandObj.nameText) islandObj.nameText.setText(result.name);
+                    }
+                }
+                showRpgMessage('島名を変更しました。');
+            });
+        }
         setTimeout(() => {
             sheet.classList.add('active');
         }, 10);
@@ -501,6 +561,8 @@ export function showBuildingMenu(island, playFabId) {
                     <button class="btn-harvest" id="btnHarvestResource">採取する</button>
                 </div>
                 ` : ''}
+
+                ${renameSectionHtml}
 
                 ${canUpgrade ? `
                 <div class="island-upgrade-section">
@@ -755,6 +817,44 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
             } else if (result && result.error) {
                 showRpgMessage(result.error);
             }
+        });
+    }
+
+    const renameBtn = sheet.querySelector('#btnRenameIsland');
+    if (renameBtn) {
+        renameBtn.addEventListener('click', async () => {
+            const input = sheet.querySelector('#islandRenameInput');
+            if (!input) return;
+            const newName = String(input.value || '').replace(/\s+/g, ' ').trim();
+            if (!newName) {
+                showRpgMessage('島名を入力してください。');
+                return;
+            }
+            const maxLength = Number(input.getAttribute('maxlength')) || 24;
+            if (newName.length > maxLength) {
+                showRpgMessage(`島名は${maxLength}文字以内にしてください。`);
+                return;
+            }
+            renameBtn.disabled = true;
+            renameBtn.textContent = '変更中...';
+            const result = await renameIsland(playFabId, island.id, newName);
+            renameBtn.disabled = false;
+            renameBtn.textContent = '変更';
+            if (!result || !result.success) {
+                showRpgMessage('島名の変更に失敗しました。');
+                return;
+            }
+            island.name = result.name;
+            const header = sheet.querySelector('.bottom-sheet-header h2');
+            if (header) header.textContent = result.name;
+            if (window.worldMapScene?.islandObjects?.has(island.id)) {
+                const islandObj = window.worldMapScene.islandObjects.get(island.id);
+                if (islandObj) {
+                    islandObj.name = result.name;
+                    if (islandObj.nameText) islandObj.nameText.setText(result.name);
+                }
+            }
+            showRpgMessage('島名を変更しました。');
         });
     }
 

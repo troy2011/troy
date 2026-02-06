@@ -267,6 +267,9 @@ export function getOwnedIslands(playFabId, mapId, options) {
 export function getIslandDetails(islandId, mapId, playFabId, options) {
     return callApiWithLoader('/api/get-island-details', { islandId, mapId, playFabId }, options);
 }
+export function renameIsland(playFabId, islandId, mapId, name, options) {
+    return callApiWithLoader('/api/rename-island', { playFabId, islandId, mapId, name }, options);
+}
 
 export function getResourceStatus(playFabId, islandId, mapId, options) {
     return callApiWithLoader('/api/get-resource-status', { playFabId, islandId, mapId }, options);

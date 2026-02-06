@@ -661,6 +661,61 @@ function initializeIslandRoutes(app, deps) {
         }
     });
 
+    // 島名変更
+    app.post('/api/rename-island', async (req, res) => {
+        const { playFabId, islandId, mapId, name } = req.body || {};
+        if (!playFabId || !islandId) {
+            return res.status(400).json({ error: 'playFabId and islandId are required' });
+        }
+
+        const rawName = String(name || '').replace(/\s+/g, ' ').trim();
+        if (!rawName) {
+            return res.status(400).json({ error: 'InvalidName' });
+        }
+        const MAX_NAME_LENGTH = 24;
+        if (rawName.length > MAX_NAME_LENGTH) {
+            return res.status(400).json({ error: 'NameTooLong', max: MAX_NAME_LENGTH });
+        }
+
+        try {
+            let ref = null;
+            let snap = null;
+            let resolvedMapId = mapId || null;
+
+            if (mapId) {
+                ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+                snap = await ref.get();
+            }
+
+            if (!snap || !snap.exists) {
+                const ownedMapIds = await getOwnedMapIds(playFabId, { promisifyPlayFab, PlayFabServer });
+                const found = await findIslandDocAcrossMaps(firestore, islandId, ownedMapIds);
+                snap = found?.snap || null;
+                ref = found?.collection ? found.collection.doc(islandId) : null;
+                resolvedMapId = found?.mapId || resolvedMapId;
+            }
+
+            if (!snap || !snap.exists || !ref) {
+                return res.status(404).json({ error: 'IslandNotFound' });
+            }
+
+            const island = snap.data() || {};
+            if (island.ownerId !== playFabId) {
+                return res.status(403).json({ error: 'NotOwner' });
+            }
+
+            await ref.set({
+                name: rawName,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            res.json({ success: true, islandId, name: rawName, mapId: resolvedMapId });
+        } catch (error) {
+            console.error('[rename-island] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to rename island', details: error?.message || error });
+        }
+    });
+
     // リソース状態取得
     app.post('/api/get-resource-status', async (req, res) => {
         const { playFabId, islandId, mapId } = req.body || {};
