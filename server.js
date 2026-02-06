@@ -78,8 +78,32 @@ const lineConfig = {
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     channelSecret: process.env.LINE_CHANNEL_SECRET
 };
+const PUBLIC_BASE_URL = String(process.env.PUBLIC_BASE_URL || '').trim();
 if (!lineConfig.channelSecret) {
     console.warn('[LINE] LINE_CHANNEL_SECRET is not configured. Webhook verification will fail.');
+}
+
+function getPublicBaseUrl(req) {
+    if (PUBLIC_BASE_URL) return PUBLIC_BASE_URL.replace(/\/+$/, '');
+    const host = req.get('host');
+    if (!host) return '';
+    return `https://${host}`;
+}
+
+async function resolvePlayFabIdFromLineUser(lineUserId) {
+    if (!lineUserId) return '';
+    try {
+        const linkSnap = await firestore.collection('line_user_links').doc(lineUserId).get();
+        return linkSnap.exists ? String(linkSnap.data()?.playFabId || '') : '';
+    } catch (error) {
+        console.warn('[LINE] Failed to read line_user_links:', error?.message || error);
+        return '';
+    }
+}
+
+function formatPoints(value) {
+    const num = Math.max(0, Math.floor(Number(value) || 0));
+    return num.toLocaleString('ja-JP');
 }
 
 // LINE Webhook (Rich Menu Postback)
@@ -110,7 +134,9 @@ app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
         const data = String(event.postback?.data || '').trim();
         if (!data) return;
         const normalized = data.toLowerCase();
-        if (!(normalized === 'points' || normalized.includes('action=points'))) return;
+        const isPoints = (normalized === 'points' || normalized.includes('action=points'));
+        const isIdQr = (normalized === 'idqr' || normalized.includes('action=idqr'));
+        if (!isPoints && !isIdQr) return;
 
         const replyToken = event.replyToken;
         const lineUserId = event.source?.userId;
@@ -118,44 +144,79 @@ app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
         if (!lineUserId) {
             await lineClient.replyMessage(replyToken, {
                 type: 'text',
-                text: 'LINEユーザー情報が取得できませんでした。'
+                text: 'LINEユーザー情報を取得できませんでした。'
             });
             return;
         }
 
-        let playFabId = '';
-        try {
-            const linkSnap = await firestore.collection('line_user_links').doc(lineUserId).get();
-            playFabId = linkSnap.exists ? String(linkSnap.data()?.playFabId || '') : '';
-        } catch (error) {
-            console.warn('[LINE] Failed to read line_user_links:', error?.message || error);
-        }
+        const playFabId = await resolvePlayFabIdFromLineUser(lineUserId);
 
-        if (!playFabId) {
-            await lineClient.replyMessage(replyToken, {
-                type: 'text',
-                text: '連携されていません。LIFFからログインしてください。'
-            });
+        if (isPoints) {
+            if (!playFabId) {
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: '連携が完了していません。TROYにログイン後、もう一度お試しください。'
+                });
+                return;
+            }
+            try {
+                const points = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: `現在のポイント：${formatPoints(points)}${VIRTUAL_CURRENCY_CODE}`
+                });
+            } catch (error) {
+                console.warn('[LINE] Failed to fetch points:', error?.message || error);
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: 'ポイントの取得に失敗しました。少し時間をおいて再度お試しください。'
+                });
+            }
             return;
         }
 
-        try {
-            const points = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-            await lineClient.replyMessage(replyToken, {
-                type: 'text',
-                text: `現在のポイントは ${points}${VIRTUAL_CURRENCY_CODE} です。`
-            });
-        } catch (error) {
-            console.warn('[LINE] Failed to fetch points:', error?.message || error);
-            await lineClient.replyMessage(replyToken, {
-                type: 'text',
-                text: 'ポイントの取得に失敗しました。しばらくしてから再度お試しください。'
-            });
+        if (isIdQr) {
+            const baseUrl = getPublicBaseUrl(req);
+            if (!baseUrl) {
+                await lineClient.replyMessage(replyToken, {
+                    type: 'text',
+                    text: 'QRコードの生成に失敗しました。時間をおいて再度お試しください。'
+                });
+                return;
+            }
+            const qrUrl = `${baseUrl}/line/qr/${encodeURIComponent(lineUserId)}`;
+            const messages = [
+                {
+                    type: 'text',
+                    text: playFabId
+                        ? 'あなたのID QRコードです。'
+                        : '連携前のためLINE IDのQRコードを表示します。'
+                },
+                {
+                    type: 'image',
+                    originalContentUrl: qrUrl,
+                    previewImageUrl: qrUrl
+                }
+            ];
+            await lineClient.replyMessage(replyToken, messages);
         }
     };
 
     await Promise.all(events.map((event) => handlePointsRequest(event)));
     return res.status(200).json({ ok: true });
+});
+
+// LINE ID QR (for rich menu)
+app.get('/line/qr/:lineUserId', async (req, res) => {
+    const lineUserId = String(req.params?.lineUserId || '').trim();
+    if (!lineUserId) {
+        return res.status(400).json({ error: 'lineUserId is required' });
+    }
+    const playFabId = await resolvePlayFabIdFromLineUser(lineUserId);
+    const payload = playFabId ? `TROY:${playFabId}` : `LINE:${lineUserId}`;
+    const encoded = encodeURIComponent(payload);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=1&data=${encoded}`;
+    return res.redirect(qrUrl);
 });
 
 app.use(express.json());
