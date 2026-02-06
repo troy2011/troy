@@ -216,6 +216,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionIslandPassUntil = 0;
         this.shipActionImmuneUntil = 0;
         this.shipActionMoveLockUntil = 0;
+        this.shipRepairUntil = 0;
         this.shipActionSpeedDebuffUntil = 0;
         this.shipActionSpeedDebuffMultiplier = 1;
         this.shipActionVisionDebuffUntil = 0;
@@ -2117,6 +2118,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if (now < this.shipActionMoveLockUntil) {
             this.showMessage('拘束されて動けない...');
+            return;
+        }
+        if (this.shipRepairUntil && now < this.shipRepairUntil) {
+            const remain = Math.max(1, Math.ceil((this.shipRepairUntil - now) / 1000));
+            this.showMessage(`修復中... 残り${remain}秒`);
             return;
         }
 
@@ -4562,6 +4568,9 @@ export default class WorldMapScene extends Phaser.Scene {
             if (pos && this.playerShip) {
                 this.playerShip.setPosition(pos.x, pos.y);
             }
+            if (Number.isFinite(Number(data?.repairUntil))) {
+                this.shipRepairUntil = Number(data.repairUntil);
+            }
             return pos || null;
         } catch (error) {
             console.warn('[WorldMapScene] Respawn request failed:', error);
@@ -5479,6 +5488,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.ridingSince = data?.ridingSince || null;
                 this.canMove = !this.ridingShipId;
                 this.updateRideLeaveUi();
+                this.shipRepairUntil = Number(data?.repairUntil) || 0;
 
                 const activeShipId = data.shipId;
                 let shipId = data.shipId;

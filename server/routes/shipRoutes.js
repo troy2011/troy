@@ -326,6 +326,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             x: shipDocData?.currentX,
             y: shipDocData?.currentY
         };
+        let guildShipDestroyed = false;
 
         if (currentMapId && currentGuildId) {
             try {
@@ -344,24 +345,34 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                             || String(data.shipType || '').toLowerCase() === 'guild'
                             || String(data.shipKind || '').toLowerCase() === 'guild'
                             || String(data.shipId || '').toLowerCase().includes('guild');
-                        if (isGuildShip) {
+                        if (!isGuildShip) return;
+                        const destroyed = data.isDestroyed === true
+                            || data.destroyed === true
+                            || String(data.status || '').toLowerCase() === 'destroyed'
+                            || (Number.isFinite(Number(data.currentHp)) && Number(data.currentHp) <= 0)
+                            || (Number.isFinite(Number(data.hp)) && Number(data.hp) <= 0);
+                        if (!destroyed) {
                             guildShip = data;
+                        } else {
+                            guildShipDestroyed = true;
                         }
                     });
                     if (guildShip) {
                         const gx = Number(guildShip?.position?.x ?? guildShip?.currentX);
                         const gy = Number(guildShip?.position?.y ?? guildShip?.currentY);
                         if (Number.isFinite(gx) && Number.isFinite(gy)) {
-                            return { x: gx, y: gy };
+                            return { position: { x: gx, y: gy }, mode: 'guild_ship', guildShipDestroyed: false };
                         }
                     }
+                } else {
+                    guildShipDestroyed = true;
                 }
             } catch (error) {
                 console.warn('[Respawn] Failed to resolve guild ship position:', error?.message || error);
             }
         }
 
-        if (currentMapId) {
+        if (currentMapId && !guildShipDestroyed) {
             try {
                 const mapCollectionName = currentMapId ? `world_map_${currentMapId}` : 'world_map';
                 const mapCollection = db.collection(mapCollectionName);
@@ -380,7 +391,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                         const ix = Number(coord.x);
                         const iy = Number(coord.y);
                         if (Number.isFinite(ix) && Number.isFinite(iy)) {
-                            return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE + GEO_CONFIG.GRID_SIZE };
+                            return {
+                                position: { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE + GEO_CONFIG.GRID_SIZE },
+                                mode: 'my_house',
+                                guildShipDestroyed: false
+                            };
                         }
                     }
                 }
@@ -389,8 +404,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
         }
 
-        if (Number.isFinite(Number(currentPos?.x)) && Number.isFinite(Number(currentPos?.y))) {
-            return { x: Number(currentPos.x), y: Number(currentPos.y) };
+        if (!guildShipDestroyed && Number.isFinite(Number(currentPos?.x)) && Number.isFinite(Number(currentPos?.y))) {
+            return { position: { x: Number(currentPos.x), y: Number(currentPos.y) }, mode: 'current', guildShipDestroyed: false };
         }
 
         const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -398,17 +413,19 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             Keys: ['RespawnPosition', 'Nation', 'Race']
         });
 
-        const rawRespawn = readOnly?.Data?.RespawnPosition?.Value;
-        if (rawRespawn) {
-            try {
-                const parsed = JSON.parse(rawRespawn);
-                const rx = Number(parsed?.x);
-                const ry = Number(parsed?.y);
-                if (Number.isFinite(rx) && Number.isFinite(ry)) {
-                    return { x: rx, y: ry };
+        if (!guildShipDestroyed) {
+            const rawRespawn = readOnly?.Data?.RespawnPosition?.Value;
+            if (rawRespawn) {
+                try {
+                    const parsed = JSON.parse(rawRespawn);
+                    const rx = Number(parsed?.x);
+                    const ry = Number(parsed?.y);
+                    if (Number.isFinite(rx) && Number.isFinite(ry)) {
+                        return { position: { x: rx, y: ry }, mode: 'readonly', guildShipDestroyed: false };
+                    }
+                } catch (_e) {
+                    // ignore parse errors
                 }
-            } catch (_e) {
-                // ignore parse errors
             }
         }
 
@@ -427,7 +444,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     if (Number.isFinite(ix) && Number.isFinite(iy)) {
                         const baseX = ix * GEO_CONFIG.GRID_SIZE;
                         const baseY = iy * GEO_CONFIG.GRID_SIZE;
-                        return { x: baseX, y: baseY + (GEO_CONFIG.GRID_SIZE * 2) };
+                        return {
+                            position: { x: baseX, y: baseY + (GEO_CONFIG.GRID_SIZE * 2) },
+                            mode: guildShipDestroyed ? 'nation_forced' : 'nation',
+                            guildShipDestroyed
+                        };
                     }
             }
         }
@@ -439,19 +460,26 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const ix = Number(coord.x);
             const iy = Number(coord.y);
             if (Number.isFinite(ix) && Number.isFinite(iy)) {
-                return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE };
+                return {
+                    position: { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE },
+                    mode: 'fallback',
+                    guildShipDestroyed
+                };
             }
         }
 
-        return { x: 100, y: 100 };
+        return { position: { x: 100, y: 100 }, mode: 'fallback', guildShipDestroyed };
     }
 
     async function respawnShip(playFabId, shipId, reason) {
-        const basePosition = await resolveRespawnPosition(playFabId);
+        const baseContext = await resolveRespawnPosition(playFabId);
+        const basePosition = baseContext?.position || baseContext;
         const respawnPosition = await findAvailableSpawnPosition(basePosition);
         const now = Date.now();
         const geoPoint = worldToLatLng(respawnPosition);
         const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
+        const isGuildRespawn = baseContext?.mode === 'guild_ship';
+        const repairUntil = isGuildRespawn ? (now + (60 * 1000)) : null;
 
         try {
             const shipResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -494,6 +522,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             arrivalTime: now,
             movement: movement,
             geohash: geohash,
+            repairUntil: repairUntil,
             lastUpdated: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -502,8 +531,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             shipsCollection.doc(shipId).set(patch, { merge: true })
         ]);
 
-        console.log('[RespawnShip] Respawned', { playFabId, shipId, reason, respawnPosition });
-        return respawnPosition;
+        console.log('[RespawnShip] Respawned', { playFabId, shipId, reason, respawnPosition, repairUntil });
+        return { position: respawnPosition, repairUntil };
     }
 
     app.locals.respawnShip = respawnShip;
@@ -753,7 +782,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             } else if (spawnPosition && Number.isFinite(Number(spawnPosition.x)) && Number.isFinite(Number(spawnPosition.y))) {
                 baseSpawnPosition = { x: Number(spawnPosition.x), y: Number(spawnPosition.y) };
             } else {
-                baseSpawnPosition = await resolveRespawnPosition(playFabId);
+                const resolved = await resolveRespawnPosition(playFabId);
+                baseSpawnPosition = resolved?.position || resolved;
             }
 
             const resolvedSpawnPosition = await findAvailableSpawnPosition(baseSpawnPosition);
@@ -1189,11 +1219,31 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 attackerRespawn ? respawnShip(attackerId, attackerShipId, 'ram') : null,
                 defenderRespawn ? respawnShip(defenderId, defenderShipId, 'ram') : null
             ]);
+            const attackerRespawnInfo = respawnResults[0] || null;
+            const defenderRespawnInfo = respawnResults[1] || null;
 
             return res.json({
                 success: true,
-                attacker: { playFabId: attackerId, shipId: attackerShipId, hp: attackerShipData.Stats.CurrentHP, damageTaken: defenderDamage, respawned: attackerRespawn, respawnPosition: respawnResults[0] || null, immuneActive: attackerImmune },
-                defender: { playFabId: defenderId, shipId: defenderShipId, hp: defenderShipData.Stats.CurrentHP, damageTaken: attackerDamage, respawned: defenderRespawn, respawnPosition: respawnResults[1] || null, immuneActive: defenderImmune },
+                attacker: {
+                    playFabId: attackerId,
+                    shipId: attackerShipId,
+                    hp: attackerShipData.Stats.CurrentHP,
+                    damageTaken: defenderDamage,
+                    respawned: attackerRespawn,
+                    respawnPosition: attackerRespawnInfo?.position || attackerRespawnInfo || null,
+                    repairUntil: attackerRespawnInfo?.repairUntil || null,
+                    immuneActive: attackerImmune
+                },
+                defender: {
+                    playFabId: defenderId,
+                    shipId: defenderShipId,
+                    hp: defenderShipData.Stats.CurrentHP,
+                    damageTaken: attackerDamage,
+                    respawned: defenderRespawn,
+                    respawnPosition: defenderRespawnInfo?.position || defenderRespawnInfo || null,
+                    repairUntil: defenderRespawnInfo?.repairUntil || null,
+                    immuneActive: defenderImmune
+                },
                 baseDamage: baseDamage,
                 attackerDamage,
                 defenderDamage
@@ -1294,7 +1344,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     shielded: shieldActive,
                     shieldFactor: shieldActive ? shieldFactor : null,
                     respawned: defenderRespawn,
-                    respawnPosition: respawnResult || null
+                    respawnPosition: respawnResult?.position || respawnResult || null,
+                    repairUntil: respawnResult?.repairUntil || null
                 });
             }
 
@@ -1472,8 +1523,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId || !shipId) return res.status(400).json({ error: 'playFabId and shipId are required' });
 
         try {
-            const position = await respawnShip(playFabId, shipId, reason || 'manual');
-            res.json({ success: true, position });
+            const result = await respawnShip(playFabId, shipId, reason || 'manual');
+            res.json({
+                success: true,
+                position: result?.position || result || null,
+                repairUntil: result?.repairUntil || null
+            });
         } catch (error) {
             console.error('[RespawnShip] Error:', error);
             res.status(500).json({ error: 'Failed to respawn ship', details: error.errorMessage || error.message });
