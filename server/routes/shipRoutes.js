@@ -313,6 +313,86 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     }
 
     async function resolveRespawnPosition(playFabId) {
+        let shipDocData = null;
+        try {
+            const shipSnap = await shipsCollection.doc(playFabId).get();
+            shipDocData = shipSnap.exists ? (shipSnap.data() || null) : null;
+        } catch (error) {
+            shipDocData = null;
+        }
+        const currentMapId = String(shipDocData?.mapId || '').trim() || null;
+        const currentGuildId = String(shipDocData?.guildId || '').trim() || null;
+        const currentPos = shipDocData?.position || {
+            x: shipDocData?.currentX,
+            y: shipDocData?.currentY
+        };
+
+        if (currentMapId && currentGuildId) {
+            try {
+                const guildShipsSnap = await shipsCollection
+                    .where('mapId', '==', currentMapId)
+                    .where('guildId', '==', currentGuildId)
+                    .get();
+                if (!guildShipsSnap.empty) {
+                    let guildShip = null;
+                    guildShipsSnap.forEach((docSnap) => {
+                        if (guildShip) return;
+                        const data = docSnap.data() || {};
+                        const isGuildShip = data.isGuildShip === true
+                            || data.guildShip === true
+                            || String(data.shipRole || '').toLowerCase() === 'guild'
+                            || String(data.shipType || '').toLowerCase() === 'guild'
+                            || String(data.shipKind || '').toLowerCase() === 'guild'
+                            || String(data.shipId || '').toLowerCase().includes('guild');
+                        if (isGuildShip) {
+                            guildShip = data;
+                        }
+                    });
+                    if (guildShip) {
+                        const gx = Number(guildShip?.position?.x ?? guildShip?.currentX);
+                        const gy = Number(guildShip?.position?.y ?? guildShip?.currentY);
+                        if (Number.isFinite(gx) && Number.isFinite(gy)) {
+                            return { x: gx, y: gy };
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('[Respawn] Failed to resolve guild ship position:', error?.message || error);
+            }
+        }
+
+        if (currentMapId) {
+            try {
+                const mapCollectionName = currentMapId ? `world_map_${currentMapId}` : 'world_map';
+                const mapCollection = db.collection(mapCollectionName);
+                const snapshot = await mapCollection.where('ownerId', '==', playFabId).get();
+                if (!snapshot.empty) {
+                    for (const doc of snapshot.docs) {
+                        const data = doc.data() || {};
+                        const buildings = Array.isArray(data.buildings) ? data.buildings : [];
+                        const hasHouse = buildings.some((b) => {
+                            if (!b || b.status === 'demolished') return false;
+                            const rawId = String(b.buildingId || b.id || '');
+                            return rawId === 'my_house' || rawId.startsWith('my_house');
+                        });
+                        if (!hasHouse) continue;
+                        const coord = data.coordinate || {};
+                        const ix = Number(coord.x);
+                        const iy = Number(coord.y);
+                        if (Number.isFinite(ix) && Number.isFinite(iy)) {
+                            return { x: ix * GEO_CONFIG.GRID_SIZE, y: iy * GEO_CONFIG.GRID_SIZE + GEO_CONFIG.GRID_SIZE };
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('[Respawn] Failed to resolve my house position:', error?.message || error);
+            }
+        }
+
+        if (Number.isFinite(Number(currentPos?.x)) && Number.isFinite(Number(currentPos?.y))) {
+            return { x: Number(currentPos.x), y: Number(currentPos.y) };
+        }
+
         const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
             Keys: ['RespawnPosition', 'Nation', 'Race']
@@ -425,6 +505,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         console.log('[RespawnShip] Respawned', { playFabId, shipId, reason, respawnPosition });
         return respawnPosition;
     }
+
+    app.locals.respawnShip = respawnShip;
 
 
     // ----------------------------------------------------

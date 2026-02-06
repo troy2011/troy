@@ -624,6 +624,33 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     equipment: player.equipment
                 };
             };
+            const getActiveShipIdForPlayer = async (playFabId) => {
+                if (!playFabId) return null;
+                try {
+                    const readOnly = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Keys: ['ActiveShipId']
+                    });
+                    const value = readOnly?.Data?.ActiveShipId?.Value;
+                    return value ? String(value) : null;
+                } catch (error) {
+                    console.warn('[RideBattle] Failed to resolve ActiveShipId:', error?.errorMessage || error?.message || error);
+                    return null;
+                }
+            };
+            const respawnParty = async (partyIds) => {
+                const respawnShip = app?.locals?.respawnShip;
+                if (!respawnShip || !Array.isArray(partyIds) || partyIds.length === 0) return;
+                for (const playerId of partyIds) {
+                    const shipId = await getActiveShipIdForPlayer(playerId);
+                    if (!shipId) continue;
+                    try {
+                        await respawnShip(playerId, shipId, 'party_defeat');
+                    } catch (error) {
+                        console.warn('[RideBattle] Failed to respawn party ship:', error?.message || error);
+                    }
+                }
+            };
 
             while (currentAIndex < partyA.length && currentBIndex < partyB.length) {
                 const fighterAId = partyA[currentAIndex];
@@ -669,6 +696,17 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     currentAIndex += 1;
                 }
                 round += 1;
+            }
+
+            let defeatedParty = null;
+            if (currentAIndex >= partyA.length && currentBIndex < partyB.length) {
+                defeatedParty = partyA;
+            } else if (currentBIndex >= partyB.length && currentAIndex < partyA.length) {
+                defeatedParty = partyB;
+            }
+            if (defeatedParty && defeatedParty.length > 0) {
+                appendLog('敗北側が全滅したため船が復活した。');
+                await respawnParty(defeatedParty);
             }
 
             const finalBattleState = {
