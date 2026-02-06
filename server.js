@@ -106,7 +106,7 @@ function formatPoints(value) {
     return num.toLocaleString('ja-JP');
 }
 
-// LINE Webhook (Rich Menu Postback)
+// LINE Webhook (Message)
 app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
     if (!lineConfig.channelSecret) {
         console.warn('[LINE] LINE_CHANNEL_SECRET is not configured.');
@@ -130,12 +130,12 @@ app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
     const deps = createDependencies();
 
     const handlePointsRequest = async (event) => {
-        if (!event || event.type !== 'postback') return;
-        const data = String(event.postback?.data || '').trim();
-        if (!data) return;
-        const normalized = data.toLowerCase();
-        const isPoints = (normalized === 'points' || normalized.includes('action=points'));
-        const isIdQr = (normalized === 'idqr' || normalized.includes('action=idqr'));
+        if (!event || event.type !== 'message') return;
+        if (event.message?.type !== 'text') return;
+        const text = String(event.message?.text || '').trim();
+        if (!text) return;
+        const isPoints = (text === 'ポイント確認');
+        const isIdQr = (text === 'ID表示');
         if (!isPoints && !isIdQr) return;
 
         const replyToken = event.replyToken;
