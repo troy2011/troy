@@ -2,6 +2,7 @@
 // 国家関連のAPI
 
 const { addGlobalChatMessage } = require('./chat');
+const { PlayFabData } = require('./playfab');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -786,6 +787,57 @@ async function getPlayerEntity(playFabId, deps) {
     return null;
 }
 
+async function updateGuildOwnerAndShipOwner(guildId, newOwnerPlayFabId, deps) {
+    const { promisifyPlayFab, firestore, admin } = deps;
+    if (!guildId || !newOwnerPlayFabId) return { guildUpdated: false, shipUpdated: false };
+    let guildUpdated = false;
+    let shipUpdated = false;
+    try {
+        const result = await promisifyPlayFab(PlayFabData.GetObjects, {
+            Entity: { Id: guildId, Type: 'group' },
+            EscapeObject: false
+        });
+        const rawObject = result?.Objects?.GuildData?.DataObject;
+        let guildData = rawObject;
+        if (typeof guildData === 'string') {
+            try {
+                guildData = JSON.parse(guildData);
+            } catch (e) {
+                console.warn('[king-transfer] Failed to parse GuildData JSON:', e?.message || e);
+                guildData = null;
+            }
+        }
+        if (guildData && typeof guildData === 'object') {
+            guildData.ownerPlayFabId = newOwnerPlayFabId;
+            await promisifyPlayFab(PlayFabData.SetObjects, {
+                Entity: { Id: guildId, Type: 'group' },
+                Objects: [{ ObjectName: 'GuildData', DataObject: guildData }]
+            });
+            guildUpdated = true;
+        }
+    } catch (error) {
+        console.warn('[king-transfer] Failed to update guild data:', error?.errorMessage || error?.message || error);
+    }
+
+    try {
+        const shipDocId = `guild_ship_${guildId}`;
+        const shipRef = firestore.collection('ships').doc(shipDocId);
+        const shipSnap = await shipRef.get();
+        if (shipSnap.exists) {
+            await shipRef.set({
+                ownerPlayFabId: newOwnerPlayFabId,
+                ownerId: newOwnerPlayFabId,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            shipUpdated = true;
+        }
+    } catch (error) {
+        console.warn('[king-transfer] Failed to update guild ship owner:', error?.message || error);
+    }
+
+    return { guildUpdated, shipUpdated };
+}
+
 async function requireKingContext(playFabId, firestore, deps) {
     const { promisifyPlayFab, PlayFabServer } = deps;
     const kingId = normalizePlayFabId(playFabId);
@@ -1026,6 +1078,94 @@ function initializeNationRoutes(app, deps) {
             }
             console.error('[king-set-grant-multiplier] Error:', msg);
             res.status(500).json({ error: 'Failed to set grant multiplier' });
+        }
+    });
+
+    // 王の譲渡
+    app.post('/api/king-transfer', async (req, res) => {
+        const { playFabId, newKingPlayFabId } = req.body || {};
+        if (!playFabId || !newKingPlayFabId) {
+            return res.status(400).json({ error: 'playFabId and newKingPlayFabId are required' });
+        }
+
+        const targetKingId = normalizePlayFabId(newKingPlayFabId);
+        if (!targetKingId) {
+            return res.status(400).json({ error: 'newKingPlayFabId is invalid' });
+        }
+
+        try {
+            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            if (context.kingId === targetKingId) {
+                return res.json({ success: true, newKingPlayFabId: targetKingId, alreadyKing: true });
+            }
+
+            const targetNation = await getNationForPlayer(targetKingId, { promisifyPlayFab, PlayFabServer });
+            if (!targetNation || String(targetNation).toLowerCase() !== String(context.nation).toLowerCase()) {
+                return res.status(403).json({ error: 'TargetNotInSameNation' });
+            }
+
+            const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+                PlayFabId: context.kingId,
+                FunctionName: 'TransferNationKing',
+                FunctionParameter: { newKingPlayFabId: targetKingId },
+                GeneratePlayStreamEvent: false
+            });
+            if (csResult && csResult.Error) {
+                const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
+                if (String(msg).includes('NotKing')) return res.status(403).json({ error: 'NotKing' });
+                if (String(msg).includes('TargetNotInSameNation')) {
+                    return res.status(403).json({ error: 'TargetNotInSameNation' });
+                }
+                return res.status(500).json({ error: 'Failed to transfer king', details: msg });
+            }
+
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: context.kingId,
+                Data: { IsKing: 'false', NationKingId: targetKingId }
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: targetKingId,
+                Data: { IsKing: 'true', NationKingId: targetKingId }
+            });
+
+            await getNationGroupDoc(firestore, context.mapping.groupName).set({
+                kingPlayFabId: targetKingId,
+                kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            let guildId = null;
+            try {
+                const entity = await getPlayerEntity(context.kingId, { promisifyPlayFab, PlayFabServer });
+                if (entity) {
+                    const membership = await promisifyPlayFab(PlayFabGroups.ListMembership, { Entity: entity });
+                    const groups = membership?.Groups || [];
+                    const guildGroup = groups.find((groupEntry) => {
+                        const id = groupEntry?.Group?.Id || '';
+                        return id && id !== context.groupId;
+                    });
+                    guildId = guildGroup?.Group?.Id || null;
+                }
+            } catch (error) {
+                console.warn('[king-transfer] Failed to resolve guild membership:', error?.message || error);
+            }
+
+            let guildUpdate = { guildUpdated: false, shipUpdated: false };
+            if (guildId) {
+                guildUpdate = await updateGuildOwnerAndShipOwner(guildId, targetKingId, { promisifyPlayFab, firestore, admin });
+            }
+
+            return res.json({
+                success: true,
+                newKingPlayFabId: targetKingId,
+                guildId: guildId,
+                guildUpdated: guildUpdate.guildUpdated,
+                guildShipUpdated: guildUpdate.shipUpdated
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) return res.status(403).json({ error: 'NotKing' });
+            console.error('[king-transfer] Error:', msg);
+            return res.status(500).json({ error: 'Failed to transfer king', details: msg });
         }
     });
 
