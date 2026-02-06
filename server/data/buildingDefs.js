@@ -45,7 +45,7 @@ const buildings = {
         tileIndex: 576,
         sizeLogic: { x: 3, y: 3 },
         sizeVisual: { x: 3, y: 3 },
-        nationTileOffset: true,
+        nationTileOffset: false,
         effects: {},
         description: '各国の中枢となる首都です。',
         buildable: false
