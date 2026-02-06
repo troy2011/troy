@@ -292,6 +292,11 @@ async function loadCatalogCache() {
             }
             return raw;
         };
+        const pickAlternateFriendlyId = (entry) => {
+            if (!Array.isArray(entry?.AlternateIds)) return null;
+            const friendlyAlt = entry.AlternateIds.find((alt) => String(alt?.Type || '').toLowerCase() === 'friendlyid');
+            return friendlyAlt?.Value ? String(friendlyAlt.Value).trim() : null;
+        };
         const pickAlternateCurrencyId = (entry) => {
             if (!Array.isArray(entry?.AlternateIds)) return null;
             for (const alt of entry.AlternateIds) {
@@ -357,7 +362,11 @@ async function loadCatalogCache() {
 
             const displayName = pickLocalizedText(item?.Title) || item?.DisplayName || item?.Id;
             const description = pickLocalizedText(item?.Description) || '';
-            const resolvedFriendlyId = normalizeCurrencyCode(item.FriendlyId) || pickAlternateCurrencyId(item) || null;
+            const altFriendlyId = pickAlternateFriendlyId(item);
+            const resolvedFriendlyId = normalizeCurrencyCode(item.FriendlyId)
+                || normalizeCurrencyCode(altFriendlyId)
+                || pickAlternateCurrencyId(item)
+                || null;
             const normalizedPriceAmounts = normalizePriceAmounts(item);
             const customPriceSource = (() => {
                 const direct = customData?.PriceAmounts ?? customData?.priceAmounts ?? null;
