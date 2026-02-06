@@ -317,6 +317,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     const geo = worldToLatLng(spawnPos);
                     const geohash = geohashForLocation([geo.lat, geo.lng]);
 
+                    const maxHp = 5000;
                     await shipRef.set({
                         shipId: shipDocId,
                         playFabId: null,
@@ -327,6 +328,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         nation: nationKey,
                         isGuildShip: true,
                         guildShip: true,
+                        shipClass: 'defender',
+                        maxHp: maxHp,
+                        currentHp: maxHp,
+                        isDestroyed: false,
                         displayName: `${guildName.trim()}号`,
                         appearance: {
                             shipType: 'guild',

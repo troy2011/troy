@@ -1097,40 +1097,66 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const nowTs = Date.now();
             const attackerImmune = Number(attackerSummaryData.immuneUntil) > nowTs;
             const defenderImmune = Number(defenderSummaryData.immuneUntil) > nowTs;
+            const attackerIsGuildShip = !!attackerSummaryData.isGuildShip || !!attackerSummaryData.guildShip;
+            const defenderIsGuildShip = !!defenderSummaryData.isGuildShip || !!defenderSummaryData.guildShip;
             const attackerShipId = attackerSummaryData.shipId || null;
-            const defenderShipId = defenderSummaryData.shipId || null;
+            const defenderShipId = defenderSummaryData.shipId || defenderId || null;
+            if (attackerIsGuildShip) {
+                return res.status(400).json({ error: 'GuildShipCannotRam' });
+            }
             if (!attackerShipId || !defenderShipId) {
                 return res.status(404).json({ error: 'Active ship not found for attacker/defender' });
             }
 
             const [attackerNationResult, defenderNationResult] = await Promise.all([
                 promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: attackerId, Keys: ['Nation'] }),
-                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: defenderId, Keys: ['Nation'] })
+                defenderIsGuildShip ? null : promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: defenderId, Keys: ['Nation'] })
             ]);
             const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
-            const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+            const defenderNation = defenderIsGuildShip
+                ? String(defenderSummaryData.nation || defenderSummaryData.Nation || '').trim().toLowerCase()
+                : String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
             if (attackerNation && defenderNation && attackerNation === defenderNation) {
                 return res.json({ success: true, skipped: true, reason: 'same_nation' });
             }
 
-            const [attackerShipDataResult, defenderShipDataResult] = await Promise.all([
-                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: attackerId, Keys: [`Ship_${attackerShipId}`] }),
-                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: defenderId, Keys: [`Ship_${defenderShipId}`] })
+            const [attackerShipDataResult] = await Promise.all([
+                promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: attackerId, Keys: [`Ship_${attackerShipId}`] })
             ]);
             const attackerShipDataRaw = attackerShipDataResult?.Data?.[`Ship_${attackerShipId}`]?.Value;
-            const defenderShipDataRaw = defenderShipDataResult?.Data?.[`Ship_${defenderShipId}`]?.Value;
-            if (!attackerShipDataRaw || !defenderShipDataRaw) {
-                return res.status(404).json({ error: 'Ship asset not found for attacker/defender' });
+            if (!attackerShipDataRaw) {
+                return res.status(404).json({ error: 'Ship asset not found for attacker' });
             }
 
             let attackerShipData = applyShipLevelToShipData(JSON.parse(attackerShipDataRaw));
-            let defenderShipData = applyShipLevelToShipData(JSON.parse(defenderShipDataRaw));
+            let defenderShipData = null;
+            if (defenderIsGuildShip) {
+                defenderShipData = {
+                    Domain: defenderSummaryData?.appearance?.domain || defenderSummaryData?.domain || 'sea_surface',
+                    Stats: {
+                        MaxHP: Number(defenderSummaryData?.maxHp) || 5000,
+                        CurrentHP: Number(defenderSummaryData?.currentHp) || Number(defenderSummaryData?.maxHp) || 5000
+                    },
+                    ShipType: defenderSummaryData?.displayName || 'GuildShip'
+                };
+            } else {
+                const defenderShipDataResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: defenderId,
+                    Keys: [`Ship_${defenderShipId}`]
+                });
+                const defenderShipDataRaw = defenderShipDataResult?.Data?.[`Ship_${defenderShipId}`]?.Value;
+                if (!defenderShipDataRaw) {
+                    return res.status(404).json({ error: 'Ship asset not found for defender' });
+                }
+                defenderShipData = applyShipLevelToShipData(JSON.parse(defenderShipDataRaw));
+            }
             const attackerDomain = String(attackerShipData?.Domain || '').toLowerCase();
             const defenderDomain = String(defenderShipData?.Domain || '').toLowerCase();
             const attackerItemId = attackerShipData?.ItemId;
-            const defenderItemId = defenderShipData?.ItemId;
             const attackerClass = String(catalogCache[attackerItemId]?.class || catalogCache[attackerItemId]?.Class || '').toLowerCase();
-            const defenderClass = String(catalogCache[defenderItemId]?.class || catalogCache[defenderItemId]?.Class || '').toLowerCase();
+            const defenderClass = defenderIsGuildShip
+                ? String(defenderSummaryData?.shipClass || defenderSummaryData?.class || 'defender').toLowerCase()
+                : String(catalogCache[defenderShipData?.ItemId]?.class || catalogCache[defenderShipData?.ItemId]?.Class || '').toLowerCase();
 
             let attackerDamage = baseDamage * (advantage(attackerClass, defenderClass) ? 2 : 1);
             let defenderDamage = baseDamage * (advantage(defenderClass, attackerClass) ? 2 : 1);
@@ -1200,24 +1226,31 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const defenderRespawn = nextDefenderHp <= 0;
 
             attackerShipData.Stats = attackerShipData.Stats || {};
-            defenderShipData.Stats = defenderShipData.Stats || {};
             attackerShipData.Stats.CurrentHP = attackerRespawn ? attackerMaxHp : nextAttackerHp;
-            defenderShipData.Stats.CurrentHP = defenderRespawn ? defenderMaxHp : nextDefenderHp;
-
-            await Promise.all([
-                promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                    PlayFabId: attackerId,
-                    Data: { [`Ship_${attackerShipId}`]: JSON.stringify(attackerShipData) }
-                }),
-                promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: attackerId,
+                Data: { [`Ship_${attackerShipId}`]: JSON.stringify(attackerShipData) }
+            });
+            if (defenderIsGuildShip) {
+                const updatedHp = defenderRespawn ? 0 : nextDefenderHp;
+                await shipsCollection.doc(defenderId).set({
+                    currentHp: updatedHp,
+                    maxHp: defenderMaxHp,
+                    isDestroyed: defenderRespawn,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } else {
+                defenderShipData.Stats = defenderShipData.Stats || {};
+                defenderShipData.Stats.CurrentHP = defenderRespawn ? defenderMaxHp : nextDefenderHp;
+                await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
                     PlayFabId: defenderId,
                     Data: { [`Ship_${defenderShipId}`]: JSON.stringify(defenderShipData) }
-                })
-            ]);
+                });
+            }
 
             const respawnResults = await Promise.all([
                 attackerRespawn ? respawnShip(attackerId, attackerShipId, 'ram') : null,
-                defenderRespawn ? respawnShip(defenderId, defenderShipId, 'ram') : null
+                defenderRespawn && !defenderIsGuildShip ? respawnShip(defenderId, defenderShipId, 'ram') : null
             ]);
             const attackerRespawnInfo = respawnResults[0] || null;
             const defenderRespawnInfo = respawnResults[1] || null;
@@ -1237,7 +1270,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 defender: {
                     playFabId: defenderId,
                     shipId: defenderShipId,
-                    hp: defenderShipData.Stats.CurrentHP,
+                    hp: defenderIsGuildShip ? (defenderRespawn ? 0 : nextDefenderHp) : defenderShipData.Stats.CurrentHP,
                     damageTaken: attackerDamage,
                     respawned: defenderRespawn,
                     respawnPosition: defenderRespawnInfo?.position || defenderRespawnInfo || null,
@@ -1279,18 +1312,63 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             for (const targetId of targets) {
                 if (!targetId || targetId === attackerId) continue;
 
-                const defenderNationResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                    PlayFabId: targetId,
-                    Keys: ['Nation']
-                });
-                const defenderNation = String(defenderNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+                const defenderSummary = await shipsCollection.doc(targetId).get();
+                const defenderSummaryData = defenderSummary.exists ? (defenderSummary.data() || {}) : {};
+                const defenderIsGuildShip = !!defenderSummaryData.isGuildShip || !!defenderSummaryData.guildShip;
+
+                const defenderNation = defenderIsGuildShip
+                    ? String(defenderSummaryData.nation || defenderSummaryData.Nation || '').trim().toLowerCase()
+                    : String((await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                        PlayFabId: targetId,
+                        Keys: ['Nation']
+                    }))?.Data?.Nation?.Value || '').trim().toLowerCase();
+
                 if (attackerNation && defenderNation && attackerNation === defenderNation) {
                     results.push({ playFabId: targetId, skipped: true, reason: 'same_nation' });
                     continue;
                 }
 
-                const defenderSummary = await shipsCollection.doc(targetId).get();
-                const defenderSummaryData = defenderSummary.exists ? (defenderSummary.data() || {}) : {};
+                const shieldUntil = Number(defenderSummaryData.shieldUntil) || 0;
+                const shieldFactor = Number(defenderSummaryData.shieldFactor);
+                const shieldActive = shieldUntil > Date.now()
+                    && Number.isFinite(shieldFactor)
+                    && shieldFactor > 0
+                    && shieldFactor < 1;
+                const immuneUntil = Number(defenderSummaryData.immuneUntil) || 0;
+                if (immuneUntil > Date.now()) {
+                    results.push({ playFabId: targetId, skipped: true, reason: 'immune' });
+                    continue;
+                }
+
+                const appliedDamage = shieldActive
+                    ? Math.max(1, Math.round(damageValue * shieldFactor))
+                    : damageValue;
+
+                if (defenderIsGuildShip) {
+                    const defenderMaxHp = Number(defenderSummaryData?.maxHp) || 5000;
+                    const defenderHp = Number(defenderSummaryData?.currentHp ?? defenderMaxHp);
+                    const nextDefenderHp = Math.max(0, defenderHp - appliedDamage);
+                    const defenderRespawn = nextDefenderHp <= 0;
+                    await shipsCollection.doc(targetId).set({
+                        currentHp: nextDefenderHp,
+                        maxHp: defenderMaxHp,
+                        isDestroyed: defenderRespawn,
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    results.push({
+                        playFabId: targetId,
+                        shipId: defenderSummaryData.shipId || targetId,
+                        hp: nextDefenderHp,
+                        damageTaken: appliedDamage,
+                        shielded: shieldActive,
+                        shieldFactor: shieldActive ? shieldFactor : null,
+                        respawned: defenderRespawn,
+                        respawnPosition: null,
+                        repairUntil: null
+                    });
+                    continue;
+                }
+
                 const defenderShipId = defenderSummaryData.shipId || null;
                 if (!defenderShipId) {
                     results.push({ playFabId: targetId, error: 'Active ship not found' });
@@ -1310,20 +1388,6 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 const defenderShipData = applyShipLevelToShipData(JSON.parse(defenderShipDataRaw));
                 const defenderMaxHp = Number(defenderShipData?.Stats?.MaxHP) || 0;
                 const defenderHp = Number(defenderShipData?.Stats?.CurrentHP);
-                const shieldUntil = Number(defenderSummaryData.shieldUntil) || 0;
-                const shieldFactor = Number(defenderSummaryData.shieldFactor);
-                const shieldActive = shieldUntil > Date.now()
-                    && Number.isFinite(shieldFactor)
-                    && shieldFactor > 0
-                    && shieldFactor < 1;
-                const immuneUntil = Number(defenderSummaryData.immuneUntil) || 0;
-                if (immuneUntil > Date.now()) {
-                    results.push({ playFabId: targetId, skipped: true, reason: 'immune' });
-                    continue;
-                }
-                const appliedDamage = shieldActive
-                    ? Math.max(1, Math.round(damageValue * shieldFactor))
-                    : damageValue;
                 const nextDefenderHp = Math.max(0, (Number.isFinite(defenderHp) ? defenderHp : defenderMaxHp) - appliedDamage);
                 const defenderRespawn = nextDefenderHp <= 0;
 

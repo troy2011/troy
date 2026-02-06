@@ -3864,10 +3864,10 @@ export default class WorldMapScene extends Phaser.Scene {
 
     handleShipCollision(otherPlayFabId, shipObject) {
         if (!this.playerShip || !shipObject?.sprite) return;
-        if (shipObject?.isGuildShip) {
+        const isGuildShip = !!shipObject?.isGuildShip;
+        if (isGuildShip) {
             this.showMessage('ギルドシップに接近しました。');
             this.shipPanelSuppressed = true;
-            return;
         }
 
         // 閾ｪ闊ｹ蛛懈ｭ｢
@@ -3912,8 +3912,10 @@ export default class WorldMapScene extends Phaser.Scene {
             navigator.vibrate(50);
         }
 
-        this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
-        this.showMessage('接近しました。乗り込み可能です。');
+        if (!isGuildShip) {
+            this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
+            this.showMessage('接近しました。乗り込み可能です。');
+        }
     }
 
     createShipHpBar(sprite) {
@@ -5813,6 +5815,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if (assetData?.Domain) {
             shipObject.domain = String(assetData.Domain).toLowerCase();
+        } else if (shipObject.isGuildShip) {
+            shipObject.domain = String(shipData?.appearance?.domain || shipData?.domain || 'sea_surface').toLowerCase();
         }
         this.applyShipDomainDepth(shipObject?.sprite, shipObject?.domain);
         this.setShipBattleVisibility(playFabId, !this.isShipInBattle(playFabId));
@@ -5823,7 +5827,13 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!shipObject.passengerIcons) shipObject.passengerIcons = [];
             this.updatePassengerIconsForHost(shipObject.sprite, passengerCount, shipObject.passengerIcons);
         }
-        if (assetData) {
+        if (shipObject.isGuildShip) {
+            const currentHp = Number(shipData?.currentHp);
+            const maxHp = Number(shipData?.maxHp);
+            if (Number.isFinite(currentHp) && Number.isFinite(maxHp)) {
+                shipObject.hp = { current: currentHp, max: maxHp };
+            }
+        } else if (assetData) {
             const isDestroyed = Number(assetData?.Stats?.CurrentHP) <= 0;
             const baseFrame = isDestroyed ? 0 : Number(assetData?.baseFrame);
             if (assetData?.Stats) {
