@@ -71,15 +71,98 @@ admin.initializeApp({
 
 const firestore = admin.firestore();
 
+const lineClient = new line.Client({
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
+});
+const lineConfig = {
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.LINE_CHANNEL_SECRET
+};
+if (!lineConfig.channelSecret) {
+    console.warn('[LINE] LINE_CHANNEL_SECRET is not configured. Webhook verification will fail.');
+}
+
+// LINE Webhook (Rich Menu Postback)
+app.post('/line/webhook', express.raw({ type: '*/*' }), async (req, res) => {
+    if (!lineConfig.channelSecret) {
+        console.warn('[LINE] LINE_CHANNEL_SECRET is not configured.');
+        return res.status(500).json({ error: 'LINE channel secret is not configured' });
+    }
+    const signature = req.headers['x-line-signature'] || '';
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
+    if (!line.validateSignature(rawBody, lineConfig.channelSecret, signature)) {
+        return res.status(401).send('Invalid signature');
+    }
+
+    let payload = null;
+    try {
+        payload = JSON.parse(rawBody);
+    } catch (error) {
+        console.warn('[LINE] Failed to parse webhook body:', error?.message || error);
+        return res.status(400).json({ error: 'Invalid webhook body' });
+    }
+
+    const events = Array.isArray(payload?.events) ? payload.events : [];
+    const deps = createDependencies();
+
+    const handlePointsRequest = async (event) => {
+        if (!event || event.type !== 'postback') return;
+        const data = String(event.postback?.data || '').trim();
+        if (!data) return;
+        const normalized = data.toLowerCase();
+        if (!(normalized === 'points' || normalized.includes('action=points'))) return;
+
+        const replyToken = event.replyToken;
+        const lineUserId = event.source?.userId;
+        if (!replyToken) return;
+        if (!lineUserId) {
+            await lineClient.replyMessage(replyToken, {
+                type: 'text',
+                text: 'LINEユーザー情報が取得できませんでした。'
+            });
+            return;
+        }
+
+        let playFabId = '';
+        try {
+            const linkSnap = await firestore.collection('line_user_links').doc(lineUserId).get();
+            playFabId = linkSnap.exists ? String(linkSnap.data()?.playFabId || '') : '';
+        } catch (error) {
+            console.warn('[LINE] Failed to read line_user_links:', error?.message || error);
+        }
+
+        if (!playFabId) {
+            await lineClient.replyMessage(replyToken, {
+                type: 'text',
+                text: '連携されていません。LIFFからログインしてください。'
+            });
+            return;
+        }
+
+        try {
+            const points = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+            await lineClient.replyMessage(replyToken, {
+                type: 'text',
+                text: `現在のポイントは ${points}${VIRTUAL_CURRENCY_CODE} です。`
+            });
+        } catch (error) {
+            console.warn('[LINE] Failed to fetch points:', error?.message || error);
+            await lineClient.replyMessage(replyToken, {
+                type: 'text',
+                text: 'ポイントの取得に失敗しました。しばらくしてから再度お試しください。'
+            });
+        }
+    };
+
+    await Promise.all(events.map((event) => handlePointsRequest(event)));
+    return res.status(200).json({ ok: true });
+});
+
 app.use(express.json());
 
 configurePlayFab({
     titleId: process.env.PLAYFAB_TITLE_ID,
     secretKey: process.env.PLAYFAB_SECRET_KEY
-});
-
-const lineClient = new line.Client({
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
 
 // 静的ファイル
