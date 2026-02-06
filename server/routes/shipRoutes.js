@@ -274,6 +274,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (prevActiveId && prevActiveId !== shipId) {
             await shipsCollection.doc(prevActiveId).set({
                 active: false,
+                mapId: admin.firestore.FieldValue.delete(),
+                geohash: admin.firestore.FieldValue.delete(),
+                position: admin.firestore.FieldValue.delete(),
+                currentX: admin.firestore.FieldValue.delete(),
+                currentY: admin.firestore.FieldValue.delete(),
+                targetX: admin.firestore.FieldValue.delete(),
+                targetY: admin.firestore.FieldValue.delete(),
+                arrivalTime: admin.firestore.FieldValue.delete(),
+                movement: admin.firestore.FieldValue.delete(),
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
