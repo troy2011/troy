@@ -435,6 +435,16 @@ function getTroyRoomDoc(firestore, groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
 }
 
+async function deleteCollectionDocs(collectionRef, batchSize = 400) {
+    let snapshot = await collectionRef.limit(batchSize).get();
+    while (!snapshot.empty) {
+        const batch = collectionRef.firestore.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        snapshot = await collectionRef.limit(batchSize).get();
+    }
+}
+
 const MAP_OCCUPATION_KEY = 'MapOccupationByMapId';
 const WORLD_MAP_LAYOUT_KEY = 'WorldMapLayoutV1';
 const WORLD_MAP_PLACEMENT_OPEN_KEY = 'WorldMapPlacementOpen';
@@ -1178,11 +1188,21 @@ function initializeNationRoutes(app, deps) {
         try {
             const context = await requireKingContext(playFabId, firestore, nationDeps);
             const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
-            await roomRef.set({
-                isOpen: nextOpen,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedBy: context.kingId
-            }, { merge: true });
+            if (!nextOpen) {
+                await deleteCollectionDocs(roomRef.collection('members'));
+                await deleteCollectionDocs(roomRef.collection('checkouts'));
+                await roomRef.set({
+                    isOpen: false,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: null
+                }, { merge: true });
+            } else {
+                await roomRef.set({
+                    isOpen: true,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: context.kingId
+                }, { merge: true });
+            }
             const kingName = await getPlayerDisplayName(context.kingId, { promisifyPlayFab, PlayFabServer });
             const label = kingName || '王';
             const message = nextOpen ? 'TROYをOPEN！' : 'TROYをCLOSE。';
