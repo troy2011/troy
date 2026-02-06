@@ -3,6 +3,24 @@
 
 const { PlayFabGroups, PlayFabData, PlayFabAuthentication, ensureTitleEntityToken, getEntityKeyFromPlayFabId } = require('../playfab');
 const economy = require('../economy');
+const admin = require('firebase-admin');
+const { geohashForLocation } = require('geofire-common');
+
+const GEO_CONFIG = {
+    GRID_SIZE: 32,
+    MAP_TILE_SIZE: 500,
+    METERS_PER_TILE: 100
+};
+
+function worldToLatLng(point) {
+    const mapPixelSize = GEO_CONFIG.MAP_TILE_SIZE * GEO_CONFIG.GRID_SIZE;
+    const metersPerPixel = GEO_CONFIG.METERS_PER_TILE / GEO_CONFIG.GRID_SIZE;
+    const dxMeters = (point.x - mapPixelSize / 2) * metersPerPixel;
+    const dyMeters = (mapPixelSize / 2 - point.y) * metersPerPixel;
+    const lat = dyMeters / 110574;
+    const lng = dxMeters / 111320;
+    return { lat, lng };
+}
 
 // ギルドレベルシステムの設定
 const GUILD_LEVEL_CONFIG = {
@@ -245,9 +263,98 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 treasury: 0,
                 warehouse: [],
                 pendingApplications: [],
-                chatMessages: [] // チャットメッセージ履歴
+                chatMessages: [], // チャットメッセージ履歴
+                ownerPlayFabId: playFabId,
+                guildShipId: `guild_ship_${guildId}`
             };
             await saveGuildData(guildId, initialGuildData, promisifyPlayFab);
+
+            try {
+                const db = admin.firestore();
+                const shipDocId = `guild_ship_${guildId}`;
+                const shipRef = db.collection('ships').doc(shipDocId);
+                const existing = await shipRef.get();
+                if (!existing.exists) {
+                    let mapId = null;
+                    let spawnPos = { x: 100, y: 100 };
+                    try {
+                        const playerShipSnap = await db.collection('ships').doc(playFabId).get();
+                        if (playerShipSnap.exists) {
+                            const data = playerShipSnap.data() || {};
+                            mapId = data.mapId || null;
+                            const pos = data.position || { x: data.currentX, y: data.currentY };
+                            if (Number.isFinite(Number(pos?.x)) && Number.isFinite(Number(pos?.y))) {
+                                spawnPos = { x: Number(pos.x), y: Number(pos.y) };
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('[GuildShip] Failed to read player ship position:', error?.message || error);
+                    }
+
+                    let nationKey = null;
+                    let sailColor = 'white';
+                    try {
+                        const userReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                            PlayFabId: playFabId,
+                            Keys: ['Nation', 'Race', 'AvatarColor']
+                        });
+                        nationKey = String(userReadOnly?.Data?.Nation?.Value || '').toLowerCase();
+                        const rawColor = String(userReadOnly?.Data?.AvatarColor?.Value || '').toLowerCase();
+                        const colorKey = rawColor === 'red' || rawColor === 'blue' || rawColor === 'yellow' || rawColor === 'green'
+                            ? rawColor
+                            : null;
+                        sailColor = colorKey || sailColor;
+                        if (!colorKey && nationKey) {
+                            if (nationKey === 'fire') sailColor = 'red';
+                            if (nationKey === 'earth') sailColor = 'yellow';
+                            if (nationKey === 'wind') sailColor = 'green';
+                            if (nationKey === 'water') sailColor = 'blue';
+                        }
+                    } catch (error) {
+                        console.warn('[GuildShip] Failed to resolve nation color:', error?.message || error);
+                    }
+
+                    const geo = worldToLatLng(spawnPos);
+                    const geohash = geohashForLocation([geo.lat, geo.lng]);
+
+                    await shipRef.set({
+                        shipId: shipDocId,
+                        playFabId: null,
+                        ownerId: playFabId,
+                        ownerPlayFabId: playFabId,
+                        guildId: guildId,
+                        mapId: mapId,
+                        nation: nationKey,
+                        isGuildShip: true,
+                        guildShip: true,
+                        displayName: `${guildName.trim()}号`,
+                        appearance: {
+                            shipType: 'guild',
+                            domain: 'sea_surface',
+                            color: sailColor
+                        },
+                        position: { x: spawnPos.x, y: spawnPos.y },
+                        currentX: spawnPos.x,
+                        currentY: spawnPos.y,
+                        targetX: spawnPos.x,
+                        targetY: spawnPos.y,
+                        arrivalTime: Date.now(),
+                        speed: 0,
+                        shipVisionRange: 260,
+                        movement: {
+                            isMoving: false,
+                            departureTime: null,
+                            arrivalTime: null,
+                            departurePos: null,
+                            destinationPos: null
+                        },
+                        geohash: geohash,
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (error) {
+                console.warn('[GuildShip] Failed to create guild ship:', error?.message || error);
+            }
 
             console.log(`[ギルド作成] 成功: ${guildName} (ID: ${guildId})`);
 

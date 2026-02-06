@@ -3864,6 +3864,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
     handleShipCollision(otherPlayFabId, shipObject) {
         if (!this.playerShip || !shipObject?.sprite) return;
+        if (shipObject?.isGuildShip) {
+            this.showMessage('ギルドシップに接近しました。');
+            this.shipPanelSuppressed = true;
+            return;
+        }
 
         // 閾ｪ闊ｹ蛛懈ｭ｢
         if (this.shipMoving) {
@@ -5693,8 +5698,9 @@ export default class WorldMapScene extends Phaser.Scene {
         const isPassenger = !!shipData?.ridingOwnerId;
 
         const shipId = shipData.shipId;
+        const isGuildShip = !!shipData?.isGuildShip || !!shipData?.guildShip;
         let assetData = null;
-        if (shipId) {
+        if (shipId && !isGuildShip) {
             try {
                 assetData = await Ship.getShipAsset(playFabId, shipId);
             } catch (e) { console.error(`[updateOtherShip] Failed to get asset for ship ${shipId}`, e); }
@@ -5728,23 +5734,47 @@ export default class WorldMapScene extends Phaser.Scene {
         };
 
         const worldPos = resolveWorldPos();
-                const sheetKey = this.getShipSpriteSheetKey(shipData?.appearance?.color);
+        const sheetKey = this.getShipSpriteSheetKey(shipData?.appearance?.color);
+        const resolveGuildSailColor = (value) => {
+            const key = String(value || '').toLowerCase().trim();
+            if (key === 'white' || key === 'red' || key === 'blue' || key === 'yellow' || key === 'green') return key;
+            return 'white';
+        };
 
         if (!shipObject) {
-            const sprite = this.physics.add.sprite(worldPos.x, worldPos.y, sheetKey, 1);
-            sprite.setDepth(GAME_CONFIG.DEPTH.SHIP).setOrigin(0.5, 0.5).clearTint();
-            this.ignoreOnUiCamera(sprite);
+            let sprite = null;
+            let guildVisual = null;
+            if (isGuildShip) {
+                sprite = this.physics.add.sprite(worldPos.x, worldPos.y, 'guild_ship_sprite', 0);
+                sprite.setAlpha(0);
+                const sailColor = resolveGuildSailColor(shipData?.appearance?.color || shipData?.sailColor || 'white');
+                guildVisual = this.createGuildShipVisual(worldPos.x, worldPos.y, sailColor);
+                guildVisual.container.setDepth(GAME_CONFIG.DEPTH.SHIP);
+                this.ignoreOnUiCamera(guildVisual.container);
+            } else {
+                sprite = this.physics.add.sprite(worldPos.x, worldPos.y, sheetKey, 1);
+                sprite.setDepth(GAME_CONFIG.DEPTH.SHIP).setOrigin(0.5, 0.5).clearTint();
+                this.ignoreOnUiCamera(sprite);
+            }
             sprite.body.setSize(24, 24);
             sprite.body.setCollideWorldBounds(true);
             sprite.body.setAllowGravity(false);
             sprite.body.setImmovable(true);
-                    shipObject = {
-                        sprite: sprite, data: shipData, lastUpdate: now, motion: null, lastAnimKey: 'ship_down',
-                        shipTypeKey: null, pendingRemoval: false, removedAt: null
-                    };
-                    sprite.__ownerNation = shipData?.nation || shipData?.Nation || null;
-                    sprite.__avatarColor = shipData?.appearance?.color || null;
-                    this.otherShips.set(playFabId, shipObject);
+            shipObject = {
+                sprite: sprite,
+                guildVisual: guildVisual,
+                isGuildShip: isGuildShip,
+                data: shipData,
+                lastUpdate: now,
+                motion: null,
+                lastAnimKey: 'ship_down',
+                shipTypeKey: null,
+                pendingRemoval: false,
+                removedAt: null
+            };
+            sprite.__ownerNation = shipData?.nation || shipData?.Nation || null;
+            sprite.__avatarColor = shipData?.appearance?.color || null;
+            this.otherShips.set(playFabId, shipObject);
 
             if (this.playerShip) {
                 this.physics.add.collider(this.playerShip, sprite, () => {
@@ -5763,8 +5793,12 @@ export default class WorldMapScene extends Phaser.Scene {
                 shipObject.sprite.__ownerNation = shipData?.nation || shipData?.Nation || null;
                 shipObject.sprite.__avatarColor = shipData?.appearance?.color || null;
             }
-            if (shipObject.sprite?.texture?.key !== sheetKey) {
+            if (!shipObject.isGuildShip && shipObject.sprite?.texture?.key !== sheetKey) {
                 shipObject.sprite.setTexture(sheetKey);
+            }
+            if (shipObject.isGuildShip && shipObject.guildVisual) {
+                const sailColor = resolveGuildSailColor(shipData?.appearance?.color || shipData?.sailColor || 'white');
+                this.setGuildShipVisualColor(shipObject.guildVisual, sailColor);
             }
         }
         if (shipObject?.sprite) {
@@ -5772,6 +5806,9 @@ export default class WorldMapScene extends Phaser.Scene {
             if (shipObject.sprite.body) {
                 shipObject.sprite.body.enable = !isPassenger;
             }
+        }
+        if (shipObject?.guildVisual?.container) {
+            shipObject.guildVisual.container.setVisible(!isPassenger);
         }
 
         if (assetData?.Domain) {
@@ -5801,7 +5838,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.generateShipAnims(baseFrame, shipTypeKey);
                 shipObject.shipTypeKey = shipTypeKey;
             }
-        } else if (!shipObject.shipTypeKey) {
+        } else if (!shipObject.shipTypeKey && !shipObject.isGuildShip) {
             const defaultKey = `_default__${sheetKey}__bf0`;
             if (!this.shipAnims[defaultKey]) this.generateShipAnims(0, defaultKey);
             shipObject.shipTypeKey = defaultKey;
@@ -5827,6 +5864,13 @@ export default class WorldMapScene extends Phaser.Scene {
         } else {
             shipObject.motion = null;
             shipObject.sprite.setPosition(worldPos.x, worldPos.y);
+        }
+
+        if (shipObject.isGuildShip && shipObject.guildVisual) {
+            const frameIndex = shipObject.motion ? 2 : 1;
+            const directionKey = shipObject.lastAnimKey || 'ship_down';
+            shipObject.guildVisual.container.setPosition(shipObject.sprite.x, shipObject.sprite.y);
+            this.setGuildShipVisualFrame(shipObject.guildVisual, directionKey, frameIndex);
         }
     }
 
@@ -5865,6 +5909,9 @@ export default class WorldMapScene extends Phaser.Scene {
         if (shipObject) {
             this.destroyShipHpBar(shipObject?.sprite);
             this.destroyShipShadow(shipObject?.sprite);
+            if (shipObject.guildVisual?.container?.destroy) {
+                shipObject.guildVisual.container.destroy(true);
+            }
             shipObject.sprite.destroy();
             this.otherShips.delete(playFabId);
             console.log(`[Firestore] Removed ship sprite for player: ${playFabId}`);
