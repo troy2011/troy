@@ -8,7 +8,7 @@ import {
     usePoints,
     sendTroyCheckout
 } from './playfabClient.js';
-import { isKing, refreshKingNav } from './nationKing.js';
+import { isKing, refreshKingNav, loadKingPage } from './nationKing.js';
 
 let _wired = false;
 let _questWired = false;
@@ -3563,7 +3563,10 @@ export async function loadTroyPage(playFabId) {
     updateQuestFilterLabel('クエスト一覧: 未選択');
     await refreshQuestClears(playFabId);
     renderQuestList([]);
-    await refreshKingNav(playFabId);
+    const isKingUser = await refreshKingNav(playFabId);
+    if (isKingUser) {
+        await loadKingPage(playFabId);
+    }
     await refreshStatus(playFabId);
     updateTroyRoleUI();
     startPolling(playFabId);
