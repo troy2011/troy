@@ -2,6 +2,31 @@
 
 import { AVATAR_PART_OFFSETS } from './config.js';
 
+const spritePromiseCache = new Map();
+
+function loadSpriteImage(url) {
+    if (!url) return Promise.resolve(null);
+    if (spritePromiseCache.has(url)) return spritePromiseCache.get(url);
+    const img = new Image();
+    let done = false;
+    const promise = new Promise((resolve) => {
+        const finish = (ok) => {
+            if (done) return;
+            done = true;
+            resolve(ok ? img : null);
+        };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        img.decoding = 'async';
+        img.src = url;
+        if (img.complete) {
+            finish(!!img.naturalWidth);
+        }
+    });
+    spritePromiseCache.set(url, promise);
+    return promise;
+}
+
 /**
  * アバターの各パーツ（レイヤー）のスタイルを設定して描画する
  * @param {string} layerId - 操作対象のDOM要素ID
@@ -32,11 +57,13 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         return;
     }
 
-    const img = new Image();
-    let done = false;
-    const finish = () => {
-        if (done) return;
-        done = true;
+    loadSpriteImage(imageUrl).then((img) => {
+        if (!img) {
+            layer.style.backgroundImage = 'none';
+            layer.dataset.loadState = 'error';
+            if (typeof onReady === 'function') onReady();
+            return;
+        }
         layer.style.backgroundImage = `url('${imageUrl}')`;
         const scale = 2; // アバターの表示倍率
         layer.style.width = `${spriteWidth * scale}px`;
@@ -80,8 +107,10 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.baseTransform = baseTransform;
 
         // スプライトシートの表示位置を計算
-        const sheetColumns = Math.floor(img.width / spriteWidth);
-        layer.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+        const imgWidth = img.naturalWidth || img.width;
+        const imgHeight = img.naturalHeight || img.height;
+        const sheetColumns = Math.max(1, Math.floor(imgWidth / spriteWidth));
+        layer.style.backgroundSize = `${imgWidth * scale}px ${imgHeight * scale}px`;
         const col = spriteIndex % sheetColumns;
         const row = Math.floor(spriteIndex / sheetColumns);
         const posX = -(col * spriteWidth * scale);
@@ -95,24 +124,50 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.spriteIndex = String(spriteIndex);
         layer.dataset.loadState = 'ready';
         if (typeof onReady === 'function') onReady();
-    };
-    img.onload = finish;
-    img.onerror = () => {
-        if (done) return;
-        done = true;
-        layer.style.backgroundImage = 'none';
-        layer.dataset.loadState = 'error';
-        if (typeof onReady === 'function') onReady();
-    };
-    img.decoding = 'async';
-    img.src = imageUrl;
-    if (img.complete) {
-        if (img.naturalWidth) {
-            finish();
-        } else {
-            img.onerror();
+    });
+}
+
+export function preloadAvatarBaseSprites(avatarBase) {
+    if (!avatarBase) return;
+    const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, level } = avatarBase;
+    const race = (Race || 'human').toLowerCase();
+    const color = AvatarColor || 'brown';
+    const skinIndex = SkinColorIndex || 1;
+    const faceIdx = (FaceIndex || 1) - 1;
+    const hairIdx = (level > 1 && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
+    const bodyUrl = `./Sprites/Characters/body/body_${color}.png`;
+    const headUrl = `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`;
+    const hairUrl = hairIdx >= 0 ? `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png` : null;
+    const handUrl = `./Sprites/Characters/${race}/hand/${race}_hand.png`;
+    loadSpriteImage(bodyUrl);
+    loadSpriteImage(headUrl);
+    if (hairUrl) loadSpriteImage(hairUrl);
+    loadSpriteImage(handUrl);
+}
+
+export function preloadEquipmentSprites(equipment, itemSource) {
+    if (!equipment) return;
+    const getItemDetails = (id) => {
+        if (!id) return null;
+        if (Array.isArray(itemSource)) {
+            return itemSource.find(i =>
+                (i.instances && i.instances.includes(id)) || i.itemId === id
+            );
         }
-    }
+        if (itemSource && typeof itemSource === 'object') {
+            return itemSource[id];
+        }
+        return null;
+    };
+    const items = [
+        getItemDetails(equipment.RightHand),
+        getItemDetails(equipment.LeftHand),
+        getItemDetails(equipment.Armor)
+    ].filter(Boolean);
+    items.forEach((item) => {
+        const path = item?.customData?.sprite_path;
+        if (path) loadSpriteImage(path);
+    });
 }
 
 const homeAvatarTimers = new Map();

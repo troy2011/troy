@@ -13,7 +13,7 @@ import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
-import { renderAvatar } from './js/avatar.js';
+import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 
 import { getDatabase } from "firebase/database";
@@ -647,21 +647,22 @@ async function updateAvatarBaseInfo() {
         Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
     }, { isSilent: true });
 
-    if (result && result.Data) {
-        const nation = (result.Data.Nation?.Value || '').toLowerCase();
-        const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
-        const nationColor = getAvatarColorForNation(nation);
-        myAvatarBaseInfo = {
-            Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
-            Nation: nation,
-            AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
-            SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
-            FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
-            HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
-        };
-        window.myAvatarBaseInfo = myAvatarBaseInfo;
+        if (result && result.Data) {
+            const nation = (result.Data.Nation?.Value || '').toLowerCase();
+            const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
+            const nationColor = getAvatarColorForNation(nation);
+            myAvatarBaseInfo = {
+                Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
+                Nation: nation,
+                AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
+                SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
+                FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
+                HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
+            };
+            window.myAvatarBaseInfo = myAvatarBaseInfo;
+            preloadAvatarBaseSprites(myAvatarBaseInfo);
 
-        if (nationChangedAt) {
+            if (nationChangedAt) {
             const seenAt = String(localStorage.getItem('nationChangedAtSeen') || '');
             if (nationChangedAt !== seenAt) {
                 localStorage.setItem('nationChangedAtSeen', nationChangedAt);

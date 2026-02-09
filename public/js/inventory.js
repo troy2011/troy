@@ -7,7 +7,7 @@ import {
     useItem as requestUseItem,
     sellItem as requestSellItem
 } from './playfabClient.js';
-import { renderAvatar } from './avatar.js';
+import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites } from './avatar.js';
 import * as Player from './player.js';
 import { isKing as isKingFlag } from './nationKing.js';
 import { formatCurrencyLabel } from './config.js';
@@ -98,6 +98,8 @@ export async function getInventory(playFabId) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
+        preloadAvatarBaseSprites(window.myAvatarBaseInfo);
+        preloadEquipmentSprites(myCurrentEquipment, myInventory);
     }
     await getEquipment(playFabId);
     renderInventoryGrid(getActiveInventoryCategory());
@@ -122,6 +124,8 @@ export async function refreshResourceSummary(playFabId) {
         }
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
+        preloadAvatarBaseSprites(window.myAvatarBaseInfo);
+        preloadEquipmentSprites(myCurrentEquipment, myInventory);
         renderResourceSummary();
         updateExperienceUI();
         if (Array.isArray(data.inventory)) {
