@@ -31,8 +31,10 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
     }
 
     const img = new Image();
-    img.src = imageUrl;
+    let done = false;
     const finish = () => {
+        if (done) return;
+        done = true;
         layer.style.backgroundImage = `url('${imageUrl}')`;
         const scale = 2; // アバターの表示倍率
         layer.style.width = `${spriteWidth * scale}px`;
@@ -93,9 +95,16 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
     };
     img.onload = finish;
     img.onerror = () => {
+        if (done) return;
+        done = true;
         layer.style.backgroundImage = 'none';
         if (typeof onReady === 'function') onReady();
     };
+    img.decoding = 'async';
+    img.src = imageUrl;
+    if (img.complete && img.naturalWidth) {
+        finish();
+    }
 }
 
 const homeAvatarTimers = new Map();
