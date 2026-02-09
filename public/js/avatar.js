@@ -11,9 +11,12 @@ import { AVATAR_PART_OFFSETS } from './config.js';
  * @param {number} spriteHeight - 1フレームの高さ
  * @param {string} itemCategory - アイテムのカテゴリ（武器、盾など）
  */
-function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, itemCategory = null) {
+function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, itemCategory = null, onReady = null) {
     const layer = document.getElementById(layerId);
-    if (!layer) return;
+    if (!layer) {
+        if (typeof onReady === 'function') onReady();
+        return;
+    }
 
     if (!imageUrl || spriteIndex < 0) {
         layer.style.backgroundImage = 'none';
@@ -23,12 +26,13 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.scale = '';
         layer.dataset.spriteIndex = '';
         layer.dataset.baseTransform = '';
+        if (typeof onReady === 'function') onReady();
         return;
     }
 
     const img = new Image();
     img.src = imageUrl;
-    img.onload = () => {
+    const finish = () => {
         layer.style.backgroundImage = `url('${imageUrl}')`;
         const scale = 2; // アバターの表示倍率
         layer.style.width = `${spriteWidth * scale}px`;
@@ -85,6 +89,12 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.sheetColumns = String(sheetColumns);
         layer.dataset.scale = String(scale);
         layer.dataset.spriteIndex = String(spriteIndex);
+        if (typeof onReady === 'function') onReady();
+    };
+    img.onload = finish;
+    img.onerror = () => {
+        layer.style.backgroundImage = 'none';
+        if (typeof onReady === 'function') onReady();
     };
 }
 
@@ -157,6 +167,23 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         }
     }
 
+    const shouldHideUntilReady = !!avatarContainer && avatarContainer.dataset.avatarReady !== 'true';
+    if (shouldHideUntilReady) {
+        avatarContainer.style.opacity = '0';
+    }
+    let pendingLayers = 0;
+    const markLayerReady = () => {
+        pendingLayers = Math.max(0, pendingLayers - 1);
+        if (pendingLayers === 0 && avatarContainer) {
+            avatarContainer.dataset.avatarReady = 'true';
+            avatarContainer.style.opacity = '1';
+        }
+    };
+    const drawLayer = (...args) => {
+        pendingLayers += 1;
+        setAvatarPart(...args, markLayerReady);
+    };
+
     // 1. 素体の描画
     if (avatarBase) {
         const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, level } = avatarBase;
@@ -166,11 +193,11 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         const faceIdx = (FaceIndex || 1) - 1;
         let hairIdx = (level > 1 && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
 
-        setAvatarPart(`${prefix}-layer-body`, `./Sprites/Characters/body/body_${color}.png`, 0, 32, 32);
-        setAvatarPart(`${prefix}-layer-head`, `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`, faceIdx, 32, 32);
-        setAvatarPart(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png`, hairIdx, 32, 32);
-        setAvatarPart(`${prefix}-layer-hand-right`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
-        setAvatarPart(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
+        drawLayer(`${prefix}-layer-body`, `./Sprites/Characters/body/body_${color}.png`, 0, 32, 32);
+        drawLayer(`${prefix}-layer-head`, `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`, faceIdx, 32, 32);
+        drawLayer(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png`, hairIdx, 32, 32);
+        drawLayer(`${prefix}-layer-hand-right`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
+        drawLayer(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
     }
 
     // 2. アイテム詳細を取得するヘルパー
@@ -197,15 +224,20 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const drawItem = (layer, item) => {
         if (item?.customData) {
             const cd = item.customData;
-            setAvatarPart(`${prefix}-layer-${layer}`, cd.sprite_path, parseInt(cd.sprite_index) || 0, parseInt(cd.sprite_w) || 32, parseInt(cd.sprite_h) || 32, cd.Category);
+            drawLayer(`${prefix}-layer-${layer}`, cd.sprite_path, parseInt(cd.sprite_index) || 0, parseInt(cd.sprite_w) || 32, parseInt(cd.sprite_h) || 32, cd.Category);
         } else {
-            setAvatarPart(`${prefix}-layer-${layer}`, null, -1);
+            drawLayer(`${prefix}-layer-${layer}`, null, -1);
         }
     };
 
     drawItem('weapon-right', finalRightHandItem);
     drawItem('shield-left', finalLeftHandItem);
     drawItem('armor', armorItem);
+
+    if (pendingLayers === 0 && avatarContainer) {
+        avatarContainer.dataset.avatarReady = 'true';
+        avatarContainer.style.opacity = '1';
+    }
 
     if (prefix === 'home-avatar') {
         startHomeAvatarAnimation(prefix);
