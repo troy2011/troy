@@ -5,7 +5,7 @@ import { getAuth, onAuthStateChanged, signInWithCustomToken } from "firebase/aut
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firebaseConfig, RACE_COLORS, formatCurrencyLabel } from 'config';
 import { callApiWithLoader, promisifyPlayFab, buildApiUrl, createRequestId } from 'api';
-import { showTab, showConfirmationModal } from 'ui';
+import { showTab, showConfirmationModal, scheduleWorldMapPrefetch } from 'ui';
 import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
@@ -35,6 +35,8 @@ let transferNoticeUnsubscribe = null;
 let transferNoticeReady = false;
 let lastTransferNoticeId = null;
 window.myPlayFabDisplayName = null;
+let buildingMetaPromise = null;
+let shipCatalogPromise = null;
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -61,6 +63,61 @@ function updateSeaToneByTime(date = new Date()) {
     else if (hour >= 9 && hour < 16) tone = 'day';
     else if (hour >= 16 && hour < 20) tone = 'dusk';
     document.body.dataset.seaTone = tone;
+}
+
+async function ensureBuildingMetaLoaded() {
+    if (window.buildingMetaById && Object.keys(window.buildingMetaById).length) {
+        return window.buildingMetaById;
+    }
+    if (buildingMetaPromise) return buildingMetaPromise;
+    buildingMetaPromise = (async () => {
+        try {
+            console.log('[ensureBuildingMetaLoaded] Fetching building meta...');
+            const response = await fetch(buildApiUrl('/api/get-building-meta'));
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            window.buildingMetaById = await response.json();
+            console.log('[ensureBuildingMetaLoaded] Building meta loaded:', window.buildingMetaById);
+        } catch (e) {
+            console.error('[ensureBuildingMetaLoaded] Failed to fetch building meta:', e);
+            window.buildingMetaById = {};
+        }
+        return window.buildingMetaById;
+    })();
+    try {
+        return await buildingMetaPromise;
+    } finally {
+        buildingMetaPromise = null;
+    }
+}
+
+async function ensureShipCatalogLoaded() {
+    if (window.shipCatalog && Object.keys(window.shipCatalog).length) {
+        return window.shipCatalog;
+    }
+    if (shipCatalogPromise) return shipCatalogPromise;
+    shipCatalogPromise = (async () => {
+        try {
+            console.log('[ensureShipCatalogLoaded] Fetching ship catalog...');
+            const response = await fetch(buildApiUrl('/api/get-ship-catalog'));
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            window.shipCatalog = await response.json();
+            console.log('[ensureShipCatalogLoaded] Ship catalog loaded:', window.shipCatalog);
+        } catch (e) {
+            console.error('[ensureShipCatalogLoaded] Failed to fetch ship catalog:', e);
+            window.shipCatalog = {};
+        }
+        return window.shipCatalog;
+    })();
+    try {
+        return await shipCatalogPromise;
+    } finally {
+        shipCatalogPromise = null;
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.ensureBuildingMetaLoaded = ensureBuildingMetaLoaded;
+    window.ensureShipCatalogLoaded = ensureShipCatalogLoaded;
 }
 
 async function refreshPlayFabDisplayName(playFabId) {
@@ -211,6 +268,16 @@ async function initializeLiff() {
 
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
+                    scheduleWorldMapPrefetch();
+                    const prefetchHeavy = () => {
+                        ensureBuildingMetaLoaded();
+                        ensureShipCatalogLoaded();
+                    };
+                    if (typeof requestIdleCallback === 'function') {
+                        requestIdleCallback(() => prefetchHeavy());
+                    } else {
+                        setTimeout(prefetchHeavy, 800);
+                    }
                     subscribeTransferNotifications(myPlayFabId);
                 }
             }
@@ -332,31 +399,7 @@ async function initializeAppFeatures() {
     // --- 初期データ取得 ---
     const initPromises = [
         updateAvatarBaseInfo(),
-        Inventory.getInventory(myPlayFabId),
-        (async () => {
-            try {
-                console.log('[initializeAppFeatures] Fetching building meta...');
-                const response = await fetch(buildApiUrl('/api/get-building-meta'));
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                window.buildingMetaById = await response.json();
-                console.log('[initializeAppFeatures] Building meta loaded:', window.buildingMetaById);
-            } catch (e) {
-                console.error('[initializeAppFeatures] Failed to fetch building meta:', e);
-                window.buildingMetaById = {};
-            }
-        })(),
-        (async () => {
-            try {
-                console.log('[initializeAppFeatures] Fetching ship catalog...');
-                const response = await fetch(buildApiUrl('/api/get-ship-catalog'));
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                window.shipCatalog = await response.json();
-                console.log('[initializeAppFeatures] Ship catalog loaded:', window.shipCatalog);
-            } catch (e) {
-                console.error('[initializeAppFeatures] Failed to fetch ship catalog:', e);
-                window.shipCatalog = {}; // エラー時も空オブジェクトで初期化
-            }
-        })()
+        Inventory.getEquipment(myPlayFabId)
     ];
 
     try {
@@ -701,10 +744,12 @@ function blockMapClicksForModal(modalEl) {
     modalEl.dataset.blockMapClicks = 'true';
 }
 
-function showCreateShipModal(context) {
+async function showCreateShipModal(context) {
     shipCreateContext = context || null;
     const selectEl = document.getElementById('shipTypeSelect');
     selectEl.innerHTML = ''; // 既存のオプションをクリア
+
+    await ensureShipCatalogLoaded();
 
     if (!window.shipCatalog || Object.keys(window.shipCatalog).length === 0) {
         selectEl.innerHTML = '<option value="">利用可能な船がありません</option>';

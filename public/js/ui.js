@@ -6,9 +6,15 @@ import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
-import * as Troy from './troy.js';
 import * as QuestApproval from './questApproval.js';
 import { getNationKingPage } from './playfabClient.js';
+
+let troyModule = null;
+const ensureTroyModule = async () => {
+    if (troyModule) return troyModule;
+    troyModule = await import('./troy.js');
+    return troyModule;
+};
 
 const TAROT_AREAS = [
     { id: 'wands', label: 'ワンド' },
@@ -143,6 +149,7 @@ const WORLD_MAP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
 let worldMapLayoutCache = null;
 let worldMapPlacementOpen = true;
 let worldMapOccupationPrefetchPromise = null;
+let worldMapPrefetchScheduled = false;
 
 async function loadWorldMapLayout() {
     try {
@@ -329,22 +336,35 @@ function preloadTarotSprite() {
     }
 }
 
-if (typeof document !== 'undefined') {
-    const initGrid = () => {
-        renderWorldMapGrid();
-        prefetchWorldMapOccupationMap();
-        loadWorldMapLayout().then((layout) => {
-            renderWorldMapGrid(layout);
+export function scheduleWorldMapPrefetch() {
+    if (worldMapPrefetchScheduled || typeof document === 'undefined') return;
+    worldMapPrefetchScheduled = true;
+    const start = () => {
+        const run = () => {
+            renderWorldMapGrid();
             prefetchWorldMapOccupationMap();
-        });
-        preloadTarotSprite();
-        loadTarotSpriteMeta();
+            loadWorldMapLayout().then((layout) => {
+                renderWorldMapGrid(layout);
+                prefetchWorldMapOccupationMap();
+            });
+            preloadTarotSprite();
+            loadTarotSpriteMeta();
+        };
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => run());
+        } else {
+            setTimeout(run, 50);
+        }
     };
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initGrid);
+        document.addEventListener('DOMContentLoaded', start, { once: true });
     } else {
-        initGrid();
+        start();
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.scheduleWorldMapPrefetch = scheduleWorldMapPrefetch;
 }
 
 function showMapSelectModal(playerInfo) {
@@ -941,6 +961,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
         window.__currentMapId = mapSelectOptions.mapId;
         window.__currentMapLabel = mapSelectOptions.mapLabel || mapSelectOptions.mapId;
     }
+    if (tabId === 'map') {
+        scheduleWorldMapPrefetch();
+    }
     if (tabId === 'map' && !mapSelectOptions.skipMapSelect) {
         if (!window.__currentMapId && playerInfo?.nation) {
             const areaId = AREA_BY_NATION[String(playerInfo.nation).toLowerCase()];
@@ -1017,12 +1040,18 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     break;
                 case 'troy':
-                    await Troy.loadTroyPage(playerInfo.playFabId);
+                    {
+                        const Troy = await ensureTroyModule();
+                        await Troy.loadTroyPage(playerInfo.playFabId);
+                    }
                     break;
                 case 'ships':
                     if (!playerInfo || !playerInfo.playFabId) {
                         console.warn('[showTab] ships tab requires playFabId');
                         break;
+                    }
+                    if (typeof window.ensureShipCatalogLoaded === 'function') {
+                        await window.ensureShipCatalogLoaded();
                     }
                     await Ship.displayPlayerShips(playerInfo.playFabId);
                     break;
@@ -1073,6 +1102,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         });
                     };
                     triggerFirstMapMessages();
+                    if (typeof window.ensureBuildingMetaLoaded === 'function') {
+                        await window.ensureBuildingMetaLoaded();
+                    }
+                    if (typeof window.ensureShipCatalogLoaded === 'function') {
+                        await window.ensureShipCatalogLoaded();
+                    }
                     if (mapSelectOptions.mapId) {
                         if (window.__currentMapId && window.__currentMapId !== mapSelectOptions.mapId && gameInstance) {
                             gameInstance.destroy(true);
