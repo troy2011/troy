@@ -256,9 +256,9 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             }
         }
     };
-    const drawLayer = (...args) => {
+    const drawLayer = (layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory) => {
         pendingLayers += 1;
-        setAvatarPart(...args, markLayerReady);
+        setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady);
     };
 
     // 1. 素体の描画
