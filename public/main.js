@@ -398,8 +398,10 @@ async function initializeAppFeatures() {
 
     // --- 初期データ取得 ---
     const initPromises = [
-        updateAvatarBaseInfo(),
-        Inventory.getEquipment(myPlayFabId)
+        (async () => {
+            await updateAvatarBaseInfo();
+            await Inventory.getEquipment(myPlayFabId);
+        })()
     ];
 
     try {
