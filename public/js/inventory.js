@@ -117,10 +117,18 @@ export async function refreshResourceSummary(playFabId) {
     if (now - lastInventoryFetchAt < 1500) return;
     const data = await fetchInventory(playFabId);
     if (data) {
+        if (Array.isArray(data.inventory)) {
+            myInventory = data.inventory;
+        }
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
         renderResourceSummary();
         updateExperienceUI();
+        if (Array.isArray(data.inventory)) {
+            renderAvatar('avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+            renderAvatar('home-avatar', window.myAvatarBaseInfo, myCurrentEquipment, myInventory, false);
+            updateEquipmentBonusDisplay();
+        }
         lastInventoryFetchAt = Date.now();
     }
 }
