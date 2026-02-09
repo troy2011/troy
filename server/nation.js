@@ -880,7 +880,7 @@ async function requireKingContext(playFabId, firestore, deps) {
 
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent } = deps;
 
     const nationDeps = {
         promisifyPlayFab,
@@ -894,6 +894,15 @@ function initializeNationRoutes(app, deps) {
         addEconomyItem,
         getAllInventoryItems: deps.getAllInventoryItems,
         getVirtualCurrencyMap: deps.getVirtualCurrencyMap
+    };
+
+    const pushDisplayEvent = (payload) => {
+        if (typeof emitDisplayEvent !== 'function') return;
+        try {
+            emitDisplayEvent(payload);
+        } catch (error) {
+            console.warn('[display-event] Failed to emit:', error?.message || error);
+        }
     };
 
     // 国家グループ取得
@@ -1460,6 +1469,11 @@ function initializeNationRoutes(app, deps) {
             } catch (lineError) {
                 console.warn('[troy-order] Line notify failed:', lineError?.message || lineError);
             }
+
+            pushDisplayEvent({
+                type: orderAmount > 0 ? 'boom' : 'splash',
+                label: `注文: ${buyerName} ${orderLine}`
+            });
             res.json({
                 success: true,
                 orderAmount,
@@ -1502,6 +1516,10 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            pushDisplayEvent({
+                type: 'flare',
+                label: `入店: ${name}`
+            });
             res.json({ success: true });
         } catch (error) {
             console.error('[troy-join] Error:', error?.message || error);

@@ -316,6 +316,106 @@ app.use((req, res, next) => {
     next();
 });
 
+// Display page + stream
+const displayClients = new Set();
+const displayEventBuffer = [];
+const DISPLAY_EVENT_LIMIT = 40;
+
+function normalizeDisplayEvent(input) {
+    const now = Date.now();
+    const type = String(input?.type || 'splash').toLowerCase();
+    const label = String(input?.label || '').trim().slice(0, 120);
+    let x = Number(input?.x);
+    let y = Number(input?.y);
+
+    if (Number.isFinite(x) && x >= 0 && x <= 1) x *= 100;
+    if (Number.isFinite(y) && y >= 0 && y <= 1) y *= 100;
+
+    if (!Number.isFinite(x)) x = null;
+    if (!Number.isFinite(y)) y = null;
+
+    if (Number.isFinite(x)) x = Math.min(95, Math.max(5, x));
+    if (Number.isFinite(y)) y = Math.min(95, Math.max(5, y));
+
+    return {
+        id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+        type,
+        label,
+        x,
+        y,
+        at: now
+    };
+}
+
+function pushDisplayEvent(event) {
+    displayEventBuffer.push(event);
+    if (displayEventBuffer.length > DISPLAY_EVENT_LIMIT) {
+        displayEventBuffer.splice(0, displayEventBuffer.length - DISPLAY_EVENT_LIMIT);
+    }
+}
+
+function sendDisplayEvent(res, event) {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+}
+
+function broadcastDisplayEvent(event) {
+    for (const client of displayClients) {
+        try {
+            sendDisplayEvent(client.res, event);
+        } catch (error) {
+            displayClients.delete(client);
+            try {
+                client.res.end();
+            } catch (closeError) {
+                // ignore
+            }
+        }
+    }
+}
+
+function emitDisplayEvent(payload) {
+    const event = normalizeDisplayEvent(payload);
+    pushDisplayEvent(event);
+    broadcastDisplayEvent(event);
+    return event;
+}
+
+app.get('/display', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'display.html'));
+});
+
+app.get('/api/display-stream', (req, res) => {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+
+    const client = { res };
+    displayClients.add(client);
+
+    sendDisplayEvent(res, { type: 'connected', at: Date.now() });
+    if (displayEventBuffer.length) {
+        sendDisplayEvent(res, { type: 'batch', events: displayEventBuffer.slice(-6) });
+    }
+
+    const keepAlive = setInterval(() => {
+        res.write(':keep-alive\n\n');
+    }, 20000);
+
+    req.on('close', () => {
+        clearInterval(keepAlive);
+        displayClients.delete(client);
+    });
+});
+
+app.post('/api/display-event', (req, res) => {
+    const event = normalizeDisplayEvent(req.body || {});
+    pushDisplayEvent(event);
+    broadcastDisplayEvent(event);
+    res.json({ ok: true });
+});
+
 // geofire-common ESM
 app.get('/vendor/geofire-common/index.esm.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'node_modules', 'geofire-common', 'dist', 'geofire-common', 'index.esm.js'));
@@ -733,7 +833,8 @@ function createDependencies() {
         // island関数
         transferOwnedIslands: (fs, fromId, toId, toNation) => island.transferOwnedIslands(fs, fromId, toId, toNation, { promisifyPlayFab, PlayFabServer }),
         createStarterIsland: createStarterIsland,
-        relocateActiveShip: (fs, playFabId, pos) => island.relocateActiveShip(fs, playFabId, pos, { promisifyPlayFab, PlayFabServer, admin })
+        relocateActiveShip: (fs, playFabId, pos) => island.relocateActiveShip(fs, playFabId, pos, { promisifyPlayFab, PlayFabServer, admin }),
+        emitDisplayEvent
     };
 }
 
