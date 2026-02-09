@@ -17,6 +17,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         if (typeof onReady === 'function') onReady();
         return;
     }
+    layer.dataset.loadState = 'loading';
 
     if (!imageUrl || spriteIndex < 0) {
         layer.style.backgroundImage = 'none';
@@ -26,6 +27,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.scale = '';
         layer.dataset.spriteIndex = '';
         layer.dataset.baseTransform = '';
+        layer.dataset.loadState = 'ready';
         if (typeof onReady === 'function') onReady();
         return;
     }
@@ -91,6 +93,7 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         layer.dataset.sheetColumns = String(sheetColumns);
         layer.dataset.scale = String(scale);
         layer.dataset.spriteIndex = String(spriteIndex);
+        layer.dataset.loadState = 'ready';
         if (typeof onReady === 'function') onReady();
     };
     img.onload = finish;
@@ -98,12 +101,17 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         if (done) return;
         done = true;
         layer.style.backgroundImage = 'none';
+        layer.dataset.loadState = 'error';
         if (typeof onReady === 'function') onReady();
     };
     img.decoding = 'async';
     img.src = imageUrl;
-    if (img.complete && img.naturalWidth) {
-        finish();
+    if (img.complete) {
+        if (img.naturalWidth) {
+            finish();
+        } else {
+            img.onerror();
+        }
     }
 }
 
@@ -181,11 +189,16 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         avatarContainer.style.opacity = '0';
     }
     let pendingLayers = 0;
+    let readyTimer = null;
     const markLayerReady = () => {
         pendingLayers = Math.max(0, pendingLayers - 1);
         if (pendingLayers === 0 && avatarContainer) {
             avatarContainer.dataset.avatarReady = 'true';
             avatarContainer.style.opacity = '1';
+            if (readyTimer) {
+                clearTimeout(readyTimer);
+                readyTimer = null;
+            }
         }
     };
     const drawLayer = (...args) => {
@@ -242,6 +255,22 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     drawItem('weapon-right', finalRightHandItem);
     drawItem('shield-left', finalLeftHandItem);
     drawItem('armor', armorItem);
+
+    if (avatarContainer && shouldHideUntilReady) {
+        readyTimer = setTimeout(() => {
+            if (avatarContainer.dataset.avatarReady === 'true') return;
+            const stuckLayers = Array.from(avatarContainer.querySelectorAll('.avatar-layer'))
+                .filter(layer => layer.dataset.loadState === 'loading')
+                .map(layer => layer.id);
+            if (stuckLayers.length) {
+                console.warn('[renderAvatar] layer load timeout:', stuckLayers);
+            } else {
+                console.warn('[renderAvatar] avatar load timeout: pending layers', pendingLayers);
+            }
+            avatarContainer.dataset.avatarReady = 'true';
+            avatarContainer.style.opacity = '1';
+        }, 1200);
+    }
 
     if (pendingLayers === 0 && avatarContainer) {
         avatarContainer.dataset.avatarReady = 'true';
