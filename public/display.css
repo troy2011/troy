@@ -1,12 +1,6 @@
 :root {
   --sea-deep: #041724;
   --sea-mid: #0a2f44;
-  --sea-light: #13536f;
-  --sea-glow: #1b6c8d;
-  --sea-foam: rgba(180, 230, 255, 0.3);
-  --hud-bg: rgba(7, 12, 18, 0.55);
-  --hud-border: rgba(160, 220, 255, 0.18);
-  --hud-text: #dff5ff;
 }
 
 * {
@@ -21,27 +15,13 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--sea-deep);
-  color: var(--hud-text);
-  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
 }
 
 #sea {
   position: relative;
   width: 100%;
   height: 100%;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(40, 120, 160, 0.35), transparent 55%),
-    radial-gradient(circle at 80% 10%, rgba(60, 170, 210, 0.25), transparent 45%),
-    linear-gradient(160deg, var(--sea-mid), var(--sea-deep) 55%, #03101a 100%);
-  isolation: isolate;
-}
-
-#seaBase,
-#seaGlow,
-#seaWaves {
-  position: absolute;
-  inset: -15%;
-  pointer-events: none;
+  background: linear-gradient(160deg, var(--sea-mid), var(--sea-deep) 55%, #03101a 100%);
 }
 
 #seaVideo {
@@ -51,168 +31,4 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  z-index: 0;
-  filter: saturate(1.05) contrast(1.05);
-  pointer-events: none;
-}
-
-#seaBase {
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      rgba(12, 44, 66, 0.55) 0,
-      rgba(12, 44, 66, 0.55) 18px,
-      rgba(10, 36, 54, 0.75) 18px,
-      rgba(10, 36, 54, 0.75) 36px
-    );
-  opacity: 0.35;
-  animation: drift 120s linear infinite;
-  z-index: 1;
-}
-
-#seaGlow {
-  background-image:
-    radial-gradient(circle at 30% 40%, rgba(60, 180, 220, 0.35), transparent 55%),
-    radial-gradient(circle at 70% 60%, rgba(30, 140, 180, 0.3), transparent 50%);
-  mix-blend-mode: screen;
-  animation: glow 60s ease-in-out infinite;
-  z-index: 2;
-}
-
-#seaWaves {
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.06) 0,
-      rgba(255, 255, 255, 0.06) 8px,
-      rgba(255, 255, 255, 0) 8px,
-      rgba(255, 255, 255, 0) 24px
-    );
-  opacity: 0.28;
-  mix-blend-mode: screen;
-  animation: swell 28s linear infinite;
-  z-index: 3;
-}
-
-#effects {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.effect {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  border-radius: 999px;
-  border: 2px solid var(--sea-foam);
-  transform: translate(-50%, -50%) scale(0.4);
-  opacity: 0.9;
-  animation: ripple 2.6s ease-out forwards;
-}
-
-.effect.boom {
-  border-color: rgba(255, 200, 140, 0.7);
-  box-shadow: 0 0 30px rgba(255, 190, 120, 0.5);
-  background: radial-gradient(circle, rgba(255, 220, 170, 0.35), transparent 70%);
-}
-
-.effect.splash {
-  border-color: rgba(180, 230, 255, 0.75);
-  box-shadow: 0 0 22px rgba(120, 200, 255, 0.4);
-}
-
-.effect.flare {
-  border-color: rgba(210, 255, 255, 0.8);
-  box-shadow: 0 0 36px rgba(160, 240, 255, 0.6);
-  animation-duration: 3.2s;
-}
-
-.effect.ghost {
-  border-color: rgba(190, 255, 220, 0.7);
-  box-shadow: 0 0 28px rgba(160, 255, 210, 0.45);
-}
-
-.effect-label {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  color: #eef9ff;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
-  opacity: 0.95;
-  pointer-events: none;
-}
-
-#hud {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--hud-bg);
-  border: 1px solid var(--hud-border);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  z-index: 6;
-}
-
-#status {
-  font-weight: 700;
-}
-
-#clock {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
-}
-
-@keyframes drift {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-  100% {
-    transform: translate3d(-8%, 4%, 0) rotate(3deg);
-  }
-}
-
-@keyframes glow {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: translate3d(2%, -2%, 0) scale(1.05);
-  }
-}
-
-@keyframes swell {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-  100% {
-    transform: translate3d(-12%, -6%, 0);
-  }
-}
-
-@keyframes ripple {
-  0% {
-    transform: translate(-50%, -50%) scale(0.3);
-    opacity: 0.9;
-  }
-  70% {
-    opacity: 0.55;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(2.6);
-    opacity: 0;
-  }
 }
