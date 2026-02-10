@@ -196,7 +196,7 @@ async function ensureDailyBountyConversion(playFabId, deps) {
 
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent } = deps;
 
     const economyDeps = {
         promisifyPlayFab,
@@ -205,6 +205,15 @@ function initializeEconomyRoutes(app, deps) {
         catalogCache: deps.catalogCache,
         catalogCurrencyMap: deps.catalogCurrencyMap,
         resolveItemId: deps.resolveItemId
+    };
+
+    const pushDisplayEvent = (payload) => {
+        if (typeof emitDisplayEvent !== 'function') return;
+        try {
+            emitDisplayEvent(payload);
+        } catch (error) {
+            console.warn('[display-event] Failed to emit:', error?.message || error);
+        }
     };
 
     // ポイント取得
@@ -436,6 +445,10 @@ function initializeEconomyRoutes(app, deps) {
                         getDisplayName(fromId)
                     ]);
                     addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}PS勝ち取った！`, 'システム');
+                    pushDisplayEvent({
+                        type: 'boom',
+                        label: `奪取: ${toName} ← ${fromName} ${amountInt}Ps`
+                    });
                 } catch (chatError) {
                     console.warn('[transfer-points] Failed to publish global chat:', chatError?.message || chatError);
                 }

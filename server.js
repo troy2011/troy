@@ -1448,7 +1448,8 @@ async function main() {
         catalogCurrencyMap,
         resolveItemId: resolveCatalogItemId,
         firestore,
-        admin
+        admin,
+        emitDisplayEvent
     });
 
     // 国家ルート
