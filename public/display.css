@@ -32,3 +32,69 @@ body {
   object-fit: cover;
   object-position: center;
 }
+
+#effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.effect {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  border: 2px solid rgba(180, 230, 255, 0.55);
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0.9;
+  animation: ripple 2.6s ease-out forwards;
+}
+
+.effect.boom {
+  border-color: rgba(255, 200, 140, 0.7);
+  box-shadow: 0 0 30px rgba(255, 190, 120, 0.5);
+  background: radial-gradient(circle, rgba(255, 220, 170, 0.35), transparent 70%);
+}
+
+.effect.splash {
+  border-color: rgba(180, 230, 255, 0.75);
+  box-shadow: 0 0 22px rgba(120, 200, 255, 0.4);
+}
+
+.effect.flare {
+  border-color: rgba(210, 255, 255, 0.8);
+  box-shadow: 0 0 36px rgba(160, 240, 255, 0.6);
+  animation-duration: 3.2s;
+}
+
+.effect.ghost {
+  border-color: rgba(190, 255, 220, 0.7);
+  box-shadow: 0 0 28px rgba(160, 255, 210, 0.45);
+}
+
+.effect-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: #eef9ff;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.6);
+    opacity: 0;
+  }
+}

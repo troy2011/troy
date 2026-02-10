@@ -1,26 +1,11 @@
 (() => {
   const effectsLayer = document.getElementById('effects');
-  const statusEl = document.getElementById('status');
-  const clockEl = document.getElementById('clock');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
   let lastEventAt = Date.now();
   let reconnectTimer = null;
   let stream = null;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-  const setStatus = (text) => {
-    if (statusEl) statusEl.textContent = text;
-  };
-
-  const updateClock = () => {
-    if (!clockEl) return;
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
-    clockEl.textContent = `${hh}:${mm}:${ss}`;
-  };
 
   const spawnEffect = (payload = {}) => {
     if (!effectsLayer) return;
@@ -73,11 +58,10 @@
       reconnectTimer = null;
     }
 
-    setStatus('LIVE');
     stream = new EventSource('/api/display-stream');
 
     stream.addEventListener('open', () => {
-      setStatus('LIVE');
+      lastEventAt = Date.now();
     });
 
     stream.addEventListener('message', (event) => {
@@ -91,7 +75,6 @@
     });
 
     stream.addEventListener('error', () => {
-      setStatus('RECONNECT');
       if (stream) {
         stream.close();
         stream = null;
@@ -100,16 +83,5 @@
     });
   };
 
-  const scheduleAmbient = () => {
-    const idleMs = Date.now() - lastEventAt;
-    if (idleMs > 12000) {
-      spawnEffect({ type: 'splash' });
-      lastEventAt = Date.now();
-    }
-  };
-
-  updateClock();
-  window.setInterval(updateClock, 1000);
-  window.setInterval(scheduleAmbient, 6000);
   connectStream();
 })();
