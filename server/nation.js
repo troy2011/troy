@@ -1077,6 +1077,103 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // TROY入店中メンバーの懸賞金ランキング（ディスプレイ用）
+    app.get('/api/troy-bounty-ranking', async (req, res) => {
+        const queryNation = String(req.query?.nation || '').trim().toLowerCase();
+        const queryGroup = String(req.query?.groupName || '').trim();
+
+        let groupName = '';
+        if (queryGroup) {
+            groupName = queryGroup;
+        } else if (queryNation) {
+            const mapping = NATION_GROUP_BY_NATION[queryNation];
+            groupName = mapping?.groupName || '';
+        } else {
+            try {
+                const roomsSnap = await firestore.collection('troy_rooms').get();
+                let latest = null;
+                roomsSnap.forEach((doc) => {
+                    const data = doc.data() || {};
+                    if (!data.isOpen) return;
+                    const updatedAt = data.updatedAt?.toMillis?.() || Number(data.updatedAt) || 0;
+                    if (!latest || updatedAt > latest.updatedAt) {
+                        latest = { groupName: doc.id, updatedAt };
+                    }
+                });
+                groupName = latest?.groupName || '';
+            } catch (error) {
+                console.warn('[troy-bounty-ranking] Failed to scan rooms:', error?.message || error);
+            }
+        }
+
+        if (!groupName) {
+            return res.json({ isOpen: false, groupName: null, members: [], ranking: [] });
+        }
+
+        try {
+            const roomRef = getTroyRoomDoc(firestore, groupName);
+            const roomSnap = await roomRef.get();
+            if (!roomSnap.exists) {
+                return res.json({ isOpen: false, groupName, members: [], ranking: [] });
+            }
+            const roomData = roomSnap.data() || {};
+            const isOpen = !!roomData.isOpen;
+            if (!isOpen) {
+                return res.json({ isOpen: false, groupName, members: [], ranking: [] });
+            }
+
+            const membersSnap = await roomRef.collection('members').get();
+            const members = membersSnap.docs.map((doc) => {
+                const data = doc.data() || {};
+                return {
+                    playFabId: String(data.playFabId || doc.id || '').trim(),
+                    displayName: String(data.displayName || '').trim() || String(doc.id || '').trim()
+                };
+            }).filter((entry) => entry.playFabId);
+
+            const fetchBounty = async (member) => {
+                try {
+                    const stats = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
+                        PlayFabId: member.playFabId,
+                        StatisticNames: ['bounty_ranking']
+                    });
+                    const value = stats?.Statistics?.find((s) => s.StatisticName === 'bounty_ranking')?.Value;
+                    return { ...member, bounty: Number(value) || 0 };
+                } catch (error) {
+                    return { ...member, bounty: 0 };
+                }
+            };
+
+            const ranking = [];
+            const queue = members.slice();
+            const concurrency = 6;
+            const workers = Array.from({ length: concurrency }).map(async () => {
+                while (queue.length) {
+                    const member = queue.shift();
+                    if (!member) break;
+                    const row = await fetchBounty(member);
+                    ranking.push(row);
+                }
+            });
+            await Promise.all(workers);
+
+            ranking.sort((a, b) => {
+                if (b.bounty !== a.bounty) return b.bounty - a.bounty;
+                return a.displayName.localeCompare(b.displayName, 'ja');
+            });
+
+            res.json({
+                isOpen: true,
+                groupName,
+                members,
+                ranking
+            });
+        } catch (error) {
+            console.error('[troy-bounty-ranking] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to load ranking' });
+        }
+    });
+
     // 付与倍率設定
     app.post('/api/king-set-grant-multiplier', async (req, res) => {
         const { playFabId, grantMultiplier } = req.body || {};

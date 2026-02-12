@@ -1,9 +1,12 @@
 (() => {
   const effectsLayer = document.getElementById('effects');
+  const rankingList = document.getElementById('rankingList');
+  const rankingSub = document.getElementById('rankingSub');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
   let lastEventAt = Date.now();
   let reconnectTimer = null;
   let stream = null;
+  let rankingTimer = null;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -83,5 +86,68 @@
     });
   };
 
+  const formatNumber = (value) => {
+    const num = Math.max(0, Math.floor(Number(value) || 0));
+    return num.toLocaleString('ja-JP');
+  };
+
+  const renderRanking = (data) => {
+    if (!rankingList) return;
+    rankingList.innerHTML = '';
+
+    const isOpen = !!data?.isOpen;
+    const members = Array.isArray(data?.members) ? data.members : [];
+    const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
+    if (rankingSub) {
+      const label = isOpen ? 'OPEN' : 'CLOSE';
+      rankingSub.textContent = `状態: ${label} / 入店者: ${members.length}人`;
+    }
+
+    if (!isOpen || ranking.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'ranking-empty';
+      empty.textContent = isOpen ? '入店者がいません' : 'TROYは閉店中';
+      rankingList.appendChild(empty);
+      return;
+    }
+
+    ranking.slice(0, 10).forEach((row, index) => {
+      const line = document.createElement('div');
+      line.className = 'ranking-row';
+
+      const rank = document.createElement('div');
+      rank.className = 'ranking-rank';
+      rank.textContent = `${index + 1}`;
+
+      const name = document.createElement('div');
+      name.className = 'ranking-name';
+      name.textContent = row.displayName || row.playFabId || 'Unknown';
+
+      const bounty = document.createElement('div');
+      bounty.className = 'ranking-bounty';
+      bounty.textContent = `${formatNumber(row.bounty)} BT`;
+
+      line.appendChild(rank);
+      line.appendChild(name);
+      line.appendChild(bounty);
+      rankingList.appendChild(line);
+    });
+  };
+
+  const fetchRanking = async () => {
+    try {
+      const query = window.location.search || '';
+      const res = await fetch(`/api/troy-bounty-ranking${query}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      renderRanking(data);
+    } catch (error) {
+      renderRanking({ isOpen: false, members: [], ranking: [] });
+    }
+  };
+
   connectStream();
+  fetchRanking();
+  if (rankingTimer) clearInterval(rankingTimer);
+  rankingTimer = setInterval(fetchRanking, 10000);
 })();

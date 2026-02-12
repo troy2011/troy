@@ -39,6 +39,72 @@ body {
   pointer-events: none;
 }
 
+#rankingPanel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: min(320px, 42vw);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(5, 10, 16, 0.62);
+  border: 1px solid rgba(180, 220, 255, 0.22);
+  color: #e9f6ff;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+#rankingTitle {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+#rankingSub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(233, 246, 255, 0.7);
+}
+
+#rankingList {
+  margin: 12px 0 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.ranking-rank {
+  font-weight: 700;
+  color: rgba(233, 246, 255, 0.75);
+  text-align: center;
+}
+
+.ranking-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ranking-bounty {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #b8f7ff;
+}
+
+.ranking-empty {
+  font-size: 12px;
+  color: rgba(233, 246, 255, 0.6);
+}
+
 .effect {
   position: absolute;
   width: 120px;
