@@ -1572,6 +1572,12 @@ body.modal-lock .modal-overlay {
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
 }
+.ship-action-button.ship-action-button-sub {
+    background: rgba(15, 23, 42, 0.85);
+    border-color: rgba(56, 189, 248, 0.35);
+    font-size: 11px;
+    padding: 8px 12px;
+}
 .ship-action-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;

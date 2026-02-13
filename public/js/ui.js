@@ -617,6 +617,37 @@ function showWorldMapModal(playerInfo) {
             });
         }
         if (matched) return;
+        if (mapId) {
+            const emptyCellIdMatch = mapId.match(/^empty_cell_(\d{1,2})$/);
+            if (emptyCellIdMatch) {
+                const targetIndex = Number(emptyCellIdMatch[1]);
+                cells.forEach((cell) => {
+                    if (matched) return;
+                    const idx = Number(cell.dataset.index);
+                    if (Number.isInteger(idx) && idx === targetIndex) {
+                        cell.classList.add('is-current');
+                        matched = true;
+                        matchedCell = cell;
+                    }
+                });
+            }
+        }
+        if (matched) return;
+        if (mapLabel) {
+            const seaLabelMatch = mapLabel.match(/^未開拓海域\s+([A-Z])$/);
+            if (seaLabelMatch) {
+                const targetLetter = seaLabelMatch[1].toUpperCase();
+                cells.forEach((cell) => {
+                    if (matched) return;
+                    if (String(cell.dataset.letter || '').toUpperCase() === targetLetter) {
+                        cell.classList.add('is-current');
+                        matched = true;
+                        matchedCell = cell;
+                    }
+                });
+            }
+        }
+        if (matched) return;
         if (mapLabel) {
             const majorMatch = mapId.match(/major_(\d{2})/);
             const majorNumber = majorMatch ? Number(majorMatch[1]) : null;

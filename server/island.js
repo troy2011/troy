@@ -32,6 +32,19 @@ const RESOURCE_BIOME_JP = {
     '聖地': 'sacred'
 };
 const RESOURCE_BIOMES = new Set(['volcanic', 'rocky', 'mushroom', 'lake', 'forest', 'sacred']);
+const WORLD_GRID_SIZE = 32;
+const MAP_TILE_LIMIT = 100;
+const CREATE_ISLAND_COST_BY_SIZE = {
+    small: 500,
+    large: 2500,
+    giant: 5000
+};
+const ISLAND_SIZE_DIMENSIONS = {
+    small: { w: 3, h: 3 },
+    medium: { w: 4, h: 3 },
+    large: { w: 4, h: 4 },
+    giant: { w: 5, h: 5 }
+};
 const RESOURCE_RATIO_BY_NATION = {
     fire: { RR: 0.6, RG: 0.3, RT: 0.1 },
     earth: { RG: 0.6, RR: 0.3, RT: 0.1 },
@@ -159,6 +172,54 @@ function canBuildToOccupy({ island, playerNation, mapOccupationNation }) {
     const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
     const hasBuilding = buildings.some(b => b && b.status !== 'demolished');
     return !hasBuilding;
+}
+
+function rectsOverlap(a, b) {
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
+}
+
+function getObjectRect(data) {
+    if (!data || !data.coordinate) return null;
+    const x = Math.floor(Number(data.coordinate.x));
+    const y = Math.floor(Number(data.coordinate.y));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    if (String(data.type || '').toLowerCase() === 'obstacle') {
+        const w = Math.max(1, Math.floor(Number(data.width) || 1));
+        const h = Math.max(1, Math.floor(Number(data.height) || 1));
+        return { x, y, w, h };
+    }
+
+    const sizeKey = String(data.size || 'small').toLowerCase();
+    const dim = ISLAND_SIZE_DIMENSIONS[sizeKey] || ISLAND_SIZE_DIMENSIONS.small;
+    return { x, y, w: dim.w, h: dim.h };
+}
+
+function resolveCreateIslandPlacement({ worldX, worldY, sizeKey = 'small' }) {
+    const dim = ISLAND_SIZE_DIMENSIONS[sizeKey] || ISLAND_SIZE_DIMENSIONS.small;
+    const tileX = Math.floor(Number(worldX) / WORLD_GRID_SIZE);
+    const tileY = Math.floor(Number(worldY) / WORLD_GRID_SIZE);
+    if (!Number.isFinite(tileX) || !Number.isFinite(tileY)) return null;
+
+    const centerOffsetX = Math.floor(dim.w / 2);
+    const centerOffsetY = Math.floor(dim.h / 2);
+    const x = Math.max(0, Math.min(MAP_TILE_LIMIT - dim.w, tileX - centerOffsetX));
+    const y = Math.max(0, Math.min(MAP_TILE_LIMIT - dim.h, tileY - centerOffsetY));
+    return { x, y, w: dim.w, h: dim.h };
+}
+
+function normalizeCreateIslandSize(size) {
+    const key = String(size || '').trim().toLowerCase();
+    if (!key) return 'small';
+    if (key === 'small' || key === 's' || key === '小') return 'small';
+    if (key === 'large' || key === 'l' || key === '中') return 'large';
+    if (key === 'giant' || key === 'g' || key === '大') return 'giant';
+    return null;
 }
 
 function parseOwnedMapIds(raw) {
@@ -493,6 +554,127 @@ function initializeIslandRoutes(app, deps) {
             if (msg === 'BuildToOccupyNotAllowed') return res.status(403).json({ error: 'BuildToOccupyNotAllowed' });
             console.error('[ClaimIsland] Error:', error);
             res.status(500).json({ error: 'Failed to claim island', details: msg });
+        }
+    });
+
+    // 新規島作成（現在地付近）
+    app.post('/api/create-island', async (req, res) => {
+        const { playFabId, mapId, worldX, worldY, name, size } = req.body || {};
+        if (!playFabId || !mapId) {
+            return res.status(400).json({ error: 'playFabId and mapId are required' });
+        }
+        const sizeKey = normalizeCreateIslandSize(size);
+        if (!sizeKey) {
+            return res.status(400).json({ error: 'InvalidSize' });
+        }
+        const placement = resolveCreateIslandPlacement({ worldX, worldY, sizeKey });
+        if (!placement) {
+            return res.status(400).json({ error: 'InvalidPosition' });
+        }
+        const costPs = Number(CREATE_ISLAND_COST_BY_SIZE[sizeKey] || 0);
+        if (costPs <= 0) {
+            return res.status(400).json({ error: 'InvalidCreateCost' });
+        }
+
+        const rawName = String(name || '').replace(/\s+/g, ' ').trim();
+        const MAX_NAME_LENGTH = 24;
+        const islandName = rawName
+            ? rawName.slice(0, MAX_NAME_LENGTH)
+            : `新規島 ${new Date().toLocaleTimeString('ja-JP', { hour12: false })}`;
+
+        try {
+            const nationRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['Nation']
+            });
+            const playerNation = normalizeNationKey(nationRo?.Data?.Nation?.Value || null);
+            const mapOccupationNationRaw = (mapId && typeof getMapOccupationNation === 'function')
+                ? await getMapOccupationNation(mapId)
+                : null;
+            const mapOccupationNation = normalizeNationKey(mapOccupationNationRaw);
+            const mapNationById = normalizeNationKey(mapId);
+            const effectiveMapNation = mapOccupationNation || mapNationById || null;
+
+            // 島作成は自国の領海のみ許可
+            if (!playerNation || !effectiveMapNation || effectiveMapNation !== playerNation) {
+                return res.status(403).json({ error: 'MapNotOwnedByPlayerNation' });
+            }
+
+            const collectionRef = getWorldMapCollection(firestore, mapId);
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const items = await getAllInventoryItems(entityKey);
+            const balances = getVirtualCurrencyMap(items);
+            const balancePs = Number(balances[VIRTUAL_CURRENCY_CODE] || 0);
+            if (balancePs < costPs) {
+                return res.status(400).json({
+                    error: 'InsufficientFunds',
+                    details: { currency: VIRTUAL_CURRENCY_CODE, required: costPs, balance: balancePs }
+                });
+            }
+
+            let deducted = false;
+            let createResult = null;
+            try {
+                await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, costPs);
+                deducted = true;
+
+                createResult = await firestore.runTransaction(async (tx) => {
+                    const snapshot = await tx.get(collectionRef);
+                    const existing = snapshot.docs.map((doc) => doc.data() || {});
+                    for (const entry of existing) {
+                        const rect = getObjectRect(entry);
+                        if (!rect) continue;
+                        if (rectsOverlap(placement, rect)) {
+                            throw new Error('IslandPositionOccupied');
+                        }
+                    }
+
+                    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+                    const islandId = `${mapId}_player_${Date.now().toString(36)}_${uniqueSuffix}`;
+                    const islandRef = collectionRef.doc(islandId);
+                    const slotLayout = sizeKey === 'giant' ? '3x3' : (sizeKey === 'large' ? '2x2' : '1x1');
+                    const islandData = {
+                        id: islandId,
+                        name: islandName,
+                        coordinate: { x: placement.x, y: placement.y },
+                        size: sizeKey,
+                        islandLevel: 1,
+                        ownerId: playFabId,
+                        ownerNation: playerNation || null,
+                        nation: playerNation || effectiveMapNation || null,
+                        biome: null,
+                        biomeFrame: null,
+                        occupationStatus: null,
+                        buildingSlots: { layout: slotLayout },
+                        buildings: [],
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    tx.set(islandRef, islandData);
+                    return { islandId, islandData };
+                });
+            } catch (error) {
+                if (deducted) {
+                    await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, costPs);
+                }
+                throw error;
+            }
+
+            await addOwnedMapId(playFabId, mapId, { promisifyPlayFab, PlayFabServer });
+
+            res.json({
+                success: true,
+                mapId,
+                costPs,
+                island: createResult.islandData
+            });
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandPositionOccupied') {
+                return res.status(409).json({ error: 'IslandPositionOccupied' });
+            }
+            console.error('[create-island] Error:', error);
+            res.status(500).json({ error: 'Failed to create island', details: msg });
         }
     });
 

@@ -78,6 +78,7 @@ const ISLAND_LAYOUTS = {
 const BUILDING_META_DEFAULT = { nationTileOffset: false, clearGroundTiles: false };
 const AREA_GRID_SIZE = 5;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
+const EMPTY_MAP_ID = 'empty';
 
 const NATION_BOUNDS = {
     earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
@@ -231,6 +232,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+        this.createIslandButton = null;
 
         this.attackPrepVisionRange = null;
         this.attackPrepUntil = 0;
@@ -242,6 +244,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.canMove = true;
         this.moveCooldown = GAME_CONFIG.SHIP_MOVE_COOLDOWN;
         this.baseMoveCooldown = GAME_CONFIG.SHIP_MOVE_COOLDOWN;
+        this.cameraFollowLerp = 1;
+        this.currentCameraFollowTarget = null;
         this.shipMoving = false;
         this.shipTargetX = 0;
         this.shipTargetY = 0;
@@ -713,6 +717,24 @@ export default class WorldMapScene extends Phaser.Scene {
                 };
                 const highlightCell = (cell, majorNumber, mapLabelText, matchedRef, mapIdText) => {
                     const labelKey = String(cell.dataset.mapLabel || '').trim();
+                    const cellIndex = Number(cell.dataset.index);
+                    const cellLetter = String(cell.dataset.letter || '').toUpperCase();
+                    const emptyCellIdMatch = String(mapIdText || '').match(/^empty_cell_(\d{1,2})$/);
+                    if (!matchedRef.matched && emptyCellIdMatch && Number.isInteger(cellIndex) && Number(emptyCellIdMatch[1]) === cellIndex) {
+                        cell.classList.add('is-current');
+                        matchedRef.matched = true;
+                        matchedRef.cell = cell;
+                        return;
+                    }
+                    if (!matchedRef.matched && mapLabelText) {
+                        const seaLabelMatch = String(mapLabelText).match(/^未開拓海域\s+([A-Z])$/);
+                        if (seaLabelMatch && cellLetter === seaLabelMatch[1].toUpperCase()) {
+                            cell.classList.add('is-current');
+                            matchedRef.matched = true;
+                            matchedRef.cell = cell;
+                            return;
+                        }
+                    }
                     if (!labelKey) return;
                     if (!matchedRef.matched && mapIdText && cell.dataset.mapId === mapIdText) {
                         cell.classList.add('is-current');
@@ -1021,7 +1043,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         
         this.cameras.main.setBounds(0, 0, this.mapPixelSize, this.mapPixelSize);
-        this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+        this.setCameraFollowTarget(this.playerShip);
         this.updateZoomFromVisionRange();
 
         this.fogGraphics = this.add.graphics();
@@ -1059,6 +1081,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.createBoardingButton();
         this.setupShipActionUi();
+        this.setupCreateIslandUi();
         this.setupRideLeaveUi();
 
         this.scale.on('resize', () => {
@@ -2319,6 +2342,133 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionStatus = status;
         button.addEventListener('click', () => this.triggerShipAction());
         this.updateShipActionUi(true);
+    }
+
+    setupCreateIslandUi() {
+        if (typeof document === 'undefined') return;
+        const button = document.getElementById('createIslandButton');
+        if (!button) return;
+        this.createIslandButton = button;
+        button.addEventListener('click', () => {
+            void this.requestCreateIslandAtCurrentPosition();
+        });
+        this.updateCreateIslandUi();
+    }
+
+    updateCreateIslandUi() {
+        if (!this.createIslandButton) return;
+        const repairing = !!this.shipRepairUntil && Date.now() < this.shipRepairUntil;
+        const canCreateArea = (() => {
+            const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
+            if (!playerNation) return false;
+            const occupiedNation = String(this.mapOccupationNation || '').toLowerCase();
+            const mapNationById = (() => {
+                const mapKey = String(this.mapId || '').toLowerCase();
+                if (mapKey === 'wands') return 'fire';
+                if (mapKey === 'pentacles') return 'earth';
+                if (mapKey === 'swords') return 'wind';
+                if (mapKey === 'cups') return 'water';
+                return '';
+            })();
+            const effectiveNation = occupiedNation || mapNationById;
+            return !!effectiveNation && effectiveNation === playerNation;
+        })();
+        const canCreate = !!this.playerInfo?.playFabId && !!this.mapId && canCreateArea && !this.shipMoving && !this.ridingShipId && !repairing;
+        this.createIslandButton.disabled = !canCreate;
+    }
+
+    async requestCreateIslandAtCurrentPosition() {
+        if (!this.playerShip || !this.playerInfo?.playFabId || !this.mapId) return;
+        if (this.shipMoving) {
+            this.showMessage('移動中は島を作成できません。');
+            return;
+        }
+        if (this.ridingShipId) {
+            this.showMessage('同乗中は島を作成できません。');
+            return;
+        }
+        const sizeCostMap = { small: 500, large: 2500, giant: 5000 };
+        const sizeLabelMap = { small: '小', large: '中', giant: '大' };
+        let selectedSize = 'small';
+        if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
+            const input = window.prompt(
+                '島サイズを選択してください（small / large / giant）\nsmall=500Ps, large=2500Ps, giant=5000Ps',
+                'small'
+            );
+            if (input == null) return;
+            const normalized = String(input).trim().toLowerCase();
+            if (normalized === 'small' || normalized === 's' || normalized === '小') {
+                selectedSize = 'small';
+            } else if (normalized === 'large' || normalized === 'l' || normalized === '中') {
+                selectedSize = 'large';
+            } else if (normalized === 'giant' || normalized === 'g' || normalized === '大') {
+                selectedSize = 'giant';
+            } else {
+                this.showMessage('サイズ指定が不正です。small / large / giant を入力してください。');
+                return;
+            }
+        }
+        const costPs = Number(sizeCostMap[selectedSize] || 0);
+        const doCreate = typeof window === 'undefined' || typeof window.confirm !== 'function'
+            ? true
+            : window.confirm(`${sizeLabelMap[selectedSize] || selectedSize}サイズ島を作成しますか？\n必要Ps: ${costPs.toLocaleString('ja-JP')}Ps`);
+        if (!doCreate) return;
+
+        try {
+            const endpoint = window.buildApiUrl ? window.buildApiUrl('/api/create-island') : '/api/create-island';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playFabId: this.playerInfo.playFabId,
+                    mapId: this.mapId,
+                    worldX: this.playerShip.x,
+                    worldY: this.playerShip.y,
+                    size: selectedSize
+                })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const code = String(data?.error || '');
+                if (code === 'IslandPositionOccupied') {
+                    this.showMessage('その位置には島を作成できません。少し移動してください。');
+                    return;
+                }
+                if (code === 'MapNotOwnedByPlayerNation') {
+                    this.showMessage('自国が支配していない海域では島を作成できません。');
+                    return;
+                }
+                if (code === 'InsufficientFunds') {
+                    const required = Number(data?.details?.required || costPs || 0);
+                    const balance = Number(data?.details?.balance || 0);
+                    this.showMessage(`Ps不足: 必要${required.toLocaleString('ja-JP')} / 所持${balance.toLocaleString('ja-JP')}`);
+                    return;
+                }
+                this.showMessage(data?.error || '島の作成に失敗しました。');
+                return;
+            }
+
+            const island = data?.island;
+            const coord = island?.coordinate || {};
+            if (!island?.id || !Number.isFinite(Number(coord.x)) || !Number.isFinite(Number(coord.y))) {
+                this.showMessage('島作成の応答が不正です。');
+                return;
+            }
+
+            if (!this.islandObjects.has(island.id)) {
+                this.createIsland({
+                    ...island,
+                    x: Number(coord.x) * this.gridSize,
+                    y: Number(coord.y) * this.gridSize,
+                    mapId: this.mapId
+                });
+            }
+            const paidPs = Number(data?.costPs || costPs || 0);
+            this.showMessage(`${island.name || '新規島'}を作成しました。（-${paidPs.toLocaleString('ja-JP')}Ps）`);
+        } catch (error) {
+            console.error('[create-island] Failed:', error);
+            this.showMessage('島の作成に失敗しました。');
+        }
     }
 
     setPlayerShipAssetData(assetData) {
@@ -3658,13 +3808,20 @@ export default class WorldMapScene extends Phaser.Scene {
             const targetShip = this.otherShips.get(this.ridingOwnerId);
             const targetSprite = targetShip?.sprite;
             if (targetSprite) {
-                this.cameras.main.startFollow(targetSprite, true, 0.1, 0.1);
+                this.setCameraFollowTarget(targetSprite);
                 return;
             }
         }
         if (this.playerShip) {
-            this.cameras.main.startFollow(this.playerShip, true, 0.1, 0.1);
+            this.setCameraFollowTarget(this.playerShip);
         }
+    }
+
+    setCameraFollowTarget(targetSprite) {
+        if (!this.cameras?.main || !targetSprite) return;
+        if (this.currentCameraFollowTarget === targetSprite) return;
+        this.currentCameraFollowTarget = targetSprite;
+        this.cameras.main.startFollow(targetSprite, true, this.cameraFollowLerp, this.cameraFollowLerp);
     }
 
     syncRidePosition() {
@@ -4979,6 +5136,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipActionMines();
         this.updateShipActionEffects();
         this.updateShipActionUi();
+        this.updateCreateIslandUi();
         this.updateGhostShip(this.game?.loop?.delta || 0);
     }
 
@@ -5033,7 +5191,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (options.length === 0) {
             this.mapTransitionRequireLeave = true;
             this.mapTransitionCooldownUntil = Date.now() + 2000;
-            this.showMessage('隣の海域にカードが設置されていないため移動できません。');
+            this.showMessage('この方向には海域がありません。');
             return;
         }
         this.mapTransitionPromptOpen = true;
@@ -5077,7 +5235,28 @@ export default class WorldMapScene extends Phaser.Scene {
         if (cells.length < 25) return null;
         const mapId = String(this.mapId || '').trim();
         const mapLabel = String(window.__currentMapLabel || '').trim();
-        let index = cells.findIndex(cell => String(cell.dataset.mapId || '') === mapId);
+        let index = -1;
+
+        const emptyCellIdMatch = mapId.match(/^empty_cell_(\d{1,2})$/);
+        if (emptyCellIdMatch) {
+            const parsedIndex = Number(emptyCellIdMatch[1]);
+            if (Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < cells.length) {
+                index = parsedIndex;
+            }
+        }
+
+        if (index < 0) {
+            index = cells.findIndex(cell => String(cell.dataset.mapId || '') === mapId);
+        }
+
+        if (index < 0 && mapLabel) {
+            const seaLabelMatch = mapLabel.match(/^未開拓海域\s+([A-Z])$/);
+            if (seaLabelMatch) {
+                const letter = seaLabelMatch[1].toUpperCase();
+                index = cells.findIndex(cell => String(cell.dataset.letter || '').toUpperCase() === letter);
+            }
+        }
+
         if (index < 0 && mapLabel) {
             index = cells.findIndex(cell => String(cell.dataset.mapLabel || '') === mapLabel);
         }
@@ -5090,8 +5269,19 @@ export default class WorldMapScene extends Phaser.Scene {
         const nextIndex = nextRow * 5 + nextCol;
         const nextCell = cells[nextIndex];
         if (!nextCell) return null;
-        const nextMapId = nextCell.dataset.mapId;
-        if (!nextMapId || nextMapId === 'empty') return null;
+
+        const nextMapId = String(nextCell.dataset.mapId || '').trim();
+        if (!nextMapId) return null;
+
+        if (nextMapId === EMPTY_MAP_ID) {
+            const letter = String(nextCell.dataset.letter || '').trim().toUpperCase();
+            const seaLabel = letter ? `未開拓海域 ${letter}` : `未開拓海域 ${nextIndex + 1}`;
+            return {
+                mapId: `empty_cell_${nextIndex}`,
+                mapLabel: seaLabel
+            };
+        }
+
         return {
             mapId: nextMapId,
             mapLabel: nextCell.dataset.mapLabel || nextCell.textContent || nextMapId
