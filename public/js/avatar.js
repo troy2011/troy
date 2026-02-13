@@ -27,6 +27,33 @@ function loadSpriteImage(url) {
     return promise;
 }
 
+function normalizeAvatarColor(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const aliasMap = {
+        fire: 'red',
+        water: 'blue',
+        wind: 'green',
+        earth: 'yellow'
+    };
+    return aliasMap[raw] || raw;
+}
+
+export function resolveSpritePathByAvatarColor(spritePath, itemCategory = null, avatarColor = null) {
+    if (!spritePath || typeof spritePath !== 'string') return spritePath;
+    if (String(itemCategory || '').toLowerCase() !== 'armor') return spritePath;
+    if (!/_black\.[a-z0-9]+$/i.test(spritePath)) return spritePath;
+    const normalizedColor = normalizeAvatarColor(avatarColor || window.myAvatarBaseInfo?.AvatarColor);
+    if (!normalizedColor || normalizedColor === 'black') return spritePath;
+    return spritePath.replace(/_black(\.[a-z0-9]+)$/i, `_${normalizedColor}$1`);
+}
+
+function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = null) {
+    const resolved = resolveSpritePathByAvatarColor(spritePath, itemCategory, avatarColor);
+    if (!resolved || resolved === spritePath) return [spritePath];
+    return [resolved, spritePath];
+}
+
 /**
  * アバターの各パーツ（レイヤー）のスタイルを設定して描画する
  * @param {string} layerId - 操作対象のDOM要素ID
@@ -36,7 +63,7 @@ function loadSpriteImage(url) {
  * @param {number} spriteHeight - 1フレームの高さ
  * @param {string} itemCategory - アイテムのカテゴリ（武器、盾など）
  */
-function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, itemCategory = null, onReady = null) {
+function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, itemCategory = null, onReady = null, avatarColor = null) {
     const layer = document.getElementById(layerId);
     if (!layer) {
         if (typeof onReady === 'function') onReady();
@@ -56,75 +83,84 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
         if (typeof onReady === 'function') onReady();
         return;
     }
+    const pathCandidates = getSpritePathCandidates(imageUrl, itemCategory, avatarColor);
+    const tryApplyImage = (candidateIndex) => {
+        const currentUrl = pathCandidates[candidateIndex];
+        loadSpriteImage(currentUrl).then((img) => {
+            if (!img) {
+                if (candidateIndex + 1 < pathCandidates.length) {
+                    tryApplyImage(candidateIndex + 1);
+                    return;
+                }
+                layer.style.backgroundImage = 'none';
+                layer.dataset.loadState = 'error';
+                if (typeof onReady === 'function') onReady();
+                return;
+            }
+            layer.style.backgroundImage = `url('${currentUrl}')`;
+            const scale = 2; // アバターの表示倍率
+            layer.style.width = `${spriteWidth * scale}px`;
+            layer.style.height = `${spriteHeight * scale}px`;
 
-    loadSpriteImage(imageUrl).then((img) => {
-        if (!img) {
-            layer.style.backgroundImage = 'none';
-            layer.dataset.loadState = 'error';
+            // 縦長の画像の場合、上にはみ出すように調整
+            layer.style.top = (spriteHeight > 32) ? `-${(spriteHeight - 32) * scale}px` : '0px';
+
+            // パーツごとの位置オフセットを適用
+            let transformValue = '';
+            if (layerId.includes('layer-armor')) {
+                transformValue += ` translateY(${AVATAR_PART_OFFSETS.armor.y}px)`;
+            } else if (layerId.includes('hand-right')) {
+                transformValue += ` translateX(${AVATAR_PART_OFFSETS.handRight.x}px) translateY(${AVATAR_PART_OFFSETS.handRight.y}px)`;
+            } else if (layerId.includes('hand-left')) {
+                // 両手持ち武器を装備しているかどうかの判定は renderAvatar で行うため、ここでは単純なオフセットを適用
+                transformValue += ` translateX(${AVATAR_PART_OFFSETS.handLeft.x}px) translateY(${AVATAR_PART_OFFSETS.handLeft.y}px)`;
+            } else if (layerId.includes('weapon-right')) {
+                let offsetX = AVATAR_PART_OFFSETS.rightHandItem.x;
+                let offsetY = AVATAR_PART_OFFSETS.rightHandItem.y;
+                if (itemCategory === 'Shield') {
+                    offsetX += AVATAR_PART_OFFSETS.shield.x;
+                    offsetY += AVATAR_PART_OFFSETS.shield.y;
+                }
+                if (itemCategory === 'Weapon' && spriteHeight > 32) {
+                    offsetY += AVATAR_PART_OFFSETS.tallWeapon.y;
+                }
+                transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
+            } else if (layerId.includes('shield-left')) {
+                let offsetX = AVATAR_PART_OFFSETS.leftHandItem.x;
+                let offsetY = AVATAR_PART_OFFSETS.leftHandItem.y;
+                if (itemCategory === 'Shield') {
+                    offsetX += AVATAR_PART_OFFSETS.shield.x;
+                    offsetY += AVATAR_PART_OFFSETS.shield.y;
+                }
+                transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
+            }
+
+            const baseTransform = transformValue.trim() || 'none';
+            layer.style.transform = baseTransform;
+            layer.dataset.baseTransform = baseTransform;
+
+            // スプライトシートの表示位置を計算
+            const imgWidth = img.naturalWidth || img.width;
+            const imgHeight = img.naturalHeight || img.height;
+            const sheetColumns = Math.max(1, Math.floor(imgWidth / spriteWidth));
+            layer.style.backgroundSize = `${imgWidth * scale}px ${imgHeight * scale}px`;
+            const col = spriteIndex % sheetColumns;
+            const row = Math.floor(spriteIndex / sheetColumns);
+            const posX = -(col * spriteWidth * scale);
+            const posY = -(row * spriteHeight * scale);
+            layer.style.backgroundPosition = `${posX}px ${posY}px`;
+
+            layer.dataset.spriteWidth = String(spriteWidth);
+            layer.dataset.spriteHeight = String(spriteHeight);
+            layer.dataset.sheetColumns = String(sheetColumns);
+            layer.dataset.scale = String(scale);
+            layer.dataset.spriteIndex = String(spriteIndex);
+            layer.dataset.loadState = 'ready';
             if (typeof onReady === 'function') onReady();
-            return;
-        }
-        layer.style.backgroundImage = `url('${imageUrl}')`;
-        const scale = 2; // アバターの表示倍率
-        layer.style.width = `${spriteWidth * scale}px`;
-        layer.style.height = `${spriteHeight * scale}px`;
+        });
+    };
 
-        // 縦長の画像の場合、上にはみ出すように調整
-        layer.style.top = (spriteHeight > 32) ? `-${(spriteHeight - 32) * scale}px` : '0px';
-
-        // パーツごとの位置オフセットを適用
-        let transformValue = '';
-        if (layerId.includes('layer-armor')) {
-            transformValue += ` translateY(${AVATAR_PART_OFFSETS.armor.y}px)`;
-        } else if (layerId.includes('hand-right')) {
-            transformValue += ` translateX(${AVATAR_PART_OFFSETS.handRight.x}px) translateY(${AVATAR_PART_OFFSETS.handRight.y}px)`;
-        } else if (layerId.includes('hand-left')) {
-            // 両手持ち武器を装備しているかどうかの判定は renderAvatar で行うため、ここでは単純なオフセットを適用
-            transformValue += ` translateX(${AVATAR_PART_OFFSETS.handLeft.x}px) translateY(${AVATAR_PART_OFFSETS.handLeft.y}px)`;
-        } else if (layerId.includes('weapon-right')) {
-            let offsetX = AVATAR_PART_OFFSETS.rightHandItem.x;
-            let offsetY = AVATAR_PART_OFFSETS.rightHandItem.y;
-            if (itemCategory === 'Shield') {
-                offsetX += AVATAR_PART_OFFSETS.shield.x;
-                offsetY += AVATAR_PART_OFFSETS.shield.y;
-            }
-            if (itemCategory === 'Weapon' && spriteHeight > 32) {
-                offsetY += AVATAR_PART_OFFSETS.tallWeapon.y;
-            }
-            transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
-        } else if (layerId.includes('shield-left')) {
-            let offsetX = AVATAR_PART_OFFSETS.leftHandItem.x;
-            let offsetY = AVATAR_PART_OFFSETS.leftHandItem.y;
-            if (itemCategory === 'Shield') {
-                offsetX += AVATAR_PART_OFFSETS.shield.x;
-                offsetY += AVATAR_PART_OFFSETS.shield.y;
-            }
-            transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
-        }
-
-        const baseTransform = transformValue.trim() || 'none';
-        layer.style.transform = baseTransform;
-        layer.dataset.baseTransform = baseTransform;
-
-        // スプライトシートの表示位置を計算
-        const imgWidth = img.naturalWidth || img.width;
-        const imgHeight = img.naturalHeight || img.height;
-        const sheetColumns = Math.max(1, Math.floor(imgWidth / spriteWidth));
-        layer.style.backgroundSize = `${imgWidth * scale}px ${imgHeight * scale}px`;
-        const col = spriteIndex % sheetColumns;
-        const row = Math.floor(spriteIndex / sheetColumns);
-        const posX = -(col * spriteWidth * scale);
-        const posY = -(row * spriteHeight * scale);
-        layer.style.backgroundPosition = `${posX}px ${posY}px`;
-
-        layer.dataset.spriteWidth = String(spriteWidth);
-        layer.dataset.spriteHeight = String(spriteHeight);
-        layer.dataset.sheetColumns = String(sheetColumns);
-        layer.dataset.scale = String(scale);
-        layer.dataset.spriteIndex = String(spriteIndex);
-        layer.dataset.loadState = 'ready';
-        if (typeof onReady === 'function') onReady();
-    });
+    tryApplyImage(0);
 }
 
 export function preloadAvatarBaseSprites(avatarBase) {
@@ -145,7 +181,7 @@ export function preloadAvatarBaseSprites(avatarBase) {
     loadSpriteImage(handUrl);
 }
 
-export function preloadEquipmentSprites(equipment, itemSource) {
+export function preloadEquipmentSprites(equipment, itemSource, avatarColor = null) {
     if (!equipment) return;
     const getItemDetails = (id) => {
         if (!id) return null;
@@ -166,7 +202,10 @@ export function preloadEquipmentSprites(equipment, itemSource) {
     ].filter(Boolean);
     items.forEach((item) => {
         const path = item?.customData?.sprite_path;
-        if (path) loadSpriteImage(path);
+        const category = item?.customData?.Category || null;
+        const resolvedPath = resolveSpritePathByAvatarColor(path, category, avatarColor);
+        if (resolvedPath) loadSpriteImage(resolvedPath);
+        if (path && resolvedPath && path !== resolvedPath) loadSpriteImage(path);
     });
 }
 
@@ -256,10 +295,11 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             }
         }
     };
-    const drawLayer = (layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory) => {
+    const drawLayer = (layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, layerAvatarColor = null) => {
         pendingLayers += 1;
-        setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady);
+        setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady, layerAvatarColor);
     };
+    const avatarColor = avatarBase?.AvatarColor || window.myAvatarBaseInfo?.AvatarColor || null;
 
     // 1. 素体の描画
     if (avatarBase) {
@@ -301,7 +341,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const drawItem = (layer, item) => {
         if (item?.customData) {
             const cd = item.customData;
-            drawLayer(`${prefix}-layer-${layer}`, cd.sprite_path, parseInt(cd.sprite_index) || 0, parseInt(cd.sprite_w) || 32, parseInt(cd.sprite_h) || 32, cd.Category);
+            drawLayer(`${prefix}-layer-${layer}`, cd.sprite_path, parseInt(cd.sprite_index) || 0, parseInt(cd.sprite_w) || 32, parseInt(cd.sprite_h) || 32, cd.Category, avatarColor);
         } else {
             drawLayer(`${prefix}-layer-${layer}`, null, -1);
         }

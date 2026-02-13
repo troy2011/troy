@@ -7,7 +7,7 @@ import {
     useItem as requestUseItem,
     sellItem as requestSellItem
 } from './playfabClient.js';
-import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites } from './avatar.js';
+import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import { isKing as isKingFlag } from './nationKing.js';
 import { formatCurrencyLabel } from './config.js';
@@ -99,7 +99,7 @@ export async function getInventory(playFabId) {
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
-        preloadEquipmentSprites(myCurrentEquipment, myInventory);
+        preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
     await getEquipment(playFabId);
     renderInventoryGrid(getActiveInventoryCategory());
@@ -125,7 +125,7 @@ export async function refreshResourceSummary(playFabId) {
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
-        preloadEquipmentSprites(myCurrentEquipment, myInventory);
+        preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
         renderResourceSummary();
         updateExperienceUI();
         if (Array.isArray(data.inventory)) {
@@ -223,7 +223,7 @@ export function renderInventoryGrid(category) {
         cell.appendChild(iconDiv);
 
         const cd = item.customData || {};
-        setSpriteIcon(iconDiv, cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32);
+        setSpriteIcon(iconDiv, cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32, 1, cd.Category, window.myAvatarBaseInfo?.AvatarColor);
 
         if (item.count > 1) {
             const countSpan = document.createElement('span');
@@ -242,28 +242,42 @@ export function renderInventoryGrid(category) {
     });
 }
 
-function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, scale = 1) {
+function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, scale = 1, itemCategory = null, avatarColor = null) {
     if (!element || !imageUrl || spriteIndex < 0) {
         if (element) element.style.backgroundImage = 'none';
         return;
     }
 
-    const img = new Image();
-    img.src = imageUrl;
-    img.onload = () => {
-        element.style.backgroundImage = `url('${imageUrl}')`;
-        element.style.width = `${spriteWidth * scale}px`;
-        element.style.height = `${spriteHeight * scale}px`;
-        element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+    const resolvedPath = resolveSpritePathByAvatarColor(imageUrl, itemCategory, avatarColor);
+    const candidates = (resolvedPath && resolvedPath !== imageUrl) ? [resolvedPath, imageUrl] : [imageUrl];
 
-        const sheetColumns = Math.floor(img.width / spriteWidth);
-        const col = spriteIndex % sheetColumns;
-        const row = Math.floor(spriteIndex / sheetColumns);
-        const posX = -(col * spriteWidth * scale);
-        const posY = -(row * spriteHeight * scale);
-        element.style.backgroundPosition = `${posX}px ${posY}px`;
+    const tryLoad = (index) => {
+        if (index >= candidates.length) {
+            element.style.backgroundImage = 'none';
+            return;
+        }
+        const currentPath = candidates[index];
+        const img = new Image();
+        img.onload = () => {
+            element.style.backgroundImage = `url('${currentPath}')`;
+            element.style.width = `${spriteWidth * scale}px`;
+            element.style.height = `${spriteHeight * scale}px`;
+            element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+
+            const sheetColumns = Math.max(1, Math.floor(img.width / spriteWidth));
+            const col = spriteIndex % sheetColumns;
+            const row = Math.floor(spriteIndex / sheetColumns);
+            const posX = -(col * spriteWidth * scale);
+            const posY = -(row * spriteHeight * scale);
+            element.style.backgroundPosition = `${posX}px ${posY}px`;
+        };
+        img.onerror = () => {
+            tryLoad(index + 1);
+        };
+        img.src = currentPath;
     };
-    img.onerror = () => { element.style.backgroundImage = 'none'; };
+
+    tryLoad(0);
 }
 
 function showItemDetailModal(item) {
@@ -271,7 +285,7 @@ function showItemDetailModal(item) {
     const cd = item.customData || {};
     const instanceId = item.instances?.[0];
 
-    setSpriteIcon(document.getElementById('itemDetailIcon'), cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32);
+    setSpriteIcon(document.getElementById('itemDetailIcon'), cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32, 1, cd.Category, window.myAvatarBaseInfo?.AvatarColor);
     document.getElementById('itemDetailName').innerText = item.name;
     document.getElementById('itemDetailCategory').innerText = cd.Category || '不明';
     document.getElementById('itemDetailDescription').innerText = item.description || '説明がありません。';
