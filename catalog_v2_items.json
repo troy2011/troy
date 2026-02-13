@@ -3047,8 +3047,8 @@
         "ja-JP": "むぎわらぼうし"
       },
       "Description": {
-        "NEUTRAL": "日差しを防ぐ涼しげな帽子。",
-        "ja-JP": "日差しを防ぐ涼しげな帽子。"
+        "NEUTRAL": "海賊の帽子といったらこれ。",
+        "ja-JP": "海賊の帽子といったらこれ。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -3099,12 +3099,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "リボン付き麦わら帽子",
-        "ja-JP": "リボン付き麦わら帽子"
+        "NEUTRAL": "まんじゅう笠",
+        "ja-JP": "まんじゅう笠"
       },
       "Description": {
-        "NEUTRAL": "青いリボンが巻かれた、可愛らしい麦わら帽子。",
-        "ja-JP": "青いリボンが巻かれた、可愛らしい麦わら帽子。"
+        "NEUTRAL": "日よけや雨具として仕事用に使用される。",
+        "ja-JP": "日よけや雨具として仕事用に使用される。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -3127,12 +3127,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "農夫の麦わら帽子",
-        "ja-JP": "農夫の麦わら帽子"
+        "NEUTRAL": "編笠",
+        "ja-JP": "編笠"
       },
       "Description": {
-        "NEUTRAL": "使い古された、味のある麦わら帽子。",
-        "ja-JP": "使い古された、味のある麦わら帽子。"
+        "NEUTRAL": "おじいさんが作った笠。",
+        "ja-JP": "おじいさんが作った笠。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -3155,12 +3155,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "海賊の麦わら帽子",
-        "ja-JP": "海賊の麦わら帽子"
+        "NEUTRAL": "虚無僧笠",
+        "ja-JP": "虚無僧笠"
       },
       "Description": {
-        "NEUTRAL": "とある偉大な海賊がかぶっていたという麦わら帽子。",
-        "ja-JP": "とある偉大な海賊がかぶっていたという麦わら帽子。"
+        "NEUTRAL": "尺八の修行や隠密の変装用。",
+        "ja-JP": "尺八の修行や隠密の変装用。"
       },
       "ContentType": "Durable",
       "Tags": [],

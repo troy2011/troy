@@ -531,7 +531,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     _catalogCurrencyMap = catalogCurrencyMap || null;
     _resolveItemId = resolveItemId || null;
     // ★ v120: Firebase Adminのdatabaseインスタンスを取得
-    const db = require('firebase-admin').database();
+    const admin = require('firebase-admin');
+    const db = admin.database();
+    const firestore = admin.firestore();
 
     const {
         VIRTUAL_CURRENCY_CODE,
@@ -551,13 +553,118 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const right = String(b || '');
         return left < right ? `${left}|${right}` : `${right}|${left}`;
     };
+    const BOARDING_BLOCKED_ATTACKER_CLASSES = new Set(['explorer', 'common']);
+    const BOARDING_PROTECTED_TARGET_CLASSES = new Set(['fighter', 'defender', 'merchant']);
+    const SHIP_CLASS_LABELS = {
+        common: '初期ボート',
+        explorer: 'Explorer',
+        fighter: 'Fighter',
+        defender: 'Defender',
+        merchant: 'Merchant',
+        guild: 'ギルドシップ'
+    };
+    const normalizeShipClass = (raw) => {
+        const key = String(raw || '').trim().toLowerCase();
+        if (!key) return '';
+        if (key === 'ship_common_boat' || key.includes('common')) return 'common';
+        if (key.includes('explorer')) return 'explorer';
+        if (key.includes('merchant')) return 'merchant';
+        if (key.includes('defender')) return 'defender';
+        if (key.includes('fighter')) return 'fighter';
+        if (key === 'guild') return 'guild';
+        return key;
+    };
+    const resolveShipClassFromItemId = (itemId) => {
+        const key = String(itemId || '').trim().toLowerCase();
+        if (!key) return '';
+        if (key === 'ship_common_boat' || key.includes('common')) return 'common';
+        if (key.includes('explorer')) return 'explorer';
+        if (key.includes('merchant')) return 'merchant';
+        if (key.includes('defender')) return 'defender';
+        if (key.includes('fighter')) return 'fighter';
+        return '';
+    };
+    const getShipClassLabel = (shipClass) => {
+        const key = normalizeShipClass(shipClass);
+        return SHIP_CLASS_LABELS[key] || '対象船';
+    };
+    const resolvePlayerActiveShipMeta = async (playFabId) => {
+        if (!playFabId) return null;
+        try {
+            const activeResult = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['ActiveShipId']
+            });
+            const activeShipId = String(activeResult?.Data?.ActiveShipId?.Value || '').trim();
+            if (!activeShipId) {
+                return {
+                    shipId: null,
+                    itemId: 'ship_common_boat',
+                    shipClass: 'common'
+                };
+            }
+            const shipResult = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: [`Ship_${activeShipId}`]
+            });
+            const raw = shipResult?.Data?.[`Ship_${activeShipId}`]?.Value;
+            if (!raw) {
+                return {
+                    shipId: activeShipId,
+                    itemId: null,
+                    shipClass: ''
+                };
+            }
+            const asset = JSON.parse(raw);
+            const itemId = String(asset?.ItemId || '').trim();
+            const classFromAsset = normalizeShipClass(asset?.ShipClass || asset?.Class || asset?.shipClass || asset?.class);
+            const classFromCatalog = normalizeShipClass(_catalogCache?.[itemId]?.class || _catalogCache?.[itemId]?.Class);
+            const classFromItemId = resolveShipClassFromItemId(itemId);
+            const shipClass = classFromAsset || classFromCatalog || classFromItemId || '';
+            return { shipId: activeShipId, itemId, shipClass };
+        } catch (error) {
+            console.warn('[BattleRule] Failed to resolve active ship meta:', error?.errorMessage || error?.message || error);
+            return null;
+        }
+    };
+    const resolveDefenderShipMeta = async (defenderId) => {
+        if (!defenderId) return null;
+        try {
+            const shipDoc = await firestore.collection('ships').doc(defenderId).get();
+            if (shipDoc.exists) {
+                const shipData = shipDoc.data() || {};
+                if (shipData?.isGuildShip || shipData?.guildShip) {
+                    return {
+                        shipId: defenderId,
+                        itemId: null,
+                        shipClass: 'guild',
+                        isGuildShip: true
+                    };
+                }
+            }
+        } catch (error) {
+            console.warn('[BattleRule] Failed to resolve defender ship doc:', error?.message || error);
+        }
+        const meta = await resolvePlayerActiveShipMeta(defenderId);
+        if (!meta) return null;
+        return {
+            ...meta,
+            isGuildShip: false,
+            shipClass: normalizeShipClass(meta.shipClass)
+        };
+    };
+    const shouldBlockBoardingByShipClass = (attackerClass, defenderMeta) => {
+        const attacker = normalizeShipClass(attackerClass);
+        if (!BOARDING_BLOCKED_ATTACKER_CLASSES.has(attacker)) return false;
+        if (defenderMeta?.isGuildShip) return true;
+        const defenderClass = normalizeShipClass(defenderMeta?.shipClass);
+        return BOARDING_PROTECTED_TARGET_CLASSES.has(defenderClass);
+    };
     const getRidePartyIds = async (hostId) => {
         const ids = [];
         if (!hostId) return ids;
         ids.push(hostId);
         try {
-            const admin = require('firebase-admin');
-            const firestore = admin.firestore();
             const snap = await firestore.collection('ships').where('ridingOwnerId', '==', hostId).get();
             const passengers = [];
             snap.forEach((docSnap) => {
@@ -587,6 +694,25 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const { attackerId, defenderId } = req.body;
         if (!attackerId || !defenderId) return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
         if (attackerId === defenderId) return res.status(400).json({ error: '自分自身とは対戦できません。' });
+        const [attackerShipMeta, defenderShipMeta] = await Promise.all([
+            resolvePlayerActiveShipMeta(attackerId),
+            resolveDefenderShipMeta(defenderId)
+        ]);
+        const attackerClass = normalizeShipClass(
+            attackerShipMeta?.shipClass || resolveShipClassFromItemId(attackerShipMeta?.itemId)
+        );
+        if (shouldBlockBoardingByShipClass(attackerClass, defenderShipMeta)) {
+            const attackerLabel = getShipClassLabel(attackerClass);
+            const defenderLabel = defenderShipMeta?.isGuildShip
+                ? 'ギルドシップ'
+                : getShipClassLabel(defenderShipMeta?.shipClass);
+            return res.status(403).json({
+                error: `${attackerLabel}では${defenderLabel}に乗り込めません。`,
+                code: 'BOARDING_CLASS_RESTRICTED',
+                attackerClass: attackerClass || null,
+                defenderClass: defenderShipMeta?.isGuildShip ? 'guild' : normalizeShipClass(defenderShipMeta?.shipClass || '')
+            });
+        }
         pruneBattlePairs();
         const pairKey = getPairKey(attackerId, defenderId);
         const blockedUntil = recentBattlePairs.get(pairKey) || 0;

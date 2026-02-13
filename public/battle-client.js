@@ -563,6 +563,15 @@ async function startBattleWithOpponent(opponentId) {
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
     }
+    const battleResultEl = document.getElementById('battleResult');
+    const fallback = '乗り込みに失敗しました。';
+    const rawError = String(battleResultEl?.innerText || '').trim();
+    const message = rawError
+        ? rawError.replace(/^エラー:\s*/u, '')
+        : fallback;
+    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(message);
+    }
 }
 function returnToMapAfterBattle() {
     const battleModal = document.getElementById('battleModal');

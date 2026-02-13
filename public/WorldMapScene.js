@@ -119,7 +119,7 @@ const SHIP_ACTIONS = {
     ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', description: '短距離突撃で前方の敵船に高ダメージを与える近接特化。', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 45, damage: 460, effect: 'drill_burst', cooldownMs: 52_000 },
     ship_orc_fighter: { type: 'fighter', label: '直撃砲', description: '細い射角で遠距離に高威力砲撃。命中時の破壊力が高い。', emoji: ['💣', '💥'], rangeTiles: 7, angle: 26, damage: 560, effect: 'cannon_shot', cooldownMs: 82_000 },
 
-    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', description: '左右の扇形へ一斉砲撃。側面接近の敵をまとめて迎撃。', emoji: ['💣', '💥'], rangeTiles: 5, angle: 80, damage: 260, effect: 'broadside', cooldownMs: 58_000 },
+    ship_human_defender: { type: 'defender_shield', label: '艦隊防壁', description: '味方船を包む防壁を展開。一定時間、被ダメージを軽減する。', emoji: ['🛡️', '✨'], radiusTiles: 6, shieldRadiusTiles: 6, shieldDurationMs: 7000, shieldFactor: 0.65, effect: 'shield', cooldownMs: 58_000 },
     ship_elf_defender: { type: 'defender_gust', label: '疾風の渦', description: '広範囲の敵船の進路を乱す。編隊を崩して足並みを止める。', emoji: ['🌪️', '💨'], radiusTiles: 7, gustDistanceTiles: 4, effect: 'gust', cooldownMs: 62_000 },
     ship_goblin_defender: { type: 'defender_jamstorm', label: '砂嵐ノイズ', description: '範囲内の敵船アクションを封印し、ミニマップを攪乱する。', emoji: ['📡', '⚡'], radiusTiles: 6, jamDurationMs: 6000, stormDurationMs: 6500, effect: 'jamstorm', cooldownMs: 66_000 },
     ship_orc_defender: { type: 'defender_snare', label: '水中捕捉', description: '最寄りの敵船を長めに拘束して確実に足止めする。', emoji: ['🧊', '⚓'], rangeTiles: 6, snareDurationMs: 4200, effect: 'snare', cooldownMs: 72_000 },
@@ -232,6 +232,16 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+        this.shipSideCannonButton = null;
+        this.shipSideCannonStatus = null;
+        this.shipSideCannonCooldownUntil = 0;
+        this.shipSideCannonChargeUntil = 0;
+        this.shipSideCannonUiLastUpdate = 0;
+        this.shipSideCannonChargeTimer = null;
+        this.hitStopUntil = 0;
+        this.hitStopTimer = null;
+        this.hitStopActive = false;
+        this.webAudioCtx = null;
         this.createIslandButton = null;
 
         this.attackPrepVisionRange = null;
@@ -1081,6 +1091,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.createBoardingButton();
         this.setupShipActionUi();
+        this.setupShipSideCannonUi();
         this.setupCreateIslandUi();
         this.setupRideLeaveUi();
 
@@ -2318,6 +2329,11 @@ export default class WorldMapScene extends Phaser.Scene {
 
         container.on('pointerup', () => {
             if (!this.boardingTargetId) return;
+            const restriction = this.getBoardingRestriction(this.boardingTargetId);
+            if (restriction?.blocked) {
+                this.showMessage(restriction.message);
+                return;
+            }
             if (typeof window !== 'undefined' && typeof window.startBattleWithOpponent === 'function') {
                 window.startBattleWithOpponent(this.boardingTargetId);
                 this.hideBoardingButton();
@@ -2344,11 +2360,176 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipActionUi(true);
     }
 
+    setupShipSideCannonUi() {
+        if (typeof document === 'undefined') return;
+        const panel = document.getElementById('shipSideCannonPanel');
+        const button = document.getElementById('shipSideCannonButton');
+        const status = document.getElementById('shipSideCannonStatus');
+        if (!panel || !button || !status) return;
+
+        this.shipSideCannonButton = button;
+        this.shipSideCannonStatus = status;
+        button.addEventListener('click', () => this.triggerShipSideCannon());
+        this.updateShipSideCannonUi(true);
+    }
+
+    isPlayerGuildShip() {
+        const shipClass = String(this.playerShipClass || '').toLowerCase();
+        if (shipClass === 'guild') return true;
+        const itemId = String(this.playerShipItemId || '').toLowerCase();
+        if (itemId.includes('guild')) return true;
+        const shipType = String(this.playerShipAssetData?.ShipType || '').toLowerCase();
+        if (shipType.includes('guild')) return true;
+        const classFromAsset = String(this.playerShipAssetData?.Class || this.playerShipAssetData?.class || '').toLowerCase();
+        if (classFromAsset.includes('guild')) return true;
+        return !!this.playerShipAssetData?.isGuildShip || !!this.playerShipAssetData?.guildShip;
+    }
+
+    canUseShipSideCannon() {
+        const shipClass = String(this.playerShipClass || '').toLowerCase();
+        if (shipClass === 'fighter' || shipClass === 'defender' || shipClass === 'merchant') {
+            return true;
+        }
+        return this.isPlayerGuildShip();
+    }
+
+    getShipSideCannonInfo() {
+        return {
+            type: 'side_cannon',
+            label: '舷側砲',
+            emoji: ['💣', '💥'],
+            effect: 'broadside',
+            rangeTiles: 5,
+            angle: 72,
+            damage: 280,
+            chargeMs: 150,
+            hitStopMs: 80,
+            cooldownMs: 60_000
+        };
+    }
+
+    updateShipSideCannonUi(force = false) {
+        if (!this.shipSideCannonButton || !this.shipSideCannonStatus) return;
+        const now = Date.now();
+        if (!force && now - this.shipSideCannonUiLastUpdate < 250) return;
+        this.shipSideCannonUiLastUpdate = now;
+
+        const allowedClass = this.canUseShipSideCannon();
+        const cooldownRemaining = Math.max(0, this.shipSideCannonCooldownUntil - now);
+        const chargeRemaining = Math.max(0, this.shipSideCannonChargeUntil - now);
+        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
+        const canUse = !!this.playerShip && allowedClass && cooldownRemaining <= 0 && jamRemaining <= 0 && chargeRemaining <= 0;
+
+        this.shipSideCannonButton.disabled = !canUse;
+        if (!this.playerShipClass && !this.playerShipItemId && !this.isPlayerGuildShip()) {
+            this.shipSideCannonStatus.textContent = '船情報を読み込み中...';
+            return;
+        }
+        if (!allowedClass) {
+            this.shipSideCannonStatus.textContent = 'Fighter / Defender / Merchant / ギルドシップ専用';
+            return;
+        }
+        if (jamRemaining > 0) {
+            const seconds = Math.ceil(jamRemaining / 1000);
+            this.shipSideCannonStatus.textContent = `妨害中 (${seconds}s)`;
+            return;
+        }
+        if (cooldownRemaining > 0) {
+            const seconds = Math.ceil(cooldownRemaining / 1000);
+            this.shipSideCannonStatus.textContent = `Cooldown ${seconds}s`;
+            return;
+        }
+        if (chargeRemaining > 0) {
+            const seconds = Math.max(0.1, Math.ceil(chargeRemaining / 100) / 10);
+            this.shipSideCannonStatus.textContent = `照準中 (${seconds}s)`;
+            return;
+        }
+        this.shipSideCannonStatus.textContent = '左右へ舷側砲撃';
+    }
+
+    triggerShipSideCannon() {
+        if (!this.playerShip || !this.playerInfo?.playFabId) {
+            this.showMessage('アクションを使用できません。');
+            return;
+        }
+        if (!this.canUseShipSideCannon()) {
+            this.showMessage('この船では舷側砲を使用できません。');
+            return;
+        }
+        if (this.isShipInBattle(this.playerInfo.playFabId)) {
+            this.showMessage('戦闘中は舷側砲を使用できません。');
+            return;
+        }
+        const now = Date.now();
+        if (now < this.shipActionJammedUntil) {
+            const seconds = Math.ceil((this.shipActionJammedUntil - now) / 1000);
+            this.showMessage(`妨害中 (${seconds}s)`);
+            return;
+        }
+        if (now < this.shipSideCannonCooldownUntil) {
+            const seconds = Math.ceil((this.shipSideCannonCooldownUntil - now) / 1000);
+            this.showMessage(`舷側砲クールダウン中 (${seconds}s)`);
+            return;
+        }
+        if (now < this.shipSideCannonChargeUntil) {
+            this.showMessage('舷側砲を照準中...');
+            return;
+        }
+
+        const actionInfo = this.getShipSideCannonInfo();
+        const chargeMs = Math.max(80, Number(actionInfo.chargeMs) || 150);
+        this.shipSideCannonChargeUntil = now + chargeMs;
+        this.playSideCannonChargeEffect(chargeMs);
+        this.playSideCannonSfx('charge');
+        this.updateShipSideCannonUi(true);
+        if (this.shipSideCannonChargeTimer) {
+            this.shipSideCannonChargeTimer.remove(false);
+            this.shipSideCannonChargeTimer = null;
+        }
+
+        this.shipSideCannonChargeTimer = this.time.delayedCall(chargeMs, () => {
+            this.shipSideCannonChargeTimer = null;
+            this.shipSideCannonChargeUntil = 0;
+            const fireNow = Date.now();
+            if (!this.playerShip || !this.playerInfo?.playFabId) {
+                this.updateShipSideCannonUi(true);
+                return;
+            }
+            if (this.isShipInBattle(this.playerInfo.playFabId)) {
+                this.showMessage('舷側砲は中断されました。');
+                this.updateShipSideCannonUi(true);
+                return;
+            }
+            if (fireNow < this.shipActionJammedUntil) {
+                this.showMessage('舷側砲は妨害されました。');
+                this.updateShipSideCannonUi(true);
+                return;
+            }
+
+            this.playSideCannonSfx('fire');
+            if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
+                this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, { fontSize: 19, rise: 20, duration: 680 });
+            }
+            this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
+            this.applyDefenderBroadsideAction(actionInfo);
+            this.showMessage(`${actionInfo.label}！`);
+
+            this.shipSideCannonCooldownUntil = fireNow + (Number(actionInfo.cooldownMs) || 60_000);
+            this.updateShipSideCannonUi(true);
+        });
+    }
+
     setupCreateIslandUi() {
         if (typeof document === 'undefined') return;
         const button = document.getElementById('createIslandButton');
         if (!button) return;
         this.createIslandButton = button;
+        button.style.position = 'fixed';
+        button.style.left = '12px';
+        button.style.top = '56px';
+        button.style.right = 'auto';
+        button.style.bottom = 'auto';
+        button.style.zIndex = '1201';
         button.addEventListener('click', () => {
             void this.requestCreateIslandAtCurrentPosition();
         });
@@ -2377,6 +2558,95 @@ export default class WorldMapScene extends Phaser.Scene {
         this.createIslandButton.disabled = !canCreate;
     }
 
+    async openIslandSizeSelectDialog(sizeCostMap, sizeLabelMap) {
+        if (typeof document === 'undefined') return 'small';
+
+        const options = [
+            { key: 'small', label: `${sizeLabelMap.small || '小'}サイズ`, cost: Number(sizeCostMap.small || 0), detail: '小さな島（3x3）' },
+            { key: 'large', label: `${sizeLabelMap.large || '中'}サイズ`, cost: Number(sizeCostMap.large || 0), detail: '標準的な島（3x4）' },
+            { key: 'giant', label: `${sizeLabelMap.giant || '大'}サイズ`, cost: Number(sizeCostMap.giant || 0), detail: '大きな島（4x4）' }
+        ];
+
+        return await new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.zIndex = '4200';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.background = 'rgba(2, 6, 23, 0.7)';
+
+            const card = document.createElement('div');
+            card.style.width = 'min(420px, 92vw)';
+            card.style.borderRadius = '12px';
+            card.style.border = '1px solid rgba(255,255,255,0.18)';
+            card.style.background = 'rgba(15, 23, 42, 0.98)';
+            card.style.padding = '14px';
+            card.style.color = '#fff';
+            card.style.boxShadow = '0 18px 40px rgba(0,0,0,0.55)';
+
+            const title = document.createElement('div');
+            title.textContent = '島サイズを選択してください';
+            title.style.fontWeight = '700';
+            title.style.marginBottom = '10px';
+            card.appendChild(title);
+
+            options.forEach((option) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.width = '100%';
+                btn.style.display = 'flex';
+                btn.style.justifyContent = 'space-between';
+                btn.style.alignItems = 'center';
+                btn.style.padding = '10px 12px';
+                btn.style.marginBottom = '8px';
+                btn.style.borderRadius = '8px';
+                btn.style.border = '1px solid rgba(255,255,255,0.18)';
+                btn.style.background = 'rgba(30,41,59,0.92)';
+                btn.style.color = '#fff';
+                btn.style.cursor = 'pointer';
+                btn.innerHTML = `
+                    <span style="display:flex; flex-direction:column; align-items:flex-start; gap:2px;">
+                        <span style="font-weight:700;">${option.label}</span>
+                        <span style="font-size:11px; color:rgba(255,255,255,0.78);">${option.detail}</span>
+                    </span>
+                    <span style="font-weight:700; color:#facc15;">${option.cost.toLocaleString('ja-JP')} Ps</span>
+                `;
+                btn.addEventListener('click', () => {
+                    overlay.remove();
+                    resolve(option.key);
+                });
+                card.appendChild(btn);
+            });
+
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.textContent = 'キャンセル';
+            cancel.style.width = '100%';
+            cancel.style.padding = '10px 12px';
+            cancel.style.borderRadius = '8px';
+            cancel.style.border = '1px solid rgba(255,255,255,0.14)';
+            cancel.style.background = 'rgba(2,6,23,0.6)';
+            cancel.style.color = '#cbd5e1';
+            cancel.style.cursor = 'pointer';
+            cancel.addEventListener('click', () => {
+                overlay.remove();
+                resolve(null);
+            });
+            card.appendChild(cancel);
+
+            overlay.addEventListener('click', (event) => {
+                if (event.target !== overlay) return;
+                overlay.remove();
+                resolve(null);
+            });
+
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+        });
+    }
+
     async requestCreateIslandAtCurrentPosition() {
         if (!this.playerShip || !this.playerInfo?.playFabId || !this.mapId) return;
         if (this.shipMoving) {
@@ -2389,29 +2659,12 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         const sizeCostMap = { small: 500, large: 2500, giant: 5000 };
         const sizeLabelMap = { small: '小', large: '中', giant: '大' };
-        let selectedSize = 'small';
-        if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
-            const input = window.prompt(
-                '島サイズを選択してください（small / large / giant）\nsmall=500Ps, large=2500Ps, giant=5000Ps',
-                'small'
-            );
-            if (input == null) return;
-            const normalized = String(input).trim().toLowerCase();
-            if (normalized === 'small' || normalized === 's' || normalized === '小') {
-                selectedSize = 'small';
-            } else if (normalized === 'large' || normalized === 'l' || normalized === '中') {
-                selectedSize = 'large';
-            } else if (normalized === 'giant' || normalized === 'g' || normalized === '大') {
-                selectedSize = 'giant';
-            } else {
-                this.showMessage('サイズ指定が不正です。small / large / giant を入力してください。');
-                return;
-            }
-        }
+        const selectedSize = await this.openIslandSizeSelectDialog(sizeCostMap, sizeLabelMap);
+        if (!selectedSize) return;
         const costPs = Number(sizeCostMap[selectedSize] || 0);
         const doCreate = typeof window === 'undefined' || typeof window.confirm !== 'function'
             ? true
-            : window.confirm(`${sizeLabelMap[selectedSize] || selectedSize}サイズ島を作成しますか？\n必要Ps: ${costPs.toLocaleString('ja-JP')}Ps`);
+            : window.confirm(`${sizeLabelMap[selectedSize] || selectedSize}サイズの島を作成しますか？\n必要Ps: ${costPs.toLocaleString('ja-JP')} Ps`);
         if (!doCreate) return;
 
         try {
@@ -2488,15 +2741,91 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.applyPlayerShipDomain();
         this.updateShipActionUi(true);
+        this.updateShipSideCannonUi(true);
     }
 
     getShipClassFromItemId(itemId) {
         const key = String(itemId || '').toLowerCase();
+        if (!key) return null;
+        if (key === 'ship_common_boat' || key.includes('common')) return 'common';
+        if (key === 'guild' || key.includes('guild')) return 'guild';
         if (key.includes('explorer')) return 'explorer';
         if (key.includes('merchant')) return 'merchant';
         if (key.includes('defender')) return 'defender';
         if (key.includes('fighter')) return 'fighter';
         return null;
+    }
+
+    getShipClassLabel(shipClass) {
+        const key = String(shipClass || '').toLowerCase();
+        if (key === 'common') return '初期ボート';
+        if (key === 'explorer') return 'Explorer';
+        if (key === 'merchant') return 'Merchant';
+        if (key === 'defender') return 'Defender';
+        if (key === 'fighter') return 'Fighter';
+        if (key === 'guild') return 'ギルドシップ';
+        return '対象船';
+    }
+
+    getOtherShipClass(shipObject) {
+        if (!shipObject) return null;
+        const classFromData = String(
+            shipObject?.data?.shipClass
+            || shipObject?.data?.ShipClass
+            || shipObject?.data?.class
+            || shipObject?.data?.Class
+            || ''
+        ).toLowerCase().trim();
+        const normalizedFromData = this.getShipClassFromItemId(classFromData);
+        if (normalizedFromData) return normalizedFromData;
+
+        const shipTypeKey = String(shipObject?.shipTypeKey || '').trim();
+        if (shipTypeKey.includes('__')) {
+            const itemId = shipTypeKey.split('__')[0];
+            const normalizedFromItemId = this.getShipClassFromItemId(itemId);
+            if (normalizedFromItemId) return normalizedFromItemId;
+        }
+
+        const shipId = String(shipObject?.data?.shipId || '').trim();
+        const normalizedFromShipId = this.getShipClassFromItemId(shipId);
+        if (normalizedFromShipId) return normalizedFromShipId;
+        return null;
+    }
+
+    getBoardingRestriction(targetPlayFabId) {
+        const target = this.otherShips.get(targetPlayFabId);
+        if (!target) return null;
+
+        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
+        if (myNation && targetNation && myNation === targetNation) {
+            return null;
+        }
+
+        const attackerItemId = String(this.playerShipItemId || '').toLowerCase();
+        const attackerClass = String(
+            this.playerShipClass
+            || this.getShipClassFromItemId(attackerItemId)
+            || ''
+        ).toLowerCase();
+        const blockedAttackers = new Set(['explorer', 'common']);
+        if (!blockedAttackers.has(attackerClass)) return null;
+
+        const isGuildShip = !!target?.isGuildShip || !!target?.data?.isGuildShip || !!target?.data?.guildShip;
+        const defenderClass = isGuildShip ? 'guild' : this.getOtherShipClass(target);
+        const protectedDefenders = new Set(['fighter', 'defender', 'merchant']);
+        if (!isGuildShip && !protectedDefenders.has(String(defenderClass || '').toLowerCase())) {
+            return null;
+        }
+
+        const attackerLabel = this.getShipClassLabel(attackerClass);
+        const defenderLabel = isGuildShip ? 'ギルドシップ' : this.getShipClassLabel(defenderClass);
+        return {
+            blocked: true,
+            attackerClass,
+            defenderClass: isGuildShip ? 'guild' : defenderClass,
+            message: `${attackerLabel}では${defenderLabel}に乗り込めません。`
+        };
     }
 
     resolveShipCatalogItem(assetData = null) {
@@ -2857,7 +3186,7 @@ export default class WorldMapScene extends Phaser.Scene {
         return targets;
     }
 
-    async applyShipActionDamage(targets, damage, attackerIdOverride = null) {
+    async applyShipActionDamage(targets, damage, attackerIdOverride = null, fxOptions = null) {
         if (!targets.length) {
             this.showMessage('対象がいません');
             return;
@@ -2881,7 +3210,8 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!res.ok || !data?.success) {
                 this.showMessage('攻撃に失敗しました');
             } else {
-                this.showMessage(`命中 ${data?.hits || filtered.length}`);
+                const hitCount = Number(data?.hits) || filtered.length;
+                this.showMessage(`命中 ${hitCount}`);
                 if (Array.isArray(data.results)) {
                     data.results.forEach((result) => {
                         if (!result || result.skipped || result.error) return;
@@ -2895,6 +3225,12 @@ export default class WorldMapScene extends Phaser.Scene {
                             }
                         }
                     });
+                }
+                if (hitCount > 0 && fxOptions?.impactSfx) {
+                    this.playSideCannonSfx('impact');
+                }
+                if (hitCount > 0 && fxOptions?.hitStopOnHit) {
+                    this.applyHitStop(Number(fxOptions?.hitStopMs) || 80);
                 }
             }
         } catch (e) {
@@ -3202,6 +3538,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
     applyDefenderBroadsideAction(actionInfo = {}) {
         if (!this.playerShip) return;
+        const isSideCannon = String(actionInfo?.type || '').toLowerCase() === 'side_cannon';
         const tile = this.TILE_SIZE;
         const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
         const angle = Number(actionInfo?.angle) || 60;
@@ -3224,9 +3561,15 @@ export default class WorldMapScene extends Phaser.Scene {
         const targets = Array.from(targetMap.values());
         this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, effectColor);
         this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, effectColor);
-        this.playCannonShot(origin.x, origin.y, range, leftHeading);
-        this.playCannonShot(origin.x, origin.y, range, rightHeading);
-        this.applyShipActionDamage(targets, damage);
+        const cannonFxOptions = isSideCannon
+            ? { glyph: '💣', durationMs: 180, impactGlyph: '💥', impactTint: 0xffef9f }
+            : null;
+        this.playCannonShot(origin.x, origin.y, range, leftHeading, cannonFxOptions);
+        this.playCannonShot(origin.x, origin.y, range, rightHeading, cannonFxOptions);
+        this.applyShipActionDamage(targets, damage, null, isSideCannon
+            ? { hitStopOnHit: true, hitStopMs: Number(actionInfo?.hitStopMs) || 80, impactSfx: true }
+            : null
+        );
     }
 
     applyDefenderGustAction(actionInfo = {}) {
@@ -3504,6 +3847,16 @@ export default class WorldMapScene extends Phaser.Scene {
         const myNation = String(this.playerInfo?.nation || '').toLowerCase();
         const target = this.otherShips.get(targetPlayFabId);
         const targetNation = String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
+        const restriction = this.getBoardingRestriction(targetPlayFabId);
+        if (restriction?.blocked) {
+            this.showMessage(restriction.message);
+            return;
+        }
+        const isGuildShip = !!target?.isGuildShip || !!target?.data?.isGuildShip || !!target?.data?.guildShip;
+        if (isGuildShip) {
+            this.showMessage('ギルドシップには乗り込めません。');
+            return;
+        }
         if (myNation && targetNation && myNation === targetNation) {
             this.boardingTargetId = targetPlayFabId;
             title.textContent = displayName ? `船: ${displayName}` : '船';
@@ -3536,6 +3889,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const onClick = () => {
             console.log('[Boarding] clicked', { target: this.boardingTargetId });
             if (!this.boardingTargetId) return;
+            const clickRestriction = this.getBoardingRestriction(this.boardingTargetId);
+            if (clickRestriction?.blocked) {
+                this.showMessage(clickRestriction.message);
+                return;
+            }
             const now = Date.now();
             if (now - this.lastBoardingAt < this.boardingCooldownMs) {
                 const remainMs = this.boardingCooldownMs - (now - this.lastBoardingAt);
@@ -4080,10 +4438,19 @@ export default class WorldMapScene extends Phaser.Scene {
             navigator.vibrate(50);
         }
 
+        const restriction = this.getBoardingRestriction(otherPlayFabId);
+        if (restriction?.blocked) {
+            this.showMessage(restriction.message);
+            return;
+        }
+
         if (!isGuildShip) {
             this.showBoardingButton(otherPlayFabId, shipObject.data?.displayName || '');
             this.showMessage('接近しました。乗り込み可能です。');
+            return;
         }
+
+        this.showMessage('ギルドシップには乗り込めません。');
     }
 
     createShipHpBar(sprite) {
@@ -4200,6 +4567,102 @@ export default class WorldMapScene extends Phaser.Scene {
         return colorMap[key] || fallback;
     }
 
+    playSideCannonChargeEffect(durationMs = 150) {
+        if (!this.playerShip) return;
+        const x = this.playerShip.x;
+        const y = this.playerShip.y;
+        const ring = this.add.graphics();
+        ring.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        ring.setAlpha(0.95);
+        this.ignoreOnUiCamera(ring);
+        ring.lineStyle(2, 0xffe08a, 0.95);
+        ring.strokeCircle(x, y, this.TILE_SIZE * 0.75);
+        this.tweens.add({
+            targets: ring,
+            alpha: 0,
+            scaleX: 1.25,
+            scaleY: 1.25,
+            duration: Math.max(80, Number(durationMs) || 150),
+            ease: 'Cubic.easeOut',
+            onComplete: () => ring.destroy()
+        });
+    }
+
+    getWebAudioContext() {
+        if (typeof window === 'undefined') return null;
+        if (this.webAudioCtx && this.webAudioCtx.state !== 'closed') return this.webAudioCtx;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        try {
+            this.webAudioCtx = new Ctx();
+            return this.webAudioCtx;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    playSideCannonSfx(stage = 'fire') {
+        const ctx = this.getWebAudioContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.value = 0.07;
+        master.connect(ctx.destination);
+
+        const playTone = (type, freqFrom, freqTo, duration, gainStart, gainEnd) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freqFrom, now);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqTo), now + duration);
+            gain.gain.setValueAtTime(gainStart, now);
+            gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainEnd), now + duration);
+            osc.connect(gain);
+            gain.connect(master);
+            osc.start(now);
+            osc.stop(now + duration);
+        };
+
+        if (stage === 'charge') {
+            playTone('sine', 260, 420, 0.14, 0.07, 0.0001);
+            return;
+        }
+        if (stage === 'impact') {
+            playTone('triangle', 90, 45, 0.16, 0.09, 0.0001);
+            return;
+        }
+        playTone('square', 130, 70, 0.14, 0.12, 0.0001);
+        playTone('triangle', 75, 40, 0.2, 0.08, 0.0001);
+    }
+
+    applyHitStop(durationMs = 80) {
+        if (!this.physics?.world || !this.time) return;
+        const holdMs = Math.max(30, Number(durationMs) || 80);
+        const until = Date.now() + holdMs;
+        this.hitStopUntil = Math.max(this.hitStopUntil, until);
+        if (!this.hitStopActive) {
+            this.physics.world.pause();
+            this.tweens.pauseAll();
+            this.hitStopActive = true;
+        }
+        if (this.hitStopTimer) {
+            this.hitStopTimer.remove(false);
+            this.hitStopTimer = null;
+        }
+        this.hitStopTimer = this.time.delayedCall(holdMs, () => {
+            this.hitStopTimer = null;
+            if (Date.now() < this.hitStopUntil) return;
+            if (this.hitStopActive) {
+                this.physics.world.resume();
+                this.tweens.resumeAll();
+                this.hitStopActive = false;
+            }
+        });
+    }
+
     playActionConeEffect(range, angleDeg) {
         if (!this.playerShip) return;
         this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angleDeg, this.getFacingAngleRad());
@@ -4295,14 +4758,18 @@ export default class WorldMapScene extends Phaser.Scene {
         });
     }
 
-    playCannonShot(x, y, range, headingRad) {
+    playCannonShot(x, y, range, headingRad, options = null) {
         const dx = Math.cos(headingRad);
         const dy = Math.sin(headingRad);
         const startX = x + dx * 18;
         const startY = y + dy * 18;
         const endX = x + dx * range;
         const endY = y + dy * range;
-        const shot = this.add.text(startX, startY, '💣', { fontSize: '16px' });
+        const glyph = String(options?.glyph || '💣');
+        const durationMs = Math.max(120, Number(options?.durationMs) || 240);
+        const impactGlyph = String(options?.impactGlyph || '💥');
+        const impactTint = Number.isFinite(Number(options?.impactTint)) ? Number(options?.impactTint) : 0xffe066;
+        const shot = this.add.text(startX, startY, glyph, { fontSize: '16px' });
         shot.setOrigin(0.5);
         shot.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
         this.ignoreOnUiCamera(shot);
@@ -4310,12 +4777,12 @@ export default class WorldMapScene extends Phaser.Scene {
             targets: shot,
             x: endX,
             y: endY,
-            duration: 240,
+            duration: durationMs,
             ease: 'Sine.easeOut',
             onComplete: () => {
                 shot.destroy();
                 this.spawnImpactBurst(endX, endY);
-                this.spawnDamageNumber(endX, endY - 10, '💥', 0xffe066);
+                this.spawnDamageNumber(endX, endY - 10, impactGlyph, impactTint);
             }
         });
     }
@@ -4577,7 +5044,14 @@ export default class WorldMapScene extends Phaser.Scene {
                 } else if (Number.isFinite(Number(data.rangeTiles)) && Number.isFinite(Number(data.angle))) {
                     const range = this.TILE_SIZE * Number(data.rangeTiles);
                     const heading = Number(data.heading) || 0;
-                    this.playActionConeEffectAt(x, y, range, Number(data.angle), heading, this.getActionEffectColor(effect, 0xffd166));
+                    const angle = Number(data.angle);
+                    const color = this.getActionEffectColor(effect, 0xffd166);
+                    if (effect === 'broadside') {
+                        this.playActionConeEffectAt(x, y, range, angle, heading - Math.PI / 2, color);
+                        this.playActionConeEffectAt(x, y, range, angle, heading + Math.PI / 2, color);
+                    } else {
+                        this.playActionConeEffectAt(x, y, range, angle, heading, color);
+                    }
                 } else {
                     this.spawnImpactBurst(x, y);
                 }
@@ -5191,6 +5665,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipActionMines();
         this.updateShipActionEffects();
         this.updateShipActionUi();
+        this.updateShipSideCannonUi();
         this.updateCreateIslandUi();
         this.updateGhostShip(this.game?.loop?.delta || 0);
     }
@@ -6578,6 +7053,26 @@ export default class WorldMapScene extends Phaser.Scene {
     shutdown() {
         this.teardownShipGeoSubscriptions();
         console.log('[Firestore] Unsubscribed from ships collection');
+
+        if (this.shipSideCannonChargeTimer) {
+            this.shipSideCannonChargeTimer.remove(false);
+            this.shipSideCannonChargeTimer = null;
+        }
+        if (this.hitStopTimer) {
+            this.hitStopTimer.remove(false);
+            this.hitStopTimer = null;
+        }
+        if (this.hitStopActive) {
+            try {
+                this.physics?.world?.resume?.();
+                this.tweens?.resumeAll?.();
+            } catch (error) {}
+            this.hitStopActive = false;
+        }
+        if (this.webAudioCtx && this.webAudioCtx.state !== 'closed') {
+            this.webAudioCtx.close().catch(() => {});
+        }
+        this.webAudioCtx = null;
 
         if (this.onActiveShipChanged && typeof window !== 'undefined') {
             window.removeEventListener('ship:active-changed', this.onActiveShipChanged);

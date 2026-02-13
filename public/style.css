@@ -1504,6 +1504,18 @@ body.modal-lock .modal-overlay {
     pointer-events: auto;
 }
 
+.ship-side-cannon-panel {
+    position: fixed;
+    left: 16px;
+    bottom: calc(var(--nav-height) + 240px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    z-index: 950;
+    pointer-events: auto;
+}
+
 .home-ship-stage {
     position: relative;
     width: 260px;
@@ -1587,6 +1599,15 @@ body.modal-lock .modal-overlay {
     color: var(--text-sub);
     text-align: right;
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.ship-side-cannon-panel .ship-action-status {
+    text-align: left;
+}
+
+.ship-side-cannon-button {
+    border-color: rgba(251, 191, 36, 0.5);
+    background: rgba(31, 41, 55, 0.92);
 }
 
 /* 島コマンドパネル（下からスライドイン） */
