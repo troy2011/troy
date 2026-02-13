@@ -33,6 +33,13 @@ const AVATAR_COLOR_BY_NATION = {
     water: 'blue'
 };
 
+const KING_STARTER_CROWN_BY_NATION = {
+    fire: 'metal_black_01',
+    wind: 'metal_black_08',
+    earth: 'metal_black_11',
+    water: 'metal_black_12'
+};
+
 function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -582,6 +589,57 @@ async function requireKingContext(playFabId, firestore, deps) {
     return { kingId, nation, mapping, groupId };
 }
 
+function getKingStarterCrownIdByNation(nation) {
+    const key = String(nation || '').toLowerCase();
+    return KING_STARTER_CROWN_BY_NATION[key] || null;
+}
+
+function getKingStarterCrownGrantDataKey(nation) {
+    const key = String(nation || '').toLowerCase();
+    if (!key) return 'KingStarterCrownGranted';
+    return `KingStarterCrownGranted_${key}`;
+}
+
+async function ensureKingStarterCrown(playFabId, nation, deps) {
+    const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
+    const kingId = normalizePlayFabId(playFabId);
+    const crownItemId = getKingStarterCrownIdByNation(nation);
+    if (!kingId || !crownItemId) {
+        return { granted: false, reason: 'NoTarget' };
+    }
+
+    const dataKey = getKingStarterCrownGrantDataKey(nation);
+    try {
+        const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: kingId,
+            Keys: [dataKey]
+        });
+        const alreadyGranted = String(ro?.Data?.[dataKey]?.Value || '').toLowerCase() === 'true';
+        if (alreadyGranted) {
+            return { granted: false, reason: 'AlreadyGranted', itemId: crownItemId };
+        }
+
+        await addEconomyItem(kingId, crownItemId, 1, {
+            idempotencyId: `king-starter-crown-${kingId}-${crownItemId}`
+        });
+
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: kingId,
+            Data: {
+                [dataKey]: 'true',
+                [`${dataKey}At`]: String(Date.now()),
+                [`${dataKey}Item`]: crownItemId
+            }
+        });
+
+        return { granted: true, itemId: crownItemId };
+    } catch (error) {
+        const msg = error?.errorMessage || error?.message || error;
+        console.warn('[ensureKingStarterCrown] Failed:', msg);
+        return { granted: false, reason: 'Error', itemId: crownItemId, error: String(msg) };
+    }
+}
+
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent } = deps;
@@ -715,6 +773,7 @@ function initializeNationRoutes(app, deps) {
                             }, { merge: true });
                         }
                     }
+                    await ensureKingStarterCrown(playFabId, nation, { promisifyPlayFab, PlayFabServer, addEconomyItem });
                 } catch (syncError) {
                     console.warn('[get-nation-king-page] Failed to sync kingPlayFabId:', syncError?.message || syncError);
                 }
@@ -880,6 +939,12 @@ function initializeNationRoutes(app, deps) {
                 Data: { IsKing: 'true', NationKingId: targetKingId }
             });
 
+            const starterCrownResult = await ensureKingStarterCrown(targetKingId, context.nation, {
+                promisifyPlayFab,
+                PlayFabServer,
+                addEconomyItem
+            });
+
             await getNationGroupDoc(firestore, context.mapping.groupName).set({
                 kingPlayFabId: targetKingId,
                 kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -911,7 +976,8 @@ function initializeNationRoutes(app, deps) {
                 newKingPlayFabId: targetKingId,
                 guildId: guildId,
                 guildUpdated: guildUpdate.guildUpdated,
-                guildShipUpdated: guildUpdate.shipUpdated
+                guildShipUpdated: guildUpdate.shipUpdated,
+                starterCrown: starterCrownResult
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
