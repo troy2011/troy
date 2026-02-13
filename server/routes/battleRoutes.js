@@ -95,14 +95,16 @@ async function getPlayerFullProfile(playFabId) {
         throw new Error('battle.js is not initialized.');
     }
 
-    const QUEST_SKILL_DATA_KEY = 'troyQuestSkills';
+    const TROY_SKILLS_DATA_KEY = 'troySkills';
+    const LEGACY_TROY_SKILLS_DATA_KEY = 'troyQuestSkills';
     const statsPromise = _promisifyPlayFab(_PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
         // ★ v122: アバター情報も取得するようにキーを追加
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "lineUserId",
             "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
-            QUEST_SKILL_DATA_KEY
+            TROY_SKILLS_DATA_KEY,
+            LEGACY_TROY_SKILLS_DATA_KEY
         ]
     });
     const profilePromise = _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
@@ -156,7 +158,10 @@ async function getPlayerFullProfile(playFabId) {
         if (equipmentResult.Data.SkinColorIndex) avatar.SkinColorIndex = equipmentResult.Data.SkinColorIndex.Value;
         if (equipmentResult.Data.FaceIndex) avatar.FaceIndex = equipmentResult.Data.FaceIndex.Value;
         if (equipmentResult.Data.HairStyleIndex) avatar.HairStyleIndex = equipmentResult.Data.HairStyleIndex.Value;
-        const rawSkills = equipmentResult.Data[QUEST_SKILL_DATA_KEY]?.Value || '';
+        const rawSkills =
+            equipmentResult.Data[TROY_SKILLS_DATA_KEY]?.Value
+            || equipmentResult.Data[LEGACY_TROY_SKILLS_DATA_KEY]?.Value
+            || '';
         if (rawSkills) {
             try {
                 const parsed = JSON.parse(rawSkills);

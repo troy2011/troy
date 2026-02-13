@@ -3,18 +3,19 @@
   const rankingList = document.getElementById('rankingList');
   const rankingSub = document.getElementById('rankingSub');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
-  let lastEventAt = Date.now();
+
   let reconnectTimer = null;
   let stream = null;
-  let rankingTimer = null;
+  let rankingRefreshTimer = null;
+  let rankingRequestPromise = null;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
   const spawnEffect = (payload = {}) => {
     if (!effectsLayer) return;
-    const type = String(payload.type || '').toLowerCase();
-    const effectType = effectTypes.includes(type)
-      ? type
+    const rawType = String(payload.type || payload.effectType || '').toLowerCase();
+    const effectType = effectTypes.includes(rawType)
+      ? rawType
       : effectTypes[Math.floor(Math.random() * effectTypes.length)];
     const xRaw = Number(payload.x);
     const yRaw = Number(payload.y);
@@ -40,15 +41,98 @@
     }, 3200);
   };
 
+  const formatNumber = (value) => {
+    const num = Math.max(0, Math.floor(Number(value) || 0));
+    return num.toLocaleString('ja-JP');
+  };
+
+  const renderRanking = (data) => {
+    if (!rankingList) return;
+    rankingList.innerHTML = '';
+    const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
+
+    if (rankingSub) {
+      rankingSub.textContent = 'PlayFab 懸賞金ランキング';
+    }
+
+    if (ranking.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'ranking-empty';
+      empty.textContent = 'ランキングデータがありません';
+      rankingList.appendChild(empty);
+      return;
+    }
+
+    ranking.slice(0, 10).forEach((row, index) => {
+      const line = document.createElement('div');
+      line.className = 'ranking-row';
+
+      const rank = document.createElement('div');
+      rank.className = 'ranking-rank';
+      rank.textContent = `${Number(row?.position) || index + 1}`;
+
+      const name = document.createElement('div');
+      name.className = 'ranking-name';
+      name.textContent = row.displayName || row.playFabId || 'Unknown';
+
+      const bounty = document.createElement('div');
+      bounty.className = 'ranking-bounty';
+      bounty.textContent = `${formatNumber(row.bounty)} BT`;
+
+      line.appendChild(rank);
+      line.appendChild(name);
+      line.appendChild(bounty);
+      rankingList.appendChild(line);
+    });
+  };
+
+  const fetchRanking = async () => {
+    if (rankingRequestPromise) return rankingRequestPromise;
+    rankingRequestPromise = (async () => {
+      try {
+        const res = await fetch('/api/troy-bounty-ranking?limit=10', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const data = await res.json();
+        renderRanking(data);
+      } catch (error) {
+        renderRanking({ ranking: [] });
+      } finally {
+        rankingRequestPromise = null;
+      }
+    })();
+    return rankingRequestPromise;
+  };
+
+  const scheduleRankingRefresh = (delayMs = 120) => {
+    if (rankingRefreshTimer) {
+      window.clearTimeout(rankingRefreshTimer);
+      rankingRefreshTimer = null;
+    }
+    rankingRefreshTimer = window.setTimeout(() => {
+      rankingRefreshTimer = null;
+      fetchRanking();
+    }, Math.max(0, Number(delayMs) || 0));
+  };
+
   const handleEvent = (payload) => {
     if (!payload) return;
     if (payload.type === 'connected') return;
     if (payload.type === 'batch' && Array.isArray(payload.events)) {
-      payload.events.forEach((event) => spawnEffect(event));
-    } else {
-      spawnEffect(payload);
+      let shouldRefreshRanking = false;
+      payload.events.forEach((event) => {
+        spawnEffect(event);
+        if (String(event?.topic || '').toLowerCase() === 'ps-transfer') {
+          shouldRefreshRanking = true;
+        }
+      });
+      if (shouldRefreshRanking) scheduleRankingRefresh(120);
+      return;
     }
-    lastEventAt = Date.now();
+
+    spawnEffect(payload);
+    if (String(payload.topic || '').toLowerCase() === 'ps-transfer') {
+      scheduleRankingRefresh(120);
+    }
   };
 
   const connectStream = () => {
@@ -62,10 +146,6 @@
     }
 
     stream = new EventSource('/api/display-stream');
-
-    stream.addEventListener('open', () => {
-      lastEventAt = Date.now();
-    });
 
     stream.addEventListener('message', (event) => {
       if (!event.data) return;
@@ -86,68 +166,6 @@
     });
   };
 
-  const formatNumber = (value) => {
-    const num = Math.max(0, Math.floor(Number(value) || 0));
-    return num.toLocaleString('ja-JP');
-  };
-
-  const renderRanking = (data) => {
-    if (!rankingList) return;
-    rankingList.innerHTML = '';
-
-    const isOpen = !!data?.isOpen;
-    const members = Array.isArray(data?.members) ? data.members : [];
-    const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
-    if (rankingSub) {
-      const label = isOpen ? 'OPEN' : 'CLOSE';
-      rankingSub.textContent = `状態: ${label} / 入店者: ${members.length}人`;
-    }
-
-    if (!isOpen || ranking.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'ranking-empty';
-      empty.textContent = isOpen ? '入店者がいません' : 'TROYは閉店中';
-      rankingList.appendChild(empty);
-      return;
-    }
-
-    ranking.slice(0, 10).forEach((row, index) => {
-      const line = document.createElement('div');
-      line.className = 'ranking-row';
-
-      const rank = document.createElement('div');
-      rank.className = 'ranking-rank';
-      rank.textContent = `${index + 1}`;
-
-      const name = document.createElement('div');
-      name.className = 'ranking-name';
-      name.textContent = row.displayName || row.playFabId || 'Unknown';
-
-      const bounty = document.createElement('div');
-      bounty.className = 'ranking-bounty';
-      bounty.textContent = `${formatNumber(row.bounty)} BT`;
-
-      line.appendChild(rank);
-      line.appendChild(name);
-      line.appendChild(bounty);
-      rankingList.appendChild(line);
-    });
-  };
-
-  const fetchRanking = async () => {
-    try {
-      const query = window.location.search || '';
-      const res = await fetch(`/api/troy-bounty-ranking${query}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const data = await res.json();
-      renderRanking(data);
-    } catch (error) {
-      renderRanking({ isOpen: false, members: [], ranking: [] });
-    }
-  };
-
   connectStream();
   fetchRanking();
-  if (rankingTimer) clearInterval(rankingTimer);
-  rankingTimer = setInterval(fetchRanking, 10000);
 })();

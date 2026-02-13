@@ -447,6 +447,7 @@ function initializeEconomyRoutes(app, deps) {
                     addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}PS勝ち取った！`, 'システム');
                     pushDisplayEvent({
                         type: 'boom',
+                        topic: 'ps-transfer',
                         label: `奪取: ${toName} ← ${fromName} ${amountInt}Ps`
                     });
                 } catch (chatError) {

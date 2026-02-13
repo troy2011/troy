@@ -161,20 +161,6 @@
                         <div id="kingGrantPreview" style="margin-top: 10px; font-size: 12px; color: var(--text-sub);"></div>
                     </div>
                     <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">クエスト承認</div>
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">
-                            王またはギルド王が承認QRを読み取り、報酬を即時付与します。
-                        </div>
-                        <div style="display: grid; gap: 10px;">
-                            <input id="questApproveQrValue" type="text" placeholder="QRを読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                            <div style="display:flex; gap:10px;">
-                                <button id="btnScanQuestApproval" style="background: #374151;">QRで読み取り</button>
-                                <button id="btnApproveQuest" style="background: var(--accent-color);">承認して付与</button>
-                            </div>
-                            <div id="questApproveMessage" style="font-size: 12px; color: var(--text-sub);"></div>
-                        </div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
                         <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
                             <div>
                                 <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与倍率（10% × 倍率）</div>
@@ -193,7 +179,7 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">ゲームの最下層はクエスト。クリアして王の承認を得ると宝箱報酬。</div>
+                        <div class="troy-menu-note">商品メニューから注文できます。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">商品</div>
@@ -203,16 +189,6 @@
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
                                     <li class="troy-menu-item-button" data-menu-id="goods">グッズ</li>
                                     <li class="troy-menu-item-button" data-menu-id="points">ポイント</li>
-                                </ul>
-                            </li>
-                            <li class="troy-menu-group">
-                                <div class="troy-menu-label">ゲーム</div>
-                                <ul class="troy-menu-items">
-                                    <li class="troy-menu-item-button" data-game-key="billiard">ビリヤード</li>
-                                    <li class="troy-menu-item-button" data-game-key="karaoke">カラオケ</li>
-                                    <li class="troy-menu-item-button" data-game-key="darts">ダーツ</li>
-                                    <li class="troy-menu-item-button" data-game-key="cards">トランプ</li>
-                                    <li class="troy-menu-item-button" data-game-key="other">その他</li>
                                 </ul>
                             </li>
                         </ul>
@@ -267,39 +243,6 @@
                             <input type="text" id="troyChatInput" placeholder="メッセージ...">
                             <button id="btnSendTroyChat">送信</button>
                         </form>
-                    </div>
-                </div>
-                <div id="troyQuestPanel" class="troy-quest-panel island-command-panel">
-                    <div class="troy-quest-panel-inner">
-                        <div class="island-command-header">
-                            <div class="respawn-info">
-                                <span class="respawn-label">クエスト:</span>
-                                <h3 id="troyQuestTitle">未選択</h3>
-                            </div>
-                            <button id="troyQuestClose" class="island-command-close">×</button>
-                        </div>
-                        <div class="troy-quest-panel-body">
-                            <div class="troy-quest-mode">
-                                <div class="troy-quest-mode-label">モード</div>
-                                <div class="troy-menu-toggle" role="group" aria-label="クエスト種別">
-                                    <button class="troy-menu-toggle-btn is-active" type="button" data-quest-mode="solo">ソロ/チーム</button>
-                                    <button class="troy-menu-toggle-btn" type="button" data-quest-mode="battle">バトル</button>
-                                </div>
-                            </div>
-                            <div class="troy-quest-bet">
-                                <div class="troy-quest-bet-label">BET</div>
-                                <div class="troy-quest-bet-controls">
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="10">★10Ps</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="50">★★50Ps</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="100">★★★100Ps</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="300">★★★★300Ps</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="500">★★★★★500Ps</button>
-                                    <button type="button" class="troy-quest-bet-btn" data-bet="1000">★★★★★★1000Ps</button>
-                                </div>
-                            </div>
-                            <div id="troyQuestFilter" class="troy-quest-filter">クエスト一覧: 未選択</div>
-                            <div id="troyQuestList" class="troy-quest-list"></div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -864,18 +807,6 @@
                 <button data-race="Orc">オーク</button>
             </div>
             <p id="raceMessage" style="margin-top:10px; color:var(--accent-color);"></p>
-        </div>
-    </div>
-
-    <!-- TROY クエスト承認QRモーダル -->
-    <div id="troyQuestQrModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 360px; text-align: center;">
-            <h2>クエスト承認QR</h2>
-            <div id="troyQuestQrTitle" style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">-</div>
-            <canvas id="troyQuestQrCanvas" style="margin: 0 auto 10px;"></canvas>
-            <div style="font-size: 11px; color: var(--text-sub);">有効期限</div>
-            <div id="troyQuestQrExpires" style="font-size: 12px; color: var(--accent-color); margin-bottom: 12px;"></div>
-            <button id="troyQuestQrClose" style="width: 100%; background: #4b5563;">閉じる</button>
         </div>
     </div>
 

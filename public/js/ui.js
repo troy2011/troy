@@ -6,7 +6,6 @@ import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
-import * as QuestApproval from './questApproval.js';
 import { getNationKingPage } from './playfabClient.js';
 
 let troyModule = null;
@@ -1071,7 +1070,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     break;
                 case 'king':
                     await NationKing.loadKingPage(playerInfo.playFabId);
-                    await QuestApproval.loadQuestApproval(playerInfo.playFabId);
                     break;
                 case 'qr':
                     await Player.getPoints(playerInfo.playFabId);

@@ -140,18 +140,6 @@ export function sendTroyChat(playFabId, message, options) {
     return callApiWithLoader('/api/send-troy-chat', { playFabId, message }, options);
 }
 
-export function claimTroyQuest(playFabId, questId, questKey, gachaType, meta = {}, options) {
-    return callApiWithLoader('/api/quest-claim', { playFabId, questId, questKey, gachaType, ...meta }, options);
-}
-
-export function getTroyQuestClears(playFabId, options) {
-    return callApiWithLoader('/api/get-quest-clears', { playFabId }, options);
-}
-
-export function approveTroyQuest(playFabId, qrValue, options) {
-    return callApiWithLoader('/api/quest-approve', { playFabId, qrValue }, options);
-}
-
 export function sendGlobalChat(payload, options) {
     return callApiWithLoader('/api/send-global-chat', payload, options);
 }
