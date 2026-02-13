@@ -18,48 +18,43 @@ let _checkoutSession = null;
 let _checkoutLocked = false;
 
 const TROY_PRODUCT_MENUS = {
-    'drink-alcohol': {
-        title: 'ドリンク/アルコール',
+    appetizer: {
+        title: '貯蔵品 (Appetizer)',
         items: [
-            { name: 'ラムコーク', price: '¥900' },
-            { name: 'ハイボール', price: '¥850' },
-            { name: '赤ワイン', price: '¥950' },
-            { name: 'カクテル各種', price: '¥900' }
+            { concept: '海賊の保存食', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/nuts?lock=5101' },
+            { concept: '深海の黒真珠', content: 'チョコ', price: 600, image: 'https://loremflickr.com/640/420/chocolate?lock=5102' },
+            { concept: '南国島からの略奪品', content: 'ドライフルーツ', price: 700, image: 'https://loremflickr.com/640/420/dried,fruit?lock=5103' },
+            { concept: '人魚の涙', content: 'オリーブ＆ピクルス', price: 600, image: 'https://loremflickr.com/640/420/olive,pickle?lock=5104' }
         ]
     },
-    'soft-drink': {
-        title: 'ソフトドリンク',
+    dryfood: {
+        title: '略奪品 (Dry Food)',
         items: [
-            { name: 'コーラ', price: '¥400' },
-            { name: 'ジンジャーエール', price: '¥400' },
-            { name: 'ウーロン茶', price: '¥350' },
-            { name: 'フルーツジュース', price: '¥450' }
+            { concept: 'クラーケンの干し肉', content: 'ビーフジャーキー', price: 900, image: 'https://loremflickr.com/640/420/beef,jerky?lock=5105' }
         ]
     },
-    food: {
-        title: 'フード',
+    hotfood: {
+        title: '船上の宴 (Hot Food)',
         items: [
-            { name: '海賊ナッツ', price: '¥500' },
-            { name: 'スパイシーチキン', price: '¥850' },
-            { name: '塩焼きポテト', price: '¥600' },
-            { name: '日替わりプレート', price: '¥1200' }
+            { concept: '海底の黄金ポテト', content: 'フライドポテト', price: 700, image: 'https://loremflickr.com/640/420/french,fries?lock=5106' },
+            { concept: '砲丸揚げ', content: 'チーズボール', price: 800, image: 'https://loremflickr.com/640/420/cheese,balls?lock=5107' },
+            { concept: 'デッドマンズ・フィンガー', content: 'ソーセージ盛り合わせ', price: 1000, image: 'https://loremflickr.com/640/420/sausage?lock=5108' },
+            { concept: '黒ひげピザ', content: 'ミックスピザ', price: 1300, image: 'https://loremflickr.com/640/420/pizza?lock=5109' },
+            { concept: '密輸船のオイル煮', content: 'オイルサーディン', price: 900, image: 'https://loremflickr.com/640/420/sardine?lock=5110' }
         ]
     },
-    goods: {
-        title: 'グッズ',
+    main: {
+        title: '〆の糧 (Main)',
         items: [
-            { name: 'TROYロゴT', price: '¥2800' },
-            { name: '航海マグ', price: '¥1600' },
-            { name: 'バンダナ', price: '¥1200' },
-            { name: '限定バッジ', price: '¥900' }
+            { concept: '七つの海の戦利品', content: '本日のパスタ', price: 1100, image: 'https://loremflickr.com/640/420/pasta?lock=5111' }
         ]
     },
     points: {
         title: 'ポイント',
         items: [
-            { name: '600Ps', price: '￥5000' },
-            { name: '350Ps', price: '￥3000' },
-            { name: '100Ps', price: '￥1000' }
+            { concept: '600Ps', content: 'ポイント購入', price: 5000, image: 'https://loremflickr.com/640/420/coin?lock=5112' },
+            { concept: '350Ps', content: 'ポイント購入', price: 3000, image: 'https://loremflickr.com/640/420/coin?lock=5113' },
+            { concept: '100Ps', content: 'ポイント購入', price: 1000, image: 'https://loremflickr.com/640/420/coin?lock=5114' }
         ]
     }
 };
@@ -130,6 +125,7 @@ function updatePointsDisplays(points) {
 }
 
 function parseYenPrice(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return Math.floor(value);
     const raw = String(value || '').replace(/[^\d]/g, '');
     const amount = Number(raw);
     return Number.isFinite(amount) ? amount : 0;
@@ -345,19 +341,39 @@ function openMenuModal(menuId) {
     data.items.forEach((item) => {
         const row = document.createElement('div');
         row.className = 'troy-menu-modal-item';
-        const name = document.createElement('span');
-        name.textContent = item.name;
+
+        const thumb = document.createElement('img');
+        thumb.className = 'troy-menu-modal-thumb';
+        thumb.src = String(item.image || '');
+        thumb.alt = `${item.concept || item.name || ''} ${item.content || ''}`.trim() || 'menu photo';
+        thumb.loading = 'lazy';
+
+        const body = document.createElement('div');
+        body.className = 'troy-menu-modal-item-body';
+
+        const concept = document.createElement('div');
+        concept.className = 'troy-menu-modal-item-name';
+        concept.textContent = item.concept || item.name || '';
+
+        const content = document.createElement('div');
+        content.className = 'troy-menu-modal-item-content';
+        content.textContent = item.content || '';
+
         const price = document.createElement('span');
         price.className = 'troy-menu-modal-price';
-        price.textContent = item.price;
+        price.textContent = formatYen(item.price);
         const priceValue = parseYenPrice(item.price);
         row.addEventListener('click', () => {
             if (!priceValue) return;
             closeMenuModal();
-            openOrderModal({ name: item.name, price: priceValue, quantity: 1 });
+            const orderName = item.content ? `${item.concept} (${item.content})` : (item.concept || item.name);
+            openOrderModal({ name: orderName, price: priceValue, quantity: 1 });
         });
-        row.appendChild(name);
-        row.appendChild(price);
+        body.appendChild(concept);
+        if (item.content) body.appendChild(content);
+        body.appendChild(price);
+        row.appendChild(thumb);
+        row.appendChild(body);
         list.appendChild(row);
     });
     modal.style.display = 'flex';
