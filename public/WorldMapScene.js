@@ -114,25 +114,25 @@ const BIOME_ID_BY_JP = {
 };
 
 const SHIP_ACTIONS = {
-    ship_human_fighter: { type: 'fighter', label: '火炎噴射', description: '前方扇状に炎を噴射し、範囲内の敵船にダメージ。', emoji: ['🔥', '🌪️'], rangeTiles: 5, angle: 70, damage: 320, effect: 'flame_cone', cooldownMs: 55_000 },
-    ship_elf_fighter: { type: 'fighter', label: '毒ガス空爆', description: '範囲内の敵プレイヤーに毒ガスでHPダメージ。', emoji: ['🧪', '☠️'], radiusTiles: 5, damage: 160, effect: 'poison_gas', cooldownMs: 75_000 },
-    ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', description: '前方短距離に突撃し、命中した敵船に大ダメージ。', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 50, damage: 380, effect: 'drill_burst', cooldownMs: 50_000 },
-    ship_orc_fighter: { type: 'fighter', label: '直撃砲', description: '前方直線に高威力の砲撃を放つ。', emoji: ['💣', '💥'], rangeTiles: 6, angle: 30, damage: 520, effect: 'cannon_shot', cooldownMs: 85_000 },
+    ship_human_fighter: { type: 'fighter', label: '火炎噴射', description: '前方広角に炎を噴射し、範囲内の敵船に継続的な圧力をかける。', emoji: ['🔥', '🌪️'], rangeTiles: 6, angle: 75, damage: 340, effect: 'flame_cone', cooldownMs: 48_000 },
+    ship_elf_fighter: { type: 'fighter', label: '毒ガス空爆', description: '中範囲の敵プレイヤーに毒ガスでHPダメージ。対人制圧向け。', emoji: ['🧪', '☠️'], radiusTiles: 6, damage: 180, effect: 'poison_gas', cooldownMs: 68_000 },
+    ship_goblin_fighter: { type: 'fighter', label: 'ドリル突撃', description: '短距離突撃で前方の敵船に高ダメージを与える近接特化。', emoji: ['⚙️', '✨'], rangeTiles: 3, angle: 45, damage: 460, effect: 'drill_burst', cooldownMs: 52_000 },
+    ship_orc_fighter: { type: 'fighter', label: '直撃砲', description: '細い射角で遠距離に高威力砲撃。命中時の破壊力が高い。', emoji: ['💣', '💥'], rangeTiles: 7, angle: 26, damage: 560, effect: 'cannon_shot', cooldownMs: 82_000 },
 
-    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', description: '左右に一斉砲撃し、側面の敵船にダメージ。', emoji: ['💣', '💥'], rangeTiles: 5, angle: 70, damage: 320, effect: 'broadside', cooldownMs: 60_000 },
-    ship_elf_defender: { type: 'defender_gust', label: '疾風の渦', description: '範囲内の敵船の進路をランダムに上書きする。', emoji: ['🌪️', '💨'], radiusTiles: 6, gustDistanceTiles: 4, effect: 'gust', cooldownMs: 70_000 },
-    ship_goblin_defender: { type: 'defender_jamstorm', label: '砂嵐ノイズ', description: '範囲内の敵船アクションを妨害し、ミニマップを砂嵐化。', emoji: ['📡', '⚡'], radiusTiles: 5, jamDurationMs: 5000, stormDurationMs: 5000, effect: 'jamstorm', cooldownMs: 70_000 },
-    ship_orc_defender: { type: 'defender_snare', label: '水中捕捉', description: '最も近い敵船を一時拘束（移動停止）。', emoji: ['🧊', '⚓'], rangeTiles: 5, snareDurationMs: 3500, effect: 'snare', cooldownMs: 75_000 },
+    ship_human_defender: { type: 'defender_broadside', label: '舷側斉射', description: '左右の扇形へ一斉砲撃。側面接近の敵をまとめて迎撃。', emoji: ['💣', '💥'], rangeTiles: 5, angle: 80, damage: 260, effect: 'broadside', cooldownMs: 58_000 },
+    ship_elf_defender: { type: 'defender_gust', label: '疾風の渦', description: '広範囲の敵船の進路を乱す。編隊を崩して足並みを止める。', emoji: ['🌪️', '💨'], radiusTiles: 7, gustDistanceTiles: 4, effect: 'gust', cooldownMs: 62_000 },
+    ship_goblin_defender: { type: 'defender_jamstorm', label: '砂嵐ノイズ', description: '範囲内の敵船アクションを封印し、ミニマップを攪乱する。', emoji: ['📡', '⚡'], radiusTiles: 6, jamDurationMs: 6000, stormDurationMs: 6500, effect: 'jamstorm', cooldownMs: 66_000 },
+    ship_orc_defender: { type: 'defender_snare', label: '水中捕捉', description: '最寄りの敵船を長めに拘束して確実に足止めする。', emoji: ['🧊', '⚓'], rangeTiles: 6, snareDurationMs: 4200, effect: 'snare', cooldownMs: 72_000 },
 
-    ship_human_merchant: { type: 'merchant', label: '水上滑走', description: '一定時間、島を通過可能（衝突無効・島操作不可）。', emoji: ['🚤', '💨'], durationMs: 6000, effect: 'island_pass', cooldownMs: 70_000 },
-    ship_elf_merchant: { type: 'merchant', label: '視界縮小', description: '範囲内の敵の視界を一時的に縮小。', emoji: ['🌫️', '👁️'], durationMs: 6000, radiusTiles: 5, visionMultiplier: 0.6, effect: 'vision_shrink', cooldownMs: 65_000 },
-    ship_goblin_merchant: { type: 'merchant', label: '水爆設置', description: '触れると爆発する水爆地雷を設置。', emoji: ['💧', '💣'], mineDurationMs: 12000, mineRadiusTiles: 2, mineDamage: 220, effect: 'minefield', cooldownMs: 70_000 },
-    ship_orc_merchant: { type: 'merchant', label: '装甲展開', description: '一定時間、船アクションと体当たりのダメージを無効化。', emoji: ['🛡️', '🧱'], durationMs: 5000, effect: 'damage_immune', cooldownMs: 80_000 },
+    ship_human_merchant: { type: 'merchant', label: '水上滑走', description: '一定時間、島衝突を無効化して航路を短縮できる。', emoji: ['🚤', '💨'], durationMs: 7000, effect: 'island_pass', cooldownMs: 78_000 },
+    ship_elf_merchant: { type: 'merchant', label: '視界縮小', description: '中範囲の敵視界を縮小し、索敵能力を落とす。', emoji: ['🌫️', '👁️'], durationMs: 6500, radiusTiles: 6, visionMultiplier: 0.55, effect: 'vision_shrink', cooldownMs: 74_000 },
+    ship_goblin_merchant: { type: 'merchant', label: '水爆設置', description: '持続時間の長い水爆地雷を設置し、航路を制限する。', emoji: ['💧', '💣'], mineDurationMs: 15000, mineRadiusTiles: 2, mineDamage: 260, effect: 'minefield', cooldownMs: 79_000 },
+    ship_orc_merchant: { type: 'merchant', label: '装甲展開', description: '短時間、船アクションと体当たりダメージを完全無効化。', emoji: ['🛡️', '🧱'], durationMs: 4500, effect: 'damage_immune', cooldownMs: 86_000 },
 
-    ship_human_explorer: { type: 'explorer', label: '追い風加速', description: '一定時間、移動速度と小回り性能が上昇。', emoji: ['⛵', '💨'], durationMs: 5000, speedMultiplier: 1.5, agilityMultiplier: 0.6, cooldownMs: 55_000 },
-    ship_elf_explorer: { type: 'explorer', label: '高度視認', description: '一定時間、視界拡大＋ミニマップ強化。', emoji: ['🌟', '👁️'], durationMs: 5000, visionMultiplier: 1.5, minimapBoostMs: 5000, cooldownMs: 60_000 },
-    ship_goblin_explorer: { type: 'explorer', label: '泥沼散布', description: '範囲内の敵船の移動速度を低下。', emoji: ['🟤', '🌫️'], radiusTiles: 4, slowMultiplier: 0.6, durationMs: 6000, effect: 'mud_slow', cooldownMs: 65_000 },
-    ship_orc_explorer: { type: 'explorer', label: '岩皮突進', description: '突進で速度上昇＋船衝突無視、接触した敵をノックバック。', emoji: ['🪨', '💨'], durationMs: 4500, speedMultiplier: 1.4, ignoreShipCollision: true, radiusTiles: 3, knockbackDistanceTiles: 2, effect: 'knockback', cooldownMs: 70_000 }
+    ship_human_explorer: { type: 'explorer', label: '追い風加速', description: '短CTで速度と小回りを大きく上げる機動戦向け。', emoji: ['⛵', '💨'], durationMs: 5200, speedMultiplier: 1.6, agilityMultiplier: 0.55, cooldownMs: 46_000 },
+    ship_elf_explorer: { type: 'explorer', label: '高度視認', description: '視界拡大とミニマップ強化で索敵を有利にする。', emoji: ['🌟', '👁️'], durationMs: 6200, visionMultiplier: 1.65, minimapBoostMs: 6200, cooldownMs: 52_000 },
+    ship_goblin_explorer: { type: 'explorer', label: '泥沼散布', description: '範囲内の敵船を鈍足化し、追撃と離脱を補助する。', emoji: ['🟤', '🌫️'], radiusTiles: 5, slowMultiplier: 0.55, durationMs: 6200, effect: 'mud_slow', cooldownMs: 58_000 },
+    ship_orc_explorer: { type: 'explorer', label: '岩皮突進', description: '突進中は船衝突を無視し、接触敵を大きくノックバック。', emoji: ['🪨', '💨'], durationMs: 5000, speedMultiplier: 1.45, ignoreShipCollision: true, radiusTiles: 3, knockbackDistanceTiles: 3, effect: 'knockback', cooldownMs: 63_000 }
 };
 
 if (typeof window !== 'undefined') {
@@ -2518,10 +2518,10 @@ export default class WorldMapScene extends Phaser.Scene {
         const byItem = SHIP_ACTIONS[itemId] || (friendlyId ? SHIP_ACTIONS[friendlyId] : null);
         if (byItem) return { ...byItem };
         const shipClass = this.playerShipClass;
-        if (shipClass === 'explorer') return { type: 'explorer', label: 'Explorer', emoji: ['⛵'], durationMs: 4000, speedMultiplier: 1.4 };
-        if (shipClass === 'merchant') return { type: 'merchant', label: 'Merchant', emoji: ['💨'], durationMs: 4000, radiusTiles: 4, jamDurationMs: 4000, effect: 'jam' };
-        if (shipClass === 'defender') return { type: 'defender_shield', label: 'Defender', emoji: ['🛡️'], radiusTiles: 5, shieldRadiusTiles: 5, shieldDurationMs: 7000, shieldFactor: 0.65, effect: 'shield' };
-        if (shipClass === 'fighter') return { type: 'fighter', label: 'Fighter', emoji: ['⚔️'], rangeTiles: 5, angle: 50, damage: 300 };
+        if (shipClass === 'explorer') return { type: 'explorer', label: '探索加速', emoji: ['⛵'], durationMs: 4500, speedMultiplier: 1.35, cooldownMs: 55_000 };
+        if (shipClass === 'merchant') return { type: 'merchant', label: '補給機動', emoji: ['🚤', '💨'], durationMs: 5000, effect: 'island_pass', cooldownMs: 70_000 };
+        if (shipClass === 'defender') return { type: 'defender_shield', label: '防衛障壁', emoji: ['🛡️'], radiusTiles: 5, shieldRadiusTiles: 5, shieldDurationMs: 6000, shieldFactor: 0.7, effect: 'shield', cooldownMs: 70_000 };
+        if (shipClass === 'fighter') return { type: 'fighter', label: '砲撃', emoji: ['⚔️'], rangeTiles: 5, angle: 45, damage: 320, cooldownMs: 60_000 };
         return { type: 'none', label: 'None' };
     }
 
@@ -2741,7 +2741,13 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
-            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16);
+            const actionType = String(actionInfo.type || '').toLowerCase();
+            const burstOptions = actionInfo.type === 'fighter'
+                ? { fontSize: 20, rise: 22, duration: 680 }
+                : actionType.startsWith('defender')
+                    ? { fontSize: 18, rise: 18, duration: 640 }
+                    : { fontSize: 16, rise: 16, duration: 600 };
+            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, burstOptions);
         }
         const eventInfo = { ...actionInfo };
         if (actionInfo.type === 'defender_shield') {
@@ -3142,6 +3148,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const damage = Number(actionInfo?.damage) || 300;
         const radiusTiles = Number(actionInfo?.radiusTiles);
         const heading = this.getFacingAngleRad();
+        const effectColor = this.getActionEffectColor(actionInfo?.effect, 0xffd166);
         if (Number.isFinite(radiusTiles) && radiusTiles > 0) {
             const radius = tile * radiusTiles;
             const targets = [];
@@ -3153,8 +3160,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     targets.push({ playFabId: otherId, distance: dist });
                 }
             });
-            const color = actionInfo?.effect === 'poison_gas' ? 0x77dd77 : 0x7bdff2;
-            this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, color);
+            this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, effectColor);
             if (actionInfo?.effect === 'poison_gas') {
                 this.applyShipActionPlayerDamage(targets, damage);
             } else {
@@ -3163,11 +3169,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         const targets = this.getTargetsInCone(range, angle);
-        if (actionInfo?.effect === 'flame_cone') {
-            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, 0xff6b35);
-        } else {
-            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading);
-        }
+        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, effectColor);
         if (actionInfo?.effect === 'cannon_shot') {
             this.playCannonShot(this.playerShip.x, this.playerShip.y, range, heading);
         }
@@ -3206,6 +3208,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const damage = Number(actionInfo?.damage) || 280;
         const origin = { x: this.playerShip.x, y: this.playerShip.y };
         const heading = this.getFacingAngleRad();
+        const effectColor = this.getActionEffectColor(actionInfo?.effect, 0xffd34d);
         const leftHeading = heading - Math.PI / 2;
         const rightHeading = heading + Math.PI / 2;
         const leftTargets = this.getTargetsInConeAt(origin, leftHeading, range, angle);
@@ -3219,8 +3222,8 @@ export default class WorldMapScene extends Phaser.Scene {
             }
         });
         const targets = Array.from(targetMap.values());
-        this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, 0xffd34d);
-        this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, 0xffd34d);
+        this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, effectColor);
+        this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, effectColor);
         this.playCannonShot(origin.x, origin.y, range, leftHeading);
         this.playCannonShot(origin.x, origin.y, range, rightHeading);
         this.applyShipActionDamage(targets, damage);
@@ -3234,7 +3237,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         const radius = radiusTiles * this.TILE_SIZE;
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, 0xa5d8ff);
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, this.getActionEffectColor(actionInfo?.effect, 0xa5d8ff));
         this.showMessage(`${actionInfo.label || '疾風'}!`);
     }
 
@@ -3265,6 +3268,8 @@ export default class WorldMapScene extends Phaser.Scene {
             snareDurationMs: Number(actionInfo.snareDurationMs) || 0,
             effect: 'snare'
         };
+        const traceColor = this.getActionEffectColor(eventInfo.effect, 0x7fb3d5);
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, this.TILE_SIZE * 1.2, traceColor);
         this.playEmojiShot('⚓', this.playerShip.x, this.playerShip.y - 6, nearest.x, nearest.y - 8);
         this.emitShipActionEvent(eventInfo, nearest.x, nearest.y);
         this.showMessage(`${actionInfo.label || '捕捉'}!`);
@@ -3278,7 +3283,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         const radius = radiusTiles * this.TILE_SIZE;
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, 0xb18cff);
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius, this.getActionEffectColor(actionInfo?.effect, 0xb18cff));
         this.showMessage(`${actionInfo.label || '砂嵐'}!`);
     }
 
@@ -3305,7 +3310,7 @@ export default class WorldMapScene extends Phaser.Scene {
         });
         targets.push({ playFabId: this.playerInfo.playFabId });
 
-        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radiusPx, 0x7be495);
+        this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radiusPx, this.getActionEffectColor(actionInfo?.effect, 0x7be495));
         if (Array.isArray(actionInfo?.emoji) && actionInfo.emoji.length > 0) {
             this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 14);
         }
@@ -4172,6 +4177,29 @@ export default class WorldMapScene extends Phaser.Scene {
         this.time.delayedCall(360, () => particles.destroy());
     }
 
+    getActionEffectColor(effect, fallback = 0x7bdff2) {
+        const key = String(effect || '').toLowerCase();
+        if (!key) return fallback;
+        const colorMap = {
+            flame_cone: 0xff6b35,
+            poison_gas: 0x77dd77,
+            drill_burst: 0xc77dff,
+            cannon_shot: 0xffd166,
+            broadside: 0xffd34d,
+            gust: 0xa5d8ff,
+            jam: 0xb18cff,
+            jamstorm: 0xb18cff,
+            snare: 0x7fb3d5,
+            shield: 0x7be495,
+            island_pass: 0x64d2ff,
+            vision_shrink: 0x9b7bff,
+            minefield: 0x74c69d,
+            mud_slow: 0x8d6e63,
+            knockback: 0xf4a261
+        };
+        return colorMap[key] || fallback;
+    }
+
     playActionConeEffect(range, angleDeg) {
         if (!this.playerShip) return;
         this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angleDeg, this.getFacingAngleRad());
@@ -4180,19 +4208,26 @@ export default class WorldMapScene extends Phaser.Scene {
     playActionConeEffectAt(x, y, range, angleDeg, headingRad = 0, color = 0xffd166) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         const graphics = this.add.graphics();
+        graphics.setAlpha(0.95);
         graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.ignoreOnUiCamera(graphics);
         const start = headingRad - Phaser.Math.DegToRad(angleDeg / 2);
         const end = headingRad + Phaser.Math.DegToRad(angleDeg / 2);
-        graphics.fillStyle(color, 0.18);
-        graphics.lineStyle(1, color, 0.6);
+        graphics.fillStyle(color, 0.22);
+        graphics.lineStyle(2, color, 0.78);
         graphics.beginPath();
         graphics.moveTo(x, y);
         graphics.arc(x, y, range, start, end, false);
         graphics.closePath();
         graphics.fillPath();
         graphics.strokePath();
-        this.time.delayedCall(220, () => graphics.destroy());
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: 260,
+            ease: 'Quad.easeOut',
+            onComplete: () => graphics.destroy()
+        });
     }
 
     playActionCircleEffect(radius) {
@@ -4203,31 +4238,41 @@ export default class WorldMapScene extends Phaser.Scene {
     playActionCircleEffectAt(x, y, radius, color = 0x7bdff2) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         const graphics = this.add.graphics();
+        graphics.setAlpha(0.95);
         graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.ignoreOnUiCamera(graphics);
-        graphics.lineStyle(2, color, 0.6);
+        graphics.lineStyle(2, color, 0.78);
         graphics.strokeCircle(x, y, radius);
-        graphics.fillStyle(color, 0.12);
+        graphics.fillStyle(color, 0.18);
         graphics.fillCircle(x, y, radius);
-        this.time.delayedCall(240, () => graphics.destroy());
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: 280,
+            ease: 'Quad.easeOut',
+            onComplete: () => graphics.destroy()
+        });
     }
 
-    playEmojiBurst(emojis, x, y) {
+    playEmojiBurst(emojis, x, y, options = {}) {
         if (!Array.isArray(emojis) || emojis.length === 0) return;
         const count = Math.min(8, Math.max(3, emojis.length * 2));
+        const fontSize = Math.max(14, Math.min(28, Number(options.fontSize) || 16));
+        const rise = Math.max(10, Math.min(40, Number(options.rise) || 16));
+        const burstDuration = Math.max(260, Math.min(1400, Number(options.duration) || 600));
         for (let i = 0; i < count; i += 1) {
             const emoji = emojis[i % emojis.length];
             const offsetX = Phaser.Math.Between(-14, 14);
             const offsetY = Phaser.Math.Between(-10, 10);
-            const text = this.add.text(x + offsetX, y + offsetY, emoji, { fontSize: '16px' });
+            const text = this.add.text(x + offsetX, y + offsetY, emoji, { fontSize: `${fontSize}px` });
             text.setOrigin(0.5);
             text.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
             this.ignoreOnUiCamera(text);
             this.tweens.add({
                 targets: text,
-                y: y + offsetY - 16,
+                y: y + offsetY - rise,
                 alpha: 0,
-                duration: 600,
+                duration: burstDuration,
                 ease: 'Sine.easeOut',
                 onComplete: () => text.destroy()
             });
@@ -4304,6 +4349,7 @@ export default class WorldMapScene extends Phaser.Scene {
             targetId: actionInfo?.targetId || null,
             x: Number(x),
             y: Number(y),
+            durationMs: Number(actionInfo?.durationMs) || null,
             rangeTiles: Number(actionInfo?.rangeTiles) || null,
             radiusTiles: Number(actionInfo?.radiusTiles) || null,
             angle: Number(actionInfo?.angle) || null,
@@ -4344,6 +4390,15 @@ export default class WorldMapScene extends Phaser.Scene {
         const targetNation = this.getShipNationById(playFabId);
         if (!myNation || !targetNation) return false;
         return myNation !== targetNation;
+    }
+
+    isEnemyPair(sourcePlayFabId, targetPlayFabId) {
+        if (!sourcePlayFabId || !targetPlayFabId) return false;
+        if (sourcePlayFabId === targetPlayFabId) return false;
+        const sourceNation = this.getShipNationById(sourcePlayFabId);
+        const targetNation = this.getShipNationById(targetPlayFabId);
+        if (!sourceNation || !targetNation) return false;
+        return sourceNation !== targetNation;
     }
 
     setForcedMotionForShip(shipObject, targetX, targetY) {
@@ -4442,13 +4497,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 const radiusTiles = Number(data.radiusTiles);
                 if (Number.isFinite(radiusTiles)) {
                     const radius = this.TILE_SIZE * radiusTiles;
-                    const color = effect === 'shield'
-                        ? 0x7be495
-                        : effect === 'jam' || effect === 'jamstorm'
-                            ? 0xb18cff
-                            : effect === 'poison_gas'
-                                ? 0x77ff77
-                                : 0x7bdff2;
+                    const color = this.getActionEffectColor(effect, 0x7bdff2);
                     this.playActionCircleEffectAt(x, y, radius, color);
                     if (effect === 'minefield') {
                         const mineRadiusTiles = Number(data.mineRadiusTiles) || 2;
@@ -4471,8 +4520,14 @@ export default class WorldMapScene extends Phaser.Scene {
                     });
 
                     const eventTargetId = data.targetId || null;
+                    const sourceId = data.sourceId || null;
                     targets.forEach((targetId) => {
-                        if (!targetId || !this.isEnemyShipId(targetId)) return;
+                        if (!targetId) return;
+                        if (sourceId) {
+                            if (!this.isEnemyPair(sourceId, targetId)) return;
+                        } else if (!this.isEnemyShipId(targetId)) {
+                            return;
+                        }
                         if (effect === 'snare' && eventTargetId && targetId !== eventTargetId) return;
                         if (effect === 'jam' || effect === 'jamstorm') {
                             const jamDuration = Number(data.jamDurationMs) || 0;
@@ -4522,7 +4577,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 } else if (Number.isFinite(Number(data.rangeTiles)) && Number.isFinite(Number(data.angle))) {
                     const range = this.TILE_SIZE * Number(data.rangeTiles);
                     const heading = Number(data.heading) || 0;
-                    this.playActionConeEffectAt(x, y, range, Number(data.angle), heading);
+                    this.playActionConeEffectAt(x, y, range, Number(data.angle), heading, this.getActionEffectColor(effect, 0xffd166));
                 } else {
                     this.spawnImpactBurst(x, y);
                 }
