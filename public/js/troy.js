@@ -18,8 +18,12 @@ let _checkoutSession = null;
 let _checkoutLocked = false;
 
 const TROY_PRODUCT_MENUS = {
+    drinks: {
+        title: 'ドリンク',
+        items: []
+    },
     appetizer: {
-        title: '貯蔵品 (Appetizer)',
+        title: '貯蔵品 (軽いおつまみ)',
         items: [
             { concept: '海賊の保存食', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/nuts?lock=5101' },
             { concept: '深海の黒真珠', content: 'チョコ', price: 600, image: 'https://loremflickr.com/640/420/chocolate?lock=5102' },
@@ -28,13 +32,13 @@ const TROY_PRODUCT_MENUS = {
         ]
     },
     dryfood: {
-        title: '略奪品 (Dry Food)',
+        title: '略奪品 (乾きもの)',
         items: [
             { concept: 'クラーケンの干し肉', content: 'ビーフジャーキー', price: 900, image: 'https://loremflickr.com/640/420/beef,jerky?lock=5105' }
         ]
     },
     hotfood: {
-        title: '船上の宴 (Hot Food)',
+        title: '船上の宴 (温かい料理)',
         items: [
             { concept: '海底の黄金ポテト', content: 'フライドポテト', price: 700, image: 'https://loremflickr.com/640/420/french,fries?lock=5106' },
             { concept: '砲丸揚げ', content: 'チーズボール', price: 800, image: 'https://loremflickr.com/640/420/cheese,balls?lock=5107' },
@@ -44,9 +48,12 @@ const TROY_PRODUCT_MENUS = {
         ]
     },
     main: {
-        title: '〆の糧 (Main)',
+        title: '腹の糧 (主食)',
         items: [
-            { concept: '七つの海の戦利品', content: '本日のパスタ', price: 1100, image: 'https://loremflickr.com/640/420/pasta?lock=5111' }
+            { concept: '七つの海の戦利品', content: '本日のパスタ', price: 1100, image: 'https://loremflickr.com/640/420/pasta?lock=5111' },
+            { concept: '黒潮の一皿', content: '海鮮リゾット', price: 1300, image: 'https://loremflickr.com/640/420/risotto,seafood?lock=5115' },
+            { concept: '甲板炊き込み', content: 'ガーリックライス', price: 1000, image: 'https://loremflickr.com/640/420/garlic,rice?lock=5116' },
+            { concept: '大砲火薬カレー', content: 'スパイスカレー', price: 1200, image: 'https://loremflickr.com/640/420/curry?lock=5117' }
         ]
     },
     points: {
@@ -58,6 +65,39 @@ const TROY_PRODUCT_MENUS = {
         ]
     }
 };
+
+const TROY_DAY_CAFE_DRINK_ITEMS = [
+    { concept: '船長のブレンド', content: 'ホットコーヒー', price: 600, image: 'https://loremflickr.com/640/420/coffee?lock=5121' },
+    { concept: '見張り台の一杯', content: 'アイスコーヒー', price: 650, image: 'https://loremflickr.com/640/420/iced,coffee?lock=5122' },
+    { concept: '王室の茶会', content: 'ストレートティー', price: 600, image: 'https://loremflickr.com/640/420/tea?lock=5123' },
+    { concept: '潮風ミルクティー', content: 'ロイヤルミルクティー', price: 700, image: 'https://loremflickr.com/640/420/milk,tea?lock=5124' },
+    { concept: '港町ラテ', content: 'カフェラテ', price: 750, image: 'https://loremflickr.com/640/420/latte?lock=5125' },
+    { concept: '宝箱ココア', content: 'ホットココア', price: 700, image: 'https://loremflickr.com/640/420/cocoa?lock=5126' }
+];
+
+const TROY_NIGHT_DRINK_ITEMS = [
+    { concept: '黒潮ラムコーク', content: 'ラムコーク', price: 900, image: 'https://loremflickr.com/640/420/rum,coke?lock=5131' },
+    { concept: '航海士のハイボール', content: 'ハイボール', price: 850, image: 'https://loremflickr.com/640/420/highball?lock=5132' },
+    { concept: '赤灯台ワイン', content: '赤ワイン', price: 950, image: 'https://loremflickr.com/640/420/red,wine?lock=5133' },
+    { concept: '白波レモンサワー', content: 'レモンサワー', price: 820, image: 'https://loremflickr.com/640/420/lemon,sour?lock=5134' },
+    { concept: '海賊ジントニック', content: 'ジントニック', price: 900, image: 'https://loremflickr.com/640/420/gin,tonic?lock=5135' },
+    { concept: '月夜のモヒート', content: 'モヒート', price: 950, image: 'https://loremflickr.com/640/420/mojito?lock=5136' },
+    { concept: 'ソフトコーラ', content: 'コーラ', price: 450, image: 'https://loremflickr.com/640/420/cola?lock=5137' },
+    { concept: '港のジンジャー', content: 'ジンジャーエール', price: 450, image: 'https://loremflickr.com/640/420/ginger,ale?lock=5138' }
+];
+
+function isDayCafeHours(now = new Date()) {
+    const hour = now.getHours();
+    return hour >= 9 && hour < 16;
+}
+
+function getDrinkMenuData(now = new Date()) {
+    const isDay = isDayCafeHours(now);
+    return {
+        title: isDay ? 'ドリンク (昼カフェ)' : 'ドリンク (夜バー)',
+        items: isDay ? TROY_DAY_CAFE_DRINK_ITEMS : TROY_NIGHT_DRINK_ITEMS
+    };
+}
 
 function getMenuModalElements() {
     return {
@@ -129,6 +169,31 @@ function parseYenPrice(value) {
     const raw = String(value || '').replace(/[^\d]/g, '');
     const amount = Number(raw);
     return Number.isFinite(amount) ? amount : 0;
+}
+
+function getMenuItemEmoji(item) {
+    const text = `${item?.concept || ''} ${item?.content || ''}`;
+    if (text.includes('ポイント購入') || text.includes('Ps')) return '🪙';
+    if (text.includes('コーヒー') || text.includes('ラテ') || text.includes('ココア')) return '☕';
+    if (text.includes('ティー') || text.includes('紅茶')) return '🫖';
+    if (text.includes('ワイン')) return '🍷';
+    if (text.includes('ラムコーク') || text.includes('ハイボール') || text.includes('サワー') || text.includes('ジントニック') || text.includes('モヒート')) return '🍹';
+    if (text.includes('コーラ') || text.includes('ジンジャー')) return '🥤';
+    if (text.includes('ナッツ')) return '🥜';
+    if (text.includes('チョコ')) return '🍫';
+    if (text.includes('ドライフルーツ')) return '🍍';
+    if (text.includes('オリーブ') || text.includes('ピクルス')) return '🫒';
+    if (text.includes('ジャーキー')) return '🥩';
+    if (text.includes('ポテト')) return '🍟';
+    if (text.includes('チーズ')) return '🧀';
+    if (text.includes('ソーセージ')) return '🌭';
+    if (text.includes('ピザ')) return '🍕';
+    if (text.includes('サーディン')) return '🐟';
+    if (text.includes('パスタ')) return '🍝';
+    if (text.includes('リゾット')) return '🥘';
+    if (text.includes('ライス')) return '🍚';
+    if (text.includes('カレー')) return '🍛';
+    return '🍽️';
 }
 
 function renderOrderSummary() {
@@ -332,7 +397,7 @@ function openMenuModal(menuId) {
         }
         return;
     }
-    const data = TROY_PRODUCT_MENUS[menuId];
+    const data = menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
     if (!data) return;
     const { modal, title, list } = getMenuModalElements();
     if (!modal || !list) return;
@@ -342,11 +407,10 @@ function openMenuModal(menuId) {
         const row = document.createElement('div');
         row.className = 'troy-menu-modal-item';
 
-        const thumb = document.createElement('img');
-        thumb.className = 'troy-menu-modal-thumb';
-        thumb.src = String(item.image || '');
-        thumb.alt = `${item.concept || item.name || ''} ${item.content || ''}`.trim() || 'menu photo';
-        thumb.loading = 'lazy';
+        const thumb = document.createElement('div');
+        thumb.className = 'troy-menu-modal-emoji';
+        thumb.textContent = item.emoji || getMenuItemEmoji(item);
+        thumb.setAttribute('aria-hidden', 'true');
 
         const body = document.createElement('div');
         body.className = 'troy-menu-modal-item-body';
