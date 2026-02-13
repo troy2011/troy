@@ -7355,18 +7355,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "きのたて",
-        "ja-JP": "きのたて"
+        "NEUTRAL": "樹皮の小盾",
+        "ja-JP": "樹皮の小盾"
       },
       "Description": {
-        "NEUTRAL": "簡易的な木の盾。",
-        "ja-JP": "簡易的な木の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 5,
+        "Defense": 8,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 0,
         "sprite_w": 32,
@@ -7383,18 +7383,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "せいどうのたて",
-        "ja-JP": "せいどうのたて"
+        "NEUTRAL": "古木の丸盾",
+        "ja-JP": "古木の丸盾"
       },
       "Description": {
-        "NEUTRAL": "青銅で作られた盾。",
-        "ja-JP": "青銅で作られた盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 8,
+        "Defense": 10,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 1,
         "sprite_w": 32,
@@ -7411,18 +7411,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "てつのたて",
-        "ja-JP": "てつのたて"
+        "NEUTRAL": "船大工の木盾",
+        "ja-JP": "船大工の木盾"
       },
       "Description": {
-        "NEUTRAL": "標準的な鉄の盾。",
-        "ja-JP": "標準的な鉄の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 10,
+        "Defense": 12,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 2,
         "sprite_w": 32,
@@ -7439,18 +7439,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カイトシールド",
-        "ja-JP": "カイトシールド"
+        "NEUTRAL": "旅人の木盾",
+        "ja-JP": "旅人の木盾"
       },
       "Description": {
-        "NEUTRAL": "下側が尖った、騎士が好む形状の盾。",
-        "ja-JP": "下側が尖った、騎士が好む形状の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 12,
+        "Defense": 14,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 3,
         "sprite_w": 32,
@@ -7467,18 +7467,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "タワーシールド",
-        "ja-JP": "タワーシールド"
+        "NEUTRAL": "浮桟橋の楯",
+        "ja-JP": "浮桟橋の楯"
       },
       "Description": {
-        "NEUTRAL": "全身を隠せるほどの巨大な盾。防御力は随一。",
-        "ja-JP": "全身を隠せるほどの巨大な盾。防御力は随一。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 15,
+        "Defense": 16,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 4,
         "sprite_w": 32,
@@ -7495,18 +7495,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スパイクシールド",
-        "ja-JP": "スパイクシールド"
+        "NEUTRAL": "港番の木盾",
+        "ja-JP": "港番の木盾"
       },
       "Description": {
-        "NEUTRAL": "表面に鋭いトゲがついた攻撃的な盾。",
-        "ja-JP": "表面に鋭いトゲがついた攻撃的な盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 16,
+        "Defense": 18,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 5,
         "sprite_w": 32,
@@ -7523,18 +7523,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バックラー",
-        "ja-JP": "バックラー"
+        "NEUTRAL": "流木の守盾",
+        "ja-JP": "流木の守盾"
       },
       "Description": {
-        "NEUTRAL": "腕に取り付ける小型の盾。素早い動きを阻害しない。",
-        "ja-JP": "腕に取り付ける小型の盾。素早い動きを阻害しない。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 17,
+        "Defense": 20,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 6,
         "sprite_w": 32,
@@ -7551,18 +7551,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ラウンドシールド",
-        "ja-JP": "ラウンドシールド"
+        "NEUTRAL": "甲板の木盾",
+        "ja-JP": "甲板の木盾"
       },
       "Description": {
-        "NEUTRAL": "取り回しのしやすい、一般的な円形の盾。",
-        "ja-JP": "取り回しのしやすい、一般的な円形の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 18,
+        "Defense": 22,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 7,
         "sprite_w": 32,
@@ -7579,18 +7579,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヒーターシールド",
-        "ja-JP": "ヒーターシールド"
+        "NEUTRAL": "鉄縁の木盾",
+        "ja-JP": "鉄縁の木盾"
       },
       "Description": {
-        "NEUTRAL": "カイトシールドを小型化した、取り回しの良い盾。",
-        "ja-JP": "カイトシールドを小型化した、取り回しの良い盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 19,
+        "Defense": 24,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 8,
         "sprite_w": 32,
@@ -7607,18 +7607,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スクトゥム",
-        "ja-JP": "スクトゥム"
+        "NEUTRAL": "鋲打ち木盾",
+        "ja-JP": "鋲打ち木盾"
       },
       "Description": {
-        "NEUTRAL": "古代ローマ軍が使った、長方形の大きな盾。",
-        "ja-JP": "古代ローマ軍が使った、長方形の大きな盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 20,
+        "Defense": 26,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 9,
         "sprite_w": 32,
@@ -7635,18 +7635,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホプロン",
-        "ja-JP": "ホプロン"
+        "NEUTRAL": "鍛鉄リム盾",
+        "ja-JP": "鍛鉄リム盾"
       },
       "Description": {
-        "NEUTRAL": "古代ギリシャの重装歩兵が使った、大きな円形の盾。",
-        "ja-JP": "古代ギリシャの重装歩兵が使った、大きな円形の盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 22,
+        "Defense": 28,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 10,
         "sprite_w": 32,
@@ -7663,18 +7663,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バイキングシールド",
-        "ja-JP": "バイキングシールド"
+        "NEUTRAL": "船渠補強盾",
+        "ja-JP": "船渠補強盾"
       },
       "Description": {
-        "NEUTRAL": "バイキングが使った、中央に鉄製のボスが付いた円形の盾。",
-        "ja-JP": "バイキングが使った、中央に鉄製のボスが付いた円形の盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 24,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 11,
         "sprite_w": 32,
@@ -7691,18 +7691,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "パヴィース",
-        "ja-JP": "パヴィース"
+        "NEUTRAL": "鉄帯の守盾",
+        "ja-JP": "鉄帯の守盾"
       },
       "Description": {
-        "NEUTRAL": "地面に立てて使う、クロスボウ兵のための大きな盾。",
-        "ja-JP": "地面に立てて使う、クロスボウ兵のための大きな盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 25,
+        "Defense": 32,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 12,
         "sprite_w": 32,
@@ -7719,18 +7719,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ランタンシールド",
-        "ja-JP": "ランタンシールド"
+        "NEUTRAL": "鉄化粧の木盾",
+        "ja-JP": "鉄化粧の木盾"
       },
       "Description": {
-        "NEUTRAL": "盾の中央にランタンや武器を仕込んだ、特殊な盾。",
-        "ja-JP": "盾の中央にランタンや武器を仕込んだ、特殊な盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 26,
+        "Defense": 34,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 13,
         "sprite_w": 32,
@@ -7747,20 +7747,48 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アディルガ",
-        "ja-JP": "アディルガ"
+        "NEUTRAL": "黒鉄の丸盾",
+        "ja-JP": "黒鉄の丸盾"
       },
       "Description": {
-        "NEUTRAL": "革で作られた、軽くて丈夫な盾。",
-        "ja-JP": "革で作られた、軽くて丈夫な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 28,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 14,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "shield_16"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "鉄心の凧盾",
+        "ja-JP": "鉄心の凧盾"
+      },
+      "Description": {
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Shield",
+        "Defense": 38,
+        "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
+        "sprite_index": 15,
         "sprite_w": 32,
         "sprite_h": 32,
         "sprite_cols": 10
@@ -7775,18 +7803,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴールデンシールド",
-        "ja-JP": "ゴールデンシールド"
+        "NEUTRAL": "鉄鉢の守盾",
+        "ja-JP": "鉄鉢の守盾"
       },
       "Description": {
-        "NEUTRAL": "黄金で作られた、豪華な盾。",
-        "ja-JP": "黄金で作られた、豪華な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 30,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 16,
         "sprite_w": 32,
@@ -7803,18 +7831,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミスリルシールド",
-        "ja-JP": "ミスリルシールド"
+        "NEUTRAL": "重鉄の塔盾",
+        "ja-JP": "重鉄の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属ミスリルで作られた、軽くて頑丈な盾。",
-        "ja-JP": "伝説の金属ミスリルで作られた、軽くて頑丈な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 32,
+        "Defense": 42,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 17,
         "sprite_w": 32,
@@ -7831,18 +7859,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "デモンシールド",
-        "ja-JP": "デモンシールド"
+        "NEUTRAL": "鉄壁の戦盾",
+        "ja-JP": "鉄壁の戦盾"
       },
       "Description": {
-        "NEUTRAL": "悪魔の力が宿る、禍々しい盾。",
-        "ja-JP": "悪魔の力が宿る、禍々しい盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 35,
+        "Defense": 44,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 18,
         "sprite_w": 32,
@@ -7859,18 +7887,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーリーシールド",
-        "ja-JP": "ホーリーシールド"
+        "NEUTRAL": "鋼縁の鉄盾",
+        "ja-JP": "鋼縁の鉄盾"
       },
       "Description": {
-        "NEUTRAL": "聖なる力が込められた、邪悪を退ける盾。",
-        "ja-JP": "聖なる力が込められた、邪悪を退ける盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 38,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 19,
         "sprite_w": 32,
@@ -7887,18 +7915,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリスタルシールド",
-        "ja-JP": "クリスタルシールド"
+        "NEUTRAL": "鋼爪の守盾",
+        "ja-JP": "鋼爪の守盾"
       },
       "Description": {
-        "NEUTRAL": "全体が水晶でできた、透明で美しい盾。",
-        "ja-JP": "全体が水晶でできた、透明で美しい盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 40,
+        "Defense": 48,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 20,
         "sprite_w": 32,
@@ -7915,18 +7943,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ボーンシールド",
-        "ja-JP": "ボーンシールド"
+        "NEUTRAL": "鋼化粧の戦盾",
+        "ja-JP": "鋼化粧の戦盾"
       },
       "Description": {
-        "NEUTRAL": "巨大な獣の骨を組み合わせて作られた盾。",
-        "ja-JP": "巨大な獣の骨を組み合わせて作られた盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 42,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 21,
         "sprite_w": 32,
@@ -7943,18 +7971,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オリハルコンシールド",
-        "ja-JP": "オリハルコンシールド"
+        "NEUTRAL": "鋼鎧の塔盾",
+        "ja-JP": "鋼鎧の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属オリハルコンで作られた究極の盾。",
-        "ja-JP": "伝説の金属オリハルコンで作られた究極の盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 50,
+        "Defense": 52,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 22,
         "sprite_w": 32,
@@ -7971,18 +7999,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミラーシールド",
-        "ja-JP": "ミラーシールド"
+        "NEUTRAL": "鋼意匠の丸盾",
+        "ja-JP": "鋼意匠の丸盾"
       },
       "Description": {
-        "NEUTRAL": "鏡のように磨かれた、魔法を反射するという盾。",
-        "ja-JP": "鏡のように磨かれた、魔法を反射するという盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 45,
+        "Defense": 54,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 23,
         "sprite_w": 32,
@@ -7999,18 +8027,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "亀の甲羅",
-        "ja-JP": "亀の甲羅"
+        "NEUTRAL": "鋼心の近衛盾",
+        "ja-JP": "鋼心の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "巨大な亀の甲羅をそのまま使った盾。非常に硬い。",
-        "ja-JP": "巨大な亀の甲羅をそのまま使った盾。非常に硬い。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 48,
+        "Defense": 56,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 24,
         "sprite_w": 32,
@@ -8027,18 +8055,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鍋の蓋",
-        "ja-JP": "鍋の蓋"
+        "NEUTRAL": "黄銅金飾盾",
+        "ja-JP": "黄銅金飾盾"
       },
       "Description": {
-        "NEUTRAL": "間に合わせの盾として使われる、意外と頑丈な鍋の蓋。",
-        "ja-JP": "間に合わせの盾として使われる、意外と頑丈な鍋の蓋。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 3,
+        "Defense": 58,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 25,
         "sprite_w": 32,
@@ -8055,18 +8083,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エルフの盾",
-        "ja-JP": "エルフの盾"
+        "NEUTRAL": "王都の金盾",
+        "ja-JP": "王都の金盾"
       },
       "Description": {
-        "NEUTRAL": "エルフの職人が作った、軽くて優美な盾。",
-        "ja-JP": "エルフの職人が作った、軽くて優美な盾。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 33,
+        "Defense": 60,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 26,
         "sprite_w": 32,
@@ -8083,18 +8111,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドワーフの盾",
-        "ja-JP": "ドワーフの盾"
+        "NEUTRAL": "黄金の守護盾",
+        "ja-JP": "黄金の守護盾"
       },
       "Description": {
-        "NEUTRAL": "ドワーフの職人が作った、頑丈な金属の盾。",
-        "ja-JP": "ドワーフの職人が作った、頑丈な金属の盾。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 36,
+        "Defense": 62,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 27,
         "sprite_w": 32,
@@ -8111,18 +8139,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オークの盾",
-        "ja-JP": "オークの盾"
+        "NEUTRAL": "紅潮の円盾",
+        "ja-JP": "紅潮の円盾"
       },
       "Description": {
-        "NEUTRAL": "オークが戦利品から作った、無骨な盾。",
-        "ja-JP": "オークが戦利品から作った、無骨な盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 39,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 28,
         "sprite_w": 32,
@@ -8139,18 +8167,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴブリンの盾",
-        "ja-JP": "ゴブリンの盾"
+        "NEUTRAL": "緋炎の凧盾",
+        "ja-JP": "緋炎の凧盾"
       },
       "Description": {
-        "NEUTRAL": "ゴブリンが拾い集めたガラクタで作った、奇妙な盾。",
-        "ja-JP": "ゴブリンが拾い集めたガラクタで作った、奇妙な盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 41,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 29,
         "sprite_w": 32,
@@ -8167,18 +8195,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アイギスの盾",
-        "ja-JP": "アイギスの盾"
+        "NEUTRAL": "朱槍の守盾",
+        "ja-JP": "朱槍の守盾"
       },
       "Description": {
-        "NEUTRAL": "女神が持つ、あらゆる邪悪を払うという伝説の聖なる盾。",
-        "ja-JP": "女神が持つ、あらゆる邪悪を払うという伝説の聖なる盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 60,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 30,
         "sprite_w": 32,
@@ -8195,18 +8223,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "プリトウェン",
-        "ja-JP": "プリトウェン"
+        "NEUTRAL": "紅鉄の塔盾",
+        "ja-JP": "紅鉄の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の王が持っていたとされる、美しい装飾の盾。",
-        "ja-JP": "伝説の王が持っていたとされる、美しい装飾の盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 58,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 31,
         "sprite_w": 32,
@@ -8223,18 +8251,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スヴェル",
-        "ja-JP": "スヴェル"
+        "NEUTRAL": "戦旗の赤盾",
+        "ja-JP": "戦旗の赤盾"
       },
       "Description": {
-        "NEUTRAL": "太陽のように輝き、敵の目をくらませるという魔法の盾。",
-        "ja-JP": "太陽のように輝き、敵の目をくらませるという魔法の盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 55,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 32,
         "sprite_w": 32,
@@ -8251,18 +8279,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アンキレー",
-        "ja-JP": "アンキレー"
+        "NEUTRAL": "火紋の戦盾",
+        "ja-JP": "火紋の戦盾"
       },
       "Description": {
-        "NEUTRAL": "天から落ちてきたとされる、国家の運命を左右する聖なる盾。",
-        "ja-JP": "天から落ちてきたとされる、国家の運命を左右する聖なる盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 52,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 33,
         "sprite_w": 32,
@@ -8279,12 +8307,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダインスレイフの盾",
-        "ja-JP": "ダインスレイフの盾"
+        "NEUTRAL": "血潮の近衛盾",
+        "ja-JP": "血潮の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "魔剣ダインスレイフと対になる、呪われた盾。",
-        "ja-JP": "魔剣ダインスレイフと対になる、呪われた盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -8307,18 +8335,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アキレウスの盾",
-        "ja-JP": "アキレウスの盾"
+        "NEUTRAL": "深森の円盾",
+        "ja-JP": "深森の円盾"
       },
       "Description": {
-        "NEUTRAL": "神が作り上げた、世界のすべてが描かれているという芸術的な盾。",
-        "ja-JP": "神が作り上げた、世界のすべてが描かれているという芸術的な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 62,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 35,
         "sprite_w": 32,
@@ -8335,18 +8363,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ローゼンシールド",
-        "ja-JP": "ローゼンシールド"
+        "NEUTRAL": "若葉の凧盾",
+        "ja-JP": "若葉の凧盾"
       },
       "Description": {
-        "NEUTRAL": "薔薇の紋章が美しい、高貴な騎士の盾。",
-        "ja-JP": "薔薇の紋章が美しい、高貴な騎士の盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 64,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 36,
         "sprite_w": 32,
@@ -8363,18 +8391,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドラゴンシールド",
-        "ja-JP": "ドラゴンシールド"
+        "NEUTRAL": "苔岩の守盾",
+        "ja-JP": "苔岩の守盾"
       },
       "Description": {
-        "NEUTRAL": "ドラゴンの鱗で作られた、非常に頑丈な盾。",
-        "ja-JP": "ドラゴンの鱗で作られた、非常に頑丈な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 66,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 37,
         "sprite_w": 32,
@@ -8391,18 +8419,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スパイダーシールド",
-        "ja-JP": "スパイダーシールド"
+        "NEUTRAL": "森風の塔盾",
+        "ja-JP": "森風の塔盾"
       },
       "Description": {
-        "NEUTRAL": "蜘蛛の巣の模様が描かれた、不気味な盾。",
-        "ja-JP": "蜘蛛の巣の模様が描かれた、不気味な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 68,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 38,
         "sprite_w": 32,
@@ -8419,18 +8447,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スカルシールド",
-        "ja-JP": "スカルシールド"
+        "NEUTRAL": "翡翠の戦盾",
+        "ja-JP": "翡翠の戦盾"
       },
       "Description": {
-        "NEUTRAL": "髑髏の飾りがついた、死の香りがする盾。",
-        "ja-JP": "髑髏の飾りがついた、死の香りがする盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 70,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 39,
         "sprite_w": 32,
@@ -8447,18 +8475,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アイシールド",
-        "ja-JP": "アイシールド"
+        "NEUTRAL": "風樹の近衛盾",
+        "ja-JP": "風樹の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "中央に大きな目が描かれた、見る者を不安にさせる盾。",
-        "ja-JP": "中央に大きな目が描かれた、見る者を不安にさせる盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 72,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 40,
         "sprite_w": 32,
@@ -8475,18 +8503,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カオスシールド",
-        "ja-JP": "カオスシールド"
+        "NEUTRAL": "緑閃の護盾",
+        "ja-JP": "緑閃の護盾"
       },
       "Description": {
-        "NEUTRAL": "混沌の力が渦巻く、予測不可能な盾。",
-        "ja-JP": "混沌の力が渦巻く、予測不可能な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 75,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 41,
         "sprite_w": 32,
@@ -8503,18 +8531,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オーダーシールド",
-        "ja-JP": "オーダーシールド"
+        "NEUTRAL": "潮汐の円盾",
+        "ja-JP": "潮汐の円盾"
       },
       "Description": {
-        "NEUTRAL": "秩序の力が宿る、揺るぎない防御を誇る盾。",
-        "ja-JP": "秩序の力が宿る、揺るぎない防御を誇る盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 78,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 42,
         "sprite_w": 32,
@@ -8531,18 +8559,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "マジックシールド",
-        "ja-JP": "マジックシールド"
+        "NEUTRAL": "蒼海の凧盾",
+        "ja-JP": "蒼海の凧盾"
       },
       "Description": {
-        "NEUTRAL": "魔法の障壁を展開し、物理攻撃だけでなく魔法攻撃も防ぐ盾。",
-        "ja-JP": "魔法の障壁を展開し、物理攻撃だけでなく魔法攻撃も防ぐ盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 80,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 43,
         "sprite_w": 32,
@@ -8559,18 +8587,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スペルシールド",
-        "ja-JP": "スペルシールド"
+        "NEUTRAL": "水紋の守盾",
+        "ja-JP": "水紋の守盾"
       },
       "Description": {
-        "NEUTRAL": "特定の呪文を吸収する力を持つ、特殊な盾。",
-        "ja-JP": "特定の呪文を吸収する力を持つ、特殊な盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 82,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 44,
         "sprite_w": 32,
@@ -8587,18 +8615,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エレメンタルシールド",
-        "ja-JP": "エレメンタルシールド"
+        "NEUTRAL": "群青の塔盾",
+        "ja-JP": "群青の塔盾"
       },
       "Description": {
-        "NEUTRAL": "炎、水、風、土の四大元素の力を宿した盾。",
-        "ja-JP": "炎、水、風、土の四大元素の力を宿した盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 85,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 45,
         "sprite_w": 32,
@@ -8615,18 +8643,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ライトシールド",
-        "ja-JP": "ライトシールド"
+        "NEUTRAL": "蒼雷の戦盾",
+        "ja-JP": "蒼雷の戦盾"
       },
       "Description": {
-        "NEUTRAL": "光の力で邪悪を払う、聖騎士の盾。",
-        "ja-JP": "光の力で邪悪を払う、聖騎士の盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 88,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 46,
         "sprite_w": 32,
@@ -8643,18 +8671,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダークシールド",
-        "ja-JP": "ダークシールド"
+        "NEUTRAL": "凍波の近衛盾",
+        "ja-JP": "凍波の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "闇の力で攻撃を吸収する、暗黒騎士の盾。",
-        "ja-JP": "闇の力で攻撃を吸収する、暗黒騎士の盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 90,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 47,
         "sprite_w": 32,
@@ -8671,18 +8699,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ブラッドシールド",
-        "ja-JP": "ブラッドシールド"
+        "NEUTRAL": "青星の護盾",
+        "ja-JP": "青星の護盾"
       },
       "Description": {
-        "NEUTRAL": "受けたダメージの一部を吸収し、持ち主の力に変える呪われた盾。",
-        "ja-JP": "受けたダメージの一部を吸収し、持ち主の力に変える呪われた盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 92,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 48,
         "sprite_w": 32,
@@ -8699,18 +8727,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ソウルシールド",
-        "ja-JP": "ソウルシールド"
+        "NEUTRAL": "黄昏の円盾",
+        "ja-JP": "黄昏の円盾"
       },
       "Description": {
-        "NEUTRAL": "倒した敵の魂を喰らい、防御力を高める邪悪な盾。",
-        "ja-JP": "倒した敵の魂を喰らい、防御力を高める邪悪な盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 94,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 49,
         "sprite_w": 32,
@@ -8727,18 +8755,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "タイムシールド",
-        "ja-JP": "タイムシールド"
+        "NEUTRAL": "砂金の凧盾",
+        "ja-JP": "砂金の凧盾"
       },
       "Description": {
-        "NEUTRAL": "時を操り、敵の攻撃を遅らせることができる魔法の盾。",
-        "ja-JP": "時を操り、敵の攻撃を遅らせることができる魔法の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 95,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 50,
         "sprite_w": 32,
@@ -8755,18 +8783,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スペースシールド",
-        "ja-JP": "スペースシールド"
+        "NEUTRAL": "陽光の守盾",
+        "ja-JP": "陽光の守盾"
       },
       "Description": {
-        "NEUTRAL": "空間を歪め、敵の攻撃を別の場所へ転送する異次元の盾。",
-        "ja-JP": "空間を歪め、敵の攻撃を別の場所へ転送する異次元の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 96,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 51,
         "sprite_w": 32,
@@ -8783,18 +8811,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "グラビティシールド",
-        "ja-JP": "グラビティシールド"
+        "NEUTRAL": "雷光の塔盾",
+        "ja-JP": "雷光の塔盾"
       },
       "Description": {
-        "NEUTRAL": "重力を操り、敵の攻撃を引き寄せたり反発させたりする盾。",
-        "ja-JP": "重力を操り、敵の攻撃を引き寄せたり反発させたりする盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 97,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 52,
         "sprite_w": 32,
@@ -8811,18 +8839,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヴォイドシールド",
-        "ja-JP": "ヴォイドシールド"
+        "NEUTRAL": "黄金波の戦盾",
+        "ja-JP": "黄金波の戦盾"
       },
       "Description": {
-        "NEUTRAL": "あらゆるものを無に帰す、虚無の力を宿した盾。",
-        "ja-JP": "あらゆるものを無に帰す、虚無の力を宿した盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 98,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 53,
         "sprite_w": 32,
@@ -8839,18 +8867,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "コスモシールド",
-        "ja-JP": "コスモシールド"
+        "NEUTRAL": "暁光の近衛盾",
+        "ja-JP": "暁光の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "宇宙の法則を内包する、神々の盾。",
-        "ja-JP": "宇宙の法則を内包する、神々の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 99,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 54,
         "sprite_w": 32,
@@ -8867,18 +8895,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オメガシールド",
-        "ja-JP": "オメガシールド"
+        "NEUTRAL": "天日輪の護盾",
+        "ja-JP": "天日輪の護盾"
       },
       "Description": {
-        "NEUTRAL": "すべての終わりを告げる、終焉の盾。",
-        "ja-JP": "すべての終わりを告げる、終焉の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 99,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 55,
         "sprite_w": 32,
