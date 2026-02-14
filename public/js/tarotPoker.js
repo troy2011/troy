@@ -8,6 +8,21 @@ const SUIT_RANK = {
     All: 0
 };
 
+const SUIT_THEME_COLOR = {
+    Wand: '#b11818',
+    Sword: '#c29b14',
+    Cup: '#1e63c6',
+    Pentacle: '#1e8f3c'
+};
+
+const ARCANA_FLUSH_SUIT_OPTIONS = {
+    1: ['All'],
+    16: ['Sword', 'Wand'],
+    17: ['Cup', 'Pentacle'],
+    18: ['Pentacle', 'Sword'],
+    19: ['Wand', 'Cup']
+};
+
 const EFFECT_TYPE = {
     WORLD: 'World',
     JUDGMENT: 'Judgment',
@@ -20,7 +35,7 @@ const HAND_RANK_LABEL = {
     10: 'ストレートフラッシュ',
     9: 'フォーカード',
     8: 'フルハウス',
-    7.5: 'エレメント',
+    4.5: '\u30a8\u30ec\u30e1\u30f3\u30c8',
     7: 'フラッシュ',
     6: 'ストレート',
     5: 'スリーカード',
@@ -71,8 +86,9 @@ const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
-const BET_ACTION_TEMPO_MS = 460;
-const BET_ACTION_GAP_MS = 140;
+const BET_ACTION_TEMPO_MS = 900;
+const BET_ACTION_GAP_MS = 260;
+const ROUND_CUTIN_TEMPO_MS = 980;
 const BET_ACTION_LABEL = {
     check: 'チェック',
     call: 'コール',
@@ -358,6 +374,7 @@ function resetState() {
         handSettled: false,
         forceShowdown: false,
         effectsDisabledByFool: false,
+        judgmentBoardDrawRound: 0,
         pendingJudgment: null,
         cpuThinking: false,
         initialDealAnimating: false,
@@ -426,6 +443,20 @@ async function showActionCutin(ownerKey, action) {
     await wait(BET_ACTION_GAP_MS);
 }
 
+async function showRoundCutin(text) {
+    if (!text) return;
+    if (!ui.cutin) {
+        await wait(ROUND_CUTIN_TEMPO_MS);
+        return;
+    }
+    ui.cutin.textContent = text;
+    ui.cutin.classList.remove('is-player', 'is-cpu');
+    ui.cutin.classList.add('show');
+    await wait(ROUND_CUTIN_TEMPO_MS);
+    ui.cutin.classList.remove('show');
+    await wait(BET_ACTION_GAP_MS);
+}
+
 function drawCard() {
     if (!state.deck.length) return null;
     return state.deck.pop();
@@ -445,10 +476,47 @@ function addToGrave(ownerKey, card) {
     state.graveyard.push({ ownerKey, card });
 }
 
+function getAllGraveOptions() {
+    const options = [];
+    ['player', 'cpu'].forEach((ownerKey) => {
+        const grave = state.players[ownerKey]?.graveyard || [];
+        for (let i = grave.length - 1; i >= 0; i -= 1) {
+            const card = grave[i];
+            if (!card) continue;
+            options.push({ ownerKey, cardId: card.id, card });
+        }
+    });
+    return options;
+}
+
 function takeLatestGraveCard(ownerKey) {
     const grave = state.players[ownerKey]?.graveyard;
     if (!grave || !grave.length) return null;
     const card = grave.pop() || null;
+    if (!card) return null;
+    for (let i = state.graveyard.length - 1; i >= 0; i -= 1) {
+        const entry = state.graveyard[i];
+        if (entry.ownerKey === ownerKey && entry.card?.id === card.id) {
+            state.graveyard.splice(i, 1);
+            break;
+        }
+    }
+    return card;
+}
+
+function takeGraveCardById(ownerKey, cardId) {
+    if (!ownerKey || !cardId) return null;
+    const grave = state.players[ownerKey]?.graveyard;
+    if (!grave || !grave.length) return null;
+    let hitIndex = -1;
+    for (let i = grave.length - 1; i >= 0; i -= 1) {
+        if (grave[i]?.id === cardId) {
+            hitIndex = i;
+            break;
+        }
+    }
+    if (hitIndex < 0) return null;
+    const [card] = grave.splice(hitIndex, 1);
     if (!card) return null;
     for (let i = state.graveyard.length - 1; i >= 0; i -= 1) {
         const entry = state.graveyard[i];
@@ -496,20 +564,29 @@ function getCardPrimaryValue(card) {
     return values.length ? Math.max(...values) : 0;
 }
 
+function getCardSuitOptionsForFlush(card) {
+    if (!card) return ['None'];
+    if (!card.isArcana) return [card.suit];
+    const fromMap = ARCANA_FLUSH_SUIT_OPTIONS[Number(card.number)];
+    if (Array.isArray(fromMap) && fromMap.length > 0) return fromMap.slice();
+    if (card.suit === 'All') return ['All'];
+    return ['None'];
+}
+
 function getCardSuitForFlush(card) {
-    if (!card) return 'None';
-    if (!card.isArcana) return card.suit;
-    if (card.suit === 'All') return 'All';
-    if (card.number === 16) return 'Sword';
-    if (card.number === 17) return 'Cup';
-    if (card.number === 18) return 'Pentacle';
-    if (card.number === 19) return 'Wand';
-    return 'None';
+    const options = getCardSuitOptionsForFlush(card);
+    return options[0] || 'None';
 }
 
 function matchesSuit(card, suit) {
-    const suited = getCardSuitForFlush(card);
-    return suited === suit || suited === 'All';
+    const options = getCardSuitOptionsForFlush(card);
+    return options.includes(suit) || options.includes('All');
+}
+
+function getCardSuitStrength(card) {
+    const options = getCardSuitOptionsForFlush(card);
+    if (options.includes('All')) return 5;
+    return options.reduce((max, suit) => Math.max(max, SUIT_RANK[suit] || 0), 0);
 }
 
 function compareNumberDesc(a, b) {
@@ -521,7 +598,7 @@ function compareCardsForFlush(a, b) {
     if (diff !== 0) return diff;
     const arcanaDiff = Number(b.isArcana) - Number(a.isArcana);
     if (arcanaDiff !== 0) return arcanaDiff;
-    return SUIT_RANK[getCardSuitForFlush(b)] - SUIT_RANK[getCardSuitForFlush(a)];
+    return getCardSuitStrength(b) - getCardSuitStrength(a);
 }
 
 function getUniqueNumbersDesc(cards) {
@@ -650,10 +727,7 @@ function scoreFiveCards(cards) {
     const hasArcana = arcanaNumbers.length > 0;
     const allArcana = sorted.every((card) => card.isArcana);
     const maxArcana = hasArcana ? Math.max(...arcanaNumbers) : -1;
-    const suitStrength = sorted.reduce((max, card) => {
-        const suit = getCardSuitForFlush(card);
-        return Math.max(max, SUIT_RANK[suit] || 0);
-    }, 0);
+    const suitStrength = sorted.reduce((max, card) => Math.max(max, getCardSuitStrength(card)), 0);
 
     const countEntries = getCountEntries(sorted);
     const flush = detectBestFlush(sorted);
@@ -683,7 +757,7 @@ function scoreFiveCards(cards) {
             mapCountEntryValue(countEntries[1][0], sorted)
         ];
     } else if (element) {
-        rank = 7.5;
+        rank = 4.5;
         rankVector = [element.maxArcana];
         maxNumber = element.maxArcana;
         rankLabel = '\u30a8\u30ec\u30e1\u30f3\u30c8';
@@ -981,6 +1055,14 @@ async function completeBettingRoundIfNeeded() {
     const nextPhase = state.betting.nextPhase;
     state.betting = null;
     await transitionAfterPhase(nextPhase);
+    if (nextPhase === 'preflop') {
+        await openFlopThenDraw();
+        return;
+    }
+    if (nextPhase === 'turn-ready') {
+        await openTurnThenDraw();
+        return;
+    }
     render();
 }
 
@@ -1109,7 +1191,10 @@ function chooseCpuPlan() {
         const keepCard = cpu.hand[discardIndex === 0 ? 1 : 0];
         if (!keepCard) continue;
         const discarded = cpu.hand[discardIndex];
-        const canJudgment = discarded.effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled();
+        const boardJudgmentActive = isBoardJudgmentActiveInCurrentDraw();
+        const canJudgment = !isEffectDisabled() && (
+            discarded.effectType === EFFECT_TYPE.JUDGMENT || boardJudgmentActive
+        );
 
         const evaluateFixedCard = (pickedCard) => {
             const hand = [keepCard, pickedCard];
@@ -1140,8 +1225,17 @@ function chooseCpuPlan() {
         };
 
         if (canJudgment) {
-            const options = getLatestGraveOptions().filter((entry) => entry.ownerKey !== 'cpu');
-            options.push({ ownerKey: 'cpu', card: discarded });
+            const options = getLatestGraveOptions();
+            if (!boardJudgmentActive) {
+                for (let i = options.length - 1; i >= 0; i -= 1) {
+                    if (options[i].ownerKey === 'cpu') {
+                        options.splice(i, 1);
+                    }
+                }
+            }
+            if (discarded.effectType === EFFECT_TYPE.JUDGMENT) {
+                options.push({ ownerKey: 'cpu', card: discarded });
+            }
             for (const option of options) {
                 if (!option?.card) continue;
                 const fixed = evaluateFixedCard(option.card);
@@ -1164,6 +1258,12 @@ function chooseCpuPlan() {
 
 function isEffectDisabled() {
     return state.effectsDisabledByFool;
+}
+
+function isBoardJudgmentActiveInCurrentDraw() {
+    if (!state) return false;
+    if (isEffectDisabled()) return false;
+    return Number(state.judgmentBoardDrawRound || 0) === Number(state.drawRound || -1);
 }
 
 function applyDiscardSpecial(card, ownerKey) {
@@ -1199,6 +1299,7 @@ function applyBoardSpecial(card) {
 }
 
 async function revealBoard(count) {
+    let judgmentRevealed = false;
     for (let i = 0; i < count; i += 1) {
         const card = drawCard();
         if (!card) break;
@@ -1211,6 +1312,9 @@ async function revealBoard(count) {
             revealTarget.replaceWith(hiddenTarget);
             await animateBackToFrontOnElement(hiddenTarget, card);
         }
+        if (card.effectType === EFFECT_TYPE.JUDGMENT) {
+            judgmentRevealed = true;
+        }
         applyBoardSpecial(card);
         render();
         if (state.forceShowdown) break;
@@ -1218,6 +1322,7 @@ async function revealBoard(count) {
     if (state.forceShowdown) {
         await forceShowdown();
     }
+    return { judgmentRevealed };
 }
 
 async function forceShowdown() {
@@ -1237,6 +1342,40 @@ function drawFor(ownerKey) {
 
 function getPostDrawNextPhase() {
     return state.drawRound >= 2 ? 'river-ready' : 'betting-mid';
+}
+
+async function enterDrawPhase(roundNo) {
+    state.drawRound = roundNo;
+    await showRoundCutin(`DRAW PHASE ${roundNo}`);
+    state.phase = 'draw-player';
+}
+
+async function openFlopThenDraw() {
+    await showRoundCutin('FLOP OPEN');
+    const revealResult = await revealBoard(3);
+    state.judgmentBoardDrawRound = !isEffectDisabled() && !!revealResult?.judgmentRevealed ? 1 : 0;
+    if (state.phase !== 'showdown') {
+        await enterDrawPhase(1);
+        if (!state.players.player.canExchange) {
+            pushLog('あなたは交換不可。ドローをスキップ。');
+            await processCpuExchange(getPostDrawNextPhase());
+        }
+    }
+    render();
+}
+
+async function openTurnThenDraw() {
+    await showRoundCutin('TURN OPEN');
+    const revealResult = await revealBoard(1);
+    state.judgmentBoardDrawRound = !isEffectDisabled() && !!revealResult?.judgmentRevealed ? 2 : 0;
+    if (state.phase !== 'showdown') {
+        await enterDrawPhase(2);
+        if (!state.players.player.canExchange) {
+            pushLog('あなたは交換不可（2巡目）。ドローをスキップ。');
+            await processCpuExchange(getPostDrawNextPhase());
+        }
+    }
+    render();
 }
 
 async function processCpuExchange(nextPhase = 'turn-ready') {
@@ -1272,7 +1411,9 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     render();
     await wait(280);
 
-    const canJudgment = discarded.effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled();
+    const canJudgment = !isEffectDisabled() && (
+        discarded.effectType === EFFECT_TYPE.JUDGMENT || isBoardJudgmentActiveInCurrentDraw()
+    );
     if (canJudgment && plan.source === 'grave' && plan.graveOwnerKey) {
         const gained = takeLatestGraveCard(plan.graveOwnerKey);
         if (gained) {
@@ -1372,40 +1513,28 @@ async function startNewGame() {
 async function handleNext() {
     if (!state) return;
     if (state.phase === 'preflop') {
-        await revealBoard(3);
-        if (state.phase !== 'showdown') {
-            state.drawRound = 1;
-            state.phase = 'draw-player';
-            if (!state.players.player.canExchange) {
-                pushLog('あなたは交換不能。ドローをスキップ。');
-                await processCpuExchange(getPostDrawNextPhase());
-            }
-        }
-        render();
+        await openFlopThenDraw();
         return;
     }
 
     if (state.phase === 'draw-player') {
-        pushLog(`あなたは第${state.drawRound}ドローをスキップ。`);
+        pushLog(`DRAW PHASE ${state.drawRound}: 交換を確定`);
         await finishPlayerExchange(getPostDrawNextPhase());
         return;
     }
 
+    if (state.phase === 'draw-player-judgment') {
+        await onJudgmentPick('deck');
+        return;
+    }
+
     if (state.phase === 'turn-ready') {
-        await revealBoard(1);
-        if (state.phase !== 'showdown') {
-            state.drawRound = 2;
-            state.phase = 'draw-player';
-            if (!state.players.player.canExchange) {
-                pushLog('あなたは交換不可。ドローをスキップ。');
-                await processCpuExchange(getPostDrawNextPhase());
-            }
-        }
-        render();
+        await openTurnThenDraw();
         return;
     }
 
     if (state.phase === 'river-ready') {
+        await showRoundCutin('RIVER OPEN');
         await revealBoard(1);
         if (state.phase !== 'showdown') {
             await transitionAfterPhase('betting-final');
@@ -1431,9 +1560,11 @@ async function onPlayerCardClick(index, sourceEl) {
     pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
     applyDiscardSpecial(discarded, 'player');
 
-    const canJudgment = discarded.effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled();
+    const canJudgment = !isEffectDisabled() && (
+        discarded.effectType === EFFECT_TYPE.JUDGMENT || isBoardJudgmentActiveInCurrentDraw()
+    );
     if (canJudgment) {
-        const options = getLatestGraveOptions();
+        const options = getAllGraveOptions();
         if (options.length > 0) {
             state.phase = 'draw-player-judgment';
             state.pendingJudgment = { options };
@@ -1449,9 +1580,11 @@ async function onPlayerCardClick(index, sourceEl) {
     await finishPlayerExchange(getPostDrawNextPhase());
 }
 
-async function onJudgmentPick(ownerKey) {
+async function onJudgmentPick(ownerKey, cardId = null) {
     if (!state || state.phase !== 'draw-player-judgment') return;
-    const gained = takeLatestGraveCard(ownerKey);
+    const gained = ownerKey === 'deck'
+        ? null
+        : (cardId ? takeGraveCardById(ownerKey, cardId) : takeLatestGraveCard(ownerKey));
     if (gained) {
         const fromGrave = ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
         await animateCardFlight(gained, fromGrave, ui.playerHand, 280, 1);
@@ -1499,6 +1632,16 @@ function getSuitClass(card) {
     return 'none';
 }
 
+function getSuitThemeColor(suit) {
+    return SUIT_THEME_COLOR[suit] || '#5b6472';
+}
+
+function getArcanaSuitOptionsForVisual(card) {
+    if (!card || !card.isArcana) return [];
+    const options = getCardSuitOptionsForFlush(card).filter((suit) => SUITS.includes(suit));
+    return options;
+}
+
 function getTarotSpriteIndex(card) {
     if (!card) return 110;
     if (card.isArcana) return 80 + Number(card.number || 0);
@@ -1529,6 +1672,14 @@ function createCardElement(card, options = {}) {
 
     if (card.isArcana) {
         el.classList.add('is-arcana');
+        const visualOptions = getArcanaSuitOptionsForVisual(card);
+        if (Number(card.number) === 1 || getCardSuitOptionsForFlush(card).includes('All')) {
+            el.classList.add('arcana-all-corners');
+        } else if (visualOptions.length >= 2) {
+            el.classList.add('arcana-dual');
+            el.style.setProperty('--arcana-color-a', getSuitThemeColor(visualOptions[0]));
+            el.style.setProperty('--arcana-color-b', getSuitThemeColor(visualOptions[1]));
+        }
     }
 
     const title = document.createElement('div');
@@ -1648,11 +1799,23 @@ function renderOutcomeBadges() {
     setOutcomeBadge(ui.cpuOutcome, 'is-draw', 'DRAW');
 }
 
+function getLiveBestRoleLabel(ownerKey) {
+    if (!state?.players?.[ownerKey]) return '';
+    const cards = [
+        ...(state.players[ownerKey].hand || []),
+        ...(state.board || [])
+    ];
+    if (cards.length < 5) return '成立役: なし';
+    const best = chooseBestFiveFromSeven(cards);
+    if (!best?.rankLabel) return '成立役: なし';
+    return `成立役: ${best.rankLabel}`;
+}
+
 function renderRoleLabels() {
     if (!ui.playerRole || !ui.cpuRole) return;
     if (state.phase !== 'showdown' || !state.result) {
-        ui.playerRole.textContent = '';
-        ui.cpuRole.textContent = '';
+        ui.playerRole.textContent = getLiveBestRoleLabel('player');
+        ui.cpuRole.textContent = '成立役: 非公開';
         return;
     }
     const winner = state.result.winner;
@@ -1724,9 +1887,14 @@ function renderJudgmentPanel() {
         btn.type = 'button';
         const ownerName = state.players[option.ownerKey].name;
         btn.textContent = `${ownerName}: ${getCardDisplayName(option.card)} (${getCardNumberLabel(option.card)})`;
-        btn.addEventListener('click', () => onJudgmentPick(option.ownerKey));
+        btn.addEventListener('click', () => onJudgmentPick(option.ownerKey, option.cardId || null));
         ui.judgmentOptions.appendChild(btn);
     });
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.textContent = '山札から引く（スキップ）';
+    skipBtn.addEventListener('click', () => onJudgmentPick('deck'));
+    ui.judgmentOptions.appendChild(skipBtn);
 }
 
 function renderButtons() {
@@ -1752,8 +1920,8 @@ function renderButtons() {
         return;
     }
     if (state.phase === 'draw-player-judgment') {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = '審判選択中';
+        ui.nextButton.disabled = false;
+        ui.nextButton.textContent = '審判をスキップ';
         return;
     }
     if (state.phase === 'cpu-thinking') {
@@ -1787,16 +1955,18 @@ function renderLog() {
 
 function renderBettingInfo() {
     if (!state) return;
-    if (ui.potText) ui.potText.textContent = `Pot: ${formatTestPoint(state.pot)}`;
-    if (ui.playerPointText) ui.playerPointText.textContent = `あなた: ${formatTestPoint(state.players.player.testPoints)}`;
-    if (ui.cpuPointText) ui.cpuPointText.textContent = `CPU: ${formatTestPoint(state.players.cpu.testPoints)}`;
-    if (!ui.bettingInfo) return;
+    const potValue = Math.max(0, Math.floor(Number(state.pot || 0)));
+    if (ui.potText) {
+        ui.potText.textContent = `POT ${formatTestPoint(potValue)}`;
+        ui.potText.classList.toggle('is-hot', potValue > 0);
+    }
+    if (ui.playerPointText) ui.playerPointText.textContent = formatTestPoint(state.players.player.testPoints);
+    if (ui.cpuPointText) ui.cpuPointText.textContent = formatTestPoint(state.players.cpu.testPoints);
 
     const active = isBettingPhase() && !!state.betting;
-    ui.bettingInfo.style.display = active ? 'block' : 'none';
     if (ui.betPopup) ui.betPopup.style.display = active ? 'block' : 'none';
+
     if (!active) {
-        if (ui.betActionHint) ui.betActionHint.textContent = 'ベットフェーズ待機中';
         if (ui.betCheckButton) ui.betCheckButton.disabled = true;
         if (ui.betCallButton) ui.betCallButton.disabled = true;
         if (ui.betBetButton) ui.betBetButton.disabled = true;
@@ -1810,13 +1980,6 @@ function renderBettingInfo() {
     const minRaise = state.betting.minRaise;
     const point = state.players.player.testPoints;
     const currentBet = state.betting.currentBet || 0;
-    const pending = state.betting.pendingResponseFor;
-
-    if (ui.betActionHint) {
-        ui.betActionHint.textContent = pending === 'player'
-            ? `CPUのアクションに対応してください（コール ${formatTestPoint(toCall)}）`
-            : `あなたの手番です（現在ベット ${formatTestPoint(currentBet)}）`;
-    }
 
     if (ui.betCheckButton) ui.betCheckButton.disabled = toCall > 0;
     if (ui.betCallButton) {
@@ -1834,6 +1997,7 @@ function renderBettingInfo() {
     }
     if (ui.betFoldButton) ui.betFoldButton.disabled = false;
 }
+
 function render() {
     if (!state || !ui.root) return;
     renderBoard();

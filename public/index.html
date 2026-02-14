@@ -253,19 +253,14 @@
                 <div class="content-area tarot-poker-root">
                     <div class="tarot-poker-header">
                         <h2>タロット・ポーカー</h2>
-                        <div class="tarot-poker-sub">1人プレイ（CPU戦）</div>
+                        <div class="tarot-poker-header-meta">
+                            <div class="tarot-poker-sub">1人プレイ（CPU戦）</div>
+                            <div id="tarotPotText" class="tarot-pot-chip">POT 0 TP</div>
+                        </div>
                     </div>
                     <div class="tarot-poker-controls">
                         <button id="tarotStartButton" type="button">新しい勝負を始める</button>
                         <button id="tarotNextButton" type="button" style="background:#4b5563;">次へ</button>
-                    </div>
-                    <div id="tarotBettingInfo" class="tarot-betting-info" style="display:none;">
-                        <div class="tarot-betting-points">
-                            <span id="tarotPotText">Pot: 0 TP</span>
-                            <span id="tarotPlayerPointText">あなた: 0 TP</span>
-                            <span id="tarotCpuPointText">CPU: 0 TP</span>
-                        </div>
-                        <div id="tarotBetActionHint" class="tarot-betting-hint"></div>
                     </div>
                     <div id="tarotBetPopup" class="tarot-bet-popup" style="display:none;">
                         <div class="tarot-betting-actions">
@@ -285,7 +280,11 @@
                         <div class="tarot-poker-column tarot-poker-column--player">
                             <div class="tarot-hand-grave-wrap">
                                 <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">あなたの手札 <span id="tarotPlayerOutcome" class="tarot-outcome-badge"></span></div>
+                                    <div class="tarot-poker-column-title">
+                                        あなたの手札
+                                        <span id="tarotPlayerPointText" class="tarot-inline-point">0 TP</span>
+                                        <span id="tarotPlayerOutcome" class="tarot-outcome-badge"></span>
+                                    </div>
                                     <div id="tarotPlayerHand" class="tarot-card-row"></div>
                                     <div id="tarotPlayerRole" class="tarot-role-label"></div>
                                     <div id="tarotPlayerAction" class="tarot-action-label"></div>
@@ -299,7 +298,11 @@
                         <div class="tarot-poker-column tarot-poker-column--cpu">
                             <div class="tarot-hand-grave-wrap">
                                 <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">CPU 手札 <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span></div>
+                                    <div class="tarot-poker-column-title">
+                                        CPU 手札
+                                        <span id="tarotCpuPointText" class="tarot-inline-point is-cpu">0 TP</span>
+                                        <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span>
+                                    </div>
                                     <div id="tarotCpuHand" class="tarot-card-row"></div>
                                     <div id="tarotCpuRole" class="tarot-role-label"></div>
                                     <div id="tarotCpuAction" class="tarot-action-label"></div>
