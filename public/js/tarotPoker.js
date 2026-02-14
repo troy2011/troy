@@ -101,7 +101,9 @@ const ui = {
     betRaiseButton: null,
     betFoldButton: null,
     playerOutcome: null,
-    cpuOutcome: null
+    cpuOutcome: null,
+    playerRole: null,
+    cpuRole: null
 };
 
 function shuffle(list) {
@@ -185,7 +187,7 @@ async function revealCpuHandFromBack() {
     }
 }
 
-async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo = 0.92) {
+async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo = 0.92, options = {}) {
     if (typeof document === 'undefined' || !card) return;
     const fromTarget = fromEl || ui.deckAnchor || ui.root;
     const toTarget = toEl || ui.root;
@@ -199,7 +201,7 @@ async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo =
     const fromCenter = getRectCenter(fromRect);
     const toCenter = getRectCenter(toRect);
 
-    const ghost = createCardElement(card, { hidden: false, clickable: false });
+    const ghost = createCardElement(card, { hidden: Boolean(options.hidden), clickable: false });
     ghost.classList.add('tarot-card-fly');
     ghost.style.position = 'fixed';
     ghost.style.left = `${fromCenter.x - startW / 2}px`;
@@ -291,6 +293,8 @@ function resetState() {
         effectsDisabledByFool: false,
         pendingJudgment: null,
         cpuThinking: false,
+        showdownRevealDone: false,
+        showdownRevealRunning: false,
         log: [],
         result: null
     };
@@ -1042,7 +1046,7 @@ async function forceShowdown() {
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
-    render();
+    await runShowdownPresentation();
 }
 
 function drawFor(ownerKey) {
@@ -1054,7 +1058,7 @@ function drawFor(ownerKey) {
 }
 
 function getPostDrawNextPhase() {
-    return state.drawRound >= 2 ? 'betting-final' : 'betting-mid';
+    return state.drawRound >= 2 ? 'river-ready' : 'betting-mid';
 }
 
 async function processCpuExchange(nextPhase = 'turn-ready') {
@@ -1079,7 +1083,14 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     const cpuHandCardEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
     const fromHandEl = cpuHandCardEls[discardIndex] || ui.cpuHand;
     const [discarded] = cpu.hand.splice(discardIndex, 1);
-    await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88);
+    if (fromHandEl?.classList) {
+        fromHandEl.classList.add('is-leaving');
+        await wait(80);
+    }
+    await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
+    if (fromHandEl?.classList) {
+        fromHandEl.classList.remove('is-leaving');
+    }
     addToGrave('cpu', discarded);
     pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った（期待勝率 ${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%）。`);
     applyDiscardSpecial(discarded, 'cpu');
@@ -1091,7 +1102,7 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
         const gained = takeLatestGraveCard(plan.graveOwnerKey);
         if (gained) {
             const fromGrave = plan.graveOwnerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
-            await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1);
+            await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
             cpu.hand.push(gained);
             pushLog(`CPUは審判で ${state.players[plan.graveOwnerKey].name} の最新墓地カードを取得。`);
             showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
@@ -1106,7 +1117,7 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
             const gained = takeLatestGraveCard(pickedOwner);
             if (gained) {
                 const fromGrave = pickedOwner === 'player' ? ui.playerGrave : ui.cpuGrave;
-                await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1);
+                await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
                 cpu.hand.push(gained);
                 pushLog(`CPUは審判で ${state.players[pickedOwner].name} の最新墓地カードを取得。`);
                 showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
@@ -1117,14 +1128,14 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
         } else {
             const drawn = drawFor('cpu');
             if (drawn) {
-                await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1);
+                await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
             }
             pushLog('CPUは審判を使ったが対象なし。山札から補充。');
         }
     } else {
         const drawn = drawFor('cpu');
         if (drawn) {
-            await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1);
+            await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
         }
     }
     state.cpuThinking = false;
@@ -1136,7 +1147,7 @@ async function resolveShowdown() {
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
-    render();
+    await runShowdownPresentation();
 }
 
 async function finishPlayerExchange(nextPhase = 'turn-ready') {
@@ -1184,7 +1195,12 @@ async function handleNext() {
     if (state.phase === 'turn-ready') {
         await revealBoard(1);
         if (state.phase !== 'showdown') {
-            state.phase = 'river-ready';
+            state.drawRound = 2;
+            state.phase = 'draw-player';
+            if (!state.players.player.canExchange) {
+                pushLog('あなたは交換不可。ドローをスキップ。');
+                await processCpuExchange(getPostDrawNextPhase());
+            }
         }
         render();
         return;
@@ -1193,14 +1209,10 @@ async function handleNext() {
     if (state.phase === 'river-ready') {
         await revealBoard(1);
         if (state.phase !== 'showdown') {
-            state.drawRound = 2;
-            state.phase = 'draw-player';
-            if (!state.players.player.canExchange) {
-                pushLog('あなたは交換不能。ドローをスキップ。');
-                await processCpuExchange(getPostDrawNextPhase());
-            }
+            await transitionAfterPhase('betting-final');
         }
         render();
+        return;
     }
 }
 
@@ -1211,7 +1223,14 @@ async function onPlayerCardClick(index, sourceEl) {
     if (index < 0 || index >= player.hand.length) return;
 
     const [discarded] = player.hand.splice(index, 1);
+    if (sourceEl?.classList) {
+        sourceEl.classList.add('is-leaving');
+        await wait(80);
+    }
     await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
+    if (sourceEl?.classList) {
+        sourceEl.classList.remove('is-leaving');
+    }
     addToGrave('player', discarded);
     pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
     applyDiscardSpecial(discarded, 'player');
@@ -1428,6 +1447,54 @@ function renderOutcomeBadges() {
     setOutcomeBadge(ui.cpuOutcome, 'is-draw', 'DRAW');
 }
 
+function renderRoleLabels() {
+    if (!ui.playerRole || !ui.cpuRole) return;
+    if (state.phase !== 'showdown' || !state.result) {
+        ui.playerRole.textContent = '';
+        ui.cpuRole.textContent = '';
+        return;
+    }
+    const winner = state.result.winner;
+    const playerPrefix = winner === 'player' ? 'WIN' : winner === 'cpu' ? 'LOSE' : 'DRAW';
+    const cpuPrefix = winner === 'cpu' ? 'WIN' : winner === 'player' ? 'LOSE' : 'DRAW';
+    const playerRole = state.result.playerBest?.rankLabel || '';
+    const cpuRole = state.result.cpuBest?.rankLabel || '';
+    ui.playerRole.textContent = `${playerPrefix}: ${playerRole}`;
+    ui.cpuRole.textContent = `${cpuPrefix}: ${cpuRole}`;
+}
+
+async function revealRoleCardsOneByOne(rowEl, cards) {
+    if (!rowEl || !Array.isArray(cards) || cards.length === 0) return;
+    const hiddenEls = Array.from(rowEl.querySelectorAll('.tarot-card'));
+    const length = Math.min(hiddenEls.length, cards.length);
+    for (let i = 0; i < length; i += 1) {
+        await animateBackToFrontOnElement(hiddenEls[i], cards[i]);
+        await wait(90);
+    }
+}
+
+async function runShowdownPresentation() {
+    if (!state || state.phase !== 'showdown' || !state.result) return;
+    if (state.showdownRevealRunning) return;
+    if (state.showdownRevealDone) {
+        render();
+        return;
+    }
+    state.showdownRevealRunning = true;
+    state.showdownRevealDone = false;
+    render();
+    showEffectOverlay('SHOWDOWN');
+    await wait(140);
+    const playerCards = getRoleCardsForDisplay(state.result.playerBest);
+    const cpuCards = getRoleCardsForDisplay(state.result.cpuBest);
+    await revealRoleCardsOneByOne(ui.playerHand, playerCards);
+    await wait(140);
+    await revealRoleCardsOneByOne(ui.cpuHand, cpuCards);
+    state.showdownRevealRunning = false;
+    state.showdownRevealDone = true;
+    render();
+}
+
 function renderBoard() {
     if (!ui.board) return;
     ui.board.innerHTML = '';
@@ -1571,13 +1638,14 @@ function render() {
     const isShowdown = state.phase === 'showdown' && !!state.result;
     const playerCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.playerBest) : state.players.player.hand;
     const cpuCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.cpuBest) : state.players.cpu.hand;
+    const showdownHidden = isShowdown && !state.showdownRevealDone;
     renderCardRow(ui.playerHand, playerCardsForView, {
-        hidden: false,
+        hidden: showdownHidden,
         clickable: !isShowdown && state.phase === 'draw-player',
         onCardClick: onPlayerCardClick
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
-        hidden: !isShowdown,
+        hidden: isShowdown ? showdownHidden : true,
         clickable: false
     });
     renderGraveRow(ui.playerGrave, isShowdown ? [] : state.players.player.graveyard);
@@ -1586,6 +1654,7 @@ function render() {
     renderButtons();
     renderBettingInfo();
     renderOutcomeBadges();
+    renderRoleLabels();
     if (ui.stateText) ui.stateText.textContent = getPhaseText();
     if (ui.resultText) {
         ui.resultText.textContent = getResultText();
@@ -1622,6 +1691,8 @@ function bindElements() {
     ui.betFoldButton = document.getElementById('tarotBetFold');
     ui.playerOutcome = document.getElementById('tarotPlayerOutcome');
     ui.cpuOutcome = document.getElementById('tarotCpuOutcome');
+    ui.playerRole = document.getElementById('tarotPlayerRole');
+    ui.cpuRole = document.getElementById('tarotCpuRole');
 }
 
 function bindEvents() {
@@ -1644,4 +1715,3 @@ export async function loadTarotPokerPage() {
     }
     render();
 }
-

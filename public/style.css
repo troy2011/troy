@@ -2528,6 +2528,16 @@ body.modal-lock .modal-overlay {
 /* --- タロットポーカー --- */
 .tarot-poker-root {
     overflow: visible;
+    --tarot-card-w: 64px;
+    --tarot-card-h: 100px;
+    --tarot-art-w: 48px;
+    --tarot-art-h: 80px;
+    --tarot-art-left: 8px;
+    --tarot-art-top: 12px;
+    --tarot-card-radius: 10px;
+    --tarot-card-padding: 6px;
+    --tarot-card-number-size: 24px;
+    --tarot-card-title-size: 11px;
 }
 
 .tarot-poker-header {
@@ -2609,10 +2619,10 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-board-slot {
-    width: 64px;
-    height: 100px;
+    width: var(--tarot-card-w, 64px);
+    height: var(--tarot-card-h, 100px);
     border: 1px dashed rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
+    border-radius: var(--tarot-card-radius, 10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2627,9 +2637,9 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-deck-anchor {
-    width: 64px;
-    height: 100px;
-    border-radius: 10px;
+    width: var(--tarot-card-w, 64px);
+    height: var(--tarot-card-h, 100px);
+    border-radius: var(--tarot-card-radius, 10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: linear-gradient(180deg, #334155, #1f2937);
     display: flex;
@@ -2679,6 +2689,15 @@ body.modal-lock .modal-overlay {
     margin-bottom: 8px;
 }
 
+.tarot-role-label {
+    min-height: 18px;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fde7a0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
 .tarot-outcome-badge {
     display: none;
     margin-left: 8px;
@@ -2713,23 +2732,23 @@ body.modal-lock .modal-overlay {
 .tarot-card-row {
     display: flex;
     gap: 8px;
-    min-height: 100px;
+    min-height: var(--tarot-card-h, 100px);
     margin-bottom: 8px;
     flex-wrap: nowrap;
 }
 
 .tarot-card-row .tarot-card,
 .tarot-poker-board .tarot-card {
-    flex: 0 0 64px;
+    flex: 0 0 var(--tarot-card-w, 64px);
 }
 
 .tarot-card {
-    width: 64px;
-    min-width: 64px;
-    height: 100px;
-    border-radius: 10px;
+    width: var(--tarot-card-w, 64px);
+    min-width: var(--tarot-card-w, 64px);
+    height: var(--tarot-card-h, 100px);
+    border-radius: var(--tarot-card-radius, 10px);
     border: 1px solid rgba(255, 255, 255, 0.22);
-    padding: 6px;
+    padding: var(--tarot-card-padding, 6px);
     position: relative;
     text-align: left;
     color: #fff;
@@ -2775,13 +2794,19 @@ body.modal-lock .modal-overlay {
     cursor: default;
 }
 
+.tarot-card.is-leaving {
+    transition: opacity 90ms ease, transform 90ms ease;
+    opacity: 0 !important;
+    transform: scale(0.94);
+}
+
 .tarot-card-title {
     position: absolute;
     left: 4px;
     right: 4px;
     bottom: 4px;
     z-index: 2;
-    font-size: 11px;
+    font-size: var(--tarot-card-title-size, 11px);
     font-weight: 700;
     opacity: 0.94;
     white-space: nowrap;
@@ -2796,7 +2821,7 @@ body.modal-lock .modal-overlay {
     left: 5px;
     top: 2px;
     z-index: 2;
-    font-size: 24px;
+    font-size: var(--tarot-card-number-size, 24px);
     line-height: 1;
     font-weight: 900;
     text-shadow:
@@ -2811,10 +2836,10 @@ body.modal-lock .modal-overlay {
 
 .tarot-card-art {
     position: absolute;
-    left: 8px;
-    top: 12px;
-    width: 48px;
-    height: 80px;
+    left: var(--tarot-art-left, 8px);
+    top: var(--tarot-art-top, 12px);
+    width: var(--tarot-art-w, 48px);
+    height: var(--tarot-art-h, 80px);
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.25);
     image-rendering: pixelated;
@@ -2835,8 +2860,8 @@ body.modal-lock .modal-overlay {
     display: block;
     width: 100%;
     text-align: center;
-    margin-top: 32px;
-    font-size: 26px;
+    margin-top: calc((var(--tarot-card-h, 100px) - 36px) / 2);
+    font-size: clamp(18px, calc(var(--tarot-card-w, 64px) * 0.42), 26px);
     font-weight: 900;
     opacity: 0.8;
 }
@@ -2846,7 +2871,7 @@ body.modal-lock .modal-overlay {
     flex-wrap: nowrap;
     gap: 6px;
     justify-content: flex-end;
-    min-height: 100px;
+    min-height: var(--tarot-card-h, 100px);
 }
 
 .tarot-grave-card {
@@ -3019,23 +3044,13 @@ body.modal-lock .modal-overlay {
     }
 
     #tabContentTarot .tarot-hand-grave-wrap {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 6px;
-    }
-
-    #tabContentTarot .tarot-grave-block,
-    #tabContentTarot .tarot-grave-title {
-        text-align: left;
+        grid-template-columns: minmax(0, 1fr) max-content;
+        gap: 8px;
     }
 
     #tabContentTarot .tarot-grave-row {
-        justify-content: flex-start;
-        min-height: 72px;
-    }
-
-    #tabContentTarot .tarot-grave-card {
-        transform: scale(0.82);
-        transform-origin: top left;
+        justify-content: flex-end;
+        min-height: var(--tarot-card-h, 100px);
     }
 
     #tabContentTarot .tarot-poker-column-title {
@@ -3045,54 +3060,10 @@ body.modal-lock .modal-overlay {
 
     #tabContentTarot .tarot-card-row {
         gap: 6px;
-        min-height: 82px;
+        min-height: var(--tarot-card-h, 100px);
         margin-bottom: 4px;
         overflow-x: auto;
         padding-bottom: 2px;
-    }
-
-    #tabContentTarot .tarot-card-row .tarot-card,
-    #tabContentTarot .tarot-poker-board .tarot-card {
-        flex: 0 0 52px;
-    }
-
-    #tabContentTarot .tarot-card,
-    #tabContentTarot .tarot-board-slot,
-    #tabContentTarot .tarot-deck-anchor {
-        width: 52px;
-        min-width: 52px;
-        height: 82px;
-        border-radius: 8px;
-    }
-
-    #tabContentTarot .tarot-card {
-        padding: 4px;
-    }
-
-    #tabContentTarot .tarot-card-number {
-        left: 4px;
-        top: 1px;
-        font-size: 20px;
-        -webkit-text-stroke: 1.2px #000;
-    }
-
-    #tabContentTarot .tarot-card-art {
-        left: 6px;
-        top: 10px;
-        width: 38px;
-        height: 64px;
-    }
-
-    #tabContentTarot .tarot-card-title {
-        left: 3px;
-        right: 3px;
-        bottom: 3px;
-        font-size: 10px;
-    }
-
-    #tabContentTarot .tarot-card-back {
-        margin-top: 24px;
-        font-size: 20px;
     }
 
     #tabContentTarot .tarot-log {
