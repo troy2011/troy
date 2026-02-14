@@ -680,13 +680,27 @@ function chooseCpuBettingAction() {
     const cpu = state.players.cpu;
     const toCall = getToCall('cpu');
     const minRaise = betting.minRaise || TEST_BET_UNIT;
+    const minBet = betting.minBet || TEST_BET_UNIT;
+    const roundKey = String(betting.roundKey || '');
     const rate = getCpuWinRateEstimate();
     const winRate = Number.isFinite(rate) && rate >= 0 ? rate : 0.5;
 
     if (toCall > 0) {
+        const isFirstPreflopResponse = roundKey === 'preflop'
+            && toCall <= minBet
+            && (betting.contributions?.cpu || 0) === 0;
+        if (isFirstPreflopResponse) {
+            if (winRate > 0.78 && cpu.testPoints >= toCall + minRaise && Math.random() < 0.35) {
+                return { action: 'raise' };
+            }
+            return { action: 'call' };
+        }
+
         const potAfterCall = state.pot + toCall;
         const potOdds = toCall / Math.max(1, potAfterCall);
-        if (winRate + 0.08 < potOdds) return { action: 'fold' };
+        const stackPressure = toCall / Math.max(1, cpu.testPoints || 1);
+        const isSmallCall = toCall <= minBet;
+        if (!isSmallCall && stackPressure > 0.22 && winRate + 0.08 < potOdds) return { action: 'fold' };
         if (winRate > 0.72 && cpu.testPoints >= toCall + minRaise && Math.random() < 0.45) {
             return { action: 'raise' };
         }

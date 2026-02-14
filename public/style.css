@@ -2932,6 +2932,181 @@ body.modal-lock .modal-overlay {
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 
+@media (max-width: 900px) {
+    .tarot-poker-columns {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .tarot-poker-column--player {
+        order: 1;
+    }
+
+    .tarot-poker-column--cpu {
+        order: 2;
+    }
+}
+
+@media (max-width: 640px) {
+    #tabContentTarot .tarot-poker-root {
+        margin: 8px;
+        padding: 10px;
+    }
+
+    #tabContentTarot .tarot-poker-header {
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    #tabContentTarot .tarot-poker-header h2 {
+        font-size: 20px;
+    }
+
+    #tabContentTarot .tarot-poker-sub {
+        font-size: 11px;
+    }
+
+    #tabContentTarot .tarot-poker-controls {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    #tabContentTarot .tarot-poker-controls button {
+        min-height: 34px;
+        padding: 6px;
+        font-size: 12px;
+    }
+
+    #tabContentTarot .tarot-betting-info {
+        margin-bottom: 8px;
+        padding: 6px;
+    }
+
+    #tabContentTarot .tarot-betting-points {
+        gap: 6px;
+        margin-bottom: 4px;
+        font-size: 11px;
+    }
+
+    #tabContentTarot .tarot-betting-hint {
+        margin-bottom: 6px;
+        font-size: 11px;
+    }
+
+    #tabContentTarot .tarot-state-text {
+        margin: 6px 0 8px;
+        font-size: 12px;
+    }
+
+    #tabContentTarot .tarot-board-top {
+        margin-bottom: 6px;
+    }
+
+    #tabContentTarot .tarot-poker-board {
+        gap: 6px;
+        margin-bottom: 8px;
+        overflow-x: auto;
+        padding-bottom: 3px;
+    }
+
+    #tabContentTarot .tarot-poker-columns {
+        gap: 8px;
+    }
+
+    #tabContentTarot .tarot-poker-column {
+        padding: 8px;
+    }
+
+    #tabContentTarot .tarot-hand-grave-wrap {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    #tabContentTarot .tarot-grave-block,
+    #tabContentTarot .tarot-grave-title {
+        text-align: left;
+    }
+
+    #tabContentTarot .tarot-grave-row {
+        justify-content: flex-start;
+        min-height: 72px;
+    }
+
+    #tabContentTarot .tarot-grave-card {
+        transform: scale(0.82);
+        transform-origin: top left;
+    }
+
+    #tabContentTarot .tarot-poker-column-title {
+        margin-bottom: 6px;
+        font-size: 11px;
+    }
+
+    #tabContentTarot .tarot-card-row {
+        gap: 6px;
+        min-height: 82px;
+        margin-bottom: 4px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    #tabContentTarot .tarot-card-row .tarot-card,
+    #tabContentTarot .tarot-poker-board .tarot-card {
+        flex: 0 0 52px;
+    }
+
+    #tabContentTarot .tarot-card,
+    #tabContentTarot .tarot-board-slot,
+    #tabContentTarot .tarot-deck-anchor {
+        width: 52px;
+        min-width: 52px;
+        height: 82px;
+        border-radius: 8px;
+    }
+
+    #tabContentTarot .tarot-card {
+        padding: 4px;
+    }
+
+    #tabContentTarot .tarot-card-number {
+        left: 4px;
+        top: 1px;
+        font-size: 20px;
+        -webkit-text-stroke: 1.2px #000;
+    }
+
+    #tabContentTarot .tarot-card-art {
+        left: 6px;
+        top: 10px;
+        width: 38px;
+        height: 64px;
+    }
+
+    #tabContentTarot .tarot-card-title {
+        left: 3px;
+        right: 3px;
+        bottom: 3px;
+        font-size: 10px;
+    }
+
+    #tabContentTarot .tarot-card-back {
+        margin-top: 24px;
+        font-size: 20px;
+    }
+
+    #tabContentTarot .tarot-log {
+        margin-top: 8px;
+        max-height: 84px;
+        padding: 6px;
+    }
+
+    #tabContentTarot .tarot-log-row {
+        margin-bottom: 4px;
+        font-size: 11px;
+    }
+}
+
 @keyframes tarotPulse {
     0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
     50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
