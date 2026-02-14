@@ -114,7 +114,9 @@ const ui = {
     pokerRoot: null,
     startButton: null,
     nextButton: null,
+    drawConfirmButton: null,
     stateText: null,
+    drawGuide: null,
     deckAnchor: null,
     board: null,
     cpuHand: null,
@@ -361,6 +363,7 @@ function resetState() {
     state = {
         phase: 'idle',
         drawRound: 0,
+        pendingPlayerDiscardIndex: null,
         dealerIndex: 0,
         deck: [],
         board: [],
@@ -1215,8 +1218,7 @@ function applyPreflopBlind() {
     const blindPos = (dealerPos + 1) % order.length;
     const blindOwner = order[blindPos];
     const blindResponder = order[(blindPos + 1) % order.length] || null;
-    const blindBase = Number(state.betting.minBet || TEST_BET_UNIT);
-    const blindAmount = Math.max(0, Math.floor(blindBase + BLIND_BONUS_TP));
+    const blindAmount = Math.max(0, Math.floor(Number(BLIND_BONUS_TP) || 0));
     const payer = state.players?.[blindOwner];
     if (!payer || blindAmount <= 0) return;
     const payerStack = Math.max(0, Math.floor(Number(payer.testPoints) || 0));
@@ -1384,7 +1386,23 @@ async function transitionAfterPhase(nextPhase = 'turn-ready') {
         render();
         return;
     }
+    if (nextPhase === 'river-ready') {
+        await openRiverThenFinalBetting();
+        return;
+    }
     state.phase = nextPhase;
+}
+
+async function openRiverThenFinalBetting() {
+    if (!state || state.phase === 'showdown' || state.phase === 'river-opening') return;
+    state.phase = 'river-opening';
+    render();
+    await showRoundCutin('RIVER OPEN');
+    await revealBoard(1);
+    if (state.phase !== 'showdown') {
+        await transitionAfterPhase('betting-final');
+    }
+    render();
 }
 
 async function completeBettingRoundIfNeeded() {
@@ -1678,6 +1696,7 @@ function getPostDrawNextPhase() {
 
 async function enterDrawPhase(roundNo) {
     state.drawRound = roundNo;
+    state.pendingPlayerDiscardIndex = null;
     await showRoundCutin(`DRAW PHASE ${roundNo}`);
     state.phase = 'draw-player';
 }
@@ -1854,7 +1873,8 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
-        pushLog(`DRAW PHASE ${state.drawRound}: 交換を確定`);
+        state.pendingPlayerDiscardIndex = null;
+        pushLog(`DRAW PHASE ${state.drawRound}: 交換をスキップ`);
         await finishPlayerExchange(getPostDrawNextPhase());
         return;
     }
@@ -1870,23 +1890,38 @@ async function handleNext() {
     }
 
     if (state.phase === 'river-ready') {
-        await showRoundCutin('RIVER OPEN');
-        await revealBoard(1);
-        if (state.phase !== 'showdown') {
-            await transitionAfterPhase('betting-final');
-        }
-        render();
+        await openRiverThenFinalBetting();
         return;
     }
 }
 
-async function onPlayerCardClick(index, sourceEl) {
+async function onPlayerCardClick(index) {
     if (!state || state.phase !== 'draw-player') return;
     const player = state.players.player;
     if (!player.canExchange) return;
     if (index < 0 || index >= player.hand.length) return;
+    if (state.pendingPlayerDiscardIndex === index) {
+        state.pendingPlayerDiscardIndex = null;
+    } else {
+        state.pendingPlayerDiscardIndex = index;
+    }
+    render();
+}
 
+async function confirmPlayerDrawSelection() {
+    if (!state || state.phase !== 'draw-player') return;
+    const player = state.players.player;
+    if (!player.canExchange) return;
+    const index = Number(state.pendingPlayerDiscardIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= player.hand.length) {
+        pushLog('捨てる手札を1枚選択してください。');
+        render();
+        return;
+    }
+    const playerCardEls = ui.playerHand ? Array.from(ui.playerHand.querySelectorAll('.tarot-card')) : [];
+    const sourceEl = playerCardEls[index] || ui.playerHand;
     const [discarded] = player.hand.splice(index, 1);
+    state.pendingPlayerDiscardIndex = null;
     if (sourceEl?.classList) {
         sourceEl.classList.add('is-leaving');
         await wait(80);
@@ -1958,11 +1993,12 @@ function getPhaseText() {
     if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
     if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
     if (state.phase === 'preflop') return '次へでフロップを開示。';
-    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 手札1枚を選択（次へでスキップ）。`;
+    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 捨てる手札を選択（スキップも可）。`;
     if (state.phase === 'draw-player-judgment') return '審判発動: 取得カードを選択。';
     if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
     if (state.phase === 'turn-ready') return '次へでターンを開示。';
-    if (state.phase === 'river-ready') return '次へでリバーを開示。';
+    if (state.phase === 'river-ready') return 'リバーを自動で展開します...';
+    if (state.phase === 'river-opening') return 'リバー展開中...';
     if (state.phase === 'showdown') return 'ショーダウン完了。';
     return '';
 }
@@ -2050,6 +2086,7 @@ function createCardElement(card, options = {}) {
 
 function renderCardRow(container, cards, options = {}) {
     if (!container) return;
+    container.classList.toggle('is-draw-phase', !!options.drawPhase);
     container.innerHTML = '';
     cards.forEach((card, index) => {
         const clickable = options.clickable && typeof options.onCardClick === 'function';
@@ -2061,6 +2098,9 @@ function renderCardRow(container, cards, options = {}) {
             clickable,
             onClick: () => options.onCardClick(index, el)
         });
+        if (Number(options.selectedIndex) === index) {
+            el.classList.add('is-selected');
+        }
         container.appendChild(el);
     });
 }
@@ -2305,6 +2345,11 @@ function renderJudgmentPanel() {
 }
 function renderButtons() {
     if (!ui.nextButton) return;
+    if (ui.drawConfirmButton) {
+        ui.drawConfirmButton.style.display = 'none';
+        ui.drawConfirmButton.disabled = true;
+        ui.drawConfirmButton.textContent = '選択したカードを捨てる';
+    }
     if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
         ui.nextButton.disabled = true;
         ui.nextButton.textContent = '次へ';
@@ -2323,6 +2368,18 @@ function renderButtons() {
     if (state.phase === 'draw-player') {
         ui.nextButton.disabled = false;
         ui.nextButton.textContent = `第${state.drawRound}ドローをスキップ`;
+        if (ui.drawConfirmButton) {
+            const selected = Number(state.pendingPlayerDiscardIndex);
+            const canConfirm = Number.isInteger(selected)
+                && selected >= 0
+                && selected < (state.players?.player?.hand?.length || 0)
+                && !!state.players?.player?.canExchange;
+            ui.drawConfirmButton.style.display = 'inline-flex';
+            ui.drawConfirmButton.disabled = !canConfirm;
+            ui.drawConfirmButton.textContent = canConfirm
+                ? '選択したカードを捨てる'
+                : '先に手札を1枚選択';
+        }
         return;
     }
     if (state.phase === 'draw-player-judgment') {
@@ -2335,14 +2392,19 @@ function renderButtons() {
         ui.nextButton.textContent = 'CPU思考中...';
         return;
     }
+    if (state.phase === 'river-opening') {
+        ui.nextButton.disabled = true;
+        ui.nextButton.textContent = 'リバー展開中...';
+        return;
+    }
     if (state.phase === 'turn-ready') {
         ui.nextButton.disabled = false;
         ui.nextButton.textContent = 'ターンを開く';
         return;
     }
     if (state.phase === 'river-ready') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'リバーを開く';
+        ui.nextButton.disabled = true;
+        ui.nextButton.textContent = 'リバー自動展開中...';
         return;
     }
     ui.nextButton.disabled = true;
@@ -2415,11 +2477,33 @@ function renderBettingInfo() {
     }
 }
 
+function renderDrawGuide() {
+    if (!ui.drawGuide || !state) return;
+    if (state.phase !== 'draw-player' && state.phase !== 'draw-player-judgment' && state.phase !== 'cpu-thinking') {
+        ui.drawGuide.style.display = 'none';
+        ui.drawGuide.textContent = '';
+        return;
+    }
+    if (state.phase === 'draw-player') {
+        const selectedIndex = Number(state.pendingPlayerDiscardIndex);
+        const selectedCard = Number.isInteger(selectedIndex)
+            ? state.players?.player?.hand?.[selectedIndex]
+            : null;
+        ui.drawGuide.textContent = selectedCard
+            ? `第${state.drawRound}ドロー: 「${getCardDisplayName(selectedCard)}」を捨てますか？`
+            : `第${state.drawRound}ドロー: 捨てる手札を1枚選択してください（スキップ可）`;
+    } else if (state.phase === 'draw-player-judgment') {
+        ui.drawGuide.textContent = '審判発動中: 取得カードを選択（またはスキップ）';
+    } else {
+        ui.drawGuide.textContent = 'CPUがドロー処理中...';
+    }
+    ui.drawGuide.style.display = 'block';
+}
+
 function render() {
     if (!state || !ui.root) return;
     renderBoard();
     const isShowdown = state.phase === 'showdown' && !!state.result;
-    const isBettingFocus = isBettingPhase() && !!state.betting;
     const useRemainingTieBreak = isShowdown && !!state.result?.remainingTieBreakUsed;
     const showKickerOnTie = isShowdown
         && !useRemainingTieBreak
@@ -2430,7 +2514,6 @@ function render() {
     if (ui.pokerRoot) {
         ui.pokerRoot.classList.toggle('is-showdown', isShowdown);
         ui.pokerRoot.classList.toggle('is-dealing', isDealing);
-        ui.pokerRoot.classList.toggle('is-betting-focus', isBettingFocus);
     }
     const playerCardsForView = isShowdown
         ? getRoleCardsForDisplay(state.result.playerBest, {
@@ -2450,6 +2533,10 @@ function render() {
         hidden: playerHidden,
         hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
         clickable: !isShowdown && !isDealing && state.phase === 'draw-player',
+        drawPhase: !isShowdown && !isDealing && state.phase === 'draw-player',
+        selectedIndex: !isShowdown && !isDealing && state.phase === 'draw-player'
+            ? state.pendingPlayerDiscardIndex
+            : -1,
         onCardClick: onPlayerCardClick
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
@@ -2461,6 +2548,7 @@ function render() {
     renderJudgmentPanel();
     renderButtons();
     renderBettingInfo();
+    renderDrawGuide();
     renderOutcomeBadges();
     renderRoleLabels();
     if (ui.stateText) ui.stateText.textContent = getPhaseText();
@@ -2633,7 +2721,9 @@ function bindElements() {
     ui.pokerRoot = ui.root?.querySelector('.tarot-poker-root') || null;
     ui.startButton = document.getElementById('tarotStartButton');
     ui.nextButton = document.getElementById('tarotNextButton');
+    ui.drawConfirmButton = document.getElementById('tarotDrawConfirmButton');
     ui.stateText = document.getElementById('tarotStateText');
+    ui.drawGuide = document.getElementById('tarotDrawGuide');
     ui.deckAnchor = document.getElementById('tarotDeckAnchor');
     ui.board = document.getElementById('tarotPokerBoard');
     ui.cpuHand = document.getElementById('tarotCpuHand');
@@ -2671,6 +2761,7 @@ function bindEvents() {
     isBound = true;
     ui.startButton?.addEventListener('click', startNewGame);
     ui.nextButton?.addEventListener('click', handleNext);
+    ui.drawConfirmButton?.addEventListener('click', confirmPlayerDrawSelection);
     ui.betCheckButton?.addEventListener('click', () => onPlayerBetAction('check'));
     ui.betCallButton?.addEventListener('click', () => onPlayerBetAction('call'));
     ui.betBetButton?.addEventListener('click', () => onPlayerBetAction('bet'));

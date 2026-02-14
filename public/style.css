@@ -2541,27 +2541,6 @@ body.modal-lock .modal-overlay {
     --tarot-card-title-size: 10px;
 }
 
-.tarot-poker-root.is-betting-focus::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.62);
-    backdrop-filter: blur(1.5px) saturate(0.72);
-    z-index: 3390;
-    pointer-events: none;
-    animation: tarotBettingDimPulse 1.4s ease-in-out infinite;
-}
-
-@keyframes tarotBettingDimPulse {
-    0%,
-    100% {
-        background: rgba(0, 0, 0, 0.62);
-    }
-    50% {
-        background: rgba(0, 0, 0, 0.7);
-    }
-}
-
 .tarot-poker-root.is-time-stopped {
     animation: tarotTimeStopMonochrome 1.2s ease-in-out infinite;
 }
@@ -2582,6 +2561,16 @@ body.modal-lock .modal-overlay {
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 10px;
+}
+
+.tarot-poker-header h2 {
+    white-space: nowrap;
+    word-break: keep-all;
+    line-height: 1.1;
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+    flex: 0 0 auto;
 }
 
 .tarot-poker-header-meta {
@@ -2671,6 +2660,28 @@ body.modal-lock .modal-overlay {
 
 .tarot-poker-controls button {
     flex: 1;
+}
+
+#tarotDrawConfirmButton {
+    border: 1px solid rgba(16, 185, 129, 0.65);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2), 0 6px 14px rgba(5, 46, 22, 0.45);
+}
+
+#tarotDrawConfirmButton:disabled {
+    opacity: 0.65;
+    filter: saturate(0.75);
+}
+
+.tarot-draw-guide {
+    margin: 6px 0 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.65);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .tarot-betting-info {
@@ -3058,6 +3069,15 @@ body.modal-lock .modal-overlay {
 .tarot-card-row.is-draw-phase .tarot-card.is-clickable:hover,
 .tarot-card-row.is-draw-phase .tarot-card.is-clickable:active {
     animation-play-state: paused;
+}
+
+.tarot-card-row .tarot-card.is-selected {
+    border-color: rgba(250, 204, 21, 0.95);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.75),
+        0 0 16px rgba(250, 204, 21, 0.5),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+    transform: translateY(-2px) scale(1.02);
 }
 
 @keyframes tarotDrawCardWiggle {
@@ -3535,6 +3555,7 @@ body.modal-lock .modal-overlay {
 
     #tabContentTarot .tarot-poker-header h2 {
         font-size: 20px;
+        white-space: nowrap;
     }
 
     #tabContentTarot .tarot-poker-sub {
