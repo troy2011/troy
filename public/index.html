@@ -259,21 +259,51 @@
                         <button id="tarotStartButton" type="button">新しい勝負を始める</button>
                         <button id="tarotNextButton" type="button" style="background:#4b5563;">次へ</button>
                     </div>
+                    <div id="tarotBettingInfo" class="tarot-betting-info" style="display:none;">
+                        <div class="tarot-betting-points">
+                            <span id="tarotPotText">Pot: 0 TP</span>
+                            <span id="tarotPlayerPointText">あなた: 0 TP</span>
+                            <span id="tarotCpuPointText">CPU: 0 TP</span>
+                        </div>
+                        <div id="tarotBetActionHint" class="tarot-betting-hint"></div>
+                        <div class="tarot-betting-actions">
+                            <button id="tarotBetCheck" type="button">チェック</button>
+                            <button id="tarotBetCall" type="button">コール</button>
+                            <button id="tarotBetBet" type="button">BET</button>
+                            <button id="tarotBetRaise" type="button">レイズ</button>
+                            <button id="tarotBetFold" type="button">フォールド</button>
+                        </div>
+                    </div>
                     <div id="tarotEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
                     <div id="tarotStateText" class="tarot-state-text">「新しい勝負を始める」を押してください。</div>
+                    <div class="tarot-board-top">
+                        <div id="tarotDeckAnchor" class="tarot-deck-anchor">山札</div>
+                    </div>
                     <div id="tarotPokerBoard" class="tarot-poker-board"></div>
                     <div class="tarot-poker-columns">
                         <div class="tarot-poker-column">
-                            <div class="tarot-poker-column-title">CPU 手札</div>
-                            <div id="tarotCpuHand" class="tarot-card-row"></div>
-                            <div class="tarot-poker-column-title">CPU 墓地（最新→）</div>
-                            <div id="tarotCpuGrave" class="tarot-grave-row"></div>
+                            <div class="tarot-hand-grave-wrap">
+                                <div class="tarot-hand-block">
+                                    <div class="tarot-poker-column-title">CPU 手札 <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span></div>
+                                    <div id="tarotCpuHand" class="tarot-card-row"></div>
+                                </div>
+                                <div class="tarot-grave-block">
+                                    <div class="tarot-poker-column-title tarot-grave-title">CPU 墓地</div>
+                                    <div id="tarotCpuGrave" class="tarot-grave-row"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="tarot-poker-column">
-                            <div class="tarot-poker-column-title">あなたの手札</div>
-                            <div id="tarotPlayerHand" class="tarot-card-row"></div>
-                            <div class="tarot-poker-column-title">あなたの墓地（最新→）</div>
-                            <div id="tarotPlayerGrave" class="tarot-grave-row"></div>
+                            <div class="tarot-hand-grave-wrap">
+                                <div class="tarot-hand-block">
+                                    <div class="tarot-poker-column-title">あなたの手札 <span id="tarotPlayerOutcome" class="tarot-outcome-badge"></span></div>
+                                    <div id="tarotPlayerHand" class="tarot-card-row"></div>
+                                </div>
+                                <div class="tarot-grave-block">
+                                    <div class="tarot-poker-column-title tarot-grave-title">あなたの墓地</div>
+                                    <div id="tarotPlayerGrave" class="tarot-grave-row"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="tarotJudgmentPanel" class="tarot-judgment-panel" style="display:none;">

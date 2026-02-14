@@ -58,6 +58,16 @@ const TAROT_SPRITE_TILE_W = 48;
 const TAROT_SPRITE_TILE_H = 80;
 const TAROT_SPRITE_SHEET_W = 512;
 const TAROT_SPRITE_SHEET_H = 1024;
+const TAROT_BACK_SPRITE_INDEX = 110;
+const TAROT_REVEAL_FRAME_START = 110;
+const TAROT_REVEAL_FRAME_END = 119;
+const TAROT_REVEAL_FRAMES = Array.from(
+    { length: TAROT_REVEAL_FRAME_END - TAROT_REVEAL_FRAME_START + 1 },
+    (_, i) => TAROT_REVEAL_FRAME_START + i
+);
+const TAROT_REVEAL_FRAME_MS = 38;
+const TEST_POINT_START = 300;
+const TEST_BET_UNIT = 10;
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
 
@@ -69,6 +79,7 @@ const ui = {
     startButton: null,
     nextButton: null,
     stateText: null,
+    deckAnchor: null,
     board: null,
     cpuHand: null,
     playerHand: null,
@@ -78,7 +89,19 @@ const ui = {
     log: null,
     effectOverlay: null,
     judgmentPanel: null,
-    judgmentOptions: null
+    judgmentOptions: null,
+    bettingInfo: null,
+    potText: null,
+    playerPointText: null,
+    cpuPointText: null,
+    betActionHint: null,
+    betCheckButton: null,
+    betCallButton: null,
+    betBetButton: null,
+    betRaiseButton: null,
+    betFoldButton: null,
+    playerOutcome: null,
+    cpuOutcome: null
 };
 
 function shuffle(list) {
@@ -107,6 +130,102 @@ function sampleCards(pool, count) {
     if (!Array.isArray(pool) || pool.length === 0 || count <= 0) return [];
     const indices = sampleIndices(count, pool.length);
     return indices.map((idx) => pool[idx]).filter(Boolean);
+}
+
+function getRectCenter(rect) {
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+function setArtSpriteByIndex(artEl, spriteIndex) {
+    if (!artEl) return;
+    const col = spriteIndex % 10;
+    const row = Math.floor(spriteIndex / 10);
+    artEl.style.setProperty('--tarot-sheet-w', `${TAROT_SPRITE_SHEET_W}px`);
+    artEl.style.setProperty('--tarot-sheet-h', `${TAROT_SPRITE_SHEET_H}px`);
+    artEl.style.setProperty('--tarot-x', `${col * TAROT_SPRITE_TILE_W}px`);
+    artEl.style.setProperty('--tarot-y', `${row * TAROT_SPRITE_TILE_H}px`);
+    artEl.style.setProperty('--tarot-sprite-src', `url('${TAROT_SPRITE_SRC}')`);
+}
+
+function createBackCardData() {
+    return {
+        id: 'back',
+        number: 0,
+        suit: 'None',
+        isArcana: false,
+        effectType: EFFECT_TYPE.NONE
+    };
+}
+
+async function animateBackToFrontOnElement(cardEl, finalCard) {
+    if (!cardEl || !finalCard) return;
+    const art = cardEl.querySelector('.tarot-card-art');
+    if (!art) return;
+    // 110,111,...,119 の10フレームを必ず再生
+    for (const frame of TAROT_REVEAL_FRAMES) {
+        setArtSpriteByIndex(art, frame);
+        await wait(TAROT_REVEAL_FRAME_MS);
+    }
+    const revealed = createCardElement(finalCard, { hidden: false, clickable: false });
+    cardEl.replaceWith(revealed);
+}
+
+async function revealCpuHandFromBack() {
+    if (!ui.cpuHand || !state?.players?.cpu?.hand) return;
+    const cpuCards = state.players.cpu.hand;
+    const cpuEls = Array.from(ui.cpuHand.querySelectorAll('.tarot-card'));
+    if (!cpuEls.length || cpuEls.length !== cpuCards.length) return;
+    const hasHiddenCard = cpuEls.some((el) => el.classList.contains('is-hidden'));
+    if (!hasHiddenCard) return;
+    for (let i = 0; i < cpuCards.length; i += 1) {
+        await animateBackToFrontOnElement(cpuEls[i], cpuCards[i]);
+    }
+}
+
+async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo = 0.92) {
+    if (typeof document === 'undefined' || !card) return;
+    const fromTarget = fromEl || ui.deckAnchor || ui.root;
+    const toTarget = toEl || ui.root;
+    if (!fromTarget || !toTarget) return;
+
+    const fromRect = fromTarget.getBoundingClientRect();
+    const toRect = toTarget.getBoundingClientRect();
+    if (!fromRect.width || !fromRect.height) return;
+    const startW = 64;
+    const startH = 100;
+    const fromCenter = getRectCenter(fromRect);
+    const toCenter = getRectCenter(toRect);
+
+    const ghost = createCardElement(card, { hidden: false, clickable: false });
+    ghost.classList.add('tarot-card-fly');
+    ghost.style.position = 'fixed';
+    ghost.style.left = `${fromCenter.x - startW / 2}px`;
+    ghost.style.top = `${fromCenter.y - startH / 2}px`;
+    ghost.style.width = `${startW}px`;
+    ghost.style.height = `${startH}px`;
+    ghost.style.margin = '0';
+    ghost.style.zIndex = '5000';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.transform = 'translate(0px, 0px) scale(1)';
+    ghost.style.opacity = '0.98';
+    document.body.appendChild(ghost);
+
+    const dx = toCenter.x - fromCenter.x;
+    const dy = toCenter.y - fromCenter.y;
+
+    await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            ghost.style.transition = `transform ${durationMs}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${durationMs}ms ease`;
+            ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleTo})`;
+            ghost.style.opacity = '0.86';
+            setTimeout(resolve, durationMs + 16);
+        });
+    });
+
+    if (ghost.parentElement) ghost.remove();
 }
 
 function buildDeck() {
@@ -141,6 +260,7 @@ function buildDeck() {
 function resetState() {
     state = {
         phase: 'idle',
+        drawRound: 0,
         deck: [],
         board: [],
         players: {
@@ -150,7 +270,8 @@ function resetState() {
                 hand: [],
                 graveyard: [],
                 canExchange: true,
-                bettingEnabled: false
+                bettingEnabled: false,
+                testPoints: TEST_POINT_START
             },
             cpu: {
                 id: 'cpu',
@@ -158,10 +279,14 @@ function resetState() {
                 hand: [],
                 graveyard: [],
                 canExchange: true,
-                bettingEnabled: false
+                bettingEnabled: false,
+                testPoints: TEST_POINT_START
             }
         },
         graveyard: [],
+        pot: 0,
+        betting: null,
+        handSettled: false,
         forceShowdown: false,
         effectsDisabledByFool: false,
         pendingJudgment: null,
@@ -233,6 +358,12 @@ function getCardDisplayName(card) {
         return ARCANA_NAME[card.number] || `アルカナ ${card.number}`;
     }
     return `${card.suit} ${card.number}`;
+}
+
+function getCardNameLabel(card) {
+    if (!card) return '';
+    if (card.isArcana) return ARCANA_NAME[card.number] || 'アルカナ';
+    return card.suit;
 }
 
 function getCardSuitForFlush(card) {
@@ -350,6 +481,7 @@ function scoreFiveCards(cards) {
     const maxNumber = sorted.reduce((max, card) => Math.max(max, card.number), 0);
     const arcanaNumbers = sorted.filter((card) => card.isArcana).map((card) => card.number);
     const hasArcana = arcanaNumbers.length > 0;
+    const allArcana = sorted.every((card) => card.isArcana);
     const maxArcana = hasArcana ? Math.max(...arcanaNumbers) : -1;
     const suitStrength = sorted.reduce((max, card) => {
         const suit = getCardSuitForFlush(card);
@@ -363,6 +495,7 @@ function scoreFiveCards(cards) {
 
     let rank = 2;
     let rankVector = [];
+    let rankLabel = '';
 
     if (countEntries[0]?.[1] === 5) {
         rank = 11;
@@ -378,9 +511,14 @@ function scoreFiveCards(cards) {
     } else if (countEntries[0]?.[1] === 3 && countEntries[1]?.[1] === 2) {
         rank = 8;
         rankVector = [countEntries[0][0], countEntries[1][0]];
-    } else if (flush) {
+    } else if (flush || allArcana) {
         rank = 7;
-        rankVector = flush.valueVector;
+        if (flush) {
+            rankVector = flush.valueVector;
+        } else {
+            rankVector = sorted.map((card) => card.number).sort((a, b) => b - a);
+            rankLabel = 'アルカナフラッシュ';
+        }
     } else if (straight) {
         rank = 6;
         rankVector = [straight.high];
@@ -407,7 +545,7 @@ function scoreFiveCards(cards) {
 
     return {
         rank,
-        rankLabel: HAND_RANK_LABEL[rank] || '役なし',
+        rankLabel: rankLabel || HAND_RANK_LABEL[rank] || '役なし',
         rankVector,
         maxNumber,
         hasArcana,
@@ -472,6 +610,228 @@ function evaluateShowdown() {
     return { playerBest, cpuBest, winner };
 }
 
+function isBettingPhase() {
+    return typeof state?.phase === 'string' && state.phase.startsWith('betting-');
+}
+
+function formatTestPoint(value) {
+    const amount = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    return `${amount} TP`;
+}
+
+function getToCall(ownerKey) {
+    if (!state?.betting) return 0;
+    return Math.max(0, (state.betting.currentBet || 0) - (state.betting.contributions?.[ownerKey] || 0));
+}
+
+function addBetToPot(ownerKey, amount) {
+    if (!state?.betting || amount <= 0) return false;
+    const player = state.players?.[ownerKey];
+    if (!player || player.testPoints < amount) return false;
+    player.testPoints -= amount;
+    state.pot += amount;
+    state.betting.contributions[ownerKey] += amount;
+    return true;
+}
+
+function settlePotByWinner(winnerKey) {
+    if (!state || state.handSettled) return;
+    state.handSettled = true;
+    const pot = Math.max(0, Number(state.pot || 0));
+    if (pot <= 0) return;
+    if (winnerKey === 'draw') {
+        const half = Math.floor(pot / 2);
+        state.players.player.testPoints += half;
+        state.players.cpu.testPoints += pot - half;
+        pushLog(`ポット ${formatTestPoint(pot)} は引き分けで分配。`);
+        return;
+    }
+    if (winnerKey === 'player' || winnerKey === 'cpu') {
+        state.players[winnerKey].testPoints += pot;
+        const winnerName = state.players[winnerKey].name || winnerKey;
+        pushLog(`${winnerName} がポット ${formatTestPoint(pot)} を獲得。`);
+    }
+}
+
+function startBettingRound(roundKey, nextPhase) {
+    state.betting = {
+        roundKey,
+        nextPhase,
+        minBet: TEST_BET_UNIT,
+        minRaise: TEST_BET_UNIT,
+        currentBet: 0,
+        contributions: { player: 0, cpu: 0 },
+        pendingResponseFor: null,
+        checks: { player: false, cpu: false }
+    };
+    state.phase = `betting-${roundKey}`;
+    pushLog(`ベッティング開始: ${roundKey} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
+}
+
+function getCpuWinRateEstimate() {
+    const hand = state.players.cpu.hand;
+    const board = state.board.slice();
+    const pool = state.deck.slice();
+    return estimateCpuWinRate(hand, board, pool, Math.floor(CPU_SIMULATION_COUNT * 0.7));
+}
+
+function chooseCpuBettingAction() {
+    const betting = state.betting;
+    const cpu = state.players.cpu;
+    const toCall = getToCall('cpu');
+    const minRaise = betting.minRaise || TEST_BET_UNIT;
+    const rate = getCpuWinRateEstimate();
+    const winRate = Number.isFinite(rate) && rate >= 0 ? rate : 0.5;
+
+    if (toCall > 0) {
+        const potAfterCall = state.pot + toCall;
+        const potOdds = toCall / Math.max(1, potAfterCall);
+        if (winRate + 0.08 < potOdds) return { action: 'fold' };
+        if (winRate > 0.72 && cpu.testPoints >= toCall + minRaise && Math.random() < 0.45) {
+            return { action: 'raise' };
+        }
+        return { action: 'call' };
+    }
+
+    if (winRate > 0.66 && cpu.testPoints >= betting.minBet && Math.random() < 0.55) {
+        return { action: 'bet' };
+    }
+    return { action: 'check' };
+}
+
+function applyBetAction(ownerKey, action) {
+    if (!state?.betting) return { ok: false, message: 'ベットフェーズではありません。' };
+    const betting = state.betting;
+    const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
+    const toCall = getToCall(ownerKey);
+    const actor = state.players[ownerKey];
+    const actorName = actor.name || ownerKey;
+
+    if (action === 'fold') {
+        settlePotByWinner(otherKey);
+        state.phase = 'showdown';
+        state.result = {
+            winner: otherKey,
+            playerBest: { rankLabel: ownerKey === 'player' ? 'フォールド負け' : 'フォールド勝ち' },
+            cpuBest: { rankLabel: ownerKey === 'cpu' ? 'フォールド負け' : 'フォールド勝ち' }
+        };
+        return { ok: true, handEnded: true };
+    }
+
+    if (action === 'check') {
+        if (toCall > 0) return { ok: false, message: 'コール額があります。' };
+        betting.checks[ownerKey] = true;
+        pushLog(`${actorName} はチェック。`);
+        if (betting.checks.player && betting.checks.cpu) {
+            betting.pendingResponseFor = null;
+            return { ok: true, roundComplete: true };
+        }
+        return { ok: true };
+    }
+
+    if (action === 'call') {
+        if (toCall <= 0) return { ok: false, message: 'コール不要です。' };
+        if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: 'ポイント不足でコールできません。' };
+        betting.checks.player = false;
+        betting.checks.cpu = false;
+        betting.pendingResponseFor = null;
+        pushLog(`${actorName} はコール (${formatTestPoint(toCall)})。`);
+        return { ok: true, roundComplete: true };
+    }
+
+    if (action === 'bet') {
+        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はベットではなくコール/レイズです。' };
+        const amount = betting.minBet;
+        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でベットできません。' };
+        betting.currentBet = betting.contributions[ownerKey];
+        betting.pendingResponseFor = otherKey;
+        betting.checks.player = false;
+        betting.checks.cpu = false;
+        pushLog(`${actorName} はベット (${formatTestPoint(amount)})。`);
+        return { ok: true };
+    }
+
+    if (action === 'raise') {
+        const raiseCost = toCall + betting.minRaise;
+        if (raiseCost <= 0) return { ok: false, message: 'レイズ条件を満たしていません。' };
+        if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: 'ポイント不足でレイズできません。' };
+        betting.currentBet = betting.contributions[ownerKey];
+        betting.pendingResponseFor = otherKey;
+        betting.checks.player = false;
+        betting.checks.cpu = false;
+        pushLog(`${actorName} はレイズ (+${formatTestPoint(betting.minRaise)})。`);
+        return { ok: true };
+    }
+
+    return { ok: false, message: '未対応アクションです。' };
+}
+
+async function transitionAfterPhase(nextPhase = 'turn-ready') {
+    if (nextPhase === 'showdown') {
+        await resolveShowdown();
+        return;
+    }
+    if (nextPhase === 'betting-mid') {
+        startBettingRound('mid', 'turn-ready');
+        render();
+        return;
+    }
+    if (nextPhase === 'betting-final') {
+        startBettingRound('final', 'showdown');
+        render();
+        return;
+    }
+    state.phase = nextPhase;
+}
+
+async function completeBettingRoundIfNeeded() {
+    if (!state?.betting) return;
+    const nextPhase = state.betting.nextPhase;
+    state.betting = null;
+    await transitionAfterPhase(nextPhase);
+    render();
+}
+
+async function runCpuBettingTurn() {
+    if (!isBettingPhase() || !state.betting) return;
+    const decision = chooseCpuBettingAction();
+    const result = applyBetAction('cpu', decision.action);
+    if (!result.ok) {
+        const fallback = getToCall('cpu') > 0 ? applyBetAction('cpu', 'call') : applyBetAction('cpu', 'check');
+        if (!fallback.ok) {
+            applyBetAction('cpu', 'fold');
+        }
+    }
+    render();
+    await wait(220);
+    if (state.phase === 'showdown') return;
+    if (state.betting && state.betting.pendingResponseFor === 'player') {
+        return;
+    }
+    if (!state.betting || !state.betting.pendingResponseFor) {
+        await completeBettingRoundIfNeeded();
+    }
+}
+
+async function onPlayerBetAction(action) {
+    if (!isBettingPhase() || state.cpuThinking) return;
+    const result = applyBetAction('player', action);
+    if (!result.ok) {
+        pushLog(result.message || 'この操作はできません。');
+        render();
+        return;
+    }
+    render();
+    if (state.phase === 'showdown') return;
+    if (result.roundComplete) {
+        await completeBettingRoundIfNeeded();
+        return;
+    }
+    if (state.betting?.pendingResponseFor === 'cpu' || (!state.betting?.pendingResponseFor && !result.roundComplete)) {
+        await runCpuBettingTurn();
+    }
+}
+
 function buildPoolWithoutCards(pool, cardsToRemove) {
     if (!Array.isArray(pool) || pool.length === 0) return [];
     if (!Array.isArray(cardsToRemove) || cardsToRemove.length === 0) return pool.slice();
@@ -504,15 +864,18 @@ function drawRandomMany(pool, count) {
 
 function estimateCpuWinRate(candidateCpuHand, boardCards, basePool, simulationCount = CPU_SIMULATION_COUNT) {
     if (!Array.isArray(candidateCpuHand) || candidateCpuHand.length !== 2) return -1;
-    if (!Array.isArray(boardCards) || boardCards.length !== 3) return -1;
+    if (!Array.isArray(boardCards) || boardCards.length > 5) return -1;
     const pool = buildPoolWithoutCards(basePool, [...candidateCpuHand, ...boardCards]);
-    if (pool.length < 4) return -1;
+    const boardDrawNeeded = Math.max(0, 5 - boardCards.length);
+    const required = 2 + boardDrawNeeded;
+    if (pool.length < required) return -1;
     let score = 0;
     for (let i = 0; i < simulationCount; i += 1) {
-        const draw = drawRandomMany(pool, 4);
+        const draw = drawRandomMany(pool, required);
         if (!draw) break;
         const enemyHand = [draw[0], draw[1]];
-        const futureBoard = [boardCards[0], boardCards[1], boardCards[2], draw[2], draw[3]];
+        const boardAdds = boardDrawNeeded > 0 ? draw.slice(2) : [];
+        const futureBoard = [...boardCards, ...boardAdds];
         const cpuBest = chooseBestFiveFromSeven([...candidateCpuHand, ...futureBoard]);
         const enemyBest = chooseBestFiveFromSeven([...enemyHand, ...futureBoard]);
         if (!cpuBest || !enemyBest) continue;
@@ -540,7 +903,7 @@ function chooseCpuPlan() {
     const cpu = state.players.cpu;
     const boardCards = state.board.slice();
     const basePool = state.deck.slice();
-    if (cpu.hand.length !== 2 || boardCards.length !== 3) {
+    if (cpu.hand.length !== 2 || (boardCards.length !== 3 && boardCards.length !== 5)) {
         return { discardIndex: 0, source: 'deck', graveOwnerKey: null, expected: 0 };
     }
 
@@ -638,21 +1001,33 @@ function applyBoardSpecial(card) {
     }
 }
 
-function revealBoard(count) {
+async function revealBoard(count) {
     for (let i = 0; i < count; i += 1) {
         const card = drawCard();
         if (!card) break;
         state.board.push(card);
+        render();
+        const boardCards = ui.board ? Array.from(ui.board.querySelectorAll('.tarot-card')) : [];
+        const revealTarget = boardCards[state.board.length - 1];
+        if (revealTarget) {
+            const hiddenTarget = createCardElement(createBackCardData(), { hidden: true, clickable: false });
+            revealTarget.replaceWith(hiddenTarget);
+            await animateBackToFrontOnElement(hiddenTarget, card);
+        }
         applyBoardSpecial(card);
+        render();
+        if (state.forceShowdown) break;
     }
     if (state.forceShowdown) {
-        forceShowdown();
+        await forceShowdown();
     }
 }
 
-function forceShowdown() {
+async function forceShowdown() {
+    await revealCpuHandFromBack();
     state.phase = 'showdown';
     state.result = evaluateShowdown();
+    settlePotByWinner(state.result?.winner || 'draw');
     render();
 }
 
@@ -661,17 +1036,22 @@ function drawFor(ownerKey) {
     if (card) {
         state.players[ownerKey].hand.push(card);
     }
+    return card;
 }
 
-async function processCpuExchange() {
+function getPostDrawNextPhase() {
+    return state.drawRound >= 2 ? 'betting-final' : 'betting-mid';
+}
+
+async function processCpuExchange(nextPhase = 'turn-ready') {
     const cpu = state.players.cpu;
     if (!cpu.canExchange) {
         pushLog('CPUは交換不能。ドローをスキップ。');
-        state.phase = 'turn-ready';
+        await transitionAfterPhase(nextPhase);
         return;
     }
     if (!cpu.hand.length) {
-        state.phase = 'turn-ready';
+        await transitionAfterPhase(nextPhase);
         return;
     }
     state.cpuThinking = true;
@@ -682,7 +1062,10 @@ async function processCpuExchange() {
 
     const plan = chooseCpuPlan();
     const discardIndex = Math.max(0, Math.min(cpu.hand.length - 1, Number(plan.discardIndex) || 0));
+    const cpuHandCardEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
+    const fromHandEl = cpuHandCardEls[discardIndex] || ui.cpuHand;
     const [discarded] = cpu.hand.splice(discardIndex, 1);
+    await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88);
     addToGrave('cpu', discarded);
     pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った（期待勝率 ${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%）。`);
     applyDiscardSpecial(discarded, 'cpu');
@@ -693,6 +1076,8 @@ async function processCpuExchange() {
     if (canJudgment && plan.source === 'grave' && plan.graveOwnerKey) {
         const gained = takeLatestGraveCard(plan.graveOwnerKey);
         if (gained) {
+            const fromGrave = plan.graveOwnerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
+            await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1);
             cpu.hand.push(gained);
             pushLog(`CPUは審判で ${state.players[plan.graveOwnerKey].name} の最新墓地カードを取得。`);
             showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
@@ -706,6 +1091,8 @@ async function processCpuExchange() {
             const pickedOwner = plan.graveOwnerKey || options[0].ownerKey;
             const gained = takeLatestGraveCard(pickedOwner);
             if (gained) {
+                const fromGrave = pickedOwner === 'player' ? ui.playerGrave : ui.cpuGrave;
+                await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1);
                 cpu.hand.push(gained);
                 pushLog(`CPUは審判で ${state.players[pickedOwner].name} の最新墓地カードを取得。`);
                 showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
@@ -714,22 +1101,36 @@ async function processCpuExchange() {
                 pushLog('CPUの審判対象が消失。山札から補充。');
             }
         } else {
-            drawFor('cpu');
+            const drawn = drawFor('cpu');
+            if (drawn) {
+                await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1);
+            }
             pushLog('CPUは審判を使ったが対象なし。山札から補充。');
         }
     } else {
-        drawFor('cpu');
+        const drawn = drawFor('cpu');
+        if (drawn) {
+            await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1);
+        }
     }
     state.cpuThinking = false;
-    state.phase = 'turn-ready';
+    await transitionAfterPhase(nextPhase);
 }
 
-async function finishPlayerExchange() {
+async function resolveShowdown() {
+    await revealCpuHandFromBack();
+    state.phase = 'showdown';
+    state.result = evaluateShowdown();
+    settlePotByWinner(state.result?.winner || 'draw');
+    render();
+}
+
+async function finishPlayerExchange(nextPhase = 'turn-ready') {
     if (state.forceShowdown) {
-        forceShowdown();
+        await forceShowdown();
         return;
     }
-    await processCpuExchange();
+    await processCpuExchange(nextPhase);
     render();
 }
 
@@ -738,7 +1139,8 @@ function startNewGame() {
     state.deck = shuffle(buildDeck());
     dealTo('player', 2);
     dealTo('cpu', 2);
-    state.phase = 'preflop';
+    state.drawRound = 0;
+    startBettingRound('preflop', 'preflop');
     pushLog('プリフロップ: 手札2枚を配布。');
     render();
 }
@@ -746,20 +1148,27 @@ function startNewGame() {
 async function handleNext() {
     if (!state) return;
     if (state.phase === 'preflop') {
-        revealBoard(3);
+        await revealBoard(3);
         if (state.phase !== 'showdown') {
+            state.drawRound = 1;
             state.phase = 'draw-player';
             if (!state.players.player.canExchange) {
                 pushLog('あなたは交換不能。ドローをスキップ。');
-                await processCpuExchange();
+                await processCpuExchange(getPostDrawNextPhase());
             }
         }
         render();
         return;
     }
 
+    if (state.phase === 'draw-player') {
+        pushLog(`あなたは第${state.drawRound}ドローをスキップ。`);
+        await finishPlayerExchange(getPostDrawNextPhase());
+        return;
+    }
+
     if (state.phase === 'turn-ready') {
-        revealBoard(1);
+        await revealBoard(1);
         if (state.phase !== 'showdown') {
             state.phase = 'river-ready';
         }
@@ -768,22 +1177,27 @@ async function handleNext() {
     }
 
     if (state.phase === 'river-ready') {
-        revealBoard(1);
+        await revealBoard(1);
         if (state.phase !== 'showdown') {
-            state.phase = 'showdown';
-            state.result = evaluateShowdown();
+            state.drawRound = 2;
+            state.phase = 'draw-player';
+            if (!state.players.player.canExchange) {
+                pushLog('あなたは交換不能。ドローをスキップ。');
+                await processCpuExchange(getPostDrawNextPhase());
+            }
         }
         render();
     }
 }
 
-async function onPlayerCardClick(index) {
+async function onPlayerCardClick(index, sourceEl) {
     if (!state || state.phase !== 'draw-player') return;
     const player = state.players.player;
     if (!player.canExchange) return;
     if (index < 0 || index >= player.hand.length) return;
 
     const [discarded] = player.hand.splice(index, 1);
+    await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
     addToGrave('player', discarded);
     pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
     applyDiscardSpecial(discarded, 'player');
@@ -799,53 +1213,52 @@ async function onPlayerCardClick(index) {
         }
     }
 
-    drawFor('player');
-    await finishPlayerExchange();
+    const drawn = drawFor('player');
+    if (drawn) {
+        await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+    }
+    await finishPlayerExchange(getPostDrawNextPhase());
 }
 
 async function onJudgmentPick(ownerKey) {
     if (!state || state.phase !== 'draw-player-judgment') return;
     const gained = takeLatestGraveCard(ownerKey);
     if (gained) {
+        const fromGrave = ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
+        await animateCardFlight(gained, fromGrave, ui.playerHand, 280, 1);
         state.players.player.hand.push(gained);
         pushLog(`審判発動: ${state.players[ownerKey].name} の最新墓地カードを取得。`);
         showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
     } else {
-        drawFor('player');
+        const drawn = drawFor('player');
+        if (drawn) {
+            await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+        }
         pushLog('審判対象が消失したため、山札から1枚補充。');
     }
     state.pendingJudgment = null;
     state.phase = 'draw-player';
-    await finishPlayerExchange();
+    await finishPlayerExchange(getPostDrawNextPhase());
 }
 
 function getPhaseText() {
     if (!state) return '';
     if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
-    if (state.phase === 'preflop') return 'プリフロップ完了。次へでフロップを開示。';
-    if (state.phase === 'draw-player') return 'ドローフェーズ: 手札1枚を選んで交換。';
+    if (state.phase === 'betting-preflop') return 'プリフロップBET: アクションを選択してください。';
+    if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
+    if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
+    if (state.phase === 'preflop') return '次へでフロップを開示。';
+    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 手札1枚を選択（次へでスキップ）。`;
     if (state.phase === 'draw-player-judgment') return '審判発動: 取得カードを選択。';
-    if (state.phase === 'cpu-thinking') return 'CPUが交換手を計算中...';
-    if (state.phase === 'turn-ready') return '交換完了。次へでターンを開示。';
+    if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
+    if (state.phase === 'turn-ready') return '次へでターンを開示。';
     if (state.phase === 'river-ready') return '次へでリバーを開示。';
-    if (state.phase === 'showdown') {
-        if (state.forceShowdown) {
-            const p = state.players.player.bettingEnabled ? 'ON' : 'OFF';
-            const c = state.players.cpu.bettingEnabled ? 'ON' : 'OFF';
-            return `強制ショーダウン中（愚者所持者のみbettingEnabled: あなた ${p} / CPU ${c}）`;
-        }
-        return 'ショーダウン完了。';
-    }
+    if (state.phase === 'showdown') return 'ショーダウン完了。';
     return '';
 }
-
 function getResultText() {
-    if (!state || state.phase !== 'showdown' || !state.result) return '';
-    const { winner, playerBest, cpuBest } = state.result;
-    const winnerText = winner === 'player' ? 'あなたの勝利' : winner === 'cpu' ? 'CPUの勝利' : '引き分け';
-    return `${winnerText} | あなた: ${playerBest.rankLabel} / CPU: ${cpuBest.rankLabel}`;
+    return '';
 }
-
 function getSuitClass(card) {
     if (!card) return 'none';
     if (card.suit === 'Wand') return 'wand';
@@ -872,9 +1285,14 @@ function createCardElement(card, options = {}) {
     el.type = 'button';
     el.className = `tarot-card ${hidden ? 'is-hidden' : ''} ${getSuitClass(card)}`;
 
+    const spriteIndex = hidden ? TAROT_BACK_SPRITE_INDEX : getTarotSpriteIndex(card);
+    const art = document.createElement('div');
+    art.className = 'tarot-card-art';
+    setArtSpriteByIndex(art, spriteIndex);
+    el.appendChild(art);
+
     if (hidden) {
         el.classList.add('is-static');
-        el.innerHTML = '<span class="tarot-card-back">?</span>';
         return el;
     }
 
@@ -882,21 +1300,9 @@ function createCardElement(card, options = {}) {
         el.classList.add('is-arcana');
     }
 
-    const spriteIndex = getTarotSpriteIndex(card);
-    const col = spriteIndex % 10;
-    const row = Math.floor(spriteIndex / 10);
-    const art = document.createElement('div');
-    art.className = 'tarot-card-art';
-    art.style.setProperty('--tarot-sheet-w', `${TAROT_SPRITE_SHEET_W}px`);
-    art.style.setProperty('--tarot-sheet-h', `${TAROT_SPRITE_SHEET_H}px`);
-    art.style.setProperty('--tarot-x', `${col * TAROT_SPRITE_TILE_W}px`);
-    art.style.setProperty('--tarot-y', `${row * TAROT_SPRITE_TILE_H}px`);
-    art.style.setProperty('--tarot-sprite-src', `url('${TAROT_SPRITE_SRC}')`);
-    el.appendChild(art);
-
     const title = document.createElement('div');
     title.className = 'tarot-card-title';
-    title.textContent = card.isArcana ? (ARCANA_NAME[card.number] || 'アルカナ') : card.suit;
+    title.textContent = getCardNameLabel(card);
 
     const number = document.createElement('div');
     number.className = 'tarot-card-number';
@@ -922,7 +1328,7 @@ function renderCardRow(container, cards, options = {}) {
         const el = createCardElement(card, {
             hidden: options.hidden,
             clickable,
-            onClick: () => options.onCardClick(index)
+            onClick: () => options.onCardClick(index, el)
         });
         container.appendChild(el);
     });
@@ -931,13 +1337,81 @@ function renderCardRow(container, cards, options = {}) {
 function renderGraveRow(container, cards) {
     if (!container) return;
     container.innerHTML = '';
-    const list = cards.slice().reverse().slice(0, 6);
+    const list = cards.slice().reverse().slice(0, 3);
     list.forEach((card) => {
-        const item = document.createElement('div');
-        item.className = 'tarot-grave-item';
-        item.textContent = `${card.number} ${getCardDisplayName(card)}`;
+        const item = createCardElement(card, { hidden: false, clickable: false });
+        item.classList.add('tarot-grave-card');
         container.appendChild(item);
     });
+}
+
+function getRoleCardsForDisplay(score) {
+    if (!score || !Array.isArray(score.cards) || score.cards.length === 0) return [];
+    const cards = score.cards.slice().sort(compareCardsForFlush);
+    const numberMap = new Map();
+    cards.forEach((card) => {
+        const key = Number(card.number);
+        if (!numberMap.has(key)) numberMap.set(key, []);
+        numberMap.get(key).push(card);
+    });
+    const groups = Array.from(numberMap.entries()).sort((a, b) => {
+        if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+        return b[0] - a[0];
+    });
+
+    const takeByCount = (count, maxGroup = 1) => groups
+        .filter(([, list]) => list.length === count)
+        .slice(0, maxGroup)
+        .flatMap(([, list]) => list)
+        .sort(compareCardsForFlush);
+
+    switch (score.rank) {
+    case 2: // high card
+        return cards.slice(0, 1);
+    case 3: // one pair
+        return takeByCount(2, 1).slice(0, 2);
+    case 4: // two pair
+        return takeByCount(2, 2).slice(0, 4);
+    case 5: // three card
+        return takeByCount(3, 1).slice(0, 3);
+    case 9: // four card
+        return takeByCount(4, 1).slice(0, 4);
+    case 11: // five card
+        return takeByCount(5, 1).slice(0, 5);
+    default: // straight / flush / full house / straight flush
+        return cards.slice(0, 5);
+    }
+}
+
+function setOutcomeBadge(el, kind, text) {
+    if (!el) return;
+    el.classList.remove('is-win', 'is-lose', 'is-draw');
+    el.textContent = '';
+    if (!kind || !text) return;
+    el.classList.add(kind);
+    el.textContent = text;
+}
+
+function renderOutcomeBadges() {
+    if (!state || !ui.playerOutcome || !ui.cpuOutcome) return;
+    if (state.phase !== 'showdown' || !state.result) {
+        setOutcomeBadge(ui.playerOutcome, null, '');
+        setOutcomeBadge(ui.cpuOutcome, null, '');
+        return;
+    }
+    const winner = state.result.winner;
+    if (winner === 'player') {
+        setOutcomeBadge(ui.playerOutcome, 'is-win', 'WIN');
+        setOutcomeBadge(ui.cpuOutcome, 'is-lose', 'LOSE');
+        return;
+    }
+    if (winner === 'cpu') {
+        setOutcomeBadge(ui.playerOutcome, 'is-lose', 'LOSE');
+        setOutcomeBadge(ui.cpuOutcome, 'is-win', 'WIN');
+        return;
+    }
+    setOutcomeBadge(ui.playerOutcome, 'is-draw', 'DRAW');
+    setOutcomeBadge(ui.cpuOutcome, 'is-draw', 'DRAW');
 }
 
 function renderBoard() {
@@ -948,10 +1422,8 @@ function renderBoard() {
         ui.board.appendChild(cardEl);
     });
     for (let i = state.board.length; i < 5; i += 1) {
-        const slot = document.createElement('div');
-        slot.className = 'tarot-board-slot';
-        slot.textContent = '---';
-        ui.board.appendChild(slot);
+        const hiddenCard = createCardElement(createBackCardData(), { hidden: true, clickable: false });
+        ui.board.appendChild(hiddenCard);
     }
 }
 
@@ -979,7 +1451,12 @@ function renderButtons() {
     if (!ui.nextButton) return;
     if (!state || state.phase === 'idle' || state.phase === 'showdown') {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = '進行終了';
+        ui.nextButton.textContent = '次へ';
+        return;
+    }
+    if (isBettingPhase()) {
+        ui.nextButton.disabled = true;
+        ui.nextButton.textContent = 'BET操作中';
         return;
     }
     if (state.phase === 'preflop') {
@@ -987,9 +1464,14 @@ function renderButtons() {
         ui.nextButton.textContent = 'フロップを開く';
         return;
     }
-    if (state.phase === 'draw-player' || state.phase === 'draw-player-judgment') {
+    if (state.phase === 'draw-player') {
+        ui.nextButton.disabled = false;
+        ui.nextButton.textContent = `第${state.drawRound}ドローをスキップ`;
+        return;
+    }
+    if (state.phase === 'draw-player-judgment') {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = '手札選択中';
+        ui.nextButton.textContent = '審判選択中';
         return;
     }
     if (state.phase === 'cpu-thinking') {
@@ -1005,9 +1487,11 @@ function renderButtons() {
     if (state.phase === 'river-ready') {
         ui.nextButton.disabled = false;
         ui.nextButton.textContent = 'リバーを開く';
+        return;
     }
+    ui.nextButton.disabled = true;
+    ui.nextButton.textContent = '次へ';
 }
-
 function renderLog() {
     if (!ui.log) return;
     ui.log.innerHTML = '';
@@ -1019,24 +1503,80 @@ function renderLog() {
     });
 }
 
+function renderBettingInfo() {
+    if (!state) return;
+    if (ui.potText) ui.potText.textContent = `Pot: ${formatTestPoint(state.pot)}`;
+    if (ui.playerPointText) ui.playerPointText.textContent = `あなた: ${formatTestPoint(state.players.player.testPoints)}`;
+    if (ui.cpuPointText) ui.cpuPointText.textContent = `CPU: ${formatTestPoint(state.players.cpu.testPoints)}`;
+    if (!ui.bettingInfo) return;
+
+    const active = isBettingPhase() && !!state.betting;
+    ui.bettingInfo.style.display = 'block';
+    if (!active) {
+        if (ui.betActionHint) ui.betActionHint.textContent = 'ベットフェーズ待機中';
+        if (ui.betCheckButton) ui.betCheckButton.disabled = true;
+        if (ui.betCallButton) ui.betCallButton.disabled = true;
+        if (ui.betBetButton) ui.betBetButton.disabled = true;
+        if (ui.betRaiseButton) ui.betRaiseButton.disabled = true;
+        if (ui.betFoldButton) ui.betFoldButton.disabled = true;
+        return;
+    }
+
+    const toCall = getToCall('player');
+    const minBet = state.betting.minBet;
+    const minRaise = state.betting.minRaise;
+    const point = state.players.player.testPoints;
+    const currentBet = state.betting.currentBet || 0;
+    const pending = state.betting.pendingResponseFor;
+
+    if (ui.betActionHint) {
+        ui.betActionHint.textContent = pending === 'player'
+            ? `CPUのアクションに対応してください（コール ${formatTestPoint(toCall)}）`
+            : `あなたの手番です（現在ベット ${formatTestPoint(currentBet)}）`;
+    }
+
+    if (ui.betCheckButton) ui.betCheckButton.disabled = toCall > 0;
+    if (ui.betCallButton) {
+        ui.betCallButton.disabled = toCall <= 0 || point < toCall;
+        ui.betCallButton.textContent = `コール ${formatTestPoint(toCall)}`;
+    }
+    if (ui.betBetButton) {
+        ui.betBetButton.disabled = currentBet > 0 || point < minBet;
+        ui.betBetButton.textContent = `BET ${formatTestPoint(minBet)}`;
+    }
+    if (ui.betRaiseButton) {
+        const raiseCost = toCall + minRaise;
+        ui.betRaiseButton.disabled = currentBet <= 0 || point < raiseCost;
+        ui.betRaiseButton.textContent = `レイズ +${formatTestPoint(minRaise)}`;
+    }
+    if (ui.betFoldButton) ui.betFoldButton.disabled = false;
+}
 function render() {
     if (!state || !ui.root) return;
     renderBoard();
-    renderCardRow(ui.playerHand, state.players.player.hand, {
+    const isShowdown = state.phase === 'showdown' && !!state.result;
+    const playerCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.playerBest) : state.players.player.hand;
+    const cpuCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.cpuBest) : state.players.cpu.hand;
+    renderCardRow(ui.playerHand, playerCardsForView, {
         hidden: false,
-        clickable: state.phase === 'draw-player',
+        clickable: !isShowdown && state.phase === 'draw-player',
         onCardClick: onPlayerCardClick
     });
-    renderCardRow(ui.cpuHand, state.players.cpu.hand, {
-        hidden: state.phase !== 'showdown',
+    renderCardRow(ui.cpuHand, cpuCardsForView, {
+        hidden: !isShowdown,
         clickable: false
     });
-    renderGraveRow(ui.playerGrave, state.players.player.graveyard);
-    renderGraveRow(ui.cpuGrave, state.players.cpu.graveyard);
+    renderGraveRow(ui.playerGrave, isShowdown ? [] : state.players.player.graveyard);
+    renderGraveRow(ui.cpuGrave, isShowdown ? [] : state.players.cpu.graveyard);
     renderJudgmentPanel();
     renderButtons();
+    renderBettingInfo();
+    renderOutcomeBadges();
     if (ui.stateText) ui.stateText.textContent = getPhaseText();
-    if (ui.resultText) ui.resultText.textContent = getResultText();
+    if (ui.resultText) {
+        ui.resultText.textContent = getResultText();
+        ui.resultText.style.display = 'none';
+    }
     renderLog();
 }
 
@@ -1045,6 +1585,7 @@ function bindElements() {
     ui.startButton = document.getElementById('tarotStartButton');
     ui.nextButton = document.getElementById('tarotNextButton');
     ui.stateText = document.getElementById('tarotStateText');
+    ui.deckAnchor = document.getElementById('tarotDeckAnchor');
     ui.board = document.getElementById('tarotPokerBoard');
     ui.cpuHand = document.getElementById('tarotCpuHand');
     ui.playerHand = document.getElementById('tarotPlayerHand');
@@ -1055,6 +1596,18 @@ function bindElements() {
     ui.effectOverlay = document.getElementById('tarotEffectOverlay');
     ui.judgmentPanel = document.getElementById('tarotJudgmentPanel');
     ui.judgmentOptions = document.getElementById('tarotJudgmentOptions');
+    ui.bettingInfo = document.getElementById('tarotBettingInfo');
+    ui.potText = document.getElementById('tarotPotText');
+    ui.playerPointText = document.getElementById('tarotPlayerPointText');
+    ui.cpuPointText = document.getElementById('tarotCpuPointText');
+    ui.betActionHint = document.getElementById('tarotBetActionHint');
+    ui.betCheckButton = document.getElementById('tarotBetCheck');
+    ui.betCallButton = document.getElementById('tarotBetCall');
+    ui.betBetButton = document.getElementById('tarotBetBet');
+    ui.betRaiseButton = document.getElementById('tarotBetRaise');
+    ui.betFoldButton = document.getElementById('tarotBetFold');
+    ui.playerOutcome = document.getElementById('tarotPlayerOutcome');
+    ui.cpuOutcome = document.getElementById('tarotCpuOutcome');
 }
 
 function bindEvents() {
@@ -1062,6 +1615,11 @@ function bindEvents() {
     isBound = true;
     ui.startButton?.addEventListener('click', startNewGame);
     ui.nextButton?.addEventListener('click', handleNext);
+    ui.betCheckButton?.addEventListener('click', () => onPlayerBetAction('check'));
+    ui.betCallButton?.addEventListener('click', () => onPlayerBetAction('call'));
+    ui.betBetButton?.addEventListener('click', () => onPlayerBetAction('bet'));
+    ui.betRaiseButton?.addEventListener('click', () => onPlayerBetAction('raise'));
+    ui.betFoldButton?.addEventListener('click', () => onPlayerBetAction('fold'));
 }
 
 export async function loadTarotPokerPage() {
@@ -1072,3 +1630,4 @@ export async function loadTarotPokerPage() {
     }
     render();
 }
+
