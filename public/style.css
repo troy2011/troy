@@ -2541,6 +2541,27 @@ body.modal-lock .modal-overlay {
     --tarot-card-title-size: 10px;
 }
 
+.tarot-poker-root.is-betting-focus::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(1.5px) saturate(0.72);
+    z-index: 3390;
+    pointer-events: none;
+    animation: tarotBettingDimPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes tarotBettingDimPulse {
+    0%,
+    100% {
+        background: rgba(0, 0, 0, 0.62);
+    }
+    50% {
+        background: rgba(0, 0, 0, 0.7);
+    }
+}
+
 .tarot-poker-root.is-time-stopped {
     animation: tarotTimeStopMonochrome 1.2s ease-in-out infinite;
 }
@@ -2676,34 +2697,40 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    grid-auto-rows: 92px;
+    display: flex;
+    flex-wrap: nowrap;
     gap: 8px;
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 2px;
 }
 
 .tarot-betting-actions button {
-    height: 100%;
-    min-height: 0;
-    font-size: 13px;
+    flex: 0 0 var(--tarot-card-w, 58px);
+    width: var(--tarot-card-w, 58px);
+    height: var(--tarot-card-h, 96px);
+    min-height: var(--tarot-card-h, 96px);
+    font-size: 12px;
     font-weight: 900;
-    letter-spacing: 0.04em;
-    padding: 10px 6px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.24);
+    letter-spacing: 0.02em;
+    padding: 5px 2px;
+    border-radius: var(--tarot-card-radius, 10px);
+    border: 1px solid rgba(255, 255, 255, 0.32);
     color: #f8fafc;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        0 8px 14px rgba(0, 0, 0, 0.35);
+        0 10px 18px rgba(0, 0, 0, 0.4);
     transition: transform 0.12s ease, filter 0.16s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    white-space: nowrap;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    white-space: pre-line;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1;
+    line-height: 1.08;
 }
 
 .tarot-betting-actions button:not(:disabled):active {
@@ -2747,32 +2774,58 @@ body.modal-lock .modal-overlay {
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
     transform: translateX(-50%);
-    width: min(680px, calc(100vw - 14px));
+    width: fit-content;
+    max-width: calc(100vw - 12px);
     z-index: 3400;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(251, 191, 36, 0.65);
     border-radius: 12px;
-    background: rgba(11, 17, 29, 0.9);
+    background: linear-gradient(180deg, rgba(11, 17, 29, 0.96), rgba(8, 12, 22, 0.94));
     backdrop-filter: blur(4px);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
-    padding: 10px;
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.2),
+        0 0 24px rgba(251, 191, 36, 0.28),
+        0 10px 30px rgba(0, 0, 0, 0.55);
+    padding: 24px 10px 10px;
+}
+
+.tarot-bet-popup::before {
+    content: "ベッティングタイム";
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    color: #fde68a;
+    text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
+    pointer-events: none;
+    animation: tarotBettingTextPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes tarotBettingTextPulse {
+    0%,
+    100% {
+        opacity: 0.78;
+    }
+    50% {
+        opacity: 1;
+    }
 }
 
 @media (max-width: 560px) {
-    .tarot-betting-actions {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        grid-auto-rows: 84px;
-    }
-
     .tarot-bet-popup {
         width: calc(100vw - 10px);
-        padding: 8px;
+        padding: 22px 8px 8px;
     }
 
     .tarot-betting-actions button {
-        height: 100%;
-        min-height: 0;
+        width: var(--tarot-card-w, 58px);
+        min-width: var(--tarot-card-w, 58px);
+        height: var(--tarot-card-h, 96px);
+        min-height: var(--tarot-card-h, 96px);
         font-size: 12px;
-        padding: 8px 4px;
+        padding: 4px 2px;
     }
 }
 

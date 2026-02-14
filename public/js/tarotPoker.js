@@ -1078,8 +1078,9 @@ function formatTestPoint(value) {
 function formatBetActionButtonLabel(action, amountText = '') {
     const icon = BET_ACTION_ICON[action] || '•';
     const label = BET_ACTION_LABEL[action] || String(action || '').toUpperCase();
-    if (!amountText) return `${icon} ${label}`;
-    return `${icon} ${label} ${amountText}`;
+    if (!amountText) return `${icon}\n${label}`;
+    const compactAmount = String(amountText || '').replace(/\s*TP$/u, '');
+    return `${icon}\n${label}\n${compactAmount}`;
 }
 
 function setPotDisplayNumber(value) {
@@ -2418,6 +2419,7 @@ function render() {
     if (!state || !ui.root) return;
     renderBoard();
     const isShowdown = state.phase === 'showdown' && !!state.result;
+    const isBettingFocus = isBettingPhase() && !!state.betting;
     const useRemainingTieBreak = isShowdown && !!state.result?.remainingTieBreakUsed;
     const showKickerOnTie = isShowdown
         && !useRemainingTieBreak
@@ -2428,6 +2430,7 @@ function render() {
     if (ui.pokerRoot) {
         ui.pokerRoot.classList.toggle('is-showdown', isShowdown);
         ui.pokerRoot.classList.toggle('is-dealing', isDealing);
+        ui.pokerRoot.classList.toggle('is-betting-focus', isBettingFocus);
     }
     const playerCardsForView = isShowdown
         ? getRoleCardsForDisplay(state.result.playerBest, {
