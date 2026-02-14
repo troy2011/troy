@@ -17,10 +17,10 @@ const SUIT_THEME_COLOR = {
 
 const ARCANA_FLUSH_SUIT_OPTIONS = {
     1: ['All'],
-    16: ['Sword', 'Wand'],
-    17: ['Cup', 'Pentacle'],
-    18: ['Pentacle', 'Sword'],
-    19: ['Wand', 'Cup']
+    16: ['Sword'],
+    17: ['Cup'],
+    18: ['Pentacle'],
+    19: ['Wand']
 };
 
 const EFFECT_TYPE = {
@@ -31,42 +31,42 @@ const EFFECT_TYPE = {
 };
 
 const HAND_RANK_LABEL = {
-    11: 'ファイブカード',
-    10: 'ストレートフラッシュ',
-    9: 'フォーカード',
-    8: 'フルハウス',
+    11: '繝輔ぃ繧､繝悶き繝ｼ繝・,
+    10: '繧ｹ繝医Ξ繝ｼ繝医ヵ繝ｩ繝・・ｽ・ｽ繝･',
+    9: '繝輔か繝ｼ繧ｫ繝ｼ繝・,
+    8: '繝輔Ν繝上え繧ｹ',
     4.5: '\u30a8\u30ec\u30e1\u30f3\u30c8',
-    7: 'フラッシュ',
-    6: 'ストレート',
-    5: 'スリーカード',
-    4: 'ツーペア',
-    3: 'ワンペア',
-    2: 'ハイカード'
+    7: '繝輔Λ繝・・ｽ・ｽ繝･',
+    6: '繧ｹ繝医Ξ繝ｼ繝・,
+    5: '繧ｹ繝ｪ繝ｼ繧ｫ繝ｼ繝・,
+    4: '繝・・ｽE繝壹い',
+    3: '繝ｯ繝ｳ繝壹い',
+    2: '繝上う繧ｫ繝ｼ繝・
 };
 
 const ARCANA_NAME = {
-    0: '愚者',
-    1: '魔術師',
-    2: '女教皇',
-    3: '女帝',
-    4: '皇帝',
-    5: '教皇',
-    6: '恋人',
-    7: '戦車',
-    8: '力',
-    9: '隠者',
-    10: '運命の輪',
-    11: '正義',
-    12: '吊るされた男',
-    13: '死神',
-    14: '節制',
-    15: '悪魔',
-    16: '塔',
-    17: '星',
-    18: '月',
-    19: '太陽',
-    20: '審判',
-    21: '世界'
+    0: '諢夊・,
+    1: '鬲碑｡灘ｸｫ',
+    2: '螂ｳ謨咏嚊',
+    3: '螂ｳ蟶・,
+    4: '逧・・ｽ・ｽE,
+    5: '謨咏嚊',
+    6: '諱倶ｺｺ',
+    7: '謌ｦ霆・,
+    8: '蜉・,
+    9: '髫閠・,
+    10: '驕句多縺ｮ霈ｪ',
+    11: '豁｣鄒ｩ',
+    12: '蜷翫ｋ縺輔ｌ縺溽塙',
+    13: '豁ｻ逾・,
+    14: '遽蛻ｶ',
+    15: '謔ｪ鬲・,
+    16: '蝪・,
+    17: '譏・,
+    18: '譛・,
+    19: '螟ｪ髯ｽ',
+    20: '蟇ｩ蛻､',
+    21: '荳也阜'
 };
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
@@ -86,15 +86,23 @@ const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
-const BET_ACTION_TEMPO_MS = 900;
-const BET_ACTION_GAP_MS = 260;
-const ROUND_CUTIN_TEMPO_MS = 980;
+const BET_ACTION_TEMPO_MS = 1800;
+const BET_ACTION_GAP_MS = 520;
+const ROUND_CUTIN_TEMPO_MS = 1960;
 const BET_ACTION_LABEL = {
-    check: 'チェック',
-    call: 'コール',
+    check: '繝√ぉ繝・・ｽ・ｽ',
+    call: '繧ｳ繝ｼ繝ｫ',
     bet: 'BET',
-    raise: 'レイズ',
-    fold: 'フォールド'
+    raise: '繝ｬ繧､繧ｺ',
+    fold: '繝輔か繝ｼ繝ｫ繝・
+};
+
+const BET_ACTION_ICON = {
+    check: '✓',
+    call: '↔',
+    bet: '◆',
+    raise: '↗',
+    fold: '✕'
 };
 
 let isBound = false;
@@ -102,6 +110,7 @@ let state = null;
 
 const ui = {
     root: null,
+    pokerRoot: null,
     startButton: null,
     nextButton: null,
     stateText: null,
@@ -120,6 +129,7 @@ const ui = {
     bettingInfo: null,
     betPopup: null,
     potText: null,
+    potValueText: null,
     playerPointText: null,
     cpuPointText: null,
     betActionHint: null,
@@ -148,6 +158,8 @@ let dailyFortuneCheckedSession = false;
 let dailyFortuneClaimedSession = false;
 let dailyFortuneCanDrawSession = false;
 let dailyFortuneInFlight = false;
+let potDisplayValue = null;
+let potRollAnimationId = 0;
 
 function buildApiUrlLocal(endpoint) {
     if (!endpoint) return '';
@@ -249,7 +261,7 @@ async function animateBackToFrontOnElement(cardEl, finalCard) {
     if (!cardEl || !finalCard) return;
     const art = cardEl.querySelector('.tarot-card-art');
     if (!art) return;
-    // 110,111,...,119 の10フレームを必ず再生
+    // 110,111,...,119 縺ｮ10繝輔Ξ繝ｼ繝繧貞ｿ・・ｽ・ｽ蜀咲函
     for (const frame of TAROT_REVEAL_FRAMES) {
         setArtSpriteByIndex(art, frame);
         await wait(TAROT_REVEAL_FRAME_MS);
@@ -343,6 +355,8 @@ function buildDeck() {
 }
 
 function resetState() {
+    stopPotRollAnimation();
+    potDisplayValue = null;
     state = {
         phase: 'idle',
         drawRound: 0,
@@ -351,7 +365,7 @@ function resetState() {
         players: {
             player: {
                 id: 'player',
-                name: 'あなた',
+                name: '縺ゅ↑縺・,
                 hand: [],
                 graveyard: [],
                 canExchange: true,
@@ -419,7 +433,7 @@ function getBetActionLabel(action) {
 
 async function showActionCutin(ownerKey, action) {
     const label = getBetActionLabel(action);
-    const ownerName = ownerKey === 'player' ? 'あなた' : 'CPU';
+    const ownerName = ownerKey === 'player' ? '縺ゅ↑縺・ : 'CPU';
     const ownerClass = ownerKey === 'player' ? 'is-player' : 'is-cpu';
     const actionEl = ownerKey === 'player' ? ui.playerAction : ui.cpuAction;
     if (actionEl) {
@@ -534,18 +548,53 @@ function hasFoolInHand(ownerKey) {
 
 function getCardDisplayName(card) {
     if (!card) return '';
-    if (card.isArcana) {
-        return ARCANA_NAME[card.number] || `アルカナ ${card.number}`;
+    return getCardNameLabel(card);
+}
+
+function toRomanNumber(value) {
+    const number = Math.max(0, Math.floor(Number(value) || 0));
+    const romanMap = [
+        [1000, 'M'],
+        [900, 'CM'],
+        [500, 'D'],
+        [400, 'CD'],
+        [100, 'C'],
+        [90, 'XC'],
+        [50, 'L'],
+        [40, 'XL'],
+        [10, 'X'],
+        [9, 'IX'],
+        [5, 'V'],
+        [4, 'IV'],
+        [1, 'I']
+    ];
+    if (number <= 0) return '0';
+    let rest = number;
+    let text = '';
+    for (const [unit, symbol] of romanMap) {
+        while (rest >= unit) {
+            text += symbol;
+            rest -= unit;
+        }
     }
-    return `${card.suit} ${getCardNumberLabel(card)}`;
+    return text;
+}
+
+function getMinorArcanaRankLabel(number) {
+    const n = Number(number) || 0;
+    if (n === 1) return 'Ace';
+    if (n === 11) return 'Page';
+    if (n === 12) return 'Knight';
+    if (n === 13) return 'Queen';
+    if (n === 14) return 'King';
+    return toRomanNumber(n);
 }
 
 function getCardNameLabel(card) {
     if (!card) return '';
-    if (card.isArcana) return ARCANA_NAME[card.number] || 'アルカナ';
-    return card.suit;
+    if (card.isArcana) return ARCANA_NAME[card.number] || 'Arcana';
+    return getMinorArcanaRankLabel(card.number);
 }
-
 function getCardNumberLabel(card) {
     if (!card) return '';
     if (!card.isArcana && Number(card.number) === 1) return 'A';
@@ -680,16 +729,16 @@ function detectElement(cards) {
     const arcanaCards = cards.filter((card) => card?.isArcana);
     if (!arcanaCards.length) return null;
 
-    const nonArcanaSuits = new Set();
+    const suitSet = new Set();
     cards.forEach((card) => {
-        if (!card || card.isArcana) return;
-        const suit = getCardSuitForFlush(card);
-        if (SUITS.includes(suit)) {
-            nonArcanaSuits.add(suit);
-        }
+        if (!card) return;
+        const options = getCardSuitOptionsForFlush(card);
+        options.forEach((suit) => {
+            if (SUITS.includes(suit)) suitSet.add(suit);
+        });
     });
 
-    if (nonArcanaSuits.size < SUITS.length) return null;
+    if (suitSet.size < SUITS.length) return null;
 
     const maxArcana = arcanaCards.reduce((max, card) => {
         const num = Number(card?.number) || 0;
@@ -767,7 +816,7 @@ function scoreFiveCards(cards) {
             rankVector = flush.valueVector;
         } else {
             rankVector = sorted.map((card) => getCardPrimaryValue(card)).sort((a, b) => b - a);
-            rankLabel = 'アルカナフラッシュ';
+            rankLabel = '繧｢繝ｫ繧ｫ繝翫ヵ繝ｩ繝・・ｽ・ｽ繝･';
         }
     } else if (straight) {
         rank = 6;
@@ -797,7 +846,7 @@ function scoreFiveCards(cards) {
 
     return {
         rank,
-        rankLabel: rankLabel || HAND_RANK_LABEL[rank] || '役なし',
+        rankLabel: rankLabel || HAND_RANK_LABEL[rank] || '蠖ｹ縺ｪ縺・,
         rankVector,
         maxNumber,
         hasArcana,
@@ -866,9 +915,88 @@ function isBettingPhase() {
     return typeof state?.phase === 'string' && state.phase.startsWith('betting-');
 }
 
-function formatTestPoint(value) {
+function formatPointNumber(value) {
     const amount = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-    return `${amount} TP`;
+    return amount.toLocaleString('ja-JP');
+}
+
+function formatTestPoint(value) {
+    return `${formatPointNumber(value)} TP`;
+}
+
+function formatBetActionButtonLabel(action, amountText = '') {
+    const icon = BET_ACTION_ICON[action] || '•';
+    const label = BET_ACTION_LABEL[action] || String(action || '').toUpperCase();
+    if (!amountText) return `${icon} ${label}`;
+    return `${icon} ${label} ${amountText}`;
+}
+
+function setPotDisplayNumber(value) {
+    const text = formatPointNumber(value);
+    if (ui.potValueText) {
+        ui.potValueText.textContent = text;
+        return;
+    }
+    if (ui.potText) {
+        ui.potText.textContent = `POT ${text} TP`;
+    }
+}
+
+function stopPotRollAnimation() {
+    if (potRollAnimationId) {
+        cancelAnimationFrame(potRollAnimationId);
+        potRollAnimationId = 0;
+    }
+}
+
+function animatePotDisplay(nextValue) {
+    const target = Number.isFinite(nextValue) ? Math.max(0, Math.floor(nextValue)) : 0;
+    if (!ui.potText) return;
+    if (potDisplayValue === null) {
+        stopPotRollAnimation();
+        potDisplayValue = target;
+        setPotDisplayNumber(target);
+        ui.potText.classList.remove('is-rolling');
+        return;
+    }
+    if (target === potDisplayValue) {
+        setPotDisplayNumber(target);
+        ui.potText.classList.remove('is-rolling');
+        return;
+    }
+
+    stopPotRollAnimation();
+    const from = potDisplayValue;
+    const delta = target - from;
+    const duration = Math.min(1200, Math.max(360, Math.abs(delta) * 20));
+    const startedAt = (window.performance && typeof window.performance.now === 'function')
+        ? window.performance.now()
+        : Date.now();
+
+    ui.potText.classList.add('is-rolling');
+
+    const tick = () => {
+        const now = (window.performance && typeof window.performance.now === 'function')
+            ? window.performance.now()
+            : Date.now();
+        const progress = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(from + (delta * eased));
+        if (current !== potDisplayValue) {
+            potDisplayValue = current;
+            setPotDisplayNumber(current);
+        }
+        if (progress < 1) {
+            potRollAnimationId = requestAnimationFrame(tick);
+            return;
+        }
+        potDisplayValue = target;
+        setPotDisplayNumber(target);
+        ui.potText.classList.remove('is-rolling');
+        potRollAnimationId = 0;
+    };
+
+    potRollAnimationId = requestAnimationFrame(tick);
 }
 
 function getToCall(ownerKey) {
@@ -895,13 +1023,13 @@ function settlePotByWinner(winnerKey) {
         const half = Math.floor(pot / 2);
         state.players.player.testPoints += half;
         state.players.cpu.testPoints += pot - half;
-        pushLog(`ポット ${formatTestPoint(pot)} は引き分けで分配。`);
+        pushLog(`繝昴ャ繝・${formatTestPoint(pot)} 縺ｯ蠑輔″蛻・・ｽ・ｽ縺ｧ蛻・・ｽE縲Ａ);
         return;
     }
     if (winnerKey === 'player' || winnerKey === 'cpu') {
         state.players[winnerKey].testPoints += pot;
         const winnerName = state.players[winnerKey].name || winnerKey;
-        pushLog(`${winnerName} がポット ${formatTestPoint(pot)} を獲得。`);
+        pushLog(`${winnerName} 縺鯉ｿｽE繝・・ｽ・ｽ ${formatTestPoint(pot)} 繧堤佐蠕励Ａ);
     }
 }
 
@@ -917,9 +1045,21 @@ function startBettingRound(roundKey, nextPhase) {
         checks: { player: false, cpu: false }
     };
     state.phase = `betting-${roundKey}`;
-    pushLog(`ベッティング開始: ${roundKey} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
+    pushLog(`繝吶ャ繝・・ｽ・ｽ繝ｳ繧ｰ髢句ｧ・ ${roundKey} / 譛蟆・${formatTestPoint(TEST_BET_UNIT)}`);
 }
 
+function getBettingRoundCutinText(roundKey) {
+    if (roundKey === 'preflop') return 'BETTING START';
+    if (roundKey === 'mid') return 'BETTING ROUND';
+    if (roundKey === 'final') return 'FINAL BETTING';
+    return 'BETTING PHASE';
+}
+
+async function startBettingRoundWithCutin(roundKey, nextPhase) {
+    await showRoundCutin(getBettingRoundCutinText(roundKey));
+    startBettingRound(roundKey, nextPhase);
+    render();
+}
 function getCpuWinRateEstimate() {
     const hand = state.players.cpu.hand;
     const board = state.board.slice();
@@ -966,7 +1106,7 @@ function chooseCpuBettingAction() {
 }
 
 function applyBetAction(ownerKey, action) {
-    if (!state?.betting) return { ok: false, message: 'ベットフェーズではありません。' };
+    if (!state?.betting) return { ok: false, message: '繝吶ャ繝医ヵ繧ｧ繝ｼ繧ｺ縺ｧ縺ｯ縺ゅｊ縺ｾ縺帙ｓ縲・ };
     const betting = state.betting;
     const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
     const toCall = getToCall(ownerKey);
@@ -978,16 +1118,16 @@ function applyBetAction(ownerKey, action) {
         state.phase = 'showdown';
         state.result = {
             winner: otherKey,
-            playerBest: { rankLabel: ownerKey === 'player' ? 'フォールド負け' : 'フォールド勝ち' },
-            cpuBest: { rankLabel: ownerKey === 'cpu' ? 'フォールド負け' : 'フォールド勝ち' }
+            playerBest: { rankLabel: ownerKey === 'player' ? '繝輔か繝ｼ繝ｫ繝芽ｲ縺・ : '繝輔か繝ｼ繝ｫ繝牙享縺｡' },
+            cpuBest: { rankLabel: ownerKey === 'cpu' ? '繝輔か繝ｼ繝ｫ繝芽ｲ縺・ : '繝輔か繝ｼ繝ｫ繝牙享縺｡' }
         };
         return { ok: true, handEnded: true };
     }
 
     if (action === 'check') {
-        if (toCall > 0) return { ok: false, message: 'コール額があります。' };
+        if (toCall > 0) return { ok: false, message: '繧ｳ繝ｼ繝ｫ鬘阪′縺ゅｊ縺ｾ縺吶・ };
         betting.checks[ownerKey] = true;
-        pushLog(`${actorName} はチェック。`);
+        pushLog(`${actorName} 縺ｯ繝√ぉ繝・・ｽ・ｽ縲Ａ);
         if (betting.checks.player && betting.checks.cpu) {
             betting.pendingResponseFor = null;
             return { ok: true, roundComplete: true };
@@ -996,40 +1136,40 @@ function applyBetAction(ownerKey, action) {
     }
 
     if (action === 'call') {
-        if (toCall <= 0) return { ok: false, message: 'コール不要です。' };
-        if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: 'ポイント不足でコールできません。' };
+        if (toCall <= 0) return { ok: false, message: '繧ｳ繝ｼ繝ｫ荳崎ｦ√〒縺吶・ };
+        if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: '繝昴う繝ｳ繝井ｸ崎ｶｳ縺ｧ繧ｳ繝ｼ繝ｫ縺ｧ縺阪∪縺帙ｓ縲・ };
         betting.checks.player = false;
         betting.checks.cpu = false;
         betting.pendingResponseFor = null;
-        pushLog(`${actorName} はコール (${formatTestPoint(toCall)})。`);
+        pushLog(`${actorName} 縺ｯ繧ｳ繝ｼ繝ｫ (${formatTestPoint(toCall)})縲Ａ);
         return { ok: true, roundComplete: true };
     }
 
     if (action === 'bet') {
-        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はベットではなくコール/レイズです。' };
+        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '迴ｾ蝨ｨ縺ｯ繝吶ャ繝医〒縺ｯ縺ｪ縺上さ繝ｼ繝ｫ/繝ｬ繧､繧ｺ縺ｧ縺吶・ };
         const amount = betting.minBet;
-        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でベットできません。' };
+        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: '繝昴う繝ｳ繝井ｸ崎ｶｳ縺ｧ繝吶ャ繝医〒縺阪∪縺帙ｓ縲・ };
         betting.currentBet = betting.contributions[ownerKey];
         betting.pendingResponseFor = otherKey;
         betting.checks.player = false;
         betting.checks.cpu = false;
-        pushLog(`${actorName} はベット (${formatTestPoint(amount)})。`);
+        pushLog(`${actorName} 縺ｯ繝吶ャ繝・(${formatTestPoint(amount)})縲Ａ);
         return { ok: true };
     }
 
     if (action === 'raise') {
         const raiseCost = toCall + betting.minRaise;
-        if (raiseCost <= 0) return { ok: false, message: 'レイズ条件を満たしていません。' };
-        if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: 'ポイント不足でレイズできません。' };
+        if (raiseCost <= 0) return { ok: false, message: '繝ｬ繧､繧ｺ譚｡莉ｶ繧呈ｺ縺溘＠縺ｦ縺・・ｽ・ｽ縺帙ｓ縲・ };
+        if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: '繝昴う繝ｳ繝井ｸ崎ｶｳ縺ｧ繝ｬ繧､繧ｺ縺ｧ縺阪∪縺帙ｓ縲・ };
         betting.currentBet = betting.contributions[ownerKey];
         betting.pendingResponseFor = otherKey;
         betting.checks.player = false;
         betting.checks.cpu = false;
-        pushLog(`${actorName} はレイズ (+${formatTestPoint(betting.minRaise)})。`);
+        pushLog(`${actorName} 縺ｯ繝ｬ繧､繧ｺ (+${formatTestPoint(betting.minRaise)})縲Ａ);
         return { ok: true };
     }
 
-    return { ok: false, message: '未対応アクションです。' };
+    return { ok: false, message: '譛ｪ蟇ｾ蠢懊い繧ｯ繧ｷ繝ｧ繝ｳ縺ｧ縺吶・ };
 }
 
 async function transitionAfterPhase(nextPhase = 'turn-ready') {
@@ -1038,13 +1178,21 @@ async function transitionAfterPhase(nextPhase = 'turn-ready') {
         return;
     }
     if (nextPhase === 'betting-mid') {
-        startBettingRound('mid', 'turn-ready');
-        render();
+        await startBettingRoundWithCutin('mid', 'turn-ready');
         return;
     }
     if (nextPhase === 'betting-final') {
-        startBettingRound('final', 'showdown');
-        render();
+        await startBettingRoundWithCutin('final', 'showdown');
+        return;
+    }
+    if (nextPhase === 'river-ready') {
+        await showRoundCutin('RIVER OPEN');
+        await revealBoard(1);
+        if (state.phase !== 'showdown') {
+            await startBettingRoundWithCutin('final', 'showdown');
+        } else {
+            render();
+        }
         return;
     }
     state.phase = nextPhase;
@@ -1095,7 +1243,7 @@ async function onPlayerBetAction(action) {
     if (!isBettingPhase() || state.cpuThinking) return;
     const result = applyBetAction('player', action);
     if (!result.ok) {
-        pushLog(result.message || 'この操作はできません。');
+        pushLog(result.message || '縺難ｿｽE謫堺ｽ懶ｿｽE縺ｧ縺阪∪縺帙ｓ縲・);
         render();
         return;
     }
@@ -1273,7 +1421,7 @@ function applyDiscardSpecial(card, ownerKey) {
         state.players[otherKey].canExchange = false;
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
-        pushLog(`「世界」破棄: ${state.players[otherKey].name} は交換不能になった。`);
+        pushLog(`縲御ｸ也阜縲咲ｴ譽・ ${state.players[otherKey].name} 縺ｯ莠､謠帑ｸ搾ｿｽE縺ｫ縺ｪ縺｣縺溘Ａ);
         showEffectOverlay('THE WORLD - EXCHANGE LOCK');
     }
 }
@@ -1284,7 +1432,7 @@ function applyBoardSpecial(card) {
         if (!state.effectsDisabledByFool) {
             state.effectsDisabledByFool = true;
             state.pendingJudgment = null;
-            pushLog('「愚者」が場に出現。以降、世界/審判の効果は無効。');
+            pushLog('縲鯉ｿｽE閠・・ｽ・ｽ縺悟ｴ縺ｫ蜃ｺ迴ｾ縲ゆｻ･髯阪∽ｸ也阜/蟇ｩ蛻､縺ｮ蜉ｹ譫懶ｿｽE辟｡蜉ｹ縲・);
             showEffectOverlay('THE FOOL - CHAOS NULLIFICATION');
         }
         return;
@@ -1293,7 +1441,7 @@ function applyBoardSpecial(card) {
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
         state.forceShowdown = true;
-        pushLog('「世界」が場に出現。強制ショーダウン発動。');
+        pushLog('縲御ｸ也阜縲阪′蝣ｴ縺ｫ蜃ｺ迴ｾ縲ょｼｷ蛻ｶ繧ｷ繝ｧ繝ｼ繝繧ｦ繝ｳ逋ｺ蜍輔・);
         showEffectOverlay('THE WORLD - TIME STOP');
     }
 }
@@ -1357,7 +1505,7 @@ async function openFlopThenDraw() {
     if (state.phase !== 'showdown') {
         await enterDrawPhase(1);
         if (!state.players.player.canExchange) {
-            pushLog('あなたは交換不可。ドローをスキップ。');
+            pushLog('縺ゅ↑縺滂ｿｽE莠､謠帑ｸ榊庄縲ゅラ繝ｭ繝ｼ繧偵せ繧ｭ繝・・ｽE縲・);
             await processCpuExchange(getPostDrawNextPhase());
         }
     }
@@ -1371,7 +1519,7 @@ async function openTurnThenDraw() {
     if (state.phase !== 'showdown') {
         await enterDrawPhase(2);
         if (!state.players.player.canExchange) {
-            pushLog('あなたは交換不可（2巡目）。ドローをスキップ。');
+            pushLog('縺ゅ↑縺滂ｿｽE莠､謠帑ｸ榊庄・ｽE・ｽE蟾｡逶ｮ・ｽE・ｽ縲ゅラ繝ｭ繝ｼ繧偵せ繧ｭ繝・・ｽE縲・);
             await processCpuExchange(getPostDrawNextPhase());
         }
     }
@@ -1381,7 +1529,7 @@ async function openTurnThenDraw() {
 async function processCpuExchange(nextPhase = 'turn-ready') {
     const cpu = state.players.cpu;
     if (!cpu.canExchange) {
-        pushLog('CPUは交換不能。ドローをスキップ。');
+        pushLog('CPU縺ｯ莠､謠帑ｸ搾ｿｽE縲ゅラ繝ｭ繝ｼ繧偵せ繧ｭ繝・・ｽE縲・);
         await transitionAfterPhase(nextPhase);
         return;
     }
@@ -1391,7 +1539,7 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     }
     state.cpuThinking = true;
     state.phase = 'cpu-thinking';
-    pushLog('CPUが交換手を読んでいます...');
+    pushLog('CPU縺御ｺ､謠帶焔繧定ｪｭ繧薙〒縺・・ｽ・ｽ縺・..');
     render();
     await wait(420);
 
@@ -1406,7 +1554,7 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     }
     await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
     addToGrave('cpu', discarded);
-    pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った（期待勝率 ${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%）。`);
+    pushLog(`CPU縺ｯ ${getCardDisplayName(discarded)} 繧貞｢灘慍縺ｫ騾√▲縺滂ｼ域悄蠕・・ｽ・ｽ邇・${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%・ｽE・ｽ縲Ａ);
     applyDiscardSpecial(discarded, 'cpu');
     render();
     await wait(280);
@@ -1420,11 +1568,11 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
             const fromGrave = plan.graveOwnerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
             await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
             cpu.hand.push(gained);
-            pushLog(`CPUは審判で ${state.players[plan.graveOwnerKey].name} の最新墓地カードを取得。`);
+            pushLog(`CPU縺ｯ蟇ｩ蛻､縺ｧ ${state.players[plan.graveOwnerKey].name} 縺ｮ譛譁ｰ蠅灘慍繧ｫ繝ｼ繝峨ｒ蜿門ｾ励Ａ);
             showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
         } else {
             drawFor('cpu');
-            pushLog('CPUの審判対象が消失。山札から補充。');
+            pushLog('CPU縺ｮ蟇ｩ蛻､蟇ｾ雎｡縺梧ｶ亥､ｱ縲ょｱｱ譛ｭ縺九ｉ陬懶ｿｽE縲・);
         }
     } else if (canJudgment) {
         const options = getLatestGraveOptions();
@@ -1435,18 +1583,18 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
                 const fromGrave = pickedOwner === 'player' ? ui.playerGrave : ui.cpuGrave;
                 await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
                 cpu.hand.push(gained);
-                pushLog(`CPUは審判で ${state.players[pickedOwner].name} の最新墓地カードを取得。`);
+                pushLog(`CPU縺ｯ蟇ｩ蛻､縺ｧ ${state.players[pickedOwner].name} 縺ｮ譛譁ｰ蠅灘慍繧ｫ繝ｼ繝峨ｒ蜿門ｾ励Ａ);
                 showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
             } else {
                 drawFor('cpu');
-                pushLog('CPUの審判対象が消失。山札から補充。');
+                pushLog('CPU縺ｮ蟇ｩ蛻､蟇ｾ雎｡縺梧ｶ亥､ｱ縲ょｱｱ譛ｭ縺九ｉ陬懶ｿｽE縲・);
             }
         } else {
             const drawn = drawFor('cpu');
             if (drawn) {
                 await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
             }
-            pushLog('CPUは審判を使ったが対象なし。山札から補充。');
+            pushLog('CPU縺ｯ蟇ｩ蛻､繧剃ｽｿ縺｣縺溘′蟇ｾ雎｡縺ｪ縺励ょｱｱ譛ｭ縺九ｉ陬懶ｿｽE縲・);
         }
     } else {
         const drawn = drawFor('cpu');
@@ -1476,7 +1624,15 @@ async function finishPlayerExchange(nextPhase = 'turn-ready') {
 
 async function startNewGame() {
     if (state?.initialDealAnimating) return;
+    const keepPlayerTp = Number.isFinite(Number(state?.players?.player?.testPoints))
+        ? Math.max(0, Math.floor(Number(state.players.player.testPoints)))
+        : TEST_POINT_START;
+    const keepCpuTp = Number.isFinite(Number(state?.players?.cpu?.testPoints))
+        ? Math.max(0, Math.floor(Number(state.players.cpu.testPoints)))
+        : TEST_POINT_START;
     resetState();
+    state.players.player.testPoints = keepPlayerTp;
+    state.players.cpu.testPoints = keepCpuTp;
     clearBetActionLabels();
     state.deck = shuffle(buildDeck());
     state.phase = 'dealing';
@@ -1505,8 +1661,8 @@ async function startNewGame() {
     state.initialDealAnimating = false;
     state.initialDealRevealedCount = 2;
     state.drawRound = 0;
-    startBettingRound('preflop', 'preflop');
-    pushLog('プレフロップ: 手札2枚を配布。');
+    await startBettingRoundWithCutin('preflop', 'preflop');
+    pushLog('繝励Ξ繝輔Ο繝・・ｽE: 謇区惆2譫壹ｒ驟榊ｸ・・ｽ・ｽE);
     render();
 }
 
@@ -1518,7 +1674,7 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
-        pushLog(`DRAW PHASE ${state.drawRound}: 交換を確定`);
+        pushLog(`DRAW PHASE ${state.drawRound}: 莠､謠帙ｒ遒ｺ螳啻);
         await finishPlayerExchange(getPostDrawNextPhase());
         return;
     }
@@ -1534,12 +1690,7 @@ async function handleNext() {
     }
 
     if (state.phase === 'river-ready') {
-        await showRoundCutin('RIVER OPEN');
-        await revealBoard(1);
-        if (state.phase !== 'showdown') {
-            await transitionAfterPhase('betting-final');
-        }
-        render();
+        await transitionAfterPhase('river-ready');
         return;
     }
 }
@@ -1557,7 +1708,7 @@ async function onPlayerCardClick(index, sourceEl) {
     }
     await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
     addToGrave('player', discarded);
-    pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
+    pushLog(`縺ゅ↑縺滂ｿｽE ${getCardDisplayName(discarded)} 繧貞｢灘慍縺ｫ騾√▲縺溘Ａ);
     applyDiscardSpecial(discarded, 'player');
 
     const canJudgment = !isEffectDisabled() && (
@@ -1589,14 +1740,14 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         const fromGrave = ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
         await animateCardFlight(gained, fromGrave, ui.playerHand, 280, 1);
         state.players.player.hand.push(gained);
-        pushLog(`審判発動: ${state.players[ownerKey].name} の最新墓地カードを取得。`);
+        pushLog(`蟇ｩ蛻､逋ｺ蜍・ ${state.players[ownerKey].name} 縺ｮ譛譁ｰ蠅灘慍繧ｫ繝ｼ繝峨ｒ蜿門ｾ励Ａ);
         showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
     } else {
         const drawn = drawFor('player');
         if (drawn) {
             await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
         }
-        pushLog('審判対象が消失したため、山札から1枚補充。');
+        pushLog('蟇ｩ蛻､蟇ｾ雎｡縺梧ｶ亥､ｱ縺励◆縺溘ａ縲∝ｱｱ譛ｭ縺九ｉ1譫夊｣懶ｿｽE縲・);
     }
     state.pendingJudgment = null;
     state.phase = 'draw-player';
@@ -1605,18 +1756,18 @@ async function onJudgmentPick(ownerKey, cardId = null) {
 
 function getPhaseText() {
     if (!state) return '';
-    if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
-    if (state.phase === 'dealing') return '配札中...';
-    if (state.phase === 'betting-preflop') return 'プリフロップBET: アクションを選択してください。';
-    if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
-    if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
-    if (state.phase === 'preflop') return '次へでフロップを開示。';
-    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 手札1枚を選択（次へでスキップ）。`;
-    if (state.phase === 'draw-player-judgment') return '審判発動: 取得カードを選択。';
-    if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
-    if (state.phase === 'turn-ready') return '次へでターンを開示。';
-    if (state.phase === 'river-ready') return '次へでリバーを開示。';
-    if (state.phase === 'showdown') return 'ショーダウン完了。';
+    if (state.phase === 'idle') return '縲梧眠縺励＞蜍晁ｲ繧貞ｧ九ａ繧九阪ｒ謚ｼ縺励※縺上□縺輔＞縲・;
+    if (state.phase === 'dealing') return '驟肴惆荳ｭ...';
+    if (state.phase === 'betting-preflop') return '繝励Μ繝輔Ο繝・・ｽEBET: 繧｢繧ｯ繧ｷ繝ｧ繝ｳ繧帝∈謚槭＠縺ｦ縺上□縺輔＞縲・;
+    if (state.phase === 'betting-mid') return '荳ｭ逶､BET: 繧ｿ繝ｼ繝ｳ蜈ｬ髢句燕縺ｮ鬧・・ｽ・ｽ蠑輔″縲・;
+    if (state.phase === 'betting-final') return '譛邨・ET: 繧ｷ繝ｧ繝ｼ繝繧ｦ繝ｳ蜑搾ｿｽE蜍晁ｲ縲・;
+    if (state.phase === 'preflop') return '谺｡縺ｸ縺ｧ繝輔Ο繝・・ｽE繧帝幕遉ｺ縲・;
+    if (state.phase === 'draw-player') return `隨ｬ${state.drawRound}繝峨Ο繝ｼ繝輔ぉ繝ｼ繧ｺ: 謐ｨ縺ｦ繧区焔譛ｭ繧帝∈謚橸ｼ医せ繧ｭ繝・・ｽE繧ょ庄・ｽE・ｽ`;
+    if (state.phase === 'draw-player-judgment') return '蟇ｩ蛻､逋ｺ蜍・ 蜿門ｾ励き繝ｼ繝峨ｒ驕ｸ謚槭・;
+    if (state.phase === 'cpu-thinking') return 'CPU縺瑚｡悟虚繧呈ｱｺ螳壻ｸｭ...';
+    if (state.phase === 'turn-ready') return '谺｡縺ｸ縺ｧ繧ｿ繝ｼ繝ｳ繧帝幕遉ｺ縲・;
+    if (state.phase === 'river-ready') return '繝ｪ繝撰ｿｽE蜈ｬ髢倶ｸｭ...';
+    if (state.phase === 'showdown') return '繧ｷ繝ｧ繝ｼ繝繧ｦ繝ｳ螳御ｺ・・ｽ・ｽE;
     return '';
 }
 function getResultText() {
@@ -1675,10 +1826,9 @@ function createCardElement(card, options = {}) {
         const visualOptions = getArcanaSuitOptionsForVisual(card);
         if (Number(card.number) === 1 || getCardSuitOptionsForFlush(card).includes('All')) {
             el.classList.add('arcana-all-corners');
-        } else if (visualOptions.length >= 2) {
-            el.classList.add('arcana-dual');
-            el.style.setProperty('--arcana-color-a', getSuitThemeColor(visualOptions[0]));
-            el.style.setProperty('--arcana-color-b', getSuitThemeColor(visualOptions[1]));
+        } else if (visualOptions.length >= 1) {
+            el.classList.add('arcana-suit-hybrid');
+            el.style.setProperty('--arcana-color', getSuitThemeColor(visualOptions[0]));
         }
     }
 
@@ -1805,17 +1955,17 @@ function getLiveBestRoleLabel(ownerKey) {
         ...(state.players[ownerKey].hand || []),
         ...(state.board || [])
     ];
-    if (cards.length < 5) return '成立役: なし';
+    if (cards.length < 5) return '謌千ｫ句ｽｹ: 縺ｪ縺・;
     const best = chooseBestFiveFromSeven(cards);
-    if (!best?.rankLabel) return '成立役: なし';
-    return `成立役: ${best.rankLabel}`;
+    if (!best?.rankLabel) return '謌千ｫ句ｽｹ: 縺ｪ縺・;
+    return `謌千ｫ句ｽｹ: ${best.rankLabel}`;
 }
 
 function renderRoleLabels() {
     if (!ui.playerRole || !ui.cpuRole) return;
     if (state.phase !== 'showdown' || !state.result) {
         ui.playerRole.textContent = getLiveBestRoleLabel('player');
-        ui.cpuRole.textContent = '成立役: 非公開';
+        ui.cpuRole.textContent = '謌千ｫ句ｽｹ: 髱橸ｿｽE髢・;
         return;
     }
     const winner = state.result.winner;
@@ -1892,7 +2042,7 @@ function renderJudgmentPanel() {
     });
     const skipBtn = document.createElement('button');
     skipBtn.type = 'button';
-    skipBtn.textContent = '山札から引く（スキップ）';
+    skipBtn.textContent = '螻ｱ譛ｭ縺九ｉ蠑輔￥・ｽE・ｽ繧ｹ繧ｭ繝・・ｽE・ｽE・ｽE;
     skipBtn.addEventListener('click', () => onJudgmentPick('deck'));
     ui.judgmentOptions.appendChild(skipBtn);
 }
@@ -1901,46 +2051,46 @@ function renderButtons() {
     if (!ui.nextButton) return;
     if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = '次へ';
+        ui.nextButton.textContent = '谺｡縺ｸ';
         return;
     }
     if (isBettingPhase()) {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'BET操作中';
+        ui.nextButton.textContent = 'BET謫堺ｽ應ｸｭ';
         return;
     }
     if (state.phase === 'preflop') {
         ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'フロップを開く';
+        ui.nextButton.textContent = '繝輔Ο繝・・ｽE繧帝幕縺・;
         return;
     }
     if (state.phase === 'draw-player') {
         ui.nextButton.disabled = false;
-        ui.nextButton.textContent = `第${state.drawRound}ドローをスキップ`;
+        ui.nextButton.textContent = `隨ｬ${state.drawRound}繝峨Ο繝ｼ繧偵せ繧ｭ繝・・ｽE`;
         return;
     }
     if (state.phase === 'draw-player-judgment') {
         ui.nextButton.disabled = false;
-        ui.nextButton.textContent = '審判をスキップ';
+        ui.nextButton.textContent = '蟇ｩ蛻､繧偵せ繧ｭ繝・・ｽE';
         return;
     }
     if (state.phase === 'cpu-thinking') {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'CPU思考中...';
+        ui.nextButton.textContent = 'CPU諤晁・・ｽ・ｽ...';
         return;
     }
     if (state.phase === 'turn-ready') {
         ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'ターンを開く';
+        ui.nextButton.textContent = '繧ｿ繝ｼ繝ｳ繧帝幕縺・;
         return;
     }
     if (state.phase === 'river-ready') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'リバーを開く';
+        ui.nextButton.disabled = true;
+        ui.nextButton.textContent = '繝ｪ繝撰ｿｽE蜈ｬ髢倶ｸｭ...';
         return;
     }
     ui.nextButton.disabled = true;
-    ui.nextButton.textContent = '次へ';
+    ui.nextButton.textContent = '谺｡縺ｸ';
 }
 function renderLog() {
     if (!ui.log) return;
@@ -1957,7 +2107,7 @@ function renderBettingInfo() {
     if (!state) return;
     const potValue = Math.max(0, Math.floor(Number(state.pot || 0)));
     if (ui.potText) {
-        ui.potText.textContent = `POT ${formatTestPoint(potValue)}`;
+        animatePotDisplay(potValue);
         ui.potText.classList.toggle('is-hot', potValue > 0);
     }
     if (ui.playerPointText) ui.playerPointText.textContent = formatTestPoint(state.players.player.testPoints);
@@ -1972,6 +2122,11 @@ function renderBettingInfo() {
         if (ui.betBetButton) ui.betBetButton.disabled = true;
         if (ui.betRaiseButton) ui.betRaiseButton.disabled = true;
         if (ui.betFoldButton) ui.betFoldButton.disabled = true;
+        if (ui.betCheckButton) ui.betCheckButton.textContent = formatBetActionButtonLabel('check');
+        if (ui.betCallButton) ui.betCallButton.textContent = formatBetActionButtonLabel('call');
+        if (ui.betBetButton) ui.betBetButton.textContent = formatBetActionButtonLabel('bet');
+        if (ui.betRaiseButton) ui.betRaiseButton.textContent = formatBetActionButtonLabel('raise');
+        if (ui.betFoldButton) ui.betFoldButton.textContent = formatBetActionButtonLabel('fold');
         return;
     }
 
@@ -1981,21 +2136,27 @@ function renderBettingInfo() {
     const point = state.players.player.testPoints;
     const currentBet = state.betting.currentBet || 0;
 
-    if (ui.betCheckButton) ui.betCheckButton.disabled = toCall > 0;
+    if (ui.betCheckButton) {
+        ui.betCheckButton.disabled = toCall > 0;
+        ui.betCheckButton.textContent = formatBetActionButtonLabel('check');
+    }
     if (ui.betCallButton) {
         ui.betCallButton.disabled = toCall <= 0 || point < toCall;
-        ui.betCallButton.textContent = `コール ${formatTestPoint(toCall)}`;
+        ui.betCallButton.textContent = formatBetActionButtonLabel('call', formatTestPoint(toCall));
     }
     if (ui.betBetButton) {
         ui.betBetButton.disabled = currentBet > 0 || point < minBet;
-        ui.betBetButton.textContent = `BET ${formatTestPoint(minBet)}`;
+        ui.betBetButton.textContent = formatBetActionButtonLabel('bet', formatTestPoint(minBet));
     }
     if (ui.betRaiseButton) {
         const raiseCost = toCall + minRaise;
         ui.betRaiseButton.disabled = currentBet <= 0 || point < raiseCost;
-        ui.betRaiseButton.textContent = `レイズ +${formatTestPoint(minRaise)}`;
+        ui.betRaiseButton.textContent = formatBetActionButtonLabel('raise', `+${formatTestPoint(minRaise)}`);
     }
-    if (ui.betFoldButton) ui.betFoldButton.disabled = false;
+    if (ui.betFoldButton) {
+        ui.betFoldButton.disabled = false;
+        ui.betFoldButton.textContent = formatBetActionButtonLabel('fold');
+    }
 }
 
 function render() {
@@ -2005,6 +2166,10 @@ function render() {
     const isDealing = state.phase === 'dealing' || !!state.initialDealAnimating;
     ui.root.classList.toggle('is-showdown', isShowdown);
     ui.root.classList.toggle('is-dealing', isDealing);
+    if (ui.pokerRoot) {
+        ui.pokerRoot.classList.toggle('is-showdown', isShowdown);
+        ui.pokerRoot.classList.toggle('is-dealing', isDealing);
+    }
     const playerCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.playerBest) : state.players.player.hand;
     const cpuCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.cpuBest) : state.players.cpu.hand;
     const showdownHidden = isShowdown && !state.showdownRevealDone;
@@ -2043,13 +2208,13 @@ function ensureDailyFortuneOverlay() {
     overlay.className = 'tarot-fortune-overlay';
     overlay.innerHTML = `
         <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal">
-            <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
-            <div class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
+            <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">譛ｬ譌･縺ｮ驕句兇</div>
+            <div class="tarot-fortune-sub">1譌･1蝗槭□縺代√ち繝ｭ繝・・ｽ・ｽ縺ｧ驕句兇繧貞頃縺医∪縺吶・/div>
             <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
-            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">中央のボタンで占いを開始してください。</div>
+            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">荳ｭ螟ｮ縺ｮ繝懊ち繝ｳ縺ｧ蜊縺・・ｽ・ｽ髢句ｧ九＠縺ｦ縺上□縺輔＞縲・/div>
             <div class="tarot-fortune-actions">
-                <button id="${DAILY_FORTUNE_DRAW_BUTTON_ID}" type="button">占う</button>
-                <button id="${DAILY_FORTUNE_CLOSE_BUTTON_ID}" type="button" style="display:none;">閉じる</button>
+                <button id="${DAILY_FORTUNE_DRAW_BUTTON_ID}" type="button">蜊縺・/button>
+                <button id="${DAILY_FORTUNE_CLOSE_BUTTON_ID}" type="button" style="display:none;">髢峨§繧・/button>
             </div>
         </div>
     `;
@@ -2087,9 +2252,9 @@ function renderDailyFortuneResult(result) {
     cardHost.innerHTML = '';
     cardHost.appendChild(cardEl);
 
-    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
+    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '騾・・ｽ・ｽ鄂ｮ' : '豁｣菴咲ｽｮ';
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
-    titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
+    titleEl.textContent = `譛ｬ譌･縺ｮ驕句兇: ${String(result?.cardName || '')}・ｽE・ｽE{orientationLabel}・ｽE・ｽ`;
     textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
 }
 
@@ -2110,7 +2275,7 @@ async function handleDailyFortuneDraw(playFabId) {
     try {
         if (drawButton) {
             drawButton.disabled = true;
-            drawButton.textContent = '占い中...';
+            drawButton.textContent = '蜊縺・・ｽ・ｽ...';
         }
         const data = await requestDailyFortuneDraw(playFabId);
         if (data?.result) {
@@ -2122,22 +2287,22 @@ async function handleDailyFortuneDraw(playFabId) {
             updateGlobalPsDisplay(Number(data.balance));
         }
         if (textEl && !data?.result?.fortune) {
-            textEl.textContent = '本日の占い結果を取得しました。';
+            textEl.textContent = '譛ｬ譌･縺ｮ蜊縺・・ｽ・ｽ譫懊ｒ蜿門ｾ励＠縺ｾ縺励◆縲・;
         }
         const pointMessage = document.getElementById('pointMessage');
         if (pointMessage && data?.result) {
-            const name = String(data.result.cardName || 'カード');
+            const name = String(data.result.cardName || '繧ｫ繝ｼ繝・);
             const reward = Math.max(0, Math.floor(Number(data.result.rewardPs || 0)));
-            pointMessage.textContent = `本日の運勢「${name}」: +${reward}Ps`;
+            pointMessage.textContent = `譛ｬ譌･縺ｮ驕句兇縲・{name}縲・ +${reward}Ps`;
         }
     } catch (error) {
         if (textEl) {
-            textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
+            textEl.textContent = `蜊縺・・ｽ・ｽ螟ｱ謨励＠縺ｾ縺励◆: ${error?.message || 'unknown error'}`;
         }
         if (drawButton) drawButton.disabled = false;
     } finally {
         if (drawButton) {
-            drawButton.textContent = '占う';
+            drawButton.textContent = '蜊縺・;
             drawButton.style.display = dailyFortuneClaimedSession ? 'none' : 'inline-flex';
             drawButton.disabled = dailyFortuneClaimedSession;
         }
@@ -2154,14 +2319,14 @@ function setupDailyFortuneOverlay(playFabId) {
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
 
-    if (titleEl) titleEl.textContent = '本日の運勢';
+    if (titleEl) titleEl.textContent = '譛ｬ譌･縺ｮ驕句兇';
     if (cardHost) cardHost.innerHTML = '';
-    if (textEl) textEl.textContent = '中央のボタンで占いを開始してください。';
+    if (textEl) textEl.textContent = '荳ｭ螟ｮ縺ｮ繝懊ち繝ｳ縺ｧ蜊縺・・ｽ・ｽ髢句ｧ九＠縺ｦ縺上□縺輔＞縲・;
 
     if (drawButton) {
         drawButton.style.display = 'inline-flex';
         drawButton.disabled = false;
-        drawButton.textContent = '占う';
+        drawButton.textContent = '蜊縺・;
         drawButton.onclick = () => handleDailyFortuneDraw(playFabId);
     }
     if (closeButton) {
@@ -2194,6 +2359,7 @@ async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
 
 function bindElements() {
     ui.root = document.getElementById('tabContentTarot');
+    ui.pokerRoot = ui.root?.querySelector('.tarot-poker-root') || null;
     ui.startButton = document.getElementById('tarotStartButton');
     ui.nextButton = document.getElementById('tarotNextButton');
     ui.stateText = document.getElementById('tarotStateText');
@@ -2212,6 +2378,7 @@ function bindElements() {
     ui.bettingInfo = document.getElementById('tarotBettingInfo');
     ui.betPopup = document.getElementById('tarotBetPopup');
     ui.potText = document.getElementById('tarotPotText');
+    ui.potValueText = document.getElementById('tarotPotValue');
     ui.playerPointText = document.getElementById('tarotPlayerPointText');
     ui.cpuPointText = document.getElementById('tarotCpuPointText');
     ui.betActionHint = document.getElementById('tarotBetActionHint');
