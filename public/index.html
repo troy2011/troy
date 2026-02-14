@@ -248,6 +248,43 @@
                 </div>
             </div>
 
+            <!-- 1.7 タロットポーカータブ -->
+            <div id="tabContentTarot" class="tab-content" style="display: none;">
+                <div class="content-area tarot-poker-root">
+                    <div class="tarot-poker-header">
+                        <h2>タロット・ポーカー</h2>
+                        <div class="tarot-poker-sub">1人プレイ（CPU戦）</div>
+                    </div>
+                    <div class="tarot-poker-controls">
+                        <button id="tarotStartButton" type="button">新しい勝負を始める</button>
+                        <button id="tarotNextButton" type="button" style="background:#4b5563;">次へ</button>
+                    </div>
+                    <div id="tarotEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
+                    <div id="tarotStateText" class="tarot-state-text">「新しい勝負を始める」を押してください。</div>
+                    <div id="tarotPokerBoard" class="tarot-poker-board"></div>
+                    <div class="tarot-poker-columns">
+                        <div class="tarot-poker-column">
+                            <div class="tarot-poker-column-title">CPU 手札</div>
+                            <div id="tarotCpuHand" class="tarot-card-row"></div>
+                            <div class="tarot-poker-column-title">CPU 墓地（最新→）</div>
+                            <div id="tarotCpuGrave" class="tarot-grave-row"></div>
+                        </div>
+                        <div class="tarot-poker-column">
+                            <div class="tarot-poker-column-title">あなたの手札</div>
+                            <div id="tarotPlayerHand" class="tarot-card-row"></div>
+                            <div class="tarot-poker-column-title">あなたの墓地（最新→）</div>
+                            <div id="tarotPlayerGrave" class="tarot-grave-row"></div>
+                        </div>
+                    </div>
+                    <div id="tarotJudgmentPanel" class="tarot-judgment-panel" style="display:none;">
+                        <div class="tarot-judgment-title">審判の効果: 取得カードを選択</div>
+                        <div id="tarotJudgmentOptions" class="tarot-judgment-options"></div>
+                    </div>
+                    <div id="tarotResultText" class="tarot-result-text"></div>
+                    <div id="tarotLog" class="tarot-log"></div>
+                </div>
+            </div>
+
             <!-- 2. 地図タブ -->
             <div id="tabContentMap" class="tab-content" style="display: none;">
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
@@ -298,6 +335,7 @@
                     </div>
                     <div class="island-command-buttons">
                         <button id="islandCommandAction" class="island-command-btn">建設メニューを開く</button>
+                        <button id="islandCommandTarot" class="island-command-btn info" style="display:none;">タロットポーカー</button>
                         <button id="islandCommandAttack" class="island-command-btn danger" style="display:none;">攻撃準備</button>
                     </div>
                 </div>
@@ -644,6 +682,9 @@
         </button>
         <button id="navTroy" class="nav-button" onclick="showTab('troy')">
             <span class="nav-icon">🏴‍☠️</span><span>TROY</span>
+        </button>
+        <button id="navTarot" class="nav-button" onclick="showTab('tarot')">
+            <span class="nav-icon">🃏</span><span>タロット</span>
         </button>
         <button id="navMap" class="nav-button" onclick="showTab('map')">
             <span class="nav-icon">🗺️</span><span>地図</span>

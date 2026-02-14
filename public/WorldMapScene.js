@@ -5399,6 +5399,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
         const actionBtn = document.getElementById('islandCommandAction');
+        const tarotBtn = document.getElementById('islandCommandTarot');
         const attackBtn = document.getElementById('islandCommandAttack');
         const closeBtn = document.getElementById('islandCommandClose');
 
@@ -5446,6 +5447,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
         const autoAttackConfig = this.getIslandAutoAttackConfig(islandData);
         const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
+        const canPlayTarot = !!myPlayFabId && isOwner;
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
 
         let buttonText = `${menuLabel}を開く`;
@@ -5503,9 +5505,18 @@ export default class WorldMapScene extends Phaser.Scene {
         attackBtn.textContent = remainingCooldownMs > 0 ? `攻撃準備 (${cooldownSeconds}秒)` : '攻撃準備';
         attackBtn.className = 'island-command-btn danger';
         attackBtn.style.display = canAutoAttack ? 'block' : 'none';
+        if (tarotBtn) {
+            tarotBtn.textContent = 'タロットポーカー';
+            tarotBtn.className = 'island-command-btn info';
+            tarotBtn.style.display = canPlayTarot ? 'block' : 'none';
+        }
 
         const newActionBtn = actionBtn.cloneNode(true);
         actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+        const newTarotBtn = tarotBtn ? tarotBtn.cloneNode(true) : null;
+        if (tarotBtn && newTarotBtn) {
+            tarotBtn.parentNode.replaceChild(newTarotBtn, tarotBtn);
+        }
         const newAttackBtn = attackBtn.cloneNode(true);
         attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
         const newCloseBtn = closeBtn.cloneNode(true);
@@ -5514,6 +5525,19 @@ export default class WorldMapScene extends Phaser.Scene {
         newActionBtn.addEventListener('click', () => {
             void onClick();
         });
+
+        if (newTarotBtn && canPlayTarot) {
+            newTarotBtn.addEventListener('click', () => {
+                this.hideIslandCommandMenu();
+                if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
+                    window.showTab('tarot');
+                } else {
+                    this.showMessage('タロットポーカーを開けません。');
+                }
+            });
+        } else if (newTarotBtn) {
+            newTarotBtn.style.display = 'none';
+        }
 
         if (canAutoAttack) {
             newAttackBtn.addEventListener('click', attackOnClick);

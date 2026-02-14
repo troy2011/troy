@@ -15,6 +15,13 @@ const ensureTroyModule = async () => {
     return troyModule;
 };
 
+let tarotModule = null;
+const ensureTarotModule = async () => {
+    if (tarotModule) return tarotModule;
+    tarotModule = await import('./tarotPoker.js');
+    return tarotModule;
+};
+
 const TAROT_AREAS = [
     { id: 'wands', label: 'ワンド' },
     { id: 'pentacles', label: 'ペンタクル' },
@@ -881,7 +888,7 @@ function showWorldMapModal(playerInfo) {
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, troy: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, troy: false, tarot: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 
@@ -1082,6 +1089,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     {
                         const Troy = await ensureTroyModule();
                         await Troy.loadTroyPage(playerInfo.playFabId);
+                    }
+                    break;
+                case 'tarot':
+                    {
+                        const Tarot = await ensureTarotModule();
+                        await Tarot.loadTarotPokerPage();
                     }
                     break;
                 case 'ships':

@@ -2524,3 +2524,284 @@ body.modal-lock .modal-overlay {
     font-weight: 600;
     color: #cbd5f5;
 }
+
+/* --- タロットポーカー --- */
+.tarot-poker-root {
+    overflow: visible;
+}
+
+.tarot-poker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.tarot-poker-sub {
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.tarot-poker-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.tarot-poker-controls button {
+    flex: 1;
+}
+
+.tarot-state-text {
+    margin: 8px 0 12px;
+    font-size: 13px;
+    color: #dbe4f2;
+}
+
+.tarot-poker-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(56px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tarot-board-slot {
+    height: 100px;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+}
+
+.tarot-poker-columns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.tarot-poker-column {
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.tarot-poker-column-title {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-bottom: 8px;
+}
+
+.tarot-card-row {
+    display: flex;
+    gap: 8px;
+    min-height: 100px;
+    margin-bottom: 8px;
+}
+
+.tarot-card {
+    min-width: 64px;
+    height: 100px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 6px;
+    position: relative;
+    text-align: left;
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.tarot-card.wand {
+    background: linear-gradient(180deg, #b11818, #7a0e0e);
+}
+
+.tarot-card.sword {
+    background: linear-gradient(180deg, #c29b14, #856a06);
+}
+
+.tarot-card.cup {
+    background: linear-gradient(180deg, #1e63c6, #123d7b);
+}
+
+.tarot-card.pentacle {
+    background: linear-gradient(180deg, #1e8f3c, #15632b);
+}
+
+.tarot-card.none {
+    background: linear-gradient(180deg, #5b6472, #343b45);
+}
+
+.tarot-card.is-hidden {
+    background: linear-gradient(180deg, #374151, #1f2937);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.tarot-card.is-clickable {
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.2s ease;
+    animation: tarotPulse 1.1s ease-in-out infinite;
+}
+
+.tarot-card.is-clickable:active {
+    transform: scale(0.96);
+}
+
+.tarot-card.is-static {
+    cursor: default;
+}
+
+.tarot-card-title {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    right: 6px;
+    z-index: 2;
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.94;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.tarot-card-number {
+    position: absolute;
+    left: 7px;
+    bottom: 4px;
+    z-index: 2;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.tarot-card-art {
+    position: absolute;
+    left: 8px;
+    top: 14px;
+    width: 48px;
+    height: 80px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    image-rendering: pixelated;
+    background-image: var(--tarot-sprite-src);
+    background-size: var(--tarot-sheet-w, 512px) var(--tarot-sheet-h, 1024px);
+    background-position: calc(var(--tarot-x, 0px) * -1) calc(var(--tarot-y, 0px) * -1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.tarot-card.is-arcana {
+    box-shadow:
+        0 0 0 1px rgba(255, 244, 178, 0.5),
+        0 0 14px rgba(255, 220, 82, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.tarot-card-back {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 32px;
+    font-size: 26px;
+    font-weight: 900;
+    opacity: 0.8;
+}
+
+.tarot-grave-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tarot-grave-item {
+    font-size: 11px;
+    background: rgba(17, 24, 39, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 4px 8px;
+    color: #d7deea;
+}
+
+.tarot-result-text {
+    margin-top: 12px;
+    font-weight: 700;
+    color: #ffd986;
+    min-height: 20px;
+}
+
+.tarot-log {
+    margin-top: 10px;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.tarot-log-row {
+    font-size: 12px;
+    color: #d1d8e6;
+    margin-bottom: 6px;
+}
+
+.tarot-log-row:last-child {
+    margin-bottom: 0;
+}
+
+.tarot-judgment-panel {
+    margin-top: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(29, 19, 7, 0.72);
+}
+
+.tarot-judgment-title {
+    font-size: 12px;
+    color: #f7d188;
+    margin-bottom: 8px;
+}
+
+.tarot-judgment-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.tarot-judgment-options button {
+    width: 100%;
+}
+
+.tarot-effect-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3600;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: radial-gradient(circle, rgba(255, 231, 153, 0.24), rgba(0, 0, 0, 0.78));
+    color: #fff;
+    font-size: clamp(22px, 5vw, 42px);
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 24px rgba(255, 217, 122, 0.8);
+}
+
+.tarot-effect-overlay.show {
+    opacity: 1;
+}
+
+@keyframes tarotPulse {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
+    50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
+}
