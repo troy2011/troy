@@ -17,10 +17,10 @@ const SUIT_THEME_COLOR = {
 
 const ARCANA_FLUSH_SUIT_OPTIONS = {
     1: ['All'],
-    16: ['Sword', 'Wand'],
-    17: ['Cup', 'Pentacle'],
-    18: ['Pentacle', 'Sword'],
-    19: ['Wand', 'Cup']
+    16: ['Sword'],
+    17: ['Cup'],
+    18: ['Pentacle'],
+    19: ['Wand']
 };
 
 const EFFECT_TYPE = {
@@ -84,6 +84,8 @@ const TAROT_REVEAL_FRAMES = Array.from(
 const TAROT_REVEAL_FRAME_MS = 38;
 const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
+const BLIND_BONUS_TP = 10;
+const PLAYER_ORDER = ['player', 'cpu'];
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
 const BET_ACTION_TEMPO_MS = 900;
@@ -359,6 +361,7 @@ function resetState() {
     state = {
         phase: 'idle',
         drawRound: 0,
+        dealerIndex: 0,
         deck: [],
         board: [],
         players: {
@@ -368,6 +371,7 @@ function resetState() {
                 hand: [],
                 graveyard: [],
                 canExchange: true,
+                hasResurrectionRight: false,
                 bettingEnabled: false,
                 testPoints: TEST_POINT_START
             },
@@ -377,17 +381,18 @@ function resetState() {
                 hand: [],
                 graveyard: [],
                 canExchange: true,
+                hasResurrectionRight: false,
                 bettingEnabled: false,
                 testPoints: TEST_POINT_START
             }
         },
         graveyard: [],
+        potArray: [],
         pot: 0,
         betting: null,
         handSettled: false,
         forceShowdown: false,
         effectsDisabledByFool: false,
-        judgmentBoardDrawRound: 0,
         pendingJudgment: null,
         cpuThinking: false,
         initialDealAnimating: false,
@@ -489,14 +494,18 @@ function addToGrave(ownerKey, card) {
     state.graveyard.push({ ownerKey, card });
 }
 
-function getAllGraveOptions() {
+function getAllGraveOptions({ excludeOwnerKey = null, latestOnly = false } = {}) {
     const options = [];
     ['player', 'cpu'].forEach((ownerKey) => {
+        if (excludeOwnerKey && ownerKey === excludeOwnerKey) return;
         const grave = state.players[ownerKey]?.graveyard || [];
-        for (let i = grave.length - 1; i >= 0; i -= 1) {
+        const startIndex = grave.length - 1;
+        const endIndex = latestOnly ? Math.max(grave.length - 1, 0) : 0;
+        for (let i = startIndex; i >= endIndex; i -= 1) {
             const card = grave[i];
             if (!card) continue;
             options.push({ ownerKey, cardId: card.id, card });
+            if (latestOnly) break;
         }
     });
     return options;
@@ -539,6 +548,25 @@ function takeGraveCardById(ownerKey, cardId) {
         }
     }
     return card;
+}
+
+function getJudgmentContextForExchange(ownerKey, discardedCard = null) {
+    if (!state?.players?.[ownerKey] || isEffectDisabled()) return null;
+    const owner = state.players[ownerKey];
+    const isKarma = discardedCard?.effectType === EFFECT_TYPE.JUDGMENT;
+    if (isKarma) {
+        return {
+            mode: 'karma',
+            options: getAllGraveOptions({ excludeOwnerKey: ownerKey, latestOnly: false })
+        };
+    }
+    if (owner.hasResurrectionRight) {
+        return {
+            mode: 'resurrection',
+            options: getAllGraveOptions({ latestOnly: false })
+        };
+    }
+    return null;
 }
 
 function hasFoolInHand(ownerKey) {
@@ -727,17 +755,29 @@ function detectBestFlush(cards) {
 function detectElement(cards) {
     const arcanaCards = cards.filter((card) => card?.isArcana);
     if (!arcanaCards.length) return null;
-
-    const nonArcanaSuits = new Set();
-    cards.forEach((card) => {
-        if (!card || card.isArcana) return;
-        const suit = getCardSuitForFlush(card);
-        if (SUITS.includes(suit)) {
-            nonArcanaSuits.add(suit);
-        }
+    const suitOptionsList = cards.map((card) => {
+        const options = getCardSuitOptionsForFlush(card);
+        if (options.includes('All')) return SUITS.slice();
+        return options.filter((suit) => SUITS.includes(suit));
     });
-
-    if (nonArcanaSuits.size < SUITS.length) return null;
+    const canCoverAllSuits = (() => {
+        const dfs = (index, covered) => {
+            if (covered.size === SUITS.length) return true;
+            if (index >= suitOptionsList.length) return false;
+            const options = suitOptionsList[index];
+            if (!options || options.length === 0) {
+                return dfs(index + 1, covered);
+            }
+            for (const suit of options) {
+                const next = new Set(covered);
+                next.add(suit);
+                if (dfs(index + 1, next)) return true;
+            }
+            return dfs(index + 1, covered);
+        };
+        return dfs(0, new Set());
+    })();
+    if (!canCoverAllSuits) return null;
 
     const maxArcana = arcanaCards.reduce((max, card) => {
         const num = Number(card?.number) || 0;
@@ -1115,13 +1155,21 @@ function getToCall(ownerKey) {
     return Math.max(0, (state.betting.currentBet || 0) - (state.betting.contributions?.[ownerKey] || 0));
 }
 
-function addBetToPot(ownerKey, amount) {
+function addBetToPot(ownerKey, amount, meta = null) {
     if (!state?.betting || amount <= 0) return false;
     const player = state.players?.[ownerKey];
     if (!player || player.testPoints < amount) return false;
     player.testPoints -= amount;
     state.pot += amount;
     state.betting.contributions[ownerKey] += amount;
+    if (!Array.isArray(state.potArray)) state.potArray = [];
+    state.potArray.push({
+        ownerKey,
+        amount,
+        reason: meta?.reason || 'bet',
+        roundKey: state?.betting?.roundKey || null,
+        at: Date.now()
+    });
     return true;
 }
 
@@ -1144,6 +1192,52 @@ function settlePotByWinner(winnerKey) {
     }
 }
 
+function getActivePlayerOrder() {
+    const ordered = PLAYER_ORDER.filter((ownerKey) => !!state?.players?.[ownerKey]);
+    if (ordered.length > 0) return ordered;
+    return Object.keys(state?.players || {});
+}
+
+function normalizeDealerIndexByOrder(order) {
+    if (!Array.isArray(order) || order.length <= 0) return 0;
+    const raw = Math.floor(Number(state?.dealerIndex) || 0);
+    const normalized = ((raw % order.length) + order.length) % order.length;
+    state.dealerIndex = normalized;
+    return normalized;
+}
+
+function applyPreflopBlind() {
+    if (!state?.betting || state.betting.roundKey !== 'preflop') return;
+    const order = getActivePlayerOrder();
+    if (order.length < 2) return;
+    const dealerPos = normalizeDealerIndexByOrder(order);
+    const blindPos = (dealerPos + 1) % order.length;
+    const blindOwner = order[blindPos];
+    const blindResponder = order[(blindPos + 1) % order.length] || null;
+    const blindBase = Number(state.betting.minBet || TEST_BET_UNIT);
+    const blindAmount = Math.max(0, Math.floor(blindBase + BLIND_BONUS_TP));
+    const payer = state.players?.[blindOwner];
+    if (!payer || blindAmount <= 0) return;
+    const payerStack = Math.max(0, Math.floor(Number(payer.testPoints) || 0));
+    const payAmount = Math.min(blindAmount, payerStack);
+    if (payAmount <= 0) {
+        pushLog(`BLIND: ${blindOwner.toUpperCase()} stack不足`);
+        return;
+    }
+    if (!addBetToPot(blindOwner, payAmount, { reason: 'blind' })) return;
+    state.betting.currentBet = Math.max(
+        Number(state.betting.currentBet) || 0,
+        Number(state.betting.contributions?.[blindOwner]) || 0
+    );
+    state.betting.pendingResponseFor = blindResponder;
+    state.betting.checks.player = false;
+    state.betting.checks.cpu = false;
+    const dealerOwner = order[dealerPos];
+    pushLog(
+        `BLIND: ${blindOwner.toUpperCase()} ${formatTestPoint(payAmount)} / DEALER ${String(dealerOwner || '').toUpperCase()}`
+    );
+}
+
 function startBettingRound(roundKey, nextPhase) {
     state.betting = {
         roundKey,
@@ -1157,6 +1251,9 @@ function startBettingRound(roundKey, nextPhase) {
     };
     state.phase = `betting-${roundKey}`;
     pushLog(`ベッティング開始: ${roundKey} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
+    if (roundKey === 'preflop') {
+        applyPreflopBlind();
+    }
 }
 
 function getCpuWinRateEstimate() {
@@ -1410,19 +1507,6 @@ function estimateCpuWinRate(candidateCpuHand, boardCards, basePool, simulationCo
     return score / simulationCount;
 }
 
-function getLatestGraveOptions() {
-    const options = [];
-    ['player', 'cpu'].forEach((ownerKey) => {
-        const grave = state.players[ownerKey].graveyard;
-        if (!grave.length) return;
-        options.push({
-            ownerKey,
-            card: grave[grave.length - 1]
-        });
-    });
-    return options;
-}
-
 function chooseCpuPlan() {
     const cpu = state.players.cpu;
     const boardCards = state.board.slice();
@@ -1431,21 +1515,18 @@ function chooseCpuPlan() {
         return { discardIndex: 0, source: 'deck', graveOwnerKey: null, expected: 0 };
     }
 
-    const plans = [];
+    let bestOverallPlan = null;
     for (let discardIndex = 0; discardIndex < cpu.hand.length; discardIndex += 1) {
         const keepCard = cpu.hand[discardIndex === 0 ? 1 : 0];
         if (!keepCard) continue;
         const discarded = cpu.hand[discardIndex];
-        const boardJudgmentActive = isBoardJudgmentActiveInCurrentDraw();
-        const canJudgment = !isEffectDisabled() && (
-            discarded.effectType === EFFECT_TYPE.JUDGMENT || boardJudgmentActive
-        );
+        const judgmentCtx = getJudgmentContextForExchange('cpu', discarded);
 
         const evaluateFixedCard = (pickedCard) => {
             const hand = [keepCard, pickedCard];
             const poolAfter = buildPoolWithoutCards(basePool, [pickedCard]);
             const expected = estimateCpuWinRate(hand, boardCards, poolAfter);
-            return { expected, source: 'grave', graveOwnerKey: null, pickedCard };
+            return expected;
         };
 
         const evaluateDeckAverage = () => {
@@ -1466,49 +1547,44 @@ function chooseCpuPlan() {
             discardIndex,
             source: 'deck',
             graveOwnerKey: null,
+            graveCardId: null,
+            judgmentMode: judgmentCtx?.mode || null,
             expected: deckExpected
         };
 
-        if (canJudgment) {
-            const options = getLatestGraveOptions();
-            if (!boardJudgmentActive) {
-                for (let i = options.length - 1; i >= 0; i -= 1) {
-                    if (options[i].ownerKey === 'cpu') {
-                        options.splice(i, 1);
-                    }
-                }
-            }
-            if (discarded.effectType === EFFECT_TYPE.JUDGMENT) {
-                options.push({ ownerKey: 'cpu', card: discarded });
-            }
-            for (const option of options) {
+        if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
+            for (const option of judgmentCtx.options) {
                 if (!option?.card) continue;
-                const fixed = evaluateFixedCard(option.card);
-                if (fixed.expected > bestPlan.expected) {
+                const fixedExpected = evaluateFixedCard(option.card);
+                if (fixedExpected > bestPlan.expected) {
                     bestPlan = {
                         discardIndex,
                         source: 'grave',
                         graveOwnerKey: option.ownerKey,
-                        expected: fixed.expected
+                        graveCardId: option.cardId || null,
+                        judgmentMode: judgmentCtx.mode,
+                        expected: fixedExpected
                     };
                 }
             }
         }
-        plans.push(bestPlan);
+        if (!bestOverallPlan || bestPlan.expected > bestOverallPlan.expected) {
+            bestOverallPlan = bestPlan;
+        }
     }
 
-    plans.sort((a, b) => b.expected - a.expected);
-    return plans[0] || { discardIndex: 0, source: 'deck', graveOwnerKey: null, expected: 0 };
+    return bestOverallPlan || {
+        discardIndex: 0,
+        source: 'deck',
+        graveOwnerKey: null,
+        graveCardId: null,
+        judgmentMode: null,
+        expected: 0
+    };
 }
 
 function isEffectDisabled() {
     return state.effectsDisabledByFool;
-}
-
-function isBoardJudgmentActiveInCurrentDraw() {
-    if (!state) return false;
-    if (isEffectDisabled()) return false;
-    return Number(state.judgmentBoardDrawRound || 0) === Number(state.drawRound || -1);
 }
 
 function applyDiscardSpecial(card, ownerKey) {
@@ -1529,6 +1605,9 @@ function applyBoardSpecial(card) {
         if (!state.effectsDisabledByFool) {
             state.effectsDisabledByFool = true;
             state.pendingJudgment = null;
+            Object.keys(state.players || {}).forEach((ownerKey) => {
+                state.players[ownerKey].hasResurrectionRight = false;
+            });
             pushLog('「愚者」が場に出現。以降、世界/審判の効果は無効。');
             showEffectOverlay('THE FOOL - CHAOS NULLIFICATION');
         }
@@ -1540,6 +1619,13 @@ function applyBoardSpecial(card) {
         state.forceShowdown = true;
         pushLog('「世界」が場に出現。強制ショーダウン発動。');
         showEffectOverlay('THE WORLD - TIME STOP');
+        return;
+    }
+    if (card.effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled()) {
+        Object.keys(state.players || {}).forEach((ownerKey) => {
+            state.players[ownerKey].hasResurrectionRight = true;
+        });
+        showEffectOverlay('JUDGMENT - RESURRECTION');
     }
 }
 
@@ -1597,8 +1683,7 @@ async function enterDrawPhase(roundNo) {
 
 async function openFlopThenDraw() {
     await showRoundCutin('FLOP OPEN');
-    const revealResult = await revealBoard(3);
-    state.judgmentBoardDrawRound = !isEffectDisabled() && !!revealResult?.judgmentRevealed ? 1 : 0;
+    await revealBoard(3);
     if (state.phase !== 'showdown') {
         await enterDrawPhase(1);
         if (!state.players.player.canExchange) {
@@ -1611,8 +1696,7 @@ async function openFlopThenDraw() {
 
 async function openTurnThenDraw() {
     await showRoundCutin('TURN OPEN');
-    const revealResult = await revealBoard(1);
-    state.judgmentBoardDrawRound = !isEffectDisabled() && !!revealResult?.judgmentRevealed ? 2 : 0;
+    await revealBoard(1);
     if (state.phase !== 'showdown') {
         await enterDrawPhase(2);
         if (!state.players.player.canExchange) {
@@ -1656,42 +1740,28 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     render();
     await wait(280);
 
-    const canJudgment = !isEffectDisabled() && (
-        discarded.effectType === EFFECT_TYPE.JUDGMENT || isBoardJudgmentActiveInCurrentDraw()
-    );
-    if (canJudgment && plan.source === 'grave' && plan.graveOwnerKey) {
-        const gained = takeLatestGraveCard(plan.graveOwnerKey);
+    const judgmentCtx = getJudgmentContextForExchange('cpu', discarded);
+    if (
+        judgmentCtx
+        && plan.source === 'grave'
+        && plan.graveOwnerKey
+        && plan.graveCardId
+    ) {
+        const gained = takeGraveCardById(plan.graveOwnerKey, plan.graveCardId);
         if (gained) {
             const fromGrave = plan.graveOwnerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
             await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
             cpu.hand.push(gained);
-            pushLog(`CPUは審判で ${state.players[plan.graveOwnerKey].name} の最新墓地カードを取得。`);
-            showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
+            showEffectOverlay(
+                judgmentCtx.mode === 'karma'
+                    ? 'JUDGMENT - KARMA INTERCHANGE'
+                    : 'JUDGMENT - RESURRECTION'
+            );
         } else {
-            drawFor('cpu');
-            pushLog('CPUの審判対象が消失。山札から補充。');
-        }
-    } else if (canJudgment) {
-        const options = getLatestGraveOptions();
-        if (options.length > 0 && plan.source === 'grave') {
-            const pickedOwner = plan.graveOwnerKey || options[0].ownerKey;
-            const gained = takeLatestGraveCard(pickedOwner);
-            if (gained) {
-                const fromGrave = pickedOwner === 'player' ? ui.playerGrave : ui.cpuGrave;
-                await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
-                cpu.hand.push(gained);
-                pushLog(`CPUは審判で ${state.players[pickedOwner].name} の最新墓地カードを取得。`);
-                showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
-            } else {
-                drawFor('cpu');
-                pushLog('CPUの審判対象が消失。山札から補充。');
+            const drawnFallback = drawFor('cpu');
+            if (drawnFallback) {
+                await animateCardFlight(drawnFallback, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
             }
-        } else {
-            const drawn = drawFor('cpu');
-            if (drawn) {
-                await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
-            }
-            pushLog('CPUは審判を使ったが対象なし。山札から補充。');
         }
     } else {
         const drawn = drawFor('cpu');
@@ -1721,6 +1791,10 @@ async function finishPlayerExchange(nextPhase = 'turn-ready') {
 
 async function startNewGame() {
     if (state?.initialDealAnimating) return;
+    const previousOrder = getActivePlayerOrder();
+    const previousDealerIndex = Number.isFinite(Number(state?.dealerIndex))
+        ? Math.floor(Number(state.dealerIndex))
+        : -1;
     const keepPlayerTp = Number.isFinite(Number(state?.players?.player?.testPoints))
         ? Math.max(0, Math.floor(Number(state.players.player.testPoints)))
         : TEST_POINT_START;
@@ -1728,6 +1802,14 @@ async function startNewGame() {
         ? Math.max(0, Math.floor(Number(state.players.cpu.testPoints)))
         : TEST_POINT_START;
     resetState();
+    const activeOrder = getActivePlayerOrder();
+    const rotationSize = activeOrder.length > 0 ? activeOrder.length : previousOrder.length;
+    if (rotationSize > 0) {
+        const previousNormalized = ((previousDealerIndex % rotationSize) + rotationSize) % rotationSize;
+        state.dealerIndex = (previousNormalized + 1) % rotationSize;
+    } else {
+        state.dealerIndex = 0;
+    }
     state.players.player.testPoints = keepPlayerTp;
     state.players.cpu.testPoints = keepCpuTp;
     clearBetActionLabels();
@@ -1810,20 +1892,18 @@ async function onPlayerCardClick(index, sourceEl) {
     }
     await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
     addToGrave('player', discarded);
-    pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
+    pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地へ`);
     applyDiscardSpecial(discarded, 'player');
 
-    const canJudgment = !isEffectDisabled() && (
-        discarded.effectType === EFFECT_TYPE.JUDGMENT || isBoardJudgmentActiveInCurrentDraw()
-    );
-    if (canJudgment) {
-        const options = getAllGraveOptions();
-        if (options.length > 0) {
-            state.phase = 'draw-player-judgment';
-            state.pendingJudgment = { options };
-            render();
-            return;
-        }
+    const judgmentCtx = getJudgmentContextForExchange('player', discarded);
+    if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
+        state.phase = 'draw-player-judgment';
+        state.pendingJudgment = {
+            mode: judgmentCtx.mode,
+            options: judgmentCtx.options
+        };
+        render();
+        return;
     }
 
     const drawn = drawFor('player');
@@ -1835,27 +1915,40 @@ async function onPlayerCardClick(index, sourceEl) {
 
 async function onJudgmentPick(ownerKey, cardId = null) {
     if (!state || state.phase !== 'draw-player-judgment') return;
-    const gained = ownerKey === 'deck'
-        ? null
-        : (cardId ? takeGraveCardById(ownerKey, cardId) : takeLatestGraveCard(ownerKey));
-    if (gained) {
-        const fromGrave = ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
+    const pending = state.pendingJudgment;
+    const hasPending = !!pending && Array.isArray(pending.options);
+    let selectedOption = null;
+    if (ownerKey !== 'deck' && hasPending) {
+        selectedOption = pending.options.find((opt) => {
+            if (!opt) return false;
+            if (opt.ownerKey !== ownerKey) return false;
+            if (cardId) return opt.cardId === cardId;
+            return true;
+        }) || null;
+    }
+
+    const gained = selectedOption
+        ? takeGraveCardById(selectedOption.ownerKey, selectedOption.cardId)
+        : null;
+    if (gained && selectedOption) {
+        const fromGrave = selectedOption.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
         await animateCardFlight(gained, fromGrave, ui.playerHand, 280, 1);
         state.players.player.hand.push(gained);
-        pushLog(`審判発動: ${state.players[ownerKey].name} の最新墓地カードを取得。`);
-        showEffectOverlay('JUDGMENT - SOUL RETRIEVE');
+        showEffectOverlay(
+            pending?.mode === 'karma'
+                ? 'JUDGMENT - KARMA INTERCHANGE'
+                : 'JUDGMENT - RESURRECTION'
+        );
     } else {
         const drawn = drawFor('player');
         if (drawn) {
             await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
         }
-        pushLog('審判対象が消失したため、山札から1枚補充。');
     }
     state.pendingJudgment = null;
     state.phase = 'draw-player';
     await finishPlayerExchange(getPostDrawNextPhase());
 }
-
 function getPhaseText() {
     if (!state) return '';
     if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
@@ -1928,10 +2021,9 @@ function createCardElement(card, options = {}) {
         const visualOptions = getArcanaSuitOptionsForVisual(card);
         if (Number(card.number) === 1 || getCardSuitOptionsForFlush(card).includes('All')) {
             el.classList.add('arcana-all-corners');
-        } else if (visualOptions.length >= 2) {
-            el.classList.add('arcana-dual');
-            el.style.setProperty('--arcana-color-a', getSuitThemeColor(visualOptions[0]));
-            el.style.setProperty('--arcana-color-b', getSuitThemeColor(visualOptions[1]));
+        } else if (visualOptions.length >= 1) {
+            el.classList.add('arcana-suit-hybrid');
+            el.style.setProperty('--arcana-color', getSuitThemeColor(visualOptions[0]));
         }
     }
 
@@ -2185,6 +2277,14 @@ function renderJudgmentPanel() {
         ui.judgmentOptions.innerHTML = '';
         return;
     }
+
+    const titleEl = ui.judgmentPanel.querySelector('.tarot-judgment-title');
+    if (titleEl) {
+        titleEl.textContent = pending.mode === 'karma'
+            ? 'Judgment: take 1 card from other graveyards'
+            : 'Judgment: resurrect 1 card from graveyard';
+    }
+
     ui.judgmentPanel.style.display = 'block';
     ui.judgmentOptions.innerHTML = '';
     pending.options.forEach((option) => {
@@ -2195,13 +2295,13 @@ function renderJudgmentPanel() {
         btn.addEventListener('click', () => onJudgmentPick(option.ownerKey, option.cardId || null));
         ui.judgmentOptions.appendChild(btn);
     });
+
     const skipBtn = document.createElement('button');
     skipBtn.type = 'button';
-    skipBtn.textContent = '山札から引く（スキップ）';
+    skipBtn.textContent = 'Skip (draw 1 from deck)';
     skipBtn.addEventListener('click', () => onJudgmentPick('deck'));
     ui.judgmentOptions.appendChild(skipBtn);
 }
-
 function renderButtons() {
     if (!ui.nextButton) return;
     if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
