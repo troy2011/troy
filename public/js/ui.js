@@ -167,6 +167,9 @@ async function loadWorldMapLayout() {
         const layout = Array.isArray(data?.layout) ? data.layout : null;
         if (layout && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
             worldMapLayoutCache = layout.slice();
+            if (typeof window !== 'undefined') {
+                window.__worldMapLayoutCache = worldMapLayoutCache.slice();
+            }
             return worldMapLayoutCache;
         }
     } catch (error) {
@@ -174,12 +177,18 @@ async function loadWorldMapLayout() {
     }
     worldMapPlacementOpen = true;
     worldMapLayoutCache = WORLD_MAP_DEFAULT_LAYOUT.slice();
+    if (typeof window !== 'undefined') {
+        window.__worldMapLayoutCache = worldMapLayoutCache.slice();
+    }
     return worldMapLayoutCache;
 }
 
 function renderWorldMapGrid(layout = WORLD_MAP_DEFAULT_LAYOUT) {
     const container = document.getElementById('worldMapGrid');
     if (!container) return;
+    if (typeof window !== 'undefined' && Array.isArray(layout) && layout.length === WORLD_MAP_DEFAULT_LAYOUT.length) {
+        window.__worldMapLayoutCache = layout.slice();
+    }
     container.innerHTML = '';
     let letterIndex = 0;
     layout.forEach((mapId, index) => {

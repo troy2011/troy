@@ -79,6 +79,25 @@ const BUILDING_META_DEFAULT = { nationTileOffset: false, clearGroundTiles: false
 const AREA_GRID_SIZE = 5;
 const OUTSIDE_VISION_MULTIPLIER = 0.25;
 const EMPTY_MAP_ID = 'empty';
+const WORLD_MAP_FALLBACK_LAYOUT = [
+    'pentacles', EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, 'swords',
+    EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID,
+    EMPTY_MAP_ID, EMPTY_MAP_ID, 'major_00', EMPTY_MAP_ID, EMPTY_MAP_ID,
+    EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID,
+    'cups', EMPTY_MAP_ID, EMPTY_MAP_ID, EMPTY_MAP_ID, 'wands'
+];
+const WORLD_MAP_ID_ALIAS = {
+    fire: 'wands',
+    water: 'cups',
+    wind: 'swords',
+    earth: 'pentacles'
+};
+const WORLD_MAP_LABEL_BY_ID = {
+    wands: '火の国',
+    cups: '水の国',
+    swords: '風の国',
+    pentacles: '地の国'
+};
 
 const NATION_BOUNDS = {
     earth: { minX: 0, maxX: 99, minY: 0, maxY: 99 },
@@ -5757,13 +5776,46 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    getWorldMapTransitionCells() {
+        if (typeof document !== 'undefined') {
+            const grid = document.getElementById('worldMapGrid') || document.querySelector('.map-loading-overlay .world-map-modal-grid');
+            if (grid) {
+                const domCells = Array.from(grid.querySelectorAll('.world-map-modal-cell'));
+                if (domCells.length >= 25) {
+                    return domCells.map((cell, index) => ({
+                        mapId: String(cell.dataset.mapId || '').trim(),
+                        mapLabel: String(cell.dataset.mapLabel || '').trim(),
+                        letter: String(cell.dataset.letter || '').trim().toUpperCase(),
+                        index
+                    }));
+                }
+            }
+        }
+        const layoutFromWindow = (typeof window !== 'undefined' && Array.isArray(window.__worldMapLayoutCache) && window.__worldMapLayoutCache.length === WORLD_MAP_FALLBACK_LAYOUT.length)
+            ? window.__worldMapLayoutCache
+            : WORLD_MAP_FALLBACK_LAYOUT;
+        const layout = layoutFromWindow.slice(0, 25);
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, 21);
+        let letterCursor = 0;
+        return layout.map((rawMapId, index) => {
+            const mapId = String(rawMapId || '').trim();
+            const row = Math.floor(index / 5);
+            const col = index % 5;
+            const isCorner = (row === 0 && col === 0)
+                || (row === 0 && col === 4)
+                || (row === 4 && col === 0)
+                || (row === 4 && col === 4);
+            const letter = (!isCorner && letterCursor < letters.length) ? letters[letterCursor++] : '';
+            const mapLabel = WORLD_MAP_LABEL_BY_ID[mapId] || mapId;
+            return { mapId, mapLabel, letter, index };
+        });
+    }
+
     getAdjacentMapByOffset(rowDelta, colDelta) {
-        if (typeof document === 'undefined') return null;
-        const grid = document.getElementById('worldMapGrid') || document.querySelector('.map-loading-overlay .world-map-modal-grid');
-        if (!grid) return null;
-        const cells = Array.from(grid.querySelectorAll('.world-map-modal-cell'));
-        if (cells.length < 25) return null;
-        const mapId = String(this.mapId || '').trim();
+        const cells = this.getWorldMapTransitionCells();
+        if (!Array.isArray(cells) || cells.length < 25) return null;
+        const mapIdRaw = String(this.mapId || '').trim();
+        const mapId = WORLD_MAP_ID_ALIAS[mapIdRaw] || mapIdRaw;
         const mapLabel = String(window.__currentMapLabel || '').trim();
         let index = -1;
 
@@ -5776,21 +5828,22 @@ export default class WorldMapScene extends Phaser.Scene {
         }
 
         if (index < 0) {
-            index = cells.findIndex(cell => String(cell.dataset.mapId || '') === mapId);
+            index = cells.findIndex((cell) => String(cell.mapId || '') === mapId);
         }
 
         if (index < 0 && mapLabel) {
             const seaLabelMatch = mapLabel.match(/^未開拓海域\s+([A-Z])$/);
             if (seaLabelMatch) {
                 const letter = seaLabelMatch[1].toUpperCase();
-                index = cells.findIndex(cell => String(cell.dataset.letter || '').toUpperCase() === letter);
+                index = cells.findIndex((cell) => String(cell.letter || '').toUpperCase() === letter);
             }
         }
 
         if (index < 0 && mapLabel) {
-            index = cells.findIndex(cell => String(cell.dataset.mapLabel || '') === mapLabel);
+            index = cells.findIndex((cell) => String(cell.mapLabel || '') === mapLabel);
         }
         if (index < 0) return null;
+
         const row = Math.floor(index / 5);
         const col = index % 5;
         const nextRow = row + rowDelta;
@@ -5800,11 +5853,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const nextCell = cells[nextIndex];
         if (!nextCell) return null;
 
-        const nextMapId = String(nextCell.dataset.mapId || '').trim();
+        const nextMapId = String(nextCell.mapId || '').trim();
         if (!nextMapId) return null;
 
         if (nextMapId === EMPTY_MAP_ID) {
-            const letter = String(nextCell.dataset.letter || '').trim().toUpperCase();
+            const letter = String(nextCell.letter || '').trim().toUpperCase();
             const seaLabel = letter ? `未開拓海域 ${letter}` : `未開拓海域 ${nextIndex + 1}`;
             return {
                 mapId: `empty_cell_${nextIndex}`,
@@ -5814,7 +5867,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         return {
             mapId: nextMapId,
-            mapLabel: nextCell.dataset.mapLabel || nextCell.textContent || nextMapId
+            mapLabel: nextCell.mapLabel || nextMapId
         };
     }
 
