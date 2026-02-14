@@ -879,6 +879,110 @@ function compareScore(a, b) {
     return 0;
 }
 
+function compareCardPower(a, b) {
+    if (!a && !b) return 0;
+    if (!a) return -1;
+    if (!b) return 1;
+    const valueDiff = getCardPrimaryValue(a) - getCardPrimaryValue(b);
+    if (valueDiff !== 0) return valueDiff;
+    const arcanaDiff = Number(a.isArcana) - Number(b.isArcana);
+    if (arcanaDiff !== 0) return arcanaDiff;
+    const suitDiff = getCardSuitStrength(a) - getCardSuitStrength(b);
+    if (suitDiff !== 0) return suitDiff;
+    return 0;
+}
+
+function isSameBestFiveCards(leftScore, rightScore) {
+    const leftCards = Array.isArray(leftScore?.cards) ? leftScore.cards : [];
+    const rightCards = Array.isArray(rightScore?.cards) ? rightScore.cards : [];
+    if (leftCards.length !== 5 || rightCards.length !== 5) return false;
+    const leftIds = leftCards.map((card) => String(card?.id || '')).sort();
+    const rightIds = rightCards.map((card) => String(card?.id || '')).sort();
+    for (let i = 0; i < leftIds.length; i += 1) {
+        if (leftIds[i] !== rightIds[i]) return false;
+    }
+    return true;
+}
+
+function resolveCommonBestScoreForRemainingTieBreak(leftAllCards, rightAllCards, leftBest, rightBest) {
+    if (isSameBestFiveCards(leftBest, rightBest)) {
+        return { enabled: true, referenceScore: leftBest };
+    }
+    const rightIds = new Set(
+        (Array.isArray(rightAllCards) ? rightAllCards : [])
+            .map((card) => card?.id)
+            .filter(Boolean)
+    );
+    const sharedCards = (Array.isArray(leftAllCards) ? leftAllCards : [])
+        .filter((card) => rightIds.has(card?.id));
+    if (sharedCards.length < 5) return { enabled: false, referenceScore: null };
+    const sharedBest = sharedCards.length === 5
+        ? scoreFiveCards(sharedCards)
+        : chooseBestFiveFromSeven(sharedCards);
+    if (!sharedBest) return { enabled: false, referenceScore: null };
+    if (compareScore(leftBest, sharedBest) !== 0) return { enabled: false, referenceScore: null };
+    if (compareScore(rightBest, sharedBest) !== 0) return { enabled: false, referenceScore: null };
+    return { enabled: true, referenceScore: sharedBest };
+}
+
+function getRemainingCardsOutsideBest(allCards, bestScore) {
+    const cards = Array.isArray(allCards) ? allCards : [];
+    const usedIds = new Set(
+        (Array.isArray(bestScore?.cards) ? bestScore.cards : [])
+            .map((card) => card?.id)
+            .filter(Boolean)
+    );
+    return cards
+        .filter((card) => !usedIds.has(card?.id))
+        .sort((a, b) => compareCardPower(b, a));
+}
+
+function compareRemainingCardSets(leftCards, rightCards) {
+    const left = Array.isArray(leftCards) ? leftCards : [];
+    const right = Array.isArray(rightCards) ? rightCards : [];
+    const maxLen = Math.max(left.length, right.length);
+    for (let i = 0; i < maxLen; i += 1) {
+        const cmp = compareCardPower(left[i], right[i]);
+        if (cmp !== 0) return cmp;
+    }
+    return 0;
+}
+
+function compareHandsWithRemainingTieBreak(leftAllCards, leftBest, rightAllCards, rightBest) {
+    const baseCmp = compareScore(leftBest, rightBest);
+    if (baseCmp !== 0) {
+        return {
+            cmp: baseCmp,
+            usedRemaining: false,
+            leftRemaining: [],
+            rightRemaining: []
+        };
+    }
+    const commonBestResult = resolveCommonBestScoreForRemainingTieBreak(
+        leftAllCards,
+        rightAllCards,
+        leftBest,
+        rightBest
+    );
+    if (!commonBestResult.enabled) {
+        return {
+            cmp: 0,
+            usedRemaining: false,
+            leftRemaining: [],
+            rightRemaining: []
+        };
+    }
+    const leftRemaining = getRemainingCardsOutsideBest(leftAllCards, commonBestResult.referenceScore);
+    const rightRemaining = getRemainingCardsOutsideBest(rightAllCards, commonBestResult.referenceScore);
+    const remainingCmp = compareRemainingCardSets(leftRemaining, rightRemaining);
+    return {
+        cmp: remainingCmp,
+        usedRemaining: true,
+        leftRemaining,
+        rightRemaining
+    };
+}
+
 function chooseBestFiveFromSeven(cards) {
     if (cards.length < 5) return null;
     let best = null;
@@ -906,9 +1010,17 @@ function evaluateShowdown() {
     const playerBest = chooseBestFiveFromSeven(playerCards);
     const cpuBest = chooseBestFiveFromSeven(cpuCards);
     if (!playerBest || !cpuBest) return null;
-    const compared = compareScore(playerBest, cpuBest);
+    const comparedResult = compareHandsWithRemainingTieBreak(playerCards, playerBest, cpuCards, cpuBest);
+    const compared = comparedResult.cmp;
     const winner = compared > 0 ? 'player' : compared < 0 ? 'cpu' : 'draw';
-    return { playerBest, cpuBest, winner };
+    return {
+        playerBest,
+        cpuBest,
+        winner,
+        remainingTieBreakUsed: !!comparedResult.usedRemaining,
+        playerRemainingCards: comparedResult.leftRemaining || [],
+        cpuRemainingCards: comparedResult.rightRemaining || []
+    };
 }
 
 function isBettingPhase() {
@@ -1306,7 +1418,13 @@ function estimateCpuWinRate(candidateCpuHand, boardCards, basePool, simulationCo
         const cpuBest = chooseBestFiveFromSeven([...candidateCpuHand, ...futureBoard]);
         const enemyBest = chooseBestFiveFromSeven([...enemyHand, ...futureBoard]);
         if (!cpuBest || !enemyBest) continue;
-        const cmp = compareScore(cpuBest, enemyBest);
+        const cmpResult = compareHandsWithRemainingTieBreak(
+            [...candidateCpuHand, ...futureBoard],
+            cpuBest,
+            [...enemyHand, ...futureBoard],
+            enemyBest
+        );
+        const cmp = cmpResult.cmp;
         if (cmp > 0) score += 1;
         else if (cmp === 0) score += 0.5;
     }
@@ -1880,7 +1998,24 @@ function renderGraveRow(container, cards) {
     });
 }
 
-function getRoleCardsForDisplay(score) {
+function shouldShowKickerForShowdown(leftScore, rightScore) {
+    if (!leftScore || !rightScore) return false;
+    if (leftScore.rank !== rightScore.rank) return false;
+    if (![3, 4, 5].includes(leftScore.rank)) return false;
+
+    if (leftScore.rank === 3 || leftScore.rank === 5) {
+        return (leftScore.rankVector?.[0] || 0) === (rightScore.rankVector?.[0] || 0);
+    }
+    if (leftScore.rank === 4) {
+        return (leftScore.rankVector?.[0] || 0) === (rightScore.rankVector?.[0] || 0)
+            && (leftScore.rankVector?.[1] || 0) === (rightScore.rankVector?.[1] || 0);
+    }
+    return false;
+}
+
+function getRoleCardsForDisplay(score, options = {}) {
+    const includeKicker = !!options.includeKicker;
+    const extraKickerCards = Array.isArray(options.extraKickerCards) ? options.extraKickerCards : [];
     if (!score || !Array.isArray(score.cards) || score.cards.length === 0) return [];
     const cards = score.cards.slice().sort(compareCardsForFlush);
     const numberMap = new Map();
@@ -1900,21 +2035,47 @@ function getRoleCardsForDisplay(score) {
         .flatMap(([, list]) => list)
         .sort(compareCardsForFlush);
 
+    const appendKicker = (baseCards, kickerCount = 1) => {
+        if (!includeKicker || !Array.isArray(baseCards) || baseCards.length === 0 || kickerCount <= 0) {
+            return baseCards;
+        }
+        const usedIds = new Set(baseCards.map((card) => card?.id).filter(Boolean));
+        const kickers = cards
+            .filter((card) => !usedIds.has(card?.id))
+            .slice(0, kickerCount);
+        return baseCards.concat(kickers);
+    };
+
+    const appendExtraKickers = (baseCards) => {
+        if (!Array.isArray(baseCards) || baseCards.length === 0 || extraKickerCards.length === 0) {
+            return baseCards;
+        }
+        const usedIds = new Set(baseCards.map((card) => card?.id).filter(Boolean));
+        const out = baseCards.slice();
+        extraKickerCards.forEach((card) => {
+            if (!card) return;
+            if (usedIds.has(card.id)) return;
+            usedIds.add(card.id);
+            out.push(card);
+        });
+        return out;
+    };
+
     switch (score.rank) {
     case 2: // high card
-        return cards.slice(0, 1);
+        return appendExtraKickers(cards.slice(0, 1));
     case 3: // one pair
-        return takeByCount(2, 1).slice(0, 2);
+        return appendExtraKickers(appendKicker(takeByCount(2, 1).slice(0, 2), 1));
     case 4: // two pair
-        return takeByCount(2, 2).slice(0, 4);
+        return appendExtraKickers(appendKicker(takeByCount(2, 2).slice(0, 4), 1));
     case 5: // three card
-        return takeByCount(3, 1).slice(0, 3);
+        return appendExtraKickers(appendKicker(takeByCount(3, 1).slice(0, 3), 1));
     case 9: // four card
-        return takeByCount(4, 1).slice(0, 4);
+        return appendExtraKickers(takeByCount(4, 1).slice(0, 4));
     case 11: // five card
-        return takeByCount(5, 1).slice(0, 5);
+        return appendExtraKickers(takeByCount(5, 1).slice(0, 5));
     default: // straight / flush / full house / straight flush
-        return cards.slice(0, 5);
+        return appendExtraKickers(cards.slice(0, 5));
     }
 }
 
@@ -1999,8 +2160,17 @@ async function runShowdownPresentation() {
     render();
     showEffectOverlay('SHOWDOWN');
     await wait(140);
-    const playerCards = getRoleCardsForDisplay(state.result.playerBest);
-    const cpuCards = getRoleCardsForDisplay(state.result.cpuBest);
+    const useRemainingTieBreak = !!state.result.remainingTieBreakUsed;
+    const showKickerOnTie = !useRemainingTieBreak
+        && shouldShowKickerForShowdown(state.result.playerBest, state.result.cpuBest);
+    const playerCards = getRoleCardsForDisplay(state.result.playerBest, {
+        includeKicker: showKickerOnTie,
+        extraKickerCards: useRemainingTieBreak ? state.result.playerRemainingCards : []
+    });
+    const cpuCards = getRoleCardsForDisplay(state.result.cpuBest, {
+        includeKicker: showKickerOnTie,
+        extraKickerCards: useRemainingTieBreak ? state.result.cpuRemainingCards : []
+    });
     await revealRoleCardsOneByOne(ui.playerHand, playerCards);
     await wait(140);
     await revealRoleCardsOneByOne(ui.cpuHand, cpuCards);
@@ -2163,6 +2333,10 @@ function render() {
     if (!state || !ui.root) return;
     renderBoard();
     const isShowdown = state.phase === 'showdown' && !!state.result;
+    const useRemainingTieBreak = isShowdown && !!state.result?.remainingTieBreakUsed;
+    const showKickerOnTie = isShowdown
+        && !useRemainingTieBreak
+        && shouldShowKickerForShowdown(state.result?.playerBest, state.result?.cpuBest);
     const isDealing = state.phase === 'dealing' || !!state.initialDealAnimating;
     ui.root.classList.toggle('is-showdown', isShowdown);
     ui.root.classList.toggle('is-dealing', isDealing);
@@ -2170,8 +2344,18 @@ function render() {
         ui.pokerRoot.classList.toggle('is-showdown', isShowdown);
         ui.pokerRoot.classList.toggle('is-dealing', isDealing);
     }
-    const playerCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.playerBest) : state.players.player.hand;
-    const cpuCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.cpuBest) : state.players.cpu.hand;
+    const playerCardsForView = isShowdown
+        ? getRoleCardsForDisplay(state.result.playerBest, {
+            includeKicker: showKickerOnTie,
+            extraKickerCards: useRemainingTieBreak ? state.result.playerRemainingCards : []
+        })
+        : state.players.player.hand;
+    const cpuCardsForView = isShowdown
+        ? getRoleCardsForDisplay(state.result.cpuBest, {
+            includeKicker: showKickerOnTie,
+            extraKickerCards: useRemainingTieBreak ? state.result.cpuRemainingCards : []
+        })
+        : state.players.cpu.hand;
     const showdownHidden = isShowdown && !state.showdownRevealDone;
     const playerHidden = showdownHidden || isDealing;
     renderCardRow(ui.playerHand, playerCardsForView, {
