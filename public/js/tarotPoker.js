@@ -20,6 +20,7 @@ const HAND_RANK_LABEL = {
     10: 'ストレートフラッシュ',
     9: 'フォーカード',
     8: 'フルハウス',
+    7.5: 'エレメント',
     7: 'フラッシュ',
     6: 'ストレート',
     5: 'スリーカード',
@@ -70,6 +71,15 @@ const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
+const BET_ACTION_TEMPO_MS = 460;
+const BET_ACTION_GAP_MS = 140;
+const BET_ACTION_LABEL = {
+    check: 'チェック',
+    call: 'コール',
+    bet: 'BET',
+    raise: 'レイズ',
+    fold: 'フォールド'
+};
 
 let isBound = false;
 let state = null;
@@ -88,9 +98,11 @@ const ui = {
     resultText: null,
     log: null,
     effectOverlay: null,
+    cutin: null,
     judgmentPanel: null,
     judgmentOptions: null,
     bettingInfo: null,
+    betPopup: null,
     potText: null,
     playerPointText: null,
     cpuPointText: null,
@@ -103,7 +115,9 @@ const ui = {
     playerOutcome: null,
     cpuOutcome: null,
     playerRole: null,
-    cpuRole: null
+    cpuRole: null,
+    playerAction: null,
+    cpuAction: null
 };
 
 function shuffle(list) {
@@ -251,7 +265,7 @@ function buildDeck() {
         deck.push({
             id: `arcana-${number}`,
             number,
-            suit: number === 0 ? 'All' : 'None',
+            suit: number === 1 ? 'All' : 'None',
             isArcana: true,
             effectType
         });
@@ -293,6 +307,8 @@ function resetState() {
         effectsDisabledByFool: false,
         pendingJudgment: null,
         cpuThinking: false,
+        initialDealAnimating: false,
+        initialDealRevealedCount: 0,
         showdownRevealDone: false,
         showdownRevealRunning: false,
         log: [],
@@ -316,6 +332,45 @@ function showEffectOverlay(text) {
         if (!ui.effectOverlay) return;
         ui.effectOverlay.classList.remove('show');
     }, 1600);
+}
+
+function clearBetActionLabels() {
+    const labels = [ui.playerAction, ui.cpuAction];
+    labels.forEach((el) => {
+        if (!el) return;
+        el.textContent = '';
+        el.classList.remove('show', 'is-player', 'is-cpu');
+    });
+}
+
+function getBetActionLabel(action) {
+    return BET_ACTION_LABEL[action] || String(action || '').toUpperCase();
+}
+
+async function showActionCutin(ownerKey, action) {
+    const label = getBetActionLabel(action);
+    const ownerName = ownerKey === 'player' ? 'あなた' : 'CPU';
+    const ownerClass = ownerKey === 'player' ? 'is-player' : 'is-cpu';
+    const actionEl = ownerKey === 'player' ? ui.playerAction : ui.cpuAction;
+    if (actionEl) {
+        actionEl.textContent = label;
+        actionEl.classList.remove('is-player', 'is-cpu');
+        actionEl.classList.add('show', ownerClass);
+    }
+    if (ui.cutin) {
+        ui.cutin.textContent = `${ownerName} ${label}`;
+        ui.cutin.classList.remove('is-player', 'is-cpu');
+        ui.cutin.classList.add('show', ownerClass);
+    }
+    await wait(BET_ACTION_TEMPO_MS);
+    if (actionEl) {
+        actionEl.classList.remove('show', 'is-player', 'is-cpu');
+        actionEl.textContent = '';
+    }
+    if (ui.cutin) {
+        ui.cutin.classList.remove('show', 'is-player', 'is-cpu');
+    }
+    await wait(BET_ACTION_GAP_MS);
 }
 
 function drawCard() {
@@ -361,7 +416,7 @@ function getCardDisplayName(card) {
     if (card.isArcana) {
         return ARCANA_NAME[card.number] || `アルカナ ${card.number}`;
     }
-    return `${card.suit} ${card.number}`;
+    return `${card.suit} ${getCardNumberLabel(card)}`;
 }
 
 function getCardNameLabel(card) {
@@ -370,14 +425,32 @@ function getCardNameLabel(card) {
     return card.suit;
 }
 
+function getCardNumberLabel(card) {
+    if (!card) return '';
+    if (!card.isArcana && Number(card.number) === 1) return 'A';
+    return String(card.number);
+}
+
+function getCardValueOptions(card) {
+    if (!card) return [0];
+    const num = Number(card.number) || 0;
+    if (!card.isArcana && num === 1) return [1, 15];
+    return [num];
+}
+
+function getCardPrimaryValue(card) {
+    const values = getCardValueOptions(card);
+    return values.length ? Math.max(...values) : 0;
+}
+
 function getCardSuitForFlush(card) {
     if (!card) return 'None';
     if (!card.isArcana) return card.suit;
+    if (card.suit === 'All') return 'All';
     if (card.number === 16) return 'Sword';
     if (card.number === 17) return 'Cup';
     if (card.number === 18) return 'Pentacle';
     if (card.number === 19) return 'Wand';
-    if (card.number === 0) return 'All';
     return 'None';
 }
 
@@ -387,11 +460,11 @@ function matchesSuit(card, suit) {
 }
 
 function compareNumberDesc(a, b) {
-    return b.number - a.number;
+    return getCardPrimaryValue(b) - getCardPrimaryValue(a);
 }
 
 function compareCardsForFlush(a, b) {
-    const diff = b.number - a.number;
+    const diff = getCardPrimaryValue(b) - getCardPrimaryValue(a);
     if (diff !== 0) return diff;
     const arcanaDiff = Number(b.isArcana) - Number(a.isArcana);
     if (arcanaDiff !== 0) return arcanaDiff;
@@ -405,11 +478,14 @@ function getUniqueNumbersDesc(cards) {
         .slice()
         .sort(compareNumberDesc)
         .forEach((card) => {
-            if (seen.has(card.number)) return;
-            seen.add(card.number);
-            out.push(card.number);
+            const values = getCardValueOptions(card);
+            values.forEach((value) => {
+                if (seen.has(value)) return;
+                seen.add(value);
+                out.push(value);
+            });
         });
-    return out;
+    return out.sort((a, b) => b - a);
 }
 
 function detectStraight(cards) {
@@ -452,7 +528,7 @@ function detectBestFlush(cards) {
         const suited = cards.filter((card) => matchesSuit(card, suit));
         if (suited.length < 5) continue;
         const bestFive = suited.slice().sort(compareCardsForFlush).slice(0, 5);
-        const valueVector = bestFive.map((card) => card.number).sort((a, b) => b - a);
+        const valueVector = bestFive.map((card) => getCardPrimaryValue(card)).sort((a, b) => b - a);
         if (!best) {
             best = { suit, cards: bestFive, valueVector };
             continue;
@@ -470,19 +546,53 @@ function detectBestFlush(cards) {
     return best;
 }
 
-function getScoreVectorByCounts(entries) {
+function detectElement(cards) {
+    const arcanaCards = cards.filter((card) => card?.isArcana);
+    if (!arcanaCards.length) return null;
+
+    const nonArcanaSuits = new Set();
+    cards.forEach((card) => {
+        if (!card || card.isArcana) return;
+        const suit = getCardSuitForFlush(card);
+        if (SUITS.includes(suit)) {
+            nonArcanaSuits.add(suit);
+        }
+    });
+
+    if (nonArcanaSuits.size < SUITS.length) return null;
+
+    const maxArcana = arcanaCards.reduce((max, card) => {
+        const num = Number(card?.number) || 0;
+        return Math.max(max, num);
+    }, 0);
+
+    return {
+        maxArcana
+    };
+}
+
+function getScoreVectorByCounts(entries, cards = []) {
+    const hasMinorAce = cards.some((card) => !card?.isArcana && Number(card?.number) === 1);
+    const aceValue = hasMinorAce ? 15 : 1;
     const out = [];
     entries.forEach(([value, count]) => {
+        const mapped = value === 1 ? aceValue : value;
         for (let i = 0; i < count; i += 1) {
-            out.push(value);
+            out.push(mapped);
         }
     });
     return out;
 }
 
+function mapCountEntryValue(value, cards = []) {
+    if (value !== 1) return value;
+    const hasMinorAce = cards.some((card) => !card?.isArcana && Number(card?.number) === 1);
+    return hasMinorAce ? 15 : 1;
+}
+
 function scoreFiveCards(cards) {
     const sorted = cards.slice().sort(compareCardsForFlush);
-    const maxNumber = sorted.reduce((max, card) => Math.max(max, card.number), 0);
+    let maxNumber = sorted.reduce((max, card) => Math.max(max, getCardPrimaryValue(card)), 0);
     const arcanaNumbers = sorted.filter((card) => card.isArcana).map((card) => card.number);
     const hasArcana = arcanaNumbers.length > 0;
     const allArcana = sorted.every((card) => card.isArcana);
@@ -494,6 +604,7 @@ function scoreFiveCards(cards) {
 
     const countEntries = getCountEntries(sorted);
     const flush = detectBestFlush(sorted);
+    const element = detectElement(sorted);
     const straight = detectStraight(sorted);
     const straightFlush = flush ? detectStraight(flush.cards) : null;
 
@@ -503,48 +614,58 @@ function scoreFiveCards(cards) {
 
     if (countEntries[0]?.[1] === 5) {
         rank = 11;
-        rankVector = [countEntries[0][0]];
+        rankVector = [mapCountEntryValue(countEntries[0][0], sorted)];
     } else if (straightFlush) {
         rank = 10;
         rankVector = [straightFlush.high];
     } else if (countEntries[0]?.[1] === 4) {
-        const quad = countEntries[0][0];
-        const kicker = countEntries[1]?.[0] || 0;
+        const quad = mapCountEntryValue(countEntries[0][0], sorted);
+        const kicker = mapCountEntryValue(countEntries[1]?.[0] || 0, sorted);
         rank = 9;
         rankVector = [quad, kicker];
     } else if (countEntries[0]?.[1] === 3 && countEntries[1]?.[1] === 2) {
         rank = 8;
-        rankVector = [countEntries[0][0], countEntries[1][0]];
+        rankVector = [
+            mapCountEntryValue(countEntries[0][0], sorted),
+            mapCountEntryValue(countEntries[1][0], sorted)
+        ];
+    } else if (element) {
+        rank = 7.5;
+        rankVector = [element.maxArcana];
+        maxNumber = element.maxArcana;
+        rankLabel = '\u30a8\u30ec\u30e1\u30f3\u30c8';
     } else if (flush || allArcana) {
         rank = 7;
         if (flush) {
             rankVector = flush.valueVector;
         } else {
-            rankVector = sorted.map((card) => card.number).sort((a, b) => b - a);
+            rankVector = sorted.map((card) => getCardPrimaryValue(card)).sort((a, b) => b - a);
             rankLabel = 'アルカナフラッシュ';
         }
     } else if (straight) {
         rank = 6;
         rankVector = [straight.high];
     } else if (countEntries[0]?.[1] === 3) {
-        const trip = countEntries[0][0];
-        const kickers = countEntries.slice(1).map(([v]) => v).sort((a, b) => b - a);
+        const trip = mapCountEntryValue(countEntries[0][0], sorted);
+        const kickers = countEntries.slice(1).map(([v]) => mapCountEntryValue(v, sorted)).sort((a, b) => b - a);
         rank = 5;
         rankVector = [trip, ...kickers];
     } else if (countEntries[0]?.[1] === 2 && countEntries[1]?.[1] === 2) {
-        const pairHigh = Math.max(countEntries[0][0], countEntries[1][0]);
-        const pairLow = Math.min(countEntries[0][0], countEntries[1][0]);
-        const kicker = countEntries[2]?.[0] || 0;
+        const first = mapCountEntryValue(countEntries[0][0], sorted);
+        const second = mapCountEntryValue(countEntries[1][0], sorted);
+        const pairHigh = Math.max(first, second);
+        const pairLow = Math.min(first, second);
+        const kicker = mapCountEntryValue(countEntries[2]?.[0] || 0, sorted);
         rank = 4;
         rankVector = [pairHigh, pairLow, kicker];
     } else if (countEntries[0]?.[1] === 2) {
-        const pair = countEntries[0][0];
-        const kickers = countEntries.slice(1).map(([v]) => v).sort((a, b) => b - a);
+        const pair = mapCountEntryValue(countEntries[0][0], sorted);
+        const kickers = countEntries.slice(1).map(([v]) => mapCountEntryValue(v, sorted)).sort((a, b) => b - a);
         rank = 3;
         rankVector = [pair, ...kickers];
     } else {
         rank = 2;
-        rankVector = getScoreVectorByCounts(countEntries);
+        rankVector = getScoreVectorByCounts(countEntries, sorted);
     }
 
     return {
@@ -813,15 +934,19 @@ async function completeBettingRoundIfNeeded() {
 async function runCpuBettingTurn() {
     if (!isBettingPhase() || !state.betting) return;
     const decision = chooseCpuBettingAction();
-    const result = applyBetAction('cpu', decision.action);
+    let usedAction = decision.action;
+    let result = applyBetAction('cpu', usedAction);
     if (!result.ok) {
-        const fallback = getToCall('cpu') > 0 ? applyBetAction('cpu', 'call') : applyBetAction('cpu', 'check');
-        if (!fallback.ok) {
-            applyBetAction('cpu', 'fold');
+        usedAction = getToCall('cpu') > 0 ? 'call' : 'check';
+        result = applyBetAction('cpu', usedAction);
+        if (!result.ok) {
+            usedAction = 'fold';
+            result = applyBetAction('cpu', usedAction);
         }
     }
+    await showActionCutin('cpu', usedAction);
     render();
-    await wait(220);
+    await wait(180);
     if (state.phase === 'showdown') return;
     if (state.betting && state.betting.pendingResponseFor === 'player') {
         return;
@@ -839,6 +964,7 @@ async function onPlayerBetAction(action) {
         render();
         return;
     }
+    await showActionCutin('player', action);
     render();
     if (state.phase === 'showdown') return;
     if (result.roundComplete) {
@@ -1042,7 +1168,6 @@ async function revealBoard(count) {
 }
 
 async function forceShowdown() {
-    await revealCpuHandFromBack();
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
@@ -1088,9 +1213,6 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
         await wait(80);
     }
     await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
-    if (fromHandEl?.classList) {
-        fromHandEl.classList.remove('is-leaving');
-    }
     addToGrave('cpu', discarded);
     pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った（期待勝率 ${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%）。`);
     applyDiscardSpecial(discarded, 'cpu');
@@ -1143,7 +1265,6 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
 }
 
 async function resolveShowdown() {
-    await revealCpuHandFromBack();
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
@@ -1159,14 +1280,39 @@ async function finishPlayerExchange(nextPhase = 'turn-ready') {
     render();
 }
 
-function startNewGame() {
+async function startNewGame() {
+    if (state?.initialDealAnimating) return;
     resetState();
+    clearBetActionLabels();
     state.deck = shuffle(buildDeck());
-    dealTo('player', 2);
-    dealTo('cpu', 2);
+    state.phase = 'dealing';
+    state.initialDealAnimating = true;
+    state.initialDealRevealedCount = 0;
+    render();
+    for (let i = 0; i < 2; i += 1) {
+        const playerCard = drawFor('player');
+        render();
+        if (playerCard && ui.playerHand) {
+            const playerCards = Array.from(ui.playerHand.querySelectorAll('.tarot-card'));
+            const playerTarget = playerCards[playerCards.length - 1];
+            if (playerTarget) {
+                await animateBackToFrontOnElement(playerTarget, playerCard);
+            }
+        }
+        state.initialDealRevealedCount = i + 1;
+        await wait(80);
+        const cpuCard = drawFor('cpu');
+        render();
+        if (cpuCard) {
+            await animateCardFlight(cpuCard, ui.deckAnchor, ui.cpuHand, 220, 1, { hidden: true });
+        }
+        await wait(90);
+    }
+    state.initialDealAnimating = false;
+    state.initialDealRevealedCount = 2;
     state.drawRound = 0;
     startBettingRound('preflop', 'preflop');
-    pushLog('プリフロップ: 手札2枚を配布。');
+    pushLog('プレフロップ: 手札2枚を配布。');
     render();
 }
 
@@ -1228,9 +1374,6 @@ async function onPlayerCardClick(index, sourceEl) {
         await wait(80);
     }
     await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
-    if (sourceEl?.classList) {
-        sourceEl.classList.remove('is-leaving');
-    }
     addToGrave('player', discarded);
     pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地に送った。`);
     applyDiscardSpecial(discarded, 'player');
@@ -1277,6 +1420,7 @@ async function onJudgmentPick(ownerKey) {
 function getPhaseText() {
     if (!state) return '';
     if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
+    if (state.phase === 'dealing') return '配札中...';
     if (state.phase === 'betting-preflop') return 'プリフロップBET: アクションを選択してください。';
     if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
     if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
@@ -1298,6 +1442,7 @@ function getSuitClass(card) {
     if (card.suit === 'Sword') return 'sword';
     if (card.suit === 'Cup') return 'cup';
     if (card.suit === 'Pentacle') return 'pentacle';
+    if (card.suit === 'All') return 'all-suit';
     return 'none';
 }
 
@@ -1339,7 +1484,7 @@ function createCardElement(card, options = {}) {
 
     const number = document.createElement('div');
     number.className = 'tarot-card-number';
-    number.textContent = String(card.number);
+    number.textContent = getCardNumberLabel(card);
 
     el.appendChild(title);
     el.appendChild(number);
@@ -1358,8 +1503,11 @@ function renderCardRow(container, cards, options = {}) {
     container.innerHTML = '';
     cards.forEach((card, index) => {
         const clickable = options.clickable && typeof options.onCardClick === 'function';
+        const hidden = typeof options.hiddenByIndex === 'function'
+            ? !!options.hiddenByIndex(index, card)
+            : !!options.hidden;
         const el = createCardElement(card, {
-            hidden: options.hidden,
+            hidden,
             clickable,
             onClick: () => options.onCardClick(index, el)
         });
@@ -1522,7 +1670,7 @@ function renderJudgmentPanel() {
         const btn = document.createElement('button');
         btn.type = 'button';
         const ownerName = state.players[option.ownerKey].name;
-        btn.textContent = `${ownerName}: ${getCardDisplayName(option.card)} (${option.card.number})`;
+        btn.textContent = `${ownerName}: ${getCardDisplayName(option.card)} (${getCardNumberLabel(option.card)})`;
         btn.addEventListener('click', () => onJudgmentPick(option.ownerKey));
         ui.judgmentOptions.appendChild(btn);
     });
@@ -1530,7 +1678,7 @@ function renderJudgmentPanel() {
 
 function renderButtons() {
     if (!ui.nextButton) return;
-    if (!state || state.phase === 'idle' || state.phase === 'showdown') {
+    if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
         ui.nextButton.disabled = true;
         ui.nextButton.textContent = '次へ';
         return;
@@ -1592,7 +1740,8 @@ function renderBettingInfo() {
     if (!ui.bettingInfo) return;
 
     const active = isBettingPhase() && !!state.betting;
-    ui.bettingInfo.style.display = 'block';
+    ui.bettingInfo.style.display = active ? 'block' : 'none';
+    if (ui.betPopup) ui.betPopup.style.display = active ? 'block' : 'none';
     if (!active) {
         if (ui.betActionHint) ui.betActionHint.textContent = 'ベットフェーズ待機中';
         if (ui.betCheckButton) ui.betCheckButton.disabled = true;
@@ -1636,12 +1785,17 @@ function render() {
     if (!state || !ui.root) return;
     renderBoard();
     const isShowdown = state.phase === 'showdown' && !!state.result;
+    const isDealing = state.phase === 'dealing' || !!state.initialDealAnimating;
+    ui.root.classList.toggle('is-showdown', isShowdown);
+    ui.root.classList.toggle('is-dealing', isDealing);
     const playerCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.playerBest) : state.players.player.hand;
     const cpuCardsForView = isShowdown ? getRoleCardsForDisplay(state.result.cpuBest) : state.players.cpu.hand;
     const showdownHidden = isShowdown && !state.showdownRevealDone;
+    const playerHidden = showdownHidden || isDealing;
     renderCardRow(ui.playerHand, playerCardsForView, {
-        hidden: showdownHidden,
-        clickable: !isShowdown && state.phase === 'draw-player',
+        hidden: playerHidden,
+        hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
+        clickable: !isShowdown && !isDealing && state.phase === 'draw-player',
         onCardClick: onPlayerCardClick
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
@@ -1677,9 +1831,11 @@ function bindElements() {
     ui.resultText = document.getElementById('tarotResultText');
     ui.log = document.getElementById('tarotLog');
     ui.effectOverlay = document.getElementById('tarotEffectOverlay');
+    ui.cutin = document.getElementById('tarotCutin');
     ui.judgmentPanel = document.getElementById('tarotJudgmentPanel');
     ui.judgmentOptions = document.getElementById('tarotJudgmentOptions');
     ui.bettingInfo = document.getElementById('tarotBettingInfo');
+    ui.betPopup = document.getElementById('tarotBetPopup');
     ui.potText = document.getElementById('tarotPotText');
     ui.playerPointText = document.getElementById('tarotPlayerPointText');
     ui.cpuPointText = document.getElementById('tarotCpuPointText');
@@ -1693,6 +1849,8 @@ function bindElements() {
     ui.cpuOutcome = document.getElementById('tarotCpuOutcome');
     ui.playerRole = document.getElementById('tarotPlayerRole');
     ui.cpuRole = document.getElementById('tarotCpuRole');
+    ui.playerAction = document.getElementById('tarotPlayerAction');
+    ui.cpuAction = document.getElementById('tarotCpuAction');
 }
 
 function bindEvents() {

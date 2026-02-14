@@ -266,6 +266,8 @@
                             <span id="tarotCpuPointText">CPU: 0 TP</span>
                         </div>
                         <div id="tarotBetActionHint" class="tarot-betting-hint"></div>
+                    </div>
+                    <div id="tarotBetPopup" class="tarot-bet-popup" style="display:none;">
                         <div class="tarot-betting-actions">
                             <button id="tarotBetCheck" type="button">チェック</button>
                             <button id="tarotBetCall" type="button">コール</button>
@@ -275,10 +277,9 @@
                         </div>
                     </div>
                     <div id="tarotEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
+                    <div id="tarotCutin" class="tarot-cutin" aria-hidden="true"></div>
                     <div id="tarotStateText" class="tarot-state-text">「新しい勝負を始める」を押してください。</div>
-                    <div class="tarot-board-top">
-                        <div id="tarotDeckAnchor" class="tarot-deck-anchor">山札</div>
-                    </div>
+                    <div id="tarotDeckAnchor" class="tarot-deck-anchor tarot-deck-anchor-hidden" aria-hidden="true"></div>
                     <div id="tarotPokerBoard" class="tarot-poker-board"></div>
                     <div class="tarot-poker-columns">
                         <div class="tarot-poker-column tarot-poker-column--player">
@@ -287,6 +288,7 @@
                                     <div class="tarot-poker-column-title">あなたの手札 <span id="tarotPlayerOutcome" class="tarot-outcome-badge"></span></div>
                                     <div id="tarotPlayerHand" class="tarot-card-row"></div>
                                     <div id="tarotPlayerRole" class="tarot-role-label"></div>
+                                    <div id="tarotPlayerAction" class="tarot-action-label"></div>
                                 </div>
                                 <div class="tarot-grave-block">
                                     <div class="tarot-poker-column-title tarot-grave-title">あなたの墓地</div>
@@ -300,6 +302,7 @@
                                     <div class="tarot-poker-column-title">CPU 手札 <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span></div>
                                     <div id="tarotCpuHand" class="tarot-card-row"></div>
                                     <div id="tarotCpuRole" class="tarot-role-label"></div>
+                                    <div id="tarotCpuAction" class="tarot-action-label"></div>
                                 </div>
                                 <div class="tarot-grave-block">
                                     <div class="tarot-poker-column-title tarot-grave-title">CPU 墓地</div>

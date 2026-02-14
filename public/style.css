@@ -2528,16 +2528,17 @@ body.modal-lock .modal-overlay {
 /* --- タロットポーカー --- */
 .tarot-poker-root {
     overflow: visible;
-    --tarot-card-w: 64px;
-    --tarot-card-h: 100px;
+    position: relative;
+    --tarot-card-w: 58px;
+    --tarot-card-h: 96px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
-    --tarot-art-left: 8px;
-    --tarot-art-top: 12px;
+    --tarot-art-left: 5px;
+    --tarot-art-top: 8px;
     --tarot-card-radius: 10px;
-    --tarot-card-padding: 6px;
-    --tarot-card-number-size: 24px;
-    --tarot-card-title-size: 11px;
+    --tarot-card-padding: 4px;
+    --tarot-card-number-size: 22px;
+    --tarot-card-title-size: 10px;
 }
 
 .tarot-poker-header {
@@ -2564,11 +2565,11 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-info {
-    margin: 0 0 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 0 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    background: rgba(15, 23, 42, 0.55);
-    padding: 8px;
+    background: rgba(15, 23, 42, 0.45);
+    padding: 6px 8px;
 }
 
 .tarot-betting-points {
@@ -2598,9 +2599,29 @@ body.modal-lock .modal-overlay {
     padding: 6px 4px;
 }
 
+.tarot-bet-popup {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    transform: translateX(-50%);
+    width: min(680px, calc(100vw - 14px));
+    z-index: 3400;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    background: rgba(11, 17, 29, 0.9);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+    padding: 8px;
+}
+
 @media (max-width: 560px) {
     .tarot-betting-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tarot-bet-popup {
+        width: calc(100vw - 10px);
+        padding: 6px;
     }
 }
 
@@ -2650,6 +2671,17 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
 }
 
+.tarot-deck-anchor-hidden {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    opacity: 0;
+    pointer-events: none;
+    color: transparent;
+    border-color: transparent;
+    background: transparent;
+}
+
 .tarot-poker-columns {
     display: grid;
     grid-template-columns: 1fr;
@@ -2668,6 +2700,14 @@ body.modal-lock .modal-overlay {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: start;
+}
+
+.tarot-poker-root.is-showdown .tarot-hand-grave-wrap {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.tarot-poker-root.is-showdown .tarot-grave-block {
+    display: none;
 }
 
 .tarot-hand-block {
@@ -2696,6 +2736,36 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
     color: #fde7a0;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.tarot-action-label {
+    min-height: 24px;
+    margin-top: 3px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    color: #fef3c7;
+    text-shadow:
+        -1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px -1px 0 #000,
+        1px 1px 0 #000;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.tarot-action-label.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tarot-action-label.is-player {
+    color: #86efac;
+}
+
+.tarot-action-label.is-cpu {
+    color: #fca5a5;
 }
 
 .tarot-outcome-badge {
@@ -2775,6 +2845,16 @@ body.modal-lock .modal-overlay {
     background: linear-gradient(180deg, #5b6472, #343b45);
 }
 
+.tarot-card.all-suit {
+    background:
+        radial-gradient(circle at 10% 10%, rgba(220, 38, 38, 0.95) 0 7px, transparent 8px),
+        radial-gradient(circle at 90% 10%, rgba(250, 204, 21, 0.95) 0 7px, transparent 8px),
+        radial-gradient(circle at 10% 90%, rgba(59, 130, 246, 0.95) 0 7px, transparent 8px),
+        radial-gradient(circle at 90% 90%, rgba(34, 197, 94, 0.95) 0 7px, transparent 8px),
+        linear-gradient(180deg, #4b5563, #1f2937);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
 .tarot-card.is-hidden {
     background: linear-gradient(180deg, #374151, #1f2937);
     border-color: rgba(255, 255, 255, 0.14);
@@ -2813,6 +2893,8 @@ body.modal-lock .modal-overlay {
     overflow: hidden;
     text-overflow: ellipsis;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    -webkit-text-stroke: 1px #000;
+    paint-order: stroke fill;
     text-align: center;
 }
 
@@ -2951,6 +3033,49 @@ body.modal-lock .modal-overlay {
 
 .tarot-effect-overlay.show {
     opacity: 1;
+}
+
+.tarot-cutin {
+    position: fixed;
+    left: 50%;
+    top: 24%;
+    transform: translate(-50%, -18px) skewX(-12deg);
+    min-width: min(560px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
+    text-align: center;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(120deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.92));
+    color: #fff;
+    font-size: clamp(18px, 4.6vw, 34px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-shadow:
+        -1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px -1px 0 #000,
+        1px 1px 0 #000;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    z-index: 3590;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease, transform 180ms ease;
+}
+
+.tarot-cutin.show {
+    opacity: 1;
+    transform: translate(-50%, 0) skewX(-12deg);
+}
+
+.tarot-cutin.is-player {
+    border-color: rgba(34, 197, 94, 0.55);
+    box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25);
+}
+
+.tarot-cutin.is-cpu {
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.25);
 }
 
 .tarot-card-fly {
