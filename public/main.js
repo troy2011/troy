@@ -268,6 +268,14 @@ async function initializeLiff() {
 
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
+                    try {
+                        const Tarot = await import('./js/tarotPoker.js');
+                        if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
+                            await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
+                        }
+                    } catch (fortuneError) {
+                        console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
+                    }
                     scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
                         ensureBuildingMetaLoaded();
@@ -576,6 +584,14 @@ function showRaceModal() {
             }
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
+            try {
+                const Tarot = await import('./js/tarotPoker.js');
+                if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
+                    await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
+                }
+            } catch (fortuneError) {
+                console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
+            }
             if (window.__pendingFirstMapNav?.islandId && window.__pendingFirstMapNav?.mapId) {
                 await showTab('map', playerInfo, {
                     skipMapSelect: true,

@@ -120,6 +120,59 @@ const ui = {
     cpuAction: null
 };
 
+const DAILY_FORTUNE_OVERLAY_ID = 'dailyTarotFortuneOverlay';
+const DAILY_FORTUNE_MODAL_ID = 'dailyTarotFortuneModal';
+const DAILY_FORTUNE_DRAW_BUTTON_ID = 'dailyTarotFortuneDrawButton';
+const DAILY_FORTUNE_CLOSE_BUTTON_ID = 'dailyTarotFortuneCloseButton';
+const DAILY_FORTUNE_CARD_HOST_ID = 'dailyTarotFortuneCardHost';
+const DAILY_FORTUNE_TEXT_ID = 'dailyTarotFortuneText';
+const DAILY_FORTUNE_TITLE_ID = 'dailyTarotFortuneTitle';
+
+let dailyFortuneCheckedSession = false;
+let dailyFortuneClaimedSession = false;
+let dailyFortuneCanDrawSession = false;
+let dailyFortuneInFlight = false;
+
+function buildApiUrlLocal(endpoint) {
+    if (!endpoint) return '';
+    if (/^https?:\/\//i.test(endpoint)) return endpoint;
+    const base = String(window.API_BASE_URL || '').trim().replace(/\/$/, '');
+    return base ? `${base}${endpoint}` : endpoint;
+}
+
+async function callJsonApi(endpoint, body) {
+    const response = await fetch(buildApiUrlLocal(endpoint), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = data?.error || `HTTP ${response.status}`;
+        throw new Error(message);
+    }
+    return data;
+}
+
+function updateGlobalPsDisplay(balance) {
+    if (!Number.isFinite(Number(balance))) return;
+    const value = String(Math.max(0, Math.floor(Number(balance))));
+    const globalPoints = document.getElementById('globalPoints');
+    if (globalPoints) globalPoints.textContent = value;
+    const currentPoints = document.getElementById('currentPoints');
+    if (currentPoints) currentPoints.textContent = value;
+}
+
+function getCardDataFromFortuneResult(result) {
+    return {
+        id: result?.cardId || 'fortune-card',
+        number: Number(result?.cardNumber || 0),
+        suit: String(result?.suit || 'None'),
+        isArcana: !!result?.isArcana,
+        effectType: String(result?.effectType || EFFECT_TYPE.NONE)
+    };
+}
+
 function shuffle(list) {
     const arr = list.slice();
     for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -1817,6 +1870,164 @@ function render() {
     renderLog();
 }
 
+function ensureDailyFortuneOverlay() {
+    let overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = DAILY_FORTUNE_OVERLAY_ID;
+    overlay.className = 'tarot-fortune-overlay';
+    overlay.innerHTML = `
+        <div id="${DAILY_FORTUNE_MODAL_ID}" class="tarot-fortune-modal">
+            <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
+            <div class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
+            <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
+            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">中央のボタンで占いを開始してください。</div>
+            <div class="tarot-fortune-actions">
+                <button id="${DAILY_FORTUNE_DRAW_BUTTON_ID}" type="button">占う</button>
+                <button id="${DAILY_FORTUNE_CLOSE_BUTTON_ID}" type="button" style="display:none;">閉じる</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closeDailyFortuneOverlay();
+        }
+    });
+    return overlay;
+}
+
+function closeDailyFortuneOverlay() {
+    const overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
+    if (overlay) overlay.style.display = 'none';
+}
+
+function openDailyFortuneOverlay() {
+    const overlay = ensureDailyFortuneOverlay();
+    overlay.style.display = 'flex';
+}
+
+function renderDailyFortuneResult(result) {
+    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+    if (!cardHost || !textEl || !titleEl) return;
+
+    const card = getCardDataFromFortuneResult(result);
+    const cardEl = createCardElement(card, { hidden: false, clickable: false });
+    cardEl.classList.add('tarot-fortune-card');
+    if (String(result?.orientation || '') === 'reversed') {
+        cardEl.classList.add('is-reversed');
+    }
+    cardHost.innerHTML = '';
+    cardHost.appendChild(cardEl);
+
+    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
+    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
+    titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
+    textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
+}
+
+async function requestDailyFortuneStatus(playFabId) {
+    return callJsonApi('/api/tarot-fortune-status', { playFabId });
+}
+
+async function requestDailyFortuneDraw(playFabId) {
+    return callJsonApi('/api/tarot-fortune-draw', { playFabId });
+}
+
+async function handleDailyFortuneDraw(playFabId) {
+    if (!playFabId || dailyFortuneInFlight) return;
+    dailyFortuneInFlight = true;
+    const drawButton = document.getElementById(DAILY_FORTUNE_DRAW_BUTTON_ID);
+    const closeButton = document.getElementById(DAILY_FORTUNE_CLOSE_BUTTON_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    try {
+        if (drawButton) {
+            drawButton.disabled = true;
+            drawButton.textContent = '占い中...';
+        }
+        const data = await requestDailyFortuneDraw(playFabId);
+        if (data?.result) {
+            renderDailyFortuneResult(data.result);
+            dailyFortuneClaimedSession = true;
+            dailyFortuneCanDrawSession = false;
+        }
+        if (Number.isFinite(Number(data?.balance))) {
+            updateGlobalPsDisplay(Number(data.balance));
+        }
+        if (textEl && !data?.result?.fortune) {
+            textEl.textContent = '本日の占い結果を取得しました。';
+        }
+        const pointMessage = document.getElementById('pointMessage');
+        if (pointMessage && data?.result) {
+            const name = String(data.result.cardName || 'カード');
+            const reward = Math.max(0, Math.floor(Number(data.result.rewardPs || 0)));
+            pointMessage.textContent = `本日の運勢「${name}」: +${reward}Ps`;
+        }
+    } catch (error) {
+        if (textEl) {
+            textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
+        }
+        if (drawButton) drawButton.disabled = false;
+    } finally {
+        if (drawButton) {
+            drawButton.textContent = '占う';
+            drawButton.style.display = dailyFortuneClaimedSession ? 'none' : 'inline-flex';
+            drawButton.disabled = dailyFortuneClaimedSession;
+        }
+        if (closeButton) closeButton.style.display = 'inline-flex';
+        dailyFortuneInFlight = false;
+    }
+}
+
+function setupDailyFortuneOverlay(playFabId) {
+    openDailyFortuneOverlay();
+    const drawButton = document.getElementById(DAILY_FORTUNE_DRAW_BUTTON_ID);
+    const closeButton = document.getElementById(DAILY_FORTUNE_CLOSE_BUTTON_ID);
+    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+
+    if (titleEl) titleEl.textContent = '本日の運勢';
+    if (cardHost) cardHost.innerHTML = '';
+    if (textEl) textEl.textContent = '中央のボタンで占いを開始してください。';
+
+    if (drawButton) {
+        drawButton.style.display = 'inline-flex';
+        drawButton.disabled = false;
+        drawButton.textContent = '占う';
+        drawButton.onclick = () => handleDailyFortuneDraw(playFabId);
+    }
+    if (closeButton) {
+        closeButton.style.display = 'inline-flex';
+        closeButton.onclick = () => closeDailyFortuneOverlay();
+    }
+}
+
+async function maybeShowDailyFortunePrompt(playFabId, options = {}) {
+    if (!playFabId) return;
+    const force = !!options.force;
+    if (dailyFortuneClaimedSession) return;
+    if (dailyFortuneCheckedSession && !force) {
+        if (dailyFortuneCanDrawSession) {
+            setupDailyFortuneOverlay(playFabId);
+        }
+        return;
+    }
+    try {
+        const status = await requestDailyFortuneStatus(playFabId);
+        dailyFortuneCheckedSession = true;
+        dailyFortuneCanDrawSession = !!status?.canDraw;
+        dailyFortuneClaimedSession = !dailyFortuneCanDrawSession;
+        if (!dailyFortuneCanDrawSession) return;
+        setupDailyFortuneOverlay(playFabId);
+    } catch (error) {
+        console.warn('[dailyFortune] status check failed:', error);
+    }
+}
+
 function bindElements() {
     ui.root = document.getElementById('tabContentTarot');
     ui.startButton = document.getElementById('tarotStartButton');
@@ -1872,4 +2083,11 @@ export async function loadTarotPokerPage() {
         resetState();
     }
     render();
+    if (window?.myPlayFabId) {
+        await maybeShowDailyFortunePrompt(window.myPlayFabId, { force: false });
+    }
+}
+
+export async function showDailyFortunePromptOnLogin(playFabId) {
+    await maybeShowDailyFortunePrompt(playFabId, { force: true });
 }

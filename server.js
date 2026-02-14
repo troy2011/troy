@@ -34,6 +34,7 @@ const inventory = require('./server/inventory');
 const shop = require('./server/shop');
 const mapModule = require('./server/map');
 const chat = require('./server/chat');
+const tarotFortune = require('./server/tarotFortune');
 
 // 既存ルート
 const battleRoutes = require('./server/routes/battleRoutes');
@@ -1454,6 +1455,9 @@ async function main() {
 
     // 国家ルート
     nation.initializeNationRoutes(app, deps);
+
+    // タロット運勢
+    tarotFortune.initializeTarotFortuneRoutes(app, deps);
 
     // 島ルート
     island.initializeIslandRoutes(app, deps);
