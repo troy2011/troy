@@ -27,22 +27,6 @@
                     <b id="globalPoints">?</b> Ps
                 </div>
             </div>
-            
-            <!-- バー -->
-            <div class="global-status-bar-container">
-                <span>HP</span>
-                <div class="global-status-bar-bg">
-                    <div id="globalHpBar" class="status-bar hp-bar"></div>
-                </div>
-                <b id="globalCurrentHP" style="font-size: 10px;">?</b><span style="width:auto; font-size:10px;">/</span><b id="globalMaxHP" style="font-size: 10px;">?</b>
-            </div>
-            <div class="global-status-bar-container">
-                <span>MP</span>
-                <div class="global-status-bar-bg">
-                    <div id="globalMpBar" class="status-bar mp-bar"></div>
-                </div>
-                <b id="globalCurrentMP" style="font-size: 10px;">?</b><span style="width:auto; font-size:10px;">/</span><b id="globalMaxMP" style="font-size: 10px;">?</b>
-            </div>
         </div>
 
         <div id="tabContainer">
@@ -80,6 +64,26 @@
                                 <div id="homeExpFill" class="home-exp-fill" style="width: 0%;"></div>
                             </div>
                             <div class="home-exp-values"><span id="homeExpProgress">0</span>/<span id="homeExpNeeded">100</span> EXP</div>
+                            <div class="home-vitals">
+                                <div class="global-status-bar-container home-vital-row">
+                                    <span>HP</span>
+                                    <div class="global-status-bar-bg">
+                                        <div id="globalHpBar" class="status-bar hp-bar"></div>
+                                    </div>
+                                    <div class="home-vital-values">
+                                        <b id="globalCurrentHP">?</b><span>/</span><b id="globalMaxHP">?</b>
+                                    </div>
+                                </div>
+                                <div class="global-status-bar-container home-vital-row">
+                                    <span>MP</span>
+                                    <div class="global-status-bar-bg">
+                                        <div id="globalMpBar" class="status-bar mp-bar"></div>
+                                    </div>
+                                    <div class="home-vital-values">
+                                        <b id="globalCurrentMP">?</b><span>/</span><b id="globalMaxMP">?</b>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -265,7 +269,6 @@
                     <div class="tarot-poker-controls">
                         <button id="tarotStartButton" type="button">新しい勝負を始める</button>
                         <button id="tarotNextButton" type="button" style="background:#4b5563;">次へ</button>
-                        <button id="tarotDrawConfirmButton" type="button" style="display:none;background:#0f766e;">選択したカードを捨てる</button>
                     </div>
                     <div id="tarotBetPopup" class="tarot-bet-popup" style="display:none;">
                         <div class="tarot-betting-actions">

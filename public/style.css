@@ -26,6 +26,7 @@ body {
     padding-bottom: calc(var(--nav-height) + 20px);
     /* ナビゲーションバーの分だけ余白 */
     overscroll-behavior-y: none;
+    overflow-x: hidden;
     /* スクロールバウンス防止 */
 }
 
@@ -85,7 +86,7 @@ button:disabled {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 0;
 }
 
 #globalPlayerInfo {
@@ -289,6 +290,38 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 12px;
     color: var(--text-sub);
     text-align: center;
+}
+
+.home-vitals {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.home-exp-card .global-status-bar-container {
+    margin-bottom: 0;
+    height: 16px;
+    gap: 6px;
+}
+
+.home-exp-card .global-status-bar-container span {
+    width: 28px;
+    font-size: 10px;
+    line-height: 16px;
+}
+
+.home-exp-card .global-status-bar-bg {
+    height: 9px;
+}
+
+.home-vital-values {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    min-width: 44px;
+    justify-content: flex-end;
+    font-size: 10px;
 }
 
 .home-ps-lamp {
@@ -2559,6 +2592,7 @@ body.modal-lock .modal-overlay {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 10px;
 }
@@ -2591,7 +2625,7 @@ body.modal-lock .modal-overlay {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: 214px;
+    min-width: min(214px, 100%);
     padding: 9px 14px;
     border-radius: 999px;
     border: 1px solid rgba(253, 224, 71, 0.5);
@@ -2660,16 +2694,6 @@ body.modal-lock .modal-overlay {
 
 .tarot-poker-controls button {
     flex: 1;
-}
-
-#tarotDrawConfirmButton {
-    border: 1px solid rgba(16, 185, 129, 0.65);
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2), 0 6px 14px rgba(5, 46, 22, 0.45);
-}
-
-#tarotDrawConfirmButton:disabled {
-    opacity: 0.65;
-    filter: saturate(0.75);
 }
 
 .tarot-draw-guide {
@@ -2786,7 +2810,7 @@ body.modal-lock .modal-overlay {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
     transform: translateX(-50%);
     width: fit-content;
-    max-width: calc(100vw - 12px);
+    max-width: calc(100% - 12px);
     z-index: 3400;
     border: 1px solid rgba(251, 191, 36, 0.65);
     border-radius: 12px;
@@ -2826,7 +2850,7 @@ body.modal-lock .modal-overlay {
 
 @media (max-width: 560px) {
     .tarot-bet-popup {
-        width: calc(100vw - 10px);
+        width: calc(100% - 10px);
         padding: 22px 8px 8px;
     }
 
@@ -3411,8 +3435,8 @@ body.modal-lock .modal-overlay {
     left: 50%;
     top: 24%;
     transform: translate(-50%, -18px) skewX(-12deg);
-    min-width: min(560px, calc(100vw - 20px));
-    max-width: calc(100vw - 20px);
+    min-width: min(560px, calc(100% - 20px));
+    max-width: calc(100% - 20px);
     text-align: center;
     padding: 10px 16px;
     border-radius: 10px;
@@ -3465,7 +3489,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-fortune-modal {
-    width: min(520px, calc(100vw - 20px));
+    width: min(520px, calc(100% - 20px));
     border-radius: 14px;
     border: 1px solid rgba(255, 215, 122, 0.55);
     background: linear-gradient(180deg, rgba(22, 29, 45, 0.97), rgba(11, 17, 29, 0.97));

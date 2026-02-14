@@ -114,7 +114,6 @@ const ui = {
     pokerRoot: null,
     startButton: null,
     nextButton: null,
-    drawConfirmButton: null,
     stateText: null,
     drawGuide: null,
     deckAnchor: null,
@@ -363,7 +362,7 @@ function resetState() {
     state = {
         phase: 'idle',
         drawRound: 0,
-        pendingPlayerDiscardIndex: null,
+        isResolvingPlayerDiscard: false,
         dealerIndex: 0,
         deck: [],
         board: [],
@@ -553,10 +552,23 @@ function takeGraveCardById(ownerKey, cardId) {
     return card;
 }
 
+function getCardEffectType(card) {
+    if (!card) return EFFECT_TYPE.NONE;
+    const raw = String(card.effectType || '').trim().toLowerCase();
+    if (raw === 'world') return EFFECT_TYPE.WORLD;
+    if (raw === 'judgment') return EFFECT_TYPE.JUDGMENT;
+    if (raw === 'fool') return EFFECT_TYPE.FOOL;
+    const number = Number(card.number);
+    if (number === 21) return EFFECT_TYPE.WORLD;
+    if (number === 20) return EFFECT_TYPE.JUDGMENT;
+    if (number === 0) return EFFECT_TYPE.FOOL;
+    return EFFECT_TYPE.NONE;
+}
+
 function getJudgmentContextForExchange(ownerKey, discardedCard = null) {
     if (!state?.players?.[ownerKey] || isEffectDisabled()) return null;
     const owner = state.players[ownerKey];
-    const isKarma = discardedCard?.effectType === EFFECT_TYPE.JUDGMENT;
+    const isKarma = getCardEffectType(discardedCard) === EFFECT_TYPE.JUDGMENT;
     if (isKarma) {
         return {
             mode: 'karma',
@@ -573,7 +585,7 @@ function getJudgmentContextForExchange(ownerKey, discardedCard = null) {
 }
 
 function hasFoolInHand(ownerKey) {
-    return state.players[ownerKey].hand.some((card) => card.effectType === EFFECT_TYPE.FOOL);
+    return state.players[ownerKey].hand.some((card) => getCardEffectType(card) === EFFECT_TYPE.FOOL);
 }
 
 function getCardDisplayName(card) {
@@ -1607,47 +1619,56 @@ function isEffectDisabled() {
 }
 
 function applyDiscardSpecial(card, ownerKey) {
-    if (!card || isEffectDisabled()) return;
-    if (card.effectType === EFFECT_TYPE.WORLD) {
+    if (!card) return;
+    const effectType = getCardEffectType(card);
+    if (isEffectDisabled()) {
+        if (effectType === EFFECT_TYPE.WORLD || effectType === EFFECT_TYPE.JUDGMENT) {
+            pushLog('THE FOOL active: discard effect nullified');
+            showEffectOverlay('THE FOOL - EFFECT NULLIFIED');
+        }
+        return;
+    }
+    if (effectType === EFFECT_TYPE.WORLD) {
         const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
         state.players[otherKey].canExchange = false;
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
-        pushLog(`「世界」破棄: ${state.players[otherKey].name} は交換不能になった。`);
+        pushLog('THE WORLD: exchange lock -> ' + state.players[otherKey].name);
         showEffectOverlay('THE WORLD - EXCHANGE LOCK');
     }
 }
 
 function applyBoardSpecial(card) {
     if (!card) return;
-    if (card.effectType === EFFECT_TYPE.FOOL) {
+    const effectType = getCardEffectType(card);
+    if (effectType === EFFECT_TYPE.FOOL) {
         if (!state.effectsDisabledByFool) {
             state.effectsDisabledByFool = true;
             state.pendingJudgment = null;
             Object.keys(state.players || {}).forEach((ownerKey) => {
                 state.players[ownerKey].hasResurrectionRight = false;
             });
-            pushLog('「愚者」が場に出現。以降、世界/審判の効果は無効。');
+            pushLog('THE FOOL on board: special effects disabled');
             showEffectOverlay('THE FOOL - CHAOS NULLIFICATION');
         }
         return;
     }
-    if (card.effectType === EFFECT_TYPE.WORLD && !isEffectDisabled()) {
+    if (effectType === EFFECT_TYPE.WORLD && !isEffectDisabled()) {
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
         state.forceShowdown = true;
-        pushLog('「世界」が場に出現。強制ショーダウン発動。');
+        pushLog('THE WORLD on board: force showdown');
         showEffectOverlay('THE WORLD - TIME STOP');
         return;
     }
-    if (card.effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled()) {
+    if (effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled()) {
         Object.keys(state.players || {}).forEach((ownerKey) => {
             state.players[ownerKey].hasResurrectionRight = true;
         });
+        pushLog('JUDGMENT on board: resurrection right granted');
         showEffectOverlay('JUDGMENT - RESURRECTION');
     }
 }
-
 async function revealBoard(count) {
     let judgmentRevealed = false;
     for (let i = 0; i < count; i += 1) {
@@ -1662,7 +1683,7 @@ async function revealBoard(count) {
             revealTarget.replaceWith(hiddenTarget);
             await animateBackToFrontOnElement(hiddenTarget, card);
         }
-        if (card.effectType === EFFECT_TYPE.JUDGMENT) {
+        if (getCardEffectType(card) === EFFECT_TYPE.JUDGMENT) {
             judgmentRevealed = true;
         }
         applyBoardSpecial(card);
@@ -1696,7 +1717,7 @@ function getPostDrawNextPhase() {
 
 async function enterDrawPhase(roundNo) {
     state.drawRound = roundNo;
-    state.pendingPlayerDiscardIndex = null;
+    state.isResolvingPlayerDiscard = false;
     await showRoundCutin(`DRAW PHASE ${roundNo}`);
     state.phase = 'draw-player';
 }
@@ -1873,7 +1894,6 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
-        state.pendingPlayerDiscardIndex = null;
         pushLog(`DRAW PHASE ${state.drawRound}: 交換をスキップ`);
         await finishPlayerExchange(getPostDrawNextPhase());
         return;
@@ -1900,55 +1920,43 @@ async function onPlayerCardClick(index) {
     const player = state.players.player;
     if (!player.canExchange) return;
     if (index < 0 || index >= player.hand.length) return;
-    if (state.pendingPlayerDiscardIndex === index) {
-        state.pendingPlayerDiscardIndex = null;
-    } else {
-        state.pendingPlayerDiscardIndex = index;
-    }
-    render();
-}
+    if (state.isResolvingPlayerDiscard) return;
+    state.isResolvingPlayerDiscard = true;
 
-async function confirmPlayerDrawSelection() {
-    if (!state || state.phase !== 'draw-player') return;
-    const player = state.players.player;
-    if (!player.canExchange) return;
-    const index = Number(state.pendingPlayerDiscardIndex);
-    if (!Number.isInteger(index) || index < 0 || index >= player.hand.length) {
-        pushLog('捨てる手札を1枚選択してください。');
-        render();
-        return;
-    }
     const playerCardEls = ui.playerHand ? Array.from(ui.playerHand.querySelectorAll('.tarot-card')) : [];
     const sourceEl = playerCardEls[index] || ui.playerHand;
     const [discarded] = player.hand.splice(index, 1);
-    state.pendingPlayerDiscardIndex = null;
-    if (sourceEl?.classList) {
-        sourceEl.classList.add('is-leaving');
-        await wait(80);
-    }
-    await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
-    addToGrave('player', discarded);
-    pushLog(`あなたは ${getCardDisplayName(discarded)} を墓地へ`);
-    applyDiscardSpecial(discarded, 'player');
 
-    const judgmentCtx = getJudgmentContextForExchange('player', discarded);
-    if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
-        state.phase = 'draw-player-judgment';
-        state.pendingJudgment = {
-            mode: judgmentCtx.mode,
-            options: judgmentCtx.options
-        };
-        render();
-        return;
-    }
+    try {
+        if (sourceEl?.classList) {
+            sourceEl.classList.add('is-leaving');
+            await wait(80);
+        }
+        await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
+        addToGrave('player', discarded);
+        pushLog('あなたは ' + getCardDisplayName(discarded) + ' を墓地へ');
+        applyDiscardSpecial(discarded, 'player');
 
-    const drawn = drawFor('player');
-    if (drawn) {
-        await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+        const judgmentCtx = getJudgmentContextForExchange('player', discarded);
+        if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
+            state.phase = 'draw-player-judgment';
+            state.pendingJudgment = {
+                mode: judgmentCtx.mode,
+                options: judgmentCtx.options
+            };
+            render();
+            return;
+        }
+
+        const drawn = drawFor('player');
+        if (drawn) {
+            await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+        }
+        await finishPlayerExchange(getPostDrawNextPhase());
+    } finally {
+        state.isResolvingPlayerDiscard = false;
     }
-    await finishPlayerExchange(getPostDrawNextPhase());
 }
-
 async function onJudgmentPick(ownerKey, cardId = null) {
     if (!state || state.phase !== 'draw-player-judgment') return;
     const pending = state.pendingJudgment;
@@ -2098,9 +2106,6 @@ function renderCardRow(container, cards, options = {}) {
             clickable,
             onClick: () => options.onCardClick(index, el)
         });
-        if (Number(options.selectedIndex) === index) {
-            el.classList.add('is-selected');
-        }
         container.appendChild(el);
     });
 }
@@ -2345,11 +2350,6 @@ function renderJudgmentPanel() {
 }
 function renderButtons() {
     if (!ui.nextButton) return;
-    if (ui.drawConfirmButton) {
-        ui.drawConfirmButton.style.display = 'none';
-        ui.drawConfirmButton.disabled = true;
-        ui.drawConfirmButton.textContent = '選択したカードを捨てる';
-    }
     if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
         ui.nextButton.disabled = true;
         ui.nextButton.textContent = '次へ';
@@ -2357,7 +2357,7 @@ function renderButtons() {
     }
     if (isBettingPhase()) {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'BET操作中';
+        ui.nextButton.textContent = 'BET進行中';
         return;
     }
     if (state.phase === 'preflop') {
@@ -2366,20 +2366,11 @@ function renderButtons() {
         return;
     }
     if (state.phase === 'draw-player') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = `第${state.drawRound}ドローをスキップ`;
-        if (ui.drawConfirmButton) {
-            const selected = Number(state.pendingPlayerDiscardIndex);
-            const canConfirm = Number.isInteger(selected)
-                && selected >= 0
-                && selected < (state.players?.player?.hand?.length || 0)
-                && !!state.players?.player?.canExchange;
-            ui.drawConfirmButton.style.display = 'inline-flex';
-            ui.drawConfirmButton.disabled = !canConfirm;
-            ui.drawConfirmButton.textContent = canConfirm
-                ? '選択したカードを捨てる'
-                : '先に手札を1枚選択';
-        }
+        const isBusy = !!state.isResolvingPlayerDiscard;
+        ui.nextButton.disabled = isBusy;
+        ui.nextButton.textContent = isBusy
+            ? 'ドロー処理中...'
+            : ('第' + state.drawRound + 'ドローをスキップ');
         return;
     }
     if (state.phase === 'draw-player-judgment') {
@@ -2394,7 +2385,7 @@ function renderButtons() {
     }
     if (state.phase === 'river-opening') {
         ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'リバー展開中...';
+        ui.nextButton.textContent = 'リバー公開中...';
         return;
     }
     if (state.phase === 'turn-ready') {
@@ -2403,15 +2394,16 @@ function renderButtons() {
         return;
     }
     if (state.phase === 'river-ready') {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'リバー自動展開中...';
+        ui.nextButton.disabled = false;
+        ui.nextButton.textContent = 'リバーを開く';
         return;
     }
-    ui.nextButton.disabled = true;
+    ui.nextButton.disabled = false;
     ui.nextButton.textContent = '次へ';
 }
+
 function renderLog() {
-    if (!ui.log) return;
+    if (!ui.log || !state) return;
     ui.log.innerHTML = '';
     state.log.forEach((line) => {
         const row = document.createElement('div');
@@ -2485,13 +2477,7 @@ function renderDrawGuide() {
         return;
     }
     if (state.phase === 'draw-player') {
-        const selectedIndex = Number(state.pendingPlayerDiscardIndex);
-        const selectedCard = Number.isInteger(selectedIndex)
-            ? state.players?.player?.hand?.[selectedIndex]
-            : null;
-        ui.drawGuide.textContent = selectedCard
-            ? `第${state.drawRound}ドロー: 「${getCardDisplayName(selectedCard)}」を捨てますか？`
-            : `第${state.drawRound}ドロー: 捨てる手札を1枚選択してください（スキップ可）`;
+        ui.drawGuide.textContent = '第' + state.drawRound + 'ドロー: 捨てる手札をクリック（スキップも可）';
     } else if (state.phase === 'draw-player-judgment') {
         ui.drawGuide.textContent = '審判発動中: 取得カードを選択（またはスキップ）';
     } else {
@@ -2499,7 +2485,6 @@ function renderDrawGuide() {
     }
     ui.drawGuide.style.display = 'block';
 }
-
 function render() {
     if (!state || !ui.root) return;
     renderBoard();
@@ -2534,9 +2519,6 @@ function render() {
         hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
         clickable: !isShowdown && !isDealing && state.phase === 'draw-player',
         drawPhase: !isShowdown && !isDealing && state.phase === 'draw-player',
-        selectedIndex: !isShowdown && !isDealing && state.phase === 'draw-player'
-            ? state.pendingPlayerDiscardIndex
-            : -1,
         onCardClick: onPlayerCardClick
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
@@ -2721,7 +2703,6 @@ function bindElements() {
     ui.pokerRoot = ui.root?.querySelector('.tarot-poker-root') || null;
     ui.startButton = document.getElementById('tarotStartButton');
     ui.nextButton = document.getElementById('tarotNextButton');
-    ui.drawConfirmButton = document.getElementById('tarotDrawConfirmButton');
     ui.stateText = document.getElementById('tarotStateText');
     ui.drawGuide = document.getElementById('tarotDrawGuide');
     ui.deckAnchor = document.getElementById('tarotDeckAnchor');
@@ -2761,7 +2742,6 @@ function bindEvents() {
     isBound = true;
     ui.startButton?.addEventListener('click', startNewGame);
     ui.nextButton?.addEventListener('click', handleNext);
-    ui.drawConfirmButton?.addEventListener('click', confirmPlayerDrawSelection);
     ui.betCheckButton?.addEventListener('click', () => onPlayerBetAction('check'));
     ui.betCallButton?.addEventListener('click', () => onPlayerBetAction('call'));
     ui.betBetButton?.addEventListener('click', () => onPlayerBetAction('bet'));
