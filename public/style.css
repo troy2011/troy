@@ -2572,6 +2572,10 @@ body.modal-lock .modal-overlay {
     --tarot-card-padding: 4px;
     --tarot-card-number-size: 22px;
     --tarot-card-title-size: 10px;
+    --tarot-interact-border: rgba(244, 114, 182, 0.95);
+    --tarot-interact-border-soft: rgba(244, 114, 182, 0.78);
+    --tarot-interact-glow: rgba(236, 72, 153, 0.45);
+    --tarot-interact-selected: rgba(255, 225, 244, 0.98);
 }
 
 .tarot-poker-root.is-time-stopped {
@@ -3103,21 +3107,23 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card-row .tarot-card.is-selected {
-    border-color: rgba(250, 204, 21, 0.95);
+    border-color: var(--tarot-interact-border);
     box-shadow:
-        0 0 0 1px rgba(250, 204, 21, 0.75),
-        0 0 16px rgba(250, 204, 21, 0.5),
+        0 0 0 1px var(--tarot-interact-border-soft),
+        0 0 16px var(--tarot-interact-glow),
         inset 0 0 0 1px rgba(255, 255, 255, 0.28);
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-6px) scale(1.02);
+    animation: none !important;
 }
 
 .tarot-grave-row .tarot-card.is-selected {
-    border-color: rgba(250, 204, 21, 0.95);
+    border-color: var(--tarot-interact-border);
     box-shadow:
-        0 0 0 1px rgba(250, 204, 21, 0.75),
-        0 0 14px rgba(250, 204, 21, 0.48),
+        0 0 0 1px var(--tarot-interact-border-soft),
+        0 0 14px var(--tarot-interact-glow),
         inset 0 0 0 1px rgba(255, 255, 255, 0.25);
-    transform: scale(0.92);
+    transform: translateY(-4px) scale(0.92);
+    animation: none !important;
 }
 
 @keyframes tarotDrawCardWiggle {
@@ -3197,17 +3203,17 @@ body.modal-lock .modal-overlay {
     cursor: pointer;
     transition: transform 0.08s ease, box-shadow 0.2s ease;
     animation: tarotPulse 1.1s ease-in-out infinite;
-    border-color: rgba(250, 204, 21, 0.85);
-    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border-color: var(--tarot-interact-border-soft);
+    box-shadow: 0 0 0 1px var(--tarot-interact-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .tarot-card.is-clickable::after {
     content: '';
     position: absolute;
     inset: 1px;
-    border: 2px solid rgba(250, 204, 21, 0.92);
+    border: 2px solid var(--tarot-interact-border);
     border-radius: calc(var(--tarot-card-radius, 10px) - 2px);
-    box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+    box-shadow: 0 0 10px var(--tarot-interact-glow);
     pointer-events: none;
     z-index: 3;
 }
@@ -3217,10 +3223,10 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-clickable.is-selected::after {
-    border-color: rgba(255, 244, 178, 0.98);
+    border-color: var(--tarot-interact-selected);
     box-shadow:
-        0 0 14px rgba(250, 204, 21, 0.55),
-        0 0 0 1px rgba(255, 244, 178, 0.7) inset;
+        0 0 14px var(--tarot-interact-glow),
+        0 0 0 1px rgba(255, 225, 244, 0.7) inset;
 }
 
 .tarot-card.is-static {

@@ -1134,6 +1134,28 @@ function chooseBestFiveFromSeven(cards) {
     return best;
 }
 
+function chooseBestTwoHandCardsForLiveRole(handCards, boardCards) {
+    const hand = Array.isArray(handCards) ? handCards : [];
+    const board = Array.isArray(boardCards) ? boardCards : [];
+    if (hand.length <= 2) return hand.slice();
+    let bestPair = hand.slice(0, 2);
+    let bestScore = null;
+    for (let i = 0; i < hand.length - 1; i += 1) {
+        for (let j = i + 1; j < hand.length; j += 1) {
+            const pair = [hand[i], hand[j]];
+            const merged = [...pair, ...board];
+            if (merged.length < 5) continue;
+            const score = chooseBestFiveFromSeven(merged);
+            if (!score) continue;
+            if (!bestScore || compareScore(score, bestScore) > 0) {
+                bestScore = score;
+                bestPair = pair;
+            }
+        }
+    }
+    return bestScore ? bestPair : hand.slice(0, 2);
+}
+
 function evaluateShowdown() {
     const playerCards = [...state.players.player.hand, ...state.board];
     const cpuCards = [...state.players.cpu.hand, ...state.board];
@@ -2450,9 +2472,12 @@ function renderOutcomeBadges() {
 
 function getLiveBestRoleLabel(ownerKey) {
     if (!state?.players?.[ownerKey]) return '';
+    const hand = state.players[ownerKey].hand || [];
+    const board = state.board || [];
+    const handForRole = chooseBestTwoHandCardsForLiveRole(hand, board);
     const cards = [
-        ...(state.players[ownerKey].hand || []),
-        ...(state.board || [])
+        ...handForRole,
+        ...board
     ];
     if (cards.length < 5) return '成立役: なし';
     const best = chooseBestFiveFromSeven(cards);
