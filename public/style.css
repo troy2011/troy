@@ -3104,6 +3104,15 @@ body.modal-lock .modal-overlay {
     transform: translateY(-2px) scale(1.02);
 }
 
+.tarot-grave-row .tarot-card.is-selected {
+    border-color: rgba(250, 204, 21, 0.95);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.75),
+        0 0 14px rgba(250, 204, 21, 0.48),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    transform: scale(0.92);
+}
+
 @keyframes tarotDrawCardWiggle {
     0%,
     78%,
@@ -3181,10 +3190,30 @@ body.modal-lock .modal-overlay {
     cursor: pointer;
     transition: transform 0.08s ease, box-shadow 0.2s ease;
     animation: tarotPulse 1.1s ease-in-out infinite;
+    border-color: rgba(250, 204, 21, 0.85);
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.tarot-card.is-clickable::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border: 2px solid rgba(250, 204, 21, 0.92);
+    border-radius: calc(var(--tarot-card-radius, 10px) - 2px);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+    pointer-events: none;
+    z-index: 3;
 }
 
 .tarot-card.is-clickable:active {
     transform: scale(0.96);
+}
+
+.tarot-card.is-clickable.is-selected::after {
+    border-color: rgba(255, 244, 178, 0.98);
+    box-shadow:
+        0 0 14px rgba(250, 204, 21, 0.55),
+        0 0 0 1px rgba(255, 244, 178, 0.7) inset;
 }
 
 .tarot-card.is-static {
@@ -3404,6 +3433,12 @@ body.modal-lock .modal-overlay {
     gap: 8px;
 }
 
+.tarot-judgment-hint {
+    font-size: 12px;
+    color: #f7d188;
+    line-height: 1.4;
+}
+
 .tarot-judgment-options button {
     width: 100%;
 }
@@ -3471,6 +3506,51 @@ body.modal-lock .modal-overlay {
 .tarot-cutin.is-cpu {
     border-color: rgba(239, 68, 68, 0.55);
     box-shadow: 0 10px 30px rgba(239, 68, 68, 0.25);
+}
+
+.tarot-cutin.is-showdown-win {
+    border-color: rgba(34, 197, 94, 0.9);
+    background: linear-gradient(120deg, rgba(5, 46, 22, 0.96), rgba(20, 83, 45, 0.96));
+    color: #dcfce7;
+    box-shadow:
+        0 14px 36px rgba(34, 197, 94, 0.4),
+        0 0 28px rgba(34, 197, 94, 0.32);
+    animation: tarotShowdownCutinPulse 520ms ease-out 2;
+}
+
+.tarot-cutin.is-showdown-lose {
+    border-color: rgba(248, 113, 113, 0.95);
+    background: linear-gradient(120deg, rgba(69, 10, 10, 0.96), rgba(127, 29, 29, 0.96));
+    color: #fee2e2;
+    box-shadow:
+        0 14px 36px rgba(239, 68, 68, 0.4),
+        0 0 28px rgba(239, 68, 68, 0.28);
+    animation: tarotShowdownCutinPulse 520ms ease-out 2;
+}
+
+.tarot-cutin.is-showdown-draw {
+    border-color: rgba(250, 204, 21, 0.95);
+    background: linear-gradient(120deg, rgba(69, 26, 3, 0.96), rgba(120, 53, 15, 0.96));
+    color: #fef3c7;
+    box-shadow:
+        0 14px 36px rgba(245, 158, 11, 0.38),
+        0 0 28px rgba(250, 204, 21, 0.25);
+    animation: tarotShowdownCutinPulse 520ms ease-out 2;
+}
+
+@keyframes tarotShowdownCutinPulse {
+    0% {
+        transform: translate(-50%, 4px) skewX(-12deg) scale(0.98);
+        filter: saturate(1);
+    }
+    55% {
+        transform: translate(-50%, -1px) skewX(-12deg) scale(1.03);
+        filter: saturate(1.3);
+    }
+    100% {
+        transform: translate(-50%, 0) skewX(-12deg) scale(1);
+        filter: saturate(1);
+    }
 }
 
 .tarot-card-fly {

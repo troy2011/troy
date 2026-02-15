@@ -91,6 +91,8 @@ const CPU_DRAW_SAMPLE_COUNT = 16;
 const BET_ACTION_TEMPO_MS = 900;
 const BET_ACTION_GAP_MS = 260;
 const ROUND_CUTIN_TEMPO_MS = 980;
+const SHOWDOWN_RESULT_CUTIN_TEMPO_MS = 1700;
+const CUTIN_STYLE_CLASSES = ['is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw'];
 const BET_ACTION_LABEL = {
     check: 'チェック',
     call: 'コール',
@@ -113,7 +115,6 @@ const ui = {
     root: null,
     pokerRoot: null,
     startButton: null,
-    nextButton: null,
     stateText: null,
     drawGuide: null,
     deckAnchor: null,
@@ -363,6 +364,8 @@ function resetState() {
         phase: 'idle',
         drawRound: 0,
         isResolvingPlayerDiscard: false,
+        selectedDiscardIndex: null,
+        selectedJudgmentPick: null,
         dealerIndex: 0,
         deck: [],
         board: [],
@@ -437,6 +440,11 @@ function getBetActionLabel(action) {
     return BET_ACTION_LABEL[action] || String(action || '').toUpperCase();
 }
 
+function resetCutinStyle() {
+    if (!ui.cutin) return;
+    ui.cutin.classList.remove(...CUTIN_STYLE_CLASSES);
+}
+
 async function showActionCutin(ownerKey, action) {
     const label = getBetActionLabel(action);
     const ownerName = ownerKey === 'player' ? 'あなた' : 'CPU';
@@ -449,7 +457,7 @@ async function showActionCutin(ownerKey, action) {
     }
     if (ui.cutin) {
         ui.cutin.textContent = `${ownerName} ${label}`;
-        ui.cutin.classList.remove('is-player', 'is-cpu');
+        resetCutinStyle();
         ui.cutin.classList.add('show', ownerClass);
     }
     await wait(BET_ACTION_TEMPO_MS);
@@ -458,7 +466,8 @@ async function showActionCutin(ownerKey, action) {
         actionEl.textContent = '';
     }
     if (ui.cutin) {
-        ui.cutin.classList.remove('show', 'is-player', 'is-cpu');
+        ui.cutin.classList.remove('show');
+        resetCutinStyle();
     }
     await wait(BET_ACTION_GAP_MS);
 }
@@ -470,10 +479,49 @@ async function showRoundCutin(text) {
         return;
     }
     ui.cutin.textContent = text;
-    ui.cutin.classList.remove('is-player', 'is-cpu');
+    resetCutinStyle();
     ui.cutin.classList.add('show');
     await wait(ROUND_CUTIN_TEMPO_MS);
     ui.cutin.classList.remove('show');
+    resetCutinStyle();
+    await wait(BET_ACTION_GAP_MS);
+}
+
+function getShowdownCutinPayload() {
+    const winner = state?.result?.winner;
+    const playerRole = state?.result?.playerBest?.rankLabel || '役なし';
+    const cpuRole = state?.result?.cpuBest?.rankLabel || '役なし';
+    if (winner === 'player') {
+        return {
+            className: 'is-showdown-win',
+            text: `VICTORY - ${playerRole}`
+        };
+    }
+    if (winner === 'cpu') {
+        return {
+            className: 'is-showdown-lose',
+            text: `DEFEAT - ${cpuRole}`
+        };
+    }
+    return {
+        className: 'is-showdown-draw',
+        text: `DRAW GAME - ${playerRole}`
+    };
+}
+
+async function showShowdownResultCutin() {
+    const payload = getShowdownCutinPayload();
+    if (!payload?.text) return;
+    if (!ui.cutin) {
+        await wait(SHOWDOWN_RESULT_CUTIN_TEMPO_MS);
+        return;
+    }
+    ui.cutin.textContent = payload.text;
+    resetCutinStyle();
+    ui.cutin.classList.add('show', payload.className);
+    await wait(SHOWDOWN_RESULT_CUTIN_TEMPO_MS);
+    ui.cutin.classList.remove('show');
+    resetCutinStyle();
     await wait(BET_ACTION_GAP_MS);
 }
 
@@ -1718,6 +1766,8 @@ function getPostDrawNextPhase() {
 async function enterDrawPhase(roundNo) {
     state.drawRound = roundNo;
     state.isResolvingPlayerDiscard = false;
+    state.selectedDiscardIndex = null;
+    state.selectedJudgmentPick = null;
     await showRoundCutin(`DRAW PHASE ${roundNo}`);
     state.phase = 'draw-player';
 }
@@ -1894,6 +1944,7 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
+        state.selectedDiscardIndex = null;
         pushLog(`DRAW PHASE ${state.drawRound}: 交換をスキップ`);
         await finishPlayerExchange(getPostDrawNextPhase());
         return;
@@ -1915,13 +1966,29 @@ async function handleNext() {
     }
 }
 
+async function handlePrimaryButtonClick() {
+    if (!state) return;
+    if (state.phase === 'idle' || state.phase === 'showdown') {
+        await startNewGame();
+        return;
+    }
+    await handleNext();
+}
+
 async function onPlayerCardClick(index) {
     if (!state || state.phase !== 'draw-player') return;
     const player = state.players.player;
     if (!player.canExchange) return;
     if (index < 0 || index >= player.hand.length) return;
     if (state.isResolvingPlayerDiscard) return;
+    if (state.selectedDiscardIndex !== index) {
+        state.selectedDiscardIndex = index;
+        render();
+        return;
+    }
     state.isResolvingPlayerDiscard = true;
+    state.selectedDiscardIndex = null;
+    render();
 
     const playerCardEls = ui.playerHand ? Array.from(ui.playerHand.querySelectorAll('.tarot-card')) : [];
     const sourceEl = playerCardEls[index] || ui.playerHand;
@@ -1944,6 +2011,7 @@ async function onPlayerCardClick(index) {
                 mode: judgmentCtx.mode,
                 options: judgmentCtx.options
             };
+            state.selectedJudgmentPick = null;
             render();
             return;
         }
@@ -1957,6 +2025,24 @@ async function onPlayerCardClick(index) {
         state.isResolvingPlayerDiscard = false;
     }
 }
+
+async function onJudgmentGraveCardClick(ownerKey, cardId = null) {
+    if (!state || state.phase !== 'draw-player-judgment' || !cardId) return;
+    const pending = state.pendingJudgment;
+    if (!pending || !Array.isArray(pending.options)) return;
+    const allowed = pending.options.some((opt) => opt?.ownerKey === ownerKey && opt?.cardId === cardId);
+    if (!allowed) return;
+
+    const selected = state.selectedJudgmentPick;
+    const isSame = !!selected && selected.ownerKey === ownerKey && selected.cardId === cardId;
+    if (!isSame) {
+        state.selectedJudgmentPick = { ownerKey, cardId };
+        render();
+        return;
+    }
+    await onJudgmentPick(ownerKey, cardId);
+}
+
 async function onJudgmentPick(ownerKey, cardId = null) {
     if (!state || state.phase !== 'draw-player-judgment') return;
     const pending = state.pendingJudgment;
@@ -1990,6 +2076,8 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         }
     }
     state.pendingJudgment = null;
+    state.selectedJudgmentPick = null;
+    state.selectedDiscardIndex = null;
     state.phase = 'draw-player';
     await finishPlayerExchange(getPostDrawNextPhase());
 }
@@ -2000,11 +2088,11 @@ function getPhaseText() {
     if (state.phase === 'betting-preflop') return 'プリフロップBET: アクションを選択してください。';
     if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
     if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
-    if (state.phase === 'preflop') return '次へでフロップを開示。';
-    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 捨てる手札を選択（スキップも可）。`;
-    if (state.phase === 'draw-player-judgment') return '審判発動: 取得カードを選択。';
+    if (state.phase === 'preflop') return '下のボタンでフロップを開示。';
+    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 手札を1回で選択、再クリックで捨てる（スキップも可）。`;
+    if (state.phase === 'draw-player-judgment') return '審判発動: 墓地カードを1回で選択、再クリックで取得。';
     if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
-    if (state.phase === 'turn-ready') return '次へでターンを開示。';
+    if (state.phase === 'turn-ready') return '下のボタンでターンを開示。';
     if (state.phase === 'river-ready') return 'リバーを自動で展開します...';
     if (state.phase === 'river-opening') return 'リバー展開中...';
     if (state.phase === 'showdown') return 'ショーダウン完了。';
@@ -2106,17 +2194,31 @@ function renderCardRow(container, cards, options = {}) {
             clickable,
             onClick: () => options.onCardClick(index, el)
         });
+        if (typeof options.isSelectedIndex === 'function' && options.isSelectedIndex(index, card)) {
+            el.classList.add('is-selected');
+        }
         container.appendChild(el);
     });
 }
 
-function renderGraveRow(container, cards) {
+function renderGraveRow(container, cards, options = {}) {
     if (!container) return;
     container.innerHTML = '';
-    const list = cards.slice().reverse().slice(0, 3);
+    const reversed = cards.slice().reverse();
+    const list = options.showAll ? reversed : reversed.slice(0, 3);
     list.forEach((card) => {
-        const item = createCardElement(card, { hidden: false, clickable: false });
+        const canClick = !!options.clickable
+            && typeof options.onCardClick === 'function'
+            && (typeof options.isCardEnabled !== 'function' || options.isCardEnabled(card));
+        const item = createCardElement(card, {
+            hidden: false,
+            clickable: canClick,
+            onClick: () => options.onCardClick(card, item)
+        });
         item.classList.add('tarot-grave-card');
+        if (typeof options.isSelectedCard === 'function' && options.isSelectedCard(card)) {
+            item.classList.add('is-selected');
+        }
         container.appendChild(item);
     });
 }
@@ -2213,24 +2315,24 @@ function setOutcomeBadge(el, kind, text) {
 
 function renderOutcomeBadges() {
     if (!state || !ui.playerOutcome || !ui.cpuOutcome) return;
-    if (state.phase !== 'showdown' || !state.result) {
+    if (state.phase !== 'showdown' || !state.result || !state.showdownRevealDone) {
         setOutcomeBadge(ui.playerOutcome, null, '');
         setOutcomeBadge(ui.cpuOutcome, null, '');
         return;
     }
     const winner = state.result.winner;
     if (winner === 'player') {
-        setOutcomeBadge(ui.playerOutcome, 'is-win', 'WIN');
-        setOutcomeBadge(ui.cpuOutcome, 'is-lose', 'LOSE');
+        setOutcomeBadge(ui.playerOutcome, 'is-win', '勝利');
+        setOutcomeBadge(ui.cpuOutcome, 'is-lose', '敗北');
         return;
     }
     if (winner === 'cpu') {
-        setOutcomeBadge(ui.playerOutcome, 'is-lose', 'LOSE');
-        setOutcomeBadge(ui.cpuOutcome, 'is-win', 'WIN');
+        setOutcomeBadge(ui.playerOutcome, 'is-lose', '敗北');
+        setOutcomeBadge(ui.cpuOutcome, 'is-win', '勝利');
         return;
     }
-    setOutcomeBadge(ui.playerOutcome, 'is-draw', 'DRAW');
-    setOutcomeBadge(ui.cpuOutcome, 'is-draw', 'DRAW');
+    setOutcomeBadge(ui.playerOutcome, 'is-draw', '引き分け');
+    setOutcomeBadge(ui.cpuOutcome, 'is-draw', '引き分け');
 }
 
 function getLiveBestRoleLabel(ownerKey) {
@@ -2252,9 +2354,14 @@ function renderRoleLabels() {
         ui.cpuRole.textContent = '成立役: 非公開';
         return;
     }
+    if (!state.showdownRevealDone) {
+        ui.playerRole.textContent = '成立役: 判定中...';
+        ui.cpuRole.textContent = '成立役: 判定中...';
+        return;
+    }
     const winner = state.result.winner;
-    const playerPrefix = winner === 'player' ? 'WIN' : winner === 'cpu' ? 'LOSE' : 'DRAW';
-    const cpuPrefix = winner === 'cpu' ? 'WIN' : winner === 'player' ? 'LOSE' : 'DRAW';
+    const playerPrefix = winner === 'player' ? '勝利' : winner === 'cpu' ? '敗北' : '引き分け';
+    const cpuPrefix = winner === 'cpu' ? '勝利' : winner === 'player' ? '敗北' : '引き分け';
     const playerRole = state.result.playerBest?.rankLabel || '';
     const cpuRole = state.result.cpuBest?.rankLabel || '';
     ui.playerRole.textContent = `${playerPrefix}: ${playerRole}`;
@@ -2300,6 +2407,9 @@ async function runShowdownPresentation() {
     state.showdownRevealRunning = false;
     state.showdownRevealDone = true;
     render();
+    await wait(120);
+    await showShowdownResultCutin();
+    render();
 }
 
 function renderBoard() {
@@ -2327,79 +2437,86 @@ function renderJudgmentPanel() {
     const titleEl = ui.judgmentPanel.querySelector('.tarot-judgment-title');
     if (titleEl) {
         titleEl.textContent = pending.mode === 'karma'
-            ? 'Judgment: take 1 card from other graveyards'
-            : 'Judgment: resurrect 1 card from graveyard';
+            ? '審判効果: 他プレイヤー墓地のカードを取得'
+            : '審判効果: 墓地のカードを蘇生';
     }
 
     ui.judgmentPanel.style.display = 'block';
     ui.judgmentOptions.innerHTML = '';
-    pending.options.forEach((option) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        const ownerName = state.players[option.ownerKey].name;
-        btn.textContent = `${ownerName}: ${getCardDisplayName(option.card)} (${getCardNumberLabel(option.card)})`;
-        btn.addEventListener('click', () => onJudgmentPick(option.ownerKey, option.cardId || null));
-        ui.judgmentOptions.appendChild(btn);
-    });
+    const hint = document.createElement('div');
+    hint.className = 'tarot-judgment-hint';
+    hint.textContent = '墓地のカードを1回クリックで選択、同じカードを再クリックで取得';
+    ui.judgmentOptions.appendChild(hint);
 
     const skipBtn = document.createElement('button');
     skipBtn.type = 'button';
-    skipBtn.textContent = 'Skip (draw 1 from deck)';
+    skipBtn.textContent = '山札から引く（スキップ）';
     skipBtn.addEventListener('click', () => onJudgmentPick('deck'));
     ui.judgmentOptions.appendChild(skipBtn);
 }
 function renderButtons() {
-    if (!ui.nextButton) return;
-    if (!state || state.phase === 'idle' || state.phase === 'showdown' || state.phase === 'dealing') {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = '次へ';
+    if (!ui.startButton) return;
+    const btn = ui.startButton;
+    if (!state) {
+        btn.disabled = true;
+        btn.textContent = '読み込み中...';
+        return;
+    }
+    if (state.phase === 'idle' || state.phase === 'showdown') {
+        btn.disabled = false;
+        btn.textContent = '新しい勝負を始める';
+        return;
+    }
+    if (state.phase === 'dealing') {
+        btn.disabled = true;
+        btn.textContent = '配札中...';
         return;
     }
     if (isBettingPhase()) {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'BET進行中';
+        btn.disabled = true;
+        btn.textContent = 'BET進行中';
         return;
     }
     if (state.phase === 'preflop') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'フロップを開く';
+        btn.disabled = false;
+        btn.textContent = 'フロップを開く';
         return;
     }
     if (state.phase === 'draw-player') {
         const isBusy = !!state.isResolvingPlayerDiscard;
-        ui.nextButton.disabled = isBusy;
-        ui.nextButton.textContent = isBusy
+        btn.disabled = isBusy;
+        btn.textContent = isBusy
             ? 'ドロー処理中...'
             : ('第' + state.drawRound + 'ドローをスキップ');
         return;
     }
     if (state.phase === 'draw-player-judgment') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = '審判をスキップ';
+        btn.disabled = false;
+        btn.textContent = '審判をスキップ';
         return;
     }
     if (state.phase === 'cpu-thinking') {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'CPU思考中...';
+        btn.disabled = true;
+        btn.textContent = 'CPU思考中...';
         return;
     }
     if (state.phase === 'river-opening') {
-        ui.nextButton.disabled = true;
-        ui.nextButton.textContent = 'リバー公開中...';
+        btn.disabled = true;
+        btn.textContent = 'リバー公開中...';
         return;
     }
     if (state.phase === 'turn-ready') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'ターンを開く';
+        btn.disabled = false;
+        btn.textContent = 'ターンを開く';
         return;
     }
     if (state.phase === 'river-ready') {
-        ui.nextButton.disabled = false;
-        ui.nextButton.textContent = 'リバーを開く';
+        btn.disabled = false;
+        btn.textContent = 'リバーを開く';
         return;
     }
-    ui.nextButton.disabled = false;
-    ui.nextButton.textContent = '次へ';
+    btn.disabled = true;
+    btn.textContent = '進行待ち...';
 }
 
 function renderLog() {
@@ -2477,9 +2594,9 @@ function renderDrawGuide() {
         return;
     }
     if (state.phase === 'draw-player') {
-        ui.drawGuide.textContent = '第' + state.drawRound + 'ドロー: 捨てる手札をクリック（スキップも可）';
+        ui.drawGuide.textContent = '第' + state.drawRound + 'ドロー: 手札を1回クリックで選択、再クリックで捨てる（スキップ可）';
     } else if (state.phase === 'draw-player-judgment') {
-        ui.drawGuide.textContent = '審判発動中: 取得カードを選択（またはスキップ）';
+        ui.drawGuide.textContent = '審判発動中: 墓地カードを1回クリックで選択、再クリックで取得（スキップ可）';
     } else {
         ui.drawGuide.textContent = 'CPUがドロー処理中...';
     }
@@ -2519,14 +2636,43 @@ function render() {
         hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
         clickable: !isShowdown && !isDealing && state.phase === 'draw-player',
         drawPhase: !isShowdown && !isDealing && state.phase === 'draw-player',
+        isSelectedIndex: (index) => !isShowdown && !isDealing && state.phase === 'draw-player' && state.selectedDiscardIndex === index,
         onCardClick: onPlayerCardClick
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
         hidden: isShowdown ? showdownHidden : true,
         clickable: false
     });
-    renderGraveRow(ui.playerGrave, isShowdown ? [] : state.players.player.graveyard);
-    renderGraveRow(ui.cpuGrave, isShowdown ? [] : state.players.cpu.graveyard);
+    const isJudgmentPickPhase = !isShowdown
+        && !isDealing
+        && state.phase === 'draw-player-judgment'
+        && !!state.pendingJudgment
+        && Array.isArray(state.pendingJudgment.options);
+    const judgmentOptionsByOwner = {
+        player: new Set(),
+        cpu: new Set()
+    };
+    if (isJudgmentPickPhase) {
+        state.pendingJudgment.options.forEach((opt) => {
+            if (!opt?.ownerKey || !opt?.cardId) return;
+            if (!judgmentOptionsByOwner[opt.ownerKey]) return;
+            judgmentOptionsByOwner[opt.ownerKey].add(opt.cardId);
+        });
+    }
+    renderGraveRow(ui.playerGrave, isShowdown ? [] : state.players.player.graveyard, {
+        showAll: isJudgmentPickPhase,
+        clickable: isJudgmentPickPhase,
+        isCardEnabled: (card) => judgmentOptionsByOwner.player.has(card.id),
+        isSelectedCard: (card) => state.selectedJudgmentPick?.ownerKey === 'player' && state.selectedJudgmentPick?.cardId === card.id,
+        onCardClick: (card) => onJudgmentGraveCardClick('player', card?.id)
+    });
+    renderGraveRow(ui.cpuGrave, isShowdown ? [] : state.players.cpu.graveyard, {
+        showAll: isJudgmentPickPhase,
+        clickable: isJudgmentPickPhase,
+        isCardEnabled: (card) => judgmentOptionsByOwner.cpu.has(card.id),
+        isSelectedCard: (card) => state.selectedJudgmentPick?.ownerKey === 'cpu' && state.selectedJudgmentPick?.cardId === card.id,
+        onCardClick: (card) => onJudgmentGraveCardClick('cpu', card?.id)
+    });
     renderJudgmentPanel();
     renderButtons();
     renderBettingInfo();
@@ -2702,7 +2848,6 @@ function bindElements() {
     ui.root = document.getElementById('tabContentTarot');
     ui.pokerRoot = ui.root?.querySelector('.tarot-poker-root') || null;
     ui.startButton = document.getElementById('tarotStartButton');
-    ui.nextButton = document.getElementById('tarotNextButton');
     ui.stateText = document.getElementById('tarotStateText');
     ui.drawGuide = document.getElementById('tarotDrawGuide');
     ui.deckAnchor = document.getElementById('tarotDeckAnchor');
@@ -2740,8 +2885,7 @@ function bindElements() {
 function bindEvents() {
     if (isBound) return;
     isBound = true;
-    ui.startButton?.addEventListener('click', startNewGame);
-    ui.nextButton?.addEventListener('click', handleNext);
+    ui.startButton?.addEventListener('click', handlePrimaryButtonClick);
     ui.betCheckButton?.addEventListener('click', () => onPlayerBetAction('check'));
     ui.betCallButton?.addEventListener('click', () => onPlayerBetAction('call'));
     ui.betBetButton?.addEventListener('click', () => onPlayerBetAction('bet'));
