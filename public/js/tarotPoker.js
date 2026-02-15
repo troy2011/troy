@@ -366,6 +366,7 @@ function resetState() {
         isResolvingPlayerDiscard: false,
         selectedDiscardIndex: null,
         selectedJudgmentPick: null,
+        awaitingPostJudgmentDiscard: false,
         dealerIndex: 0,
         deck: [],
         board: [],
@@ -685,6 +686,30 @@ function getCardNameLabel(card) {
     if (card.isArcana) return ARCANA_NAME[card.number] || 'Arcana';
     return getMinorArcanaRankLabel(card.number);
 }
+
+function isRomanRankLabel(label) {
+    return /^[IVXLCDM]+$/u.test(String(label || '').trim());
+}
+
+function getLeadCardLabelForScore(cards, leadValue) {
+    if (!Array.isArray(cards) || cards.length === 0) return '';
+    const hit = cards
+        .slice()
+        .sort(compareCardsForFlush)
+        .find((card) => getCardPrimaryValue(card) === leadValue);
+    if (!hit) return '';
+    return getCardNameLabel(hit);
+}
+
+function decorateRankLabel(baseRankLabel, rank, rankVector, cards) {
+    if (!baseRankLabel) return '';
+    if (Number(rank) === 4.5) return baseRankLabel; // エレメントは固定名を優先
+    const leadValue = Array.isArray(rankVector) ? Number(rankVector[0] || 0) : 0;
+    if (!Number.isFinite(leadValue) || leadValue <= 0) return baseRankLabel;
+    const leadLabel = getLeadCardLabelForScore(cards, leadValue);
+    if (!leadLabel || isRomanRankLabel(leadLabel)) return baseRankLabel;
+    return `${leadLabel}${baseRankLabel}`;
+}
 function getCardNumberLabel(card) {
     if (!card) return '';
     if (!card.isArcana && Number(card.number) === 1) return 'A';
@@ -946,9 +971,12 @@ function scoreFiveCards(cards) {
         rankVector = getScoreVectorByCounts(countEntries, sorted);
     }
 
+    const baseRankLabel = rankLabel || HAND_RANK_LABEL[rank] || '役なし';
+    const decoratedRankLabel = decorateRankLabel(baseRankLabel, rank, rankVector, sorted);
+
     return {
         rank,
-        rankLabel: rankLabel || HAND_RANK_LABEL[rank] || '役なし',
+        rankLabel: decoratedRankLabel,
         rankVector,
         maxNumber,
         hasArcana,
@@ -1432,6 +1460,10 @@ function applyBetAction(ownerKey, action) {
 }
 
 async function transitionAfterPhase(nextPhase = 'turn-ready') {
+    if (state?.forceShowdown) {
+        await forceShowdown();
+        return;
+    }
     if (nextPhase === 'showdown') {
         await resolveShowdown();
         return;
@@ -1679,8 +1711,16 @@ function applyDiscardSpecial(card, ownerKey) {
     if (effectType === EFFECT_TYPE.WORLD) {
         const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
         state.players[otherKey].canExchange = false;
-        state.players.player.bettingEnabled = hasFoolInHand('player');
-        state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
+        const playerHasFool = hasFoolInHand('player');
+        const cpuHasFool = hasFoolInHand('cpu');
+        state.players.player.bettingEnabled = playerHasFool;
+        state.players.cpu.bettingEnabled = cpuHasFool;
+        if (!playerHasFool && !cpuHasFool) {
+            state.forceShowdown = true;
+            pushLog('THE WORLD: no FOOL in hand -> force showdown');
+            showEffectOverlay('THE WORLD - TIME STOP');
+            return;
+        }
         pushLog('THE WORLD: exchange lock -> ' + state.players[otherKey].name);
         showEffectOverlay('THE WORLD - EXCHANGE LOCK');
     }
@@ -1745,6 +1785,7 @@ async function revealBoard(count) {
 }
 
 async function forceShowdown() {
+    state.forceShowdown = false;
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
@@ -1768,8 +1809,24 @@ async function enterDrawPhase(roundNo) {
     state.isResolvingPlayerDiscard = false;
     state.selectedDiscardIndex = null;
     state.selectedJudgmentPick = null;
+    state.awaitingPostJudgmentDiscard = false;
     await showRoundCutin(`DRAW PHASE ${roundNo}`);
+    const player = state.players.player;
+    if (!player.canExchange) {
+        pushLog(`あなたは交換不可（第${roundNo}ドロー）。`);
+        await processCpuExchange(getPostDrawNextPhase());
+        render();
+        return;
+    }
+    const drawn = drawFor('player');
+    if (drawn) {
+        await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+        pushLog(`強制ドロー: ${getCardDisplayName(drawn)}`);
+    } else {
+        pushLog('山札切れ: 強制ドロー失敗。');
+    }
     state.phase = 'draw-player';
+    render();
 }
 
 async function openFlopThenDraw() {
@@ -1777,10 +1834,6 @@ async function openFlopThenDraw() {
     await revealBoard(3);
     if (state.phase !== 'showdown') {
         await enterDrawPhase(1);
-        if (!state.players.player.canExchange) {
-            pushLog('あなたは交換不可。ドローをスキップ。');
-            await processCpuExchange(getPostDrawNextPhase());
-        }
     }
     render();
 }
@@ -1790,18 +1843,54 @@ async function openTurnThenDraw() {
     await revealBoard(1);
     if (state.phase !== 'showdown') {
         await enterDrawPhase(2);
-        if (!state.players.player.canExchange) {
-            pushLog('あなたは交換不可（2巡目）。ドローをスキップ。');
-            await processCpuExchange(getPostDrawNextPhase());
-        }
     }
     render();
+}
+
+function chooseCpuDiscardIndex(handCards) {
+    const hand = Array.isArray(handCards) ? handCards : [];
+    if (hand.length <= 1) return 0;
+    let weakestIndex = 0;
+    for (let i = 1; i < hand.length; i += 1) {
+        if (compareCardPower(hand[i], hand[weakestIndex]) < 0) {
+            weakestIndex = i;
+        }
+    }
+    return weakestIndex;
+}
+
+function chooseCpuJudgmentOption(options) {
+    const list = Array.isArray(options) ? options.filter((opt) => opt?.card) : [];
+    if (!list.length) return null;
+    return list.slice().sort((a, b) => compareCardPower(b.card, a.card))[0] || null;
+}
+
+async function cpuDiscardOneCard(reasonLabel = '') {
+    const cpu = state.players.cpu;
+    if (!cpu.hand.length) return null;
+    const discardIndex = Math.max(0, Math.min(cpu.hand.length - 1, chooseCpuDiscardIndex(cpu.hand)));
+    const cpuHandCardEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
+    const fromHandEl = cpuHandCardEls[discardIndex] || ui.cpuHand;
+    const [discarded] = cpu.hand.splice(discardIndex, 1);
+    if (!discarded) return null;
+    if (fromHandEl?.classList) {
+        fromHandEl.classList.add('is-leaving');
+        await wait(80);
+    }
+    await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
+    addToGrave('cpu', discarded);
+    const suffix = reasonLabel ? `（${reasonLabel}）` : '';
+    pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った${suffix}`);
+    applyDiscardSpecial(discarded, 'cpu');
+    render();
+    await wait(220);
+    return discarded;
 }
 
 async function processCpuExchange(nextPhase = 'turn-ready') {
     const cpu = state.players.cpu;
     if (!cpu.canExchange) {
-        pushLog('CPUは交換不能。ドローをスキップ。');
+        pushLog('CPUは交換不能。');
         await transitionAfterPhase(nextPhase);
         return;
     }
@@ -1814,53 +1903,56 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     pushLog('CPUが交換手を読んでいます...');
     render();
     await wait(420);
-
-    const plan = chooseCpuPlan();
-    const discardIndex = Math.max(0, Math.min(cpu.hand.length - 1, Number(plan.discardIndex) || 0));
-    const cpuHandCardEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
-    const fromHandEl = cpuHandCardEls[discardIndex] || ui.cpuHand;
-    const [discarded] = cpu.hand.splice(discardIndex, 1);
-    if (fromHandEl?.classList) {
-        fromHandEl.classList.add('is-leaving');
-        await wait(80);
-    }
-    await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
-    addToGrave('cpu', discarded);
-    pushLog(`CPUは ${getCardDisplayName(discarded)} を墓地に送った（期待勝率 ${(Math.max(0, plan.expected || 0) * 100).toFixed(1)}%）。`);
-    applyDiscardSpecial(discarded, 'cpu');
-    render();
-    await wait(280);
-
-    const judgmentCtx = getJudgmentContextForExchange('cpu', discarded);
-    if (
-        judgmentCtx
-        && plan.source === 'grave'
-        && plan.graveOwnerKey
-        && plan.graveCardId
-    ) {
-        const gained = takeGraveCardById(plan.graveOwnerKey, plan.graveCardId);
-        if (gained) {
-            const fromGrave = plan.graveOwnerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
-            await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
-            cpu.hand.push(gained);
-            showEffectOverlay(
-                judgmentCtx.mode === 'karma'
-                    ? 'JUDGMENT - KARMA INTERCHANGE'
-                    : 'JUDGMENT - RESURRECTION'
-            );
-        } else {
-            const drawnFallback = drawFor('cpu');
-            if (drawnFallback) {
-                await animateCardFlight(drawnFallback, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
-            }
-        }
+    const forcedDraw = drawFor('cpu');
+    if (forcedDraw) {
+        await animateCardFlight(forcedDraw, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
+        pushLog(`CPUが強制ドロー: ${getCardDisplayName(forcedDraw)}`);
+        render();
+        await wait(180);
     } else {
-        const drawn = drawFor('cpu');
-        if (drawn) {
-            await animateCardFlight(drawn, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
+        pushLog('CPUの強制ドロー失敗（山札切れ）。');
+    }
+
+    let safety = 0;
+    while (safety < 6) {
+        safety += 1;
+        const discarded = await cpuDiscardOneCard(safety > 1 ? '追加破棄' : '通常破棄');
+        if (!discarded) break;
+        if (state.forceShowdown) break;
+
+        const judgmentCtx = getJudgmentContextForExchange('cpu', discarded);
+        const options = Array.isArray(judgmentCtx?.options) ? judgmentCtx.options : [];
+        if (!judgmentCtx || options.length === 0) {
+            break;
         }
+
+        const picked = chooseCpuJudgmentOption(options);
+        if (!picked?.ownerKey || !picked?.cardId) {
+            break;
+        }
+
+        const gained = takeGraveCardById(picked.ownerKey, picked.cardId);
+        if (!gained) {
+            break;
+        }
+        const fromGrave = picked.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
+        await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
+        cpu.hand.push(gained);
+        pushLog(`CPUは審判効果で ${getCardDisplayName(gained)} を回収。追加で1枚捨てる。`);
+        showEffectOverlay(
+            judgmentCtx.mode === 'karma'
+                ? 'JUDGMENT - KARMA INTERCHANGE'
+                : 'JUDGMENT - RESURRECTION'
+        );
+        render();
+        await wait(220);
+        if (state.forceShowdown) break;
     }
     state.cpuThinking = false;
+    if (state.forceShowdown) {
+        await forceShowdown();
+        return;
+    }
     await transitionAfterPhase(nextPhase);
 }
 
@@ -1944,14 +2036,12 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
-        state.selectedDiscardIndex = null;
-        pushLog(`DRAW PHASE ${state.drawRound}: 交換をスキップ`);
-        await finishPlayerExchange(getPostDrawNextPhase());
+        pushLog(`DRAW PHASE ${state.drawRound}: 手札を選んで捨ててください。`);
         return;
     }
 
     if (state.phase === 'draw-player-judgment') {
-        await onJudgmentPick('deck');
+        pushLog('審判発動中: 墓地カードを選択してください。');
         return;
     }
 
@@ -2003,6 +2093,11 @@ async function onPlayerCardClick(index) {
         addToGrave('player', discarded);
         pushLog('あなたは ' + getCardDisplayName(discarded) + ' を墓地へ');
         applyDiscardSpecial(discarded, 'player');
+        if (state.forceShowdown) {
+            state.awaitingPostJudgmentDiscard = false;
+            await finishPlayerExchange(getPostDrawNextPhase());
+            return;
+        }
 
         const judgmentCtx = getJudgmentContextForExchange('player', discarded);
         if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
@@ -2011,15 +2106,12 @@ async function onPlayerCardClick(index) {
                 mode: judgmentCtx.mode,
                 options: judgmentCtx.options
             };
+            state.awaitingPostJudgmentDiscard = true;
             state.selectedJudgmentPick = null;
             render();
             return;
         }
-
-        const drawn = drawFor('player');
-        if (drawn) {
-            await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
-        }
+        state.awaitingPostJudgmentDiscard = false;
         await finishPlayerExchange(getPostDrawNextPhase());
     } finally {
         state.isResolvingPlayerDiscard = false;
@@ -2057,9 +2149,7 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         }) || null;
     }
 
-    const gained = selectedOption
-        ? takeGraveCardById(selectedOption.ownerKey, selectedOption.cardId)
-        : null;
+    const gained = selectedOption ? takeGraveCardById(selectedOption.ownerKey, selectedOption.cardId) : null;
     if (gained && selectedOption) {
         const fromGrave = selectedOption.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
         await animateCardFlight(gained, fromGrave, ui.playerHand, 280, 1);
@@ -2069,17 +2159,22 @@ async function onJudgmentPick(ownerKey, cardId = null) {
                 ? 'JUDGMENT - KARMA INTERCHANGE'
                 : 'JUDGMENT - RESURRECTION'
         );
+        pushLog('審判効果でカード回収。追加で1枚捨ててください。');
     } else {
-        const drawn = drawFor('player');
-        if (drawn) {
-            await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
-        }
+        pushLog('審判で回収できるカードがなかったため、そのまま終了。');
+        state.awaitingPostJudgmentDiscard = false;
+        state.pendingJudgment = null;
+        state.selectedJudgmentPick = null;
+        state.selectedDiscardIndex = null;
+        state.phase = 'draw-player';
+        await finishPlayerExchange(getPostDrawNextPhase());
+        return;
     }
     state.pendingJudgment = null;
     state.selectedJudgmentPick = null;
     state.selectedDiscardIndex = null;
     state.phase = 'draw-player';
-    await finishPlayerExchange(getPostDrawNextPhase());
+    render();
 }
 function getPhaseText() {
     if (!state) return '';
@@ -2089,8 +2184,12 @@ function getPhaseText() {
     if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
     if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
     if (state.phase === 'preflop') return '下のボタンでフロップを開示。';
-    if (state.phase === 'draw-player') return `第${state.drawRound}ドローフェーズ: 手札を1回で選択、再クリックで捨てる（スキップも可）。`;
-    if (state.phase === 'draw-player-judgment') return '審判発動: 墓地カードを1回で選択、再クリックで取得。';
+    if (state.phase === 'draw-player') {
+        return state.awaitingPostJudgmentDiscard
+            ? `第${state.drawRound}ドローフェーズ: 審判回収後。手札を1枚選んで捨てる。`
+            : `第${state.drawRound}ドローフェーズ: 強制ドロー済み。手札を1枚選んで捨てる。`;
+    }
+    if (state.phase === 'draw-player-judgment') return '審判発動: 墓地カードを選択して回収。';
     if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
     if (state.phase === 'turn-ready') return '下のボタンでターンを開示。';
     if (state.phase === 'river-ready') return 'リバーを自動で展開します...';
@@ -2228,7 +2327,11 @@ function shouldShowKickerForShowdown(leftScore, rightScore) {
     if (leftScore.rank !== rightScore.rank) return false;
     if (![3, 4, 5].includes(leftScore.rank)) return false;
 
-    if (leftScore.rank === 3 || leftScore.rank === 5) {
+    if (leftScore.rank === 3) {
+        // ワンペア同値時はキッカー比較になるため表示対象
+        return (leftScore.rankVector?.[0] || 0) === (rightScore.rankVector?.[0] || 0);
+    }
+    if (leftScore.rank === 5) {
         return (leftScore.rankVector?.[0] || 0) === (rightScore.rankVector?.[0] || 0);
     }
     if (leftScore.rank === 4) {
@@ -2290,11 +2393,21 @@ function getRoleCardsForDisplay(score, options = {}) {
     case 2: // high card
         return appendExtraKickers(cards.slice(0, 1));
     case 3: // one pair
-        return appendExtraKickers(appendKicker(takeByCount(2, 1).slice(0, 2), 1));
+        return appendExtraKickers(
+            appendKicker(
+                takeByCount(2, 1).slice(0, 2),
+                Math.max(1, (Array.isArray(score.rankVector) ? score.rankVector.length : 1) - 1)
+            )
+        );
     case 4: // two pair
         return appendExtraKickers(appendKicker(takeByCount(2, 2).slice(0, 4), 1));
     case 5: // three card
-        return appendExtraKickers(appendKicker(takeByCount(3, 1).slice(0, 3), 1));
+        return appendExtraKickers(
+            appendKicker(
+                takeByCount(3, 1).slice(0, 3),
+                Math.max(1, (Array.isArray(score.rankVector) ? score.rankVector.length : 1) - 1)
+            )
+        );
     case 9: // four card
         return appendExtraKickers(takeByCount(4, 1).slice(0, 4));
     case 11: // five card
@@ -2447,12 +2560,6 @@ function renderJudgmentPanel() {
     hint.className = 'tarot-judgment-hint';
     hint.textContent = '墓地のカードを1回クリックで選択、同じカードを再クリックで取得';
     ui.judgmentOptions.appendChild(hint);
-
-    const skipBtn = document.createElement('button');
-    skipBtn.type = 'button';
-    skipBtn.textContent = '山札から引く（スキップ）';
-    skipBtn.addEventListener('click', () => onJudgmentPick('deck'));
-    ui.judgmentOptions.appendChild(skipBtn);
 }
 function renderButtons() {
     if (!ui.startButton) return;
@@ -2484,15 +2591,15 @@ function renderButtons() {
     }
     if (state.phase === 'draw-player') {
         const isBusy = !!state.isResolvingPlayerDiscard;
-        btn.disabled = isBusy;
+        btn.disabled = true;
         btn.textContent = isBusy
             ? 'ドロー処理中...'
-            : ('第' + state.drawRound + 'ドローをスキップ');
+            : ('第' + state.drawRound + 'ドロー: 手札を選択');
         return;
     }
     if (state.phase === 'draw-player-judgment') {
-        btn.disabled = false;
-        btn.textContent = '審判をスキップ';
+        btn.disabled = true;
+        btn.textContent = '墓地カードを選択';
         return;
     }
     if (state.phase === 'cpu-thinking') {
@@ -2594,9 +2701,11 @@ function renderDrawGuide() {
         return;
     }
     if (state.phase === 'draw-player') {
-        ui.drawGuide.textContent = '第' + state.drawRound + 'ドロー: 手札を1回クリックで選択、再クリックで捨てる（スキップ可）';
+        ui.drawGuide.textContent = state.awaitingPostJudgmentDiscard
+            ? ('第' + state.drawRound + 'ドロー: 審判で回収済み。手札を1回クリックで選択、再クリックで捨てる')
+            : ('第' + state.drawRound + 'ドロー: 強制ドロー済み。手札を1回クリックで選択、再クリックで捨てる');
     } else if (state.phase === 'draw-player-judgment') {
-        ui.drawGuide.textContent = '審判発動中: 墓地カードを1回クリックで選択、再クリックで取得（スキップ可）';
+        ui.drawGuide.textContent = '審判発動中: 墓地カードを1回クリックで選択、再クリックで回収';
     } else {
         ui.drawGuide.textContent = 'CPUがドロー処理中...';
     }
