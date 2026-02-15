@@ -1123,6 +1123,17 @@ body[data-sea-tone="night"] .home-hero-card {
     align-items: center;
     z-index: 900;
     padding-bottom: env(safe-area-inset-bottom); /* iPhone X対策 */
+    opacity: 0;
+    transform: translateY(calc(100% + 12px));
+    pointer-events: none;
+    transition: transform 460ms cubic-bezier(0.22, 1.2, 0.36, 1), opacity 280ms ease;
+    will-change: transform, opacity;
+}
+
+body.tabs-ready #bottomNav {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .nav-button {

@@ -545,8 +545,13 @@ function addToGrave(ownerKey, card) {
     state.graveyard.push({ ownerKey, card });
 }
 
-function getAllGraveOptions({ excludeOwnerKey = null, latestOnly = false } = {}) {
+function getAllGraveOptions({ excludeOwnerKey = null, latestOnly = false, excludeCards = [] } = {}) {
     const options = [];
+    const excludeSet = new Set(
+        (Array.isArray(excludeCards) ? excludeCards : [])
+            .map((entry) => `${entry?.ownerKey || ''}:${entry?.cardId || ''}`)
+            .filter((key) => key !== ':')
+    );
     ['player', 'cpu'].forEach((ownerKey) => {
         if (excludeOwnerKey && ownerKey === excludeOwnerKey) return;
         const grave = state.players[ownerKey]?.graveyard || [];
@@ -555,6 +560,8 @@ function getAllGraveOptions({ excludeOwnerKey = null, latestOnly = false } = {})
         for (let i = startIndex; i >= endIndex; i -= 1) {
             const card = grave[i];
             if (!card) continue;
+            const key = `${ownerKey}:${card.id}`;
+            if (excludeSet.has(key)) continue;
             options.push({ ownerKey, cardId: card.id, card });
             if (latestOnly) break;
         }
@@ -625,9 +632,13 @@ function getJudgmentContextForExchange(ownerKey, discardedCard = null) {
         };
     }
     if (owner.hasResurrectionRight) {
+        const excludeCards = [];
+        if (discardedCard?.id) {
+            excludeCards.push({ ownerKey, cardId: discardedCard.id });
+        }
         return {
             mode: 'resurrection',
-            options: getAllGraveOptions({ latestOnly: false })
+            options: getAllGraveOptions({ latestOnly: false, excludeCards })
         };
     }
     return null;
@@ -1921,40 +1932,34 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
         pushLog('CPUの強制ドロー失敗（山札切れ）。');
     }
 
-    let safety = 0;
-    while (safety < 6) {
-        safety += 1;
-        const discarded = await cpuDiscardOneCard(safety > 1 ? '追加破棄' : '通常破棄');
-        if (!discarded) break;
-        if (state.forceShowdown) break;
-
+    const discarded = await cpuDiscardOneCard('通常破棄');
+    let needExtraDiscard = false;
+    if (discarded && !state.forceShowdown) {
         const judgmentCtx = getJudgmentContextForExchange('cpu', discarded);
         const options = Array.isArray(judgmentCtx?.options) ? judgmentCtx.options : [];
-        if (!judgmentCtx || options.length === 0) {
-            break;
+        if (judgmentCtx && options.length > 0) {
+            const picked = chooseCpuJudgmentOption(options);
+            if (picked?.ownerKey && picked?.cardId) {
+                const gained = takeGraveCardById(picked.ownerKey, picked.cardId);
+                if (gained) {
+                    const fromGrave = picked.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
+                    await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
+                    cpu.hand.push(gained);
+                    pushLog(`CPUは審判効果で ${getCardDisplayName(gained)} を回収。追加で1枚捨てる。`);
+                    showEffectOverlay(
+                        judgmentCtx.mode === 'karma'
+                            ? 'JUDGMENT - KARMA INTERCHANGE'
+                            : 'JUDGMENT - RESURRECTION'
+                    );
+                    render();
+                    await wait(220);
+                    needExtraDiscard = true;
+                }
+            }
         }
-
-        const picked = chooseCpuJudgmentOption(options);
-        if (!picked?.ownerKey || !picked?.cardId) {
-            break;
-        }
-
-        const gained = takeGraveCardById(picked.ownerKey, picked.cardId);
-        if (!gained) {
-            break;
-        }
-        const fromGrave = picked.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
-        await animateCardFlight(gained, fromGrave, ui.cpuHand, 280, 1, { hidden: true });
-        cpu.hand.push(gained);
-        pushLog(`CPUは審判効果で ${getCardDisplayName(gained)} を回収。追加で1枚捨てる。`);
-        showEffectOverlay(
-            judgmentCtx.mode === 'karma'
-                ? 'JUDGMENT - KARMA INTERCHANGE'
-                : 'JUDGMENT - RESURRECTION'
-        );
-        render();
-        await wait(220);
-        if (state.forceShowdown) break;
+    }
+    if (needExtraDiscard && !state.forceShowdown) {
+        await cpuDiscardOneCard('追加破棄');
     }
     state.cpuThinking = false;
     if (state.forceShowdown) {
@@ -2107,7 +2112,8 @@ async function onPlayerCardClick(index) {
             return;
         }
 
-        const judgmentCtx = getJudgmentContextForExchange('player', discarded);
+        const canTriggerJudgment = !state.awaitingPostJudgmentDiscard;
+        const judgmentCtx = canTriggerJudgment ? getJudgmentContextForExchange('player', discarded) : null;
         if (judgmentCtx && Array.isArray(judgmentCtx.options) && judgmentCtx.options.length > 0) {
             state.phase = 'draw-player-judgment';
             state.pendingJudgment = {
@@ -2157,6 +2163,7 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         }) || null;
     }
 
+    const isSkip = ownerKey === 'deck';
     const gained = selectedOption ? takeGraveCardById(selectedOption.ownerKey, selectedOption.cardId) : null;
     if (gained && selectedOption) {
         const fromGrave = selectedOption.ownerKey === 'player' ? ui.playerGrave : ui.cpuGrave;
@@ -2169,7 +2176,9 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         );
         pushLog('審判効果でカード回収。追加で1枚捨ててください。');
     } else {
-        pushLog('審判で回収できるカードがなかったため、そのまま終了。');
+        pushLog(isSkip
+            ? '審判効果をスキップしました。'
+            : '審判で回収できるカードがなかったため、そのまま終了。');
         state.awaitingPostJudgmentDiscard = false;
         state.pendingJudgment = null;
         state.selectedJudgmentPick = null;
@@ -2569,8 +2578,15 @@ function renderJudgmentPanel() {
     ui.judgmentOptions.innerHTML = '';
     const hint = document.createElement('div');
     hint.className = 'tarot-judgment-hint';
-    hint.textContent = '墓地のカードを1回クリックで選択、同じカードを再クリックで取得';
+    hint.textContent = '墓地カードを1回クリックで選択、再クリックで回収。回収しない場合はスキップ。';
     ui.judgmentOptions.appendChild(hint);
+    const skipButton = document.createElement('button');
+    skipButton.type = 'button';
+    skipButton.textContent = '回収をスキップ';
+    skipButton.addEventListener('click', () => {
+        onJudgmentPick('deck');
+    });
+    ui.judgmentOptions.appendChild(skipButton);
 }
 function renderButtons() {
     if (!ui.startButton) return;
@@ -2716,7 +2732,7 @@ function renderDrawGuide() {
             ? ('第' + state.drawRound + 'ドロー: 審判で回収済み。手札を1回クリックで選択、再クリックで捨てる')
             : ('第' + state.drawRound + 'ドロー: 強制ドロー済み。手札を1回クリックで選択、再クリックで捨てる');
     } else if (state.phase === 'draw-player-judgment') {
-        ui.drawGuide.textContent = '審判発動中: 墓地カードを1回クリックで選択、再クリックで回収';
+        ui.drawGuide.textContent = '審判発動中: 墓地カードを1回クリックで選択、再クリックで回収（スキップ可）';
     } else {
         ui.drawGuide.textContent = 'CPUがドロー処理中...';
     }

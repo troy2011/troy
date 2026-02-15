@@ -891,6 +891,20 @@ let launchGameFn = null;
 const tabLoaded = { home: false, troy: false, tarot: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
+let bottomNavRevealed = false;
+
+function revealBottomNavAfterHomeReady() {
+    if (bottomNavRevealed) return;
+    bottomNavRevealed = true;
+    const body = document.body;
+    if (body) {
+        body.classList.add('tabs-ready');
+    }
+    const nav = document.getElementById('bottomNav');
+    if (nav) {
+        nav.setAttribute('aria-hidden', 'false');
+    }
+}
 
 export function msToTime(durationMs) {
     if (durationMs <= 0) return "0秒";
@@ -1233,6 +1247,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
         if (tabId === 'home') {
             updateHomeAvatarSeaTone();
+            revealBottomNavAfterHomeReady();
         }
 
         if (tabId === 'map' && gameInstance) {
