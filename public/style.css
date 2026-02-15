@@ -3202,31 +3202,13 @@ body.modal-lock .modal-overlay {
 .tarot-card.is-clickable {
     cursor: pointer;
     transition: transform 0.08s ease, box-shadow 0.2s ease;
-    animation: tarotPulse 1.1s ease-in-out infinite;
-    border-color: var(--tarot-interact-border-soft);
-    box-shadow: 0 0 0 1px var(--tarot-interact-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.tarot-card.is-clickable::after {
-    content: '';
-    position: absolute;
-    inset: 1px;
-    border: 2px solid var(--tarot-interact-border);
-    border-radius: calc(var(--tarot-card-radius, 10px) - 2px);
-    box-shadow: 0 0 10px var(--tarot-interact-glow);
-    pointer-events: none;
-    z-index: 3;
+    animation: none;
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .tarot-card.is-clickable:active {
     transform: scale(0.96);
-}
-
-.tarot-card.is-clickable.is-selected::after {
-    border-color: var(--tarot-interact-selected);
-    box-shadow:
-        0 0 14px var(--tarot-interact-glow),
-        0 0 0 1px rgba(255, 225, 244, 0.7) inset;
 }
 
 .tarot-card.is-static {

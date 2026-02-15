@@ -1088,26 +1088,12 @@ function compareHandsWithRemainingTieBreak(leftAllCards, leftBest, rightAllCards
             rightRemaining: []
         };
     }
-    const commonBestResult = resolveCommonBestScoreForRemainingTieBreak(
-        leftAllCards,
-        rightAllCards,
-        leftBest,
-        rightBest
-    );
-    if (!commonBestResult.enabled) {
-        return {
-            cmp: 0,
-            usedRemaining: false,
-            leftRemaining: [],
-            rightRemaining: []
-        };
-    }
-    const leftRemaining = getRemainingCardsOutsideBest(leftAllCards, commonBestResult.referenceScore);
-    const rightRemaining = getRemainingCardsOutsideBest(rightAllCards, commonBestResult.referenceScore);
+    const leftRemaining = getRemainingCardsOutsideBest(leftAllCards, leftBest);
+    const rightRemaining = getRemainingCardsOutsideBest(rightAllCards, rightBest);
     const remainingCmp = compareRemainingCardSets(leftRemaining, rightRemaining);
     return {
         cmp: remainingCmp,
-        usedRemaining: true,
+        usedRemaining: leftRemaining.length > 0 || rightRemaining.length > 0,
         leftRemaining,
         rightRemaining
     };
