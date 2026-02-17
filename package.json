@@ -22,5 +22,8 @@
     "geofire-common": "^6.0.0",
     "phaser": "^3.90.0",
     "playfab-sdk": "^2.184.251024"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

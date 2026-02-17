@@ -1,3 +1,5 @@
+import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
+
 const SUITS = ['Wand', 'Sword', 'Cup', 'Pentacle'];
 const SUIT_RANK = {
     Wand: 4,
@@ -107,6 +109,29 @@ const BET_ACTION_ICON = {
     raise: '↗',
     fold: '✕'
 };
+
+const TAROT_ENGINE_ENABLED = true;
+const TAROT_ENGINE_RANK_TO_LEGACY = {
+    HighCard: 2,
+    OnePair: 3,
+    TwoPair: 4,
+    ThreeKind: 5,
+    CourtOnePair: 5.5,
+    Straight: 6,
+    Flush: 7,
+    CourtTwoPair: 7.5,
+    FullHouse: 8,
+    FourKind: 9,
+    StraightFlush: 10,
+    FiveKind: 11
+};
+
+let tarotEngineEvaluator = null;
+try {
+    tarotEngineEvaluator = new TarotEngineHandEvaluator();
+} catch (error) {
+    console.warn('[tarot-engine] HandEvaluator init failed:', error);
+}
 
 let isBound = false;
 let state = null;
@@ -998,6 +1023,17 @@ function scoreFiveCards(cards) {
 }
 
 function compareScore(a, b) {
+    if (a?.engine && b?.engine && tarotEngineEvaluator) {
+        try {
+            return tarotEngineEvaluator.compareHands(
+                a.engine,
+                b.engine,
+                a.engine.effects || {}
+            ).cmp;
+        } catch (error) {
+            console.warn('[tarot-engine] compareScore fallback to legacy compare:', error);
+        }
+    }
     if (a.rank !== b.rank) return a.rank > b.rank ? 1 : -1;
     if (a.maxNumber !== b.maxNumber) return a.maxNumber > b.maxNumber ? 1 : -1;
 
@@ -1057,9 +1093,7 @@ function resolveCommonBestScoreForRemainingTieBreak(leftAllCards, rightAllCards,
     const sharedCards = (Array.isArray(leftAllCards) ? leftAllCards : [])
         .filter((card) => rightIds.has(card?.id));
     if (sharedCards.length < 5) return { enabled: false, referenceScore: null };
-    const sharedBest = sharedCards.length === 5
-        ? scoreFiveCards(sharedCards)
-        : chooseBestFiveFromSeven(sharedCards);
+    const sharedBest = chooseBestFiveFromSeven(sharedCards);
     if (!sharedBest) return { enabled: false, referenceScore: null };
     if (compareScore(leftBest, sharedBest) !== 0) return { enabled: false, referenceScore: null };
     if (compareScore(rightBest, sharedBest) !== 0) return { enabled: false, referenceScore: null };
@@ -1111,7 +1145,9 @@ function compareHandsWithRemainingTieBreak(leftAllCards, leftBest, rightAllCards
 }
 
 function chooseBestFiveFromSeven(cards) {
-    if (cards.length < 5) return null;
+    if (!Array.isArray(cards) || cards.length < 5) return null;
+    const engineBest = evaluateHandByTarotEngine(cards, [], null);
+    if (engineBest) return engineBest;
     let best = null;
     for (let a = 0; a < cards.length - 4; a += 1) {
         for (let b = a + 1; b < cards.length - 3; b += 1) {
@@ -1151,6 +1187,77 @@ function chooseBestTwoHandCardsForLiveRole(handCards, boardCards) {
         }
     }
     return bestScore ? bestPair : hand.slice(0, 2);
+}
+
+function mapCardForTarotEngine(card) {
+    if (!card) return null;
+    return {
+        id: String(card.id || ''),
+        number: Number(card.number || 0),
+        suit: String(card.suit || 'None'),
+        isArcana: !!card.isArcana,
+        effectType: getCardEffectType(card)
+    };
+}
+
+function mapCardsById(cards) {
+    const map = new Map();
+    (Array.isArray(cards) ? cards : []).forEach((card) => {
+        if (!card) return;
+        map.set(String(card.id || ''), card);
+    });
+    return map;
+}
+
+function buildLegacyRankLabelFromEngine(engineEval, bestCards, legacyRank, rankVector) {
+    if (!engineEval) return '役なし';
+    const baseLabel = HAND_RANK_LABEL[legacyRank];
+    if (baseLabel) {
+        return decorateRankLabel(baseLabel, legacyRank, rankVector, bestCards);
+    }
+    return String(engineEval.rankLabel || engineEval.rank || '役なし');
+}
+
+function evaluateHandByTarotEngine(handCards, boardCards, fateCard = null) {
+    if (!TAROT_ENGINE_ENABLED || !tarotEngineEvaluator) return null;
+    const hand = (Array.isArray(handCards) ? handCards : []).map(mapCardForTarotEngine).filter(Boolean);
+    const board = (Array.isArray(boardCards) ? boardCards : []).map(mapCardForTarotEngine).filter(Boolean);
+    const fate = fateCard ? mapCardForTarotEngine(fateCard) : null;
+    if (hand.length + board.length + (fate ? 1 : 0) < 5) return null;
+    try {
+        const engineEval = tarotEngineEvaluator.evaluateHand({
+            hand,
+            board,
+            fateCard: fate || undefined
+        });
+        const cardMap = mapCardsById([
+            ...(Array.isArray(handCards) ? handCards : []),
+            ...(Array.isArray(boardCards) ? boardCards : []),
+            ...(fateCard ? [fateCard] : [])
+        ]);
+        const bestCards = (Array.isArray(engineEval.bestFive) ? engineEval.bestFive : [])
+            .map((entry) => cardMap.get(String(entry?.id || '')))
+            .filter(Boolean);
+        const legacyRank = TAROT_ENGINE_RANK_TO_LEGACY[engineEval.rank] || 0;
+        const rankVector = [
+            ...(Array.isArray(engineEval.primaryVector) ? engineEval.primaryVector : []),
+            ...(Array.isArray(engineEval.kickerVector) ? engineEval.kickerVector : [])
+        ];
+        return {
+            rank: legacyRank,
+            rankLabel: buildLegacyRankLabelFromEngine(engineEval, bestCards, legacyRank, rankVector),
+            rankVector,
+            maxNumber: Number(rankVector[0] || 0),
+            hasArcana: bestCards.some((card) => !!card?.isArcana),
+            maxArcana: bestCards.reduce((max, card) => Math.max(max, card?.isArcana ? Number(card.number || 0) : -1), -1),
+            suitStrength: bestCards.reduce((max, card) => Math.max(max, getCardSuitStrength(card)), 0),
+            cards: bestCards,
+            engine: engineEval
+        };
+    } catch (error) {
+        console.warn('[tarot-engine] evaluateHand failed, fallback to legacy evaluator:', error);
+        return null;
+    }
 }
 
 function evaluateShowdown() {
