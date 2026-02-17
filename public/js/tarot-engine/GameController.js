@@ -1,4 +1,4 @@
-import { HandEvaluator } from './HandEvaluator';
+import { HandEvaluator } from './HandEvaluator.js';
 const FATE_ACTION_NUMBERS = new Set([2, 5, 9, 12, 19, 20]);
 const DEFAULT_WHEEL_MUTATION_POOL = [0, 1, 3, 4, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 21];
 const MINOR_SUITS = ['Wand', 'Pentacle', 'Cup', 'Sword'];
