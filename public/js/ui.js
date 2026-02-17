@@ -16,9 +16,10 @@ const ensureTroyModule = async () => {
 };
 
 let tarotModule = null;
+const TAROT_MODULE_VERSION = '20260217a';
 const ensureTarotModule = async () => {
     if (tarotModule) return tarotModule;
-    tarotModule = await import('./tarotPoker.js');
+    tarotModule = await import(`./tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
     return tarotModule;
 };
 

@@ -37,6 +37,7 @@ let lastTransferNoticeId = null;
 window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
+const TAROT_MODULE_VERSION = '20260217a';
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -269,7 +270,7 @@ async function initializeLiff() {
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
                     try {
-                        const Tarot = await import('./js/tarotPoker.js');
+                        const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
                         if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
                             await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
                         }
@@ -585,7 +586,7 @@ function showRaceModal() {
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
             try {
-                const Tarot = await import('./js/tarotPoker.js');
+                const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
                 if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
                     await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
                 }

@@ -300,6 +300,15 @@ configurePlayFab({
     secretKey: process.env.PLAYFAB_SECRET_KEY
 });
 
+// Tarot engine backward-compat routes for extensionless ESM imports.
+// Old cached GameController.js may import "./HandEvaluator" (without ".js").
+app.get('/js/tarot-engine/HandEvaluator', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'public', 'js', 'tarot-engine', 'HandEvaluator.js'));
+});
+app.get('/js/tarot-engine/GameController', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'public', 'js', 'tarot-engine', 'GameController.js'));
+});
+
 // 静的ファイル
 app.use(express.static(path.join(__dirname, 'public')));
 
