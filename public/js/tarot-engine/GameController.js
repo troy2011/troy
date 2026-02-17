@@ -217,7 +217,7 @@ export class GameController {
             this.log(`${playerId} folded.`);
             return this.getState();
         }
-        if (action === 'bet' || action === 'call') {
+        if (action === 'bet' || action === 'call' || action === 'raise') {
             player.hasBetOrCall = true;
             if (this.activeFateNumber() === 15) {
                 player.canFold = false;

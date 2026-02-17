@@ -1,4 +1,5 @@
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
+import { GameController as TarotGameController } from './tarot-engine/GameController.js';
 
 const SUITS = ['Wand', 'Sword', 'Cup', 'Pentacle'];
 const SUIT_RANK = {
@@ -132,6 +133,8 @@ try {
 } catch (error) {
     console.warn('[tarot-engine] HandEvaluator init failed:', error);
 }
+let tarotGameController = null;
+let tarotControllerLogCursor = 0;
 
 let isBound = false;
 let state = null;
@@ -425,6 +428,11 @@ function resetState() {
         forceShowdown: false,
         effectsDisabledByFool: false,
         pendingJudgment: null,
+        fateCard: null,
+        activeFateCard: null,
+        boardHiddenRiver: null,
+        previewRiverCard: null,
+        controllerPhase: '',
         cpuThinking: false,
         initialDealAnimating: false,
         initialDealRevealedCount: 0,
@@ -433,6 +441,169 @@ function resetState() {
         log: [],
         result: null
     };
+}
+
+function controllerPhaseToRoundKey(phase) {
+    if (phase === 'preflop-bet') return 'preflop';
+    if (phase === 'flop-bet') return 'flop';
+    if (phase === 'turn-bet') return 'turn';
+    if (phase === 'river-bet') return 'river';
+    if (phase === 'river-bet-2') return 'river2';
+    return null;
+}
+
+function syncStateFromController(controllerState) {
+    if (!state || !controllerState) return;
+    const playerFromController = controllerState.players?.player || {};
+    const cpuFromController = controllerState.players?.cpu || {};
+
+    if (state.players?.player) {
+        state.players.player.hand = Array.isArray(playerFromController.hand) ? playerFromController.hand.slice() : [];
+        state.players.player.graveyard = Array.isArray(playerFromController.discard) ? playerFromController.discard.slice() : [];
+    }
+    if (state.players?.cpu) {
+        state.players.cpu.hand = Array.isArray(cpuFromController.hand) ? cpuFromController.hand.slice() : [];
+        state.players.cpu.graveyard = Array.isArray(cpuFromController.discard) ? cpuFromController.discard.slice() : [];
+    }
+
+    state.board = Array.isArray(controllerState.boardVisible) ? controllerState.boardVisible.slice() : [];
+    state.deck = Array.isArray(controllerState.deck) ? controllerState.deck.slice() : [];
+    state.fateCard = controllerState.fateCard ? { ...controllerState.fateCard } : null;
+    state.activeFateCard = controllerState.activeFateCard ? { ...controllerState.activeFateCard } : null;
+    state.boardHiddenRiver = controllerState.boardHiddenRiver ? { ...controllerState.boardHiddenRiver } : null;
+    state.previewRiverCard = controllerState.previewRiverCard ? { ...controllerState.previewRiverCard } : null;
+    state.controllerPhase = String(controllerState.phase || '');
+
+    state.graveyard = [];
+    (state.players?.player?.graveyard || []).forEach((card) => {
+        state.graveyard.push({ ownerKey: 'player', card });
+    });
+    (state.players?.cpu?.graveyard || []).forEach((card) => {
+        state.graveyard.push({ ownerKey: 'cpu', card });
+    });
+
+    const logs = Array.isArray(controllerState.logs) ? controllerState.logs : [];
+    for (let i = tarotControllerLogCursor; i < logs.length; i += 1) {
+        pushLog(`[ENGINE] ${logs[i]}`);
+    }
+    tarotControllerLogCursor = logs.length;
+}
+
+function mapControllerEvaluationToLegacy(ownerKey, evaluation, controllerState) {
+    if (!evaluation) {
+        return { rankLabel: 'No Role', cards: [] };
+    }
+    const allCards = [
+        ...((controllerState?.players?.[ownerKey]?.hand || []).slice()),
+        ...((controllerState?.boardVisible || []).slice()),
+        ...(controllerState?.activeFateCard ? [controllerState.activeFateCard] : [])
+    ];
+    const map = new Map();
+    allCards.forEach((card) => {
+        if (!card) return;
+        map.set(String(card.id || ''), card);
+    });
+
+    const cards = (Array.isArray(evaluation.bestFive) ? evaluation.bestFive : [])
+        .map((entry) => map.get(String(entry?.id || '')))
+        .filter(Boolean);
+    const legacyRank = TAROT_ENGINE_RANK_TO_LEGACY[evaluation.rank] || 0;
+    const rankVector = [
+        ...(Array.isArray(evaluation.primaryVector) ? evaluation.primaryVector : []),
+        ...(Array.isArray(evaluation.kickerVector) ? evaluation.kickerVector : [])
+    ];
+
+    return {
+        rank: legacyRank,
+        rankLabel: buildLegacyRankLabelFromEngine(evaluation, cards, legacyRank, rankVector),
+        rankVector,
+        maxNumber: Number(rankVector[0] || 0),
+        hasArcana: cards.some((card) => !!card?.isArcana),
+        maxArcana: cards.reduce((max, card) => Math.max(max, card?.isArcana ? Number(card.number || 0) : -1), -1),
+        suitStrength: cards.reduce((max, card) => Math.max(max, getCardSuitStrength(card)), 0),
+        cards,
+        engine: evaluation
+    };
+}
+
+async function runControllerFateActionLoop() {
+    if (!tarotGameController) return;
+    let guard = 0;
+    while (guard < 4) {
+        guard += 1;
+        const controllerState = tarotGameController.getState();
+        if (controllerState.phase !== 'fate-action') return;
+
+        const fateNo = Number(controllerState.activeFateCard?.number || 0);
+        const input = {};
+        if (fateNo === 2) {
+            input.revealByPlayer = { player: null, cpu: null };
+        }
+        if (fateNo === 19 || fateNo === 20) {
+            const playerHand = controllerState.players?.player?.hand || [];
+            const cpuHand = controllerState.players?.cpu?.hand || [];
+            input.discardByPlayer = {
+                player: playerHand.length ? chooseCpuDiscardIndex(playerHand) : 0,
+                cpu: cpuHand.length ? chooseCpuDiscardIndex(cpuHand) : 0
+            };
+        }
+
+        await showRoundCutin(`FATE ${fateNo}`);
+        const updated = tarotGameController.runFateAction(input);
+        syncStateFromController(updated);
+        render();
+        if (updated.phase !== 'fate-action') return;
+    }
+}
+
+async function resolveShowdownByController() {
+    if (!tarotGameController) {
+        await resolveShowdown();
+        return;
+    }
+    const controllerResult = tarotGameController.resolveShowdown({});
+    const after = tarotGameController.getState();
+    syncStateFromController(after);
+
+    const winners = Array.isArray(controllerResult?.winnerIds) ? controllerResult.winnerIds : [];
+    const winner = winners.length === 1 ? winners[0] : 'draw';
+
+    state.phase = 'showdown';
+    state.result = {
+        winner,
+        playerBest: mapControllerEvaluationToLegacy('player', controllerResult?.evaluations?.player, after),
+        cpuBest: mapControllerEvaluationToLegacy('cpu', controllerResult?.evaluations?.cpu, after),
+        remainingTieBreakUsed: false,
+        playerRemainingCards: [],
+        cpuRemainingCards: []
+    };
+    settlePotByWinner(winner);
+    await runShowdownPresentation();
+}
+
+async function advanceControllerAfterBettingRound() {
+    if (!tarotGameController) return;
+    let controllerState = tarotGameController.completeBettingRound();
+    syncStateFromController(controllerState);
+
+    if (controllerState.phase === 'fate-action') {
+        await runControllerFateActionLoop();
+        controllerState = tarotGameController.getState();
+        syncStateFromController(controllerState);
+    }
+
+    const roundKey = controllerPhaseToRoundKey(controllerState.phase);
+    if (roundKey) {
+        startBettingRound(roundKey, '__controller__');
+        render();
+        return;
+    }
+
+    if (controllerState.phase === 'showdown') {
+        await resolveShowdownByController();
+        return;
+    }
+    render();
 }
 
 function pushLog(text) {
@@ -1146,7 +1317,8 @@ function compareHandsWithRemainingTieBreak(leftAllCards, leftBest, rightAllCards
 
 function chooseBestFiveFromSeven(cards) {
     if (!Array.isArray(cards) || cards.length < 5) return null;
-    const engineBest = evaluateHandByTarotEngine(cards, [], null);
+    const fate = state?.activeFateCard || null;
+    const engineBest = evaluateHandByTarotEngine(cards, [], fate);
     if (engineBest) return engineBest;
     let best = null;
     for (let a = 0; a < cards.length - 4; a += 1) {
@@ -1519,14 +1691,26 @@ function chooseCpuBettingAction() {
 }
 
 function applyBetAction(ownerKey, action) {
-    if (!state?.betting) return { ok: false, message: 'ベットフェーズではありません。' };
+    if (!state?.betting) return { ok: false, message: '現在はベットフェーズではありません。' };
     const betting = state.betting;
     const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
     const toCall = getToCall(ownerKey);
     const actor = state.players[ownerKey];
     const actorName = actor.name || ownerKey;
+    const registerControllerAction = () => {
+        if (!tarotGameController) return { ok: true };
+        try {
+            tarotGameController.registerPlayerAction(ownerKey, action);
+            syncStateFromController(tarotGameController.getState());
+            return { ok: true };
+        } catch (error) {
+            return { ok: false, message: error?.message || 'Action blocked.' };
+        }
+    };
 
     if (action === 'fold') {
+        const controllerResult = registerControllerAction();
+        if (!controllerResult.ok) return controllerResult;
         settlePotByWinner(otherKey);
         state.phase = 'showdown';
         state.result = {
@@ -1539,6 +1723,8 @@ function applyBetAction(ownerKey, action) {
 
     if (action === 'check') {
         if (toCall > 0) return { ok: false, message: 'コール額があります。' };
+        const controllerResult = registerControllerAction();
+        if (!controllerResult.ok) return controllerResult;
         betting.checks[ownerKey] = true;
         pushLog(`${actorName} はチェック。`);
         if (betting.checks.player && betting.checks.cpu) {
@@ -1550,6 +1736,8 @@ function applyBetAction(ownerKey, action) {
 
     if (action === 'call') {
         if (toCall <= 0) return { ok: false, message: 'コール不要です。' };
+        const controllerResult = registerControllerAction();
+        if (!controllerResult.ok) return controllerResult;
         if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: 'ポイント不足でコールできません。' };
         betting.checks.player = false;
         betting.checks.cpu = false;
@@ -1559,20 +1747,24 @@ function applyBetAction(ownerKey, action) {
     }
 
     if (action === 'bet') {
-        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はベットではなくコール/レイズです。' };
+        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はBETではなくコール/レイズです。' };
+        const controllerResult = registerControllerAction();
+        if (!controllerResult.ok) return controllerResult;
         const amount = betting.minBet;
-        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でベットできません。' };
+        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でBETできません。' };
         betting.currentBet = betting.contributions[ownerKey];
         betting.pendingResponseFor = otherKey;
         betting.checks.player = false;
         betting.checks.cpu = false;
-        pushLog(`${actorName} はベット (${formatTestPoint(amount)})。`);
+        pushLog(`${actorName} はBET (${formatTestPoint(amount)})。`);
         return { ok: true };
     }
 
     if (action === 'raise') {
         const raiseCost = toCall + betting.minRaise;
-        if (raiseCost <= 0) return { ok: false, message: 'レイズ条件を満たしていません。' };
+        if (raiseCost <= 0) return { ok: false, message: 'レイズ額を計算できません。' };
+        const controllerResult = registerControllerAction();
+        if (!controllerResult.ok) return controllerResult;
         if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: 'ポイント不足でレイズできません。' };
         betting.currentBet = betting.contributions[ownerKey];
         betting.pendingResponseFor = otherKey;
@@ -1582,9 +1774,8 @@ function applyBetAction(ownerKey, action) {
         return { ok: true };
     }
 
-    return { ok: false, message: '未対応アクションです。' };
+    return { ok: false, message: '未対応のアクションです。' };
 }
-
 async function transitionAfterPhase(nextPhase = 'turn-ready') {
     if (state?.forceShowdown) {
         await forceShowdown();
@@ -1625,20 +1816,9 @@ async function openRiverThenFinalBetting() {
 
 async function completeBettingRoundIfNeeded() {
     if (!state?.betting) return;
-    const nextPhase = state.betting.nextPhase;
     state.betting = null;
-    await transitionAfterPhase(nextPhase);
-    if (nextPhase === 'preflop') {
-        await openFlopThenDraw();
-        return;
-    }
-    if (nextPhase === 'turn-ready') {
-        await openTurnThenDraw();
-        return;
-    }
-    render();
+    await advanceControllerAfterBettingRound();
 }
-
 async function runCpuBettingTurn() {
     if (!isBettingPhase() || !state.betting) return;
     const decision = chooseCpuBettingAction();
@@ -2077,12 +2257,15 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
 }
 
 async function resolveShowdown() {
+    if (tarotGameController) {
+        await resolveShowdownByController();
+        return;
+    }
     state.phase = 'showdown';
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
     await runShowdownPresentation();
 }
-
 async function finishPlayerExchange(nextPhase = 'turn-ready') {
     if (state.forceShowdown) {
         await forceShowdown();
@@ -2104,7 +2287,9 @@ async function startNewGame() {
     const keepCpuTp = Number.isFinite(Number(state?.players?.cpu?.testPoints))
         ? Math.max(0, Math.floor(Number(state.players.cpu.testPoints)))
         : TEST_POINT_START;
+
     resetState();
+
     const activeOrder = getActivePlayerOrder();
     const rotationSize = activeOrder.length > 0 ? activeOrder.length : previousOrder.length;
     if (rotationSize > 0) {
@@ -2113,41 +2298,57 @@ async function startNewGame() {
     } else {
         state.dealerIndex = 0;
     }
+
     state.players.player.testPoints = keepPlayerTp;
     state.players.cpu.testPoints = keepCpuTp;
     clearBetActionLabels();
-    state.deck = shuffle(buildDeck());
+
+    tarotGameController = new TarotGameController({ playerIds: ['player', 'cpu'] });
+    tarotControllerLogCursor = 0;
+    const controllerState = tarotGameController.startRound();
+    syncStateFromController(controllerState);
+
     state.phase = 'dealing';
     state.initialDealAnimating = true;
     state.initialDealRevealedCount = 0;
     render();
-    for (let i = 0; i < 2; i += 1) {
-        const playerCard = drawFor('player');
+
+    const playerHand = state.players.player.hand || [];
+    const cpuHand = state.players.cpu.hand || [];
+    const dealCount = Math.max(playerHand.length, cpuHand.length);
+
+    for (let i = 0; i < dealCount; i += 1) {
+        const playerCard = playerHand[i];
         render();
         if (playerCard && ui.playerHand) {
             const playerCards = Array.from(ui.playerHand.querySelectorAll('.tarot-card'));
-            const playerTarget = playerCards[playerCards.length - 1];
+            const playerTarget = playerCards[i];
             if (playerTarget) {
                 await animateBackToFrontOnElement(playerTarget, playerCard);
             }
         }
         state.initialDealRevealedCount = i + 1;
         await wait(80);
-        const cpuCard = drawFor('cpu');
+
+        const cpuCard = cpuHand[i];
         render();
         if (cpuCard) {
             await animateCardFlight(cpuCard, ui.deckAnchor, ui.cpuHand, 220, 1, { hidden: true });
         }
         await wait(90);
     }
+
     state.initialDealAnimating = false;
-    state.initialDealRevealedCount = 2;
+    state.initialDealRevealedCount = dealCount;
     state.drawRound = 0;
-    startBettingRound('preflop', 'preflop');
-    pushLog('プレフロップ: 手札2枚を配布。');
+
+    const roundKey = controllerPhaseToRoundKey(controllerState.phase) || 'preflop';
+    startBettingRound(roundKey, '__controller__');
+    if (state.activeFateCard) {
+        pushLog('FATE CARD selected.');
+    }
     render();
 }
-
 async function handleNext() {
     if (!state) return;
     if (state.phase === 'preflop') {
@@ -2304,21 +2505,26 @@ function getPhaseText() {
     if (!state) return '';
     if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
     if (state.phase === 'dealing') return '配札中...';
-    if (state.phase === 'betting-preflop') return 'プリフロップBET: アクションを選択してください。';
-    if (state.phase === 'betting-mid') return '中盤BET: ターン公開前の駆け引き。';
-    if (state.phase === 'betting-final') return '最終BET: ショーダウン前の勝負。';
-    if (state.phase === 'preflop') return '下のボタンでフロップを開示。';
+    if (state.phase === 'betting-preflop') return 'PRE-FLOP BET: アクションを選択してください。';
+    if (state.phase === 'betting-flop') return 'FLOP BET: アクションを選択してください。';
+    if (state.phase === 'betting-turn') return 'TURN BET: アクションを選択してください。';
+    if (state.phase === 'betting-river') return 'RIVER BET: アクションを選択してください。';
+    if (state.phase === 'betting-river2') return 'EXTRA BET: アクションを選択してください。';
+    if (state.phase === 'betting-mid') return '中盤BET: アクションを選択してください。';
+    if (state.phase === 'betting-final') return '最終BET: アクションを選択してください。';
+    if (state.phase === 'preflop') return 'フロップを公開します。';
     if (state.phase === 'draw-player') {
         return state.awaitingPostJudgmentDiscard
-            ? `第${state.drawRound}ドローフェーズ: 審判回収後。手札を1枚選んで捨てる。`
-            : `第${state.drawRound}ドローフェーズ: 強制ドロー済み。手札を1枚選んで捨てる。`;
+            ? `第${state.drawRound}ドローフェーズ: 1枚捨ててください。`
+            : `第${state.drawRound}ドローフェーズ: 捨てる手札を選択（スキップも可）`;
     }
-    if (state.phase === 'draw-player-judgment') return '審判発動: 墓地カードを選択して回収。';
-    if (state.phase === 'cpu-thinking') return 'CPUが行動を決定中...';
-    if (state.phase === 'turn-ready') return '下のボタンでターンを開示。';
-    if (state.phase === 'river-ready') return 'リバーを自動で展開します...';
-    if (state.phase === 'river-opening') return 'リバー展開中...';
-    if (state.phase === 'showdown') return 'ショーダウン完了。';
+    if (state.phase === 'draw-player-judgment') return '審判効果: 墓地から取得カードを選択（スキップ可）。';
+    if (state.phase === 'cpu-thinking') return 'CPUが思考中...';
+    if (state.phase === 'turn-ready') return 'ターンを公開します。';
+    if (state.phase === 'river-ready') return 'リバーを公開します。';
+    if (state.phase === 'river-opening') return 'リバー公開中...';
+    if (state.phase === 'showdown') return 'ショーダウン演出中...';
+    if (state.controllerPhase) return `ENGINE PHASE: ${state.controllerPhase}`;
     return '';
 }
 function getResultText() {
