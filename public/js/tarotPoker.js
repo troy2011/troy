@@ -85,6 +85,30 @@ const TAROT_REVEAL_FRAMES = Array.from(
     (_, i) => TAROT_REVEAL_FRAME_START + i
 );
 const TAROT_REVEAL_FRAME_MS = 38;
+const FATE_EFFECT_SUMMARY = {
+    0: '\u611a\u8005: \u7279\u6b8a\u52b9\u679c\u3092\u7121\u52b9\u5316\u3059\u308b\u3002',
+    1: '\u9b54\u8853\u5e2b: \u30aa\u30fc\u30eb\u30b9\u30fc\u30c8\u3068\u3057\u3066\u5224\u5b9a\u3055\u308c\u308b\u3002',
+    2: '\u5973\u6559\u7687: \u624b\u672d1\u679a\u306e\u516c\u958b\u6a29\u304c\u767a\u751f\u3059\u308b\u3002',
+    3: '\u5973\u5e1d: \u6570\u5024\u306f3/13\u306e\u6709\u5229\u5074\u3067\u5224\u5b9a\u3002',
+    4: '\u7687\u5e1d: \u6570\u5024\u306f4/14\u306e\u6709\u5229\u5074\u3067\u5224\u5b9a\u3002',
+    5: '\u6cd5\u738b: \u521d\u671f\u914d\u672d\u304c3\u679a\u306b\u306a\u308b\u3002',
+    6: '\u604b\u4eba: \u30b3\u30fc\u30c8\u7cfb\u30da\u30a2\u5f79\u304c\u5f37\u5316\u3055\u308c\u308b\u3002',
+    7: '\u6226\u8eca: \u6570\u50247\u306e2\u679a\u5206\u3068\u3057\u3066\u6271\u3046\u3002',
+    8: '\u529b: \u540c\u5f79\u6642\u306f\u624b\u672d\u5408\u8a08\u3067\u6c7a\u7740\u3002',
+    9: '\u96a0\u8005: \u30ea\u30d0\u30fc\u4e88\u5b9a\u30ab\u30fc\u30c9\u3092\u5148\u884c\u78ba\u8a8d\u3002',
+    10: '\u904b\u547d\u306e\u8f2a: \u30bf\u30fc\u30f3\u3067\u52b9\u679c\u304c\u5225\u30a2\u30eb\u30ab\u30ca\u3078\u5909\u7570\u3002',
+    11: '\u6b63\u7fa9: \u5f79\u306e\u5f37\u5f31\u304c\u9006\u8ee2\u3059\u308b\u3002',
+    12: '\u540a\u308b\u3055\u308c\u305f\u7537: \u6700\u9ad8\u6570\u5024\u624b\u672d\u3092\u5f37\u5236\u4ea4\u63db\u3002',
+    13: '\u6b7b\u795e: \u30b3\u30fc\u30c8\u30ab\u30fc\u30c9\u30921-4\u3078\u5909\u63db\u3002',
+    14: '\u7bc0\u5236: \u5947\u6570\u3092+1\u3057\u3066\u5076\u6570\u5316\u3059\u308b\u3002',
+    15: '\u60aa\u9b54: \u30d9\u30c3\u30c8/\u30b3\u30fc\u30eb\u5f8c\u306e\u30d5\u30a9\u30fc\u30eb\u30c9\u4e0d\u53ef\u3002',
+    16: '\u5854: \u5834\u306e\u6700\u9ad8\u6570\u5024\u30ab\u30fc\u30c9\u3092\u7121\u52b9\u5316\u3002',
+    17: '\u661f: \u30ea\u30d0\u30fc\u5f8c\u306b\u8ffd\u52a01\u679a+\u8ffd\u52a0BET\u3002',
+    18: '\u6708: \u30ea\u30d0\u30fc\u3092\u4f0f\u305b\u305f\u307e\u307e\u9032\u884c\u3059\u308b\u3002',
+    19: '\u592a\u967d: 1\u679a\u30c9\u30ed\u30fc\u5f8c\u306b1\u679a\u6368\u3066\u308b\u3002',
+    20: '\u5be9\u5224: \u6368\u3066\u3066\u5f15\u304f+\u5893\u5730\u4ea4\u63db\u6a29\u3002',
+    21: '\u4e16\u754c: \u5168\u30b9\u30fc\u30c8\u7d71\u4e00\u3067\u30d5\u30e9\u30c3\u30b7\u30e5\u4ee5\u4e0a\u78ba\u5b9a\u3002'
+};
 const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
 const BLIND_BONUS_TP = 10;
@@ -146,6 +170,8 @@ const ui = {
     stateText: null,
     drawGuide: null,
     deckAnchor: null,
+    fateCard: null,
+    fateEffectText: null,
     board: null,
     cpuHand: null,
     playerHand: null,
@@ -847,6 +873,16 @@ function hasFoolInHand(ownerKey) {
 function getCardDisplayName(card) {
     if (!card) return '';
     return getCardNameLabel(card);
+}
+
+function getFateEffectSummary(card) {
+    if (!card) return 'FATE CARD\u52b9\u679c: \u306a\u3057';
+    const number = Number(card.number);
+    const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, number)
+        ? FATE_EFFECT_SUMMARY[number]
+        : '\u3053\u306e\u30ab\u30fc\u30c9\u306e\u52b9\u679c\u8aac\u660e\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002';
+    const name = getCardDisplayName(card);
+    return `FATE CARD: ${name} (${number}) / ${base}`;
 }
 
 function toRomanNumber(value) {
@@ -2871,6 +2907,20 @@ function renderBoard() {
     }
 }
 
+function renderFateCardInfo() {
+    if (ui.fateCard) {
+        ui.fateCard.innerHTML = '';
+        const fate = state?.activeFateCard || null;
+        const fateCardEl = fate
+            ? createCardElement(fate, { hidden: false, clickable: false })
+            : createCardElement(createBackCardData(), { hidden: true, clickable: false });
+        ui.fateCard.appendChild(fateCardEl);
+    }
+    if (ui.fateEffectText) {
+        ui.fateEffectText.textContent = getFateEffectSummary(state?.activeFateCard || null);
+    }
+}
+
 function renderJudgmentPanel() {
     if (!ui.judgmentPanel || !ui.judgmentOptions) return;
     const pending = state.pendingJudgment;
@@ -3054,6 +3104,7 @@ function renderDrawGuide() {
 function render() {
     if (!state || !ui.root) return;
     renderBoard();
+    renderFateCardInfo();
     const isShowdown = state.phase === 'showdown' && !!state.result;
     const useRemainingTieBreak = isShowdown && !!state.result?.remainingTieBreakUsed;
     const showKickerOnTie = isShowdown
@@ -3300,6 +3351,8 @@ function bindElements() {
     ui.stateText = document.getElementById('tarotStateText');
     ui.drawGuide = document.getElementById('tarotDrawGuide');
     ui.deckAnchor = document.getElementById('tarotDeckAnchor');
+    ui.fateCard = document.getElementById('tarotFateCard');
+    ui.fateEffectText = document.getElementById('tarotFateEffectText');
     ui.board = document.getElementById('tarotPokerBoard');
     ui.cpuHand = document.getElementById('tarotCpuHand');
     ui.playerHand = document.getElementById('tarotPlayerHand');
