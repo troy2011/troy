@@ -3232,6 +3232,7 @@ body.modal-lock .modal-overlay {
     text-align: left;
     color: #fff;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition: transform 160ms ease, box-shadow 180ms ease, opacity 140ms ease, filter 180ms ease;
 }
 
 .tarot-card.wand {
@@ -3271,14 +3272,14 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-clickable {
     cursor: pointer;
-    transition: transform 0.08s ease, box-shadow 0.2s ease;
+    transition: transform 120ms ease, box-shadow 200ms ease, opacity 120ms ease, filter 180ms ease;
     animation: none;
     border-color: rgba(255, 255, 255, 0.22);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .tarot-card.is-clickable:active {
-    transform: scale(0.96);
+    transform: translateY(1px) scale(0.97);
 }
 
 .tarot-card.is-static {
@@ -3286,9 +3287,10 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-leaving {
-    transition: opacity 90ms ease, transform 90ms ease;
-    opacity: 0 !important;
-    transform: scale(0.94);
+    transition: opacity 130ms ease, transform 130ms ease, filter 130ms ease;
+    opacity: 0.58 !important;
+    transform: translateY(-8px) scale(0.97) rotate(-2deg);
+    filter: saturate(1.1);
 }
 
 .tarot-card-title {
@@ -3619,7 +3621,10 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card-fly {
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    box-shadow:
+        0 14px 34px rgba(0, 0, 0, 0.52),
+        0 0 0 1px rgba(255, 255, 255, 0.18);
+    will-change: transform, opacity;
 }
 
 .tarot-fortune-overlay {

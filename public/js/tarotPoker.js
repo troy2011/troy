@@ -345,16 +345,44 @@ async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo =
     const toTarget = toEl || ui.root;
     if (!fromTarget || !toTarget) return;
 
-    const fromRect = fromTarget.getBoundingClientRect();
-    const toRect = toTarget.getBoundingClientRect();
-    if (!fromRect.width || !fromRect.height) return;
-    const startW = 64;
-    const startH = 100;
+    const resolveRect = (el) => {
+        if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+        if (el.classList?.contains('tarot-card')) return el.getBoundingClientRect();
+        const childCards = el.querySelectorAll ? Array.from(el.querySelectorAll('.tarot-card')) : [];
+        if (childCards.length > 0) {
+            return childCards[childCards.length - 1].getBoundingClientRect();
+        }
+        return el.getBoundingClientRect();
+    };
+
+    const fromRect = resolveRect(fromTarget);
+    const toRect = resolveRect(toTarget);
+    if (!fromRect || !toRect || !fromRect.width || !fromRect.height) return;
+    const startW = Math.max(42, Math.floor(fromRect.width));
+    const startH = Math.max(68, Math.floor(fromRect.height));
     const fromCenter = getRectCenter(fromRect);
     const toCenter = getRectCenter(toRect);
 
-    const ghost = createCardElement(card, { hidden: Boolean(options.hidden), clickable: false });
+    const hiddenGhost = Boolean(options.hidden);
+    const canCloneSource = typeof HTMLElement !== 'undefined'
+        && fromTarget instanceof HTMLElement
+        && fromTarget.classList.contains('tarot-card');
+    const ghost = canCloneSource
+        ? fromTarget.cloneNode(true)
+        : createCardElement(card, { hidden: hiddenGhost, clickable: false });
     ghost.classList.add('tarot-card-fly');
+    ghost.classList.remove('is-selected', 'is-leaving');
+    if (hiddenGhost) {
+        ghost.classList.add('is-hidden');
+        const artEl = ghost.querySelector('.tarot-card-art');
+        if (artEl) {
+            setArtSpriteByIndex(artEl, TAROT_BACK_SPRITE_INDEX);
+        }
+        const titleEl = ghost.querySelector('.tarot-card-title');
+        const numberEl = ghost.querySelector('.tarot-card-number');
+        if (titleEl) titleEl.remove();
+        if (numberEl) numberEl.remove();
+    }
     ghost.style.position = 'fixed';
     ghost.style.left = `${fromCenter.x - startW / 2}px`;
     ghost.style.top = `${fromCenter.y - startH / 2}px`;
@@ -369,13 +397,24 @@ async function animateCardFlight(card, fromEl, toEl, durationMs = 320, scaleTo =
 
     const dx = toCenter.x - fromCenter.x;
     const dy = toCenter.y - fromCenter.y;
+    const arcLift = Math.max(18, Math.min(44, Math.abs(dx) * 0.08 + 18));
+    const rotateDeg = Math.max(-8, Math.min(8, dx / 18));
+    const step1 = Math.max(120, Math.floor(durationMs * 0.42));
+    const step2 = Math.max(120, durationMs - step1);
+    const midX = dx * 0.58;
+    const midY = dy * 0.58 - arcLift;
 
     await new Promise((resolve) => {
         requestAnimationFrame(() => {
-            ghost.style.transition = `transform ${durationMs}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${durationMs}ms ease`;
-            ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleTo})`;
-            ghost.style.opacity = '0.86';
-            setTimeout(resolve, durationMs + 16);
+            ghost.style.transition = `transform ${step1}ms cubic-bezier(0.24, 0.9, 0.3, 1), opacity ${step1}ms ease-out`;
+            ghost.style.transform = `translate(${midX}px, ${midY}px) scale(${Math.min(1.05, scaleTo + 0.08)}) rotate(${rotateDeg}deg)`;
+            ghost.style.opacity = '0.96';
+            setTimeout(() => {
+                ghost.style.transition = `transform ${step2}ms cubic-bezier(0.18, 0.82, 0.32, 1), opacity ${step2}ms ease-in`;
+                ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleTo}) rotate(0deg)`;
+                ghost.style.opacity = '0.86';
+                setTimeout(resolve, step2 + 20);
+            }, step1);
         });
     });
 
@@ -430,6 +469,7 @@ function resetState() {
                 name: 'あなた',
                 hand: [],
                 graveyard: [],
+                revealHandIndex: null,
                 canExchange: true,
                 hasResurrectionRight: false,
                 bettingEnabled: false,
@@ -440,6 +480,7 @@ function resetState() {
                 name: 'CPU',
                 hand: [],
                 graveyard: [],
+                revealHandIndex: null,
                 canExchange: true,
                 hasResurrectionRight: false,
                 bettingEnabled: false,
@@ -486,10 +527,16 @@ function syncStateFromController(controllerState) {
     if (state.players?.player) {
         state.players.player.hand = Array.isArray(playerFromController.hand) ? playerFromController.hand.slice() : [];
         state.players.player.graveyard = Array.isArray(playerFromController.discard) ? playerFromController.discard.slice() : [];
+        state.players.player.revealHandIndex = Number.isFinite(playerFromController.revealHandIndex)
+            ? Math.floor(playerFromController.revealHandIndex)
+            : null;
     }
     if (state.players?.cpu) {
         state.players.cpu.hand = Array.isArray(cpuFromController.hand) ? cpuFromController.hand.slice() : [];
         state.players.cpu.graveyard = Array.isArray(cpuFromController.discard) ? cpuFromController.discard.slice() : [];
+        state.players.cpu.revealHandIndex = Number.isFinite(cpuFromController.revealHandIndex)
+            ? Math.floor(cpuFromController.revealHandIndex)
+            : null;
     }
 
     state.board = Array.isArray(controllerState.boardVisible) ? controllerState.boardVisible.slice() : [];
@@ -563,7 +610,11 @@ async function runControllerFateActionLoop() {
         const fateNo = Number(controllerState.activeFateCard?.number || 0);
         const input = {};
         if (fateNo === 2) {
-            input.revealByPlayer = { player: null, cpu: null };
+            const cpuHand = controllerState.players?.cpu?.hand || [];
+            input.revealByPlayer = {
+                player: null,
+                cpu: cpuHand.length ? chooseCpuRevealIndex(cpuHand) : null
+            };
         }
         if (fateNo === 19 || fateNo === 20) {
             const playerHand = controllerState.players?.player?.hand || [];
@@ -577,6 +628,12 @@ async function runControllerFateActionLoop() {
         await showRoundCutin(`FATE ${fateNo}`);
         const updated = tarotGameController.runFateAction(input);
         syncStateFromController(updated);
+        if (fateNo === 2 && Number.isFinite(updated?.players?.cpu?.revealHandIndex)) {
+            showEffectOverlay('HIGH PRIESTESS - CPU CARD REVEALED');
+        }
+        if (fateNo === 9 && updated?.previewRiverCard) {
+            showEffectOverlay(`HERMIT - PREVIEW ${getCardDisplayName(updated.previewRiverCard)}`);
+        }
         render();
         if (updated.phase !== 'fate-action') return;
     }
@@ -882,6 +939,18 @@ function getFateEffectSummary(card) {
         ? FATE_EFFECT_SUMMARY[number]
         : '\u3053\u306e\u30ab\u30fc\u30c9\u306e\u52b9\u679c\u8aac\u660e\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002';
     const name = getCardDisplayName(card);
+    if (number === 9 && state?.previewRiverCard) {
+        const previewName = getCardDisplayName(state.previewRiverCard);
+        const previewNum = getCardNumberLabel(state.previewRiverCard);
+        return `FATE CARD: ${name} (${number}) / ${base} / \u4e88\u898b: ${previewName}(${previewNum})`;
+    }
+    if (number === 2 && Number.isFinite(state?.players?.cpu?.revealHandIndex)) {
+        const idx = Number(state.players.cpu.revealHandIndex);
+        const revealed = state?.players?.cpu?.hand?.[idx] || null;
+        if (revealed) {
+            return `FATE CARD: ${name} (${number}) / ${base} / \u516c\u958b: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
+        }
+    }
     return `FATE CARD: ${name} (${number}) / ${base}`;
 }
 
@@ -2111,6 +2180,8 @@ async function revealBoard(count) {
         if (revealTarget) {
             const hiddenTarget = createCardElement(createBackCardData(), { hidden: true, clickable: false });
             revealTarget.replaceWith(hiddenTarget);
+            await animateCardFlight(card, ui.deckAnchor, hiddenTarget, 260, 1, { hidden: true });
+            await wait(50);
             await animateBackToFrontOnElement(hiddenTarget, card);
         }
         if (getCardEffectType(card) === EFFECT_TYPE.JUDGMENT) {
@@ -2162,7 +2233,10 @@ async function enterDrawPhase(roundNo) {
     }
     const drawn = drawFor('player');
     if (drawn) {
-        await animateCardFlight(drawn, ui.deckAnchor, ui.playerHand, 260, 1);
+        render();
+        const playerCardEls = ui.playerHand ? Array.from(ui.playerHand.querySelectorAll('.tarot-card')) : [];
+        const targetEl = playerCardEls[player.hand.length - 1] || ui.playerHand;
+        await animateCardFlight(drawn, ui.deckAnchor, targetEl, 260, 1);
         pushLog(`強制ドロー: ${getCardDisplayName(drawn)}`);
     } else {
         pushLog('山札切れ: 強制ドロー失敗。');
@@ -2201,6 +2275,18 @@ function chooseCpuDiscardIndex(handCards) {
     return weakestIndex;
 }
 
+function chooseCpuRevealIndex(handCards) {
+    const hand = Array.isArray(handCards) ? handCards : [];
+    if (!hand.length) return null;
+    let strongestIndex = 0;
+    for (let i = 1; i < hand.length; i += 1) {
+        if (compareCardPower(hand[i], hand[strongestIndex]) > 0) {
+            strongestIndex = i;
+        }
+    }
+    return strongestIndex;
+}
+
 function chooseCpuJudgmentOption(options) {
     const list = Array.isArray(options) ? options.filter((opt) => opt?.card) : [];
     if (!list.length) return null;
@@ -2213,12 +2299,12 @@ async function cpuDiscardOneCard(reasonLabel = '') {
     const discardIndex = Math.max(0, Math.min(cpu.hand.length - 1, chooseCpuDiscardIndex(cpu.hand)));
     const cpuHandCardEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
     const fromHandEl = cpuHandCardEls[discardIndex] || ui.cpuHand;
-    const [discarded] = cpu.hand.splice(discardIndex, 1);
-    if (!discarded) return null;
     if (fromHandEl?.classList) {
         fromHandEl.classList.add('is-leaving');
-        await wait(80);
+        await wait(110);
     }
+    const [discarded] = cpu.hand.splice(discardIndex, 1);
+    if (!discarded) return null;
     await animateCardFlight(discarded, fromHandEl, ui.cpuGrave, 260, 0.88, { hidden: true });
     addToGrave('cpu', discarded);
     const suffix = reasonLabel ? `（${reasonLabel}）` : '';
@@ -2247,7 +2333,10 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
     await wait(420);
     const forcedDraw = drawFor('cpu');
     if (forcedDraw) {
-        await animateCardFlight(forcedDraw, ui.deckAnchor, ui.cpuHand, 260, 1, { hidden: true });
+        render();
+        const cpuHandEls = ui.cpuHand ? Array.from(ui.cpuHand.querySelectorAll('.tarot-card')) : [];
+        const targetEl = cpuHandEls[cpu.hand.length - 1] || ui.cpuHand;
+        await animateCardFlight(forcedDraw, ui.deckAnchor, targetEl, 260, 1, { hidden: true });
         pushLog(`CPUが強制ドロー: ${getCardDisplayName(forcedDraw)}`);
         render();
         await wait(180);
@@ -2434,17 +2523,20 @@ async function onPlayerCardClick(index) {
         return;
     }
     state.isResolvingPlayerDiscard = true;
-    state.selectedDiscardIndex = null;
-    render();
 
     const playerCardEls = ui.playerHand ? Array.from(ui.playerHand.querySelectorAll('.tarot-card')) : [];
     const sourceEl = playerCardEls[index] || ui.playerHand;
-    const [discarded] = player.hand.splice(index, 1);
 
     try {
         if (sourceEl?.classList) {
             sourceEl.classList.add('is-leaving');
-            await wait(80);
+            await wait(110);
+        }
+        const [discarded] = player.hand.splice(index, 1);
+        state.selectedDiscardIndex = null;
+        if (!discarded) {
+            render();
+            return;
         }
         await animateCardFlight(discarded, sourceEl || ui.playerHand, ui.playerGrave, 260, 0.88);
         addToGrave('player', discarded);
@@ -3141,6 +3233,14 @@ function render() {
     });
     renderCardRow(ui.cpuHand, cpuCardsForView, {
         hidden: isShowdown ? showdownHidden : true,
+        hiddenByIndex: (index) => {
+            if (isShowdown) return showdownHidden;
+            if (isDealing) return true;
+            const revealIndex = Number.isFinite(state?.players?.cpu?.revealHandIndex)
+                ? Number(state.players.cpu.revealHandIndex)
+                : -1;
+            return index !== revealIndex;
+        },
         clickable: false
     });
     const isJudgmentPickPhase = !isShowdown
