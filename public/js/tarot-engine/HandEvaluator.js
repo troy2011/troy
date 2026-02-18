@@ -173,7 +173,7 @@ function getValueOptionsForCard(card, effects) {
     else if (card.isArcana && n === 1) {
         out = [1];
     }
-    else if (!card.isArcana && n === 1 && !effects.justice) {
+    else if (!card.isArcana && n === 1) {
         out = [1, 15];
     }
     else {
@@ -197,7 +197,7 @@ function getSuitOptionsForCard(card, effects) {
     return ['None'];
 }
 function getWildcardValueDomain(effects) {
-    const high = effects.justice ? 14 : 15;
+    const high = 15;
     const out = [];
     for (let i = 1; i <= high; i += 1) {
         out.push(normalizeValue(i, effects));
@@ -380,15 +380,20 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
         resolvedCards
     };
 }
-function compareScoredHands(left, right, effects) {
-    if (left.rankWeight !== right.rankWeight) {
-        return { cmp: left.rankWeight > right.rankWeight ? 1 : -1, reason: 'rank' };
+function compareScoredHands(left, right, effects, options = {}) {
+    const useJusticeComparison = !!options.useJusticeComparison;
+    const rankMap = rankWeightMap(useJusticeComparison && effects.justice);
+    const leftRankWeight = rankMap[left.rank];
+    const rightRankWeight = rankMap[right.rank];
+    if (leftRankWeight !== rightRankWeight) {
+        return { cmp: leftRankWeight > rightRankWeight ? 1 : -1, reason: 'rank' };
     }
-    const primaryCmp = compareVectorByJustice(left.primaryVector, right.primaryVector, effects.justice);
+    const reverseNumberStrength = useJusticeComparison && effects.justice;
+    const primaryCmp = compareVectorByJustice(left.primaryVector, right.primaryVector, reverseNumberStrength);
     if (primaryCmp !== 0) {
         return { cmp: primaryCmp, reason: 'primary-vector' };
     }
-    const kickerCmp = compareVectorByJustice(left.kickerVector, right.kickerVector, effects.justice);
+    const kickerCmp = compareVectorByJustice(left.kickerVector, right.kickerVector, reverseNumberStrength);
     if (kickerCmp !== 0) {
         return { cmp: kickerCmp, reason: 'kicker' };
     }
@@ -458,7 +463,7 @@ export class HandEvaluator {
             throw new Error('Invalid input: hand/board must be arrays.');
         }
         const effects = deriveEffects(input.fateCard);
-        const rankMap = rankWeightMap(effects.justice);
+        const rankMap = rankWeightMap(false);
         const { hand, pool } = buildPool(input, effects);
         if (pool.length < 5) {
             throw new Error('Not enough cards to evaluate.');
@@ -475,7 +480,7 @@ export class HandEvaluator {
                     bestRawCards = combo.slice();
                     return;
                 }
-                const cmp = compareScoredHands(scored, best, effects);
+                const cmp = compareScoredHands(scored, best, effects, { useJusticeComparison: false });
                 if (cmp.cmp > 0) {
                     best = scored;
                     bestRawCards = combo.slice();
@@ -522,7 +527,7 @@ export class HandEvaluator {
             privateStrengthSum: right.privateStrengthSum,
             resolvedCards: []
         };
-        return compareScoredHands(leftScore, rightScore, effects);
+        return compareScoredHands(leftScore, rightScore, effects, { useJusticeComparison: true });
     }
     compareInputs(leftInput, rightInput) {
         const leftEval = this.evaluateHand(leftInput);

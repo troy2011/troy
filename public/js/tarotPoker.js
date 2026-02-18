@@ -104,7 +104,7 @@ const FATE_EFFECT_SUMMARY = {
     14: '\u7bc0\u5236: \u5947\u6570\u3092+1\u3057\u3066\u5076\u6570\u5316\u3059\u308b\u3002',
     15: '\u60aa\u9b54: \u30d9\u30c3\u30c8/\u30b3\u30fc\u30eb\u5f8c\u306e\u30d5\u30a9\u30fc\u30eb\u30c9\u4e0d\u53ef\u3002',
     16: '\u5854: \u5834\u306e\u6700\u9ad8\u6570\u5024\u30ab\u30fc\u30c9\u3092\u7121\u52b9\u5316\u3002',
-    17: '\u661f: \u30ea\u30d0\u30fc\u5f8c\u306b\u8ffd\u52a01\u679a+\u8ffd\u52a0BET\u3002',
+    17: '\u661f: \u30ea\u30d0\u30fc\u5f8c\u306b\u8ffd\u52a01\u679a+\u8ffd\u52a0\u30d9\u30c3\u30c8\u3002',
     18: '\u6708: \u30ea\u30d0\u30fc\u3092\u4f0f\u305b\u305f\u307e\u307e\u9032\u884c\u3059\u308b\u3002',
     19: '\u592a\u967d: 1\u679a\u30c9\u30ed\u30fc\u5f8c\u306b1\u679a\u6368\u3066\u308b\u3002',
     20: '\u5be9\u5224: \u6368\u3066\u3066\u5f15\u304f+\u5893\u5730\u4ea4\u63db\u6a29\u3002',
@@ -125,7 +125,7 @@ const CUTIN_STYLE_CLASSES = ['is-player', 'is-cpu', 'is-showdown-win', 'is-showd
 const BET_ACTION_LABEL = {
     check: 'チェック',
     call: 'コール',
-    bet: 'BET',
+    bet: 'ベット',
     raise: 'レイズ',
     fold: 'フォールド'
 };
@@ -569,6 +569,7 @@ function resetState() {
         cpuThinking: false,
         initialDealAnimating: false,
         initialDealRevealedCount: 0,
+        initialDealDealtCounts: {},
         showdownRevealDone: false,
         showdownRevealRunning: false,
         log: [],
@@ -583,6 +584,17 @@ function controllerPhaseToRoundKey(phase) {
     if (phase === 'river-bet') return 'river';
     if (phase === 'river-bet-2') return 'river2';
     return null;
+}
+
+function getRoundKeyLabel(roundKey) {
+    if (roundKey === 'preflop') return 'プリフロップ';
+    if (roundKey === 'flop') return 'フロップ';
+    if (roundKey === 'turn') return 'ターン';
+    if (roundKey === 'river') return 'リバー';
+    if (roundKey === 'river2') return '追加リバー';
+    if (roundKey === 'mid') return '中盤';
+    if (roundKey === 'final') return '最終';
+    return String(roundKey || '');
 }
 
 function syncStateFromController(controllerState) {
@@ -621,7 +633,7 @@ function syncStateFromController(controllerState) {
 
     const logs = Array.isArray(controllerState.logs) ? controllerState.logs : [];
     for (let i = tarotControllerLogCursor; i < logs.length; i += 1) {
-        pushLog(`[ENGINE] ${logs[i]}`);
+        pushLog(`[エンジン] ${logs[i]}`);
     }
     tarotControllerLogCursor = logs.length;
 }
@@ -661,7 +673,8 @@ async function runPendingBoardFlipAnimation() {
 
 function getControllerPendingDiscardModeForPlayer() {
     if (!tarotGameController || !state) return null;
-    if (state.phase !== 'fate-action') return null;
+    const phaseFromController = String(state.controllerPhase || tarotGameController.getState()?.phase || '');
+    if (phaseFromController !== 'fate-action') return null;
     const mode = state.pendingFateDiscardMode;
     if (mode !== 'sun' && mode !== 'judgment') return null;
     if (!Array.isArray(state.pendingFateDiscardPlayers) || !state.pendingFateDiscardPlayers.includes('player')) return null;
@@ -678,7 +691,7 @@ function isControllerJudgmentPlayerDiscardPending() {
 
 function mapControllerEvaluationToLegacy(ownerKey, evaluation, controllerState) {
     if (!evaluation) {
-        return { rankLabel: 'No Role', cards: [] };
+        return { rankLabel: '役なし', cards: [] };
     }
     const allCards = [
         ...((controllerState?.players?.[ownerKey]?.hand || []).slice()),
@@ -767,7 +780,7 @@ async function runControllerFateActionLoop() {
             input.allowPlayerChoice = true;
         }
 
-        await showRoundCutin(`FATE ${fateNo}`);
+        await showRoundCutin(`運命カード ${fateNo}`);
         const updated = tarotGameController.runFateAction(input);
         syncStateFromController(updated);
         const afterBoardCount = Array.isArray(updated?.boardVisible) ? updated.boardVisible.length : (state.board?.length || 0);
@@ -777,10 +790,10 @@ async function runControllerFateActionLoop() {
         }
         const hasNpcReveal = getNpcKeys().some((key) => Number.isFinite(updated?.players?.[key]?.revealHandIndex));
         if (fateNo === 2 && hasNpcReveal) {
-            showEffectOverlay('HIGH PRIESTESS - NPC CARD REVEALED');
+            showEffectOverlay('女教皇: NPC手札を公開');
         }
         if (fateNo === 9 && updated?.previewRiverCard) {
-            showEffectOverlay(`HERMIT - PREVIEW ${getCardDisplayName(updated.previewRiverCard)}`);
+            showEffectOverlay(`隠者: 予見 ${getCardDisplayName(updated.previewRiverCard)}`);
         }
         render();
         const pendingPlayerFateDiscardMode = (fateNo === 19 || fateNo === 20)
@@ -927,6 +940,8 @@ function getElementCenterPoint(el) {
 }
 
 function getBetCoinSourceElement(ownerKey) {
+    const handEl = getHandContainerByOwner(ownerKey);
+    if (handEl) return handEl;
     const participantChip = ui.participantList?.querySelector?.(`[data-owner-key="${ownerKey}"]`) || null;
     if (participantChip) return participantChip;
     return getActionElementByOwner(ownerKey) || null;
@@ -1336,7 +1351,7 @@ function getFatePreviewSuitClass(card) {
 }
 
 function getFateEffectSummary(card) {
-    if (!card) return 'FATE CARD\u52b9\u679c: \u306a\u3057';
+    if (!card) return '運命カード効果: なし';
     const displayNumber = Number(card.number);
     const ruleNumber = getFateRuleNumber(card);
     const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, ruleNumber)
@@ -1344,12 +1359,12 @@ function getFateEffectSummary(card) {
         : '\u3053\u306e\u30ab\u30fc\u30c9\u306e\u52b9\u679c\u8aac\u660e\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002';
     const name = getCardDisplayName(card);
     const mutationText = ruleNumber !== displayNumber
-        ? ` / \u5909\u7570\u52b9\u679c: ${(ARCANA_NAME[ruleNumber] || 'Arcana')}(${ruleNumber})`
+        ? ` / 変異効果: ${(ARCANA_NAME[ruleNumber] || 'アルカナ')}(${ruleNumber})`
         : '';
     if (ruleNumber === 9 && state?.previewRiverCard) {
         const previewName = getCardDisplayName(state.previewRiverCard);
         const previewNum = getCardNumberLabel(state.previewRiverCard);
-        return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText} / \u4e88\u898b: ${previewName}(${previewNum})`;
+        return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText} / 予見: ${previewName}(${previewNum})`;
     }
     if (ruleNumber === 2) {
         const displayNpcKey = getDisplayNpcKey();
@@ -1357,10 +1372,10 @@ function getFateEffectSummary(card) {
         const idx = Number.isFinite(revealIndex) ? revealIndex : -1;
         const revealed = idx >= 0 ? (state?.players?.[displayNpcKey]?.hand?.[idx] || null) : null;
         if (revealed) {
-            return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText} / \u516c\u958b: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
+            return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText} / 公開: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
         }
     }
-    return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText}`;
+    return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText}`;
 }
 
 function getFateEffectSummaryHtml(card) {
@@ -1425,7 +1440,7 @@ function getMinorArcanaRankLabel(number) {
 
 function getCardNameLabel(card) {
     if (!card) return '';
-    if (card.isArcana) return ARCANA_NAME[card.number] || 'Arcana';
+    if (card.isArcana) return ARCANA_NAME[card.number] || 'アルカナ';
     return getMinorArcanaRankLabel(card.number);
 }
 
@@ -2130,6 +2145,11 @@ function addBetToPot(ownerKey, amount, meta = null) {
     return true;
 }
 
+function getTotalPaidAmountByOwner(ownerKey) {
+    if (!state || !ownerKey) return 0;
+    return Math.max(0, Math.floor(Number(state?.betting?.contributions?.[ownerKey] || 0)));
+}
+
 function settlePotByWinner(winnerKey) {
     if (!state || state.handSettled) return;
     state.handSettled = true;
@@ -2316,10 +2336,10 @@ function applyPreflopBlinds() {
         state.betting.checks[ownerKey] = false;
     });
     pushLog(
-        `POSITION: BTN ${String(pos.dealerOwner || '').toUpperCase()} / SB ${String(pos.smallBlindOwner || '').toUpperCase()} / BB ${String(pos.bigBlindOwner || '').toUpperCase()}`
+        `ポジション: 親 ${state.players?.[pos.dealerOwner]?.name || pos.dealerOwner} / スモール ${state.players?.[pos.smallBlindOwner]?.name || pos.smallBlindOwner} / ビッグ ${state.players?.[pos.bigBlindOwner]?.name || pos.bigBlindOwner}`
     );
     pushLog(
-        `BLIND: SB ${formatTestPoint(sbPaid)} / BB ${formatTestPoint(bbPaid)}`
+        `ブラインド: スモール ${formatTestPoint(sbPaid)} / ビッグ ${formatTestPoint(bbPaid)}`
     );
 }
 
@@ -2349,7 +2369,7 @@ function startBettingRound(roundKey, nextPhase) {
     state.positionContext = pos;
     state.tablePositionLabels = { ...(pos?.positionLabels || {}) };
     state.phase = `betting-${roundKey}`;
-    pushLog(`ベッティング開始: ${roundKey} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
+    pushLog(`ベッティング開始: ${getRoundKeyLabel(roundKey)} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
     if (roundKey === 'preflop') {
         applyPreflopBlinds();
     }
@@ -2504,17 +2524,17 @@ function applyBetAction(ownerKey, action) {
     }
 
     if (action === 'bet') {
-        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はBETではなくコール/レイズです。' };
+        if (betting.currentBet > 0 || toCall > 0) return { ok: false, message: '現在はベットではなくコール/レイズです。' };
         const controllerResult = registerControllerAction();
         if (!controllerResult.ok) return controllerResult;
         const amount = betting.minBet;
-        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でBETできません。' };
+        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でベットできません。' };
         betting.currentBet = betting.contributions[ownerKey];
         Object.keys(betting.checks || {}).forEach((key) => {
             betting.checks[key] = false;
         });
         betting.pendingResponseFor = getNextBettingActor(ownerKey);
-        pushLog(`${actorName} はBET (${formatTestPoint(amount)})。`);
+        pushLog(`${actorName} はベット (${formatTestPoint(amount)})。`);
         return { ok: true };
     }
 
@@ -2810,11 +2830,11 @@ function applyDiscardSpecial(card, ownerKey) {
         state.players.cpu.bettingEnabled = cpuHasFool;
         if (!playerHasFool && !cpuHasFool) {
             state.forceShowdown = true;
-            pushLog('THE WORLD: no FOOL in hand -> force showdown');
+        pushLog('世界: 愚者不在のため強制ショーダウン');
             showEffectOverlay('THE WORLD - TIME STOP');
             return;
         }
-        pushLog('THE WORLD: exchange lock -> ' + state.players[otherKey].name);
+        pushLog('世界: 交換ロック → ' + state.players[otherKey].name);
         showEffectOverlay('THE WORLD - EXCHANGE LOCK');
     }
 }
@@ -2823,7 +2843,7 @@ function applyBoardSpecial(card) {
     if (!card) return;
     const effectType = getCardEffectType(card);
     if (effectType === EFFECT_TYPE.FOOL) {
-        pushLog('THE FOOL: wild card active');
+        pushLog('愚者: ワイルドカード発動');
         showEffectOverlay('THE FOOL - WILD CARD');
         return;
     }
@@ -2831,7 +2851,7 @@ function applyBoardSpecial(card) {
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
         state.forceShowdown = true;
-        pushLog('THE WORLD on board: force showdown');
+        pushLog('場の世界: 強制ショーダウン');
         showEffectOverlay('THE WORLD - TIME STOP');
         return;
     }
@@ -2839,7 +2859,7 @@ function applyBoardSpecial(card) {
         Object.keys(state.players || {}).forEach((ownerKey) => {
             state.players[ownerKey].hasResurrectionRight = true;
         });
-        pushLog('JUDGMENT on board: resurrection right granted');
+        pushLog('場の審判: 蘇生権を付与');
         showEffectOverlay('JUDGMENT - RESURRECTION');
     }
 }
@@ -3127,6 +3147,10 @@ async function startNewGame() {
     state.phase = 'dealing';
     state.initialDealAnimating = true;
     state.initialDealRevealedCount = 0;
+    state.initialDealDealtCounts = {};
+    PLAYER_ORDER.forEach((ownerKey) => {
+        state.initialDealDealtCounts[ownerKey] = 0;
+    });
 
     const dealingOrder = getActivePlayerOrder();
     const handByOwner = {};
@@ -3147,12 +3171,14 @@ async function startNewGame() {
             if (!card) continue;
 
             render();
-            const targetHand = ownerKey === 'player'
-                ? (Array.from(ui.playerHand?.querySelectorAll('.tarot-card') || [])[i] || ui.playerHand)
-                : (getHandContainerByOwner(ownerKey) || ui.cpuHand);
+            const handContainer = getHandContainerByOwner(ownerKey) || ui.cpuHand;
+            const handSlots = handContainer ? Array.from(handContainer.querySelectorAll('.tarot-card')) : [];
+            const targetHand = handSlots[i] || handContainer;
             if (targetHand) {
                 await animateCardFlight(card, ui.deckAnchor, targetHand, 220, 1, { hidden: true });
             }
+            const currentDealt = Number(state.initialDealDealtCounts?.[ownerKey] || 0);
+            state.initialDealDealtCounts[ownerKey] = Math.max(currentDealt, i + 1);
             render();
             await wait(60);
         }
@@ -3181,7 +3207,7 @@ async function startNewGame() {
     const roundKey = controllerPhaseToRoundKey(controllerState.phase) || 'preflop';
     startBettingRound(roundKey, '__controller__');
     if (state.activeFateCard) {
-        pushLog('FATE CARD selected.');
+        pushLog('運命カードを公開。');
     }
     render();
     if (state?.betting?.pendingResponseFor && state.betting.pendingResponseFor !== 'player') {
@@ -3196,7 +3222,7 @@ async function handleNext() {
     }
 
     if (state.phase === 'draw-player') {
-        pushLog(`DRAW PHASE ${state.drawRound}: 手札を選んで捨ててください。`);
+        pushLog(`第${state.drawRound}ドローフェーズ: 捨てる手札を選択（スキップも可）`);
         return;
     }
 
@@ -3228,7 +3254,7 @@ function canSkipPlayerDiscardPhase() {
 async function skipPlayerDiscardPhase() {
     if (!canSkipPlayerDiscardPhase()) return;
     state.selectedDiscardIndex = null;
-    pushLog(`DRAW PHASE ${state.drawRound}: スキップして次へ進行`);
+    pushLog(`第${state.drawRound}ドローフェーズ: スキップして次へ進行`);
     await finishPlayerExchange(getPostDrawNextPhase());
 }
 
@@ -3412,13 +3438,13 @@ function getPhaseText() {
     if (state.phase === 'idle') return '「新しい勝負を始める」を押してください。';
     if (state.phase === 'fate-reveal') return '運命のカードを公開中...';
     if (state.phase === 'dealing') return '配札中...';
-    if (state.phase === 'betting-preflop') return 'PRE-FLOP BET: アクションを選択してください。';
-    if (state.phase === 'betting-flop') return 'FLOP BET: アクションを選択してください。';
-    if (state.phase === 'betting-turn') return 'TURN BET: アクションを選択してください。';
-    if (state.phase === 'betting-river') return 'RIVER BET: アクションを選択してください。';
-    if (state.phase === 'betting-river2') return 'EXTRA BET: アクションを選択してください。';
-    if (state.phase === 'betting-mid') return '中盤BET: アクションを選択してください。';
-    if (state.phase === 'betting-final') return '最終BET: アクションを選択してください。';
+    if (state.phase === 'betting-preflop') return 'プリフロップベット: アクションを選択してください。';
+    if (state.phase === 'betting-flop') return 'フロップベット: アクションを選択してください。';
+    if (state.phase === 'betting-turn') return 'ターンベット: アクションを選択してください。';
+    if (state.phase === 'betting-river') return 'リバーベット: アクションを選択してください。';
+    if (state.phase === 'betting-river2') return '追加ベット: アクションを選択してください。';
+    if (state.phase === 'betting-mid') return '中盤ベット: アクションを選択してください。';
+    if (state.phase === 'betting-final') return '最終ベット: アクションを選択してください。';
     if (state.phase === 'preflop') return 'フロップを公開します。';
     const pendingFateDiscardMode = getControllerPendingDiscardModeForPlayer();
     if (pendingFateDiscardMode === 'sun') return '太陽効果: 引いた後に、捨てる手札を選択してください。';
@@ -3434,7 +3460,7 @@ function getPhaseText() {
     if (state.phase === 'river-ready') return 'リバーを公開します。';
     if (state.phase === 'river-opening') return 'リバー公開中...';
     if (state.phase === 'showdown') return 'ショーダウン演出中...';
-    if (state.controllerPhase) return `ENGINE PHASE: ${state.controllerPhase}`;
+    if (state.controllerPhase) return `エンジン進行: ${state.controllerPhase}`;
     return '';
 }
 function getResultText() {
@@ -3854,7 +3880,7 @@ function renderFateCardInfo() {
     }
     if (ui.fateEffectText) {
         if (state?.activeFateCard && !state?.fateRevealed) {
-            ui.fateEffectText.textContent = 'FATE CARD: 公開待ち';
+            ui.fateEffectText.textContent = '運命カード: 公開待ち';
         } else {
             ui.fateEffectText.innerHTML = getFateEffectSummaryHtml(state?.activeFateCard || null);
         }
@@ -3932,7 +3958,7 @@ function renderButtons() {
     }
     if (isBettingPhase()) {
         btn.disabled = true;
-        btn.textContent = 'BET進行中';
+        btn.textContent = 'ベット進行中';
         return;
     }
     if (state.phase === 'preflop') {
@@ -4066,7 +4092,6 @@ function renderParticipantList() {
     const order = getActivePlayerOrder();
     const turnKey = state?.betting?.pendingResponseFor || null;
     const displayNpcKey = getDisplayNpcKey();
-    const contributions = state?.betting?.contributions || {};
     const positionLabels = state?.tablePositionLabels || {};
     ui.participantList.innerHTML = '';
     order.forEach((ownerKey) => {
@@ -4079,7 +4104,7 @@ function renderParticipantList() {
         if (ownerKey === turnKey) chip.classList.add('is-turn');
         if (player.folded) chip.classList.add('is-folded');
         if (ownerKey !== 'player' && ownerKey === displayNpcKey) chip.classList.add('is-display');
-        const betAmount = Math.max(0, Math.floor(Number(contributions?.[ownerKey] || 0)));
+        const betAmount = getTotalPaidAmountByOwner(ownerKey);
         const posLabel = positionLabels?.[ownerKey] ? ` ${positionLabels[ownerKey]}` : '';
         chip.textContent = `${player.name}${posLabel} B${betAmount}`;
         ui.participantList.appendChild(chip);
@@ -4127,7 +4152,8 @@ function render() {
     const showKickerOnTie = isShowdown
         && !useRemainingTieBreak
         && shouldShowKickerForShowdown(state.result?.playerBest, state.result?.cpuBest);
-    const isDealing = state.phase === 'dealing' || !!state.initialDealAnimating;
+    const isDealing = state.phase === 'fate-reveal' || state.phase === 'dealing' || !!state.initialDealAnimating;
+    const dealCounts = state.initialDealDealtCounts || {};
     ui.root.classList.toggle('is-showdown', isShowdown);
     ui.root.classList.toggle('is-dealing', isDealing);
     if (ui.pokerRoot) {
@@ -4155,8 +4181,18 @@ function render() {
     const isFatePendingDiscard = isControllerPlayerDiscardPending();
     renderCardRow(ui.playerHand, playerCardsForView, {
         hidden: playerHidden,
-        hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
-        isUndealtIndex: (index) => (isDealing ? index > (state.initialDealRevealedCount || 0) : false),
+        hiddenByIndex: (index) => {
+            if (!isDealing) return playerHidden;
+            const dealt = Number(dealCounts.player || 0);
+            if (index >= dealt) return true;
+            const revealed = Number(state.initialDealRevealedCount || 0);
+            return index >= revealed;
+        },
+        isUndealtIndex: (index) => {
+            if (!isDealing) return false;
+            const dealt = Number(dealCounts.player || 0);
+            return index >= dealt;
+        },
         clickable: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
         drawPhase: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
         isSelectedIndex: (index) => !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard) && state.selectedDiscardIndex === index,
@@ -4180,7 +4216,11 @@ function render() {
                     : -1;
                 return index !== revealIndex;
             },
-            isUndealtIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : false),
+            isUndealtIndex: (index) => {
+                if (!isDealing) return false;
+                const dealt = Number(dealCounts[ownerKey] || 0);
+                return index >= dealt;
+            },
             clickable: false
         });
     });

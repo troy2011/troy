@@ -4,7 +4,7 @@ const DEFAULT_WHEEL_MUTATION_POOL = [0, 1, 3, 4, 6, 7, 8, 11, 13, 14, 15, 16, 17
 const MINOR_SUITS = ['Wand', 'Pentacle', 'Cup', 'Sword'];
 function randomPick(list, rng) {
     if (!list.length) {
-        throw new Error('randomPick called with empty list.');
+        throw new Error('randomPick: 空リストは選択できません。');
     }
     const index = Math.max(0, Math.min(list.length - 1, Math.floor(rng() * list.length)));
     return list[index];
@@ -136,11 +136,11 @@ export class GameController {
     }
     draw() {
         if (!this.state.deck.length) {
-            throw new Error('Deck is empty.');
+            throw new Error('山札が空です。');
         }
         const card = this.state.deck.pop();
         if (!card) {
-            throw new Error('Deck pop failed.');
+            throw new Error('山札からの取得に失敗しました。');
         }
         return card;
     }
@@ -161,31 +161,31 @@ export class GameController {
                 this.state.players[id].hand.push(this.draw());
             }
         }
-        this.log(`Preflop deal: ${dealCount} cards each.`);
+        this.log(`プリフロップ配札: 各${dealCount}枚`);
     }
     revealFlop() {
         for (let i = 0; i < 3; i += 1) {
             this.state.boardVisible.push(this.draw());
         }
-        this.log('Flop opened.');
+        this.log('フロップを公開。');
     }
     revealTurnCard() {
         this.state.boardVisible.push(this.draw());
-        this.log('Turn opened.');
+        this.log('ターンを公開。');
     }
     revealRiverCard() {
         const river = this.draw();
         if (this.activeFateNumber() === 18) {
             this.state.boardHiddenRiver = river;
-            this.log('River is hidden by The Moon.');
+            this.log('月の効果: リバーを伏せて進行。');
             return;
         }
         this.state.boardVisible.push(river);
-        this.log('River opened.');
+        this.log('リバーを公開。');
     }
     revealStarExtraCard() {
         this.state.boardVisible.push(this.draw());
-        this.log('The Star: extra community card opened.');
+        this.log('星の効果: 追加の場札を公開。');
     }
     mutateFateByWheel() {
         const n = this.activeFateNumber();
@@ -200,7 +200,7 @@ export class GameController {
             isArcana: true,
             effectType: chosen === 21 ? 'World' : chosen === 20 ? 'Judgment' : chosen === 0 ? 'Fool' : 'None'
         };
-        this.log(`Wheel of Fortune effect mutated into ${chosen} (display stays 10).`);
+        this.log(`運命の輪: 効果が ${chosen} に変異（表示は10のまま）。`);
     }
     getState() {
         return JSON.parse(JSON.stringify(this.state));
@@ -217,20 +217,20 @@ export class GameController {
         this.state.canUseJudgmentSwap = false;
         this.state.pendingFateActionSource = null;
         this.dealInitialHands();
-        this.log(`Fate card: ${fateCard.number}`);
+        this.log(`運命カード: ${fateCard.number}`);
         return this.getState();
     }
     registerPlayerAction(playerId, action) {
         const player = this.state.players[playerId];
         if (!player) {
-            throw new Error(`Unknown player: ${playerId}`);
+            throw new Error(`不明なプレイヤー: ${playerId}`);
         }
         if (action === 'fold' && !player.canFold) {
-            throw new Error('Fold is locked by The Devil.');
+            throw new Error('悪魔の効果でフォールドできません。');
         }
         if (action === 'fold') {
             player.folded = true;
-            this.log(`${playerId} folded.`);
+            this.log(`${playerId}: フォールド`);
             return this.getState();
         }
         if (action === 'bet' || action === 'call' || action === 'raise') {
@@ -239,7 +239,18 @@ export class GameController {
                 player.canFold = false;
             }
         }
-        this.log(`${playerId} action: ${action}`);
+        const actionJa = action === 'check'
+            ? 'チェック'
+            : action === 'call'
+                ? 'コール'
+                : action === 'bet'
+                    ? 'ベット'
+                    : action === 'raise'
+                        ? 'レイズ'
+                        : action === 'fold'
+                            ? 'フォールド'
+                            : String(action);
+        this.log(`${playerId}: ${actionJa}`);
         return this.getState();
     }
     completeBettingRound() {
@@ -252,7 +263,7 @@ export class GameController {
                 if (this.shouldRunFateAction()) {
                     this.state.phase = 'fate-action';
                     this.state.pendingFateActionSource = 'flop';
-                    this.log('Entering Fate Action phase (after flop).');
+                    this.log('運命アクションフェーズへ移行（フロップ後）。');
                     return this.getState();
                 }
                 this.revealTurnCard();
@@ -260,7 +271,7 @@ export class GameController {
                 if (this.shouldRunFateAction()) {
                     this.state.phase = 'fate-action';
                     this.state.pendingFateActionSource = 'turn';
-                    this.log('Entering Fate Action phase (after turn mutation).');
+                    this.log('運命アクションフェーズへ移行（ターン変異後）。');
                     return this.getState();
                 }
                 this.state.phase = 'turn-bet';
@@ -282,12 +293,12 @@ export class GameController {
                 this.state.phase = 'showdown';
                 return this.getState();
             default:
-                throw new Error(`Cannot complete betting round in phase: ${this.state.phase}`);
+                throw new Error(`このフェーズではベットラウンド完了できません: ${this.state.phase}`);
         }
     }
     runFateAction(input = {}) {
         if (this.state.phase !== 'fate-action') {
-            throw new Error(`Fate action can only run in fate-action phase. Current: ${this.state.phase}`);
+            throw new Error(`運命アクションは運命アクションフェーズ（fate-action）のみ実行可能です。現在: ${this.state.phase}`);
         }
         const fateNumber = this.activeFateNumber();
         if (fateNumber === 2) {
@@ -295,7 +306,7 @@ export class GameController {
                 const idx = input.revealByPlayer?.[id];
                 this.state.players[id].revealHandIndex = Number.isFinite(idx) ? idx : null;
             }
-            this.log('High Priestess reveal option updated.');
+            this.log('女教皇: 公開オプションを更新。');
         }
         else if (fateNumber === 9) {
             // Hermit always previews the river card (5th community card).
@@ -306,7 +317,7 @@ export class GameController {
             const offset = source === 'flop' ? 2 : 1;
             const idx = this.state.deck.length - offset;
             this.state.previewRiverCard = idx >= 0 ? cloneCard(this.state.deck[idx]) : null;
-            this.log('Hermit previewed the future river card.');
+            this.log('隠者: 未来のリバーカードを予見。');
         }
         else if (fateNumber === 12) {
             for (const id of this.state.playerOrder) {
@@ -319,7 +330,7 @@ export class GameController {
                 player.hand[handIdx] = top;
                 this.state.deck.unshift(handCard);
             }
-            this.log('Hanged Man forced highest-card swap.');
+            this.log('吊るされた男: 最高数値カードを強制交換。');
         }
         else if (fateNumber === 19) {
             const pending = new Set();
@@ -353,12 +364,12 @@ export class GameController {
             }
             this.state.pendingFateDiscardPlayers = Array.from(pending);
             if (this.state.pendingFateDiscardPlayers.length > 0) {
-                this.log('The Sun waiting for player discard selection.');
+                this.log('太陽: プレイヤーの捨て札選択待ち。');
                 return this.getState();
             }
             this.state.pendingFateDiscardMode = null;
             this.state.pendingFateDiscardPlayers = [];
-            this.log('The Sun resolved draw-then-discard.');
+            this.log('太陽: 引いてから捨てる処理を解決。');
         }
         else if (fateNumber === 20) {
             const pending = new Set();
@@ -395,19 +406,19 @@ export class GameController {
             }
             this.state.pendingFateDiscardPlayers = Array.from(pending);
             if (this.state.pendingFateDiscardPlayers.length > 0) {
-                this.log('Judgment waiting for player discard selection.');
+                this.log('審判: プレイヤーの捨て札選択待ち。');
                 return this.getState();
             }
             this.state.pendingFateDiscardMode = null;
             this.state.pendingFateDiscardPlayers = [];
             this.state.canUseJudgmentSwap = true;
-            this.log('Judgment resolved discard-then-draw. Grave swap enabled for showdown.');
+            this.log('審判: 捨てて引く処理を解決。ショーダウンで墓地交換可能。');
         }
         else if (fateNumber === 5) {
-            this.log('Hierophant action phase is a no-op (preflop deal already modified).');
+            this.log('法王: 追加アクションなし（配札時に反映済み）。');
         }
         else {
-            this.log('No-op fate action.');
+            this.log('運命アクションなし。');
         }
         if (this.state.pendingFateActionSource === 'flop') {
             const wasWheel = this.activeFateNumber() === 10;
@@ -416,7 +427,7 @@ export class GameController {
             if (wasWheel && this.shouldRunFateAction()) {
                 this.state.phase = 'fate-action';
                 this.state.pendingFateActionSource = 'turn';
-                this.log('Entering Fate Action phase (after turn mutation).');
+                this.log('運命アクションフェーズへ移行（ターン変異後）。');
                 return this.getState();
             }
             this.state.phase = 'turn-bet';
@@ -429,7 +440,7 @@ export class GameController {
     }
     resolveShowdown(judgmentSwapCardByPlayer = {}) {
         if (this.state.phase !== 'showdown') {
-            throw new Error(`Showdown can only resolve in showdown phase. Current: ${this.state.phase}`);
+            throw new Error(`ショーダウンはショーダウンフェーズ（showdown）のみ実行可能です。現在: ${this.state.phase}`);
         }
         if (this.state.boardHiddenRiver) {
             this.state.boardVisible.push(this.state.boardHiddenRiver);
@@ -486,7 +497,7 @@ export class GameController {
         };
         this.state.showdownResult = result;
         this.state.phase = 'done';
-        this.log(`Showdown resolved. Winners: ${winnerIds.join(', ') || 'none'}`);
+        this.log(`ショーダウン解決。勝者: ${winnerIds.join(', ') || 'なし'}`);
         return result;
     }
 }
