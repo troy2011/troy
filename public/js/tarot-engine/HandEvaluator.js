@@ -27,16 +27,17 @@ function effectTypeForCard(card) {
         return card.effectType;
     if (!card.isArcana)
         return 'None';
-    if (card.number === 21)
+    const effectNumber = Number(card?.effectNumber ?? card?.number);
+    if (effectNumber === 21)
         return 'World';
-    if (card.number === 20)
+    if (effectNumber === 20)
         return 'Judgment';
-    if (card.number === 0)
+    if (effectNumber === 0)
         return 'Fool';
     return 'None';
 }
 function deriveEffects(fateCard) {
-    const n = Number(fateCard?.number ?? -1);
+    const n = Number(fateCard?.effectNumber ?? fateCard?.number ?? -1);
     return {
         fool: n === 0,
         magician: n === 1,
@@ -97,6 +98,12 @@ function lexicographicCompare(left, right) {
             return a > b ? 1 : -1;
     }
     return 0;
+}
+
+function compareVectorByJustice(left, right, justice) {
+    const cmp = lexicographicCompare(left, right);
+    if (!justice || cmp === 0) return cmp;
+    return -cmp;
 }
 function detectStraight(values, allowStep2) {
     const uniq = uniqueSortedDesc(values);
@@ -377,11 +384,11 @@ function compareScoredHands(left, right, effects) {
     if (left.rankWeight !== right.rankWeight) {
         return { cmp: left.rankWeight > right.rankWeight ? 1 : -1, reason: 'rank' };
     }
-    const primaryCmp = lexicographicCompare(left.primaryVector, right.primaryVector);
+    const primaryCmp = compareVectorByJustice(left.primaryVector, right.primaryVector, effects.justice);
     if (primaryCmp !== 0) {
         return { cmp: primaryCmp, reason: 'primary-vector' };
     }
-    const kickerCmp = lexicographicCompare(left.kickerVector, right.kickerVector);
+    const kickerCmp = compareVectorByJustice(left.kickerVector, right.kickerVector, effects.justice);
     if (kickerCmp !== 0) {
         return { cmp: kickerCmp, reason: 'kicker' };
     }

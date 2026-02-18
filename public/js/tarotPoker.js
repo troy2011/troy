@@ -87,7 +87,7 @@ const TAROT_REVEAL_FRAMES = Array.from(
 );
 const TAROT_REVEAL_FRAME_MS = 38;
 const FATE_EFFECT_SUMMARY = {
-    0: '\u611a\u8005: \u7279\u6b8a\u52b9\u679c\u3092\u7121\u52b9\u5316\u3059\u308b\u3002',
+    0: '\u611a\u8005: \u30ef\u30a4\u30eb\u30c9\u30ab\u30fc\u30c9\u3068\u3057\u3066\u6271\u3046\u3002',
     1: '\u9b54\u8853\u5e2b: \u30aa\u30fc\u30eb\u30b9\u30fc\u30c8\u3068\u3057\u3066\u5224\u5b9a\u3055\u308c\u308b\u3002',
     2: '\u5973\u6559\u7687: \u624b\u672d1\u679a\u306e\u516c\u958b\u6a29\u304c\u767a\u751f\u3059\u308b\u3002',
     3: '\u5973\u5e1d: \u6570\u5024\u306f3/13\u306e\u6709\u5229\u5074\u3067\u5224\u5b9a\u3002',
@@ -552,7 +552,7 @@ function resetState() {
         betting: null,
         handSettled: false,
         forceShowdown: false,
-        effectsDisabledByFool: false,
+        pendingPayoutFx: null,
         pendingJudgment: null,
         fateCard: null,
         activeFateCard: null,
@@ -729,7 +729,7 @@ async function runControllerFateActionLoop() {
         if (controllerState.phase !== 'fate-action') return;
         const beforeBoardCount = Array.isArray(controllerState.boardVisible) ? controllerState.boardVisible.length : 0;
 
-        const fateNo = Number(controllerState.activeFateCard?.number || 0);
+        const fateNo = getFateRuleNumber(controllerState.activeFateCard);
         const input = {};
         if (fateNo === 2) {
             input.revealByPlayer = {};
@@ -932,6 +932,29 @@ function getBetCoinSourceElement(ownerKey) {
     return getActionElementByOwner(ownerKey) || null;
 }
 
+function getPayoutTargetElement(ownerKey) {
+    const participantChip = ui.participantList?.querySelector?.(`[data-owner-key="${ownerKey}"]`) || null;
+    if (participantChip) return participantChip;
+    const actionEl = getActionElementByOwner(ownerKey);
+    if (actionEl) return actionEl;
+    return getHandContainerByOwner(ownerKey) || null;
+}
+
+function getMoneyBagCountByPot(potAmount, winnerCount = 1) {
+    const pot = Math.max(0, Math.floor(Number(potAmount) || 0));
+    let count = 4;
+    if (pot >= 40) count = 6;
+    if (pot >= 80) count = 8;
+    if (pot >= 140) count = 10;
+    if (pot >= 220) count = 12;
+    if (pot >= 320) count = 14;
+    if (pot >= 460) count = 16;
+    if (pot >= 640) count = 18;
+    if (pot >= 900) count = 20;
+    const normalizedWinners = Math.max(1, Math.floor(Number(winnerCount) || 1));
+    return Math.max(3, Math.min(20, Math.round(count / normalizedWinners)));
+}
+
 async function playBetCoinEffect(ownerKey, action) {
     if (!['bet', 'raise'].includes(String(action || ''))) return;
     const targetEl = ui.potText;
@@ -986,6 +1009,80 @@ async function playBetCoinEffect(ownerKey, action) {
         tasks.push(run);
     }
 
+    await Promise.all(tasks);
+}
+
+async function playShowdownPotPayoutEffect() {
+    const payload = state?.pendingPayoutFx;
+    if (!payload) return;
+    state.pendingPayoutFx = null;
+    if (typeof document === 'undefined') return;
+    const sourceEl = ui.potText || ui.potValueText;
+    const from = getElementCenterPoint(sourceEl);
+    if (!from) return;
+    const winners = Array.isArray(payload.winners)
+        ? payload.winners.filter((key) => !!state?.players?.[key])
+        : [];
+    if (!winners.length) return;
+    const totalPot = Math.max(0, Math.floor(Number(payload.pot || 0)));
+    if (totalPot <= 0) return;
+
+    const tasks = [];
+    const perWinnerAmount = Math.max(1, Math.floor(totalPot / winners.length));
+    winners.forEach((winnerKey, winnerIndex) => {
+        const targetEl = getPayoutTargetElement(winnerKey);
+        const to = getElementCenterPoint(targetEl);
+        if (!to) return;
+        const ownerClass = winnerKey === 'player' ? 'is-player' : 'is-cpu';
+        const bagCount = getMoneyBagCountByPot(perWinnerAmount, 1);
+        const lifeMs = 680;
+        for (let i = 0; i < bagCount; i += 1) {
+            const bag = document.createElement('span');
+            bag.className = `tarot-coin-fx is-payout ${ownerClass}`;
+            bag.textContent = '💰';
+            bag.style.left = `${from.x}px`;
+            bag.style.top = `${from.y}px`;
+            bag.style.opacity = '0';
+            bag.style.transform = 'translate(-50%, -50%) scale(0.56) rotate(0deg)';
+            document.body.appendChild(bag);
+
+            const delay = (winnerIndex * 90) + (i * 48);
+            const jitterX = (Math.random() * 18) - 9;
+            const jitterY = (Math.random() * 14) - 7;
+            const targetX = to.x + jitterX;
+            const targetY = to.y + jitterY;
+            const rotate = (Math.random() * 120) - 60;
+            const arcY = Math.max(18, Math.abs(from.y - to.y) * 0.15);
+
+            const run = new Promise((resolve) => {
+                setTimeout(() => {
+                    bag.style.transition = `left ${lifeMs}ms cubic-bezier(0.16,0.84,0.25,1), top ${lifeMs}ms cubic-bezier(0.16,0.84,0.25,1), opacity ${lifeMs}ms ease, transform ${lifeMs}ms ease`;
+                    bag.style.left = `${targetX}px`;
+                    bag.style.top = `${targetY - arcY}px`;
+                    bag.style.opacity = '1';
+                    bag.style.transform = `translate(-50%, -50%) scale(1.05) rotate(${rotate}deg)`;
+                }, delay);
+
+                setTimeout(() => {
+                    bag.style.top = `${targetY}px`;
+                    bag.style.transform = `translate(-50%, -50%) scale(0.88) rotate(${rotate * 1.2}deg)`;
+                }, delay + Math.max(120, lifeMs - 180));
+
+                setTimeout(() => {
+                    bag.style.opacity = '0';
+                    bag.style.transform = `translate(-50%, -50%) scale(0.72) rotate(${rotate * 1.35}deg)`;
+                }, delay + Math.max(120, lifeMs - 90));
+
+                setTimeout(() => {
+                    if (bag.parentElement) bag.remove();
+                    resolve();
+                }, delay + lifeMs + 100);
+            });
+            tasks.push(run);
+        }
+    });
+
+    if (!tasks.length) return;
     await Promise.all(tasks);
 }
 
@@ -1177,7 +1274,7 @@ function getCardEffectType(card) {
 }
 
 function getJudgmentContextForExchange(ownerKey, discardedCard = null) {
-    if (!state?.players?.[ownerKey] || isEffectDisabled()) return null;
+    if (!state?.players?.[ownerKey]) return null;
     const owner = state.players[ownerKey];
     const isKarma = getCardEffectType(discardedCard) === EFFECT_TYPE.JUDGMENT;
     if (isKarma) {
@@ -1208,6 +1305,17 @@ function getCardDisplayName(card) {
     return getCardNameLabel(card);
 }
 
+function getFateRuleNumber(card) {
+    if (!card) return 0;
+    const effectNumber = Number(card.effectNumber);
+    if (Number.isFinite(effectNumber)) return effectNumber;
+    return Number(card.number || 0);
+}
+
+function getActiveFateRuleNumber() {
+    return getFateRuleNumber(state?.activeFateCard || state?.fateCard || null);
+}
+
 function escapeHtmlText(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -1229,32 +1337,36 @@ function getFatePreviewSuitClass(card) {
 
 function getFateEffectSummary(card) {
     if (!card) return 'FATE CARD\u52b9\u679c: \u306a\u3057';
-    const number = Number(card.number);
-    const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, number)
-        ? FATE_EFFECT_SUMMARY[number]
+    const displayNumber = Number(card.number);
+    const ruleNumber = getFateRuleNumber(card);
+    const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, ruleNumber)
+        ? FATE_EFFECT_SUMMARY[ruleNumber]
         : '\u3053\u306e\u30ab\u30fc\u30c9\u306e\u52b9\u679c\u8aac\u660e\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002';
     const name = getCardDisplayName(card);
-    if (number === 9 && state?.previewRiverCard) {
+    const mutationText = ruleNumber !== displayNumber
+        ? ` / \u5909\u7570\u52b9\u679c: ${(ARCANA_NAME[ruleNumber] || 'Arcana')}(${ruleNumber})`
+        : '';
+    if (ruleNumber === 9 && state?.previewRiverCard) {
         const previewName = getCardDisplayName(state.previewRiverCard);
         const previewNum = getCardNumberLabel(state.previewRiverCard);
-        return `FATE CARD: ${name} (${number}) / ${base} / \u4e88\u898b: ${previewName}(${previewNum})`;
+        return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText} / \u4e88\u898b: ${previewName}(${previewNum})`;
     }
-    if (number === 2) {
+    if (ruleNumber === 2) {
         const displayNpcKey = getDisplayNpcKey();
         const revealIndex = Number(state?.players?.[displayNpcKey]?.revealHandIndex);
         const idx = Number.isFinite(revealIndex) ? revealIndex : -1;
         const revealed = idx >= 0 ? (state?.players?.[displayNpcKey]?.hand?.[idx] || null) : null;
         if (revealed) {
-            return `FATE CARD: ${name} (${number}) / ${base} / \u516c\u958b: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
+            return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText} / \u516c\u958b: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
         }
     }
-    return `FATE CARD: ${name} (${number}) / ${base}`;
+    return `FATE CARD: ${name} (${displayNumber}) / ${base}${mutationText}`;
 }
 
 function getFateEffectSummaryHtml(card) {
     const plain = getFateEffectSummary(card);
-    const number = Number(card?.number);
-    if (number === 9 && state?.previewRiverCard) {
+    const ruleNumber = getFateRuleNumber(card);
+    if (ruleNumber === 9 && state?.previewRiverCard) {
         const previewName = getCardDisplayName(state.previewRiverCard);
         const previewNum = getCardNumberLabel(state.previewRiverCard);
         const previewToken = `${previewName}(${previewNum})`;
@@ -1346,7 +1458,7 @@ function getDisplayAdjustedNumber(card) {
     const baseNumber = Number(card.number) || 0;
     if (card.isArcana) return baseNumber;
 
-    const fateNumber = Number(state?.activeFateCard?.number ?? state?.fateCard?.number ?? 0);
+    const fateNumber = getActiveFateRuleNumber();
 
     // 死神: コート(11-14)を 1-4 に固定変換
     if (fateNumber === 13 && baseNumber >= 11 && baseNumber <= 14) {
@@ -1811,6 +1923,9 @@ function mapCardForTarotEngine(card) {
     return {
         id: String(card.id || ''),
         number: Number(card.number || 0),
+        effectNumber: Number.isFinite(Number(card.effectNumber))
+            ? Number(card.effectNumber)
+            : undefined,
         suit: String(card.suit || 'None'),
         isArcana: !!card.isArcana,
         effectType: getCardEffectType(card)
@@ -2026,6 +2141,11 @@ function settlePotByWinner(winnerKey) {
             ? Object.keys(state.players || {}).filter((key) => !state.players[key].folded)
             : [winnerKey].filter((key) => !!state.players?.[key]));
     if (!winners.length) return;
+    state.pendingPayoutFx = {
+        pot,
+        winners: winners.slice(),
+        at: Date.now()
+    };
 
     const baseShare = Math.floor(pot / winners.length);
     let rest = pot - (baseShare * winners.length);
@@ -2678,20 +2798,9 @@ function chooseCpuPlan() {
     };
 }
 
-function isEffectDisabled() {
-    return state.effectsDisabledByFool;
-}
-
 function applyDiscardSpecial(card, ownerKey) {
     if (!card) return;
     const effectType = getCardEffectType(card);
-    if (isEffectDisabled()) {
-        if (effectType === EFFECT_TYPE.WORLD || effectType === EFFECT_TYPE.JUDGMENT) {
-            pushLog('THE FOOL active: discard effect nullified');
-            showEffectOverlay('THE FOOL - EFFECT NULLIFIED');
-        }
-        return;
-    }
     if (effectType === EFFECT_TYPE.WORLD) {
         const otherKey = ownerKey === 'player' ? 'cpu' : 'player';
         state.players[otherKey].canExchange = false;
@@ -2714,18 +2823,11 @@ function applyBoardSpecial(card) {
     if (!card) return;
     const effectType = getCardEffectType(card);
     if (effectType === EFFECT_TYPE.FOOL) {
-        if (!state.effectsDisabledByFool) {
-            state.effectsDisabledByFool = true;
-            state.pendingJudgment = null;
-            Object.keys(state.players || {}).forEach((ownerKey) => {
-                state.players[ownerKey].hasResurrectionRight = false;
-            });
-            pushLog('THE FOOL on board: special effects disabled');
-            showEffectOverlay('THE FOOL - CHAOS NULLIFICATION');
-        }
+        pushLog('THE FOOL: wild card active');
+        showEffectOverlay('THE FOOL - WILD CARD');
         return;
     }
-    if (effectType === EFFECT_TYPE.WORLD && !isEffectDisabled()) {
+    if (effectType === EFFECT_TYPE.WORLD) {
         state.players.player.bettingEnabled = hasFoolInHand('player');
         state.players.cpu.bettingEnabled = hasFoolInHand('cpu');
         state.forceShowdown = true;
@@ -2733,7 +2835,7 @@ function applyBoardSpecial(card) {
         showEffectOverlay('THE WORLD - TIME STOP');
         return;
     }
-    if (effectType === EFFECT_TYPE.JUDGMENT && !isEffectDisabled()) {
+    if (effectType === EFFECT_TYPE.JUDGMENT) {
         Object.keys(state.players || {}).forEach((ownerKey) => {
             state.players[ownerKey].hasResurrectionRight = true;
         });
@@ -3045,20 +3147,9 @@ async function startNewGame() {
             if (!card) continue;
 
             render();
-            if (ownerKey === 'player') {
-                const playerCards = Array.from(ui.playerHand?.querySelectorAll('.tarot-card') || []);
-                const playerTarget = playerCards[i];
-                if (playerTarget) {
-                    await animateBackToFrontOnElement(playerTarget, card);
-                }
-                playerRevealCount = Math.max(playerRevealCount, i + 1);
-                state.initialDealRevealedCount = playerRevealCount;
-                render();
-                await wait(70);
-                continue;
-            }
-
-            const targetHand = getHandContainerByOwner(ownerKey) || ui.cpuHand;
+            const targetHand = ownerKey === 'player'
+                ? (Array.from(ui.playerHand?.querySelectorAll('.tarot-card') || [])[i] || ui.playerHand)
+                : (getHandContainerByOwner(ownerKey) || ui.cpuHand);
             if (targetHand) {
                 await animateCardFlight(card, ui.deckAnchor, targetHand, 220, 1, { hidden: true });
             }
@@ -3066,6 +3157,21 @@ async function startNewGame() {
             await wait(60);
         }
         await wait(80);
+    }
+
+    render();
+    await wait(120);
+
+    const playerHandCards = handByOwner.player || [];
+    for (let i = 0; i < playerHandCards.length; i += 1) {
+        const card = playerHandCards[i];
+        const target = Array.from(ui.playerHand?.querySelectorAll('.tarot-card') || [])[i];
+        if (!card || !target) continue;
+        await animateBackToFrontOnElement(target, card);
+        playerRevealCount = Math.max(playerRevealCount, i + 1);
+        state.initialDealRevealedCount = playerRevealCount;
+        render();
+        await wait(90);
     }
 
     state.initialDealAnimating = false;
@@ -3110,10 +3216,30 @@ async function handleNext() {
     }
 }
 
+function canSkipPlayerDiscardPhase() {
+    if (!state) return false;
+    if (state.phase !== 'draw-player') return false;
+    if (state.isResolvingPlayerDiscard) return false;
+    if (state.awaitingPostJudgmentDiscard) return false;
+    if (getControllerPendingDiscardModeForPlayer()) return false;
+    return true;
+}
+
+async function skipPlayerDiscardPhase() {
+    if (!canSkipPlayerDiscardPhase()) return;
+    state.selectedDiscardIndex = null;
+    pushLog(`DRAW PHASE ${state.drawRound}: スキップして次へ進行`);
+    await finishPlayerExchange(getPostDrawNextPhase());
+}
+
 async function handlePrimaryButtonClick() {
     if (!state) return;
     if (state.phase === 'idle' || state.phase === 'showdown') {
         await startNewGame();
+        return;
+    }
+    if (canSkipPlayerDiscardPhase()) {
+        await skipPlayerDiscardPhase();
         return;
     }
     await handleNext();
@@ -3687,6 +3813,7 @@ async function runShowdownPresentation() {
             state.showdownRevealDone = true;
         }
         render();
+        await playShowdownPotPayoutEffect();
         await wait(120);
         await showShowdownResultCutin();
         render();
@@ -3815,10 +3942,17 @@ function renderButtons() {
     }
     if (state.phase === 'draw-player') {
         const isBusy = !!state.isResolvingPlayerDiscard;
-        btn.disabled = true;
-        btn.textContent = isBusy
-            ? 'ドロー処理中...'
-            : ('第' + state.drawRound + 'ドロー: 手札を選択');
+        const canSkip = !isBusy
+            && !state.awaitingPostJudgmentDiscard
+            && !getControllerPendingDiscardModeForPlayer();
+        btn.disabled = !canSkip;
+        if (isBusy) {
+            btn.textContent = 'ドロー処理中...';
+        } else if (canSkip) {
+            btn.textContent = '第' + state.drawRound + 'ドロー: スキップ';
+        } else {
+            btn.textContent = '第' + state.drawRound + 'ドロー: 手札を選択';
+        }
         return;
     }
     if (isControllerPlayerDiscardPending()) {

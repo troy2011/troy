@@ -145,7 +145,11 @@ export class GameController {
         return card;
     }
     activeFateNumber() {
-        return Number(this.state.activeFateCard.number);
+        const effectNumber = Number(this.state.activeFateCard?.effectNumber);
+        if (Number.isFinite(effectNumber)) {
+            return effectNumber;
+        }
+        return Number(this.state.activeFateCard?.number);
     }
     shouldRunFateAction() {
         return FATE_ACTION_NUMBERS.has(this.activeFateNumber());
@@ -190,12 +194,13 @@ export class GameController {
         const chosen = randomPick(this.wheelMutationPool, this.rng);
         this.state.activeFateCard = {
             id: `${this.state.fateCard.id}__mutated_${chosen}`,
-            number: chosen,
+            number: 10,
+            effectNumber: chosen,
             suit: chosen === 1 ? 'All' : 'None',
             isArcana: true,
             effectType: chosen === 21 ? 'World' : chosen === 20 ? 'Judgment' : chosen === 0 ? 'Fool' : 'None'
         };
-        this.log(`Wheel of Fortune mutated into ${chosen}.`);
+        this.log(`Wheel of Fortune effect mutated into ${chosen} (display stays 10).`);
     }
     getState() {
         return JSON.parse(JSON.stringify(this.state));
