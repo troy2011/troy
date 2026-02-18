@@ -3062,8 +3062,8 @@ body.modal-lock .modal-overlay {
 .tarot-poker-column--npc-mini {
     --tarot-card-w: 29px;
     --tarot-card-h: 48px;
-    --tarot-art-w: 24px;
-    --tarot-art-h: 40px;
+    --tarot-art-w: 48px;
+    --tarot-art-h: 80px;
     --tarot-art-left: 2px;
     --tarot-art-top: 4px;
     --tarot-card-padding: 2px;
@@ -3103,6 +3103,11 @@ body.modal-lock .modal-overlay {
 .tarot-poker-column--npc-mini .tarot-card-row {
     gap: 2px;
     min-height: var(--tarot-card-h, 48px);
+}
+
+.tarot-poker-column--npc-mini .tarot-card-art {
+    transform: scale(0.5);
+    transform-origin: top left;
 }
 
 .tarot-poker-column--npc-mini .tarot-grave-row {
