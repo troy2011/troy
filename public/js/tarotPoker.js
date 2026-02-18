@@ -476,10 +476,16 @@ function buildDeck() {
         if (number === 21) effectType = EFFECT_TYPE.WORLD;
         if (number === 20) effectType = EFFECT_TYPE.JUDGMENT;
         if (number === 0) effectType = EFFECT_TYPE.FOOL;
+        let suit = 'None';
+        if (number === 1) suit = 'All';
+        else if (number === 16) suit = 'Sword';
+        else if (number === 17) suit = 'Cup';
+        else if (number === 18) suit = 'Pentacle';
+        else if (number === 19) suit = 'Wand';
         deck.push({
             id: `arcana-${number}`,
             number,
-            suit: number === 1 ? 'All' : 'None',
+            suit,
             isArcana: true,
             effectType
         });
@@ -817,8 +823,7 @@ async function runControllerFateActionLoop() {
 
 async function resolveShowdownByController() {
     if (!tarotGameController) {
-        await resolveShowdown();
-        return;
+        throw new Error('tarotGameController が初期化されていません');
     }
     const controllerResult = tarotGameController.resolveShowdown({});
     const after = tarotGameController.getState();
@@ -941,18 +946,42 @@ function getElementCenterPoint(el) {
 
 function getBetCoinSourceElement(ownerKey) {
     const handEl = getHandContainerByOwner(ownerKey);
-    if (handEl) return handEl;
+    if (handEl) {
+        const handCards = handEl.querySelectorAll
+            ? Array.from(handEl.querySelectorAll('.tarot-card'))
+            : [];
+        for (let i = handCards.length - 1; i >= 0; i -= 1) {
+            const cardEl = handCards[i];
+            if (!cardEl || !cardEl.classList) continue;
+            if (cardEl.classList.contains('is-undealt')) continue;
+            return cardEl;
+        }
+        return handEl;
+    }
     const participantChip = ui.participantList?.querySelector?.(`[data-owner-key="${ownerKey}"]`) || null;
     if (participantChip) return participantChip;
     return getActionElementByOwner(ownerKey) || null;
 }
 
 function getPayoutTargetElement(ownerKey) {
+    const handEl = getHandContainerByOwner(ownerKey);
+    if (handEl) {
+        const handCards = handEl.querySelectorAll
+            ? Array.from(handEl.querySelectorAll('.tarot-card'))
+            : [];
+        for (let i = handCards.length - 1; i >= 0; i -= 1) {
+            const cardEl = handCards[i];
+            if (!cardEl || !cardEl.classList) continue;
+            if (cardEl.classList.contains('is-undealt')) continue;
+            return cardEl;
+        }
+        return handEl;
+    }
     const participantChip = ui.participantList?.querySelector?.(`[data-owner-key="${ownerKey}"]`) || null;
     if (participantChip) return participantChip;
     const actionEl = getActionElementByOwner(ownerKey);
     if (actionEl) return actionEl;
-    return getHandContainerByOwner(ownerKey) || null;
+    return null;
 }
 
 function getMoneyBagCountByPot(potAmount, winnerCount = 1) {
@@ -971,7 +1000,7 @@ function getMoneyBagCountByPot(potAmount, winnerCount = 1) {
 }
 
 async function playBetCoinEffect(ownerKey, action) {
-    if (!['bet', 'raise'].includes(String(action || ''))) return;
+    if (!['bet', 'raise', 'call'].includes(String(action || ''))) return;
     const targetEl = ui.potText;
     if (!targetEl || typeof document === 'undefined') return;
     const sourceEl = getBetCoinSourceElement(ownerKey);
@@ -1125,7 +1154,7 @@ async function showActionCutin(ownerKey, action) {
         resetCutinStyle();
         ui.cutin.classList.add('show', ownerClass);
     }
-    if (action === 'bet' || action === 'raise') {
+    if (action === 'bet' || action === 'raise' || action === 'call') {
         playBetCoinEffect(ownerKey, action).catch(() => {});
     }
     await wait(BET_ACTION_TEMPO_MS);
@@ -1364,7 +1393,7 @@ function getFateEffectSummary(card) {
     if (ruleNumber === 9 && state?.previewRiverCard) {
         const previewName = getCardDisplayName(state.previewRiverCard);
         const previewNum = getCardNumberLabel(state.previewRiverCard);
-        return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText} / 予見: ${previewName}(${previewNum})`;
+        return `${name} (${displayNumber}) / ${base}${mutationText} / 予見: ${previewName}(${previewNum})`;
     }
     if (ruleNumber === 2) {
         const displayNpcKey = getDisplayNpcKey();
@@ -1372,10 +1401,24 @@ function getFateEffectSummary(card) {
         const idx = Number.isFinite(revealIndex) ? revealIndex : -1;
         const revealed = idx >= 0 ? (state?.players?.[displayNpcKey]?.hand?.[idx] || null) : null;
         if (revealed) {
-            return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText} / 公開: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
+            return `${name} (${displayNumber}) / ${base}${mutationText} / 公開: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
         }
     }
-    return `運命カード: ${name} (${displayNumber}) / ${base}${mutationText}`;
+    return `${name} (${displayNumber}) / ${base}${mutationText}`;
+}
+
+function getFateRevealCutinText(card) {
+    if (!card) return '運命カード公開';
+    const displayNumber = Number(card.number);
+    const ruleNumber = getFateRuleNumber(card);
+    const name = getCardDisplayName(card);
+    const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, ruleNumber)
+        ? FATE_EFFECT_SUMMARY[ruleNumber]
+        : 'このカードの効果説明は未設定です。';
+    const mutationText = ruleNumber !== displayNumber
+        ? `（変異: ${(ARCANA_NAME[ruleNumber] || 'アルカナ')}(${ruleNumber})）`
+        : '';
+    return `${name} (${displayNumber})\n${base}${mutationText}`;
 }
 
 function getFateEffectSummaryHtml(card) {
@@ -1510,9 +1553,13 @@ function getCardPrimaryValue(card) {
 function getCardSuitOptionsForFlush(card) {
     if (!card) return ['None'];
     if (!card.isArcana) return [card.suit];
-    const fromMap = ARCANA_FLUSH_SUIT_OPTIONS[Number(card.number)];
+    const ruleNumber = Number.isFinite(Number(card.effectNumber))
+        ? Number(card.effectNumber)
+        : Number(card.number);
+    const fromMap = ARCANA_FLUSH_SUIT_OPTIONS[ruleNumber];
     if (Array.isArray(fromMap) && fromMap.length > 0) return fromMap.slice();
     if (card.suit === 'All') return ['All'];
+    if (SUITS.includes(card.suit)) return [card.suit];
     return ['None'];
 }
 
@@ -1890,25 +1937,7 @@ function compareHandsWithRemainingTieBreak(leftAllCards, leftBest, rightAllCards
 function chooseBestFiveFromSeven(cards) {
     if (!Array.isArray(cards) || cards.length < 5) return null;
     const fate = state?.activeFateCard || null;
-    const engineBest = evaluateHandByTarotEngine(cards, [], fate);
-    if (engineBest) return engineBest;
-    let best = null;
-    for (let a = 0; a < cards.length - 4; a += 1) {
-        for (let b = a + 1; b < cards.length - 3; b += 1) {
-            for (let c = b + 1; c < cards.length - 2; c += 1) {
-                for (let d = c + 1; d < cards.length - 1; d += 1) {
-                    for (let e = d + 1; e < cards.length; e += 1) {
-                        const combo = [cards[a], cards[b], cards[c], cards[d], cards[e]];
-                        const score = scoreFiveCards(combo);
-                        if (!best || compareScore(score, best) > 0) {
-                            best = score;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return best;
+    return evaluateHandByTarotEngine(cards, [], fate);
 }
 
 function chooseBestTwoHandCardsForLiveRole(handCards, boardCards) {
@@ -2009,7 +2038,7 @@ function evaluateHandByTarotEngine(handCards, boardCards, fateCard = null) {
             engine: engineEval
         };
     } catch (error) {
-        console.warn('[tarot-engine] evaluateHand failed, fallback to legacy evaluator:', error);
+        console.error('[tarot-engine] evaluateHand failed:', error);
         return null;
     }
 }
@@ -2894,12 +2923,10 @@ async function revealBoard(count) {
 
 async function forceShowdown() {
     state.forceShowdown = false;
-    state.phase = 'showdown';
-    state.showdownRevealRunning = false;
-    state.showdownRevealDone = false;
-    state.result = evaluateShowdown();
-    settlePotByWinner(state.result?.winner || 'draw');
-    await runShowdownPresentation();
+    if (!tarotGameController) {
+        throw new Error('tarotGameController が初期化されていません');
+    }
+    await resolveShowdownByController();
 }
 
 function drawFor(ownerKey) {
@@ -3079,16 +3106,10 @@ async function processCpuExchange(nextPhase = 'turn-ready') {
 }
 
 async function resolveShowdown() {
-    if (tarotGameController) {
-        await resolveShowdownByController();
-        return;
+    if (!tarotGameController) {
+        throw new Error('tarotGameController が初期化されていません');
     }
-    state.phase = 'showdown';
-    state.showdownRevealRunning = false;
-    state.showdownRevealDone = false;
-    state.result = evaluateShowdown();
-    settlePotByWinner(state.result?.winner || 'draw');
-    await runShowdownPresentation();
+    await resolveShowdownByController();
 }
 async function finishPlayerExchange(nextPhase = 'turn-ready') {
     if (state.forceShowdown) {
@@ -3880,7 +3901,7 @@ function renderFateCardInfo() {
     }
     if (ui.fateEffectText) {
         if (state?.activeFateCard && !state?.fateRevealed) {
-            ui.fateEffectText.textContent = '運命カード: 公開待ち';
+            ui.fateEffectText.textContent = '公開待ち';
         } else {
             ui.fateEffectText.innerHTML = getFateEffectSummaryHtml(state?.activeFateCard || null);
         }
@@ -3897,7 +3918,7 @@ async function revealFateCardPresentation() {
     state.fateRevealed = false;
     render();
 
-    await showRoundCutin(`FATE REVEAL - ${getCardDisplayName(fate)}`);
+    await showRoundCutin(getFateRevealCutinText(fate));
     const fateEl = ui.fateCard ? ui.fateCard.querySelector('.tarot-card') : null;
     if (fateEl) {
         await animateBackToFrontOnElement(fateEl, fate);

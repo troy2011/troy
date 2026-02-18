@@ -2573,8 +2573,8 @@ body.modal-lock .modal-overlay {
 .tarot-poker-root {
     overflow: visible;
     position: relative;
-    --tarot-card-w: 58px;
-    --tarot-card-h: 96px;
+    --tarot-card-w: 53px;
+    --tarot-card-h: 88px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
     --tarot-art-left: 5px;
@@ -3121,6 +3121,10 @@ body.modal-lock .modal-overlay {
     min-height: 14px;
     margin-top: 3px;
     font-size: 10px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tarot-poker-column--npc-mini .tarot-action-label {
@@ -3132,6 +3136,8 @@ body.modal-lock .modal-overlay {
 .tarot-poker-column--npc-mini .tarot-card-row {
     gap: 2px;
     min-height: var(--tarot-card-h, 48px);
+    justify-content: flex-start;
+    overflow-x: visible;
 }
 
 .tarot-poker-column--npc-mini .tarot-card-art {
@@ -3699,6 +3705,7 @@ body.modal-lock .modal-overlay {
     font-size: clamp(18px, 4.6vw, 34px);
     font-weight: 900;
     letter-spacing: 0.08em;
+    white-space: pre-line;
     text-shadow:
         -1px -1px 0 #000,
         -1px 1px 0 #000,
@@ -4036,6 +4043,12 @@ body.modal-lock .modal-overlay {
         gap: 8px;
     }
 
+    /* NPCミニ列は常に1カラムで表示（右側の見えない空き列を防止） */
+    #tabContentTarot .tarot-poker-column--npc-mini .tarot-hand-grave-wrap {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
     #tabContentTarot .tarot-grave-row {
         justify-content: flex-end;
         min-height: var(--tarot-card-h, 100px);
@@ -4058,6 +4071,17 @@ body.modal-lock .modal-overlay {
         margin-bottom: 4px;
         overflow-x: auto;
         padding-bottom: 2px;
+    }
+
+    #tabContentTarot .tarot-poker-column--npc-mini .tarot-card-row {
+        overflow-x: visible;
+        padding-bottom: 0;
+    }
+
+    #tabContentTarot .tarot-poker-column--npc-mini .tarot-role-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     #tabContentTarot .tarot-log {

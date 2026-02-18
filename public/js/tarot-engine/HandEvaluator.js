@@ -20,6 +20,9 @@ const SUIT_STRENGTH = {
     Sword: 1
 };
 const MINOR_SUITS = ['Wand', 'Pentacle', 'Cup', 'Sword'];
+function arcanaRuleNumber(card) {
+    return Number(card?.effectNumber ?? card?.number ?? -1);
+}
 function effectTypeForCard(card) {
     if (!card)
         return 'None';
@@ -185,8 +188,21 @@ function getSuitOptionsForCard(card, effects) {
     if (effects.world) {
         return ['World'];
     }
-    if (card.isArcana && Number(card.number) === 1) {
+    const n = arcanaRuleNumber(card);
+    if (card.isArcana && n === 1) {
         return MINOR_SUITS.slice();
+    }
+    if (card.isArcana && n === 16) {
+        return ['Sword'];
+    }
+    if (card.isArcana && n === 17) {
+        return ['Cup'];
+    }
+    if (card.isArcana && n === 18) {
+        return ['Pentacle'];
+    }
+    if (card.isArcana && n === 19) {
+        return ['Wand'];
     }
     if (card.suit === 'All') {
         return MINOR_SUITS.slice();

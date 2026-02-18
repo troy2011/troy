@@ -34,12 +34,20 @@ function createMajorDeck() {
         deck.push({
             id: `arcana_${number}`,
             number,
-            suit: number === 1 ? 'All' : 'None',
+            suit: fateArcanaSuitForNumber(number),
             isArcana: true,
             effectType: number === 21 ? 'World' : number === 20 ? 'Judgment' : number === 0 ? 'Fool' : 'None'
         });
     }
     return deck;
+}
+function fateArcanaSuitForNumber(number) {
+    if (number === 1) return 'All';
+    if (number === 16) return 'Sword';
+    if (number === 17) return 'Cup';
+    if (number === 18) return 'Pentacle';
+    if (number === 19) return 'Wand';
+    return 'None';
 }
 function shuffleCards(cards, rng) {
     const out = cards.map(cloneCard);
@@ -196,7 +204,7 @@ export class GameController {
             id: `${this.state.fateCard.id}__mutated_${chosen}`,
             number: 10,
             effectNumber: chosen,
-            suit: chosen === 1 ? 'All' : 'None',
+            suit: fateArcanaSuitForNumber(chosen),
             isArcana: true,
             effectType: chosen === 21 ? 'World' : chosen === 20 ? 'Judgment' : chosen === 0 ? 'Fool' : 'None'
         };
@@ -217,7 +225,7 @@ export class GameController {
         this.state.canUseJudgmentSwap = false;
         this.state.pendingFateActionSource = null;
         this.dealInitialHands();
-        this.log(`運命カード: ${fateCard.number}`);
+        this.log(`運命カード ${fateCard.number}`);
         return this.getState();
     }
     registerPlayerAction(playerId, action) {
