@@ -137,9 +137,9 @@ function suitWeightForOriginal(card) {
     }
     return 0;
 }
-function normalizeValue(raw, effects) {
+function normalizeValue(raw, effects, card = null) {
     let value = raw;
-    if (effects.death && value >= 11 && value <= 14) {
+    if (effects.death && !(card && card.isArcana) && value >= 11 && value <= 14) {
         value -= 10;
     }
     if (effects.temperance && value % 2 === 1) {
@@ -172,7 +172,7 @@ function getValueOptionsForCard(card, effects) {
     else {
         out = [n];
     }
-    return uniqueSortedDesc(out.map((v) => normalizeValue(v, effects)));
+    return uniqueSortedDesc(out.map((v) => normalizeValue(v, effects, card)));
 }
 function getSuitOptionsForCard(card, effects) {
     if (effects.world) {

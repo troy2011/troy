@@ -70,6 +70,15 @@ function highestHandIndex(hand) {
     }
     return maxIdx;
 }
+function normalizeDiscardIndex(hand, discardIndexRaw) {
+    if (!Array.isArray(hand) || hand.length <= 0) {
+        return 0;
+    }
+    if (Number.isFinite(discardIndexRaw)) {
+        return Math.max(0, Math.min(hand.length - 1, Math.floor(discardIndexRaw)));
+    }
+    return highestHandIndex(hand);
+}
 export class GameController {
     constructor(options = {}) {
         this.rng = options.rng || Math.random;
@@ -115,6 +124,8 @@ export class GameController {
             boardHiddenRiver: null,
             previewRiverCard: null,
             canUseJudgmentSwap: false,
+            pendingFateDiscardMode: null,
+            pendingFateDiscardPlayers: [],
             pendingFateActionSource: null,
             logs: [],
             showdownResult: null
@@ -282,7 +293,14 @@ export class GameController {
             this.log('High Priestess reveal option updated.');
         }
         else if (fateNumber === 9) {
-            this.state.previewRiverCard = this.state.deck.length ? cloneCard(this.state.deck[this.state.deck.length - 1]) : null;
+            // Hermit always previews the river card (5th community card).
+            // Deck top is at the end because draw() uses pop().
+            // - After flop fate-action: next draw is turn, so river is 2nd from top.
+            // - After turn mutation fate-action: next draw is river, so river is top.
+            const source = this.state.pendingFateActionSource;
+            const offset = source === 'flop' ? 2 : 1;
+            const idx = this.state.deck.length - offset;
+            this.state.previewRiverCard = idx >= 0 ? cloneCard(this.state.deck[idx]) : null;
             this.log('Hermit previewed the future river card.');
         }
         else if (fateNumber === 12) {
@@ -299,32 +317,68 @@ export class GameController {
             this.log('Hanged Man forced highest-card swap.');
         }
         else if (fateNumber === 19) {
+            const pending = new Set();
+            const hasPendingSun = this.state.pendingFateDiscardMode === 'sun';
+            const pendingFromState = hasPendingSun
+                ? new Set(Array.isArray(this.state.pendingFateDiscardPlayers) ? this.state.pendingFateDiscardPlayers : [])
+                : null;
+            this.state.pendingFateDiscardMode = 'sun';
             for (const id of this.state.playerOrder) {
+                if (hasPendingSun && pendingFromState && !pendingFromState.has(id)) {
+                    continue;
+                }
                 const player = this.state.players[id];
-                if (this.state.deck.length) {
+                if (!hasPendingSun && this.state.deck.length) {
                     player.hand.push(this.draw());
                 }
                 if (!player.hand.length)
                     continue;
                 const discardIndexRaw = input.discardByPlayer?.[id];
-                const discardIndex = Number.isFinite(discardIndexRaw)
-                    ? Math.max(0, Math.min(player.hand.length - 1, Math.floor(discardIndexRaw)))
-                    : highestHandIndex(player.hand);
+                const allowPlayerChoice = input.allowPlayerChoice !== false;
+                const waitForPlayerChoice = id === 'player' && allowPlayerChoice && !Number.isFinite(discardIndexRaw);
+                if (waitForPlayerChoice) {
+                    pending.add(id);
+                    continue;
+                }
+                const discardIndex = normalizeDiscardIndex(player.hand, discardIndexRaw);
                 const discarded = player.hand.splice(discardIndex, 1)[0];
                 if (discarded) {
                     player.discard.push(discarded);
                 }
             }
+            this.state.pendingFateDiscardPlayers = Array.from(pending);
+            if (this.state.pendingFateDiscardPlayers.length > 0) {
+                this.log('The Sun waiting for player discard selection.');
+                return this.getState();
+            }
+            this.state.pendingFateDiscardMode = null;
+            this.state.pendingFateDiscardPlayers = [];
             this.log('The Sun resolved draw-then-discard.');
         }
         else if (fateNumber === 20) {
+            const pending = new Set();
+            const hasPendingJudgment = this.state.pendingFateDiscardMode === 'judgment';
+            const pendingFromState = hasPendingJudgment
+                ? new Set(Array.isArray(this.state.pendingFateDiscardPlayers) ? this.state.pendingFateDiscardPlayers : [])
+                : null;
+            this.state.pendingFateDiscardMode = 'judgment';
             for (const id of this.state.playerOrder) {
+                if (hasPendingJudgment && pendingFromState && !pendingFromState.has(id)) {
+                    continue;
+                }
                 const player = this.state.players[id];
+                const discardIndexRaw = input.discardByPlayer?.[id];
+                const allowPlayerChoice = input.allowPlayerChoice !== false;
+                const waitForPlayerChoice = id === 'player'
+                    && player.hand.length > 0
+                    && allowPlayerChoice
+                    && !Number.isFinite(discardIndexRaw);
+                if (waitForPlayerChoice) {
+                    pending.add(id);
+                    continue;
+                }
                 if (player.hand.length) {
-                    const discardIndexRaw = input.discardByPlayer?.[id];
-                    const discardIndex = Number.isFinite(discardIndexRaw)
-                        ? Math.max(0, Math.min(player.hand.length - 1, Math.floor(discardIndexRaw)))
-                        : highestHandIndex(player.hand);
+                    const discardIndex = normalizeDiscardIndex(player.hand, discardIndexRaw);
                     const discarded = player.hand.splice(discardIndex, 1)[0];
                     if (discarded) {
                         player.discard.push(discarded);
@@ -334,6 +388,13 @@ export class GameController {
                     player.hand.push(this.draw());
                 }
             }
+            this.state.pendingFateDiscardPlayers = Array.from(pending);
+            if (this.state.pendingFateDiscardPlayers.length > 0) {
+                this.log('Judgment waiting for player discard selection.');
+                return this.getState();
+            }
+            this.state.pendingFateDiscardMode = null;
+            this.state.pendingFateDiscardPlayers = [];
             this.state.canUseJudgmentSwap = true;
             this.log('Judgment resolved discard-then-draw. Grave swap enabled for showdown.');
         }

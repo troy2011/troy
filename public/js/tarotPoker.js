@@ -558,6 +558,9 @@ function resetState() {
         displayNpcKey: 'cpu',
         boardHiddenRiver: null,
         previewRiverCard: null,
+        pendingBoardFlipIndices: [],
+        pendingFateDiscardMode: null,
+        pendingFateDiscardPlayers: [],
         controllerPhase: '',
         cpuThinking: false,
         initialDealAnimating: false,
@@ -596,7 +599,14 @@ function syncStateFromController(controllerState) {
     state.activeFateCard = controllerState.activeFateCard ? { ...controllerState.activeFateCard } : null;
     state.boardHiddenRiver = controllerState.boardHiddenRiver ? { ...controllerState.boardHiddenRiver } : null;
     state.previewRiverCard = controllerState.previewRiverCard ? { ...controllerState.previewRiverCard } : null;
+    state.pendingFateDiscardMode = controllerState.pendingFateDiscardMode || null;
+    state.pendingFateDiscardPlayers = Array.isArray(controllerState.pendingFateDiscardPlayers)
+        ? controllerState.pendingFateDiscardPlayers.slice()
+        : [];
     state.controllerPhase = String(controllerState.phase || '');
+    if (!Array.isArray(state.pendingBoardFlipIndices)) {
+        state.pendingBoardFlipIndices = [];
+    }
 
     state.graveyard = [];
     Object.keys(state.players || {}).forEach((ownerKey) => {
@@ -610,6 +620,56 @@ function syncStateFromController(controllerState) {
         pushLog(`[ENGINE] ${logs[i]}`);
     }
     tarotControllerLogCursor = logs.length;
+}
+
+function queuePendingBoardFlips(fromIndex, toIndexInclusive) {
+    if (!state) return;
+    if (!Array.isArray(state.pendingBoardFlipIndices)) {
+        state.pendingBoardFlipIndices = [];
+    }
+    const seen = new Set(state.pendingBoardFlipIndices);
+    for (let i = fromIndex; i <= toIndexInclusive; i += 1) {
+        if (i < 0) continue;
+        seen.add(i);
+    }
+    state.pendingBoardFlipIndices = Array.from(seen).sort((a, b) => a - b);
+}
+
+async function runPendingBoardFlipAnimation() {
+    if (!state || !ui?.board) return;
+    const pending = (Array.isArray(state.pendingBoardFlipIndices) ? state.pendingBoardFlipIndices.slice() : [])
+        .filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < (state.board?.length || 0))
+        .sort((a, b) => a - b);
+    if (!pending.length) return;
+    render();
+    await wait(60);
+    for (const idx of pending) {
+        const boardCards = Array.from(ui.board.querySelectorAll('.tarot-card'));
+        const targetEl = boardCards[idx];
+        const card = state.board?.[idx];
+        if (!targetEl || !card) continue;
+        await animateBackToFrontOnElement(targetEl, card);
+        await wait(80);
+    }
+    state.pendingBoardFlipIndices = [];
+    render();
+}
+
+function getControllerPendingDiscardModeForPlayer() {
+    if (!tarotGameController || !state) return null;
+    if (state.phase !== 'fate-action') return null;
+    const mode = state.pendingFateDiscardMode;
+    if (mode !== 'sun' && mode !== 'judgment') return null;
+    if (!Array.isArray(state.pendingFateDiscardPlayers) || !state.pendingFateDiscardPlayers.includes('player')) return null;
+    return mode;
+}
+
+function isControllerPlayerDiscardPending() {
+    return !!getControllerPendingDiscardModeForPlayer();
+}
+
+function isControllerJudgmentPlayerDiscardPending() {
+    return getControllerPendingDiscardModeForPlayer() === 'judgment';
 }
 
 function mapControllerEvaluationToLegacy(ownerKey, evaluation, controllerState) {
@@ -628,7 +688,14 @@ function mapControllerEvaluationToLegacy(ownerKey, evaluation, controllerState) 
     });
 
     const cards = (Array.isArray(evaluation.bestFive) ? evaluation.bestFive : [])
-        .map((entry) => map.get(String(entry?.id || '')))
+        .map((entry) => {
+            const byId = map.get(String(entry?.id || ''));
+            if (byId) return byId;
+            if (entry?.zone === 'fate' && controllerState?.activeFateCard) {
+                return controllerState.activeFateCard;
+            }
+            return null;
+        })
         .filter(Boolean);
     const legacyRank = TAROT_ENGINE_RANK_TO_LEGACY[evaluation.rank] || 0;
     const rankVector = [
@@ -656,6 +723,7 @@ async function runControllerFateActionLoop() {
         guard += 1;
         const controllerState = tarotGameController.getState();
         if (controllerState.phase !== 'fate-action') return;
+        const beforeBoardCount = Array.isArray(controllerState.boardVisible) ? controllerState.boardVisible.length : 0;
 
         const fateNo = Number(controllerState.activeFateCard?.number || 0);
         const input = {};
@@ -671,20 +739,38 @@ async function runControllerFateActionLoop() {
                     : (hand.length ? chooseCpuRevealIndex(hand) : null);
             });
         }
-        if (fateNo === 19 || fateNo === 20) {
+        if (fateNo === 19) {
             input.discardByPlayer = {};
             const playerIds = Array.isArray(controllerState.playerOrder) && controllerState.playerOrder.length
                 ? controllerState.playerOrder
                 : Object.keys(controllerState.players || {});
             playerIds.forEach((ownerKey) => {
+                if (ownerKey === 'player') return;
                 const hand = controllerState.players?.[ownerKey]?.hand || [];
                 input.discardByPlayer[ownerKey] = hand.length ? chooseCpuDiscardIndex(hand) : 0;
             });
+            input.allowPlayerChoice = true;
+        } else if (fateNo === 20) {
+            input.discardByPlayer = {};
+            const playerIds = Array.isArray(controllerState.playerOrder) && controllerState.playerOrder.length
+                ? controllerState.playerOrder
+                : Object.keys(controllerState.players || {});
+            playerIds.forEach((ownerKey) => {
+                if (ownerKey === 'player') return;
+                const hand = controllerState.players?.[ownerKey]?.hand || [];
+                input.discardByPlayer[ownerKey] = hand.length ? chooseCpuDiscardIndex(hand) : 0;
+            });
+            input.allowPlayerChoice = true;
         }
 
         await showRoundCutin(`FATE ${fateNo}`);
         const updated = tarotGameController.runFateAction(input);
         syncStateFromController(updated);
+        const afterBoardCount = Array.isArray(updated?.boardVisible) ? updated.boardVisible.length : (state.board?.length || 0);
+        if (afterBoardCount > beforeBoardCount) {
+            queuePendingBoardFlips(beforeBoardCount, afterBoardCount - 1);
+            await runPendingBoardFlipAnimation();
+        }
         const hasNpcReveal = getNpcKeys().some((key) => Number.isFinite(updated?.players?.[key]?.revealHandIndex));
         if (fateNo === 2 && hasNpcReveal) {
             showEffectOverlay('HIGH PRIESTESS - NPC CARD REVEALED');
@@ -693,6 +779,21 @@ async function runControllerFateActionLoop() {
             showEffectOverlay(`HERMIT - PREVIEW ${getCardDisplayName(updated.previewRiverCard)}`);
         }
         render();
+        const pendingPlayerFateDiscardMode = (fateNo === 19 || fateNo === 20)
+            && updated?.phase === 'fate-action'
+            && (updated?.pendingFateDiscardMode === 'sun' || updated?.pendingFateDiscardMode === 'judgment')
+            && Array.isArray(updated?.pendingFateDiscardPlayers)
+            && updated.pendingFateDiscardPlayers.includes('player')
+            ? updated.pendingFateDiscardMode
+            : null;
+        if (pendingPlayerFateDiscardMode) {
+            pushLog(
+                pendingPlayerFateDiscardMode === 'sun'
+                    ? '太陽効果: 引いた後に捨てるカードを選択してください。'
+                    : '審判効果: 捨てるカードを選択してください。'
+            );
+            return;
+        }
         if (updated.phase !== 'fate-action') return;
     }
 }
@@ -726,6 +827,8 @@ async function resolveShowdownByController() {
     const settleWinner = winners.length === 1 ? winners[0] : (winners.length > 1 ? winners : 'draw');
 
     state.phase = 'showdown';
+    state.showdownRevealRunning = false;
+    state.showdownRevealDone = false;
     state.result = {
         winner: uiWinner,
         playerBest: mapControllerEvaluationToLegacy('player', controllerResult?.evaluations?.player, after),
@@ -744,13 +847,25 @@ async function resolveShowdownByController() {
 
 async function advanceControllerAfterBettingRound() {
     if (!tarotGameController) return;
+    const beforeBoardCount = Array.isArray(state?.board) ? state.board.length : 0;
     let controllerState = tarotGameController.completeBettingRound();
     syncStateFromController(controllerState);
+    let afterBoardCount = Array.isArray(controllerState?.boardVisible) ? controllerState.boardVisible.length : (state.board?.length || 0);
+    if (afterBoardCount > beforeBoardCount) {
+        queuePendingBoardFlips(beforeBoardCount, afterBoardCount - 1);
+        await runPendingBoardFlipAnimation();
+    }
 
     if (controllerState.phase === 'fate-action') {
+        const beforeFateLoopBoardCount = Array.isArray(state?.board) ? state.board.length : 0;
         await runControllerFateActionLoop();
         controllerState = tarotGameController.getState();
         syncStateFromController(controllerState);
+        afterBoardCount = Array.isArray(controllerState?.boardVisible) ? controllerState.boardVisible.length : (state.board?.length || 0);
+        if (afterBoardCount > beforeFateLoopBoardCount) {
+            queuePendingBoardFlips(beforeFateLoopBoardCount, afterBoardCount - 1);
+            await runPendingBoardFlipAnimation();
+        }
     }
 
     const roundKey = controllerPhaseToRoundKey(controllerState.phase);
@@ -1618,7 +1733,14 @@ function evaluateHandByTarotEngine(handCards, boardCards, fateCard = null) {
             ...(fateCard ? [fateCard] : [])
         ]);
         const bestCards = (Array.isArray(engineEval.bestFive) ? engineEval.bestFive : [])
-            .map((entry) => cardMap.get(String(entry?.id || '')))
+            .map((entry) => {
+                const byId = cardMap.get(String(entry?.id || ''));
+                if (byId) return byId;
+                if (entry?.zone === 'fate' && fateCard) {
+                    return fateCard;
+                }
+                return null;
+            })
             .filter(Boolean);
         const legacyRank = TAROT_ENGINE_RANK_TO_LEGACY[engineEval.rank] || 0;
         const rankVector = [
@@ -2443,6 +2565,8 @@ async function revealBoard(count) {
 async function forceShowdown() {
     state.forceShowdown = false;
     state.phase = 'showdown';
+    state.showdownRevealRunning = false;
+    state.showdownRevealDone = false;
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
     await runShowdownPresentation();
@@ -2630,6 +2754,8 @@ async function resolveShowdown() {
         return;
     }
     state.phase = 'showdown';
+    state.showdownRevealRunning = false;
+    state.showdownRevealDone = false;
     state.result = evaluateShowdown();
     settlePotByWinner(state.result?.winner || 'draw');
     await runShowdownPresentation();
@@ -2692,34 +2818,50 @@ async function startNewGame() {
     state.initialDealAnimating = true;
     state.initialDealRevealedCount = 0;
 
-    const playerHand = state.players.player.hand || [];
-    const cpuHand = state.players.cpu.hand || [];
-    const dealCount = Math.max(playerHand.length, cpuHand.length);
+    const dealingOrder = getActivePlayerOrder();
+    const handByOwner = {};
+    dealingOrder.forEach((ownerKey) => {
+        handByOwner[ownerKey] = state.players?.[ownerKey]?.hand || [];
+    });
+    const dealCount = dealingOrder.reduce((max, ownerKey) => {
+        const length = Array.isArray(handByOwner[ownerKey]) ? handByOwner[ownerKey].length : 0;
+        return Math.max(max, length);
+    }, 0);
 
+    let playerRevealCount = 0;
     for (let i = 0; i < dealCount; i += 1) {
-        const playerCard = playerHand[i];
-        render();
-        if (playerCard && ui.playerHand) {
-            const playerCards = Array.from(ui.playerHand.querySelectorAll('.tarot-card'));
-            const playerTarget = playerCards[i];
-            if (playerTarget) {
-                await animateBackToFrontOnElement(playerTarget, playerCard);
+        for (let turn = 0; turn < dealingOrder.length; turn += 1) {
+            const ownerKey = dealingOrder[turn];
+            const hand = handByOwner[ownerKey] || [];
+            const card = hand[i];
+            if (!card) continue;
+
+            render();
+            if (ownerKey === 'player') {
+                const playerCards = Array.from(ui.playerHand?.querySelectorAll('.tarot-card') || []);
+                const playerTarget = playerCards[i];
+                if (playerTarget) {
+                    await animateBackToFrontOnElement(playerTarget, card);
+                }
+                playerRevealCount = Math.max(playerRevealCount, i + 1);
+                state.initialDealRevealedCount = playerRevealCount;
+                render();
+                await wait(70);
+                continue;
             }
+
+            const targetHand = getHandContainerByOwner(ownerKey) || ui.cpuHand;
+            if (targetHand) {
+                await animateCardFlight(card, ui.deckAnchor, targetHand, 220, 1, { hidden: true });
+            }
+            render();
+            await wait(60);
         }
         await wait(80);
-
-        const cpuCard = cpuHand[i];
-        render();
-        if (cpuCard) {
-            await animateCardFlight(cpuCard, ui.deckAnchor, ui.cpuHand, 220, 1, { hidden: true });
-        }
-        state.initialDealRevealedCount = i + 1;
-        render();
-        await wait(90);
     }
 
     state.initialDealAnimating = false;
-    state.initialDealRevealedCount = dealCount;
+    state.initialDealRevealedCount = playerRevealCount;
     state.drawRound = 0;
 
     const roundKey = controllerPhaseToRoundKey(controllerState.phase) || 'preflop';
@@ -2770,7 +2912,51 @@ async function handlePrimaryButtonClick() {
 }
 
 async function onPlayerCardClick(index) {
-    if (!state || state.phase !== 'draw-player') return;
+    const pendingFateDiscardMode = getControllerPendingDiscardModeForPlayer();
+    const isFatePendingDiscard = !!pendingFateDiscardMode;
+    if (!state || (state.phase !== 'draw-player' && !isFatePendingDiscard)) return;
+    if (isFatePendingDiscard) {
+        const player = state.players.player;
+        if (index < 0 || index >= player.hand.length) return;
+        if (state.isResolvingPlayerDiscard) return;
+        if (state.selectedDiscardIndex !== index) {
+            state.selectedDiscardIndex = index;
+            render();
+            return;
+        }
+        state.isResolvingPlayerDiscard = true;
+        try {
+            const updated = tarotGameController.runFateAction({
+                discardByPlayer: { player: index },
+                allowPlayerChoice: true
+            });
+            state.selectedDiscardIndex = null;
+            syncStateFromController(updated);
+            render();
+            if (updated.phase === 'fate-action') {
+                await runControllerFateActionLoop();
+            }
+
+            const controllerState = tarotGameController.getState();
+            syncStateFromController(controllerState);
+            const roundKey = controllerPhaseToRoundKey(controllerState.phase);
+            if (roundKey) {
+                startBettingRound(roundKey, '__controller__');
+                render();
+                if (state?.betting?.pendingResponseFor && state.betting.pendingResponseFor !== 'player') {
+                    await runNpcBettingTurns();
+                }
+            } else if (controllerState.phase === 'showdown') {
+                await resolveShowdownByController();
+            } else {
+                render();
+            }
+        } finally {
+            state.isResolvingPlayerDiscard = false;
+        }
+        return;
+    }
+    
     const player = state.players.player;
     if (!player.canExchange) return;
     if (index < 0 || index >= player.hand.length) return;
@@ -2900,6 +3086,9 @@ function getPhaseText() {
     if (state.phase === 'betting-mid') return '中盤BET: アクションを選択してください。';
     if (state.phase === 'betting-final') return '最終BET: アクションを選択してください。';
     if (state.phase === 'preflop') return 'フロップを公開します。';
+    const pendingFateDiscardMode = getControllerPendingDiscardModeForPlayer();
+    if (pendingFateDiscardMode === 'sun') return '太陽効果: 引いた後に、捨てる手札を選択してください。';
+    if (pendingFateDiscardMode === 'judgment') return '審判効果: 捨てる手札を選択してください。';
     if (state.phase === 'draw-player') {
         return state.awaitingPostJudgmentDiscard
             ? `第${state.drawRound}ドローフェーズ: 1枚捨ててください。`
@@ -3267,36 +3456,49 @@ async function runShowdownPresentation() {
     state.showdownRevealRunning = true;
     state.showdownRevealDone = false;
     render();
-    showEffectOverlay('SHOWDOWN');
-    await wait(140);
-    const useRemainingTieBreak = !!state.result.remainingTieBreakUsed;
-    const showKickerOnTie = !useRemainingTieBreak
-        && shouldShowKickerForShowdown(state.result.playerBest, state.result.cpuBest);
-    const displayNpcKey = getDisplayNpcKey();
-    const playerCards = getRoleCardsForDisplay(state.result.playerBest, {
-        includeKicker: showKickerOnTie,
-        extraKickerCards: useRemainingTieBreak ? state.result.playerRemainingCards : []
-    });
-    const cpuCards = getRoleCardsForDisplay(state.result.cpuBest, {
-        includeKicker: showKickerOnTie,
-        extraKickerCards: useRemainingTieBreak ? state.result.cpuRemainingCards : []
-    });
-    await revealRoleCardsOneByOne(ui.playerHand, playerCards);
-    await wait(140);
-    await revealRoleCardsOneByOne(getHandContainerByOwner(displayNpcKey), cpuCards);
-    state.showdownRevealRunning = false;
-    state.showdownRevealDone = true;
-    render();
-    await wait(120);
-    await showShowdownResultCutin();
-    render();
+    try {
+        showEffectOverlay('SHOWDOWN');
+        await wait(140);
+        const useRemainingTieBreak = !!state.result.remainingTieBreakUsed;
+        const showKickerOnTie = !useRemainingTieBreak
+            && shouldShowKickerForShowdown(state.result.playerBest, state.result.cpuBest);
+        const displayNpcKey = getDisplayNpcKey();
+        const playerCards = getRoleCardsForDisplay(state.result.playerBest, {
+            includeKicker: showKickerOnTie,
+            extraKickerCards: useRemainingTieBreak ? state.result.playerRemainingCards : []
+        });
+        const cpuCards = getRoleCardsForDisplay(state.result.cpuBest, {
+            includeKicker: showKickerOnTie,
+            extraKickerCards: useRemainingTieBreak ? state.result.cpuRemainingCards : []
+        });
+        await revealRoleCardsOneByOne(ui.playerHand, playerCards);
+        await wait(140);
+        await revealRoleCardsOneByOne(getHandContainerByOwner(displayNpcKey), cpuCards);
+
+        if (state.phase === 'showdown' && state.result) {
+            state.showdownRevealDone = true;
+        }
+        render();
+        await wait(120);
+        await showShowdownResultCutin();
+        render();
+    } catch (error) {
+        console.error('[tarotPoker] showdown presentation failed:', error);
+    } finally {
+        state.showdownRevealRunning = false;
+        if (state.phase === 'showdown' && state.result && !state.showdownRevealDone) {
+            state.showdownRevealDone = true;
+        }
+        render();
+    }
 }
 
 function renderBoard() {
     if (!ui.board) return;
     ui.board.innerHTML = '';
-    state.board.forEach((card) => {
-        const cardEl = createCardElement(card, { hidden: false });
+    const pendingFlipSet = new Set(Array.isArray(state?.pendingBoardFlipIndices) ? state.pendingBoardFlipIndices : []);
+    state.board.forEach((card, index) => {
+        const cardEl = createCardElement(card, { hidden: pendingFlipSet.has(index) });
         ui.board.appendChild(cardEl);
     });
     for (let i = state.board.length; i < 5; i += 1) {
@@ -3411,6 +3613,13 @@ function renderButtons() {
             : ('第' + state.drawRound + 'ドロー: 手札を選択');
         return;
     }
+    if (isControllerPlayerDiscardPending()) {
+        btn.disabled = true;
+        btn.textContent = isControllerJudgmentPlayerDiscardPending()
+            ? '審判効果: 捨てる手札を選択'
+            : '太陽効果: 捨てる手札を選択';
+        return;
+    }
     if (state.phase === 'draw-player-judgment') {
         btn.disabled = true;
         btn.textContent = '墓地カードを選択';
@@ -3515,6 +3724,7 @@ function renderParticipantList() {
     const order = getActivePlayerOrder();
     const turnKey = state?.betting?.pendingResponseFor || null;
     const displayNpcKey = getDisplayNpcKey();
+    const contributions = state?.betting?.contributions || {};
     ui.participantList.innerHTML = '';
     order.forEach((ownerKey) => {
         const player = state.players?.[ownerKey];
@@ -3525,20 +3735,26 @@ function renderParticipantList() {
         if (ownerKey === turnKey) chip.classList.add('is-turn');
         if (player.folded) chip.classList.add('is-folded');
         if (ownerKey !== 'player' && ownerKey === displayNpcKey) chip.classList.add('is-display');
-        const suffix = player.folded ? ' / FOLD' : (ownerKey === turnKey ? ' / TURN' : '');
-        chip.textContent = `${player.name} ${formatTestPoint(player.testPoints)}${suffix}`;
+        const betAmount = Math.max(0, Math.floor(Number(contributions?.[ownerKey] || 0)));
+        chip.textContent = `${player.name} B${betAmount}`;
         ui.participantList.appendChild(chip);
     });
 }
 
 function renderDrawGuide() {
     if (!ui.drawGuide || !state) return;
-    if (state.phase !== 'draw-player' && state.phase !== 'draw-player-judgment' && state.phase !== 'cpu-thinking') {
+    const pendingFateDiscardMode = getControllerPendingDiscardModeForPlayer();
+    const isFateDiscardPending = !!pendingFateDiscardMode;
+    if (!isFateDiscardPending && state.phase !== 'draw-player' && state.phase !== 'draw-player-judgment' && state.phase !== 'cpu-thinking') {
         ui.drawGuide.style.display = 'none';
         ui.drawGuide.textContent = '';
         return;
     }
-    if (state.phase === 'draw-player') {
+    if (isFateDiscardPending) {
+        ui.drawGuide.textContent = pendingFateDiscardMode === 'judgment'
+            ? '審判効果: 捨てる手札を1回クリックで選択、再クリックで捨てる'
+            : '太陽効果: 強制ドロー済み。手札を1回クリックで選択、再クリックで捨てる';
+    } else if (state.phase === 'draw-player') {
         ui.drawGuide.textContent = state.awaitingPostJudgmentDiscard
             ? ('第' + state.drawRound + 'ドロー: 審判で回収済み。手札を1回クリックで選択、再クリックで捨てる')
             : ('第' + state.drawRound + 'ドロー: 強制ドロー済み。手札を1回クリックで選択、再クリックで捨てる');
@@ -3591,13 +3807,14 @@ function render() {
     };
     const showdownHidden = isShowdown && !state.showdownRevealDone;
     const playerHidden = showdownHidden || isDealing;
+    const isFatePendingDiscard = isControllerPlayerDiscardPending();
     renderCardRow(ui.playerHand, playerCardsForView, {
         hidden: playerHidden,
         hiddenByIndex: (index) => (isDealing ? index >= (state.initialDealRevealedCount || 0) : playerHidden),
         isUndealtIndex: (index) => (isDealing ? index > (state.initialDealRevealedCount || 0) : false),
-        clickable: !isShowdown && !isDealing && state.phase === 'draw-player',
-        drawPhase: !isShowdown && !isDealing && state.phase === 'draw-player',
-        isSelectedIndex: (index) => !isShowdown && !isDealing && state.phase === 'draw-player' && state.selectedDiscardIndex === index,
+        clickable: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
+        drawPhase: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
+        isSelectedIndex: (index) => !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard) && state.selectedDiscardIndex === index,
         onCardClick: onPlayerCardClick
     });
     npcKeys.forEach((ownerKey) => {
@@ -3672,6 +3889,12 @@ function render() {
         ui.resultText.style.display = 'none';
     }
     renderLog();
+    if (isShowdown && !state.showdownRevealDone && !state.showdownRevealRunning) {
+        setTimeout(() => {
+            if (!state || state.phase !== 'showdown' || state.showdownRevealDone || state.showdownRevealRunning) return;
+            runShowdownPresentation();
+        }, 0);
+    }
 }
 function ensureDailyFortuneOverlay() {
     let overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
