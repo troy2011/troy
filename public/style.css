@@ -2999,6 +2999,35 @@ body.modal-lock .modal-overlay {
     text-overflow: ellipsis;
 }
 
+.tarot-fate-preview-token {
+    font-weight: 900;
+    text-shadow:
+        -1px -1px 0 rgba(0, 0, 0, 0.75),
+        -1px 1px 0 rgba(0, 0, 0, 0.75),
+        1px -1px 0 rgba(0, 0, 0, 0.75),
+        1px 1px 0 rgba(0, 0, 0, 0.75);
+}
+
+.tarot-fate-preview-token.is-wand {
+    color: #fecaca;
+}
+
+.tarot-fate-preview-token.is-sword {
+    color: #fef3c7;
+}
+
+.tarot-fate-preview-token.is-cup {
+    color: #bfdbfe;
+}
+
+.tarot-fate-preview-token.is-pentacle {
+    color: #bbf7d0;
+}
+
+.tarot-fate-preview-token.is-none {
+    color: #e5e7eb;
+}
+
 .tarot-board-slot {
     width: var(--tarot-card-w, 64px);
     height: var(--tarot-card-h, 100px);
@@ -3695,6 +3724,25 @@ body.modal-lock .modal-overlay {
 .tarot-cutin.is-cpu {
     border-color: rgba(239, 68, 68, 0.55);
     box-shadow: 0 10px 30px rgba(239, 68, 68, 0.25);
+}
+
+.tarot-coin-fx {
+    position: fixed;
+    z-index: 3605;
+    pointer-events: none;
+    user-select: none;
+    line-height: 1;
+    font-size: clamp(18px, 2.8vw, 26px);
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+    will-change: left, top, opacity, transform;
+}
+
+.tarot-coin-fx.is-player {
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.75);
+}
+
+.tarot-coin-fx.is-cpu {
+    text-shadow: 0 0 10px rgba(248, 113, 113, 0.75);
 }
 
 .tarot-cutin.is-showdown-win {

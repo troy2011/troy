@@ -403,7 +403,9 @@ function resolveVariants(combo, effects, callback) {
         }
         const card = combo[index];
         const isWildcard = card.isArcana && Number(card.number) === 0;
-        const suitOptions = getSuitOptionsForCard(card, effects);
+        const suitOptions = isWildcard
+            ? (effects.world ? ['World'] : MINOR_SUITS.slice())
+            : getSuitOptionsForCard(card, effects);
         const valueOptions = isWildcard ? wildcardValues : getValueOptionsForCard(card, effects);
         for (const value of valueOptions) {
             for (const suit of suitOptions) {

@@ -19,6 +19,7 @@ const SUIT_THEME_COLOR = {
 };
 
 const ARCANA_FLUSH_SUIT_OPTIONS = {
+    0: ['All'],
     1: ['All'],
     16: ['Sword'],
     17: ['Cup'],
@@ -112,6 +113,7 @@ const FATE_EFFECT_SUMMARY = {
 const TEST_POINT_START = 300;
 const TEST_BET_UNIT = 10;
 const BLIND_BONUS_TP = 10;
+const SMALL_BLIND_TP = Math.max(1, Math.floor(BLIND_BONUS_TP / 2));
 const PLAYER_ORDER = ['player', 'cpu', 'npc2', 'npc3'];
 const CPU_SIMULATION_COUNT = 180;
 const CPU_DRAW_SAMPLE_COUNT = 16;
@@ -561,6 +563,8 @@ function resetState() {
         pendingBoardFlipIndices: [],
         pendingFateDiscardMode: null,
         pendingFateDiscardPlayers: [],
+        positionContext: null,
+        tablePositionLabels: {},
         controllerPhase: '',
         cpuThinking: false,
         initialDealAnimating: false,
@@ -912,6 +916,79 @@ function clearBetActionLabels() {
     });
 }
 
+function getElementCenterPoint(el) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+    const rect = el.getBoundingClientRect();
+    if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null;
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+function getBetCoinSourceElement(ownerKey) {
+    const participantChip = ui.participantList?.querySelector?.(`[data-owner-key="${ownerKey}"]`) || null;
+    if (participantChip) return participantChip;
+    return getActionElementByOwner(ownerKey) || null;
+}
+
+async function playBetCoinEffect(ownerKey, action) {
+    if (!['bet', 'raise'].includes(String(action || ''))) return;
+    const targetEl = ui.potText;
+    if (!targetEl || typeof document === 'undefined') return;
+    const sourceEl = getBetCoinSourceElement(ownerKey);
+    const from = getElementCenterPoint(sourceEl);
+    const to = getElementCenterPoint(targetEl);
+    if (!from || !to) return;
+
+    const coinCount = action === 'raise' ? 6 : 4;
+    const ownerClass = ownerKey === 'player' ? 'is-player' : 'is-cpu';
+    const lifeMs = action === 'raise' ? 620 : 500;
+    const tasks = [];
+
+    for (let i = 0; i < coinCount; i += 1) {
+        const coin = document.createElement('span');
+        coin.className = `tarot-coin-fx ${ownerClass}`;
+        coin.textContent = '🪙';
+        coin.style.left = `${from.x}px`;
+        coin.style.top = `${from.y}px`;
+        coin.style.opacity = '0';
+        coin.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(0deg)';
+        document.body.appendChild(coin);
+
+        const delay = i * 55;
+        const jitterX = (Math.random() * 14) - 7;
+        const jitterY = (Math.random() * 12) - 6;
+        const targetX = to.x + jitterX;
+        const targetY = to.y + jitterY;
+        const rotate = (Math.random() * 80) - 40;
+
+        const run = new Promise((resolve) => {
+            setTimeout(() => {
+                coin.style.transition = `left ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), top ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), opacity ${lifeMs}ms ease, transform ${lifeMs}ms ease`;
+                coin.style.left = `${targetX}px`;
+                coin.style.top = `${targetY}px`;
+                coin.style.opacity = '1';
+                coin.style.transform = `translate(-50%, -50%) scale(1) rotate(${rotate}deg)`;
+            }, delay);
+
+            setTimeout(() => {
+                coin.style.opacity = '0';
+                coin.style.transform = `translate(-50%, -50%) scale(0.72) rotate(${rotate * 1.3}deg)`;
+            }, delay + Math.max(120, lifeMs - 110));
+
+            setTimeout(() => {
+                if (coin.parentElement) coin.remove();
+                resolve();
+            }, delay + lifeMs + 80);
+        });
+
+        tasks.push(run);
+    }
+
+    await Promise.all(tasks);
+}
+
 function getBetActionLabel(action) {
     return BET_ACTION_LABEL[action] || String(action || '').toUpperCase();
 }
@@ -935,6 +1012,9 @@ async function showActionCutin(ownerKey, action) {
         ui.cutin.textContent = `${ownerName} ${label}`;
         resetCutinStyle();
         ui.cutin.classList.add('show', ownerClass);
+    }
+    if (action === 'bet' || action === 'raise') {
+        playBetCoinEffect(ownerKey, action).catch(() => {});
     }
     await wait(BET_ACTION_TEMPO_MS);
     if (actionEl) {
@@ -1128,6 +1208,25 @@ function getCardDisplayName(card) {
     return getCardNameLabel(card);
 }
 
+function escapeHtmlText(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getFatePreviewSuitClass(card) {
+    const options = getCardSuitOptionsForFlush(card).filter((suit) => SUITS.includes(suit));
+    const suit = options[0] || 'None';
+    if (suit === 'Wand') return 'is-wand';
+    if (suit === 'Sword') return 'is-sword';
+    if (suit === 'Cup') return 'is-cup';
+    if (suit === 'Pentacle') return 'is-pentacle';
+    return 'is-none';
+}
+
 function getFateEffectSummary(card) {
     if (!card) return 'FATE CARD\u52b9\u679c: \u306a\u3057';
     const number = Number(card.number);
@@ -1150,6 +1249,27 @@ function getFateEffectSummary(card) {
         }
     }
     return `FATE CARD: ${name} (${number}) / ${base}`;
+}
+
+function getFateEffectSummaryHtml(card) {
+    const plain = getFateEffectSummary(card);
+    const number = Number(card?.number);
+    if (number === 9 && state?.previewRiverCard) {
+        const previewName = getCardDisplayName(state.previewRiverCard);
+        const previewNum = getCardNumberLabel(state.previewRiverCard);
+        const previewToken = `${previewName}(${previewNum})`;
+        const escapedPlain = escapeHtmlText(plain);
+        const escapedToken = escapeHtmlText(previewToken);
+        const tokenIndex = escapedPlain.lastIndexOf(escapedToken);
+        if (tokenIndex >= 0) {
+            const suitClass = getFatePreviewSuitClass(state.previewRiverCard);
+            const before = escapedPlain.slice(0, tokenIndex);
+            const after = escapedPlain.slice(tokenIndex + escapedToken.length);
+            return `${before}<span class="tarot-fate-preview-token ${suitClass}">${escapedToken}</span>${after}`;
+        }
+        return escapedPlain;
+    }
+    return escapeHtmlText(plain);
 }
 
 function toRomanNumber(value) {
@@ -1969,35 +2089,117 @@ function normalizeDealerIndexByOrder(order) {
     return normalized;
 }
 
-function applyPreflopBlind() {
+function createMiddlePositionLabels(count) {
+    if (count <= 0) return [];
+    if (count === 1) return ['UTG'];
+    if (count === 2) return ['UTG', 'CO'];
+    if (count === 3) return ['UTG', 'HJ', 'CO'];
+    const labels = ['UTG'];
+    for (let i = 1; i < count - 2; i += 1) {
+        labels.push(`MP${i}`);
+    }
+    labels.push('HJ', 'CO');
+    return labels;
+}
+
+function getPositionContext(order) {
+    if (!Array.isArray(order) || order.length <= 0) return null;
+    const seatCount = order.length;
+    const dealerPos = normalizeDealerIndexByOrder(order);
+    const ctx = {
+        order: order.slice(),
+        dealerPos,
+        smallBlindPos: dealerPos,
+        bigBlindPos: dealerPos,
+        firstPreflopPos: dealerPos,
+        firstPostflopPos: dealerPos,
+        dealerOwner: order[dealerPos],
+        smallBlindOwner: order[dealerPos],
+        bigBlindOwner: order[dealerPos],
+        firstPreflopActor: order[dealerPos],
+        firstPostflopActor: order[dealerPos],
+        positionLabels: {}
+    };
+
+    if (seatCount === 1) {
+        ctx.positionLabels[ctx.dealerOwner] = 'BTN';
+        return ctx;
+    }
+
+    if (seatCount === 2) {
+        ctx.smallBlindPos = dealerPos;
+        ctx.bigBlindPos = (dealerPos + 1) % seatCount;
+        ctx.firstPreflopPos = ctx.smallBlindPos;
+        ctx.firstPostflopPos = ctx.bigBlindPos;
+        ctx.smallBlindOwner = order[ctx.smallBlindPos];
+        ctx.bigBlindOwner = order[ctx.bigBlindPos];
+        ctx.firstPreflopActor = order[ctx.firstPreflopPos];
+        ctx.firstPostflopActor = order[ctx.firstPostflopPos];
+        ctx.positionLabels[ctx.smallBlindOwner] = 'BTN/SB';
+        ctx.positionLabels[ctx.bigBlindOwner] = 'BB';
+        return ctx;
+    }
+
+    ctx.smallBlindPos = (dealerPos + 1) % seatCount;
+    ctx.bigBlindPos = (dealerPos + 2) % seatCount;
+    ctx.firstPreflopPos = (dealerPos + 3) % seatCount;
+    ctx.firstPostflopPos = ctx.smallBlindPos;
+    ctx.smallBlindOwner = order[ctx.smallBlindPos];
+    ctx.bigBlindOwner = order[ctx.bigBlindPos];
+    ctx.firstPreflopActor = order[ctx.firstPreflopPos];
+    ctx.firstPostflopActor = order[ctx.firstPostflopPos];
+    ctx.positionLabels[ctx.dealerOwner] = 'BTN';
+    ctx.positionLabels[ctx.smallBlindOwner] = 'SB';
+    ctx.positionLabels[ctx.bigBlindOwner] = 'BB';
+
+    const middleOwners = [];
+    let cursor = (ctx.bigBlindPos + 1) % seatCount;
+    while (cursor !== ctx.dealerPos) {
+        middleOwners.push(order[cursor]);
+        cursor = (cursor + 1) % seatCount;
+    }
+    const middleLabels = createMiddlePositionLabels(middleOwners.length);
+    middleOwners.forEach((ownerKey, idx) => {
+        ctx.positionLabels[ownerKey] = middleLabels[idx] || `P${idx + 1}`;
+    });
+    return ctx;
+}
+
+function applyPreflopBlinds() {
     if (!state?.betting || state.betting.roundKey !== 'preflop') return;
     const order = getRoundPlayerOrder();
     if (order.length < 2) return;
-    const dealerPos = normalizeDealerIndexByOrder(order);
-    const blindPos = (dealerPos + 1) % order.length;
-    const blindOwner = order[blindPos];
-    const blindResponder = order[(blindPos + 1) % order.length] || null;
-    const blindAmount = Math.max(0, Math.floor(Number(BLIND_BONUS_TP) || 0));
-    const payer = state.players?.[blindOwner];
-    if (!payer || blindAmount <= 0) return;
-    const payerStack = Math.max(0, Math.floor(Number(payer.testPoints) || 0));
-    const payAmount = Math.min(blindAmount, payerStack);
-    if (payAmount <= 0) {
-        pushLog(`BLIND: ${blindOwner.toUpperCase()} stack不足`);
-        return;
-    }
-    if (!addBetToPot(blindOwner, payAmount, { reason: 'blind' })) return;
+    const pos = getPositionContext(order);
+    if (!pos) return;
+    const postBlind = (ownerKey, amount, reason) => {
+        const payer = state.players?.[ownerKey];
+        const blindAmount = Math.max(0, Math.floor(Number(amount) || 0));
+        if (!payer || blindAmount <= 0) return 0;
+        const payerStack = Math.max(0, Math.floor(Number(payer.testPoints) || 0));
+        const payAmount = Math.min(blindAmount, payerStack);
+        if (payAmount <= 0) return 0;
+        if (!addBetToPot(ownerKey, payAmount, { reason })) return 0;
+        return payAmount;
+    };
+    const sbPaid = postBlind(pos.smallBlindOwner, SMALL_BLIND_TP, 'small-blind');
+    const bbPaid = postBlind(pos.bigBlindOwner, BLIND_BONUS_TP, 'big-blind');
     state.betting.currentBet = Math.max(
         Number(state.betting.currentBet) || 0,
-        Number(state.betting.contributions?.[blindOwner]) || 0
+        Number(state.betting.contributions?.[pos.smallBlindOwner]) || 0,
+        Number(state.betting.contributions?.[pos.bigBlindOwner]) || 0
     );
-    state.betting.pendingResponseFor = blindResponder;
+    state.betting.pendingResponseFor = pos.firstPreflopActor || null;
+    state.betting.positionContext = pos;
+    state.positionContext = pos;
+    state.tablePositionLabels = { ...(pos.positionLabels || {}) };
     Object.keys(state.betting.checks || {}).forEach((ownerKey) => {
         state.betting.checks[ownerKey] = false;
     });
-    const dealerOwner = order[dealerPos];
     pushLog(
-        `BLIND: ${blindOwner.toUpperCase()} ${formatTestPoint(payAmount)} / DEALER ${String(dealerOwner || '').toUpperCase()}`
+        `POSITION: BTN ${String(pos.dealerOwner || '').toUpperCase()} / SB ${String(pos.smallBlindOwner || '').toUpperCase()} / BB ${String(pos.bigBlindOwner || '').toUpperCase()}`
+    );
+    pushLog(
+        `BLIND: SB ${formatTestPoint(sbPaid)} / BB ${formatTestPoint(bbPaid)}`
     );
 }
 
@@ -2009,8 +2211,10 @@ function startBettingRound(roundKey, nextPhase) {
         contributions[ownerKey] = 0;
         checks[ownerKey] = false;
     });
-    const dealerPos = normalizeDealerIndexByOrder(order);
-    const initialTurn = order[(dealerPos + 1) % Math.max(1, order.length)] || 'player';
+    const pos = getPositionContext(order);
+    const initialTurn = roundKey === 'preflop'
+        ? (pos?.firstPreflopActor || order[0] || 'player')
+        : (pos?.firstPostflopActor || order[0] || 'player');
     state.betting = {
         roundKey,
         nextPhase,
@@ -2019,12 +2223,15 @@ function startBettingRound(roundKey, nextPhase) {
         currentBet: 0,
         contributions,
         pendingResponseFor: initialTurn,
-        checks
+        checks,
+        positionContext: pos
     };
+    state.positionContext = pos;
+    state.tablePositionLabels = { ...(pos?.positionLabels || {}) };
     state.phase = `betting-${roundKey}`;
     pushLog(`ベッティング開始: ${roundKey} / 最小 ${formatTestPoint(TEST_BET_UNIT)}`);
     if (roundKey === 'preflop') {
-        applyPreflopBlind();
+        applyPreflopBlinds();
     }
 }
 
@@ -2075,9 +2282,10 @@ function chooseNpcBettingAction(ownerKey) {
     const winRate = Number.isFinite(rate) && rate >= 0 ? rate : 0.5;
 
     if (toCall > 0) {
+        const alreadyContributed = Number(betting.contributions?.[ownerKey] || 0);
         const isFirstPreflopResponse = roundKey === 'preflop'
-            && toCall <= minBet
-            && (betting.contributions?.[ownerKey] || 0) === 0;
+            && toCall <= BLIND_BONUS_TP
+            && alreadyContributed <= BLIND_BONUS_TP;
         if (isFirstPreflopResponse) {
             if (winRate > 0.78 && npc.testPoints >= toCall + minRaise && Math.random() < 0.35) {
                 return { action: 'raise' };
@@ -3521,7 +3729,7 @@ function renderFateCardInfo() {
         if (state?.activeFateCard && !state?.fateRevealed) {
             ui.fateEffectText.textContent = 'FATE CARD: 公開待ち';
         } else {
-            ui.fateEffectText.textContent = getFateEffectSummary(state?.activeFateCard || null);
+            ui.fateEffectText.innerHTML = getFateEffectSummaryHtml(state?.activeFateCard || null);
         }
     }
 }
@@ -3725,18 +3933,21 @@ function renderParticipantList() {
     const turnKey = state?.betting?.pendingResponseFor || null;
     const displayNpcKey = getDisplayNpcKey();
     const contributions = state?.betting?.contributions || {};
+    const positionLabels = state?.tablePositionLabels || {};
     ui.participantList.innerHTML = '';
     order.forEach((ownerKey) => {
         const player = state.players?.[ownerKey];
         if (!player) return;
         const chip = document.createElement('div');
         chip.className = 'tarot-participant-chip';
+        chip.dataset.ownerKey = ownerKey;
         if (ownerKey === 'player') chip.classList.add('is-player');
         if (ownerKey === turnKey) chip.classList.add('is-turn');
         if (player.folded) chip.classList.add('is-folded');
         if (ownerKey !== 'player' && ownerKey === displayNpcKey) chip.classList.add('is-display');
         const betAmount = Math.max(0, Math.floor(Number(contributions?.[ownerKey] || 0)));
-        chip.textContent = `${player.name} B${betAmount}`;
+        const posLabel = positionLabels?.[ownerKey] ? ` ${positionLabels[ownerKey]}` : '';
+        chip.textContent = `${player.name}${posLabel} B${betAmount}`;
         ui.participantList.appendChild(chip);
     });
 }
