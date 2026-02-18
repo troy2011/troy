@@ -2892,6 +2892,46 @@ body.modal-lock .modal-overlay {
     color: #dbe4f2;
 }
 
+.tarot-participant-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+
+.tarot-participant-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(15, 23, 42, 0.7);
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.tarot-participant-chip.is-player {
+    border-color: rgba(52, 211, 153, 0.48);
+    color: #bbf7d0;
+}
+
+.tarot-participant-chip.is-turn {
+    border-color: rgba(251, 191, 36, 0.8);
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 0 12px rgba(251, 191, 36, 0.25);
+}
+
+.tarot-participant-chip.is-folded {
+    opacity: 0.55;
+    text-decoration: line-through;
+}
+
+.tarot-participant-chip.is-display {
+    border-color: rgba(96, 165, 250, 0.72);
+}
+
 .tarot-poker-board {
     display: flex;
     flex-wrap: nowrap;
@@ -3004,8 +3044,12 @@ body.modal-lock .modal-overlay {
 
 .tarot-poker-columns {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+}
+
+.tarot-poker-column--player {
+    grid-column: 1 / -1;
 }
 
 .tarot-poker-column {
@@ -3013,6 +3057,71 @@ body.modal-lock .modal-overlay {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 10px;
+}
+
+.tarot-poker-column--npc-mini {
+    --tarot-card-w: 29px;
+    --tarot-card-h: 48px;
+    --tarot-art-w: 24px;
+    --tarot-art-h: 40px;
+    --tarot-art-left: 2px;
+    --tarot-art-top: 4px;
+    --tarot-card-padding: 2px;
+    --tarot-card-number-size: 12px;
+    --tarot-card-title-size: 8px;
+    padding: 7px;
+}
+
+.tarot-poker-column--npc-mini .tarot-hand-grave-wrap {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+}
+
+.tarot-poker-column--npc-mini .tarot-poker-column-title {
+    font-size: 10px;
+    margin-bottom: 5px;
+}
+
+.tarot-poker-column--npc-mini .tarot-inline-point {
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-left: 4px;
+}
+
+.tarot-poker-column--npc-mini .tarot-role-label {
+    min-height: 14px;
+    margin-top: 3px;
+    font-size: 10px;
+}
+
+.tarot-poker-column--npc-mini .tarot-action-label {
+    min-height: 14px;
+    font-size: 10px;
+    margin-top: 2px;
+}
+
+.tarot-poker-column--npc-mini .tarot-card-row {
+    gap: 2px;
+    min-height: var(--tarot-card-h, 48px);
+}
+
+.tarot-poker-column--npc-mini .tarot-grave-row {
+    gap: 2px;
+    min-height: var(--tarot-card-h, 48px);
+    justify-content: flex-start;
+}
+
+.tarot-poker-column--npc-mini .tarot-grave-title {
+    font-size: 10px;
+    text-align: left;
+}
+
+.tarot-poker-column--npc-mini .tarot-grave-block {
+    text-align: left;
+}
+
+.tarot-action-label--mini {
+    letter-spacing: 0.01em;
 }
 
 .tarot-hand-grave-wrap {
@@ -3291,6 +3400,12 @@ body.modal-lock .modal-overlay {
     opacity: 0.58 !important;
     transform: translateY(-8px) scale(0.97) rotate(-2deg);
     filter: saturate(1.1);
+}
+
+.tarot-card.is-undealt {
+    opacity: 0 !important;
+    transform: scale(0.96);
+    pointer-events: none;
 }
 
 .tarot-card-title {
@@ -3701,17 +3816,13 @@ body.modal-lock .modal-overlay {
 
 @media (max-width: 900px) {
     .tarot-poker-columns {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
     }
 
     .tarot-poker-column--player {
-        order: 1;
-    }
-
-    .tarot-poker-column--cpu {
-        order: 2;
+        grid-column: 1 / -1;
     }
 }
 
@@ -3797,6 +3908,16 @@ body.modal-lock .modal-overlay {
         font-size: 12px;
     }
 
+    #tabContentTarot .tarot-participant-list {
+        gap: 4px;
+        margin: 0 0 6px;
+    }
+
+    #tabContentTarot .tarot-participant-chip {
+        padding: 2px 6px;
+        font-size: 10px;
+    }
+
     #tabContentTarot .tarot-board-top {
         margin-bottom: 6px;
     }
@@ -3829,11 +3950,25 @@ body.modal-lock .modal-overlay {
     }
 
     #tabContentTarot .tarot-poker-columns {
-        gap: 8px;
+        gap: 6px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     #tabContentTarot .tarot-poker-column {
         padding: 8px;
+    }
+
+    #tabContentTarot .tarot-poker-column--npc-mini {
+        padding: 6px;
+    }
+
+    #tabContentTarot .tarot-poker-column--npc-mini .tarot-poker-column-title {
+        font-size: 9px;
+    }
+
+    #tabContentTarot .tarot-poker-column--npc-mini .tarot-inline-point {
+        font-size: 8px;
+        margin-left: 3px;
     }
 
     #tabContentTarot .tarot-hand-grave-wrap {

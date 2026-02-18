@@ -280,6 +280,7 @@
                     <div id="tarotEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
                     <div id="tarotCutin" class="tarot-cutin" aria-hidden="true"></div>
                     <div id="tarotStateText" class="tarot-state-text">「新しい勝負を始める」を押してください。</div>
+                    <div id="tarotParticipantList" class="tarot-participant-list"></div>
                     <div id="tarotDrawGuide" class="tarot-draw-guide" style="display:none;"></div>
                     <div id="tarotDeckAnchor" class="tarot-deck-anchor tarot-deck-anchor-hidden" aria-hidden="true"></div>
                     <div class="tarot-board-row">
@@ -315,7 +316,7 @@
                             <div class="tarot-hand-grave-wrap">
                                 <div class="tarot-hand-block">
                                     <div class="tarot-poker-column-title">
-                                        CPU 手札
+                                        <span id="tarotNpcColumnTitle">NPC1 手札</span>
                                         <span id="tarotCpuPointText" class="tarot-inline-point is-cpu">0 TP</span>
                                         <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span>
                                     </div>
@@ -324,8 +325,44 @@
                                     <div id="tarotCpuAction" class="tarot-action-label"></div>
                                 </div>
                                 <div class="tarot-grave-block">
-                                    <div class="tarot-poker-column-title tarot-grave-title">CPU 墓地</div>
+                                    <div id="tarotNpcGraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC1 墓地</div>
                                     <div id="tarotCpuGrave" class="tarot-grave-row"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tarot-poker-column tarot-poker-column--npc-mini">
+                            <div class="tarot-hand-grave-wrap">
+                                <div class="tarot-hand-block">
+                                    <div class="tarot-poker-column-title">
+                                        <span id="tarotNpc2ColumnTitle">NPC2 手札</span>
+                                        <span id="tarotNpc2PointText" class="tarot-inline-point is-cpu">0 TP</span>
+                                        <span id="tarotNpc2Outcome" class="tarot-outcome-badge"></span>
+                                    </div>
+                                    <div id="tarotNpc2Hand" class="tarot-card-row"></div>
+                                    <div id="tarotNpc2Role" class="tarot-role-label"></div>
+                                    <div id="tarotNpc2Action" class="tarot-action-label tarot-action-label--mini"></div>
+                                </div>
+                                <div class="tarot-grave-block">
+                                    <div id="tarotNpc2GraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC2 墓地</div>
+                                    <div id="tarotNpc2Grave" class="tarot-grave-row"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tarot-poker-column tarot-poker-column--npc-mini">
+                            <div class="tarot-hand-grave-wrap">
+                                <div class="tarot-hand-block">
+                                    <div class="tarot-poker-column-title">
+                                        <span id="tarotNpc3ColumnTitle">NPC3 手札</span>
+                                        <span id="tarotNpc3PointText" class="tarot-inline-point is-cpu">0 TP</span>
+                                        <span id="tarotNpc3Outcome" class="tarot-outcome-badge"></span>
+                                    </div>
+                                    <div id="tarotNpc3Hand" class="tarot-card-row"></div>
+                                    <div id="tarotNpc3Role" class="tarot-role-label"></div>
+                                    <div id="tarotNpc3Action" class="tarot-action-label tarot-action-label--mini"></div>
+                                </div>
+                                <div class="tarot-grave-block">
+                                    <div id="tarotNpc3GraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC3 墓地</div>
+                                    <div id="tarotNpc3Grave" class="tarot-grave-row"></div>
                                 </div>
                             </div>
                         </div>
