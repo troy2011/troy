@@ -7,6 +7,7 @@ const TAROT_BACK_INDEX = 110;
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
 const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
+const SUIT_COLOR = { Wand: '#b11818', Sword: '#c29b14', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = { 16: 'Sword', 17: 'Cup', 18: 'Pentacle', 19: 'Wand' };
 const ARCANA_NAME = {
   0: '愚者', 1: '魔術師', 2: '女教皇', 3: '女帝', 4: '皇帝', 5: '法王', 6: '恋人', 7: '戦車', 8: '力', 9: '隠者',
@@ -44,6 +45,8 @@ const ui = {};
 let s = null;
 let bound = false;
 let npcTimer = null;
+let trickRenderKey = '';
+let trickRenderToken = 0;
 
 const clearNpcTimer = () => { if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; } };
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -212,6 +215,8 @@ function clearRoundState() {
 
 function resetMatch() {
   s = initState();
+  trickRenderKey = '';
+  trickRenderToken += 1;
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
 }
@@ -600,21 +605,44 @@ function scheduleNpc() {
 function cardNode(card, opt = {}) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'tarot-kingdom-card';
+  el.className = 'tarot-card tarot-kingdom-card';
+  if (card?.kind === 'minor') {
+    el.classList.add(String(card.suit || 'None').toLowerCase());
+  } else if (card?.kind === 'major') {
+    el.classList.add('is-arcana');
+    if (card.number === 1) {
+      el.classList.add('arcana-all-corners');
+    } else if ([16, 17, 18, 19].includes(Number(card.number))) {
+      const arcanaSuit = SPECIAL_SUIT[Number(card.number)];
+      el.classList.add('arcana-suit-hybrid');
+      if (arcanaSuit && SUIT_COLOR[arcanaSuit]) {
+        el.style.setProperty('--arcana-color', SUIT_COLOR[arcanaSuit]);
+      }
+    } else {
+      el.classList.add('none');
+    }
+  } else {
+    el.classList.add('none');
+  }
   if (opt.small) el.classList.add('is-mini');
   if (opt.clickable) el.classList.add('is-clickable');
+  else el.classList.add('is-static');
   if (opt.selected) el.classList.add('is-selected');
   if (!opt.onClick) el.disabled = true;
   const art = document.createElement('span');
-  art.className = 'tarot-kingdom-card-art';
+  art.className = 'tarot-card-art tarot-kingdom-card-art';
   const pos = spritePos(getSpriteIndex(card));
   art.style.setProperty('--tarot-sprite-src', `url("${TAROT_SPRITE_SRC}")`);
   art.style.setProperty('--tarot-sheet-w', '512px');
   art.style.setProperty('--tarot-sheet-h', '1024px');
   art.style.setProperty('--tarot-x', `${pos.x}px`);
   art.style.setProperty('--tarot-y', `${pos.y}px`);
-  const label = document.createElement('span'); label.className = 'tarot-kingdom-card-label'; label.textContent = cShort(card);
-  const power = document.createElement('span'); power.className = 'tarot-kingdom-card-power'; power.textContent = cShort(card);
+  const label = document.createElement('span');
+  label.className = 'tarot-card-title tarot-kingdom-card-label';
+  label.textContent = cName(card);
+  const power = document.createElement('span');
+  power.className = 'tarot-card-number tarot-kingdom-card-power';
+  power.textContent = cShort(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
   if (opt.onClick) el.addEventListener('click', opt.onClick);
   return el;
@@ -635,9 +663,39 @@ function renderPlayers() {
 }
 
 function renderTrick() {
-  ui.trick.innerHTML = '';
-  if (!s.trick?.cardsTable?.length) { const e = document.createElement('div'); e.className = 'tarot-kingdom-empty'; e.textContent = '場札なし'; ui.trick.appendChild(e); return; }
-  s.trick.cardsTable.forEach((c) => ui.trick.appendChild(cardNode(c)));
+  const cards = s.trick?.cardsTable || [];
+  const nextKey = cards.length
+    ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
+    : '__empty__';
+  if (nextKey === trickRenderKey) return;
+  trickRenderKey = nextKey;
+
+  const renderNow = () => {
+    ui.trick.innerHTML = '';
+    if (!cards.length) {
+      const e = document.createElement('div');
+      e.className = 'tarot-kingdom-empty';
+      e.textContent = '場札なし';
+      ui.trick.appendChild(e);
+      return;
+    }
+    cards.forEach((c) => ui.trick.appendChild(cardNode(c)));
+  };
+
+  const leavingCards = Array.from(ui.trick.querySelectorAll('.tarot-card'));
+  const leavingEmpty = Array.from(ui.trick.querySelectorAll('.tarot-kingdom-empty'));
+  if (!leavingCards.length && !leavingEmpty.length) {
+    renderNow();
+    return;
+  }
+
+  const token = ++trickRenderToken;
+  leavingCards.forEach((el) => el.classList.add('is-leaving'));
+  leavingEmpty.forEach((el) => el.classList.add('is-leaving'));
+  setTimeout(() => {
+    if (token !== trickRenderToken) return;
+    renderNow();
+  }, 140);
 }
 
 function renderHand() {

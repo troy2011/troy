@@ -2659,10 +2659,11 @@ body.modal-lock .modal-overlay {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: flex-start;
     margin-bottom: 8px;
 }
 
-.tarot-kingdom-controls button {
+#tarotKingdomStartButton {
     min-height: 34px;
     padding: 6px 12px;
     border-radius: 9px;
@@ -2802,6 +2803,12 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-empty {
     font-size: 12px;
     color: #94a3b8;
+}
+
+.tarot-kingdom-empty.is-leaving {
+    transition: opacity 130ms ease, transform 130ms ease;
+    opacity: 0.4;
+    transform: translateY(-6px);
 }
 
 .tarot-kingdom-judgment {
@@ -3121,7 +3128,8 @@ body.modal-lock .modal-overlay {
     padding-bottom: 2px;
 }
 
-.tarot-betting-actions button {
+.tarot-betting-actions button,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton) {
     flex: 0 0 var(--tarot-card-w, 58px);
     width: var(--tarot-card-w, 58px);
     height: var(--tarot-card-h, 96px);
@@ -3149,40 +3157,52 @@ body.modal-lock .modal-overlay {
     line-height: 1.08;
 }
 
-.tarot-betting-actions button:not(:disabled):active {
+.tarot-betting-actions button:not(:disabled):active,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):active {
     transform: translateY(1px) scale(0.985);
 }
 
-.tarot-betting-actions button:not(:disabled):hover {
+.tarot-betting-actions button:not(:disabled):hover,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):hover {
     filter: brightness(1.08);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.2),
         0 10px 18px rgba(0, 0, 0, 0.44);
 }
 
-.tarot-betting-actions button:disabled {
+.tarot-betting-actions button:disabled,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):disabled {
     opacity: 0.4;
     filter: grayscale(0.2);
 }
 
-#tarotBetCheck {
+#tarotBetCheck,
+#tarotKingdomPassButton {
     background: linear-gradient(180deg, #334155, #1f2937);
 }
 
-#tarotBetCall {
+#tarotBetCall,
+#tarotKingdomCallButton {
     background: linear-gradient(180deg, #0891b2, #0e7490);
 }
 
-#tarotBetBet {
+#tarotBetBet,
+#tarotKingdomPlayButton {
     background: linear-gradient(180deg, #a855f7, #7e22ce);
 }
 
-#tarotBetRaise {
+#tarotBetRaise,
+#tarotKingdomRaiseButton {
     background: linear-gradient(180deg, #d97706, #b45309);
 }
 
-#tarotBetFold {
+#tarotBetFold,
+#tarotKingdomDrawMajorButton {
     background: linear-gradient(180deg, #ef4444, #b91c1c);
+}
+
+#tarotKingdomDrawMinorButton {
+    background: linear-gradient(180deg, #16a34a, #166534);
 }
 
 .tarot-bet-popup {
@@ -3235,7 +3255,8 @@ body.modal-lock .modal-overlay {
         padding: 22px 8px 8px;
     }
 
-    .tarot-betting-actions button {
+    .tarot-betting-actions button,
+    .tarot-kingdom-controls button:not(#tarotKingdomStartButton) {
         width: var(--tarot-card-w, 58px);
         min-width: var(--tarot-card-w, 58px);
         height: var(--tarot-card-h, 96px);
@@ -4310,14 +4331,6 @@ body.modal-lock .modal-overlay {
     #tabContentTarot .tarot-kingdom-player-row {
         min-height: 32px;
         padding: 5px 7px;
-    }
-
-    #tabContentTarot .tarot-kingdom-card-label {
-        font-size: 8px;
-    }
-
-    #tabContentTarot .tarot-kingdom-card-power {
-        font-size: 14px;
     }
 
     #tabContentTarot .tarot-poker-root {
