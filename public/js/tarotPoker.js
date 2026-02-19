@@ -993,15 +993,9 @@ async function advanceControllerAfterBettingRound() {
     }
 
     if (controllerState.phase === 'fate-action') {
-        const beforeFateLoopBoardCount = Array.isArray(state?.board) ? state.board.length : 0;
         await runControllerFateActionLoop();
         controllerState = tarotGameController.getState();
         syncStateFromController(controllerState);
-        afterBoardCount = Array.isArray(controllerState?.boardVisible) ? controllerState.boardVisible.length : (state.board?.length || 0);
-        if (afterBoardCount > beforeFateLoopBoardCount) {
-            queuePendingBoardFlips(beforeFateLoopBoardCount, afterBoardCount - 1);
-            await runPendingBoardFlipAnimation();
-        }
     }
 
     const roundKey = controllerPhaseToRoundKey(controllerState.phase);
@@ -1064,7 +1058,7 @@ function getBetCoinSourceElement(ownerKey) {
         const handCards = handEl.querySelectorAll
             ? Array.from(handEl.querySelectorAll('.tarot-card'))
             : [];
-        for (let i = handCards.length - 1; i >= 0; i -= 1) {
+        for (let i = 0; i < handCards.length; i += 1) {
             const cardEl = handCards[i];
             if (!cardEl || !cardEl.classList) continue;
             if (cardEl.classList.contains('is-undealt')) continue;
@@ -1083,7 +1077,7 @@ function getPayoutTargetElement(ownerKey) {
         const handCards = handEl.querySelectorAll
             ? Array.from(handEl.querySelectorAll('.tarot-card'))
             : [];
-        for (let i = handCards.length - 1; i >= 0; i -= 1) {
+        for (let i = 0; i < handCards.length; i += 1) {
             const cardEl = handCards[i];
             if (!cardEl || !cardEl.classList) continue;
             if (cardEl.classList.contains('is-undealt')) continue;
@@ -1511,15 +1505,6 @@ function getFateEffectSummary(card) {
         const previewName = getCardDisplayName(state.previewRiverCard);
         const previewNum = getCardNumberLabel(state.previewRiverCard);
         return `${name} (${displayNumber}) / ${base}${mutationText} / 予見: ${previewName}(${previewNum})`;
-    }
-    if (ruleNumber === 2) {
-        const displayNpcKey = getDisplayNpcKey();
-        const revealIndex = Number(state?.players?.[displayNpcKey]?.revealHandIndex);
-        const idx = Number.isFinite(revealIndex) ? revealIndex : -1;
-        const revealed = idx >= 0 ? (state?.players?.[displayNpcKey]?.hand?.[idx] || null) : null;
-        if (revealed) {
-            return `${name} (${displayNumber}) / ${base}${mutationText} / 公開: ${getCardDisplayName(revealed)}(${getCardNumberLabel(revealed)})`;
-        }
     }
     return `${name} (${displayNumber}) / ${base}${mutationText}`;
 }
