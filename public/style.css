@@ -2697,7 +2697,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-action-popup::before {
-    content: "アクション";
+    content: "プレイヤーアクション";
 }
 
 
@@ -2740,6 +2740,37 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
     margin-bottom: 6px;
     color: #e5e7eb;
+}
+
+.tarot-kingdom-hand-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tarot-kingdom-clear-inline {
+    min-height: 24px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(8, 145, 178, 0.5);
+    background: linear-gradient(180deg, rgba(8, 145, 178, 0.9), rgba(14, 116, 144, 0.9));
+    color: #ecfeff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.tarot-kingdom-clear-inline:disabled {
+    opacity: 0.45;
+    filter: grayscale(0.25);
+    box-shadow: none;
 }
 
 .tarot-kingdom-hand {
@@ -3330,6 +3361,10 @@ body.modal-lock .modal-overlay {
     text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
     pointer-events: none;
     animation: tarotBettingTextPulse 0.9s ease-in-out infinite;
+}
+
+.tarot-bet-popup.tarot-kingdom-action-popup::before {
+    content: "プレイヤーアクション";
 }
 
 @keyframes tarotBettingTextPulse {
