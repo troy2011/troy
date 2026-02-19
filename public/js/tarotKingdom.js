@@ -1264,7 +1264,9 @@ function renderSummary() {
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}`;
   ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
   if (ui.reverseChip) {
-    ui.reverseChip.hidden = !s.reverse;
+    const showReverse = !!s.roundActive && !!s.reverse;
+    ui.reverseChip.hidden = !showReverse;
+    ui.reverseChip.style.display = showReverse ? '' : 'none';
     ui.reverseChip.textContent = s.reversePersist ? '11バック中（永続）' : '11バック中';
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);

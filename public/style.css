@@ -2572,11 +2572,23 @@ body.modal-lock .modal-overlay {
 /* --- タロットポーカー --- */
 .tarot-game-switch-wrap {
     margin-bottom: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(15, 23, 42, 0.48);
+    padding: 12px;
+}
+
+.tarot-game-select-title {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #f8fafc;
 }
 
 .tarot-game-switch {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .tarot-game-switch button {
@@ -4631,6 +4643,11 @@ body.modal-lock .modal-overlay {
 }
 
 @media (max-width: 640px) {
+    #tabContentTarot .tarot-game-select-title {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
     #tabContentTarot .tarot-game-switch {
         gap: 6px;
     }

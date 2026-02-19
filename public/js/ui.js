@@ -37,15 +37,40 @@ let tarotPokerLoaded = false;
 let tarotKingdomLoaded = false;
 
 const getTarotModeElements = () => ({
+    selectRoot: document.getElementById('tarotGameSelectRoot'),
     pokerButton: document.getElementById('tarotModePoker'),
     kingdomButton: document.getElementById('tarotModeKingdom'),
     pokerRoot: document.getElementById('tarotPokerRoot'),
     kingdomRoot: document.getElementById('tarotKingdomRoot')
 });
 
+const showTarotModeSelection = () => {
+    const { selectRoot, pokerRoot, kingdomRoot, pokerButton, kingdomButton } = getTarotModeElements();
+    if (selectRoot) {
+        selectRoot.style.display = 'block';
+    }
+    if (pokerRoot) {
+        pokerRoot.style.display = 'none';
+    }
+    if (kingdomRoot) {
+        kingdomRoot.style.display = 'none';
+    }
+    if (pokerButton) {
+        pokerButton.classList.remove('is-active');
+        pokerButton.setAttribute('aria-selected', 'false');
+    }
+    if (kingdomButton) {
+        kingdomButton.classList.remove('is-active');
+        kingdomButton.setAttribute('aria-selected', 'false');
+    }
+};
+
 const applyTarotModeUi = (mode) => {
     const normalized = mode === 'kingdom' ? 'kingdom' : 'poker';
-    const { pokerButton, kingdomButton, pokerRoot, kingdomRoot } = getTarotModeElements();
+    const { selectRoot, pokerButton, kingdomButton, pokerRoot, kingdomRoot } = getTarotModeElements();
+    if (selectRoot) {
+        selectRoot.style.display = 'none';
+    }
     if (pokerRoot) {
         pokerRoot.style.display = normalized === 'poker' ? 'block' : 'none';
     }
@@ -97,13 +122,11 @@ const bindTarotModeSwitch = () => {
     if (!pokerButton || !kingdomButton) return;
 
     pokerButton.addEventListener('click', () => {
-        if (currentTarotMode === 'poker') return;
         setTarotMode('poker', { ensureLoaded: true }).catch((error) => {
             console.error('[tarot] failed to switch to poker mode:', error);
         });
     });
     kingdomButton.addEventListener('click', () => {
-        if (currentTarotMode === 'kingdom') return;
         setTarotMode('kingdom', { ensureLoaded: true }).catch((error) => {
             console.error('[tarot] failed to switch to kingdom mode:', error);
         });
@@ -113,7 +136,7 @@ const bindTarotModeSwitch = () => {
 
 const prepareTarotTab = async () => {
     bindTarotModeSwitch();
-    await setTarotMode(currentTarotMode, { ensureLoaded: true });
+    showTarotModeSelection();
 };
 
 const TAROT_AREAS = [
@@ -1345,7 +1368,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
         if (tabId === 'tarot') {
             bindTarotModeSwitch();
-            applyTarotModeUi(currentTarotMode);
+            showTarotModeSelection();
         }
 
         if (tabId === 'map' && gameInstance) {
