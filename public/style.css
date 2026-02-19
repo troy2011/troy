@@ -3157,7 +3157,7 @@ body.modal-lock .modal-overlay {
 .tarot-poker-column--npc-mini .tarot-card-art {
     top: 50%;
     transform: translate(-50%, -50%) scale(0.5);
-    transform-origin: top center;
+    transform-origin: center center;
 }
 
 .tarot-poker-column--npc-mini .tarot-grave-row {

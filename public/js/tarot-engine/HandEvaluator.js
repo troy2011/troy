@@ -158,8 +158,9 @@ function normalizeValue(raw, effects, card = null) {
     }
     if (value < 1)
         value = 1;
-    if (value > 15)
-        value = 15;
+    const maxValue = card && card.isArcana ? 21 : 15;
+    if (value > maxValue)
+        value = maxValue;
     return value;
 }
 function getValueOptionsForCard(card, effects) {
@@ -211,7 +212,7 @@ function getSuitOptionsForCard(card, effects) {
     return ['None'];
 }
 function getWildcardValueDomain(effects) {
-    const high = 15;
+    const high = 21;
     const out = [];
     for (let i = 1; i <= high; i += 1) {
         out.push(normalizeValue(i, effects));

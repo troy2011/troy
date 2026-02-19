@@ -240,16 +240,17 @@ function suitWeightForOriginal(card: TarotCard): number {
     return 0;
 }
 
-function normalizeValue(raw: number, effects: EffectFlags): number {
+function normalizeValue(raw: number, effects: EffectFlags, card: TarotCard | null = null): number {
     let value = raw;
-    if (effects.death && value >= 11 && value <= 14) {
+    if (effects.death && !(card && card.isArcana) && value >= 11 && value <= 14) {
         value -= 10;
     }
     if (effects.temperance && value % 2 === 1) {
         value += 1;
     }
     if (value < 1) value = 1;
-    if (value > 15) value = 15;
+    const maxValue = card && card.isArcana ? 21 : 15;
+    if (value > maxValue) value = maxValue;
     return value;
 }
 
@@ -270,7 +271,7 @@ function getValueOptionsForCard(card: TarotCard, effects: EffectFlags): number[]
     } else {
         out = [n];
     }
-    return uniqueSortedDesc(out.map((v) => normalizeValue(v, effects)));
+    return uniqueSortedDesc(out.map((v) => normalizeValue(v, effects, card)));
 }
 
 function getSuitOptionsForCard(card: TarotCard, effects: EffectFlags): Array<MinorSuit | 'World' | 'None'> {
@@ -290,7 +291,7 @@ function getSuitOptionsForCard(card: TarotCard, effects: EffectFlags): Array<Min
 }
 
 function getWildcardValueDomain(effects: EffectFlags): number[] {
-    const high = effects.justice ? 14 : 15;
+    const high = 21;
     const out: number[] = [];
     for (let i = 1; i <= high; i += 1) {
         out.push(normalizeValue(i, effects));
@@ -645,4 +646,3 @@ export class HandEvaluator {
         return this.compareHands(leftEval, rightEval, effects);
     }
 }
-
