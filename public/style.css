@@ -3018,8 +3018,33 @@ body.modal-lock .modal-overlay {
 
 .tarot-kingdom-judgment-options {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tarot-kingdom-grave-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tarot-kingdom-grave-owner {
+    font-size: 10px;
+    font-weight: 700;
+    color: #93c5fd;
+    letter-spacing: 0.02em;
+}
+
+.tarot-kingdom-grave-cards {
+    display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.tarot-kingdom-grave-empty {
+    font-size: 10px;
+    color: #94a3b8;
+    opacity: 0.9;
 }
 
 .tarot-kingdom-judgment-owner {
@@ -3905,6 +3930,19 @@ body.modal-lock .modal-overlay {
     }
 }
 
+@keyframes tarotCardEnterFromBottom {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.97);
+        filter: saturate(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: saturate(1);
+    }
+}
+
 .tarot-card-row .tarot-card,
 .tarot-poker-board .tarot-card {
     flex: 0 0 var(--tarot-card-w, 64px);
@@ -3980,6 +4018,12 @@ body.modal-lock .modal-overlay {
     opacity: 0.58 !important;
     transform: translateY(-8px) scale(0.97) rotate(-2deg);
     filter: saturate(1.1);
+}
+
+.tarot-card.is-entering {
+    opacity: 0 !important;
+    transform: translateY(10px) scale(0.97);
+    animation: tarotCardEnterFromBottom 190ms cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
 }
 
 .tarot-card.is-undealt {

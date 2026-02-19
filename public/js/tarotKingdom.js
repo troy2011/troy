@@ -89,7 +89,13 @@ const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number 
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : (c.number === 0 && role ? SUITS.slice() : ['None'])));
-const suitTierForCard = (c, suit) => (SUIT_TIER[suit] || 0) + (c.kind === 'major' && [16, 17, 18, 19].includes(c.number) ? 0.3 : 0);
+const suitTierForCard = (c, suit) => {
+  const base = SUIT_TIER[suit] || 0;
+  // 大アルカナは、同値比較時のスート優位で常に小アルカナより上位
+  // (同じ大アルカナ同士では base で軽く序列を残す)
+  if (c?.kind === 'major') return 10 + base;
+  return base;
+};
 const mkMinor = () => { const d = []; let id = 0; SUITS.forEach((suit) => { for (let n = 1; n <= 14; n += 1) d.push({ id: `tk_m_${++id}`, kind: 'minor', suit, number: n }); }); return d; };
 const mkMajor = () => Array.from({ length: 22 }, (_, n) => ({ id: `tk_a_${n}`, kind: 'major', suit: 'None', number: n }));
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
@@ -392,7 +398,7 @@ function evalRole(cards, lockSuit = null) {
 
 function initState() {
   return {
-    players: PLAYERS.map((p) => ({ ...p, chips: START_CHIPS, hand: [], discard: [], rateBonus: 0, raise: false, bet: 0 })),
+    players: PLAYERS.map((p) => ({ ...p, chips: START_CHIPS, hand: [], discard: [], rateBonus: 0, raise: false, bet: 0, stars: 0 })),
     handNo: 0,
     dealer: 0,
     turn: 0,
@@ -413,6 +419,7 @@ function initState() {
     hiddenOracleCard: null,
     pendingDraw: null,
     pendingJudgment: null,
+    graveOpen: false,
     selected: new Set(),
     pot: 0,
     logs: [],
@@ -430,6 +437,7 @@ function clearRoundState() {
   if (!s.reversePersist) s.reverse = false;
   s.pendingDraw = null;
   s.pendingJudgment = null;
+  s.graveOpen = false;
   s.selected.clear();
   s.players.forEach((p) => { p.hand = []; p.discard = []; p.rateBonus = 0; p.raise = false; p.bet = 0; });
 }
@@ -464,6 +472,8 @@ function setupHand() {
     if (c) s.players[p].hand.push(c);
   }
   s.players.forEach((p) => p.hand.sort((a, b) => cStrength(a) - cStrength(b)));
+  // 局開始時、全員に星を1つ付与
+  s.players.forEach((p) => { p.stars = Math.max(0, Number(p.stars) || 0) + 1; });
   s.turn = s.dealer;
   s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   log(`第${s.handNo + 1}局開始 / 親: ${pName(s.dealer)}`);
@@ -524,6 +534,8 @@ function buildRolePlay(pi, sel) {
 
 function buildCallPlay(pi, sel) {
   const p = s.players[pi];
+  const stars = Math.max(0, Number(p?.stars) || 0);
+  if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
   const base = s.trick?.cardsTable?.[0];
   if (!base) return { ok: false, reason: '場札がありません。' };
   if (sel.length !== 4) return { ok: false, reason: 'コールは手札4枚です。' };
@@ -574,7 +586,12 @@ function validatePlay(play, mode) {
   if (aceRuleViolation) return { ok: false, reason: aceRuleViolation };
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
-  if (mode === 'call') return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
+  if (mode === 'call') {
+    const actor = s.players?.[Number(play?.owner)];
+    const stars = Math.max(0, Number(actor?.stars) || 0);
+    if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
+    return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
+  }
   if (play.type !== s.trick.type || play.count !== s.trick.count) return { ok: false, reason: '場と同じ形式/枚数で。' };
   if (play.type === 'set') {
     const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
@@ -616,7 +633,8 @@ function drawChoiceStart(playerIndex) {
   if (!s.players[playerIndex].human) {
     clearNpcTimer();
     npcTimer = setTimeout(() => {
-      const useMajor = s.majorDeck.length > 0 && (s.players[playerIndex].hand.length <= 5 || Math.random() < 0.35);
+      const stars = Math.max(0, Number(s.players[playerIndex].stars) || 0);
+      const useMajor = s.majorDeck.length > 0 && stars > 0 && (s.players[playerIndex].hand.length <= 5 || Math.random() < 0.35);
       applyDrawChoice(useMajor ? 'major' : 'minor');
     }, NPC_DELAY);
   }
@@ -644,6 +662,9 @@ function judgmentStart(playerIndex) {
 }
 
 function clearTrick(leader) {
+  if (s.players[leader]) {
+    s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
+  }
   applyRoleRewardOnClear(leader);
   const hadJudgment = !!(s.lastPlay && s.lastPlay.type === 'set' && s.lastPlay.owner === leader && s.lastPlay.cardsHand.some((c) => c.kind === 'major' && c.number === 20));
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
@@ -738,6 +759,7 @@ function finishRound(winnerIndex) {
     });
     s.pot = 0;
   }
+  s.players.forEach((p) => { p.stars = 0; });
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
     let top = 0; s.players.forEach((p, i) => { if (s.players[i].chips > s.players[top].chips) top = i; });
@@ -751,13 +773,42 @@ function finishRound(winnerIndex) {
 function applyDrawChoice(deckType) {
   const pi = s.pendingDraw;
   if (pi == null) return;
+  const actor = s.players[pi];
+  if (!actor) return;
   s.selected.clear();
   let use = deckType;
   if (use === 'major' && s.majorDeck.length <= 0) use = 'minor';
   if (use === 'minor' && s.minorDeck.length <= 0) use = 'major';
+
+  // 大アルカナドローは星1消費。星不足なら人間は選べず、NPCは可能なら小アルカナへフォールバック。
+  if (use === 'major') {
+    const stars = Math.max(0, Number(actor.stars) || 0);
+    if (stars <= 0) {
+      if (!actor.human && s.minorDeck.length > 0) {
+        use = 'minor';
+      } else if (actor.human) {
+        s.message = '星が足りないため大アルカナを引けません。';
+        render();
+        return;
+      } else {
+        s.pendingDraw = null;
+        s.phase = 'turn';
+        s.message = `${pName(pi)}が親です。`;
+        scheduleNpc();
+        render();
+        return;
+      }
+    }
+  }
+
   const c = use === 'major' ? (s.majorDeck.pop() || null) : (s.minorDeck.pop() || null);
-  if (c) { s.players[pi].hand.push(c); s.players[pi].hand.sort((a, b) => cStrength(a) - cStrength(b)); log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`); }
-  const drawByHuman = !!s.players[pi]?.human;
+  if (c) {
+    actor.hand.push(c);
+    actor.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    if (use === 'major') actor.stars = Math.max(0, (Number(actor.stars) || 0) - 1);
+    log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`);
+  }
+  const drawByHuman = !!actor?.human;
   triggerKingdomActionFx(pi, use === 'major' ? '大アルカナドロー' : '小アルカナドロー', {
     overlay: drawByHuman ? 'draw' : null,
     durationMs: 620,
@@ -797,6 +848,9 @@ function applyPlay(pi, play) {
   else if (play.type === 'role' && play.call) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
   else play.cardsTable = removed.slice();
   p.discard.push(...removed);
+  if (play.call) {
+    p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
+  }
   s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play; s.lastPlay = play; s.turn = pi;
@@ -908,7 +962,14 @@ function npcDecide(pi) {
 
 function npcAct() {
   if (!s || !s.roundActive) return;
-  if (s.phase === 'draw' && s.pendingDraw != null) { applyDrawChoice('minor'); return; }
+  if (s.phase === 'draw' && s.pendingDraw != null) {
+    const dpi = s.pendingDraw;
+    const p = s.players[dpi];
+    const stars = Math.max(0, Number(p?.stars) || 0);
+    const useMajor = s.majorDeck.length > 0 && stars > 0 && ((p?.hand?.length || 0) <= 5 || Math.random() < 0.35);
+    applyDrawChoice(useMajor ? 'major' : 'minor');
+    return;
+  }
   if (s.phase === 'judgment' && s.pendingJudgment != null) { skipJudgmentPick(); return; }
   if (s.phase !== 'turn') return;
   const pi = s.turn, p = s.players[pi];
@@ -985,7 +1046,10 @@ function renderPlayers() {
     row.dataset.playerIndex = String(i);
     if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
     if (p.human) row.classList.add('is-human');
-    const left = document.createElement('div'); left.className = 'tarot-kingdom-player-name'; left.textContent = p.name;
+    const left = document.createElement('div');
+    left.className = 'tarot-kingdom-player-name';
+    const starCount = Math.max(0, Number(p.stars) || 0);
+    left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
     const right = document.createElement('div'); right.className = 'tarot-kingdom-player-meta'; right.textContent = `手札${p.hand.length} / ${p.chips}チップ / B${p.bet}`;
     if (p.raise) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag'; t.textContent = 'RAISE'; right.appendChild(t); }
     if (p.rateBonus > 0) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag is-rate'; t.textContent = `+R${p.rateBonus}`; right.appendChild(t); }
@@ -1010,7 +1074,16 @@ function renderTrick() {
       ui.trick.appendChild(e);
       return;
     }
-    cards.forEach((c) => ui.trick.appendChild(cardNode(c)));
+    cards.forEach((c, idx) => {
+      const node = cardNode(c);
+      node.classList.add('is-entering');
+      node.style.animationDelay = `${idx * 78}ms`;
+      node.addEventListener('animationend', () => {
+        node.classList.remove('is-entering');
+        node.style.animationDelay = '';
+      }, { once: true });
+      ui.trick.appendChild(node);
+    });
   };
 
   const leavingCards = Array.from(ui.trick.querySelectorAll('.tarot-card'));
@@ -1069,17 +1142,70 @@ function clearSelectedCards(withMessage = true) {
   render();
 }
 
+function toggleGraveyard() {
+  if (!s) return;
+  if (s.pendingJudgment != null) {
+    s.graveOpen = true;
+    render();
+    return;
+  }
+  s.graveOpen = !s.graveOpen;
+  s.message = s.graveOpen ? '墓地を表示します。' : '墓地を閉じました。';
+  render();
+}
+
 function renderJudgment() {
-  if (s.pendingJudgment == null) { ui.judgmentArea.style.display = 'none'; ui.judgmentOptions.innerHTML = ''; return; }
+  const inJudgment = s.pendingJudgment != null;
+  const forceVisible = inJudgment;
+  const visible = forceVisible || !!s.graveOpen;
+  if (!visible) {
+    ui.judgmentArea.style.display = 'none';
+    ui.judgmentOptions.innerHTML = '';
+    return;
+  }
+
   ui.judgmentArea.style.display = 'block';
   ui.judgmentOptions.innerHTML = '';
-  const human = s.players[s.pendingJudgment].human;
-  judgmentOptions().forEach((op) => {
-    const node = cardNode(op.card, { clickable: human, onClick: human ? () => applyJudgmentPick(op.owner, op.cardIndex) : null });
-    const cap = document.createElement('span'); cap.className = 'tarot-kingdom-judgment-owner'; cap.textContent = `${pName(op.owner)}墓地`;
-    node.appendChild(cap); ui.judgmentOptions.appendChild(node);
+
+  const judgmentPlayer = inJudgment ? s.players[s.pendingJudgment] : null;
+  const human = !!judgmentPlayer?.human;
+  if (ui.judgmentTitle) {
+    ui.judgmentTitle.textContent = inJudgment
+      ? '審判: 墓地から回収するカードを選択'
+      : '墓地（場から取り除かれたカード）';
+  }
+  ui.judgmentSkipButton.style.display = inJudgment ? '' : 'none';
+  ui.judgmentSkipButton.disabled = !(inJudgment && human);
+
+  s.players.forEach((p, owner) => {
+    const group = document.createElement('div');
+    group.className = 'tarot-kingdom-grave-group';
+
+    const ownerLabel = document.createElement('div');
+    ownerLabel.className = 'tarot-kingdom-grave-owner';
+    ownerLabel.textContent = `${pName(owner)}墓地`;
+    group.appendChild(ownerLabel);
+
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'tarot-kingdom-grave-cards';
+    if (!p.discard.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tarot-kingdom-grave-empty';
+      empty.textContent = 'カードなし';
+      cardsWrap.appendChild(empty);
+    } else {
+      p.discard.forEach((card, cardIndex) => {
+        const clickable = inJudgment && human;
+        const node = cardNode(card, {
+          clickable,
+          onClick: clickable ? () => applyJudgmentPick(owner, cardIndex) : null
+        });
+        cardsWrap.appendChild(node);
+      });
+    }
+    group.appendChild(cardsWrap);
+    ui.judgmentOptions.appendChild(group);
   });
-  ui.judgmentSkipButton.disabled = !human;
 }
 
 function renderOracleCard() {
@@ -1109,6 +1235,7 @@ function renderSummary() {
 
 function updateButtons() {
   const me = s.players.findIndex((p) => p.human);
+  const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
@@ -1119,7 +1246,16 @@ function updateButtons() {
   ui.passButton.disabled = !myTurn;
   ui.raiseButton.disabled = !(myTurn && !s.players[me].raise && s.players[me].hand.length === 4 && s.players[me].chips >= RAISE_COST);
   ui.drawMinorButton.disabled = !(drawMe && s.minorDeck.length > 0);
-  ui.drawMajorButton.disabled = !(drawMe && s.majorDeck.length > 0);
+  ui.drawMajorButton.disabled = !(drawMe && s.majorDeck.length > 0 && myStars > 0);
+  if (ui.graveToggleButton) {
+    if (s.pendingJudgment != null) {
+      ui.graveToggleButton.textContent = '墓地（審判中）';
+      ui.graveToggleButton.disabled = true;
+    } else {
+      ui.graveToggleButton.textContent = s.graveOpen ? '墓地を閉じる' : '墓地を見る';
+      ui.graveToggleButton.disabled = !s.roundActive;
+    }
+  }
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
 }
 
@@ -1217,11 +1353,13 @@ function bindUi() {
   ui.raiseButton = document.getElementById('tarotKingdomRaiseButton');
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
+  ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
   ui.players = document.getElementById('tarotKingdomPlayers');
   ui.trick = document.getElementById('tarotKingdomTrick');
   ui.hand = document.getElementById('tarotKingdomHand');
   ui.log = document.getElementById('tarotKingdomLog');
   ui.judgmentArea = document.getElementById('tarotKingdomJudgmentArea');
+  ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
   ui.startButton?.addEventListener('click', () => startOrNext());
@@ -1231,6 +1369,7 @@ function bindUi() {
   ui.raiseButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) raiseAction(s.turn); });
   ui.drawMinorButton?.addEventListener('click', () => applyDrawChoice('minor'));
   ui.drawMajorButton?.addEventListener('click', () => applyDrawChoice('major'));
+  ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
   ui.judgmentSkipButton?.addEventListener('click', () => skipJudgmentPick());
   bound = true;
 }
