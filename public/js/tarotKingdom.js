@@ -246,10 +246,18 @@ function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙') {
 }
 
 function triggerKingdomActionFx(playerIndex, label, options = {}) {
-  if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
-  if (options.overlay) showKingdomOverlay(options.overlay);
-  if (options.cutin !== false) showKingdomCutin(playerIndex, label, options);
-  if (options.coinCount && options.coinCount > 0) playKingdomCoinEffect(playerIndex, options.coinCount, options.coinSymbol || '🪙');
+  const run = () => {
+    if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
+    if (options.overlay) showKingdomOverlay(options.overlay);
+    if (options.cutin !== false) showKingdomCutin(playerIndex, label, options);
+    if (options.coinCount && options.coinCount > 0) playKingdomCoinEffect(playerIndex, options.coinCount, options.coinSymbol || '🪙');
+  };
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  if (delayMs > 0) {
+    setTimeout(run, delayMs);
+  } else {
+    run();
+  }
 }
 
 function getSpriteIndex(card) {
@@ -751,10 +759,13 @@ function applyPlay(pi, play) {
   const actionLabel = play.type === 'set'
     ? `${play.count}枚出し`
     : (play.call ? 'コール' : (play.role?.label || '役出し'));
+  const isCallPlay = !!play.call;
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: 'action',
-    durationMs: play.call ? 620 : 700,
-    cutin: false
+    durationMs: isCallPlay ? 980 : 700,
+    cutin: isCallPlay,
+    cutinClass: isCallPlay ? 'is-kingdom-call' : undefined,
+    delayMs: isCallPlay ? 180 : 0
   });
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
