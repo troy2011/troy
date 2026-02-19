@@ -875,19 +875,22 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = s.players.findIndex((p) => p.human);
   const selected = sanitizeSelected(me);
-  const can = s.roundActive && s.phase === 'turn' && s.turn === me;
+  const canSelect = s.roundActive && s.phase === 'turn';
+  const canCommit = canSelect && s.turn === me;
   const onHandTap = (idx) => {
-    if (!can) {
-      if (s.phase !== 'turn') showPlayError(`現在は「${s.phase}」フェーズです。`);
-      else showPlayError('あなたのターンではありません。');
+    if (!canSelect) {
+      showPlayError(`現在は「${s.phase}」フェーズです。`);
       return;
     }
     if (s.selected.has(idx)) s.selected.delete(idx);
     else s.selected.add(idx);
+    s.message = canCommit
+      ? `選択中: ${s.selected.size}枚`
+      : `選択中: ${s.selected.size}枚（あなたのターン待ち）`;
     render();
   };
   s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, {
-    clickable: can,
+    clickable: canSelect,
     selected: selected.includes(i),
     onClick: () => onHandTap(i)
   })));
