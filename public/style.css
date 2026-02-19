@@ -3393,16 +3393,20 @@ body.modal-lock .modal-overlay {
     min-height: var(--tarot-card-h, 96px);
     font-size: 12px;
     font-weight: 900;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
     padding: 5px 2px;
     border-radius: var(--tarot-card-radius, 10px);
-    border: 1px solid rgba(255, 255, 255, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.44);
     color: #f8fafc;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+    text-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.78),
+        0 0 10px rgba(255, 255, 255, 0.14);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        0 10px 18px rgba(0, 0, 0, 0.4);
-    transition: transform 0.12s ease, filter 0.16s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -8px 14px rgba(0, 0, 0, 0.24),
+        0 10px 18px rgba(0, 0, 0, 0.46),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    transition: transform 0.14s ease, filter 0.2s ease, box-shadow 0.24s ease, opacity 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3412,30 +3416,69 @@ body.modal-lock .modal-overlay {
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.08;
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(130% 90% at 50% -20%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, #475569, #1f2937);
+}
+
+.tarot-betting-actions button::before,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton)::before {
+    content: "";
+    position: absolute;
+    inset: -18% auto -18% -58%;
+    width: 46%;
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+    transform: translateX(-130%) rotate(8deg);
+    z-index: -1;
+    pointer-events: none;
+    animation: tarotActionSheen 3.2s linear infinite;
+}
+
+.tarot-betting-actions button::after,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton)::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .tarot-betting-actions button:not(:disabled):active,
 .tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):active {
-    transform: translateY(1px) scale(0.985);
+    transform: translateY(1px) scale(0.982);
 }
 
 .tarot-betting-actions button:not(:disabled):hover,
 .tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):hover {
-    filter: brightness(1.08);
+    filter: brightness(1.12) saturate(1.06);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.2),
-        0 10px 18px rgba(0, 0, 0, 0.44);
+        inset 0 1px 0 rgba(255, 255, 255, 0.26),
+        inset 0 -8px 14px rgba(0, 0, 0, 0.26),
+        0 12px 22px rgba(0, 0, 0, 0.52),
+        0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .tarot-betting-actions button:disabled,
 .tarot-kingdom-controls button:not(#tarotKingdomStartButton):disabled {
-    opacity: 0.4;
-    filter: grayscale(0.2);
+    opacity: 0.42;
+    filter: grayscale(0.34) brightness(0.82);
+}
+
+.tarot-betting-actions button:disabled::before,
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):disabled::before {
+    animation: none;
+    opacity: 0;
 }
 
 #tarotBetCheck,
 #tarotKingdomPassButton {
-    background: linear-gradient(180deg, #334155, #1f2937);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(226, 232, 240, 0.24), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #475569, #111827);
 }
 
 #tarotKingdomPassButton {
@@ -3445,26 +3488,42 @@ body.modal-lock .modal-overlay {
 
 #tarotBetCall,
 #tarotKingdomClearButton {
-    background: linear-gradient(180deg, #0891b2, #0e7490);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(186, 230, 253, 0.3), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #0ea5b7, #155e75);
 }
 
 #tarotBetBet,
 #tarotKingdomPlayButton {
-    background: linear-gradient(180deg, #a855f7, #7e22ce);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(233, 213, 255, 0.3), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #a855f7, #6d28d9);
 }
 
 #tarotBetRaise,
 #tarotKingdomRaiseButton {
-    background: linear-gradient(180deg, #d97706, #b45309);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(254, 215, 170, 0.32), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #d97706, #9a3412);
 }
 
 #tarotBetFold,
 #tarotKingdomDrawMajorButton {
-    background: linear-gradient(180deg, #ef4444, #b91c1c);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(254, 202, 202, 0.28), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #ef4444, #991b1b);
 }
 
 #tarotKingdomDrawMinorButton {
-    background: linear-gradient(180deg, #16a34a, #166534);
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(187, 247, 208, 0.28), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #16a34a, #14532d);
+}
+
+#tarotKingdomGraveToggleButton {
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(199, 210, 254, 0.3), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #4f46e5, #312e81);
 }
 
 .tarot-bet-popup {
@@ -3475,14 +3534,16 @@ body.modal-lock .modal-overlay {
     width: fit-content;
     max-width: calc(100% - 12px);
     z-index: 3400;
-    border: 1px solid rgba(251, 191, 36, 0.65);
+    border: 1px solid rgba(251, 191, 36, 0.76);
     border-radius: 12px;
-    background: linear-gradient(180deg, rgba(11, 17, 29, 0.96), rgba(8, 12, 22, 0.94));
+    background:
+        radial-gradient(180% 100% at 50% -30%, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0) 45%),
+        linear-gradient(180deg, rgba(11, 17, 29, 0.97), rgba(8, 12, 22, 0.95));
     backdrop-filter: blur(4px);
     box-shadow:
-        0 0 0 1px rgba(251, 191, 36, 0.2),
-        0 0 24px rgba(251, 191, 36, 0.28),
-        0 10px 30px rgba(0, 0, 0, 0.55);
+        0 0 0 1px rgba(251, 191, 36, 0.28),
+        0 0 26px rgba(251, 191, 36, 0.34),
+        0 12px 32px rgba(0, 0, 0, 0.62);
     padding: 24px 10px 10px;
 }
 
@@ -3512,6 +3573,24 @@ body.modal-lock .modal-overlay {
     }
     50% {
         opacity: 1;
+    }
+}
+
+@keyframes tarotActionSheen {
+    0% {
+        transform: translateX(-130%) rotate(8deg);
+        opacity: 0;
+    }
+    12% {
+        opacity: 0.24;
+    }
+    36% {
+        transform: translateX(320%) rotate(8deg);
+        opacity: 0.12;
+    }
+    100% {
+        transform: translateX(320%) rotate(8deg);
+        opacity: 0;
     }
 }
 
@@ -4231,13 +4310,38 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-arcana {
-    background: linear-gradient(180deg, #f8fafc, #e5e7eb);
+    background:
+        radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.82) 0 16%, rgba(255, 255, 255, 0) 42%),
+        linear-gradient(165deg, #f8fafc 0%, #eef2ff 48%, #e2e8f0 100%);
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.94);
     box-shadow:
-        0 0 0 1px rgba(255, 244, 178, 0.5),
-        0 0 14px rgba(255, 220, 82, 0.55),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        0 0 0 1px rgba(239, 246, 255, 0.7),
+        0 0 18px rgba(125, 211, 252, 0.32),
+        0 0 26px rgba(250, 204, 21, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    animation: tarotArcanaAura 2.9s ease-in-out infinite;
+}
+
+.tarot-card.is-arcana::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        conic-gradient(
+            from 0deg,
+            rgba(56, 189, 248, 0.24),
+            rgba(250, 204, 21, 0.2),
+            rgba(167, 139, 250, 0.2),
+            rgba(56, 189, 248, 0.24)
+        );
+    mix-blend-mode: screen;
+    filter: blur(2px) saturate(1.1);
+    opacity: 0.34;
+    animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
 }
 
 .tarot-card.is-arcana .tarot-card-title,
@@ -4247,7 +4351,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-arcana .tarot-card-number {
     will-change: filter;
-    animation: tarotArcanaSparkle 1.8s ease-in-out infinite;
+    animation: tarotArcanaSparkle 2.4s ease-in-out infinite;
 }
 
 .tarot-card.is-arcana.arcana-all-corners {
@@ -4277,17 +4381,58 @@ body.modal-lock .modal-overlay {
 @keyframes tarotArcanaSparkle {
     0%,
     100% {
-        filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+        filter:
+            drop-shadow(0 0 0 rgba(255, 255, 255, 0))
+            drop-shadow(0 0 0 rgba(56, 189, 248, 0));
     }
-    35% {
+    32% {
         filter:
             drop-shadow(0 0 3px rgba(255, 255, 255, 0.9))
-            drop-shadow(0 0 6px rgba(253, 224, 71, 0.75));
+            drop-shadow(0 0 6px rgba(253, 224, 71, 0.75))
+            drop-shadow(0 0 9px rgba(56, 189, 248, 0.52));
     }
-    60% {
+    58% {
         filter:
             drop-shadow(0 0 1px rgba(255, 255, 255, 0.7))
-            drop-shadow(0 0 4px rgba(253, 224, 71, 0.6));
+            drop-shadow(0 0 4px rgba(253, 224, 71, 0.6))
+            drop-shadow(0 0 6px rgba(167, 139, 250, 0.4));
+    }
+}
+
+@keyframes tarotArcanaAura {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 1px rgba(239, 246, 255, 0.7),
+            0 0 16px rgba(125, 211, 252, 0.28),
+            0 0 24px rgba(250, 204, 21, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    }
+    52% {
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.82),
+            0 0 22px rgba(56, 189, 248, 0.38),
+            0 0 32px rgba(250, 204, 21, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+}
+
+@keyframes tarotArcanaHaloSpin {
+    from {
+        transform: rotate(0deg) scale(1);
+    }
+    to {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+@keyframes tarotArcanaHaloBreath {
+    0%,
+    100% {
+        opacity: 0.26;
+    }
+    50% {
+        opacity: 0.46;
     }
 }
 
