@@ -134,6 +134,29 @@ function highestHandIndex(hand: TarotCard[]): number {
     return maxIdx;
 }
 
+type JudgmentSwapInput = string | null | {
+    graveCardId?: string | null;
+    cardId?: string | null;
+    handCardId?: string | null;
+};
+
+function normalizeJudgmentSwapInput(raw: JudgmentSwapInput): { graveCardId: string | null; handCardId: string | null } {
+    if (!raw) return { graveCardId: null, handCardId: null };
+    if (typeof raw === 'string') {
+        return { graveCardId: raw, handCardId: null };
+    }
+    const graveCardId = typeof raw.graveCardId === 'string'
+        ? raw.graveCardId
+        : (typeof raw.cardId === 'string' ? raw.cardId : null);
+    const handCardId = typeof raw.handCardId === 'string' ? raw.handCardId : null;
+    return { graveCardId, handCardId };
+}
+
+function findHandIndexByCardId(hand: TarotCard[], handCardId: string | null): number {
+    if (!Array.isArray(hand) || !hand.length || !handCardId) return -1;
+    return hand.findIndex((card) => card?.id === handCardId);
+}
+
 export class GameController {
     private readonly rng: () => number;
     private readonly evaluator: HandEvaluator;
@@ -443,7 +466,7 @@ export class GameController {
         return this.getState();
     }
 
-    resolveShowdown(judgmentSwapCardByPlayer: Record<string, string | null> = {}): ShowdownResult {
+    resolveShowdown(judgmentSwapCardByPlayer: Record<string, JudgmentSwapInput> = {}): ShowdownResult {
         if (this.state.phase !== 'showdown') {
             throw new Error(`Showdown can only resolve in showdown phase. Current: ${this.state.phase}`);
         }
@@ -463,12 +486,14 @@ export class GameController {
             if (player.folded) continue;
 
             if (this.state.canUseJudgmentSwap) {
-                const swapId = judgmentSwapCardByPlayer[id];
+                const swapInput = normalizeJudgmentSwapInput(judgmentSwapCardByPlayer[id]);
+                const swapId = swapInput.graveCardId;
                 if (swapId) {
                     const graveIdx = player.discard.findIndex((card) => card.id === swapId);
                     if (graveIdx >= 0 && player.hand.length > 0) {
                         const graveCard = player.discard.splice(graveIdx, 1)[0];
-                        const handIdx = highestHandIndex(player.hand);
+                        const handIdxById = findHandIndexByCardId(player.hand, swapInput.handCardId);
+                        const handIdx = handIdxById >= 0 ? handIdxById : highestHandIndex(player.hand);
                         const handCard = player.hand.splice(handIdx, 1)[0];
                         player.hand.push(graveCard);
                         player.discard.push(handCard);

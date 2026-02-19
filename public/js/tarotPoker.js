@@ -503,6 +503,7 @@ function resetState() {
         drawRound: 0,
         isResolvingPlayerDiscard: false,
         selectedDiscardIndex: null,
+        selectedSwapHandIndex: null,
         selectedJudgmentPick: null,
         awaitingPostJudgmentDiscard: false,
         dealerIndex: 0,
@@ -562,6 +563,7 @@ function resetState() {
         forceShowdown: false,
         pendingPayoutFx: null,
         pendingJudgment: null,
+        pendingJudgmentAutoSwapMap: null,
         fateCard: null,
         activeFateCard: null,
         fateRevealed: false,
@@ -697,6 +699,105 @@ function isControllerJudgmentPlayerDiscardPending() {
     return getControllerPendingDiscardModeForPlayer() === 'judgment';
 }
 
+function getControllerBoardForShowdown(controllerState) {
+    const board = Array.isArray(controllerState?.boardVisible)
+        ? controllerState.boardVisible.slice()
+        : [];
+    if (controllerState?.boardHiddenRiver) {
+        board.push(controllerState.boardHiddenRiver);
+    }
+    return board;
+}
+
+function findHighestNumberCardIndex(cards) {
+    if (!Array.isArray(cards) || cards.length <= 0) return 0;
+    let bestIdx = 0;
+    let bestValue = Number(cards[0]?.number || 0);
+    for (let i = 1; i < cards.length; i += 1) {
+        const value = Number(cards[i]?.number || 0);
+        if (value > bestValue) {
+            bestValue = value;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
+function chooseBestJudgmentSwapCardId(ownerKey, controllerState) {
+    if (!tarotEngineEvaluator || !controllerState?.players?.[ownerKey]) return null;
+    const owner = controllerState.players[ownerKey];
+    if (owner?.folded) return null;
+    const hand = Array.isArray(owner.hand) ? owner.hand.slice() : [];
+    const grave = Array.isArray(owner.discard) ? owner.discard.slice() : [];
+    if (!hand.length || !grave.length) return null;
+    const fateCard = controllerState?.activeFateCard ? { ...controllerState.activeFateCard } : null;
+    const board = getControllerBoardForShowdown(controllerState);
+    const baseInput = {
+        hand: hand.slice(),
+        board: board.slice(),
+        fateCard
+    };
+    let bestCardId = null;
+    let bestCmp = 0;
+    for (const graveCard of grave) {
+        if (!graveCard?.id) continue;
+        const nextHand = hand.slice();
+        const handIdx = findHighestNumberCardIndex(nextHand);
+        nextHand.splice(handIdx, 1, graveCard);
+        const candidateInput = {
+            hand: nextHand,
+            board: board.slice(),
+            fateCard
+        };
+        const cmpObj = tarotEngineEvaluator.compareInputs(candidateInput, baseInput);
+        const cmp = Number(cmpObj?.cmp || 0);
+        if (cmp > bestCmp) {
+            bestCmp = cmp;
+            bestCardId = graveCard.id;
+        }
+    }
+    return bestCmp > 0 ? bestCardId : null;
+}
+
+function buildAutoJudgmentSwapMap(controllerState, playerCardId = null) {
+    const map = {};
+    const playerOrder = Array.isArray(controllerState?.playerOrder) && controllerState.playerOrder.length
+        ? controllerState.playerOrder
+        : Object.keys(controllerState?.players || {});
+    playerOrder.forEach((ownerKey) => {
+        const owner = controllerState?.players?.[ownerKey];
+        if (!owner || owner.folded) return;
+        if (ownerKey === 'player') {
+            if (playerCardId) map.player = playerCardId;
+            return;
+        }
+        const pickedId = chooseBestJudgmentSwapCardId(ownerKey, controllerState);
+        if (pickedId) {
+            map[ownerKey] = pickedId;
+        }
+    });
+    return map;
+}
+
+function prepareJudgmentSwapSelection(controllerState) {
+    if (!state || !controllerState?.canUseJudgmentSwap) return false;
+    const player = controllerState?.players?.player;
+    const playerDiscard = Array.isArray(player?.discard) ? player.discard : [];
+    const playerHand = Array.isArray(player?.hand) ? player.hand : [];
+    if (!playerHand.length || !playerDiscard.length) return false;
+    state.pendingJudgmentAutoSwapMap = buildAutoJudgmentSwapMap(controllerState);
+    state.pendingJudgment = {
+        mode: 'showdown-swap',
+        options: playerDiscard.map((card) => ({ ownerKey: 'player', cardId: card?.id, card })).filter((opt) => !!opt.cardId)
+    };
+    state.selectedSwapHandIndex = findHighestNumberCardIndex(playerHand);
+    state.selectedJudgmentPick = null;
+    state.phase = 'showdown-judgment-select';
+    pushLog('審判効果: ショーダウン前に墓地カードを交換できます。');
+    render();
+    return true;
+}
+
 function mapControllerEvaluationToLegacy(ownerKey, evaluation, controllerState) {
     if (!evaluation) {
         return { rankLabel: '役なし', cards: [] };
@@ -823,13 +924,24 @@ async function runControllerFateActionLoop() {
     }
 }
 
-async function resolveShowdownByController() {
+async function resolveShowdownByController(judgmentSwapByPlayer = null) {
     if (!tarotGameController) {
         throw new Error('tarotGameController が初期化されていません');
     }
-    const controllerResult = tarotGameController.resolveShowdown({});
+    const before = tarotGameController.getState();
+    if (!judgmentSwapByPlayer && before?.canUseJudgmentSwap) {
+        const waitingSelection = prepareJudgmentSwapSelection(before);
+        if (waitingSelection) return;
+        judgmentSwapByPlayer = buildAutoJudgmentSwapMap(before);
+    }
+
+    const controllerResult = tarotGameController.resolveShowdown(judgmentSwapByPlayer || {});
     const after = tarotGameController.getState();
     syncStateFromController(after);
+    state.pendingJudgment = null;
+    state.pendingJudgmentAutoSwapMap = null;
+    state.selectedSwapHandIndex = null;
+    state.selectedJudgmentPick = null;
 
     const winners = Array.isArray(controllerResult?.winnerIds) ? controllerResult.winnerIds : [];
     const npcKeys = getNpcKeys().filter((key) => !!state.players?.[key]);
@@ -1013,6 +1125,8 @@ async function playBetCoinEffect(ownerKey, action) {
     const coinCount = action === 'raise' ? 6 : 4;
     const ownerClass = ownerKey === 'player' ? 'is-player' : 'is-cpu';
     const lifeMs = action === 'raise' ? 620 : 500;
+    const fadeInMs = 90;
+    const fadeOutMs = 120;
     const tasks = [];
 
     for (let i = 0; i < coinCount; i += 1) {
@@ -1025,7 +1139,7 @@ async function playBetCoinEffect(ownerKey, action) {
         coin.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(0deg)';
         document.body.appendChild(coin);
 
-        const delay = i * 55;
+        const delay = i * 36;
         const jitterX = (Math.random() * 14) - 7;
         const jitterY = (Math.random() * 12) - 6;
         const targetX = to.x + jitterX;
@@ -1034,7 +1148,7 @@ async function playBetCoinEffect(ownerKey, action) {
 
         const run = new Promise((resolve) => {
             setTimeout(() => {
-                coin.style.transition = `left ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), top ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), opacity ${lifeMs}ms ease, transform ${lifeMs}ms ease`;
+                coin.style.transition = `left ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), top ${lifeMs}ms cubic-bezier(0.18,0.84,0.26,1), opacity ${fadeInMs}ms ease-out, transform ${lifeMs}ms ease`;
                 coin.style.left = `${targetX}px`;
                 coin.style.top = `${targetY}px`;
                 coin.style.opacity = '1';
@@ -1042,6 +1156,7 @@ async function playBetCoinEffect(ownerKey, action) {
             }, delay);
 
             setTimeout(() => {
+                coin.style.transition = `opacity ${fadeOutMs}ms ease-in, transform ${fadeOutMs}ms ease-in`;
                 coin.style.opacity = '0';
                 coin.style.transform = `translate(-50%, -50%) scale(0.72) rotate(${rotate * 1.3}deg)`;
             }, delay + Math.max(120, lifeMs - 110));
@@ -3283,7 +3398,17 @@ async function handlePrimaryButtonClick() {
 async function onPlayerCardClick(index) {
     const pendingFateDiscardMode = getControllerPendingDiscardModeForPlayer();
     const isFatePendingDiscard = !!pendingFateDiscardMode;
-    if (!state || (state.phase !== 'draw-player' && !isFatePendingDiscard)) return;
+    const isShowdownSwapSelect = !!state
+        && state.phase === 'showdown-judgment-select'
+        && state.pendingJudgment?.mode === 'showdown-swap';
+    if (!state || (state.phase !== 'draw-player' && !isFatePendingDiscard && !isShowdownSwapSelect)) return;
+    if (isShowdownSwapSelect) {
+        const playerHand = state.players?.player?.hand || [];
+        if (index < 0 || index >= playerHand.length) return;
+        state.selectedSwapHandIndex = index;
+        render();
+        return;
+    }
     if (isFatePendingDiscard) {
         const player = state.players.player;
         if (index < 0 || index >= player.hand.length) return;
@@ -3382,7 +3507,7 @@ async function onPlayerCardClick(index) {
 }
 
 async function onJudgmentGraveCardClick(ownerKey, cardId = null) {
-    if (!state || state.phase !== 'draw-player-judgment' || !cardId) return;
+    if (!state || (state.phase !== 'draw-player-judgment' && state.phase !== 'showdown-judgment-select') || !cardId) return;
     const pending = state.pendingJudgment;
     if (!pending || !Array.isArray(pending.options)) return;
     const allowed = pending.options.some((opt) => opt?.ownerKey === ownerKey && opt?.cardId === cardId);
@@ -3399,9 +3524,10 @@ async function onJudgmentGraveCardClick(ownerKey, cardId = null) {
 }
 
 async function onJudgmentPick(ownerKey, cardId = null) {
-    if (!state || state.phase !== 'draw-player-judgment') return;
+    if (!state || (state.phase !== 'draw-player-judgment' && state.phase !== 'showdown-judgment-select')) return;
     const pending = state.pendingJudgment;
     const hasPending = !!pending && Array.isArray(pending.options);
+    const isShowdownSwap = state.phase === 'showdown-judgment-select' && pending?.mode === 'showdown-swap';
     let selectedOption = null;
     if (ownerKey !== 'deck' && hasPending) {
         selectedOption = pending.options.find((opt) => {
@@ -3413,6 +3539,31 @@ async function onJudgmentPick(ownerKey, cardId = null) {
     }
 
     const isSkip = ownerKey === 'deck';
+    if (isShowdownSwap) {
+        const playerCardId = (!isSkip && selectedOption) ? selectedOption.cardId : null;
+        const selectedHandIdx = Number.isFinite(Number(state.selectedSwapHandIndex))
+            ? Math.max(0, Math.min((state.players?.player?.hand?.length || 1) - 1, Math.floor(Number(state.selectedSwapHandIndex))))
+            : -1;
+        const selectedHandCardId = selectedHandIdx >= 0
+            ? (state.players?.player?.hand?.[selectedHandIdx]?.id || null)
+            : null;
+        const swapMap = {
+            ...(state.pendingJudgmentAutoSwapMap || {}),
+            ...(playerCardId
+                ? {
+                    player: selectedHandCardId
+                        ? { graveCardId: playerCardId, handCardId: selectedHandCardId }
+                        : { graveCardId: playerCardId }
+                }
+                : {})
+        };
+        state.pendingJudgment = null;
+        state.pendingJudgmentAutoSwapMap = null;
+        state.selectedSwapHandIndex = null;
+        state.selectedJudgmentPick = null;
+        await resolveShowdownByController(swapMap);
+        return;
+    }
     const gained = selectedOption ? takeGraveCardById(selectedOption.ownerKey, selectedOption.cardId) : null;
     if (gained && selectedOption) {
         const fromGrave = getGraveContainerByOwner(selectedOption.ownerKey) || ui.playerGrave;
@@ -3431,6 +3582,7 @@ async function onJudgmentPick(ownerKey, cardId = null) {
         state.awaitingPostJudgmentDiscard = false;
         state.pendingJudgment = null;
         state.selectedJudgmentPick = null;
+        state.selectedSwapHandIndex = null;
         state.selectedDiscardIndex = null;
         state.phase = 'draw-player';
         await finishPlayerExchange(getPostDrawNextPhase());
@@ -3438,6 +3590,7 @@ async function onJudgmentPick(ownerKey, cardId = null) {
     }
     state.pendingJudgment = null;
     state.selectedJudgmentPick = null;
+    state.selectedSwapHandIndex = null;
     state.selectedDiscardIndex = null;
     state.phase = 'draw-player';
     render();
@@ -3464,6 +3617,7 @@ function getPhaseText() {
             : `第${state.drawRound}ドローフェーズ: 捨てる手札を選択（スキップも可）`;
     }
     if (state.phase === 'draw-player-judgment') return '審判効果: 墓地から取得カードを選択（スキップ可）。';
+    if (state.phase === 'showdown-judgment-select') return '審判効果: 交換する手札を選んでから、墓地カードを選択（スキップ可）。';
     if (state.phase === 'cpu-thinking') return 'NPCが思考中...';
     if (state.phase === 'turn-ready') return 'ターンを公開します。';
     if (state.phase === 'river-ready') return 'リバーを公開します。';
@@ -3940,22 +4094,27 @@ function renderJudgmentPanel() {
         return;
     }
 
+    const isShowdownSwap = pending.mode === 'showdown-swap';
     const titleEl = ui.judgmentPanel.querySelector('.tarot-judgment-title');
     if (titleEl) {
-        titleEl.textContent = pending.mode === 'karma'
-            ? '審判効果: 他プレイヤー墓地のカードを取得'
-            : '審判効果: 墓地のカードを蘇生';
+        titleEl.textContent = isShowdownSwap
+            ? '審判効果: ショーダウン前の墓地交換'
+            : pending.mode === 'karma'
+                ? '審判効果: 他プレイヤー墓地のカードを取得'
+                : '審判効果: 墓地のカードを蘇生';
     }
 
     ui.judgmentPanel.style.display = 'block';
     ui.judgmentOptions.innerHTML = '';
     const hint = document.createElement('div');
     hint.className = 'tarot-judgment-hint';
-    hint.textContent = '墓地カードを1回クリックで選択、再クリックで回収。回収しない場合はスキップ。';
+    hint.textContent = isShowdownSwap
+        ? '先に手札を1枚選択し、次に墓地カードを1回クリックで選択・再クリックで交換。交換しない場合はスキップ。'
+        : '墓地カードを1回クリックで選択、再クリックで回収。回収しない場合はスキップ。';
     ui.judgmentOptions.appendChild(hint);
     const skipButton = document.createElement('button');
     skipButton.type = 'button';
-    skipButton.textContent = '回収をスキップ';
+    skipButton.textContent = isShowdownSwap ? '交換せずショーダウン' : '回収をスキップ';
     skipButton.addEventListener('click', () => {
         onJudgmentPick('deck');
     });
@@ -4014,6 +4173,11 @@ function renderButtons() {
     if (state.phase === 'draw-player-judgment') {
         btn.disabled = true;
         btn.textContent = '墓地カードを選択';
+        return;
+    }
+    if (state.phase === 'showdown-judgment-select') {
+        btn.disabled = true;
+        btn.textContent = '審判効果: 墓地交換を選択';
         return;
     }
     if (state.phase === 'cpu-thinking') {
@@ -4202,6 +4366,10 @@ function render() {
     const showdownHidden = isShowdown && !state.showdownRevealDone;
     const playerHidden = showdownHidden || isDealing;
     const isFatePendingDiscard = isControllerPlayerDiscardPending();
+    const isShowdownSwapSelect = !isShowdown
+        && !isDealing
+        && state.phase === 'showdown-judgment-select'
+        && state.pendingJudgment?.mode === 'showdown-swap';
     renderCardRow(ui.playerHand, playerCardsForView, {
         hidden: playerHidden,
         hiddenByIndex: (index) => {
@@ -4216,9 +4384,14 @@ function render() {
             const dealt = Number(dealCounts.player || 0);
             return index >= dealt;
         },
-        clickable: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
+        clickable: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard || isShowdownSwapSelect),
         drawPhase: !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard),
-        isSelectedIndex: (index) => !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard) && state.selectedDiscardIndex === index,
+        isSelectedIndex: (index) => {
+            if (isShowdownSwapSelect) {
+                return state.selectedSwapHandIndex === index;
+            }
+            return !isShowdown && !isDealing && (state.phase === 'draw-player' || isFatePendingDiscard) && state.selectedDiscardIndex === index;
+        },
         onCardClick: onPlayerCardClick
     });
     npcKeys.forEach((ownerKey) => {
@@ -4247,9 +4420,8 @@ function render() {
             clickable: false
         });
     });
-    const isJudgmentPickPhase = !isShowdown
-        && !isDealing
-        && state.phase === 'draw-player-judgment'
+    const isJudgmentPickPhase = !isDealing
+        && (state.phase === 'draw-player-judgment' || state.phase === 'showdown-judgment-select')
         && !!state.pendingJudgment
         && Array.isArray(state.pendingJudgment.options);
     const judgmentOptionsByOwner = {};

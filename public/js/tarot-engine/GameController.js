@@ -87,6 +87,26 @@ function normalizeDiscardIndex(hand, discardIndexRaw) {
     }
     return highestHandIndex(hand);
 }
+function normalizeJudgmentSwapEntry(raw) {
+    if (!raw)
+        return { graveCardId: null, handCardId: null };
+    if (typeof raw === 'string') {
+        return { graveCardId: raw, handCardId: null };
+    }
+    if (typeof raw === 'object') {
+        const graveCardId = typeof raw.graveCardId === 'string'
+            ? raw.graveCardId
+            : (typeof raw.cardId === 'string' ? raw.cardId : null);
+        const handCardId = typeof raw.handCardId === 'string' ? raw.handCardId : null;
+        return { graveCardId, handCardId };
+    }
+    return { graveCardId: null, handCardId: null };
+}
+function findHandIndexByCardId(hand, cardId) {
+    if (!Array.isArray(hand) || !hand.length || !cardId)
+        return -1;
+    return hand.findIndex((card) => card?.id === cardId);
+}
 export class GameController {
     constructor(options = {}) {
         this.rng = options.rng || Math.random;
@@ -464,12 +484,14 @@ export class GameController {
             if (player.folded)
                 continue;
             if (this.state.canUseJudgmentSwap) {
-                const swapId = judgmentSwapCardByPlayer[id];
+                const swapEntry = normalizeJudgmentSwapEntry(judgmentSwapCardByPlayer[id]);
+                const swapId = swapEntry.graveCardId;
                 if (swapId) {
                     const graveIdx = player.discard.findIndex((card) => card.id === swapId);
                     if (graveIdx >= 0 && player.hand.length > 0) {
                         const graveCard = player.discard.splice(graveIdx, 1)[0];
-                        const handIdx = highestHandIndex(player.hand);
+                        const handIdxById = findHandIndexByCardId(player.hand, swapEntry.handCardId);
+                        const handIdx = handIdxById >= 0 ? handIdxById : highestHandIndex(player.hand);
                         const handCard = player.hand.splice(handIdx, 1)[0];
                         player.hand.push(graveCard);
                         player.discard.push(handCard);
