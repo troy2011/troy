@@ -2620,6 +2620,7 @@ body.modal-lock .modal-overlay {
     --tarot-card-h: 88px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 136px);
 }
 
 .tarot-kingdom-header {
@@ -2661,6 +2662,14 @@ body.modal-lock .modal-overlay {
     flex-wrap: wrap;
     align-items: flex-start;
     margin-bottom: 8px;
+}
+
+.tarot-kingdom-action-popup {
+    z-index: 3420;
+}
+
+.tarot-kingdom-action-popup::before {
+    content: "アクション";
 }
 
 #tarotKingdomStartButton {
@@ -2885,75 +2894,7 @@ body.modal-lock .modal-overlay {
         0 0 12px rgba(250, 204, 21, 0.2);
 }
 
-.tarot-kingdom-card {
-    width: var(--tarot-card-w, 54px);
-    min-width: var(--tarot-card-w, 54px);
-    height: var(--tarot-card-h, 88px);
-    border-radius: 9px;
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
-    position: relative;
-    overflow: hidden;
-    color: #fff;
-}
-
-.tarot-kingdom-card.is-mini {
-    width: calc(var(--tarot-card-w, 54px) * 0.78);
-    min-width: calc(var(--tarot-card-w, 54px) * 0.78);
-    height: calc(var(--tarot-card-h, 88px) * 0.78);
-}
-
-.tarot-kingdom-card.is-clickable {
-    cursor: pointer;
-}
-
-.tarot-kingdom-card.is-selected {
-    transform: translateY(-4px);
-    border-color: rgba(250, 204, 21, 0.92);
-    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.45), 0 0 14px rgba(250, 204, 21, 0.28);
-}
-
-.tarot-kingdom-card-art {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: var(--tarot-art-w, 48px);
-    height: var(--tarot-art-h, 80px);
-    transform: translate(-50%, -50%);
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    image-rendering: pixelated;
-    background-image: var(--tarot-sprite-src);
-    background-repeat: no-repeat;
-    background-size: var(--tarot-sheet-w, 512px) var(--tarot-sheet-h, 1024px);
-    background-position: calc(var(--tarot-x, 0px) * -1) calc(var(--tarot-y, 0px) * -1);
-}
-
-.tarot-kingdom-card-label {
-    position: absolute;
-    left: 4px;
-    top: 2px;
-    right: 4px;
-    font-size: 9px;
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tarot-kingdom-card-power {
-    position: absolute;
-    left: 4px;
-    bottom: 2px;
-    font-size: 16px;
-    font-weight: 900;
-    text-shadow:
-        -1px -1px 0 #000,
-        -1px 1px 0 #000,
-        1px -1px 0 #000,
-        1px 1px 0 #000;
-}
+/* Tarot Kingdom cards use the same core card styles as Tarot Poker (.tarot-card*). */
 
 .tarot-poker-root.is-time-stopped {
     animation: tarotTimeStopMonochrome 1.2s ease-in-out infinite;
@@ -3264,12 +3205,24 @@ body.modal-lock .modal-overlay {
         font-size: 12px;
         padding: 4px 2px;
     }
+
+    .tarot-kingdom-root {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 128px);
+    }
 }
 
 .tarot-state-text {
     margin: 8px 0 12px;
     font-size: 13px;
     color: #dbe4f2;
+}
+
+.tarot-state-text.is-error {
+    color: #fecaca;
+    font-weight: 800;
+    text-shadow:
+        0 0 6px rgba(248, 113, 113, 0.4),
+        0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
 .tarot-participant-list {

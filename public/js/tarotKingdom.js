@@ -47,6 +47,7 @@ let bound = false;
 let npcTimer = null;
 let trickRenderKey = '';
 let trickRenderToken = 0;
+let stateErrorTimer = null;
 
 const clearNpcTimer = () => { if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; } };
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -65,6 +66,33 @@ const suitTierForCard = (c, suit) => (SUIT_TIER[suit] || 0) + (c.kind === 'major
 const mkMinor = () => { const d = []; let id = 0; SUITS.forEach((suit) => { for (let n = 1; n <= 14; n += 1) d.push({ id: `tk_m_${++id}`, kind: 'minor', suit, number: n }); }); return d; };
 const mkMajor = () => Array.from({ length: 22 }, (_, n) => ({ id: `tk_a_${n}`, kind: 'major', suit: 'None', number: n }));
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
+
+function showPlayError(reason) {
+  if (!s) return;
+  const detail = (String(reason || '出せません。').trim()) || '出せません。';
+  s.message = `出せない理由: ${detail}`;
+  log(`⚠ ${s.message}`);
+  render();
+  if (!ui.stateText) return;
+  ui.stateText.classList.remove('is-error');
+  void ui.stateText.offsetWidth;
+  ui.stateText.classList.add('is-error');
+  if (stateErrorTimer) clearTimeout(stateErrorTimer);
+  stateErrorTimer = setTimeout(() => {
+    ui.stateText?.classList.remove('is-error');
+    stateErrorTimer = null;
+  }, 1800);
+}
+
+function sanitizeSelected(playerIndex) {
+  if (!s || !s.players?.[playerIndex]) return [];
+  const handLen = s.players[playerIndex].hand.length;
+  const filtered = Array.from(s.selected)
+    .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < handLen)
+    .sort((a, b) => a - b);
+  if (filtered.length !== s.selected.size) s.selected = new Set(filtered);
+  return filtered;
+}
 
 function getSpriteIndex(card) {
   if (!card) return TAROT_BACK_INDEX;
@@ -318,9 +346,9 @@ function validatePlay(play, mode) {
     const c = setCmp(play.number, s.trick.number);
     if (c > 0) return { ok: true };
     if (c < 0) return { ok: false, reason: '場札より強い数値が必要です。' };
-    return play.suitTier > s.trick.suitTier ? { ok: true } : { ok: false, reason: '同数値はスート優位が必要です。' };
+    return play.suitTier >= s.trick.suitTier ? { ok: true } : { ok: false, reason: '同数値はスート優位が必要です。' };
   }
-  return compareRole(play.role, s.trick.role) > 0 ? { ok: true } : { ok: false, reason: '場より強い役が必要です。' };
+  return compareRole(play.role, s.trick.role) >= 0 ? { ok: true } : { ok: false, reason: '場より強い役が必要です。' };
 }
 
 function removeHand(p, idxs) {
@@ -343,6 +371,7 @@ function applyRoleRewardOnClear(playerIndex) {
 }
 
 function drawChoiceStart(playerIndex) {
+  s.selected.clear();
   s.pendingDraw = playerIndex;
   if (s.minorDeck.length <= 0 && s.majorDeck.length <= 0) {
     s.pendingDraw = null; s.phase = 'turn'; s.message = `${pName(playerIndex)}が親です。`; scheduleNpc(); render(); return;
@@ -365,6 +394,7 @@ function judgmentOptions() {
 }
 
 function judgmentStart(playerIndex) {
+  s.selected.clear();
   const opts = judgmentOptions();
   if (!opts.length) { log('審判: 回収候補なし'); drawChoiceStart(playerIndex); return; }
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
@@ -445,6 +475,7 @@ function finishRound(winnerIndex) {
 function applyDrawChoice(deckType) {
   const pi = s.pendingDraw;
   if (pi == null) return;
+  s.selected.clear();
   let use = deckType;
   if (use === 'major' && s.majorDeck.length <= 0) use = 'minor';
   if (use === 'minor' && s.minorDeck.length <= 0) use = 'major';
@@ -500,6 +531,7 @@ function applyPlay(pi, play) {
 function passAction(pi) {
   if (!s.trick) { s.message = '場が空のためパスできません。'; render(); return; }
   s.pass[pi] = true; log(`${pName(pi)}: パス`);
+  s.selected.clear();
   const leader = s.lastPlay?.owner;
   if (leader != null && allOthersPassed(leader)) { log('全員パスでクリア'); clearTrick(leader); return; }
   s.turn = nextAlive(pi, 1, true) ?? (leader ?? pi);
@@ -605,7 +637,7 @@ function scheduleNpc() {
 function cardNode(card, opt = {}) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'tarot-card tarot-kingdom-card';
+  el.className = 'tarot-card';
   if (card?.kind === 'minor') {
     el.classList.add(String(card.suit || 'None').toLowerCase());
   } else if (card?.kind === 'major') {
@@ -630,7 +662,7 @@ function cardNode(card, opt = {}) {
   if (opt.selected) el.classList.add('is-selected');
   if (!opt.onClick) el.disabled = true;
   const art = document.createElement('span');
-  art.className = 'tarot-card-art tarot-kingdom-card-art';
+  art.className = 'tarot-card-art';
   const pos = spritePos(getSpriteIndex(card));
   art.style.setProperty('--tarot-sprite-src', `url("${TAROT_SPRITE_SRC}")`);
   art.style.setProperty('--tarot-sheet-w', '512px');
@@ -638,10 +670,10 @@ function cardNode(card, opt = {}) {
   art.style.setProperty('--tarot-x', `${pos.x}px`);
   art.style.setProperty('--tarot-y', `${pos.y}px`);
   const label = document.createElement('span');
-  label.className = 'tarot-card-title tarot-kingdom-card-label';
+  label.className = 'tarot-card-title';
   label.textContent = cName(card);
   const power = document.createElement('span');
-  power.className = 'tarot-card-number tarot-kingdom-card-power';
+  power.className = 'tarot-card-number';
   power.textContent = cShort(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
   if (opt.onClick) el.addEventListener('click', opt.onClick);
@@ -701,8 +733,9 @@ function renderTrick() {
 function renderHand() {
   ui.hand.innerHTML = '';
   const me = s.players.findIndex((p) => p.human);
+  const selected = sanitizeSelected(me);
   const can = s.roundActive && s.phase === 'turn' && s.turn === me;
-  s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, { clickable: can, selected: s.selected.has(i), onClick: can ? () => { if (s.selected.has(i)) s.selected.delete(i); else s.selected.add(i); render(); } : null })));
+  s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, { clickable: can, selected: selected.includes(i), onClick: can ? () => { if (s.selected.has(i)) s.selected.delete(i); else s.selected.add(i); render(); } : null })));
 }
 
 function renderJudgment() {
@@ -752,12 +785,12 @@ function startOrNext() {
 function humanPlay(mode) {
   if (!s || !s.roundActive || s.phase !== 'turn') return;
   const me = s.turn; if (!s.players[me].human) return;
-  const sel = Array.from(s.selected).sort((a, b) => a - b);
-  if (!sel.length) { s.message = '手札を選択してください。'; render(); return; }
+  const sel = sanitizeSelected(me);
+  if (!sel.length) { showPlayError('手札を選択してください。'); return; }
   const built = mode === 'call' ? buildCallPlay(me, sel) : (sel.length === 5 ? buildRolePlay(me, sel) : buildSetPlay(me, sel));
-  if (!built.ok) { s.message = built.reason || '出せません。'; render(); return; }
+  if (!built.ok) { showPlayError(built.reason || '出せません。'); return; }
   const ok = validatePlay(built.play, mode === 'call' ? 'call' : 'normal');
-  if (!ok.ok) { s.message = ok.reason || '出せません。'; render(); return; }
+  if (!ok.ok) { showPlayError(ok.reason || '出せません。'); return; }
   applyPlay(me, built.play);
 }
 
