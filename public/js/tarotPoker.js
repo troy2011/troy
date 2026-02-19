@@ -1409,20 +1409,6 @@ function getFateEffectSummary(card) {
     return `${name} (${displayNumber}) / ${base}${mutationText}`;
 }
 
-function getFateRevealCutinText(card) {
-    if (!card) return '運命カード公開';
-    const displayNumber = Number(card.number);
-    const ruleNumber = getFateRuleNumber(card);
-    const name = getCardDisplayName(card);
-    const base = Object.prototype.hasOwnProperty.call(FATE_EFFECT_SUMMARY, ruleNumber)
-        ? FATE_EFFECT_SUMMARY[ruleNumber]
-        : 'このカードの効果説明は未設定です。';
-    const mutationText = ruleNumber !== displayNumber
-        ? `（変異: ${(ARCANA_NAME[ruleNumber] || 'アルカナ')}(${ruleNumber})）`
-        : '';
-    return `${name} (${displayNumber})\n${base}${mutationText}`;
-}
-
 function getFateEffectSummaryHtml(card) {
     const plain = getFateEffectSummary(card);
     const ruleNumber = getFateRuleNumber(card);
@@ -3935,7 +3921,6 @@ async function revealFateCardPresentation() {
     state.fateRevealed = false;
     render();
 
-    await showRoundCutin(getFateRevealCutinText(fate));
     const fateEl = ui.fateCard ? ui.fateCard.querySelector('.tarot-card') : null;
     if (fateEl) {
         await animateBackToFrontOnElement(fateEl, fate);
