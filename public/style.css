@@ -2751,6 +2751,7 @@ body.modal-lock .modal-overlay {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    position: relative;
     min-height: 30px;
     padding: 5px 8px;
     border: 1px solid rgba(148, 163, 184, 0.25);
@@ -2767,6 +2768,29 @@ body.modal-lock .modal-overlay {
 
 .tarot-kingdom-player-row.is-human {
     border-color: rgba(59, 130, 246, 0.8);
+}
+
+.tarot-kingdom-player-row.fx-action {
+    border-color: rgba(250, 204, 21, 0.9);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.42),
+        0 0 18px rgba(250, 204, 21, 0.28);
+}
+
+.tarot-kingdom-player-row.fx-action::after {
+    content: attr(data-action);
+    position: absolute;
+    right: 8px;
+    top: -9px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.68);
+    background: rgba(15, 23, 42, 0.94);
+    color: #fde68a;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.65);
 }
 
 .tarot-kingdom-player-name {
@@ -4039,6 +4063,18 @@ body.modal-lock .modal-overlay {
 
 .tarot-effect-overlay.show {
     opacity: 1;
+}
+
+.tarot-effect-overlay.is-kingdom-raise {
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.28), rgba(0, 0, 0, 0.78));
+}
+
+.tarot-effect-overlay.is-kingdom-clear {
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.24), rgba(0, 0, 0, 0.78));
+}
+
+.tarot-effect-overlay.is-kingdom-draw {
+    background: radial-gradient(circle, rgba(52, 211, 153, 0.22), rgba(0, 0, 0, 0.78));
 }
 
 .tarot-cutin {

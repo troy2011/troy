@@ -48,6 +48,9 @@ let npcTimer = null;
 let trickRenderKey = '';
 let trickRenderToken = 0;
 let stateErrorTimer = null;
+let kingdomCutinTimer = null;
+let kingdomOverlayTimer = null;
+const kingdomRowFxTimers = new Map();
 
 const clearNpcTimer = () => { if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; } };
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -92,6 +95,113 @@ function sanitizeSelected(playerIndex) {
     .sort((a, b) => a - b);
   if (filtered.length !== s.selected.size) s.selected = new Set(filtered);
   return filtered;
+}
+
+function getElementCenterPoint(el) {
+  if (!el || !el.getBoundingClientRect) return null;
+  const rect = el.getBoundingClientRect();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+  return { x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) };
+}
+
+function getKingdomOwnerClass(playerIndex) {
+  return s?.players?.[playerIndex]?.human ? 'is-player' : 'is-cpu';
+}
+
+function showKingdomOverlay(kind = 'action') {
+  if (!ui.kingdomOverlay) return;
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
+  if (kind === 'raise') ui.kingdomOverlay.classList.add('is-kingdom-raise');
+  else if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
+  else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
+  void ui.kingdomOverlay.offsetWidth;
+  ui.kingdomOverlay.classList.add('show');
+  if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
+  kingdomOverlayTimer = setTimeout(() => {
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
+    kingdomOverlayTimer = null;
+  }, 260);
+}
+
+function showKingdomCutin(playerIndex, label, options = {}) {
+  if (!ui.kingdomCutin || !label) return;
+  const ownerClass = getKingdomOwnerClass(playerIndex);
+  const who = playerIndex == null ? '' : `${pName(playerIndex)} `;
+  const cutinText = `${who}${label}`;
+  ui.kingdomCutin.textContent = cutinText;
+  ui.kingdomCutin.classList.remove('is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
+  if (playerIndex != null) ui.kingdomCutin.classList.add(ownerClass);
+  if (options.cutinClass) ui.kingdomCutin.classList.add(options.cutinClass);
+  ui.kingdomCutin.classList.add('show');
+  if (kingdomCutinTimer) clearTimeout(kingdomCutinTimer);
+  kingdomCutinTimer = setTimeout(() => {
+    ui.kingdomCutin?.classList.remove('show', 'is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
+    kingdomCutinTimer = null;
+  }, options.durationMs || 680);
+}
+
+function flashKingdomPlayerRowAction(playerIndex, label) {
+  const row = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`);
+  if (!row || !label) return;
+  row.dataset.action = label;
+  row.classList.remove('fx-action');
+  void row.offsetWidth;
+  row.classList.add('fx-action');
+  if (kingdomRowFxTimers.has(playerIndex)) clearTimeout(kingdomRowFxTimers.get(playerIndex));
+  const t = setTimeout(() => {
+    const currentRow = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`);
+    if (!currentRow) return;
+    currentRow.classList.remove('fx-action');
+    currentRow.removeAttribute('data-action');
+    kingdomRowFxTimers.delete(playerIndex);
+  }, 760);
+  kingdomRowFxTimers.set(playerIndex, t);
+}
+
+function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙') {
+  if (!ui.score || typeof document === 'undefined') return;
+  const sourceEl = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`) || ui.hand || ui.score;
+  const from = getElementCenterPoint(sourceEl);
+  const to = getElementCenterPoint(ui.score);
+  if (!from || !to) return;
+  const ownerClass = getKingdomOwnerClass(playerIndex);
+  const total = Math.max(1, Math.min(10, Number(coinCount) || 4));
+  for (let i = 0; i < total; i += 1) {
+    const coin = document.createElement('span');
+    coin.className = `tarot-coin-fx ${ownerClass}`;
+    coin.textContent = symbol;
+    coin.style.left = `${from.x}px`;
+    coin.style.top = `${from.y}px`;
+    coin.style.opacity = '0';
+    coin.style.transform = 'translate(-50%, -50%) scale(0.62) rotate(0deg)';
+    document.body.appendChild(coin);
+    const delay = i * 34;
+    const targetX = to.x + ((Math.random() * 16) - 8);
+    const targetY = to.y + ((Math.random() * 12) - 6);
+    const rotate = (Math.random() * 88) - 44;
+    setTimeout(() => {
+      coin.style.transition = 'left 520ms cubic-bezier(0.18,0.84,0.26,1), top 520ms cubic-bezier(0.18,0.84,0.26,1), opacity 90ms ease-out, transform 520ms ease';
+      coin.style.left = `${targetX}px`;
+      coin.style.top = `${targetY}px`;
+      coin.style.opacity = '1';
+      coin.style.transform = `translate(-50%, -50%) scale(1) rotate(${rotate}deg)`;
+    }, delay);
+    setTimeout(() => {
+      coin.style.transition = 'opacity 120ms ease-in, transform 120ms ease-in';
+      coin.style.opacity = '0';
+      coin.style.transform = `translate(-50%, -50%) scale(0.72) rotate(${rotate * 1.25}deg)`;
+    }, delay + 430);
+    setTimeout(() => {
+      if (coin.parentElement) coin.remove();
+    }, delay + 620);
+  }
+}
+
+function triggerKingdomActionFx(playerIndex, label, options = {}) {
+  if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
+  if (options.overlay) showKingdomOverlay(options.overlay);
+  if (options.cutin !== false) showKingdomCutin(playerIndex, label, options);
+  if (options.coinCount && options.coinCount > 0) playKingdomCoinEffect(playerIndex, options.coinCount, options.coinSymbol || '🪙');
 }
 
 function getSpriteIndex(card) {
@@ -245,6 +355,13 @@ function resetMatch() {
   s = initState();
   trickRenderKey = '';
   trickRenderToken += 1;
+  if (stateErrorTimer) { clearTimeout(stateErrorTimer); stateErrorTimer = null; }
+  if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
+  if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
+  kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
+  kingdomRowFxTimers.clear();
+  ui.kingdomCutin?.classList.remove('show', 'is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
 }
@@ -288,9 +405,9 @@ function allOthersPassed(lastPlayer) {
   return true;
 }
 
-function setCmp(aNum, bNum) {
-  const a = aNum === 1 ? 15 : aNum;
-  const b = bNum === 1 ? 15 : bNum;
+function setCmp(aPower, bPower) {
+  const a = Number(aPower || 0);
+  const b = Number(bPower || 0);
   if (!s.reverse) return a === b ? 0 : (a > b ? 1 : -1);
   return a === b ? 0 : (a < b ? 1 : -1);
 }
@@ -305,7 +422,8 @@ function buildSetPlay(pi, sel) {
   if (s.lock?.suit && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
   if (s.lock?.min != null && cards.length === 1 && cStrength(cards[0]) <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
   const suitTier = Math.max(...cards.map((c) => Math.max(...suitsForCard(c, false).map((x) => suitTierForCard(c, x)))));
-  return { ok: true, play: { type: 'set', owner: pi, count: cards.length, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), number: n, suitTier } };
+  const setPower = Math.max(...cards.map((c) => cStrength(c)));
+  return { ok: true, play: { type: 'set', owner: pi, count: cards.length, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), number: n, setPower, suitTier } };
 }
 
 function buildRolePlay(pi, sel) {
@@ -343,7 +461,7 @@ function validatePlay(play, mode) {
   if (mode === 'call') return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   if (play.type !== s.trick.type || play.count !== s.trick.count) return { ok: false, reason: '場と同じ形式/枚数で。' };
   if (play.type === 'set') {
-    const c = setCmp(play.number, s.trick.number);
+    const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
     if (c > 0) return { ok: true };
     if (c < 0) return { ok: false, reason: '場札より強い数値が必要です。' };
     return play.suitTier >= s.trick.suitTier ? { ok: true } : { ok: false, reason: '同数値はスート優位が必要です。' };
@@ -368,6 +486,7 @@ function applyRoleRewardOnClear(playerIndex) {
   if (p.chips < add) { log(`${p.name}: ${play.role.label}（チップ不足で加算なし）`); return; }
   p.chips -= add; p.rateBonus += add; p.bet += add; s.pot += add;
   log(`${p.name}: ${play.role.label}成立 +${add}レート / 同額ベット`);
+  playKingdomCoinEffect(playerIndex, Math.min(8, Math.max(3, add + 2)), '🪙');
 }
 
 function drawChoiceStart(playerIndex) {
@@ -414,6 +533,7 @@ function clearTrick(leader) {
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
+  triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760 });
   if (hadJudgment) { judgmentStart(leader); return; }
   drawChoiceStart(leader);
 }
@@ -481,6 +601,12 @@ function applyDrawChoice(deckType) {
   if (use === 'minor' && s.minorDeck.length <= 0) use = 'major';
   const c = use === 'major' ? (s.majorDeck.pop() || null) : (s.minorDeck.pop() || null);
   if (c) { s.players[pi].hand.push(c); s.players[pi].hand.sort((a, b) => cStrength(a) - cStrength(b)); log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`); }
+  const drawByHuman = !!s.players[pi]?.human;
+  triggerKingdomActionFx(pi, use === 'major' ? '大アルカナドロー' : '小アルカナドロー', {
+    overlay: drawByHuman ? 'draw' : null,
+    durationMs: 620,
+    cutin: drawByHuman
+  });
   s.pendingDraw = null; s.phase = 'turn'; s.message = `${pName(pi)}が親です。`;
   scheduleNpc(); render();
 }
@@ -494,6 +620,7 @@ function applyJudgmentPick(owner, cardIndex) {
   s.players[pi].hand.push(card); s.players[pi].hand.sort((a, b) => cStrength(a) - cStrength(b));
   s.pendingJudgment = null;
   log(`${pName(pi)}: 審判で ${cName(card)} を回収`);
+  triggerKingdomActionFx(pi, '審判回収', { overlay: 'draw', durationMs: 700, cutin: true });
   drawChoiceStart(pi);
 }
 
@@ -502,6 +629,7 @@ function skipJudgmentPick() {
   if (pi == null) return;
   s.pendingJudgment = null;
   log(`${pName(pi)}: 審判回収をスキップ`);
+  triggerKingdomActionFx(pi, '審判スキップ', { overlay: 'draw', durationMs: 520, cutin: false });
   drawChoiceStart(pi);
 }
 
@@ -517,6 +645,14 @@ function applyPlay(pi, play) {
   s.pass = [false, false, false, false];
   s.trick = play; s.lastPlay = play; s.turn = pi;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : `${play.role.label}${play.call ? '（コール）' : ''}`}`);
+  const actionLabel = play.type === 'set'
+    ? `${play.count}枚出し`
+    : (play.call ? 'コール' : (play.role?.label || '役出し'));
+  triggerKingdomActionFx(pi, actionLabel, {
+    overlay: 'action',
+    durationMs: play.call ? 620 : 700,
+    cutin: true
+  });
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
     const fx = applySetEffects(play);
@@ -532,6 +668,8 @@ function passAction(pi) {
   if (!s.trick) { s.message = '場が空のためパスできません。'; render(); return; }
   s.pass[pi] = true; log(`${pName(pi)}: パス`);
   s.selected.clear();
+  const passByHuman = !!s.players[pi]?.human;
+  triggerKingdomActionFx(pi, 'パス', { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: passByHuman });
   const leader = s.lastPlay?.owner;
   if (leader != null && allOthersPassed(leader)) { log('全員パスでクリア'); clearTrick(leader); return; }
   s.turn = nextAlive(pi, 1, true) ?? (leader ?? pi);
@@ -546,6 +684,7 @@ function raiseAction(pi) {
   if (p.chips < RAISE_COST) { s.message = 'チップ不足でレイズ不可。'; render(); return; }
   p.raise = true; p.chips -= RAISE_COST; p.bet += RAISE_COST; s.pot += RAISE_COST;
   log(`${p.name}: レイズ宣言 (+1ベット)`); s.message = `${p.name}がレイズ宣言`;
+  triggerKingdomActionFx(pi, 'レイズ', { overlay: 'raise', durationMs: 760, cutin: true, coinCount: 6 });
   render();
 }
 
@@ -603,7 +742,7 @@ function npcDecide(pi) {
     if (a.type === 'role' && b.type === 'set') return -1;
     if (a.type === 'set' && b.type === 'role') return 1;
     if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
-    return setCmp(b.number, a.number) || (b.suitTier - a.suitTier);
+    return setCmp(b.setPower ?? b.number, a.setPower ?? a.number) || (b.suitTier - a.suitTier);
   });
   return { action: 'play', play: all[0] };
 }
@@ -684,6 +823,7 @@ function renderPlayers() {
   ui.players.innerHTML = '';
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
+    row.dataset.playerIndex = String(i);
     if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
     if (p.human) row.classList.add('is-human');
     const left = document.createElement('div'); left.className = 'tarot-kingdom-player-name'; left.textContent = p.name;
@@ -801,6 +941,8 @@ function bindUi() {
   ui.score = document.getElementById('tarotKingdomScore');
   ui.openOracle = document.getElementById('tarotKingdomOpenOracle');
   ui.hiddenOracle = document.getElementById('tarotKingdomHiddenOracle');
+  ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
+  ui.kingdomCutin = document.getElementById('tarotKingdomCutin');
   ui.stateText = document.getElementById('tarotKingdomStateText');
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
