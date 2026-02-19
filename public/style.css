@@ -2596,6 +2596,11 @@ body.modal-lock .modal-overlay {
     box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.28);
 }
 
+#tarotModeKingdom {
+    font-size: 12px;
+    letter-spacing: 0.01em;
+}
+
 .tarot-poker-root {
     overflow: visible;
     position: relative;
@@ -2633,7 +2638,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-kingdom-header h2 {
     margin: 0;
-    font-size: clamp(17px, 2.2vw, 22px);
+    font-size: clamp(14px, 1.9vw, 18px);
 }
 
 .tarot-kingdom-header-meta {
@@ -2774,14 +2779,21 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-hand {
+    --tarot-card-w: 27px;
+    --tarot-card-h: 44px;
+    --tarot-art-w: 24px;
+    --tarot-art-h: 40px;
+    --tarot-card-padding: 2px;
+    --tarot-card-number-size: 12px;
+    --tarot-card-title-size: 8px;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
-    min-height: var(--tarot-card-h, 88px);
+    min-height: var(--tarot-card-h, 44px);
 }
 
 .tarot-kingdom-hand .tarot-card.is-selected {
-    transform: translateY(-8px) scale(1.02);
+    transform: translateY(-6px) scale(1.03);
     border-color: var(--tarot-interact-selected, rgba(255, 225, 244, 0.98));
     box-shadow:
         0 0 0 1px var(--tarot-interact-border-soft, rgba(244, 114, 182, 0.78)),
@@ -2794,13 +2806,13 @@ body.modal-lock .modal-overlay {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 22px;
-    height: 22px;
+    width: 14px;
+    height: 14px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 900;
     color: #ffffff;
     background: rgba(16, 185, 129, 0.88);
@@ -4634,7 +4646,11 @@ body.modal-lock .modal-overlay {
     }
 
     #tabContentTarot .tarot-kingdom-header h2 {
-        font-size: 16px;
+        font-size: 14px;
+    }
+
+    #tarotModeKingdom {
+        font-size: 11px;
     }
 
     #tabContentTarot .tarot-kingdom-chip {

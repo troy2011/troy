@@ -243,11 +243,13 @@ function flashKingdomPlayerRowAction(playerIndex, label) {
 }
 
 function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', options = {}) {
-  if (!ui.score || typeof document === 'undefined') return;
-  const sourceEl = options.fromPot ? ui.score : (getKingdomPlayerAnchor(playerIndex) || ui.hand || ui.score);
+  if (typeof document === 'undefined') return;
+  const potAnchor = ui.score || ui.round || ui.root;
+  if (!potAnchor) return;
+  const sourceEl = options.fromPot ? potAnchor : (getKingdomPlayerAnchor(playerIndex) || ui.hand || potAnchor);
   const targetEl = options.targetPlayerIndex != null
-    ? (getKingdomPlayerAnchor(options.targetPlayerIndex) || ui.score)
-    : ui.score;
+    ? (getKingdomPlayerAnchor(options.targetPlayerIndex) || potAnchor)
+    : potAnchor;
   const from = getElementCenterPoint(sourceEl);
   const to = getElementCenterPoint(targetEl);
   if (!from || !to) return;
@@ -1267,7 +1269,7 @@ function renderSummary() {
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
   ui.stateText.textContent = s.message || '';
-  ui.score.textContent = `POT ${s.pot} / ${s.players.map((p) => `${p.name}:${p.chips}`).join('  ')}`;
+  if (ui.score) ui.score.textContent = '';
   if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
   else if (!s.openOracleRevealed) ui.openOracle.textContent = '表: 未公開';
   else ui.openOracle.textContent = `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}`;
