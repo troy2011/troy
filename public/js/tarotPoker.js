@@ -38,6 +38,7 @@ const HAND_RANK_LABEL = {
     11: 'ファイブカード',
     10: 'ストレートフラッシュ',
     9: 'フォーカード',
+    8.5: 'ザ・ワールド',
     8: 'フルハウス',
     4.5: '\u30a8\u30ec\u30e1\u30f3\u30c8',
     7: 'フラッシュ',
@@ -148,6 +149,7 @@ const TAROT_ENGINE_RANK_TO_LEGACY = {
     Flush: 7,
     CourtTwoPair: 7.5,
     FullHouse: 8,
+    TheWorld: 8.5,
     FourKind: 9,
     StraightFlush: 10,
     FiveKind: 11
@@ -3700,6 +3702,20 @@ function getRoleCardsForDisplay(score, options = {}) {
         );
     case 9: // four card
         return appendExtraKickers(takeByCount(4, 1).slice(0, 4));
+    case 8.5: { // the world (sum 21 by 4 cards, excluding World and court)
+        const role = cards.filter((card) => {
+            const ruleNumber = Number.isFinite(Number(card?.effectNumber))
+                ? Number(card.effectNumber)
+                : Number(card?.number || 0);
+            if (card?.isArcana && ruleNumber === 21) return false;
+            if (!card?.isArcana) {
+                const n = Number(card?.number || 0);
+                if (n >= 11 && n <= 14) return false;
+            }
+            return true;
+        }).slice(0, 4);
+        return appendExtraKickers(role);
+    }
     case 11: // five card
         return appendExtraKickers(takeByCount(5, 1).slice(0, 5));
     default: // straight / flush / full house / straight flush

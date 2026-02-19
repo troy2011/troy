@@ -8,6 +8,7 @@ const NORMAL_RANK_ORDER = [
     'Flush',
     'CourtTwoPair',
     'FullHouse',
+    'TheWorld',
     'FourKind',
     'StraightFlush',
     'FiveKind'
@@ -185,9 +186,6 @@ function getValueOptionsForCard(card, effects) {
     return uniqueSortedDesc(out.map((v) => normalizeValue(v, effects, card)));
 }
 function getSuitOptionsForCard(card, effects) {
-    if (effects.world) {
-        return ['World'];
-    }
     const n = arcanaRuleNumber(card);
     if (card.isArcana && n === 1) {
         return MINOR_SUITS.slice();
@@ -279,6 +277,34 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
     const tripEntries = valueEntries.filter((entry) => entry[1].length === 3);
     const quadEntries = valueEntries.filter((entry) => entry[1].length === 4);
     const fiveEntries = valueEntries.filter((entry) => entry[1].length >= 5);
+    const findTheWorldCombo = () => {
+        if (!effects.world) return null;
+        const eligible = resolvedCards.filter((card) => {
+            const ruleNumber = Number(card?.base?.effectNumber ?? card?.base?.number ?? -1);
+            if (card?.base?.isArcana && ruleNumber === 21) return false;
+            if (!card?.base?.isArcana) {
+                const n = Number(card?.base?.number ?? 0);
+                if (COURT_VALUES.has(n)) return false;
+            }
+            return true;
+        });
+        if (eligible.length < 4) return null;
+        const combos = combinations(eligible, 4);
+        let best = null;
+        let bestVector = null;
+        for (const combo of combos) {
+            const sum = combo.reduce((acc, card) => acc + Number(card?.value || 0), 0);
+            if (sum !== 21) continue;
+            const vector = combo.map((card) => Number(card?.value || 0)).sort((a, b) => b - a);
+            if (!best || lexicographicCompare(vector, bestVector || []) > 0) {
+                best = combo.slice();
+                bestVector = vector;
+            }
+        }
+        if (!best) return null;
+        return { cards: best, vector: bestVector || [] };
+    };
+    const theWorldCombo = findTheWorldCombo();
     let rank = 'HighCard';
     let primaryVector = [];
     let kickerVector = [];
@@ -301,6 +327,11 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
         roleCards = quadCards.slice(0, 4);
         const kicker = valueEntries.find((entry) => entry[0] !== quadValue)?.[0] ?? 0;
         kickerVector = [kicker];
+    }
+    else if (theWorldCombo) {
+        rank = 'TheWorld';
+        primaryVector = theWorldCombo.vector.slice();
+        roleCards = theWorldCombo.cards.slice();
     }
     else if (tripEntries.length > 0 && pairEntries.length > 0) {
         const [tripValue, tripCards] = tripEntries[0];
@@ -432,7 +463,7 @@ function resolveVariants(combo, effects, callback) {
         const card = combo[index];
         const isWildcard = card.isArcana && Number(card.number) === 0;
         const suitOptions = isWildcard
-            ? (effects.world ? ['World'] : MINOR_SUITS.slice())
+            ? MINOR_SUITS.slice()
             : getSuitOptionsForCard(card, effects);
         const valueOptions = isWildcard ? wildcardValues : getValueOptionsForCard(card, effects);
         for (const value of valueOptions) {
@@ -468,6 +499,7 @@ function rankLabel(rank) {
         case 'Flush': return 'Flush';
         case 'CourtTwoPair': return 'Court Two Pair';
         case 'FullHouse': return 'Full House';
+        case 'TheWorld': return 'ザ・ワールド';
         case 'FourKind': return 'Four of a Kind';
         case 'StraightFlush': return 'Straight Flush';
         case 'FiveKind': return 'Five of a Kind';
