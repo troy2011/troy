@@ -382,6 +382,7 @@ function setupHand() {
   s.turn = s.dealer;
   s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   log(`第${s.handNo + 1}局開始 / 親: ${pName(s.dealer)}`);
+  scheduleNpc();
 }
 
 function nextAlive(from, steps = 1, onlyNotPassed = false) {
@@ -875,7 +876,21 @@ function renderHand() {
   const me = s.players.findIndex((p) => p.human);
   const selected = sanitizeSelected(me);
   const can = s.roundActive && s.phase === 'turn' && s.turn === me;
-  s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, { clickable: can, selected: selected.includes(i), onClick: can ? () => { if (s.selected.has(i)) s.selected.delete(i); else s.selected.add(i); render(); } : null })));
+  const onHandTap = (idx) => {
+    if (!can) {
+      if (s.phase !== 'turn') showPlayError(`現在は「${s.phase}」フェーズです。`);
+      else showPlayError('あなたのターンではありません。');
+      return;
+    }
+    if (s.selected.has(idx)) s.selected.delete(idx);
+    else s.selected.add(idx);
+    render();
+  };
+  s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, {
+    clickable: can,
+    selected: selected.includes(i),
+    onClick: () => onHandTap(i)
+  })));
 }
 
 function renderJudgment() {
