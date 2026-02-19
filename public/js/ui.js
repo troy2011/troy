@@ -23,6 +23,99 @@ const ensureTarotModule = async () => {
     return tarotModule;
 };
 
+let tarotKingdomModule = null;
+const TAROT_KINGDOM_MODULE_VERSION = '20260219b';
+const ensureTarotKingdomModule = async () => {
+    if (tarotKingdomModule) return tarotKingdomModule;
+    tarotKingdomModule = await import(`./tarotKingdom.js?v=${TAROT_KINGDOM_MODULE_VERSION}`);
+    return tarotKingdomModule;
+};
+
+let tarotModeBound = false;
+let currentTarotMode = 'poker';
+let tarotPokerLoaded = false;
+let tarotKingdomLoaded = false;
+
+const getTarotModeElements = () => ({
+    pokerButton: document.getElementById('tarotModePoker'),
+    kingdomButton: document.getElementById('tarotModeKingdom'),
+    pokerRoot: document.getElementById('tarotPokerRoot'),
+    kingdomRoot: document.getElementById('tarotKingdomRoot')
+});
+
+const applyTarotModeUi = (mode) => {
+    const normalized = mode === 'kingdom' ? 'kingdom' : 'poker';
+    const { pokerButton, kingdomButton, pokerRoot, kingdomRoot } = getTarotModeElements();
+    if (pokerRoot) {
+        pokerRoot.style.display = normalized === 'poker' ? 'block' : 'none';
+    }
+    if (kingdomRoot) {
+        kingdomRoot.style.display = normalized === 'kingdom' ? 'block' : 'none';
+    }
+    if (pokerButton) {
+        pokerButton.classList.toggle('is-active', normalized === 'poker');
+        pokerButton.setAttribute('aria-selected', normalized === 'poker' ? 'true' : 'false');
+    }
+    if (kingdomButton) {
+        kingdomButton.classList.toggle('is-active', normalized === 'kingdom');
+        kingdomButton.setAttribute('aria-selected', normalized === 'kingdom' ? 'true' : 'false');
+    }
+};
+
+const ensureTarotModeLoaded = async (mode, forceLoad = false) => {
+    if (mode === 'kingdom') {
+        if (!forceLoad && tarotKingdomLoaded) return;
+        const Kingdom = await ensureTarotKingdomModule();
+        if (typeof Kingdom.loadTarotKingdomPage === 'function') {
+            await Kingdom.loadTarotKingdomPage();
+        }
+        tarotKingdomLoaded = true;
+        return;
+    }
+
+    if (!forceLoad && tarotPokerLoaded) return;
+    const Tarot = await ensureTarotModule();
+    if (typeof Tarot.loadTarotPokerPage === 'function') {
+        await Tarot.loadTarotPokerPage();
+    }
+    tarotPokerLoaded = true;
+};
+
+const setTarotMode = async (mode, options = {}) => {
+    const { ensureLoaded = true, forceLoad = false } = options;
+    const normalized = mode === 'kingdom' ? 'kingdom' : 'poker';
+    currentTarotMode = normalized;
+    applyTarotModeUi(normalized);
+    if (ensureLoaded) {
+        await ensureTarotModeLoaded(normalized, forceLoad);
+    }
+};
+
+const bindTarotModeSwitch = () => {
+    if (tarotModeBound) return;
+    const { pokerButton, kingdomButton } = getTarotModeElements();
+    if (!pokerButton || !kingdomButton) return;
+
+    pokerButton.addEventListener('click', () => {
+        if (currentTarotMode === 'poker') return;
+        setTarotMode('poker', { ensureLoaded: true }).catch((error) => {
+            console.error('[tarot] failed to switch to poker mode:', error);
+        });
+    });
+    kingdomButton.addEventListener('click', () => {
+        if (currentTarotMode === 'kingdom') return;
+        setTarotMode('kingdom', { ensureLoaded: true }).catch((error) => {
+            console.error('[tarot] failed to switch to kingdom mode:', error);
+        });
+    });
+    tarotModeBound = true;
+};
+
+const prepareTarotTab = async () => {
+    bindTarotModeSwitch();
+    await setTarotMode(currentTarotMode, { ensureLoaded: true });
+};
+
 const TAROT_AREAS = [
     { id: 'wands', label: 'ワンド' },
     { id: 'pentacles', label: 'ペンタクル' },
@@ -1108,8 +1201,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     break;
                 case 'tarot':
                     {
-                        const Tarot = await ensureTarotModule();
-                        await Tarot.loadTarotPokerPage();
+                        await prepareTarotTab();
                     }
                     break;
                 case 'ships':
@@ -1249,6 +1341,11 @@ export async function showTab(tabId, playerInfo, options = {}) {
         if (tabId === 'home') {
             updateHomeAvatarSeaTone();
             revealBottomNavAfterHomeReady();
+        }
+
+        if (tabId === 'tarot') {
+            bindTarotModeSwitch();
+            applyTarotModeUi(currentTarotMode);
         }
 
         if (tabId === 'map' && gameInstance) {

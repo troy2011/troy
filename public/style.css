@@ -2570,6 +2570,32 @@ body.modal-lock .modal-overlay {
 }
 
 /* --- タロットポーカー --- */
+.tarot-game-switch-wrap {
+    margin-bottom: 8px;
+}
+
+.tarot-game-switch {
+    display: flex;
+    gap: 8px;
+}
+
+.tarot-game-switch button {
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: rgba(17, 24, 39, 0.52);
+    color: #e5e7eb;
+    font-weight: 700;
+}
+
+.tarot-game-switch button.is-active {
+    border-color: rgba(250, 204, 21, 0.75);
+    background: linear-gradient(180deg, rgba(250, 204, 21, 0.25), rgba(180, 83, 9, 0.35));
+    color: #fff4cf;
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.28);
+}
+
 .tarot-poker-root {
     overflow: visible;
     position: relative;
@@ -2587,6 +2613,339 @@ body.modal-lock .modal-overlay {
     --tarot-interact-border-soft: rgba(244, 114, 182, 0.78);
     --tarot-interact-glow: rgba(236, 72, 153, 0.45);
     --tarot-interact-selected: rgba(255, 225, 244, 0.98);
+}
+
+.tarot-kingdom-root {
+    --tarot-card-w: 54px;
+    --tarot-card-h: 88px;
+    --tarot-art-w: 48px;
+    --tarot-art-h: 80px;
+}
+
+.tarot-kingdom-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.tarot-kingdom-header h2 {
+    margin: 0;
+    font-size: clamp(17px, 2.2vw, 22px);
+}
+
+.tarot-kingdom-header-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.tarot-kingdom-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(15, 23, 42, 0.62);
+    color: #e5e7eb;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tarot-kingdom-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.tarot-kingdom-controls button {
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: rgba(17, 24, 39, 0.66);
+    color: #e5e7eb;
+    font-weight: 700;
+}
+
+.tarot-kingdom-score {
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.5);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tarot-kingdom-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+.tarot-kingdom-panel {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.22);
+    padding: 8px;
+}
+
+.tarot-kingdom-panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #e5e7eb;
+}
+
+.tarot-kingdom-hand {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: var(--tarot-card-h, 88px);
+}
+
+.tarot-kingdom-oracle {
+    margin: 0 0 8px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(2, 6, 23, 0.5);
+}
+
+.tarot-kingdom-oracle-title {
+    font-size: 11px;
+    font-weight: 900;
+    color: #fcd34d;
+    margin-bottom: 4px;
+}
+
+.tarot-kingdom-oracle-text {
+    font-size: 11px;
+    color: #e2e8f0;
+    line-height: 1.3;
+}
+
+.tarot-kingdom-players {
+    display: grid;
+    gap: 6px;
+}
+
+.tarot-kingdom-player-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.tarot-kingdom-player-row.is-turn {
+    border-color: rgba(250, 204, 21, 0.9);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.3),
+        0 0 12px rgba(250, 204, 21, 0.2);
+}
+
+.tarot-kingdom-player-row.is-human {
+    border-color: rgba(59, 130, 246, 0.8);
+}
+
+.tarot-kingdom-player-name {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.tarot-kingdom-player-meta {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.tarot-kingdom-flag {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 113, 113, 0.65);
+    color: #fecaca;
+    background: rgba(127, 29, 29, 0.35);
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.tarot-kingdom-flag.is-rate {
+    border-color: rgba(34, 197, 94, 0.65);
+    color: #bbf7d0;
+    background: rgba(20, 83, 45, 0.35);
+}
+
+.tarot-kingdom-trick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: calc(var(--tarot-card-h, 88px) + 4px);
+}
+
+.tarot-kingdom-empty {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.tarot-kingdom-judgment {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.tarot-kingdom-judgment-title {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: #fde68a;
+    font-weight: 800;
+}
+
+.tarot-kingdom-judgment-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tarot-kingdom-judgment-owner {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    font-size: 9px;
+    color: #e2e8f0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.tarot-kingdom-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.tarot-kingdom-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(var(--tarot-card-h, 88px) + 8px);
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(17, 24, 39, 0.58);
+    padding: 3px;
+    overflow: hidden;
+}
+
+.tarot-kingdom-cell.is-player {
+    border-color: rgba(59, 130, 246, 0.75);
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+.tarot-kingdom-cell.is-cpu {
+    border-color: rgba(239, 68, 68, 0.75);
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.25);
+}
+
+.tarot-kingdom-cell.is-capital::after {
+    content: '★';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 11px;
+    color: #fde68a;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.tarot-kingdom-cell.is-targetable {
+    border-color: rgba(250, 204, 21, 0.92);
+    box-shadow:
+        0 0 0 1px rgba(250, 204, 21, 0.45),
+        0 0 12px rgba(250, 204, 21, 0.2);
+}
+
+.tarot-kingdom-card {
+    width: var(--tarot-card-w, 54px);
+    min-width: var(--tarot-card-w, 54px);
+    height: var(--tarot-card-h, 88px);
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+}
+
+.tarot-kingdom-card.is-mini {
+    width: calc(var(--tarot-card-w, 54px) * 0.78);
+    min-width: calc(var(--tarot-card-w, 54px) * 0.78);
+    height: calc(var(--tarot-card-h, 88px) * 0.78);
+}
+
+.tarot-kingdom-card.is-clickable {
+    cursor: pointer;
+}
+
+.tarot-kingdom-card.is-selected {
+    transform: translateY(-4px);
+    border-color: rgba(250, 204, 21, 0.92);
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.45), 0 0 14px rgba(250, 204, 21, 0.28);
+}
+
+.tarot-kingdom-card-art {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--tarot-art-w, 48px);
+    height: var(--tarot-art-h, 80px);
+    transform: translate(-50%, -50%);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    image-rendering: pixelated;
+    background-image: var(--tarot-sprite-src);
+    background-repeat: no-repeat;
+    background-size: var(--tarot-sheet-w, 512px) var(--tarot-sheet-h, 1024px);
+    background-position: calc(var(--tarot-x, 0px) * -1) calc(var(--tarot-y, 0px) * -1);
+}
+
+.tarot-kingdom-card-label {
+    position: absolute;
+    left: 4px;
+    top: 2px;
+    right: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarot-kingdom-card-power {
+    position: absolute;
+    left: 4px;
+    bottom: 2px;
+    font-size: 16px;
+    font-weight: 900;
+    text-shadow:
+        -1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px -1px 0 #000,
+        1px 1px 0 #000;
 }
 
 .tarot-poker-root.is-time-stopped {
@@ -3913,6 +4272,54 @@ body.modal-lock .modal-overlay {
 }
 
 @media (max-width: 640px) {
+    #tabContentTarot .tarot-game-switch {
+        gap: 6px;
+    }
+
+    #tabContentTarot .tarot-game-switch button {
+        min-height: 32px;
+        padding: 4px 9px;
+        font-size: 12px;
+    }
+
+    #tabContentTarot .tarot-kingdom-header {
+        margin-bottom: 6px;
+    }
+
+    #tabContentTarot .tarot-kingdom-header h2 {
+        font-size: 16px;
+    }
+
+    #tabContentTarot .tarot-kingdom-chip {
+        min-height: 22px;
+        font-size: 11px;
+        padding: 0 7px;
+    }
+
+    #tabContentTarot .tarot-kingdom-controls button {
+        min-height: 32px;
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+
+    #tabContentTarot .tarot-kingdom-trick,
+    #tabContentTarot .tarot-kingdom-judgment-options {
+        gap: 6px;
+    }
+
+    #tabContentTarot .tarot-kingdom-player-row {
+        min-height: 32px;
+        padding: 5px 7px;
+    }
+
+    #tabContentTarot .tarot-kingdom-card-label {
+        font-size: 8px;
+    }
+
+    #tabContentTarot .tarot-kingdom-card-power {
+        font-size: 14px;
+    }
+
     #tabContentTarot .tarot-poker-root {
         margin: 8px;
         padding: 10px;

@@ -254,7 +254,13 @@
 
             <!-- 1.7 タロットポーカータブ -->
             <div id="tabContentTarot" class="tab-content" style="display: none;">
-                <div class="content-area tarot-poker-root">
+                <div class="content-area tarot-game-switch-wrap">
+                    <div class="tarot-game-switch" role="tablist" aria-label="タロットゲーム切替">
+                        <button id="tarotModePoker" class="is-active" type="button" role="tab" aria-selected="true">タロット・ポーカー</button>
+                        <button id="tarotModeKingdom" type="button" role="tab" aria-selected="false">タロットキングダム</button>
+                    </div>
+                </div>
+                <div id="tarotPokerRoot" class="content-area tarot-poker-root">
                     <div class="tarot-poker-header">
                         <h2>タロット・ポーカー</h2>
                         <div class="tarot-poker-header-meta">
@@ -373,6 +379,51 @@
                     </div>
                     <div id="tarotResultText" class="tarot-result-text"></div>
                     <div id="tarotLog" class="tarot-log"></div>
+                </div>
+                <div id="tarotKingdomRoot" class="content-area tarot-kingdom-root" style="display:none;">
+                    <div class="tarot-kingdom-header">
+                        <h2>タロットキングダム</h2>
+                        <div class="tarot-kingdom-header-meta">
+                            <span id="tarotKingdomRound" class="tarot-kingdom-chip">局 0 / 4</span>
+                            <span id="tarotKingdomTurn" class="tarot-kingdom-chip">待機中</span>
+                        </div>
+                    </div>
+                    <div id="tarotKingdomScore" class="tarot-kingdom-score">POT 0 / チップ情報を表示します</div>
+                    <div class="tarot-kingdom-oracle">
+                        <div class="tarot-kingdom-oracle-title">オラクル</div>
+                        <div id="tarotKingdomOpenOracle" class="tarot-kingdom-oracle-text">表: なし</div>
+                        <div id="tarotKingdomHiddenOracle" class="tarot-kingdom-oracle-text">裏: 未公開</div>
+                    </div>
+                    <div id="tarotKingdomStateText" class="tarot-state-text">「新しい勝負を始める」で開戦します。</div>
+                    <div class="tarot-kingdom-controls">
+                        <button id="tarotKingdomStartButton" type="button">新しい戦いを始める</button>
+                        <button id="tarotKingdomPlayButton" type="button">選択カードを出す</button>
+                        <button id="tarotKingdomCallButton" type="button">コール</button>
+                        <button id="tarotKingdomPassButton" type="button">ターン終了</button>
+                        <button id="tarotKingdomRaiseButton" type="button">レイズ</button>
+                        <button id="tarotKingdomDrawMinorButton" type="button">小アルカナを引く</button>
+                        <button id="tarotKingdomDrawMajorButton" type="button">大アルカナを引く</button>
+                    </div>
+                    <div class="tarot-kingdom-layout">
+                        <div class="tarot-kingdom-panel">
+                            <div class="tarot-kingdom-panel-title">プレイヤー情報</div>
+                            <div id="tarotKingdomPlayers" class="tarot-kingdom-players"></div>
+                        </div>
+                        <div class="tarot-kingdom-panel">
+                            <div class="tarot-kingdom-panel-title">場札</div>
+                            <div id="tarotKingdomTrick" class="tarot-kingdom-trick"></div>
+                            <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
+                                <div class="tarot-kingdom-judgment-title">審判: 回収するカードを選択</div>
+                                <div id="tarotKingdomJudgmentOptions" class="tarot-kingdom-judgment-options"></div>
+                                <button id="tarotKingdomJudgmentSkipButton" type="button">回収しない</button>
+                            </div>
+                        </div>
+                        <div class="tarot-kingdom-panel">
+                            <div class="tarot-kingdom-panel-title">あなたの手札</div>
+                            <div id="tarotKingdomHand" class="tarot-kingdom-hand"></div>
+                        </div>
+                    </div>
+                    <div id="tarotKingdomLog" class="tarot-log"></div>
                 </div>
             </div>
 
