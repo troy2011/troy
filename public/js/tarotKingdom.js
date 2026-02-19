@@ -58,8 +58,6 @@ const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
 const idNum = (c) => Number(c?.number || 0);
 const cStrength = (c) => c?.kind === 'minor' ? (c.number === 1 ? 15 : c.number) : (c?.number === 14 ? 14 : Number(c?.number || 0));
-const cName = (c) => c?.kind === 'major' ? (ARCANA_NAME[c.number] || `大${c.number}`) : `${SUIT_LABEL[c.suit]} ${c.number === 1 ? 'A' : c.number === 11 ? 'P' : c.number === 12 ? 'N' : c.number === 13 ? 'Q' : c.number === 14 ? 'K' : c.number}`;
-const cShort = (c) => c?.kind === 'major' ? (ARCANA_NAME[c.number] || `${c.number}`) : (c.number === 1 ? 'A' : c.number === 11 ? 'P' : c.number === 12 ? 'N' : c.number === 13 ? 'Q' : c.number === 14 ? 'K' : String(c.number));
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
@@ -69,6 +67,47 @@ const suitTierForCard = (c, suit) => (SUIT_TIER[suit] || 0) + (c.kind === 'major
 const mkMinor = () => { const d = []; let id = 0; SUITS.forEach((suit) => { for (let n = 1; n <= 14; n += 1) d.push({ id: `tk_m_${++id}`, kind: 'minor', suit, number: n }); }); return d; };
 const mkMajor = () => Array.from({ length: 22 }, (_, n) => ({ id: `tk_a_${n}`, kind: 'major', suit: 'None', number: n }));
 const log = (m) => { s.logs.push(m); if (s.logs.length > 120) s.logs.splice(0, s.logs.length - 120); };
+
+function toRomanNumber(value) {
+  let number = Math.floor(Number(value) || 0);
+  if (!Number.isFinite(number) || number <= 0) return '0';
+  const romanMap = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ];
+  let result = '';
+  for (const [unit, symbol] of romanMap) {
+    while (number >= unit) {
+      result += symbol;
+      number -= unit;
+    }
+  }
+  return result;
+}
+
+function getMinorArcanaRankLabel(number) {
+  const n = Number(number) || 0;
+  if (n === 1) return 'Ace';
+  if (n === 11) return 'Page';
+  if (n === 12) return 'Knight';
+  if (n === 13) return 'Queen';
+  if (n === 14) return 'King';
+  return toRomanNumber(n);
+}
+
+function getCardNameLabel(card) {
+  if (!card) return '';
+  if (card.kind === 'major') return ARCANA_NAME[card.number] || 'アルカナ';
+  return getMinorArcanaRankLabel(card.number);
+}
+
+function getCardNumberLabel(card) {
+  if (!card) return '';
+  const n = Number(card.number) || 0;
+  if (card.kind !== 'major' && n === 1) return 'A';
+  return String(n);
+}
 
 function showPlayError(reason) {
   if (!s) return;
@@ -456,7 +495,37 @@ function buildCallPlay(pi, sel) {
   return { ok: true, play: { type: 'role', owner: pi, count: 5, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: [base, ...cards], role, call: true } };
 }
 
+function isMinorAceCard(card) {
+  return !!card && card.kind === 'minor' && Number(card.number) === 1;
+}
+
+function getRemainingHandAfterPlay(play) {
+  const owner = Number(play?.owner);
+  const hand = s?.players?.[owner]?.hand;
+  if (!Array.isArray(hand)) return null;
+  const selectedSet = new Set((Array.isArray(play?.selected) ? play.selected : []).map((idx) => Number(idx)));
+  return hand.filter((_, idx) => !selectedSet.has(idx));
+}
+
+function getAceFinishRuleViolation(play) {
+  const remaining = getRemainingHandAfterPlay(play);
+  if (!Array.isArray(remaining)) return null;
+  const played = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
+
+  // 手札がまだ残る場合に、残りがAのみになる出し方は禁止
+  if (remaining.length > 0 && remaining.every(isMinorAceCard)) {
+    return '手札がAだけ残る出し方はできません。';
+  }
+  // 最後の1手をAのみで上がる（A上がり）を禁止
+  if (remaining.length === 0 && played.length > 0 && played.every(isMinorAceCard)) {
+    return 'A上がりは禁止です。';
+  }
+  return null;
+}
+
 function validatePlay(play, mode) {
+  const aceRuleViolation = getAceFinishRuleViolation(play);
+  if (aceRuleViolation) return { ok: false, reason: aceRuleViolation };
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
@@ -534,7 +603,7 @@ function clearTrick(leader) {
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
-  triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760 });
+  triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760, cutin: false });
   if (hadJudgment) { judgmentStart(leader); return; }
   drawChoiceStart(leader);
 }
@@ -545,22 +614,43 @@ function applySetEffects(play) {
   let forceClear = false, keepTurn = false, skip = 0;
   const has = (n) => cards.some((c) => idNum(c) === n);
   if (has(5)) {
-    if (cards.length === 1 && cards.some((c) => c.kind === 'major' && c.number === 5)) { keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5で全員スキップ`); }
-    else { skip = cards.length; log(`${pName(play.owner)}: 5スキップ x${cards.length}`); }
+    if (cards.length === 1 && cards.some((c) => c.kind === 'major' && c.number === 5)) {
+      keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5で全員スキップ`);
+      triggerKingdomActionFx(play.owner, '大アルカナ5', { overlay: 'action', durationMs: 860, cutin: true });
+    } else {
+      skip = cards.length; log(`${pName(play.owner)}: 5スキップ x${cards.length}`);
+      triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true });
+    }
   }
   if (has(8)) {
-    if (cards.length >= 2 || cards.some((c) => c.kind === 'major' && c.number === 8)) { forceClear = true; s.callOnly = false; log(`${pName(play.owner)}: 8カットでクリア`); }
-    else { s.callOnly = true; log(`${pName(play.owner)}: 8カット（コール猶予）`); }
+    if (cards.length >= 2 || cards.some((c) => c.kind === 'major' && c.number === 8)) {
+      forceClear = true; s.callOnly = false; log(`${pName(play.owner)}: 8カットでクリア`);
+      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'clear', durationMs: 860, cutin: true });
+    } else {
+      s.callOnly = true; log(`${pName(play.owner)}: 8カット（コール猶予）`);
+      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'action', durationMs: 780, cutin: true });
+    }
   } else s.callOnly = false;
   if (has(11)) {
     s.reverse = true;
-    if (cards.some((c) => c.kind === 'major' && c.number === 11)) { s.reversePersist = true; log(`${pName(play.owner)}: 大アルカナ11でゲーム終了まで11バック`); }
-    else log(`${pName(play.owner)}: 11バック`);
+    if (cards.some((c) => c.kind === 'major' && c.number === 11)) {
+      s.reversePersist = true; log(`${pName(play.owner)}: 大アルカナ11でゲーム終了まで11バック`);
+      triggerKingdomActionFx(play.owner, '大アルカナ11バック', { overlay: 'action', durationMs: 920, cutin: true });
+    } else {
+      log(`${pName(play.owner)}: 11バック`);
+      triggerKingdomActionFx(play.owner, '11バック', { overlay: 'action', durationMs: 820, cutin: true });
+    }
   }
   if (has(14) && cards.length === 1 && s.trick?.cardsTable?.[0]) {
     const cur = cards[0], prev = s.trick.cardsTable[0], prevSuit = suitsForCard(prev, false)[0] || 'None';
-    if (cur.kind === 'major' && cur.number === 14) { s.lock = { suit: prevSuit, min: cStrength(cur) }; log(`${pName(play.owner)}: 節制ロック (${SUIT_LABEL[prevSuit]})`); }
-    else if (suitsForCard(cur, false).includes(prevSuit)) { s.lock = { suit: prevSuit, min: null }; log(`${pName(play.owner)}: 14ロック (${SUIT_LABEL[prevSuit]})`); }
+    if (cur.kind === 'major' && cur.number === 14) {
+      s.lock = { suit: prevSuit, min: cStrength(cur) }; log(`${pName(play.owner)}: 節制ロック (${SUIT_LABEL[prevSuit]})`);
+      triggerKingdomActionFx(play.owner, '節制ロック', { overlay: 'action', durationMs: 860, cutin: true });
+    }
+    else if (suitsForCard(cur, false).includes(prevSuit)) {
+      s.lock = { suit: prevSuit, min: null }; log(`${pName(play.owner)}: 14ロック (${SUIT_LABEL[prevSuit]})`);
+      triggerKingdomActionFx(play.owner, '14ロック', { overlay: 'action', durationMs: 820, cutin: true });
+    }
   }
   return { forceClear, keepTurn, skip };
 }
@@ -620,7 +710,7 @@ function applyJudgmentPick(owner, cardIndex) {
   const card = poolOwner.discard.splice(cardIndex, 1)[0];
   s.players[pi].hand.push(card); s.players[pi].hand.sort((a, b) => cStrength(a) - cStrength(b));
   s.pendingJudgment = null;
-  log(`${pName(pi)}: 審判で ${cName(card)} を回収`);
+  log(`${pName(pi)}: 審判で ${getCardNameLabel(card)} を回収`);
   triggerKingdomActionFx(pi, '審判回収', { overlay: 'draw', durationMs: 700, cutin: true });
   drawChoiceStart(pi);
 }
@@ -652,7 +742,7 @@ function applyPlay(pi, play) {
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: 'action',
     durationMs: play.call ? 620 : 700,
-    cutin: true
+    cutin: false
   });
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
@@ -811,10 +901,10 @@ function cardNode(card, opt = {}) {
   art.style.setProperty('--tarot-y', `${pos.y}px`);
   const label = document.createElement('span');
   label.className = 'tarot-card-title';
-  label.textContent = cName(card);
+  label.textContent = getCardNameLabel(card);
   const power = document.createElement('span');
   power.className = 'tarot-card-number';
-  power.textContent = cShort(card);
+  power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
   if (opt.onClick) el.addEventListener('click', opt.onClick);
   return el;
@@ -875,8 +965,9 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = s.players.findIndex((p) => p.human);
   const selected = sanitizeSelected(me);
-  const canSelect = s.roundActive && s.phase === 'turn';
-  const canCommit = canSelect && s.turn === me;
+  const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
+  const canSelect = s.roundActive && (s.phase === 'turn' || drawMe);
+  const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
   const onHandTap = (idx) => {
     if (!canSelect) {
       showPlayError(`現在は「${s.phase}」フェーズです。`);
@@ -894,6 +985,20 @@ function renderHand() {
     selected: selected.includes(i),
     onClick: () => onHandTap(i)
   })));
+}
+
+function clearSelectedCards(withMessage = true) {
+  if (!s) return;
+  if (!s.selected || s.selected.size <= 0) return;
+  s.selected.clear();
+  if (withMessage) {
+    if (s.roundActive && (s.phase === 'turn' || s.phase === 'draw')) {
+      s.message = '選択を解除しました。';
+    } else {
+      s.message = '';
+    }
+  }
+  render();
 }
 
 function renderJudgment() {
@@ -914,20 +1019,22 @@ function renderSummary() {
   ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
   ui.stateText.textContent = s.message || '';
   ui.score.textContent = `POT ${s.pot} / ${s.players.map((p) => `${p.name}:${p.chips}`).join('  ')}`;
-  ui.openOracle.textContent = s.openOracleCard ? `表: ${cName(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${cShort({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}` : '表: なし';
-  ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${cName(s.hiddenOracleCard)} (${cShort(s.hiddenOracleCard)})` : '裏: 未公開';
-  ui.log.innerHTML = s.logs.slice(-28).map((m) => `<div>${m}</div>`).join('');
+  ui.openOracle.textContent = s.openOracleCard ? `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}` : '表: なし';
+  ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
+  ui.log.innerHTML = s.logs.slice(-28).map((m) => `<div class="tarot-log-row">${m}</div>`).join('');
   ui.log.scrollTop = ui.log.scrollHeight;
 }
 
 function updateButtons() {
   const me = s.players.findIndex((p) => p.human);
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
-  ui.playButton.disabled = !myTurn;
-  ui.callButton.disabled = !myTurn;
+  const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
+  const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
+  const canPlayNow = myTurn || drawMe;
+  ui.playButton.disabled = !canPlayNow;
+  ui.clearButton.disabled = !canClearSelection;
   ui.passButton.disabled = !myTurn;
   ui.raiseButton.disabled = !(myTurn && !s.players[me].raise && s.players[me].hand.length === 4 && s.players[me].chips >= RAISE_COST);
-  const drawMe = s.phase === 'draw' && s.pendingDraw === me;
   ui.drawMinorButton.disabled = !(drawMe && s.minorDeck.length > 0);
   ui.drawMajorButton.disabled = !(drawMe && s.majorDeck.length > 0);
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
@@ -940,12 +1047,40 @@ function startOrNext() {
   if (!s.roundActive && s.handNo < TOTAL_HANDS) { setupHand(); render(); }
 }
 
-function humanPlay(mode) {
-  if (!s || !s.roundActive || s.phase !== 'turn') return;
-  const me = s.turn; if (!s.players[me].human) return;
+function humanPlay() {
+  if (!s || !s.roundActive) return;
+  const me = s.players.findIndex((p) => p.human);
+  const myTurn = s.phase === 'turn' && s.turn === me;
+  const drawMe = s.phase === 'draw' && s.pendingDraw === me;
+  if (!myTurn && !drawMe) return;
+  if (drawMe) {
+    s.pendingDraw = null;
+    s.phase = 'turn';
+    s.turn = me;
+    s.message = 'ドローせずに場へ出します。';
+  }
   const sel = sanitizeSelected(me);
   if (!sel.length) { showPlayError('手札を選択してください。'); return; }
-  const built = mode === 'call' ? buildCallPlay(me, sel) : (sel.length === 5 ? buildRolePlay(me, sel) : buildSetPlay(me, sel));
+  const canCallContext = !!(s.trick && s.trick.type === 'set' && s.trick.count === 1);
+  let mode = 'normal';
+  let built = null;
+
+  if (canCallContext && sel.length === 4) {
+    const maybeCall = buildCallPlay(me, sel);
+    if (!maybeCall.ok) { showPlayError(maybeCall.reason || 'コールできません。'); return; }
+    built = maybeCall;
+    mode = 'call';
+  } else if (sel.length === 5) {
+    built = buildRolePlay(me, sel);
+  } else if (sel.length >= 1 && sel.length <= 3) {
+    built = buildSetPlay(me, sel);
+  } else {
+    showPlayError(canCallContext
+      ? '1〜3枚・5枚、またはコール用に4枚を選択してください。'
+      : '1〜3枚または5枚を選択してください。');
+    return;
+  }
+
   if (!built.ok) { showPlayError(built.reason || '出せません。'); return; }
   const ok = validatePlay(built.play, mode === 'call' ? 'call' : 'normal');
   if (!ok.ok) { showPlayError(ok.reason || '出せません。'); return; }
@@ -964,7 +1099,7 @@ function bindUi() {
   ui.stateText = document.getElementById('tarotKingdomStateText');
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
-  ui.callButton = document.getElementById('tarotKingdomCallButton');
+  ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
   ui.raiseButton = document.getElementById('tarotKingdomRaiseButton');
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
@@ -977,8 +1112,8 @@ function bindUi() {
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
   ui.startButton?.addEventListener('click', () => startOrNext());
-  ui.playButton?.addEventListener('click', () => humanPlay('normal'));
-  ui.callButton?.addEventListener('click', () => humanPlay('call'));
+  ui.playButton?.addEventListener('click', () => humanPlay());
+  ui.clearButton?.addEventListener('click', () => clearSelectedCards(true));
   ui.passButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) passAction(s.turn); });
   ui.raiseButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) raiseAction(s.turn); });
   ui.drawMinorButton?.addEventListener('click', () => applyDrawChoice('minor'));
