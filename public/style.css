@@ -2793,8 +2793,8 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-hand {
     --tarot-card-w: 27px;
     --tarot-card-h: 44px;
-    --tarot-art-w: 24px;
-    --tarot-art-h: 40px;
+    --tarot-art-w: 48px;
+    --tarot-art-h: 80px;
     --tarot-card-padding: 2px;
     --tarot-card-number-size: 12px;
     --tarot-card-title-size: 8px;
@@ -2802,6 +2802,12 @@ body.modal-lock .modal-overlay {
     gap: 6px;
     flex-wrap: wrap;
     min-height: var(--tarot-card-h, 44px);
+}
+
+.tarot-kingdom-hand .tarot-card-art {
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    transform-origin: center center;
 }
 
 .tarot-kingdom-hand .tarot-card.is-selected {
