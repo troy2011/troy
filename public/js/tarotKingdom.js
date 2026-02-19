@@ -62,6 +62,23 @@ const clearOracleFlipTimers = () => {
   if (oracleFlipEndTimer) { clearTimeout(oracleFlipEndTimer); oracleFlipEndTimer = null; }
   ui.oracleCardWrap?.classList.remove('is-flipping');
 };
+const getKingdomCoinCountByAmount = (amount) => {
+  const n = Math.max(0, Math.floor(Number(amount) || 0));
+  if (n >= 20) return 10;
+  if (n >= 12) return 8;
+  if (n >= 8) return 7;
+  if (n >= 5) return 6;
+  if (n >= 3) return 5;
+  return 4;
+};
+const getKingdomMoneyBagCountByPot = (potAmount) => {
+  const pot = Math.max(0, Math.floor(Number(potAmount) || 0));
+  if (pot >= 80) return 12;
+  if (pot >= 50) return 10;
+  if (pot >= 30) return 8;
+  if (pot >= 15) return 6;
+  return 4;
+};
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length === n) return out.push(ac.slice()); for (let i = st; i <= arr.length - (n - ac.length); i += 1) { ac.push(arr[i]); w(i + 1, ac); ac.pop(); } }; if (n > 0 && arr.length >= n) w(0, []); return out; };
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
@@ -156,6 +173,10 @@ function getKingdomOwnerClass(playerIndex) {
   return s?.players?.[playerIndex]?.human ? 'is-player' : 'is-cpu';
 }
 
+function getKingdomPlayerAnchor(playerIndex) {
+  return ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`) || null;
+}
+
 function showKingdomOverlay(kind = 'action') {
   if (!ui.kingdomOverlay) return;
   ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
@@ -206,24 +227,29 @@ function flashKingdomPlayerRowAction(playerIndex, label) {
   kingdomRowFxTimers.set(playerIndex, t);
 }
 
-function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙') {
+function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', options = {}) {
   if (!ui.score || typeof document === 'undefined') return;
-  const sourceEl = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`) || ui.hand || ui.score;
+  const sourceEl = options.fromPot ? ui.score : (getKingdomPlayerAnchor(playerIndex) || ui.hand || ui.score);
+  const targetEl = options.targetPlayerIndex != null
+    ? (getKingdomPlayerAnchor(options.targetPlayerIndex) || ui.score)
+    : ui.score;
   const from = getElementCenterPoint(sourceEl);
-  const to = getElementCenterPoint(ui.score);
+  const to = getElementCenterPoint(targetEl);
   if (!from || !to) return;
   const ownerClass = getKingdomOwnerClass(playerIndex);
   const total = Math.max(1, Math.min(10, Number(coinCount) || 4));
+  const baseDelay = Math.max(0, Number(options.delayMs) || 0);
   for (let i = 0; i < total; i += 1) {
     const coin = document.createElement('span');
     coin.className = `tarot-coin-fx ${ownerClass}`;
+    if (options.className) coin.classList.add(options.className);
     coin.textContent = symbol;
     coin.style.left = `${from.x}px`;
     coin.style.top = `${from.y}px`;
     coin.style.opacity = '0';
     coin.style.transform = 'translate(-50%, -50%) scale(0.62) rotate(0deg)';
     document.body.appendChild(coin);
-    const delay = i * 34;
+    const delay = baseDelay + (i * 34);
     const targetX = to.x + ((Math.random() * 16) - 8);
     const targetY = to.y + ((Math.random() * 12) - 6);
     const rotate = (Math.random() * 88) - 44;
@@ -683,6 +709,7 @@ function finishRound(winnerIndex) {
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
   const raiseBonus = winner.raise ? 1 : 0;
+  let fxDelayMs = 120;
   log(`${winner.name}がアウト！ 清算開始`);
   s.players.forEach((loser, i) => {
     if (i === winnerIndex) return;
@@ -691,8 +718,26 @@ function finishRound(winnerIndex) {
     const pay = remain * rate;
     loser.chips -= pay; winner.chips += pay;
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x レート${rate}）`);
+    if (pay > 0) {
+      playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
+        targetPlayerIndex: winnerIndex,
+        delayMs: fxDelayMs
+      });
+      fxDelayMs += 110;
+    }
   });
-  if (s.pot > 0) { winner.chips += s.pot; log(`${winner.name}がPOT ${s.pot}獲得`); s.pot = 0; }
+  if (s.pot > 0) {
+    const potAward = s.pot;
+    winner.chips += potAward;
+    log(`${winner.name}がPOT ${potAward}獲得`);
+    playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(potAward), '💰', {
+      fromPot: true,
+      targetPlayerIndex: winnerIndex,
+      className: 'is-payout',
+      delayMs: fxDelayMs + 80
+    });
+    s.pot = 0;
+  }
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
     let top = 0; s.players.forEach((p, i) => { if (s.players[i].chips > s.players[top].chips) top = i; });
