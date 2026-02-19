@@ -250,11 +250,6 @@ function buildPool(input, effects) {
     }
     return { hand, pool };
 }
-function isCourtResolvedGroup(cards) {
-    if (cards.length === 0)
-        return false;
-    return cards.every((card) => !card.base.isArcana && COURT_VALUES.has(Number(card.base.number)));
-}
 function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSum) {
     const byValue = new Map();
     for (const card of resolvedCards) {
@@ -277,6 +272,22 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
     const tripEntries = valueEntries.filter((entry) => entry[1].length === 3);
     const quadEntries = valueEntries.filter((entry) => entry[1].length === 4);
     const fiveEntries = valueEntries.filter((entry) => entry[1].length >= 5);
+    const strongestEntry = valueEntries[0] || null;
+    const strongestValue = strongestEntry ? Number(strongestEntry[0]) : 0;
+    const cardsByValue = new Map(valueEntries.map(([value, cards]) => [Number(value), cards]));
+    const getCardsByValue = (value) => cardsByValue.get(Number(value)) || [];
+    const removeValueInstances = (value, count) => {
+        let toRemove = Math.max(0, Number(count) || 0);
+        const out = [];
+        for (const current of valuesDesc) {
+            if (current === value && toRemove > 0) {
+                toRemove -= 1;
+                continue;
+            }
+            out.push(current);
+        }
+        return out;
+    };
     const findTheWorldCombo = () => {
         if (!effects.world) return null;
         const worldCard = resolvedCards.find((card) => {
@@ -338,22 +349,6 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
         primaryVector = [tripValue, pairValue];
         roleCards = [...tripCards.slice(0, 3), ...pairCards.slice(0, 2)];
     }
-    else if (effects.lovers &&
-        pairEntries.length >= 2 &&
-        isCourtResolvedGroup(pairEntries[0][1]) &&
-        isCourtResolvedGroup(pairEntries[1][1])) {
-        const highPair = Math.max(pairEntries[0][0], pairEntries[1][0]);
-        const lowPair = Math.min(pairEntries[0][0], pairEntries[1][0]);
-        rank = 'CourtTwoPair';
-        primaryVector = [highPair, lowPair];
-        roleCards = [...pairEntries[0][1], ...pairEntries[1][1]].slice(0, 4);
-        kickerVector = [
-            valueEntries
-                .filter((entry) => entry[1].length === 1)
-                .map((entry) => entry[0])
-                .sort((a, b) => b - a)[0] ?? 0
-        ];
-    }
     else if (isFlush) {
         rank = 'Flush';
         primaryVector = valuesDesc.slice();
@@ -363,17 +358,6 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
         rank = 'Straight';
         primaryVector = [straightInfo?.high ?? 0];
         roleCards = resolvedCards.slice();
-    }
-    else if (effects.lovers &&
-        pairEntries.length === 1 &&
-        isCourtResolvedGroup(pairEntries[0][1])) {
-        rank = 'CourtOnePair';
-        primaryVector = [pairEntries[0][0]];
-        roleCards = pairEntries[0][1].slice(0, 2);
-        kickerVector = valueEntries
-            .filter((entry) => entry[1].length === 1)
-            .map((entry) => entry[0])
-            .sort((a, b) => b - a);
     }
     else if (tripEntries.length > 0) {
         const [tripValue, tripCards] = tripEntries[0];
@@ -411,6 +395,49 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
         primaryVector = [valuesDesc[0] ?? 0];
         roleCards = [resolvedCards.slice().sort((a, b) => b.value - a.value)[0]];
         kickerVector = valuesDesc.slice(1);
+    }
+    if (effects.lovers && strongestEntry) {
+        if (rank === 'HighCard') {
+            const baseCard = getCardsByValue(strongestValue)[0];
+            rank = 'OnePair';
+            primaryVector = [strongestValue];
+            roleCards = baseCard ? [baseCard, baseCard] : [];
+            kickerVector = removeValueInstances(strongestValue, 1).slice(0, 3);
+        }
+        else if (rank === 'OnePair') {
+            const pairCards = getCardsByValue(strongestValue).slice(0, 2);
+            const virtual = pairCards[0] || null;
+            rank = 'ThreeKind';
+            primaryVector = [strongestValue];
+            roleCards = virtual ? [...pairCards, virtual] : pairCards;
+            kickerVector = removeValueInstances(strongestValue, 2).slice(0, 2);
+        }
+        else if (rank === 'TwoPair') {
+            const highPairCards = getCardsByValue(strongestValue).slice(0, 2);
+            const lowPairValue = Number(primaryVector[1] ?? 0);
+            const lowPairCards = getCardsByValue(lowPairValue).slice(0, 2);
+            const virtual = highPairCards[0] || null;
+            rank = 'FullHouse';
+            primaryVector = [strongestValue, lowPairValue];
+            roleCards = virtual ? [...highPairCards, virtual, ...lowPairCards] : [...highPairCards, ...lowPairCards];
+            kickerVector = [];
+        }
+        else if (rank === 'ThreeKind') {
+            const tripCards = getCardsByValue(strongestValue).slice(0, 3);
+            const virtual = tripCards[0] || null;
+            rank = 'FourKind';
+            primaryVector = [strongestValue];
+            roleCards = virtual ? [...tripCards, virtual] : tripCards;
+            kickerVector = removeValueInstances(strongestValue, 3).slice(0, 1);
+        }
+        else if (rank === 'FourKind') {
+            const quadCards = getCardsByValue(strongestValue).slice(0, 4);
+            const virtual = quadCards[0] || null;
+            rank = 'FiveKind';
+            primaryVector = [strongestValue];
+            roleCards = virtual ? [...quadCards, virtual] : quadCards;
+            kickerVector = [];
+        }
     }
     const roleSuitVector = roleCards
         .map((card) => card.originalSuitWeight)
