@@ -2264,7 +2264,14 @@ function addBetToPot(ownerKey, amount, meta = null) {
 
 function getTotalPaidAmountByOwner(ownerKey) {
     if (!state || !ownerKey) return 0;
-    return Math.max(0, Math.floor(Number(state?.betting?.contributions?.[ownerKey] || 0)));
+    if (!Array.isArray(state.potArray) || state.potArray.length <= 0) return 0;
+    const total = state.potArray.reduce((sum, entry) => {
+        if (!entry || entry.ownerKey !== ownerKey) return sum;
+        const amount = Math.floor(Number(entry.amount || 0));
+        if (!Number.isFinite(amount) || amount <= 0) return sum;
+        return sum + amount;
+    }, 0);
+    return Math.max(0, total);
 }
 
 function settlePotByWinner(winnerKey) {
