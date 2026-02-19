@@ -90,7 +90,7 @@ const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
-const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : (c.number === 0 && role ? SUITS.slice() : ['None'])));
+const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
 const suitTierForCard = (c, suit) => {
   const base = SUIT_TIER[suit] || 0;
   // 大アルカナは、同値比較時のスート優位で常に小アルカナより上位
@@ -141,6 +141,38 @@ function getCardNumberLabel(card) {
   const n = Number(card.number) || 0;
   if (card.kind !== 'major' && n === 1) return 'A';
   return String(n);
+}
+
+function isRomanOnlyLabel(text) {
+  const s = String(text || '').trim();
+  return !!s && /^[IVXLCDM]+$/i.test(s);
+}
+
+function getRoleBaseLabel(role) {
+  if (!role) return '役出し';
+  return ROLE_LABEL[role.key] || role.label || '役出し';
+}
+
+function getRoleKeyCardName(role, cards) {
+  if (!role || !Array.isArray(cards) || !cards.length) return '';
+  const target = Number(role?.primary?.[0] || 0);
+  let candidates = cards.filter((c) => cStrength(c) === target);
+  if (!candidates.length) candidates = cards.slice();
+  candidates.sort((a, b) => {
+    const arc = Number(b?.kind === 'major') - Number(a?.kind === 'major');
+    if (arc !== 0) return arc;
+    return cStrength(b) - cStrength(a);
+  });
+  const name = getCardNameLabel(candidates[0]);
+  if (!name || isRomanOnlyLabel(name)) return '';
+  return name;
+}
+
+function getRoleDisplayLabel(play) {
+  const base = getRoleBaseLabel(play?.role);
+  if (play?.call) return `コール${base}`;
+  const keyName = getRoleKeyCardName(play?.role, play?.cardsHand || []);
+  return keyName ? `${keyName}${base}` : base;
 }
 
 function getArcanaMatchNumber() {
@@ -194,17 +226,19 @@ function getKingdomPlayerAnchor(playerIndex) {
 
 function showKingdomOverlay(kind = 'action') {
   if (!ui.kingdomOverlay) return;
-  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
   if (kind === 'raise') ui.kingdomOverlay.classList.add('is-kingdom-raise');
   else if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
   else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
+  else if (kind === 'roundend') ui.kingdomOverlay.classList.add('is-kingdom-roundend');
   void ui.kingdomOverlay.offsetWidth;
   ui.kingdomOverlay.classList.add('show');
   if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
+  const holdMs = kind === 'roundend' ? 760 : 260;
   kingdomOverlayTimer = setTimeout(() => {
-    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
     kingdomOverlayTimer = null;
-  }, 260);
+  }, holdMs);
 }
 
 function showKingdomCutin(playerIndex, label, options = {}) {
@@ -213,13 +247,40 @@ function showKingdomCutin(playerIndex, label, options = {}) {
   const who = playerIndex == null ? '' : `${pName(playerIndex)} `;
   const cutinText = `${who}${label}`;
   ui.kingdomCutin.textContent = cutinText;
-  ui.kingdomCutin.classList.remove('is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
+  ui.kingdomCutin.classList.remove(
+    'is-player',
+    'is-cpu',
+    'is-showdown-win',
+    'is-showdown-lose',
+    'is-showdown-draw',
+    'is-kingdom-skip',
+    'is-kingdom-cut',
+    'is-kingdom-reverse',
+    'is-kingdom-lock',
+    'is-kingdom-call',
+    'is-kingdom-role',
+    'is-kingdom-round-end'
+  );
   if (playerIndex != null) ui.kingdomCutin.classList.add(ownerClass);
   if (options.cutinClass) ui.kingdomCutin.classList.add(options.cutinClass);
   ui.kingdomCutin.classList.add('show');
   if (kingdomCutinTimer) clearTimeout(kingdomCutinTimer);
   kingdomCutinTimer = setTimeout(() => {
-    ui.kingdomCutin?.classList.remove('show', 'is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
+    ui.kingdomCutin?.classList.remove(
+      'show',
+      'is-player',
+      'is-cpu',
+      'is-showdown-win',
+      'is-showdown-lose',
+      'is-showdown-draw',
+      'is-kingdom-skip',
+      'is-kingdom-cut',
+      'is-kingdom-reverse',
+      'is-kingdom-lock',
+      'is-kingdom-call',
+      'is-kingdom-role',
+      'is-kingdom-round-end'
+    );
     kingdomCutinTimer = null;
   }, options.durationMs || 680);
 }
@@ -321,6 +382,11 @@ function spritePos(index) {
 function straightHigh(vals) {
   const u = Array.from(new Set(vals.slice().sort((a, b) => b - a)));
   if (u.length !== 5) return null;
+  // Wheel straight support: A(15)-2-3-4-5
+  if (u.includes(15)) {
+    const lowWheel = [5, 4, 3, 2].every((n) => u.includes(n));
+    if (lowWheel) return 5;
+  }
   for (let i = 1; i < 5; i += 1) if (u[i - 1] - u[i] !== 1) return null;
   return u[0];
 }
@@ -381,7 +447,7 @@ function evalRole(cards, lockSuit = null) {
     if (c.kind === 'minor') return [{ src: c, v: c.number === 1 ? 15 : c.number, raw: c.number, suit: c.suit }];
     if (c.number === 0) {
       const out = [];
-      for (let raw = 1; raw <= 15; raw += 1) SUITS.forEach((suit) => out.push({ src: c, v: raw === 1 ? 15 : raw, raw, suit }));
+      for (let raw = 1; raw <= 15; raw += 1) out.push({ src: c, v: raw === 1 ? 15 : raw, raw, suit: 'None' });
       return out;
     }
     if (c.number === 1) return SUITS.map((suit) => ({ src: c, v: 1, raw: 1, suit }));
@@ -411,6 +477,7 @@ function initState() {
   return {
     players: PLAYERS.map((p) => ({ ...p, chips: START_CHIPS, hand: [], discard: [], rateBonus: 0, raise: false, bet: 0, stars: 0 })),
     handNo: 0,
+    turnCount: 0,
     dealer: 0,
     turn: 0,
     phase: 'idle',
@@ -463,8 +530,22 @@ function resetMatch() {
   if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
   kingdomRowFxTimers.clear();
-  ui.kingdomCutin?.classList.remove('show', 'is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw');
-  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
+  ui.kingdomCutin?.classList.remove(
+    'show',
+    'is-player',
+    'is-cpu',
+    'is-showdown-win',
+    'is-showdown-lose',
+    'is-showdown-draw',
+    'is-kingdom-skip',
+    'is-kingdom-cut',
+    'is-kingdom-reverse',
+    'is-kingdom-lock',
+    'is-kingdom-call',
+    'is-kingdom-role',
+    'is-kingdom-round-end'
+  );
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
   s.openOracleRevealed = false;
@@ -475,6 +556,7 @@ function setupHand() {
   clearRoundState();
   s.roundActive = true;
   s.phase = 'turn';
+  s.turnCount = 1;
   s.minorDeck = shuf(mkMinor());
   s.majorDeck = shuf(mkMajor());
   for (let r = 0; r < START_HAND; r += 1) for (let i = 0; i < 4; i += 1) {
@@ -483,14 +565,44 @@ function setupHand() {
     if (c) s.players[p].hand.push(c);
   }
   s.players.forEach((p) => p.hand.sort((a, b) => cStrength(a) - cStrength(b)));
-  // 局開始時、全員に星を1つ付与
   s.players.forEach((p) => { p.stars = Math.max(0, Number(p.stars) || 0) + 1; });
-  s.turn = s.dealer;
-  s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   log(`第${s.handNo + 1}局開始 / 親: ${pName(s.dealer)}`);
+
+  const opening = s.minorDeck.pop();
+  if (opening) {
+    const openingPlay = {
+      type: 'set',
+      owner: s.dealer,
+      count: 1,
+      selected: [],
+      cardsHand: [opening],
+      cardsTable: [opening],
+      number: idNum(opening),
+      setPower: cStrength(opening),
+      suitTier: Math.max(...suitsForCard(opening, false).map((x) => suitTierForCard(opening, x)))
+    };
+    s.pass = [false, false, false, false];
+    s.trick = openingPlay;
+    s.lastPlay = openingPlay;
+    log(`開始場札: ${getCardNameLabel(opening)}(${getCardNumberLabel(opening)})`);
+
+    const fx = applySetEffects(openingPlay);
+    if (fx.forceClear) {
+      clearTrick(s.dealer);
+      return;
+    }
+    if (fx.keepTurn) {
+      s.turn = s.dealer;
+    } else {
+      s.turn = nextAlive(s.dealer, 1 + Math.max(0, fx.skip), false) ?? s.dealer;
+    }
+    s.message = `開始場札を公開。${pName(s.turn)}のターン`;
+  } else {
+    s.turn = s.dealer;
+    s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
+  }
   scheduleNpc();
 }
-
 function nextAlive(from, steps = 1, onlyNotPassed = false) {
   let found = 0;
   for (let st = 1; st <= 20; st += 1) {
@@ -549,6 +661,7 @@ function buildCallPlay(pi, sel) {
   if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
   const base = s.trick?.cardsTable?.[0];
   if (!base) return { ok: false, reason: '場札がありません。' };
+  if (base.kind === 'major') return { ok: false, reason: '場の大アルカナ1枚にはコールできません。' };
   if (sel.length !== 4) return { ok: false, reason: 'コールは手札4枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== 4) return { ok: false, reason: '選択が不正です。' };
@@ -601,6 +714,8 @@ function validatePlay(play, mode) {
     const actor = s.players?.[Number(play?.owner)];
     const stars = Math.max(0, Number(actor?.stars) || 0);
     if (stars <= 0) return { ok: false, reason: '星がないためコールできません。' };
+    const base = s.trick?.cardsTable?.[0];
+    if (base?.kind === 'major') return { ok: false, reason: '場の大アルカナ1枚にはコールできません。' };
     return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   }
   if (play.type !== s.trick.type || play.count !== s.trick.count) return { ok: false, reason: '場と同じ形式/枚数で。' };
@@ -625,11 +740,12 @@ function applyRoleRewardOnClear(playerIndex) {
   const play = s.lastPlay;
   if (!play || play.type !== 'role' || play.owner !== playerIndex) return;
   const p = s.players[playerIndex];
+  const roleLabel = getRoleDisplayLabel(play);
   const add = Number(play.role?.effectiveRate ?? play.role?.baseRate ?? 0);
-  if (add <= 0) { log(`${p.name}: ${play.role.label}（レート加算なし）`); return; }
-  if (p.chips < add) { log(`${p.name}: ${play.role.label}（チップ不足で加算なし）`); return; }
+  if (add <= 0) { log(`${p.name}: ${roleLabel}（レート加算なし）`); return; }
+  if (p.chips < add) { log(`${p.name}: ${roleLabel}（チップ不足で加算なし）`); return; }
   p.chips -= add; p.rateBonus += add; p.bet += add; s.pot += add;
-  log(`${p.name}: ${play.role.label}成立 +${add}レート / 同額ベット`);
+  log(`${p.name}: ${roleLabel}成立 +${add}レート / 同額ベット`);
   playKingdomCoinEffect(playerIndex, Math.min(8, Math.max(3, add + 2)), '🪙');
 }
 
@@ -673,6 +789,7 @@ function judgmentStart(playerIndex) {
 }
 
 function clearTrick(leader) {
+  s.turnCount = Math.max(1, Number(s.turnCount) || 1) + 1;
   if (s.players[leader]) {
     s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
   }
@@ -682,6 +799,7 @@ function clearTrick(leader) {
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
   triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760, cutin: false });
+  triggerKingdomActionFx(leader, `ターン ${s.turnCount}`, { overlay: 'action', durationMs: 700, cutin: true, delayMs: 120 });
   if (hadJudgment) { judgmentStart(leader); return; }
   drawChoiceStart(leader);
 }
@@ -741,7 +859,14 @@ function finishRound(winnerIndex) {
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
   const raiseBonus = winner.raise ? 1 : 0;
-  let fxDelayMs = 120;
+  let fxDelayMs = 360;
+  let totalGain = 0;
+  triggerKingdomActionFx(winnerIndex, '局終了', {
+    overlay: 'roundend',
+    durationMs: 1160,
+    cutin: true,
+    cutinClass: 'is-kingdom-round-end'
+  });
   log(`${winner.name}がアウト！ 清算開始`);
   s.players.forEach((loser, i) => {
     if (i === winnerIndex) return;
@@ -749,6 +874,7 @@ function finishRound(winnerIndex) {
     const rate = 1 + winner.rateBonus + raiseBonus + oracleHits + (hasAceMinor(loser.hand) ? A_PENALTY : 0);
     const pay = remain * rate;
     loser.chips -= pay; winner.chips += pay;
+    totalGain += Math.max(0, pay);
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x レート${rate}）`);
     if (pay > 0) {
       playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
@@ -761,6 +887,7 @@ function finishRound(winnerIndex) {
   if (s.pot > 0) {
     const potAward = s.pot;
     winner.chips += potAward;
+    totalGain += Math.max(0, potAward);
     log(`${winner.name}がPOT ${potAward}獲得`);
     playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(potAward), '💰', {
       fromPot: true,
@@ -770,6 +897,19 @@ function finishRound(winnerIndex) {
     });
     s.pot = 0;
   }
+  triggerKingdomActionFx(winnerIndex, `総取り +${totalGain}`, {
+    overlay: 'roundend',
+    durationMs: 1200,
+    cutin: true,
+    cutinClass: 'is-showdown-win',
+    delayMs: fxDelayMs + 140
+  });
+  playKingdomCoinEffect(winnerIndex, Math.min(10, Math.max(4, Math.ceil(totalGain / 6))), '👑', {
+    fromPot: true,
+    targetPlayerIndex: winnerIndex,
+    className: 'is-payout',
+    delayMs: fxDelayMs + 200
+  });
   s.players.forEach((p) => { p.stars = 0; });
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
@@ -866,17 +1006,18 @@ function applyPlay(pi, play) {
   s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play; s.lastPlay = play; s.turn = pi;
-  log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : `${play.role.label}${play.call ? '（コール）' : ''}`}`);
+  log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
   const actionLabel = play.type === 'set'
     ? `${play.count}枚出し`
-    : (play.call ? 'コール' : (play.role?.label || '役出し'));
-  const isCallPlay = !!play.call;
+    : getRoleDisplayLabel(play);
+  const isRolePlay = play.type === 'role';
+  const isCallPlay = isRolePlay && !!play.call;
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: 'action',
-    durationMs: isCallPlay ? 980 : 700,
-    cutin: isCallPlay,
-    cutinClass: isCallPlay ? 'is-kingdom-call' : undefined,
-    delayMs: isCallPlay ? 180 : 0
+    durationMs: isRolePlay ? 980 : 700,
+    cutin: isRolePlay,
+    cutinClass: isCallPlay ? 'is-kingdom-call' : (isRolePlay ? 'is-kingdom-role' : undefined),
+    delayMs: isRolePlay ? 180 : 0
   });
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
@@ -1261,7 +1402,8 @@ function renderOracleCard() {
 }
 
 function renderSummary() {
-  ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}`;
+  const turnText = s.roundActive ? ` / ターン ${Math.max(1, Number(s.turnCount) || 1)}` : '';
+  ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
   ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
   if (ui.reverseChip) {
     const showReverse = !!s.roundActive && !!s.reverse;

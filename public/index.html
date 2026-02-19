@@ -411,9 +411,8 @@
                             <button id="tarotKingdomDrawMajorButton" type="button">大アルカナを引く</button>
                             <button id="tarotKingdomDrawMinorButton" type="button">小アルカナを引く</button>
                             <button id="tarotKingdomRaiseButton" type="button">レイズ</button>
-                            <button id="tarotKingdomPassButton" type="button">パス</button>
                             <button id="tarotKingdomGraveToggleButton" type="button">墓地を見る</button>
-                            <button id="tarotKingdomPlayButton" type="button">プッシュ</button>
+                            <button id="tarotKingdomPassButton" type="button">パス</button>
                         </div>
                     </div>
                     <div class="tarot-kingdom-layout">
@@ -429,7 +428,10 @@
                         <div class="tarot-kingdom-panel">
                             <div class="tarot-kingdom-panel-title tarot-kingdom-hand-title">
                                 <span>あなたの手札</span>
-                                <button id="tarotKingdomClearButton" class="tarot-kingdom-clear-inline" type="button">選択解除</button>
+                                <div class="tarot-kingdom-hand-actions">
+                                    <button id="tarotKingdomClearButton" class="tarot-kingdom-clear-inline" type="button">選択解除</button>
+                                    <button id="tarotKingdomPlayButton" class="tarot-kingdom-play-inline" type="button">選択</button>
+                                </div>
                             </div>
                             <div id="tarotKingdomHand" class="tarot-kingdom-hand tarot-card-row"></div>
                         </div>
