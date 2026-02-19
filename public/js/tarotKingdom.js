@@ -5,6 +5,8 @@ const TAROT_SHEET_W = 512;
 const TAROT_BACK_INDEX = 110;
 
 const SUITS = ['Wand', 'Cup', 'Sword', 'Pentacle'];
+const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
+const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
 const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#c29b14', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
@@ -139,6 +141,13 @@ function getCardNumberLabel(card) {
   const n = Number(card.number) || 0;
   if (card.kind !== 'major' && n === 1) return 'A';
   return String(n);
+}
+
+function getArcanaMatchNumber() {
+  if (!s?.openOracleRevealed) return null;
+  if (!s.openOracleCard || s.openOracleCard.kind !== 'major') return null;
+  const n = Number(s.openOracleCard.number);
+  return Number.isFinite(n) ? n : null;
 }
 
 function showPlayError(reason) {
@@ -847,7 +856,8 @@ function applyPlay(pi, play) {
   if (play.type === 'set') play.cardsTable = removed.slice();
   else if (play.type === 'role' && play.call) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
   else play.cardsTable = removed.slice();
-  p.discard.push(...removed);
+  // 大アルカナは墓地へ送らない（場からは取り除かれるが墓地には残さない）
+  p.discard.push(...removed.filter((c) => c?.kind !== 'major'));
   if (play.call) {
     p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
   }
@@ -997,6 +1007,10 @@ function cardNode(card, opt = {}) {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'tarot-card';
+  const arcanaMatchNumber = getArcanaMatchNumber();
+  if (card?.kind === 'minor' && arcanaMatchNumber != null && Number(card.number) === arcanaMatchNumber) {
+    el.classList.add('is-arcana-match');
+  }
   if (card?.kind === 'minor') {
     el.classList.add(String(card.suit || 'None').toLowerCase());
   } else if (card?.kind === 'major') {
@@ -1177,34 +1191,63 @@ function renderJudgment() {
   ui.judgmentSkipButton.style.display = inJudgment ? '' : 'none';
   ui.judgmentSkipButton.disabled = !(inJudgment && human);
 
+  const slotMap = new Map();
   s.players.forEach((p, owner) => {
-    const group = document.createElement('div');
-    group.className = 'tarot-kingdom-grave-group';
+    p.discard.forEach((card, cardIndex) => {
+      if (!card || card.kind !== 'minor') return;
+      slotMap.set(`${card.suit}:${Number(card.number)}`, { card, owner, cardIndex });
+    });
+  });
 
-    const ownerLabel = document.createElement('div');
-    ownerLabel.className = 'tarot-kingdom-grave-owner';
-    ownerLabel.textContent = `${pName(owner)}墓地`;
-    group.appendChild(ownerLabel);
+  const rankHeader = document.createElement('div');
+  rankHeader.className = 'tarot-kingdom-grave-rank-header';
+  GRAVE_RANK_ORDER.forEach((rank) => {
+    const cell = document.createElement('div');
+    cell.className = 'tarot-kingdom-grave-rank-cell';
+    cell.textContent = GRAVE_RANK_LABEL[rank] || String(rank);
+    rankHeader.appendChild(cell);
+  });
+  ui.judgmentOptions.appendChild(rankHeader);
 
-    const cardsWrap = document.createElement('div');
-    cardsWrap.className = 'tarot-kingdom-grave-cards';
-    if (!p.discard.length) {
-      const empty = document.createElement('div');
-      empty.className = 'tarot-kingdom-grave-empty';
-      empty.textContent = 'カードなし';
-      cardsWrap.appendChild(empty);
-    } else {
-      p.discard.forEach((card, cardIndex) => {
+  SUITS.forEach((suit) => {
+    const row = document.createElement('div');
+    row.className = 'tarot-kingdom-grave-row';
+
+    const suitLabel = document.createElement('div');
+    suitLabel.className = 'tarot-kingdom-grave-suit-label';
+    suitLabel.textContent = suit;
+    row.appendChild(suitLabel);
+
+    const grid = document.createElement('div');
+    grid.className = 'tarot-kingdom-grave-grid';
+
+    GRAVE_RANK_ORDER.forEach((rank) => {
+      const slot = document.createElement('div');
+      slot.className = 'tarot-kingdom-grave-slot';
+      const entry = slotMap.get(`${suit}:${rank}`);
+      if (!entry) {
+        const empty = document.createElement('div');
+        empty.className = 'tarot-kingdom-grave-slot-empty';
+        empty.textContent = ' ';
+        slot.appendChild(empty);
+      } else {
         const clickable = inJudgment && human;
-        const node = cardNode(card, {
-          clickable,
-          onClick: clickable ? () => applyJudgmentPick(owner, cardIndex) : null
+        const node = cardNode(entry.card, {
+          clickable: true,
+          onClick: clickable
+            ? () => applyJudgmentPick(entry.owner, entry.cardIndex)
+            : () => {
+              s.message = `${getCardNameLabel(entry.card)} は ${pName(entry.owner)} が出したカード`;
+              renderSummary();
+            }
         });
-        cardsWrap.appendChild(node);
-      });
-    }
-    group.appendChild(cardsWrap);
-    ui.judgmentOptions.appendChild(group);
+        node.classList.add('is-mini');
+        slot.appendChild(node);
+      }
+      grid.appendChild(slot);
+    });
+    row.appendChild(grid);
+    ui.judgmentOptions.appendChild(row);
   });
 }
 

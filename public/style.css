@@ -3007,6 +3007,11 @@ body.modal-lock .modal-overlay {
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px dashed rgba(148, 163, 184, 0.35);
+    --tarot-card-w: 27px;
+    --tarot-card-h: 44px;
+    --tarot-card-padding: 2px;
+    --tarot-card-number-size: 12px;
+    --tarot-card-title-size: 8px;
 }
 
 .tarot-kingdom-judgment-title {
@@ -3019,32 +3024,73 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-judgment-options {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
 }
 
-.tarot-kingdom-grave-group {
-    display: flex;
-    flex-direction: column;
+.tarot-kingdom-grave-rank-header {
+    display: grid;
+    grid-template-columns: repeat(14, var(--tarot-card-w, 27px));
     gap: 6px;
+    padding-left: 42px;
+    width: max-content;
 }
 
-.tarot-kingdom-grave-owner {
+.tarot-kingdom-grave-rank-cell {
+    font-size: 10px;
+    font-weight: 700;
+    color: #cbd5e1;
+    text-align: center;
+    opacity: 0.95;
+}
+
+.tarot-kingdom-grave-row {
+    display: grid;
+    grid-template-columns: 36px max-content;
+    gap: 6px;
+    align-items: start;
+    width: max-content;
+}
+
+.tarot-kingdom-grave-suit-label {
     font-size: 10px;
     font-weight: 700;
     color: #93c5fd;
     letter-spacing: 0.02em;
+    line-height: 44px;
+    text-align: center;
 }
 
-.tarot-kingdom-grave-cards {
+.tarot-kingdom-grave-grid {
+    display: grid;
+    grid-template-columns: repeat(14, var(--tarot-card-w, 27px));
+    gap: 6px;
+}
+
+.tarot-kingdom-grave-slot {
+    width: var(--tarot-card-w, 27px);
+    height: var(--tarot-card-h, 44px);
+    border-radius: 8px;
+    border: 1px dashed rgba(148, 163, 184, 0.4);
+    background: rgba(2, 6, 23, 0.35);
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    justify-content: center;
 }
 
-.tarot-kingdom-grave-empty {
+.tarot-kingdom-grave-slot .tarot-card {
+    width: var(--tarot-card-w, 27px);
+    min-width: var(--tarot-card-w, 27px);
+    height: var(--tarot-card-h, 44px);
+    min-height: var(--tarot-card-h, 44px);
+}
+
+.tarot-kingdom-grave-slot-empty {
     font-size: 10px;
     color: #94a3b8;
-    opacity: 0.9;
+    opacity: 0.4;
+    line-height: 1;
 }
 
 .tarot-kingdom-judgment-owner {
@@ -4013,6 +4059,10 @@ body.modal-lock .modal-overlay {
     cursor: default;
 }
 
+.tarot-card.is-arcana-match {
+    animation: tarotArcanaMatchGlow 1.8s ease-in-out infinite;
+}
+
 .tarot-card.is-leaving {
     transition: opacity 130ms ease, transform 130ms ease, filter 130ms ease;
     opacity: 0.58 !important;
@@ -4171,6 +4221,25 @@ body.modal-lock .modal-overlay {
         filter:
             drop-shadow(0 0 1px rgba(255, 255, 255, 0.7))
             drop-shadow(0 0 4px rgba(253, 224, 71, 0.6));
+    }
+}
+
+@keyframes tarotArcanaMatchGlow {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.28),
+            0 0 8px rgba(255, 255, 255, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.76),
+            0 0 16px rgba(255, 255, 255, 0.82),
+            0 0 24px rgba(254, 240, 138, 0.66),
+            inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        filter: brightness(1.08);
     }
 }
 
