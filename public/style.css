@@ -2656,6 +2656,34 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
 }
 
+.tarot-kingdom-chip--reverse {
+    border-color: rgba(251, 191, 36, 0.78);
+    background: linear-gradient(180deg, rgba(113, 63, 18, 0.7), rgba(120, 53, 15, 0.84));
+    color: #fde68a;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.24),
+        0 0 14px rgba(251, 191, 36, 0.26);
+    animation: tarotKingdomReversePulse 1.2s ease-in-out infinite;
+}
+
+.tarot-kingdom-root.is-reverse .tarot-kingdom-panel {
+    border-color: rgba(251, 191, 36, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.14);
+}
+
+@keyframes tarotKingdomReversePulse {
+    0%,
+    100% {
+        transform: translateY(0);
+        filter: saturate(1);
+    }
+    50% {
+        transform: translateY(-1px);
+        filter: saturate(1.15);
+    }
+}
+
 .tarot-kingdom-controls {
     display: flex;
     gap: 8px;
@@ -2759,6 +2787,73 @@ body.modal-lock .modal-overlay {
     border-radius: 8px;
     border: 1px solid rgba(148, 163, 184, 0.3);
     background: rgba(2, 6, 23, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tarot-kingdom-oracle-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tarot-kingdom-oracle-card-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 700px;
+}
+
+.tarot-kingdom-oracle-card-wrap.is-flipping .tarot-card {
+    animation: tarotKingdomOracleFlip 560ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transform-style: preserve-3d;
+}
+
+.tarot-kingdom-oracle-card {
+    --tarot-card-w: 27px;
+    --tarot-card-h: 44px;
+    --tarot-art-w: 48px;
+    --tarot-art-h: 80px;
+    --tarot-art-left: 2px;
+    --tarot-art-top: 4px;
+    --tarot-card-padding: 2px;
+    --tarot-card-number-size: 12px;
+    --tarot-card-title-size: 8px;
+    width: calc(var(--tarot-card-w, 27px) + 2px);
+    min-width: calc(var(--tarot-card-w, 27px) + 2px);
+    min-height: calc(var(--tarot-card-h, 44px) + 2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tarot-kingdom-oracle-card .tarot-card {
+    width: var(--tarot-card-w, 27px);
+    min-width: var(--tarot-card-w, 27px);
+    height: var(--tarot-card-h, 44px);
+    min-height: var(--tarot-card-h, 44px);
+}
+
+.tarot-kingdom-oracle-card .tarot-card-art {
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    transform-origin: center center;
+}
+
+@keyframes tarotKingdomOracleFlip {
+    0% {
+        transform: rotateY(0deg);
+    }
+    48% {
+        transform: rotateY(90deg);
+    }
+    52% {
+        transform: rotateY(90deg);
+    }
+    100% {
+        transform: rotateY(0deg);
+    }
 }
 
 .tarot-kingdom-oracle-title {
@@ -4152,6 +4247,33 @@ body.modal-lock .modal-overlay {
 .tarot-cutin.is-cpu {
     border-color: rgba(239, 68, 68, 0.55);
     box-shadow: 0 10px 30px rgba(239, 68, 68, 0.25);
+}
+
+.tarot-cutin.is-kingdom-skip {
+    border-color: rgba(56, 189, 248, 0.82);
+    background: linear-gradient(120deg, rgba(8, 47, 73, 0.96), rgba(12, 74, 110, 0.96));
+    color: #e0f2fe;
+}
+
+.tarot-cutin.is-kingdom-cut {
+    border-color: rgba(244, 114, 182, 0.85);
+    background: linear-gradient(120deg, rgba(80, 7, 36, 0.96), rgba(131, 24, 67, 0.96));
+    color: #fce7f3;
+}
+
+.tarot-cutin.is-kingdom-reverse {
+    border-color: rgba(251, 191, 36, 0.92);
+    background: linear-gradient(120deg, rgba(69, 26, 3, 0.97), rgba(120, 53, 15, 0.97));
+    color: #fef3c7;
+    box-shadow:
+        0 14px 36px rgba(245, 158, 11, 0.38),
+        0 0 28px rgba(251, 191, 36, 0.3);
+}
+
+.tarot-cutin.is-kingdom-lock {
+    border-color: rgba(34, 197, 94, 0.85);
+    background: linear-gradient(120deg, rgba(5, 46, 22, 0.96), rgba(22, 101, 52, 0.96));
+    color: #dcfce7;
 }
 
 .tarot-coin-fx {

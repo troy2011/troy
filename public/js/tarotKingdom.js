@@ -50,9 +50,18 @@ let trickRenderToken = 0;
 let stateErrorTimer = null;
 let kingdomCutinTimer = null;
 let kingdomOverlayTimer = null;
+let oracleRevealDelayTimer = null;
+let oracleFlipSwapTimer = null;
+let oracleFlipEndTimer = null;
 const kingdomRowFxTimers = new Map();
 
 const clearNpcTimer = () => { if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; } };
+const clearOracleFlipTimers = () => {
+  if (oracleRevealDelayTimer) { clearTimeout(oracleRevealDelayTimer); oracleRevealDelayTimer = null; }
+  if (oracleFlipSwapTimer) { clearTimeout(oracleFlipSwapTimer); oracleFlipSwapTimer = null; }
+  if (oracleFlipEndTimer) { clearTimeout(oracleFlipEndTimer); oracleFlipEndTimer = null; }
+  ui.oracleCardWrap?.classList.remove('is-flipping');
+};
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length === n) return out.push(ac.slice()); for (let i = st; i <= arr.length - (n - ac.length); i += 1) { ac.push(arr[i]); w(i + 1, ac); ac.pop(); } }; if (n > 0 && arr.length >= n) w(0, []); return out; };
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
@@ -366,6 +375,7 @@ function initState() {
     majorDeck: [],
     openOracleCard: null,
     openOracle: null,
+    openOracleRevealed: false,
     hiddenOracleCard: null,
     pendingDraw: null,
     pendingJudgment: null,
@@ -395,6 +405,7 @@ function resetMatch() {
   trickRenderKey = '';
   trickRenderToken += 1;
   if (stateErrorTimer) { clearTimeout(stateErrorTimer); stateErrorTimer = null; }
+  clearOracleFlipTimers();
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
   if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
@@ -403,6 +414,7 @@ function resetMatch() {
   ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw');
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
+  s.openOracleRevealed = false;
 }
 
 function setupHand() {
@@ -616,40 +628,40 @@ function applySetEffects(play) {
   if (has(5)) {
     if (cards.length === 1 && cards.some((c) => c.kind === 'major' && c.number === 5)) {
       keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5で全員スキップ`);
-      triggerKingdomActionFx(play.owner, '大アルカナ5', { overlay: 'action', durationMs: 860, cutin: true });
+      triggerKingdomActionFx(play.owner, '大アルカナ5', { overlay: 'action', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-skip' });
     } else {
       skip = cards.length; log(`${pName(play.owner)}: 5スキップ x${cards.length}`);
-      triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true });
+      triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-skip' });
     }
   }
   if (has(8)) {
     if (cards.length >= 2 || cards.some((c) => c.kind === 'major' && c.number === 8)) {
       forceClear = true; s.callOnly = false; log(`${pName(play.owner)}: 8カットでクリア`);
-      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'clear', durationMs: 860, cutin: true });
+      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'clear', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-cut' });
     } else {
       s.callOnly = true; log(`${pName(play.owner)}: 8カット（コール猶予）`);
-      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'action', durationMs: 780, cutin: true });
+      triggerKingdomActionFx(play.owner, '8カット', { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-cut' });
     }
   } else s.callOnly = false;
   if (has(11)) {
     s.reverse = true;
     if (cards.some((c) => c.kind === 'major' && c.number === 11)) {
       s.reversePersist = true; log(`${pName(play.owner)}: 大アルカナ11でゲーム終了まで11バック`);
-      triggerKingdomActionFx(play.owner, '大アルカナ11バック', { overlay: 'action', durationMs: 920, cutin: true });
+      triggerKingdomActionFx(play.owner, '大アルカナ11バック', { overlay: 'action', durationMs: 920, cutin: true, cutinClass: 'is-kingdom-reverse' });
     } else {
       log(`${pName(play.owner)}: 11バック`);
-      triggerKingdomActionFx(play.owner, '11バック', { overlay: 'action', durationMs: 820, cutin: true });
+      triggerKingdomActionFx(play.owner, '11バック', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-reverse' });
     }
   }
   if (has(14) && cards.length === 1 && s.trick?.cardsTable?.[0]) {
     const cur = cards[0], prev = s.trick.cardsTable[0], prevSuit = suitsForCard(prev, false)[0] || 'None';
     if (cur.kind === 'major' && cur.number === 14) {
       s.lock = { suit: prevSuit, min: cStrength(cur) }; log(`${pName(play.owner)}: 節制ロック (${SUIT_LABEL[prevSuit]})`);
-      triggerKingdomActionFx(play.owner, '節制ロック', { overlay: 'action', durationMs: 860, cutin: true });
+      triggerKingdomActionFx(play.owner, '節制ロック', { overlay: 'action', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-lock' });
     }
     else if (suitsForCard(cur, false).includes(prevSuit)) {
       s.lock = { suit: prevSuit, min: null }; log(`${pName(play.owner)}: 14ロック (${SUIT_LABEL[prevSuit]})`);
-      triggerKingdomActionFx(play.owner, '14ロック', { overlay: 'action', durationMs: 820, cutin: true });
+      triggerKingdomActionFx(play.owner, '14ロック', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
     }
   }
   return { forceClear, keepTurn, skip };
@@ -1014,12 +1026,26 @@ function renderJudgment() {
   ui.judgmentSkipButton.disabled = !human;
 }
 
+function renderOracleCard() {
+  if (!ui.oracleCard) return;
+  ui.oracleCard.innerHTML = '';
+  const card = (s.openOracleRevealed && s.openOracleCard) ? s.openOracleCard : null;
+  ui.oracleCard.appendChild(cardNode(card, { small: true }));
+}
+
 function renderSummary() {
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}`;
   ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
+  if (ui.reverseChip) {
+    ui.reverseChip.hidden = !s.reverse;
+    ui.reverseChip.textContent = s.reversePersist ? '11バック中（永続）' : '11バック中';
+  }
+  ui.root?.classList.toggle('is-reverse', !!s.reverse);
   ui.stateText.textContent = s.message || '';
   ui.score.textContent = `POT ${s.pot} / ${s.players.map((p) => `${p.name}:${p.chips}`).join('  ')}`;
-  ui.openOracle.textContent = s.openOracleCard ? `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}` : '表: なし';
+  if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
+  else if (!s.openOracleRevealed) ui.openOracle.textContent = '表: 未公開';
+  else ui.openOracle.textContent = `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}`;
   ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
   ui.log.innerHTML = s.logs.slice(-28).map((m) => `<div class="tarot-log-row">${m}</div>`).join('');
   ui.log.scrollTop = ui.log.scrollHeight;
@@ -1031,6 +1057,7 @@ function updateButtons() {
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
   const canPlayNow = myTurn || drawMe;
+  ui.startButton.hidden = !!s.roundActive;
   ui.playButton.disabled = !canPlayNow;
   ui.clearButton.disabled = !canClearSelection;
   ui.passButton.disabled = !myTurn;
@@ -1040,11 +1067,37 @@ function updateButtons() {
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
 }
 
-function render() { if (!s) return; renderSummary(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
+function render() { if (!s) return; renderSummary(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
+
+function revealOracleWithFlip() {
+  if (!s || s.openOracleRevealed || !s.openOracleCard) return;
+  clearOracleFlipTimers();
+  ui.oracleCardWrap?.classList.add('is-flipping');
+  oracleFlipSwapTimer = setTimeout(() => {
+    oracleFlipSwapTimer = null;
+    if (!s) return;
+    s.openOracleRevealed = true;
+    renderSummary();
+    renderOracleCard();
+  }, 280);
+  oracleFlipEndTimer = setTimeout(() => {
+    oracleFlipEndTimer = null;
+    ui.oracleCardWrap?.classList.remove('is-flipping');
+  }, 600);
+}
 
 function startOrNext() {
   if (!s || s.phase === 'done') resetMatch();
-  if (!s.roundActive && s.handNo < TOTAL_HANDS) { setupHand(); render(); }
+  if (!s.roundActive && s.handNo < TOTAL_HANDS) {
+    setupHand();
+    render();
+    if (!s.openOracleRevealed) {
+      oracleRevealDelayTimer = setTimeout(() => {
+        oracleRevealDelayTimer = null;
+        revealOracleWithFlip();
+      }, 120);
+    }
+  }
 }
 
 function humanPlay() {
@@ -1089,9 +1142,13 @@ function humanPlay() {
 
 function bindUi() {
   if (bound) return;
+  ui.root = document.getElementById('tarotKingdomRoot');
   ui.round = document.getElementById('tarotKingdomRound');
   ui.turn = document.getElementById('tarotKingdomTurn');
+  ui.reverseChip = document.getElementById('tarotKingdomReverse');
   ui.score = document.getElementById('tarotKingdomScore');
+  ui.oracleCardWrap = document.getElementById('tarotKingdomOracleCardWrap');
+  ui.oracleCard = document.getElementById('tarotKingdomOracleCard');
   ui.openOracle = document.getElementById('tarotKingdomOpenOracle');
   ui.hiddenOracle = document.getElementById('tarotKingdomHiddenOracle');
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');

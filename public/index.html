@@ -386,13 +386,19 @@
                         <div class="tarot-kingdom-header-meta">
                             <span id="tarotKingdomRound" class="tarot-kingdom-chip">局 0 / 4</span>
                             <span id="tarotKingdomTurn" class="tarot-kingdom-chip">待機中</span>
+                            <span id="tarotKingdomReverse" class="tarot-kingdom-chip tarot-kingdom-chip--reverse" hidden>11バック中</span>
                         </div>
                     </div>
                     <div id="tarotKingdomScore" class="tarot-kingdom-score">POT 0 / チップ情報を表示します</div>
                     <div class="tarot-kingdom-oracle">
-                        <div class="tarot-kingdom-oracle-title">オラクル</div>
-                        <div id="tarotKingdomOpenOracle" class="tarot-kingdom-oracle-text">表: なし</div>
-                        <div id="tarotKingdomHiddenOracle" class="tarot-kingdom-oracle-text">裏: 未公開</div>
+                        <div id="tarotKingdomOracleCardWrap" class="tarot-kingdom-oracle-card-wrap" aria-hidden="true">
+                            <div id="tarotKingdomOracleCard" class="tarot-kingdom-oracle-card"></div>
+                        </div>
+                        <div class="tarot-kingdom-oracle-info">
+                            <div class="tarot-kingdom-oracle-title">オラクル</div>
+                            <div id="tarotKingdomOpenOracle" class="tarot-kingdom-oracle-text">表: 未公開</div>
+                            <div id="tarotKingdomHiddenOracle" class="tarot-kingdom-oracle-text">裏: 未公開</div>
+                        </div>
                     </div>
                     <div id="tarotKingdomEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
                     <div id="tarotKingdomCutin" class="tarot-cutin" aria-hidden="true"></div>
