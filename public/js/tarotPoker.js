@@ -3770,6 +3770,11 @@ function getRoleCardsForDisplay(score, options = {}) {
     const extraKickerCards = Array.isArray(options.extraKickerCards) ? options.extraKickerCards : [];
     if (!score || !Array.isArray(score.cards) || score.cards.length === 0) return [];
     const cards = score.cards.slice().sort(compareCardsForFlush);
+    const fallbackCards = cards.slice(0, Math.min(5, cards.length));
+    const withFallbackCards = (selected) => {
+        const list = Array.isArray(selected) ? selected.filter(Boolean) : [];
+        return list.length > 0 ? list : fallbackCards;
+    };
     const numberMap = new Map();
     cards.forEach((card) => {
         const key = Number(card.number);
@@ -3815,25 +3820,29 @@ function getRoleCardsForDisplay(score, options = {}) {
 
     switch (score.rank) {
     case 2: // high card
-        return appendExtraKickers(cards.slice(0, 1));
+        return appendExtraKickers(withFallbackCards(cards.slice(0, 1)));
     case 3: // one pair
         return appendExtraKickers(
+            withFallbackCards(
             appendKicker(
                 takeByCount(2, 1).slice(0, 2),
                 Math.max(1, (Array.isArray(score.rankVector) ? score.rankVector.length : 1) - 1)
             )
+            )
         );
     case 4: // two pair
-        return appendExtraKickers(appendKicker(takeByCount(2, 2).slice(0, 4), 1));
+        return appendExtraKickers(withFallbackCards(appendKicker(takeByCount(2, 2).slice(0, 4), 1)));
     case 5: // three card
         return appendExtraKickers(
+            withFallbackCards(
             appendKicker(
                 takeByCount(3, 1).slice(0, 3),
                 Math.max(1, (Array.isArray(score.rankVector) ? score.rankVector.length : 1) - 1)
             )
+            )
         );
     case 9: // four card
-        return appendExtraKickers(takeByCount(4, 1).slice(0, 4));
+        return appendExtraKickers(withFallbackCards(takeByCount(4, 1).slice(0, 4)));
     case 8.5: { // the world (World + 4 cards sum 21, excluding court from the 4)
         const worldCard = cards.find((card) => {
             const ruleNumber = Number.isFinite(Number(card?.effectNumber))
@@ -3841,18 +3850,18 @@ function getRoleCardsForDisplay(score, options = {}) {
                 : Number(card?.number || 0);
             return !!card?.isArcana && ruleNumber === 21;
         });
-        if (!worldCard) return appendExtraKickers(cards.slice(0, 5));
+        if (!worldCard) return appendExtraKickers(withFallbackCards(cards.slice(0, 5)));
         const others = cards
             .filter((card) => card !== worldCard)
             .filter((card) => !!card?.isArcana || ![11, 12, 13, 14].includes(Number(card?.number || 0)))
             .sort(compareCardsForFlush)
             .slice(0, 4);
-        return appendExtraKickers([worldCard, ...others]);
+        return appendExtraKickers(withFallbackCards([worldCard, ...others]));
     }
     case 11: // five card
-        return appendExtraKickers(takeByCount(5, 1).slice(0, 5));
+        return appendExtraKickers(withFallbackCards(takeByCount(5, 1).slice(0, 5)));
     default: // straight / flush / full house / straight flush
-        return appendExtraKickers(cards.slice(0, 5));
+        return appendExtraKickers(withFallbackCards(cards.slice(0, 5)));
     }
 }
 

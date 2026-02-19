@@ -2573,7 +2573,7 @@ body.modal-lock .modal-overlay {
 .tarot-poker-root {
     overflow: visible;
     position: relative;
-    --tarot-card-w: 53px;
+    --tarot-card-w: 54px;
     --tarot-card-h: 88px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
@@ -3103,8 +3103,8 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-poker-column--npc-mini {
-    --tarot-card-w: 29px;
-    --tarot-card-h: 48px;
+    --tarot-card-w: 27px;
+    --tarot-card-h: 44px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
     --tarot-art-left: 2px;
