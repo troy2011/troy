@@ -3702,19 +3702,20 @@ function getRoleCardsForDisplay(score, options = {}) {
         );
     case 9: // four card
         return appendExtraKickers(takeByCount(4, 1).slice(0, 4));
-    case 8.5: { // the world (sum 21 by 4 cards, excluding World and court)
-        const role = cards.filter((card) => {
+    case 8.5: { // the world (World + 4 cards sum 21, excluding court from the 4)
+        const worldCard = cards.find((card) => {
             const ruleNumber = Number.isFinite(Number(card?.effectNumber))
                 ? Number(card.effectNumber)
                 : Number(card?.number || 0);
-            if (card?.isArcana && ruleNumber === 21) return false;
-            if (!card?.isArcana) {
-                const n = Number(card?.number || 0);
-                if (n >= 11 && n <= 14) return false;
-            }
-            return true;
-        }).slice(0, 4);
-        return appendExtraKickers(role);
+            return !!card?.isArcana && ruleNumber === 21;
+        });
+        if (!worldCard) return appendExtraKickers(cards.slice(0, 5));
+        const others = cards
+            .filter((card) => card !== worldCard)
+            .filter((card) => !!card?.isArcana || ![11, 12, 13, 14].includes(Number(card?.number || 0)))
+            .sort(compareCardsForFlush)
+            .slice(0, 4);
+        return appendExtraKickers([worldCard, ...others]);
     }
     case 11: // five card
         return appendExtraKickers(takeByCount(5, 1).slice(0, 5));

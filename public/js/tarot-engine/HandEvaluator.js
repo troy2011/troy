@@ -279,30 +279,28 @@ function evaluateResolvedFive(resolvedCards, effects, rankMap, privateStrengthSu
     const fiveEntries = valueEntries.filter((entry) => entry[1].length >= 5);
     const findTheWorldCombo = () => {
         if (!effects.world) return null;
-        const eligible = resolvedCards.filter((card) => {
+        const worldCard = resolvedCards.find((card) => {
             const ruleNumber = Number(card?.base?.effectNumber ?? card?.base?.number ?? -1);
-            if (card?.base?.isArcana && ruleNumber === 21) return false;
+            return !!card?.base?.isArcana && ruleNumber === 21;
+        });
+        if (!worldCard)
+            return null;
+        const others = resolvedCards.filter((card) => card !== worldCard);
+        if (others.length !== 4)
+            return null;
+        for (const card of others) {
             if (!card?.base?.isArcana) {
                 const n = Number(card?.base?.number ?? 0);
-                if (COURT_VALUES.has(n)) return false;
-            }
-            return true;
-        });
-        if (eligible.length < 4) return null;
-        const combos = combinations(eligible, 4);
-        let best = null;
-        let bestVector = null;
-        for (const combo of combos) {
-            const sum = combo.reduce((acc, card) => acc + Number(card?.value || 0), 0);
-            if (sum !== 21) continue;
-            const vector = combo.map((card) => Number(card?.value || 0)).sort((a, b) => b - a);
-            if (!best || lexicographicCompare(vector, bestVector || []) > 0) {
-                best = combo.slice();
-                bestVector = vector;
+                if (COURT_VALUES.has(n))
+                    return null;
             }
         }
-        if (!best) return null;
-        return { cards: best, vector: bestVector || [] };
+        const sum = others.reduce((acc, card) => acc + Number(card?.value || 0), 0);
+        if (sum !== 21)
+            return null;
+        const vector = others.map((card) => Number(card?.value || 0)).sort((a, b) => b - a);
+        const sortedOthers = others.slice().sort((a, b) => Number(b?.value || 0) - Number(a?.value || 0));
+        return { cards: [worldCard, ...sortedOthers], vector };
     };
     const theWorldCombo = findTheWorldCombo();
     let rank = 'HighCard';
