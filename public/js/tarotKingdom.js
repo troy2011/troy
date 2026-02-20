@@ -60,7 +60,27 @@ let oracleFlipEndTimer = null;
 let callCinematicTimer = null;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
+const KINGDOM_TRACE_ENABLED = true;
+let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
+
+function traceKingdomFlow(step, details = '') {
+  if (!KINGDOM_TRACE_ENABLED) return;
+  const flowId = s ? Number(s._traceFlowId || 0) : 0;
+  const phase = s?.phase ?? 'no-state';
+  const turn = s?.turn ?? '-';
+  const trick = s?.trick ? `${s.trick.type}:${s.trick.owner}:${s.trick.count ?? '-'}` : 'null';
+  const pendingDraw = s?.pendingDraw ?? '-';
+  const pendingJudgment = s?.pendingJudgment ?? '-';
+  const leadOwner = s?.leadRequiredOwner ?? '-';
+  const suffix = details ? ` | ${details}` : '';
+  const line = `[TK-TRACE#${flowId}] ${step} | phase=${phase} turn=${turn} trick=${trick} pd=${pendingDraw} pj=${pendingJudgment} lead=${leadOwner}${suffix}`;
+  try {
+    console.debug(line);
+  } catch (_) {
+    // no-op
+  }
+}
 
 const clearNpcTimer = () => {
   if (npcTimer) {
@@ -554,6 +574,7 @@ function initState() {
     phase: 'idle',
     roundActive: false,
     trick: null,
+    leadRequiredOwner: null,
     lastPlay: null,
     pass: [false, false, false, false],
     callOnly: false,
@@ -587,6 +608,7 @@ function initState() {
 
 function clearRoundState() {
   s.trick = null;
+  s.leadRequiredOwner = null;
   s.lastPlay = null;
   s.pass = [false, false, false, false];
   s.callOnly = false;
@@ -654,12 +676,24 @@ function resolveReversePersistSuspend() {
   s.reversePersistSuspendOwner = null;
 }
 
+function enforceLeadTurnInvariant() {
+  if (!s || !s.roundActive) return;
+  if (s.phase !== 'turn') return;
+  if (s.trick) {
+    s.leadRequiredOwner = null;
+    return;
+  }
+  if (s.leadRequiredOwner == null) s.leadRequiredOwner = s.turn;
+  if (s.turn !== s.leadRequiredOwner) s.turn = s.leadRequiredOwner;
+}
+
 function setupHand() {
   clearNpcTimer();
   clearRoundState();
   if (s.reversePersist) s.reverse = true;
   s.roundActive = true;
   s.phase = 'turn';
+  s.leadRequiredOwner = null;
   s.turnCount = 1;
   s.minorDeck = shuf(mkMinor());
   s.majorDeck = shuf(mkMajor());
@@ -929,7 +963,12 @@ function applyRoleRewardOnClear(playerIndex) {
 function drawChoiceStart(playerIndex) {
   s.selected.clear();
   const actor = s.players[playerIndex];
+  traceKingdomFlow(
+    'drawChoiceStart.enter',
+    `player=${playerIndex} hand=${actor?.hand?.length ?? 0} minorDeck=${s.minorDeck.length} majorDeck=${s.majorDeck.length}`
+  );
   if ((actor?.hand?.length || 0) >= START_HAND) {
+    traceKingdomFlow('drawChoiceStart.skip.fullHand', `player=${playerIndex}`);
     s.pendingDraw = null;
     s.phase = 'turn';
     s.message = `${pName(playerIndex)}は手札上限(${START_HAND}枚)のためドローできません。`;
@@ -939,17 +978,27 @@ function drawChoiceStart(playerIndex) {
     return;
   }
   s.pendingDraw = playerIndex;
+  traceKingdomFlow('drawChoiceStart.pending', `player=${playerIndex} minorDeck=${s.minorDeck.length} majorDeck=${s.majorDeck.length}`);
   if (s.minorDeck.length <= 0 && s.majorDeck.length <= 0) {
+    traceKingdomFlow('drawChoiceStart.skip.noDeck', `player=${playerIndex}`);
     s.pendingDraw = null; s.phase = 'turn'; s.message = `${pName(playerIndex)}が親です。`; scheduleNpc(); render(); return;
   }
   s.phase = 'draw'; s.message = `${pName(playerIndex)}: 小 or 大アルカナを1枚ドロー`;
+  traceKingdomFlow('drawChoiceStart.waitChoice', `player=${playerIndex}`);
   render();
   if (!s.players[playerIndex].human) {
     scheduleNpcTimer(NPC_DELAY, () => {
-      if (!s || !s.roundActive) return;
-      if (s.phase !== 'draw' || s.pendingDraw !== playerIndex) return;
+      if (!s || !s.roundActive) {
+        traceKingdomFlow('drawChoiceStart.npcTimer.abort', `player=${playerIndex} reason=inactive`);
+        return;
+      }
+      if (s.phase !== 'draw' || s.pendingDraw !== playerIndex) {
+        traceKingdomFlow('drawChoiceStart.npcTimer.abort', `player=${playerIndex} reason=phaseOrPending`);
+        return;
+      }
       const stars = Math.max(0, Number(s.players[playerIndex].stars) || 0);
       const useMajor = s.majorDeck.length > 0 && stars > 0 && (s.players[playerIndex].hand.length <= 5 || Math.random() < 0.35);
+      traceKingdomFlow('drawChoiceStart.npcTimer.choose', `player=${playerIndex} deck=${useMajor ? 'major' : 'minor'} stars=${stars}`);
       applyDrawChoice(useMajor ? 'major' : 'minor');
     });
   }
@@ -979,22 +1028,31 @@ function judgmentStart(playerIndex) {
 
 function clearTrick(leader) {
   clearCallCinematicTimer();
+  s._traceFlowId = (kingdomTraceFlowSeed += 1);
+  traceKingdomFlow('clearTrick.enter', `leader=${leader}`);
   s.turnCount = Math.max(1, Number(s.turnCount) || 1) + 1;
   if (s.players[leader]) {
     s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
   }
   applyRoleRewardOnClear(leader);
   const hadJudgment = !!(s.lastPlay && s.lastPlay.type === 'set' && s.lastPlay.owner === leader && s.lastPlay.cardsHand.some((c) => c.kind === 'major' && c.number === 20));
+  traceKingdomFlow('clearTrick.stateReset', `hadJudgment=${hadJudgment}`);
   s.trickForcedCount = 0;
   s.death13Active = false;
   s.devil15Active = false;
   s.hermitPreview = null;
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
+  s.leadRequiredOwner = leader;
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
   triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760, cutin: false });
   triggerKingdomActionFx(leader, `ターン ${s.turnCount}`, { overlay: 'action', durationMs: 700, cutin: true, delayMs: 120 });
-  if (hadJudgment) { judgmentStart(leader); return; }
+  if (hadJudgment) {
+    traceKingdomFlow('clearTrick.next', 'judgmentStart');
+    judgmentStart(leader);
+    return;
+  }
+  traceKingdomFlow('clearTrick.next', 'drawChoiceStart');
   drawChoiceStart(leader);
 }
 
@@ -1238,11 +1296,19 @@ function finishRound(winnerIndex) {
 }
 
 function applyDrawChoice(deckType) {
+  traceKingdomFlow('applyDrawChoice.enter', `requested=${deckType}`);
   const pi = s.pendingDraw;
-  if (pi == null) return;
+  if (pi == null) {
+    traceKingdomFlow('applyDrawChoice.abort', 'reason=noPendingDraw');
+    return;
+  }
   const actor = s.players[pi];
-  if (!actor) return;
+  if (!actor) {
+    traceKingdomFlow('applyDrawChoice.abort', `reason=noActor player=${pi}`);
+    return;
+  }
   if ((actor.hand?.length || 0) >= START_HAND) {
+    traceKingdomFlow('applyDrawChoice.abort', `reason=fullHand player=${pi}`);
     s.pendingDraw = null;
     s.phase = 'turn';
     s.message = `${pName(pi)}は手札上限(${START_HAND}枚)のためドローできません。`;
@@ -1253,8 +1319,10 @@ function applyDrawChoice(deckType) {
   }
   s.selected.clear();
   let use = deckType;
+  traceKingdomFlow('applyDrawChoice.resolveDeck.start', `player=${pi} requested=${deckType} stars=${Math.max(0, Number(actor.stars) || 0)}`);
   if (use === 'major' && s.majorDeck.length <= 0) use = 'minor';
   if (use === 'minor' && s.minorDeck.length <= 0) use = 'major';
+  traceKingdomFlow('applyDrawChoice.resolveDeck.afterFallback', `player=${pi} selected=${use}`);
 
   // 大アルカナドローは星1消費。星不足なら人間は選べず、NPCは可能なら小アルカナへフォールバック。
   if (use === 'major') {
@@ -1263,10 +1331,12 @@ function applyDrawChoice(deckType) {
       if (!actor.human && s.minorDeck.length > 0) {
         use = 'minor';
       } else if (actor.human) {
+        traceKingdomFlow('applyDrawChoice.abort', `reason=noStars player=${pi}`);
         s.message = '星が足りないため大アルカナを引けません。';
         render();
         return;
       } else {
+        traceKingdomFlow('applyDrawChoice.abort', `reason=noStarsNpcNoMinor player=${pi}`);
         s.pendingDraw = null;
         s.phase = 'turn';
         s.message = `${pName(pi)}が親です。`;
@@ -1278,6 +1348,7 @@ function applyDrawChoice(deckType) {
   }
 
   const c = use === 'major' ? (s.majorDeck.pop() || null) : (s.minorDeck.pop() || null);
+  traceKingdomFlow('applyDrawChoice.drawn', `player=${pi} deck=${use} card=${c ? `${c.kind}:${c.suit}:${c.number}` : 'none'}`);
   if (c) {
     actor.hand.push(c);
     actor.hand.sort((a, b) => cStrength(a) - cStrength(b));
@@ -1291,6 +1362,7 @@ function applyDrawChoice(deckType) {
     cutin: drawByHuman
   });
   s.pendingDraw = null; s.phase = 'turn'; s.message = `${pName(pi)}が親です。`;
+  traceKingdomFlow('applyDrawChoice.exit', `player=${pi} hand=${actor.hand.length}`);
   scheduleNpc(); render();
 }
 
@@ -1418,6 +1490,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play;
+  s.leadRequiredOwner = null;
   s.lastPlay = play;
   s.turn = pi;
   s.callMergeFx = isCallPlay ? { owner: pi, startedAt: Date.now() } : null;
@@ -1560,23 +1633,67 @@ function npcDecide(pi) {
   return { action: 'play', play: all[0] };
 }
 
+function sortNpcPlayCandidates(all) {
+  all.sort((a, b) => {
+    if (a.type === 'role' && b.type === 'set') return -1;
+    if (a.type === 'set' && b.type === 'role') return 1;
+    if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
+    return setCmp(b.setPower ?? b.number, a.setPower ?? a.number) || (b.suitTier - a.suitTier);
+  });
+  return all;
+}
+
+function pickBestNpcLeadPlay(pi) {
+  const all = [...roleMoves(pi), ...setMoves(pi)];
+  if (!all.length) return null;
+  return sortNpcPlayCandidates(all)[0] || null;
+}
+
+function recoverNpcNoTrickState(pi) {
+  if (!s || !s.roundActive || s.phase !== 'turn' || s.turn !== pi || s.trick) return false;
+  const p = s.players?.[pi];
+  if (!p || p.human) return false;
+
+  let lead = pickBestNpcLeadPlay(pi);
+  if (!lead && (p.raise || p.raisePending)) {
+    // Emergency unlock for NPC only to avoid deadlock on empty trick.
+    p.raise = false;
+    p.raisePending = false;
+    lead = pickBestNpcLeadPlay(pi);
+  }
+  if (lead) {
+    applyPlay(pi, lead);
+    return true;
+  }
+
+  if (p.hand.length < START_HAND && (s.minorDeck.length > 0 || s.majorDeck.length > 0)) {
+    traceKingdomFlow('recoverNpcNoTrickState.drawChoice', `player=${pi}`);
+    drawChoiceStart(pi);
+    return true;
+  }
+  return false;
+}
+
 function npcAct() {
   if (npcActInFlight) return;
   npcActInFlight = true;
   try {
+  traceKingdomFlow('npcAct.enter');
   if (!s || !s.roundActive) return;
   if (s.phase === 'draw' && s.pendingDraw != null) {
     const dpi = s.pendingDraw;
     const p = s.players[dpi];
     const stars = Math.max(0, Number(p?.stars) || 0);
     const useMajor = s.majorDeck.length > 0 && stars > 0 && ((p?.hand?.length || 0) <= 5 || Math.random() < 0.35);
+    traceKingdomFlow('npcAct.drawPhase', `player=${dpi} deck=${useMajor ? 'major' : 'minor'} stars=${stars}`);
     applyDrawChoice(useMajor ? 'major' : 'minor');
     return;
   }
-  if (s.phase === 'judgment' && s.pendingJudgment != null) { skipJudgmentPick(); return; }
-  if (s.phase !== 'turn') return;
+  if (s.phase === 'judgment' && s.pendingJudgment != null) { traceKingdomFlow('npcAct.judgmentPhase', `player=${s.pendingJudgment}`); skipJudgmentPick(); return; }
+  if (s.phase !== 'turn') { traceKingdomFlow('npcAct.abort', 'reason=notTurnPhase'); return; }
   const pi = s.turn, p = s.players[pi];
-  if (!p || p.human) return;
+  if (!p || p.human) { traceKingdomFlow('npcAct.abort', `reason=invalidOrHuman turn=${pi}`); return; }
+  if (!s.trick && recoverNpcNoTrickState(pi)) { traceKingdomFlow('npcAct.recoverNoTrick', `player=${pi}`); return; }
   if (!s.trick) {
     const leadSetMoves = setMoves(pi);
     const leadRoleMoves = roleMoves(pi);
@@ -1593,6 +1710,7 @@ function npcAct() {
     if (hangIdx >= 0 && Math.random() < 0.22) {
       const used = useHangedManAction(pi, [hangIdx]);
       if (used.ok) {
+        traceKingdomFlow('npcAct.hangedMan', `player=${pi}`);
         scheduleNpcTimer(Math.max(420, Math.floor(NPC_DELAY * 0.75)), () => {
           if (!s || !s.roundActive) return;
           if (s.phase !== 'turn' || s.turn !== pi) return;
@@ -1604,6 +1722,7 @@ function npcAct() {
     }
   }
   const d = npcDecide(pi);
+  traceKingdomFlow('npcAct.decide', `player=${pi} action=${d?.action || 'none'}`);
   if (d.action === 'raise') {
     raiseAction(pi);
     scheduleNpcTimer(NPC_RAISE_FOLLOWUP_DELAY, () => {
@@ -1612,30 +1731,56 @@ function npcAct() {
       const current = s.players?.[pi];
       if (!current || current.human) return;
       const d2 = npcDecide(pi);
+      traceKingdomFlow('npcAct.raiseFollowup', `player=${pi} action=${d2?.action || 'none'}`);
       if (d2.action === 'play' && d2.play) applyPlay(pi, d2.play);
       else passAction(pi);
     });
     return;
   }
-  if (d.action === 'play' && d.play) applyPlay(pi, d.play); else passAction(pi);
+  if (d.action === 'play' && d.play) {
+    traceKingdomFlow('npcAct.play', `player=${pi} type=${d.play.type} count=${d.play.count}`);
+    applyPlay(pi, d.play);
+  } else if (!s.trick && recoverNpcNoTrickState(pi)) {
+    traceKingdomFlow('npcAct.recoverNoTrick.fallback', `player=${pi}`);
+    return;
+  } else {
+    traceKingdomFlow('npcAct.pass', `player=${pi}`);
+    passAction(pi);
+  }
   } finally {
+    traceKingdomFlow('npcAct.exit');
     npcActInFlight = false;
   }
 }
 
 function scheduleNpc() {
+  enforceLeadTurnInvariant();
+  traceKingdomFlow('scheduleNpc.enter');
   clearNpcTimer();
-  if (!s || !s.roundActive) return;
+  if (!s || !s.roundActive) {
+    traceKingdomFlow('scheduleNpc.abort', 'reason=inactive');
+    return;
+  }
   if (s.phase === 'draw' && s.pendingDraw != null && !s.players[s.pendingDraw].human) {
+    traceKingdomFlow('scheduleNpc.timer', `reason=draw player=${s.pendingDraw} delay=${NPC_DELAY}`);
     scheduleNpcTimer(NPC_DELAY, () => npcAct());
     return;
   }
   if (s.phase === 'judgment' && s.pendingJudgment != null && !s.players[s.pendingJudgment].human) {
+    traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${NPC_DELAY}`);
     scheduleNpcTimer(NPC_DELAY, () => npcAct());
     return;
   }
-  if (s.phase !== 'turn') return;
-  if (!s.players[s.turn]?.human) scheduleNpcTimer(NPC_DELAY, () => npcAct());
+  if (s.phase !== 'turn') {
+    traceKingdomFlow('scheduleNpc.abort', `reason=phase:${s.phase}`);
+    return;
+  }
+  if (!s.players[s.turn]?.human) {
+    traceKingdomFlow('scheduleNpc.timer', `reason=turn player=${s.turn} delay=${NPC_DELAY}`);
+    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    return;
+  }
+  traceKingdomFlow('scheduleNpc.abort', `reason=humanTurn player=${s.turn}`);
 }
 
 function cardNode(card, opt = {}) {
@@ -2019,7 +2164,7 @@ function updateButtons() {
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
 }
 
-function render() { if (!s) return; resolveReversePersistSuspend(); renderSummary(); renderSettlement(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
+function render() { if (!s) return; resolveReversePersistSuspend(); enforceLeadTurnInvariant(); renderSummary(); renderSettlement(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
 
 function revealOracleWithFlip() {
   if (!s || s.openOracleRevealed || !s.openOracleCard) return;
