@@ -4311,7 +4311,38 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-arcana-match {
-    animation: tarotArcanaMatchGlow 1.8s ease-in-out infinite;
+    box-shadow:
+        0 0 0 1px rgba(239, 246, 255, 0.7),
+        0 0 18px rgba(125, 211, 252, 0.32),
+        0 0 26px rgba(250, 204, 21, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    animation: tarotArcanaAura 2.9s ease-in-out infinite;
+}
+
+.tarot-card.is-arcana-match::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        conic-gradient(
+            from 0deg,
+            rgba(56, 189, 248, 0.24),
+            rgba(250, 204, 21, 0.2),
+            rgba(167, 139, 250, 0.2),
+            rgba(56, 189, 248, 0.24)
+        );
+    mix-blend-mode: screen;
+    filter: blur(2px) saturate(1.1);
+    opacity: 0.34;
+    animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
+}
+
+.tarot-card.is-arcana-match .tarot-card-number {
+    will-change: filter;
+    animation: tarotArcanaSparkle 2.4s ease-in-out infinite;
 }
 
 .tarot-card.is-leaving {

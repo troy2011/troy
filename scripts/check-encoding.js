@@ -26,7 +26,10 @@ const MOJIBAKE_IGNORE_PATHS = new Set([
     'public/css/island.css'
 ]);
 
-const MOJIBAKE_REGEX = /[\uFFFD\u7E5D\u7E3A\u8708]/u;
+// Broad detector for common UTF-8/Shift_JIS mojibake artifacts.
+// It targets well-known broken fragments and replacement chars while
+// avoiding normal Japanese text false positives.
+const MOJIBAKE_REGEX = /(?:\uFFFD|繧|縺|荳|螳|菴|蜿|隱|逕|譛|譁|蛻|驕|讒|陦|遨|鬘|邱|蟆|縲)/u;
 
 function run(command) {
     return cp.execSync(command, {
@@ -59,9 +62,12 @@ function getCandidateFiles(stagedOnly) {
         .sort();
 }
 
-function findFirstMojibakeLine(text) {
+function findFirstMojibakeLine(text, filePath) {
     const lines = text.split(/\r?\n/u);
     for (let i = 0; i < lines.length; i += 1) {
+        if (filePath === 'scripts/check-encoding.js' && /^\s*const\s+MOJIBAKE_REGEX\s*=/.test(lines[i])) {
+            continue;
+        }
         if (MOJIBAKE_REGEX.test(lines[i])) {
             return { line: i + 1, text: lines[i] };
         }
@@ -95,7 +101,7 @@ function main() {
             continue;
         }
 
-        const hit = findFirstMojibakeLine(decoded);
+        const hit = findFirstMojibakeLine(decoded, file);
         if (hit) {
             failures.push(`${file}:${hit.line} suspicious mojibake -> ${hit.text}`);
         }

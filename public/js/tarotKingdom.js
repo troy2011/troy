@@ -1510,7 +1510,7 @@ function npcDecide(pi) {
   }
   const outNow = all.find((m) => m.selected.length === p.hand.length);
   if (outNow) return { action: 'play', play: outNow };
-  if (!p.raise && !p.raisePending && p.hand.length >= 5 && p.chips >= RAISE_COST && Math.random() < 0.28) return { action: 'raise' };
+  if (p.human && !p.raise && !p.raisePending && p.hand.length >= 5 && p.chips >= RAISE_COST && Math.random() < 0.28) return { action: 'raise' };
   all.sort((a, b) => {
     if (a.type === 'role' && b.type === 'set') return -1;
     if (a.type === 'set' && b.type === 'role') return 1;
