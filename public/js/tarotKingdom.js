@@ -718,7 +718,21 @@ function buildSetPlay(pi, sel) {
   const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
   if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
   const suitTier = Math.max(...cards.map((c) => Math.max(...suitsForCard(c, false).map((x) => suitTierForCard(c, x)))));
-  return { ok: true, play: { type: 'set', owner: pi, count: cards.length, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), number: Number(n), setPower, suitTier } };
+  return {
+    ok: true,
+    play: {
+      type: 'set',
+      owner: pi,
+      count: cards.length,
+      selected: sel.slice(),
+      selectedIds: cards.map((c) => c?.id).filter(Boolean),
+      cardsHand: cards.slice(),
+      cardsTable: cards.slice(),
+      number: Number(n),
+      setPower,
+      suitTier
+    }
+  };
 }
 
 function buildRolePlay(pi, sel) {
@@ -728,7 +742,20 @@ function buildRolePlay(pi, sel) {
   if (cards.length !== 5) return { ok: false, reason: '選択が不正です。' };
   const role = evalRole(cards, s.lock?.suit || null);
   if (!role || role.strength < ROLE_ST.Straight) return { ok: false, reason: 'ストレート以上が必要です。' };
-  return { ok: true, play: { type: 'role', owner: pi, count: 5, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), role, call: false } };
+  return {
+    ok: true,
+    play: {
+      type: 'role',
+      owner: pi,
+      count: 5,
+      selected: sel.slice(),
+      selectedIds: cards.map((c) => c?.id).filter(Boolean),
+      cardsHand: cards.slice(),
+      cardsTable: cards.slice(),
+      role,
+      call: false
+    }
+  };
 }
 
 function buildCallPlay(pi, sel) {
@@ -750,7 +777,20 @@ function buildCallPlay(pi, sel) {
     if (vals[0] === cStrength(base)) return { ok: false, reason: 'フラッシュコール制限に抵触します。' };
   }
   role.effectiveRate = role.key === 'FullHouse' ? Math.max(0, role.baseRate - 2) : Math.max(0, role.baseRate - 1);
-  return { ok: true, play: { type: 'role', owner: pi, count: 5, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: [base, ...cards], role, call: true } };
+  return {
+    ok: true,
+    play: {
+      type: 'role',
+      owner: pi,
+      count: 5,
+      selected: sel.slice(),
+      selectedIds: cards.map((c) => c?.id).filter(Boolean),
+      cardsHand: cards.slice(),
+      cardsTable: [base, ...cards],
+      role,
+      call: true
+    }
+  };
 }
 
 function isMinorAceCard(card) {
@@ -761,6 +801,11 @@ function getRemainingHandAfterPlay(play) {
   const owner = Number(play?.owner);
   const hand = s?.players?.[owner]?.hand;
   if (!Array.isArray(hand)) return null;
+  const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
+  if (selectedIds.length > 0) {
+    const idSet = new Set(selectedIds);
+    return hand.filter((card) => !idSet.has(card?.id));
+  }
   const selectedSet = new Set((Array.isArray(play?.selected) ? play.selected : []).map((idx) => Number(idx)));
   return hand.filter((_, idx) => !selectedSet.has(idx));
 }
@@ -821,6 +866,19 @@ function removeHand(p, idxs) {
   sorted.forEach((i) => { if (i >= 0 && i < p.hand.length) out.push(p.hand.splice(i, 1)[0]); });
   out.reverse();
   return out;
+}
+
+function removeHandByIds(p, ids) {
+  const want = Array.isArray(ids) ? ids.filter(Boolean) : [];
+  const out = [];
+  for (const id of want) {
+    const idx = p.hand.findIndex((c) => c?.id === id);
+    if (idx < 0) return { ok: false, removed: out };
+    const [card] = p.hand.splice(idx, 1);
+    if (!card) return { ok: false, removed: out };
+    out.push(card);
+  }
+  return { ok: true, removed: out };
 }
 
 function applyRoleRewardOnClear(playerIndex) {
@@ -1028,6 +1086,10 @@ function applySetEffects(play) {
       s.lock = { suit: prevSuit, min: null }; log(`${pName(play.owner)}: 14ロック (${SUIT_LABEL[prevSuit]})`);
       triggerKingdomActionFx(play.owner, '14ロック', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
     }
+  }
+  if (forceClear) {
+    const label = cards.map((c) => `${getCardNameLabel(c)}(${getCardNumberLabel(c)})`).join(', ');
+    log(`${pName(play.owner)}: クリア理由 ${label}`);
   }
   return { forceClear, keepTurn, skip };
 }
@@ -1244,9 +1306,41 @@ function continueAfterPlay(pi, play) {
   render();
 }
 
-function applyPlay(pi, play) {
+function applyPlay(pi, play, retryDepth = 0) {
   const p = s.players[pi];
-  const removed = removeHand(p, play.selected);
+  const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
+  const selectedCount = selectedIds.length > 0
+    ? selectedIds.length
+    : (Array.isArray(play?.selected) ? play.selected.length : 0);
+  let removed = [];
+  if (selectedIds.length > 0) {
+    const byId = removeHandByIds(p, selectedIds);
+    removed = byId.removed || [];
+    if (!byId.ok) {
+      removed.forEach((card) => { if (card) p.hand.push(card); });
+      p.hand.sort((a, b) => cStrength(a) - cStrength(b));
+      removed = [];
+    }
+  } else {
+    removed = removeHand(p, Array.isArray(play?.selected) ? play.selected : []);
+  }
+  if (selectedCount <= 0 || removed.length !== selectedCount) {
+    log(`${p.name}: 出し処理失敗（選択同期ずれ）`);
+    if (!p.human) {
+      if (retryDepth < 1) {
+        const fallback = npcDecide(pi);
+        if (fallback?.action === 'play' && fallback.play) {
+          applyPlay(pi, fallback.play, retryDepth + 1);
+          return;
+        }
+      }
+      passAction(pi);
+      return;
+    }
+    s.message = 'カードの出し処理に失敗しました。もう一度選択してください。';
+    render();
+    return;
+  }
   play.cardsHand = removed.slice();
   const isRolePlay = play.type === 'role';
   const isCallPlay = isRolePlay && !!play.call;
