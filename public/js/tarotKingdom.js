@@ -30,6 +30,7 @@ const A_PENALTY = 1;
 const RAISE_COST = 1;
 const NPC_DELAY = 1100;
 const NPC_RAISE_FOLLOWUP_DELAY = 900;
+const ROUND_START_CINEMATIC_MS = 980;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -58,6 +59,7 @@ let oracleRevealDelayTimer = null;
 let oracleFlipSwapTimer = null;
 let oracleFlipEndTimer = null;
 let callCinematicTimer = null;
+let roundStartCinematicTimer = null;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
 const KINGDOM_TRACE_ENABLED = true;
@@ -104,6 +106,12 @@ const clearCallCinematicTimer = () => {
   if (callCinematicTimer) {
     clearTimeout(callCinematicTimer);
     callCinematicTimer = null;
+  }
+};
+const clearRoundStartCinematicTimer = () => {
+  if (roundStartCinematicTimer) {
+    clearTimeout(roundStartCinematicTimer);
+    roundStartCinematicTimer = null;
   }
 };
 const clearOracleFlipTimers = () => {
@@ -439,6 +447,61 @@ function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', opti
   }
 }
 
+function playKingdomChariotSplitFx(playerIndex, options = {}) {
+  if (typeof document === 'undefined') return;
+  const baseDelay = Math.max(0, Number(options.delayMs) || 80);
+  const maxRetries = 8;
+  const retryWait = 34;
+
+  const run = (retry = 0) => {
+    const baseCard = ui.trick?.querySelector?.('.tarot-card:not(.is-leaving)');
+    if (!baseCard) {
+      if (retry < maxRetries) setTimeout(() => run(retry + 1), retryWait);
+      return;
+    }
+    const rect = baseCard.getBoundingClientRect?.();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+    baseCard.classList.add('is-chariot-splitting');
+    setTimeout(() => baseCard.classList.remove('is-chariot-splitting'), 560);
+
+    const createSplitCard = (dir) => {
+      const clone = baseCard.cloneNode(true);
+      clone.classList.remove(
+        'is-clickable',
+        'is-static',
+        'is-selected',
+        'is-entering',
+        'is-leaving',
+        'is-call-arriving',
+        'is-undealt',
+        'is-chariot-splitting'
+      );
+      clone.classList.add('tarot-kingdom-split-card', dir === 'left' ? 'is-left' : 'is-right');
+      clone.classList.add(getKingdomOwnerClass(playerIndex));
+      clone.setAttribute('aria-hidden', 'true');
+      clone.tabIndex = -1;
+      clone.disabled = true;
+      clone.style.left = `${rect.left + (rect.width / 2)}px`;
+      clone.style.top = `${rect.top + (rect.height / 2)}px`;
+      clone.style.width = `${rect.width}px`;
+      clone.style.minWidth = `${rect.width}px`;
+      clone.style.height = `${rect.height}px`;
+      clone.style.minHeight = `${rect.height}px`;
+      clone.style.setProperty('--tarot-card-w', `${rect.width}px`);
+      clone.style.setProperty('--tarot-card-h', `${rect.height}px`);
+      document.body.appendChild(clone);
+      requestAnimationFrame(() => clone.classList.add('run'));
+      setTimeout(() => clone.remove(), 720);
+    };
+
+    createSplitCard('left');
+    setTimeout(() => createSplitCard('right'), 46);
+  };
+
+  setTimeout(() => run(0), baseDelay);
+}
+
 function triggerKingdomActionFx(playerIndex, label, options = {}) {
   const run = () => {
     if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
@@ -607,6 +670,7 @@ function initState() {
 }
 
 function clearRoundState() {
+  clearRoundStartCinematicTimer();
   s.trick = null;
   s.leadRequiredOwner = null;
   s.lastPlay = null;
@@ -637,6 +701,7 @@ function resetMatch() {
   if (stateErrorTimer) { clearTimeout(stateErrorTimer); stateErrorTimer = null; }
   clearOracleFlipTimers();
   clearCallCinematicTimer();
+  clearRoundStartCinematicTimer();
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
   if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
@@ -739,7 +804,33 @@ function setupHand() {
     s.turn = s.dealer;
     s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   }
-  scheduleNpc();
+  playRoundStartCinematic();
+}
+
+function playRoundStartCinematic() {
+  clearRoundStartCinematicTimer();
+  if (!s || !s.roundActive) return;
+  const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
+  const currentTurn = s.turn;
+  s.phase = 'openingCinematic';
+  s.message = `第${roundNo}局 開始`;
+  traceKingdomFlow('roundStartCinematic.start', `round=${roundNo} nextTurn=${currentTurn}`);
+  triggerKingdomActionFx(currentTurn, `第${roundNo}局 開始`, {
+    overlay: 'action',
+    durationMs: ROUND_START_CINEMATIC_MS,
+    cutin: true
+  });
+  render();
+  roundStartCinematicTimer = setTimeout(() => {
+    roundStartCinematicTimer = null;
+    if (!s || !s.roundActive) return;
+    if (s.phase !== 'openingCinematic') return;
+    s.phase = 'turn';
+    s.message = `${pName(s.turn)}のターン`;
+    traceKingdomFlow('roundStartCinematic.end', `turn=${s.turn}`);
+    scheduleNpc();
+    render();
+  }, ROUND_START_CINEMATIC_MS);
 }
 function nextAlive(from, steps = 1, onlyNotPassed = false) {
   let found = 0;
@@ -1089,11 +1180,12 @@ function applySetEffects(play) {
     if (drew > 0) owner.hand.sort((a, b) => cStrength(a) - cStrength(b));
     return drew;
   };
-  if (cards.length === 1 && has(7)) {
+  if (cards.length === 1 && hasMajor(7)) {
     s.trickForcedCount = 2;
     play.count = 2;
     log(`${pName(play.owner)}: 戦車で2枚出し縛り`);
     triggerKingdomActionFx(play.owner, '戦車: 2枚出し', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+    playKingdomChariotSplitFx(play.owner, { delayMs: 100 });
   }
   if (hasMajor(13)) {
     s.death13Active = true;
@@ -2138,6 +2230,8 @@ function renderSettlement() {
 function updateButtons() {
   const me = s.players.findIndex((p) => p.human);
   const inCallCinematic = s.phase === 'callCinematic';
+  const inOpeningCinematic = s.phase === 'openingCinematic';
+  const actionLocked = inCallCinematic || inOpeningCinematic;
   const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
   const myHandCount = Math.max(0, Number(s.players[me]?.hand?.length || 0));
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
@@ -2145,20 +2239,20 @@ function updateButtons() {
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
   const canPlayNow = myTurn || drawMe;
   ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
-  ui.playButton.disabled = inCallCinematic || !canPlayNow;
-  ui.clearButton.disabled = inCallCinematic || !canClearSelection;
-  ui.passButton.disabled = inCallCinematic || !myTurn;
-  ui.raiseButton.disabled = inCallCinematic || !(myTurn && !s.players[me].raise && !s.players[me].raisePending && s.players[me].hand.length >= 5 && s.players[me].chips >= RAISE_COST);
+  ui.playButton.disabled = actionLocked || !canPlayNow;
+  ui.clearButton.disabled = actionLocked || !canClearSelection;
+  ui.passButton.disabled = actionLocked || !myTurn;
+  ui.raiseButton.disabled = actionLocked || !(myTurn && !s.players[me].raise && !s.players[me].raisePending && s.players[me].hand.length >= 5 && s.players[me].chips >= RAISE_COST);
   ui.raiseButton.textContent = s.players[me].raisePending ? 'レイズ待機中' : 'レイズ';
-  ui.drawMinorButton.disabled = inCallCinematic || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
-  ui.drawMajorButton.disabled = inCallCinematic || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
+  ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
+  ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
   if (ui.graveToggleButton) {
     if (s.pendingJudgment != null) {
       ui.graveToggleButton.textContent = '墓地（審判中）';
       ui.graveToggleButton.disabled = true;
     } else {
       ui.graveToggleButton.textContent = s.graveOpen ? '墓地を閉じる' : '墓地を見る';
-      ui.graveToggleButton.disabled = inCallCinematic || !s.roundActive;
+      ui.graveToggleButton.disabled = actionLocked || !s.roundActive;
     }
   }
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
@@ -2336,6 +2430,7 @@ export function destroyTarotKingdomPage() {
   clearNpcTimer();
   clearOracleFlipTimers();
   clearCallCinematicTimer();
+  clearRoundStartCinematicTimer();
   if (trickSwapTimer) {
     clearTimeout(trickSwapTimer);
     trickSwapTimer = null;
