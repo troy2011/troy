@@ -1415,22 +1415,9 @@ function renderTrick() {
     clearTimeout(trickSwapTimer);
     trickSwapTimer = null;
   }
-
-  const leavingCards = Array.from(ui.trick.querySelectorAll('.tarot-card'));
-  const leavingEmpty = Array.from(ui.trick.querySelectorAll('.tarot-kingdom-empty'));
-  if (!leavingCards.length && !leavingEmpty.length) {
-    renderNow();
-    return;
-  }
-
-  const token = ++trickRenderToken;
-  leavingCards.forEach((el) => el.classList.add('is-leaving'));
-  leavingEmpty.forEach((el) => el.classList.add('is-leaving'));
-  trickSwapTimer = setTimeout(() => {
-    trickSwapTimer = null;
-    if (token !== trickRenderToken) return;
-    renderNow();
-  }, 140);
+  // 場札消失の競合回避: 入れ替えは遅延せず即時反映する
+  trickRenderToken += 1;
+  renderNow();
 }
 
 function renderHand() {
