@@ -226,17 +226,18 @@ function getKingdomPlayerAnchor(playerIndex) {
 
 function showKingdomOverlay(kind = 'action') {
   if (!ui.kingdomOverlay) return;
-  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
   if (kind === 'raise') ui.kingdomOverlay.classList.add('is-kingdom-raise');
   else if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
   else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
+  else if (kind === 'call') ui.kingdomOverlay.classList.add('is-kingdom-call');
   else if (kind === 'roundend') ui.kingdomOverlay.classList.add('is-kingdom-roundend');
   void ui.kingdomOverlay.offsetWidth;
   ui.kingdomOverlay.classList.add('show');
   if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
-  const holdMs = kind === 'roundend' ? 760 : 260;
+  const holdMs = kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260);
   kingdomOverlayTimer = setTimeout(() => {
-    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
     kingdomOverlayTimer = null;
   }, holdMs);
 }
@@ -362,6 +363,48 @@ function triggerKingdomActionFx(playerIndex, label, options = {}) {
   } else {
     run();
   }
+}
+
+function playKingdomCallMergeEffect(sourceEl) {
+  if (typeof document === 'undefined') return;
+  if (!sourceEl || !sourceEl.getBoundingClientRect) return;
+  const targetEl = ui.trick?.querySelector?.('.tarot-card.is-call-merge-target');
+  if (!targetEl) return;
+  const from = sourceEl.getBoundingClientRect();
+  const to = targetEl.getBoundingClientRect();
+  if (!from || !to || from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) return;
+
+  const fx = sourceEl.cloneNode(true);
+  fx.classList.add('tarot-call-merge-fx');
+  fx.style.left = `${from.left + (from.width / 2)}px`;
+  fx.style.top = `${from.top + (from.height / 2)}px`;
+  fx.style.width = `${from.width}px`;
+  fx.style.height = `${from.height}px`;
+  document.body.appendChild(fx);
+
+  const fxText = document.createElement('div');
+  fxText.className = 'tarot-call-merge-text';
+  fxText.textContent = '場札を取り込み';
+  document.body.appendChild(fxText);
+
+  requestAnimationFrame(() => {
+    fx.classList.add('is-fly');
+    fx.style.left = `${to.left + (to.width / 2)}px`;
+    fx.style.top = `${to.top + (to.height / 2)}px`;
+    fx.style.width = `${to.width}px`;
+    fx.style.height = `${to.height}px`;
+    fxText.classList.add('show');
+  });
+
+  setTimeout(() => {
+    fx.classList.add('is-hit');
+    fxText.classList.remove('show');
+  }, 520);
+
+  setTimeout(() => {
+    fx.remove();
+    fxText.remove();
+  }, 940);
 }
 
 function getSpriteIndex(card) {
@@ -497,6 +540,7 @@ function initState() {
     hiddenOracleCard: null,
     pendingDraw: null,
     pendingJudgment: null,
+    callMergeFx: null,
     graveOpen: false,
     selected: new Set(),
     pot: 0,
@@ -517,6 +561,7 @@ function clearRoundState() {
   if (!s.reversePersist) s.reverse = false;
   s.pendingDraw = null;
   s.pendingJudgment = null;
+  s.callMergeFx = null;
   s.graveOpen = false;
   s.selected.clear();
   s.awaitRoundConfirm = false;
@@ -755,6 +800,16 @@ function applyRoleRewardOnClear(playerIndex) {
 
 function drawChoiceStart(playerIndex) {
   s.selected.clear();
+  const actor = s.players[playerIndex];
+  if ((actor?.hand?.length || 0) >= START_HAND) {
+    s.pendingDraw = null;
+    s.phase = 'turn';
+    s.message = `${pName(playerIndex)}は手札上限(${START_HAND}枚)のためドローできません。`;
+    log(`${pName(playerIndex)}: 手札上限のためドローなし`);
+    scheduleNpc();
+    render();
+    return;
+  }
   s.pendingDraw = playerIndex;
   if (s.minorDeck.length <= 0 && s.majorDeck.length <= 0) {
     s.pendingDraw = null; s.phase = 'turn'; s.message = `${pName(playerIndex)}が親です。`; scheduleNpc(); render(); return;
@@ -967,6 +1022,15 @@ function applyDrawChoice(deckType) {
   if (pi == null) return;
   const actor = s.players[pi];
   if (!actor) return;
+  if ((actor.hand?.length || 0) >= START_HAND) {
+    s.pendingDraw = null;
+    s.phase = 'turn';
+    s.message = `${pName(pi)}は手札上限(${START_HAND}枚)のためドローできません。`;
+    log(`${pName(pi)}: 手札上限のためドローなし`);
+    scheduleNpc();
+    render();
+    return;
+  }
   s.selected.clear();
   let use = deckType;
   if (use === 'major' && s.majorDeck.length <= 0) use = 'minor';
@@ -1032,12 +1096,41 @@ function skipJudgmentPick() {
   drawChoiceStart(pi);
 }
 
+function continueAfterPlay(pi, play) {
+  if (!s || !s.players?.[pi]) return;
+  const p = s.players[pi];
+  if (p.hand.length <= 0) { finishRound(pi); return; }
+  if (play.type === 'set') {
+    const fx = applySetEffects(play);
+    if (fx.forceClear) { clearTrick(pi); return; }
+    if (fx.keepTurn) {
+      s.phase = 'turn';
+      s.turn = pi;
+      s.message = `${p.name}のターン継続`;
+      scheduleNpc();
+      render();
+      return;
+    }
+    s.phase = 'turn';
+    s.turn = nextAlive(pi, 1 + Math.max(0, fx.skip), false) ?? pi;
+  } else {
+    s.phase = 'turn';
+    s.turn = nextAlive(pi, 1, false) ?? pi;
+  }
+  s.message = `${pName(s.turn)}のターン`;
+  scheduleNpc();
+  render();
+}
+
 function applyPlay(pi, play) {
   const p = s.players[pi];
   const removed = removeHand(p, play.selected);
   play.cardsHand = removed.slice();
+  const isRolePlay = play.type === 'role';
+  const isCallPlay = isRolePlay && !!play.call;
+  const callSourceEl = isCallPlay ? ui.trick?.querySelector('.tarot-card') : null;
   if (play.type === 'set') play.cardsTable = removed.slice();
-  else if (play.type === 'role' && play.call) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
+  else if (isCallPlay) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
   else play.cardsTable = removed.slice();
   // 大アルカナは墓地へ送らない（場からは取り除かれるが墓地には残さない）
   p.discard.push(...removed.filter((c) => c?.kind !== 'major'));
@@ -1046,29 +1139,36 @@ function applyPlay(pi, play) {
   }
   s.selected.clear();
   s.pass = [false, false, false, false];
-  s.trick = play; s.lastPlay = play; s.turn = pi;
+  s.trick = play;
+  s.lastPlay = play;
+  s.turn = pi;
+  s.callMergeFx = isCallPlay ? { owner: pi, startedAt: Date.now() } : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
   const actionLabel = play.type === 'set'
     ? `${play.count}枚出し`
     : getRoleDisplayLabel(play);
-  const isRolePlay = play.type === 'role';
-  const isCallPlay = isRolePlay && !!play.call;
   triggerKingdomActionFx(pi, actionLabel, {
-    overlay: 'action',
-    durationMs: isRolePlay ? 980 : 700,
+    overlay: isCallPlay ? 'call' : 'action',
+    durationMs: isCallPlay ? 1400 : (isRolePlay ? 980 : 700),
     cutin: isRolePlay,
     cutinClass: isCallPlay ? 'is-kingdom-call' : (isRolePlay ? 'is-kingdom-role' : undefined),
-    delayMs: isRolePlay ? 180 : 0
+    delayMs: isCallPlay ? 90 : (isRolePlay ? 180 : 0)
   });
-  if (p.hand.length <= 0) { finishRound(pi); return; }
-  if (play.type === 'set') {
-    const fx = applySetEffects(play);
-    if (fx.forceClear) { clearTrick(pi); return; }
-    if (fx.keepTurn) { s.turn = pi; s.message = `${p.name}のターン継続`; scheduleNpc(); render(); return; }
-    s.turn = nextAlive(pi, 1 + Math.max(0, fx.skip), false) ?? pi;
-  } else s.turn = nextAlive(pi, 1, false) ?? pi;
-  s.message = `${pName(s.turn)}のターン`;
-  scheduleNpc(); render();
+
+  if (isCallPlay) {
+    clearNpcTimer();
+    s.phase = 'callCinematic';
+    s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;
+    render();
+    playKingdomCallMergeEffect(callSourceEl);
+    setTimeout(() => {
+      if (!s || s.lastPlay !== play) return;
+      s.callMergeFx = null;
+      continueAfterPlay(pi, play);
+    }, 1220);
+    return;
+  }
+  continueAfterPlay(pi, play);
 }
 
 function passAction(pi) {
@@ -1257,9 +1357,12 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
+  const callMergeKey = (s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call)
+    ? `|call:${s.callMergeFx.owner}`
+    : '|call:none';
   const nextKey = cards.length
-    ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
-    : '__empty__';
+    ? `${cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')}${callMergeKey}`
+    : `__empty__${callMergeKey}`;
   if (nextKey === trickRenderKey) return;
   trickRenderKey = nextKey;
 
@@ -1274,8 +1377,15 @@ function renderTrick() {
     }
     cards.forEach((c, idx) => {
       const node = cardNode(c);
+      if (idx === 0 && s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call) {
+        node.classList.add('is-call-merge-target');
+        const badge = document.createElement('span');
+        badge.className = 'tarot-call-merge-badge';
+        badge.textContent = '場札';
+        node.appendChild(badge);
+      }
       node.classList.add('is-entering');
-      node.style.animationDelay = `${idx * 78}ms`;
+      node.style.animationDelay = `${idx * (s.callMergeFx ? 120 : 78)}ms`;
       node.addEventListener('animationend', () => {
         node.classList.remove('is-entering');
         node.style.animationDelay = '';
@@ -1534,25 +1644,27 @@ function renderSettlement() {
 
 function updateButtons() {
   const me = s.players.findIndex((p) => p.human);
+  const inCallCinematic = s.phase === 'callCinematic';
   const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
+  const myHandCount = Math.max(0, Number(s.players[me]?.hand?.length || 0));
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
   const canPlayNow = myTurn || drawMe;
   ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
-  ui.playButton.disabled = !canPlayNow;
-  ui.clearButton.disabled = !canClearSelection;
-  ui.passButton.disabled = !myTurn;
-  ui.raiseButton.disabled = !(myTurn && !s.players[me].raise && s.players[me].hand.length === 4 && s.players[me].chips >= RAISE_COST);
-  ui.drawMinorButton.disabled = !(drawMe && s.minorDeck.length > 0);
-  ui.drawMajorButton.disabled = !(drawMe && s.majorDeck.length > 0 && myStars > 0);
+  ui.playButton.disabled = inCallCinematic || !canPlayNow;
+  ui.clearButton.disabled = inCallCinematic || !canClearSelection;
+  ui.passButton.disabled = inCallCinematic || !myTurn;
+  ui.raiseButton.disabled = inCallCinematic || !(myTurn && !s.players[me].raise && s.players[me].hand.length === 4 && s.players[me].chips >= RAISE_COST);
+  ui.drawMinorButton.disabled = inCallCinematic || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
+  ui.drawMajorButton.disabled = inCallCinematic || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
   if (ui.graveToggleButton) {
     if (s.pendingJudgment != null) {
       ui.graveToggleButton.textContent = '墓地（審判中）';
       ui.graveToggleButton.disabled = true;
     } else {
       ui.graveToggleButton.textContent = s.graveOpen ? '墓地を閉じる' : '墓地を見る';
-      ui.graveToggleButton.disabled = !s.roundActive;
+      ui.graveToggleButton.disabled = inCallCinematic || !s.roundActive;
     }
   }
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
