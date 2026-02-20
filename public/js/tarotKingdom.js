@@ -501,6 +501,8 @@ function initState() {
     selected: new Set(),
     pot: 0,
     logs: [],
+    awaitRoundConfirm: false,
+    roundSettlement: null,
     message: '「新しい戦いを始める」を押してください。',
     champion: null
   };
@@ -517,6 +519,8 @@ function clearRoundState() {
   s.pendingJudgment = null;
   s.graveOpen = false;
   s.selected.clear();
+  s.awaitRoundConfirm = false;
+  s.roundSettlement = null;
   s.players.forEach((p) => { p.hand = []; p.discard = []; p.rateBonus = 0; p.raise = false; p.bet = 0; });
 }
 
@@ -854,13 +858,26 @@ function applySetEffects(play) {
 function finishRound(winnerIndex) {
   clearNpcTimer();
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
+  s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
+  const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   s.hiddenOracleCard = s.minorDeck.pop() || null;
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
   const raiseBonus = winner.raise ? 1 : 0;
   let fxDelayMs = 360;
   let totalGain = 0;
+  const settlement = {
+    roundNo,
+    winnerIndex,
+    winnerName: winner.name,
+    roleBonus: Number(winner.rateBonus || 0),
+    raiseBonus,
+    oracleHits,
+    rows: [],
+    potAward: 0,
+    totalGain: 0
+  };
   triggerKingdomActionFx(winnerIndex, '局終了', {
     overlay: 'roundend',
     durationMs: 1160,
@@ -871,10 +888,24 @@ function finishRound(winnerIndex) {
   s.players.forEach((loser, i) => {
     if (i === winnerIndex) return;
     const remain = loser.hand.length;
-    const rate = 1 + winner.rateBonus + raiseBonus + oracleHits + (hasAceMinor(loser.hand) ? A_PENALTY : 0);
+    const acePenalty = hasAceMinor(loser.hand) ? A_PENALTY : 0;
+    const rate = 1 + settlement.roleBonus + raiseBonus + oracleHits + acePenalty;
     const pay = remain * rate;
     loser.chips -= pay; winner.chips += pay;
     totalGain += Math.max(0, pay);
+    settlement.rows.push({
+      payerIndex: i,
+      payerName: loser.name,
+      receiverIndex: winnerIndex,
+      receiverName: winner.name,
+      remain,
+      roleBonus: settlement.roleBonus,
+      raiseBonus,
+      oracleHits,
+      acePenalty,
+      rate,
+      pay
+    });
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x レート${rate}）`);
     if (pay > 0) {
       playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
@@ -888,6 +919,7 @@ function finishRound(winnerIndex) {
     const potAward = s.pot;
     winner.chips += potAward;
     totalGain += Math.max(0, potAward);
+    settlement.potAward = potAward;
     log(`${winner.name}がPOT ${potAward}獲得`);
     playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(potAward), '💰', {
       fromPot: true,
@@ -897,6 +929,8 @@ function finishRound(winnerIndex) {
     });
     s.pot = 0;
   }
+  settlement.totalGain = totalGain;
+  s.roundSettlement = settlement;
   triggerKingdomActionFx(winnerIndex, `総取り +${totalGain}`, {
     overlay: 'roundend',
     durationMs: 1200,
@@ -914,10 +948,17 @@ function finishRound(winnerIndex) {
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
     let top = 0; s.players.forEach((p, i) => { if (s.players[i].chips > s.players[top].chips) top = i; });
-    s.champion = top; s.phase = 'done'; s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`; log(s.message); render(); return;
+    s.champion = top;
+    s.phase = 'done';
+    s.awaitRoundConfirm = false;
+    s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`;
+    log(s.message);
+    render();
+    return;
   }
   s.dealer = (s.dealer + 1) % 4;
-  s.message = `${winner.name}が勝利。次局の親: ${pName(s.dealer)}。`;
+  s.awaitRoundConfirm = true;
+  s.message = `${winner.name}が第${roundNo}局に勝利。清算を確認して次局へ進んでください。次局の親: ${pName(s.dealer)}。`;
   render();
 }
 
@@ -1422,6 +1463,75 @@ function renderSummary() {
   ui.log.scrollTop = ui.log.scrollHeight;
 }
 
+function renderSettlement() {
+  const panel = ui.settlement;
+  const body = ui.settlementBody;
+  const confirmButton = ui.settlementConfirmButton;
+  const data = s.roundSettlement;
+  const show = !!data;
+  if (panel) {
+    panel.hidden = !show;
+    panel.style.display = show ? '' : 'none';
+  }
+  if (!show) {
+    if (body) body.innerHTML = '';
+    if (confirmButton) {
+      confirmButton.hidden = true;
+      confirmButton.disabled = true;
+    }
+    return;
+  }
+
+  if (body) {
+    body.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'tarot-kingdom-settlement-head';
+    head.textContent = `第${data.roundNo}局 / 勝者: ${data.winnerName}`;
+    body.appendChild(head);
+
+    (data.rows || []).forEach((row) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'tarot-kingdom-settlement-row';
+
+      const top = document.createElement('div');
+      top.className = 'tarot-kingdom-settlement-row-top';
+      top.textContent = `${row.payerName} → ${row.receiverName}`;
+      rowEl.appendChild(top);
+
+      const values = document.createElement('div');
+      values.className = 'tarot-kingdom-settlement-row-values';
+      values.textContent = `支払 ${row.pay} TP / 受取 ${row.pay} TP`;
+      rowEl.appendChild(values);
+
+      const formula = document.createElement('div');
+      formula.className = 'tarot-kingdom-settlement-row-formula';
+      formula.textContent = `計算式: ${row.remain} × (1 + ${row.roleBonus} + ${row.raiseBonus} + ${row.oracleHits} + ${row.acePenalty}) = ${row.pay}`;
+      rowEl.appendChild(formula);
+
+      body.appendChild(rowEl);
+    });
+
+    if (data.potAward > 0) {
+      const pot = document.createElement('div');
+      pot.className = 'tarot-kingdom-settlement-pot';
+      pot.textContent = `POT受取: ${data.potAward} TP`;
+      body.appendChild(pot);
+    }
+
+    const total = document.createElement('div');
+    total.className = 'tarot-kingdom-settlement-total';
+    total.textContent = `総受取: ${data.totalGain} TP`;
+    body.appendChild(total);
+  }
+
+  if (confirmButton) {
+    const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && s.phase !== 'done';
+    confirmButton.hidden = !canConfirm;
+    confirmButton.disabled = !canConfirm;
+    if (canConfirm) confirmButton.textContent = '確認して次の局へ';
+  }
+}
+
 function updateButtons() {
   const me = s.players.findIndex((p) => p.human);
   const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
@@ -1429,7 +1539,7 @@ function updateButtons() {
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
   const canPlayNow = myTurn || drawMe;
-  ui.startButton.hidden = !!s.roundActive;
+  ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
   ui.playButton.disabled = !canPlayNow;
   ui.clearButton.disabled = !canClearSelection;
   ui.passButton.disabled = !myTurn;
@@ -1448,7 +1558,7 @@ function updateButtons() {
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
 }
 
-function render() { if (!s) return; renderSummary(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
+function render() { if (!s) return; renderSummary(); renderSettlement(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
 
 function revealOracleWithFlip() {
   if (!s || s.openOracleRevealed || !s.openOracleCard) return;
@@ -1467,17 +1577,30 @@ function revealOracleWithFlip() {
   }, 600);
 }
 
+function beginNextRound() {
+  setupHand();
+  render();
+  if (!s.openOracleRevealed) {
+    oracleRevealDelayTimer = setTimeout(() => {
+      oracleRevealDelayTimer = null;
+      revealOracleWithFlip();
+    }, 120);
+  }
+}
+
+function confirmRoundSettlement() {
+  if (!s || !s.awaitRoundConfirm) return;
+  if (s.handNo >= TOTAL_HANDS || s.phase === 'done') return;
+  s.awaitRoundConfirm = false;
+  s.roundSettlement = null;
+  beginNextRound();
+}
+
 function startOrNext() {
   if (!s || s.phase === 'done') resetMatch();
+  if (s.awaitRoundConfirm) return;
   if (!s.roundActive && s.handNo < TOTAL_HANDS) {
-    setupHand();
-    render();
-    if (!s.openOracleRevealed) {
-      oracleRevealDelayTimer = setTimeout(() => {
-        oracleRevealDelayTimer = null;
-        revealOracleWithFlip();
-      }, 120);
-    }
+    beginNextRound();
   }
 }
 
@@ -1535,6 +1658,9 @@ function bindUi() {
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
   ui.kingdomCutin = document.getElementById('tarotKingdomCutin');
   ui.stateText = document.getElementById('tarotKingdomStateText');
+  ui.settlement = document.getElementById('tarotKingdomSettlement');
+  ui.settlementBody = document.getElementById('tarotKingdomSettlementBody');
+  ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
@@ -1560,6 +1686,7 @@ function bindUi() {
   ui.drawMajorButton?.addEventListener('click', () => applyDrawChoice('major'));
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
   ui.judgmentSkipButton?.addEventListener('click', () => skipJudgmentPick());
+  ui.settlementConfirmButton?.addEventListener('click', () => confirmRoundSettlement());
   bound = true;
 }
 

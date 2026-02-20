@@ -2728,6 +2728,89 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
 }
 
+.tarot-kingdom-settlement {
+    margin: 6px 0 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.68), rgba(15, 23, 42, 0.52));
+    color: #e5edf7;
+}
+
+.tarot-kingdom-settlement-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8d67b;
+    margin-bottom: 6px;
+}
+
+.tarot-kingdom-settlement-body {
+    display: grid;
+    gap: 6px;
+}
+
+.tarot-kingdom-settlement-head {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.tarot-kingdom-settlement-row {
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 8px;
+    padding: 6px 8px;
+    background: rgba(15, 23, 42, 0.42);
+}
+
+.tarot-kingdom-settlement-row-top {
+    font-size: 12px;
+    font-weight: 700;
+    color: #dbeafe;
+}
+
+.tarot-kingdom-settlement-row-values {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fef08a;
+}
+
+.tarot-kingdom-settlement-row-formula {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #bfdbfe;
+    word-break: break-word;
+}
+
+.tarot-kingdom-settlement-pot,
+.tarot-kingdom-settlement-total {
+    font-size: 12px;
+    font-weight: 800;
+    color: #fde68a;
+}
+
+.tarot-kingdom-settlement-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+#tarotKingdomSettlementConfirmButton {
+    min-height: 34px;
+    padding: 6px 14px;
+    border-radius: 9px;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    background: linear-gradient(180deg, #b45309, #78350f);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#tarotKingdomSettlementConfirmButton:disabled {
+    opacity: 0.45;
+    filter: grayscale(0.3);
+}
+
 .tarot-kingdom-score {
     margin-bottom: 8px;
     padding: 6px 10px;
@@ -2819,6 +2902,7 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-hand {
     --tarot-card-w: 27px;
     --tarot-card-h: 44px;
+    --tarot-card-radius: 6px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
     --tarot-card-padding: 2px;
@@ -2900,6 +2984,7 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-oracle-card {
     --tarot-card-w: 27px;
     --tarot-card-h: 44px;
+    --tarot-card-radius: 6px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
     --tarot-art-left: 2px;
@@ -3065,6 +3150,7 @@ body.modal-lock .modal-overlay {
     border-top: 1px dashed rgba(148, 163, 184, 0.35);
     --tarot-card-w: 27px;
     --tarot-card-h: 44px;
+    --tarot-card-radius: 6px;
     --tarot-card-padding: 2px;
     --tarot-card-number-size: 12px;
     --tarot-card-title-size: 8px;
@@ -3842,6 +3928,7 @@ body.modal-lock .modal-overlay {
 .tarot-poker-column--npc-mini {
     --tarot-card-w: 27px;
     --tarot-card-h: 44px;
+    --tarot-card-radius: 6px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
     --tarot-art-left: 2px;
