@@ -88,6 +88,42 @@ const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
 const idNum = (c) => Number(c?.number || 0);
 const cStrength = (c) => c?.kind === 'minor' ? (c.number === 1 ? 15 : c.number) : (c?.number === 14 ? 14 : Number(c?.number || 0));
+const setRankFromNumber = (n) => (Number(n) === 1 ? 15 : Number(n || 0));
+const roleNumberOptions = (card) => {
+  if (!card) return [0];
+  if (card.kind === 'minor') {
+    const n = Number(card.number || 0);
+    return [n === 1 ? 15 : n];
+  }
+  const n = Number(card.number || 0);
+  if (n === 0) return Array.from({ length: 15 }, (_, i) => i + 1);
+  if (n === 1) return [1];
+  if (n === 3) return [3, 13];
+  if (n === 4) return [4, 14];
+  if (n === 14) return [14];
+  return [n];
+};
+const setNumberOptions = (card) => {
+  if (!card) return [0];
+  if (card.kind === 'minor') return [Number(card.number || 0)];
+  const n = Number(card.number || 0);
+  if (n === 3) return [3, 13];
+  if (n === 4) return [4, 14];
+  return [n];
+};
+const chooseSetNumberCandidate = (cards, reverse = false) => {
+  if (!Array.isArray(cards) || !cards.length) return null;
+  const optionRows = cards.map((card) => setNumberOptions(card));
+  const common = optionRows[0].filter((value) => optionRows.every((row) => row.includes(value)));
+  if (!common.length) return null;
+  const sorted = common.slice().sort((a, b) => {
+    const av = setRankFromNumber(a);
+    const bv = setRankFromNumber(b);
+    return reverse ? (av - bv) : (bv - av);
+  });
+  return Number(sorted[0]);
+};
+const isPairLikeRole = (roleKey) => ['FullHouse', 'FourKind', 'FiveKind'].includes(String(roleKey || ''));
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
@@ -447,15 +483,16 @@ function evalRoleVariant(res, src) {
 function evalRole(cards, lockSuit = null) {
   if (!Array.isArray(cards) || cards.length !== 5) return null;
   const options = cards.map((c) => {
-    if (c.kind === 'minor') return [{ src: c, v: c.number === 1 ? 15 : c.number, raw: c.number, suit: c.suit }];
-    if (c.number === 0) {
-      const out = [];
-      for (let raw = 1; raw <= 15; raw += 1) out.push({ src: c, v: raw === 1 ? 15 : raw, raw, suit: 'None' });
-      return out;
-    }
-    if (c.number === 1) return SUITS.map((suit) => ({ src: c, v: 1, raw: 1, suit }));
-    const s2 = suitsForCard(c, true)[0] || 'None';
-    return [{ src: c, v: c.number === 14 ? 14 : Number(c.number || 0), raw: Number(c.number || 0), suit: s2 }];
+    const raws = roleNumberOptions(c);
+    const suits = c.kind === 'major' && c.number === 1 ? SUITS.slice() : [suitsForCard(c, true)[0] || 'None'];
+    const out = [];
+    raws.forEach((raw) => {
+      suits.forEach((suit) => {
+        const value = (c.kind === 'major' && c.number === 1 && Number(raw) === 1) ? 1 : setRankFromNumber(raw);
+        out.push({ src: c, v: value, raw: Number(raw), suit });
+      });
+    });
+    return out;
   });
   let best = null;
   const walk = (i, picked) => {
@@ -490,6 +527,10 @@ function initState() {
     pass: [false, false, false, false],
     callOnly: false,
     lock: null,
+    trickForcedCount: 0,
+    death13Active: false,
+    devil15Active: false,
+    hermitPreview: null,
     reverse: false,
     reversePersist: false,
     reversePersistSuspendOwner: null,
@@ -519,6 +560,10 @@ function clearRoundState() {
   s.pass = [false, false, false, false];
   s.callOnly = false;
   s.lock = null;
+  s.trickForcedCount = 0;
+  s.death13Active = false;
+  s.devil15Active = false;
+  s.hermitPreview = null;
   if (!s.reversePersist) s.reverse = false;
   s.reversePersistSuspendOwner = null;
   s.pendingDraw = null;
@@ -661,16 +706,19 @@ function setCmp(aPower, bPower) {
 function buildSetPlay(pi, sel) {
   const p = s.players[pi];
   if (p.raise) return { ok: false, reason: 'レイズ後は1〜3枚出し不可です。' };
+  const forcedCount = Math.max(0, Number(s.trickForcedCount || 0));
+  if (forcedCount > 0 && sel.length !== forcedCount) return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== sel.length) return { ok: false, reason: '選択が不正です。' };
-  const n = idNum(cards[0]);
-  if (!cards.every((c) => idNum(c) === n)) return { ok: false, reason: '同じ数値で揃えてください。' };
+  const n = chooseSetNumberCandidate(cards, !!s.reverse);
+  if (n == null) return { ok: false, reason: '同じ数値で揃えてください。' };
   if (s.lock?.suit && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
-  if (s.lock?.min != null && cards.length === 1 && cStrength(cards[0]) <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
+  const allMagicianOne = Number(n) === 1 && cards.every((c) => c.kind === 'major' && Number(c.number) === 1);
+  const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
+  if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
   const suitTier = Math.max(...cards.map((c) => Math.max(...suitsForCard(c, false).map((x) => suitTierForCard(c, x)))));
-  const setPower = Math.max(...cards.map((c) => cStrength(c)));
-  return { ok: true, play: { type: 'set', owner: pi, count: cards.length, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), number: n, setPower, suitTier } };
+  return { ok: true, play: { type: 'set', owner: pi, count: cards.length, selected: sel.slice(), cardsHand: cards.slice(), cardsTable: cards.slice(), number: Number(n), setPower, suitTier } };
 }
 
 function buildRolePlay(pi, sel) {
@@ -736,6 +784,11 @@ function getAceFinishRuleViolation(play) {
 function validatePlay(play, mode) {
   const aceRuleViolation = getAceFinishRuleViolation(play);
   if (aceRuleViolation) return { ok: false, reason: aceRuleViolation };
+  if (s.death13Active) {
+    const actor = s.players?.[Number(play?.owner)];
+    const stars = Math.max(0, Number(actor?.stars) || 0);
+    if (stars <= 0) return { ok: false, reason: '死神効果中は星がないとカードを出せません。' };
+  }
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') {
@@ -746,7 +799,13 @@ function validatePlay(play, mode) {
     if (base?.kind === 'major') return { ok: false, reason: '場の大アルカナ1枚にはコールできません。' };
     return (s.trick.type === 'set' && s.trick.count === 1) ? { ok: true } : { ok: false, reason: 'コール対象は1枚場札のみです。' };
   }
-  if (play.type !== s.trick.type || play.count !== s.trick.count) return { ok: false, reason: '場と同じ形式/枚数で。' };
+  if (play.type !== s.trick.type) return { ok: false, reason: '場と同じ形式/枚数で。' };
+  const expectedSetCount = Math.max(0, Number(s.trickForcedCount || 0)) || Number(s.trick.count || 0);
+  if (play.type === 'set') {
+    if (play.count !== expectedSetCount) return { ok: false, reason: '場と同じ形式/枚数で。' };
+  } else if (play.count !== s.trick.count) {
+    return { ok: false, reason: '場と同じ形式/枚数で。' };
+  }
   if (play.type === 'set') {
     const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
     if (c > 0) return { ok: true };
@@ -833,6 +892,10 @@ function clearTrick(leader) {
   }
   applyRoleRewardOnClear(leader);
   const hadJudgment = !!(s.lastPlay && s.lastPlay.type === 'set' && s.lastPlay.owner === leader && s.lastPlay.cardsHand.some((c) => c.kind === 'major' && c.number === 20));
+  s.trickForcedCount = 0;
+  s.death13Active = false;
+  s.devil15Active = false;
+  s.hermitPreview = null;
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
@@ -847,6 +910,71 @@ function applySetEffects(play) {
   if (cards.length > 3) return { forceClear: false, keepTurn: false, skip: 0 };
   let forceClear = false, keepTurn = false, skip = 0;
   const has = (n) => cards.some((c) => idNum(c) === n);
+  const hasMajor = (n) => cards.some((c) => c.kind === 'major' && c.number === n);
+  const owner = s.players?.[play.owner];
+  const drawMinorForEffect = (count = 1) => {
+    if (!owner) return 0;
+    let drew = 0;
+    for (let i = 0; i < count; i += 1) {
+      if (owner.hand.length >= START_HAND) break;
+      const card = s.minorDeck.pop();
+      if (!card) break;
+      owner.hand.push(card);
+      drew += 1;
+    }
+    if (drew > 0) owner.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    return drew;
+  };
+  const drawMajorForEffect = (count = 1) => {
+    if (!owner) return 0;
+    let drew = 0;
+    for (let i = 0; i < count; i += 1) {
+      if (owner.hand.length >= START_HAND) break;
+      const card = s.majorDeck.pop();
+      if (!card) break;
+      owner.hand.push(card);
+      drew += 1;
+    }
+    if (drew > 0) owner.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    return drew;
+  };
+  if (cards.length === 1 && has(7)) {
+    s.trickForcedCount = 2;
+    play.count = 2;
+    log(`${pName(play.owner)}: 戦車で2枚出し縛り`);
+    triggerKingdomActionFx(play.owner, '戦車: 2枚出し', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+  }
+  if (hasMajor(13)) {
+    s.death13Active = true;
+    if (owner) owner.stars = Math.max(0, (Number(owner.stars) || 0) - 1);
+    log(`${pName(play.owner)}: 死神効果`);
+    triggerKingdomActionFx(play.owner, '死神', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+  }
+  if (hasMajor(15)) {
+    s.devil15Active = true;
+    log(`${pName(play.owner)}: 悪魔効果`);
+    triggerKingdomActionFx(play.owner, '悪魔', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
+  }
+  if (hasMajor(2)) {
+    const drew = drawMinorForEffect(1);
+    log(`${pName(play.owner)}: 女教皇で小アルカナ+${drew}`);
+    triggerKingdomActionFx(play.owner, `女教皇 +${drew}`, { overlay: 'draw', durationMs: 700, cutin: true });
+  }
+  if (cards.length === 1 && hasMajor(9)) {
+    const minorTop = s.minorDeck[s.minorDeck.length - 1] || null;
+    const majorTop = s.majorDeck[s.majorDeck.length - 1] || null;
+    s.hermitPreview = { owner: play.owner, minorTop, majorTop, at: Date.now() };
+    if (owner?.human) {
+      s.message = `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'} / 大=${majorTop ? getCardNameLabel(majorTop) : 'なし'}`;
+    }
+    log(`${pName(play.owner)}: 隠者で山札を予見`);
+    triggerKingdomActionFx(play.owner, '隠者: 予見', { overlay: 'draw', durationMs: 760, cutin: true });
+  }
+  if (cards.length === 1 && hasMajor(10)) {
+    const drew = drawMajorForEffect(1);
+    log(`${pName(play.owner)}: 運命の輪で大アルカナ+${drew}`);
+    triggerKingdomActionFx(play.owner, `運命の輪 +${drew}`, { overlay: 'draw', durationMs: 760, cutin: true });
+  }
   if (has(5)) {
     if (cards.length === 1 && cards.some((c) => c.kind === 'major' && c.number === 5)) {
       keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5で全員スキップ`);
@@ -1130,6 +1258,15 @@ function applyPlay(pi, play) {
   if (play.call) {
     p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
   }
+  if (s.death13Active) {
+    p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
+    log(`${p.name}: 死神効果で星-1`);
+  }
+  if (play.type === 'role' && removed.some((c) => c.kind === 'major' && c.number === 6) && isPairLikeRole(play.role?.key)) {
+    p.stars = Math.max(0, Number(p.stars) || 0) + 1;
+    log(`${p.name}: 恋人効果で星+1`);
+    triggerKingdomActionFx(pi, '恋人: 星+1', { overlay: 'draw', durationMs: 640, cutin: true });
+  }
   // レイズ待機中: 出した結果で手札が4枚になった瞬間にレイズ成立（演出あり）
   if (p.raisePending && !p.raise && p.hand.length === 4) {
     if (p.chips >= RAISE_COST) {
@@ -1180,8 +1317,31 @@ function applyPlay(pi, play) {
 }
 
 function passAction(pi) {
-  if (!s.trick) { s.message = '場が空のためパスできません。'; render(); return; }
+  if (!s.trick) {
+    // フェイルセーフ: まれに親ターン復帰時に場札が空のまま進行することがあるため、
+    // その場合は親ドロー手順へ戻して進行停止を回避する。
+    if (s?.roundActive && s.phase === 'turn' && s.turn === pi) {
+      const actor = s.players?.[pi];
+      if (actor && actor.hand.length < START_HAND && (s.minorDeck.length > 0 || s.majorDeck.length > 0)) {
+        log(`${pName(pi)}: 場が空のため親ドローへ復帰`);
+        drawChoiceStart(pi);
+        return;
+      }
+    }
+    s.message = '場が空のためパスできません。';
+    render();
+    // NPCがここに入った場合でも再試行可能にして、進行停止を避ける
+    if (!s?.players?.[pi]?.human) scheduleNpc();
+    return;
+  }
   s.pass[pi] = true; log(`${pName(pi)}: パス`);
+  if (s.devil15Active) {
+    const player = s.players?.[pi];
+    if (player) {
+      player.stars = Math.max(0, (Number(player.stars) || 0) - 1);
+      log(`${pName(pi)}: 悪魔効果でパス時に星-1`);
+    }
+  }
   s.selected.clear();
   const passByHuman = !!s.players[pi]?.human;
   triggerKingdomActionFx(pi, 'パス', { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: passByHuman });
@@ -1205,16 +1365,14 @@ function raiseAction(pi) {
 }
 
 function setMoves(pi) {
-  const p = s.players[pi], by = new Map(), out = [];
-  p.hand.forEach((c, idx) => { const list = by.get(idNum(c)) || []; list.push(idx); by.set(idNum(c), list); });
-  by.forEach((idxs) => {
-    for (let n = 1; n <= Math.min(3, idxs.length); n += 1) {
-      comb(idxs, n).forEach((pick) => {
-        const b = buildSetPlay(pi, pick), v = b.ok ? validatePlay(b.play, 'normal') : { ok: false };
-        if (b.ok && v.ok) out.push(b.play);
-      });
-    }
-  });
+  const p = s.players[pi], out = [];
+  const idxs = p.hand.map((_, i) => i);
+  for (let n = 1; n <= Math.min(3, idxs.length); n += 1) {
+    comb(idxs, n).forEach((pick) => {
+      const b = buildSetPlay(pi, pick), v = b.ok ? validatePlay(b.play, 'normal') : { ok: false };
+      if (b.ok && v.ok) out.push(b.play);
+    });
+  }
   return out;
 }
 
@@ -1282,6 +1440,33 @@ function npcAct() {
   if (s.phase !== 'turn') return;
   const pi = s.turn, p = s.players[pi];
   if (!p || p.human) return;
+  if (!s.trick) {
+    const leadSetMoves = setMoves(pi);
+    const leadRoleMoves = roleMoves(pi);
+    if (!leadSetMoves.length && !leadRoleMoves.length) {
+      if (p.hand.length < START_HAND && (s.minorDeck.length > 0 || s.majorDeck.length > 0)) {
+        log(`${pName(pi)}: 親ターンで有効手なし→ドローへ`);
+        drawChoiceStart(pi);
+        return;
+      }
+    }
+  }
+  if (p.hand.length < START_HAND && s.minorDeck.length > 0) {
+    const hangIdx = p.hand.findIndex((c) => c?.kind === 'major' && c?.number === 12);
+    if (hangIdx >= 0 && Math.random() < 0.22) {
+      const used = useHangedManAction(pi, [hangIdx]);
+      if (used.ok) {
+        clearNpcTimer();
+        npcTimer = setTimeout(() => {
+          if (!s || !s.roundActive) return;
+          if (s.phase !== 'turn' || s.turn !== pi) return;
+          if (!s.players?.[pi] || s.players[pi].human) return;
+          npcAct();
+        }, Math.max(420, Math.floor(NPC_DELAY * 0.75)));
+        return;
+      }
+    }
+  }
   const d = npcDecide(pi);
   if (d.action === 'raise') {
     raiseAction(pi);
@@ -1736,6 +1921,28 @@ function startOrNext() {
   }
 }
 
+function useHangedManAction(pi, selectedIndexes) {
+  const p = s?.players?.[pi];
+  if (!p) return { ok: false, reason: 'プレイヤー情報が不正です。' };
+  if (!Array.isArray(selectedIndexes) || selectedIndexes.length !== 1) return { ok: false, reason: '吊るされた男は1枚選択で使用します。' };
+  const idx = Number(selectedIndexes[0]);
+  const card = p.hand[idx];
+  if (!card || card.kind !== 'major' || card.number !== 12) return { ok: false, reason: '吊るされた男を選択してください。' };
+  if (p.hand.length >= START_HAND) return { ok: false, reason: `手札が上限(${START_HAND}枚)のため使用できません。` };
+  if (s.minorDeck.length <= 0) return { ok: false, reason: '小アルカナ山札がありません。' };
+
+  p.hand.splice(idx, 1);
+  const drawCard = s.minorDeck.pop();
+  if (drawCard) p.hand.push(drawCard);
+  p.hand.sort((a, b) => cStrength(a) - cStrength(b));
+  s.selected.clear();
+  log(`${pName(pi)}: 吊るされた男で小アルカナ1枚ドロー`);
+  s.message = `${pName(pi)}: 吊るされた男を使用`;
+  triggerKingdomActionFx(pi, '吊るされた男', { overlay: 'draw', durationMs: 760, cutin: true });
+  render();
+  return { ok: true };
+}
+
 function humanPlay() {
   if (!s || !s.roundActive) return;
   const me = s.players.findIndex((p) => p.human);
@@ -1750,6 +1957,14 @@ function humanPlay() {
   }
   const sel = sanitizeSelected(me);
   if (!sel.length) { showPlayError('手札を選択してください。'); return; }
+  if (myTurn && sel.length === 1) {
+    const maybeHanged = s.players?.[me]?.hand?.[sel[0]];
+    if (maybeHanged?.kind === 'major' && maybeHanged?.number === 12) {
+      const used = useHangedManAction(me, sel);
+      if (!used.ok) showPlayError(used.reason || '吊るされた男を使用できません。');
+      return;
+    }
+  }
   const canCallContext = !!(s.trick && s.trick.type === 'set' && s.trick.count === 1);
   let mode = 'normal';
   let built = null;
