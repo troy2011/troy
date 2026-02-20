@@ -365,48 +365,6 @@ function triggerKingdomActionFx(playerIndex, label, options = {}) {
   }
 }
 
-function playKingdomCallMergeEffect(sourceEl) {
-  if (typeof document === 'undefined') return;
-  if (!sourceEl || !sourceEl.getBoundingClientRect) return;
-  const targetEl = ui.trick?.querySelector?.('.tarot-card.is-call-merge-target');
-  if (!targetEl) return;
-  const from = sourceEl.getBoundingClientRect();
-  const to = targetEl.getBoundingClientRect();
-  if (!from || !to || from.width <= 0 || from.height <= 0 || to.width <= 0 || to.height <= 0) return;
-
-  const fx = sourceEl.cloneNode(true);
-  fx.classList.add('tarot-call-merge-fx');
-  fx.style.left = `${from.left + (from.width / 2)}px`;
-  fx.style.top = `${from.top + (from.height / 2)}px`;
-  fx.style.width = `${from.width}px`;
-  fx.style.height = `${from.height}px`;
-  document.body.appendChild(fx);
-
-  const fxText = document.createElement('div');
-  fxText.className = 'tarot-call-merge-text';
-  fxText.textContent = '場札を取り込み';
-  document.body.appendChild(fxText);
-
-  requestAnimationFrame(() => {
-    fx.classList.add('is-fly');
-    fx.style.left = `${to.left + (to.width / 2)}px`;
-    fx.style.top = `${to.top + (to.height / 2)}px`;
-    fx.style.width = `${to.width}px`;
-    fx.style.height = `${to.height}px`;
-    fxText.classList.add('show');
-  });
-
-  setTimeout(() => {
-    fx.classList.add('is-hit');
-    fxText.classList.remove('show');
-  }, 520);
-
-  setTimeout(() => {
-    fx.remove();
-    fxText.remove();
-  }, 940);
-}
-
 function getSpriteIndex(card) {
   if (!card) return TAROT_BACK_INDEX;
   if (card.kind === 'major') return 80 + Number(card.number || 0);
@@ -1128,7 +1086,6 @@ function applyPlay(pi, play) {
   play.cardsHand = removed.slice();
   const isRolePlay = play.type === 'role';
   const isCallPlay = isRolePlay && !!play.call;
-  const callSourceEl = isCallPlay ? ui.trick?.querySelector('.tarot-card') : null;
   if (play.type === 'set') play.cardsTable = removed.slice();
   else if (isCallPlay) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
   else play.cardsTable = removed.slice();
@@ -1160,7 +1117,6 @@ function applyPlay(pi, play) {
     s.phase = 'callCinematic';
     s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;
     render();
-    playKingdomCallMergeEffect(callSourceEl);
     setTimeout(() => {
       if (!s || s.lastPlay !== play) return;
       s.callMergeFx = null;
@@ -1357,12 +1313,9 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
-  const callMergeKey = (s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call)
-    ? `|call:${s.callMergeFx.owner}`
-    : '|call:none';
   const nextKey = cards.length
-    ? `${cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')}${callMergeKey}`
-    : `__empty__${callMergeKey}`;
+    ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
+    : '__empty__';
   if (nextKey === trickRenderKey) return;
   trickRenderKey = nextKey;
 
@@ -1377,17 +1330,19 @@ function renderTrick() {
     }
     cards.forEach((c, idx) => {
       const node = cardNode(c);
-      if (idx === 0 && s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call) {
-        node.classList.add('is-call-merge-target');
-        const badge = document.createElement('span');
-        badge.className = 'tarot-call-merge-badge';
-        badge.textContent = '場札';
-        node.appendChild(badge);
+      const callFxActive = s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call;
+      if (callFxActive && idx > 0) {
+        // コール時の4枚は右側から順に飛び込み、横一列で着地させる
+        const orderFromRight = Math.max(0, (cards.length - 1) - idx);
+        node.classList.add('is-call-arriving');
+        node.style.animationDelay = `${orderFromRight * 140}ms`;
+      } else {
+        node.classList.add('is-entering');
+        node.style.animationDelay = `${idx * (s.callMergeFx ? 120 : 78)}ms`;
       }
-      node.classList.add('is-entering');
-      node.style.animationDelay = `${idx * (s.callMergeFx ? 120 : 78)}ms`;
       node.addEventListener('animationend', () => {
         node.classList.remove('is-entering');
+        node.classList.remove('is-call-arriving');
         node.style.animationDelay = '';
       }, { once: true });
       ui.trick.appendChild(node);
