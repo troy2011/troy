@@ -4717,6 +4717,49 @@ export async function loadTarotPokerPage() {
     }
 }
 
+export function destroyTarotPokerPage() {
+    stopPotRollAnimation();
+
+    if (ui.effectOverlay) {
+        ui.effectOverlay.classList.remove('show');
+        ui.effectOverlay.textContent = '';
+    }
+    if (ui.cutin) {
+        ui.cutin.classList.remove('show');
+        resetCutinStyle();
+        ui.cutin.textContent = '';
+    }
+
+    if (ui.board) ui.board.innerHTML = '';
+    if (ui.playerHand) ui.playerHand.innerHTML = '';
+    if (ui.cpuHand) ui.cpuHand.innerHTML = '';
+    if (ui.npc2Hand) ui.npc2Hand.innerHTML = '';
+    if (ui.npc3Hand) ui.npc3Hand.innerHTML = '';
+    if (ui.playerGrave) ui.playerGrave.innerHTML = '';
+    if (ui.cpuGrave) ui.cpuGrave.innerHTML = '';
+    if (ui.npc2Grave) ui.npc2Grave.innerHTML = '';
+    if (ui.npc3Grave) ui.npc3Grave.innerHTML = '';
+    if (ui.judgmentOptions) ui.judgmentOptions.innerHTML = '';
+    if (ui.log) ui.log.innerHTML = '';
+
+    if (ui.judgmentPanel) ui.judgmentPanel.style.display = 'none';
+    if (ui.betPopup) ui.betPopup.style.display = '';
+    if (ui.resultText) ui.resultText.textContent = '';
+    if (ui.stateText) ui.stateText.textContent = '';
+    if (ui.drawGuide) ui.drawGuide.textContent = '';
+    if (ui.participantList) ui.participantList.innerHTML = '';
+
+    if (typeof document !== 'undefined') {
+        document.querySelectorAll('.tarot-coin-fx').forEach((el) => el.remove());
+        const overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    tarotGameController = null;
+    tarotControllerLogCursor = 0;
+    state = null;
+}
+
 export async function showDailyFortunePromptOnLogin(playFabId) {
     await maybeShowDailyFortunePrompt(playFabId, { force: true });
 }

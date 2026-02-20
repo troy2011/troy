@@ -2912,6 +2912,7 @@ body.modal-lock .modal-overlay {
     gap: 6px;
     flex-wrap: wrap;
     min-height: var(--tarot-card-h, 44px);
+    overflow: visible;
 }
 
 .tarot-kingdom-hand .tarot-card-art {
@@ -5261,6 +5262,14 @@ body.modal-lock .modal-overlay {
         margin-bottom: 4px;
         overflow-x: auto;
         padding-bottom: 2px;
+    }
+
+    /* Kingdom hand uses wrapped layout; keep both axes visible to avoid
+       vertical scroll indicator flicker on mobile. */
+    #tabContentTarot #tarotKingdomHand.tarot-card-row {
+        overflow-x: visible;
+        overflow-y: visible;
+        padding-bottom: 0;
     }
 
     #tabContentTarot .tarot-hand-block .tarot-card-row {

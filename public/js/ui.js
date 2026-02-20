@@ -1198,6 +1198,31 @@ export async function showTab(tabId, playerInfo, options = {}) {
         tabLoaded.ships = false;
     }
 
+    if (currentActiveTab && currentActiveTab.id === 'navTarot' && tabId !== 'tarot') {
+        console.log('[showTab] Leaving tarot tab, destroying tarot games');
+        try {
+            if (tarotPokerLoaded) {
+                const Tarot = await ensureTarotModule();
+                if (typeof Tarot.destroyTarotPokerPage === 'function') {
+                    Tarot.destroyTarotPokerPage();
+                }
+                tarotPokerLoaded = false;
+            }
+            if (tarotKingdomLoaded) {
+                const Kingdom = await ensureTarotKingdomModule();
+                if (typeof Kingdom.destroyTarotKingdomPage === 'function') {
+                    Kingdom.destroyTarotKingdomPage();
+                }
+                tarotKingdomLoaded = false;
+            }
+        } catch (error) {
+            console.warn('[showTab] Failed to destroy tarot modules:', error);
+        }
+        currentTarotMode = 'poker';
+        showTarotModeSelection();
+        tabLoaded.tarot = false;
+    }
+
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
 

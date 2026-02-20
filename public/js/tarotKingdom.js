@@ -57,9 +57,35 @@ let kingdomOverlayTimer = null;
 let oracleRevealDelayTimer = null;
 let oracleFlipSwapTimer = null;
 let oracleFlipEndTimer = null;
+let callCinematicTimer = null;
+let npcScheduleToken = 0;
+let npcActInFlight = false;
 const kingdomRowFxTimers = new Map();
 
-const clearNpcTimer = () => { if (npcTimer) { clearTimeout(npcTimer); npcTimer = null; } };
+const clearNpcTimer = () => {
+  if (npcTimer) {
+    clearTimeout(npcTimer);
+    npcTimer = null;
+  }
+  npcScheduleToken += 1;
+};
+
+const scheduleNpcTimer = (delayMs, fn) => {
+  clearNpcTimer();
+  const token = npcScheduleToken;
+  npcTimer = setTimeout(() => {
+    if (token !== npcScheduleToken) return;
+    npcTimer = null;
+    fn?.();
+  }, Math.max(0, Number(delayMs) || 0));
+};
+
+const clearCallCinematicTimer = () => {
+  if (callCinematicTimer) {
+    clearTimeout(callCinematicTimer);
+    callCinematicTimer = null;
+  }
+};
 const clearOracleFlipTimers = () => {
   if (oracleRevealDelayTimer) { clearTimeout(oracleRevealDelayTimer); oracleRevealDelayTimer = null; }
   if (oracleFlipSwapTimer) { clearTimeout(oracleFlipSwapTimer); oracleFlipSwapTimer = null; }
@@ -327,6 +353,11 @@ function showKingdomCutin(playerIndex, label, options = {}) {
 function flashKingdomPlayerRowAction(playerIndex, label) {
   const row = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`);
   if (!row || !label) return;
+  // Keep only one transient action highlight at a time.
+  ui.players?.querySelectorAll?.('.tarot-kingdom-player-row.fx-action').forEach((node) => {
+    node.classList.remove('fx-action');
+    node.removeAttribute('data-action');
+  });
   row.dataset.action = label;
   row.classList.remove('fx-action');
   void row.offsetWidth;
@@ -583,6 +614,7 @@ function resetMatch() {
   trickRenderToken += 1;
   if (stateErrorTimer) { clearTimeout(stateErrorTimer); stateErrorTimer = null; }
   clearOracleFlipTimers();
+  clearCallCinematicTimer();
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
   if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
@@ -913,12 +945,13 @@ function drawChoiceStart(playerIndex) {
   s.phase = 'draw'; s.message = `${pName(playerIndex)}: 小 or 大アルカナを1枚ドロー`;
   render();
   if (!s.players[playerIndex].human) {
-    clearNpcTimer();
-    npcTimer = setTimeout(() => {
+    scheduleNpcTimer(NPC_DELAY, () => {
+      if (!s || !s.roundActive) return;
+      if (s.phase !== 'draw' || s.pendingDraw !== playerIndex) return;
       const stars = Math.max(0, Number(s.players[playerIndex].stars) || 0);
       const useMajor = s.majorDeck.length > 0 && stars > 0 && (s.players[playerIndex].hand.length <= 5 || Math.random() < 0.35);
       applyDrawChoice(useMajor ? 'major' : 'minor');
-    }, NPC_DELAY);
+    });
   }
 }
 
@@ -935,15 +968,17 @@ function judgmentStart(playerIndex) {
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
   render();
   if (!s.players[playerIndex].human) {
-    clearNpcTimer();
-    npcTimer = setTimeout(() => {
+    scheduleNpcTimer(NPC_DELAY, () => {
+      if (!s || !s.roundActive) return;
+      if (s.phase !== 'judgment' || s.pendingJudgment !== playerIndex) return;
       const pick = opts.slice().sort((a, b) => cStrength(b.card) - cStrength(a.card))[0];
       if (pick) applyJudgmentPick(pick.owner, pick.cardIndex); else skipJudgmentPick();
-    }, NPC_DELAY);
+    });
   }
 }
 
 function clearTrick(leader) {
+  clearCallCinematicTimer();
   s.turnCount = Math.max(1, Number(s.turnCount) || 1) + 1;
   if (s.players[leader]) {
     s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
@@ -1096,6 +1131,7 @@ function applySetEffects(play) {
 
 function finishRound(winnerIndex) {
   clearNpcTimer();
+  clearCallCinematicTimer();
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
   s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
@@ -1282,6 +1318,7 @@ function skipJudgmentPick() {
 
 function continueAfterPlay(pi, play) {
   if (!s || !s.players?.[pi]) return;
+  if (s.lastPlay !== play || s.trick !== play) return;
   const p = s.players[pi];
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
@@ -1307,6 +1344,7 @@ function continueAfterPlay(pi, play) {
 }
 
 function applyPlay(pi, play, retryDepth = 0) {
+  clearCallCinematicTimer();
   const p = s.players[pi];
   const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
   const selectedCount = selectedIds.length > 0
@@ -1400,8 +1438,10 @@ function applyPlay(pi, play, retryDepth = 0) {
     s.phase = 'callCinematic';
     s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;
     render();
-    setTimeout(() => {
+    callCinematicTimer = setTimeout(() => {
+      callCinematicTimer = null;
       if (!s || s.lastPlay !== play) return;
+      if (s.phase !== 'callCinematic' || s.turn !== pi) return;
       s.callMergeFx = null;
       continueAfterPlay(pi, play);
     }, 1220);
@@ -1521,6 +1561,9 @@ function npcDecide(pi) {
 }
 
 function npcAct() {
+  if (npcActInFlight) return;
+  npcActInFlight = true;
+  try {
   if (!s || !s.roundActive) return;
   if (s.phase === 'draw' && s.pendingDraw != null) {
     const dpi = s.pendingDraw;
@@ -1550,13 +1593,12 @@ function npcAct() {
     if (hangIdx >= 0 && Math.random() < 0.22) {
       const used = useHangedManAction(pi, [hangIdx]);
       if (used.ok) {
-        clearNpcTimer();
-        npcTimer = setTimeout(() => {
+        scheduleNpcTimer(Math.max(420, Math.floor(NPC_DELAY * 0.75)), () => {
           if (!s || !s.roundActive) return;
           if (s.phase !== 'turn' || s.turn !== pi) return;
           if (!s.players?.[pi] || s.players[pi].human) return;
           npcAct();
-        }, Math.max(420, Math.floor(NPC_DELAY * 0.75)));
+        });
         return;
       }
     }
@@ -1564,8 +1606,7 @@ function npcAct() {
   const d = npcDecide(pi);
   if (d.action === 'raise') {
     raiseAction(pi);
-    clearNpcTimer();
-    npcTimer = setTimeout(() => {
+    scheduleNpcTimer(NPC_RAISE_FOLLOWUP_DELAY, () => {
       if (!s || !s.roundActive) return;
       if (s.phase !== 'turn' || s.turn !== pi) return;
       const current = s.players?.[pi];
@@ -1573,19 +1614,28 @@ function npcAct() {
       const d2 = npcDecide(pi);
       if (d2.action === 'play' && d2.play) applyPlay(pi, d2.play);
       else passAction(pi);
-    }, NPC_RAISE_FOLLOWUP_DELAY);
+    });
     return;
   }
   if (d.action === 'play' && d.play) applyPlay(pi, d.play); else passAction(pi);
+  } finally {
+    npcActInFlight = false;
+  }
 }
 
 function scheduleNpc() {
   clearNpcTimer();
   if (!s || !s.roundActive) return;
-  if (s.phase === 'draw' && s.pendingDraw != null && !s.players[s.pendingDraw].human) { npcTimer = setTimeout(() => npcAct(), NPC_DELAY); return; }
-  if (s.phase === 'judgment' && s.pendingJudgment != null && !s.players[s.pendingJudgment].human) { npcTimer = setTimeout(() => npcAct(), NPC_DELAY); return; }
+  if (s.phase === 'draw' && s.pendingDraw != null && !s.players[s.pendingDraw].human) {
+    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    return;
+  }
+  if (s.phase === 'judgment' && s.pendingJudgment != null && !s.players[s.pendingJudgment].human) {
+    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    return;
+  }
   if (s.phase !== 'turn') return;
-  if (!s.players[s.turn]?.human) npcTimer = setTimeout(() => npcAct(), NPC_DELAY);
+  if (!s.players[s.turn]?.human) scheduleNpcTimer(NPC_DELAY, () => npcAct());
 }
 
 function cardNode(card, opt = {}) {
@@ -2135,4 +2185,68 @@ export async function loadTarotKingdomPage() {
   bindUi();
   if (!s) resetMatch();
   render();
+}
+
+export function destroyTarotKingdomPage() {
+  clearNpcTimer();
+  clearOracleFlipTimers();
+  clearCallCinematicTimer();
+  if (trickSwapTimer) {
+    clearTimeout(trickSwapTimer);
+    trickSwapTimer = null;
+  }
+  if (stateErrorTimer) {
+    clearTimeout(stateErrorTimer);
+    stateErrorTimer = null;
+  }
+  if (kingdomCutinTimer) {
+    clearTimeout(kingdomCutinTimer);
+    kingdomCutinTimer = null;
+  }
+  if (kingdomOverlayTimer) {
+    clearTimeout(kingdomOverlayTimer);
+    kingdomOverlayTimer = null;
+  }
+  kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
+  kingdomRowFxTimers.clear();
+
+  // Remove transient FX nodes created during play.
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('.tarot-coin-fx').forEach((el) => el.remove());
+  }
+
+  if (ui.kingdomCutin) {
+    ui.kingdomCutin.classList.remove(
+      'show',
+      'is-player',
+      'is-cpu',
+      'is-showdown-win',
+      'is-showdown-lose',
+      'is-showdown-draw',
+      'is-kingdom-skip',
+      'is-kingdom-cut',
+      'is-kingdom-reverse',
+      'is-kingdom-lock',
+      'is-kingdom-call',
+      'is-kingdom-role',
+      'is-kingdom-round-end'
+    );
+    ui.kingdomCutin.textContent = '';
+  }
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.oracleCardWrap?.classList.remove('is-flipping');
+
+  if (ui.trick) ui.trick.innerHTML = '';
+  if (ui.hand) ui.hand.innerHTML = '';
+  if (ui.players) ui.players.innerHTML = '';
+  if (ui.log) ui.log.innerHTML = '';
+  if (ui.judgmentOptions) ui.judgmentOptions.innerHTML = '';
+  if (ui.judgmentArea) ui.judgmentArea.style.display = 'none';
+  if (ui.settlementBody) ui.settlementBody.innerHTML = '';
+  if (ui.settlement) ui.settlement.hidden = true;
+
+  trickRenderKey = '';
+  trickRenderToken += 1;
+  npcActInFlight = false;
+  s = null;
 }
