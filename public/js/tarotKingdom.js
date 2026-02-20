@@ -28,7 +28,8 @@ const TOTAL_HANDS = 4;
 const START_CHIPS = 30;
 const A_PENALTY = 1;
 const RAISE_COST = 1;
-const NPC_DELAY = 650;
+const NPC_DELAY = 1100;
+const NPC_RAISE_FOLLOWUP_DELAY = 900;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -1284,8 +1285,16 @@ function npcAct() {
   const d = npcDecide(pi);
   if (d.action === 'raise') {
     raiseAction(pi);
-    const d2 = npcDecide(pi);
-    if (d2.action === 'play' && d2.play) applyPlay(pi, d2.play); else passAction(pi);
+    clearNpcTimer();
+    npcTimer = setTimeout(() => {
+      if (!s || !s.roundActive) return;
+      if (s.phase !== 'turn' || s.turn !== pi) return;
+      const current = s.players?.[pi];
+      if (!current || current.human) return;
+      const d2 = npcDecide(pi);
+      if (d2.action === 'play' && d2.play) applyPlay(pi, d2.play);
+      else passAction(pi);
+    }, NPC_RAISE_FOLLOWUP_DELAY);
     return;
   }
   if (d.action === 'play' && d.play) applyPlay(pi, d.play); else passAction(pi);
