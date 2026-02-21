@@ -1760,6 +1760,53 @@ function callMoves(pi) {
   return out;
 }
 
+function isNpcOpeningPhase(pi) {
+  const p = s.players?.[pi];
+  if (!p) return false;
+  const turnNo = Math.max(1, Number(s?.turnCount || 1));
+  // 序盤は「手札がまだ多い」かつ「局の前半ターン」を優先判定する
+  return p.hand.length >= 7 || turnNo <= 3;
+}
+
+function collectNpcSingleOnlyCardIds(pi, calls, roles, sets) {
+  const p = s.players?.[pi];
+  if (!p) return new Set();
+  const multiUse = new Set();
+  const addCards = (play) => {
+    (play?.cardsHand || []).forEach((card) => {
+      if (card?.id) multiUse.add(card.id);
+    });
+  };
+  (calls || []).forEach(addCards);
+  (roles || []).forEach(addCards);
+  (sets || []).forEach((play) => {
+    if (Number(play?.count || 0) >= 2) addCards(play);
+  });
+  const out = new Set();
+  p.hand.forEach((card) => {
+    if (card?.id && !multiUse.has(card.id)) out.add(card.id);
+  });
+  return out;
+}
+
+function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
+  if (!Array.isArray(sets) || !sets.length || !(singleOnlyIds instanceof Set) || !singleOnlyIds.size) return null;
+  const candidates = sets.filter((play) => {
+    if (play?.type !== 'set' || Number(play.count) !== 1) return false;
+    const cardId = play?.cardsHand?.[0]?.id;
+    return !!cardId && singleOnlyIds.has(cardId);
+  });
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => {
+    const aPower = a?.setPower ?? a?.number ?? 0;
+    const bPower = b?.setPower ?? b?.number ?? 0;
+    const byPower = setCmp(aPower, bPower); // 弱い方を先に処理
+    if (byPower !== 0) return byPower;
+    return Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
+  });
+  return candidates[0] || null;
+}
+
 function npcDecide(pi) {
   const p = s.players[pi], calls = callMoves(pi), sets = setMoves(pi), roles = roleMoves(pi);
   if (s.callOnly) {
@@ -1778,6 +1825,11 @@ function npcDecide(pi) {
   }
   const outNow = all.find((m) => m.selected.length === p.hand.length);
   if (outNow) return { action: 'play', play: outNow };
+  if (isNpcOpeningPhase(pi)) {
+    const singleOnlyIds = collectNpcSingleOnlyCardIds(pi, calls, roles, sets);
+    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
+    if (openingSingle) return { action: 'play', play: openingSingle };
+  }
   if (p.human && !p.raise && !p.raisePending && p.hand.length >= 5 && p.chips >= RAISE_COST && Math.random() < 0.28) return { action: 'raise' };
   all.sort((a, b) => {
     if (a.type === 'role' && b.type === 'set') return -1;
@@ -1799,7 +1851,14 @@ function sortNpcPlayCandidates(all) {
 }
 
 function pickBestNpcLeadPlay(pi) {
-  const all = [...roleMoves(pi), ...setMoves(pi)];
+  const sets = setMoves(pi);
+  const roles = roleMoves(pi);
+  if (isNpcOpeningPhase(pi)) {
+    const singleOnlyIds = collectNpcSingleOnlyCardIds(pi, [], roles, sets);
+    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
+    if (openingSingle) return openingSingle;
+  }
+  const all = [...roles, ...sets];
   if (!all.length) return null;
   return sortNpcPlayCandidates(all)[0] || null;
 }
