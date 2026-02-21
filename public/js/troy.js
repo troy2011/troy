@@ -16,18 +16,6 @@ let _orderItems = [];
 let _pendingOrder = null;
 let _checkoutSession = null;
 let _checkoutLocked = false;
-let _menuActiveId = 'drinks';
-const _menuQuantityByKey = new Map();
-
-const TROY_MENU_ORDER = ['drinks', 'appetizer', 'dryfood', 'hotfood', 'main', 'points'];
-const TROY_MENU_BADGES = {
-    drinks: ['昼夜切替', '人気'],
-    appetizer: ['軽いおつまみ', 'おすすめ'],
-    dryfood: ['乾きもの'],
-    hotfood: ['温かい料理', '売れ筋'],
-    main: ['主食', '船長おすすめ'],
-    points: ['交換商品']
-};
 
 const TROY_PRODUCT_MENUS = {
     drinks: {
@@ -111,63 +99,12 @@ function getDrinkMenuData(now = new Date()) {
     };
 }
 
-function getMenuDataById(menuId) {
-    return menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
-}
-
-function getMenuCategoryList() {
-    return TROY_MENU_ORDER
-        .map((id) => {
-            const data = getMenuDataById(id);
-            if (!data) return null;
-            return { id, title: data.title };
-        })
-        .filter(Boolean);
-}
-
-function getMenuItemKey(menuId, item, index) {
-    const concept = String(item?.concept || item?.name || '').trim();
-    const content = String(item?.content || '').trim();
-    return `${menuId}:${concept}:${content}:${index}`;
-}
-
-function getMenuItemQuantity(menuId, item, index) {
-    const key = getMenuItemKey(menuId, item, index);
-    const value = Number(_menuQuantityByKey.get(key));
-    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
-}
-
-function setMenuItemQuantity(menuId, item, index, quantity) {
-    const key = getMenuItemKey(menuId, item, index);
-    const next = Math.max(1, Math.floor(Number(quantity) || 1));
-    _menuQuantityByKey.set(key, next);
-    return next;
-}
-
-function getMenuItemBadges(menuId, item, index) {
-    const labels = [];
-    if (Array.isArray(item?.badges)) labels.push(...item.badges);
-    if (!labels.length) {
-        const defaults = TROY_MENU_BADGES[menuId] || [];
-        if (index === 0 && defaults[1]) labels.push(defaults[1]);
-        else if (defaults[0]) labels.push(defaults[0]);
-        if (Number(item?.price || 0) >= 1200) labels.push('人気');
-    }
-    return labels.slice(0, 2);
-}
-
 function getMenuModalElements() {
     return {
         modal: document.getElementById('troyMenuModal'),
         title: document.getElementById('troyMenuModalTitle'),
-        categories: document.getElementById('troyMenuModalCategories'),
-        subnote: document.getElementById('troyMenuModalSubnote'),
         list: document.getElementById('troyMenuModalList'),
-        close: document.getElementById('troyMenuModalClose'),
-        cartCount: document.getElementById('troyMenuCartCount'),
-        cartTotal: document.getElementById('troyMenuCartTotal'),
-        goCheckout: document.getElementById('troyMenuOpenCheckout'),
-        card: document.querySelector('#troyMenuModal .troy-menu-modal-card')
+        close: document.getElementById('troyMenuModalClose')
     };
 }
 
@@ -254,21 +191,9 @@ function getMenuItemEmoji(item) {
     return '🍽️';
 }
 
-function updateMenuCartSummary() {
-    const { cartCount, cartTotal } = getMenuModalElements();
-    if (cartCount) {
-        const items = _orderItems.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0);
-        cartCount.textContent = `${items}点`;
-    }
-    if (cartTotal) {
-        cartTotal.textContent = formatYen(_orderTotal);
-    }
-}
-
 function renderOrderSummary() {
     const { total, list } = getOrderElements();
     if (total) total.textContent = formatYen(_orderTotal);
-    updateMenuCartSummary();
     if (!list) return;
     list.innerHTML = '';
     if (!_orderItems.length) {
@@ -452,196 +377,64 @@ async function submitCheckout(playFabId) {
     }
 }
 
-function canAddOrderFromMenu() {
-    if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('入店後に注文できます。');
-        } else {
-            alert('入店後に注文できます。');
-        }
-        return false;
-    }
-    if (_checkoutLocked) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('会計待ちのため新規注文はできません。');
-        }
-        return false;
-    }
-    return true;
-}
-
-function addMenuOrderItem(item, quantity, priceValue) {
-    if (!priceValue || !canAddOrderFromMenu()) return;
-    const safeQty = Math.max(1, Math.floor(Number(quantity) || 1));
-    const orderName = item.content ? `${item.concept} (${item.content})` : (item.concept || item.name);
-    addOrderItemLocal(orderName, priceValue, safeQty);
-    if (typeof window.showRpgMessage === 'function') {
-        window.showRpgMessage(`${orderName} x${safeQty} を追加しました。`);
-    }
-}
-
-function setMenuCategoryButtonState(activeId) {
-    const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
-    menuButtons.forEach((button) => {
-        button.classList.toggle('is-active', button.dataset.menuId === activeId);
-    });
-}
-
 function openMenuModal(menuId) {
-    const fallbackId = TROY_MENU_ORDER.includes(_menuActiveId) ? _menuActiveId : 'drinks';
-    _menuActiveId = TROY_MENU_ORDER.includes(menuId) ? menuId : fallbackId;
-    const data = getMenuDataById(_menuActiveId);
+    const data = menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
     if (!data) return;
-
-    const { modal, title, categories, subnote, list, card } = getMenuModalElements();
+    const { modal, title, list } = getMenuModalElements();
     if (!modal || !list) return;
-
-    const isDay = isDayCafeHours();
-    if (card) {
-        card.classList.toggle('is-day', isDay);
-        card.classList.toggle('is-night', !isDay);
-    }
     if (title) title.textContent = data.title;
-    if (subnote) {
-        subnote.textContent = isDay
-            ? '昼営業: カフェドリンク / 夜営業: バーのドリンク。カテゴリを切り替えて選べます。'
-            : '夜営業: バーのドリンク提供中。カテゴリを切り替えて選べます。';
-    }
-
-    if (categories) {
-        categories.innerHTML = '';
-        getMenuCategoryList().forEach((category) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'troy-menu-modal-category-btn';
-            button.textContent = category.title;
-            button.classList.toggle('is-active', category.id === _menuActiveId);
-            button.addEventListener('click', () => openMenuModal(category.id));
-            categories.appendChild(button);
-        });
-    }
-
     list.innerHTML = '';
-    data.items.forEach((item, index) => {
-        const priceValue = parseYenPrice(item.price);
+    data.items.forEach((item) => {
         const row = document.createElement('div');
-        row.className = 'troy-menu-card';
+        row.className = 'troy-menu-modal-item';
 
         const thumb = document.createElement('div');
-        thumb.className = 'troy-menu-card-thumb';
-
-        const img = document.createElement('img');
-        img.className = 'troy-menu-card-image';
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        img.alt = item.content ? `${item.concept} ${item.content}` : (item.concept || 'menu item');
-        if (item.image) {
-            img.src = item.image;
-            img.addEventListener('error', () => {
-                img.style.display = 'none';
-            });
-        } else {
-            img.style.display = 'none';
-        }
-
-        const emoji = document.createElement('div');
-        emoji.className = 'troy-menu-card-emoji';
-        emoji.textContent = item.emoji || getMenuItemEmoji(item);
-        emoji.setAttribute('aria-hidden', 'true');
-
-        thumb.appendChild(img);
-        thumb.appendChild(emoji);
-
-        const badges = getMenuItemBadges(_menuActiveId, item, index);
-        if (badges.length) {
-            const badgeWrap = document.createElement('div');
-            badgeWrap.className = 'troy-menu-card-badges';
-            badges.forEach((label) => {
-                const badge = document.createElement('span');
-                badge.className = 'troy-menu-card-badge';
-                badge.textContent = label;
-                badgeWrap.appendChild(badge);
-            });
-            thumb.appendChild(badgeWrap);
-        }
+        thumb.className = 'troy-menu-modal-emoji';
+        thumb.textContent = item.emoji || getMenuItemEmoji(item);
+        thumb.setAttribute('aria-hidden', 'true');
 
         const body = document.createElement('div');
-        body.className = 'troy-menu-card-body';
+        body.className = 'troy-menu-modal-item-body';
 
         const concept = document.createElement('div');
-        concept.className = 'troy-menu-card-name';
+        concept.className = 'troy-menu-modal-item-name';
         concept.textContent = item.concept || item.name || '';
 
         const content = document.createElement('div');
-        content.className = 'troy-menu-card-content';
+        content.className = 'troy-menu-modal-item-content';
         content.textContent = item.content || '';
 
         const price = document.createElement('span');
-        price.className = 'troy-menu-card-price';
+        price.className = 'troy-menu-modal-price';
         price.textContent = formatYen(item.price);
-
-        const controls = document.createElement('div');
-        controls.className = 'troy-menu-card-controls';
-
-        const qtyWrap = document.createElement('div');
-        qtyWrap.className = 'troy-menu-card-qty';
-
-        const minus = document.createElement('button');
-        minus.type = 'button';
-        minus.className = 'troy-menu-card-qty-btn';
-        minus.textContent = '-';
-
-        const qtyValue = document.createElement('span');
-        qtyValue.className = 'troy-menu-card-qty-value';
-        qtyValue.textContent = String(getMenuItemQuantity(_menuActiveId, item, index));
-
-        const plus = document.createElement('button');
-        plus.type = 'button';
-        plus.className = 'troy-menu-card-qty-btn';
-        plus.textContent = '+';
-
-        const addButton = document.createElement('button');
-        addButton.type = 'button';
-        addButton.className = 'troy-menu-card-add';
-        addButton.textContent = 'カゴに追加';
-
-        minus.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const current = getMenuItemQuantity(_menuActiveId, item, index);
-            qtyValue.textContent = String(setMenuItemQuantity(_menuActiveId, item, index, current - 1));
+        const priceValue = parseYenPrice(item.price);
+        row.addEventListener('click', () => {
+            if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
+                if (typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage('入店後に注文できます。');
+                } else {
+                    alert('入店後に注文できます。');
+                }
+                return;
+            }
+            if (_checkoutLocked) {
+                if (typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage('会計待ちのため新規注文はできません。');
+                }
+                return;
+            }
+            if (!priceValue) return;
+            closeMenuModal();
+            const orderName = item.content ? `${item.concept} (${item.content})` : (item.concept || item.name);
+            openOrderModal({ name: orderName, price: priceValue, quantity: 1 });
         });
-
-        plus.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const current = getMenuItemQuantity(_menuActiveId, item, index);
-            qtyValue.textContent = String(setMenuItemQuantity(_menuActiveId, item, index, current + 1));
-        });
-
-        addButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const quantity = getMenuItemQuantity(_menuActiveId, item, index);
-            addMenuOrderItem(item, quantity, priceValue);
-            updateMenuCartSummary();
-        });
-
-        qtyWrap.appendChild(minus);
-        qtyWrap.appendChild(qtyValue);
-        qtyWrap.appendChild(plus);
-        controls.appendChild(qtyWrap);
-        controls.appendChild(addButton);
-
         body.appendChild(concept);
         if (item.content) body.appendChild(content);
         body.appendChild(price);
-        body.appendChild(controls);
-
         row.appendChild(thumb);
         row.appendChild(body);
         list.appendChild(row);
     });
-
-    setMenuCategoryButtonState(_menuActiveId);
-    updateMenuCartSummary();
     modal.style.display = 'flex';
 }
 
@@ -653,7 +446,7 @@ function closeMenuModal() {
 function wireMenuPopups() {
     if (_menuWired) return;
     _menuWired = true;
-    const { modal, close, goCheckout } = getMenuModalElements();
+    const { modal, close } = getMenuModalElements();
     const orderModal = getOrderModalElements();
     if (close) {
         close.addEventListener('click', closeMenuModal);
@@ -677,26 +470,14 @@ function wireMenuPopups() {
     const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
     menuButtons.forEach((button) => {
         button.addEventListener('click', () => {
-            const menuId = button.dataset.menuId;
-            _menuActiveId = menuId;
-            openMenuModal(menuId);
+            openMenuModal(button.dataset.menuId);
         });
     });
-    if (goCheckout) {
-        goCheckout.addEventListener('click', () => {
-            closeMenuModal();
-            const checkoutCard = document.getElementById('troyCheckoutCard');
-            if (checkoutCard) {
-                checkoutCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        });
-    }
     if (orderModal.confirm) {
         orderModal.confirm.addEventListener('click', () => {
             confirmOrder(window.myPlayFabId);
         });
     }
-    setMenuCategoryButtonState(_menuActiveId);
     renderOrderSummary();
 }
 
@@ -816,4 +597,3 @@ export async function loadTroyPage(playFabId) {
     updateTroyRoleUI();
     startPolling(playFabId);
 }
-

@@ -183,10 +183,10 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">カテゴリを選んで商品を追加。昼はカフェ、夜はバーのドリンクに自動で切り替わります。</div>
+                        <div class="troy-menu-note">カテゴリーを選ぶと写真つきメニューが開きます。ドリンクは昼カフェ・夜バーで切り替わります。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
-                                <div class="troy-menu-label">カテゴリ</div>
+                                <div class="troy-menu-label">商品</div>
                                 <ul class="troy-menu-items">
                                     <li class="troy-menu-item-button" data-menu-id="drinks">ドリンク</li>
                                     <li class="troy-menu-item-button" data-menu-id="appetizer">貯蔵品 (軽いおつまみ)</li>
@@ -200,7 +200,7 @@
                     </div>
                 </div>
                 <div class="content-area">
-                    <div id="troyCheckoutCard" class="troy-checkout">
+                    <div class="troy-checkout">
                         <div class="troy-checkout-title">会計</div>
                         <div class="troy-checkout-total">合計: <span id="troyOrderTotal">¥0</span></div>
                         <div id="troyOrderList" class="troy-checkout-list"></div>
@@ -216,18 +216,7 @@
                             <div id="troyMenuModalTitle" class="troy-menu-modal-title">メニュー</div>
                             <button id="troyMenuModalClose" class="troy-menu-modal-close" type="button">×</button>
                         </div>
-                        <div class="troy-menu-modal-body">
-                            <div id="troyMenuModalCategories" class="troy-menu-modal-categories"></div>
-                            <div id="troyMenuModalSubnote" class="troy-menu-modal-subnote"></div>
-                            <div id="troyMenuModalList" class="troy-menu-modal-list"></div>
-                        </div>
-                        <div class="troy-menu-modal-footer">
-                            <div class="troy-menu-modal-cart-summary">
-                                <div id="troyMenuCartCount" class="troy-menu-modal-cart-count">0点</div>
-                                <div id="troyMenuCartTotal" class="troy-menu-modal-cart-total">¥0</div>
-                            </div>
-                            <button id="troyMenuOpenCheckout" class="troy-menu-modal-go-checkout" type="button">注文内容を見る</button>
-                        </div>
+                        <div id="troyMenuModalList" class="troy-menu-modal-list"></div>
                     </div>
                 </div>
                 <div id="troyOrderModal" class="troy-order-modal modal-overlay">
