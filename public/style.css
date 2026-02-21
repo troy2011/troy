@@ -2721,6 +2721,8 @@ body.modal-lock .modal-overlay {
     background: linear-gradient(180deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.8));
     color: #cbd5e1;
     max-width: min(58vw, 420px);
+    justify-content: flex-start;
+    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

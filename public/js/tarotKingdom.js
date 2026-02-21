@@ -2888,7 +2888,7 @@ function renderTrick() {
         current.count += 1;
         ownerSummary.set(key, current);
       });
-      const parts = Array.from(ownerSummary.entries()).map(([owner, data]) => `${pName(owner)}x${data.count} H${data.hand}`);
+      const parts = Array.from(ownerSummary.entries()).map(([owner, data]) => `${pName(owner)} 手札${data.hand}`);
       ui.trickOwner.textContent = `場札主: ${parts.join(' / ') || '-'}`;
     }
   }
