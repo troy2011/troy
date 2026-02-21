@@ -2383,6 +2383,14 @@ function continueAfterPlay(pi, play) {
   if (!s || !s.players?.[pi]) return;
   if (s.lastPlay !== play || s.trick !== play) return;
   const p = s.players[pi];
+  if (play?.type === 'role' && play?.call) {
+    // コール成立後は、場にかかっている効果を全解除する。
+    s.callOnly = false; // 8カット（コール猶予）
+    s.lock = null; // 14ロック / 節制ロック
+    s.reverse = false; // 11バック
+    s.reversePersist = false; // 永続11バック（局中）も解除
+    s.reversePersistSuspendOwner = null;
+  }
   if (p.hand.length <= 0) { finishRound(pi); return; }
   if (play.type === 'set') {
     const fx = applySetEffects(play);
@@ -2874,22 +2882,20 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
-  const owners = Array.isArray(s.trick?.tableOwners) ? s.trick.tableOwners : [];
   if (ui.trickOwner) {
     if (!cards.length) {
       ui.trickOwner.textContent = '場札主: -';
     } else {
-      const ownerSummary = new Map();
-      cards.forEach((_, idx) => {
-        const owner = Number.isInteger(owners[idx]) ? owners[idx] : (Number.isInteger(s.trick?.owner) ? s.trick.owner : null);
-        if (!Number.isInteger(owner) || !s.players?.[owner]) return;
-        const key = owner;
-        const current = ownerSummary.get(key) || { count: 0, hand: Math.max(0, Number(s.players[owner].hand?.length || 0)) };
-        current.count += 1;
-        ownerSummary.set(key, current);
-      });
-      const parts = Array.from(ownerSummary.entries()).map(([owner, data]) => `${pName(owner)} 手札${data.hand}`);
-      ui.trickOwner.textContent = `場札主: ${parts.join(' / ') || '-'}`;
+      const owner = Number.isInteger(s.trick?.owner) ? s.trick.owner : null;
+      if (!Number.isInteger(owner) || !s.players?.[owner]) {
+        ui.trickOwner.textContent = '場札主: -';
+      } else {
+        const handCount = Math.max(0, Number(s.players[owner]?.hand?.length || 0));
+        const roleSuffix = s.trick?.type === 'role' && s.trick?.role
+          ? `/${getRoleBaseLabel(s.trick.role)}`
+          : '';
+        ui.trickOwner.textContent = `場札主: ${pName(owner)} 手札${handCount}${roleSuffix}`;
+      }
     }
   }
   const nextKey = cards.length

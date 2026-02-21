@@ -2943,7 +2943,7 @@ body.modal-lock .modal-overlay {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin-left: auto;
+    margin-left: 4px;
     flex-wrap: wrap;
 }
 
@@ -3733,6 +3733,12 @@ body.modal-lock .modal-overlay {
         0 0 18px rgba(250, 204, 21, 0.35),
         0 10px 20px rgba(0, 0, 0, 0.5);
     animation: tarotKingdomReadyButtonPulse 0.92s ease-in-out infinite;
+}
+
+/* Tarot Kingdom: 自分ターン時のアクションボタン揺れを停止（強調は維持） */
+#tarotKingdomActionPopup .tarot-betting-actions button.is-ready {
+    animation: none;
+    transform: none;
 }
 
 .tarot-betting-actions button:disabled,
