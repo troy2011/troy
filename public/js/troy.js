@@ -125,13 +125,8 @@ function isTroyMember(status, playFabId) {
 }
 
 function updateOrderAvailability(isMember) {
-    const menuButtons = document.querySelectorAll('.troy-menu-item-button[data-menu-id]');
     const canOrder = isMember && !_checkoutLocked;
-    menuButtons.forEach((button) => {
-        button.style.display = canOrder ? '' : 'none';
-    });
     if (!canOrder) {
-        closeMenuModal();
         closeOrderModal();
     }
     updateCheckoutStatus();
@@ -146,7 +141,7 @@ function updateTroyRoleUI() {
         kingControls.style.display = isKingUser ? 'block' : 'none';
     }
     if (menuSection) {
-        menuSection.style.display = isKingUser ? 'none' : 'block';
+        menuSection.style.display = 'block';
     }
 }
 
@@ -383,20 +378,6 @@ async function submitCheckout(playFabId) {
 }
 
 function openMenuModal(menuId) {
-    if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('入店してから注文できます。');
-        } else {
-            alert('入店してから注文できます。');
-        }
-        return;
-    }
-    if (_checkoutLocked) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('会計待ちのため注文できません。');
-        }
-        return;
-    }
     const data = menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
     if (!data) return;
     const { modal, title, list } = getMenuModalElements();
@@ -428,6 +409,20 @@ function openMenuModal(menuId) {
         price.textContent = formatYen(item.price);
         const priceValue = parseYenPrice(item.price);
         row.addEventListener('click', () => {
+            if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
+                if (typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage('入店後に注文できます。');
+                } else {
+                    alert('入店後に注文できます。');
+                }
+                return;
+            }
+            if (_checkoutLocked) {
+                if (typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage('会計待ちのため新規注文はできません。');
+                }
+                return;
+            }
             if (!priceValue) return;
             closeMenuModal();
             const orderName = item.content ? `${item.concept} (${item.content})` : (item.concept || item.name);
