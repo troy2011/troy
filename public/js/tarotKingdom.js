@@ -2610,7 +2610,7 @@ function finishRound(winnerIndex) {
       { label: '基本', value: 1 },
       { label: '★', value: settlement.starBonus },
       { label: 'アルカナ', value: oracleHits },
-      { label: 'Aペナルティ', value: acePenalty }
+      { label: 'A', value: acePenalty }
     ];
     const factorSummary = factorParts
       .filter((part) => Number(part.value) > 0)
