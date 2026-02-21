@@ -2654,6 +2654,13 @@ body.modal-lock .modal-overlay {
     line-height: 1.1;
 }
 
+.tarot-kingdom-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
 .tarot-kingdom-header-meta {
     display: flex;
     gap: 4px;
@@ -3140,6 +3147,10 @@ body.modal-lock .modal-overlay {
     align-items: center;
     justify-content: center;
     perspective: 700px;
+}
+
+.tarot-kingdom-header-oracle {
+    margin: 0;
 }
 
 .tarot-kingdom-oracle-card-wrap.is-flipping .tarot-card {

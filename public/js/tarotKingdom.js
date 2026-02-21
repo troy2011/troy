@@ -62,6 +62,9 @@ let kingdomOverlayTimer = null;
 let oracleRevealDelayTimer = null;
 let oracleFlipSwapTimer = null;
 let oracleFlipEndTimer = null;
+let hiddenOracleRevealDelayTimer = null;
+let hiddenOracleFlipSwapTimer = null;
+let hiddenOracleFlipEndTimer = null;
 let callCinematicTimer = null;
 let roundStartCinematicTimer = null;
 let humanTurnBadgeTimer = null;
@@ -148,7 +151,11 @@ const clearOracleFlipTimers = () => {
   if (oracleRevealDelayTimer) { clearTimeout(oracleRevealDelayTimer); oracleRevealDelayTimer = null; }
   if (oracleFlipSwapTimer) { clearTimeout(oracleFlipSwapTimer); oracleFlipSwapTimer = null; }
   if (oracleFlipEndTimer) { clearTimeout(oracleFlipEndTimer); oracleFlipEndTimer = null; }
+  if (hiddenOracleRevealDelayTimer) { clearTimeout(hiddenOracleRevealDelayTimer); hiddenOracleRevealDelayTimer = null; }
+  if (hiddenOracleFlipSwapTimer) { clearTimeout(hiddenOracleFlipSwapTimer); hiddenOracleFlipSwapTimer = null; }
+  if (hiddenOracleFlipEndTimer) { clearTimeout(hiddenOracleFlipEndTimer); hiddenOracleFlipEndTimer = null; }
   ui.oracleCardWrap?.classList.remove('is-flipping');
+  ui.hiddenOracleCardWrap?.classList.remove('is-flipping');
 };
 const getKingdomCoinCountByAmount = (amount) => {
   const n = Math.max(0, Math.floor(Number(amount) || 0));
@@ -759,6 +766,7 @@ function initState() {
     openOracle: null,
     openOracleRevealed: false,
     hiddenOracleCard: null,
+    hiddenOracleRevealed: false,
     pendingDraw: null,
     pendingDrawReason: null,
     pendingJudgment: null,
@@ -1671,6 +1679,8 @@ function resetMatch() {
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
   s.openOracleRevealed = false;
+  s.hiddenOracleCard = null;
+  s.hiddenOracleRevealed = false;
   if (!isNetModeActive()) {
     tkNet.localSeat = 0;
     const fallbackName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || 'あなた');
@@ -1712,6 +1722,8 @@ function enforceLeadTurnInvariant() {
 function setupHand() {
   clearNpcTimer();
   clearRoundState();
+  s.hiddenOracleCard = null;
+  s.hiddenOracleRevealed = false;
   if (s.reversePersist) s.reverse = true;
   s.roundActive = true;
   s.phase = 'turn';
@@ -2287,6 +2299,7 @@ function finishRound(winnerIndex) {
   const winner = s.players[winnerIndex];
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   s.hiddenOracleCard = s.minorDeck.pop() || null;
+  s.hiddenOracleRevealed = false;
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
   let fxDelayMs = 360;
@@ -2386,6 +2399,12 @@ function finishRound(winnerIndex) {
   s.awaitRoundConfirm = true;
   s.message = `${winner.name}が第${roundNo}局に勝利。清算を確認して次局へ進んでください。次局の親: ${pName(s.dealer)}。`;
   render();
+  if (s.hiddenOracleCard) {
+    hiddenOracleRevealDelayTimer = setTimeout(() => {
+      hiddenOracleRevealDelayTimer = null;
+      revealHiddenOracleWithFlip();
+    }, 120);
+  }
 }
 
 function applyDrawChoice(deckType) {
@@ -3137,8 +3156,7 @@ function renderHand() {
       showPlayError(`現在は「${s.phase}」フェーズです。`);
       return;
     }
-    if (s.selected.has(idx)) s.selected.delete(idx);
-    else s.selected.add(idx);
+    if (!s.selected.has(idx)) s.selected.add(idx);
     s.message = canCommit
       ? `選択中: ${s.selected.size}枚`
       : `選択中: ${s.selected.size}枚（あなたのターン待ち）`;
@@ -3273,10 +3291,16 @@ function renderJudgment() {
 }
 
 function renderOracleCard() {
-  if (!ui.oracleCard) return;
-  ui.oracleCard.innerHTML = '';
-  const card = (s.openOracleRevealed && s.openOracleCard) ? s.openOracleCard : null;
-  ui.oracleCard.appendChild(cardNode(card, { small: true }));
+  if (ui.oracleCard) {
+    ui.oracleCard.innerHTML = '';
+    const card = (s.openOracleRevealed && s.openOracleCard) ? s.openOracleCard : null;
+    ui.oracleCard.appendChild(cardNode(card, { small: true }));
+  }
+  if (ui.hiddenOracleCard) {
+    ui.hiddenOracleCard.innerHTML = '';
+    const hiddenCard = (s.hiddenOracleRevealed && s.hiddenOracleCard) ? s.hiddenOracleCard : null;
+    ui.hiddenOracleCard.appendChild(cardNode(hiddenCard, { small: true }));
+  }
 }
 
 function renderSummary() {
@@ -3305,10 +3329,14 @@ function renderSummary() {
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
   ui.stateText.textContent = s.message || '';
   if (ui.score) ui.score.textContent = '';
-  if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
-  else if (!s.openOracleRevealed) ui.openOracle.textContent = '表: 未公開';
-  else ui.openOracle.textContent = `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}`;
-  ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
+  if (ui.openOracle) {
+    if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
+    else if (!s.openOracleRevealed) ui.openOracle.textContent = '表: 未公開';
+    else ui.openOracle.textContent = `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}`;
+  }
+  if (ui.hiddenOracle) {
+    ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
+  }
   ui.log.innerHTML = s.logs.slice(-28).map((m) => `<div class="tarot-log-row">${m}</div>`).join('');
   ui.log.scrollTop = ui.log.scrollHeight;
 }
@@ -3494,6 +3522,23 @@ function revealOracleWithFlip() {
   }, 600);
 }
 
+function revealHiddenOracleWithFlip() {
+  if (!s || s.hiddenOracleRevealed || !s.hiddenOracleCard) return;
+  clearOracleFlipTimers();
+  ui.hiddenOracleCardWrap?.classList.add('is-flipping');
+  hiddenOracleFlipSwapTimer = setTimeout(() => {
+    hiddenOracleFlipSwapTimer = null;
+    if (!s) return;
+    s.hiddenOracleRevealed = true;
+    renderSummary();
+    renderOracleCard();
+  }, 280);
+  hiddenOracleFlipEndTimer = setTimeout(() => {
+    hiddenOracleFlipEndTimer = null;
+    ui.hiddenOracleCardWrap?.classList.remove('is-flipping');
+  }, 600);
+}
+
 function beginNextRound() {
   setupHand();
   render();
@@ -3629,6 +3674,8 @@ function bindUi() {
   ui.score = document.getElementById('tarotKingdomScore');
   ui.oracleCardWrap = document.getElementById('tarotKingdomOracleCardWrap');
   ui.oracleCard = document.getElementById('tarotKingdomOracleCard');
+  ui.hiddenOracleCardWrap = document.getElementById('tarotKingdomHiddenOracleCardWrap');
+  ui.hiddenOracleCard = document.getElementById('tarotKingdomHiddenOracleCard');
   ui.openOracle = document.getElementById('tarotKingdomOpenOracle');
   ui.hiddenOracle = document.getElementById('tarotKingdomHiddenOracle');
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
@@ -3785,6 +3832,7 @@ export function destroyTarotKingdomPage() {
   }
   ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
   ui.oracleCardWrap?.classList.remove('is-flipping');
+  ui.hiddenOracleCardWrap?.classList.remove('is-flipping');
 
   if (ui.trick) ui.trick.innerHTML = '';
   if (ui.hand) ui.hand.innerHTML = '';
