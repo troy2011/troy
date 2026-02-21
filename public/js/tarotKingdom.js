@@ -75,7 +75,7 @@ let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
 const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
-let localHandSortMode = HAND_SORT_MODE.SUIT;
+let localHandSortMode = HAND_SORT_MODE.VALUE;
 const KINGDOM_TRACE_ENABLED = true;
 let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
@@ -562,7 +562,7 @@ function showKingdomCutin(playerIndex, label, options = {}) {
   }, options.durationMs || 680);
 }
 
-function flashKingdomPlayerRowAction(playerIndex, label) {
+function flashKingdomPlayerRowAction(playerIndex, label, durationMs = 760) {
   const row = ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`);
   if (!row || !label) return;
   // Keep only one transient action highlight at a time.
@@ -581,8 +581,12 @@ function flashKingdomPlayerRowAction(playerIndex, label) {
     currentRow.classList.remove('fx-action');
     currentRow.removeAttribute('data-action');
     kingdomRowFxTimers.delete(playerIndex);
-  }, 760);
+  }, Math.max(120, Number(durationMs) || 760));
   kingdomRowFxTimers.set(playerIndex, t);
+}
+
+function triggerKingdomRowActionFx(playerIndex, label, durationMs = 760) {
+  flashKingdomPlayerRowAction(playerIndex, label, durationMs);
 }
 
 function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', options = {}) {
@@ -894,7 +898,11 @@ function isLocalPlayer(index) {
 }
 
 function isNpcPlayer(index) {
-  const p = s?.players?.[Number(index)];
+  const idx = Number(index);
+  if (!Number.isInteger(idx) || idx < 0) return false;
+  // Keep local seat controllable even when presence sync is delayed.
+  if (idx === getLocalPlayerIndex()) return false;
+  const p = s?.players?.[idx];
   return !!p?.isNpc;
 }
 
@@ -1245,6 +1253,24 @@ function applyPresenceToPlayers() {
     if (!Number.isInteger(seat) || seat < 0 || seat >= 4) return;
     seatTaken[seat] = { uid, ...info };
   });
+
+  const localSeat = Number(tkNet.localSeat);
+  if (Number.isInteger(localSeat) && localSeat >= 0 && localSeat < 4) {
+    const localName = String(
+      tkNet.localPlayerName
+      || window.myPlayFabDisplayName
+      || window.myLineProfile?.displayName
+      || fallbackNames[localSeat]
+      || `P${localSeat + 1}`
+    );
+    seatTaken[localSeat] = {
+      ...(seatTaken[localSeat] || {}),
+      uid: tkNet.uid,
+      seat: localSeat,
+      displayName: localName,
+      name: localName
+    };
+  }
 
   for (let i = 0; i < s.players.length; i += 1) {
     const p = s.players[i];
@@ -2188,11 +2214,20 @@ function npcChooseDrawPlan(playerIndex) {
   return useMajor ? 'major' : 'minor';
 }
 
-function skipDrawChoice(playerIndex, note = '') {
-  if (s?.pendingDraw !== playerIndex) return;
+function finalizeDrawPhaseToTurn(playerIndex) {
+  if (!s) return;
   s.pendingDraw = null;
   s.pendingDrawReason = null;
   s.phase = 'turn';
+  if (Number.isInteger(playerIndex) && playerIndex >= 0) {
+    s.turn = playerIndex;
+    if (!s.trick) s.leadRequiredOwner = playerIndex;
+  }
+}
+
+function skipDrawChoice(playerIndex, note = '') {
+  if (s?.pendingDraw !== playerIndex) return;
+  finalizeDrawPhaseToTurn(playerIndex);
   s.message = `${pName(playerIndex)}がドローを見送り`;
   log(note ? `${pName(playerIndex)}: ドロー見送り（${note}）` : `${pName(playerIndex)}: ドロー見送り`);
   scheduleNpc();
@@ -2208,9 +2243,7 @@ function drawChoiceStart(playerIndex, reason = 'normal') {
   );
   if ((actor?.hand?.length || 0) >= START_HAND) {
     traceKingdomFlow('drawChoiceStart.skip.fullHand', `player=${playerIndex}`);
-    s.pendingDraw = null;
-    s.pendingDrawReason = null;
-    s.phase = 'turn';
+    finalizeDrawPhaseToTurn(playerIndex);
     s.message = `${pName(playerIndex)}は手札上限(${START_HAND}枚)のためドローできません。`;
     log(`${pName(playerIndex)}: 手札上限のためドローなし`);
     scheduleNpc();
@@ -2222,7 +2255,7 @@ function drawChoiceStart(playerIndex, reason = 'normal') {
   traceKingdomFlow('drawChoiceStart.pending', `player=${playerIndex} minorDeck=${s.minorDeck.length} majorDeck=${s.majorDeck.length}`);
   if (s.minorDeck.length <= 0 && s.majorDeck.length <= 0) {
     traceKingdomFlow('drawChoiceStart.skip.noDeck', `player=${playerIndex}`);
-    s.pendingDraw = null; s.pendingDrawReason = null; s.phase = 'turn'; s.message = `${pName(playerIndex)}が親です。`; scheduleNpc(); render(); return;
+    finalizeDrawPhaseToTurn(playerIndex); s.message = `${pName(playerIndex)}が親です。`; scheduleNpc(); render(); return;
   }
   s.phase = 'draw'; s.message = `${pName(playerIndex)}: 小 or 大アルカナを1枚ドロー`;
   traceKingdomFlow('drawChoiceStart.waitChoice', `player=${playerIndex}`);
@@ -2566,9 +2599,7 @@ function applyDrawChoice(deckType) {
   }
   if ((actor.hand?.length || 0) >= START_HAND) {
     traceKingdomFlow('applyDrawChoice.abort', `reason=fullHand player=${pi}`);
-    s.pendingDraw = null;
-    s.pendingDrawReason = null;
-    s.phase = 'turn';
+    finalizeDrawPhaseToTurn(pi);
     s.message = `${pName(pi)}は手札上限(${START_HAND}枚)のためドローできません。`;
     log(`${pName(pi)}: 手札上限のためドローなし`);
     scheduleNpc();
@@ -2595,9 +2626,7 @@ function applyDrawChoice(deckType) {
         return;
       } else {
         traceKingdomFlow('applyDrawChoice.abort', `reason=noStarsNpcNoMinor player=${pi}`);
-        s.pendingDraw = null;
-        s.pendingDrawReason = null;
-        s.phase = 'turn';
+        finalizeDrawPhaseToTurn(pi);
         s.message = `${pName(pi)}が親です。`;
         scheduleNpc();
         render();
@@ -2620,7 +2649,7 @@ function applyDrawChoice(deckType) {
     durationMs: 620,
     cutin: drawByHuman
   });
-  s.pendingDraw = null; s.pendingDrawReason = null; s.phase = 'turn'; s.message = `${pName(pi)}が親です。`;
+  finalizeDrawPhaseToTurn(pi); s.message = `${pName(pi)}が親です。`;
   traceKingdomFlow('applyDrawChoice.exit', `player=${pi} hand=${actor.hand.length}`);
   scheduleNpc(); render();
 }
@@ -3302,7 +3331,8 @@ function renderHand() {
       showPlayError(`現在は「${s.phase}」フェーズです。`);
       return;
     }
-    if (!s.selected.has(idx)) s.selected.add(idx);
+    if (s.selected.has(idx)) s.selected.delete(idx);
+    else s.selected.add(idx);
     s.message = canCommit
       ? `選択中: ${s.selected.size}枚`
       : `選択中: ${s.selected.size}枚（あなたのターン待ち）`;
@@ -3595,16 +3625,14 @@ function updateButtons() {
   const canPlayNow = myTurn || drawMe;
   ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
   if (ui.playButton) {
-    ui.playButton.textContent = hasSelected
-      ? '選択'
-      : (localHandSortMode === HAND_SORT_MODE.SUIT ? '数値順' : 'スート順');
-    ui.playButton.disabled = hasSelected
-      ? (actionLocked || !canPlayNow)
-      : (actionLocked || !canToggleSort);
+    ui.playButton.textContent = '選択';
+    ui.playButton.disabled = actionLocked || !canPlayNow;
   }
   if (ui.clearButton) {
-    ui.clearButton.textContent = '選択解除';
-    ui.clearButton.disabled = actionLocked || !canClearSelection;
+    ui.clearButton.textContent = hasSelected
+      ? '選択解除'
+      : (localHandSortMode === HAND_SORT_MODE.SUIT ? '数値順' : 'スート順');
+    ui.clearButton.disabled = actionLocked || !(canClearSelection || canToggleSort);
   }
   ui.passButton.disabled = actionLocked || !myTurn;
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
@@ -3870,14 +3898,14 @@ function bindUi() {
       console.warn('[tarotKingdom] start action failed:', error);
     });
   });
-  ui.playButton?.addEventListener('click', () => {
-    if (!s?.selected || s.selected.size <= 0) {
-      toggleLocalHandSortMode();
+  ui.playButton?.addEventListener('click', () => humanPlay());
+  ui.clearButton?.addEventListener('click', () => {
+    if (s?.selected && s.selected.size > 0) {
+      clearSelectedCards(true);
       return;
     }
-    humanPlay();
+    toggleLocalHandSortMode();
   });
-  ui.clearButton?.addEventListener('click', () => clearSelectedCards(true));
   ui.passButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     if (!(s?.roundActive && s.phase === 'turn' && s.turn === me)) return;
