@@ -46,6 +46,7 @@ const ROLE_RATE = { Straight: 1, Flush: 1, FullHouse: 2, FourKind: 3, TheWorld: 
 const ROLE_ST = ROLE_ORDER.reduce((a, k, i) => ((a[k] = i + 1), a), {});
 const KINGDOM_NET_SCHEMA_VERSION = 1;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
+const TK_MATCH_ROOT = 'tarotKingdomMatch';
 
 const ui = {};
 let s = null;
@@ -73,11 +74,13 @@ let netActionHostUnsub = null;
 let netStateUnsub = null;
 let netPresenceUnsub = null;
 let netHostUidUnsub = null;
+let netOpenRoomsUnsub = null;
 let netActionWriteTimer = null;
 let netLastStateHash = '';
 let netBootPromise = null;
 const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
+let netOpenRoomsCache = {};
 const tkNet = {
   enabled: false,
   roomId: '',
@@ -910,6 +913,70 @@ function getTarotKingdomRoomId() {
   return room.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
 }
 
+function generateTarotKingdomRoomId() {
+  const t = Date.now().toString(36);
+  const r = Math.random().toString(36).slice(2, 8);
+  return `tk_${t}${r}`;
+}
+
+function isRoomInProgressFromStatePayload(payload) {
+  const st = payload?.state || null;
+  if (!st || typeof st !== 'object') return false;
+  if (st.roundActive) return true;
+  if (Number(st.handNo || 0) > 0) return true;
+  if (st.awaitRoundConfirm) return true;
+  if (String(st.phase || '') === 'done') return true;
+  return false;
+}
+
+async function readRoomPresenceCount(db, roomPath) {
+  const snap = await get(ref(db, `${roomPath}/presence`));
+  if (!snap.exists()) return 0;
+  const obj = snap.val() || {};
+  return Object.keys(obj).length;
+}
+
+async function registerOpenRoomIndex(db, roomId) {
+  const now = Date.now();
+  await set(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`), {
+    roomId,
+    createdAt: now,
+    updatedAt: now
+  });
+}
+
+async function pickJoinableOpenRoom(db) {
+  const openSnap = await get(ref(db, `${TK_MATCH_ROOT}/openRooms`));
+  if (!openSnap.exists()) return '';
+  const openMap = openSnap.val() || {};
+  const entries = Object.entries(openMap).sort((a, b) => {
+    const ta = Number(a?.[1]?.createdAt || 0);
+    const tb = Number(b?.[1]?.createdAt || 0);
+    return ta - tb;
+  });
+  for (const [roomId] of entries) {
+    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const stateSnap = await get(ref(db, `${roomPath}/state`));
+    const payload = stateSnap.exists() ? stateSnap.val() : null;
+    const inProgress = isRoomInProgressFromStatePayload(payload);
+    const count = await readRoomPresenceCount(db, roomPath);
+    if (inProgress || count >= 4) {
+      await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch(() => {});
+      continue;
+    }
+    return roomId;
+  }
+  return '';
+}
+
+async function findOrCreateAutoRoomId(db) {
+  const joinable = await pickJoinableOpenRoom(db);
+  if (joinable) return joinable;
+  const roomId = generateTarotKingdomRoomId();
+  await registerOpenRoomIndex(db, roomId);
+  return roomId;
+}
+
 function isNetModeActive() {
   return !!(tkNet.enabled && tkNet.db && tkNet.roomPath && tkNet.uid);
 }
@@ -940,6 +1007,26 @@ function deserializeStateFromNet(payload) {
   return nextState;
 }
 
+function shouldRoomStayOpen() {
+  if (!s) return false;
+  if (s.roundActive) return false;
+  if (Number(s.handNo || 0) > 0) return false;
+  if (s.awaitRoundConfirm) return false;
+  if (String(s.phase || '') === 'done') return false;
+  return true;
+}
+
+async function syncOpenRoomIndex() {
+  if (!isNetModeActive() || !tkNet.isHost || !tkNet.roomId) return;
+  const openRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`);
+  if (shouldRoomStayOpen()) {
+    const now = Date.now();
+    await set(openRef, { roomId: tkNet.roomId, createdAt: now, updatedAt: now });
+  } else {
+    await remove(openRef).catch(() => {});
+  }
+}
+
 async function publishStateToRoom(force = false) {
   if (!isNetModeActive() || !tkNet.isHost || !s) return;
   const payload = serializeStateForNet();
@@ -952,6 +1039,7 @@ async function publishStateToRoom(force = false) {
       console.debug(`[TK-NET] publish state room=${tkNet.roomId} phase=${s.phase} turn=${s.turn} force=${force}`);
     }
     await set(ref(tkNet.db, `${tkNet.roomPath}/state`), payload);
+    await syncOpenRoomIndex();
   } catch (error) {
     console.warn('[tarotKingdom] failed to publish room state:', error);
   }
@@ -998,6 +1086,78 @@ function applyPresenceToPlayers() {
       p.uid = null;
     }
   }
+}
+
+function formatOpenRoomLabel(roomId, item, count, currentRoomId) {
+  const idShort = String(roomId || '').slice(-6);
+  const members = Math.max(0, Number(count || 0));
+  const suffix = roomId === currentRoomId ? ' (参加中)' : '';
+  const seatText = Number.isFinite(members) ? `${members}/4` : '-/4';
+  const updated = Number(item?.updatedAt || item?.createdAt || 0);
+  const ageSec = updated > 0 ? Math.max(0, Math.floor((Date.now() - updated) / 1000)) : null;
+  const ageText = ageSec != null ? ` ${ageSec}s` : '';
+  return `#${idShort} ${seatText}${ageText}${suffix}`;
+}
+
+function getActiveSeatCount() {
+  const taken = new Set();
+  Object.values(netPresenceByUid || {}).forEach((info) => {
+    const seat = Number(info?.seat);
+    if (Number.isInteger(seat) && seat >= 0 && seat < 4) taken.add(seat);
+  });
+  return taken.size;
+}
+
+function renderOpenRoomsList(roomRows = []) {
+  const wrap = ui.openRoomsWrap;
+  const listEl = ui.openRoomsList;
+  if (!wrap || !listEl) return;
+  if (!isNetModeActive()) {
+    wrap.hidden = true;
+    listEl.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  listEl.innerHTML = '';
+  if (!roomRows.length) {
+    const empty = document.createElement('span');
+    empty.className = 'tarot-kingdom-openrooms-item';
+    empty.textContent = '募集中の部屋はありません。';
+    listEl.appendChild(empty);
+    return;
+  }
+  roomRows.forEach((row) => {
+    const item = document.createElement('span');
+    item.className = 'tarot-kingdom-openrooms-item';
+    if (row.roomId === tkNet.roomId) item.classList.add('is-current');
+    item.textContent = row.label;
+    listEl.appendChild(item);
+  });
+}
+
+async function refreshOpenRoomsPanel() {
+  if (!ui.openRoomsWrap || !ui.openRoomsList) return;
+  if (!tkNet.db) {
+    renderOpenRoomsList([]);
+    return;
+  }
+  const entries = Object.entries(netOpenRoomsCache || {});
+  if (!entries.length) {
+    renderOpenRoomsList([]);
+    return;
+  }
+  const rows = [];
+  for (const [roomId, item] of entries) {
+    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const presenceCount = await readRoomPresenceCount(tkNet.db, roomPath).catch(() => 0);
+    rows.push({
+      roomId,
+      label: formatOpenRoomLabel(roomId, item, presenceCount, tkNet.roomId),
+      updatedAt: Number(item?.updatedAt || item?.createdAt || 0)
+    });
+  }
+  rows.sort((a, b) => b.updatedAt - a.updatedAt);
+  renderOpenRoomsList(rows);
 }
 
 async function claimHostIfNeeded() {
@@ -1089,6 +1249,10 @@ function stopRoomSubscriptions() {
   if (typeof netPresenceUnsub === 'function') {
     netPresenceUnsub();
     netPresenceUnsub = null;
+  }
+  if (typeof netOpenRoomsUnsub === 'function') {
+    netOpenRoomsUnsub();
+    netOpenRoomsUnsub = null;
   }
   stopHostActionListener();
 }
@@ -1228,6 +1392,14 @@ function startRoomSubscriptions() {
     if (!snapshot.exists()) return;
     applyRemoteRoomState(snapshot.val());
   });
+
+  const openRoomsRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms`);
+  netOpenRoomsUnsub = onValue(openRoomsRef, (snapshot) => {
+    netOpenRoomsCache = snapshot.exists() ? (snapshot.val() || {}) : {};
+    refreshOpenRoomsPanel().catch((error) => {
+      console.warn('[tarotKingdom] failed to refresh open room panel:', error);
+    });
+  });
 }
 
 function teardownTarotKingdomNetwork() {
@@ -1235,6 +1407,9 @@ function teardownTarotKingdomNetwork() {
   if (netActionWriteTimer) {
     clearTimeout(netActionWriteTimer);
     netActionWriteTimer = null;
+  }
+  if (tkNet.isHost && tkNet.db && tkNet.roomId) {
+    remove(ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`)).catch(() => {});
   }
   if (tkNet.presenceRef && tkNet.db) {
     remove(tkNet.presenceRef).catch(() => {});
@@ -1250,18 +1425,26 @@ function teardownTarotKingdomNetwork() {
   tkNet.localPlayerName = '';
   tkNet.presenceRef = null;
   netPresenceByUid = {};
+  netOpenRoomsCache = {};
   netHandledActionKeys.clear();
   netLastStateHash = '';
   netBootPromise = null;
+  renderOpenRoomsList([]);
 }
 
 async function ensureTarotKingdomNetwork() {
   if (netBootPromise) return netBootPromise;
   netBootPromise = (async () => {
-    const roomId = getTarotKingdomRoomId();
+    const explicitRoomId = getTarotKingdomRoomId();
     const db = window.__tkDb || null;
     const uid = window.__tkUid || '';
-    if (!roomId || !db || !uid) {
+    if (!db || !uid) {
+      teardownTarotKingdomNetwork();
+      tkNet.localSeat = 0;
+      return;
+    }
+    let roomId = explicitRoomId || (await findOrCreateAutoRoomId(db));
+    if (!roomId) {
       teardownTarotKingdomNetwork();
       tkNet.localSeat = 0;
       return;
@@ -1275,6 +1458,18 @@ async function ensureTarotKingdomNetwork() {
     tkNet.localPlayerName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player');
 
     await ensureSeatAssignment();
+    if (tkNet.localSeat < 0 && !explicitRoomId) {
+      roomId = generateTarotKingdomRoomId();
+      await registerOpenRoomIndex(db, roomId);
+      tkNet.roomId = roomId;
+      tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+      await ensureSeatAssignment();
+    }
+    if (tkNet.localSeat < 0) {
+      teardownTarotKingdomNetwork();
+      tkNet.localSeat = 0;
+      return;
+    }
     await claimHostIfNeeded();
 
     if (tkNet.isHost) {
@@ -1284,6 +1479,12 @@ async function ensureTarotKingdomNetwork() {
         // ignore
       }
       netHandledActionKeys.clear();
+      try {
+        const hostDisc = onDisconnect(ref(db, `${tkNet.roomPath}/meta/hostUid`));
+        await hostDisc.remove();
+      } catch (_) {
+        // ignore
+      }
     }
     startRoomSubscriptions();
 
@@ -1316,6 +1517,7 @@ async function ensureTarotKingdomNetwork() {
         applyPresenceToPlayers();
         queueStatePublish(true);
       }
+      await syncOpenRoomIndex();
     } else {
       const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
       if (roomStateSnap.exists()) {
@@ -3036,6 +3238,14 @@ function updateButtons() {
   const actionLocked = inCallCinematic || inOpeningCinematic;
   const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
   const myHandCount = Math.max(0, Number(s.players[me]?.hand?.length || 0));
+  const netMode = isNetModeActive();
+  const seatCount = netMode ? getActiveSeatCount() : 1;
+  const hasVacancy = netMode ? seatCount < 4 : false;
+  const isLobbyReadyToStart =
+    !s.roundActive &&
+    !s.awaitRoundConfirm &&
+    Number(s.handNo || 0) <= 0 &&
+    String(s.phase || '') !== 'done';
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
@@ -3066,7 +3276,23 @@ function updateButtons() {
       ui.graveToggleButton.disabled = actionLocked || !s.roundActive;
     }
   }
-  ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
+  if (ui.startButton) {
+    if (netMode && !tkNet.isHost) {
+      ui.startButton.disabled = true;
+      ui.startButton.textContent = 'ホストの開始を待機中';
+    } else {
+      ui.startButton.disabled = false;
+      if (s.phase === 'done') {
+        ui.startButton.textContent = '新しいゲームを開始';
+      } else if (!s.roundActive && s.handNo > 0) {
+        ui.startButton.textContent = '次の局を開始';
+      } else if (isLobbyReadyToStart && hasVacancy) {
+        ui.startButton.textContent = '受付を止めて戦いを始める';
+      } else {
+        ui.startButton.textContent = '新しい戦いを始める';
+      }
+    }
+  }
 }
 
 function render() {
@@ -3244,6 +3470,8 @@ function bindUi() {
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
   ui.kingdomCutin = document.getElementById('tarotKingdomCutin');
   ui.stateText = document.getElementById('tarotKingdomStateText');
+  ui.openRoomsWrap = document.getElementById('tarotKingdomOpenRooms');
+  ui.openRoomsList = document.getElementById('tarotKingdomOpenRoomsList');
   ui.settlement = document.getElementById('tarotKingdomSettlement');
   ui.settlementBody = document.getElementById('tarotKingdomSettlementBody');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
@@ -3336,6 +3564,9 @@ export async function loadTarotKingdomPage() {
   if (tkNet.enabled && tkNet.isHost) {
     queueStatePublish(true);
   }
+  refreshOpenRoomsPanel().catch((error) => {
+    console.warn('[tarotKingdom] failed to paint open room panel:', error);
+  });
 }
 
 export function destroyTarotKingdomPage() {
