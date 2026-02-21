@@ -1,4 +1,4 @@
-const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
+﻿const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
 const TAROT_TILE_H = 80;
 const TAROT_SHEET_W = 512;
@@ -272,6 +272,69 @@ function getArcanaMatchNumber() {
   if (!s.openOracleCard || s.openOracleCard.kind !== 'major') return null;
   const n = Number(s.openOracleCard.number);
   return Number.isFinite(n) ? n : null;
+}
+
+function getKingdomCardEffectDescription(card) {
+  if (!card) return '';
+  const n = Number(card.number || 0);
+  if (card.kind === 'major') {
+    const majorEffectMap = {
+      0: '5枚役でのみ数値ワイルド（フラッシュ化なし）',
+      1: 'オールスートとして扱う',
+      2: '出した瞬間、小アルカナを1枚引く',
+      3: '数値3/13の有利側で扱う',
+      4: '数値4/14の有利側で扱う',
+      5: '全員スキップしてもう一度自分のターン',
+      6: 'ペア系の役に混ぜると星+1',
+      7: '単騎で2枚出し化（2枚出し縛り）',
+      8: '強制クリア',
+      9: '次に引く予定カード（小/大）を予見',
+      10: '単騎で大アルカナを1枚引く',
+      11: '11バック（大アルカナはゲーム終了まで）',
+      12: 'このカードを捨てて小アルカナを1枚引ける',
+      13: 'このトリック中、出すたび星-1',
+      14: '節制ロック（直前スート縛り）',
+      15: 'このトリック中、パスで星-1',
+      16: 'ソード最上位札',
+      17: 'カップ最上位札',
+      18: 'ペンタクル最上位札',
+      19: 'ワンド最上位札',
+      20: 'このカードでクリア時、墓地から1枚回収',
+      21: 'ザ・ワールドの必須札'
+    };
+    return majorEffectMap[n] || '';
+  }
+  if (n === 5) return '5スキップ（1枚出し）';
+  if (n === 8) return '8カット（1枚出しは次手コール/パス限定）';
+  if (n === 11) return '11バック';
+  if (n === 14) return '同スートKで14ロック';
+  return '';
+}
+
+function updateSelectedCardEffectLabel(playerIndex, selectedIndexes) {
+  if (!ui.selectedEffect) return;
+  const hide = () => {
+    ui.selectedEffect.textContent = '';
+    ui.selectedEffect.hidden = true;
+  };
+  if (!s || !Array.isArray(selectedIndexes) || selectedIndexes.length !== 1) {
+    hide();
+    return;
+  }
+  const hand = s.players?.[playerIndex]?.hand;
+  if (!Array.isArray(hand)) {
+    hide();
+    return;
+  }
+  const targetIndex = Number(selectedIndexes[0]);
+  const card = Number.isInteger(targetIndex) ? hand[targetIndex] : null;
+  const effectText = getKingdomCardEffectDescription(card);
+  if (!effectText) {
+    hide();
+    return;
+  }
+  ui.selectedEffect.textContent = `${getCardNameLabel(card)}: ${effectText}`;
+  ui.selectedEffect.hidden = false;
 }
 
 function showPlayError(reason) {
@@ -1961,26 +2024,38 @@ function renderTrick() {
     cards.forEach((c, idx) => {
       const node = cardNode(c);
       const callFxActive = s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call;
+      let animDelayMs = 0;
+      let animDurationMs = 240;
       if (callFxActive && idx > 0) {
         // コール時の4枚は右側から順に飛び込み、横一列で着地させる
         const orderFromRight = Math.max(0, (cards.length - 1) - idx);
         node.classList.add('is-call-arriving');
-        node.style.animationDelay = `${orderFromRight * 140}ms`;
+        animDelayMs = orderFromRight * 140;
+        animDurationMs = 420;
+        node.style.animationDelay = `${animDelayMs}ms`;
       } else {
         node.classList.add('is-entering');
-        node.style.animationDelay = `${idx * (s.callMergeFx ? 120 : 78)}ms`;
+        animDelayMs = idx * (s.callMergeFx ? 120 : 78);
+        animDurationMs = 260;
+        node.style.animationDelay = `${animDelayMs}ms`;
       }
-      node.addEventListener('animationend', () => {
+      let cleaned = false;
+      const clearAnimState = () => {
+        if (cleaned) return;
+        cleaned = true;
         node.classList.remove('is-entering');
         node.classList.remove('is-call-arriving');
         node.style.animationDelay = '';
-      }, { once: true });
+      };
+      node.addEventListener('animationend', clearAnimState, { once: true });
+      // animationend が来ない環境でも透明のまま残らないようにする。
+      setTimeout(clearAnimState, animDelayMs + animDurationMs + 120);
       ui.trick.appendChild(node);
     });
   };
 
   if (nextKey === trickRenderKey) {
-    const hasVisibleNode = !!ui.trick.querySelector('.tarot-card, .tarot-kingdom-empty');
+    const hasVisibleNode = !!ui.trick.querySelector('.tarot-card:not(.is-entering):not(.is-call-arriving):not(.is-undealt), .tarot-kingdom-empty');
     if (!hasVisibleNode) renderNow();
     return;
   }
@@ -1999,6 +2074,7 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = s.players.findIndex((p) => p.human);
   const selected = sanitizeSelected(me);
+  updateSelectedCardEffectLabel(me, selected);
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canSelect = s.roundActive && (s.phase === 'turn' || drawMe);
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
@@ -2399,6 +2475,7 @@ function bindUi() {
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
   ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
+  ui.selectedEffect = document.getElementById('tarotKingdomSelectedEffect');
   ui.players = document.getElementById('tarotKingdomPlayers');
   ui.trick = document.getElementById('tarotKingdomTrick');
   ui.hand = document.getElementById('tarotKingdomHand');
@@ -2478,6 +2555,10 @@ export function destroyTarotKingdomPage() {
 
   if (ui.trick) ui.trick.innerHTML = '';
   if (ui.hand) ui.hand.innerHTML = '';
+  if (ui.selectedEffect) {
+    ui.selectedEffect.textContent = '';
+    ui.selectedEffect.hidden = true;
+  }
   if (ui.players) ui.players.innerHTML = '';
   if (ui.log) ui.log.innerHTML = '';
   if (ui.judgmentOptions) ui.judgmentOptions.innerHTML = '';

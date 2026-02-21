@@ -2856,6 +2856,28 @@ body.modal-lock .modal-overlay {
     margin-left: auto;
 }
 
+.tarot-kingdom-selected-effect {
+    max-width: min(58vw, 340px);
+    min-height: 24px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.46), rgba(69, 26, 3, 0.52));
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.tarot-kingdom-selected-effect[hidden] {
+    display: none !important;
+}
+
 .tarot-kingdom-clear-inline {
     min-height: 24px;
     padding: 2px 8px;
@@ -4399,6 +4421,15 @@ body.modal-lock .modal-overlay {
     opacity: 0 !important;
     transform: translateX(54px) translateY(2px) scale(0.94);
     animation: tarotKingdomCallCardFromRight 360ms cubic-bezier(0.2, 0.82, 0.24, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tarot-card.is-entering,
+    .tarot-card.is-call-arriving {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
 }
 
 .tarot-card.is-chariot-splitting {
