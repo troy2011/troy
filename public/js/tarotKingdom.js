@@ -11,6 +11,9 @@ const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
 const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
 const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
+const SUIT_MASK = { None: 0, Wand: 1, Cup: 2, Sword: 4, Pentacle: 8, All: 15 };
+const SUIT_PAIR_MASK_A = SUIT_MASK.Wand | SUIT_MASK.Cup;
+const SUIT_PAIR_MASK_B = SUIT_MASK.Sword | SUIT_MASK.Pentacle;
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#c29b14', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = { 16: 'Sword', 17: 'Cup', 18: 'Pentacle', 19: 'Wand' };
 const ARCANA_NAME = {
@@ -220,6 +223,30 @@ const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number 
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
+const suitMaskForCard = (card) => {
+  if (!card) return SUIT_MASK.None;
+  if (card.kind === 'major') return SUIT_MASK.All;
+  const suit = String(card.suit || 'None');
+  return SUIT_MASK[suit] || SUIT_MASK.None;
+};
+const suitMaskForCards = (cards) => (Array.isArray(cards) ? cards.reduce((mask, card) => (mask | suitMaskForCard(card)), SUIT_MASK.None) : SUIT_MASK.None);
+const isSuitMatchupCompatible = (playMask, trickMask) => {
+  const a = Number(playMask || 0);
+  const b = Number(trickMask || 0);
+  if (!a || !b) return false;
+  if (a === SUIT_MASK.All || b === SUIT_MASK.All) return true;
+  const inA = (a & SUIT_PAIR_MASK_A) && (b & SUIT_PAIR_MASK_A);
+  const inB = (a & SUIT_PAIR_MASK_B) && (b & SUIT_PAIR_MASK_B);
+  return !!(inA || inB);
+};
+const getPlaySuitMask = (play) => {
+  const explicit = Number(play?.suitMask || 0);
+  if (explicit > 0) return explicit;
+  const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
+    ? play.cardsTable
+    : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
+  return suitMaskForCards(cards);
+};
 const suitTierForCard = (c, suit) => {
   const base = SUIT_TIER[suit] || 0;
   // 大アルカナは、同値比較時のスート優位で常に小アルカナより上位
@@ -660,7 +687,7 @@ function compareRole(a, b) {
   if (a && !b) return 1;
   if (!a && b) return -1;
   if (a.strength !== b.strength) return a.strength > b.strength ? 1 : -1;
-  return cmpVec(a.primary, b.primary) || cmpVec(a.suitVec || [], b.suitVec || []);
+  return cmpVec(a.primary, b.primary);
 }
 
 function evalRoleVariant(res, src) {
@@ -1276,32 +1303,66 @@ async function claimHostIfNeeded() {
 
 async function ensureSeatAssignment() {
   if (!isNetModeActive()) return -1;
-  const seatRef = ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid/${tkNet.uid}`);
-  const existingSeat = await get(seatRef);
-  if (existingSeat.exists()) {
-    const fixed = Number(existingSeat.val());
-    tkNet.localSeat = Number.isInteger(fixed) ? fixed : -1;
-    return tkNet.localSeat;
-  }
-  const allSeatSnap = await get(ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid`));
-  const allSeatByUid = allSeatSnap.exists() ? (allSeatSnap.val() || {}) : {};
-  const used = new Set(
-    Object.values(allSeatByUid)
-      .map((v) => Number(v))
-      .filter((n) => Number.isInteger(n) && n >= 0 && n < 4)
-  );
-  let seat = -1;
-  for (let i = 0; i < 4; i += 1) {
-    if (!used.has(i)) {
-      seat = i;
-      break;
+  const pickSeat = (usedSet) => {
+    for (let i = 0; i < 4; i += 1) {
+      if (!usedSet.has(i)) return i;
     }
+    return -1;
+  };
+
+  // Preferred path: fixed seat table in meta.
+  try {
+    const seatRef = ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid/${tkNet.uid}`);
+    const existingSeat = await get(seatRef);
+    if (existingSeat.exists()) {
+      const fixed = Number(existingSeat.val());
+      tkNet.localSeat = Number.isInteger(fixed) ? fixed : -1;
+      return tkNet.localSeat;
+    }
+    const allSeatSnap = await get(ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid`));
+    const allSeatByUid = allSeatSnap.exists() ? (allSeatSnap.val() || {}) : {};
+    const used = new Set(
+      Object.values(allSeatByUid)
+        .map((v) => Number(v))
+        .filter((n) => Number.isInteger(n) && n >= 0 && n < 4)
+    );
+    const seat = pickSeat(used);
+    tkNet.localSeat = seat;
+    if (seat >= 0) {
+      await set(seatRef, seat);
+    }
+    return seat;
+  } catch (error) {
+    if (!isPermissionDeniedError(error)) throw error;
+    console.warn('[tarotKingdom] seatByUid permission denied. fallback to presence-based seat assignment.');
   }
-  tkNet.localSeat = seat;
-  if (seat >= 0) {
-    await set(seatRef, seat);
+
+  // Fallback path: presence only (works with stricter rules that deny /meta writes).
+  try {
+    const presenceSnap = await get(ref(tkNet.db, `${tkNet.roomPath}/presence`));
+    const presenceMap = presenceSnap.exists() ? (presenceSnap.val() || {}) : {};
+    const myPresence = presenceMap?.[tkNet.uid];
+    const existing = Number(myPresence?.seat);
+    if (Number.isInteger(existing) && existing >= 0 && existing < 4) {
+      tkNet.localSeat = existing;
+      return existing;
+    }
+    const used = new Set(
+      Object.values(presenceMap)
+        .map((v) => Number(v?.seat))
+        .filter((n) => Number.isInteger(n) && n >= 0 && n < 4)
+    );
+    const seat = pickSeat(used);
+    tkNet.localSeat = seat;
+    return seat;
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      console.warn('[tarotKingdom] presence read also permission denied. fallback to seat=0.');
+      tkNet.localSeat = 0;
+      return 0;
+    }
+    throw error;
   }
-  return seat;
 }
 
 async function sendRoomAction(action) {
@@ -1751,6 +1812,7 @@ function setupHand() {
       cardsTable: [opening],
       number: idNum(opening),
       setPower: cStrength(opening),
+      suitMask: suitMaskForCards([opening]),
       suitTier: Math.max(...suitsForCard(opening, false).map((x) => suitTierForCard(opening, x)))
     };
     s.pass = [false, false, false, false];
@@ -1843,6 +1905,7 @@ function buildSetPlay(pi, sel) {
   const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
   if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
   const suitTier = Math.max(...cards.map((c) => Math.max(...suitsForCard(c, false).map((x) => suitTierForCard(c, x)))));
+  const suitMask = suitMaskForCards(cards);
   return {
     ok: true,
     play: {
@@ -1855,6 +1918,7 @@ function buildSetPlay(pi, sel) {
       cardsTable: cards.slice(),
       number: Number(n),
       setPower,
+      suitMask,
       suitTier
     }
   };
@@ -1984,9 +2048,20 @@ function validatePlay(play, mode) {
     const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
     if (c > 0) return { ok: true };
     if (c < 0) return { ok: false, reason: '場札より強い数値が必要です。' };
-    return play.suitTier >= s.trick.suitTier ? { ok: true } : { ok: false, reason: '同数値はスート優位が必要です。' };
+    const playMask = getPlaySuitMask(play);
+    const trickMask = getPlaySuitMask(s.trick);
+    return isSuitMatchupCompatible(playMask, trickMask)
+      ? { ok: true }
+      : { ok: false, reason: '同数値は相性スート（W↔C / S↔P）のみ有効です。' };
   }
-  return compareRole(play.role, s.trick.role) >= 0 ? { ok: true } : { ok: false, reason: '場より強い役が必要です。' };
+  const roleCmp = compareRole(play.role, s.trick.role);
+  if (roleCmp > 0) return { ok: true };
+  if (roleCmp < 0) return { ok: false, reason: '場より強い役が必要です。' };
+  const playMask = getPlaySuitMask(play);
+  const trickMask = getPlaySuitMask(s.trick);
+  return isSuitMatchupCompatible(playMask, trickMask)
+    ? { ok: true }
+    : { ok: false, reason: '同役同値は相性スート（W↔C / S↔P）のみ有効です。' };
 }
 
 function removeHand(p, idxs) {
