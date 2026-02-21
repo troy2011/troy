@@ -386,9 +386,6 @@
                         <h2>タロットキングダム</h2>
                         <div class="tarot-kingdom-header-meta">
                             <span id="tarotKingdomRound" class="tarot-kingdom-chip">局 0 / 4</span>
-                            <span id="tarotKingdomTurn" class="tarot-kingdom-chip">待機中</span>
-                            <span id="tarotKingdomReverse" class="tarot-kingdom-chip tarot-kingdom-chip--reverse" hidden>11バック中</span>
-                            <span id="tarotKingdomLock" class="tarot-kingdom-chip tarot-kingdom-chip--lock" hidden>ロック: -</span>
                         </div>
                     </div>
                     <div class="tarot-kingdom-oracle">
@@ -425,7 +422,13 @@
                     </div>
                     <div class="tarot-kingdom-layout">
                         <div class="tarot-kingdom-panel">
-                            <div class="tarot-kingdom-panel-title">場札</div>
+                            <div class="tarot-kingdom-panel-title tarot-kingdom-trick-title">
+                                <span>場札</span>
+                                <div class="tarot-kingdom-trick-status">
+                                    <span id="tarotKingdomReverse" class="tarot-kingdom-chip tarot-kingdom-chip--reverse" hidden>11バック中</span>
+                                    <span id="tarotKingdomLock" class="tarot-kingdom-chip tarot-kingdom-chip--lock" hidden>ロック: -</span>
+                                </div>
+                            </div>
                             <div id="tarotKingdomTrick" class="tarot-kingdom-trick"></div>
                             <div id="tarotKingdomJudgmentArea" class="tarot-kingdom-judgment" style="display:none;">
                                 <div id="tarotKingdomJudgmentTitle" class="tarot-kingdom-judgment-title">墓地</div>

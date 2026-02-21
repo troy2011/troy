@@ -2644,18 +2644,19 @@ body.modal-lock .modal-overlay {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 5px;
 }
 
 .tarot-kingdom-header h2 {
     margin: 0;
-    font-size: clamp(14px, 1.9vw, 18px);
+    font-size: clamp(13px, 1.7vw, 16px);
+    line-height: 1.1;
 }
 
 .tarot-kingdom-header-meta {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
     justify-content: flex-end;
 }
@@ -2663,13 +2664,13 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-chip {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
-    padding: 0 9px;
+    min-height: 21px;
+    padding: 0 8px;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.22);
     background: rgba(15, 23, 42, 0.62);
     color: #e5e7eb;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -2871,6 +2872,26 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
     margin-bottom: 6px;
     color: #e5e7eb;
+}
+
+.tarot-kingdom-trick-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tarot-kingdom-trick-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.tarot-kingdom-trick-status .tarot-kingdom-chip {
+    min-height: 19px;
+    padding: 0 7px;
+    font-size: 10px;
 }
 
 .tarot-kingdom-hand-title {
@@ -3106,8 +3127,8 @@ body.modal-lock .modal-overlay {
     justify-content: space-between;
     gap: 8px;
     position: relative;
-    min-height: 30px;
-    padding: 5px 8px;
+    min-height: 26px;
+    padding: 3px 7px;
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 8px;
     background: rgba(15, 23, 42, 0.5);
@@ -3148,20 +3169,22 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-player-name {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     color: #f8fafc;
+    white-space: nowrap;
 }
 
 .tarot-kingdom-player-meta {
     display: inline-flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    gap: 6px;
-    font-size: 11px;
+    gap: 4px;
+    font-size: 10px;
     font-weight: 700;
     color: #cbd5e1;
+    white-space: nowrap;
 }
 
 .tarot-kingdom-flag {

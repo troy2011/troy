@@ -2121,7 +2121,7 @@ function renderPlayers() {
     left.className = 'tarot-kingdom-player-name';
     const starCount = Math.max(0, Number(p.stars) || 0);
     left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
-    const right = document.createElement('div'); right.className = 'tarot-kingdom-player-meta'; right.textContent = `手札${p.hand.length} / ${p.chips}チップ / B${p.bet}`;
+    const right = document.createElement('div'); right.className = 'tarot-kingdom-player-meta'; right.textContent = `H${p.hand.length} / ${p.chips}TP / B${p.bet}`;
     if (p.raisePending && !p.raise) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag'; t.textContent = '待機'; right.appendChild(t); }
     if (p.raise) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag'; t.textContent = 'RAISE'; right.appendChild(t); }
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
@@ -2343,7 +2343,7 @@ function renderOracleCard() {
 function renderSummary() {
   const turnText = s.roundActive ? ` / ターン ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
-  ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
+  if (ui.turn) ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
   if (ui.reverseChip) {
     const showReverse = !!s.roundActive && !!s.reverse;
     ui.reverseChip.hidden = !showReverse;
