@@ -167,6 +167,8 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
 const firestore = getFirestore(firebaseApp); // Firestore インスタンス
+window.__tkDb = db;
+window.__tkUid = null;
 
 // グローバルスコープに登録（WorldMapSceneで使用）
 window.firestore = firestore;
@@ -210,6 +212,7 @@ async function initializeLiff() {
                 lastFirebaseUid = user.uid;
                 __perfLog('firebase auth state: user');
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
+                window.__tkUid = user.uid;
 
                 // PlayFab Client SDKにログイン（多重実行ガード）
                 if (!playFabLoginPromise) {

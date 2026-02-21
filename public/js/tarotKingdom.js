@@ -1,4 +1,6 @@
-﻿const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
+import { ref, get, set, push, remove, onValue, onChildAdded, onDisconnect, serverTimestamp } from 'firebase/database';
+
+const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
 const TAROT_TILE_H = 80;
 const TAROT_SHEET_W = 512;
@@ -17,10 +19,10 @@ const ARCANA_NAME = {
 };
 
 const PLAYERS = [
-  { id: 'you', name: 'あなた', human: true },
-  { id: 'npc1', name: 'NPC1', human: false },
-  { id: 'npc2', name: 'NPC2', human: false },
-  { id: 'npc3', name: 'NPC3', human: false }
+  { id: 'you', name: 'あなた', isNpc: false },
+  { id: 'npc1', name: 'NPC1', isNpc: true },
+  { id: 'npc2', name: 'NPC2', isNpc: true },
+  { id: 'npc3', name: 'NPC3', isNpc: true }
 ];
 
 const START_HAND = 10;
@@ -42,6 +44,8 @@ const ROLE_LABEL = {
 };
 const ROLE_RATE = { Straight: 1, Flush: 1, FullHouse: 2, FourKind: 3, TheWorld: 3, StraightFlush: 4, FiveKind: 5 };
 const ROLE_ST = ROLE_ORDER.reduce((a, k, i) => ((a[k] = i + 1), a), {});
+const KINGDOM_NET_SCHEMA_VERSION = 1;
+const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 
 const ui = {};
 let s = null;
@@ -65,6 +69,27 @@ let npcActInFlight = false;
 const KINGDOM_TRACE_ENABLED = true;
 let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
+let netActionHostUnsub = null;
+let netStateUnsub = null;
+let netPresenceUnsub = null;
+let netHostUidUnsub = null;
+let netActionWriteTimer = null;
+let netLastStateHash = '';
+let netBootPromise = null;
+const netHandledActionKeys = new Set();
+let netPresenceByUid = {};
+const tkNet = {
+  enabled: false,
+  roomId: '',
+  roomPath: '',
+  db: null,
+  uid: '',
+  localSeat: -1,
+  isHost: false,
+  hostUid: '',
+  localPlayerName: '',
+  presenceRef: null
+};
 
 function traceKingdomFlow(step, details = '') {
   if (!KINGDOM_TRACE_ENABLED) return;
@@ -382,7 +407,7 @@ function getElementCenterPoint(el) {
 }
 
 function getKingdomOwnerClass(playerIndex) {
-  return s?.players?.[playerIndex]?.human ? 'is-player' : 'is-cpu';
+  return isLocalPlayer(playerIndex) ? 'is-player' : (isNpcPlayer(playerIndex) ? 'is-cpu' : 'is-remote');
 }
 
 function getKingdomPlayerAnchor(playerIndex) {
@@ -769,13 +794,26 @@ function clearRoundState() {
   s.players.forEach((p) => { p.hand = []; p.discard = []; p.bet = 0; });
 }
 
-function getHumanPlayerIndex() {
+function getLocalPlayerIndex() {
   if (!s?.players) return -1;
-  return s.players.findIndex((p) => p.human);
+  const seat = Number(tkNet.localSeat);
+  if (Number.isInteger(seat) && seat >= 0 && seat < s.players.length) return seat;
+  if (isNetModeActive()) return -1;
+  const fallback = s.players.findIndex((p) => !p?.isNpc);
+  return fallback >= 0 ? fallback : 0;
+}
+
+function isLocalPlayer(index) {
+  return Number(index) === getLocalPlayerIndex();
+}
+
+function isNpcPlayer(index) {
+  const p = s?.players?.[Number(index)];
+  return !!p?.isNpc;
 }
 
 function isHumanTurnActiveNow() {
-  const me = getHumanPlayerIndex();
+  const me = getLocalPlayerIndex();
   if (me < 0 || !s) return false;
   return !!(s.roundActive && s.phase === 'turn' && s.turn === me);
 }
@@ -792,7 +830,7 @@ function clearYourTurnBadge() {
 }
 
 function showHumanTurnCue() {
-  const me = getHumanPlayerIndex();
+  const me = getLocalPlayerIndex();
   if (me < 0) return;
 
   if (ui.kingdomCutin) {
@@ -865,6 +903,433 @@ function syncHumanTurnCueState() {
   lastHumanTurnActive = now;
 }
 
+function getTarotKingdomRoomId() {
+  if (typeof window === 'undefined') return '';
+  const params = new URLSearchParams(window.location.search || '');
+  const room = String(params.get('tkRoom') || '').trim();
+  return room.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+}
+
+function isNetModeActive() {
+  return !!(tkNet.enabled && tkNet.db && tkNet.roomPath && tkNet.uid);
+}
+
+function isHostAuthority() {
+  return !isNetModeActive() || !!tkNet.isHost;
+}
+
+function serializeStateForNet() {
+  if (!s) return null;
+  const next = JSON.parse(JSON.stringify(s, (key, value) => {
+    if (value instanceof Set) return [];
+    return value;
+  }));
+  next.selected = [];
+  return {
+    schema: KINGDOM_NET_SCHEMA_VERSION,
+    updatedAt: Date.now(),
+    state: next
+  };
+}
+
+function deserializeStateFromNet(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const nextState = payload?.state;
+  if (!nextState || typeof nextState !== 'object') return null;
+  nextState.selected = new Set();
+  return nextState;
+}
+
+async function publishStateToRoom(force = false) {
+  if (!isNetModeActive() || !tkNet.isHost || !s) return;
+  const payload = serializeStateForNet();
+  if (!payload) return;
+  const hash = JSON.stringify(payload.state);
+  if (!force && hash === netLastStateHash) return;
+  netLastStateHash = hash;
+  try {
+    if (KINGDOM_TRACE_ENABLED) {
+      console.debug(`[TK-NET] publish state room=${tkNet.roomId} phase=${s.phase} turn=${s.turn} force=${force}`);
+    }
+    await set(ref(tkNet.db, `${tkNet.roomPath}/state`), payload);
+  } catch (error) {
+    console.warn('[tarotKingdom] failed to publish room state:', error);
+  }
+}
+
+function queueStatePublish(force = false) {
+  if (!isNetModeActive() || !tkNet.isHost) return;
+  if (netActionWriteTimer) {
+    if (force) {
+      clearTimeout(netActionWriteTimer);
+      netActionWriteTimer = null;
+    } else {
+      return;
+    }
+  }
+  netActionWriteTimer = setTimeout(() => {
+    netActionWriteTimer = null;
+    publishStateToRoom(force).catch((error) => {
+      console.warn('[tarotKingdom] publish queue failed:', error);
+    });
+  }, force ? 0 : KINGDOM_NET_STATE_WRITE_DELAY);
+}
+
+function applyPresenceToPlayers() {
+  if (!s?.players || !isNetModeActive()) return;
+  const fallbackNames = ['あなた', 'NPC1', 'NPC2', 'NPC3'];
+  const seatTaken = [null, null, null, null];
+  Object.entries(netPresenceByUid || {}).forEach(([uid, info]) => {
+    const seat = Number(info?.seat);
+    if (!Number.isInteger(seat) || seat < 0 || seat >= 4) return;
+    seatTaken[seat] = { uid, ...info };
+  });
+
+  for (let i = 0; i < s.players.length; i += 1) {
+    const p = s.players[i];
+    const occ = seatTaken[i];
+    if (occ) {
+      p.isNpc = false;
+      p.name = String(occ.displayName || occ.name || fallbackNames[i] || `P${i + 1}`);
+      p.uid = occ.uid || null;
+    } else {
+      p.isNpc = true;
+      p.name = fallbackNames[i] || `NPC${i}`;
+      p.uid = null;
+    }
+  }
+}
+
+async function claimHostIfNeeded() {
+  if (!isNetModeActive()) return;
+  try {
+    const hostRef = ref(tkNet.db, `${tkNet.roomPath}/meta/hostUid`);
+    const snap = await get(hostRef);
+    const current = snap.exists() ? String(snap.val() || '') : '';
+    if (!current) {
+      await set(hostRef, tkNet.uid);
+      tkNet.hostUid = tkNet.uid;
+      tkNet.isHost = true;
+    } else {
+      tkNet.hostUid = current;
+      tkNet.isHost = current === tkNet.uid;
+    }
+  } catch (error) {
+    console.warn('[tarotKingdom] host claim failed:', error);
+  }
+}
+
+async function ensureSeatAssignment() {
+  if (!isNetModeActive()) return -1;
+  const seatRef = ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid/${tkNet.uid}`);
+  const existingSeat = await get(seatRef);
+  if (existingSeat.exists()) {
+    const fixed = Number(existingSeat.val());
+    tkNet.localSeat = Number.isInteger(fixed) ? fixed : -1;
+    return tkNet.localSeat;
+  }
+  const allSeatSnap = await get(ref(tkNet.db, `${tkNet.roomPath}/meta/seatByUid`));
+  const allSeatByUid = allSeatSnap.exists() ? (allSeatSnap.val() || {}) : {};
+  const used = new Set(
+    Object.values(allSeatByUid)
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n < 4)
+  );
+  let seat = -1;
+  for (let i = 0; i < 4; i += 1) {
+    if (!used.has(i)) {
+      seat = i;
+      break;
+    }
+  }
+  tkNet.localSeat = seat;
+  if (seat >= 0) {
+    await set(seatRef, seat);
+  }
+  return seat;
+}
+
+async function sendRoomAction(action) {
+  if (!isNetModeActive() || !action || typeof action !== 'object') return false;
+  if (tkNet.localSeat < 0) return false;
+  try {
+    const payload = {
+      ...action,
+      uid: tkNet.uid,
+      seat: tkNet.localSeat,
+      sentAt: Date.now()
+    };
+    if (KINGDOM_TRACE_ENABLED) {
+      console.debug(`[TK-NET] send action room=${tkNet.roomId} seat=${tkNet.localSeat} type=${payload.type}`);
+    }
+    await push(ref(tkNet.db, `${tkNet.roomPath}/actions`), payload);
+    return true;
+  } catch (error) {
+    console.warn('[tarotKingdom] failed to send action:', error);
+    return false;
+  }
+}
+
+function stopHostActionListener() {
+  if (typeof netActionHostUnsub === 'function') {
+    netActionHostUnsub();
+    netActionHostUnsub = null;
+  }
+}
+
+function stopRoomSubscriptions() {
+  if (typeof netHostUidUnsub === 'function') {
+    netHostUidUnsub();
+    netHostUidUnsub = null;
+  }
+  if (typeof netStateUnsub === 'function') {
+    netStateUnsub();
+    netStateUnsub = null;
+  }
+  if (typeof netPresenceUnsub === 'function') {
+    netPresenceUnsub();
+    netPresenceUnsub = null;
+  }
+  stopHostActionListener();
+}
+
+function handleHostRoomAction(payload, key) {
+  if (!isNetModeActive() || !tkNet.isHost || !s) return;
+  if (!payload || typeof payload !== 'object') return;
+  const seat = Number(payload.seat);
+  if (!Number.isInteger(seat) || seat < 0 || seat >= 4) return;
+  const type = String(payload.type || '');
+  if (KINGDOM_TRACE_ENABLED) {
+    console.debug(`[TK-NET] host action key=${key} type=${type} seat=${seat} phase=${s.phase} turn=${s.turn}`);
+  }
+  switch (type) {
+    case 'startOrNext':
+      startOrNext();
+      break;
+    case 'confirmRound':
+      confirmRoundSettlement();
+      break;
+    case 'play': {
+      if (!s.roundActive) break;
+      if (s.phase === 'draw' && s.pendingDraw === seat) {
+        s.pendingDraw = null;
+        s.pendingDrawReason = null;
+        s.phase = 'turn';
+        s.turn = seat;
+      }
+      if (!(s.phase === 'turn' && s.turn === seat)) break;
+      const play = payload.play && typeof payload.play === 'object' ? payload.play : null;
+      if (!play) break;
+      play.owner = seat;
+      const mode = play.type === 'role' && play.call ? 'call' : 'normal';
+      const valid = validatePlay(play, mode);
+      if (!valid.ok) break;
+      applyPlay(seat, play);
+      break;
+    }
+    case 'pass':
+      if (s.roundActive && s.phase === 'turn' && s.turn === seat) {
+        passAction(seat);
+      }
+      break;
+    case 'draw':
+      if (s.roundActive && s.phase === 'draw' && s.pendingDraw === seat) {
+        applyDrawChoice(String(payload.deckType || 'minor'));
+      }
+      break;
+    case 'hangedMan':
+      if (s.roundActive && s.phase === 'turn' && s.turn === seat) {
+        useHangedManAction(seat, Array.isArray(payload.selectedIndexes) ? payload.selectedIndexes : []);
+      }
+      break;
+    case 'judgmentPick':
+      if (s.roundActive && s.phase === 'judgment' && s.pendingJudgment === seat) {
+        applyJudgmentPick(Number(payload.owner), Number(payload.cardIndex));
+      }
+      break;
+    case 'judgmentSkip':
+      if (s.roundActive && s.phase === 'judgment' && s.pendingJudgment === seat) {
+        skipJudgmentPick();
+      }
+      break;
+    default:
+      break;
+  }
+  queueStatePublish();
+  if (key) {
+    remove(ref(tkNet.db, `${tkNet.roomPath}/actions/${key}`)).catch(() => {});
+  }
+}
+
+function startHostActionListener() {
+  if (!isNetModeActive() || !tkNet.isHost) {
+    stopHostActionListener();
+    return;
+  }
+  if (typeof netActionHostUnsub === 'function') return;
+  const actionsRef = ref(tkNet.db, `${tkNet.roomPath}/actions`);
+  netActionHostUnsub = onChildAdded(actionsRef, (snapshot) => {
+    const key = snapshot.key || '';
+    if (!key) return;
+    if (netHandledActionKeys.has(key)) return;
+    netHandledActionKeys.add(key);
+    const payload = snapshot.val();
+    handleHostRoomAction(payload, key);
+  });
+}
+
+function applyRemoteRoomState(payload) {
+  const next = deserializeStateFromNet(payload);
+  if (!next) return;
+  s = next;
+  applyPresenceToPlayers();
+  enforceLeadTurnInvariant();
+  render();
+}
+
+function startRoomSubscriptions() {
+  if (!isNetModeActive()) return;
+  stopRoomSubscriptions();
+
+  const hostUidRef = ref(tkNet.db, `${tkNet.roomPath}/meta/hostUid`);
+  netHostUidUnsub = onValue(hostUidRef, (snap) => {
+    const prevHost = !!tkNet.isHost;
+    const hostUid = snap.exists() ? String(snap.val() || '') : '';
+    tkNet.hostUid = hostUid;
+    tkNet.isHost = hostUid && hostUid === tkNet.uid;
+    if (!hostUid) {
+      claimHostIfNeeded().catch((error) => {
+        console.warn('[tarotKingdom] host reclaim failed:', error);
+      });
+    }
+    if (tkNet.isHost) {
+      if (!prevHost) {
+        netHandledActionKeys.clear();
+      }
+      startHostActionListener();
+    } else {
+      stopHostActionListener();
+    }
+  });
+
+  const presenceRef = ref(tkNet.db, `${tkNet.roomPath}/presence`);
+  netPresenceUnsub = onValue(presenceRef, (snapshot) => {
+    netPresenceByUid = snapshot.exists() ? (snapshot.val() || {}) : {};
+    if (s) {
+      applyPresenceToPlayers();
+      if (tkNet.isHost) queueStatePublish();
+      render();
+    }
+  });
+
+  const stateRef = ref(tkNet.db, `${tkNet.roomPath}/state`);
+  netStateUnsub = onValue(stateRef, (snapshot) => {
+    if (tkNet.isHost) return;
+    if (!snapshot.exists()) return;
+    applyRemoteRoomState(snapshot.val());
+  });
+}
+
+function teardownTarotKingdomNetwork() {
+  stopRoomSubscriptions();
+  if (netActionWriteTimer) {
+    clearTimeout(netActionWriteTimer);
+    netActionWriteTimer = null;
+  }
+  if (tkNet.presenceRef && tkNet.db) {
+    remove(tkNet.presenceRef).catch(() => {});
+  }
+  tkNet.enabled = false;
+  tkNet.roomId = '';
+  tkNet.roomPath = '';
+  tkNet.db = null;
+  tkNet.uid = '';
+  tkNet.localSeat = -1;
+  tkNet.isHost = false;
+  tkNet.hostUid = '';
+  tkNet.localPlayerName = '';
+  tkNet.presenceRef = null;
+  netPresenceByUid = {};
+  netHandledActionKeys.clear();
+  netLastStateHash = '';
+  netBootPromise = null;
+}
+
+async function ensureTarotKingdomNetwork() {
+  if (netBootPromise) return netBootPromise;
+  netBootPromise = (async () => {
+    const roomId = getTarotKingdomRoomId();
+    const db = window.__tkDb || null;
+    const uid = window.__tkUid || '';
+    if (!roomId || !db || !uid) {
+      teardownTarotKingdomNetwork();
+      tkNet.localSeat = 0;
+      return;
+    }
+
+    tkNet.enabled = true;
+    tkNet.db = db;
+    tkNet.uid = String(uid);
+    tkNet.roomId = roomId;
+    tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+    tkNet.localPlayerName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player');
+
+    await ensureSeatAssignment();
+    await claimHostIfNeeded();
+
+    if (tkNet.isHost) {
+      try {
+        await remove(ref(db, `${tkNet.roomPath}/actions`));
+      } catch (_) {
+        // ignore
+      }
+      netHandledActionKeys.clear();
+    }
+    startRoomSubscriptions();
+
+    const presenceRef = ref(db, `${tkNet.roomPath}/presence/${tkNet.uid}`);
+    tkNet.presenceRef = presenceRef;
+    const presencePayload = {
+      uid: tkNet.uid,
+      seat: tkNet.localSeat,
+      displayName: tkNet.localPlayerName,
+      playFabId: window.myPlayFabId || '',
+      updatedAt: serverTimestamp()
+    };
+    await set(presenceRef, presencePayload);
+    netPresenceByUid[tkNet.uid] = { ...presencePayload, updatedAt: Date.now() };
+    try {
+      const disc = onDisconnect(presenceRef);
+      await disc.remove();
+    } catch (_) {
+      // ignore
+    }
+
+    if (tkNet.isHost) {
+      const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
+      if (!roomStateSnap.exists()) {
+        resetMatch();
+        applyPresenceToPlayers();
+        await publishStateToRoom(true);
+      } else if (!s) {
+        applyRemoteRoomState(roomStateSnap.val());
+        applyPresenceToPlayers();
+        queueStatePublish(true);
+      }
+    } else {
+      const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
+      if (roomStateSnap.exists()) {
+        applyRemoteRoomState(roomStateSnap.val());
+      }
+    }
+  })();
+  try {
+    await netBootPromise;
+  } finally {
+    netBootPromise = null;
+  }
+}
+
 function resetMatch() {
   s = initState();
   if (trickSwapTimer) { clearTimeout(trickSwapTimer); trickSwapTimer = null; }
@@ -900,6 +1365,17 @@ function resetMatch() {
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
   s.openOracleRevealed = false;
+  if (!isNetModeActive()) {
+    tkNet.localSeat = 0;
+    const fallbackName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || 'あなた');
+    s.players.forEach((p, idx) => {
+      p.isNpc = idx !== tkNet.localSeat;
+      if (idx === tkNet.localSeat) p.name = fallbackName;
+      else p.name = idx === 1 ? 'NPC1' : (idx === 2 ? 'NPC2' : 'NPC3');
+    });
+  } else {
+    applyPresenceToPlayers();
+  }
 }
 
 function resolveReversePersistSuspend() {
@@ -1230,7 +1706,7 @@ function applyRoleRewardOnClear(playerIndex) {
 
 function npcChooseDrawPlan(playerIndex) {
   const actor = s?.players?.[playerIndex];
-  if (!actor || actor.human) return 'minor';
+  if (!actor || !isNpcPlayer(playerIndex)) return 'minor';
   const hand = Math.max(0, Number(actor.hand?.length || 0));
   const stars = Math.max(0, Number(actor.stars) || 0);
   const reason = String(s?.pendingDrawReason || 'normal');
@@ -1288,7 +1764,7 @@ function drawChoiceStart(playerIndex, reason = 'normal') {
   s.phase = 'draw'; s.message = `${pName(playerIndex)}: 小 or 大アルカナを1枚ドロー`;
   traceKingdomFlow('drawChoiceStart.waitChoice', `player=${playerIndex}`);
   render();
-  if (!s.players[playerIndex].human) {
+  if (isNpcPlayer(playerIndex)) {
     scheduleNpcTimer(NPC_DELAY, () => {
       if (!s || !s.roundActive) {
         traceKingdomFlow('drawChoiceStart.npcTimer.abort', `player=${playerIndex} reason=inactive`);
@@ -1321,7 +1797,7 @@ function judgmentStart(playerIndex) {
   if (!opts.length) { log('審判: 回収候補なし'); drawChoiceStart(playerIndex, 'judgment'); return; }
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
   render();
-  if (!s.players[playerIndex].human) {
+  if (isNpcPlayer(playerIndex)) {
     scheduleNpcTimer(NPC_DELAY, () => {
       if (!s || !s.roundActive) return;
       if (s.phase !== 'judgment' || s.pendingJudgment !== playerIndex) return;
@@ -1421,7 +1897,7 @@ function applySetEffects(play) {
     const minorTop = s.minorDeck[s.minorDeck.length - 1] || null;
     const majorTop = s.majorDeck[s.majorDeck.length - 1] || null;
     s.hermitPreview = { owner: play.owner, minorTop, majorTop, at: Date.now() };
-    if (owner?.human) {
+    if (isLocalPlayer(play.owner)) {
       s.message = `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'} / 大=${majorTop ? getCardNameLabel(majorTop) : 'なし'}`;
     }
     log(`${pName(play.owner)}: 隠者で山札を予見`);
@@ -1640,9 +2116,9 @@ function applyDrawChoice(deckType) {
   if (use === 'major') {
     const stars = Math.max(0, Number(actor.stars) || 0);
     if (stars <= 0) {
-      if (!actor.human && s.minorDeck.length > 0) {
+      if (isNpcPlayer(pi) && s.minorDeck.length > 0) {
         use = 'minor';
-      } else if (actor.human) {
+      } else if (isLocalPlayer(pi)) {
         traceKingdomFlow('applyDrawChoice.abort', `reason=noStars player=${pi}`);
         s.message = '星が足りないため大アルカナを引けません。';
         render();
@@ -1668,7 +2144,7 @@ function applyDrawChoice(deckType) {
     if (use === 'major') actor.stars = Math.max(0, (Number(actor.stars) || 0) - 1);
     log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`);
   }
-  const drawByHuman = !!actor?.human;
+  const drawByHuman = isLocalPlayer(pi);
   triggerKingdomActionFx(pi, use === 'major' ? '大アルカナドロー' : '小アルカナドロー', {
     overlay: drawByHuman ? 'draw' : null,
     durationMs: 620,
@@ -1752,7 +2228,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   }
   if (selectedCount <= 0 || removed.length !== selectedCount) {
     log(`${p.name}: 出し処理失敗（選択同期ずれ）`);
-    if (!p.human) {
+    if (isNpcPlayer(pi)) {
       if (retryDepth < 1) {
         const fallback = npcDecide(pi);
         if (fallback?.action === 'play' && fallback.play) {
@@ -1855,7 +2331,7 @@ function passAction(pi) {
     s.message = '場が空のためパスできません。';
     render();
     // NPCがここに入った場合でも再試行可能にして、進行停止を避ける
-    if (!s?.players?.[pi]?.human) scheduleNpc();
+    if (isNpcPlayer(pi)) scheduleNpc();
     return;
   }
   s.pass[pi] = true; log(`${pName(pi)}: パス`);
@@ -1867,7 +2343,7 @@ function passAction(pi) {
     }
   }
   s.selected.clear();
-  const passByHuman = !!s.players[pi]?.human;
+  const passByHuman = isLocalPlayer(pi);
   triggerKingdomActionFx(pi, 'パス', { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: passByHuman });
   const leader = s.lastPlay?.owner;
   if (leader != null && allOthersPassed(leader)) { log('全員パスでクリア'); clearTrick(leader); return; }
@@ -2010,7 +2486,7 @@ function pickBestNpcLeadPlay(pi) {
 function recoverNpcNoTrickState(pi) {
   if (!s || !s.roundActive || s.phase !== 'turn' || s.turn !== pi || s.trick) return false;
   const p = s.players?.[pi];
-  if (!p || p.human) return false;
+  if (!p || !isNpcPlayer(pi)) return false;
 
   let lead = pickBestNpcLeadPlay(pi);
   if (lead) {
@@ -2027,6 +2503,7 @@ function recoverNpcNoTrickState(pi) {
 }
 
 function npcAct() {
+  if (!isHostAuthority()) return;
   if (npcActInFlight) return;
   npcActInFlight = true;
   try {
@@ -2046,7 +2523,7 @@ function npcAct() {
   if (s.phase === 'judgment' && s.pendingJudgment != null) { traceKingdomFlow('npcAct.judgmentPhase', `player=${s.pendingJudgment}`); skipJudgmentPick(); return; }
   if (s.phase !== 'turn') { traceKingdomFlow('npcAct.abort', 'reason=notTurnPhase'); return; }
   const pi = s.turn, p = s.players[pi];
-  if (!p || p.human) { traceKingdomFlow('npcAct.abort', `reason=invalidOrHuman turn=${pi}`); return; }
+  if (!p || !isNpcPlayer(pi)) { traceKingdomFlow('npcAct.abort', `reason=invalidOrHuman turn=${pi}`); return; }
   if (!s.trick && recoverNpcNoTrickState(pi)) { traceKingdomFlow('npcAct.recoverNoTrick', `player=${pi}`); return; }
   if (!s.trick) {
     const leadSetMoves = setMoves(pi);
@@ -2068,7 +2545,7 @@ function npcAct() {
         scheduleNpcTimer(Math.max(420, Math.floor(NPC_DELAY * 0.75)), () => {
           if (!s || !s.roundActive) return;
           if (s.phase !== 'turn' || s.turn !== pi) return;
-          if (!s.players?.[pi] || s.players[pi].human) return;
+          if (!s.players?.[pi] || !isNpcPlayer(pi)) return;
           npcAct();
         });
         return;
@@ -2094,6 +2571,10 @@ function npcAct() {
 }
 
 function scheduleNpc() {
+  if (!isHostAuthority()) {
+    clearNpcTimer();
+    return;
+  }
   enforceLeadTurnInvariant();
   traceKingdomFlow('scheduleNpc.enter');
   clearNpcTimer();
@@ -2101,12 +2582,12 @@ function scheduleNpc() {
     traceKingdomFlow('scheduleNpc.abort', 'reason=inactive');
     return;
   }
-  if (s.phase === 'draw' && s.pendingDraw != null && !s.players[s.pendingDraw].human) {
+  if (s.phase === 'draw' && s.pendingDraw != null && isNpcPlayer(s.pendingDraw)) {
     traceKingdomFlow('scheduleNpc.timer', `reason=draw player=${s.pendingDraw} delay=${NPC_DELAY}`);
     scheduleNpcTimer(NPC_DELAY, () => npcAct());
     return;
   }
-  if (s.phase === 'judgment' && s.pendingJudgment != null && !s.players[s.pendingJudgment].human) {
+  if (s.phase === 'judgment' && s.pendingJudgment != null && isNpcPlayer(s.pendingJudgment)) {
     traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${NPC_DELAY}`);
     scheduleNpcTimer(NPC_DELAY, () => npcAct());
     return;
@@ -2115,7 +2596,7 @@ function scheduleNpc() {
     traceKingdomFlow('scheduleNpc.abort', `reason=phase:${s.phase}`);
     return;
   }
-  if (!s.players[s.turn]?.human) {
+  if (isNpcPlayer(s.turn)) {
     traceKingdomFlow('scheduleNpc.timer', `reason=turn player=${s.turn} delay=${NPC_DELAY}`);
     scheduleNpcTimer(NPC_DELAY, () => npcAct());
     return;
@@ -2179,7 +2660,7 @@ function renderPlayers() {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
     row.dataset.playerIndex = String(i);
     if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
-    if (p.human) row.classList.add('is-human');
+    if (isLocalPlayer(i)) row.classList.add('is-human');
     const left = document.createElement('div');
     left.className = 'tarot-kingdom-player-name';
     const starCount = Math.max(0, Number(p.stars) || 0);
@@ -2275,15 +2756,16 @@ function renderTrick() {
 
 function renderHand() {
   ui.hand.innerHTML = '';
-  const me = s.players.findIndex((p) => p.human);
+  const me = getLocalPlayerIndex();
+  if (me < 0 || !s.players?.[me]) return;
   const selected = sanitizeSelected(me);
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
     ui.selectedEffect.hidden = true;
   }
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
-  const canSelect = s.roundActive && (s.phase === 'turn' || drawMe);
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
+  const canSelect = canCommit;
   const onHandTap = (idx) => {
     if (!canSelect) {
       showPlayError(`現在は「${s.phase}」フェーズです。`);
@@ -2343,7 +2825,7 @@ function renderJudgment() {
   ui.judgmentOptions.innerHTML = '';
 
   const judgmentPlayer = inJudgment ? s.players[s.pendingJudgment] : null;
-  const human = !!judgmentPlayer?.human;
+  const human = Number(s.pendingJudgment) === getLocalPlayerIndex();
   if (ui.judgmentTitle) {
     ui.judgmentTitle.textContent = inJudgment
       ? '審判: 墓地から回収するカードを選択'
@@ -2396,7 +2878,19 @@ function renderJudgment() {
         const node = cardNode(entry.card, {
           clickable: true,
           onClick: clickable
-            ? () => applyJudgmentPick(entry.owner, entry.cardIndex)
+            ? () => {
+              const me = getLocalPlayerIndex();
+              requestHostAction(
+                { type: 'judgmentPick', owner: entry.owner, cardIndex: entry.cardIndex },
+                () => {
+                  if (s?.phase === 'judgment' && s.pendingJudgment === me) {
+                    applyJudgmentPick(entry.owner, entry.cardIndex);
+                  }
+                }
+              ).catch((error) => {
+                console.warn('[tarotKingdom] judgment pick action failed:', error);
+              });
+            }
             : () => {
               s.message = `${getCardNameLabel(entry.card)} は ${pName(entry.owner)} が出したカード`;
               renderSummary();
@@ -2523,7 +3017,20 @@ function renderSettlement() {
 }
 
 function updateButtons() {
-  const me = s.players.findIndex((p) => p.human);
+  const me = getLocalPlayerIndex();
+  if (me < 0 || !s.players?.[me]) {
+    if (ui.startButton) {
+      ui.startButton.hidden = true;
+      ui.startButton.disabled = true;
+    }
+    ui.playButton.disabled = true;
+    ui.clearButton.disabled = true;
+    ui.passButton.disabled = true;
+    ui.drawMinorButton.disabled = true;
+    ui.drawMajorButton.disabled = true;
+    if (ui.graveToggleButton) ui.graveToggleButton.disabled = true;
+    return;
+  }
   const inCallCinematic = s.phase === 'callCinematic';
   const inOpeningCinematic = s.phase === 'openingCinematic';
   const actionLocked = inCallCinematic || inOpeningCinematic;
@@ -2575,6 +3082,9 @@ function render() {
   renderJudgment();
   updateButtons();
   syncHumanTurnCueState();
+  if (isNetModeActive() && tkNet.isHost) {
+    queueStatePublish();
+  }
 }
 
 function revealOracleWithFlip() {
@@ -2621,6 +3131,19 @@ function startOrNext() {
   }
 }
 
+async function requestHostAction(action, localApply) {
+  if (!isNetModeActive() || tkNet.isHost) {
+    localApply?.();
+    queueStatePublish();
+    return true;
+  }
+  const ok = await sendRoomAction(action);
+  if (!ok) {
+    showPlayError('通信に失敗しました。少し待って再実行してください。');
+  }
+  return ok;
+}
+
 function useHangedManAction(pi, selectedIndexes) {
   const p = s?.players?.[pi];
   if (!p) return { ok: false, reason: 'プレイヤー情報が不正です。' };
@@ -2645,11 +3168,12 @@ function useHangedManAction(pi, selectedIndexes) {
 
 function humanPlay() {
   if (!s || !s.roundActive) return;
-  const me = s.players.findIndex((p) => p.human);
+  const me = getLocalPlayerIndex();
+  if (me < 0 || !s.players?.[me]) return;
   const myTurn = s.phase === 'turn' && s.turn === me;
   const drawMe = s.phase === 'draw' && s.pendingDraw === me;
   if (!myTurn && !drawMe) return;
-  if (drawMe) {
+  if (drawMe && (!isNetModeActive() || tkNet.isHost)) {
     s.pendingDraw = null;
     s.pendingDrawReason = null;
     s.phase = 'turn';
@@ -2661,8 +3185,15 @@ function humanPlay() {
   if (myTurn && sel.length === 1) {
     const maybeHanged = s.players?.[me]?.hand?.[sel[0]];
     if (maybeHanged?.kind === 'major' && maybeHanged?.number === 12) {
-      const used = useHangedManAction(me, sel);
-      if (!used.ok) showPlayError(used.reason || '吊るされた男を使用できません。');
+      requestHostAction(
+        { type: 'hangedMan', selectedIndexes: sel.slice() },
+        () => {
+          const used = useHangedManAction(me, sel);
+          if (!used.ok) showPlayError(used.reason || '吊るされた男を使用できません。');
+        }
+      ).catch((error) => {
+        console.warn('[tarotKingdom] hangedMan action failed:', error);
+      });
       return;
     }
   }
@@ -2689,7 +3220,12 @@ function humanPlay() {
   if (!built.ok) { showPlayError(built.reason || '出せません。'); return; }
   const ok = validatePlay(built.play, mode === 'call' ? 'call' : 'normal');
   if (!ok.ok) { showPlayError(ok.reason || '出せません。'); return; }
-  applyPlay(me, built.play);
+  requestHostAction(
+    { type: 'play', play: built.play },
+    () => applyPlay(me, built.play)
+  ).catch((error) => {
+    console.warn('[tarotKingdom] play action failed:', error);
+  });
 }
 
 function bindUi() {
@@ -2729,22 +3265,77 @@ function bindUi() {
   ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
-  ui.startButton?.addEventListener('click', () => startOrNext());
+  ui.startButton?.addEventListener('click', () => {
+    requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
+      console.warn('[tarotKingdom] start action failed:', error);
+    });
+  });
   ui.playButton?.addEventListener('click', () => humanPlay());
   ui.clearButton?.addEventListener('click', () => clearSelectedCards(true));
-  ui.passButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) passAction(s.turn); });
-  ui.drawMinorButton?.addEventListener('click', () => applyDrawChoice('minor'));
-  ui.drawMajorButton?.addEventListener('click', () => applyDrawChoice('major'));
+  ui.passButton?.addEventListener('click', () => {
+    const me = getLocalPlayerIndex();
+    if (!(s?.roundActive && s.phase === 'turn' && s.turn === me)) return;
+    requestHostAction({ type: 'pass' }, () => passAction(me)).catch((error) => {
+      console.warn('[tarotKingdom] pass action failed:', error);
+    });
+  });
+  ui.drawMinorButton?.addEventListener('click', () => {
+    const me = getLocalPlayerIndex();
+    requestHostAction({ type: 'draw', deckType: 'minor' }, () => {
+      if (s?.phase === 'draw' && s.pendingDraw === me) applyDrawChoice('minor');
+    }).catch((error) => {
+      console.warn('[tarotKingdom] draw minor action failed:', error);
+    });
+  });
+  ui.drawMajorButton?.addEventListener('click', () => {
+    const me = getLocalPlayerIndex();
+    requestHostAction({ type: 'draw', deckType: 'major' }, () => {
+      if (s?.phase === 'draw' && s.pendingDraw === me) applyDrawChoice('major');
+    }).catch((error) => {
+      console.warn('[tarotKingdom] draw major action failed:', error);
+    });
+  });
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
-  ui.judgmentSkipButton?.addEventListener('click', () => skipJudgmentPick());
-  ui.settlementConfirmButton?.addEventListener('click', () => confirmRoundSettlement());
+  ui.judgmentSkipButton?.addEventListener('click', () => {
+    const me = getLocalPlayerIndex();
+    requestHostAction({ type: 'judgmentSkip' }, () => {
+      if (s?.phase === 'judgment' && s.pendingJudgment === me) skipJudgmentPick();
+    }).catch((error) => {
+      console.warn('[tarotKingdom] judgment skip action failed:', error);
+    });
+  });
+  ui.settlementConfirmButton?.addEventListener('click', () => {
+    requestHostAction({ type: 'confirmRound' }, () => confirmRoundSettlement()).catch((error) => {
+      console.warn('[tarotKingdom] confirm round action failed:', error);
+    });
+  });
   bound = true;
 }
 
 export async function loadTarotKingdomPage() {
   bindUi();
-  if (!s) resetMatch();
+  await ensureTarotKingdomNetwork();
+  if (!s) {
+    if (!tkNet.enabled || tkNet.isHost) {
+      resetMatch();
+    } else {
+      s = initState();
+      s.message = 'ルーム状態を同期中です...';
+    }
+  }
+  applyPresenceToPlayers();
+  if (tkNet.enabled && !tkNet.isHost) {
+    const bootLike =
+      !s.roundActive &&
+      !s.trick &&
+      Number(s.handNo || 0) === 0 &&
+      (!Array.isArray(s.logs) || s.logs.length === 0);
+    if (bootLike) s.message = 'ルーム状態を同期中です...';
+  }
   render();
+  if (tkNet.enabled && tkNet.isHost) {
+    queueStatePublish(true);
+  }
 }
 
 export function destroyTarotKingdomPage() {
@@ -2820,5 +3411,6 @@ export function destroyTarotKingdomPage() {
   trickRenderKey = '';
   trickRenderToken += 1;
   npcActInFlight = false;
+  teardownTarotKingdomNetwork();
   s = null;
 }
