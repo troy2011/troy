@@ -919,6 +919,16 @@ function generateTarotKingdomRoomId() {
   return `tk_${t}${r}`;
 }
 
+async function waitForTkUid(timeoutMs = 4000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const uid = String(window.__tkUid || '');
+    if (uid) return uid;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+  return String(window.__tkUid || '');
+}
+
 function isRoomInProgressFromStatePayload(payload) {
   const st = payload?.state || null;
   if (!st || typeof st !== 'object') return false;
@@ -1113,8 +1123,16 @@ function renderOpenRoomsList(roomRows = []) {
   const listEl = ui.openRoomsList;
   if (!wrap || !listEl) return;
   if (!isNetModeActive()) {
-    wrap.hidden = true;
+    wrap.hidden = false;
     listEl.innerHTML = '';
+    const status = document.createElement('span');
+    status.className = 'tarot-kingdom-openrooms-item';
+    const hasDb = !!window.__tkDb;
+    const hasUid = !!window.__tkUid;
+    if (!hasDb) status.textContent = 'マルチ接続準備中です。';
+    else if (!hasUid) status.textContent = 'ログイン認証待機中です。';
+    else status.textContent = 'マルチ接続に失敗しました。タブを開き直してください。';
+    listEl.appendChild(status);
     return;
   }
   wrap.hidden = false;
@@ -1435,94 +1453,101 @@ function teardownTarotKingdomNetwork() {
 async function ensureTarotKingdomNetwork() {
   if (netBootPromise) return netBootPromise;
   netBootPromise = (async () => {
-    const explicitRoomId = getTarotKingdomRoomId();
-    const db = window.__tkDb || null;
-    const uid = window.__tkUid || '';
-    if (!db || !uid) {
-      teardownTarotKingdomNetwork();
-      tkNet.localSeat = 0;
-      return;
-    }
-    let roomId = explicitRoomId || (await findOrCreateAutoRoomId(db));
-    if (!roomId) {
-      teardownTarotKingdomNetwork();
-      tkNet.localSeat = 0;
-      return;
-    }
+    try {
+      const explicitRoomId = getTarotKingdomRoomId();
+      const db = window.__tkDb || null;
+      let uid = String(window.__tkUid || '');
+      if (db && !uid) uid = await waitForTkUid(4000);
+      if (!db || !uid) {
+        teardownTarotKingdomNetwork();
+        tkNet.localSeat = 0;
+        return;
+      }
+      let roomId = explicitRoomId || (await findOrCreateAutoRoomId(db));
+      if (!roomId) {
+        teardownTarotKingdomNetwork();
+        tkNet.localSeat = 0;
+        return;
+      }
 
-    tkNet.enabled = true;
-    tkNet.db = db;
-    tkNet.uid = String(uid);
-    tkNet.roomId = roomId;
-    tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
-    tkNet.localPlayerName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player');
-
-    await ensureSeatAssignment();
-    if (tkNet.localSeat < 0 && !explicitRoomId) {
-      roomId = generateTarotKingdomRoomId();
-      await registerOpenRoomIndex(db, roomId);
+      tkNet.enabled = true;
+      tkNet.db = db;
+      tkNet.uid = String(uid);
       tkNet.roomId = roomId;
       tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+      tkNet.localPlayerName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player');
+
       await ensureSeatAssignment();
-    }
-    if (tkNet.localSeat < 0) {
+      if (tkNet.localSeat < 0 && !explicitRoomId) {
+        roomId = generateTarotKingdomRoomId();
+        await registerOpenRoomIndex(db, roomId);
+        tkNet.roomId = roomId;
+        tkNet.roomPath = `tarotKingdomRooms/${roomId}`;
+        await ensureSeatAssignment();
+      }
+      if (tkNet.localSeat < 0) {
+        teardownTarotKingdomNetwork();
+        tkNet.localSeat = 0;
+        return;
+      }
+      await claimHostIfNeeded();
+
+      if (tkNet.isHost) {
+        try {
+          await remove(ref(db, `${tkNet.roomPath}/actions`));
+        } catch (_) {
+          // ignore
+        }
+        netHandledActionKeys.clear();
+        try {
+          const hostDisc = onDisconnect(ref(db, `${tkNet.roomPath}/meta/hostUid`));
+          await hostDisc.remove();
+        } catch (_) {
+          // ignore
+        }
+      }
+      startRoomSubscriptions();
+
+      const presenceRef = ref(db, `${tkNet.roomPath}/presence/${tkNet.uid}`);
+      tkNet.presenceRef = presenceRef;
+      const presencePayload = {
+        uid: tkNet.uid,
+        seat: tkNet.localSeat,
+        displayName: tkNet.localPlayerName,
+        playFabId: window.myPlayFabId || '',
+        updatedAt: serverTimestamp()
+      };
+      await set(presenceRef, presencePayload);
+      netPresenceByUid[tkNet.uid] = { ...presencePayload, updatedAt: Date.now() };
+      try {
+        const disc = onDisconnect(presenceRef);
+        await disc.remove();
+      } catch (_) {
+        // ignore
+      }
+
+      if (tkNet.isHost) {
+        const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
+        if (!roomStateSnap.exists()) {
+          resetMatch();
+          applyPresenceToPlayers();
+          await publishStateToRoom(true);
+        } else if (!s) {
+          applyRemoteRoomState(roomStateSnap.val());
+          applyPresenceToPlayers();
+          queueStatePublish(true);
+        }
+        await syncOpenRoomIndex();
+      } else {
+        const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
+        if (roomStateSnap.exists()) {
+          applyRemoteRoomState(roomStateSnap.val());
+        }
+      }
+    } catch (error) {
+      console.warn('[tarotKingdom] ensure network failed:', error);
       teardownTarotKingdomNetwork();
       tkNet.localSeat = 0;
-      return;
-    }
-    await claimHostIfNeeded();
-
-    if (tkNet.isHost) {
-      try {
-        await remove(ref(db, `${tkNet.roomPath}/actions`));
-      } catch (_) {
-        // ignore
-      }
-      netHandledActionKeys.clear();
-      try {
-        const hostDisc = onDisconnect(ref(db, `${tkNet.roomPath}/meta/hostUid`));
-        await hostDisc.remove();
-      } catch (_) {
-        // ignore
-      }
-    }
-    startRoomSubscriptions();
-
-    const presenceRef = ref(db, `${tkNet.roomPath}/presence/${tkNet.uid}`);
-    tkNet.presenceRef = presenceRef;
-    const presencePayload = {
-      uid: tkNet.uid,
-      seat: tkNet.localSeat,
-      displayName: tkNet.localPlayerName,
-      playFabId: window.myPlayFabId || '',
-      updatedAt: serverTimestamp()
-    };
-    await set(presenceRef, presencePayload);
-    netPresenceByUid[tkNet.uid] = { ...presencePayload, updatedAt: Date.now() };
-    try {
-      const disc = onDisconnect(presenceRef);
-      await disc.remove();
-    } catch (_) {
-      // ignore
-    }
-
-    if (tkNet.isHost) {
-      const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
-      if (!roomStateSnap.exists()) {
-        resetMatch();
-        applyPresenceToPlayers();
-        await publishStateToRoom(true);
-      } else if (!s) {
-        applyRemoteRoomState(roomStateSnap.val());
-        applyPresenceToPlayers();
-        queueStatePublish(true);
-      }
-      await syncOpenRoomIndex();
-    } else {
-      const roomStateSnap = await get(ref(db, `${tkNet.roomPath}/state`));
-      if (roomStateSnap.exists()) {
-        applyRemoteRoomState(roomStateSnap.val());
-      }
     }
   })();
   try {
