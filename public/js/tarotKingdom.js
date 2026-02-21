@@ -450,6 +450,47 @@ function updateSelectedCardEffectLabel(playerIndex, selectedIndexes) {
   ui.selectedEffect.hidden = false;
 }
 
+function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
+  if (!s || !Array.isArray(selectedIndexes)) return '';
+  const hand = s.players?.[playerIndex]?.hand;
+  if (!Array.isArray(hand) || selectedIndexes.length <= 0) return '';
+  const sel = selectedIndexes
+    .map((idx) => Number(idx))
+    .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < hand.length);
+  if (!sel.length) return '';
+  const cards = sel.map((idx) => hand[idx]).filter(Boolean);
+  if (!cards.length) return '';
+
+  if (sel.length === 1) {
+    const card = cards[0];
+    const name = getCardNameLabel(card);
+    const effect = getKingdomCardEffectDescription(card);
+    return effect ? `選択: ${name} / ${effect}` : `選択: ${name}`;
+  }
+
+  if (sel.length === 5) {
+    const builtRole = buildRolePlay(playerIndex, sel);
+    if (builtRole?.ok) return `選択: ${getRoleDisplayLabel(builtRole.play)}`;
+  }
+
+  if (sel.length === 4) {
+    const builtCall = buildCallPlay(playerIndex, sel);
+    if (builtCall?.ok) return `選択: ${getRoleDisplayLabel(builtCall.play)}`;
+  }
+
+  if ([1, 2, 3].includes(sel.length)) {
+    const builtSet = buildSetPlay(playerIndex, sel);
+    if (builtSet?.ok) {
+      const n = Number(builtSet.play?.number || 0);
+      const rank = n === 1 ? 'A' : String(n || '?');
+      return `選択: ${sel.length}枚 / 数字${rank}`;
+    }
+  }
+
+  const labels = cards.map((c) => getCardNameLabel(c)).filter(Boolean);
+  return labels.length ? `選択: ${labels.join('・')}` : `選択: ${sel.length}枚`;
+}
+
 function showKingdomCardEffectInfo(card, prefix = '効果') {
   if (!s || !card) return;
   const name = getCardNameLabel(card);
@@ -976,9 +1017,6 @@ function showHumanTurnCue() {
     ui.yourTurnBadge.classList.remove('show');
     void ui.yourTurnBadge.offsetWidth;
     ui.yourTurnBadge.classList.add('show');
-    humanTurnBadgeTimer = setTimeout(() => {
-      clearYourTurnBadge();
-    }, 900);
   }
 
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -3464,14 +3502,16 @@ function renderHand() {
   const canSelect = !!(s.roundActive && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
   const onHandTap = (idx) => {
     if (!canSelect) {
-      showPlayError(`現在は「${s.phase}」フェーズです。`);
+      showPlayError('今は手札を選択できません。');
       return;
     }
     if (s.selected.has(idx)) s.selected.delete(idx);
     else s.selected.add(idx);
-    s.message = canCommit
-      ? `選択中: ${s.selected.size}枚`
-      : `選択中: ${s.selected.size}枚（あなたのターン待ち）`;
+    const selectedNow = sanitizeSelected(me);
+    const infoText = buildSelectedCardInfoMessage(me, selectedNow);
+    s.message = infoText || (canCommit
+      ? '選択中'
+      : '選択中（あなたのターン待ち）');
     render();
   };
   s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, {
