@@ -30,7 +30,8 @@ const PLAYERS = [
 
 const START_HAND = 10;
 const TOTAL_HANDS = 4;
-const START_CHIPS = 30;
+const START_CHIPS = 100;
+const GAMEOVER_CHIPS_THRESHOLD = 0;
 const A_PENALTY = 1;
 const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
@@ -2605,6 +2606,16 @@ function finishRound(winnerIndex) {
     const acePenalty = hasAceMinor(loser.hand) ? A_PENALTY : 0;
     const scoreFactor = 1 + settlement.starBonus + oracleHits + acePenalty;
     const pay = remain * scoreFactor;
+    const factorParts = [
+      { label: '基本', value: 1 },
+      { label: '★', value: settlement.starBonus },
+      { label: 'アルカナ', value: oracleHits },
+      { label: 'Aペナルティ', value: acePenalty }
+    ];
+    const factorSummary = factorParts
+      .filter((part) => Number(part.value) > 0)
+      .map((part) => `${part.label}x${part.value}`)
+      .join(' / ');
     loser.chips -= pay; winner.chips += pay;
     totalGain += Math.max(0, pay);
     settlement.rows.push({
@@ -2617,6 +2628,7 @@ function finishRound(winnerIndex) {
       oracleHits,
       acePenalty,
       scoreFactor,
+      factorSummary,
       pay
     });
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x 係数${scoreFactor}）`);
@@ -2662,6 +2674,23 @@ function finishRound(winnerIndex) {
   s.reversePersistSuspendOwner = null;
   s.reverse = false;
   s.players.forEach((p) => { p.stars = 0; });
+  const bankruptPlayers = s.players
+    .map((p, i) => ({ i, name: p.name, chips: Number(p.chips) || 0 }))
+    .filter((p) => p.chips <= GAMEOVER_CHIPS_THRESHOLD);
+  if (bankruptPlayers.length > 0) {
+    let top = 0;
+    s.players.forEach((_, i) => {
+      if ((Number(s.players[i].chips) || 0) > (Number(s.players[top].chips) || 0)) top = i;
+    });
+    s.champion = top;
+    s.phase = 'done';
+    s.awaitRoundConfirm = false;
+    const bankruptText = bankruptPlayers.map((p) => `${p.name}(${p.chips})`).join(' / ');
+    s.message = `ゲーム終了（チップ枯渇）: ${bankruptText} / 勝者: ${s.players[top].name} (${s.players[top].chips}チップ)`;
+    log(s.message);
+    render();
+    return;
+  }
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
     let top = 0; s.players.forEach((p, i) => { if (s.players[i].chips > s.players[top].chips) top = i; });
@@ -2788,7 +2817,14 @@ function continueAfterPlay(pi, play) {
     s.reversePersist = false; // 永続11バック（局中）も解除
     s.reversePersistSuspendOwner = null;
   }
-  if (p.hand.length <= 0) { finishRound(pi); return; }
+  if (p.hand.length <= 0) {
+    if (play?.type === 'role') {
+      p.stars = Math.max(0, Number(p.stars) || 0) + 1;
+      applyRoleRewardOnClear(pi);
+    }
+    finishRound(pi);
+    return;
+  }
   if (play.type === 'set') {
     const fx = applySetEffects(play);
     if (fx.forceClear) { clearTrick(pi); return; }
@@ -3662,8 +3698,13 @@ function renderSettlement() {
 
       const formula = document.createElement('div');
       formula.className = 'tarot-kingdom-settlement-row-formula';
-      formula.textContent = `計算式: ${row.remain} × (1 + ${row.starBonus} + ${row.oracleHits} + ${row.acePenalty}) = ${row.pay}`;
+      formula.textContent = `計算式: 手札${row.remain} x 係数${row.scoreFactor} = ${row.pay}TP`;
       rowEl.appendChild(formula);
+
+      const factors = document.createElement('div');
+      factors.className = 'tarot-kingdom-settlement-row-formula';
+      factors.textContent = `係数内訳: ${row.factorSummary || '基本x1'}`;
+      rowEl.appendChild(factors);
 
       body.appendChild(rowEl);
     });
