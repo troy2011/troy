@@ -74,6 +74,8 @@ let humanTurnBadgeTimer = null;
 let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
+const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
+let localHandSortMode = HAND_SORT_MODE.SUIT;
 const KINGDOM_TRACE_ENABLED = true;
 let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
@@ -223,6 +225,50 @@ const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number 
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
+const HAND_SORT_SUIT_ORDER = { Wand: 0, Pentacle: 1, Cup: 2, Sword: 3, None: 4 };
+const handSortSuitKey = (card) => {
+  if (!card) return 99;
+  if (card.kind === 'minor') return Number(HAND_SORT_SUIT_ORDER[card.suit] ?? 9);
+  const special = SPECIAL_SUIT[Number(card.number || 0)];
+  if (special) return Number(HAND_SORT_SUIT_ORDER[special] ?? 9);
+  return 5;
+};
+const compareHandCardsByMode = (a, b, mode = HAND_SORT_MODE.SUIT) => {
+  const av = cStrength(a);
+  const bv = cStrength(b);
+  if (mode === HAND_SORT_MODE.VALUE) {
+    if (av !== bv) return av - bv;
+    const as = handSortSuitKey(a);
+    const bs = handSortSuitKey(b);
+    if (as !== bs) return as - bs;
+    return idNum(a) - idNum(b);
+  }
+  const as = handSortSuitKey(a);
+  const bs = handSortSuitKey(b);
+  if (as !== bs) return as - bs;
+  if (av !== bv) return av - bv;
+  return idNum(a) - idNum(b);
+};
+function applyLocalHandSortMode(force = false) {
+  if (!s) return;
+  const me = getLocalPlayerIndex();
+  if (me < 0 || !s.players?.[me]) return;
+  if (!force && s.selected && s.selected.size > 0) return;
+  const hand = s.players[me].hand;
+  if (!Array.isArray(hand) || hand.length <= 1) return;
+  hand.sort((a, b) => compareHandCardsByMode(a, b, localHandSortMode));
+}
+function toggleLocalHandSortMode() {
+  if (!s) return;
+  localHandSortMode = localHandSortMode === HAND_SORT_MODE.SUIT
+    ? HAND_SORT_MODE.VALUE
+    : HAND_SORT_MODE.SUIT;
+  applyLocalHandSortMode(true);
+  s.message = localHandSortMode === HAND_SORT_MODE.SUIT
+    ? '手札をスート順に並び替えました。'
+    : '手札を数値順に並び替えました。';
+  render();
+}
 const suitMaskForCard = (card) => {
   if (!card) return SUIT_MASK.None;
   if (card.kind === 'major') return SUIT_MASK.All;
@@ -1096,8 +1142,32 @@ function serializeStateForNet() {
 
 function deserializeStateFromNet(payload) {
   if (!payload || typeof payload !== 'object') return null;
-  const nextState = payload?.state;
-  if (!nextState || typeof nextState !== 'object') return null;
+  const rawState = payload?.state;
+  if (!rawState || typeof rawState !== 'object') return null;
+
+  const base = initState();
+  const nextState = { ...base, ...rawState };
+
+  const incomingPlayers = Array.isArray(rawState.players) ? rawState.players : [];
+  nextState.players = base.players.map((playerBase, idx) => {
+    const incoming = (incomingPlayers[idx] && typeof incomingPlayers[idx] === 'object')
+      ? incomingPlayers[idx]
+      : {};
+    const bet = Number(incoming.bet);
+    const stars = Number(incoming.stars);
+    return {
+      ...playerBase,
+      ...incoming,
+      hand: Array.isArray(incoming.hand) ? incoming.hand : [],
+      discard: Array.isArray(incoming.discard) ? incoming.discard : [],
+      bet: Number.isFinite(bet) ? bet : Number(playerBase.bet || 0),
+      stars: Number.isFinite(stars) ? stars : Number(playerBase.stars || 0)
+    };
+  });
+
+  const incomingPass = Array.isArray(rawState.pass) ? rawState.pass : [];
+  nextState.pass = PLAYERS.map((_, idx) => !!incomingPass[idx]);
+  nextState.logs = Array.isArray(rawState.logs) ? rawState.logs : [];
   nextState.selected = new Set();
   return nextState;
 }
@@ -3126,7 +3196,7 @@ function renderPlayers() {
       right.appendChild(warn);
     }
     const meta = document.createElement('span');
-    meta.textContent = `H${p.hand.length} / ${p.chips}TP / B${p.bet}`;
+    meta.textContent = `手札${p.hand.length} / ${p.chips}チップ`;
     right.appendChild(meta);
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
   });
@@ -3218,6 +3288,7 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) return;
+  applyLocalHandSortMode(false);
   const selected = sanitizeSelected(me);
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
@@ -3412,8 +3483,11 @@ function renderSummary() {
   if (ui.hiddenOracle) {
     ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
   }
-  ui.log.innerHTML = s.logs.slice(-28).map((m) => `<div class="tarot-log-row">${m}</div>`).join('');
-  ui.log.scrollTop = ui.log.scrollHeight;
+  if (ui.log) {
+    const logs = Array.isArray(s?.logs) ? s.logs : [];
+    ui.log.innerHTML = logs.slice(-28).map((m) => `<div class="tarot-log-row">${m}</div>`).join('');
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
 }
 
 function renderSettlement() {
@@ -3515,11 +3589,23 @@ function updateButtons() {
     String(s.phase || '') !== 'done';
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
-  const canClearSelection = s.roundActive && (s.phase === 'turn' || drawMe) && s.selected && s.selected.size > 0;
+  const hasSelected = !!(s.selected && s.selected.size > 0);
+  const canClearSelection = hasSelected;
+  const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
   ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
-  ui.playButton.disabled = actionLocked || !canPlayNow;
-  ui.clearButton.disabled = actionLocked || !canClearSelection;
+  if (ui.playButton) {
+    ui.playButton.textContent = hasSelected
+      ? '選択'
+      : (localHandSortMode === HAND_SORT_MODE.SUIT ? '数値順' : 'スート順');
+    ui.playButton.disabled = hasSelected
+      ? (actionLocked || !canPlayNow)
+      : (actionLocked || !canToggleSort);
+  }
+  if (ui.clearButton) {
+    ui.clearButton.textContent = '選択解除';
+    ui.clearButton.disabled = actionLocked || !canClearSelection;
+  }
   ui.passButton.disabled = actionLocked || !myTurn;
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
   ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
@@ -3784,7 +3870,13 @@ function bindUi() {
       console.warn('[tarotKingdom] start action failed:', error);
     });
   });
-  ui.playButton?.addEventListener('click', () => humanPlay());
+  ui.playButton?.addEventListener('click', () => {
+    if (!s?.selected || s.selected.size <= 0) {
+      toggleLocalHandSortMode();
+      return;
+    }
+    humanPlay();
+  });
   ui.clearButton?.addEventListener('click', () => clearSelectedCards(true));
   ui.passButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
