@@ -2569,6 +2569,323 @@ body.modal-lock .modal-overlay {
     color: #cbd5f5;
 }
 
+/* --- TROY menu v2 --- */
+.troy-menu-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.troy-menu-item-button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.88));
+    color: #f8fafc;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.troy-menu-item-button.is-active {
+    border-color: rgba(251, 191, 36, 0.7);
+    background: linear-gradient(180deg, rgba(180, 83, 9, 0.76), rgba(120, 53, 15, 0.88));
+    color: #fff7d0;
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.2),
+        0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.troy-menu-modal-card {
+    width: min(980px, 96vw);
+    max-height: min(88vh, 760px);
+    height: min(88vh, 760px);
+    padding: 12px 12px 10px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(15, 23, 42, 0.96));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.troy-menu-modal-card.is-day {
+    border-color: rgba(14, 116, 144, 0.45);
+    background: linear-gradient(180deg, rgba(12, 30, 44, 0.98), rgba(14, 47, 63, 0.96));
+}
+
+.troy-menu-modal-card.is-night {
+    border-color: rgba(180, 83, 9, 0.44);
+    background: linear-gradient(180deg, rgba(20, 12, 18, 0.98), rgba(30, 20, 26, 0.96));
+}
+
+.troy-menu-modal-header {
+    min-height: 32px;
+}
+
+.troy-menu-modal-title {
+    font-size: 15px;
+}
+
+.troy-menu-modal-body {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 8px;
+}
+
+.troy-menu-modal-categories {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 4px;
+    scrollbar-width: thin;
+}
+
+.troy-menu-modal-categories::-webkit-scrollbar {
+    height: 6px;
+}
+
+.troy-menu-modal-category-btn {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(15, 23, 42, 0.78);
+    color: #e5e7eb;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.troy-menu-modal-category-btn.is-active {
+    border-color: rgba(251, 191, 36, 0.74);
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.84), rgba(180, 83, 9, 0.94));
+    color: #fffbe8;
+}
+
+.troy-menu-modal-subnote {
+    font-size: 11px;
+    color: #cbd5e1;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.troy-menu-modal-list {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-content: start;
+}
+
+.troy-menu-card {
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.64), rgba(15, 23, 42, 0.72));
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+}
+
+.troy-menu-card-thumb {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: rgba(2, 6, 23, 0.75);
+}
+
+.troy-menu-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.troy-menu-card-emoji {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    font-size: 28px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+}
+
+.troy-menu-card-badges {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    max-width: calc(100% - 16px);
+}
+
+.troy-menu-card-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 0 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: rgba(8, 47, 73, 0.78);
+    color: #e0f2fe;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.troy-menu-card-body {
+    padding: 10px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+}
+
+.troy-menu-card-name {
+    font-size: 14px;
+    font-weight: 900;
+    color: #f8fafc;
+    line-height: 1.3;
+}
+
+.troy-menu-card-content {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+
+.troy-menu-card-price {
+    justify-self: end;
+    margin-top: 2px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.75), rgba(69, 26, 3, 0.82));
+    color: #fff3c4;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.troy-menu-card-controls {
+    margin-top: 2px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.troy-menu-card-qty {
+    display: inline-grid;
+    grid-template-columns: 28px minmax(24px, auto) 28px;
+    align-items: center;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    background: rgba(2, 6, 23, 0.7);
+    overflow: hidden;
+}
+
+.troy-menu-card-qty-btn {
+    border: none;
+    background: rgba(30, 41, 59, 0.9);
+    color: #f8fafc;
+    font-weight: 900;
+    font-size: 16px;
+    min-height: 30px;
+}
+
+.troy-menu-card-qty-value {
+    min-width: 28px;
+    text-align: center;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.troy-menu-card-add {
+    min-height: 32px;
+    border-radius: 10px;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    background: linear-gradient(180deg, rgba(14, 116, 144, 0.88), rgba(8, 145, 178, 0.9));
+    color: #ecfeff;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.troy-menu-modal-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.troy-menu-modal-cart-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.troy-menu-modal-cart-count {
+    font-size: 12px;
+    color: #cbd5e1;
+    font-weight: 700;
+}
+
+.troy-menu-modal-cart-total {
+    font-size: 18px;
+    font-weight: 900;
+    color: #f8fafc;
+    white-space: nowrap;
+}
+
+.troy-menu-modal-go-checkout {
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    background: linear-gradient(180deg, rgba(217, 119, 6, 0.88), rgba(146, 64, 14, 0.95));
+    color: #fff8dd;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+    .troy-menu-modal-card {
+        width: min(98vw, 540px);
+        max-height: 90vh;
+        height: 90vh;
+        padding: 10px 10px 8px;
+        border-radius: 14px;
+    }
+
+    .troy-menu-modal-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .troy-menu-card-body {
+        padding: 9px;
+    }
+}
+
 /* --- タロットポーカー --- */
 .tarot-game-switch-wrap {
     margin-bottom: 8px;
