@@ -2374,7 +2374,6 @@ function skipDrawChoice(playerIndex, note = '') {
 }
 
 function drawChoiceStart(playerIndex, reason = 'normal') {
-  if (isLocalPlayer(playerIndex)) s.selected.clear();
   const actor = s.players[playerIndex];
   traceKingdomFlow(
     'drawChoiceStart.enter',
@@ -2427,7 +2426,6 @@ function judgmentOptions() {
 }
 
 function judgmentStart(playerIndex) {
-  if (isLocalPlayer(playerIndex)) s.selected.clear();
   const opts = judgmentOptions();
   if (!opts.length) { log('審判: 回収候補なし'); drawChoiceStart(playerIndex, 'judgment'); return; }
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
@@ -2648,7 +2646,7 @@ function finishRound(winnerIndex) {
       { label: '基本', value: 1 },
       { label: '★', value: settlement.starBonus },
       { label: 'アルカナ', value: oracleHits },
-      { label: 'A', value: acePenalty }
+      { label: 'A所持', value: acePenalty }
     ];
     const factorSummary = factorParts
       .filter((part) => Number(part.value) > 0)
