@@ -1630,7 +1630,69 @@ function startHostActionListener() {
 function applyRemoteRoomState(payload) {
   const next = deserializeStateFromNet(payload);
   if (!next) return;
+  const localSeat = Number(tkNet.localSeat);
+  const prevSelectedKeys = [];
+  if (
+    s
+    && Number.isInteger(localSeat)
+    && localSeat >= 0
+    && Array.isArray(s.players)
+    && Array.isArray(s.players[localSeat]?.hand)
+    && s.selected instanceof Set
+  ) {
+    const prevHand = s.players[localSeat].hand;
+    const keyOf = (card) => {
+      if (!card || typeof card !== 'object') return '';
+      if (card.id != null) return `id:${String(card.id)}`;
+      return [
+        card.kind || '',
+        card.suit || '',
+        card.number ?? '',
+        card.arcanaNo ?? '',
+        card.name || ''
+      ].join('|');
+    };
+    Array.from(s.selected)
+      .map((idx) => Number(idx))
+      .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < prevHand.length)
+      .forEach((idx) => {
+        const key = keyOf(prevHand[idx]);
+        if (key) prevSelectedKeys.push(key);
+      });
+  }
   s = next;
+  if (
+    prevSelectedKeys.length > 0
+    && Number.isInteger(localSeat)
+    && localSeat >= 0
+    && Array.isArray(s.players)
+    && Array.isArray(s.players[localSeat]?.hand)
+  ) {
+    const hand = s.players[localSeat].hand;
+    const used = new Set();
+    const keyOf = (card) => {
+      if (!card || typeof card !== 'object') return '';
+      if (card.id != null) return `id:${String(card.id)}`;
+      return [
+        card.kind || '',
+        card.suit || '',
+        card.number ?? '',
+        card.arcanaNo ?? '',
+        card.name || ''
+      ].join('|');
+    };
+    const restored = [];
+    prevSelectedKeys.forEach((key) => {
+      for (let i = 0; i < hand.length; i += 1) {
+        if (used.has(i)) continue;
+        if (keyOf(hand[i]) !== key) continue;
+        restored.push(i);
+        used.add(i);
+        break;
+      }
+    });
+    s.selected = new Set(restored);
+  }
   applyPresenceToPlayers();
   enforceLeadTurnInvariant();
   render();
@@ -2273,7 +2335,7 @@ function skipDrawChoice(playerIndex, note = '') {
 }
 
 function drawChoiceStart(playerIndex, reason = 'normal') {
-  s.selected.clear();
+  if (isLocalPlayer(playerIndex)) s.selected.clear();
   const actor = s.players[playerIndex];
   traceKingdomFlow(
     'drawChoiceStart.enter',
@@ -2326,7 +2388,7 @@ function judgmentOptions() {
 }
 
 function judgmentStart(playerIndex) {
-  s.selected.clear();
+  if (isLocalPlayer(playerIndex)) s.selected.clear();
   const opts = judgmentOptions();
   if (!opts.length) { log('審判: 回収候補なし'); drawChoiceStart(playerIndex, 'judgment'); return; }
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
@@ -2644,7 +2706,7 @@ function applyDrawChoice(deckType) {
     render();
     return;
   }
-  s.selected.clear();
+  if (isLocalPlayer(pi)) s.selected.clear();
   let use = deckType;
   traceKingdomFlow('applyDrawChoice.resolveDeck.start', `player=${pi} requested=${deckType} stars=${Math.max(0, Number(actor.stars) || 0)}`);
   if (use === 'major' && s.majorDeck.length <= 0) use = 'minor';
@@ -2824,7 +2886,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     log(`${p.name}: 恋人効果で星+1`);
     triggerKingdomActionFx(pi, '恋人: 星+1', { overlay: 'draw', durationMs: 640, cutin: true });
   }
-  s.selected.clear();
+  if (isLocalPlayer(pi)) s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play;
   play.prevLeadSuit = prevLeadSuit;
@@ -2891,7 +2953,7 @@ function passAction(pi) {
       log(`${pName(pi)}: 悪魔効果でパス時に星-1`);
     }
   }
-  s.selected.clear();
+  if (isLocalPlayer(pi)) s.selected.clear();
   const passByHuman = isLocalPlayer(pi);
   triggerKingdomActionFx(pi, 'パス', { overlay: passByHuman ? 'action' : null, durationMs: 480, cutin: passByHuman });
   const leader = s.lastPlay?.owner;
