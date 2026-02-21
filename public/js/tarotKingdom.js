@@ -27,9 +27,7 @@ const START_HAND = 10;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 30;
 const A_PENALTY = 1;
-const RAISE_COST = 1;
 const NPC_DELAY = 1100;
-const NPC_RAISE_FOLLOWUP_DELAY = 900;
 const ROUND_START_CINEMATIC_MS = 980;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
@@ -60,6 +58,8 @@ let oracleFlipSwapTimer = null;
 let oracleFlipEndTimer = null;
 let callCinematicTimer = null;
 let roundStartCinematicTimer = null;
+let humanTurnBadgeTimer = null;
+let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
 const KINGDOM_TRACE_ENABLED = true;
@@ -391,9 +391,8 @@ function getKingdomPlayerAnchor(playerIndex) {
 
 function showKingdomOverlay(kind = 'action') {
   if (!ui.kingdomOverlay) return;
-  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
-  if (kind === 'raise') ui.kingdomOverlay.classList.add('is-kingdom-raise');
-  else if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
+  if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
   else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
   else if (kind === 'call') ui.kingdomOverlay.classList.add('is-kingdom-call');
   else if (kind === 'roundend') ui.kingdomOverlay.classList.add('is-kingdom-roundend');
@@ -402,7 +401,7 @@ function showKingdomOverlay(kind = 'action') {
   if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
   const holdMs = kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260);
   kingdomOverlayTimer = setTimeout(() => {
-    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
     kingdomOverlayTimer = null;
   }, holdMs);
 }
@@ -425,7 +424,8 @@ function showKingdomCutin(playerIndex, label, options = {}) {
     'is-kingdom-lock',
     'is-kingdom-call',
     'is-kingdom-role',
-    'is-kingdom-round-end'
+    'is-kingdom-round-end',
+    'is-kingdom-your-turn'
   );
   if (playerIndex != null) ui.kingdomCutin.classList.add(ownerClass);
   if (options.cutinClass) ui.kingdomCutin.classList.add(options.cutinClass);
@@ -445,7 +445,8 @@ function showKingdomCutin(playerIndex, label, options = {}) {
       'is-kingdom-lock',
       'is-kingdom-call',
       'is-kingdom-role',
-      'is-kingdom-round-end'
+      'is-kingdom-round-end',
+      'is-kingdom-your-turn'
     );
     kingdomCutinTimer = null;
   }, options.durationMs || 680);
@@ -702,7 +703,7 @@ function evalRole(cards, lockSuit = null) {
 
 function initState() {
   return {
-    players: PLAYERS.map((p) => ({ ...p, chips: START_CHIPS, hand: [], discard: [], raise: false, raisePending: false, bet: 0, stars: 0 })),
+    players: PLAYERS.map((p) => ({ ...p, chips: START_CHIPS, hand: [], discard: [], bet: 0, stars: 0 })),
     handNo: 0,
     turnCount: 0,
     dealer: 0,
@@ -765,7 +766,103 @@ function clearRoundState() {
   s.selected.clear();
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
-  s.players.forEach((p) => { p.hand = []; p.discard = []; p.raise = false; p.raisePending = false; p.bet = 0; });
+  s.players.forEach((p) => { p.hand = []; p.discard = []; p.bet = 0; });
+}
+
+function getHumanPlayerIndex() {
+  if (!s?.players) return -1;
+  return s.players.findIndex((p) => p.human);
+}
+
+function isHumanTurnActiveNow() {
+  const me = getHumanPlayerIndex();
+  if (me < 0 || !s) return false;
+  return !!(s.roundActive && s.phase === 'turn' && s.turn === me);
+}
+
+function clearYourTurnBadge() {
+  if (humanTurnBadgeTimer) {
+    clearTimeout(humanTurnBadgeTimer);
+    humanTurnBadgeTimer = null;
+  }
+  if (ui.yourTurnBadge) {
+    ui.yourTurnBadge.classList.remove('show');
+    ui.yourTurnBadge.hidden = true;
+  }
+}
+
+function showHumanTurnCue() {
+  const me = getHumanPlayerIndex();
+  if (me < 0) return;
+
+  if (ui.kingdomCutin) {
+    ui.kingdomCutin.textContent = 'あなたのターン';
+    ui.kingdomCutin.classList.remove(
+      'is-player',
+      'is-cpu',
+      'is-showdown-win',
+      'is-showdown-lose',
+      'is-showdown-draw',
+      'is-kingdom-skip',
+      'is-kingdom-cut',
+      'is-kingdom-reverse',
+      'is-kingdom-lock',
+      'is-kingdom-call',
+      'is-kingdom-role',
+      'is-kingdom-round-end',
+      'is-kingdom-your-turn'
+    );
+    ui.kingdomCutin.classList.add('is-player', 'is-kingdom-your-turn', 'show');
+    if (kingdomCutinTimer) clearTimeout(kingdomCutinTimer);
+    kingdomCutinTimer = setTimeout(() => {
+      ui.kingdomCutin?.classList.remove(
+        'show',
+        'is-player',
+        'is-cpu',
+        'is-showdown-win',
+        'is-showdown-lose',
+        'is-showdown-draw',
+        'is-kingdom-skip',
+        'is-kingdom-cut',
+        'is-kingdom-reverse',
+        'is-kingdom-lock',
+        'is-kingdom-call',
+        'is-kingdom-role',
+        'is-kingdom-round-end',
+        'is-kingdom-your-turn'
+      );
+      kingdomCutinTimer = null;
+    }, 600);
+  }
+
+  if (ui.yourTurnBadge) {
+    clearYourTurnBadge();
+    ui.yourTurnBadge.hidden = false;
+    ui.yourTurnBadge.classList.remove('show');
+    void ui.yourTurnBadge.offsetWidth;
+    ui.yourTurnBadge.classList.add('show');
+    humanTurnBadgeTimer = setTimeout(() => {
+      clearYourTurnBadge();
+    }, 900);
+  }
+
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate(24);
+    } catch (_) {
+      // no-op
+    }
+  }
+}
+
+function syncHumanTurnCueState() {
+  const now = isHumanTurnActiveNow();
+  if (now && !lastHumanTurnActive) {
+    showHumanTurnCue();
+  } else if (!now && lastHumanTurnActive) {
+    clearYourTurnBadge();
+  }
+  lastHumanTurnActive = now;
 }
 
 function resetMatch() {
@@ -777,6 +874,8 @@ function resetMatch() {
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
+  clearYourTurnBadge();
+  lastHumanTurnActive = false;
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
   if (kingdomOverlayTimer) { clearTimeout(kingdomOverlayTimer); kingdomOverlayTimer = null; }
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
@@ -794,9 +893,10 @@ function resetMatch() {
     'is-kingdom-lock',
     'is-kingdom-call',
     'is-kingdom-role',
-    'is-kingdom-round-end'
+    'is-kingdom-round-end',
+    'is-kingdom-your-turn'
   );
-  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
   s.openOracleRevealed = false;
@@ -937,7 +1037,6 @@ function setCmp(aPower, bPower) {
 
 function buildSetPlay(pi, sel) {
   const p = s.players[pi];
-  if (p.raise) return { ok: false, reason: 'レイズ後は1〜3枚出し不可です。' };
   const forcedCount = Math.max(0, Number(s.trickForcedCount || 0));
   if (forcedCount > 0 && sel.length !== forcedCount) return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
@@ -1408,7 +1507,6 @@ function finishRound(winnerIndex) {
   s.hiddenOracleCard = s.minorDeck.pop() || null;
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
-  const raiseBonus = winner.raise ? 1 : 0;
   let fxDelayMs = 360;
   let totalGain = 0;
   const settlement = {
@@ -1416,7 +1514,6 @@ function finishRound(winnerIndex) {
     winnerIndex,
     winnerName: winner.name,
     starBonus: Math.max(0, Number(winner.stars) || 0),
-    raiseBonus,
     oracleHits,
     rows: [],
     potAward: 0,
@@ -1433,7 +1530,7 @@ function finishRound(winnerIndex) {
     if (i === winnerIndex) return;
     const remain = loser.hand.length;
     const acePenalty = hasAceMinor(loser.hand) ? A_PENALTY : 0;
-    const scoreFactor = 1 + settlement.starBonus + raiseBonus + oracleHits + acePenalty;
+    const scoreFactor = 1 + settlement.starBonus + oracleHits + acePenalty;
     const pay = remain * scoreFactor;
     loser.chips -= pay; winner.chips += pay;
     totalGain += Math.max(0, pay);
@@ -1444,7 +1541,6 @@ function finishRound(winnerIndex) {
       receiverName: winner.name,
       remain,
       starBonus: settlement.starBonus,
-      raiseBonus,
       oracleHits,
       acePenalty,
       scoreFactor,
@@ -1707,22 +1803,6 @@ function applyPlay(pi, play, retryDepth = 0) {
     log(`${p.name}: 恋人効果で星+1`);
     triggerKingdomActionFx(pi, '恋人: 星+1', { overlay: 'draw', durationMs: 640, cutin: true });
   }
-  // レイズ待機中: 出した結果で手札が4枚になった瞬間にレイズ成立（演出あり）
-  if (p.raisePending && !p.raise && p.hand.length === 4) {
-    if (p.chips >= RAISE_COST) {
-      p.raisePending = false;
-      p.raise = true;
-      p.chips -= RAISE_COST;
-      p.bet += RAISE_COST;
-      s.pot += RAISE_COST;
-      log(`${p.name}: レイズ成立 (+${RAISE_COST}ベット)`);
-      triggerKingdomActionFx(pi, 'レイズ成立', { overlay: 'raise', durationMs: 760, cutin: true, coinCount: 6 });
-    } else {
-      p.raisePending = false;
-      log(`${p.name}: レイズ失敗（チップ不足）`);
-      s.message = `${p.name}: チップ不足でレイズ成立できませんでした。`;
-    }
-  }
   s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play;
@@ -1794,18 +1874,6 @@ function passAction(pi) {
   s.turn = nextAlive(pi, 1, true) ?? (leader ?? pi);
   s.message = `${pName(s.turn)}のターン`;
   scheduleNpc(); render();
-}
-
-function raiseAction(pi) {
-  const p = s.players[pi];
-  if (p.raise) { s.message = 'この局は既にレイズ済みです。'; render(); return; }
-  if (p.raisePending) { s.message = '既にレイズ待機中です。'; render(); return; }
-  if (p.hand.length < 5) { s.message = 'レイズ待機は手札5枚以上で宣言してください。'; render(); return; }
-  if (p.chips < RAISE_COST) { s.message = 'チップ不足でレイズ待機不可。'; render(); return; }
-  p.raisePending = true;
-  log(`${p.name}: レイズ待機`);
-  s.message = `${p.name}がレイズ待機`;
-  render();
 }
 
 function setMoves(pi) {
@@ -1900,11 +1968,6 @@ function npcDecide(pi) {
   }
   const all = [...calls, ...roles, ...sets];
   if (!all.length) return { action: 'pass' };
-  if (p.raisePending && p.hand.length > 4) {
-    const targetUse = p.hand.length - 4;
-    const reach = all.filter((m) => Array.isArray(m.selected) && m.selected.length === targetUse);
-    if (reach.length) return { action: 'play', play: reach[0] };
-  }
   const outNow = all.find((m) => m.selected.length === p.hand.length);
   if (outNow) return { action: 'play', play: outNow };
   if (isNpcOpeningPhase(pi)) {
@@ -1912,7 +1975,6 @@ function npcDecide(pi) {
     const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
     if (openingSingle) return { action: 'play', play: openingSingle };
   }
-  if (p.human && !p.raise && !p.raisePending && p.hand.length >= 5 && p.chips >= RAISE_COST && Math.random() < 0.28) return { action: 'raise' };
   all.sort((a, b) => {
     if (a.type === 'role' && b.type === 'set') return -1;
     if (a.type === 'set' && b.type === 'role') return 1;
@@ -1951,12 +2013,6 @@ function recoverNpcNoTrickState(pi) {
   if (!p || p.human) return false;
 
   let lead = pickBestNpcLeadPlay(pi);
-  if (!lead && (p.raise || p.raisePending)) {
-    // Emergency unlock for NPC only to avoid deadlock on empty trick.
-    p.raise = false;
-    p.raisePending = false;
-    lead = pickBestNpcLeadPlay(pi);
-  }
   if (lead) {
     applyPlay(pi, lead);
     return true;
@@ -2021,20 +2077,6 @@ function npcAct() {
   }
   const d = npcDecide(pi);
   traceKingdomFlow('npcAct.decide', `player=${pi} action=${d?.action || 'none'}`);
-  if (d.action === 'raise') {
-    raiseAction(pi);
-    scheduleNpcTimer(NPC_RAISE_FOLLOWUP_DELAY, () => {
-      if (!s || !s.roundActive) return;
-      if (s.phase !== 'turn' || s.turn !== pi) return;
-      const current = s.players?.[pi];
-      if (!current || current.human) return;
-      const d2 = npcDecide(pi);
-      traceKingdomFlow('npcAct.raiseFollowup', `player=${pi} action=${d2?.action || 'none'}`);
-      if (d2.action === 'play' && d2.play) applyPlay(pi, d2.play);
-      else passAction(pi);
-    });
-    return;
-  }
   if (d.action === 'play' && d.play) {
     traceKingdomFlow('npcAct.play', `player=${pi} type=${d.play.type} count=${d.play.count}`);
     applyPlay(pi, d.play);
@@ -2143,8 +2185,6 @@ function renderPlayers() {
     const starCount = Math.max(0, Number(p.stars) || 0);
     left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
     const right = document.createElement('div'); right.className = 'tarot-kingdom-player-meta'; right.textContent = `H${p.hand.length} / ${p.chips}TP / B${p.bet}`;
-    if (p.raisePending && !p.raise) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag'; t.textContent = '待機'; right.appendChild(t); }
-    if (p.raise) { const t = document.createElement('span'); t.className = 'tarot-kingdom-flag'; t.textContent = 'RAISE'; right.appendChild(t); }
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
   });
 }
@@ -2455,7 +2495,7 @@ function renderSettlement() {
 
       const formula = document.createElement('div');
       formula.className = 'tarot-kingdom-settlement-row-formula';
-      formula.textContent = `計算式: ${row.remain} × (1 + ${row.starBonus} + ${row.raiseBonus} + ${row.oracleHits} + ${row.acePenalty}) = ${row.pay}`;
+      formula.textContent = `計算式: ${row.remain} × (1 + ${row.starBonus} + ${row.oracleHits} + ${row.acePenalty}) = ${row.pay}`;
       rowEl.appendChild(formula);
 
       body.appendChild(rowEl);
@@ -2497,10 +2537,19 @@ function updateButtons() {
   ui.playButton.disabled = actionLocked || !canPlayNow;
   ui.clearButton.disabled = actionLocked || !canClearSelection;
   ui.passButton.disabled = actionLocked || !myTurn;
-  ui.raiseButton.disabled = actionLocked || !(myTurn && !s.players[me].raise && !s.players[me].raisePending && s.players[me].hand.length >= 5 && s.players[me].chips >= RAISE_COST);
-  ui.raiseButton.textContent = s.players[me].raisePending ? 'レイズ待機中' : 'レイズ';
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
   ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
+  const actionReadyPhase = myTurn || drawMe;
+  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.passButton];
+  popupButtons.forEach((btn) => {
+    if (!btn) return;
+    const isReady = !!(actionReadyPhase && !btn.disabled);
+    btn.classList.toggle('is-ready', isReady);
+  });
+  if (ui.actionPopup) {
+    const hasReady = popupButtons.some((btn) => !!btn && btn.classList.contains('is-ready'));
+    ui.actionPopup.classList.toggle('is-human-ready', hasReady);
+  }
   if (ui.graveToggleButton) {
     if (s.pendingJudgment != null) {
       ui.graveToggleButton.textContent = '墓地（審判中）';
@@ -2513,7 +2562,20 @@ function updateButtons() {
   ui.startButton.textContent = s.phase === 'done' ? '新しいゲームを開始' : (!s.roundActive && s.handNo > 0 ? '次の局を開始' : '新しい戦いを始める');
 }
 
-function render() { if (!s) return; resolveReversePersistSuspend(); enforceLeadTurnInvariant(); renderSummary(); renderSettlement(); renderOracleCard(); renderPlayers(); renderTrick(); renderHand(); renderJudgment(); updateButtons(); }
+function render() {
+  if (!s) return;
+  resolveReversePersistSuspend();
+  enforceLeadTurnInvariant();
+  renderSummary();
+  renderSettlement();
+  renderOracleCard();
+  renderPlayers();
+  renderTrick();
+  renderHand();
+  renderJudgment();
+  updateButtons();
+  syncHumanTurnCueState();
+}
 
 function revealOracleWithFlip() {
   if (!s || s.openOracleRevealed || !s.openOracleCard) return;
@@ -2649,15 +2711,16 @@ function bindUi() {
   ui.settlement = document.getElementById('tarotKingdomSettlement');
   ui.settlementBody = document.getElementById('tarotKingdomSettlementBody');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
+  ui.actionPopup = document.getElementById('tarotKingdomActionPopup');
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
-  ui.raiseButton = document.getElementById('tarotKingdomRaiseButton');
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
   ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
   ui.selectedEffect = document.getElementById('tarotKingdomSelectedEffect');
+  ui.yourTurnBadge = document.getElementById('tarotKingdomYourTurnBadge');
   ui.players = document.getElementById('tarotKingdomPlayers');
   ui.trick = document.getElementById('tarotKingdomTrick');
   ui.hand = document.getElementById('tarotKingdomHand');
@@ -2670,7 +2733,6 @@ function bindUi() {
   ui.playButton?.addEventListener('click', () => humanPlay());
   ui.clearButton?.addEventListener('click', () => clearSelectedCards(true));
   ui.passButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) passAction(s.turn); });
-  ui.raiseButton?.addEventListener('click', () => { if (s?.roundActive && s.phase === 'turn' && s.players[s.turn]?.human) raiseAction(s.turn); });
   ui.drawMinorButton?.addEventListener('click', () => applyDrawChoice('minor'));
   ui.drawMajorButton?.addEventListener('click', () => applyDrawChoice('major'));
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
@@ -2690,6 +2752,8 @@ export function destroyTarotKingdomPage() {
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
+  clearYourTurnBadge();
+  lastHumanTurnActive = false;
   if (trickSwapTimer) {
     clearTimeout(trickSwapTimer);
     trickSwapTimer = null;
@@ -2728,11 +2792,12 @@ export function destroyTarotKingdomPage() {
       'is-kingdom-lock',
       'is-kingdom-call',
       'is-kingdom-role',
-      'is-kingdom-round-end'
+      'is-kingdom-round-end',
+      'is-kingdom-your-turn'
     );
     ui.kingdomCutin.textContent = '';
   }
-  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-raise', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
   ui.oracleCardWrap?.classList.remove('is-flipping');
 
   if (ui.trick) ui.trick.innerHTML = '';
@@ -2740,6 +2805,10 @@ export function destroyTarotKingdomPage() {
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
     ui.selectedEffect.hidden = true;
+  }
+  if (ui.yourTurnBadge) {
+    ui.yourTurnBadge.classList.remove('show');
+    ui.yourTurnBadge.hidden = true;
   }
   if (ui.players) ui.players.innerHTML = '';
   if (ui.log) ui.log.innerHTML = '';
