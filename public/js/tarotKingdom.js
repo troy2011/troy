@@ -34,6 +34,7 @@ const START_CHIPS = 30;
 const A_PENALTY = 1;
 const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
+const PRESENCE_AWAY_GRACE_MS = 30000;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -91,6 +92,7 @@ const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
 let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
+const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', until: 0 }));
 const tkNet = {
   enabled: false,
   roomId: '',
@@ -1272,18 +1274,29 @@ function applyPresenceToPlayers() {
     };
   }
 
+  const now = Date.now();
   for (let i = 0; i < s.players.length; i += 1) {
     const p = s.players[i];
     const occ = seatTaken[i];
     if (occ) {
+      const occName = String(occ.displayName || occ.name || fallbackNames[i] || `P${i + 1}`);
       p.isNpc = false;
-      p.name = String(occ.displayName || occ.name || fallbackNames[i] || `P${i + 1}`);
+      p.name = occName;
       p.uid = occ.uid || null;
-    } else {
-      p.isNpc = true;
-      p.name = fallbackNames[i] || `NPC${i}`;
-      p.uid = null;
+      presenceGraceBySeat[i] = { uid: p.uid, name: occName, until: now + PRESENCE_AWAY_GRACE_MS };
+      continue;
     }
+    const grace = presenceGraceBySeat[i];
+    if (grace && Number(grace.until || 0) > now) {
+      p.isNpc = false;
+      p.name = String(grace.name || fallbackNames[i] || `P${i + 1}`);
+      p.uid = grace.uid || null;
+      continue;
+    }
+    p.isNpc = true;
+    p.name = fallbackNames[i] || `NPC${i}`;
+    p.uid = null;
+    presenceGraceBySeat[i] = { uid: null, name: '', until: 0 };
   }
 }
 
@@ -1307,12 +1320,33 @@ function getActiveSeatCount() {
   return taken.size;
 }
 
+function shouldShowOpenRoomsLobby() {
+  if (!s) return true;
+  if (s.roundActive) return false;
+  if (Number(s.handNo || 0) > 0) return false;
+  if (s.awaitRoundConfirm) return false;
+  const phase = String(s.phase || '');
+  if (phase === 'roundEnd' || phase === 'done') return false;
+  return true;
+}
+
+function setOpenRoomsVisibility(visible) {
+  if (!ui.openRoomsWrap) return;
+  ui.openRoomsWrap.hidden = !visible;
+  ui.openRoomsWrap.style.display = visible ? '' : 'none';
+}
+
 function renderOpenRoomsList(roomRows = []) {
   const wrap = ui.openRoomsWrap;
   const listEl = ui.openRoomsList;
   if (!wrap || !listEl) return;
+  if (!shouldShowOpenRoomsLobby()) {
+    listEl.innerHTML = '';
+    setOpenRoomsVisibility(false);
+    return;
+  }
+  setOpenRoomsVisibility(true);
   if (!isNetModeActive()) {
-    wrap.hidden = false;
     listEl.innerHTML = '';
     const status = document.createElement('span');
     status.className = 'tarot-kingdom-openrooms-item';
@@ -1324,7 +1358,6 @@ function renderOpenRoomsList(roomRows = []) {
     listEl.appendChild(status);
     return;
   }
-  wrap.hidden = false;
   listEl.innerHTML = '';
   if (!netOpenRoomIndexEnabled) {
     const info = document.createElement('span');
@@ -1687,6 +1720,11 @@ function teardownTarotKingdomNetwork() {
   tkNet.localPlayerName = '';
   tkNet.presenceRef = null;
   netPresenceByUid = {};
+  presenceGraceBySeat.forEach((slot) => {
+    slot.uid = null;
+    slot.name = '';
+    slot.until = 0;
+  });
   netOpenRoomsCache = {};
   netHandledActionKeys.clear();
   netLastStateHash = '';
@@ -3325,7 +3363,7 @@ function renderHand() {
   }
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
-  const canSelect = canCommit;
+  const canSelect = !!(s.roundActive && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
   const onHandTap = (idx) => {
     if (!canSelect) {
       showPlayError(`現在は「${s.phase}」フェーズです。`);
@@ -3681,6 +3719,7 @@ function render() {
   resolveReversePersistSuspend();
   enforceLeadTurnInvariant();
   renderSummary();
+  setOpenRoomsVisibility(shouldShowOpenRoomsLobby());
   renderSettlement();
   renderOracleCard();
   renderPlayers();
