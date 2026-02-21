@@ -1055,6 +1055,10 @@ function getAceFinishRuleViolation(play) {
   if (remaining.length === 0 && played.length > 0 && played.every(isMinorAceCard)) {
     return 'A上がりは禁止です。';
   }
+  // 最後の1手で大アルカナを含んで上がることを禁止
+  if (remaining.length === 0 && played.length > 0 && played.some((card) => card?.kind === 'major')) {
+    return '大アルカナ上がりは禁止です。';
+  }
   return null;
 }
 
@@ -1633,6 +1637,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   const p = s.players[pi];
   const prevLeadCard = s?.trick?.cardsTable?.[0] || null;
   const prevLeadSuit = prevLeadCard ? (suitsForCard(prevLeadCard, false)[0] || 'None') : null;
+  const prevLeadOwner = Number.isInteger(s?.trick?.owner) ? s.trick.owner : null;
   const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
   const selectedCount = selectedIds.length > 0
     ? selectedIds.length
@@ -1669,9 +1674,25 @@ function applyPlay(pi, play, retryDepth = 0) {
   play.cardsHand = removed.slice();
   const isRolePlay = play.type === 'role';
   const isCallPlay = isRolePlay && !!play.call;
-  if (play.type === 'set') play.cardsTable = removed.slice();
-  else if (isCallPlay) { const base = s.trick?.cardsTable?.[0]; play.cardsTable = base ? [base, ...removed] : removed.slice(); }
-  else play.cardsTable = removed.slice();
+  if (play.type === 'set') {
+    play.cardsTable = removed.slice();
+    play.tableOwners = play.cardsTable.map(() => pi);
+  } else if (isCallPlay) {
+    const base = s.trick?.cardsTable?.[0];
+    if (base) {
+      play.cardsTable = [base, ...removed];
+      play.tableOwners = [
+        Number.isInteger(prevLeadOwner) ? prevLeadOwner : pi,
+        ...removed.map(() => pi)
+      ];
+    } else {
+      play.cardsTable = removed.slice();
+      play.tableOwners = play.cardsTable.map(() => pi);
+    }
+  } else {
+    play.cardsTable = removed.slice();
+    play.tableOwners = play.cardsTable.map(() => pi);
+  }
   // 大アルカナは墓地へ送らない（場からは取り除かれるが墓地には残さない）
   p.discard.push(...removed.filter((c) => c?.kind !== 'major'));
   if (play.call) {
@@ -2130,6 +2151,24 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
+  const owners = Array.isArray(s.trick?.tableOwners) ? s.trick.tableOwners : [];
+  if (ui.trickOwner) {
+    if (!cards.length) {
+      ui.trickOwner.textContent = '場札主: -';
+    } else {
+      const ownerSummary = new Map();
+      cards.forEach((_, idx) => {
+        const owner = Number.isInteger(owners[idx]) ? owners[idx] : (Number.isInteger(s.trick?.owner) ? s.trick.owner : null);
+        if (!Number.isInteger(owner) || !s.players?.[owner]) return;
+        const key = owner;
+        const current = ownerSummary.get(key) || { count: 0, hand: Math.max(0, Number(s.players[owner].hand?.length || 0)) };
+        current.count += 1;
+        ownerSummary.set(key, current);
+      });
+      const parts = Array.from(ownerSummary.entries()).map(([owner, data]) => `${pName(owner)}x${data.count} H${data.hand}`);
+      ui.trickOwner.textContent = `場札主: ${parts.join(' / ') || '-'}`;
+    }
+  }
   const nextKey = cards.length
     ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
     : '__empty__';
@@ -2598,6 +2637,7 @@ function bindUi() {
   ui.turn = document.getElementById('tarotKingdomTurn');
   ui.reverseChip = document.getElementById('tarotKingdomReverse');
   ui.lockChip = document.getElementById('tarotKingdomLock');
+  ui.trickOwner = document.getElementById('tarotKingdomTrickOwner');
   ui.score = document.getElementById('tarotKingdomScore');
   ui.oracleCardWrap = document.getElementById('tarotKingdomOracleCardWrap');
   ui.oracleCard = document.getElementById('tarotKingdomOracleCard');
