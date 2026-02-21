@@ -16,6 +16,10 @@ let _orderItems = [];
 let _pendingOrder = null;
 let _checkoutSession = null;
 let _checkoutLocked = false;
+let _menuActiveId = 'drinks';
+const _menuQtyByKey = new Map();
+
+const TROY_MENU_IDS = ['drinks', 'appetizer', 'dryfood', 'hotfood', 'main', 'points'];
 
 const TROY_PRODUCT_MENUS = {
     drinks: {
@@ -99,12 +103,53 @@ function getDrinkMenuData(now = new Date()) {
     };
 }
 
+function getMenuDataById(menuId) {
+    return menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
+}
+
+function getMenuCategoryList() {
+    return TROY_MENU_IDS
+        .map((id) => ({ id, data: getMenuDataById(id) }))
+        .filter((entry) => !!entry.data)
+        .map((entry) => ({ id: entry.id, title: entry.data.title }));
+}
+
+function getMenuItemKey(menuId, item, index) {
+    return `${menuId}:${index}:${item?.concept || ''}:${item?.content || ''}`;
+}
+
+function getMenuItemQty(menuId, item, index) {
+    const key = getMenuItemKey(menuId, item, index);
+    const value = Number(_menuQtyByKey.get(key));
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
+}
+
+function setMenuItemQty(menuId, item, index, qty) {
+    const key = getMenuItemKey(menuId, item, index);
+    const next = Math.max(1, Math.floor(Number(qty) || 1));
+    _menuQtyByKey.set(key, next);
+    return next;
+}
+
+function setTopMenuCategoryState(activeId) {
+    const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
+    menuButtons.forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.menuId === activeId);
+    });
+}
+
 function getMenuModalElements() {
     return {
         modal: document.getElementById('troyMenuModal'),
         title: document.getElementById('troyMenuModalTitle'),
+        categories: document.getElementById('troyMenuModalCategories'),
+        subnote: document.getElementById('troyMenuModalSubnote'),
         list: document.getElementById('troyMenuModalList'),
-        close: document.getElementById('troyMenuModalClose')
+        close: document.getElementById('troyMenuModalClose'),
+        cartCount: document.getElementById('troyMenuCartCount'),
+        cartTotal: document.getElementById('troyMenuCartTotal'),
+        jumpCheckout: document.getElementById('troyMenuJumpCheckout'),
+        card: document.querySelector('#troyMenuModal .troy-menu-modal-card')
     };
 }
 
@@ -191,9 +236,64 @@ function getMenuItemEmoji(item) {
     return '🍽️';
 }
 
+function getMenuSubnote(menuId) {
+    switch (menuId) {
+        case 'drinks':
+            return isDayCafeHours()
+                ? '☀️ 昼カフェメニューを表示中。数量を決めて追加。'
+                : '🌙 夜バーメニューを表示中。数量を決めて追加。';
+        case 'points':
+            return '🪙 ポイントは即時反映ではなく会計承認後に処理されます。';
+        default:
+            return '🍴 欲しい品を選んで、数量を調整して追加してください。';
+    }
+}
+
+function canAddOrderItem(playFabId) {
+    if (!isTroyMember(_lastStatus, playFabId)) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('入店後に注文できます。');
+        } else {
+            alert('入店後に注文できます。');
+        }
+        return false;
+    }
+    if (_checkoutLocked) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計待ちのため新規注文はできません。');
+        }
+        return false;
+    }
+    return true;
+}
+
+function addMenuItemToOrder(menuId, item, index) {
+    if (!canAddOrderItem(window.myPlayFabId)) return;
+    const priceValue = parseYenPrice(item?.price);
+    if (!priceValue) return;
+    const qty = getMenuItemQty(menuId, item, index);
+    const orderName = item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
+    addOrderItemLocal(orderName, priceValue, qty);
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(`${orderName} ×${qty} を追加しました。`);
+    }
+}
+
+function updateMenuCartSummary() {
+    const { cartCount, cartTotal } = getMenuModalElements();
+    if (cartCount) {
+        const count = _orderItems.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0);
+        cartCount.textContent = `${count}点`;
+    }
+    if (cartTotal) {
+        cartTotal.textContent = formatYen(_orderTotal);
+    }
+}
+
 function renderOrderSummary() {
     const { total, list } = getOrderElements();
     if (total) total.textContent = formatYen(_orderTotal);
+    updateMenuCartSummary();
     if (!list) return;
     list.innerHTML = '';
     if (!_orderItems.length) {
@@ -378,20 +478,47 @@ async function submitCheckout(playFabId) {
 }
 
 function openMenuModal(menuId) {
-    const data = menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
+    const data = getMenuDataById(menuId);
     if (!data) return;
-    const { modal, title, list } = getMenuModalElements();
-    if (!modal || !list) return;
-    if (title) title.textContent = data.title;
-    list.innerHTML = '';
-    data.items.forEach((item) => {
-        const row = document.createElement('div');
-        row.className = 'troy-menu-modal-item';
+    _menuActiveId = menuId;
+    setTopMenuCategoryState(menuId);
 
-        const thumb = document.createElement('div');
-        thumb.className = 'troy-menu-modal-emoji';
-        thumb.textContent = item.emoji || getMenuItemEmoji(item);
-        thumb.setAttribute('aria-hidden', 'true');
+    const {
+        modal,
+        title,
+        categories,
+        subnote,
+        list,
+        card
+    } = getMenuModalElements();
+    if (!modal || !list) return;
+
+    if (title) title.textContent = '絵文字メニュー';
+    if (subnote) subnote.textContent = getMenuSubnote(menuId);
+    if (card) card.dataset.menuId = menuId;
+
+    if (categories) {
+        categories.innerHTML = '';
+        getMenuCategoryList().forEach((category) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'troy-menu-modal-cat-btn';
+            if (category.id === menuId) button.classList.add('is-active');
+            button.textContent = category.title;
+            button.addEventListener('click', () => openMenuModal(category.id));
+            categories.appendChild(button);
+        });
+    }
+
+    list.innerHTML = '';
+    data.items.forEach((item, index) => {
+        const cardEl = document.createElement('article');
+        cardEl.className = 'troy-menu-modal-item';
+
+        const hero = document.createElement('div');
+        hero.className = 'troy-menu-modal-emoji';
+        hero.textContent = item.emoji || getMenuItemEmoji(item);
+        hero.setAttribute('aria-hidden', 'true');
 
         const body = document.createElement('div');
         body.className = 'troy-menu-modal-item-body';
@@ -404,38 +531,69 @@ function openMenuModal(menuId) {
         content.className = 'troy-menu-modal-item-content';
         content.textContent = item.content || '';
 
+        const meta = document.createElement('div');
+        meta.className = 'troy-menu-modal-item-meta';
+
         const price = document.createElement('span');
         price.className = 'troy-menu-modal-price';
         price.textContent = formatYen(item.price);
-        const priceValue = parseYenPrice(item.price);
-        row.addEventListener('click', () => {
-            if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
-                if (typeof window.showRpgMessage === 'function') {
-                    window.showRpgMessage('入店後に注文できます。');
-                } else {
-                    alert('入店後に注文できます。');
-                }
-                return;
-            }
-            if (_checkoutLocked) {
-                if (typeof window.showRpgMessage === 'function') {
-                    window.showRpgMessage('会計待ちのため新規注文はできません。');
-                }
-                return;
-            }
-            if (!priceValue) return;
-            closeMenuModal();
-            const orderName = item.content ? `${item.concept} (${item.content})` : (item.concept || item.name);
-            openOrderModal({ name: orderName, price: priceValue, quantity: 1 });
+
+        const actions = document.createElement('div');
+        actions.className = 'troy-menu-modal-item-actions';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.className = 'troy-menu-qty-btn';
+        minusBtn.textContent = '−';
+
+        const qtyDisplay = document.createElement('span');
+        qtyDisplay.className = 'troy-menu-qty';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.className = 'troy-menu-qty-btn';
+        plusBtn.textContent = '＋';
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'troy-menu-add-btn';
+        addBtn.textContent = '追加';
+
+        const syncQty = () => {
+            const qty = getMenuItemQty(menuId, item, index);
+            qtyDisplay.textContent = `${qty}`;
+            minusBtn.disabled = qty <= 1;
+        };
+
+        minusBtn.addEventListener('click', () => {
+            const next = getMenuItemQty(menuId, item, index) - 1;
+            setMenuItemQty(menuId, item, index, next);
+            syncQty();
         });
-        body.appendChild(concept);
-        if (item.content) body.appendChild(content);
-        body.appendChild(price);
-        row.appendChild(thumb);
-        row.appendChild(body);
-        list.appendChild(row);
+
+        plusBtn.addEventListener('click', () => {
+            const next = getMenuItemQty(menuId, item, index) + 1;
+            setMenuItemQty(menuId, item, index, next);
+            syncQty();
+        });
+
+        addBtn.addEventListener('click', () => {
+            addMenuItemToOrder(menuId, item, index);
+            updateMenuCartSummary();
+        });
+
+        syncQty();
+        actions.append(minusBtn, qtyDisplay, plusBtn, addBtn);
+        meta.append(price, actions);
+        body.append(concept);
+        if (item.content) body.append(content);
+        body.append(meta);
+        cardEl.append(hero, body);
+        list.appendChild(cardEl);
     });
+
     modal.style.display = 'flex';
+    updateMenuCartSummary();
 }
 
 function closeMenuModal() {
@@ -446,7 +604,7 @@ function closeMenuModal() {
 function wireMenuPopups() {
     if (_menuWired) return;
     _menuWired = true;
-    const { modal, close } = getMenuModalElements();
+    const { modal, close, jumpCheckout } = getMenuModalElements();
     const orderModal = getOrderModalElements();
     if (close) {
         close.addEventListener('click', closeMenuModal);
@@ -470,14 +628,30 @@ function wireMenuPopups() {
     const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
     menuButtons.forEach((button) => {
         button.addEventListener('click', () => {
-            openMenuModal(button.dataset.menuId);
+            const targetMenuId = button.dataset.menuId;
+            if (!targetMenuId) return;
+            _menuActiveId = targetMenuId;
+            setTopMenuCategoryState(targetMenuId);
+            openMenuModal(targetMenuId);
         });
     });
+    if (jumpCheckout) {
+        jumpCheckout.addEventListener('click', () => {
+            closeMenuModal();
+            const checkoutCard = document.getElementById('troyCheckoutCard');
+            if (checkoutCard) {
+                checkoutCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                checkoutCard.classList.add('is-focus');
+                window.setTimeout(() => checkoutCard.classList.remove('is-focus'), 650);
+            }
+        });
+    }
     if (orderModal.confirm) {
         orderModal.confirm.addEventListener('click', () => {
             confirmOrder(window.myPlayFabId);
         });
     }
+    setTopMenuCategoryState(_menuActiveId);
     renderOrderSummary();
 }
 
