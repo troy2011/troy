@@ -47,6 +47,7 @@ const ROLE_ST = ROLE_ORDER.reduce((a, k, i) => ((a[k] = i + 1), a), {});
 const KINGDOM_NET_SCHEMA_VERSION = 1;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
+const TK_FALLBACK_AUTO_ROOM_COUNT = 6;
 
 const ui = {};
 let s = null;
@@ -81,6 +82,7 @@ let netBootPromise = null;
 const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
 let netOpenRoomsCache = {};
+let netOpenRoomIndexEnabled = true;
 const tkNet = {
   enabled: false,
   roomId: '',
@@ -919,6 +921,12 @@ function generateTarotKingdomRoomId() {
   return `tk_${t}${r}`;
 }
 
+function isPermissionDeniedError(error) {
+  const code = String(error?.code || '');
+  const msg = String(error?.message || '');
+  return code.includes('PERMISSION_DENIED') || /permission\s*denied/i.test(msg);
+}
+
 async function waitForTkUid(timeoutMs = 4000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -947,16 +955,32 @@ async function readRoomPresenceCount(db, roomPath) {
 }
 
 async function registerOpenRoomIndex(db, roomId) {
+  if (!netOpenRoomIndexEnabled) return;
   const now = Date.now();
-  await set(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`), {
-    roomId,
-    createdAt: now,
-    updatedAt: now
-  });
+  try {
+    await set(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`), {
+      roomId,
+      createdAt: now,
+      updatedAt: now
+    });
+  } catch (error) {
+    if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
+    throw error;
+  }
 }
 
 async function pickJoinableOpenRoom(db) {
-  const openSnap = await get(ref(db, `${TK_MATCH_ROOT}/openRooms`));
+  if (!netOpenRoomIndexEnabled) return '';
+  let openSnap;
+  try {
+    openSnap = await get(ref(db, `${TK_MATCH_ROOT}/openRooms`));
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      netOpenRoomIndexEnabled = false;
+      return '';
+    }
+    throw error;
+  }
   if (!openSnap.exists()) return '';
   const openMap = openSnap.val() || {};
   const entries = Object.entries(openMap).sort((a, b) => {
@@ -971,7 +995,9 @@ async function pickJoinableOpenRoom(db) {
     const inProgress = isRoomInProgressFromStatePayload(payload);
     const count = await readRoomPresenceCount(db, roomPath);
     if (inProgress || count >= 4) {
-      await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch(() => {});
+      await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch((error) => {
+        if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
+      });
       continue;
     }
     return roomId;
@@ -979,11 +1005,35 @@ async function pickJoinableOpenRoom(db) {
   return '';
 }
 
+async function pickJoinableFallbackRoom(db) {
+  for (let i = 0; i < TK_FALLBACK_AUTO_ROOM_COUNT; i += 1) {
+    const roomId = `tk_auto_${i}`;
+    const roomPath = `tarotKingdomRooms/${roomId}`;
+    const stateSnap = await get(ref(db, `${roomPath}/state`)).catch(() => null);
+    const payload = stateSnap?.exists?.() ? stateSnap.val() : null;
+    const inProgress = isRoomInProgressFromStatePayload(payload);
+    const count = await readRoomPresenceCount(db, roomPath).catch(() => 0);
+    if (!inProgress && count < 4) return roomId;
+  }
+  return `tk_auto_${Math.floor(Math.random() * TK_FALLBACK_AUTO_ROOM_COUNT)}`;
+}
+
 async function findOrCreateAutoRoomId(db) {
   const joinable = await pickJoinableOpenRoom(db);
   if (joinable) return joinable;
+  if (!netOpenRoomIndexEnabled) {
+    return pickJoinableFallbackRoom(db);
+  }
   const roomId = generateTarotKingdomRoomId();
-  await registerOpenRoomIndex(db, roomId);
+  try {
+    await registerOpenRoomIndex(db, roomId);
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      netOpenRoomIndexEnabled = false;
+      return pickJoinableFallbackRoom(db);
+    }
+    throw error;
+  }
   return roomId;
 }
 
@@ -1027,13 +1077,21 @@ function shouldRoomStayOpen() {
 }
 
 async function syncOpenRoomIndex() {
-  if (!isNetModeActive() || !tkNet.isHost || !tkNet.roomId) return;
+  if (!isNetModeActive() || !tkNet.isHost || !tkNet.roomId || !netOpenRoomIndexEnabled) return;
   const openRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`);
-  if (shouldRoomStayOpen()) {
-    const now = Date.now();
-    await set(openRef, { roomId: tkNet.roomId, createdAt: now, updatedAt: now });
-  } else {
-    await remove(openRef).catch(() => {});
+  try {
+    if (shouldRoomStayOpen()) {
+      const now = Date.now();
+      await set(openRef, { roomId: tkNet.roomId, createdAt: now, updatedAt: now });
+    } else {
+      await remove(openRef).catch(() => {});
+    }
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      netOpenRoomIndexEnabled = false;
+    } else {
+      throw error;
+    }
   }
 }
 
@@ -1137,6 +1195,13 @@ function renderOpenRoomsList(roomRows = []) {
   }
   wrap.hidden = false;
   listEl.innerHTML = '';
+  if (!netOpenRoomIndexEnabled) {
+    const info = document.createElement('span');
+    info.className = 'tarot-kingdom-openrooms-item';
+    info.textContent = '受付一覧は権限未設定のため簡易マッチで接続中です。';
+    listEl.appendChild(info);
+    return;
+  }
   if (!roomRows.length) {
     const empty = document.createElement('span');
     empty.className = 'tarot-kingdom-openrooms-item';
@@ -1156,6 +1221,10 @@ function renderOpenRoomsList(roomRows = []) {
 async function refreshOpenRoomsPanel() {
   if (!ui.openRoomsWrap || !ui.openRoomsList) return;
   if (!tkNet.db) {
+    renderOpenRoomsList([]);
+    return;
+  }
+  if (!netOpenRoomIndexEnabled) {
     renderOpenRoomsList([]);
     return;
   }
@@ -1411,13 +1480,23 @@ function startRoomSubscriptions() {
     applyRemoteRoomState(snapshot.val());
   });
 
-  const openRoomsRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms`);
-  netOpenRoomsUnsub = onValue(openRoomsRef, (snapshot) => {
-    netOpenRoomsCache = snapshot.exists() ? (snapshot.val() || {}) : {};
-    refreshOpenRoomsPanel().catch((error) => {
-      console.warn('[tarotKingdom] failed to refresh open room panel:', error);
+  if (netOpenRoomIndexEnabled) {
+    const openRoomsRef = ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms`);
+    netOpenRoomsUnsub = onValue(openRoomsRef, (snapshot) => {
+      netOpenRoomsCache = snapshot.exists() ? (snapshot.val() || {}) : {};
+      refreshOpenRoomsPanel().catch((error) => {
+        console.warn('[tarotKingdom] failed to refresh open room panel:', error);
+      });
+    }, (error) => {
+      if (isPermissionDeniedError(error)) {
+        netOpenRoomIndexEnabled = false;
+        netOpenRoomsCache = {};
+        refreshOpenRoomsPanel().catch(() => {});
+      } else {
+        console.warn('[tarotKingdom] open rooms subscription failed:', error);
+      }
     });
-  });
+  }
 }
 
 function teardownTarotKingdomNetwork() {
@@ -1426,7 +1505,7 @@ function teardownTarotKingdomNetwork() {
     clearTimeout(netActionWriteTimer);
     netActionWriteTimer = null;
   }
-  if (tkNet.isHost && tkNet.db && tkNet.roomId) {
+  if (tkNet.isHost && tkNet.db && tkNet.roomId && netOpenRoomIndexEnabled) {
     remove(ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`)).catch(() => {});
   }
   if (tkNet.presenceRef && tkNet.db) {
