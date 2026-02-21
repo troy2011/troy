@@ -2600,6 +2600,10 @@ function applyPlay(pi, play, retryDepth = 0) {
   s.leadRequiredOwner = null;
   s.lastPlay = play;
   s.turn = pi;
+  if (p.hand.length === 1) {
+    triggerKingdomRowActionFx(pi, 'LAST 1', 920);
+    triggerKingdomActionFx(pi, 'ラスト1枚', { overlay: 'action', durationMs: 820, cutin: true });
+  }
   s.callMergeFx = isCallPlay ? { owner: pi, startedAt: Date.now() } : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
   const actionLabel = play.type === 'set'
@@ -2747,6 +2751,40 @@ function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
   return candidates[0] || null;
 }
 
+function isNextPlayerOnLastCard(pi) {
+  const next = nextAlive(pi, 1, false);
+  if (!Number.isInteger(next) || next === pi) return false;
+  return Number(s?.players?.[next]?.hand?.length || 0) === 1;
+}
+
+function pickNpcPressurePlay(calls, roles, sets) {
+  const roleLike = [...(calls || []), ...(roles || [])];
+  if (roleLike.length) {
+    roleLike.sort((a, b) => compareRole(b.role, a.role));
+    return roleLike[0] || null;
+  }
+  const setList = Array.isArray(sets) ? sets.slice() : [];
+  if (!setList.length) return null;
+  const pairOrMore = setList.filter((m) => Number(m?.count || 0) >= 2);
+  const byPowerDesc = (a, b) => {
+    const ap = Number(a?.setPower ?? a?.number ?? 0);
+    const bp = Number(b?.setPower ?? b?.number ?? 0);
+    if (bp !== ap) return bp - ap;
+    const ac = Number(a?.count || 0);
+    const bc = Number(b?.count || 0);
+    if (bc !== ac) return bc - ac;
+    return Number(b?.suitTier || 0) - Number(a?.suitTier || 0);
+  };
+  if (pairOrMore.length) {
+    pairOrMore.sort(byPowerDesc);
+    return pairOrMore[0] || null;
+  }
+  const singles = setList.filter((m) => Number(m?.count || 0) === 1);
+  const target = singles.length ? singles : setList;
+  target.sort(byPowerDesc);
+  return target[0] || null;
+}
+
 function npcDecide(pi) {
   const p = s.players[pi], calls = callMoves(pi), sets = setMoves(pi), roles = roleMoves(pi);
   if (s.callOnly) {
@@ -2760,6 +2798,10 @@ function npcDecide(pi) {
   if (!all.length) return { action: 'pass' };
   const outNow = all.find((m) => m.selected.length === p.hand.length);
   if (outNow) return { action: 'play', play: outNow };
+  if (isNextPlayerOnLastCard(pi)) {
+    const pressurePlay = pickNpcPressurePlay(calls, roles, sets);
+    if (pressurePlay) return { action: 'play', play: pressurePlay };
+  }
   if (isNpcOpeningPhase(pi)) {
     const singleOnlyIds = collectNpcSingleOnlyCardIds(pi, calls, roles, sets);
     const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
@@ -2973,13 +3015,25 @@ function renderPlayers() {
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
     row.dataset.playerIndex = String(i);
+    const isLastOne = Number(p?.hand?.length || 0) === 1;
     if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
+    if (isLastOne) row.classList.add('is-last-one');
     const left = document.createElement('div');
     left.className = 'tarot-kingdom-player-name';
     const starCount = Math.max(0, Number(p.stars) || 0);
     left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
-    const right = document.createElement('div'); right.className = 'tarot-kingdom-player-meta'; right.textContent = `H${p.hand.length} / ${p.chips}TP / B${p.bet}`;
+    const right = document.createElement('div');
+    right.className = 'tarot-kingdom-player-meta';
+    if (isLastOne) {
+      const warn = document.createElement('span');
+      warn.className = 'tarot-kingdom-flag is-last-one';
+      warn.textContent = 'LAST 1';
+      right.appendChild(warn);
+    }
+    const meta = document.createElement('span');
+    meta.textContent = `H${p.hand.length} / ${p.chips}TP / B${p.bet}`;
+    right.appendChild(meta);
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
   });
 }
