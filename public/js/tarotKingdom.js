@@ -2248,7 +2248,7 @@ function getAceFinishRuleViolation(play) {
     return 'A上がりは禁止です。';
   }
   // 最後の1手で大アルカナを含んで上がることを禁止
-  if (remaining.length === 0 && played.length > 0 && played.some((card) => card?.kind === 'major')) {
+  if (remaining.length === 0 && played.length > 0 && played.every((card) => card?.kind === 'major')) {
     return '大アルカナ上がりは禁止です。';
   }
   return null;
@@ -2509,6 +2509,15 @@ function applySetEffects(play) {
     log(`${pName(play.owner)}: 戦車で2枚出し縛り`);
     triggerKingdomActionFx(play.owner, '戦車: 2枚出し', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
     playKingdomChariotSplitFx(play.owner, { delayMs: 100 });
+    setTimeout(() => {
+      if (s && s.trick === play && play.cardsTable && play.cardsTable.length === 1) {
+        const c = play.cardsTable[0];
+        const clone = { ...c, id: (c.id || 'tk_unknown') + '_split' };
+        play.cardsTable.push(clone);
+        if (play.tableOwners) play.tableOwners.push(play.owner);
+        render();
+      }
+    }, 820);
   }
   if (hasMajor(13)) {
     s.death13Active = true;
@@ -3853,6 +3862,20 @@ function updateButtons() {
       }
     }
   }
+
+  // 吊るされた男ボタンの表示制御
+  if (ui.hangedManButton) {
+    let showHanged = false;
+    if (myTurn && s.selected.size === 1) {
+      const idx = Array.from(s.selected)[0];
+      const card = s.players[me].hand[idx];
+      if (card && card.kind === 'major' && card.number === 12) {
+        showHanged = true;
+      }
+    }
+    ui.hangedManButton.style.display = showHanged ? '' : 'none';
+    ui.hangedManButton.disabled = actionLocked;
+  }
 }
 
 function render() {
@@ -3986,21 +4009,7 @@ function humanPlay() {
   }
   const sel = sanitizeSelected(me);
   if (!sel.length) { showPlayError('手札を選択してください。'); return; }
-  if (myTurn && sel.length === 1) {
-    const maybeHanged = s.players?.[me]?.hand?.[sel[0]];
-    if (maybeHanged?.kind === 'major' && maybeHanged?.number === 12) {
-      requestHostAction(
-        { type: 'hangedMan', selectedIndexes: sel.slice() },
-        () => {
-          const used = useHangedManAction(me, sel);
-          if (!used.ok) showPlayError(used.reason || '吊るされた男を使用できません。');
-        }
-      ).catch((error) => {
-        console.warn('[tarotKingdom] hangedMan action failed:', error);
-      });
-      return;
-    }
-  }
+  // 吊るされた男の自動発動ロジックを削除し、単体出し（セット）として処理を続行させる
   const canCallContext = !!(s.trick && s.trick.type === 'set' && s.trick.count === 1);
   let mode = 'normal';
   let built = null;
@@ -4079,6 +4088,40 @@ function bindUi() {
     });
   });
   ui.playButton?.addEventListener('click', () => humanPlay());
+
+  // 生贄ボタンの生成とイベント設定
+  if (!ui.hangedManButton) {
+    const btn = document.createElement('button');
+    btn.id = 'tarotKingdomHangedManButton';
+    if (ui.playButton) {
+      btn.className = ui.playButton.className;
+      // 必要に応じてスタイル調整用のクラスを追加
+      // btn.classList.add('is-sub'); 
+    }
+    btn.textContent = '生贄';
+    btn.style.display = 'none';
+    // playButtonの隣（次）に挿入
+    if (ui.playButton && ui.playButton.parentNode) {
+      ui.playButton.parentNode.insertBefore(btn, ui.playButton.nextSibling);
+    }
+    ui.hangedManButton = btn;
+
+    ui.hangedManButton.addEventListener('click', () => {
+      const me = getLocalPlayerIndex();
+      const sel = sanitizeSelected(me);
+      if (sel.length !== 1) return;
+      requestHostAction(
+        { type: 'hangedMan', selectedIndexes: sel.slice() },
+        () => {
+          const used = useHangedManAction(me, sel);
+          if (!used.ok) showPlayError(used.reason || '吊るされた男を使用できません。');
+        }
+      ).catch((error) => {
+        console.warn('[tarotKingdom] hangedMan action failed:', error);
+      });
+    });
+  }
+
   ui.clearButton?.addEventListener('click', () => {
     if (s?.selected && s.selected.size > 0) {
       clearSelectedCards(true);
