@@ -35,6 +35,8 @@ const GAMEOVER_CHIPS_THRESHOLD = 0;
 const A_PENALTY = 1;
 const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
+const ROUND_OUT_CINEMATIC_MS = 1080;
+const GAME_FINAL_CINEMATIC_MS = 1900;
 const PRESENCE_AWAY_GRACE_MS = 30000;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
@@ -72,6 +74,7 @@ let hiddenOracleFlipSwapTimer = null;
 let hiddenOracleFlipEndTimer = null;
 let callCinematicTimer = null;
 let roundStartCinematicTimer = null;
+let roundOutCinematicTimer = null;
 let humanTurnBadgeTimer = null;
 let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
@@ -153,6 +156,12 @@ const clearRoundStartCinematicTimer = () => {
   if (roundStartCinematicTimer) {
     clearTimeout(roundStartCinematicTimer);
     roundStartCinematicTimer = null;
+  }
+};
+const clearRoundOutCinematicTimer = () => {
+  if (roundOutCinematicTimer) {
+    clearTimeout(roundOutCinematicTimer);
+    roundOutCinematicTimer = null;
   }
 };
 const clearOracleFlipTimers = () => {
@@ -606,9 +615,10 @@ function showKingdomCutin(playerIndex, label, options = {}) {
     'is-kingdom-reverse',
     'is-kingdom-lock',
     'is-kingdom-call',
-    'is-kingdom-call-role',
     'is-kingdom-role',
     'is-kingdom-round-end',
+    'is-kingdom-round-out',
+    'is-kingdom-grand-win',
     'is-kingdom-your-turn'
   );
   if (playerIndex != null) ui.kingdomCutin.classList.add(ownerClass);
@@ -628,9 +638,10 @@ function showKingdomCutin(playerIndex, label, options = {}) {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
-      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
+      'is-kingdom-round-out',
+      'is-kingdom-grand-win',
       'is-kingdom-your-turn'
     );
     kingdomCutinTimer = null;
@@ -789,21 +800,6 @@ function pulseKingdomPotAnchor(durationMs = 720) {
   setTimeout(() => {
     anchor.classList.remove('is-call-pulse');
   }, Math.max(220, Number(durationMs) || 720));
-}
-
-function showKingdomCallRoleStamp(playerIndex, roleLabel, level = 2, delayMs = 320) {
-  const text = String(roleLabel || '').trim();
-  if (!text) return;
-  const lv = Math.max(1, Number(level) || 1);
-  const durationMs = 820 + (lv * 120);
-  const delay = Math.max(0, Number(delayMs) || 0);
-  setTimeout(() => {
-    if (!s || s.phase !== 'callCinematic') return;
-    showKingdomCutin(playerIndex, `コール成立\n${text}`, {
-      cutinClass: 'is-kingdom-call-role',
-      durationMs
-    });
-  }, delay);
 }
 
 function getSpriteIndex(card) {
@@ -1041,7 +1037,6 @@ function showHumanTurnCue() {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
-      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
       'is-kingdom-your-turn'
@@ -1061,7 +1056,6 @@ function showHumanTurnCue() {
         'is-kingdom-reverse',
         'is-kingdom-lock',
         'is-kingdom-call',
-        'is-kingdom-call-role',
         'is-kingdom-role',
         'is-kingdom-round-end',
         'is-kingdom-your-turn'
@@ -2002,6 +1996,7 @@ function resetMatch() {
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
+  clearRoundOutCinematicTimer();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
@@ -2022,6 +2017,8 @@ function resetMatch() {
     'is-kingdom-call',
     'is-kingdom-role',
     'is-kingdom-round-end',
+    'is-kingdom-round-out',
+    'is-kingdom-grand-win',
     'is-kingdom-your-turn'
   );
   ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
@@ -2336,6 +2333,18 @@ function validatePlay(play, mode) {
     const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
     if (c > 0) return { ok: true };
     if (c < 0) return { ok: false, reason: '場札より強い数値が必要です。' };
+    const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
+    const trickCards = Array.isArray(s?.trick?.cardsTable) ? s.trick.cardsTable : [];
+    const playHasMajor = playCards.some((card) => card?.kind === 'major');
+    const trickHasMajor = trickCards.some((card) => card?.kind === 'major');
+    // 同数値時は大アルカナを優先。場に大アルカナがあるなら、
+    // 小アルカナのみでは返せない（A=15 でも不可）。
+    if (trickHasMajor && !playHasMajor) {
+      return { ok: false, reason: '同数値では場の大アルカナに返せません。' };
+    }
+    if (playHasMajor && !trickHasMajor) {
+      return { ok: true };
+    }
     const playMask = getPlaySuitMask(play);
     const trickMask = getPlaySuitMask(s.trick);
     return isSuitMatchupCompatible(playMask, trickMask)
@@ -2671,6 +2680,7 @@ function applySetEffects(play) {
 function finishRound(winnerIndex) {
   clearNpcTimer();
   clearCallCinematicTimer();
+  clearRoundOutCinematicTimer();
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
   s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
@@ -2783,6 +2793,20 @@ function finishRound(winnerIndex) {
     s.champion = top;
     s.phase = 'done';
     s.awaitRoundConfirm = false;
+    triggerKingdomActionFx(top, '最終勝利！\nチャンピオン決定', {
+      overlay: 'roundend',
+      overlayHoldMs: GAME_FINAL_CINEMATIC_MS,
+      durationMs: GAME_FINAL_CINEMATIC_MS,
+      cutin: true,
+      cutinClass: 'is-kingdom-grand-win',
+      delayMs: 120
+    });
+    playKingdomCoinEffect(top, 12, '🏆', {
+      fromPot: true,
+      targetPlayerIndex: top,
+      className: 'is-payout',
+      delayMs: 220
+    });
     const bankruptText = bankruptPlayers.map((p) => `${p.name}(${p.chips})`).join(' / ');
     s.message = `ゲーム終了（チップ枯渇）: ${bankruptText} / 勝者: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
@@ -2795,6 +2819,20 @@ function finishRound(winnerIndex) {
     s.champion = top;
     s.phase = 'done';
     s.awaitRoundConfirm = false;
+    triggerKingdomActionFx(top, '最終勝利！\nチャンピオン決定', {
+      overlay: 'roundend',
+      overlayHoldMs: GAME_FINAL_CINEMATIC_MS,
+      durationMs: GAME_FINAL_CINEMATIC_MS,
+      cutin: true,
+      cutinClass: 'is-kingdom-grand-win',
+      delayMs: 120
+    });
+    playKingdomCoinEffect(top, 12, '🏆', {
+      fromPot: true,
+      targetPlayerIndex: top,
+      className: 'is-payout',
+      delayMs: 220
+    });
     s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
     render();
@@ -2920,7 +2958,7 @@ function continueAfterPlay(pi, play) {
       p.stars = Math.max(0, Number(p.stars) || 0) + 1;
       applyRoleRewardOnClear(pi);
     }
-    finishRound(pi);
+    startRoundOutCinematic(pi, play);
     return;
   }
   if (play.type === 'set') {
@@ -2943,6 +2981,41 @@ function continueAfterPlay(pi, play) {
   s.message = `${pName(s.turn)}のターン`;
   scheduleNpc();
   render();
+}
+
+function getRoundFinishActionLabel(play) {
+  if (!play) return '出し切り';
+  if (play.type === 'role') return getRoleDisplayLabel(play);
+  const count = Math.max(1, Number(play?.count) || Number(play?.cardsTable?.length) || 1);
+  return `${count}枚出し`;
+}
+
+function startRoundOutCinematic(winnerIndex, play) {
+  if (!s || !s.players?.[winnerIndex]) {
+    finishRound(winnerIndex);
+    return;
+  }
+  clearNpcTimer();
+  clearCallCinematicTimer();
+  clearRoundOutCinematicTimer();
+  const winner = s.players[winnerIndex];
+  const actionLabel = getRoundFinishActionLabel(play);
+  s.phase = 'roundOutCinematic';
+  s.turn = winnerIndex;
+  s.message = `${winner.name}が出し切り！ 最後の一手: ${actionLabel}`;
+  triggerKingdomActionFx(winnerIndex, `出し切り！\n${actionLabel}`, {
+    overlay: 'roundend',
+    overlayHoldMs: ROUND_OUT_CINEMATIC_MS,
+    durationMs: ROUND_OUT_CINEMATIC_MS + 260,
+    cutin: true,
+    cutinClass: 'is-kingdom-round-out'
+  });
+  render();
+  roundOutCinematicTimer = setTimeout(() => {
+    roundOutCinematicTimer = null;
+    if (!s || !s.roundActive || s.phase !== 'roundOutCinematic') return;
+    finishRound(winnerIndex);
+  }, ROUND_OUT_CINEMATIC_MS);
 }
 
 function applyPlay(pi, play, retryDepth = 0) {
@@ -3052,7 +3125,6 @@ function applyPlay(pi, play, retryDepth = 0) {
   if (isCallPlay) {
     pulseKingdomPotAnchor(Math.max(760, callCinematicMs - 140));
     playKingdomCoinEffect(pi, getKingdomCallCoinCount(callFxLevel), '🪙', { className: 'is-call-bet', delayMs: 90 });
-    showKingdomCallRoleStamp(pi, getRoleDisplayLabel(play), callFxLevel, 360);
     vibrateOnce(32);
     clearNpcTimer();
     s.phase = 'callCinematic';
@@ -3474,9 +3546,21 @@ function renderPlayers() {
       warn.textContent = 'LAST 1';
       right.appendChild(warn);
     }
-    const meta = document.createElement('span');
-    meta.textContent = `手札${p.hand.length} / ${p.chips}チップ`;
-    right.appendChild(meta);
+    const handCount = Math.max(0, Number(p?.hand?.length || 0));
+    const handMeta = document.createElement('span');
+    handMeta.className = 'tarot-kingdom-meta-hand';
+    if (handCount <= 3) handMeta.classList.add('is-low');
+    if (handCount <= 1) handMeta.classList.add('is-critical');
+    handMeta.textContent = `手札${handCount}`;
+    const slash = document.createElement('span');
+    slash.className = 'tarot-kingdom-meta-sep';
+    slash.textContent = '/';
+    const chipsMeta = document.createElement('span');
+    chipsMeta.className = 'tarot-kingdom-meta-chips';
+    chipsMeta.textContent = `${p.chips}チップ`;
+    right.appendChild(handMeta);
+    right.appendChild(slash);
+    right.appendChild(chipsMeta);
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
   });
 }
@@ -4277,6 +4361,7 @@ export function destroyTarotKingdomPage() {
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
+  clearRoundOutCinematicTimer();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (trickSwapTimer) {
@@ -4316,9 +4401,10 @@ export function destroyTarotKingdomPage() {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
-      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
+      'is-kingdom-round-out',
+      'is-kingdom-grand-win',
       'is-kingdom-your-turn'
     );
     ui.kingdomCutin.textContent = '';
