@@ -182,6 +182,33 @@ const getKingdomMoneyBagCountByPot = (potAmount) => {
   if (pot >= 15) return 6;
   return 4;
 };
+const getKingdomCallFxLevel = (roleKey) => {
+  const key = String(roleKey || '');
+  if (key === 'FiveKind') return 7;
+  if (key === 'StraightFlush') return 6;
+  if (key === 'TheWorld') return 6;
+  if (key === 'FourKind') return 5;
+  if (key === 'FullHouse') return 4;
+  if (key === 'Flush') return 3;
+  return 2;
+};
+const getKingdomCallCinematicDuration = (level) => {
+  const lv = Math.max(1, Number(level) || 1);
+  return 920 + (lv * 180);
+};
+const getKingdomCallCoinCount = (level) => {
+  const lv = Math.max(1, Number(level) || 1);
+  return Math.min(12, 4 + lv);
+};
+function vibrateOnce(ms = 30) {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate(Math.max(10, Number(ms) || 30));
+    } catch (_) {
+      // no-op
+    }
+  }
+}
 const shuf = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const comb = (arr, n) => { const out = []; const w = (st, ac) => { if (ac.length === n) return out.push(ac.slice()); for (let i = st; i <= arr.length - (n - ac.length); i += 1) { ac.push(arr[i]); w(i + 1, ac); ac.pop(); } }; if (n > 0 && arr.length >= n) w(0, []); return out; };
 const cmpVec = (l, r) => { const m = Math.max(l.length, r.length); for (let i = 0; i < m; i += 1) { const a = Number(l[i] ?? 0), b = Number(r[i] ?? 0); if (a !== b) return a > b ? 1 : -1; } return 0; };
@@ -543,19 +570,21 @@ function getKingdomPlayerAnchor(playerIndex) {
   return ui.players?.querySelector?.(`[data-player-index="${playerIndex}"]`) || null;
 }
 
-function showKingdomOverlay(kind = 'action') {
+function showKingdomOverlay(kind = 'action', holdMsOverride = null) {
   if (!ui.kingdomOverlay) return;
-  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
   if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
   else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
-  else if (kind === 'call') ui.kingdomOverlay.classList.add('is-kingdom-call');
+  else if (kind === 'call') ui.kingdomOverlay.classList.add('is-kingdom-call', 'is-kingdom-call-freeze');
   else if (kind === 'roundend') ui.kingdomOverlay.classList.add('is-kingdom-roundend');
   void ui.kingdomOverlay.offsetWidth;
   ui.kingdomOverlay.classList.add('show');
   if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
-  const holdMs = kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260);
+  const holdMs = holdMsOverride != null
+    ? Math.max(120, Number(holdMsOverride) || 0)
+    : (kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260));
   kingdomOverlayTimer = setTimeout(() => {
-    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call');
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
     kingdomOverlayTimer = null;
   }, holdMs);
 }
@@ -577,6 +606,7 @@ function showKingdomCutin(playerIndex, label, options = {}) {
     'is-kingdom-reverse',
     'is-kingdom-lock',
     'is-kingdom-call',
+    'is-kingdom-call-role',
     'is-kingdom-role',
     'is-kingdom-round-end',
     'is-kingdom-your-turn'
@@ -598,6 +628,7 @@ function showKingdomCutin(playerIndex, label, options = {}) {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
+      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
       'is-kingdom-your-turn'
@@ -737,7 +768,7 @@ function playKingdomChariotSplitFx(playerIndex, options = {}) {
 function triggerKingdomActionFx(playerIndex, label, options = {}) {
   const run = () => {
     if (playerIndex != null) setTimeout(() => flashKingdomPlayerRowAction(playerIndex, label), 0);
-    if (options.overlay) showKingdomOverlay(options.overlay);
+    if (options.overlay) showKingdomOverlay(options.overlay, options.overlayHoldMs ?? null);
     if (options.cutin !== false) showKingdomCutin(playerIndex, label, options);
     if (options.coinCount && options.coinCount > 0) playKingdomCoinEffect(playerIndex, options.coinCount, options.coinSymbol || '🪙');
   };
@@ -747,6 +778,32 @@ function triggerKingdomActionFx(playerIndex, label, options = {}) {
   } else {
     run();
   }
+}
+
+function pulseKingdomPotAnchor(durationMs = 720) {
+  const anchor = ui.score || ui.round || ui.root;
+  if (!anchor) return;
+  anchor.classList.remove('is-call-pulse');
+  void anchor.offsetWidth;
+  anchor.classList.add('is-call-pulse');
+  setTimeout(() => {
+    anchor.classList.remove('is-call-pulse');
+  }, Math.max(220, Number(durationMs) || 720));
+}
+
+function showKingdomCallRoleStamp(playerIndex, roleLabel, level = 2, delayMs = 320) {
+  const text = String(roleLabel || '').trim();
+  if (!text) return;
+  const lv = Math.max(1, Number(level) || 1);
+  const durationMs = 820 + (lv * 120);
+  const delay = Math.max(0, Number(delayMs) || 0);
+  setTimeout(() => {
+    if (!s || s.phase !== 'callCinematic') return;
+    showKingdomCutin(playerIndex, `コール成立\n${text}`, {
+      cutinClass: 'is-kingdom-call-role',
+      durationMs
+    });
+  }, delay);
 }
 
 function getSpriteIndex(card) {
@@ -984,6 +1041,7 @@ function showHumanTurnCue() {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
+      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
       'is-kingdom-your-turn'
@@ -1003,6 +1061,7 @@ function showHumanTurnCue() {
         'is-kingdom-reverse',
         'is-kingdom-lock',
         'is-kingdom-call',
+        'is-kingdom-call-role',
         'is-kingdom-role',
         'is-kingdom-round-end',
         'is-kingdom-your-turn'
@@ -1019,13 +1078,7 @@ function showHumanTurnCue() {
     ui.yourTurnBadge.classList.add('show');
   }
 
-  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-    try {
-      navigator.vibrate(24);
-    } catch (_) {
-      // no-op
-    }
-  }
+  vibrateOnce(24);
 }
 
 function syncHumanTurnCueState() {
@@ -1971,7 +2024,7 @@ function resetMatch() {
     'is-kingdom-round-end',
     'is-kingdom-your-turn'
   );
-  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
   s.openOracleRevealed = false;
@@ -2978,20 +3031,29 @@ function applyPlay(pi, play, retryDepth = 0) {
     triggerKingdomRowActionFx(pi, 'LAST 1', 920);
     triggerKingdomActionFx(pi, 'ラスト1枚', { overlay: 'action', durationMs: 820, cutin: true });
   }
-  s.callMergeFx = isCallPlay ? { owner: pi, startedAt: Date.now() } : null;
+  const callFxLevel = isCallPlay ? getKingdomCallFxLevel(play?.role?.key) : 0;
+  const callCinematicMs = isCallPlay ? getKingdomCallCinematicDuration(callFxLevel) : 0;
+  s.callMergeFx = isCallPlay
+    ? { owner: pi, startedAt: Date.now(), level: callFxLevel, roleKey: String(play?.role?.key || '') }
+    : null;
   log(`${p.name}: ${play.type === 'set' ? `${play.count}枚出し` : getRoleDisplayLabel(play)}`);
   const actionLabel = play.type === 'set'
     ? `${play.count}枚出し`
     : getRoleDisplayLabel(play);
   triggerKingdomActionFx(pi, actionLabel, {
     overlay: isCallPlay ? 'call' : 'action',
-    durationMs: isCallPlay ? 1400 : (isRolePlay ? 980 : 700),
+    overlayHoldMs: isCallPlay ? callCinematicMs : null,
+    durationMs: isCallPlay ? Math.max(980, callCinematicMs - 120) : (isRolePlay ? 980 : 700),
     cutin: isRolePlay,
     cutinClass: isCallPlay ? 'is-kingdom-call' : (isRolePlay ? 'is-kingdom-role' : undefined),
     delayMs: isCallPlay ? 90 : (isRolePlay ? 180 : 0)
   });
 
   if (isCallPlay) {
+    pulseKingdomPotAnchor(Math.max(760, callCinematicMs - 140));
+    playKingdomCoinEffect(pi, getKingdomCallCoinCount(callFxLevel), '🪙', { className: 'is-call-bet', delayMs: 90 });
+    showKingdomCallRoleStamp(pi, getRoleDisplayLabel(play), callFxLevel, 360);
+    vibrateOnce(32);
     clearNpcTimer();
     s.phase = 'callCinematic';
     s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;
@@ -3002,7 +3064,7 @@ function applyPlay(pi, play, retryDepth = 0) {
       if (s.phase !== 'callCinematic' || s.turn !== pi) return;
       s.callMergeFx = null;
       continueAfterPlay(pi, play);
-    }, 1220);
+    }, callCinematicMs);
     return;
   }
   continueAfterPlay(pi, play);
@@ -3386,6 +3448,9 @@ function cardNode(card, opt = {}) {
 
 function renderPlayers() {
   ui.players.innerHTML = '';
+  const callOwner = (s.phase === 'callCinematic' && s.callMergeFx?.owner != null)
+    ? Number(s.callMergeFx.owner)
+    : null;
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
     row.dataset.playerIndex = String(i);
@@ -3393,6 +3458,10 @@ function renderPlayers() {
     if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
     if (isLastOne) row.classList.add('is-last-one');
+    if (callOwner != null) {
+      if (i === callOwner) row.classList.add('is-call-focus');
+      else row.classList.add('is-call-dim');
+    }
     const left = document.createElement('div');
     left.className = 'tarot-kingdom-player-name';
     const starCount = Math.max(0, Number(p.stars) || 0);
@@ -3448,20 +3517,23 @@ function renderTrick() {
         onClick: () => showKingdomCardEffectInfo(c, '場札')
       });
       const callFxActive = s.callMergeFx?.owner != null && s.trick?.type === 'role' && s.trick?.call;
+      const callFxLevel = Math.max(1, Number(s.callMergeFx?.level) || 1);
       let animDelayMs = 0;
       let animDurationMs = 240;
       if (callFxActive && idx > 0) {
         // コール時の4枚は右側から順に飛び込み、横一列で着地させる
         const orderFromRight = Math.max(0, (cards.length - 1) - idx);
         node.classList.add('is-call-arriving');
-        animDelayMs = orderFromRight * 140;
-        animDurationMs = 420;
+        animDelayMs = orderFromRight * Math.max(96, 154 - (callFxLevel * 10));
+        animDurationMs = 360 + (callFxLevel * 62);
         node.style.animationDelay = `${animDelayMs}ms`;
+        node.style.animationDuration = `${animDurationMs}ms`;
       } else {
         node.classList.add('is-entering');
         animDelayMs = idx * (s.callMergeFx ? 120 : 78);
         animDurationMs = 260;
         node.style.animationDelay = `${animDelayMs}ms`;
+        node.style.animationDuration = `${animDurationMs}ms`;
       }
       let cleaned = false;
       const clearAnimState = () => {
@@ -3470,6 +3542,7 @@ function renderTrick() {
         node.classList.remove('is-entering');
         node.classList.remove('is-call-arriving');
         node.style.animationDelay = '';
+        node.style.animationDuration = '';
       };
       node.addEventListener('animationend', clearAnimState, { once: true });
       // animationend が来ない環境でも透明のまま残らないようにする。
@@ -3835,6 +3908,7 @@ function updateButtons() {
   if (ui.actionPopup) {
     const hasReady = popupButtons.some((btn) => !!btn && btn.classList.contains('is-ready'));
     ui.actionPopup.classList.toggle('is-human-ready', hasReady);
+    ui.actionPopup.classList.toggle('is-call-locked', inCallCinematic);
   }
   if (ui.graveToggleButton) {
     if (s.pendingJudgment != null) {
@@ -4242,13 +4316,14 @@ export function destroyTarotKingdomPage() {
       'is-kingdom-reverse',
       'is-kingdom-lock',
       'is-kingdom-call',
+      'is-kingdom-call-role',
       'is-kingdom-role',
       'is-kingdom-round-end',
       'is-kingdom-your-turn'
     );
     ui.kingdomCutin.textContent = '';
   }
-  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend');
+  ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
   ui.oracleCardWrap?.classList.remove('is-flipping');
   ui.hiddenOracleCardWrap?.classList.remove('is-flipping');
 
@@ -4266,6 +4341,7 @@ export function destroyTarotKingdomPage() {
   if (ui.log) ui.log.innerHTML = '';
   if (ui.judgmentOptions) ui.judgmentOptions.innerHTML = '';
   if (ui.judgmentArea) ui.judgmentArea.style.display = 'none';
+  ui.actionPopup?.classList.remove('is-call-locked');
   if (ui.settlementBody) ui.settlementBody.innerHTML = '';
   if (ui.settlement) ui.settlement.hidden = true;
 
