@@ -574,10 +574,29 @@ function showKingdomCardEffectInfo(card, prefix = '効果') {
   renderSummary();
 }
 
+function getShortPlayHelp(reason) {
+  const text = String(reason || '');
+  if (!text) return '';
+  if (text.includes('ストレートコール制限')) return 'ヒント: 場札と同じ数値を手札4枚から外してください。';
+  if (text.includes('フラッシュコール制限')) return 'ヒント: 場札がハイカードにならない構成で5枚を作ってください。';
+  if (text.includes('コールは手札4枚')) return 'ヒント: コール時は手札を4枚だけ選択します。';
+  if (text.includes('コール対象は1枚場札のみ')) return 'ヒント: コールは場札が1枚のときだけ使えます。';
+  if (text.includes('場の大アルカナ1枚にはコールできません')) return 'ヒント: 場が大アルカナ単騎のときは通常出しで対応します。';
+  if (text.includes('星がない')) return 'ヒント: クリアで星を増やしてから再挑戦してください。';
+  if (text.includes('スート縛り')) return 'ヒント: 縛られているスートと同じ色のカードを選択してください。';
+  if (text.includes('場札より強い数値')) return 'ヒント: 場札より強い数値に選び直してください。';
+  if (text.includes('同じ形式/枚数')) return 'ヒント: 場と同じ枚数・形式で出してください。';
+  if (text.includes('5枚選択')) return 'ヒント: 5枚役は5枚ちょうど選択してください。';
+  return '';
+}
+
 function showPlayError(reason) {
   if (!s) return;
   const detail = (String(reason || '出せません。').trim()) || '出せません。';
-  s.message = `出せない理由: ${detail}`;
+  const hint = getShortPlayHelp(detail);
+  s.message = hint
+    ? `出せない理由: ${detail} / ${hint}`
+    : `出せない理由: ${detail}`;
   log(`⚠ ${s.message}`);
   render();
   if (!ui.stateText) return;
@@ -2353,7 +2372,9 @@ function buildCallPlay(pi, sel) {
   if (cards.some((c) => c.kind !== 'minor')) return { ok: false, reason: 'コール手札は小アルカナのみです。' };
   const role = evalRole([base, ...cards], s.lock?.suit || null);
   if (!role || role.strength < ROLE_ST.Straight) return { ok: false, reason: 'コール成立しません。' };
-  if (role.key === 'Straight' && cards.some((c) => idNum(c) === idNum(base))) return { ok: false, reason: 'ストレートコール制限に抵触します。' };
+  if (role.key === 'Straight' && cards.some((c) => Number(c?.number) === Number(base?.number))) {
+    return { ok: false, reason: 'ストレートコール制限に抵触します。' };
+  }
   if (role.key === 'Flush') {
     const vals = [base, ...cards].map((c) => cStrength(c)).sort((a, b) => b - a);
     if (vals[0] === cStrength(base)) return { ok: false, reason: 'フラッシュコール制限に抵触します。' };
