@@ -3302,6 +3302,7 @@ body.modal-lock .modal-overlay {
     flex-wrap: wrap;
     min-height: var(--tarot-card-h, 44px);
     overflow: visible;
+    perspective: 700px;
 }
 
 .tarot-kingdom-hand .tarot-card-art {
@@ -3340,6 +3341,12 @@ body.modal-lock .modal-overlay {
         0 3px 10px rgba(0, 0, 0, 0.45);
     pointer-events: none;
     z-index: 6;
+}
+
+.tarot-kingdom-hand .tarot-card.is-opening-flip {
+    animation: tarotKingdomOracleFlip 340ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
 }
 
 .tarot-kingdom-oracle {

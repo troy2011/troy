@@ -38,6 +38,9 @@ const ROUND_START_CINEMATIC_MS = 980;
 const ROUND_OUT_CINEMATIC_MS = 1080;
 const GAME_FINAL_CINEMATIC_MS = 1900;
 const PRESENCE_AWAY_GRACE_MS = 30000;
+const OPENING_HAND_FLIP_START_DELAY_MS = 180;
+const OPENING_HAND_FLIP_MS = 340;
+const OPENING_HAND_FLIP_GAP_MS = 90;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -75,6 +78,9 @@ let hiddenOracleFlipEndTimer = null;
 let callCinematicTimer = null;
 let roundStartCinematicTimer = null;
 let roundOutCinematicTimer = null;
+let openingDealStartTimer = null;
+let openingDealFlipTimer = null;
+let openingDealNextTimer = null;
 let humanTurnBadgeTimer = null;
 let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
@@ -162,6 +168,20 @@ const clearRoundOutCinematicTimer = () => {
   if (roundOutCinematicTimer) {
     clearTimeout(roundOutCinematicTimer);
     roundOutCinematicTimer = null;
+  }
+};
+const clearOpeningDealTimers = () => {
+  if (openingDealStartTimer) {
+    clearTimeout(openingDealStartTimer);
+    openingDealStartTimer = null;
+  }
+  if (openingDealFlipTimer) {
+    clearTimeout(openingDealFlipTimer);
+    openingDealFlipTimer = null;
+  }
+  if (openingDealNextTimer) {
+    clearTimeout(openingDealNextTimer);
+    openingDealNextTimer = null;
   }
 };
 const clearOracleFlipTimers = () => {
@@ -260,6 +280,7 @@ const chooseSetNumberCandidate = (cards, reverse = false) => {
 };
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
+const countAceMinor = (cards) => cards.reduce((total, c) => total + ((c.kind === 'minor' && c.number === 1) ? 1 : 0), 0);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
@@ -937,6 +958,8 @@ function initState() {
     turn: 0,
     phase: 'idle',
     roundActive: false,
+    openingDealRevealCount: 0,
+    openingDealFlipIndex: -1,
     trick: null,
     leadRequiredOwner: null,
     lastPlay: null,
@@ -977,6 +1000,7 @@ function initState() {
 
 function clearRoundState() {
   clearRoundStartCinematicTimer();
+  clearOpeningDealTimers();
   s.trick = null;
   s.leadRequiredOwner = null;
   s.lastPlay = null;
@@ -997,6 +1021,8 @@ function clearRoundState() {
   s.callMergeFx = null;
   s.graveOpen = false;
   s.handSortFreezeUntil = 0;
+  s.openingDealRevealCount = 0;
+  s.openingDealFlipIndex = -1;
   s.selected.clear();
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
@@ -2019,6 +2045,7 @@ function resetMatch() {
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
   clearRoundOutCinematicTimer();
+  clearOpeningDealTimers();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
@@ -2089,12 +2116,13 @@ function enforceLeadTurnInvariant() {
 
 function setupHand() {
   clearNpcTimer();
+  clearOpeningDealTimers();
   clearRoundState();
   s.hiddenOracleCard = null;
   s.hiddenOracleRevealed = false;
   if (s.reversePersist) s.reverse = true;
   s.roundActive = true;
-  s.phase = 'turn';
+  s.phase = 'openingDeal';
   s.leadRequiredOwner = null;
   s.turnCount = 1;
   s.minorDeck = shuf(mkMinor());
@@ -2142,11 +2170,62 @@ function setupHand() {
     s.turn = s.dealer;
     s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   }
-  playRoundStartCinematic();
+  playOpeningDealCinematic();
+}
+
+function playOpeningDealCinematic() {
+  clearOpeningDealTimers();
+  if (!s || !s.roundActive) return;
+  const me = getLocalPlayerIndex();
+  const handCount = Math.max(0, Number(s.players?.[me]?.hand?.length || 0));
+  s.phase = 'openingDeal';
+  s.openingDealRevealCount = 0;
+  s.openingDealFlipIndex = -1;
+  s.message = '配札中...';
+  traceKingdomFlow('openingDeal.start', `handCount=${handCount}`);
+  render();
+  if (handCount <= 0) {
+    playRoundStartCinematic();
+    return;
+  }
+
+  const revealNext = () => {
+    if (!s || !s.roundActive) return;
+    if (s.phase !== 'openingDeal') return;
+    const nextIndex = Math.max(0, Number(s.openingDealRevealCount || 0));
+    if (nextIndex >= handCount) {
+      s.openingDealFlipIndex = -1;
+      render();
+      traceKingdomFlow('openingDeal.end', `revealed=${nextIndex}`);
+      playRoundStartCinematic();
+      return;
+    }
+
+    s.openingDealFlipIndex = nextIndex;
+    render();
+    openingDealFlipTimer = setTimeout(() => {
+      openingDealFlipTimer = null;
+      if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
+      if (Number(s.openingDealFlipIndex || -1) !== nextIndex) return;
+      s.openingDealRevealCount = nextIndex + 1;
+      s.openingDealFlipIndex = -1;
+      render();
+      openingDealNextTimer = setTimeout(() => {
+        openingDealNextTimer = null;
+        revealNext();
+      }, OPENING_HAND_FLIP_GAP_MS);
+    }, OPENING_HAND_FLIP_MS);
+  };
+
+  openingDealStartTimer = setTimeout(() => {
+    openingDealStartTimer = null;
+    revealNext();
+  }, OPENING_HAND_FLIP_START_DELAY_MS);
 }
 
 function playRoundStartCinematic() {
   clearRoundStartCinematicTimer();
+  clearOpeningDealTimers();
   if (!s || !s.roundActive) return;
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   const currentTurn = s.turn;
@@ -2731,17 +2810,11 @@ function finishRound(winnerIndex) {
     potAward: 0,
     totalGain: 0
   };
-  triggerKingdomActionFx(winnerIndex, '局終了', {
-    overlay: 'roundend',
-    durationMs: 1160,
-    cutin: true,
-    cutinClass: 'is-kingdom-round-end'
-  });
   log(`${winner.name}がアウト！ 清算開始`);
   s.players.forEach((loser, i) => {
     if (i === winnerIndex) return;
     const remain = loser.hand.length;
-    const acePenalty = hasAceMinor(loser.hand) ? A_PENALTY : 0;
+    const acePenalty = countAceMinor(loser.hand) * A_PENALTY;
     const scoreFactor = 1 + settlement.starBonus + oracleHits + acePenalty;
     const pay = remain * scoreFactor;
     const factorParts = [
@@ -3705,9 +3778,14 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) return;
+  const inOpeningDeal = s.roundActive && s.phase === 'openingDeal';
+  const openingRevealCount = Math.max(0, Number(s.openingDealRevealCount || 0));
+  const openingFlipIndex = Number.isInteger(Number(s.openingDealFlipIndex))
+    ? Number(s.openingDealFlipIndex)
+    : -1;
   const freezeUntil = Number(s.handSortFreezeUntil || 0);
   const freezeActive = freezeUntil > Date.now();
-  if (!freezeActive) applyLocalHandSortMode(false);
+  if (!freezeActive && !inOpeningDeal) applyLocalHandSortMode(false);
   const selected = sanitizeSelected(me);
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
@@ -3715,7 +3793,7 @@ function renderHand() {
   }
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
-  const canSelect = !!(s.roundActive && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
+  const canSelect = !!(s.roundActive && !inOpeningDeal && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
   const onHandTap = (idx) => {
     if (!canSelect) {
       showPlayError('今は手札を選択できません。');
@@ -3730,11 +3808,18 @@ function renderHand() {
       : '選択中（あなたのターン待ち）');
     render();
   };
-  s.players[me].hand.forEach((c, i) => ui.hand.appendChild(cardNode(c, {
-    clickable: canSelect,
-    selected: selected.includes(i),
-    onClick: () => onHandTap(i)
-  })));
+  s.players[me].hand.forEach((c, i) => {
+    const showCard = inOpeningDeal
+      ? ((i < openingRevealCount || i === openingFlipIndex) ? c : null)
+      : c;
+    const node = cardNode(showCard, {
+      clickable: canSelect,
+      selected: selected.includes(i),
+      onClick: () => onHandTap(i)
+    });
+    if (inOpeningDeal && i === openingFlipIndex) node.classList.add('is-opening-flip');
+    ui.hand.appendChild(node);
+  });
 }
 
 function clearSelectedCards(withMessage = true) {
@@ -4003,7 +4088,8 @@ function updateButtons() {
   }
   const inCallCinematic = s.phase === 'callCinematic';
   const inOpeningCinematic = s.phase === 'openingCinematic';
-  const actionLocked = inCallCinematic || inOpeningCinematic;
+  const inOpeningDeal = s.phase === 'openingDeal';
+  const actionLocked = inCallCinematic || inOpeningCinematic || inOpeningDeal;
   const myStars = Math.max(0, Number(s.players[me]?.stars) || 0);
   const myHandCount = Math.max(0, Number(s.players[me]?.hand?.length || 0));
   const netMode = isNetModeActive();
@@ -4414,6 +4500,7 @@ export function destroyTarotKingdomPage() {
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
   clearRoundOutCinematicTimer();
+  clearOpeningDealTimers();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (trickSwapTimer) {
