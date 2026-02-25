@@ -258,7 +258,6 @@ const chooseSetNumberCandidate = (cards, reverse = false) => {
   });
   return Number(sorted[0]);
 };
-const isPairLikeRole = (roleKey) => ['FullHouse', 'FourKind', 'FiveKind'].includes(String(roleKey || ''));
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
@@ -296,6 +295,23 @@ function applyLocalHandSortMode(force = false) {
   const hand = s.players[me].hand;
   if (!Array.isArray(hand) || hand.length <= 1) return;
   hand.sort((a, b) => compareHandCardsByMode(a, b, localHandSortMode));
+}
+
+function freezeLocalHandAutoSort(ms = 1100) {
+  if (!s) return;
+  const hold = Math.max(300, Number(ms) || 1100);
+  const nextUntil = Date.now() + hold;
+  const current = Number(s.handSortFreezeUntil || 0);
+  s.handSortFreezeUntil = Math.max(current, nextUntil);
+}
+
+function onPlayerDrewCard(playerIndex, freezeMs = 1100) {
+  if (!s || !s.players?.[playerIndex]) return;
+  if (isLocalPlayer(playerIndex)) {
+    freezeLocalHandAutoSort(freezeMs);
+    return;
+  }
+  s.players[playerIndex].hand.sort((a, b) => cStrength(a) - cStrength(b));
 }
 function toggleLocalHandSortMode() {
   if (!s) return;
@@ -430,33 +446,33 @@ function getKingdomCardEffectDescription(card) {
     const majorEffectMap = {
       0: '5枚役のみ数値ワイルド（フラッシュ化なし）',
       1: 'オールスートとして扱う',
-      2: '出した瞬間、小アルカナを1枚引く',
+      2: '他者はパスで強制ドロー',
       3: '数値3/13の有利側で扱う',
       4: '数値4/14の有利側で扱う',
-      5: '全員スキップしてもう一度自分のターン',
-      6: 'ペア系の役に混ぜると星+1',
-      7: '単騎で2枚出し化（2枚出し縛り）',
+      5: 'もう一度自分のターン',
+      6: '他者が出すたび星+1',
+      7: '単騎で2枚出し化',
       8: '強制クリア',
       9: '次ドロー（小/大）を予見',
       10: '単騎で大アルカナを1枚引く',
-      11: '11バック（大アルカナは局内永続）',
-      12: '捨てて小アルカナ1枚ドロー',
-      13: 'このトリック中、出すたび星-1',
+      11: '11バック（局内永続）',
+      12: '生贄で小アルカナ1枚引く',
+      13: '他者が出すたび星-1',
       14: '節制ロック（直前スート縛り）',
-      15: 'このトリック中、パスで星-1',
-      16: 'ソード最上位札',
-      17: 'カップ最上位札',
-      18: 'ペンタクル最上位札',
-      19: 'ワンド最上位札',
-      20: 'このカードでクリア時、墓地から1枚回収',
-      21: 'ザ・ワールドの必須札'
+      15: '他者がパスで星-1',
+      16: 'ソードワイルド化※単騎14',
+      17: 'カップワイルド化※単騎14',
+      18: 'ペンタクルワイルド化※単騎14',
+      19: 'ワンドワイルド化※単騎14',
+      20: 'クリアで墓地から1枚回収',
+      21: '世界+計21の5枚で役'
     };
     return majorEffectMap[n] || '';
   }
   if (n === 5) return '5スキップ';
   if (n === 8) return '8カット';
   if (n === 11) return '11バック';
-  if (n === 14) return '同スートKで14ロック';
+  if (n === 14) return '場と同スートで14ロック';
   return '';
 }
 
@@ -928,8 +944,10 @@ function initState() {
     callOnly: false,
     lock: null,
     trickForcedCount: 0,
-    death13Active: false,
-    devil15Active: false,
+    passDrawAuraOwner: null,
+    starGainAuraOwner: null,
+    starDrainAuraOwner: null,
+    passStarDrainAuraOwner: null,
     hermitPreview: null,
     reverse: false,
     reversePersist: false,
@@ -946,6 +964,7 @@ function initState() {
     pendingJudgment: null,
     callMergeFx: null,
     graveOpen: false,
+    handSortFreezeUntil: 0,
     selected: new Set(),
     pot: 0,
     logs: [],
@@ -965,8 +984,10 @@ function clearRoundState() {
   s.callOnly = false;
   s.lock = null;
   s.trickForcedCount = 0;
-  s.death13Active = false;
-  s.devil15Active = false;
+  s.passDrawAuraOwner = null;
+  s.starGainAuraOwner = null;
+  s.starDrainAuraOwner = null;
+  s.passStarDrainAuraOwner = null;
   s.hermitPreview = null;
   if (!s.reversePersist) s.reverse = false;
   s.reversePersistSuspendOwner = null;
@@ -975,6 +996,7 @@ function clearRoundState() {
   s.pendingJudgment = null;
   s.callMergeFx = null;
   s.graveOpen = false;
+  s.handSortFreezeUntil = 0;
   s.selected.clear();
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
@@ -2183,8 +2205,15 @@ function buildSetPlay(pi, sel) {
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== sel.length) return { ok: false, reason: '選択が不正です。' };
-  const n = chooseSetNumberCandidate(cards, !!s.reverse);
+  let n = chooseSetNumberCandidate(cards, !!s.reverse);
   if (n == null) return { ok: false, reason: '同じ数値で揃えてください。' };
+  if (
+    cards.length === 1 &&
+    cards[0]?.kind === 'major' &&
+    [16, 17, 18, 19].includes(Number(cards[0]?.number || 0))
+  ) {
+    n = 14;
+  }
   if (s.lock?.suit && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
   const allMagicianOne = Number(n) === 1 && cards.every((c) => c.kind === 'major' && Number(c.number) === 1);
   const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
@@ -2307,11 +2336,6 @@ function getAceFinishRuleViolation(play) {
 function validatePlay(play, mode) {
   const aceRuleViolation = getAceFinishRuleViolation(play);
   if (aceRuleViolation) return { ok: false, reason: aceRuleViolation };
-  if (s.death13Active) {
-    const actor = s.players?.[Number(play?.owner)];
-    const stars = Math.max(0, Number(actor?.stars) || 0);
-    if (stars <= 0) return { ok: false, reason: '死神効果中は星がないとカードを出せません。' };
-  }
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') {
@@ -2514,8 +2538,10 @@ function clearTrick(leader) {
   const hadJudgment = !!(s.lastPlay && s.lastPlay.type === 'set' && s.lastPlay.owner === leader && s.lastPlay.cardsHand.some((c) => c.kind === 'major' && c.number === 20));
   traceKingdomFlow('clearTrick.stateReset', `hadJudgment=${hadJudgment}`);
   s.trickForcedCount = 0;
-  s.death13Active = false;
-  s.devil15Active = false;
+  s.passDrawAuraOwner = null;
+  s.starGainAuraOwner = null;
+  s.starDrainAuraOwner = null;
+  s.passStarDrainAuraOwner = null;
   s.hermitPreview = null;
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   s.leadRequiredOwner = leader;
@@ -2549,7 +2575,7 @@ function applySetEffects(play) {
       owner.hand.push(card);
       drew += 1;
     }
-    if (drew > 0) owner.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    if (drew > 0) onPlayerDrewCard(play.owner, 1100);
     return drew;
   };
   const drawMajorForEffect = (count = 1) => {
@@ -2562,7 +2588,7 @@ function applySetEffects(play) {
       owner.hand.push(card);
       drew += 1;
     }
-    if (drew > 0) owner.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    if (drew > 0) onPlayerDrewCard(play.owner, 1100);
     return drew;
   };
   if (cards.length === 1 && hasMajor(7)) {
@@ -2582,20 +2608,24 @@ function applySetEffects(play) {
     }, 820);
   }
   if (hasMajor(13)) {
-    s.death13Active = true;
-    if (owner) owner.stars = Math.max(0, (Number(owner.stars) || 0) - 1);
+    s.starDrainAuraOwner = play.owner;
     log(`${pName(play.owner)}: 死神効果`);
     triggerKingdomActionFx(play.owner, '死神', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
   }
   if (hasMajor(15)) {
-    s.devil15Active = true;
+    s.passStarDrainAuraOwner = play.owner;
     log(`${pName(play.owner)}: 悪魔効果`);
     triggerKingdomActionFx(play.owner, '悪魔', { overlay: 'action', durationMs: 820, cutin: true, cutinClass: 'is-kingdom-lock' });
   }
   if (hasMajor(2)) {
-    const drew = drawMinorForEffect(1);
-    log(`${pName(play.owner)}: 女教皇で小アルカナ+${drew}`);
-    triggerKingdomActionFx(play.owner, `女教皇 +${drew}`, { overlay: 'draw', durationMs: 700, cutin: true });
+    s.passDrawAuraOwner = play.owner;
+    log(`${pName(play.owner)}: 女教皇効果（他者パスで強制ドロー）`);
+    triggerKingdomActionFx(play.owner, '女教皇', { overlay: 'draw', durationMs: 700, cutin: true });
+  }
+  if (hasMajor(6)) {
+    s.starGainAuraOwner = play.owner;
+    log(`${pName(play.owner)}: 恋人効果（他者が出すたび星+1）`);
+    triggerKingdomActionFx(play.owner, '恋人', { overlay: 'draw', durationMs: 700, cutin: true });
   }
   if (cards.length === 1 && hasMajor(9)) {
     const minorTop = s.minorDeck[s.minorDeck.length - 1] || null;
@@ -2614,8 +2644,8 @@ function applySetEffects(play) {
   }
   if (has(5)) {
     if (cards.length === 1 && cards.some((c) => c.kind === 'major' && c.number === 5)) {
-      keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5で全員スキップ`);
-      triggerKingdomActionFx(play.owner, '大アルカナ5', { overlay: 'action', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-skip' });
+      keepTurn = true; skip = 3; log(`${pName(play.owner)}: 大アルカナ5でターン継続`);
+      triggerKingdomActionFx(play.owner, 'もう一度ターン', { overlay: 'action', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-skip' });
     } else {
       skip = cards.length; log(`${pName(play.owner)}: 5スキップ x${cards.length}`);
       triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-skip' });
@@ -2904,7 +2934,7 @@ function applyDrawChoice(deckType) {
   traceKingdomFlow('applyDrawChoice.drawn', `player=${pi} deck=${use} card=${c ? `${c.kind}:${c.suit}:${c.number}` : 'none'}`);
   if (c) {
     actor.hand.push(c);
-    actor.hand.sort((a, b) => cStrength(a) - cStrength(b));
+    onPlayerDrewCard(pi, 1200);
     if (use === 'major') actor.stars = Math.max(0, (Number(actor.stars) || 0) - 1);
     log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`);
   }
@@ -2925,7 +2955,8 @@ function applyJudgmentPick(owner, cardIndex) {
   const poolOwner = s.players[owner];
   if (!poolOwner || cardIndex < 0 || cardIndex >= poolOwner.discard.length) return;
   const card = poolOwner.discard.splice(cardIndex, 1)[0];
-  s.players[pi].hand.push(card); s.players[pi].hand.sort((a, b) => cStrength(a) - cStrength(b));
+  s.players[pi].hand.push(card);
+  onPlayerDrewCard(pi, 1100);
   s.pendingJudgment = null;
   log(`${pName(pi)}: 審判で ${getCardNameLabel(card)} を回収`);
   triggerKingdomActionFx(pi, '審判回収', { overlay: 'draw', durationMs: 700, cutin: true });
@@ -3084,14 +3115,15 @@ function applyPlay(pi, play, retryDepth = 0) {
   if (play.call) {
     p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
   }
-  if (s.death13Active) {
+  const gainOwner = Number.isInteger(s.starGainAuraOwner) ? Number(s.starGainAuraOwner) : null;
+  if (gainOwner != null && gainOwner !== pi && s.players?.[gainOwner]) {
+    s.players[gainOwner].stars = Math.max(0, Number(s.players[gainOwner].stars) || 0) + 1;
+    log(`${pName(gainOwner)}: 恋人効果で星+1（${p.name}の出し）`);
+  }
+  const drainOwner = Number.isInteger(s.starDrainAuraOwner) ? Number(s.starDrainAuraOwner) : null;
+  if (drainOwner != null && drainOwner !== pi) {
     p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
     log(`${p.name}: 死神効果で星-1`);
-  }
-  if (play.type === 'role' && removed.some((c) => c.kind === 'major' && c.number === 6) && isPairLikeRole(play.role?.key)) {
-    p.stars = Math.max(0, Number(p.stars) || 0) + 1;
-    log(`${p.name}: 恋人効果で星+1`);
-    triggerKingdomActionFx(pi, '恋人: 星+1', { overlay: 'draw', durationMs: 640, cutin: true });
   }
   if (isLocalPlayer(pi)) s.selected.clear();
   s.pass = [false, false, false, false];
@@ -3161,11 +3193,29 @@ function passAction(pi) {
     return;
   }
   s.pass[pi] = true; log(`${pName(pi)}: パス`);
-  if (s.devil15Active) {
-    const player = s.players?.[pi];
-    if (player) {
-      player.stars = Math.max(0, (Number(player.stars) || 0) - 1);
-      log(`${pName(pi)}: 悪魔効果でパス時に星-1`);
+  const player = s.players?.[pi];
+  const passDrainOwner = Number.isInteger(s.passStarDrainAuraOwner) ? Number(s.passStarDrainAuraOwner) : null;
+  if (passDrainOwner != null && passDrainOwner !== pi && player) {
+    player.stars = Math.max(0, (Number(player.stars) || 0) - 1);
+    log(`${pName(pi)}: 悪魔効果でパス時に星-1`);
+  }
+  const passDrawOwner = Number.isInteger(s.passDrawAuraOwner) ? Number(s.passDrawAuraOwner) : null;
+  if (passDrawOwner != null && passDrawOwner !== pi && player) {
+    let drew = 0;
+    if (player.hand.length < START_HAND) {
+      let drawCard = s.minorDeck.pop() || null;
+      if (!drawCard) drawCard = s.majorDeck.pop() || null;
+      if (drawCard) {
+        player.hand.push(drawCard);
+        onPlayerDrewCard(pi, 1200);
+        drew = 1;
+      }
+    }
+    if (drew > 0) {
+      log(`${pName(pi)}: 女教皇効果で強制ドロー`);
+      triggerKingdomActionFx(pi, '強制ドロー', { overlay: null, durationMs: 620, cutin: false });
+    } else {
+      log(`${pName(pi)}: 女教皇効果（強制ドロー不可）`);
     }
   }
   if (isLocalPlayer(pi)) s.selected.clear();
@@ -3655,7 +3705,9 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) return;
-  applyLocalHandSortMode(false);
+  const freezeUntil = Number(s.handSortFreezeUntil || 0);
+  const freezeActive = freezeUntil > Date.now();
+  if (!freezeActive) applyLocalHandSortMode(false);
   const selected = sanitizeSelected(me);
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
@@ -4142,7 +4194,7 @@ function useHangedManAction(pi, selectedIndexes) {
   p.hand.splice(idx, 1);
   const drawCard = s.minorDeck.pop();
   if (drawCard) p.hand.push(drawCard);
-  p.hand.sort((a, b) => cStrength(a) - cStrength(b));
+  if (drawCard) onPlayerDrewCard(pi, 1200);
   s.selected.clear();
   log(`${pName(pi)}: 吊るされた男で小アルカナ1枚ドロー`);
   s.message = `${pName(pi)}: 吊るされた男を使用`;
