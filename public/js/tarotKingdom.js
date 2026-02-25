@@ -755,10 +755,16 @@ function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', opti
   if (typeof document === 'undefined') return;
   const potAnchor = ui.score || ui.round || ui.root;
   if (!potAnchor) return;
+  const directTargetEl = options.targetElement || null;
+  const selectorTargetEl = (typeof options.targetSelector === 'string' && options.targetSelector)
+    ? document.querySelector(options.targetSelector)
+    : null;
   const sourceEl = options.fromPot ? potAnchor : (getKingdomPlayerAnchor(playerIndex) || ui.hand || potAnchor);
-  const targetEl = options.targetPlayerIndex != null
-    ? (getKingdomPlayerAnchor(options.targetPlayerIndex) || potAnchor)
-    : potAnchor;
+  const targetEl = directTargetEl
+    || selectorTargetEl
+    || (options.targetPlayerIndex != null
+      ? (getKingdomPlayerAnchor(options.targetPlayerIndex) || potAnchor)
+      : potAnchor);
   const from = getElementCenterPoint(sourceEl);
   const to = getElementCenterPoint(targetEl);
   if (!from || !to) return;
@@ -2901,16 +2907,20 @@ function finishRound(winnerIndex) {
     totalGain += Math.max(0, potAward);
     settlement.potAward = potAward;
     log(`${winner.name}がPOT ${potAward}獲得`);
-    playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(potAward), '💰', {
-      fromPot: true,
-      targetPlayerIndex: winnerIndex,
-      className: 'is-payout',
-      delayMs: fxDelayMs + 80
-    });
     s.pot = 0;
   }
   settlement.totalGain = totalGain;
   s.roundSettlement = settlement;
+  // 清算パネル内の勝者エリアを描画してから、POTドル袋を着地させる。
+  render();
+  if (settlement.potAward > 0) {
+    playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(settlement.potAward), '💰', {
+      fromPot: true,
+      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
+      className: 'is-payout',
+      delayMs: fxDelayMs + 80
+    });
+  }
   triggerKingdomActionFx(winnerIndex, `総取り +${totalGain}`, {
     overlay: 'roundend',
     durationMs: 1200,
@@ -4083,6 +4093,12 @@ function renderSettlement() {
     head.className = 'tarot-kingdom-settlement-head';
     head.textContent = `第${data.roundNo}局 / 勝者: ${data.winnerName}`;
     body.appendChild(head);
+
+    const winnerAnchor = document.createElement('div');
+    winnerAnchor.id = 'tarotKingdomSettlementWinnerAnchor';
+    winnerAnchor.className = 'tarot-kingdom-settlement-winner';
+    winnerAnchor.textContent = `勝者 ${data.winnerName} / 受取予定 +${data.totalGain} TP`;
+    body.appendChild(winnerAnchor);
 
     (data.rows || []).forEach((row) => {
       const rowEl = document.createElement('div');

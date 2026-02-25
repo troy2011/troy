@@ -3070,6 +3070,18 @@ body.modal-lock .modal-overlay {
     color: #f8fafc;
 }
 
+.tarot-kingdom-settlement-winner {
+    display: block;
+    border: 1px solid rgba(245, 158, 11, 0.46);
+    border-radius: 9px;
+    padding: 6px 8px;
+    background: linear-gradient(180deg, rgba(146, 64, 14, 0.42), rgba(120, 53, 15, 0.24));
+    font-size: 12px;
+    font-weight: 800;
+    color: #fde68a;
+    text-align: left;
+}
+
 .tarot-kingdom-settlement-row {
     border: 1px solid rgba(148, 163, 184, 0.26);
     border-radius: 8px;
