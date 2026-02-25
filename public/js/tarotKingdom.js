@@ -2225,7 +2225,7 @@ function playOpeningDealCinematic() {
     openingDealFlipTimer = setTimeout(() => {
       openingDealFlipTimer = null;
       if (!s || !s.roundActive || s.phase !== 'openingDeal') return;
-      if (Number(s.openingDealFlipIndex || -1) !== nextIndex) return;
+      if (Number(s.openingDealFlipIndex ?? -1) !== nextIndex) return;
       s.openingDealRevealCount = nextIndex + 1;
       s.openingDealFlipIndex = -1;
       render();
