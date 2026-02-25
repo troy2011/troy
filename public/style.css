@@ -119,7 +119,7 @@ button:disabled {
     margin-bottom: 4px;
 }
 
-.global-status-bar-container span {
+.global-status-bar-container > span {
     width: 24px;
     font-size: 10px;
     font-weight: bold;
@@ -305,7 +305,7 @@ body[data-sea-tone="night"] .home-hero-card {
     gap: 6px;
 }
 
-.home-exp-card .global-status-bar-container span {
+.home-exp-card .global-status-bar-container > span {
     width: 28px;
     font-size: 10px;
     line-height: 16px;
