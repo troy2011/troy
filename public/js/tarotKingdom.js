@@ -37,10 +37,11 @@ const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
 const ROUND_OUT_CINEMATIC_MS = 1080;
 const GAME_FINAL_CINEMATIC_MS = 1900;
+const ORACLE_FLIP_TOTAL_MS = 620;
 const PRESENCE_AWAY_GRACE_MS = 30000;
-const OPENING_HAND_FLIP_START_DELAY_MS = 180;
-const OPENING_HAND_FLIP_MS = 340;
-const OPENING_HAND_FLIP_GAP_MS = 90;
+const OPENING_HAND_FLIP_START_DELAY_MS = 90;
+const OPENING_HAND_FLIP_MS = 170;
+const OPENING_HAND_FLIP_GAP_MS = 45;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -282,6 +283,25 @@ const pName = (i) => s.players[i]?.name || `P${i + 1}`;
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const countAceMinor = (cards) => cards.reduce((total, c) => total + ((c.kind === 'minor' && c.number === 1) ? 1 : 0), 0);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
+const isSameCardIdentity = (a, b) => {
+  if (!a || !b) return false;
+  const aId = String(a.id || '');
+  const bId = String(b.id || '');
+  if (aId && bId) return aId === bId;
+  return String(a.kind || '') === String(b.kind || '')
+    && Number(a.number || 0) === Number(b.number || 0)
+    && String(a.suit || '') === String(b.suit || '')
+    && String(a.arcanaNo || '') === String(b.arcanaNo || '');
+};
+function pullCardFromDiscard(ownerIndex, targetCard) {
+  if (!s?.players?.[ownerIndex] || !targetCard) return null;
+  const discard = s.players[ownerIndex].discard;
+  if (!Array.isArray(discard) || discard.length <= 0) return null;
+  const idx = discard.findIndex((card) => isSameCardIdentity(card, targetCard));
+  if (idx < 0) return null;
+  const [pulled] = discard.splice(idx, 1);
+  return pulled || null;
+}
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
 const HAND_SORT_SUIT_ORDER = { Wand: 0, Pentacle: 1, Cup: 2, Sword: 3, None: 4 };
@@ -2137,6 +2157,10 @@ function setupHand() {
   clearNpcTimer();
   clearOpeningDealTimers();
   clearRoundState();
+  // 表オラクルは毎局再抽選
+  s.openOracleCard = shuf(mkMajor())[0] || null;
+  s.openOracle = openOracleRank(s.openOracleCard);
+  s.openOracleRevealed = false;
   s.hiddenOracleCard = null;
   s.hiddenOracleRevealed = false;
   if (s.reversePersist) s.reverse = true;
@@ -2189,7 +2213,6 @@ function setupHand() {
     s.turn = s.dealer;
     s.message = `${pName(s.dealer)}が親です。カードを出してください。`;
   }
-  playOpeningDealCinematic();
 }
 
 function playOpeningDealCinematic() {
@@ -3206,6 +3229,23 @@ function applyPlay(pi, play, retryDepth = 0) {
   }
   // 大アルカナは墓地へ送らない（場からは取り除かれるが墓地には残さない）
   p.discard.push(...removed.filter((c) => c?.kind !== 'major'));
+  if (isCallPlay && prevLeadCard && prevLeadCard.kind !== 'major') {
+    let captured = null;
+    if (Number.isInteger(prevLeadOwner)) {
+      captured = pullCardFromDiscard(prevLeadOwner, prevLeadCard);
+    }
+    if (!captured) {
+      for (let i = 0; i < s.players.length; i += 1) {
+        captured = pullCardFromDiscard(i, prevLeadCard);
+        if (captured) break;
+      }
+    }
+    const movedCard = captured || prevLeadCard;
+    if (movedCard?.kind !== 'major') {
+      p.discard.push(movedCard);
+      log(`${p.name}: コール取り込み札を墓地へ移動`);
+    }
+  }
   if (play.call) {
     p.stars = Math.max(0, (Number(p.stars) || 0) - 1);
   }
@@ -4251,12 +4291,23 @@ function revealHiddenOracleWithFlip() {
 function beginNextRound() {
   setupHand();
   render();
-  if (!s.openOracleRevealed) {
+  const startOpeningDeal = () => {
+    if (!s || !s.roundActive) return;
+    playOpeningDealCinematic();
+  };
+  if (!s.openOracleRevealed && s.openOracleCard) {
+    revealOracleWithFlip();
+    if (oracleRevealDelayTimer) {
+      clearTimeout(oracleRevealDelayTimer);
+      oracleRevealDelayTimer = null;
+    }
     oracleRevealDelayTimer = setTimeout(() => {
       oracleRevealDelayTimer = null;
-      revealOracleWithFlip();
-    }, 120);
+      startOpeningDeal();
+    }, ORACLE_FLIP_TOTAL_MS);
+    return;
   }
+  startOpeningDeal();
 }
 
 function confirmRoundSettlement() {
