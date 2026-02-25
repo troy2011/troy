@@ -5398,7 +5398,7 @@ body.modal-lock .modal-overlay {
 .tarot-cutin {
     position: fixed;
     left: 50%;
-    top: 24%;
+    top: clamp(56px, 16vh, 150px);
     transform: translate(-50%, -18px) skewX(-12deg);
     min-width: min(560px, calc(100% - 20px));
     max-width: calc(100% - 20px);
