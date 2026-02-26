@@ -979,6 +979,97 @@ function pulseKingdomPotAnchor(durationMs = 720) {
   }, Math.max(220, Number(durationMs) || 720));
 }
 
+function getKingdomPlaySourcePoint(playerIndex) {
+  if (isLocalPlayer(playerIndex)) {
+    const handCard = ui.hand?.querySelector?.('.tarot-card');
+    const handPoint = getElementCenterPoint(handCard) || getElementCenterPoint(ui.hand);
+    if (handPoint) return handPoint;
+  }
+  const row = getKingdomPlayerAnchor(playerIndex);
+  return getElementCenterPoint(row) || getElementCenterPoint(ui.players) || getElementCenterPoint(ui.root);
+}
+
+function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {}) {
+  if (typeof document === 'undefined') return;
+  if (!attackCard || !targetEl) return;
+  const from = getKingdomPlaySourcePoint(playerIndex);
+  const to = getElementCenterPoint(targetEl);
+  if (!from || !to) return;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const durationMs = Math.max(180, Number(options.durationMs) || 220);
+  const ghost = cardNode(attackCard, { clickable: false });
+  ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
+  ghost.classList.add('tarot-card-fly', 'tarot-kingdom-ram-card');
+  ghost.style.left = `${from.x}px`;
+  ghost.style.top = `${from.y}px`;
+  ghost.style.opacity = '0';
+  ghost.style.transform = 'translate(-50%, -50%) scale(0.84) rotate(-10deg)';
+  document.body.appendChild(ghost);
+  setTimeout(() => {
+    ghost.style.transition = `left ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), top ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), transform ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), opacity 90ms ease-out`;
+    ghost.style.left = `${to.x}px`;
+    ghost.style.top = `${to.y}px`;
+    ghost.style.opacity = '1';
+    ghost.style.transform = 'translate(-50%, -50%) scale(1.06) rotate(0deg)';
+  }, delayMs + 12);
+  setTimeout(() => {
+    targetEl.classList.add('is-ram-impact');
+    setTimeout(() => targetEl.classList.remove('is-ram-impact'), 160);
+  }, delayMs + Math.max(90, durationMs - 30));
+  setTimeout(() => {
+    ghost.style.transition = 'opacity 110ms ease-in, transform 110ms ease-in';
+    ghost.style.opacity = '0';
+    ghost.style.transform = 'translate(-50%, -50%) scale(0.78) rotate(6deg)';
+  }, delayMs + durationMs + 16);
+  setTimeout(() => {
+    if (ghost.parentElement) ghost.remove();
+  }, delayMs + durationMs + 180);
+}
+
+function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
+  if (typeof document === 'undefined' || !targetEl) return;
+  const rect = targetEl.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return;
+  const baseX = rect.left + (rect.width / 2);
+  const baseY = rect.top + (rect.height / 2);
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const particles = [];
+  if (kind === 'slash') {
+    particles.push({ emoji: '🗡️', variant: 'is-sword-main', x: baseX - 14, y: baseY + 6, dur: 430 });
+    particles.push({ emoji: '🗡️', variant: 'is-sword-sub', x: baseX + 8, y: baseY - 8, dur: 380 });
+  } else if (kind === 'rock') {
+    particles.push({ emoji: '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 560 });
+    particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 10, dur: 340 });
+  } else if (kind === 'water') {
+    particles.push({ emoji: '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 480 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 18, y: baseY - 8, dur: 460 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 4, y: baseY - 10, dur: 500 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 20, y: baseY - 6, dur: 520 });
+  } else if (kind === 'fire') {
+    particles.push({ emoji: '🔥', variant: 'is-fire-a', x: baseX - 14, y: baseY + 2, dur: 520 });
+    particles.push({ emoji: '🔥', variant: 'is-fire-b', x: baseX + 4, y: baseY - 8, dur: 560 });
+    particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 20, y: baseY + 4, dur: 500 });
+  } else {
+    particles.push({ emoji: '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 320 });
+  }
+
+  particles.forEach((cfg, idx) => {
+    const node = document.createElement('span');
+    node.className = `tarot-kingdom-defeat-particle is-${kind} ${cfg.variant || ''}`;
+    node.textContent = cfg.emoji;
+    node.style.left = `${cfg.x}px`;
+    node.style.top = `${cfg.y}px`;
+    node.style.animationDelay = `${delayMs + (idx * 36)}ms`;
+    node.style.setProperty('--fx-dur', `${Math.max(180, Number(cfg.dur) || 360)}ms`);
+    document.body.appendChild(node);
+    requestAnimationFrame(() => node.classList.add('run'));
+    const total = delayMs + (idx * 36) + Math.max(180, Number(cfg.dur) || 360) + 140;
+    setTimeout(() => {
+      if (node.parentElement) node.remove();
+    }, total);
+  });
+}
+
 function triggerKingdomTrickShake(isSpecial = false) {
   const root = ui.root || ui.trick;
   if (!root) return;
@@ -3990,8 +4081,8 @@ function renderTrick() {
     const swapToken = trickRenderToken;
     const isSpecial = defeatFxKind !== 'normal';
     const hitStopMs = 80;
-    const emphasisMs = 220;
-    const preDefeatMs = hitStopMs + emphasisMs;
+    const ramMs = isSpecial ? 260 : 220;
+    const preDefeatMs = hitStopMs + ramMs + 40;
     const staggerMs = 24;
     const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
     const baseMs = isSpecial ? 620 : 420;
@@ -4002,11 +4093,15 @@ function renderTrick() {
     };
     ui.trick.classList.add('is-hit-stop');
     setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
-    setTimeout(() => runIfCurrent(() => showKingdomTrickWinEmphasis(cards[0], defeatFxKind, emphasisMs)), hitStopMs);
-    setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(isSpecial)), preDefeatMs + 20);
+    setTimeout(() => runIfCurrent(() => playKingdomRamAttackFx(Number(s?.trick?.owner ?? -1), cards[0], prevCards[0], {
+      delayMs: 0,
+      durationMs: ramMs
+    })), hitStopMs);
+    setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(isSpecial)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
       prevCards.forEach((node, idx) => {
         if (!node) return;
+        if (idx === 0) spawnKingdomDefeatParticles(node, defeatFxKind, { delayMs: 0 });
         node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
         node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
         node.style.animationDelay = `${idx * staggerMs}ms`;
