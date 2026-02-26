@@ -1029,6 +1029,17 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   const ghost = cardNode(attackCard, { clickable: false });
   ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
   ghost.classList.add('tarot-card-fly', 'tarot-kingdom-ram-card');
+  const targetRect = targetEl?.getBoundingClientRect?.();
+  if (targetRect && targetRect.width > 0 && targetRect.height > 0) {
+    const w = Math.round(targetRect.width);
+    const h = Math.round(targetRect.height);
+    ghost.style.width = `${w}px`;
+    ghost.style.minWidth = `${w}px`;
+    ghost.style.height = `${h}px`;
+    ghost.style.minHeight = `${h}px`;
+    ghost.style.setProperty('--tarot-card-w', `${w}px`);
+    ghost.style.setProperty('--tarot-card-h', `${h}px`);
+  }
   ghost.style.left = `${from.x}px`;
   ghost.style.top = `${from.y}px`;
   ghost.style.opacity = '0';
@@ -1059,11 +1070,6 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
     ghost.style.opacity = '1';
     ghost.style.transform = 'translate(-50%, -50%) scale(1) rotate(0deg)';
   }, delayMs + 12);
-  setTimeout(() => {
-    if (removed || !targetEl) return;
-    targetEl.classList.add('is-ram-impact');
-    setTimeout(() => targetEl.classList.remove('is-ram-impact'), 160);
-  }, delayMs + durationMs + Math.floor(hitPauseMs * 0.45));
   if (!keepAfterHit) {
     fadeOutAndRemove(delayMs + durationMs + hitPauseMs + 16, 110);
   }
@@ -3360,7 +3366,7 @@ function finishRound(winnerIndex) {
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x 係数${scoreFactor}）`);
     if (pay > 0) {
       playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
-        targetPlayerIndex: winnerIndex,
+        targetSelector: '#tarotKingdomSettlementWinnerAnchor',
         className: 'is-payout',
         delayMs: fxDelayMs
       });
@@ -3394,7 +3400,7 @@ function finishRound(winnerIndex) {
   });
   playKingdomCoinEffect(winnerIndex, Math.min(10, Math.max(4, Math.ceil(totalGain / 6))), '👑', {
     fromPot: true,
-    targetPlayerIndex: winnerIndex,
+    targetSelector: '#tarotKingdomSettlementWinnerAnchor',
     className: 'is-payout',
     delayMs: fxDelayMs + 200
   });
@@ -3424,7 +3430,7 @@ function finishRound(winnerIndex) {
     });
     playKingdomCoinEffect(top, 12, '🏆', {
       fromPot: true,
-      targetPlayerIndex: top,
+      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
       className: 'is-payout',
       delayMs: 220
     });
@@ -3450,7 +3456,7 @@ function finishRound(winnerIndex) {
     });
     playKingdomCoinEffect(top, 12, '🏆', {
       fromPot: true,
-      targetPlayerIndex: top,
+      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
       className: 'is-payout',
       delayMs: 220
     });
@@ -4793,10 +4799,6 @@ function renderSettlement() {
       body.appendChild(pot);
     }
 
-    const total = document.createElement('div');
-    total.className = 'tarot-kingdom-settlement-total';
-    total.textContent = `総受取: ${data.totalGain} TP`;
-    body.appendChild(total);
   }
 
   if (confirmButton) {
