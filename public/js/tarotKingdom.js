@@ -86,6 +86,10 @@ let humanTurnBadgeTimer = null;
 let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
+let settlementGainEventTimers = [];
+let settlementGainAnimTimer = null;
+let settlementGainQueue = [];
+let settlementGainAnimating = false;
 const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
 const KINGDOM_TRACE_ENABLED = true;
@@ -195,6 +199,71 @@ const clearOracleFlipTimers = () => {
   ui.oracleCardWrap?.classList.remove('is-flipping');
   ui.hiddenOracleCardWrap?.classList.remove('is-flipping');
 };
+const clearSettlementGainFx = () => {
+  settlementGainEventTimers.forEach((timerId) => clearTimeout(timerId));
+  settlementGainEventTimers = [];
+  if (settlementGainAnimTimer) {
+    clearTimeout(settlementGainAnimTimer);
+    settlementGainAnimTimer = null;
+  }
+  settlementGainQueue = [];
+  settlementGainAnimating = false;
+};
+function queueSettlementGain(amount) {
+  const gain = Math.max(0, Math.floor(Number(amount) || 0));
+  if (gain <= 0) return;
+  settlementGainQueue.push(gain);
+  if (settlementGainAnimating) return;
+  const runNext = () => {
+    if (!s?.roundSettlement) {
+      settlementGainAnimating = false;
+      settlementGainAnimTimer = null;
+      settlementGainQueue = [];
+      return;
+    }
+    if (!settlementGainQueue.length) {
+      settlementGainAnimating = false;
+      settlementGainAnimTimer = null;
+      return;
+    }
+    settlementGainAnimating = true;
+    const add = Math.max(0, Number(settlementGainQueue.shift()) || 0);
+    const total = Math.max(0, Number(s.roundSettlement.totalGain) || 0);
+    const from = Math.max(0, Number(s.roundSettlement.displayTotalGain) || 0);
+    const to = Math.min(total, from + add);
+    const durationMs = 280;
+    const startAt = Date.now();
+    const tick = () => {
+      if (!s?.roundSettlement) {
+        settlementGainAnimating = false;
+        settlementGainAnimTimer = null;
+        settlementGainQueue = [];
+        return;
+      }
+      const t = Math.min(1, (Date.now() - startAt) / durationMs);
+      const eased = 1 - ((1 - t) ** 3);
+      s.roundSettlement.displayTotalGain = Math.round(from + ((to - from) * eased));
+      renderSettlement();
+      if (t < 1) {
+        settlementGainAnimTimer = setTimeout(tick, 16);
+        return;
+      }
+      s.roundSettlement.displayTotalGain = to;
+      renderSettlement();
+      settlementGainAnimTimer = null;
+      runNext();
+    };
+    tick();
+  };
+  runNext();
+}
+function scheduleSettlementGain(amount, delayMs = 0) {
+  const timerId = setTimeout(() => {
+    settlementGainEventTimers = settlementGainEventTimers.filter((id) => id !== timerId);
+    queueSettlementGain(amount);
+  }, Math.max(0, Number(delayMs) || 0));
+  settlementGainEventTimers.push(timerId);
+}
 const getKingdomCoinCountByAmount = (amount) => {
   const n = Math.max(0, Math.floor(Number(amount) || 0));
   if (n >= 20) return 10;
@@ -202,14 +271,6 @@ const getKingdomCoinCountByAmount = (amount) => {
   if (n >= 8) return 7;
   if (n >= 5) return 6;
   if (n >= 3) return 5;
-  return 4;
-};
-const getKingdomMoneyBagCountByPot = (potAmount) => {
-  const pot = Math.max(0, Math.floor(Number(potAmount) || 0));
-  if (pot >= 80) return 12;
-  if (pot >= 50) return 10;
-  if (pot >= 30) return 8;
-  if (pot >= 15) return 6;
   return 4;
 };
 const getKingdomCallFxLevel = (roleKey) => {
@@ -388,6 +449,40 @@ const getPlaySuitMask = (play) => {
     ? play.cardsTable
     : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
   return suitMaskForCards(cards);
+};
+const getPrimarySuitFromPlay = (play) => {
+  const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
+    ? play.cardsTable
+    : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
+  for (const card of cards) {
+    const suits = suitsForCard(card, false).filter((suit) => suit && suit !== 'None');
+    if (suits.includes('Sword')) return 'Sword';
+    if (suits.includes('Pentacle')) return 'Pentacle';
+    if (suits.includes('Cup')) return 'Cup';
+    if (suits.includes('Wand')) return 'Wand';
+  }
+  return null;
+};
+const pickTrickDefeatFx = (play, prevTrick) => {
+  const prevCards = Array.isArray(prevTrick?.cardsTable) ? prevTrick.cardsTable : [];
+  if (!play || !prevCards.length) return null;
+  const info = { kind: 'normal', special: false };
+  if (String(play?.type || '') !== 'set' || String(prevTrick?.type || '') !== 'set') return info;
+  const samePower = setCmp(play?.setPower ?? play?.number, prevTrick?.setPower ?? prevTrick?.number) === 0;
+  if (!samePower) return info;
+  const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
+  const playHasMajor = playCards.some((card) => card?.kind === 'major');
+  const prevHasMajor = prevCards.some((card) => card?.kind === 'major');
+  if (playHasMajor || prevHasMajor) return info;
+  const suitBattle = isSuitMatchupCompatible(getPlaySuitMask(play), getPlaySuitMask(prevTrick));
+  if (!suitBattle) return info;
+  info.special = true;
+  const suit = getPrimarySuitFromPlay(play);
+  if (suit === 'Sword') info.kind = 'slash';
+  else if (suit === 'Pentacle') info.kind = 'rock';
+  else if (suit === 'Cup') info.kind = 'water';
+  else if (suit === 'Wand') info.kind = 'fire';
+  return info;
 };
 const suitTierForCard = (c, suit) => {
   const base = SUIT_TIER[suit] || 0;
@@ -1031,6 +1126,7 @@ function initState() {
     pendingDrawReason: null,
     pendingJudgment: null,
     callMergeFx: null,
+    trickDefeatFx: null,
     graveOpen: false,
     handSortFreezeUntil: 0,
     selected: new Set(),
@@ -1044,6 +1140,7 @@ function initState() {
 }
 
 function clearRoundState() {
+  clearSettlementGainFx();
   clearRoundStartCinematicTimer();
   clearOpeningDealTimers();
   s.trick = null;
@@ -1064,6 +1161,7 @@ function clearRoundState() {
   s.pendingDrawReason = null;
   s.pendingJudgment = null;
   s.callMergeFx = null;
+  s.trickDefeatFx = null;
   s.graveOpen = false;
   s.handSortFreezeUntil = 0;
   s.openingDealRevealCount = 0;
@@ -2081,6 +2179,7 @@ async function ensureTarotKingdomNetwork() {
 }
 
 function resetMatch() {
+  clearSettlementGainFx();
   s = initState();
   if (trickSwapTimer) { clearTimeout(trickSwapTimer); trickSwapTimer = null; }
   trickRenderKey = '';
@@ -2672,6 +2771,7 @@ function clearTrick(leader) {
   s.starDrainAuraOwner = null;
   s.passStarDrainAuraOwner = null;
   s.hermitPreview = null;
+  s.trickDefeatFx = null;
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   s.leadRequiredOwner = leader;
   if (!s.reversePersist) s.reverse = false;
@@ -2837,6 +2937,7 @@ function applySetEffects(play) {
 }
 
 function finishRound(winnerIndex) {
+  clearSettlementGainFx();
   clearNpcTimer();
   clearCallCinematicTimer();
   clearRoundOutCinematicTimer();
@@ -2858,7 +2959,8 @@ function finishRound(winnerIndex) {
     oracleHits,
     rows: [],
     potAward: 0,
-    totalGain: 0
+    totalGain: 0,
+    displayTotalGain: 0
   };
   log(`${winner.name}がアウト！ 清算開始`);
   s.players.forEach((loser, i) => {
@@ -2896,8 +2998,10 @@ function finishRound(winnerIndex) {
     if (pay > 0) {
       playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
         targetPlayerIndex: winnerIndex,
+        className: 'is-payout',
         delayMs: fxDelayMs
       });
+      scheduleSettlementGain(pay, fxDelayMs + 520);
       fxDelayMs += 110;
     }
   });
@@ -2907,19 +3011,16 @@ function finishRound(winnerIndex) {
     totalGain += Math.max(0, potAward);
     settlement.potAward = potAward;
     log(`${winner.name}がPOT ${potAward}獲得`);
+    scheduleSettlementGain(potAward, fxDelayMs + 200);
     s.pot = 0;
   }
   settlement.totalGain = totalGain;
   s.roundSettlement = settlement;
-  // 清算パネル内の勝者エリアを描画してから、POTドル袋を着地させる。
+  // 清算パネルを先に描画して総受取を反映
   render();
-  if (settlement.potAward > 0) {
-    playKingdomCoinEffect(winnerIndex, getKingdomMoneyBagCountByPot(settlement.potAward), '💰', {
-      fromPot: true,
-      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
-      className: 'is-payout',
-      delayMs: fxDelayMs + 80
-    });
+  if (totalGain <= 0) {
+    s.roundSettlement.displayTotalGain = 0;
+    renderSettlement();
   }
   triggerKingdomActionFx(winnerIndex, `総取り +${totalGain}`, {
     overlay: 'roundend',
@@ -3179,6 +3280,13 @@ function startRoundOutCinematic(winnerIndex, play) {
 function applyPlay(pi, play, retryDepth = 0) {
   clearCallCinematicTimer();
   const p = s.players[pi];
+  const prevTrick = s?.trick
+    ? {
+      ...s.trick,
+      cardsTable: Array.isArray(s.trick.cardsTable) ? s.trick.cardsTable.slice() : [],
+      tableOwners: Array.isArray(s.trick.tableOwners) ? s.trick.tableOwners.slice() : []
+    }
+    : null;
   const prevLeadCard = s?.trick?.cardsTable?.[0] || null;
   const prevLeadSuit = prevLeadCard ? (suitsForCard(prevLeadCard, false)[0] || 'None') : null;
   const prevLeadOwner = Number.isInteger(s?.trick?.owner) ? s.trick.owner : null;
@@ -3272,6 +3380,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   if (isLocalPlayer(pi)) s.selected.clear();
   s.pass = [false, false, false, false];
   s.trick = play;
+  s.trickDefeatFx = pickTrickDefeatFx(play, prevTrick);
   play.prevLeadSuit = prevLeadSuit;
   s.leadRequiredOwner = null;
   s.lastPlay = play;
@@ -3840,7 +3949,33 @@ function renderTrick() {
     clearTimeout(trickSwapTimer);
     trickSwapTimer = null;
   }
-  // 場札消失の競合回避: 入れ替えは遅延せず即時反映する
+  const prevCards = Array.from(ui.trick.querySelectorAll('.tarot-card'));
+  const defeatFxRaw = String(s?.trickDefeatFx?.kind || 'normal');
+  const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire'].includes(defeatFxRaw)
+    ? defeatFxRaw
+    : 'normal';
+  s.trickDefeatFx = null;
+
+  if (prevCards.length > 0 && cards.length > 0) {
+    trickRenderToken += 1;
+    const swapToken = trickRenderToken;
+    const staggerMs = 24;
+    const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
+    const baseMs = defeatFxKind === 'normal' ? 300 : 420;
+    prevCards.forEach((node, idx) => {
+      if (!node) return;
+      node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+      node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
+      node.style.animationDelay = `${idx * staggerMs}ms`;
+      node.style.animationDuration = `${baseMs}ms`;
+    });
+    trickSwapTimer = setTimeout(() => {
+      if (swapToken !== trickRenderToken) return;
+      trickSwapTimer = null;
+      renderNow();
+    }, baseMs + tailMs + 80);
+    return;
+  }
   trickRenderToken += 1;
   renderNow();
 }
@@ -4089,15 +4224,21 @@ function renderSettlement() {
 
   if (body) {
     body.innerHTML = '';
-    const head = document.createElement('div');
-    head.className = 'tarot-kingdom-settlement-head';
-    head.textContent = `第${data.roundNo}局 / 勝者: ${data.winnerName}`;
-    body.appendChild(head);
 
     const winnerAnchor = document.createElement('div');
     winnerAnchor.id = 'tarotKingdomSettlementWinnerAnchor';
     winnerAnchor.className = 'tarot-kingdom-settlement-winner';
-    winnerAnchor.textContent = `勝者 ${data.winnerName} / 受取予定 +${data.totalGain} TP`;
+    const winnerMain = document.createElement('div');
+    winnerMain.className = 'tarot-kingdom-settlement-winner-main';
+    const shownGain = Math.max(0, Number(data.displayTotalGain ?? data.totalGain) || 0);
+    winnerMain.textContent = `勝者 ${data.winnerName} / 受取 +${shownGain} TP`;
+    const winnerSub = document.createElement('div');
+    winnerSub.className = 'tarot-kingdom-settlement-winner-sub';
+    const stars = Math.max(0, Number(data.starBonus) || 0);
+    const starText = stars > 0 ? '★'.repeat(stars) : '★0';
+    winnerSub.textContent = `${starText} / オラクルx${Math.max(0, Number(data.oracleHits) || 0)}`;
+    winnerAnchor.appendChild(winnerMain);
+    winnerAnchor.appendChild(winnerSub);
     body.appendChild(winnerAnchor);
 
     (data.rows || []).forEach((row) => {
@@ -4583,6 +4724,7 @@ export async function loadTarotKingdomPage() {
 }
 
 export function destroyTarotKingdomPage() {
+  clearSettlementGainFx();
   clearNpcTimer();
   clearOracleFlipTimers();
   clearCallCinematicTimer();

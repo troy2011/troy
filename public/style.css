@@ -3082,6 +3082,19 @@ body.modal-lock .modal-overlay {
     text-align: left;
 }
 
+.tarot-kingdom-settlement-winner-main {
+    font-size: 12px;
+    font-weight: 800;
+    color: #fde68a;
+}
+
+.tarot-kingdom-settlement-winner-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fef3c7;
+}
+
 .tarot-kingdom-settlement-row {
     border: 1px solid rgba(148, 163, 184, 0.26);
     border-radius: 8px;
@@ -4994,6 +5007,69 @@ body.modal-lock .modal-overlay {
     filter: saturate(1.1);
 }
 
+.tarot-card.is-defeat-transition {
+    pointer-events: none !important;
+    will-change: transform, opacity, filter;
+    z-index: 4;
+}
+
+.tarot-card.is-defeat-transition::after {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 18px;
+    line-height: 1;
+    pointer-events: none;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+}
+
+.tarot-card.is-defeat-normal {
+    animation: tarotKingdomDefeatNormal 300ms cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
+}
+
+.tarot-card.is-defeat-normal::after {
+    content: "💥";
+    animation: tarotKingdomDefeatMarker 280ms ease-out forwards;
+}
+
+.tarot-card.is-defeat-slash {
+    animation: tarotKingdomDefeatSlash 420ms cubic-bezier(0.2, 0.84, 0.24, 1) forwards;
+}
+
+.tarot-card.is-defeat-slash::after {
+    content: "⚔️";
+    animation: tarotKingdomDefeatSlashMarker 360ms ease-out forwards;
+}
+
+.tarot-card.is-defeat-rock {
+    animation: tarotKingdomDefeatRock 420ms cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
+}
+
+.tarot-card.is-defeat-rock::after {
+    content: "🪨";
+    animation: tarotKingdomDefeatRockMarker 380ms ease-out forwards;
+}
+
+.tarot-card.is-defeat-water {
+    animation: tarotKingdomDefeatWater 420ms cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
+}
+
+.tarot-card.is-defeat-water::after {
+    content: "💧";
+    animation: tarotKingdomDefeatWaterMarker 360ms ease-out forwards;
+}
+
+.tarot-card.is-defeat-fire {
+    animation: tarotKingdomDefeatFire 420ms cubic-bezier(0.2, 0.84, 0.24, 1) forwards;
+}
+
+.tarot-card.is-defeat-fire::after {
+    content: "🔥";
+    animation: tarotKingdomDefeatFireMarker 360ms ease-out forwards;
+}
+
 .tarot-card.is-entering {
     opacity: 0 !important;
     transform: translateY(10px) scale(0.97);
@@ -5024,6 +5100,75 @@ body.modal-lock .modal-overlay {
         opacity: 1 !important;
         transform: none !important;
     }
+    .tarot-card.is-defeat-transition {
+        animation: none !important;
+        opacity: 0 !important;
+        transform: none !important;
+        filter: none !important;
+    }
+    .tarot-card.is-defeat-transition::after {
+        animation: none !important;
+        opacity: 0 !important;
+    }
+}
+
+@keyframes tarotKingdomDefeatNormal {
+    0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-22px) scale(0.94) rotate(-5deg); }
+}
+
+@keyframes tarotKingdomDefeatMarker {
+    0% { opacity: 0; transform: translate(-50%, -52%) scale(0.6); }
+    30% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+    100% { opacity: 0; transform: translate(-50%, -62%) scale(1.14); }
+}
+
+@keyframes tarotKingdomDefeatSlash {
+    0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: none; }
+    55% { opacity: 1; transform: translateY(-4px) scale(0.98) rotate(-10deg); filter: saturate(1.25); }
+    100% { opacity: 0; transform: translateY(-18px) scale(0.9) rotate(-16deg); filter: saturate(1.45) brightness(0.9); }
+}
+
+@keyframes tarotKingdomDefeatSlashMarker {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.72) rotate(-24deg); }
+    35% { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(4deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.18) rotate(20deg); }
+}
+
+@keyframes tarotKingdomDefeatRock {
+    0% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
+    45% { opacity: 1; transform: translateY(2px) scale(0.96); filter: brightness(0.84); }
+    100% { opacity: 0; transform: translateY(16px) scale(0.84); filter: brightness(0.7) saturate(0.75); }
+}
+
+@keyframes tarotKingdomDefeatRockMarker {
+    0% { opacity: 0; transform: translate(-50%, -120%) scale(0.64); }
+    45% { opacity: 1; transform: translate(-50%, -52%) scale(1.02); }
+    100% { opacity: 0; transform: translate(-50%, -30%) scale(0.9); }
+}
+
+@keyframes tarotKingdomDefeatWater {
+    0% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
+    45% { opacity: 0.95; transform: translateY(3px) scale(0.95); filter: blur(0.8px) saturate(1.18); }
+    100% { opacity: 0; transform: translateY(12px) scale(0.88); filter: blur(2px) saturate(1.25); }
+}
+
+@keyframes tarotKingdomDefeatWaterMarker {
+    0% { opacity: 0; transform: translate(-50%, -56%) scale(0.6); }
+    40% { opacity: 1; transform: translate(-50%, -48%) scale(1.06); }
+    100% { opacity: 0; transform: translate(-50%, -36%) scale(1.18); }
+}
+
+@keyframes tarotKingdomDefeatFire {
+    0% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
+    40% { opacity: 1; transform: translateY(-2px) scale(0.96); filter: saturate(1.3) brightness(1.06); }
+    100% { opacity: 0; transform: translateY(-16px) scale(0.86); filter: saturate(1.75) brightness(0.7); }
+}
+
+@keyframes tarotKingdomDefeatFireMarker {
+    0% { opacity: 0; transform: translate(-50%, -52%) scale(0.66); }
+    32% { opacity: 1; transform: translate(-50%, -62%) scale(1.12); }
+    100% { opacity: 0; transform: translate(-50%, -74%) scale(1.26); }
 }
 
 .tarot-card.is-chariot-splitting {
