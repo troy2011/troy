@@ -1016,14 +1016,23 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   if (!from || !to) return noopController;
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
   const durationMs = Math.max(180, Number(options.durationMs) || 220);
+  const stopBeforePx = Math.max(10, Number(options.stopBeforePx) || 18);
+  const hitPauseMs = Math.max(20, Number(options.hitPauseMs) || 56);
   const keepAfterHit = !!options.keepAfterHit;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.max(1, Math.hypot(dx, dy));
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const hitX = to.x - (ux * stopBeforePx);
+  const hitY = to.y - (uy * stopBeforePx);
   const ghost = cardNode(attackCard, { clickable: false });
   ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
   ghost.classList.add('tarot-card-fly', 'tarot-kingdom-ram-card');
   ghost.style.left = `${from.x}px`;
   ghost.style.top = `${from.y}px`;
   ghost.style.opacity = '0';
-  ghost.style.transform = 'translate(-50%, -50%) scale(0.84) rotate(-10deg)';
+  ghost.style.transform = 'translate(-50%, -50%) scale(1) rotate(0deg)';
   document.body.appendChild(ghost);
 
   let removed = false;
@@ -1045,21 +1054,21 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   setTimeout(() => {
     if (removed || !ghost.parentElement) return;
     ghost.style.transition = `left ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), top ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), transform ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), opacity 90ms ease-out`;
-    ghost.style.left = `${to.x}px`;
-    ghost.style.top = `${to.y}px`;
+    ghost.style.left = `${hitX}px`;
+    ghost.style.top = `${hitY}px`;
     ghost.style.opacity = '1';
-    ghost.style.transform = 'translate(-50%, -50%) scale(1.06) rotate(0deg)';
+    ghost.style.transform = 'translate(-50%, -50%) scale(1) rotate(0deg)';
   }, delayMs + 12);
   setTimeout(() => {
     if (removed || !targetEl) return;
     targetEl.classList.add('is-ram-impact');
     setTimeout(() => targetEl.classList.remove('is-ram-impact'), 160);
-  }, delayMs + Math.max(90, durationMs - 30));
+  }, delayMs + durationMs + Math.floor(hitPauseMs * 0.45));
   if (!keepAfterHit) {
-    fadeOutAndRemove(delayMs + durationMs + 16, 110);
+    fadeOutAndRemove(delayMs + durationMs + hitPauseMs + 16, 110);
   }
   return {
-    totalMs: delayMs + durationMs + (keepAfterHit ? 0 : 180),
+    totalMs: delayMs + durationMs + hitPauseMs + (keepAfterHit ? 0 : 180),
     settleTo: (settleTargetEl, settleOptions = {}) => {
       if (removed || !ghost.parentElement) return 0;
       const settleTarget = getElementCenterPoint(settleTargetEl);
