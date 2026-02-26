@@ -33,7 +33,6 @@ const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const GAMEOVER_CHIPS_THRESHOLD = 0;
 const A_PENALTY = 1;
-const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
 const ROUND_OUT_CINEMATIC_MS = 1080;
 const GAME_FINAL_CINEMATIC_MS = 2800;
@@ -162,6 +161,20 @@ const scheduleNpcTimer = (delayMs, fn) => {
     npcTimer = null;
     fn?.();
   }, Math.max(0, Number(delayMs) || 0));
+};
+
+const getNpcActionDelayMs = () => {
+  // 固定ウェイトは使わず、演出タイマー稼働中のみ最小限待つ。
+  const hasActiveCinematic = !!(
+    callCinematicTimer ||
+    roundStartCinematicTimer ||
+    roundOutCinematicTimer ||
+    openingDealStartTimer ||
+    openingDealFlipTimer ||
+    openingDealNextTimer ||
+    trickSwapTimer
+  );
+  return hasActiveCinematic ? 90 : 0;
 };
 
 const clearCallCinematicTimer = () => {
@@ -1799,10 +1812,18 @@ function isNpcPlayer(index) {
   return !!p?.isNpc;
 }
 
+function getActiveTurnPlayerIndex() {
+  if (!s?.roundActive) return -1;
+  if (s.phase === 'draw' && Number.isInteger(s.pendingDraw)) return Number(s.pendingDraw);
+  if (s.phase === 'judgment' && Number.isInteger(s.pendingJudgment)) return Number(s.pendingJudgment);
+  if (s.phase === 'turn' && Number.isInteger(s.turn)) return Number(s.turn);
+  return -1;
+}
+
 function isHumanTurnActiveNow() {
   const me = getLocalPlayerIndex();
   if (me < 0 || !s) return false;
-  return !!(s.roundActive && s.phase === 'turn' && s.turn === me);
+  return getActiveTurnPlayerIndex() === me;
 }
 
 function clearYourTurnBadge() {
@@ -3329,25 +3350,7 @@ function drawChoiceStart(playerIndex, reason = 'normal') {
   s.phase = 'draw'; s.message = `${pName(playerIndex)}: 小 or 大アルカナを1枚ドロー`;
   traceKingdomFlow('drawChoiceStart.waitChoice', `player=${playerIndex}`);
   render();
-  if (isNpcPlayer(playerIndex)) {
-    scheduleNpcTimer(NPC_DELAY, () => {
-      if (!s || !s.roundActive) {
-        traceKingdomFlow('drawChoiceStart.npcTimer.abort', `player=${playerIndex} reason=inactive`);
-        return;
-      }
-      if (s.phase !== 'draw' || s.pendingDraw !== playerIndex) {
-        traceKingdomFlow('drawChoiceStart.npcTimer.abort', `player=${playerIndex} reason=phaseOrPending`);
-        return;
-      }
-      const plan = npcChooseDrawPlan(playerIndex);
-      traceKingdomFlow('drawChoiceStart.npcTimer.choose', `player=${playerIndex} plan=${plan} reason=${s.pendingDrawReason || 'normal'}`);
-      if (plan === 'skip') {
-        skipDrawChoice(playerIndex, s.pendingDrawReason === 'clear' ? 'クリア後は攻め継続' : '戦術');
-        return;
-      }
-      applyDrawChoice(plan);
-    });
-  }
+  if (isNpcPlayer(playerIndex)) scheduleNpc();
 }
 
 function judgmentOptions() {
@@ -3361,14 +3364,7 @@ function judgmentStart(playerIndex) {
   if (!opts.length) { log('審判: 回収候補なし'); drawChoiceStart(playerIndex, 'judgment'); return; }
   s.pendingJudgment = playerIndex; s.phase = 'judgment'; s.message = `${pName(playerIndex)}: 審判で墓地回収`;
   render();
-  if (isNpcPlayer(playerIndex)) {
-    scheduleNpcTimer(NPC_DELAY, () => {
-      if (!s || !s.roundActive) return;
-      if (s.phase !== 'judgment' || s.pendingJudgment !== playerIndex) return;
-      const pick = opts.slice().sort((a, b) => cStrength(b.card) - cStrength(a.card))[0];
-      if (pick) applyJudgmentPick(pick.owner, pick.cardIndex); else skipJudgmentPick();
-    });
-  }
+  if (isNpcPlayer(playerIndex)) scheduleNpc();
 }
 
 function clearTrick(leader) {
@@ -4357,12 +4353,7 @@ function npcAct() {
       const used = useHangedManAction(pi, [hangIdx]);
       if (used.ok) {
         traceKingdomFlow('npcAct.hangedMan', `player=${pi}`);
-        scheduleNpcTimer(Math.max(420, Math.floor(NPC_DELAY * 0.75)), () => {
-          if (!s || !s.roundActive) return;
-          if (s.phase !== 'turn' || s.turn !== pi) return;
-          if (!s.players?.[pi] || !isNpcPlayer(pi)) return;
-          npcAct();
-        });
+        scheduleNpc();
         return;
       }
     }
@@ -4398,13 +4389,15 @@ function scheduleNpc() {
     return;
   }
   if (s.phase === 'draw' && s.pendingDraw != null && isNpcPlayer(s.pendingDraw)) {
-    traceKingdomFlow('scheduleNpc.timer', `reason=draw player=${s.pendingDraw} delay=${NPC_DELAY}`);
-    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    const delayMs = getNpcActionDelayMs();
+    traceKingdomFlow('scheduleNpc.timer', `reason=draw player=${s.pendingDraw} delay=${delayMs}`);
+    scheduleNpcTimer(delayMs, () => npcAct());
     return;
   }
   if (s.phase === 'judgment' && s.pendingJudgment != null && isNpcPlayer(s.pendingJudgment)) {
-    traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${NPC_DELAY}`);
-    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    const delayMs = getNpcActionDelayMs();
+    traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${delayMs}`);
+    scheduleNpcTimer(delayMs, () => npcAct());
     return;
   }
   if (s.phase !== 'turn') {
@@ -4412,8 +4405,9 @@ function scheduleNpc() {
     return;
   }
   if (isNpcPlayer(s.turn)) {
-    traceKingdomFlow('scheduleNpc.timer', `reason=turn player=${s.turn} delay=${NPC_DELAY}`);
-    scheduleNpcTimer(NPC_DELAY, () => npcAct());
+    const delayMs = getNpcActionDelayMs();
+    traceKingdomFlow('scheduleNpc.timer', `reason=turn player=${s.turn} delay=${delayMs}`);
+    scheduleNpcTimer(delayMs, () => npcAct());
     return;
   }
   traceKingdomFlow('scheduleNpc.abort', `reason=humanTurn player=${s.turn}`);
@@ -4474,11 +4468,12 @@ function renderPlayers() {
   const callOwner = (s.phase === 'callCinematic' && s.callMergeFx?.owner != null)
     ? Number(s.callMergeFx.owner)
     : null;
+  const activeTurnPlayer = getActiveTurnPlayerIndex();
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
     row.dataset.playerIndex = String(i);
     const isLastOne = Number(p?.hand?.length || 0) === 1;
-    if (i === s.turn && s.phase === 'turn') row.classList.add('is-turn');
+    if (i === activeTurnPlayer) row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
     if (isLastOne) row.classList.add('is-last-one');
     if (callOwner != null) {
