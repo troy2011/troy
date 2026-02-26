@@ -42,6 +42,8 @@ const PRESENCE_AWAY_GRACE_MS = 30000;
 const OPENING_HAND_FLIP_START_DELAY_MS = 90;
 const OPENING_HAND_FLIP_MS = 170;
 const OPENING_HAND_FLIP_GAP_MS = 45;
+const DRAW_HAND_FLIP_REVEAL_DELAY_MS = 90;
+const DRAW_HAND_FLIP_MS = 220;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -82,6 +84,8 @@ let roundOutCinematicTimer = null;
 let openingDealStartTimer = null;
 let openingDealFlipTimer = null;
 let openingDealNextTimer = null;
+let drawHandFlipRevealTimer = null;
+let drawHandFlipEndTimer = null;
 let humanTurnBadgeTimer = null;
 let pendingTurnAdvanceAfterTrick = null;
 let lastHumanTurnActive = false;
@@ -191,6 +195,22 @@ const clearOpeningDealTimers = () => {
   if (openingDealNextTimer) {
     clearTimeout(openingDealNextTimer);
     openingDealNextTimer = null;
+  }
+};
+const clearDrawHandFlipTimers = () => {
+  if (drawHandFlipRevealTimer) {
+    clearTimeout(drawHandFlipRevealTimer);
+    drawHandFlipRevealTimer = null;
+  }
+  if (drawHandFlipEndTimer) {
+    clearTimeout(drawHandFlipEndTimer);
+    drawHandFlipEndTimer = null;
+  }
+  if (s) {
+    s.drawFlipPlayer = -1;
+    s.drawFlipCardId = '';
+    s.drawFlipRevealAt = 0;
+    s.drawFlipEndAt = 0;
   }
 };
 const clearOracleFlipTimers = () => {
@@ -418,6 +438,36 @@ function onPlayerDrewCard(playerIndex, freezeMs = 1100) {
     return;
   }
   s.players[playerIndex].hand.sort((a, b) => cStrength(a) - cStrength(b));
+}
+
+function startDrawHandFlip(playerIndex, card) {
+  if (!s) return;
+  if (!isLocalPlayer(playerIndex) || !card?.id) return;
+  clearDrawHandFlipTimers();
+  const now = Date.now();
+  const revealAt = now + DRAW_HAND_FLIP_REVEAL_DELAY_MS;
+  const endAt = revealAt + DRAW_HAND_FLIP_MS;
+  const cardId = String(card.id);
+  s.drawFlipPlayer = Number(playerIndex);
+  s.drawFlipCardId = cardId;
+  s.drawFlipRevealAt = revealAt;
+  s.drawFlipEndAt = endAt;
+  drawHandFlipRevealTimer = setTimeout(() => {
+    drawHandFlipRevealTimer = null;
+    if (!s) return;
+    if (String(s.drawFlipCardId || '') !== cardId) return;
+    render();
+  }, Math.max(0, revealAt - now));
+  drawHandFlipEndTimer = setTimeout(() => {
+    drawHandFlipEndTimer = null;
+    if (!s) return;
+    if (String(s.drawFlipCardId || '') !== cardId) return;
+    s.drawFlipPlayer = -1;
+    s.drawFlipCardId = '';
+    s.drawFlipRevealAt = 0;
+    s.drawFlipEndAt = 0;
+    render();
+  }, Math.max(0, endAt - now) + 20);
 }
 function toggleLocalHandSortMode() {
   if (!s) return;
@@ -696,8 +746,10 @@ function showKingdomCardEffectInfo(card, prefix = '効果') {
 function getShortPlayHelp(reason) {
   const text = String(reason || '');
   if (!text) return '';
-  if (text.includes('ストレートコール制限')) return 'ヒント: 手札全体（選択中含む）に場札と同数値があると不可です。';
-  if (text.includes('同スートが5枚以上必要')) return 'ヒント: 手札全体（選択中含む）で場札と同スートを5枚以上用意してください。';
+  if (text.includes('ストレートコール制限')) return 'ヒント: 手札全体（選択中含む）に場札と同数値が1枚でもあると不可です。';
+  if (text.includes('同スートが5枚以上あるため不可')) return 'ヒント: フラッシュコールは、手札全体（選択中含む）で場札と同スートが4枚以下のときのみ可能です。';
+  if (text.includes('場札がハイカードになる構成は不可')) return 'ヒント: 場札が5枚中のハイカードにならない組み方にしてください。';
+  if (text.includes('同スートが5枚以上必要')) return 'ヒント: 現仕様では同スート5枚以上はフラッシュコール不可です。';
   if (text.includes('フラッシュコール制限')) return 'ヒント: 場札がハイカードにならない構成で5枚を作ってください。';
   if (text.includes('コールは手札4枚')) return 'ヒント: コール時は手札を4枚だけ選択します。';
   if (text.includes('コール対象は1枚場札のみ')) return 'ヒント: コールは場札が1枚のときだけ使えます。';
@@ -795,6 +847,8 @@ function showKingdomCutin(playerIndex, label, options = {}) {
     'is-kingdom-role',
     'is-kingdom-round-end',
     'is-kingdom-round-out',
+    'is-kingdom-clear-combo',
+    'is-kingdom-clear-gold',
     'is-kingdom-grand-win',
     'is-kingdom-your-turn'
   );
@@ -818,6 +872,8 @@ function showKingdomCutin(playerIndex, label, options = {}) {
       'is-kingdom-role',
       'is-kingdom-round-end',
       'is-kingdom-round-out',
+      'is-kingdom-clear-combo',
+      'is-kingdom-clear-gold',
       'is-kingdom-grand-win',
       'is-kingdom-your-turn'
     );
@@ -1541,11 +1597,17 @@ function initState() {
     trickTransitionKind: null,
     graveOpen: false,
     handSortFreezeUntil: 0,
+    drawFlipPlayer: -1,
+    drawFlipCardId: '',
+    drawFlipRevealAt: 0,
+    drawFlipEndAt: 0,
     selected: new Set(),
     pot: 0,
     logs: [],
     awaitRoundConfirm: false,
     roundSettlement: null,
+    clearStreakOwner: null,
+    clearStreakCount: 0,
     message: '「新しい戦いを始める」を押してください。',
     champion: null
   };
@@ -1555,6 +1617,7 @@ function clearRoundState() {
   clearSettlementGainFx();
   clearRoundStartCinematicTimer();
   clearOpeningDealTimers();
+  clearDrawHandFlipTimers();
   s.trick = null;
   s.leadRequiredOwner = null;
   s.lastPlay = null;
@@ -1577,11 +1640,17 @@ function clearRoundState() {
   s.trickTransitionKind = null;
   s.graveOpen = false;
   s.handSortFreezeUntil = 0;
+  s.drawFlipPlayer = -1;
+  s.drawFlipCardId = '';
+  s.drawFlipRevealAt = 0;
+  s.drawFlipEndAt = 0;
   s.openingDealRevealCount = 0;
   s.openingDealFlipIndex = -1;
   s.selected.clear();
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
+  s.clearStreakOwner = null;
+  s.clearStreakCount = 0;
   s.players.forEach((p) => { p.hand = []; p.discard = []; p.bet = 0; });
 }
 
@@ -2604,6 +2673,7 @@ function resetMatch() {
   clearRoundStartCinematicTimer();
   clearRoundOutCinematicTimer();
   clearOpeningDealTimers();
+  clearDrawHandFlipTimers();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (kingdomCutinTimer) { clearTimeout(kingdomCutinTimer); kingdomCutinTimer = null; }
@@ -2918,18 +2988,18 @@ function buildCallPlay(pi, sel) {
   const hasSameNumberInHand = Array.isArray(p?.hand)
     && p.hand.some((c) => Number(c?.number) === baseNumber);
   if (role.key === 'Straight' && hasSameNumberInHand) {
-    return { ok: false, reason: 'ストレートコール制限: 手札に場札と同数値があります。' };
+    return { ok: false, reason: 'ストレートコール制限: 手札（選択中含む）に場札と同数値があるため不可です。' };
   }
   if (role.key === 'Flush') {
     const baseSuit = (suitsForCard(base, false) || [])[0] || 'None';
     const sameSuitCountInHand = Array.isArray(p?.hand)
       ? p.hand.filter((c) => (suitsForCard(c, false) || []).includes(baseSuit)).length
       : 0;
-    if (baseSuit !== 'None' && sameSuitCountInHand < 5) {
-      return { ok: false, reason: 'フラッシュコール制限: 手札に場札と同スートが5枚以上必要です。' };
+    if (baseSuit !== 'None' && sameSuitCountInHand >= 5) {
+      return { ok: false, reason: 'フラッシュコール制限: 手札（選択中含む）に場札と同スートが5枚以上あるため不可です。' };
     }
     const vals = [base, ...cards].map((c) => cStrength(c)).sort((a, b) => b - a);
-    if (vals[0] === cStrength(base)) return { ok: false, reason: 'フラッシュコール制限に抵触します。' };
+    if (vals[0] === cStrength(base)) return { ok: false, reason: 'フラッシュコール制限: 場札がハイカードになる構成は不可です。' };
   }
   role.effectiveRate = role.key === 'FullHouse' ? Math.max(0, role.baseRate - 2) : Math.max(0, role.baseRate - 1);
   return {
@@ -3182,6 +3252,14 @@ function clearTrick(leader) {
   clearCallCinematicTimer();
   s._traceFlowId = (kingdomTraceFlowSeed += 1);
   traceKingdomFlow('clearTrick.enter', `leader=${leader}`);
+  const clearedPlay = s.lastPlay;
+  const isRoleClear = !!(clearedPlay && clearedPlay.type === 'role');
+  if (Number.isInteger(s.clearStreakOwner) && s.clearStreakOwner === leader) {
+    s.clearStreakCount = Math.max(1, Number(s.clearStreakCount) || 1) + 1;
+  } else {
+    s.clearStreakOwner = leader;
+    s.clearStreakCount = 1;
+  }
   s.turnCount = Math.max(1, Number(s.turnCount) || 1) + 1;
   if (s.players[leader]) {
     s.players[leader].stars = Math.max(0, Number(s.players[leader].stars) || 0) + 1;
@@ -3196,13 +3274,41 @@ function clearTrick(leader) {
   s.passStarDrainAuraOwner = null;
   s.hermitPreview = null;
   s.trickDefeatFx = null;
-  s.trickTransitionKind = null;
-  s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
+  s.trickTransitionKind = 'clearSweep';
+  s.trick = null;
+  s.lastPlay = null;
+  s.pass = [false, false, false, false];
+  s.callOnly = false;
+  s.lock = null;
   s.leadRequiredOwner = leader;
   if (!s.reversePersist) s.reverse = false;
   s.turn = leader;
-  triggerKingdomActionFx(leader, 'クリア', { overlay: 'clear', durationMs: 760, cutin: false });
-  triggerKingdomActionFx(leader, `ターン ${s.turnCount}`, { overlay: 'action', durationMs: 700, cutin: true, delayMs: 120 });
+
+  const clearLabel = isRoleClear
+    ? `${getRoleDisplayLabel(clearedPlay)}でクリア`
+    : 'クリア';
+  triggerKingdomActionFx(leader, clearLabel, {
+    overlay: 'clear',
+    durationMs: isRoleClear ? 980 : 760,
+    cutin: !!isRoleClear,
+    cutinClass: isRoleClear ? 'is-kingdom-clear-gold' : undefined
+  });
+  if (Number(s.clearStreakCount) >= 2) {
+    triggerKingdomActionFx(leader, `${s.clearStreakCount} CLEAR`, {
+      overlay: 'action',
+      durationMs: 860,
+      cutin: true,
+      cutinClass: 'is-kingdom-clear-combo',
+      delayMs: isRoleClear ? 120 : 40
+    });
+  }
+  triggerKingdomActionFx(leader, `ターン ${s.turnCount}`, {
+    overlay: 'action',
+    durationMs: 700,
+    cutin: true,
+    delayMs: Number(s.clearStreakCount) >= 2 ? 200 : 120
+  });
+
   if (hadJudgment) {
     traceKingdomFlow('clearTrick.next', 'judgmentStart');
     judgmentStart(leader);
@@ -3211,7 +3317,6 @@ function clearTrick(leader) {
   traceKingdomFlow('clearTrick.next', 'drawChoiceStart');
   drawChoiceStart(leader, 'clear');
 }
-
 function applySetEffects(play) {
   const cards = play.cardsHand;
   if (cards.length > 3) return { forceClear: false, keepTurn: false, skip: 0 };
@@ -3561,6 +3666,7 @@ function applyDrawChoice(deckType) {
   traceKingdomFlow('applyDrawChoice.drawn', `player=${pi} deck=${use} card=${c ? `${c.kind}:${c.suit}:${c.number}` : 'none'}`);
   if (c) {
     actor.hand.push(c);
+    startDrawHandFlip(pi, c);
     onPlayerDrewCard(pi, 1200);
     if (use === 'major') actor.stars = Math.max(0, (Number(actor.stars) || 0) - 1);
     log(`${pName(pi)}: ${use === 'major' ? '大' : '小'}アルカナをドロー`);
@@ -3583,6 +3689,7 @@ function applyJudgmentPick(owner, cardIndex) {
   if (!poolOwner || cardIndex < 0 || cardIndex >= poolOwner.discard.length) return;
   const card = poolOwner.discard.splice(cardIndex, 1)[0];
   s.players[pi].hand.push(card);
+  startDrawHandFlip(pi, card);
   onPlayerDrewCard(pi, 1100);
   s.pendingJudgment = null;
   log(`${pName(pi)}: 審判で ${getCardNameLabel(card)} を回収`);
@@ -4535,6 +4642,38 @@ function renderTrick() {
     }, preDefeatMs + baseMs + tailMs + 80);
     return;
   }
+  if (prevCards.length > 0 && cards.length === 0 && transitionKind === 'clearSweep') {
+    trickRenderToken += 1;
+    const swapToken = trickRenderToken;
+    const runIfCurrent = (fn) => {
+      if (swapToken !== trickRenderToken) return;
+      fn();
+    };
+    const sweepMs = 420;
+    const staggerMs = 26;
+    const baseMs = 260;
+    const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
+    ui.trick.classList.remove('is-clear-sweep');
+    void ui.trick.offsetWidth;
+    ui.trick.classList.add('is-clear-sweep');
+    prevCards.forEach((node, idx) => {
+      if (!node) return;
+      node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+      node.classList.add('is-clear-sweep-leaving');
+      node.style.animationDelay = `${idx * staggerMs}ms`;
+      node.style.setProperty('--clear-card-ms', `${baseMs}ms`);
+    });
+    trickSwapTimer = setTimeout(() => {
+      if (swapToken !== trickRenderToken) return;
+      trickSwapTimer = null;
+      runIfCurrent(() => {
+        ui.trick.classList.remove('is-clear-sweep');
+        renderNow();
+        resolvePendingAfterTrick();
+      });
+    }, sweepMs + baseMs + tailMs + 50);
+    return;
+  }
   trickRenderToken += 1;
   renderNow();
   resolvePendingAfterTrick();
@@ -4544,11 +4683,17 @@ function renderHand() {
   ui.hand.innerHTML = '';
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) return;
+  const now = Date.now();
   const inOpeningDeal = s.roundActive && s.phase === 'openingDeal';
   const openingRevealCount = Math.max(0, Number(s.openingDealRevealCount || 0));
   const openingFlipIndex = Number.isInteger(Number(s.openingDealFlipIndex))
     ? Number(s.openingDealFlipIndex)
     : -1;
+  const drawFlipPlayer = Number(s.drawFlipPlayer);
+  const drawFlipCardId = String(s.drawFlipCardId || '');
+  const drawFlipRevealAt = Number(s.drawFlipRevealAt || 0);
+  const drawFlipEndAt = Number(s.drawFlipEndAt || 0);
+  const drawFlipActive = !!(!inOpeningDeal && drawFlipCardId && drawFlipPlayer === me && now < drawFlipEndAt);
   const freezeUntil = Number(s.handSortFreezeUntil || 0);
   const freezeActive = freezeUntil > Date.now();
   if (!freezeActive && !inOpeningDeal) applyLocalHandSortMode(false);
@@ -4575,15 +4720,20 @@ function renderHand() {
     render();
   };
   s.players[me].hand.forEach((c, i) => {
-    const showCard = inOpeningDeal
+    const isDrawFlipTarget = drawFlipActive && c?.id && String(c.id) === drawFlipCardId;
+    let showCard = inOpeningDeal
       ? ((i < openingRevealCount || i === openingFlipIndex) ? c : null)
       : c;
+    if (isDrawFlipTarget && now < drawFlipRevealAt) {
+      showCard = null;
+    }
     const node = cardNode(showCard, {
       clickable: canSelect,
       selected: selected.includes(i),
       onClick: () => onHandTap(i)
     });
     if (inOpeningDeal && i === openingFlipIndex) node.classList.add('is-opening-flip');
+    if (isDrawFlipTarget && now >= drawFlipRevealAt) node.classList.add('is-opening-flip');
     ui.hand.appendChild(node);
   });
 }
@@ -5288,6 +5438,7 @@ export function destroyTarotKingdomPage() {
   clearRoundStartCinematicTimer();
   clearRoundOutCinematicTimer();
   clearOpeningDealTimers();
+  clearDrawHandFlipTimers();
   clearYourTurnBadge();
   lastHumanTurnActive = false;
   if (trickSwapTimer) {

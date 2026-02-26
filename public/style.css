@@ -3669,6 +3669,22 @@ body.modal-lock .modal-overlay {
     overflow: visible;
 }
 
+.tarot-kingdom-trick.is-clear-sweep::before {
+    content: "";
+    position: absolute;
+    left: -14%;
+    top: 6%;
+    width: 42%;
+    height: 88%;
+    pointer-events: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(250, 204, 21, 0.62), rgba(255, 255, 255, 0));
+    filter: blur(1px);
+    opacity: 0;
+    z-index: 18;
+    animation: tarotKingdomClearSweepLine 420ms cubic-bezier(0.18, 0.84, 0.24, 1) 1;
+}
+
 .tarot-kingdom-trick.is-hit-stop .tarot-card {
     animation-play-state: paused !important;
 }
@@ -5062,6 +5078,12 @@ body.modal-lock .modal-overlay {
     filter: saturate(1.1);
 }
 
+.tarot-card.is-clear-sweep-leaving {
+    pointer-events: none !important;
+    will-change: transform, opacity, filter;
+    animation: tarotKingdomClearSweepCard var(--clear-card-ms, 260ms) cubic-bezier(0.16, 0.84, 0.24, 1) forwards;
+}
+
 .tarot-card.is-defeat-transition {
     pointer-events: none !important;
     will-change: transform, opacity, filter;
@@ -5890,6 +5912,28 @@ body.modal-lock .modal-overlay {
     color: #dcfce7;
 }
 
+.tarot-cutin.is-kingdom-clear-combo {
+    border-color: rgba(56, 189, 248, 0.96);
+    background: linear-gradient(120deg, rgba(8, 47, 73, 0.97), rgba(3, 105, 161, 0.96));
+    color: #e0f2fe;
+    box-shadow:
+        0 14px 36px rgba(14, 116, 144, 0.42),
+        0 0 28px rgba(56, 189, 248, 0.36);
+    animation: tarotKingdomClearComboCutin 860ms cubic-bezier(0.2, 0.86, 0.2, 1) 1;
+}
+
+.tarot-cutin.is-kingdom-clear-gold {
+    border-color: rgba(251, 191, 36, 0.98);
+    background: linear-gradient(120deg, rgba(120, 53, 15, 0.98), rgba(180, 83, 9, 0.97));
+    color: #fff7db;
+    box-shadow:
+        0 16px 40px rgba(245, 158, 11, 0.5),
+        0 0 34px rgba(251, 191, 36, 0.38);
+    animation:
+        tarotKingdomClearGoldCutin 980ms cubic-bezier(0.2, 0.86, 0.2, 1) 1,
+        tarotKingdomClearGoldPulse 520ms ease-in-out 2;
+}
+
 .tarot-cutin.is-kingdom-call {
     border-color: rgba(59, 130, 246, 0.92);
     background: linear-gradient(120deg, rgba(15, 23, 42, 0.97), rgba(30, 64, 175, 0.97));
@@ -6098,6 +6142,75 @@ body.modal-lock .modal-overlay {
         opacity: 1;
         filter: saturate(1) brightness(1);
     }
+}
+
+@keyframes tarotKingdomClearSweepLine {
+    0% {
+        opacity: 0;
+        transform: translateX(0) skewX(-14deg);
+    }
+    18% {
+        opacity: 1;
+        transform: translateX(18%) skewX(-14deg);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(300%) skewX(-14deg);
+    }
+}
+
+@keyframes tarotKingdomClearSweepCard {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+        filter: none;
+    }
+    26% {
+        opacity: 1;
+        transform: translateY(-2px) scale(0.99) rotate(-1deg);
+        filter: brightness(1.06) saturate(1.08);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(24px) translateY(-8px) scale(0.9) rotate(-6deg);
+        filter: brightness(1.12) saturate(1.22);
+    }
+}
+
+@keyframes tarotKingdomClearComboCutin {
+    0% {
+        transform: translate(-50%, 8px) skewX(-12deg) scale(0.94);
+        filter: saturate(0.9) brightness(0.9);
+    }
+    56% {
+        transform: translate(-50%, -1px) skewX(-12deg) scale(1.06);
+        filter: saturate(1.2) brightness(1.12);
+    }
+    100% {
+        transform: translate(-50%, 0) skewX(-12deg) scale(1);
+        filter: saturate(1) brightness(1);
+    }
+}
+
+@keyframes tarotKingdomClearGoldCutin {
+    0% {
+        transform: translate(-50%, 10px) skewX(-12deg) scale(0.9);
+        filter: saturate(0.86) brightness(0.86);
+    }
+    54% {
+        transform: translate(-50%, -2px) skewX(-12deg) scale(1.08);
+        filter: saturate(1.24) brightness(1.18);
+    }
+    100% {
+        transform: translate(-50%, 0) skewX(-12deg) scale(1);
+        filter: saturate(1) brightness(1);
+    }
+}
+
+@keyframes tarotKingdomClearGoldPulse {
+    0% { filter: saturate(1) brightness(1); }
+    50% { filter: saturate(1.2) brightness(1.18); }
+    100% { filter: saturate(1) brightness(1); }
 }
 
 @keyframes tarotKingdomRoundEndCutin {
