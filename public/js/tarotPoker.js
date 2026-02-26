@@ -1619,11 +1619,33 @@ function getDisplayAdjustedNumber(card) {
     return baseNumber;
 }
 
+function getCardDisplayNumberOptions(card) {
+    if (!card) return [];
+    if (card.isArcana) {
+        const baseNumber = Number(card.number) || 0;
+        // 運命の輪の変異は「見た目効果」扱い。数値表示は10固定。
+        if (baseNumber === 10 && Number.isFinite(Number(card.effectNumber))) {
+            return [10];
+        }
+        if (baseNumber === 3) return [3, 13];
+        if (baseNumber === 4) return [4, 14];
+        return [baseNumber];
+    }
+    return [getDisplayAdjustedNumber(card)];
+}
+
 function getCardNumberLabel(card) {
     if (!card) return '';
-    const displayNumber = getDisplayAdjustedNumber(card);
-    if (!card.isArcana && displayNumber === 1) return 'A';
-    return String(displayNumber);
+    const options = getCardDisplayNumberOptions(card);
+    if (!Array.isArray(options) || options.length <= 0) return '';
+    if (options.length === 1) {
+        const displayNumber = Number(options[0]) || 0;
+        if (!card.isArcana && displayNumber === 1) return 'A';
+        return String(displayNumber);
+    }
+    const lo = Number(options[0]) || 0;
+    const hi = Number(options[options.length - 1]) || 0;
+    return `${lo}/${hi}`;
 }
 
 function getCardValueOptions(card) {
@@ -3643,7 +3665,14 @@ function getArcanaSuitOptionsForVisual(card) {
 
 function getTarotSpriteIndex(card) {
     if (!card) return 110;
-    if (card.isArcana) return 80 + Number(card.number || 0);
+    if (card.isArcana) {
+        const baseNumber = Number(card.number || 0);
+        // 運命の輪は内部number=10を維持し、表示画像のみ変異先を使う。
+        const visualNumber = (
+            baseNumber === 10 && Number.isFinite(Number(card.effectNumber))
+        ) ? Number(card.effectNumber) : baseNumber;
+        return 80 + visualNumber;
+    }
     const number = Math.max(1, Math.min(14, Number(card.number || 1))) - 1;
     if (card.suit === 'Wand') return number;
     if (card.suit === 'Pentacle') return 20 + number;

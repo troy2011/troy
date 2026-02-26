@@ -95,6 +95,7 @@ let settlementGainEventTimers = [];
 let settlementGainAnimTimer = null;
 let settlementGainQueue = [];
 let settlementGainAnimating = false;
+let settlementCoinEventTimers = [];
 const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
 const KINGDOM_TRACE_ENABLED = true;
@@ -226,6 +227,8 @@ const clearOracleFlipTimers = () => {
 const clearSettlementGainFx = () => {
   settlementGainEventTimers.forEach((timerId) => clearTimeout(timerId));
   settlementGainEventTimers = [];
+  settlementCoinEventTimers.forEach((timerId) => clearTimeout(timerId));
+  settlementCoinEventTimers = [];
   if (settlementGainAnimTimer) {
     clearTimeout(settlementGainAnimTimer);
     settlementGainAnimTimer = null;
@@ -287,6 +290,17 @@ function scheduleSettlementGain(amount, delayMs = 0) {
     queueSettlementGain(amount);
   }, Math.max(0, Number(delayMs) || 0));
   settlementGainEventTimers.push(timerId);
+}
+function scheduleSettlementCoinFx(run, delayMs = 0) {
+  const timerId = setTimeout(() => {
+    settlementCoinEventTimers = settlementCoinEventTimers.filter((id) => id !== timerId);
+    try {
+      run?.();
+    } catch (_) {
+      // no-op
+    }
+  }, Math.max(0, Number(delayMs) || 0));
+  settlementCoinEventTimers.push(timerId);
 }
 const getKingdomCoinCountByAmount = (amount) => {
   const n = Math.max(0, Math.floor(Number(amount) || 0));
@@ -585,9 +599,26 @@ function getCardNameLabel(card) {
 
 function getCardNumberLabel(card) {
   if (!card) return '';
+  const options = getCardDisplayNumberOptions(card);
+  if (!Array.isArray(options) || options.length <= 0) return '';
+  if (options.length === 1) {
+    const n = Number(options[0]) || 0;
+    if (card.kind !== 'major' && n === 1) return 'A';
+    return String(n);
+  }
+  const lo = Number(options[0]) || 0;
+  const hi = Number(options[options.length - 1]) || 0;
+  return `${lo}/${hi}`;
+}
+
+function getCardDisplayNumberOptions(card) {
+  if (!card) return [];
   const n = Number(card.number) || 0;
-  if (card.kind !== 'major' && n === 1) return 'A';
-  return String(n);
+  if (card.kind !== 'major') return [n];
+  // 大アルカナ本体 number は保持し、表示のみ可変候補を見せる。
+  if (n === 3) return [3, 13];
+  if (n === 4) return [4, 14];
+  return [n];
 }
 
 function isRomanOnlyLabel(text) {
@@ -912,11 +943,17 @@ function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', opti
   if (typeof document === 'undefined') return;
   const potAnchor = ui.score || ui.round || ui.root;
   if (!potAnchor) return;
+  const directSourceEl = options.sourceElement || null;
+  const selectorSourceEl = (typeof options.sourceSelector === 'string' && options.sourceSelector)
+    ? document.querySelector(options.sourceSelector)
+    : null;
   const directTargetEl = options.targetElement || null;
   const selectorTargetEl = (typeof options.targetSelector === 'string' && options.targetSelector)
     ? document.querySelector(options.targetSelector)
     : null;
-  const sourceEl = options.fromPot ? potAnchor : (getKingdomPlayerAnchor(playerIndex) || ui.hand || potAnchor);
+  const sourceEl = directSourceEl
+    || selectorSourceEl
+    || (options.fromPot ? potAnchor : (getKingdomPlayerAnchor(playerIndex) || ui.hand || potAnchor));
   const targetEl = directTargetEl
     || selectorTargetEl
     || (options.targetPlayerIndex != null
@@ -1335,8 +1372,7 @@ function playKingdomRoleClashFx(playerIndex, attackCard, targetEl, options = {})
   }, delayMs + 8);
 
   setTimeout(() => {
-    targetEl.classList.add('is-role-clash-impact');
-    setTimeout(() => targetEl.classList.remove('is-role-clash-impact'), 180);
+    // 衝突時の明滅は廃止。パーティクルのみ残す。
     spawnKingdomRoleClashParticles(to, 0);
   }, delayMs + inMs - 24);
 
@@ -3488,6 +3524,9 @@ function finishRound(winnerIndex) {
     starBonus: Math.max(0, Number(winner.stars) || 0),
     oracleHits,
     rows: [],
+    coinEvents: [],
+    coinFxDispatched: false,
+    bonusCoinFx: null,
     potAward: 0,
     totalGain: 0,
     displayTotalGain: 0
@@ -3526,9 +3565,10 @@ function finishRound(winnerIndex) {
     });
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x 係数${scoreFactor}）`);
     if (pay > 0) {
-      playKingdomCoinEffect(i, getKingdomCoinCountByAmount(pay), '🪙', {
-        targetSelector: '#tarotKingdomSettlementWinnerAnchor',
-        className: 'is-payout',
+      settlement.coinEvents.push({
+        payerIndex: i,
+        pay,
+        coinCount: getKingdomCoinCountByAmount(pay),
         delayMs: fxDelayMs
       });
       scheduleSettlementGain(pay, fxDelayMs + 520);
@@ -3544,6 +3584,10 @@ function finishRound(winnerIndex) {
     scheduleSettlementGain(potAward, fxDelayMs + 200);
     s.pot = 0;
   }
+  settlement.bonusCoinFx = {
+    coinCount: Math.min(10, Math.max(4, Math.ceil(totalGain / 6))),
+    delayMs: fxDelayMs + 200
+  };
   settlement.totalGain = totalGain;
   s.roundSettlement = settlement;
   // 清算パネルを先に描画して総受取を反映
@@ -3558,12 +3602,6 @@ function finishRound(winnerIndex) {
     cutin: true,
     cutinClass: 'is-showdown-win',
     delayMs: fxDelayMs + 140
-  });
-  playKingdomCoinEffect(winnerIndex, Math.min(10, Math.max(4, Math.ceil(totalGain / 6))), '👑', {
-    fromPot: true,
-    targetSelector: '#tarotKingdomSettlementWinnerAnchor',
-    className: 'is-payout',
-    delayMs: fxDelayMs + 200
   });
   // 永続11バックは「その局のみ」。局終了時に必ず解除する。
   s.reversePersist = false;
@@ -4913,6 +4951,45 @@ function renderSummary() {
   }
 }
 
+function dispatchSettlementCoinFxIfNeeded(data) {
+  if (!data || data.coinFxDispatched) return;
+  if (typeof document === 'undefined') return;
+  const winnerAnchor = document.querySelector('#tarotKingdomSettlementWinnerAnchor');
+  if (!winnerAnchor) return;
+
+  data.coinFxDispatched = true;
+  const targetSelector = '#tarotKingdomSettlementWinnerAnchor';
+  (data.coinEvents || []).forEach((event) => {
+    const payerIndex = Number(event?.payerIndex);
+    const fromSelector = `#tarotKingdomSettlementPayerAnchor-${payerIndex}`;
+    const count = Math.max(1, Number(event?.coinCount) || 4);
+    const delayMs = Math.max(0, Number(event?.delayMs) || 0);
+    scheduleSettlementCoinFx(() => {
+      const fromEl = document.querySelector(fromSelector);
+      const toEl = document.querySelector(targetSelector);
+      if (!fromEl || !toEl) return;
+      playKingdomCoinEffect(payerIndex, count, '🪙', {
+        sourceElement: fromEl,
+        targetElement: toEl,
+        className: 'is-payout'
+      });
+    }, delayMs);
+  });
+
+  if (data.bonusCoinFx) {
+    const bonusDelay = Math.max(0, Number(data.bonusCoinFx.delayMs) || 0);
+    const bonusCount = Math.max(1, Number(data.bonusCoinFx.coinCount) || 4);
+    const winnerIndex = Number(data.winnerIndex);
+    scheduleSettlementCoinFx(() => {
+      playKingdomCoinEffect(winnerIndex, bonusCount, '👑', {
+        fromPot: true,
+        targetSelector,
+        className: 'is-payout'
+      });
+    }, bonusDelay);
+  }
+}
+
 function renderSettlement() {
   const panel = ui.settlement;
   const body = ui.settlementBody;
@@ -4953,6 +5030,7 @@ function renderSettlement() {
 
     (data.rows || []).forEach((row) => {
       const rowEl = document.createElement('div');
+      rowEl.id = `tarotKingdomSettlementPayerAnchor-${Number(row.payerIndex)}`;
       rowEl.className = 'tarot-kingdom-settlement-row';
 
       const top = document.createElement('div');
@@ -4986,6 +5064,8 @@ function renderSettlement() {
     }
 
   }
+
+  dispatchSettlementCoinFxIfNeeded(data);
 
   if (confirmButton) {
     const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && s.phase !== 'done';
