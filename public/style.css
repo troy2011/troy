@@ -6306,14 +6306,11 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-ram-card::after {
-    content: "";
-    position: absolute;
-    inset: 16% 74% 16% -34%;
-    border-radius: 10px;
-    pointer-events: none;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(250, 204, 21, 0.42), rgba(255, 255, 255, 0));
-    opacity: 0.78;
-    animation: tarotKingdomRamTrail 260ms ease-out infinite;
+    /* 衝突時のフラッシュ(トレイル)は完全廃止 */
+    content: none;
+    display: none;
+    animation: none;
+    opacity: 0;
 }
 
 .tarot-card.is-call-stolen {
@@ -6349,18 +6346,15 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-role-clash-card {
     z-index: 3640;
     pointer-events: none;
-    filter: saturate(1.18) brightness(1.12);
+    filter: none;
 }
 
 .tarot-kingdom-role-clash-card::after {
-    content: "";
-    position: absolute;
-    inset: 15% 74% 15% -32%;
-    border-radius: 10px;
-    pointer-events: none;
-    background: linear-gradient(90deg, rgba(191, 219, 254, 0), rgba(191, 219, 254, 0.44), rgba(255, 255, 255, 0));
-    opacity: 0.8;
-    animation: tarotKingdomRoleClashTrail 260ms ease-out infinite;
+    /* role clash 側もフラッシュは完全廃止 */
+    content: none;
+    display: none;
+    animation: none;
+    opacity: 0;
 }
 
 .tarot-kingdom-role-clash-particle {

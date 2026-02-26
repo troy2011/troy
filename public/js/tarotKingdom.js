@@ -96,6 +96,7 @@ let settlementGainAnimTimer = null;
 let settlementGainQueue = [];
 let settlementGainAnimating = false;
 let settlementCoinEventTimers = [];
+let settlementChipAnimTimers = new Map();
 const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
 const KINGDOM_TRACE_ENABLED = true;
@@ -229,6 +230,10 @@ const clearSettlementGainFx = () => {
   settlementGainEventTimers = [];
   settlementCoinEventTimers.forEach((timerId) => clearTimeout(timerId));
   settlementCoinEventTimers = [];
+  if (settlementChipAnimTimers instanceof Map) {
+    settlementChipAnimTimers.forEach((timerId) => clearTimeout(timerId));
+    settlementChipAnimTimers.clear();
+  }
   if (settlementGainAnimTimer) {
     clearTimeout(settlementGainAnimTimer);
     settlementGainAnimTimer = null;
@@ -302,6 +307,88 @@ function scheduleSettlementCoinFx(run, delayMs = 0) {
   }, Math.max(0, Number(delayMs) || 0));
   settlementCoinEventTimers.push(timerId);
 }
+
+function animateSettlementChipField(key, readValue, writeValue, toValue, durationMs = 260) {
+  if (!s?.roundSettlement) return;
+  const from = Math.max(0, Number(readValue()) || 0);
+  const to = Math.max(0, Math.round(Number(toValue) || 0));
+  if (from === to) {
+    writeValue(to);
+    renderSettlement();
+    return;
+  }
+  const prevTimerId = settlementChipAnimTimers.get(key);
+  if (prevTimerId) clearTimeout(prevTimerId);
+  const startAt = Date.now();
+  const duration = Math.max(120, Number(durationMs) || 260);
+
+  const tick = () => {
+    if (!s?.roundSettlement) {
+      const currentTimerId = settlementChipAnimTimers.get(key);
+      if (currentTimerId) clearTimeout(currentTimerId);
+      settlementChipAnimTimers.delete(key);
+      return;
+    }
+    const t = Math.min(1, (Date.now() - startAt) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const v = Math.round(from + ((to - from) * eased));
+    writeValue(v);
+    renderSettlement();
+    if (t >= 1) {
+      settlementChipAnimTimers.delete(key);
+      return;
+    }
+    const nextTimerId = setTimeout(tick, 16);
+    settlementChipAnimTimers.set(key, nextTimerId);
+  };
+
+  tick();
+}
+
+function animateSettlementPayerChipTo(payerIndex, targetValue, durationMs = 240) {
+  const data = s?.roundSettlement;
+  if (!data) return;
+  const row = (data.rows || []).find((r) => Number(r?.payerIndex) === Number(payerIndex));
+  if (!row) return;
+  animateSettlementChipField(
+    `payer:${Number(payerIndex)}`,
+    () => Number(row.displayPayerChips ?? row.payerStartChips ?? row.payerFinalChips ?? 0),
+    (next) => { row.displayPayerChips = Math.max(0, Number(next) || 0); },
+    targetValue,
+    durationMs
+  );
+}
+
+function animateSettlementWinnerChipTo(targetValue, durationMs = 300) {
+  const data = s?.roundSettlement;
+  if (!data) return;
+  animateSettlementChipField(
+    'winner',
+    () => Number(data.displayWinnerChips ?? data.winnerStartChips ?? data.winnerFinalChips ?? 0),
+    (next) => { data.displayWinnerChips = Math.max(0, Number(next) || 0); },
+    targetValue,
+    durationMs
+  );
+}
+
+function applySettlementPayerChipDelta(payerIndex, delta, durationMs = 240) {
+  const data = s?.roundSettlement;
+  if (!data) return;
+  const row = (data.rows || []).find((r) => Number(r?.payerIndex) === Number(payerIndex));
+  if (!row) return;
+  const current = Math.max(0, Number(row.displayPayerChips ?? row.payerStartChips ?? row.payerFinalChips ?? 0));
+  const target = Math.max(0, current + (Number(delta) || 0));
+  animateSettlementPayerChipTo(payerIndex, target, durationMs);
+}
+
+function applySettlementWinnerChipDelta(delta, durationMs = 300) {
+  const data = s?.roundSettlement;
+  if (!data) return;
+  const current = Math.max(0, Number(data.displayWinnerChips ?? data.winnerStartChips ?? data.winnerFinalChips ?? 0));
+  const target = Math.max(0, current + (Number(delta) || 0));
+  animateSettlementWinnerChipTo(target, durationMs);
+}
+
 const getKingdomCoinCountByAmount = (amount) => {
   const n = Math.max(0, Math.floor(Number(amount) || 0));
   if (n >= 20) return 10;
@@ -3510,6 +3597,7 @@ function finishRound(winnerIndex) {
   s.roundActive = false; s.phase = 'roundEnd'; s.selected.clear(); s.pendingDraw = null; s.pendingJudgment = null;
   s.awaitRoundConfirm = false;
   const winner = s.players[winnerIndex];
+  const chipsBeforeSettlement = s.players.map((p) => Math.max(0, Number(p?.chips) || 0));
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   s.hiddenOracleCard = s.minorDeck.pop() || null;
   s.hiddenOracleRevealed = false;
@@ -3521,6 +3609,9 @@ function finishRound(winnerIndex) {
     roundNo,
     winnerIndex,
     winnerName: winner.name,
+    winnerStartChips: Math.max(0, Number(chipsBeforeSettlement[winnerIndex]) || 0),
+    winnerFinalChips: 0,
+    displayWinnerChips: Math.max(0, Number(chipsBeforeSettlement[winnerIndex]) || 0),
     starBonus: Math.max(0, Number(winner.stars) || 0),
     oracleHits,
     rows: [],
@@ -3561,7 +3652,10 @@ function finishRound(winnerIndex) {
       acePenalty,
       scoreFactor,
       factorSummary,
-      pay
+      pay,
+      payerStartChips: Math.max(0, Number(chipsBeforeSettlement[i]) || 0),
+      payerFinalChips: Math.max(0, Number(loser.chips) || 0),
+      displayPayerChips: Math.max(0, Number(chipsBeforeSettlement[i]) || 0)
     });
     log(`${loser.name} -> ${winner.name}: ${pay}（${remain}枚 x 係数${scoreFactor}）`);
     if (pay > 0) {
@@ -3588,6 +3682,7 @@ function finishRound(winnerIndex) {
     coinCount: Math.min(10, Math.max(4, Math.ceil(totalGain / 6))),
     delayMs: fxDelayMs + 200
   };
+  settlement.winnerFinalChips = Math.max(0, Number(winner.chips) || 0);
   settlement.totalGain = totalGain;
   s.roundSettlement = settlement;
   // 清算パネルを先に描画して総受取を反映
@@ -4962,8 +5057,13 @@ function dispatchSettlementCoinFxIfNeeded(data) {
   (data.coinEvents || []).forEach((event) => {
     const payerIndex = Number(event?.payerIndex);
     const fromSelector = `#tarotKingdomSettlementPayerAnchor-${payerIndex}`;
+    const pay = Math.max(0, Number(event?.pay) || 0);
     const count = Math.max(1, Number(event?.coinCount) || 4);
     const delayMs = Math.max(0, Number(event?.delayMs) || 0);
+    // 出発タイミングで支払側を減算表示。
+    scheduleSettlementCoinFx(() => {
+      applySettlementPayerChipDelta(payerIndex, -pay, 220);
+    }, delayMs);
     scheduleSettlementCoinFx(() => {
       const fromEl = document.querySelector(fromSelector);
       const toEl = document.querySelector(targetSelector);
@@ -4974,12 +5074,17 @@ function dispatchSettlementCoinFxIfNeeded(data) {
         className: 'is-payout'
       });
     }, delayMs);
+    // 到着タイミングで勝者側を加算表示。
+    scheduleSettlementCoinFx(() => {
+      applySettlementWinnerChipDelta(pay, 280);
+    }, delayMs + 520);
   });
 
   if (data.bonusCoinFx) {
     const bonusDelay = Math.max(0, Number(data.bonusCoinFx.delayMs) || 0);
     const bonusCount = Math.max(1, Number(data.bonusCoinFx.coinCount) || 4);
     const winnerIndex = Number(data.winnerIndex);
+    const bonusPay = Math.max(0, Number(data.potAward) || 0);
     scheduleSettlementCoinFx(() => {
       playKingdomCoinEffect(winnerIndex, bonusCount, '👑', {
         fromPot: true,
@@ -4987,6 +5092,9 @@ function dispatchSettlementCoinFxIfNeeded(data) {
         className: 'is-payout'
       });
     }, bonusDelay);
+    scheduleSettlementCoinFx(() => {
+      if (bonusPay > 0) applySettlementWinnerChipDelta(bonusPay, 300);
+    }, bonusDelay + 520);
   }
 }
 
@@ -5018,7 +5126,8 @@ function renderSettlement() {
     const winnerMain = document.createElement('div');
     winnerMain.className = 'tarot-kingdom-settlement-winner-main';
     const shownGain = Math.max(0, Number(data.displayTotalGain ?? data.totalGain) || 0);
-    winnerMain.textContent = `勝者 ${data.winnerName} / 受取 +${shownGain} TP`;
+    const shownWinnerChips = Math.max(0, Number(data.displayWinnerChips ?? data.winnerFinalChips ?? 0));
+    winnerMain.textContent = `勝者 ${data.winnerName} / 受取 +${shownGain} TP / 現在 ${shownWinnerChips} TP`;
     const winnerSub = document.createElement('div');
     winnerSub.className = 'tarot-kingdom-settlement-winner-sub';
     const stars = Math.max(0, Number(data.starBonus) || 0);
@@ -5040,7 +5149,8 @@ function renderSettlement() {
 
       const values = document.createElement('div');
       values.className = 'tarot-kingdom-settlement-row-values';
-      values.textContent = `支払 ${row.pay} TP / 受取 ${row.pay} TP`;
+      const shownPayerChips = Math.max(0, Number(row.displayPayerChips ?? row.payerFinalChips ?? 0));
+      values.textContent = `支払 ${row.pay} TP / 受取 ${row.pay} TP / 現在 ${shownPayerChips} TP`;
       rowEl.appendChild(values);
 
       const formula = document.createElement('div');
@@ -5062,6 +5172,12 @@ function renderSettlement() {
       pot.textContent = `POT受取: ${data.potAward} TP`;
       body.appendChild(pot);
     }
+
+    const currentTotal = s.players.reduce((sum, player) => sum + Math.max(0, Number(player?.chips) || 0), 0);
+    const total = document.createElement('div');
+    total.className = 'tarot-kingdom-settlement-total';
+    total.textContent = `現在総チップ: ${currentTotal} TP`;
+    body.appendChild(total);
 
   }
 
