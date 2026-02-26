@@ -979,6 +979,34 @@ function pulseKingdomPotAnchor(durationMs = 720) {
   }, Math.max(220, Number(durationMs) || 720));
 }
 
+function triggerKingdomTrickShake(isSpecial = false) {
+  const root = ui.root || ui.trick;
+  if (!root) return;
+  root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special');
+  void root.offsetWidth;
+  root.classList.add(isSpecial ? 'is-trick-shake-special' : 'is-trick-shake-normal');
+  setTimeout(() => {
+    root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special');
+  }, isSpecial ? 150 : 100);
+}
+
+function showKingdomTrickWinEmphasis(card, effectKind = 'normal', durationMs = 220) {
+  if (!ui.trick || !card) return;
+  ui.trick.querySelectorAll('.tarot-kingdom-trick-emphasis').forEach((node) => node.remove());
+  const overlay = document.createElement('div');
+  overlay.className = 'tarot-kingdom-trick-emphasis';
+  if (effectKind !== 'normal') overlay.classList.add('is-special');
+  const node = cardNode(card, { clickable: false });
+  node.classList.add('tarot-kingdom-trick-emphasis-card');
+  overlay.appendChild(node);
+  ui.trick.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('run'));
+  setTimeout(() => {
+    overlay.classList.remove('run');
+    overlay.remove();
+  }, Math.max(180, Number(durationMs) || 220) + 80);
+}
+
 function getSpriteIndex(card) {
   if (!card) return TAROT_BACK_INDEX;
   if (card.kind === 'major') return 80 + Number(card.number || 0);
@@ -3890,6 +3918,7 @@ function renderTrick() {
     ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
     : '__empty__';
   const renderNow = () => {
+    ui.trick.classList.remove('is-hit-stop');
     ui.trick.innerHTML = '';
     if (!cards.length) {
       const e = document.createElement('div');
@@ -3949,7 +3978,7 @@ function renderTrick() {
     clearTimeout(trickSwapTimer);
     trickSwapTimer = null;
   }
-  const prevCards = Array.from(ui.trick.querySelectorAll('.tarot-card'));
+  const prevCards = Array.from(ui.trick.querySelectorAll('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)'));
   const defeatFxRaw = String(s?.trickDefeatFx?.kind || 'normal');
   const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire'].includes(defeatFxRaw)
     ? defeatFxRaw
@@ -3959,21 +3988,37 @@ function renderTrick() {
   if (prevCards.length > 0 && cards.length > 0) {
     trickRenderToken += 1;
     const swapToken = trickRenderToken;
+    const isSpecial = defeatFxKind !== 'normal';
+    const hitStopMs = 80;
+    const emphasisMs = 220;
+    const preDefeatMs = hitStopMs + emphasisMs;
     const staggerMs = 24;
     const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
-    const baseMs = defeatFxKind === 'normal' ? 300 : 420;
-    prevCards.forEach((node, idx) => {
-      if (!node) return;
-      node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
-      node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
-      node.style.animationDelay = `${idx * staggerMs}ms`;
-      node.style.animationDuration = `${baseMs}ms`;
-    });
+    const baseMs = isSpecial ? 620 : 420;
+    const markerMs = isSpecial ? 320 : 240;
+    const runIfCurrent = (fn) => {
+      if (swapToken !== trickRenderToken) return;
+      fn();
+    };
+    ui.trick.classList.add('is-hit-stop');
+    setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
+    setTimeout(() => runIfCurrent(() => showKingdomTrickWinEmphasis(cards[0], defeatFxKind, emphasisMs)), hitStopMs);
+    setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(isSpecial)), preDefeatMs + 20);
+    setTimeout(() => runIfCurrent(() => {
+      prevCards.forEach((node, idx) => {
+        if (!node) return;
+        node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+        node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
+        node.style.animationDelay = `${idx * staggerMs}ms`;
+        node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
+        node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+      });
+    }), preDefeatMs);
     trickSwapTimer = setTimeout(() => {
       if (swapToken !== trickRenderToken) return;
       trickSwapTimer = null;
       renderNow();
-    }, baseMs + tailMs + 80);
+    }, preDefeatMs + baseMs + tailMs + 80);
     return;
   }
   trickRenderToken += 1;
