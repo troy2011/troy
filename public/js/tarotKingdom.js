@@ -163,8 +163,14 @@ const scheduleNpcTimer = (delayMs, fn) => {
   }, Math.max(0, Number(delayMs) || 0));
 };
 
-const getNpcActionDelayMs = () => {
-  // 固定ウェイトは使わず、演出タイマー稼働中のみ最小限待つ。
+const getNpcActionDelayMs = (phase = 'turn') => {
+  // NPCの思考待機。展開が速すぎるため、フェーズごとに最低待機を持たせる。
+  const phaseKey = String(phase || 'turn');
+  const baseDelayMs = (
+    phaseKey === 'draw' || phaseKey === 'judgment'
+      ? 520
+      : 640
+  );
   const hasActiveCinematic = !!(
     callCinematicTimer ||
     roundStartCinematicTimer ||
@@ -174,7 +180,7 @@ const getNpcActionDelayMs = () => {
     openingDealNextTimer ||
     trickSwapTimer
   );
-  return hasActiveCinematic ? 90 : 0;
+  return hasActiveCinematic ? (baseDelayMs + 220) : baseDelayMs;
 };
 
 const clearCallCinematicTimer = () => {
@@ -4389,13 +4395,13 @@ function scheduleNpc() {
     return;
   }
   if (s.phase === 'draw' && s.pendingDraw != null && isNpcPlayer(s.pendingDraw)) {
-    const delayMs = getNpcActionDelayMs();
+    const delayMs = getNpcActionDelayMs('draw');
     traceKingdomFlow('scheduleNpc.timer', `reason=draw player=${s.pendingDraw} delay=${delayMs}`);
     scheduleNpcTimer(delayMs, () => npcAct());
     return;
   }
   if (s.phase === 'judgment' && s.pendingJudgment != null && isNpcPlayer(s.pendingJudgment)) {
-    const delayMs = getNpcActionDelayMs();
+    const delayMs = getNpcActionDelayMs('judgment');
     traceKingdomFlow('scheduleNpc.timer', `reason=judgment player=${s.pendingJudgment} delay=${delayMs}`);
     scheduleNpcTimer(delayMs, () => npcAct());
     return;
@@ -4405,7 +4411,7 @@ function scheduleNpc() {
     return;
   }
   if (isNpcPlayer(s.turn)) {
-    const delayMs = getNpcActionDelayMs();
+    const delayMs = getNpcActionDelayMs('turn');
     traceKingdomFlow('scheduleNpc.timer', `reason=turn player=${s.turn} delay=${delayMs}`);
     scheduleNpcTimer(delayMs, () => npcAct());
     return;
