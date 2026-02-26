@@ -989,14 +989,29 @@ function getKingdomPlaySourcePoint(playerIndex) {
   return getElementCenterPoint(row) || getElementCenterPoint(ui.players) || getElementCenterPoint(ui.root);
 }
 
+function getKingdomTrickRightSourcePoint() {
+  const rect = ui.trick?.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: rect.right + Math.max(20, Math.min(56, rect.width * 0.14)),
+    y: rect.top + (rect.height * 0.55)
+  };
+}
+
 function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {}) {
-  if (typeof document === 'undefined') return;
-  if (!attackCard || !targetEl) return;
-  const from = getKingdomPlaySourcePoint(playerIndex);
+  const noopController = {
+    totalMs: 0,
+    settleTo: () => 0,
+    remove: () => {}
+  };
+  if (typeof document === 'undefined') return noopController;
+  if (!attackCard || !targetEl) return noopController;
+  const from = options.fromPoint || getKingdomPlaySourcePoint(playerIndex);
   const to = getElementCenterPoint(targetEl);
-  if (!from || !to) return;
+  if (!from || !to) return noopController;
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
   const durationMs = Math.max(180, Number(options.durationMs) || 220);
+  const keepAfterHit = !!options.keepAfterHit;
   const ghost = cardNode(attackCard, { clickable: false });
   ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
   ghost.classList.add('tarot-card-fly', 'tarot-kingdom-ram-card');
@@ -1005,7 +1020,25 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   ghost.style.opacity = '0';
   ghost.style.transform = 'translate(-50%, -50%) scale(0.84) rotate(-10deg)';
   document.body.appendChild(ghost);
+
+  let removed = false;
+  const removeGhost = () => {
+    if (removed) return;
+    removed = true;
+    if (ghost.parentElement) ghost.remove();
+  };
+  const fadeOutAndRemove = (fadeDelayMs = 0, fadeMs = 110) => {
+    setTimeout(() => {
+      if (removed || !ghost.parentElement) return;
+      ghost.style.transition = `opacity ${fadeMs}ms ease-in, transform ${fadeMs}ms ease-in`;
+      ghost.style.opacity = '0';
+      ghost.style.transform = 'translate(-50%, -50%) scale(0.78) rotate(6deg)';
+    }, Math.max(0, Number(fadeDelayMs) || 0));
+    setTimeout(removeGhost, Math.max(0, Number(fadeDelayMs) || 0) + Math.max(70, Number(fadeMs) || 110) + 84);
+  };
+
   setTimeout(() => {
+    if (removed || !ghost.parentElement) return;
     ghost.style.transition = `left ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), top ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), transform ${durationMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), opacity 90ms ease-out`;
     ghost.style.left = `${to.x}px`;
     ghost.style.top = `${to.y}px`;
@@ -1013,17 +1046,45 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
     ghost.style.transform = 'translate(-50%, -50%) scale(1.06) rotate(0deg)';
   }, delayMs + 12);
   setTimeout(() => {
+    if (removed || !targetEl) return;
     targetEl.classList.add('is-ram-impact');
     setTimeout(() => targetEl.classList.remove('is-ram-impact'), 160);
   }, delayMs + Math.max(90, durationMs - 30));
-  setTimeout(() => {
-    ghost.style.transition = 'opacity 110ms ease-in, transform 110ms ease-in';
-    ghost.style.opacity = '0';
-    ghost.style.transform = 'translate(-50%, -50%) scale(0.78) rotate(6deg)';
-  }, delayMs + durationMs + 16);
-  setTimeout(() => {
-    if (ghost.parentElement) ghost.remove();
-  }, delayMs + durationMs + 180);
+  if (!keepAfterHit) {
+    fadeOutAndRemove(delayMs + durationMs + 16, 110);
+  }
+  return {
+    totalMs: delayMs + durationMs + (keepAfterHit ? 0 : 180),
+    settleTo: (settleTargetEl, settleOptions = {}) => {
+      if (removed || !ghost.parentElement) return 0;
+      const settleTarget = getElementCenterPoint(settleTargetEl);
+      if (!settleTarget) {
+        fadeOutAndRemove(0, 90);
+        return 0;
+      }
+      const settleDelayMs = Math.max(0, Number(settleOptions.delayMs) || 0);
+      const settleDurationMs = Math.max(120, Number(settleOptions.durationMs) || 180);
+      setTimeout(() => {
+        if (removed || !ghost.parentElement) return;
+        ghost.style.transition = `left ${settleDurationMs}ms cubic-bezier(0.2, 0.86, 0.24, 1), top ${settleDurationMs}ms cubic-bezier(0.2, 0.86, 0.24, 1), transform ${settleDurationMs}ms cubic-bezier(0.2, 0.86, 0.24, 1)`;
+        ghost.style.left = `${settleTarget.x}px`;
+        ghost.style.top = `${settleTarget.y}px`;
+        ghost.style.transform = 'translate(-50%, -50%) scale(1.01) rotate(0deg)';
+      }, settleDelayMs);
+      const onArriveMs = settleDelayMs + settleDurationMs + 6;
+      setTimeout(() => {
+        if (typeof settleOptions.onArrive === 'function') settleOptions.onArrive();
+      }, onArriveMs);
+      if (settleOptions.autoRemove !== false) {
+        fadeOutAndRemove(onArriveMs + 4, 84);
+      }
+      return onArriveMs + 96;
+    },
+    remove: (fadeMs = 84) => {
+      if (removed || !ghost.parentElement) return;
+      fadeOutAndRemove(0, Math.max(60, Number(fadeMs) || 84));
+    }
+  };
 }
 
 function playKingdomCallStealFx(playerIndex, targetEl, options = {}) {
@@ -4150,6 +4211,7 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
+  let ramSettleFirstCard = false;
   if (ui.trickOwner) {
     if (!cards.length) {
       ui.trickOwner.textContent = '場札主: -';
@@ -4200,6 +4262,9 @@ function renderTrick() {
         // 場札1枚目は据え置き、追加4枚のみ右→左で流し込む
         animDelayMs = 0;
         animDurationMs = 0;
+      } else if (ramSettleFirstCard && idx === 0) {
+        animDelayMs = 0;
+        animDurationMs = 0;
       } else {
         node.classList.add('is-entering');
         animDelayMs = idx * (s.callMergeFx ? 120 : 78);
@@ -4221,6 +4286,7 @@ function renderTrick() {
       setTimeout(clearAnimState, animDelayMs + animDurationMs + 120);
       ui.trick.appendChild(node);
     });
+    ramSettleFirstCard = false;
   };
 
   if (nextKey === trickRenderKey) {
@@ -4269,12 +4335,19 @@ function renderTrick() {
     }
     if (isRoleClashTransition) {
       const hitStopMs = 70;
+      const ramMs = 220;
       const runIfCurrent = (fn) => {
         if (swapToken !== trickRenderToken) return;
         fn();
       };
       ui.trick.classList.add('is-hit-stop');
       setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
+      const ramFx = playKingdomRamAttackFx(callOwner, cards[0], prevCards[0], {
+        fromPoint: getKingdomTrickRightSourcePoint() || undefined,
+        delayMs: hitStopMs,
+        durationMs: ramMs,
+        keepAfterHit: true
+      });
       const clashMs = playKingdomRoleClashFx(callOwner, cards[0], prevCards[0], { delayMs: hitStopMs + 8, inMs: 240, holdMs: 70, outMs: 210 });
       const preDefeatMs = Math.max(260, clashMs);
       const staggerMs = 24;
@@ -4296,7 +4369,23 @@ function renderTrick() {
       trickSwapTimer = setTimeout(() => {
         if (swapToken !== trickRenderToken) return;
         trickSwapTimer = null;
+        ramSettleFirstCard = true;
         renderNow();
+        const firstNode = ui.trick?.querySelector?.('.tarot-card');
+        if (firstNode && ramFx?.settleTo) {
+          firstNode.style.opacity = '0';
+          firstNode.style.transform = 'translateY(0) scale(1)';
+          ramFx.settleTo(firstNode, {
+            durationMs: 170,
+            onArrive: () => {
+              firstNode.style.opacity = '';
+              firstNode.style.transform = '';
+            },
+            autoRemove: true
+          });
+        } else if (ramFx?.remove) {
+          ramFx.remove(84);
+        }
       }, preDefeatMs + baseMs + tailMs + 80);
       return;
     }
@@ -4314,10 +4403,12 @@ function renderTrick() {
     };
     ui.trick.classList.add('is-hit-stop');
     setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
-    setTimeout(() => runIfCurrent(() => playKingdomRamAttackFx(Number(s?.trick?.owner ?? -1), cards[0], prevCards[0], {
-      delayMs: 0,
-      durationMs: ramMs
-    })), hitStopMs);
+    const ramFx = playKingdomRamAttackFx(Number(s?.trick?.owner ?? -1), cards[0], prevCards[0], {
+      fromPoint: getKingdomTrickRightSourcePoint() || undefined,
+      delayMs: hitStopMs,
+      durationMs: ramMs,
+      keepAfterHit: true
+    });
     setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(isSpecial)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
       prevCards.forEach((node, idx) => {
@@ -4333,7 +4424,23 @@ function renderTrick() {
     trickSwapTimer = setTimeout(() => {
       if (swapToken !== trickRenderToken) return;
       trickSwapTimer = null;
+      ramSettleFirstCard = true;
       renderNow();
+      const firstNode = ui.trick?.querySelector?.('.tarot-card');
+      if (firstNode && ramFx?.settleTo) {
+        firstNode.style.opacity = '0';
+        firstNode.style.transform = 'translateY(0) scale(1)';
+        ramFx.settleTo(firstNode, {
+          durationMs: 170,
+          onArrive: () => {
+            firstNode.style.opacity = '';
+            firstNode.style.transform = '';
+          },
+          autoRemove: true
+        });
+      } else if (ramFx?.remove) {
+        ramFx.remove(84);
+      }
     }, preDefeatMs + baseMs + tailMs + 80);
     return;
   }
