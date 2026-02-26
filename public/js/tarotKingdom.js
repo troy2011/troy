@@ -1026,6 +1026,161 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   }, delayMs + durationMs + 180);
 }
 
+function playKingdomCallStealFx(playerIndex, targetEl, options = {}) {
+  if (typeof document === 'undefined') return 0;
+  if (!targetEl) return 0;
+  const from = getKingdomPlaySourcePoint(playerIndex);
+  const to = getElementCenterPoint(targetEl);
+  if (!from || !to) return 0;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const inMs = Math.max(160, Number(options.inMs) || 220);
+  const outMs = Math.max(180, Number(options.outMs) || 260);
+  const holdMs = Math.max(40, Number(options.holdMs) || 80);
+  const ghost = document.createElement('span');
+  ghost.className = 'tarot-kingdom-call-ghost';
+  ghost.textContent = '👻';
+  ghost.style.left = `${from.x}px`;
+  ghost.style.top = `${from.y}px`;
+  ghost.style.opacity = '0';
+  ghost.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  document.body.appendChild(ghost);
+
+  setTimeout(() => {
+    ghost.style.transition = `left ${inMs}ms cubic-bezier(0.2, 0.86, 0.24, 1), top ${inMs}ms cubic-bezier(0.2, 0.86, 0.24, 1), opacity 100ms ease-out, transform ${inMs}ms cubic-bezier(0.2, 0.86, 0.24, 1)`;
+    ghost.style.left = `${to.x}px`;
+    ghost.style.top = `${to.y}px`;
+    ghost.style.opacity = '1';
+    ghost.style.transform = 'translate(-50%, -50%) scale(1.06)';
+  }, delayMs + 12);
+
+  setTimeout(() => {
+    targetEl.classList.add('is-call-stolen');
+    setTimeout(() => targetEl.classList.remove('is-call-stolen'), 220);
+  }, delayMs + inMs - 24);
+
+  setTimeout(() => {
+    ghost.style.transition = `left ${outMs}ms cubic-bezier(0.16, 0.86, 0.24, 1), top ${outMs}ms cubic-bezier(0.16, 0.86, 0.24, 1), transform ${outMs}ms cubic-bezier(0.16, 0.86, 0.24, 1), opacity 120ms ease-in`;
+    ghost.style.left = `${from.x}px`;
+    ghost.style.top = `${from.y - 8}px`;
+    ghost.style.opacity = '0';
+    ghost.style.transform = 'translate(-50%, -50%) scale(0.88)';
+  }, delayMs + inMs + holdMs);
+
+  const totalMs = delayMs + inMs + holdMs + outMs + 120;
+  setTimeout(() => {
+    if (ghost.parentElement) ghost.remove();
+  }, totalMs);
+  return totalMs;
+}
+
+function playKingdomCallTauntGhostFx(targetEl, options = {}) {
+  if (typeof document === 'undefined') return 0;
+  if (!targetEl) return 0;
+  const target = getElementCenterPoint(targetEl);
+  if (!target) return 0;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const fadeInMs = Math.max(180, Number(options.fadeInMs) || 240);
+  const holdMs = Math.max(120, Number(options.holdMs) || 320);
+  const fadeOutMs = Math.max(140, Number(options.fadeOutMs) || 220);
+  const ghost = document.createElement('span');
+  ghost.className = 'tarot-kingdom-call-ghost-taunt';
+  ghost.textContent = '👻';
+  ghost.style.left = `${target.x}px`;
+  ghost.style.top = `${target.y - 8}px`;
+  ghost.style.opacity = '0';
+  ghost.style.transform = 'translate(-50%, -50%) scale(0.76)';
+  document.body.appendChild(ghost);
+
+  setTimeout(() => {
+    ghost.classList.add('is-taunt');
+    ghost.style.transition = `opacity ${fadeInMs}ms ease-out, transform ${fadeInMs}ms cubic-bezier(0.22, 0.82, 0.24, 1)`;
+    ghost.style.opacity = '1';
+    ghost.style.transform = 'translate(-50%, -50%) scale(1.02)';
+  }, delayMs + 10);
+
+  setTimeout(() => {
+    ghost.classList.remove('is-taunt');
+    ghost.style.transition = `opacity ${fadeOutMs}ms ease-in, transform ${fadeOutMs}ms ease-in`;
+    ghost.style.opacity = '0';
+    ghost.style.transform = 'translate(-50%, -50%) scale(0.82)';
+  }, delayMs + fadeInMs + holdMs);
+
+  const totalMs = delayMs + fadeInMs + holdMs + fadeOutMs;
+  setTimeout(() => {
+    if (ghost.parentElement) ghost.remove();
+  }, totalMs + 80);
+  return totalMs;
+}
+
+function spawnKingdomRoleClashParticles(point, delayMs = 0) {
+  if (typeof document === 'undefined' || !point) return;
+  const particles = [
+    { emoji: '⚡', dx: -20, dy: -12, dur: 300, cls: 'is-a' },
+    { emoji: '✨', dx: 16, dy: -18, dur: 320, cls: 'is-b' },
+    { emoji: '✨', dx: -4, dy: 14, dur: 340, cls: 'is-c' },
+    { emoji: '💥', dx: 10, dy: 6, dur: 300, cls: 'is-d' }
+  ];
+  particles.forEach((cfg, idx) => {
+    const node = document.createElement('span');
+    node.className = `tarot-kingdom-role-clash-particle ${cfg.cls || ''}`;
+    node.textContent = cfg.emoji;
+    node.style.left = `${point.x + cfg.dx}px`;
+    node.style.top = `${point.y + cfg.dy}px`;
+    node.style.animationDelay = `${Math.max(0, Number(delayMs) || 0) + (idx * 24)}ms`;
+    node.style.setProperty('--fx-dur', `${Math.max(220, Number(cfg.dur) || 300)}ms`);
+    document.body.appendChild(node);
+    requestAnimationFrame(() => node.classList.add('run'));
+    setTimeout(() => {
+      if (node.parentElement) node.remove();
+    }, Math.max(0, Number(delayMs) || 0) + (idx * 24) + Math.max(220, Number(cfg.dur) || 300) + 100);
+  });
+}
+
+function playKingdomRoleClashFx(playerIndex, attackCard, targetEl, options = {}) {
+  if (typeof document === 'undefined') return 0;
+  if (!attackCard || !targetEl) return 0;
+  const from = getKingdomPlaySourcePoint(playerIndex);
+  const to = getElementCenterPoint(targetEl);
+  if (!from || !to) return 0;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const inMs = Math.max(180, Number(options.inMs) || 240);
+  const holdMs = Math.max(20, Number(options.holdMs) || 60);
+  const outMs = Math.max(160, Number(options.outMs) || 220);
+  const ghost = cardNode(attackCard, { clickable: false });
+  ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
+  ghost.classList.add('tarot-card-fly', 'tarot-kingdom-role-clash-card');
+  ghost.style.left = `${from.x}px`;
+  ghost.style.top = `${from.y}px`;
+  ghost.style.opacity = '0';
+  ghost.style.transform = 'translate(-50%, -50%) scale(0.84) rotate(-8deg)';
+  document.body.appendChild(ghost);
+
+  setTimeout(() => {
+    ghost.style.transition = `left ${inMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), top ${inMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), transform ${inMs}ms cubic-bezier(0.16, 0.9, 0.24, 1), opacity 100ms ease-out`;
+    ghost.style.left = `${to.x}px`;
+    ghost.style.top = `${to.y}px`;
+    ghost.style.opacity = '1';
+    ghost.style.transform = 'translate(-50%, -50%) scale(1.14) rotate(0deg)';
+  }, delayMs + 8);
+
+  setTimeout(() => {
+    targetEl.classList.add('is-role-clash-impact');
+    setTimeout(() => targetEl.classList.remove('is-role-clash-impact'), 180);
+    spawnKingdomRoleClashParticles(to, 0);
+  }, delayMs + inMs - 24);
+
+  setTimeout(() => {
+    ghost.style.transition = `opacity ${outMs}ms ease-in, transform ${outMs}ms ease-in`;
+    ghost.style.opacity = '0';
+    ghost.style.transform = 'translate(-50%, -50%) scale(0.76) rotate(8deg)';
+  }, delayMs + inMs + holdMs);
+  const totalMs = delayMs + inMs + holdMs + outMs + 40;
+  setTimeout(() => {
+    if (ghost.parentElement) ghost.remove();
+  }, totalMs + 60);
+  return totalMs;
+}
+
 function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   if (typeof document === 'undefined' || !targetEl) return;
   const rect = targetEl.getBoundingClientRect?.();
@@ -1246,6 +1401,7 @@ function initState() {
     pendingJudgment: null,
     callMergeFx: null,
     trickDefeatFx: null,
+    trickTransitionKind: null,
     graveOpen: false,
     handSortFreezeUntil: 0,
     selected: new Set(),
@@ -1281,6 +1437,7 @@ function clearRoundState() {
   s.pendingJudgment = null;
   s.callMergeFx = null;
   s.trickDefeatFx = null;
+  s.trickTransitionKind = null;
   s.graveOpen = false;
   s.handSortFreezeUntil = 0;
   s.openingDealRevealCount = 0;
@@ -2891,6 +3048,7 @@ function clearTrick(leader) {
   s.passStarDrainAuraOwner = null;
   s.hermitPreview = null;
   s.trickDefeatFx = null;
+  s.trickTransitionKind = null;
   s.trick = null; s.lastPlay = null; s.pass = [false, false, false, false]; s.callOnly = false; s.lock = null;
   s.leadRequiredOwner = leader;
   if (!s.reversePersist) s.reverse = false;
@@ -3500,6 +3658,9 @@ function applyPlay(pi, play, retryDepth = 0) {
   s.pass = [false, false, false, false];
   s.trick = play;
   s.trickDefeatFx = pickTrickDefeatFx(play, prevTrick);
+  s.trickTransitionKind = isCallPlay
+    ? 'callSteal'
+    : (play?.type === 'role' && String(prevTrick?.type || '') === 'role' ? 'roleClash' : 'normal');
   play.prevLeadSuit = prevLeadSuit;
   s.leadRequiredOwner = null;
   s.lastPlay = play;
@@ -4035,6 +4196,10 @@ function renderTrick() {
         animDurationMs = 360 + (callFxLevel * 62);
         node.style.animationDelay = `${animDelayMs}ms`;
         node.style.animationDuration = `${animDurationMs}ms`;
+      } else if (callFxActive && idx === 0) {
+        // 場札1枚目は据え置き、追加4枚のみ右→左で流し込む
+        animDelayMs = 0;
+        animDurationMs = 0;
       } else {
         node.classList.add('is-entering');
         animDelayMs = idx * (s.callMergeFx ? 120 : 78);
@@ -4074,11 +4239,67 @@ function renderTrick() {
   const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire'].includes(defeatFxRaw)
     ? defeatFxRaw
     : 'normal';
+  const transitionKind = String(s?.trickTransitionKind || '');
+  const isCallTransition = transitionKind === 'callSteal';
+  const isRoleClashTransition = transitionKind === 'roleClash';
+  const callOwner = Number.isInteger(Number(s?.trick?.owner)) ? Number(s.trick.owner) : -1;
   s.trickDefeatFx = null;
+  s.trickTransitionKind = null;
 
   if (prevCards.length > 0 && cards.length > 0) {
     trickRenderToken += 1;
     const swapToken = trickRenderToken;
+    if (isCallTransition) {
+      const hitStopMs = 60;
+      const runIfCurrent = (fn) => {
+        if (swapToken !== trickRenderToken) return;
+        fn();
+      };
+      ui.trick.classList.add('is-hit-stop');
+      setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
+      const ghostTotalMs = playKingdomCallTauntGhostFx(prevCards[0], { delayMs: hitStopMs + 8, fadeInMs: 240, holdMs: 320, fadeOutMs: 220 });
+      // 👻が煽った直後に4枚を右→左で流し込む
+      const callOpenMs = hitStopMs + 240;
+      setTimeout(() => runIfCurrent(() => renderNow()), callOpenMs);
+      trickSwapTimer = setTimeout(() => {
+        if (swapToken !== trickRenderToken) return;
+        trickSwapTimer = null;
+      }, Math.max(callOpenMs + 480, ghostTotalMs) + 80);
+      return;
+    }
+    if (isRoleClashTransition) {
+      const hitStopMs = 70;
+      const runIfCurrent = (fn) => {
+        if (swapToken !== trickRenderToken) return;
+        fn();
+      };
+      ui.trick.classList.add('is-hit-stop');
+      setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
+      const clashMs = playKingdomRoleClashFx(callOwner, cards[0], prevCards[0], { delayMs: hitStopMs + 8, inMs: 240, holdMs: 70, outMs: 210 });
+      const preDefeatMs = Math.max(260, clashMs);
+      const staggerMs = 24;
+      const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
+      const baseMs = 520;
+      const markerMs = 280;
+      setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(true)), hitStopMs + 210);
+      setTimeout(() => runIfCurrent(() => {
+        prevCards.forEach((node, idx) => {
+          if (!node) return;
+          if (idx === 0) spawnKingdomDefeatParticles(node, 'normal', { delayMs: 0 });
+          node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+          node.classList.add('is-defeat-transition', 'is-defeat-normal');
+          node.style.animationDelay = `${idx * staggerMs}ms`;
+          node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
+          node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+        });
+      }), preDefeatMs);
+      trickSwapTimer = setTimeout(() => {
+        if (swapToken !== trickRenderToken) return;
+        trickSwapTimer = null;
+        renderNow();
+      }, preDefeatMs + baseMs + tailMs + 80);
+      return;
+    }
     const isSpecial = defeatFxKind !== 'normal';
     const hitStopMs = 80;
     const ramMs = isSpecial ? 260 : 220;

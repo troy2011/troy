@@ -6103,6 +6103,158 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomRamImpactFlash 160ms ease-out 1;
 }
 
+.tarot-card.is-call-stolen {
+    animation: tarotKingdomCallStealHit 220ms ease-out 1;
+}
+
+.tarot-card.is-role-clash-impact {
+    animation: tarotKingdomRoleClashImpact 180ms ease-out 1;
+}
+
+.tarot-kingdom-call-ghost {
+    position: fixed;
+    z-index: 3655;
+    pointer-events: none;
+    user-select: none;
+    font-size: 24px;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px rgba(147, 197, 253, 0.58));
+    will-change: transform, opacity, left, top;
+}
+
+.tarot-kingdom-call-ghost-taunt {
+    position: fixed;
+    z-index: 3657;
+    pointer-events: none;
+    user-select: none;
+    font-size: 26px;
+    line-height: 1;
+    filter: drop-shadow(0 0 12px rgba(191, 219, 254, 0.66));
+    will-change: transform, opacity, left, top;
+}
+
+.tarot-kingdom-call-ghost-taunt.is-taunt {
+    animation: tarotKingdomCallGhostTaunt 260ms ease-in-out infinite;
+}
+
+.tarot-kingdom-role-clash-card {
+    z-index: 3640;
+    pointer-events: none;
+    filter: saturate(1.18) brightness(1.12);
+}
+
+.tarot-kingdom-role-clash-card::after {
+    content: "";
+    position: absolute;
+    inset: 15% 74% 15% -32%;
+    border-radius: 10px;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(191, 219, 254, 0), rgba(191, 219, 254, 0.44), rgba(255, 255, 255, 0));
+    opacity: 0.8;
+    animation: tarotKingdomRoleClashTrail 260ms ease-out infinite;
+}
+
+.tarot-kingdom-role-clash-particle {
+    position: fixed;
+    z-index: 3661;
+    pointer-events: none;
+    user-select: none;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.82);
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));
+    will-change: transform, opacity, filter;
+}
+
+.tarot-kingdom-role-clash-particle.run {
+    animation-name: tarotKingdomRoleClashParticle;
+    animation-duration: var(--fx-dur, 300ms);
+    animation-fill-mode: forwards;
+    animation-timing-function: cubic-bezier(0.2, 0.82, 0.24, 1);
+}
+
+@keyframes tarotKingdomCallStealHit {
+    0% {
+        filter: brightness(1) saturate(1);
+        transform: translateY(0) scale(1);
+    }
+    36% {
+        filter: brightness(1.34) saturate(1.18);
+        transform: translateY(-1px) scale(0.96);
+    }
+    100% {
+        filter: brightness(1) saturate(1);
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes tarotKingdomCallGhostTaunt {
+    0% {
+        transform: translate(-50%, -50%) rotate(-5deg) scale(0.98);
+    }
+    20% {
+        transform: translate(calc(-50% - 1px), calc(-50% - 2px)) rotate(4deg) scale(1.02);
+    }
+    40% {
+        transform: translate(calc(-50% + 1px), calc(-50% + 1px)) rotate(-4deg) scale(1);
+    }
+    60% {
+        transform: translate(calc(-50% - 1px), calc(-50% - 1px)) rotate(5deg) scale(1.03);
+    }
+    80% {
+        transform: translate(calc(-50% + 1px), calc(-50% + 1px)) rotate(-3deg) scale(1.01);
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(3deg) scale(1.02);
+    }
+}
+
+@keyframes tarotKingdomRoleClashImpact {
+    0% {
+        filter: brightness(1) saturate(1);
+        transform: translateY(0) scale(1);
+    }
+    34% {
+        filter: brightness(1.4) saturate(1.26);
+        transform: translateY(-1px) scale(0.95);
+    }
+    100% {
+        filter: brightness(1) saturate(1);
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes tarotKingdomRoleClashTrail {
+    0% {
+        opacity: 0.16;
+        transform: translateX(12px) scaleX(0.86);
+    }
+    56% {
+        opacity: 0.9;
+        transform: translateX(4px) scaleX(1.02);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(0) scaleX(1.08);
+    }
+}
+
+@keyframes tarotKingdomRoleClashParticle {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.74);
+    }
+    36% {
+        opacity: 1;
+        transform: translate(-50%, -58%) scale(1.06);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -70%) scale(1.14);
+    }
+}
+
 @keyframes tarotKingdomRamTrail {
     0% {
         opacity: 0.16;
