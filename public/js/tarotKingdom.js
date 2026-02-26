@@ -36,7 +36,7 @@ const A_PENALTY = 1;
 const NPC_DELAY = 1100;
 const ROUND_START_CINEMATIC_MS = 980;
 const ROUND_OUT_CINEMATIC_MS = 1080;
-const GAME_FINAL_CINEMATIC_MS = 1900;
+const GAME_FINAL_CINEMATIC_MS = 2800;
 const ORACLE_FLIP_TOTAL_MS = 620;
 const PRESENCE_AWAY_GRACE_MS = 30000;
 const OPENING_HAND_FLIP_START_DELAY_MS = 90;
@@ -757,19 +757,20 @@ function getKingdomPlayerAnchor(playerIndex) {
 
 function showKingdomOverlay(kind = 'action', holdMsOverride = null) {
   if (!ui.kingdomOverlay) return;
-  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
+  ui.kingdomOverlay.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-grandfinal', 'is-kingdom-call', 'is-kingdom-call-freeze');
   if (kind === 'clear') ui.kingdomOverlay.classList.add('is-kingdom-clear');
   else if (kind === 'draw') ui.kingdomOverlay.classList.add('is-kingdom-draw');
   else if (kind === 'call') ui.kingdomOverlay.classList.add('is-kingdom-call', 'is-kingdom-call-freeze');
+  else if (kind === 'grandfinal') ui.kingdomOverlay.classList.add('is-kingdom-roundend', 'is-kingdom-grandfinal');
   else if (kind === 'roundend') ui.kingdomOverlay.classList.add('is-kingdom-roundend');
   void ui.kingdomOverlay.offsetWidth;
   ui.kingdomOverlay.classList.add('show');
   if (kingdomOverlayTimer) clearTimeout(kingdomOverlayTimer);
   const holdMs = holdMsOverride != null
     ? Math.max(120, Number(holdMsOverride) || 0)
-    : (kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260));
+    : (kind === 'grandfinal' ? Math.max(1400, GAME_FINAL_CINEMATIC_MS) : (kind === 'roundend' ? 760 : (kind === 'call' ? 620 : 260)));
   kingdomOverlayTimer = setTimeout(() => {
-    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-call', 'is-kingdom-call-freeze');
+    ui.kingdomOverlay?.classList.remove('show', 'is-kingdom-clear', 'is-kingdom-draw', 'is-kingdom-roundend', 'is-kingdom-grandfinal', 'is-kingdom-call', 'is-kingdom-call-freeze');
     kingdomOverlayTimer = null;
   }, holdMs);
 }
@@ -973,6 +974,33 @@ function triggerKingdomActionFx(playerIndex, label, options = {}) {
   }
 }
 
+function triggerKingdomGrandWinnerFx(playerIndex) {
+  const mainDuration = Math.max(2200, Number(GAME_FINAL_CINEMATIC_MS) || 0);
+  const secondDelay = Math.max(640, Math.floor(mainDuration * 0.44));
+  triggerKingdomActionFx(playerIndex, '🏆 FINAL WINNER', {
+    overlay: 'grandfinal',
+    overlayHoldMs: mainDuration + 700,
+    durationMs: mainDuration,
+    cutin: true,
+    cutinClass: 'is-kingdom-grand-win',
+    delayMs: 120
+  });
+  triggerKingdomActionFx(playerIndex, `${pName(playerIndex)} CHAMPION`, {
+    overlay: 'grandfinal',
+    overlayHoldMs: 1300,
+    durationMs: 1200,
+    cutin: true,
+    cutinClass: 'is-kingdom-grand-win',
+    delayMs: secondDelay
+  });
+  playKingdomCoinEffect(playerIndex, 14, '🪙', {
+    fromPot: true,
+    targetSelector: '#tarotKingdomSettlementWinnerAnchor',
+    className: 'is-payout is-finale',
+    delayMs: 220
+  });
+}
+
 function pulseKingdomPotAnchor(durationMs = 720) {
   const anchor = ui.score || ui.round || ui.root;
   if (!anchor) return;
@@ -1016,7 +1044,14 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   if (!from || !to) return noopController;
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
   const durationMs = Math.max(180, Number(options.durationMs) || 220);
-  const stopBeforePx = Math.max(10, Number(options.stopBeforePx) || 18);
+  const targetRect = targetEl?.getBoundingClientRect?.();
+  const targetWidth = (targetRect && targetRect.width > 0) ? targetRect.width : TAROT_TILE_W;
+  const defaultOverlapPx = Math.max(2, Math.round(targetWidth * 0.1));
+  const defaultStopBeforePx = Math.max(8, Math.round(targetWidth - defaultOverlapPx));
+  const rawStopBeforePx = Number(options.stopBeforePx);
+  const stopBeforePx = Number.isFinite(rawStopBeforePx)
+    ? Math.max(0, rawStopBeforePx)
+    : defaultStopBeforePx;
   const hitPauseMs = Math.max(20, Number(options.hitPauseMs) || 56);
   const keepAfterHit = !!options.keepAfterHit;
   const dx = to.x - from.x;
@@ -1029,7 +1064,6 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   const ghost = cardNode(attackCard, { clickable: false });
   ghost.classList.remove('is-clickable', 'is-static', 'is-selected', 'is-entering', 'is-call-arriving', 'is-leaving');
   ghost.classList.add('tarot-card-fly', 'tarot-kingdom-ram-card');
-  const targetRect = targetEl?.getBoundingClientRect?.();
   if (targetRect && targetRect.width > 0 && targetRect.height > 0) {
     const w = Math.round(targetRect.width);
     const h = Math.round(targetRect.height);
@@ -1271,8 +1305,8 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
   const particles = [];
   if (kind === 'slash') {
-    particles.push({ emoji: '🗡️', variant: 'is-sword-main', x: baseX - 14, y: baseY + 6, dur: 430 });
-    particles.push({ emoji: '🗡️', variant: 'is-sword-sub', x: baseX + 8, y: baseY - 8, dur: 380 });
+    // Sword itself is rendered by the primary-card marker; particle is a spark only.
+    particles.push({ emoji: '\u2728', variant: 'is-slash-spark', x: baseX + 4, y: baseY - 4, dur: 380 });
   } else if (kind === 'rock') {
     particles.push({ emoji: '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 560 });
     particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 10, dur: 340 });
@@ -1306,15 +1340,37 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   });
 }
 
-function triggerKingdomTrickShake(isSpecial = false) {
+function getKingdomDefeatShakeLevel(play, defeatFxKind = 'normal', transitionKind = 'normal') {
+  if (!play) return 0;
+  if (transitionKind === 'roleClash') return 3;
+  if (String(play.type || '') === 'role') {
+    const key = String(play?.role?.key || '');
+    if (key === 'FiveKind' || key === 'StraightFlush' || key === 'TheWorld') return 3;
+    if (key === 'FourKind' || key === 'FullHouse') return 2;
+    return 1;
+  }
+  let level = 0;
+  const count = Math.max(1, Number(play?.count) || 1);
+  if (count >= 3) level += 2;
+  else if (count === 2) level += 1;
+  if (defeatFxKind !== 'normal') level += 1;
+  return Math.max(0, Math.min(3, level));
+}
+
+function triggerKingdomTrickShake(level = 0) {
   const root = ui.root || ui.trick;
   if (!root) return;
-  root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special');
+  const lv = Math.max(0, Math.min(3, Number(level) || 0));
+  root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special', 'is-trick-shake-heavy', 'is-trick-shake-ultra');
   void root.offsetWidth;
-  root.classList.add(isSpecial ? 'is-trick-shake-special' : 'is-trick-shake-normal');
+  if (lv >= 3) root.classList.add('is-trick-shake-ultra');
+  else if (lv >= 2) root.classList.add('is-trick-shake-heavy');
+  else if (lv >= 1) root.classList.add('is-trick-shake-special');
+  else root.classList.add('is-trick-shake-normal');
+  const holdMs = lv >= 3 ? 230 : (lv >= 2 ? 190 : (lv >= 1 ? 150 : 100));
   setTimeout(() => {
-    root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special');
-  }, isSpecial ? 150 : 100);
+    root.classList.remove('is-trick-shake-normal', 'is-trick-shake-special', 'is-trick-shake-heavy', 'is-trick-shake-ultra');
+  }, holdMs);
 }
 
 function showKingdomTrickWinEmphasis(card, effectKind = 'normal', durationMs = 220) {
@@ -3420,20 +3476,7 @@ function finishRound(winnerIndex) {
     s.champion = top;
     s.phase = 'done';
     s.awaitRoundConfirm = false;
-    triggerKingdomActionFx(top, '最終勝利！\nチャンピオン決定', {
-      overlay: 'roundend',
-      overlayHoldMs: GAME_FINAL_CINEMATIC_MS,
-      durationMs: GAME_FINAL_CINEMATIC_MS,
-      cutin: true,
-      cutinClass: 'is-kingdom-grand-win',
-      delayMs: 120
-    });
-    playKingdomCoinEffect(top, 12, '🏆', {
-      fromPot: true,
-      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
-      className: 'is-payout',
-      delayMs: 220
-    });
+    triggerKingdomGrandWinnerFx(top);
     const bankruptText = bankruptPlayers.map((p) => `${p.name}(${p.chips})`).join(' / ');
     s.message = `ゲーム終了（チップ枯渇）: ${bankruptText} / 勝者: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
@@ -3446,20 +3489,7 @@ function finishRound(winnerIndex) {
     s.champion = top;
     s.phase = 'done';
     s.awaitRoundConfirm = false;
-    triggerKingdomActionFx(top, '最終勝利！\nチャンピオン決定', {
-      overlay: 'roundend',
-      overlayHoldMs: GAME_FINAL_CINEMATIC_MS,
-      durationMs: GAME_FINAL_CINEMATIC_MS,
-      cutin: true,
-      cutinClass: 'is-kingdom-grand-win',
-      delayMs: 120
-    });
-    playKingdomCoinEffect(top, 12, '🏆', {
-      fromPot: true,
-      targetSelector: '#tarotKingdomSettlementWinnerAnchor',
-      className: 'is-payout',
-      delayMs: 220
-    });
+    triggerKingdomGrandWinnerFx(top);
     s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
     render();
@@ -4356,6 +4386,8 @@ function renderTrick() {
   const isCallTransition = transitionKind === 'callSteal';
   const isRoleClashTransition = transitionKind === 'roleClash';
   const callOwner = Number.isInteger(Number(s?.trick?.owner)) ? Number(s.trick.owner) : -1;
+  const currentPlay = s?.trick || null;
+  const shakeLevel = getKingdomDefeatShakeLevel(currentPlay, defeatFxKind, transitionKind);
   s.trickDefeatFx = null;
   s.trickTransitionKind = null;
 
@@ -4401,13 +4433,15 @@ function renderTrick() {
       const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
       const baseMs = 520;
       const markerMs = 280;
-      setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(true)), hitStopMs + 210);
+      setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
       setTimeout(() => runIfCurrent(() => {
         prevCards.forEach((node, idx) => {
           if (!node) return;
           if (idx === 0) spawnKingdomDefeatParticles(node, 'normal', { delayMs: 0 });
           node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
           node.classList.add('is-defeat-transition', 'is-defeat-normal');
+          if (idx === 0) node.classList.add('is-defeat-primary');
+          else node.classList.remove('is-defeat-primary');
           node.style.animationDelay = `${idx * staggerMs}ms`;
           node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
           node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
@@ -4442,12 +4476,12 @@ function renderTrick() {
     }
     const isSpecial = defeatFxKind !== 'normal';
     const hitStopMs = 80;
-    const ramMs = isSpecial ? 260 : 220;
+    const ramMs = (isSpecial ? 236 : 208) + (shakeLevel * 22);
     const preDefeatMs = hitStopMs + ramMs + 40;
     const staggerMs = 24;
     const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
-    const baseMs = isSpecial ? 620 : 420;
-    const markerMs = isSpecial ? 320 : 240;
+    const baseMs = (isSpecial ? 540 : 380) + (shakeLevel * 80);
+    const markerMs = (isSpecial ? 280 : 220) + (shakeLevel * 36);
     const runIfCurrent = (fn) => {
       if (swapToken !== trickRenderToken) return;
       fn();
@@ -4460,13 +4494,15 @@ function renderTrick() {
       durationMs: ramMs,
       keepAfterHit: true
     });
-    setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(isSpecial)), hitStopMs + ramMs - 18);
+    setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(shakeLevel)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
       prevCards.forEach((node, idx) => {
         if (!node) return;
         if (idx === 0) spawnKingdomDefeatParticles(node, defeatFxKind, { delayMs: 0 });
         node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
         node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
+        if (idx === 0) node.classList.add('is-defeat-primary');
+        else node.classList.remove('is-defeat-primary');
         node.style.animationDelay = `${idx * staggerMs}ms`;
         node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
         node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);

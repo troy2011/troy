@@ -2857,6 +2857,14 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomTrickShakeSpecial 150ms ease-out 1;
 }
 
+.tarot-kingdom-root.is-trick-shake-heavy {
+    animation: tarotKingdomTrickShakeHeavy 190ms ease-out 1;
+}
+
+.tarot-kingdom-root.is-trick-shake-ultra {
+    animation: tarotKingdomTrickShakeUltra 230ms cubic-bezier(0.2, 0.84, 0.24, 1) 1;
+}
+
 .tarot-kingdom-header {
     display: flex;
     justify-content: space-between;
@@ -5076,7 +5084,7 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomDefeatNormal var(--defeat-card-ms, 420ms) cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
 }
 
-.tarot-card.is-defeat-normal::after {
+.tarot-card.is-defeat-primary.is-defeat-normal::after {
     content: "💥";
     animation: tarotKingdomDefeatMarker var(--defeat-marker-ms, 240ms) ease-out forwards;
 }
@@ -5085,7 +5093,7 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomDefeatSlash var(--defeat-card-ms, 620ms) cubic-bezier(0.2, 0.84, 0.24, 1) forwards;
 }
 
-.tarot-card.is-defeat-slash::after {
+.tarot-card.is-defeat-primary.is-defeat-slash::after {
     content: "🗡️";
     left: 92%;
     top: -8%;
@@ -5099,7 +5107,7 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomDefeatRock var(--defeat-card-ms, 620ms) cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
 }
 
-.tarot-card.is-defeat-rock::after {
+.tarot-card.is-defeat-primary.is-defeat-rock::after {
     content: "🪦";
     animation: tarotKingdomDefeatRockMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
 }
@@ -5108,7 +5116,7 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomDefeatWater var(--defeat-card-ms, 620ms) cubic-bezier(0.22, 0.82, 0.24, 1) forwards;
 }
 
-.tarot-card.is-defeat-water::after {
+.tarot-card.is-defeat-primary.is-defeat-water::after {
     content: "💦";
     animation: tarotKingdomDefeatWaterMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
 }
@@ -5117,7 +5125,7 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomDefeatFire var(--defeat-card-ms, 620ms) cubic-bezier(0.2, 0.84, 0.24, 1) forwards;
 }
 
-.tarot-card.is-defeat-fire::after {
+.tarot-card.is-defeat-primary.is-defeat-fire::after {
     content: "🔥";
     animation: tarotKingdomDefeatFireMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
 }
@@ -5252,6 +5260,28 @@ body.modal-lock .modal-overlay {
     100% { transform: translateX(0) translateY(0); }
 }
 
+@keyframes tarotKingdomTrickShakeHeavy {
+    0% { transform: translateX(0) translateY(0) scale(1); }
+    16% { transform: translateX(-9px) translateY(2px) scale(0.998); }
+    33% { transform: translateX(9px) translateY(-2px) scale(1.002); }
+    50% { transform: translateX(-7px) translateY(2px) scale(0.999); }
+    66% { transform: translateX(7px) translateY(-1px) scale(1.001); }
+    83% { transform: translateX(-4px) translateY(1px) scale(1); }
+    100% { transform: translateX(0) translateY(0) scale(1); }
+}
+
+@keyframes tarotKingdomTrickShakeUltra {
+    0% { transform: translateX(0) translateY(0) scale(1); }
+    12% { transform: translateX(-12px) translateY(2px) scale(0.996); }
+    24% { transform: translateX(12px) translateY(-2px) scale(1.004); }
+    36% { transform: translateX(-10px) translateY(2px) scale(0.997); }
+    48% { transform: translateX(10px) translateY(-2px) scale(1.003); }
+    60% { transform: translateX(-8px) translateY(1px) scale(0.998); }
+    72% { transform: translateX(8px) translateY(-1px) scale(1.002); }
+    84% { transform: translateX(-4px) translateY(1px) scale(1); }
+    100% { transform: translateX(0) translateY(0) scale(1); }
+}
+
 @keyframes tarotKingdomTrickWinPop {
     0% { opacity: 0; transform: translateY(6px) scale(0.92); }
     44% { opacity: 1; transform: translateY(-3px) scale(1.08); }
@@ -5291,6 +5321,10 @@ body.modal-lock .modal-overlay {
     animation-name: tarotKingdomDefeatParticleSlash;
 }
 
+.tarot-kingdom-defeat-particle.is-slash-spark.run {
+    animation-name: tarotKingdomDefeatParticleSpark;
+}
+
 .tarot-kingdom-defeat-particle.is-rock-main.run {
     animation-name: tarotKingdomDefeatParticleRockMain;
 }
@@ -5319,6 +5353,11 @@ body.modal-lock .modal-overlay {
     font-size: 26px;
 }
 
+.tarot-kingdom-defeat-particle.is-slash-spark {
+    font-size: 16px;
+    text-shadow: 0 0 10px rgba(250, 204, 21, 0.75);
+}
+
 .tarot-kingdom-defeat-particle.is-water-drop-a,
 .tarot-kingdom-defeat-particle.is-water-drop-b,
 .tarot-kingdom-defeat-particle.is-water-drop-c {
@@ -5335,6 +5374,12 @@ body.modal-lock .modal-overlay {
     0% { opacity: 0; transform: translate(-50%, -50%) rotate(-110deg) scale(0.7); }
     36% { opacity: 1; transform: translate(calc(-50% + 16px), calc(-50% - 8px)) rotate(8deg) scale(1.08); }
     100% { opacity: 0; transform: translate(calc(-50% + 34px), calc(-50% - 14px)) rotate(80deg) scale(1.18); }
+}
+
+@keyframes tarotKingdomDefeatParticleSpark {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6) rotate(0deg); }
+    36% { opacity: 1; transform: translate(calc(-50% + 10px), calc(-50% - 10px)) scale(1.08) rotate(24deg); }
+    100% { opacity: 0; transform: translate(calc(-50% + 20px), calc(-50% - 18px)) scale(0.9) rotate(60deg); }
 }
 
 @keyframes tarotKingdomDefeatParticleRockMain {
@@ -5756,6 +5801,13 @@ body.modal-lock .modal-overlay {
     animation: tarotKingdomRoundEndFlash 740ms ease-out 1;
 }
 
+.tarot-effect-overlay.is-kingdom-grandfinal {
+    background:
+        radial-gradient(circle at 50% 34%, rgba(255, 246, 201, 0.5), rgba(32, 16, 0, 0.86)),
+        conic-gradient(from 0deg at 50% 50%, rgba(250, 204, 21, 0.38), rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.34), rgba(250, 204, 21, 0.38));
+    animation: tarotKingdomGrandFinalFlash 1300ms ease-out 1;
+}
+
 .tarot-cutin {
     position: fixed;
     left: 50%;
@@ -5883,10 +5935,14 @@ body.modal-lock .modal-overlay {
     background:
         linear-gradient(120deg, rgba(101, 23, 0, 0.99), rgba(146, 64, 14, 0.98));
     color: #fffbe9;
+    font-size: clamp(24px, 6.3vw, 56px);
+    letter-spacing: 0.1em;
     box-shadow:
         0 18px 48px rgba(245, 158, 11, 0.56),
         0 0 44px rgba(250, 204, 21, 0.42);
-    animation: tarotKingdomGrandWinCutin 1700ms cubic-bezier(0.2, 0.86, 0.2, 1) 1;
+    animation:
+        tarotKingdomGrandWinCutin 2200ms cubic-bezier(0.2, 0.86, 0.2, 1) 1,
+        tarotKingdomGrandWinPulse 560ms ease-in-out 3;
 }
 
 @keyframes tarotKingdomCallDon {
@@ -6093,6 +6149,33 @@ body.modal-lock .modal-overlay {
     }
 }
 
+@keyframes tarotKingdomGrandWinPulse {
+    0% {
+        filter: brightness(1) saturate(1);
+    }
+    45% {
+        filter: brightness(1.22) saturate(1.26);
+    }
+    100% {
+        filter: brightness(1) saturate(1);
+    }
+}
+
+@keyframes tarotKingdomGrandFinalFlash {
+    0% {
+        opacity: 0;
+        filter: brightness(0.82) saturate(0.82);
+    }
+    38% {
+        opacity: 1;
+        filter: brightness(1.2) saturate(1.24);
+    }
+    100% {
+        opacity: 1;
+        filter: brightness(1) saturate(1);
+    }
+}
+
 .tarot-card-fly {
     position: fixed;
     left: 0;
@@ -6118,10 +6201,6 @@ body.modal-lock .modal-overlay {
     background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(250, 204, 21, 0.42), rgba(255, 255, 255, 0));
     opacity: 0.78;
     animation: tarotKingdomRamTrail 260ms ease-out infinite;
-}
-
-.tarot-card.is-ram-impact {
-    animation: tarotKingdomRamImpactFlash 160ms ease-out 1;
 }
 
 .tarot-card.is-call-stolen {
@@ -6291,12 +6370,7 @@ body.modal-lock .modal-overlay {
     }
 }
 
-@keyframes tarotKingdomRamImpactFlash {
-    0% {
-        filter: brightness(1) saturate(1);
-        transform: translateY(0) scale(1);
-    }
-    38% {
+38% {
         filter: brightness(1.34) saturate(1.22);
         transform: translateY(1px) scale(0.97);
     }
