@@ -83,6 +83,7 @@ let openingDealStartTimer = null;
 let openingDealFlipTimer = null;
 let openingDealNextTimer = null;
 let humanTurnBadgeTimer = null;
+let pendingTurnAdvanceAfterTrick = null;
 let lastHumanTurnActive = false;
 let npcScheduleToken = 0;
 let npcActInFlight = false;
@@ -174,6 +175,9 @@ const clearRoundOutCinematicTimer = () => {
     clearTimeout(roundOutCinematicTimer);
     roundOutCinematicTimer = null;
   }
+};
+const clearPendingTurnAdvanceAfterTrick = () => {
+  pendingTurnAdvanceAfterTrick = null;
 };
 const clearOpeningDealTimers = () => {
   if (openingDealStartTimer) {
@@ -692,7 +696,8 @@ function showKingdomCardEffectInfo(card, prefix = '効果') {
 function getShortPlayHelp(reason) {
   const text = String(reason || '');
   if (!text) return '';
-  if (text.includes('ストレートコール制限')) return 'ヒント: 場札と同じ数値を手札4枚から外してください。';
+  if (text.includes('ストレートコール制限')) return 'ヒント: 手札全体（選択中含む）に場札と同数値があると不可です。';
+  if (text.includes('同スートが5枚以上必要')) return 'ヒント: 手札全体（選択中含む）で場札と同スートを5枚以上用意してください。';
   if (text.includes('フラッシュコール制限')) return 'ヒント: 場札がハイカードにならない構成で5枚を作ってください。';
   if (text.includes('コールは手札4枚')) return 'ヒント: コール時は手札を4枚だけ選択します。';
   if (text.includes('コール対象は1枚場札のみ')) return 'ヒント: コールは場札が1枚のときだけ使えます。';
@@ -2517,6 +2522,7 @@ async function ensureTarotKingdomNetwork() {
 
 function resetMatch() {
   clearSettlementGainFx();
+  clearPendingTurnAdvanceAfterTrick();
   s = initState();
   if (trickSwapTimer) { clearTimeout(trickSwapTimer); trickSwapTimer = null; }
   trickRenderKey = '';
@@ -2837,10 +2843,20 @@ function buildCallPlay(pi, sel) {
   if (cards.some((c) => c.kind !== 'minor')) return { ok: false, reason: 'コール手札は小アルカナのみです。' };
   const role = evalRole([base, ...cards], s.lock?.suit || null);
   if (!role || role.strength < ROLE_ST.Straight) return { ok: false, reason: 'コール成立しません。' };
-  if (role.key === 'Straight' && cards.some((c) => Number(c?.number) === Number(base?.number))) {
-    return { ok: false, reason: 'ストレートコール制限に抵触します。' };
+  const baseNumber = Number(base?.number);
+  const hasSameNumberInHand = Array.isArray(p?.hand)
+    && p.hand.some((c) => Number(c?.number) === baseNumber);
+  if (role.key === 'Straight' && hasSameNumberInHand) {
+    return { ok: false, reason: 'ストレートコール制限: 手札に場札と同数値があります。' };
   }
   if (role.key === 'Flush') {
+    const baseSuit = (suitsForCard(base, false) || [])[0] || 'None';
+    const sameSuitCountInHand = Array.isArray(p?.hand)
+      ? p.hand.filter((c) => (suitsForCard(c, false) || []).includes(baseSuit)).length
+      : 0;
+    if (baseSuit !== 'None' && sameSuitCountInHand < 5) {
+      return { ok: false, reason: 'フラッシュコール制限: 手札に場札と同スートが5枚以上必要です。' };
+    }
     const vals = [base, ...cards].map((c) => cStrength(c)).sort((a, b) => b - a);
     if (vals[0] === cStrength(base)) return { ok: false, reason: 'フラッシュコール制限に抵触します。' };
   }
@@ -3749,6 +3765,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   });
 
   if (isCallPlay) {
+    clearPendingTurnAdvanceAfterTrick();
     pulseKingdomPotAnchor(Math.max(760, callCinematicMs - 140));
     playKingdomCoinEffect(pi, getKingdomCallCoinCount(callFxLevel), '🪙', { className: 'is-call-bet', delayMs: 90 });
     vibrateOnce(32);
@@ -3765,7 +3782,12 @@ function applyPlay(pi, play, retryDepth = 0) {
     }, callCinematicMs);
     return;
   }
-  continueAfterPlay(pi, play);
+  clearPendingTurnAdvanceAfterTrick();
+  pendingTurnAdvanceAfterTrick = () => {
+    if (!s || s.lastPlay !== play || s.trick !== play) return;
+    continueAfterPlay(pi, play);
+  };
+  render();
 }
 
 function passAction(pi) {
@@ -4212,6 +4234,16 @@ function renderPlayers() {
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
   let ramSettleFirstCard = false;
+  const resolvePendingAfterTrick = () => {
+    if (typeof pendingTurnAdvanceAfterTrick !== 'function') return;
+    const fn = pendingTurnAdvanceAfterTrick;
+    pendingTurnAdvanceAfterTrick = null;
+    try {
+      fn();
+    } catch (error) {
+      console.warn('[tarotKingdom] resolve pending turn advance failed:', error);
+    }
+  };
   if (ui.trickOwner) {
     if (!cards.length) {
       ui.trickOwner.textContent = '場札主: -';
@@ -4375,7 +4407,7 @@ function renderTrick() {
         if (firstNode && ramFx?.settleTo) {
           firstNode.style.opacity = '0';
           firstNode.style.transform = 'translateY(0) scale(1)';
-          ramFx.settleTo(firstNode, {
+          const settleDoneMs = ramFx.settleTo(firstNode, {
             durationMs: 170,
             onArrive: () => {
               firstNode.style.opacity = '';
@@ -4383,8 +4415,12 @@ function renderTrick() {
             },
             autoRemove: true
           });
+          setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), Math.max(0, settleDoneMs) + 24);
         } else if (ramFx?.remove) {
           ramFx.remove(84);
+          setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), 120);
+        } else {
+          resolvePendingAfterTrick();
         }
       }, preDefeatMs + baseMs + tailMs + 80);
       return;
@@ -4430,7 +4466,7 @@ function renderTrick() {
       if (firstNode && ramFx?.settleTo) {
         firstNode.style.opacity = '0';
         firstNode.style.transform = 'translateY(0) scale(1)';
-        ramFx.settleTo(firstNode, {
+        const settleDoneMs = ramFx.settleTo(firstNode, {
           durationMs: 170,
           onArrive: () => {
             firstNode.style.opacity = '';
@@ -4438,14 +4474,19 @@ function renderTrick() {
           },
           autoRemove: true
         });
+        setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), Math.max(0, settleDoneMs) + 24);
       } else if (ramFx?.remove) {
         ramFx.remove(84);
+        setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), 120);
+      } else {
+        resolvePendingAfterTrick();
       }
     }, preDefeatMs + baseMs + tailMs + 80);
     return;
   }
   trickRenderToken += 1;
   renderNow();
+  resolvePendingAfterTrick();
 }
 
 function renderHand() {
@@ -5193,6 +5234,7 @@ export async function loadTarotKingdomPage() {
 
 export function destroyTarotKingdomPage() {
   clearSettlementGainFx();
+  clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();
   clearOracleFlipTimers();
   clearCallCinematicTimer();

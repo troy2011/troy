@@ -5087,6 +5087,11 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-slash::after {
     content: "🗡️";
+    left: 92%;
+    top: -8%;
+    font-size: 24px;
+    transform-origin: 170% -120%;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.42)) drop-shadow(0 0 12px rgba(250, 204, 21, 0.35));
     animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
 }
 
@@ -5179,9 +5184,22 @@ body.modal-lock .modal-overlay {
 }
 
 @keyframes tarotKingdomDefeatSlashMarker {
-    0% { opacity: 0; transform: translate(-50%, -48%) scale(0.7) rotate(-110deg); }
-    40% { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(24deg); }
-    100% { opacity: 0; transform: translate(-50%, -52%) scale(1.16) rotate(80deg); }
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.82) rotate(-138deg);
+    }
+    18% {
+        opacity: 1;
+        transform: translate(-52%, -62%) scale(0.98) rotate(-102deg);
+    }
+    56% {
+        opacity: 1;
+        transform: translate(-56%, -46%) scale(1.12) rotate(-12deg);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-58%, -30%) scale(1.18) rotate(40deg);
+    }
 }
 
 @keyframes tarotKingdomDefeatRock {
@@ -6076,6 +6094,9 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card-fly {
+    position: fixed;
+    left: 0;
+    top: 0;
     box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.52),
         0 0 0 1px rgba(255, 255, 255, 0.18);
