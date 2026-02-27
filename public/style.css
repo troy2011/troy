@@ -5177,10 +5177,10 @@ body.modal-lock .modal-overlay {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    font-size: 18px;
+    font-size: 30px;
     line-height: 1;
     pointer-events: none;
-    text-shadow: 0 0 8px rgba(0, 0, 0, 0.45);
+    text-shadow: 0 0 12px rgba(0, 0, 0, 0.52);
     opacity: 0;
 }
 
@@ -5190,7 +5190,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-normal::after {
     content: var(--defeat-marker-content, "💥");
-    animation: tarotKingdomDefeatMarker var(--defeat-marker-ms, 240ms) ease-out forwards;
+    animation: tarotKingdomDefeatMarker var(--defeat-marker-ms, 760ms) ease-out forwards;
 }
 
 .tarot-card.is-defeat-slash {
@@ -5201,10 +5201,10 @@ body.modal-lock .modal-overlay {
     content: var(--defeat-marker-content, "\1F5E1");
     left: 104%;
     top: -26%;
-    font-size: 25px;
+    font-size: 32px;
     transform-origin: 280% -240%;
     filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5)) drop-shadow(0 0 12px rgba(250, 204, 21, 0.38));
-    animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 440ms) cubic-bezier(0.16, 0.82, 0.24, 1) forwards;
+    animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 860ms) cubic-bezier(0.16, 0.82, 0.24, 1) forwards;
 }
 
 .tarot-card.is-defeat-rock {
@@ -5213,7 +5213,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-rock::after {
     content: var(--defeat-marker-content, "🪦");
-    animation: tarotKingdomDefeatRockMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
+    animation: tarotKingdomDefeatRockMarker var(--defeat-marker-ms, 860ms) ease-out forwards;
 }
 
 .tarot-card.is-defeat-water {
@@ -5222,7 +5222,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-water::after {
     content: var(--defeat-marker-content, "💦");
-    animation: tarotKingdomDefeatWaterMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
+    animation: tarotKingdomDefeatWaterMarker var(--defeat-marker-ms, 860ms) ease-out forwards;
 }
 
 .tarot-card.is-defeat-fire {
@@ -5231,7 +5231,7 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-fire::after {
     content: var(--defeat-marker-content, "🔥");
-    animation: tarotKingdomDefeatFireMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
+    animation: tarotKingdomDefeatFireMarker var(--defeat-marker-ms, 860ms) ease-out forwards;
 }
 
 .tarot-card.is-entering {
@@ -5434,6 +5434,36 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-arcana-hero.is-burst.run { animation-name: tarotKingdomArcanaHeroBurst; }
 .tarot-kingdom-arcana-hero.is-rush.run { animation-name: tarotKingdomArcanaHeroRush; }
 .tarot-kingdom-arcana-hero.is-trickster.run { animation-name: tarotKingdomArcanaHeroTrickster; }
+.tarot-kingdom-arcana-hero.is-throne.run { animation-name: tarotKingdomArcanaHeroThrone; }
+.tarot-kingdom-arcana-hero.is-edict.run { animation-name: tarotKingdomArcanaHeroEdict; }
+.tarot-kingdom-arcana-hero.is-sanctum.run { animation-name: tarotKingdomArcanaHeroSanctum; }
+.tarot-kingdom-arcana-hero.is-halo.run { animation-name: tarotKingdomArcanaHeroHalo; }
+.tarot-kingdom-arcana-hero.is-verdict.run { animation-name: tarotKingdomArcanaHeroVerdict; }
+.tarot-kingdom-arcana-hero.is-rift.run { animation-name: tarotKingdomArcanaHeroRift; }
+.tarot-kingdom-arcana-hero.is-world.run { animation-name: tarotKingdomArcanaHeroWorld; }
+
+.tarot-kingdom-arcana-hero.is-arcana-0 { font-size: 48px; filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.48)); }
+.tarot-kingdom-arcana-hero.is-arcana-1 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(167, 139, 250, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-2 { font-size: 48px; filter: drop-shadow(0 0 16px rgba(59, 130, 246, 0.42)); }
+.tarot-kingdom-arcana-hero.is-arcana-3 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(244, 114, 182, 0.42)); }
+.tarot-kingdom-arcana-hero.is-arcana-4 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-5 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-6 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(244, 63, 94, 0.42)); }
+.tarot-kingdom-arcana-hero.is-arcana-7 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(147, 197, 253, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-8 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-9 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-10 { font-size: 52px; filter: drop-shadow(0 0 18px rgba(96, 165, 250, 0.46)); }
+.tarot-kingdom-arcana-hero.is-arcana-11 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.46)); }
+.tarot-kingdom-arcana-hero.is-arcana-12 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(251, 146, 60, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-13 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.50)); }
+.tarot-kingdom-arcana-hero.is-arcana-14 { font-size: 50px; filter: drop-shadow(0 0 16px rgba(45, 212, 191, 0.44)); }
+.tarot-kingdom-arcana-hero.is-arcana-15 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(217, 70, 239, 0.48)); }
+.tarot-kingdom-arcana-hero.is-arcana-16 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.48)); }
+.tarot-kingdom-arcana-hero.is-arcana-17 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(59, 130, 246, 0.46)); }
+.tarot-kingdom-arcana-hero.is-arcana-18 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(14, 165, 233, 0.46)); }
+.tarot-kingdom-arcana-hero.is-arcana-19 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.52)); }
+.tarot-kingdom-arcana-hero.is-arcana-20 { font-size: 50px; filter: drop-shadow(0 0 18px rgba(167, 139, 250, 0.48)); }
+.tarot-kingdom-arcana-hero.is-arcana-21 { font-size: 54px; filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.54)); }
 
 @keyframes tarotKingdomArcanaHeroOrbit {
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.66) rotate(-32deg); }
@@ -5477,6 +5507,56 @@ body.modal-lock .modal-overlay {
     66% { opacity: 1; transform: translate(calc(-50% - 8px), calc(-50% + 10px)) scale(1.06) rotate(10deg); }
     100% { opacity: 0; transform: translate(calc(-50% + 8px), calc(-50% - 10px)) scale(1.16) rotate(26deg); }
 }
+
+@keyframes tarotKingdomArcanaHeroThrone {
+    0% { opacity: 0; transform: translate(-50%, calc(-50% - 28px)) scale(0.70); }
+    36% { opacity: 1; transform: translate(calc(-50% - 6px), calc(-50% - 8px)) scale(1.20); }
+    70% { opacity: 1; transform: translate(calc(-50% + 8px), calc(-50% - 2px)) scale(1.08); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.90); }
+}
+
+@keyframes tarotKingdomArcanaHeroEdict {
+    0% { opacity: 0; transform: translate(-50%, calc(-50% - 36px)) scale(0.66) rotate(-6deg); }
+    42% { opacity: 1; transform: translate(-50%, calc(-50% + 2px)) scale(1.18) rotate(2deg); }
+    72% { opacity: 1; transform: translate(calc(-50% + 4px), calc(-50% - 6px)) scale(1.04) rotate(-2deg); }
+    100% { opacity: 0; transform: translate(calc(-50% - 4px), calc(-50% + 10px)) scale(0.88) rotate(0deg); }
+}
+
+@keyframes tarotKingdomArcanaHeroSanctum {
+    0% { opacity: 0; transform: translate(calc(-50% + 12px), calc(-50% - 20px)) scale(0.68) rotate(-10deg); }
+    34% { opacity: 1; transform: translate(calc(-50% - 8px), calc(-50% - 6px)) scale(1.12) rotate(8deg); }
+    68% { opacity: 1; transform: translate(calc(-50% + 6px), calc(-50% + 6px)) scale(1.02) rotate(-6deg); }
+    100% { opacity: 0; transform: translate(calc(-50% - 6px), calc(-50% + 16px)) scale(0.90) rotate(4deg); }
+}
+
+@keyframes tarotKingdomArcanaHeroHalo {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(-14deg); }
+    26% { opacity: 1; transform: translate(calc(-50% - 8px), calc(-50% - 18px)) scale(1.16) rotate(10deg); }
+    58% { opacity: 1; transform: translate(calc(-50% + 10px), calc(-50% - 8px)) scale(1.06) rotate(-8deg); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 24px)) scale(1.20) rotate(12deg); }
+}
+
+@keyframes tarotKingdomArcanaHeroVerdict {
+    0% { opacity: 0; transform: translate(calc(-50% + 22px), calc(-50% - 8px)) scale(0.74) rotate(8deg); }
+    30% { opacity: 1; transform: translate(calc(-50% - 10px), calc(-50% - 2px)) scale(1.20) rotate(-6deg); }
+    64% { opacity: 1; transform: translate(calc(-50% + 12px), calc(-50% + 2px)) scale(1.04) rotate(4deg); }
+    100% { opacity: 0; transform: translate(calc(-50% - 20px), calc(-50% + 8px)) scale(1.12) rotate(-2deg); }
+}
+
+@keyframes tarotKingdomArcanaHeroRift {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.58) rotate(-20deg); }
+    28% { opacity: 1; transform: translate(calc(-50% - 6px), calc(-50% - 6px)) scale(1.26) rotate(12deg); }
+    62% { opacity: 1; transform: translate(calc(-50% + 8px), calc(-50% + 6px)) scale(1.04) rotate(-10deg); }
+    100% { opacity: 0; transform: translate(calc(-50% + 14px), calc(-50% - 12px)) scale(1.22) rotate(18deg); }
+}
+
+@keyframes tarotKingdomArcanaHeroWorld {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(-18deg); }
+    24% { opacity: 1; transform: translate(calc(-50% - 16px), calc(-50% - 18px)) scale(1.24) rotate(10deg); }
+    52% { opacity: 1; transform: translate(calc(-50% + 18px), calc(-50% + 10px)) scale(1.08) rotate(36deg); }
+    78% { opacity: 1; transform: translate(calc(-50% - 8px), calc(-50% + 14px)) scale(1.02) rotate(62deg); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 8px)) scale(1.28) rotate(88deg); }
+}
 .tarot-kingdom-defeat-particle {
     position: fixed;
     z-index: 3660;
@@ -5485,7 +5565,7 @@ body.modal-lock .modal-overlay {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.84);
     filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.42));
-    font-size: 20px;
+    font-size: 24px;
     line-height: 1;
     will-change: transform, opacity, filter;
 }
@@ -5533,18 +5613,18 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-defeat-particle.is-water-main {
-    font-size: 26px;
+    font-size: 30px;
 }
 
 .tarot-kingdom-defeat-particle.is-slash-spark {
-    font-size: 16px;
+    font-size: 18px;
     text-shadow: 0 0 10px rgba(250, 204, 21, 0.75);
 }
 
 .tarot-kingdom-defeat-particle.is-water-drop-a,
 .tarot-kingdom-defeat-particle.is-water-drop-b,
 .tarot-kingdom-defeat-particle.is-water-drop-c {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 @keyframes tarotKingdomDefeatParticleNormal {
