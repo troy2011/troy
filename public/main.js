@@ -66,6 +66,34 @@ function updateSeaToneByTime(date = new Date()) {
     document.body.dataset.seaTone = tone;
 }
 
+function updateDisplayModeFlag() {
+    const standaloneByMedia = window.matchMedia?.('(display-mode: standalone)')?.matches;
+    const standaloneByNavigator = window.navigator?.standalone === true;
+    const isStandalone = !!(standaloneByMedia || standaloneByNavigator);
+    document.documentElement.classList.toggle('is-standalone', isStandalone);
+    document.body?.classList.toggle('is-standalone', isStandalone);
+}
+
+async function registerServiceWorkerIfAvailable() {
+    if (!('serviceWorker' in navigator)) return;
+    const host = String(window.location.hostname || '');
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    if (!window.isSecureContext && !isLocalHost) return;
+    try {
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        console.log('[pwa] service worker registered:', reg.scope);
+    } catch (error) {
+        console.warn('[pwa] service worker registration failed:', error);
+    }
+}
+
+function initPwaShell() {
+    updateDisplayModeFlag();
+    window.matchMedia?.('(display-mode: standalone)')?.addEventListener?.('change', updateDisplayModeFlag);
+    window.addEventListener('appinstalled', updateDisplayModeFlag);
+    registerServiceWorkerIfAvailable();
+}
+
 async function ensureBuildingMetaLoaded() {
     if (window.buildingMetaById && Object.keys(window.buildingMetaById).length) {
         return window.buildingMetaById;
@@ -159,6 +187,7 @@ PlayFab.settings.titleId = '1A0BA';
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     updateSeaToneByTime();
+    initPwaShell();
     setInterval(updateSeaToneByTime, 15 * 60 * 1000);
     initializeLiff();
 });

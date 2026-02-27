@@ -5493,6 +5493,16 @@ function bindUi() {
   ui.settlementBody = document.getElementById('tarotKingdomSettlementBody');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
   ui.actionPopup = document.getElementById('tarotKingdomActionPopup');
+  if (ui.actionPopup) {
+    const stopPopupPropagation = (event) => {
+      event?.stopPropagation?.();
+    };
+    ui.actionPopup.addEventListener('pointerdown', stopPopupPropagation);
+    ui.actionPopup.addEventListener('mousedown', stopPopupPropagation);
+    ui.actionPopup.addEventListener('touchstart', stopPopupPropagation, { passive: true });
+    ui.actionPopup.addEventListener('touchmove', stopPopupPropagation, { passive: true });
+    ui.actionPopup.addEventListener('click', stopPopupPropagation);
+  }
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');

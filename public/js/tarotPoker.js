@@ -4687,6 +4687,16 @@ function bindElements() {
     ui.judgmentOptions = document.getElementById('tarotJudgmentOptions');
     ui.bettingInfo = document.getElementById('tarotBettingInfo');
     ui.betPopup = document.getElementById('tarotBetPopup');
+    if (ui.betPopup) {
+        const stopPopupPropagation = (event) => {
+            event?.stopPropagation?.();
+        };
+        ui.betPopup.addEventListener('pointerdown', stopPopupPropagation);
+        ui.betPopup.addEventListener('mousedown', stopPopupPropagation);
+        ui.betPopup.addEventListener('touchstart', stopPopupPropagation, { passive: true });
+        ui.betPopup.addEventListener('touchmove', stopPopupPropagation, { passive: true });
+        ui.betPopup.addEventListener('click', stopPopupPropagation);
+    }
     ui.potText = document.getElementById('tarotPotText');
     ui.potValueText = document.getElementById('tarotPotValue');
     ui.playerPointText = document.getElementById('tarotPlayerPointText');
