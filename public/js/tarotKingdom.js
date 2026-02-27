@@ -659,28 +659,28 @@ const getPrimarySuitFromPlay = (play) => {
   return null;
 };
 const MAJOR_ATTACK_FX = {
-  0: { leadEmoji: '🃏', markerEmoji: '🐕', pattern: 'trickster', kind: 'normal', heroDurationMs: 920 },
-  1: { leadEmoji: '🪄', markerEmoji: '♾️', pattern: 'orbit', kind: 'normal', heroDurationMs: 960 },
-  2: { leadEmoji: '📜', markerEmoji: '🌙', pattern: 'float', kind: 'water', heroDurationMs: 980 },
-  3: { leadEmoji: '👸', markerEmoji: '🌾', pattern: 'throne', kind: 'slash', heroDurationMs: 980 },
-  4: { leadEmoji: '🤴', markerEmoji: '🏰', pattern: 'edict', kind: 'fire', heroDurationMs: 980 },
-  5: { leadEmoji: '🗝️', markerEmoji: '⛪', pattern: 'sanctum', kind: 'rock', heroDurationMs: 980 },
-  6: { leadEmoji: '👼', markerEmoji: '💞', pattern: 'halo', kind: 'water', heroDurationMs: 980 },
-  7: { leadEmoji: '🐎', markerEmoji: '🛡️', pattern: 'rush', kind: 'slash', heroDurationMs: 940 },
-  8: { leadEmoji: '🦁', markerEmoji: '💥', pattern: 'burst', kind: 'fire', heroDurationMs: 930 },
-  9: { leadEmoji: '🧙🏾‍♂️', markerEmoji: '💨', pattern: 'trickster', kind: 'rock', heroDurationMs: 980 },
-  10: { leadEmoji: '🎡', markerEmoji: '🌀', pattern: 'orbit', kind: 'normal', heroDurationMs: 980 },
-  11: { leadEmoji: '⚖️', markerEmoji: '💫', pattern: 'verdict', kind: 'slash', heroDurationMs: 980 },
-  12: { leadEmoji: '🌳', markerEmoji: '🪢', pattern: 'sanctum', kind: 'rock', heroDurationMs: 960 },
-  13: { leadEmoji: '💀', markerEmoji: '🦋', pattern: 'rift', kind: 'fire', heroDurationMs: 980 },
-  14: { leadEmoji: '🏺', markerEmoji: '🕊️', pattern: 'float', kind: 'water', heroDurationMs: 960 },
-  15: { leadEmoji: '👿', markerEmoji: '⛓️', pattern: 'rift', kind: 'normal', heroDurationMs: 980 },
-  16: { leadEmoji: '🌩️', markerEmoji: '⚡', pattern: 'slam', kind: 'slash', heroDurationMs: 940 },
-  17: { leadEmoji: '✨', markerEmoji: '⭐', pattern: 'halo', kind: 'water', heroDurationMs: 940 },
-  18: { leadEmoji: '🌕', markerEmoji: '🦞', pattern: 'float', kind: 'rock', heroDurationMs: 980 },
-  19: { leadEmoji: '☀️', markerEmoji: '🌻', pattern: 'burst', kind: 'fire', heroDurationMs: 940 },
-  20: { leadEmoji: '🎺', markerEmoji: '🎵', pattern: 'verdict', kind: 'normal', heroDurationMs: 980 },
-  21: { leadEmoji: '🌍', markerEmoji: '♾️', pattern: 'world', kind: 'normal', heroDurationMs: 1100 }
+  0: { leadEmoji: '🃏', markerEmoji: '🐕', pattern: 'trickster', kind: 'normal', heroDurationMs: 900 },
+  1: { leadEmoji: '🪄', markerEmoji: '♾️', pattern: 'orbit', kind: 'normal', heroDurationMs: 940 },
+  2: { leadEmoji: '📜', markerEmoji: '🌙', pattern: 'float', kind: 'water', heroDurationMs: 940 },
+  3: { leadEmoji: '👸', markerEmoji: '🌾', pattern: 'throne', kind: 'slash', heroDurationMs: 930 },
+  4: { leadEmoji: '🤴', markerEmoji: '🏰', pattern: 'edict', kind: 'fire', heroDurationMs: 930 },
+  5: { leadEmoji: '🗝️', markerEmoji: '⛪', pattern: 'sanctum', kind: 'rock', heroDurationMs: 940 },
+  6: { leadEmoji: '👼', markerEmoji: '💞', pattern: 'halo', kind: 'water', heroDurationMs: 930 },
+  7: { leadEmoji: '🐎', markerEmoji: '🛡️', pattern: 'rush', kind: 'slash', heroDurationMs: 900 },
+  8: { leadEmoji: '🦁', markerEmoji: '💥', pattern: 'burst', kind: 'fire', heroDurationMs: 890 },
+  9: { leadEmoji: '🧙🏾‍♂️', markerEmoji: '💨', pattern: 'trickster', kind: 'rock', heroDurationMs: 940 },
+  10: { leadEmoji: '🎡', markerEmoji: '🌀', pattern: 'orbit', kind: 'normal', heroDurationMs: 940 },
+  11: { leadEmoji: '⚖️', markerEmoji: '💫', pattern: 'verdict', kind: 'slash', heroDurationMs: 930 },
+  12: { leadEmoji: '🌳', markerEmoji: '🪢', pattern: 'sanctum', kind: 'rock', heroDurationMs: 930 },
+  13: { leadEmoji: '💀', markerEmoji: '🦋', pattern: 'rift', kind: 'fire', heroDurationMs: 940 },
+  14: { leadEmoji: '🏺', markerEmoji: '🕊️', pattern: 'float', kind: 'water', heroDurationMs: 930 },
+  15: { leadEmoji: '👿', markerEmoji: '⛓️', pattern: 'rift', kind: 'normal', heroDurationMs: 940 },
+  16: { leadEmoji: '🌩️', markerEmoji: '⚡', pattern: 'slam', kind: 'slash', heroDurationMs: 900 },
+  17: { leadEmoji: '✨', markerEmoji: '⭐', pattern: 'halo', kind: 'water', heroDurationMs: 900 },
+  18: { leadEmoji: '🌕', markerEmoji: '🦞', pattern: 'float', kind: 'rock', heroDurationMs: 940 },
+  19: { leadEmoji: '☀️', markerEmoji: '🌻', pattern: 'burst', kind: 'fire', heroDurationMs: 900 },
+  20: { leadEmoji: '🎺', markerEmoji: '🎵', pattern: 'verdict', kind: 'normal', heroDurationMs: 930 },
+  21: { leadEmoji: '🌍', markerEmoji: '♾️', pattern: 'world', kind: 'normal', heroDurationMs: 1020 }
 };
 
 const SUIT_ATTACK_DEBUG_FX = {
@@ -740,6 +740,8 @@ const pickTrickDefeatFx = (play, prevTrick) => {
     info.kind = majorFx.kind;
     info.arcana = majorFx;
   } else {
+    // Court/A based special attacks are suit-only; do not emit arcana lead emoji.
+    info.arcana = null;
     const suit = getPrimarySuitFromPlay(play);
     if (suit === 'Sword') info.kind = 'slash';
     else if (suit === 'Pentacle') info.kind = 'rock';
@@ -1852,9 +1854,12 @@ function spawnKingdomArcanaLeadFx(targetEl, arcanaFx, options = {}) {
   const rect = targetEl.getBoundingClientRect?.();
   if (!rect || rect.width <= 0 || rect.height <= 0) return 0;
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
-  const durationMs = Math.max(420, Number(options.durationMs) || Number(arcanaFx?.heroDurationMs) || 760);
+  const durationMs = Math.max(480, Number(options.durationMs) || Number(arcanaFx?.heroDurationMs) || 820);
   const x = rect.left + (rect.width * 0.5);
-  const y = rect.top + (rect.height * 0.48);
+  // Place the lead emoji above the card center with a fixed gap so it never overlaps the card body.
+  const heroHalfPx = Math.max(20, Number(options.heroHalfPx) || 26);
+  const gapPx = Math.max(8, Number(options.gapPx) || 10);
+  const y = Math.max(heroHalfPx + 4, rect.top - heroHalfPx - gapPx);
   const node = document.createElement('span');
   const pattern = String(arcanaFx?.pattern || 'burst');
   const n = Number(arcanaFx?.number);
@@ -1869,7 +1874,7 @@ function spawnKingdomArcanaLeadFx(targetEl, arcanaFx, options = {}) {
     if (!node.parentElement) return;
     node.classList.add('run');
   }, delayMs + 12);
-  const totalMs = delayMs + durationMs + 180;
+  const totalMs = delayMs + durationMs + 220;
   setTimeout(() => {
     if (node.parentElement) node.remove();
   }, totalMs);
@@ -1887,21 +1892,23 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   const particles = [];
   if (kind === 'slash') {
     // Sword itself is rendered by the primary-card marker; particle is a spark only.
-    particles.push({ emoji: '✨', variant: 'is-slash-spark', x: baseX + 4, y: baseY - 4, dur: 520 });
+    particles.push({ emoji: '✨', variant: 'is-slash-spark', x: baseX + 4, y: baseY - 4, dur: 560 });
+    particles.push({ emoji: '💨', variant: 'is-slash', x: baseX + 12, y: baseY - 10, dur: 520 });
   } else if (kind === 'rock') {
-    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 760 });
+    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 720 });
     particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 10, dur: 520 });
   } else if (kind === 'water') {
-    particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 700 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 18, y: baseY - 8, dur: 620 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 4, y: baseY - 10, dur: 680 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 20, y: baseY - 6, dur: 720 });
+    particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 720 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 18, y: baseY - 8, dur: 610 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 4, y: baseY - 10, dur: 640 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 20, y: baseY - 6, dur: 680 });
   } else if (kind === 'fire') {
     particles.push({ emoji: markerEmoji || '🔥', variant: 'is-fire-a', x: baseX - 14, y: baseY + 2, dur: 700 });
     particles.push({ emoji: '🔥', variant: 'is-fire-b', x: baseX + 4, y: baseY - 8, dur: 760 });
-    particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 20, y: baseY + 4, dur: 680 });
+    particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 20, y: baseY + 4, dur: 660 });
   } else {
-    particles.push({ emoji: markerEmoji || '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 480 });
+    particles.push({ emoji: markerEmoji || '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 520 });
+    particles.push({ emoji: markerEmoji || '💫', variant: 'is-normal', x: baseX + 10, y: baseY - 8, dur: 500 });
   }
 
   particles.forEach((cfg, idx) => {
@@ -1910,11 +1917,11 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
     node.textContent = cfg.emoji;
     node.style.left = `${cfg.x}px`;
     node.style.top = `${cfg.y}px`;
-    node.style.animationDelay = `${delayMs + (idx * 54)}ms`;
+    node.style.animationDelay = `${delayMs + (idx * 56)}ms`;
     node.style.setProperty('--fx-dur', `${Math.max(220, Number(cfg.dur) || 420)}ms`);
     document.body.appendChild(node);
     requestAnimationFrame(() => node.classList.add('run'));
-    const total = delayMs + (idx * 54) + Math.max(220, Number(cfg.dur) || 420) + 240;
+    const total = delayMs + (idx * 56) + Math.max(220, Number(cfg.dur) || 420) + 250;
     setTimeout(() => {
       if (node.parentElement) node.remove();
     }, total);
@@ -5058,13 +5065,14 @@ function renderTrick() {
       const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
       const isSpecialRoleClash = defeatFxKind !== 'normal';
       const hasArcanaMarker = !!String(arcanaFx?.markerEmoji || '').trim();
-      const baseMs = isSpecialRoleClash ? 760 : 640;
-      const markerMs = (isSpecialRoleClash ? 840 : 620) + (hasArcanaMarker ? 220 : 0);
+      const baseMs = isSpecialRoleClash ? 800 : 680;
+      const markerMs = (isSpecialRoleClash ? 980 : 760) + (hasArcanaMarker ? 240 : 120);
       setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
       setTimeout(() => runIfCurrent(() => {
         const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
-        if (arcanaFx?.leadEmoji) {
-          spawnKingdomArcanaLeadFx(prevCards[0], arcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(arcanaFx.heroDurationMs) || 0) });
+        const leadArcanaFx = Number.isFinite(Number(arcanaFx?.number)) ? arcanaFx : null;
+        if (leadArcanaFx?.leadEmoji) {
+          spawnKingdomArcanaLeadFx(prevCards[0], leadArcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(leadArcanaFx.heroDurationMs) || 0) });
         }
         prevCards.forEach((node, idx) => {
           if (!node) return;
@@ -5084,6 +5092,7 @@ function renderTrick() {
           node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
         });
       }), preDefeatMs);
+      const swapHoldMs = Math.max(baseMs, markerMs);
       trickSwapTimer = setTimeout(() => {
         if (swapToken !== trickRenderToken) return;
         trickSwapTimer = null;
@@ -5108,7 +5117,7 @@ function renderTrick() {
         } else {
           resolvePendingAfterTrick();
         }
-      }, preDefeatMs + baseMs + tailMs + 80);
+      }, preDefeatMs + swapHoldMs + tailMs + 80);
       return;
     }
     const isSpecial = defeatFxKind !== 'normal';
@@ -5117,9 +5126,9 @@ function renderTrick() {
     const preDefeatMs = hitStopMs + ramMs + 40;
     const staggerMs = 34;
     const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
-    const baseMs = (isSpecial ? 700 : 520) + (shakeLevel * 90);
+    const baseMs = (isSpecial ? 760 : 600) + (shakeLevel * 90);
     const hasArcanaMarker = !!String(arcanaFx?.markerEmoji || '').trim();
-    const markerMs = (isSpecial ? 760 : 540) + (shakeLevel * 70) + (hasArcanaMarker ? 220 : 0);
+    const markerMs = (isSpecial ? 940 : 720) + (shakeLevel * 70) + (hasArcanaMarker ? 240 : 120);
     const runIfCurrent = (fn) => {
       if (swapToken !== trickRenderToken) return;
       fn();
@@ -5135,8 +5144,9 @@ function renderTrick() {
     setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(shakeLevel)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
       const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
-      if (arcanaFx?.leadEmoji) {
-        spawnKingdomArcanaLeadFx(prevCards[0], arcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(arcanaFx.heroDurationMs) || 0) });
+      const leadArcanaFx = Number.isFinite(Number(arcanaFx?.number)) ? arcanaFx : null;
+      if (leadArcanaFx?.leadEmoji) {
+        spawnKingdomArcanaLeadFx(prevCards[0], leadArcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(leadArcanaFx.heroDurationMs) || 0) });
       }
       prevCards.forEach((node, idx) => {
         if (!node) return;
@@ -5156,6 +5166,7 @@ function renderTrick() {
         node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
       });
     }), preDefeatMs);
+    const swapHoldMs = Math.max(baseMs, markerMs);
     trickSwapTimer = setTimeout(() => {
       if (swapToken !== trickRenderToken) return;
       trickSwapTimer = null;
@@ -5180,7 +5191,7 @@ function renderTrick() {
       } else {
         resolvePendingAfterTrick();
       }
-    }, preDefeatMs + baseMs + tailMs + 80);
+    }, preDefeatMs + swapHoldMs + tailMs + 80);
     return;
   }
   if (prevCards.length > 0 && cards.length === 0 && transitionKind === 'clearSweep') {
