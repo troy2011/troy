@@ -5766,6 +5766,41 @@ function bindUi() {
     ui.actionPopup.addEventListener('touchmove', stopPopupPropagation, { passive: true });
     ui.actionPopup.addEventListener('click', stopPopupPropagation);
   }
+  const ensureFxDebugDom = () => {
+    if (!ui.actionPopup) return;
+    let actions = ui.actionPopup.querySelector('.tarot-betting-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'tarot-betting-actions';
+      ui.actionPopup.appendChild(actions);
+    }
+    let toggleBtn = document.getElementById('tarotKingdomFxDebugToggleButton');
+    if (!toggleBtn) {
+      toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.id = 'tarotKingdomFxDebugToggleButton';
+      toggleBtn.textContent = '演出デバッグ';
+      actions.appendChild(toggleBtn);
+    }
+    let panel = document.getElementById('tarotKingdomFxDebugPanel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'tarotKingdomFxDebugPanel';
+      panel.className = 'tarot-kingdom-fx-debug';
+      panel.hidden = true;
+      panel.innerHTML = `
+        <div class="tarot-kingdom-fx-debug-row">
+          <label for="tarotKingdomFxDebugSelect">大アルカナ演出</label>
+          <select id="tarotKingdomFxDebugSelect" aria-label="大アルカナ演出選択"></select>
+          <button id="tarotKingdomFxDebugPlayButton" type="button">再生</button>
+          <button id="tarotKingdomFxDebugCycleButton" type="button">連続再生</button>
+        </div>
+        <div id="tarotKingdomFxDebugInfo" class="tarot-kingdom-fx-debug-info"></div>
+      `;
+      ui.actionPopup.appendChild(panel);
+    }
+  };
+  ensureFxDebugDom();
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
@@ -5862,10 +5897,12 @@ function bindUi() {
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
   ui.fxDebugToggleButton?.addEventListener('click', () => {
     kingdomFxDebugEnabled = !kingdomFxDebugEnabled;
+    s.message = kingdomFxDebugEnabled ? '演出デバッグを開きました。' : '演出デバッグを閉じました。';
     if (!kingdomFxDebugEnabled) {
       stopKingdomFxDebugCycle();
     }
     renderKingdomFxDebugUi();
+    renderSummary();
   });
   ui.fxDebugSelect?.addEventListener('change', () => {
     renderKingdomFxDebugUi();
