@@ -637,25 +637,83 @@ const getPrimarySuitFromPlay = (play) => {
   }
   return null;
 };
+const MAJOR_ATTACK_FX = {
+  0: { leadEmoji: '🃏', markerEmoji: '🐕', pattern: 'trickster', kind: 'normal' },
+  1: { leadEmoji: '🪄', markerEmoji: '♾️', pattern: 'orbit', kind: 'fire' },
+  2: { leadEmoji: '📜', markerEmoji: '🌙', pattern: 'float', kind: 'water' },
+  3: { leadEmoji: '👸', markerEmoji: '🌾', pattern: 'float', kind: 'water' },
+  4: { leadEmoji: '🤴', markerEmoji: '🏰', pattern: 'slam', kind: 'rock' },
+  5: { leadEmoji: '🗝️', markerEmoji: '⛪', pattern: 'slam', kind: 'rock' },
+  6: { leadEmoji: '👼', markerEmoji: '💞', pattern: 'burst', kind: 'normal' },
+  7: { leadEmoji: '🐎', markerEmoji: '🛡️', pattern: 'rush', kind: 'slash' },
+  8: { leadEmoji: '🦁', markerEmoji: '💥', pattern: 'burst', kind: 'fire' },
+  9: { leadEmoji: '🧙🏾‍♂️', markerEmoji: '💨', pattern: 'trickster', kind: 'normal' },
+  10: { leadEmoji: '🎡', markerEmoji: '🌀', pattern: 'orbit', kind: 'normal' },
+  11: { leadEmoji: '⚖️', markerEmoji: '💫', pattern: 'rush', kind: 'slash' },
+  12: { leadEmoji: '🌳', markerEmoji: '🪢', pattern: 'slam', kind: 'rock' },
+  13: { leadEmoji: '💀', markerEmoji: '🦋', pattern: 'burst', kind: 'slash' },
+  14: { leadEmoji: '🏺', markerEmoji: '🕊️', pattern: 'float', kind: 'water' },
+  15: { leadEmoji: '👿', markerEmoji: '⛓️', pattern: 'burst', kind: 'fire' },
+  16: { leadEmoji: '🌩️', markerEmoji: '⚡', pattern: 'slam', kind: 'slash' },
+  17: { leadEmoji: '✨', markerEmoji: '⭐', pattern: 'float', kind: 'water' },
+  18: { leadEmoji: '🌕', markerEmoji: '🦞', pattern: 'float', kind: 'water' },
+  19: { leadEmoji: '☀️', markerEmoji: '🌻', pattern: 'burst', kind: 'fire' },
+  20: { leadEmoji: '🎺', markerEmoji: '🎵', pattern: 'burst', kind: 'slash' },
+  21: { leadEmoji: '🌍', markerEmoji: '♾️', pattern: 'orbit', kind: 'normal' }
+};
+const getMajorAttackFxFromCards = (cards) => {
+  if (!Array.isArray(cards)) return null;
+  const major = cards.find((card) => card?.kind === 'major');
+  if (!major) return null;
+  const n = Number(major.number);
+  if (!Number.isFinite(n)) return null;
+  const cfg = MAJOR_ATTACK_FX[n];
+  if (!cfg) return null;
+  return {
+    number: n,
+    leadEmoji: String(cfg.leadEmoji || ''),
+    markerEmoji: String(cfg.markerEmoji || ''),
+    pattern: String(cfg.pattern || 'burst'),
+    kind: String(cfg.kind || 'normal')
+  };
+};
+const isMinorCourtOrAceCard = (card) => {
+  if (!card || card.kind !== 'minor') return false;
+  const n = Number(card.number) || 0;
+  return n === 1 || (n >= 11 && n <= 14);
+};
+const hasMinorCourtOrAce = (cards) => Array.isArray(cards) && cards.some(isMinorCourtOrAceCard);
+const hasNamedRoleDisplay = (play) => {
+  if (String(play?.type || '') !== 'role') return false;
+  const keyName = getRoleKeyCardName(play?.role, play?.cardsHand || []);
+  return !!String(keyName || '').trim();
+};
 const pickTrickDefeatFx = (play, prevTrick) => {
   const prevCards = Array.isArray(prevTrick?.cardsTable) ? prevTrick.cardsTable : [];
   if (!play || !prevCards.length) return null;
   const info = { kind: 'normal', special: false };
-  if (String(play?.type || '') !== 'set' || String(prevTrick?.type || '') !== 'set') return info;
-  const samePower = setCmp(play?.setPower ?? play?.number, prevTrick?.setPower ?? prevTrick?.number) === 0;
-  if (!samePower) return info;
+  const playType = String(play?.type || '');
+  const prevType = String(prevTrick?.type || '');
   const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
-  const playHasMajor = playCards.some((card) => card?.kind === 'major');
-  const prevHasMajor = prevCards.some((card) => card?.kind === 'major');
-  if (playHasMajor || prevHasMajor) return info;
-  const suitBattle = isSuitMatchupCompatible(getPlaySuitMask(play), getPlaySuitMask(prevTrick));
-  if (!suitBattle) return info;
+  const majorFx = getMajorAttackFxFromCards(playCards);
+  if (playType === 'set' && prevType === 'set') {
+    if (!hasMinorCourtOrAce(playCards) && !majorFx) return info;
+  } else if (playType === 'role' && prevType === 'role') {
+    if (!hasNamedRoleDisplay(play) && !majorFx) return info;
+  } else {
+    return info;
+  }
   info.special = true;
-  const suit = getPrimarySuitFromPlay(play);
-  if (suit === 'Sword') info.kind = 'slash';
-  else if (suit === 'Pentacle') info.kind = 'rock';
-  else if (suit === 'Cup') info.kind = 'water';
-  else if (suit === 'Wand') info.kind = 'fire';
+  if (majorFx) {
+    info.kind = majorFx.kind;
+    info.arcana = majorFx;
+  } else {
+    const suit = getPrimarySuitFromPlay(play);
+    if (suit === 'Sword') info.kind = 'slash';
+    else if (suit === 'Pentacle') info.kind = 'rock';
+    else if (suit === 'Cup') info.kind = 'water';
+    else if (suit === 'Wand') info.kind = 'fire';
+  }
   return info;
 };
 const suitTierForCard = (c, suit) => {
@@ -1494,6 +1552,48 @@ function playKingdomRoleClashFx(playerIndex, attackCard, targetEl, options = {})
   return totalMs;
 }
 
+const toCssContentString = (text, fallback = '💥') => {
+  const value = String(text || fallback || '💥');
+  return JSON.stringify(value);
+};
+
+function applyKingdomDefeatMarkerEmoji(node, markerEmoji) {
+  if (!node) return;
+  if (markerEmoji) {
+    node.style.setProperty('--defeat-marker-content', toCssContentString(markerEmoji, '💥'));
+  } else {
+    node.style.removeProperty('--defeat-marker-content');
+  }
+}
+
+function spawnKingdomArcanaLeadFx(targetEl, arcanaFx, options = {}) {
+  if (typeof document === 'undefined' || !targetEl || !arcanaFx?.leadEmoji) return 0;
+  const rect = targetEl.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return 0;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const durationMs = Math.max(320, Number(options.durationMs) || 560);
+  const x = rect.left + (rect.width * 0.5);
+  const y = rect.top + (rect.height * 0.48);
+  const node = document.createElement('span');
+  const pattern = String(arcanaFx?.pattern || 'burst');
+  node.className = `tarot-kingdom-arcana-hero is-${pattern}`;
+  node.textContent = String(arcanaFx.leadEmoji || '');
+  node.style.left = `${x}px`;
+  node.style.top = `${y}px`;
+  node.style.opacity = '0';
+  node.style.setProperty('--fx-dur', `${durationMs}ms`);
+  document.body.appendChild(node);
+  setTimeout(() => {
+    if (!node.parentElement) return;
+    node.classList.add('run');
+  }, delayMs + 12);
+  const totalMs = delayMs + durationMs + 180;
+  setTimeout(() => {
+    if (node.parentElement) node.remove();
+  }, totalMs);
+  return totalMs;
+}
+
 function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   if (typeof document === 'undefined' || !targetEl) return;
   const rect = targetEl.getBoundingClientRect?.();
@@ -1501,24 +1601,25 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   const baseX = rect.left + (rect.width / 2);
   const baseY = rect.top + (rect.height / 2);
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const markerEmoji = String(options?.markerEmoji || '').trim();
   const particles = [];
   if (kind === 'slash') {
     // Sword itself is rendered by the primary-card marker; particle is a spark only.
     particles.push({ emoji: '\u2728', variant: 'is-slash-spark', x: baseX + 4, y: baseY - 4, dur: 380 });
   } else if (kind === 'rock') {
-    particles.push({ emoji: '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 560 });
+    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 560 });
     particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 10, dur: 340 });
   } else if (kind === 'water') {
-    particles.push({ emoji: '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 480 });
+    particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 480 });
     particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 18, y: baseY - 8, dur: 460 });
     particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 4, y: baseY - 10, dur: 500 });
     particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 20, y: baseY - 6, dur: 520 });
   } else if (kind === 'fire') {
-    particles.push({ emoji: '🔥', variant: 'is-fire-a', x: baseX - 14, y: baseY + 2, dur: 520 });
+    particles.push({ emoji: markerEmoji || '🔥', variant: 'is-fire-a', x: baseX - 14, y: baseY + 2, dur: 520 });
     particles.push({ emoji: '🔥', variant: 'is-fire-b', x: baseX + 4, y: baseY - 8, dur: 560 });
     particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 20, y: baseY + 4, dur: 500 });
   } else {
-    particles.push({ emoji: '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 320 });
+    particles.push({ emoji: markerEmoji || '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 320 });
   }
 
   particles.forEach((cfg, idx) => {
@@ -4623,6 +4724,7 @@ function renderTrick() {
   const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire'].includes(defeatFxRaw)
     ? defeatFxRaw
     : 'normal';
+  const arcanaFx = s?.trickDefeatFx?.arcana || null;
   const transitionKind = String(s?.trickTransitionKind || '');
   const isCallTransition = transitionKind === 'callSteal';
   const isRoleClashTransition = transitionKind === 'roleClash';
@@ -4672,17 +4774,28 @@ function renderTrick() {
       const preDefeatMs = Math.max(260, clashMs);
       const staggerMs = 24;
       const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
-      const baseMs = 520;
-      const markerMs = 280;
+      const isSpecialRoleClash = defeatFxKind !== 'normal';
+      const baseMs = isSpecialRoleClash ? 580 : 520;
+      const markerMs = isSpecialRoleClash ? 320 : 280;
       setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
       setTimeout(() => runIfCurrent(() => {
+        const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
+        if (arcanaFx?.leadEmoji) {
+          spawnKingdomArcanaLeadFx(prevCards[0], arcanaFx, { delayMs: 0, durationMs: Math.max(500, markerMs + 220) });
+        }
         prevCards.forEach((node, idx) => {
           if (!node) return;
-          if (idx === 0) spawnKingdomDefeatParticles(node, 'normal', { delayMs: 0 });
+          if (idx === 0) {
+            spawnKingdomDefeatParticles(node, defeatFxKind, {
+              delayMs: 0,
+              markerEmoji: arcanaFx?.markerEmoji || ''
+            });
+          }
           node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
-          node.classList.add('is-defeat-transition', 'is-defeat-normal');
-          if (idx === 0) node.classList.add('is-defeat-primary');
+          node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
+          if (idx === 0 || markerPerCard) node.classList.add('is-defeat-primary');
           else node.classList.remove('is-defeat-primary');
+          applyKingdomDefeatMarkerEmoji(node, arcanaFx?.markerEmoji || '');
           node.style.animationDelay = `${idx * staggerMs}ms`;
           node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
           node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
@@ -4737,13 +4850,23 @@ function renderTrick() {
     });
     setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(shakeLevel)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
+      const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
+      if (arcanaFx?.leadEmoji) {
+        spawnKingdomArcanaLeadFx(prevCards[0], arcanaFx, { delayMs: 0, durationMs: Math.max(500, markerMs + 220) });
+      }
       prevCards.forEach((node, idx) => {
         if (!node) return;
-        if (idx === 0) spawnKingdomDefeatParticles(node, defeatFxKind, { delayMs: 0 });
+        if (idx === 0) {
+          spawnKingdomDefeatParticles(node, defeatFxKind, {
+            delayMs: 0,
+            markerEmoji: arcanaFx?.markerEmoji || ''
+          });
+        }
         node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
         node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
-        if (idx === 0) node.classList.add('is-defeat-primary');
+        if (idx === 0 || markerPerCard) node.classList.add('is-defeat-primary');
         else node.classList.remove('is-defeat-primary');
+        applyKingdomDefeatMarkerEmoji(node, arcanaFx?.markerEmoji || '');
         node.style.animationDelay = `${idx * staggerMs}ms`;
         node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
         node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
