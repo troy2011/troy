@@ -3049,6 +3049,51 @@ body.modal-lock .modal-overlay {
 }
 
 
+.tarot-kingdom-fx-debug {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.tarot-kingdom-fx-debug-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.tarot-kingdom-fx-debug-row label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #e5e7eb;
+    opacity: 0.92;
+}
+
+.tarot-kingdom-fx-debug-row select {
+    min-width: 140px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    background: rgba(17, 24, 39, 0.75);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tarot-kingdom-fx-debug-info {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #cbd5e1;
+    min-height: 14px;
+}
+
+.tarot-kingdom-fx-debug-target {
+    pointer-events: none !important;
+    filter: saturate(1.1) brightness(1.05);
+}
+
 #tarotKingdomStartButton {
     min-height: 34px;
     padding: 6px 12px;

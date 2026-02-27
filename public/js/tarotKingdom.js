@@ -43,6 +43,7 @@ const OPENING_HAND_FLIP_MS = 170;
 const OPENING_HAND_FLIP_GAP_MS = 45;
 const DRAW_HAND_FLIP_REVEAL_DELAY_MS = 90;
 const DRAW_HAND_FLIP_MS = 220;
+const KINGDOM_FX_DEBUG_STEP_MS = 980;
 
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
@@ -109,6 +110,9 @@ let netOpenRoomsUnsub = null;
 let netActionWriteTimer = null;
 let netLastStateHash = '';
 let netBootPromise = null;
+let kingdomFxDebugEnabled = false;
+let kingdomFxDebugRunning = false;
+let kingdomFxDebugTimer = null;
 const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
 let netOpenRoomsCache = {};
@@ -975,6 +979,141 @@ function showPlayError(reason) {
     ui.stateText?.classList.remove('is-error');
     stateErrorTimer = null;
   }, 1800);
+}
+
+function clearKingdomFxDebugTimer() {
+  if (kingdomFxDebugTimer) {
+    clearTimeout(kingdomFxDebugTimer);
+    kingdomFxDebugTimer = null;
+  }
+}
+
+function stopKingdomFxDebugCycle() {
+  kingdomFxDebugRunning = false;
+  clearKingdomFxDebugTimer();
+}
+
+function ensureKingdomFxDebugOptions() {
+  if (!ui.fxDebugSelect) return;
+  if (ui.fxDebugSelect.options.length > 0) return;
+  for (let n = 0; n <= 21; n += 1) {
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = `${n}: ${ARCANA_NAME[n] || `Arcana${n}`}`;
+    ui.fxDebugSelect.appendChild(opt);
+  }
+  ui.fxDebugSelect.value = '0';
+}
+
+function getSelectedKingdomFxDebugNumber() {
+  if (!ui.fxDebugSelect) return 0;
+  const n = Number(ui.fxDebugSelect.value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(21, Math.floor(n)));
+}
+
+function setKingdomFxDebugInfo(text = '') {
+  if (!ui.fxDebugInfo) return;
+  ui.fxDebugInfo.textContent = String(text || '').trim();
+}
+
+function renderKingdomFxDebugUi() {
+  const canUse = !!(ui.fxDebugToggleButton && ui.fxDebugPanel);
+  if (!canUse) return;
+  if (!kingdomFxDebugEnabled) stopKingdomFxDebugCycle();
+  ui.fxDebugPanel.hidden = !kingdomFxDebugEnabled;
+  ui.fxDebugToggleButton.textContent = kingdomFxDebugEnabled ? '演出デバッグ終了' : '演出デバッグ';
+  if (ui.fxDebugCycleButton) {
+    ui.fxDebugCycleButton.textContent = kingdomFxDebugRunning ? '連続停止' : '連続再生';
+  }
+  if (!kingdomFxDebugEnabled) {
+    setKingdomFxDebugInfo('');
+    return;
+  }
+  ensureKingdomFxDebugOptions();
+  const n = getSelectedKingdomFxDebugNumber();
+  const cfg = MAJOR_ATTACK_FX[n];
+  if (!cfg) {
+    setKingdomFxDebugInfo(`No.${n} は未設定`);
+    return;
+  }
+  setKingdomFxDebugInfo(`No.${n} ${ARCANA_NAME[n] || ''} / 主:${cfg.leadEmoji} / マーカー:${cfg.markerEmoji} / ${cfg.pattern}`);
+}
+
+function buildKingdomFxDebugTargets() {
+  const existing = Array.from(ui.trick?.querySelectorAll?.('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)') || []);
+  if (existing.length > 0) return { targets: existing, cleanup: null };
+  if (!ui.trick) return { targets: [], cleanup: null };
+  ui.trick.innerHTML = '';
+  const fallbackCards = [
+    { kind: 'minor', suit: 'Wand', number: 11 },
+    { kind: 'minor', suit: 'Cup', number: 13 },
+    { kind: 'minor', suit: 'Sword', number: 9 }
+  ];
+  const targets = fallbackCards.map((card) => {
+    const node = cardNode(card, { clickable: false });
+    node.classList.add('tarot-kingdom-fx-debug-target');
+    ui.trick.appendChild(node);
+    return node;
+  });
+  return {
+    targets,
+    cleanup: () => {
+      targets.forEach((node) => node?.remove?.());
+      if (ui.trick && ui.trick.childElementCount <= 0) {
+        const e = document.createElement('div');
+        e.className = 'tarot-kingdom-empty';
+        e.textContent = '場札なし';
+        ui.trick.appendChild(e);
+      }
+    }
+  };
+}
+
+function previewKingdomArcanaAttackFx(arcanaNumber) {
+  const n = Math.max(0, Math.min(21, Number(arcanaNumber) || 0));
+  const cfg = MAJOR_ATTACK_FX[n];
+  if (!cfg || !ui.trick) return;
+  const built = buildKingdomFxDebugTargets();
+  const targets = built.targets || [];
+  if (!targets.length) return;
+  const markerMs = 320;
+  const staggerMs = 24;
+  const baseMs = 560;
+  spawnKingdomArcanaLeadFx(targets[0], cfg, { durationMs: 760 });
+  spawnKingdomDefeatParticles(targets[0], cfg.kind, { delayMs: 40, markerEmoji: cfg.markerEmoji });
+  triggerKingdomTrickShake(cfg.kind === 'normal' ? 1 : 2);
+  targets.forEach((node, idx) => {
+    node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+    node.classList.add('is-defeat-transition', `is-defeat-${cfg.kind}`, 'is-defeat-primary');
+    applyKingdomDefeatMarkerEmoji(node, cfg.markerEmoji);
+    node.style.animationDelay = `${idx * staggerMs}ms`;
+    node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
+    node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+  });
+  const totalMs = baseMs + ((targets.length - 1) * staggerMs) + 240;
+  setTimeout(() => {
+    targets.forEach((node) => {
+      node.classList.remove('is-defeat-transition', `is-defeat-${cfg.kind}`, 'is-defeat-primary');
+      node.style.animationDelay = '';
+      node.style.removeProperty('--defeat-card-ms');
+      node.style.removeProperty('--defeat-marker-ms');
+      applyKingdomDefeatMarkerEmoji(node, '');
+    });
+    built.cleanup?.();
+  }, totalMs);
+}
+
+function runKingdomFxDebugCycleStep() {
+  if (!kingdomFxDebugRunning || !kingdomFxDebugEnabled) return;
+  ensureKingdomFxDebugOptions();
+  const current = getSelectedKingdomFxDebugNumber();
+  previewKingdomArcanaAttackFx(current);
+  const next = (current + 1) % 22;
+  if (ui.fxDebugSelect) ui.fxDebugSelect.value = String(next);
+  renderKingdomFxDebugUi();
+  clearKingdomFxDebugTimer();
+  kingdomFxDebugTimer = setTimeout(runKingdomFxDebugCycleStep, KINGDOM_FX_DEBUG_STEP_MS);
 }
 
 function sanitizeSelected(playerIndex) {
@@ -5431,6 +5570,7 @@ function render() {
   renderHand();
   renderJudgment();
   updateButtons();
+  renderKingdomFxDebugUi();
   syncHumanTurnCueState();
   if (isNetModeActive() && tkNet.isHost) {
     queueStatePublish();
@@ -5633,6 +5773,12 @@ function bindUi() {
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
   ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
+  ui.fxDebugToggleButton = document.getElementById('tarotKingdomFxDebugToggleButton');
+  ui.fxDebugPanel = document.getElementById('tarotKingdomFxDebugPanel');
+  ui.fxDebugSelect = document.getElementById('tarotKingdomFxDebugSelect');
+  ui.fxDebugPlayButton = document.getElementById('tarotKingdomFxDebugPlayButton');
+  ui.fxDebugCycleButton = document.getElementById('tarotKingdomFxDebugCycleButton');
+  ui.fxDebugInfo = document.getElementById('tarotKingdomFxDebugInfo');
   ui.selectedEffect = document.getElementById('tarotKingdomSelectedEffect');
   ui.yourTurnBadge = document.getElementById('tarotKingdomYourTurnBadge');
   ui.players = document.getElementById('tarotKingdomPlayers');
@@ -5714,6 +5860,34 @@ function bindUi() {
     });
   });
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
+  ui.fxDebugToggleButton?.addEventListener('click', () => {
+    kingdomFxDebugEnabled = !kingdomFxDebugEnabled;
+    if (!kingdomFxDebugEnabled) {
+      stopKingdomFxDebugCycle();
+    }
+    renderKingdomFxDebugUi();
+  });
+  ui.fxDebugSelect?.addEventListener('change', () => {
+    renderKingdomFxDebugUi();
+  });
+  ui.fxDebugPlayButton?.addEventListener('click', () => {
+    if (!kingdomFxDebugEnabled) return;
+    stopKingdomFxDebugCycle();
+    const n = getSelectedKingdomFxDebugNumber();
+    previewKingdomArcanaAttackFx(n);
+    renderKingdomFxDebugUi();
+  });
+  ui.fxDebugCycleButton?.addEventListener('click', () => {
+    if (!kingdomFxDebugEnabled) return;
+    if (kingdomFxDebugRunning) {
+      stopKingdomFxDebugCycle();
+      renderKingdomFxDebugUi();
+      return;
+    }
+    kingdomFxDebugRunning = true;
+    runKingdomFxDebugCycleStep();
+    renderKingdomFxDebugUi();
+  });
   ui.judgmentSkipButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     requestHostAction({ type: 'judgmentSkip' }, () => {
@@ -5727,6 +5901,8 @@ function bindUi() {
       console.warn('[tarotKingdom] confirm round action failed:', error);
     });
   });
+  ensureKingdomFxDebugOptions();
+  renderKingdomFxDebugUi();
   bound = true;
 }
 
@@ -5763,6 +5939,8 @@ export function destroyTarotKingdomPage() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();
+  stopKingdomFxDebugCycle();
+  kingdomFxDebugEnabled = false;
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();
