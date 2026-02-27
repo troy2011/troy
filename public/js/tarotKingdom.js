@@ -1040,6 +1040,63 @@ function renderKingdomFxDebugUi() {
   setKingdomFxDebugInfo(`No.${n} ${ARCANA_NAME[n] || ''} / 主:${cfg.leadEmoji} / マーカー:${cfg.markerEmoji} / ${cfg.pattern}`);
 }
 
+function onKingdomFxDebugToggleClick() {
+  kingdomFxDebugEnabled = !kingdomFxDebugEnabled;
+  s.message = kingdomFxDebugEnabled ? '演出デバッグを開きました。' : '演出デバッグを閉じました。';
+  if (!kingdomFxDebugEnabled) {
+    stopKingdomFxDebugCycle();
+  }
+  renderKingdomFxDebugUi();
+  renderSummary();
+}
+
+function onKingdomFxDebugSelectChange() {
+  renderKingdomFxDebugUi();
+}
+
+function onKingdomFxDebugPlayClick() {
+  if (!kingdomFxDebugEnabled) return;
+  stopKingdomFxDebugCycle();
+  const n = getSelectedKingdomFxDebugNumber();
+  previewKingdomArcanaAttackFx(n);
+  renderKingdomFxDebugUi();
+}
+
+function onKingdomFxDebugCycleClick() {
+  if (!kingdomFxDebugEnabled) return;
+  if (kingdomFxDebugRunning) {
+    stopKingdomFxDebugCycle();
+    renderKingdomFxDebugUi();
+    return;
+  }
+  kingdomFxDebugRunning = true;
+  runKingdomFxDebugCycleStep();
+  renderKingdomFxDebugUi();
+}
+
+function bindKingdomFxDebugEvents() {
+  const bindOnce = (el, flagName, eventName, handler) => {
+    if (!el) return;
+    if (el[flagName]) return;
+    el.addEventListener(eventName, handler);
+    el[flagName] = true;
+  };
+  bindOnce(ui.fxDebugToggleButton, '__tkFxDebugToggleBound', 'click', onKingdomFxDebugToggleClick);
+  bindOnce(ui.fxDebugSelect, '__tkFxDebugSelectBound', 'change', onKingdomFxDebugSelectChange);
+  bindOnce(ui.fxDebugPlayButton, '__tkFxDebugPlayBound', 'click', onKingdomFxDebugPlayClick);
+  bindOnce(ui.fxDebugCycleButton, '__tkFxDebugCycleBound', 'click', onKingdomFxDebugCycleClick);
+}
+
+function refreshKingdomFxDebugElements() {
+  ui.fxDebugToggleButton = document.getElementById('tarotKingdomFxDebugToggleButton');
+  ui.fxDebugPanel = document.getElementById('tarotKingdomFxDebugPanel');
+  ui.fxDebugSelect = document.getElementById('tarotKingdomFxDebugSelect');
+  ui.fxDebugPlayButton = document.getElementById('tarotKingdomFxDebugPlayButton');
+  ui.fxDebugCycleButton = document.getElementById('tarotKingdomFxDebugCycleButton');
+  ui.fxDebugInfo = document.getElementById('tarotKingdomFxDebugInfo');
+  bindKingdomFxDebugEvents();
+}
+
 function buildKingdomFxDebugTargets() {
   const existing = Array.from(ui.trick?.querySelectorAll?.('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)') || []);
   if (existing.length > 0) return { targets: existing, cleanup: null };
@@ -5808,12 +5865,7 @@ function bindUi() {
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
   ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
-  ui.fxDebugToggleButton = document.getElementById('tarotKingdomFxDebugToggleButton');
-  ui.fxDebugPanel = document.getElementById('tarotKingdomFxDebugPanel');
-  ui.fxDebugSelect = document.getElementById('tarotKingdomFxDebugSelect');
-  ui.fxDebugPlayButton = document.getElementById('tarotKingdomFxDebugPlayButton');
-  ui.fxDebugCycleButton = document.getElementById('tarotKingdomFxDebugCycleButton');
-  ui.fxDebugInfo = document.getElementById('tarotKingdomFxDebugInfo');
+  refreshKingdomFxDebugElements();
   ui.selectedEffect = document.getElementById('tarotKingdomSelectedEffect');
   ui.yourTurnBadge = document.getElementById('tarotKingdomYourTurnBadge');
   ui.players = document.getElementById('tarotKingdomPlayers');
@@ -5895,36 +5947,6 @@ function bindUi() {
     });
   });
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
-  ui.fxDebugToggleButton?.addEventListener('click', () => {
-    kingdomFxDebugEnabled = !kingdomFxDebugEnabled;
-    s.message = kingdomFxDebugEnabled ? '演出デバッグを開きました。' : '演出デバッグを閉じました。';
-    if (!kingdomFxDebugEnabled) {
-      stopKingdomFxDebugCycle();
-    }
-    renderKingdomFxDebugUi();
-    renderSummary();
-  });
-  ui.fxDebugSelect?.addEventListener('change', () => {
-    renderKingdomFxDebugUi();
-  });
-  ui.fxDebugPlayButton?.addEventListener('click', () => {
-    if (!kingdomFxDebugEnabled) return;
-    stopKingdomFxDebugCycle();
-    const n = getSelectedKingdomFxDebugNumber();
-    previewKingdomArcanaAttackFx(n);
-    renderKingdomFxDebugUi();
-  });
-  ui.fxDebugCycleButton?.addEventListener('click', () => {
-    if (!kingdomFxDebugEnabled) return;
-    if (kingdomFxDebugRunning) {
-      stopKingdomFxDebugCycle();
-      renderKingdomFxDebugUi();
-      return;
-    }
-    kingdomFxDebugRunning = true;
-    runKingdomFxDebugCycleStep();
-    renderKingdomFxDebugUi();
-  });
   ui.judgmentSkipButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     requestHostAction({ type: 'judgmentSkip' }, () => {
@@ -5945,6 +5967,7 @@ function bindUi() {
 
 export async function loadTarotKingdomPage() {
   bindUi();
+  refreshKingdomFxDebugElements();
   await ensureTarotKingdomNetwork();
   if (!s) {
     if (!tkNet.enabled || tkNet.isHost) {
