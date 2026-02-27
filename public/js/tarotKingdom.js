@@ -665,6 +665,16 @@ const MAJOR_ATTACK_FX = {
   20: { leadEmoji: '🎺', markerEmoji: '🎵', pattern: 'burst', kind: 'slash' },
   21: { leadEmoji: '🌍', markerEmoji: '♾️', pattern: 'orbit', kind: 'normal' }
 };
+
+const SUIT_ATTACK_DEBUG_FX = {
+  Sword: { leadEmoji: '🗡️', markerEmoji: '🗡️', pattern: 'rush', kind: 'slash', label: 'ソード斬撃' },
+  Pentacle: { leadEmoji: '🪦', markerEmoji: '🪦', pattern: 'slam', kind: 'rock', label: 'ペンタクル圧殺' },
+  Cup: { leadEmoji: '💦', markerEmoji: '💦', pattern: 'float', kind: 'water', label: 'カップ溶解' },
+  Wand: { leadEmoji: '🔥', markerEmoji: '🔥', pattern: 'burst', kind: 'fire', label: 'ワンド燃焼' }
+};
+
+const KINGDOM_FX_DEBUG_ARCANA_PREFIX = 'arcana:';
+const KINGDOM_FX_DEBUG_SUIT_PREFIX = 'suit:';
 const getMajorAttackFxFromCards = (cards) => {
   if (!Array.isArray(cards)) return null;
   const major = cards.find((card) => card?.kind === 'major');
@@ -998,18 +1008,63 @@ function ensureKingdomFxDebugOptions() {
   if (ui.fxDebugSelect.options.length > 0) return;
   for (let n = 0; n <= 21; n += 1) {
     const opt = document.createElement('option');
-    opt.value = String(n);
-    opt.textContent = `${n}: ${ARCANA_NAME[n] || `Arcana${n}`}`;
+    opt.value = `${KINGDOM_FX_DEBUG_ARCANA_PREFIX}${n}`;
+    opt.textContent = `大アルカナ ${n}: ${ARCANA_NAME[n] || `Arcana${n}`}`;
     ui.fxDebugSelect.appendChild(opt);
   }
-  ui.fxDebugSelect.value = '0';
+  const suitOrder = ['Sword', 'Pentacle', 'Cup', 'Wand'];
+  suitOrder.forEach((suit) => {
+    const cfg = SUIT_ATTACK_DEBUG_FX[suit];
+    if (!cfg) return;
+    const opt = document.createElement('option');
+    opt.value = `${KINGDOM_FX_DEBUG_SUIT_PREFIX}${suit}`;
+    opt.textContent = `スート攻撃: ${cfg.label}`;
+    ui.fxDebugSelect.appendChild(opt);
+  });
+  ui.fxDebugSelect.value = `${KINGDOM_FX_DEBUG_ARCANA_PREFIX}0`;
 }
 
-function getSelectedKingdomFxDebugNumber() {
-  if (!ui.fxDebugSelect) return 0;
-  const n = Number(ui.fxDebugSelect.value);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(21, Math.floor(n)));
+function getSelectedKingdomFxDebugEntry() {
+  if (!ui.fxDebugSelect) return { type: 'arcana', number: 0 };
+  const raw = String(ui.fxDebugSelect.value || '').trim();
+  if (raw.startsWith(KINGDOM_FX_DEBUG_SUIT_PREFIX)) {
+    const suit = raw.slice(KINGDOM_FX_DEBUG_SUIT_PREFIX.length);
+    if (SUIT_ATTACK_DEBUG_FX[suit]) {
+      return { type: 'suit', suit };
+    }
+  }
+  let n = 0;
+  if (raw.startsWith(KINGDOM_FX_DEBUG_ARCANA_PREFIX)) {
+    n = Number(raw.slice(KINGDOM_FX_DEBUG_ARCANA_PREFIX.length));
+  } else {
+    n = Number(raw);
+  }
+  if (!Number.isFinite(n)) n = 0;
+  return { type: 'arcana', number: Math.max(0, Math.min(21, Math.floor(n))) };
+}
+
+function getKingdomFxDebugConfig(entry) {
+  if (entry?.type === 'suit') {
+    const cfg = SUIT_ATTACK_DEBUG_FX[entry.suit];
+    if (!cfg) return null;
+    return {
+      sourceLabel: `スート: ${cfg.label}`,
+      leadEmoji: String(cfg.leadEmoji || ''),
+      markerEmoji: String(cfg.markerEmoji || ''),
+      pattern: String(cfg.pattern || 'burst'),
+      kind: String(cfg.kind || 'normal')
+    };
+  }
+  const n = Math.max(0, Math.min(21, Number(entry?.number) || 0));
+  const cfg = MAJOR_ATTACK_FX[n];
+  if (!cfg) return null;
+  return {
+    sourceLabel: `大アルカナ ${n}: ${ARCANA_NAME[n] || ''}`.trim(),
+    leadEmoji: String(cfg.leadEmoji || ''),
+    markerEmoji: String(cfg.markerEmoji || ''),
+    pattern: String(cfg.pattern || 'burst'),
+    kind: String(cfg.kind || 'normal')
+  };
 }
 
 function setKingdomFxDebugInfo(text = '') {
@@ -1031,13 +1086,13 @@ function renderKingdomFxDebugUi() {
     return;
   }
   ensureKingdomFxDebugOptions();
-  const n = getSelectedKingdomFxDebugNumber();
-  const cfg = MAJOR_ATTACK_FX[n];
+  const entry = getSelectedKingdomFxDebugEntry();
+  const cfg = getKingdomFxDebugConfig(entry);
   if (!cfg) {
-    setKingdomFxDebugInfo(`No.${n} は未設定`);
+    setKingdomFxDebugInfo('未設定');
     return;
   }
-  setKingdomFxDebugInfo(`No.${n} ${ARCANA_NAME[n] || ''} / 主:${cfg.leadEmoji} / マーカー:${cfg.markerEmoji} / ${cfg.pattern}`);
+  setKingdomFxDebugInfo(`${cfg.sourceLabel} / 主:${cfg.leadEmoji} / マーカー:${cfg.markerEmoji} / ${cfg.pattern}`);
 }
 
 function onKingdomFxDebugToggleClick() {
@@ -1057,8 +1112,8 @@ function onKingdomFxDebugSelectChange() {
 function onKingdomFxDebugPlayClick() {
   if (!kingdomFxDebugEnabled) return;
   stopKingdomFxDebugCycle();
-  const n = getSelectedKingdomFxDebugNumber();
-  previewKingdomArcanaAttackFx(n);
+  const entry = getSelectedKingdomFxDebugEntry();
+  previewKingdomAttackFxByDebugEntry(entry);
   renderKingdomFxDebugUi();
 }
 
@@ -1129,7 +1184,11 @@ function buildKingdomFxDebugTargets() {
 
 function previewKingdomArcanaAttackFx(arcanaNumber) {
   const n = Math.max(0, Math.min(21, Number(arcanaNumber) || 0));
-  const cfg = MAJOR_ATTACK_FX[n];
+  previewKingdomAttackFxByDebugEntry({ type: 'arcana', number: n });
+}
+
+function previewKingdomAttackFxByDebugEntry(entry) {
+  const cfg = getKingdomFxDebugConfig(entry);
   if (!cfg || !ui.trick) return;
   const built = buildKingdomFxDebugTargets();
   const targets = built.targets || [];
@@ -1164,10 +1223,14 @@ function previewKingdomArcanaAttackFx(arcanaNumber) {
 function runKingdomFxDebugCycleStep() {
   if (!kingdomFxDebugRunning || !kingdomFxDebugEnabled) return;
   ensureKingdomFxDebugOptions();
-  const current = getSelectedKingdomFxDebugNumber();
-  previewKingdomArcanaAttackFx(current);
-  const next = (current + 1) % 22;
-  if (ui.fxDebugSelect) ui.fxDebugSelect.value = String(next);
+  const entry = getSelectedKingdomFxDebugEntry();
+  previewKingdomAttackFxByDebugEntry(entry);
+  if (ui.fxDebugSelect && ui.fxDebugSelect.options.length > 0) {
+    const options = Array.from(ui.fxDebugSelect.options);
+    const currentIndex = Math.max(0, options.findIndex((opt) => opt.value === ui.fxDebugSelect.value));
+    const nextIndex = (currentIndex + 1) % options.length;
+    ui.fxDebugSelect.value = options[nextIndex].value;
+  }
   renderKingdomFxDebugUi();
   clearKingdomFxDebugTimer();
   kingdomFxDebugTimer = setTimeout(runKingdomFxDebugCycleStep, KINGDOM_FX_DEBUG_STEP_MS);

@@ -5198,13 +5198,13 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-defeat-primary.is-defeat-slash::after {
-    content: var(--defeat-marker-content, "🗡️");
-    left: 92%;
-    top: -8%;
-    font-size: 24px;
-    transform-origin: 170% -120%;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.42)) drop-shadow(0 0 12px rgba(250, 204, 21, 0.35));
-    animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 320ms) ease-out forwards;
+    content: var(--defeat-marker-content, "\1F5E1");
+    left: 104%;
+    top: -26%;
+    font-size: 25px;
+    transform-origin: 280% -240%;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5)) drop-shadow(0 0 12px rgba(250, 204, 21, 0.38));
+    animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 440ms) cubic-bezier(0.16, 0.82, 0.24, 1) forwards;
 }
 
 .tarot-card.is-defeat-rock {
@@ -5296,27 +5296,31 @@ body.modal-lock .modal-overlay {
 
 @keyframes tarotKingdomDefeatSlash {
     0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: none; }
-    34% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: none; }
-    62% { opacity: 1; transform: translateY(-4px) scale(0.98) rotate(-10deg); filter: saturate(1.25); }
-    100% { opacity: 0; transform: translateY(-18px) scale(0.9) rotate(-16deg); filter: saturate(1.45) brightness(0.9); }
+    28% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); filter: none; }
+    56% { opacity: 1; transform: translate(-3px, -7px) scale(0.97) rotate(-13deg); filter: saturate(1.28); }
+    100% { opacity: 0; transform: translate(-12px, -21px) scale(0.9) rotate(-24deg); filter: saturate(1.52) brightness(0.86); }
 }
 
 @keyframes tarotKingdomDefeatSlashMarker {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.82) rotate(-138deg);
+        transform: translate(34%, -122%) scale(0.84) rotate(-210deg);
     }
-    18% {
+    20% {
         opacity: 1;
-        transform: translate(-52%, -62%) scale(0.98) rotate(-102deg);
+        transform: translate(16%, -98%) scale(0.96) rotate(-176deg);
     }
-    56% {
+    48% {
         opacity: 1;
-        transform: translate(-56%, -46%) scale(1.12) rotate(-12deg);
+        transform: translate(-10%, -56%) scale(1.1) rotate(-114deg);
+    }
+    72% {
+        opacity: 1;
+        transform: translate(-34%, -18%) scale(1.08) rotate(-62deg);
     }
     100% {
         opacity: 0;
-        transform: translate(-58%, -30%) scale(1.18) rotate(40deg);
+        transform: translate(-44%, 0%) scale(0.96) rotate(-28deg);
     }
 }
 
@@ -5550,15 +5554,16 @@ body.modal-lock .modal-overlay {
 }
 
 @keyframes tarotKingdomDefeatParticleSlash {
-    0% { opacity: 0; transform: translate(-50%, -50%) rotate(-110deg) scale(0.7); }
-    36% { opacity: 1; transform: translate(calc(-50% + 16px), calc(-50% - 8px)) rotate(8deg) scale(1.08); }
-    100% { opacity: 0; transform: translate(calc(-50% + 34px), calc(-50% - 14px)) rotate(80deg) scale(1.18); }
+    0% { opacity: 0; transform: translate(-50%, -50%) rotate(-196deg) scale(0.72); }
+    34% { opacity: 1; transform: translate(calc(-50% - 8px), calc(-50% - 22px)) rotate(-138deg) scale(1.06); }
+    72% { opacity: 1; transform: translate(calc(-50% - 22px), calc(-50% + 2px)) rotate(-78deg) scale(1.08); }
+    100% { opacity: 0; transform: translate(calc(-50% - 30px), calc(-50% + 14px)) rotate(-46deg) scale(0.94); }
 }
 
 @keyframes tarotKingdomDefeatParticleSpark {
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6) rotate(0deg); }
-    36% { opacity: 1; transform: translate(calc(-50% + 10px), calc(-50% - 10px)) scale(1.08) rotate(24deg); }
-    100% { opacity: 0; transform: translate(calc(-50% + 20px), calc(-50% - 18px)) scale(0.9) rotate(60deg); }
+    42% { opacity: 1; transform: translate(calc(-50% - 10px), calc(-50% + 4px)) scale(1.12) rotate(-16deg); }
+    100% { opacity: 0; transform: translate(calc(-50% - 20px), calc(-50% + 14px)) scale(0.9) rotate(-36deg); }
 }
 
 @keyframes tarotKingdomDefeatParticleRockMain {
