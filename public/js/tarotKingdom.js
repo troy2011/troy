@@ -1248,7 +1248,7 @@ function previewKingdomAttackFxByDebugEntry(entry) {
   const previewKind = isArcanaDebug ? 'arcana' : String(cfg.kind || 'normal');
   const markerEmoji = getDefeatMarkerEmoji(previewKind, cfg);
   const markerPerCard = !!markerEmoji;
-  const markerMs = markerPerCard ? (isArcanaDebug ? 980 : 920) : 0;
+  const markerMs = markerPerCard ? getKingdomDefeatMarkerMs(previewKind, { isSpecial: previewKind !== 'normal', shakeLevel: 1 }) : 0;
   const staggerMs = 52;
   const baseMs = 760;
   if (isArcanaDebug) {
@@ -2046,6 +2046,26 @@ function getKingdomDefeatShakeLevel(play, defeatFxKind = 'normal', transitionKin
   else if (count === 2) level += 1;
   if (defeatFxKind !== 'normal') level += 1;
   return Math.max(0, Math.min(3, level));
+}
+
+function getKingdomDefeatMarkerMs(defeatFxKind = 'normal', options = {}) {
+  const kind = String(defeatFxKind || 'normal');
+  const isSpecial = !!options.isSpecial;
+  const shakeLevel = Math.max(0, Math.min(3, Number(options.shakeLevel) || 0));
+  if (kind === 'arcana') {
+    return (isSpecial ? 900 : 840) + (shakeLevel * 60);
+  }
+  if (kind === 'slash') {
+    return (isSpecial ? 600 : 540) + (shakeLevel * 30);
+  }
+  if (kind === 'rock' || kind === 'water' || kind === 'fire') {
+    return (isSpecial ? 760 : 700) + (shakeLevel * 40);
+  }
+  return 0;
+}
+
+function getKingdomDefeatSwapTailPadMs(defeatFxKind = 'normal') {
+  return String(defeatFxKind || 'normal') === 'slash' ? 20 : 48;
 }
 
 function triggerKingdomTrickShake(level = 0) {
@@ -5221,7 +5241,7 @@ function renderTrick() {
       const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
       const markerPerCard = !!markerEmoji;
       const baseMs = isSpecialRoleClash ? 800 : 680;
-      const markerMs = markerPerCard ? ((isSpecialRoleClash ? 980 : 760) + 240) : 0;
+      const markerMs = markerPerCard ? getKingdomDefeatMarkerMs(defeatFxKind, { isSpecial: isSpecialRoleClash, shakeLevel }) : 0;
       setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
       setTimeout(() => runIfCurrent(() => {
         const leadArcanaFx = isArcanaDefeat ? arcanaFx : null;
@@ -5282,7 +5302,7 @@ function renderTrick() {
         } else {
           resolvePendingAfterTrick();
         }
-      }, preDefeatMs + swapHoldMs + tailMs + 80);
+      }, preDefeatMs + swapHoldMs + tailMs + getKingdomDefeatSwapTailPadMs(defeatFxKind));
       return;
     }
     const isSpecial = defeatFxKind !== 'normal';
@@ -5295,7 +5315,7 @@ function renderTrick() {
     const isArcanaDefeat = isMajorAttackFx(arcanaFx);
     const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
     const markerPerCard = !!markerEmoji;
-    const markerMs = markerPerCard ? ((isSpecial ? 940 : 720) + (shakeLevel * 70) + 240) : 0;
+    const markerMs = markerPerCard ? getKingdomDefeatMarkerMs(defeatFxKind, { isSpecial, shakeLevel }) : 0;
     const runIfCurrent = (fn) => {
       if (swapToken !== trickRenderToken) return;
       fn();
@@ -5368,7 +5388,7 @@ function renderTrick() {
       } else {
         resolvePendingAfterTrick();
       }
-    }, preDefeatMs + swapHoldMs + tailMs + 80);
+    }, preDefeatMs + swapHoldMs + tailMs + getKingdomDefeatSwapTailPadMs(defeatFxKind));
     return;
   }
   if (prevCards.length > 0 && cards.length === 0 && transitionKind === 'clearSweep') {
@@ -5816,7 +5836,6 @@ function updateButtons() {
     !s.awaitRoundConfirm &&
     Number(s.handNo || 0) <= 0 &&
     String(s.phase || '') !== 'done';
-  const showOfflineStartOption = !!(netMode && !tkNet.isHost && isLobbyReadyToStart);
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const hasSelected = !!(s.selected && s.selected.size > 0);
@@ -5875,11 +5894,6 @@ function updateButtons() {
       }
     }
   }
-  if (ui.offlineStartButton) {
-    ui.offlineStartButton.hidden = !showOfflineStartOption;
-    ui.offlineStartButton.disabled = !showOfflineStartOption;
-  }
-
   // 吊るされた男ボタンの表示制御
   if (ui.hangedManButton) {
     let showHanged = false;
@@ -6011,16 +6025,6 @@ function scheduleOpenRoomHeartbeat() {
     }
     scheduleOpenRoomHeartbeat();
   }, TK_OPEN_ROOM_HEARTBEAT_MS);
-}
-
-function startOfflineNow() {
-  netManualOfflineMode = true;
-  clearNpcTimer();
-  teardownTarotKingdomNetwork();
-  tkNet.localSeat = 0;
-  resetMatch();
-  beginNextRound();
-  render();
 }
 
 async function requestHostAction(action, localApply) {
@@ -6176,7 +6180,6 @@ function bindUi() {
   };
   ensureFxDebugDom();
   ui.startButton = document.getElementById('tarotKingdomStartButton');
-  ui.offlineStartButton = document.getElementById('tarotKingdomOfflineStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
@@ -6198,9 +6201,6 @@ function bindUi() {
     requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
       console.warn('[tarotKingdom] start action failed:', error);
     });
-  });
-  ui.offlineStartButton?.addEventListener('click', () => {
-    startOfflineNow();
   });
   ui.playButton?.addEventListener('click', () => humanPlay());
 
