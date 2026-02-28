@@ -5639,6 +5639,7 @@ function updateButtons() {
     !s.awaitRoundConfirm &&
     Number(s.handNo || 0) <= 0 &&
     String(s.phase || '') !== 'done';
+  const showOfflineStartOption = !!(netMode && !tkNet.isHost && isLobbyReadyToStart);
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const hasSelected = !!(s.selected && s.selected.size > 0);
@@ -5696,6 +5697,10 @@ function updateButtons() {
         ui.startButton.textContent = '新しい戦いを始める';
       }
     }
+  }
+  if (ui.offlineStartButton) {
+    ui.offlineStartButton.hidden = !showOfflineStartOption;
+    ui.offlineStartButton.disabled = !showOfflineStartOption;
   }
 
   // 吊るされた男ボタンの表示制御
@@ -5803,6 +5808,16 @@ function startOrNext() {
   if (!s.roundActive && s.handNo < TOTAL_HANDS) {
     beginNextRound();
   }
+}
+
+function startOfflineNow() {
+  if (s?.awaitRoundConfirm) return;
+  if (isNetModeActive()) {
+    teardownTarotKingdomNetwork();
+  }
+  resetMatch();
+  startOrNext();
+  render();
 }
 
 async function requestHostAction(action, localApply) {
@@ -5958,6 +5973,7 @@ function bindUi() {
   };
   ensureFxDebugDom();
   ui.startButton = document.getElementById('tarotKingdomStartButton');
+  ui.offlineStartButton = document.getElementById('tarotKingdomOfflineStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
@@ -5979,6 +5995,9 @@ function bindUi() {
     requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
       console.warn('[tarotKingdom] start action failed:', error);
     });
+  });
+  ui.offlineStartButton?.addEventListener('click', () => {
+    startOfflineNow();
   });
   ui.playButton?.addEventListener('click', () => humanPlay());
 

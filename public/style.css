@@ -3094,7 +3094,8 @@ body.modal-lock .modal-overlay {
     filter: saturate(1.1) brightness(1.05);
 }
 
-#tarotKingdomStartButton {
+#tarotKingdomStartButton,
+#tarotKingdomOfflineStartButton {
     min-height: 34px;
     padding: 6px 12px;
     border-radius: 9px;
@@ -3102,6 +3103,12 @@ body.modal-lock .modal-overlay {
     background: rgba(17, 24, 39, 0.66);
     color: #e5e7eb;
     font-weight: 700;
+}
+
+#tarotKingdomOfflineStartButton.is-offline-alt {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.92));
+    border-color: rgba(148, 163, 184, 0.34);
+    color: #dbeafe;
 }
 
 .tarot-kingdom-openrooms {
@@ -4146,7 +4153,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton) {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton) {
     flex: 0 0 var(--tarot-card-w, 58px);
     width: var(--tarot-card-w, 58px);
     height: var(--tarot-card-h, 96px);
@@ -4184,7 +4191,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button::before,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton)::before {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton)::before {
     content: "";
     position: absolute;
     inset: -18% auto -18% -58%;
@@ -4197,7 +4204,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button::after,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton)::after {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton)::after {
     content: "";
     position: absolute;
     inset: 1px;
@@ -4208,12 +4215,12 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button:not(:disabled):active,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):active {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton):not(:disabled):active {
     transform: translateY(1px) scale(0.982);
 }
 
 .tarot-betting-actions button:not(:disabled):hover,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(:disabled):hover {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton):not(:disabled):hover {
     filter: brightness(1.12) saturate(1.06);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.26),
@@ -4223,7 +4230,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button.is-ready,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton).is-ready {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton).is-ready {
     border-color: rgba(250, 204, 21, 0.86);
     box-shadow:
         0 0 0 1px rgba(250, 204, 21, 0.42),
@@ -4239,13 +4246,13 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-betting-actions button:disabled,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton):disabled {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton):disabled {
     opacity: 0.42;
     filter: grayscale(0.34) brightness(0.82);
 }
 
 .tarot-betting-actions button:disabled::before,
-.tarot-kingdom-controls button:not(#tarotKingdomStartButton):disabled::before {
+.tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton):disabled::before {
     animation: none;
     opacity: 0;
 }
@@ -4459,7 +4466,7 @@ body.modal-lock .modal-overlay {
     }
 
     .tarot-betting-actions button,
-    .tarot-kingdom-controls button:not(#tarotKingdomStartButton) {
+    .tarot-kingdom-controls button:not(#tarotKingdomStartButton):not(#tarotKingdomOfflineStartButton) {
         width: var(--tarot-card-w, 58px);
         min-width: var(--tarot-card-w, 58px);
         height: var(--tarot-card-h, 96px);
