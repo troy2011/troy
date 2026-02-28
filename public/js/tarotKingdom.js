@@ -78,6 +78,8 @@ const KINGDOM_NET_SCHEMA_VERSION = 1;
 const KINGDOM_NET_STATE_WRITE_DELAY = 90;
 const TK_MATCH_ROOT = 'tarotKingdomMatch';
 const TK_FALLBACK_AUTO_ROOM_COUNT = 6;
+const TK_OPEN_ROOM_HEARTBEAT_MS = 10000;
+const TK_OPEN_ROOM_STALE_MS = 45000;
 
 const ui = {};
 let s = null;
@@ -125,6 +127,7 @@ let netPresenceUnsub = null;
 let netHostUidUnsub = null;
 let netOpenRoomsUnsub = null;
 let netActionWriteTimer = null;
+let netOpenRoomHeartbeatTimer = null;
 let netLastStateHash = '';
 let netBootPromise = null;
 let kingdomFxDebugEnabled = false;
@@ -710,6 +713,29 @@ const getMajorAttackFxFromCards = (cards) => {
     heroDurationMs: Math.max(420, Number(cfg.heroDurationMs) || 760)
   };
 };
+const isMajorAttackFx = (arcanaFx) => !!(arcanaFx && Number.isFinite(Number(arcanaFx.number)));
+const ARCANA_DEFEAT_PATTERNS = ['orbit', 'float', 'slam', 'burst', 'rush', 'trickster', 'throne', 'edict', 'sanctum', 'halo', 'verdict', 'rift', 'world'];
+const DEFEAT_MARKER_BY_KIND = {
+  slash: '🗡️',
+  rock: '🪦',
+  water: '💦',
+  fire: '🔥'
+};
+const getArcanaDefeatPatternClass = (arcanaFx) => {
+  const pattern = String(arcanaFx?.pattern || '').trim();
+  if (!pattern || !ARCANA_DEFEAT_PATTERNS.includes(pattern)) return '';
+  return `is-defeat-arcana-${pattern}`;
+};
+const clearArcanaDefeatPatternClasses = (node) => {
+  if (!node?.classList) return;
+  ARCANA_DEFEAT_PATTERNS.forEach((pattern) => node.classList.remove(`is-defeat-arcana-${pattern}`));
+};
+const getDefeatMarkerEmoji = (defeatKind, arcanaFx) => {
+  if (String(defeatKind || '') === 'arcana') {
+    return String(arcanaFx?.markerEmoji || '').trim();
+  }
+  return String(DEFEAT_MARKER_BY_KIND[String(defeatKind || '')] || '').trim();
+};
 const isMinorCourtOrAceCard = (card) => {
   if (!card || card.kind !== 'minor') return false;
   const n = Number(card.number) || 0;
@@ -738,7 +764,7 @@ const pickTrickDefeatFx = (play, prevTrick) => {
   }
   info.special = true;
   if (majorFx) {
-    info.kind = majorFx.kind;
+    info.kind = 'arcana';
     info.arcana = majorFx;
   } else {
     // Court/A based special attacks are suit-only; do not emit arcana lead emoji.
@@ -1218,24 +1244,53 @@ function previewKingdomAttackFxByDebugEntry(entry) {
   const built = buildKingdomFxDebugTargets();
   const targets = built.targets || [];
   if (!targets.length) return;
-  const markerMs = 860;
+  const isArcanaDebug = String(entry?.type || '') === 'arcana';
+  const previewKind = isArcanaDebug ? 'arcana' : String(cfg.kind || 'normal');
+  const markerEmoji = getDefeatMarkerEmoji(previewKind, cfg);
+  const markerPerCard = !!markerEmoji;
+  const markerMs = markerPerCard ? (isArcanaDebug ? 980 : 920) : 0;
   const staggerMs = 52;
   const baseMs = 760;
-  spawnKingdomArcanaLeadFx(targets[0], cfg, { durationMs: Math.max(760, Number(cfg.heroDurationMs) || 0) });
-  spawnKingdomDefeatParticles(targets[0], cfg.kind, { delayMs: 40, markerEmoji: cfg.markerEmoji });
-  triggerKingdomTrickShake(cfg.kind === 'normal' ? 1 : 2);
+  if (isArcanaDebug) {
+    spawnKingdomArcanaLeadFx(targets[0], cfg, { durationMs: Math.max(760, Number(cfg.heroDurationMs) || 0) });
+  }
+  triggerKingdomTrickShake(previewKind === 'normal' ? 1 : 2);
   targets.forEach((node, idx) => {
     node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
-    node.classList.add('is-defeat-transition', `is-defeat-${cfg.kind}`, 'is-defeat-primary');
-    applyKingdomDefeatMarkerEmoji(node, cfg.markerEmoji);
+    clearArcanaDefeatPatternClasses(node);
+    if (previewKind === 'slash') {
+      spawnKingdomSlashSplitFx(node, {
+        delayMs: (idx * staggerMs) + 120,
+        durationMs: Math.max(420, baseMs - 80)
+      });
+    } else if (previewKind === 'rock' || previewKind === 'water' || previewKind === 'fire') {
+      spawnKingdomDefeatParticles(node, previewKind, {
+        delayMs: (idx * staggerMs) + 40,
+        markerEmoji
+      });
+    }
+    node.classList.add('is-defeat-transition', `is-defeat-${previewKind}`);
+    if (previewKind === 'arcana') {
+      const arcanaPatternClass = getArcanaDefeatPatternClass(cfg);
+      if (arcanaPatternClass) node.classList.add(arcanaPatternClass);
+    }
+    if (markerPerCard) {
+      node.classList.add('is-defeat-primary');
+      applyKingdomDefeatMarkerEmoji(node, markerEmoji);
+    } else {
+      node.classList.remove('is-defeat-primary');
+      applyKingdomDefeatMarkerEmoji(node, '');
+    }
     node.style.animationDelay = `${idx * staggerMs}ms`;
     node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
-    node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+    if (markerMs > 0) node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+    else node.style.removeProperty('--defeat-marker-ms');
   });
-  const totalMs = baseMs + ((targets.length - 1) * staggerMs) + 320;
+  const totalMs = Math.max(baseMs, markerMs) + ((targets.length - 1) * staggerMs) + 320;
   setTimeout(() => {
     targets.forEach((node) => {
-      node.classList.remove('is-defeat-transition', `is-defeat-${cfg.kind}`, 'is-defeat-primary');
+      node.classList.remove('is-defeat-transition', `is-defeat-${previewKind}`, 'is-defeat-primary');
+      clearArcanaDefeatPatternClasses(node);
       node.style.animationDelay = '';
       node.style.removeProperty('--defeat-card-ms');
       node.style.removeProperty('--defeat-marker-ms');
@@ -1892,21 +1947,22 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
   const markerEmoji = String(options?.markerEmoji || '').trim();
   const particles = [];
   if (kind === 'slash') {
-    // Sword itself is rendered by the primary-card marker; particle is a spark only.
-    particles.push({ emoji: '✨', variant: 'is-slash-spark', x: baseX + 4, y: baseY - 4, dur: 560 });
-    particles.push({ emoji: '💨', variant: 'is-slash', x: baseX + 12, y: baseY - 10, dur: 520 });
+    // Slash now uses only the sword marker + split clones.
+    return;
   } else if (kind === 'rock') {
-    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 34, dur: 720 });
-    particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 10, dur: 520 });
+    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 40, dur: 860 });
+    particles.push({ emoji: '🕳️', variant: 'is-rock-ground', x: baseX, y: baseY + 16, dur: 760 });
+    particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 8, dur: 540 });
   } else if (kind === 'water') {
-    particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 2, dur: 720 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 18, y: baseY - 8, dur: 610 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 4, y: baseY - 10, dur: 640 });
-    particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 20, y: baseY - 6, dur: 680 });
+    particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX - 2, y: baseY - 18, dur: 780 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 20, y: baseY - 14, dur: 660 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-b', x: baseX + 2, y: baseY - 16, dur: 700 });
+    particles.push({ emoji: '💧', variant: 'is-water-drop-c', x: baseX + 22, y: baseY - 12, dur: 740 });
   } else if (kind === 'fire') {
-    particles.push({ emoji: markerEmoji || '🔥', variant: 'is-fire-a', x: baseX - 14, y: baseY + 2, dur: 700 });
-    particles.push({ emoji: '🔥', variant: 'is-fire-b', x: baseX + 4, y: baseY - 8, dur: 760 });
-    particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 20, y: baseY + 4, dur: 660 });
+    particles.push({ emoji: markerEmoji || '🔥', variant: 'is-fire-a', x: baseX - 16, y: baseY + 4, dur: 760 });
+    particles.push({ emoji: '🔥', variant: 'is-fire-b', x: baseX + 2, y: baseY - 8, dur: 820 });
+    particles.push({ emoji: '🔥', variant: 'is-fire-c', x: baseX + 18, y: baseY + 2, dur: 700 });
+    particles.push({ emoji: '▪️', variant: 'is-fire-char', x: baseX - 4, y: baseY + 12, dur: 880 });
   } else {
     particles.push({ emoji: markerEmoji || '💥', variant: 'is-normal', x: baseX, y: baseY, dur: 520 });
     particles.push({ emoji: markerEmoji || '💫', variant: 'is-normal', x: baseX + 10, y: baseY - 8, dur: 500 });
@@ -1927,6 +1983,52 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
       if (node.parentElement) node.remove();
     }, total);
   });
+}
+
+function spawnKingdomSlashSplitFx(targetEl, options = {}) {
+  if (typeof document === 'undefined' || !targetEl) return 0;
+  const rect = targetEl.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return 0;
+  const delayMs = Math.max(0, Number(options.delayMs) || 0);
+  const durationMs = Math.max(320, Number(options.durationMs) || 560);
+  const parts = [
+    { suffix: 'is-top', clip: 'inset(0 0 50% 0 round 0)', midY: '-18%' },
+    { suffix: 'is-bottom', clip: 'inset(50% 0 0 0 round 0)', midY: '18%' }
+  ];
+  const nodes = parts.map((part) => {
+    const node = targetEl.cloneNode(true);
+    node.classList.remove(
+      'is-defeat-transition',
+      'is-defeat-primary',
+      'is-entering',
+      'is-call-arriving',
+      'is-leaving',
+      'is-clickable',
+      'is-selected',
+      'is-static'
+    );
+    node.classList.add('tarot-kingdom-slash-fragment', part.suffix);
+    node.style.left = `${rect.left}px`;
+    node.style.top = `${rect.top}px`;
+    node.style.width = `${rect.width}px`;
+    node.style.height = `${rect.height}px`;
+    node.style.clipPath = part.clip;
+    node.style.setProperty('--fx-dur', `${durationMs}ms`);
+    node.style.setProperty('--slash-mid-y', part.midY);
+    document.body.appendChild(node);
+    setTimeout(() => {
+      if (!node.parentElement) return;
+      node.classList.add('run');
+    }, delayMs + 12);
+    return node;
+  });
+  const totalMs = delayMs + durationMs + 180;
+  setTimeout(() => {
+    nodes.forEach((node) => {
+      if (node?.parentElement) node.remove();
+    });
+  }, totalMs);
+  return totalMs;
 }
 
 function getKingdomDefeatShakeLevel(play, defeatFxKind = 'normal', transitionKind = 'normal') {
@@ -2379,13 +2481,28 @@ async function pickJoinableOpenRoom(db) {
     const tb = Number(b?.[1]?.createdAt || 0);
     return ta - tb;
   });
+  const now = Date.now();
   for (const [roomId] of entries) {
+    const item = openMap?.[roomId] || {};
+    const updatedAt = Number(item?.updatedAt || item?.createdAt || 0);
+    const isStale = updatedAt > 0 && (now - updatedAt) > TK_OPEN_ROOM_STALE_MS;
+    if (isStale) {
+      await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch((error) => {
+        if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
+      });
+      continue;
+    }
     const roomPath = `tarotKingdomRooms/${roomId}`;
     const stateSnap = await get(ref(db, `${roomPath}/state`));
     const payload = stateSnap.exists() ? stateSnap.val() : null;
     const inProgress = isRoomInProgressFromStatePayload(payload);
-    const count = await readRoomPresenceCount(db, roomPath);
-    if (inProgress || count >= 4 || count <= 0) {
+    const presenceSnap = await get(ref(db, `${roomPath}/presence`));
+    const presenceMap = presenceSnap.exists() ? (presenceSnap.val() || {}) : {};
+    const count = Object.keys(presenceMap).length;
+    const hostUidSnap = await get(ref(db, `${roomPath}/meta/hostUid`));
+    const hostUid = hostUidSnap.exists() ? String(hostUidSnap.val() || '') : '';
+    const hasLiveHost = !hostUid || !!presenceMap?.[hostUid];
+    if (inProgress || count >= 4 || count <= 0 || !hasLiveHost) {
       await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch((error) => {
         if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
       });
@@ -2403,8 +2520,15 @@ async function pickJoinableFallbackRoom(db) {
     const stateSnap = await get(ref(db, `${roomPath}/state`)).catch(() => null);
     const payload = stateSnap?.exists?.() ? stateSnap.val() : null;
     const inProgress = isRoomInProgressFromStatePayload(payload);
-    const count = await readRoomPresenceCount(db, roomPath).catch(() => 0);
-    if (!inProgress && count < 4) return roomId;
+    const presenceSnap = await get(ref(db, `${roomPath}/presence`)).catch(() => null);
+    const presenceMap = presenceSnap?.exists?.() ? (presenceSnap.val() || {}) : {};
+    const count = Object.keys(presenceMap).length;
+    const hostUidSnap = await get(ref(db, `${roomPath}/meta/hostUid`)).catch(() => null);
+    const hostUid = hostUidSnap?.exists?.() ? String(hostUidSnap.val() || '') : '';
+    const hasLiveHost = !hostUid || !!presenceMap?.[hostUid];
+    if (inProgress || count >= 4) continue;
+    if (count <= 0) return roomId;
+    if (hasLiveHost) return roomId;
   }
   return `tk_auto_${Math.floor(Math.random() * TK_FALLBACK_AUTO_ROOM_COUNT)}`;
 }
@@ -2711,13 +2835,14 @@ async function refreshOpenRoomsPanel() {
   renderOpenRoomsList(rows);
 }
 
-async function claimHostIfNeeded() {
+async function claimHostIfNeeded(forceTakeover = false) {
   if (!isNetModeActive()) return;
   try {
     const hostRef = ref(tkNet.db, `${tkNet.roomPath}/meta/hostUid`);
     const snap = await get(hostRef);
     const current = snap.exists() ? String(snap.val() || '') : '';
-    if (!current) {
+    const hostMissingFromPresence = !!current && !netPresenceByUid?.[current];
+    if (!current || (forceTakeover && hostMissingFromPresence)) {
       await set(hostRef, tkNet.uid);
       tkNet.hostUid = tkNet.uid;
       tkNet.isHost = true;
@@ -2928,6 +3053,7 @@ function startHostActionListener() {
 }
 
 function applyRemoteRoomState(payload) {
+  if (netManualOfflineMode) return;
   const next = deserializeStateFromNet(payload);
   if (!next) return;
   const localSeat = Number(tkNet.localSeat);
@@ -3018,14 +3144,21 @@ function startRoomSubscriptions() {
         netHandledActionKeys.clear();
       }
       startHostActionListener();
+      scheduleOpenRoomHeartbeat();
     } else {
       stopHostActionListener();
+      clearOpenRoomHeartbeatTimer();
     }
   });
 
   const presenceRef = ref(tkNet.db, `${tkNet.roomPath}/presence`);
   netPresenceUnsub = onValue(presenceRef, (snapshot) => {
     netPresenceByUid = snapshot.exists() ? (snapshot.val() || {}) : {};
+    if (!tkNet.isHost && tkNet.hostUid && !netPresenceByUid[tkNet.hostUid]) {
+      claimHostIfNeeded(true).catch((error) => {
+        console.warn('[tarotKingdom] host takeover failed:', error);
+      });
+    }
     if (s) {
       applyPresenceToPlayers();
       if (tkNet.isHost) queueStatePublish();
@@ -3061,6 +3194,7 @@ function startRoomSubscriptions() {
 
 function teardownTarotKingdomNetwork() {
   stopRoomSubscriptions();
+  clearOpenRoomHeartbeatTimer();
   if (netActionWriteTimer) {
     clearTimeout(netActionWriteTimer);
     netActionWriteTimer = null;
@@ -5029,7 +5163,7 @@ function renderTrick() {
   }
   const prevCards = Array.from(ui.trick.querySelectorAll('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)'));
   const defeatFxRaw = String(s?.trickDefeatFx?.kind || 'normal');
-  const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire'].includes(defeatFxRaw)
+  const defeatFxKind = ['normal', 'slash', 'rock', 'water', 'fire', 'arcana'].includes(defeatFxRaw)
     ? defeatFxRaw
     : 'normal';
   const arcanaFx = s?.trickDefeatFx?.arcana || null;
@@ -5083,32 +5217,44 @@ function renderTrick() {
       const staggerMs = 34;
       const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
       const isSpecialRoleClash = defeatFxKind !== 'normal';
-      const hasArcanaMarker = !!String(arcanaFx?.markerEmoji || '').trim();
+      const isArcanaDefeat = isMajorAttackFx(arcanaFx);
+      const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
+      const markerPerCard = !!markerEmoji;
       const baseMs = isSpecialRoleClash ? 800 : 680;
-      const markerMs = (isSpecialRoleClash ? 980 : 760) + (hasArcanaMarker ? 240 : 120);
+      const markerMs = markerPerCard ? ((isSpecialRoleClash ? 980 : 760) + 240) : 0;
       setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(Math.max(2, shakeLevel))), hitStopMs + 210);
       setTimeout(() => runIfCurrent(() => {
-        const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
-        const leadArcanaFx = Number.isFinite(Number(arcanaFx?.number)) ? arcanaFx : null;
+        const leadArcanaFx = isArcanaDefeat ? arcanaFx : null;
         if (leadArcanaFx?.leadEmoji) {
           spawnKingdomArcanaLeadFx(prevCards[0], leadArcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(leadArcanaFx.heroDurationMs) || 0) });
         }
         prevCards.forEach((node, idx) => {
           if (!node) return;
-          if (idx === 0) {
+          if (defeatFxKind === 'slash') {
+            spawnKingdomSlashSplitFx(node, {
+              delayMs: (idx * staggerMs) + 120,
+              durationMs: Math.max(420, baseMs - 80)
+            });
+          } else if (defeatFxKind === 'rock' || defeatFxKind === 'water' || defeatFxKind === 'fire') {
             spawnKingdomDefeatParticles(node, defeatFxKind, {
-              delayMs: 0,
-              markerEmoji: arcanaFx?.markerEmoji || ''
+              delayMs: (idx * staggerMs) + 40,
+              markerEmoji
             });
           }
           node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+          clearArcanaDefeatPatternClasses(node);
           node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
-          if (idx === 0 || markerPerCard) node.classList.add('is-defeat-primary');
+          if (defeatFxKind === 'arcana') {
+            const arcanaPatternClass = getArcanaDefeatPatternClass(arcanaFx);
+            if (arcanaPatternClass) node.classList.add(arcanaPatternClass);
+          }
+          if (markerPerCard) node.classList.add('is-defeat-primary');
           else node.classList.remove('is-defeat-primary');
-          applyKingdomDefeatMarkerEmoji(node, arcanaFx?.markerEmoji || '');
+          applyKingdomDefeatMarkerEmoji(node, markerPerCard ? markerEmoji : '');
           node.style.animationDelay = `${idx * staggerMs}ms`;
           node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
-          node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+          if (markerPerCard) node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+          else node.style.removeProperty('--defeat-marker-ms');
         });
       }), preDefeatMs);
       const swapHoldMs = Math.max(baseMs, markerMs);
@@ -5146,8 +5292,10 @@ function renderTrick() {
     const staggerMs = 34;
     const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
     const baseMs = (isSpecial ? 760 : 600) + (shakeLevel * 90);
-    const hasArcanaMarker = !!String(arcanaFx?.markerEmoji || '').trim();
-    const markerMs = (isSpecial ? 940 : 720) + (shakeLevel * 70) + (hasArcanaMarker ? 240 : 120);
+    const isArcanaDefeat = isMajorAttackFx(arcanaFx);
+    const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
+    const markerPerCard = !!markerEmoji;
+    const markerMs = markerPerCard ? ((isSpecial ? 940 : 720) + (shakeLevel * 70) + 240) : 0;
     const runIfCurrent = (fn) => {
       if (swapToken !== trickRenderToken) return;
       fn();
@@ -5162,27 +5310,37 @@ function renderTrick() {
     });
     setTimeout(() => runIfCurrent(() => triggerKingdomTrickShake(shakeLevel)), hitStopMs + ramMs - 18);
     setTimeout(() => runIfCurrent(() => {
-      const markerPerCard = !!String(arcanaFx?.markerEmoji || '').trim();
-      const leadArcanaFx = Number.isFinite(Number(arcanaFx?.number)) ? arcanaFx : null;
+      const leadArcanaFx = isArcanaDefeat ? arcanaFx : null;
       if (leadArcanaFx?.leadEmoji) {
         spawnKingdomArcanaLeadFx(prevCards[0], leadArcanaFx, { delayMs: 0, durationMs: Math.max(760, markerMs + 180, Number(leadArcanaFx.heroDurationMs) || 0) });
       }
       prevCards.forEach((node, idx) => {
         if (!node) return;
-        if (idx === 0) {
+        if (defeatFxKind === 'slash') {
+          spawnKingdomSlashSplitFx(node, {
+            delayMs: (idx * staggerMs) + 120,
+            durationMs: Math.max(420, baseMs - 80)
+          });
+        } else if (defeatFxKind === 'rock' || defeatFxKind === 'water' || defeatFxKind === 'fire') {
           spawnKingdomDefeatParticles(node, defeatFxKind, {
-            delayMs: 0,
-            markerEmoji: arcanaFx?.markerEmoji || ''
+            delayMs: (idx * staggerMs) + 40,
+            markerEmoji
           });
         }
         node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
+        clearArcanaDefeatPatternClasses(node);
         node.classList.add('is-defeat-transition', `is-defeat-${defeatFxKind}`);
-        if (idx === 0 || markerPerCard) node.classList.add('is-defeat-primary');
+        if (defeatFxKind === 'arcana') {
+          const arcanaPatternClass = getArcanaDefeatPatternClass(arcanaFx);
+          if (arcanaPatternClass) node.classList.add(arcanaPatternClass);
+        }
+        if (markerPerCard) node.classList.add('is-defeat-primary');
         else node.classList.remove('is-defeat-primary');
-        applyKingdomDefeatMarkerEmoji(node, arcanaFx?.markerEmoji || '');
+        applyKingdomDefeatMarkerEmoji(node, markerPerCard ? markerEmoji : '');
         node.style.animationDelay = `${idx * staggerMs}ms`;
         node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
-        node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+        if (markerPerCard) node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
+        else node.style.removeProperty('--defeat-marker-ms');
       });
     }), preDefeatMs);
     const swapHoldMs = Math.max(baseMs, markerMs);
@@ -5753,7 +5911,10 @@ function render() {
   renderKingdomFxDebugUi();
   syncHumanTurnCueState();
   if (isNetModeActive() && tkNet.isHost) {
+    scheduleOpenRoomHeartbeat();
     queueStatePublish();
+  } else {
+    clearOpenRoomHeartbeatTimer();
   }
 }
 
@@ -5829,13 +5990,34 @@ function startOrNext() {
   }
 }
 
+function clearOpenRoomHeartbeatTimer() {
+  if (netOpenRoomHeartbeatTimer) {
+    clearTimeout(netOpenRoomHeartbeatTimer);
+    netOpenRoomHeartbeatTimer = null;
+  }
+}
+
+function scheduleOpenRoomHeartbeat() {
+  clearOpenRoomHeartbeatTimer();
+  if (!isNetModeActive() || !tkNet.isHost || !netOpenRoomIndexEnabled) return;
+  if (!shouldRoomStayOpen()) return;
+  netOpenRoomHeartbeatTimer = setTimeout(async () => {
+    netOpenRoomHeartbeatTimer = null;
+    if (!isNetModeActive() || !tkNet.isHost || !netOpenRoomIndexEnabled) return;
+    try {
+      await syncOpenRoomIndex();
+    } catch (_) {
+      // ignore; syncOpenRoomIndex already downgrades permission mode when needed
+    }
+    scheduleOpenRoomHeartbeat();
+  }, TK_OPEN_ROOM_HEARTBEAT_MS);
+}
+
 function startOfflineNow() {
-  if (s?.awaitRoundConfirm) return;
   netManualOfflineMode = true;
   clearNpcTimer();
-  if (isNetModeActive()) {
-    teardownTarotKingdomNetwork();
-  }
+  teardownTarotKingdomNetwork();
+  tkNet.localSeat = 0;
   resetMatch();
   beginNextRound();
   render();
