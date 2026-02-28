@@ -134,6 +134,7 @@ const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
 let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
+let netManualOfflineMode = false;
 const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', until: 0 }));
 const tkNet = {
   enabled: false,
@@ -2384,7 +2385,7 @@ async function pickJoinableOpenRoom(db) {
     const payload = stateSnap.exists() ? stateSnap.val() : null;
     const inProgress = isRoomInProgressFromStatePayload(payload);
     const count = await readRoomPresenceCount(db, roomPath);
-    if (inProgress || count >= 4) {
+    if (inProgress || count >= 4 || count <= 0) {
       await remove(ref(db, `${TK_MATCH_ROOT}/openRooms/${roomId}`)).catch((error) => {
         if (isPermissionDeniedError(error)) netOpenRoomIndexEnabled = false;
       });
@@ -3094,9 +3095,19 @@ function teardownTarotKingdomNetwork() {
 }
 
 async function ensureTarotKingdomNetwork() {
+  if (netManualOfflineMode) {
+    teardownTarotKingdomNetwork();
+    tkNet.localSeat = 0;
+    return;
+  }
   if (netBootPromise) return netBootPromise;
   netBootPromise = (async () => {
     try {
+      if (netManualOfflineMode) {
+        teardownTarotKingdomNetwork();
+        tkNet.localSeat = 0;
+        return;
+      }
       const explicitRoomId = getTarotKingdomRoomId();
       const db = window.__tkDb || null;
       let uid = String(window.__tkUid || '');
@@ -3147,6 +3158,14 @@ async function ensureTarotKingdomNetwork() {
           await hostDisc.remove();
         } catch (_) {
           // ignore
+        }
+        if (netOpenRoomIndexEnabled) {
+          try {
+            const openDisc = onDisconnect(ref(db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`));
+            await openDisc.remove();
+          } catch (_) {
+            // ignore
+          }
         }
       }
       startRoomSubscriptions();
@@ -5812,11 +5831,13 @@ function startOrNext() {
 
 function startOfflineNow() {
   if (s?.awaitRoundConfirm) return;
+  netManualOfflineMode = true;
+  clearNpcTimer();
   if (isNetModeActive()) {
     teardownTarotKingdomNetwork();
   }
   resetMatch();
-  startOrNext();
+  beginNextRound();
   render();
 }
 
@@ -6114,6 +6135,7 @@ export async function loadTarotKingdomPage() {
 }
 
 export function destroyTarotKingdomPage() {
+  netManualOfflineMode = false;
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();
