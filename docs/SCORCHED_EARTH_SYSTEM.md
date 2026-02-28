@@ -1,4 +1,4 @@
-﻿# 破壊と再建システム（Scorched Earth）実装完了レポート
+# 破壊と再建システム（Scorched Earth）実装完了レポート
 
 ## 概要
 

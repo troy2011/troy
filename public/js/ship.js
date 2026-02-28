@@ -1,4 +1,4 @@
-﻿// c:/Users/ikeda/my-liff-app/public/js/ship.js
+// c:/Users/ikeda/my-liff-app/public/js/ship.js
 // Client-side ship management with dead reckoning animation
 
 import {

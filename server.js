@@ -1,4 +1,4 @@
-﻿// server.js (v43 - Modularized)
+// server.js (v43 - Modularized)
 
 require('dotenv').config();
 const express = require('express');

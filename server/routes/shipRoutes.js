@@ -1,4 +1,4 @@
-﻿// ships.js - Server-side ship management with hybrid PlayFab/Firestore architecture
+// ships.js - Server-side ship management with hybrid PlayFab/Firestore architecture
 
 const admin = require('firebase-admin');
 const { geohashForLocation, geohashQueryBounds, distanceBetween } = require('geofire-common');

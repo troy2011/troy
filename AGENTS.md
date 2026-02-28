@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 **Rule:** In each command, **define -> use**. Do **not** escape $. Use generic 'path/to/file.ext'.
 
