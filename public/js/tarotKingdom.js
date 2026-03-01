@@ -911,7 +911,7 @@ function getKingdomCardEffectDescription(card) {
       18: 'ペンタクルワイルド化※単騎14',
       19: 'ワンドワイルド化※単騎14',
       20: 'クリアで墓地から1枚回収',
-      21: '世界+計21の5枚で役'
+      21: '単騎でどんな場札にも返せる'
     };
     return majorEffectMap[n] || '';
   }
@@ -2054,12 +2054,12 @@ function getKingdomDefeatTimingProfile(defeatFxKind = 'normal', options = {}) {
   const roleClash = !!options.roleClash;
   const debugPreview = !!options.debugPreview;
   const presets = {
-    normal: { cardMs: 360, markerMs: 0, staggerMs: 20, tailPadMs: 8, settleMs: 118, splitLeadMs: 72, splitMs: 340, particleLeadMs: 10 },
-    slash: { cardMs: 330, markerMs: 330, staggerMs: 16, tailPadMs: 0, settleMs: 108, splitLeadMs: 24, splitMs: 380, particleLeadMs: 0 },
-    rock: { cardMs: 440, markerMs: 380, staggerMs: 18, tailPadMs: 6, settleMs: 122, splitLeadMs: 0, splitMs: 0, particleLeadMs: 10 },
-    water: { cardMs: 410, markerMs: 350, staggerMs: 18, tailPadMs: 6, settleMs: 116, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 },
-    fire: { cardMs: 430, markerMs: 370, staggerMs: 18, tailPadMs: 8, settleMs: 120, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 },
-    arcana: { cardMs: 520, markerMs: 460, staggerMs: 22, tailPadMs: 12, settleMs: 132, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 }
+    normal: { cardMs: 360, markerMs: 0, visualEndRatio: 0.52, staggerMs: 20, tailPadMs: 8, settleMs: 118, splitLeadMs: 72, splitMs: 340, particleLeadMs: 10 },
+    slash: { cardMs: 330, markerMs: 330, visualEndRatio: 0.34, staggerMs: 16, tailPadMs: 0, settleMs: 108, splitLeadMs: 24, splitMs: 380, particleLeadMs: 0 },
+    rock: { cardMs: 440, markerMs: 380, visualEndRatio: 0.62, staggerMs: 18, tailPadMs: 6, settleMs: 122, splitLeadMs: 0, splitMs: 0, particleLeadMs: 10 },
+    water: { cardMs: 410, markerMs: 350, visualEndRatio: 0.58, staggerMs: 18, tailPadMs: 6, settleMs: 116, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 },
+    fire: { cardMs: 430, markerMs: 370, visualEndRatio: 0.7, staggerMs: 18, tailPadMs: 8, settleMs: 120, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 },
+    arcana: { cardMs: 520, markerMs: 460, visualEndRatio: 0.56, staggerMs: 22, tailPadMs: 12, settleMs: 132, splitLeadMs: 0, splitMs: 0, particleLeadMs: 0 }
   };
   const preset = presets[kind] || presets.normal;
   const cardMs = Math.max(
@@ -2081,10 +2081,18 @@ function getKingdomDefeatTimingProfile(defeatFxKind = 'normal', options = {}) {
   if (markerMs > 0) {
     markerMs = Math.min(markerMs, cardMs + (kind === 'arcana' ? 72 : 24));
   }
+  const visualEndMs = Math.max(
+    160,
+    Math.min(
+      cardMs,
+      Math.round(cardMs * Math.max(0.2, Math.min(0.9, Number(preset.visualEndRatio) || 0.6)))
+    )
+  );
   return {
     cardMs,
     markerMs,
     activeMs: Math.max(cardMs, markerMs),
+    visualEndMs,
     staggerMs: Math.max(0, preset.staggerMs + (roleClash ? 2 : 0)),
     tailPadMs: Math.max(0, preset.tailPadMs + (debugPreview ? 4 : 0)),
     settleMs: preset.settleMs,
@@ -2189,22 +2197,6 @@ function compareRole(a, b) {
 }
 
 function evalRoleVariant(res, src) {
-  const world = src.find((c) => c.kind === 'major' && c.number === 21);
-  if (world) {
-    const others = src.filter((c) => c !== world);
-    if (others.length === 4 && others.every((c) => !hasCourt(c)) && others.reduce((a, c) => a + idNum(c), 0) === 21) {
-      return {
-        key: 'TheWorld',
-        label: ROLE_LABEL.TheWorld,
-        strength: ROLE_ST.TheWorld,
-        baseRate: ROLE_RATE.TheWorld,
-        effectiveRate: ROLE_RATE.TheWorld,
-        primary: others.map((c) => cStrength(c)).sort((a, b) => b - a),
-        suitVec: res.map((r) => suitTierForCard(r.src, r.suit)).sort((a, b) => b - a)
-      };
-    }
-  }
-
   const vals = res.map((r) => r.v).sort((a, b) => b - a);
   const by = new Map();
   res.forEach((r) => { const list = by.get(r.v) || []; list.push(r); by.set(r.v, list); });
@@ -3676,10 +3668,15 @@ function setCmp(aPower, bPower) {
 function buildSetPlay(pi, sel) {
   const p = s.players[pi];
   const forcedCount = Math.max(0, Number(s.trickForcedCount || 0));
-  if (forcedCount > 0 && sel.length !== forcedCount) return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
   if (![1, 2, 3].includes(sel.length)) return { ok: false, reason: '通常出しは1〜3枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== sel.length) return { ok: false, reason: '選択が不正です。' };
+  const isWorldSingle = cards.length === 1
+    && cards[0]?.kind === 'major'
+    && Number(cards[0]?.number) === 21;
+  if (forcedCount > 0 && sel.length !== forcedCount && !isWorldSingle) {
+    return { ok: false, reason: `${forcedCount}枚出しのみ有効です。` };
+  }
   let n = chooseSetNumberCandidate(cards, !!s.reverse);
   if (n == null) return { ok: false, reason: '同じ数値で揃えてください。' };
   if (
@@ -3689,10 +3686,14 @@ function buildSetPlay(pi, sel) {
   ) {
     n = 14;
   }
-  if (s.lock?.suit && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
+  if (s.lock?.suit && !isWorldSingle && !cards.every((c) => suitsForCard(c, false).includes(s.lock.suit))) {
+    return { ok: false, reason: `スート縛り: ${SUIT_LABEL[s.lock.suit]}` };
+  }
   const allMagicianOne = Number(n) === 1 && cards.every((c) => c.kind === 'major' && Number(c.number) === 1);
   const setPower = allMagicianOne ? 1 : setRankFromNumber(n);
-  if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min) return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
+  if (s.lock?.min != null && cards.length === 1 && setPower <= s.lock.min && !isWorldSingle) {
+    return { ok: false, reason: `${s.lock.min}より強いカードが必要です。` };
+  }
   const suitTier = Math.max(...cards.map((c) => Math.max(...suitsForCard(c, false).map((x) => suitTierForCard(c, x)))));
   const suitMask = suitMaskForCards(cards);
   return {
@@ -3824,6 +3825,14 @@ function validatePlay(play, mode) {
   const aceRuleViolation = getAceFinishRuleViolation(play);
   if (aceRuleViolation) return { ok: false, reason: aceRuleViolation };
   if (!s.trick) return mode === 'call' ? { ok: false, reason: '初手でコールは不可です。' } : { ok: true };
+  const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
+  const isWorldSingleOverride = mode !== 'call'
+    && play?.type === 'set'
+    && Number(play?.count || 0) === 1
+    && playCards.length === 1
+    && playCards[0]?.kind === 'major'
+    && Number(playCards[0]?.number) === 21;
+  if (isWorldSingleOverride) return { ok: true };
   if (s.callOnly && mode !== 'call') return { ok: false, reason: '8カット中: コールかパスのみ。' };
   if (mode === 'call') {
     const actor = s.players?.[Number(play?.owner)];
@@ -3844,7 +3853,6 @@ function validatePlay(play, mode) {
     const c = setCmp(play.setPower ?? play.number, s.trick.setPower ?? s.trick.number);
     if (c > 0) return { ok: true };
     if (c < 0) return { ok: false, reason: '場札より強い数値が必要です。' };
-    const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
     const trickCards = Array.isArray(s?.trick?.cardsTable) ? s.trick.cardsTable : [];
     const playHasMajor = playCards.some((card) => card?.kind === 'major');
     const trickHasMajor = trickCards.some((card) => card?.kind === 'major');
@@ -5288,7 +5296,6 @@ function renderTrick() {
       const preDefeatMs = Math.max(260, clashMs);
       const profile = getKingdomDefeatTimingProfile(defeatFxKind, { shakeLevel, roleClash: true });
       const staggerMs = profile.staggerMs;
-      const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
       const isArcanaDefeat = isMajorAttackFx(arcanaFx);
       const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
       const markerPerCard = !!markerEmoji;
@@ -5329,12 +5336,12 @@ function renderTrick() {
           else node.style.removeProperty('--defeat-marker-ms');
         });
       }), preDefeatMs);
-      const swapHoldMs = profile.activeMs;
+      const swapHoldMs = profile.visualEndMs;
       trickSwapTimer = setTimeout(() => {
         if (swapToken !== trickRenderToken) return;
         trickSwapTimer = null;
         settleKingdomIncomingFirstCard(ramFx, runIfCurrent, profile.settleMs);
-      }, preDefeatMs + swapHoldMs + tailMs + profile.tailPadMs);
+      }, preDefeatMs + swapHoldMs);
       return;
     }
     const isSpecial = defeatFxKind !== 'normal';
@@ -5343,7 +5350,6 @@ function renderTrick() {
     const preDefeatMs = hitStopMs + ramMs + 40;
     const profile = getKingdomDefeatTimingProfile(defeatFxKind, { shakeLevel });
     const staggerMs = profile.staggerMs;
-    const tailMs = Math.max(0, (prevCards.length - 1) * staggerMs);
     const baseMs = profile.cardMs;
     const isArcanaDefeat = isMajorAttackFx(arcanaFx);
     const markerEmoji = getDefeatMarkerEmoji(defeatFxKind, arcanaFx);
@@ -5396,12 +5402,12 @@ function renderTrick() {
         else node.style.removeProperty('--defeat-marker-ms');
       });
     }), preDefeatMs);
-    const swapHoldMs = profile.activeMs;
+    const swapHoldMs = profile.visualEndMs;
     trickSwapTimer = setTimeout(() => {
       if (swapToken !== trickRenderToken) return;
       trickSwapTimer = null;
       settleKingdomIncomingFirstCard(ramFx, runIfCurrent, profile.settleMs);
-    }, preDefeatMs + swapHoldMs + tailMs + profile.tailPadMs);
+    }, preDefeatMs + swapHoldMs);
     return;
   }
   if (prevCards.length > 0 && cards.length === 0 && transitionKind === 'clearSweep') {

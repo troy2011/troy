@@ -5206,10 +5206,10 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-slash::after {
     content: var(--defeat-marker-content, "\1F5E1");
-    left: 62%;
-    top: 8%;
-    font-size: 42px;
-    transform-origin: 80% 20%;
+    left: 52%;
+    top: 16%;
+    font-size: 40px;
+    transform-origin: 82% 18%;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.44)) drop-shadow(0 0 8px rgba(250, 204, 21, 0.28));
     animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 920ms) cubic-bezier(0.16, 0.82, 0.24, 1) forwards;
 }
@@ -5350,23 +5350,23 @@ body.modal-lock .modal-overlay {
 @keyframes tarotKingdomDefeatSlashMarker {
     0% {
         opacity: 0;
-        transform: translate(28%, -132%) scale(0.7) rotate(-118deg);
+        transform: translate(8%, -108%) scale(0.74) rotate(-96deg);
     }
-    18% {
+    14% {
         opacity: 1;
-        transform: translate(22%, -92%) scale(0.88) rotate(-106deg);
+        transform: translate(6%, -86%) scale(0.82) rotate(-90deg);
     }
-    42% {
+    36% {
         opacity: 1;
-        transform: translate(12%, -36%) scale(1.04) rotate(-72deg);
+        transform: translate(2%, -34%) scale(0.96) rotate(-66deg);
     }
-    64% {
+    60% {
         opacity: 1;
-        transform: translate(2%, 8%) scale(1.02) rotate(-24deg);
+        transform: translate(-3%, 6%) scale(1.02) rotate(-20deg);
     }
     100% {
         opacity: 0;
-        transform: translate(-12%, 40%) scale(0.9) rotate(12deg);
+        transform: translate(-10%, 24%) scale(0.96) rotate(10deg);
     }
 }
 
