@@ -251,6 +251,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+        this.shipSideCannonPanel = null;
         this.shipSideCannonButton = null;
         this.shipSideCannonStatus = null;
         this.shipSideCannonCooldownUntil = 0;
@@ -287,7 +288,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.mapOccupationNation = null;
         this.isInOwnedArea = true;
 
-        // Firestore髢｢騾｣
+        // Firestore 関連
         this.firestore = null;
         this.otherShips = new Map();
         this.shipsUnsubscribe = null;
@@ -578,6 +579,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.otherShips && this.otherShips.size > 0) {
             this.otherShips.forEach((shipObject) => {
                 this.destroyShipHpBar(shipObject?.sprite);
+                this.destroyShipNameLabel(shipObject?.sprite);
                 shipObject.sprite?.destroy?.();
             });
             this.otherShips.clear();
@@ -1023,8 +1025,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.moveShipTo(worldPoint.x, worldPoint.y, null);
         });
 
-        // 荳・0-2 蟾ｦ荳・3-5 / 蟾ｦ:32-34 蜿ｳ荳・35-37 / 蜿ｳ:64-66 蟾ｦ荳・67-69 / 荳・96-98 蜿ｳ荳・99-101
-        this.shipSpriteBaseFrame = 0; // 蟾ｦ荳翫・繝ｼ繝医・髢句ｧ九ヵ繝ｬ繝ｼ繝・亥ｷｦ荳翫・繝ｼ繝・0・・
+        // 船スプライトは行単位で向き別に並ぶ。baseFrame を基準に相対オフセットで参照する。
+        this.shipSpriteBaseFrame = 0; // 既定の船スプライト基準フレーム
         const sheetCols = 32;
         const baseFrame = this.shipSpriteBaseFrame;
         const baseRow = Math.floor(baseFrame / sheetCols);
@@ -1426,7 +1428,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const gridCells = Math.max(1, Math.floor(this.mapTileSize / AREA_GRID_SIZE));
         const cellPx = minimapSize / gridCells;
 
-        // 繝溘ル繝槭ャ繝励・閭梧勹・亥承荳翫↓驟咲ｽｮ・・
+        // ミニマップを右上に固定表示
         const minimapX = (this.scale?.width || this.cameras.main.width) - minimapSize - minimapPadding;
         const minimapY = minimapPadding;
 
@@ -1438,7 +1440,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.minimapGraphics.fillStyle(0x000000, 0.7);
         this.minimapGraphics.fillRect(minimapX, minimapY, minimapSize, minimapSize);
 
-        // 繝溘ル繝槭ャ繝励・譫邱・
+        // ミニマップの枠線
         this.minimapGraphics.lineStyle(2, 0xffffff, 1);
         this.minimapGraphics.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
         this.minimapGraphics.lineStyle(1, 0xffffff, 0.35);
@@ -2096,21 +2098,21 @@ export default class WorldMapScene extends Phaser.Scene {
             return true;
         }
 
-        return this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||    // 荳願ｾｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) || // 蜿ｳ霎ｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, right, bottom) || // 荳玖ｾｺ
-               this.lineIntersectsLine(x1, y1, x2, y2, left, top, left, bottom);      // 蟾ｦ霎ｺ
+        return this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||    // 上辺
+               this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) || // 右辺
+               this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, right, bottom) || // 下辺
+               this.lineIntersectsLine(x1, y1, x2, y2, left, top, left, bottom);      // 左辺
     }
 
     /**
      *
-     * @param {number} x1, y1, x2, y2 - 邱壼・1
-     * @param {number} x3, y3, x4, y4 - 邱壼・2
+     * @param {number} x1, y1, x2, y2 - 線分1
+     * @param {number} x3, y3, x4, y4 - 線分2
      *
      */
     lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
         const denom = ((y4 - y3) * (x2 - x1)) - ((x4 - x3) * (y2 - y1));
-        if (denom === 0) return false; // 蟷ｳ陦・
+        if (denom === 0) return false; // 平行
 
         const ua = (((x4 - x3) * (y1 - y3)) - ((y4 - y3) * (x1 - x3))) / denom;
         const ub = (((x2 - x1) * (y1 - y3)) - ((y2 - y1) * (x1 - x3))) / denom;
@@ -2267,7 +2269,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
-    // 荳・0..2 / 蟾ｦ:21..23 / 蜿ｳ:42..44 / 荳・63..65
+    // 方向ごとのフレーム帯: down 0..2 / left 21..23 / right 42..44 / up 63..65
     getGuildShipFrame(directionKey, frameIndex, layerKey, colorKey) {
         const cols = this.guildShipSheetCols ?? 21;
         const dirMap = { down: 0, left: 1, right: 2, up: 3 };
@@ -2386,6 +2388,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const status = document.getElementById('shipSideCannonStatus');
         if (!panel || !button || !status) return;
 
+        this.shipSideCannonPanel = panel;
         this.shipSideCannonButton = button;
         this.shipSideCannonStatus = status;
         button.addEventListener('click', () => this.triggerShipSideCannon());
@@ -2433,19 +2436,21 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!force && now - this.shipSideCannonUiLastUpdate < 250) return;
         this.shipSideCannonUiLastUpdate = now;
 
+        const panel = this.shipSideCannonPanel;
         const allowedClass = this.canUseShipSideCannon();
         const cooldownRemaining = Math.max(0, this.shipSideCannonCooldownUntil - now);
         const chargeRemaining = Math.max(0, this.shipSideCannonChargeUntil - now);
         const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
         const canUse = !!this.playerShip && allowedClass && cooldownRemaining <= 0 && jamRemaining <= 0 && chargeRemaining <= 0;
+        const hasShipInfo = !!this.playerShipClass || !!this.playerShipItemId || this.isPlayerGuildShip();
+        const shouldShow = hasShipInfo && allowedClass;
 
-        this.shipSideCannonButton.disabled = !canUse;
-        if (!this.playerShipClass && !this.playerShipItemId && !this.isPlayerGuildShip()) {
-            this.shipSideCannonStatus.textContent = '船情報を読み込み中...';
-            return;
+        if (panel) {
+            panel.style.display = shouldShow ? 'flex' : 'none';
         }
-        if (!allowedClass) {
-            this.shipSideCannonStatus.textContent = 'Fighter / Defender / Merchant / ギルドシップ専用';
+        this.shipSideCannonButton.disabled = !canUse;
+        if (!shouldShow) {
+            this.shipSideCannonStatus.textContent = '';
             return;
         }
         if (jamRemaining > 0) {
@@ -2543,12 +2548,6 @@ export default class WorldMapScene extends Phaser.Scene {
         const button = document.getElementById('createIslandButton');
         if (!button) return;
         this.createIslandButton = button;
-        button.style.position = 'fixed';
-        button.style.left = '12px';
-        button.style.top = '56px';
-        button.style.right = 'auto';
-        button.style.bottom = 'auto';
-        button.style.zIndex = '1201';
         button.addEventListener('click', () => {
             void this.requestCreateIslandAtCurrentPosition();
         });
@@ -4491,6 +4490,56 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    createShipNameLabel(sprite, text = '') {
+        if (!sprite) return null;
+        if (sprite.__nameLabel) return sprite.__nameLabel;
+        const label = this.add.text(sprite.x, sprite.y - 22, text, {
+            fontSize: '11px',
+            fontStyle: '700',
+            color: '#ffffff',
+            stroke: '#0f172a',
+            strokeThickness: 3,
+            shadow: { offsetX: 0, offsetY: 1, color: '#000000', blur: 3, fill: true }
+        });
+        label.setOrigin(0.5, 1);
+        label.setDepth(GAME_CONFIG.DEPTH.SHIP + 2);
+        this.ignoreOnUiCamera(label);
+        sprite.__nameLabel = label;
+        return label;
+    }
+
+    destroyShipNameLabel(sprite) {
+        if (sprite?.__nameLabel?.destroy) {
+            sprite.__nameLabel.destroy();
+        }
+        if (sprite) {
+            sprite.__nameLabel = null;
+        }
+    }
+
+    updateShipNameLabel(shipObject) {
+        const sprite = shipObject?.sprite;
+        if (!sprite) return;
+        const displayName = String(
+            shipObject?.data?.displayName
+            || shipObject?.data?.name
+            || shipObject?.data?.playerName
+            || shipObject?.data?.playFabId
+            || ''
+        ).trim();
+        if (!displayName) {
+            this.destroyShipNameLabel(sprite);
+            return;
+        }
+        const label = this.createShipNameLabel(sprite, displayName);
+        if (!label) return;
+        if (label.text !== displayName) {
+            label.setText(displayName);
+        }
+        label.setPosition(sprite.x, sprite.y - 22);
+        label.setVisible(sprite.visible !== false);
+    }
+
     updateShipHpBar(sprite, currentHp, maxHp) {
         if (!sprite || !Number.isFinite(currentHp) || !Number.isFinite(maxHp) || maxHp <= 0) return;
         const hpBar = this.createShipHpBar(sprite);
@@ -5143,6 +5192,9 @@ export default class WorldMapScene extends Phaser.Scene {
         shipObject.sprite.setAlpha(visible ? 1 : 0);
         if (shipObject.sprite.__hpBar) {
             shipObject.sprite.__hpBar.setVisible(visible);
+        }
+        if (shipObject.sprite.__nameLabel) {
+            shipObject.sprite.__nameLabel.setVisible(visible && shipObject.sprite.visible !== false);
         }
         if (shipObject.sprite.__shadow) {
             shipObject.sprite.__shadow.setVisible(visible);
@@ -6175,7 +6227,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const currentY = this.playerShip.y;
             const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
             const speed = this.getEffectiveShipSpeed();
-            const duration = (distance / speed) * 1000; // 繝溘Μ遘・
+            const duration = (distance / speed) * 1000; // ミリ秒
             const arrivalTime = Date.now() + duration;
             const geoPoint = this.worldToLatLng({ x: currentX, y: currentY });
             const geohash = geohashForLocation([geoPoint.lat, geoPoint.lng]);
@@ -6611,6 +6663,7 @@ export default class WorldMapScene extends Phaser.Scene {
             if (shipObject.sprite.body) {
                 shipObject.sprite.body.enable = !isPassenger;
             }
+            this.updateShipNameLabel(shipObject);
         }
         if (shipObject?.guildVisual?.container) {
             shipObject.guildVisual.container.setVisible(!isPassenger);
@@ -6722,6 +6775,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (shipObject) {
             this.destroyShipHpBar(shipObject?.sprite);
             this.destroyShipShadow(shipObject?.sprite);
+            this.destroyShipNameLabel(shipObject?.sprite);
             if (shipObject.guildVisual?.container?.destroy) {
                 shipObject.guildVisual.container.destroy(true);
             }
@@ -6874,6 +6928,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.otherShips.forEach((shipObject) => {
             const { data, sprite } = shipObject;
+            const refreshNameLabel = () => this.updateShipNameLabel(shipObject);
 
             if (shipObject.motion) {
                 const motion = shipObject.motion;
@@ -6901,6 +6956,7 @@ export default class WorldMapScene extends Phaser.Scene {
                         if (idleFrame !== undefined) sprite.setFrame(idleFrame);
                     }
                 }
+                refreshNameLabel();
                 return;
             }
 
@@ -6916,6 +6972,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     sprite.x = data.targetX;
                     sprite.y = data.targetY;
                     if (sprite.body) sprite.body.setVelocity(0, 0);
+                    refreshNameLabel();
                     return;
                 }
 
@@ -6927,6 +6984,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
                 sprite.x = data.currentX + (data.targetX - data.currentX) * progress;
                 sprite.y = data.currentY + (data.targetY - data.currentY) * progress;
+                refreshNameLabel();
                 return;
             }
 
@@ -6943,6 +7001,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     sprite.x = movement.destinationPos.x;
                     sprite.y = movement.destinationPos.y;
                     if (sprite.body) sprite.body.setVelocity(0, 0);
+                    refreshNameLabel();
                     return;
                 }
 
@@ -6952,6 +7011,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
                 sprite.x = movement.departurePos.x + (movement.destinationPos.x - movement.departurePos.x) * progress;
                 sprite.y = movement.departurePos.y + (movement.destinationPos.y - movement.departurePos.y) * progress;
+                refreshNameLabel();
                 return;
             }
 
@@ -6968,6 +7028,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 const idleFrame = this.shipAnims[shipTypeKey].idleFrames?.[shipObject.lastAnimKey];
                 if (idleFrame !== undefined) sprite.setFrame(idleFrame);
             }
+            refreshNameLabel();
         });
     }
 
@@ -7159,6 +7220,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.otherShips.forEach((shipObject) => {
             this.destroyShipHpBar(shipObject?.sprite);
             this.destroyShipShadow(shipObject?.sprite);
+            this.destroyShipNameLabel(shipObject?.sprite);
             shipObject.sprite.destroy();
         });
         this.otherShips.clear();

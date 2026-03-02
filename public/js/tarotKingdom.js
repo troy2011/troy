@@ -40,10 +40,16 @@ const ARCANA_NAME = {
 
 const PLAYERS = [
   { id: 'you', name: 'あなた', isNpc: false },
-  { id: 'npc1', name: 'NPC1', isNpc: true },
-  { id: 'npc2', name: 'NPC2', isNpc: true },
-  { id: 'npc3', name: 'NPC3', isNpc: true }
+  { id: 'npc1', name: 'NPC1', isNpc: true, aiStyle: 'cautious' },
+  { id: 'npc2', name: 'NPC2', isNpc: true, aiStyle: 'balanced' },
+  { id: 'npc3', name: 'NPC3', isNpc: true, aiStyle: 'aggressive' }
 ];
+
+const NPC_AI_STYLE = {
+  CAUTIOUS: 'cautious',
+  BALANCED: 'balanced',
+  AGGRESSIVE: 'aggressive'
+};
 
 const START_HAND = 10;
 const TOTAL_HANDS = 4;
@@ -60,8 +66,6 @@ const OPENING_HAND_FLIP_MS = 170;
 const OPENING_HAND_FLIP_GAP_MS = 45;
 const DRAW_HAND_FLIP_REVEAL_DELAY_MS = 90;
 const DRAW_HAND_FLIP_MS = 220;
-const KINGDOM_FX_DEBUG_STEP_MS = 980;
-
 const ROLE_ORDER = ['Straight', 'Flush', 'FullHouse', 'FourKind', 'TheWorld', 'StraightFlush', 'FiveKind'];
 const ROLE_LABEL = {
   Straight: 'ストレート',
@@ -130,9 +134,6 @@ let netActionWriteTimer = null;
 let netOpenRoomHeartbeatTimer = null;
 let netLastStateHash = '';
 let netBootPromise = null;
-let kingdomFxDebugEnabled = false;
-let kingdomFxDebugRunning = false;
-let kingdomFxDebugTimer = null;
 const netHandledActionKeys = new Set();
 let netPresenceByUid = {};
 let netOpenRoomsCache = {};
@@ -667,6 +668,16 @@ const getPrimarySuitFromPlay = (play) => {
   const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
     ? play.cardsTable
     : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
+  if (String(play?.type || '') === 'role') {
+    const keyCard = getRoleKeyCard(play?.role, cards);
+    if (keyCard) {
+      const suits = suitsForCard(keyCard, false).filter((suit) => suit && suit !== 'None');
+      if (suits.includes('Sword')) return 'Sword';
+      if (suits.includes('Pentacle')) return 'Pentacle';
+      if (suits.includes('Cup')) return 'Cup';
+      if (suits.includes('Wand')) return 'Wand';
+    }
+  }
   for (const card of cards) {
     const suits = suitsForCard(card, false).filter((suit) => suit && suit !== 'None');
     if (suits.includes('Sword')) return 'Sword';
@@ -701,15 +712,6 @@ const MAJOR_ATTACK_FX = {
   21: { leadEmoji: '🌍', markerEmoji: '♾️', pattern: 'world', kind: 'normal', heroDurationMs: 1020 }
 };
 
-const SUIT_ATTACK_DEBUG_FX = {
-  Sword: { leadEmoji: '🗡️', markerEmoji: '🗡️', pattern: 'rush', kind: 'slash', label: 'ソード斬撃' },
-  Pentacle: { leadEmoji: '🏅', markerEmoji: '🏅', pattern: 'slam', kind: 'rock', label: 'ペンタクル直撃' },
-  Cup: { leadEmoji: '💦', markerEmoji: '💦', pattern: 'float', kind: 'water', label: 'カップ溶解' },
-  Wand: { leadEmoji: '🔥', markerEmoji: '🔥', pattern: 'burst', kind: 'fire', label: 'ワンド燃焼' }
-};
-
-const KINGDOM_FX_DEBUG_ARCANA_PREFIX = 'arcana:';
-const KINGDOM_FX_DEBUG_SUIT_PREFIX = 'suit:';
 const getMajorAttackFxFromCards = (cards) => {
   if (!Array.isArray(cards)) return null;
   const major = cards.find((card) => card?.kind === 'major');
@@ -761,6 +763,17 @@ const hasNamedRoleDisplay = (play) => {
   const keyName = getRoleKeyCardName(play?.role, play?.cardsHand || []);
   return !!String(keyName || '').trim();
 };
+const getAttackKeyCardFromPlay = (play) => {
+  if (!play) return null;
+  const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
+    ? play.cardsTable
+    : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
+  if (!cards.length) return null;
+  if (String(play?.type || '') === 'role') {
+    return getRoleKeyCard(play?.role, cards) || cards[0] || null;
+  }
+  return cards[0] || null;
+};
 const pickTrickDefeatFx = (play, prevTrick) => {
   const prevCards = Array.isArray(prevTrick?.cardsTable) ? prevTrick.cardsTable : [];
   if (!play || !prevCards.length) return null;
@@ -768,7 +781,8 @@ const pickTrickDefeatFx = (play, prevTrick) => {
   const playType = String(play?.type || '');
   const prevType = String(prevTrick?.type || '');
   const playCards = Array.isArray(play?.cardsTable) ? play.cardsTable : [];
-  const majorFx = getMajorAttackFxFromCards(playCards);
+  const attackCard = getAttackKeyCardFromPlay(play);
+  const majorFx = getMajorAttackFxFromCards(attackCard ? [attackCard] : playCards);
   if (playType === 'set' && prevType === 'set') {
     if (!hasMinorCourtOrAce(playCards) && !majorFx) return info;
   } else if (playType === 'role' && prevType === 'role') {
@@ -874,17 +888,33 @@ function getRoleBaseLabel(role) {
   return ROLE_LABEL[role.key] || role.label || '役出し';
 }
 
-function getRoleKeyCardName(role, cards) {
-  if (!role || !Array.isArray(cards) || !cards.length) return '';
+function getRoleKeyCard(role, cards) {
+  if (!role || !Array.isArray(cards) || !cards.length) return null;
+  const baseCards = cards.filter(Boolean);
+  if (!baseCards.length) return null;
   const target = Number(role?.primary?.[0] || 0);
-  let candidates = cards.filter((c) => cStrength(c) === target);
-  if (!candidates.length) candidates = cards.slice();
+  let candidates = target > 0
+    ? baseCards.filter((card) => cStrength(card) === target)
+    : [];
+  if (!candidates.length) candidates = baseCards.slice();
+  const bestSuitTier = (card) => {
+    const suits = suitsForCard(card, false).filter((suit) => suit && suit !== 'None');
+    if (!suits.length) return 0;
+    const tier = suits.reduce((max, suit) => Math.max(max, SUIT_TIER[suit] || 0), 0);
+    return card?.kind === 'major' ? 10 + tier : tier;
+  };
   candidates.sort((a, b) => {
-    const arc = Number(b?.kind === 'major') - Number(a?.kind === 'major');
-    if (arc !== 0) return arc;
-    return cStrength(b) - cStrength(a);
+    const strengthDiff = cStrength(b) - cStrength(a);
+    if (strengthDiff !== 0) return strengthDiff;
+    return bestSuitTier(b) - bestSuitTier(a);
   });
-  const name = getCardNameLabel(candidates[0]);
+  return candidates[0] || null;
+}
+
+function getRoleKeyCardName(role, cards) {
+  const keyCard = getRoleKeyCard(role, cards);
+  if (!keyCard) return '';
+  const name = getCardNameLabel(keyCard);
   if (!name || isRomanOnlyLabel(name)) return '';
   return name;
 }
@@ -1054,285 +1084,6 @@ function showPlayError(reason) {
     ui.stateText?.classList.remove('is-error');
     stateErrorTimer = null;
   }, 1800);
-}
-
-function clearKingdomFxDebugTimer() {
-  if (kingdomFxDebugTimer) {
-    clearTimeout(kingdomFxDebugTimer);
-    kingdomFxDebugTimer = null;
-  }
-}
-
-function stopKingdomFxDebugCycle() {
-  kingdomFxDebugRunning = false;
-  clearKingdomFxDebugTimer();
-}
-
-function ensureKingdomFxDebugOptions() {
-  if (!ui.fxDebugSelect) return;
-  if (ui.fxDebugSelect.options.length > 0) return;
-  for (let n = 0; n <= 21; n += 1) {
-    const opt = document.createElement('option');
-    opt.value = `${KINGDOM_FX_DEBUG_ARCANA_PREFIX}${n}`;
-    opt.textContent = `大アルカナ ${n}: ${ARCANA_NAME[n] || `Arcana${n}`}`;
-    ui.fxDebugSelect.appendChild(opt);
-  }
-  const suitOrder = ['Sword', 'Pentacle', 'Cup', 'Wand'];
-  suitOrder.forEach((suit) => {
-    const cfg = SUIT_ATTACK_DEBUG_FX[suit];
-    if (!cfg) return;
-    const opt = document.createElement('option');
-    opt.value = `${KINGDOM_FX_DEBUG_SUIT_PREFIX}${suit}`;
-    opt.textContent = `スート攻撃: ${cfg.label}`;
-    ui.fxDebugSelect.appendChild(opt);
-  });
-  ui.fxDebugSelect.value = `${KINGDOM_FX_DEBUG_ARCANA_PREFIX}0`;
-}
-
-function getSelectedKingdomFxDebugEntry() {
-  if (!ui.fxDebugSelect) return { type: 'arcana', number: 0 };
-  const raw = String(ui.fxDebugSelect.value || '').trim();
-  if (raw.startsWith(KINGDOM_FX_DEBUG_SUIT_PREFIX)) {
-    const suit = raw.slice(KINGDOM_FX_DEBUG_SUIT_PREFIX.length);
-    if (SUIT_ATTACK_DEBUG_FX[suit]) {
-      return { type: 'suit', suit };
-    }
-  }
-  let n = 0;
-  if (raw.startsWith(KINGDOM_FX_DEBUG_ARCANA_PREFIX)) {
-    n = Number(raw.slice(KINGDOM_FX_DEBUG_ARCANA_PREFIX.length));
-  } else {
-    n = Number(raw);
-  }
-  if (!Number.isFinite(n)) n = 0;
-  return { type: 'arcana', number: Math.max(0, Math.min(21, Math.floor(n))) };
-}
-
-function getKingdomFxDebugConfig(entry) {
-  if (entry?.type === 'suit') {
-    const cfg = SUIT_ATTACK_DEBUG_FX[entry.suit];
-    if (!cfg) return null;
-    return {
-      sourceLabel: `スート: ${cfg.label}`,
-      number: null,
-      leadEmoji: String(cfg.leadEmoji || ''),
-      markerEmoji: String(cfg.markerEmoji || ''),
-      pattern: String(cfg.pattern || 'burst'),
-      kind: String(cfg.kind || 'normal'),
-      heroDurationMs: 860
-    };
-  }
-  const n = Math.max(0, Math.min(21, Number(entry?.number) || 0));
-  const cfg = MAJOR_ATTACK_FX[n];
-  if (!cfg) return null;
-  return {
-    sourceLabel: `大アルカナ ${n}: ${ARCANA_NAME[n] || ''}`.trim(),
-    number: n,
-    leadEmoji: String(cfg.leadEmoji || ''),
-    markerEmoji: String(cfg.markerEmoji || ''),
-    pattern: String(cfg.pattern || 'burst'),
-    kind: String(cfg.kind || 'normal'),
-    heroDurationMs: Math.max(420, Number(cfg.heroDurationMs) || 760)
-  };
-}
-
-function setKingdomFxDebugInfo(text = '') {
-  if (!ui.fxDebugInfo) return;
-  ui.fxDebugInfo.textContent = String(text || '').trim();
-}
-
-function renderKingdomFxDebugUi() {
-  const canUse = !!(ui.fxDebugToggleButton && ui.fxDebugPanel);
-  if (!canUse) return;
-  if (!kingdomFxDebugEnabled) stopKingdomFxDebugCycle();
-  ui.fxDebugPanel.hidden = !kingdomFxDebugEnabled;
-  ui.fxDebugToggleButton.textContent = kingdomFxDebugEnabled ? '演出デバッグ終了' : '演出デバッグ';
-  if (ui.fxDebugCycleButton) {
-    ui.fxDebugCycleButton.textContent = kingdomFxDebugRunning ? '連続停止' : '連続再生';
-  }
-  if (!kingdomFxDebugEnabled) {
-    setKingdomFxDebugInfo('');
-    return;
-  }
-  ensureKingdomFxDebugOptions();
-  const entry = getSelectedKingdomFxDebugEntry();
-  const cfg = getKingdomFxDebugConfig(entry);
-  if (!cfg) {
-    setKingdomFxDebugInfo('未設定');
-    return;
-  }
-  setKingdomFxDebugInfo(`${cfg.sourceLabel} / 主:${cfg.leadEmoji} / マーカー:${cfg.markerEmoji} / ${cfg.pattern}`);
-}
-
-function onKingdomFxDebugToggleClick() {
-  kingdomFxDebugEnabled = !kingdomFxDebugEnabled;
-  s.message = kingdomFxDebugEnabled ? '演出デバッグを開きました。' : '演出デバッグを閉じました。';
-  if (!kingdomFxDebugEnabled) {
-    stopKingdomFxDebugCycle();
-  }
-  renderKingdomFxDebugUi();
-  renderSummary();
-}
-
-function onKingdomFxDebugSelectChange() {
-  renderKingdomFxDebugUi();
-}
-
-function onKingdomFxDebugPlayClick() {
-  if (!kingdomFxDebugEnabled) return;
-  stopKingdomFxDebugCycle();
-  const entry = getSelectedKingdomFxDebugEntry();
-  previewKingdomAttackFxByDebugEntry(entry);
-  renderKingdomFxDebugUi();
-}
-
-function onKingdomFxDebugCycleClick() {
-  if (!kingdomFxDebugEnabled) return;
-  if (kingdomFxDebugRunning) {
-    stopKingdomFxDebugCycle();
-    renderKingdomFxDebugUi();
-    return;
-  }
-  kingdomFxDebugRunning = true;
-  runKingdomFxDebugCycleStep();
-  renderKingdomFxDebugUi();
-}
-
-function bindKingdomFxDebugEvents() {
-  const bindOnce = (el, flagName, eventName, handler) => {
-    if (!el) return;
-    if (el[flagName]) return;
-    el.addEventListener(eventName, handler);
-    el[flagName] = true;
-  };
-  bindOnce(ui.fxDebugToggleButton, '__tkFxDebugToggleBound', 'click', onKingdomFxDebugToggleClick);
-  bindOnce(ui.fxDebugSelect, '__tkFxDebugSelectBound', 'change', onKingdomFxDebugSelectChange);
-  bindOnce(ui.fxDebugPlayButton, '__tkFxDebugPlayBound', 'click', onKingdomFxDebugPlayClick);
-  bindOnce(ui.fxDebugCycleButton, '__tkFxDebugCycleBound', 'click', onKingdomFxDebugCycleClick);
-}
-
-function refreshKingdomFxDebugElements() {
-  ui.fxDebugToggleButton = document.getElementById('tarotKingdomFxDebugToggleButton');
-  ui.fxDebugPanel = document.getElementById('tarotKingdomFxDebugPanel');
-  ui.fxDebugSelect = document.getElementById('tarotKingdomFxDebugSelect');
-  ui.fxDebugPlayButton = document.getElementById('tarotKingdomFxDebugPlayButton');
-  ui.fxDebugCycleButton = document.getElementById('tarotKingdomFxDebugCycleButton');
-  ui.fxDebugInfo = document.getElementById('tarotKingdomFxDebugInfo');
-  bindKingdomFxDebugEvents();
-}
-
-function buildKingdomFxDebugTargets() {
-  const existing = Array.from(ui.trick?.querySelectorAll?.('.tarot-card:not(.tarot-kingdom-trick-emphasis-card)') || []);
-  if (existing.length > 0) return { targets: existing, cleanup: null };
-  if (!ui.trick) return { targets: [], cleanup: null };
-  ui.trick.innerHTML = '';
-  const fallbackCards = [
-    { kind: 'minor', suit: 'Wand', number: 11 },
-    { kind: 'minor', suit: 'Cup', number: 13 },
-    { kind: 'minor', suit: 'Sword', number: 9 }
-  ];
-  const targets = fallbackCards.map((card) => {
-    const node = cardNode(card, { clickable: false });
-    node.classList.add('tarot-kingdom-fx-debug-target');
-    ui.trick.appendChild(node);
-    return node;
-  });
-  return {
-    targets,
-    cleanup: () => {
-      targets.forEach((node) => node?.remove?.());
-      if (ui.trick && ui.trick.childElementCount <= 0) {
-        const e = document.createElement('div');
-        e.className = 'tarot-kingdom-empty';
-        e.textContent = '場札なし';
-        ui.trick.appendChild(e);
-      }
-    }
-  };
-}
-
-function previewKingdomArcanaAttackFx(arcanaNumber) {
-  const n = Math.max(0, Math.min(21, Number(arcanaNumber) || 0));
-  previewKingdomAttackFxByDebugEntry({ type: 'arcana', number: n });
-}
-
-function previewKingdomAttackFxByDebugEntry(entry) {
-  const cfg = getKingdomFxDebugConfig(entry);
-  if (!cfg || !ui.trick) return;
-  const built = buildKingdomFxDebugTargets();
-  const targets = built.targets || [];
-  if (!targets.length) return;
-  const isArcanaDebug = String(entry?.type || '') === 'arcana';
-  const previewKind = isArcanaDebug ? 'arcana' : String(cfg.kind || 'normal');
-  const markerEmoji = getDefeatMarkerEmoji(previewKind, cfg);
-  const markerPerCard = !!markerEmoji;
-  const profile = getKingdomDefeatTimingProfile(previewKind, { shakeLevel: 1, debugPreview: true });
-  const markerMs = markerPerCard ? profile.markerMs : 0;
-  const staggerMs = profile.staggerMs;
-  const baseMs = profile.cardMs;
-  if (isArcanaDebug) {
-    spawnKingdomArcanaLeadFx(targets[0], cfg, { durationMs: Math.max(profile.activeMs + 160, Number(cfg.heroDurationMs) || 0) });
-  }
-  triggerKingdomTrickShake(previewKind === 'normal' ? 1 : 2);
-  targets.forEach((node, idx) => {
-    node.classList.remove('is-entering', 'is-call-arriving', 'is-leaving');
-    clearArcanaDefeatPatternClasses(node);
-    if (previewKind === 'slash') {
-      spawnKingdomSlashSplitFx(node, {
-        delayMs: (idx * staggerMs) + profile.splitLeadMs,
-        durationMs: profile.splitMs
-      });
-    } else if (previewKind === 'rock' || previewKind === 'water' || previewKind === 'fire') {
-      spawnKingdomDefeatParticles(node, previewKind, {
-        delayMs: (idx * staggerMs) + profile.particleLeadMs,
-        markerEmoji
-      });
-    }
-    node.classList.add('is-defeat-transition', `is-defeat-${previewKind}`);
-    if (previewKind === 'arcana') {
-      const arcanaPatternClass = getArcanaDefeatPatternClass(cfg);
-      if (arcanaPatternClass) node.classList.add(arcanaPatternClass);
-    }
-    if (markerPerCard) {
-      node.classList.add('is-defeat-primary');
-      applyKingdomDefeatMarkerEmoji(node, markerEmoji);
-    } else {
-      node.classList.remove('is-defeat-primary');
-      applyKingdomDefeatMarkerEmoji(node, '');
-    }
-    node.style.animationDelay = `${idx * staggerMs}ms`;
-    node.style.setProperty('--defeat-card-ms', `${baseMs}ms`);
-    if (markerMs > 0) node.style.setProperty('--defeat-marker-ms', `${markerMs}ms`);
-    else node.style.removeProperty('--defeat-marker-ms');
-  });
-  const totalMs = profile.activeMs + ((targets.length - 1) * staggerMs) + profile.tailPadMs + 140;
-  setTimeout(() => {
-    targets.forEach((node) => {
-      node.classList.remove('is-defeat-transition', `is-defeat-${previewKind}`, 'is-defeat-primary');
-      clearArcanaDefeatPatternClasses(node);
-      node.style.animationDelay = '';
-      node.style.removeProperty('--defeat-card-ms');
-      node.style.removeProperty('--defeat-marker-ms');
-      applyKingdomDefeatMarkerEmoji(node, '');
-    });
-    built.cleanup?.();
-  }, totalMs);
-}
-
-function runKingdomFxDebugCycleStep() {
-  if (!kingdomFxDebugRunning || !kingdomFxDebugEnabled) return;
-  ensureKingdomFxDebugOptions();
-  const entry = getSelectedKingdomFxDebugEntry();
-  previewKingdomAttackFxByDebugEntry(entry);
-  if (ui.fxDebugSelect && ui.fxDebugSelect.options.length > 0) {
-    const options = Array.from(ui.fxDebugSelect.options);
-    const currentIndex = Math.max(0, options.findIndex((opt) => opt.value === ui.fxDebugSelect.value));
-    const nextIndex = (currentIndex + 1) % options.length;
-    ui.fxDebugSelect.value = options[nextIndex].value;
-  }
-  renderKingdomFxDebugUi();
-  clearKingdomFxDebugTimer();
-  kingdomFxDebugTimer = setTimeout(runKingdomFxDebugCycleStep, KINGDOM_FX_DEBUG_STEP_MS);
 }
 
 function sanitizeSelected(playerIndex) {
@@ -2327,7 +2078,7 @@ function initState() {
     roundSettlement: null,
     clearStreakOwner: null,
     clearStreakCount: 0,
-    message: '「新しい戦いを始める」を押してください。',
+    message: 'オンラインかオフラインを選択してください。',
     champion: null
   };
 }
@@ -2391,6 +2142,13 @@ function isNpcPlayer(index) {
   if (idx === getLocalPlayerIndex()) return false;
   const p = s?.players?.[idx];
   return !!p?.isNpc;
+}
+
+function getNpcAiStyle(playerIndex) {
+  const style = String(s?.players?.[playerIndex]?.aiStyle || PLAYERS[playerIndex]?.aiStyle || NPC_AI_STYLE.BALANCED);
+  if (style === NPC_AI_STYLE.CAUTIOUS) return NPC_AI_STYLE.CAUTIOUS;
+  if (style === NPC_AI_STYLE.AGGRESSIVE) return NPC_AI_STYLE.AGGRESSIVE;
+  return NPC_AI_STYLE.BALANCED;
 }
 
 function getActiveTurnPlayerIndex() {
@@ -2826,10 +2584,6 @@ function getActiveSeatCount() {
   return taken.size;
 }
 
-function hasChosenKingdomStartMode() {
-  return kingdomStartMode === 'online' || kingdomStartMode === 'offline';
-}
-
 function shouldShowKingdomModeChoice() {
   if (!s) return true;
   if (s.roundActive) return false;
@@ -2849,6 +2603,10 @@ function shouldShowOpenRoomsLobby() {
   const phase = String(s.phase || '');
   if (phase === 'roundEnd' || phase === 'done') return false;
   return true;
+}
+
+function isKingdomOnlineConnecting() {
+  return kingdomStartMode === 'online' && !isNetModeActive() && String(s?.message || '') === 'オンライン対戦に接続中です...';
 }
 
 function setOpenRoomsVisibility(visible) {
@@ -3952,6 +3710,7 @@ function applyRoleRewardOnClear(playerIndex) {
 function npcChooseDrawPlan(playerIndex) {
   const actor = s?.players?.[playerIndex];
   if (!actor || !isNpcPlayer(playerIndex)) return 'minor';
+  const aiStyle = getNpcAiStyle(playerIndex);
   const hand = Math.max(0, Number(actor.hand?.length || 0));
   const stars = Math.max(0, Number(actor.stars) || 0);
   const reason = String(s?.pendingDrawReason || 'normal');
@@ -3961,6 +3720,25 @@ function npcChooseDrawPlan(playerIndex) {
   const summary = summarizeNpcHandPotential(playerIndex);
   const shouldUseMajor = () => {
     if (!hasMajor) return false;
+    if (aiStyle === NPC_AI_STYLE.CAUTIOUS) {
+      if (stars < 3) return false;
+      if (hand >= 6) return false;
+      if (summary.roleCount > 0 || summary.pairOrMoreCount > 0) return false;
+      if (summary.strongSingleCount > 0) return false;
+      if (summary.deadSingleCount < 4) return false;
+      if (summary.majorCount > 0) return false;
+      return true;
+    }
+    if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+      if (stars < 1) return false;
+      if (hand >= 8) return false;
+      if (summary.roleCount > 0) return false;
+      if (summary.pairOrMoreCount > 1) return false;
+      if (summary.strongSingleCount > 1) return false;
+      if (summary.deadSingleCount < 2) return false;
+      if (summary.majorCount > 2) return false;
+      return true;
+    }
     if (stars < 2) return false;
     if (hand >= 7) return false;
     if (summary.roleCount > 0 || summary.pairOrMoreCount > 0) return false;
@@ -3972,12 +3750,27 @@ function npcChooseDrawPlan(playerIndex) {
 
   if (reason === 'clear') {
     // クリア後は「弱い単騎ばかりで、次の先手が弱い」時だけドローする。
-    if (hand >= 9) return 'skip';
-    if (hand <= 4) return 'skip';
-    if (summary.roleCount > 0) return 'skip';
-    if (summary.pairOrMoreCount >= 2) return 'skip';
-    if (summary.strongSingleCount >= 2) return 'skip';
-    if (summary.deadSingleCount <= 1) return 'skip';
+    if (aiStyle === NPC_AI_STYLE.CAUTIOUS) {
+      if (hand >= 8) return 'skip';
+      if (hand <= 5) return 'skip';
+      if (summary.roleCount > 0) return 'skip';
+      if (summary.pairOrMoreCount > 0) return 'skip';
+      if (summary.strongSingleCount > 0) return 'skip';
+      if (summary.deadSingleCount <= 2) return 'skip';
+    } else if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+      if (hand >= 10) return 'skip';
+      if (hand <= 3) return 'skip';
+      if (summary.roleCount > 0 && summary.pairOrMoreCount > 0) return 'skip';
+      if (summary.strongSingleCount >= 3) return 'skip';
+      if (summary.deadSingleCount <= 0) return 'skip';
+    } else {
+      if (hand >= 9) return 'skip';
+      if (hand <= 4) return 'skip';
+      if (summary.roleCount > 0) return 'skip';
+      if (summary.pairOrMoreCount >= 2) return 'skip';
+      if (summary.strongSingleCount >= 2) return 'skip';
+      if (summary.deadSingleCount <= 1) return 'skip';
+    }
     if (!hasMinor && hasMajor) return shouldUseMajor() ? 'major' : 'skip';
     if (!hasMinor) return 'skip';
     return shouldUseMajor() ? 'major' : 'minor';
@@ -3985,8 +3778,16 @@ function npcChooseDrawPlan(playerIndex) {
 
   if (reason === 'judgment') {
     // 審判後は回収済みなので、さらに膨らませるのは控えめ。
-    if (hand >= 8) return 'skip';
-    if (summary.roleCount > 0 || summary.pairOrMoreCount > 0) return 'skip';
+    if (aiStyle === NPC_AI_STYLE.CAUTIOUS) {
+      if (hand >= 7) return 'skip';
+      if (summary.roleCount > 0 || summary.pairOrMoreCount > 0) return 'skip';
+    } else if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+      if (hand >= 9) return 'skip';
+      if (summary.roleCount > 0 && summary.pairOrMoreCount > 0) return 'skip';
+    } else {
+      if (hand >= 8) return 'skip';
+      if (summary.roleCount > 0 || summary.pairOrMoreCount > 0) return 'skip';
+    }
     if (!hasMinor && hasMajor) return shouldUseMajor() ? 'major' : 'skip';
     if (!hasMinor) return 'skip';
     return shouldUseMajor() ? 'major' : 'minor';
@@ -4955,6 +4756,7 @@ function summarizeNpcHandPotential(playerIndex) {
 
 function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
   if (!Array.isArray(sets) || !sets.length || !(singleOnlyIds instanceof Set) || !singleOnlyIds.size) return null;
+  const aiStyle = getNpcAiStyle(pi);
   const candidates = sets.filter((play) => {
     if (play?.type !== 'set' || Number(play.count) !== 1) return false;
     const cardId = play?.cardsHand?.[0]?.id;
@@ -4964,9 +4766,13 @@ function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
   candidates.sort((a, b) => {
     const aPower = a?.setPower ?? a?.number ?? 0;
     const bPower = b?.setPower ?? b?.number ?? 0;
-    const byPower = setCmp(aPower, bPower); // 弱い方を先に処理
+    const byPower = aiStyle === NPC_AI_STYLE.AGGRESSIVE
+      ? setCmp(bPower, aPower)
+      : setCmp(aPower, bPower); // 慎重/標準は弱い方、強気は高い方から処理
     if (byPower !== 0) return byPower;
-    return Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
+    return aiStyle === NPC_AI_STYLE.AGGRESSIVE
+      ? Number(b?.suitTier || 0) - Number(a?.suitTier || 0)
+      : Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
   });
   return candidates[0] || null;
 }
@@ -5006,12 +4812,15 @@ function pickNpcPressurePlay(calls, roles, sets) {
 }
 
 function npcDecide(pi) {
+  const aiStyle = getNpcAiStyle(pi);
   const p = s.players[pi], calls = callMoves(pi), sets = setMoves(pi), roles = roleMoves(pi);
   if (s.callOnly) {
     if (!calls.length) return { action: 'pass' };
     const outNow = calls.find((m) => m.selected.length === p.hand.length);
     if (outNow) return { action: 'play', play: outNow };
-    calls.sort((a, b) => compareRole(b.role, a.role));
+    calls.sort((a, b) => (aiStyle === NPC_AI_STYLE.CAUTIOUS
+      ? compareRole(a.role, b.role)
+      : compareRole(b.role, a.role)));
     return { action: 'play', play: calls[0] };
   }
   const all = [...calls, ...roles, ...sets];
@@ -5027,17 +4836,28 @@ function npcDecide(pi) {
     const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
     if (openingSingle) return { action: 'play', play: openingSingle };
   }
-  all.sort((a, b) => {
-    if (a.type === 'role' && b.type === 'set') return -1;
-    if (a.type === 'set' && b.type === 'role') return 1;
-    if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
-    return setCmp(b.setPower ?? b.number, a.setPower ?? a.number) || (b.suitTier - a.suitTier);
-  });
+  sortNpcPlayCandidates(all, aiStyle);
   return { action: 'play', play: all[0] };
 }
 
-function sortNpcPlayCandidates(all) {
+function sortNpcPlayCandidates(all, aiStyle = NPC_AI_STYLE.BALANCED) {
   all.sort((a, b) => {
+    if (aiStyle === NPC_AI_STYLE.CAUTIOUS) {
+      if (a.type === 'role' && b.type === 'set') return 1;
+      if (a.type === 'set' && b.type === 'role') return -1;
+      if (a.type === 'role' && b.type === 'role') return compareRole(a.role, b.role);
+      return setCmp(a.setPower ?? a.number, b.setPower ?? b.number)
+        || (Number(a?.count || 0) - Number(b?.count || 0))
+        || (Number(a?.suitTier || 0) - Number(b?.suitTier || 0));
+    }
+    if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+      if (a.type === 'role' && b.type === 'set') return -1;
+      if (a.type === 'set' && b.type === 'role') return 1;
+      if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
+      return setCmp(b.setPower ?? b.number, a.setPower ?? a.number)
+        || (Number(b?.count || 0) - Number(a?.count || 0))
+        || (Number(b?.suitTier || 0) - Number(a?.suitTier || 0));
+    }
     if (a.type === 'role' && b.type === 'set') return -1;
     if (a.type === 'set' && b.type === 'role') return 1;
     if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
@@ -5056,7 +4876,7 @@ function pickBestNpcLeadPlay(pi) {
   }
   const all = [...roles, ...sets];
   if (!all.length) return null;
-  return sortNpcPlayCandidates(all)[0] || null;
+  return sortNpcPlayCandidates(all, getNpcAiStyle(pi))[0] || null;
 }
 
 function recoverNpcNoTrickState(pi) {
@@ -5388,6 +5208,7 @@ function renderTrick() {
   const isRoleClashTransition = transitionKind === 'roleClash';
   const callOwner = Number.isInteger(Number(s?.trick?.owner)) ? Number(s.trick.owner) : -1;
   const currentPlay = s?.trick || null;
+  const attackCard = getAttackKeyCardFromPlay(currentPlay) || cards[0] || null;
   const shakeLevel = getKingdomDefeatShakeLevel(currentPlay, defeatFxKind, transitionKind);
   s.trickDefeatFx = null;
   s.trickTransitionKind = null;
@@ -5422,13 +5243,13 @@ function renderTrick() {
       };
       ui.trick.classList.add('is-hit-stop');
       setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
-      const ramFx = playKingdomRamAttackFx(callOwner, cards[0], prevCards[0], {
+      const ramFx = playKingdomRamAttackFx(callOwner, attackCard, prevCards[0], {
         fromPoint: getKingdomTrickRightSourcePoint() || undefined,
         delayMs: hitStopMs,
         durationMs: ramMs,
         keepAfterHit: true
       });
-      const clashMs = playKingdomRoleClashFx(callOwner, cards[0], prevCards[0], { delayMs: hitStopMs + 8, inMs: 240, holdMs: 70, outMs: 210 });
+      const clashMs = playKingdomRoleClashFx(callOwner, attackCard, prevCards[0], { delayMs: hitStopMs + 8, inMs: 240, holdMs: 70, outMs: 210 });
       const preDefeatMs = Math.max(260, clashMs);
       const profile = getKingdomDefeatTimingProfile(defeatFxKind, { shakeLevel, roleClash: true });
       const staggerMs = profile.staggerMs;
@@ -5506,7 +5327,7 @@ function renderTrick() {
     };
     ui.trick.classList.add('is-hit-stop');
     setTimeout(() => runIfCurrent(() => ui.trick.classList.remove('is-hit-stop')), hitStopMs);
-    const ramFx = playKingdomRamAttackFx(Number(s?.trick?.owner ?? -1), cards[0], prevCards[0], {
+    const ramFx = playKingdomRamAttackFx(Number(s?.trick?.owner ?? -1), attackCard, prevCards[0], {
       fromPoint: getKingdomTrickRightSourcePoint() || undefined,
       delayMs: hitStopMs,
       durationMs: ramMs,
@@ -5991,10 +5812,6 @@ function updateButtons() {
       ui.startOfflineButton.hidden = true;
       ui.startOfflineButton.disabled = true;
     }
-    if (ui.startButton) {
-      ui.startButton.hidden = true;
-      ui.startButton.disabled = true;
-    }
     ui.playButton.disabled = true;
     ui.clearButton.disabled = true;
     ui.passButton.disabled = true;
@@ -6024,24 +5841,46 @@ function updateButtons() {
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
+  const isConnectingOnline = isKingdomOnlineConnecting();
   if (ui.startOnlineButton) {
-    ui.startOnlineButton.hidden = !showModeChoice;
-    ui.startOnlineButton.disabled = actionLocked;
+    const showOnlineButton = showModeChoice;
+    let onlineLabel = 'オンライン対戦を探す';
+    let onlineDisabled = actionLocked;
+    if (kingdomStartMode === 'online') {
+      if (isConnectingOnline) {
+        onlineLabel = 'オンライン接続中';
+        onlineDisabled = true;
+      } else if (!netMode) {
+        onlineLabel = 'オンライン対戦を再試行';
+      } else if (!tkNet.isHost) {
+        onlineLabel = 'ホストの開始を待機中';
+        onlineDisabled = true;
+      } else if (isLobbyReadyToStart) {
+        onlineLabel = hasVacancy ? '受付を止めて戦いを始める' : 'オンライン対戦を開始';
+      } else {
+        onlineLabel = 'オンライン対戦を再試行';
+      }
+    }
+    ui.startOnlineButton.hidden = !showOnlineButton;
+    ui.startOnlineButton.disabled = !showOnlineButton || onlineDisabled;
+    ui.startOnlineButton.textContent = onlineLabel;
     ui.startOnlineButton.classList.toggle('is-selected', kingdomStartMode === 'online');
   }
   if (ui.startOfflineButton) {
-    ui.startOfflineButton.hidden = !showModeChoice;
-    ui.startOfflineButton.disabled = actionLocked;
+    const showOfflineButton = showModeChoice;
+    let offlineLabel = 'オフラインで始める';
+    let offlineDisabled = actionLocked;
+    if (kingdomStartMode === 'online') {
+      if (isConnectingOnline) {
+        offlineLabel = '接続をやめる';
+      } else if (netMode) {
+        offlineLabel = tkNet.isHost ? 'オンライン受付をやめる' : '待機をやめる';
+      }
+    }
+    ui.startOfflineButton.hidden = !showOfflineButton;
+    ui.startOfflineButton.disabled = !showOfflineButton || offlineDisabled;
+    ui.startOfflineButton.textContent = offlineLabel;
     ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
-  }
-  if (ui.startButton) {
-    const showStartButton =
-      !s.roundActive &&
-      !s.awaitRoundConfirm &&
-      hasChosenKingdomStartMode() &&
-      (kingdomStartMode !== 'online' || netMode);
-    ui.startButton.hidden = !showStartButton;
-    ui.startButton.disabled = !showStartButton;
   }
   if (ui.playButton) {
     ui.playButton.textContent = '選択';
@@ -6077,29 +5916,6 @@ function updateButtons() {
       ui.graveToggleButton.disabled = actionLocked || !s.roundActive;
     }
   }
-  if (ui.startButton) {
-    if (!hasChosenKingdomStartMode()) {
-      ui.startButton.disabled = true;
-      ui.startButton.textContent = '開始方法を選択';
-    } else if (kingdomStartMode === 'online' && !netMode) {
-      ui.startButton.disabled = true;
-      ui.startButton.textContent = 'オンライン接続中';
-    } else if (netMode && !tkNet.isHost) {
-      ui.startButton.disabled = true;
-      ui.startButton.textContent = 'ホストの開始を待機中';
-    } else {
-      ui.startButton.disabled = false;
-      if (s.phase === 'done') {
-        ui.startButton.textContent = '新しいゲームを開始';
-      } else if (!s.roundActive && s.handNo > 0) {
-        ui.startButton.textContent = '次の局を開始';
-      } else if (isLobbyReadyToStart && hasVacancy) {
-        ui.startButton.textContent = '受付を止めて戦いを始める';
-      } else {
-        ui.startButton.textContent = '新しい戦いを始める';
-      }
-    }
-  }
   // 吊るされた男ボタンの表示制御
   if (ui.hangedManButton) {
     let showHanged = false;
@@ -6128,7 +5944,6 @@ function render() {
   renderHand();
   renderJudgment();
   updateButtons();
-  renderKingdomFxDebugUi();
   syncHumanTurnCueState();
   if (isNetModeActive() && tkNet.isHost) {
     scheduleOpenRoomHeartbeat();
@@ -6258,6 +6073,54 @@ function activateKingdomOfflineMode() {
   s.message = 'オフライン対戦を開始できます。';
   applyPresenceToPlayers();
   render();
+}
+
+function activateAndStartKingdomOfflineMode() {
+  activateKingdomOfflineMode();
+  if (!s) return;
+  if (!s.roundActive && !s.awaitRoundConfirm) {
+    startOrNext();
+  }
+}
+
+function returnToKingdomModeChoice(message = 'オンラインかオフラインを選択してください。') {
+  teardownTarotKingdomNetwork();
+  kingdomStartMode = '';
+  netManualOfflineMode = false;
+  resetMatch();
+  if (s) {
+    s.message = message;
+    applyPresenceToPlayers();
+    render();
+  }
+  refreshOpenRoomsPanel().catch((error) => {
+    console.warn('[tarotKingdom] failed to paint open room panel:', error);
+  });
+}
+
+function handleKingdomOnlineStartClick() {
+  if (!s) return;
+  if (isKingdomOnlineConnecting()) return;
+  if (kingdomStartMode !== 'online' || !isNetModeActive()) {
+    activateKingdomOnlineMode().catch((error) => {
+      console.warn('[tarotKingdom] online mode activation failed:', error);
+    });
+    return;
+  }
+  if (!tkNet.isHost) return;
+  requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
+    console.warn('[tarotKingdom] start action failed:', error);
+  });
+}
+
+function handleKingdomOfflineStartClick() {
+  if (!s) return;
+  const inOnlineLobby = shouldShowOpenRoomsLobby();
+  if (kingdomStartMode === 'online' && inOnlineLobby && (isKingdomOnlineConnecting() || isNetModeActive())) {
+    returnToKingdomModeChoice('オンライン受付を終了しました。');
+    return;
+  }
+  activateAndStartKingdomOfflineMode();
 }
 
 function clearOpenRoomHeartbeatTimer() {
@@ -6397,51 +6260,14 @@ function bindUi() {
     ui.actionPopup.addEventListener('touchmove', stopPopupPropagation, { passive: true });
     ui.actionPopup.addEventListener('click', stopPopupPropagation);
   }
-  const ensureFxDebugDom = () => {
-    if (!ui.actionPopup) return;
-    let actions = ui.actionPopup.querySelector('.tarot-betting-actions');
-    if (!actions) {
-      actions = document.createElement('div');
-      actions.className = 'tarot-betting-actions';
-      ui.actionPopup.appendChild(actions);
-    }
-    let toggleBtn = document.getElementById('tarotKingdomFxDebugToggleButton');
-    if (!toggleBtn) {
-      toggleBtn = document.createElement('button');
-      toggleBtn.type = 'button';
-      toggleBtn.id = 'tarotKingdomFxDebugToggleButton';
-      toggleBtn.textContent = '演出デバッグ';
-      actions.appendChild(toggleBtn);
-    }
-    let panel = document.getElementById('tarotKingdomFxDebugPanel');
-    if (!panel) {
-      panel = document.createElement('div');
-      panel.id = 'tarotKingdomFxDebugPanel';
-      panel.className = 'tarot-kingdom-fx-debug';
-      panel.hidden = true;
-      panel.innerHTML = `
-        <div class="tarot-kingdom-fx-debug-row">
-          <label for="tarotKingdomFxDebugSelect">大アルカナ演出</label>
-          <select id="tarotKingdomFxDebugSelect" aria-label="大アルカナ演出選択"></select>
-          <button id="tarotKingdomFxDebugPlayButton" type="button">再生</button>
-          <button id="tarotKingdomFxDebugCycleButton" type="button">連続再生</button>
-        </div>
-        <div id="tarotKingdomFxDebugInfo" class="tarot-kingdom-fx-debug-info"></div>
-      `;
-      ui.actionPopup.appendChild(panel);
-    }
-  };
-  ensureFxDebugDom();
   ui.startOnlineButton = document.getElementById('tarotKingdomStartOnlineButton');
   ui.startOfflineButton = document.getElementById('tarotKingdomStartOfflineButton');
-  ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
   ui.graveToggleButton = document.getElementById('tarotKingdomGraveToggleButton');
-  refreshKingdomFxDebugElements();
   ui.selectedEffect = document.getElementById('tarotKingdomSelectedEffect');
   ui.yourTurnBadge = document.getElementById('tarotKingdomYourTurnBadge');
   ui.players = document.getElementById('tarotKingdomPlayers');
@@ -6453,17 +6279,10 @@ function bindUi() {
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
   ui.startOnlineButton?.addEventListener('click', () => {
-    activateKingdomOnlineMode().catch((error) => {
-      console.warn('[tarotKingdom] online mode activation failed:', error);
-    });
+    handleKingdomOnlineStartClick();
   });
   ui.startOfflineButton?.addEventListener('click', () => {
-    activateKingdomOfflineMode();
-  });
-  ui.startButton?.addEventListener('click', () => {
-    requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
-      console.warn('[tarotKingdom] start action failed:', error);
-    });
+    handleKingdomOfflineStartClick();
   });
   ui.playButton?.addEventListener('click', () => humanPlay());
 
@@ -6544,14 +6363,11 @@ function bindUi() {
       console.warn('[tarotKingdom] confirm round action failed:', error);
     });
   });
-  ensureKingdomFxDebugOptions();
-  renderKingdomFxDebugUi();
   bound = true;
 }
 
 export async function loadTarotKingdomPage() {
   bindUi();
-  refreshKingdomFxDebugElements();
   if (kingdomStartMode === 'online') {
     await activateKingdomOnlineMode();
     return;
@@ -6577,8 +6393,6 @@ export function destroyTarotKingdomPage() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();
-  stopKingdomFxDebugCycle();
-  kingdomFxDebugEnabled = false;
   clearOracleFlipTimers();
   clearCallCinematicTimer();
   clearRoundStartCinematicTimer();

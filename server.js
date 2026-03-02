@@ -851,6 +851,7 @@ function createDependencies() {
 // スターター島作成（認証時に必要）
 async function createStarterIsland({ playFabId, raceName, nationIsland, displayName }) {
     const MAP_SIZE = 100;
+    const STARTER_SAFE_MARGIN = 12;
     const AREA_BY_NATION = {
         fire: 'wands',
         earth: 'pentacles',
@@ -875,6 +876,12 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         maxX: Math.max(mapBounds.minX, mapBounds.maxX - islandSize.w + 1),
         minY: mapBounds.minY,
         maxY: Math.max(mapBounds.minY, mapBounds.maxY - islandSize.h + 1)
+    };
+    const preferredStarterRange = {
+        minX: Math.min(baseRange.maxX, Math.max(baseRange.minX, baseRange.minX + STARTER_SAFE_MARGIN)),
+        maxX: Math.max(baseRange.minX, Math.min(baseRange.maxX, baseRange.maxX - STARTER_SAFE_MARGIN)),
+        minY: Math.min(baseRange.maxY, Math.max(baseRange.minY, baseRange.minY + STARTER_SAFE_MARGIN)),
+        maxY: Math.max(baseRange.minY, Math.min(baseRange.maxY, baseRange.maxY - STARTER_SAFE_MARGIN))
     };
 
     const worldMap = firestore.collection(`world_map_${mapId}`);
@@ -917,8 +924,9 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
         const base = nationIslands.length > 0
             ? nationIslands[Math.floor(Math.random() * nationIslands.length)]
             : occupied[Math.floor(Math.random() * occupied.length)];
-        const bx = base?.x ?? Math.floor(Math.random() * (baseRange.maxX - baseRange.minX + 1)) + baseRange.minX;
-        const by = base?.y ?? Math.floor(Math.random() * (baseRange.maxY - baseRange.minY + 1)) + baseRange.minY;
+        const spawnRange = base ? baseRange : preferredStarterRange;
+        const bx = base?.x ?? Math.floor(Math.random() * (spawnRange.maxX - spawnRange.minX + 1)) + spawnRange.minX;
+        const by = base?.y ?? Math.floor(Math.random() * (spawnRange.maxY - spawnRange.minY + 1)) + spawnRange.minY;
         const rx = Math.max(baseRange.minX, Math.min(baseRange.maxX, bx + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
         const ry = Math.max(baseRange.minY, Math.min(baseRange.maxY, by + Math.floor(Math.random() * (offsetRange * 2 + 1)) - offsetRange));
         const rect = { x: rx, y: ry, w: islandSize.w, h: islandSize.h };
@@ -962,18 +970,22 @@ async function createStarterIsland({ playFabId, raceName, nationIsland, displayN
     const baseY = chosen.y + Math.floor(islandSize.h / 2);
     let respawnTileX = baseX;
     let respawnTileY = baseY;
-    for (let i = 0; i < 12; i++) {
-        const dx = Math.floor(Math.random() * 9) - 4;
-        const dy = Math.floor(Math.random() * 9) - 4;
-        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) continue;
-        const tx = Math.max(0, Math.min(MAP_SIZE - 1, baseX + dx));
-        const ty = Math.max(0, Math.min(MAP_SIZE - 1, baseY + dy));
-        const inside = (tx >= chosen.x && tx < chosen.x + islandSize.w && ty >= chosen.y && ty < chosen.y + islandSize.h);
-        if (!inside) {
-            respawnTileX = tx;
-            respawnTileY = ty;
-            break;
-        }
+    const respawnCandidates = [
+        { x: baseX, y: chosen.y + islandSize.h }, // 南側: 島を画面上に見せやすい
+        { x: baseX, y: chosen.y - 1 },
+        { x: chosen.x + islandSize.w, y: baseY },
+        { x: chosen.x - 1, y: baseY },
+        { x: chosen.x + islandSize.w, y: chosen.y + islandSize.h },
+        { x: chosen.x - 1, y: chosen.y + islandSize.h },
+        { x: chosen.x + islandSize.w, y: chosen.y - 1 },
+        { x: chosen.x - 1, y: chosen.y - 1 }
+    ];
+    for (const candidate of respawnCandidates) {
+        if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) continue;
+        if (candidate.x < 0 || candidate.x >= MAP_SIZE || candidate.y < 0 || candidate.y >= MAP_SIZE) continue;
+        respawnTileX = candidate.x;
+        respawnTileY = candidate.y;
+        break;
     }
     const respawnPosition = { x: (respawnTileX + 0.5) * 32, y: (respawnTileY + 0.5) * 32 };
     await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {

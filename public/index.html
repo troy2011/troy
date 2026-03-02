@@ -190,7 +190,7 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">カテゴリを選ぶと、絵文字メニュー表が開きます。ドリンクは昼カフェ・夜バーで自動切替されます。</div>
+                        <div class="troy-menu-note">カテゴリを選ぶと、Menuが開きます。数量を決めて追加できます。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
@@ -220,7 +220,7 @@
                 <div id="troyMenuModal" class="troy-menu-modal modal-overlay">
                     <div class="troy-menu-modal-card">
                         <div class="troy-menu-modal-header">
-                            <div id="troyMenuModalTitle" class="troy-menu-modal-title">メニュー</div>
+                            <div id="troyMenuModalTitle" class="troy-menu-modal-title">Menu</div>
                             <button id="troyMenuModalClose" class="troy-menu-modal-close" type="button">×</button>
                         </div>
                         <div class="troy-menu-modal-body">
@@ -429,9 +429,8 @@
                         </div>
                     </div>
                     <div class="tarot-kingdom-controls">
-                        <button id="tarotKingdomStartOnlineButton" type="button">オンラインで始める</button>
+                        <button id="tarotKingdomStartOnlineButton" type="button">オンライン対戦を探す</button>
                         <button id="tarotKingdomStartOfflineButton" type="button" class="is-offline-alt">オフラインで始める</button>
-                        <button id="tarotKingdomStartButton" type="button">新しい戦いを始める</button>
                     </div>
                     <div id="tarotKingdomActionPopup" class="tarot-bet-popup tarot-kingdom-action-popup app-action-panel">
                         <div class="tarot-betting-actions">
@@ -439,16 +438,6 @@
                             <button id="tarotKingdomDrawMinorButton" type="button">小アルカナを引く</button>
                             <button id="tarotKingdomGraveToggleButton" type="button">墓地を見る</button>
                             <button id="tarotKingdomPassButton" type="button">パス</button>
-                            <button id="tarotKingdomFxDebugToggleButton" type="button">演出デバッグ</button>
-                        </div>
-                        <div id="tarotKingdomFxDebugPanel" class="tarot-kingdom-fx-debug" hidden>
-                            <div class="tarot-kingdom-fx-debug-row">
-                                <label for="tarotKingdomFxDebugSelect">大アルカナ演出</label>
-                                <select id="tarotKingdomFxDebugSelect" aria-label="大アルカナ演出選択"></select>
-                                <button id="tarotKingdomFxDebugPlayButton" type="button">再生</button>
-                                <button id="tarotKingdomFxDebugCycleButton" type="button">連続再生</button>
-                            </div>
-                            <div id="tarotKingdomFxDebugInfo" class="tarot-kingdom-fx-debug-info"></div>
                         </div>
                     </div>
                     <div class="tarot-kingdom-layout">
@@ -521,12 +510,12 @@
                 <div id="shipActionPanel" class="ship-action-panel app-action-panel">
                     <div id="shipActionStatus" class="ship-action-status"></div>
                     <button id="shipActionButton" class="ship-action-button">Action</button>
-                    <button id="createIslandButton" class="ship-action-button ship-action-button-sub">島を作成</button>
                 </div>
                 <div id="shipSideCannonPanel" class="ship-side-cannon-panel app-action-panel">
                     <div id="shipSideCannonStatus" class="ship-action-status"></div>
                     <button id="shipSideCannonButton" class="ship-action-button ship-side-cannon-button">舷側砲</button>
                 </div>
+                <button id="createIslandButton" class="ship-action-button ship-action-button-sub create-island-top-button">島を作成</button>
 
                 <!-- 島コマンドパネル（下からスライドイン） -->
                 <div id="islandCommandPanel" class="island-command-panel">

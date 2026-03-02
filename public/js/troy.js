@@ -96,10 +96,9 @@ function isDayCafeHours(now = new Date()) {
 }
 
 function getDrinkMenuData(now = new Date()) {
-    const isDay = isDayCafeHours(now);
     return {
-        title: isDay ? 'ドリンク (昼カフェ)' : 'ドリンク (夜バー)',
-        items: isDay ? TROY_DAY_CAFE_DRINK_ITEMS : TROY_NIGHT_DRINK_ITEMS
+        title: 'ドリンク',
+        items: [...TROY_DAY_CAFE_DRINK_ITEMS, ...TROY_NIGHT_DRINK_ITEMS]
     };
 }
 
@@ -239,9 +238,7 @@ function getMenuItemEmoji(item) {
 function getMenuSubnote(menuId) {
     switch (menuId) {
         case 'drinks':
-            return isDayCafeHours()
-                ? '☀️ 昼カフェメニューを表示中。数量を決めて追加。'
-                : '🌙 夜バーメニューを表示中。数量を決めて追加。';
+            return '🥤 ドリンクを表示中。数量を決めて追加。';
         case 'points':
             return '🪙 ポイントは即時反映ではなく会計承認後に処理されます。';
         default:
@@ -493,7 +490,7 @@ function openMenuModal(menuId) {
     } = getMenuModalElements();
     if (!modal || !list) return;
 
-    if (title) title.textContent = '絵文字メニュー';
+    if (title) title.textContent = 'Menu';
     if (subnote) subnote.textContent = getMenuSubnote(menuId);
     if (card) card.dataset.menuId = menuId;
 
