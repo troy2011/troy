@@ -116,10 +116,12 @@ export async function getRanking() {
     const data = await fetchRanking();
     if (data?.ranking) {
         const myDisplayName = window.myLineProfile?.displayName;
-        rankingListEl.innerHTML = data.ranking.map(entry => {
+        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
+        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
             const isMyRank = myDisplayName && entry.displayName === myDisplayName;
             const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.displayName}(${entry.score}Ps)</li>`;
+            const medal = getRankMedal(index);
+            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${entry.score}Ps)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }
@@ -131,10 +133,12 @@ export async function getBountyRanking() {
     const data = await fetchBountyRanking();
     if (data?.ranking) {
         const myDisplayName = window.myLineProfile?.displayName;
-        rankingListEl.innerHTML = data.ranking.map(entry => {
+        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
+        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
             const isMyRank = myDisplayName && entry.displayName === myDisplayName;
             const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${entry.displayName}(${entry.score}BT)</li>`;
+            const medal = getRankMedal(index);
+            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${entry.score}BT)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }
@@ -145,11 +149,13 @@ export async function getNationTreasuryRanking() {
     rankingListEl.innerHTML = '<li>（国庫ランキングを読み込んでいます...）</li>';
     const data = await fetchNationTreasuryRanking();
     if (data?.ranking) {
+        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
         rankingListEl.innerHTML = data.ranking.map((entry, index) => {
             const nationKey = String(entry.nation || '').toLowerCase();
             const label = getNationLabel(nationKey) || entry.nation || '不明';
             const value = Number(entry.treasuryPs || 0);
-            return `<li>${label} (${value}Ps)</li>`;
+            const medal = getRankMedal(index);
+            return `<li>${medal}${label} (${value}Ps)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }

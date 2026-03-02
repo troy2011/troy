@@ -73,7 +73,8 @@
 
       const name = document.createElement('div');
       name.className = 'ranking-name';
-      name.textContent = row.displayName || row.playFabId || 'Unknown';
+      const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
+      name.textContent = `${medal}${row.displayName || row.playFabId || 'Unknown'}`;
 
       const bounty = document.createElement('div');
       bounty.className = 'ranking-bounty';

@@ -138,6 +138,7 @@ let netPresenceByUid = {};
 let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
 let netManualOfflineMode = false;
+let kingdomStartMode = '';
 const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', until: 0 }));
 const tkNet = {
   enabled: false,
@@ -2825,7 +2826,22 @@ function getActiveSeatCount() {
   return taken.size;
 }
 
+function hasChosenKingdomStartMode() {
+  return kingdomStartMode === 'online' || kingdomStartMode === 'offline';
+}
+
+function shouldShowKingdomModeChoice() {
+  if (!s) return true;
+  if (s.roundActive) return false;
+  if (Number(s.handNo || 0) > 0) return false;
+  if (s.awaitRoundConfirm) return false;
+  const phase = String(s.phase || '');
+  if (phase === 'roundEnd' || phase === 'done') return false;
+  return true;
+}
+
 function shouldShowOpenRoomsLobby() {
+  if (kingdomStartMode !== 'online') return false;
   if (!s) return true;
   if (s.roundActive) return false;
   if (Number(s.handNo || 0) > 0) return false;
@@ -5967,6 +5983,14 @@ function renderSettlement() {
 function updateButtons() {
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) {
+    if (ui.startOnlineButton) {
+      ui.startOnlineButton.hidden = true;
+      ui.startOnlineButton.disabled = true;
+    }
+    if (ui.startOfflineButton) {
+      ui.startOfflineButton.hidden = true;
+      ui.startOfflineButton.disabled = true;
+    }
     if (ui.startButton) {
       ui.startButton.hidden = true;
       ui.startButton.disabled = true;
@@ -5988,6 +6012,7 @@ function updateButtons() {
   const netMode = isNetModeActive();
   const seatCount = netMode ? getActiveSeatCount() : 1;
   const hasVacancy = netMode ? seatCount < 4 : false;
+  const showModeChoice = shouldShowKingdomModeChoice();
   const isLobbyReadyToStart =
     !s.roundActive &&
     !s.awaitRoundConfirm &&
@@ -5999,7 +6024,25 @@ function updateButtons() {
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
-  ui.startButton.hidden = !!s.roundActive || !!s.awaitRoundConfirm;
+  if (ui.startOnlineButton) {
+    ui.startOnlineButton.hidden = !showModeChoice;
+    ui.startOnlineButton.disabled = actionLocked;
+    ui.startOnlineButton.classList.toggle('is-selected', kingdomStartMode === 'online');
+  }
+  if (ui.startOfflineButton) {
+    ui.startOfflineButton.hidden = !showModeChoice;
+    ui.startOfflineButton.disabled = actionLocked;
+    ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
+  }
+  if (ui.startButton) {
+    const showStartButton =
+      !s.roundActive &&
+      !s.awaitRoundConfirm &&
+      hasChosenKingdomStartMode() &&
+      (kingdomStartMode !== 'online' || netMode);
+    ui.startButton.hidden = !showStartButton;
+    ui.startButton.disabled = !showStartButton;
+  }
   if (ui.playButton) {
     ui.playButton.textContent = '選択';
     ui.playButton.disabled = actionLocked || !canPlayNow;
@@ -6035,7 +6078,13 @@ function updateButtons() {
     }
   }
   if (ui.startButton) {
-    if (netMode && !tkNet.isHost) {
+    if (!hasChosenKingdomStartMode()) {
+      ui.startButton.disabled = true;
+      ui.startButton.textContent = '開始方法を選択';
+    } else if (kingdomStartMode === 'online' && !netMode) {
+      ui.startButton.disabled = true;
+      ui.startButton.textContent = 'オンライン接続中';
+    } else if (netMode && !tkNet.isHost) {
       ui.startButton.disabled = true;
       ui.startButton.textContent = 'ホストの開始を待機中';
     } else {
@@ -6159,6 +6208,56 @@ function startOrNext() {
   if (!s.roundActive && s.handNo < TOTAL_HANDS) {
     beginNextRound();
   }
+}
+
+async function activateKingdomOnlineMode() {
+  kingdomStartMode = 'online';
+  netManualOfflineMode = false;
+  if (!s || (!s.roundActive && !s.awaitRoundConfirm && Number(s.handNo || 0) <= 0)) {
+    resetMatch();
+  }
+  s.message = 'オンライン対戦に接続中です...';
+  render();
+  await ensureTarotKingdomNetwork();
+  if (!s) {
+    if (!tkNet.enabled || tkNet.isHost) {
+      resetMatch();
+    } else {
+      s = initState();
+      s.message = 'ルーム状態を同期中です...';
+    }
+  }
+  applyPresenceToPlayers();
+  if (tkNet.enabled && !tkNet.isHost) {
+    const bootLike =
+      !s.roundActive &&
+      !s.trick &&
+      Number(s.handNo || 0) === 0 &&
+      (!Array.isArray(s.logs) || s.logs.length === 0);
+    if (bootLike) s.message = 'ルーム状態を同期中です...';
+  } else if (!tkNet.enabled && !s.roundActive && Number(s.handNo || 0) <= 0) {
+    s.message = 'オンライン接続に失敗しました。もう一度選択してください。';
+  }
+  render();
+  if (tkNet.enabled && tkNet.isHost) {
+    queueStatePublish(true);
+  }
+  refreshOpenRoomsPanel().catch((error) => {
+    console.warn('[tarotKingdom] failed to paint open room panel:', error);
+  });
+}
+
+function activateKingdomOfflineMode() {
+  kingdomStartMode = 'offline';
+  netManualOfflineMode = true;
+  teardownTarotKingdomNetwork();
+  tkNet.localSeat = 0;
+  if (!s || (!s.roundActive && !s.awaitRoundConfirm && Number(s.handNo || 0) <= 0)) {
+    resetMatch();
+  }
+  s.message = 'オフライン対戦を開始できます。';
+  applyPresenceToPlayers();
+  render();
 }
 
 function clearOpenRoomHeartbeatTimer() {
@@ -6333,6 +6432,8 @@ function bindUi() {
     }
   };
   ensureFxDebugDom();
+  ui.startOnlineButton = document.getElementById('tarotKingdomStartOnlineButton');
+  ui.startOfflineButton = document.getElementById('tarotKingdomStartOfflineButton');
   ui.startButton = document.getElementById('tarotKingdomStartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
@@ -6351,6 +6452,14 @@ function bindUi() {
   ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
+  ui.startOnlineButton?.addEventListener('click', () => {
+    activateKingdomOnlineMode().catch((error) => {
+      console.warn('[tarotKingdom] online mode activation failed:', error);
+    });
+  });
+  ui.startOfflineButton?.addEventListener('click', () => {
+    activateKingdomOfflineMode();
+  });
   ui.startButton?.addEventListener('click', () => {
     requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
       console.warn('[tarotKingdom] start action failed:', error);
@@ -6443,34 +6552,27 @@ function bindUi() {
 export async function loadTarotKingdomPage() {
   bindUi();
   refreshKingdomFxDebugElements();
-  await ensureTarotKingdomNetwork();
+  if (kingdomStartMode === 'online') {
+    await activateKingdomOnlineMode();
+    return;
+  }
+  if (kingdomStartMode === 'offline') {
+    activateKingdomOfflineMode();
+    return;
+  }
   if (!s) {
-    if (!tkNet.enabled || tkNet.isHost) {
-      resetMatch();
-    } else {
-      s = initState();
-      s.message = 'ルーム状態を同期中です...';
-    }
+    resetMatch();
   }
+  s.message = 'オンラインかオフラインを選択してください。';
   applyPresenceToPlayers();
-  if (tkNet.enabled && !tkNet.isHost) {
-    const bootLike =
-      !s.roundActive &&
-      !s.trick &&
-      Number(s.handNo || 0) === 0 &&
-      (!Array.isArray(s.logs) || s.logs.length === 0);
-    if (bootLike) s.message = 'ルーム状態を同期中です...';
-  }
   render();
-  if (tkNet.enabled && tkNet.isHost) {
-    queueStatePublish(true);
-  }
   refreshOpenRoomsPanel().catch((error) => {
     console.warn('[tarotKingdom] failed to paint open room panel:', error);
   });
 }
 
 export function destroyTarotKingdomPage() {
+  kingdomStartMode = '';
   netManualOfflineMode = false;
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
