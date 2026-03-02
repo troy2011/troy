@@ -1403,20 +1403,70 @@ app.post('/api/set-race', async (req, res) => {
         avatarData.HairStyleIndex = Math.floor(Math.random() * 30) + 1;
 
         setRaceStep = 'write-readonly-data';
-        const readOnlyDataPayload = Object.fromEntries(
-            Object.entries({
-                Race: raceName,
-                BaseDisplayName: displayResult.baseName || displayName || '',
-                ...avatarData,
-                ...nationData,
-                IsKing: isKing ? 'true' : 'false',
-                NationKingId: isKing ? playFabId : ''
-            }).map(([key, value]) => [key, value == null ? '' : String(value)])
-        );
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: readOnlyDataPayload
+        const toReadOnlyStringMap = (raw) => {
+            const out = {};
+            Object.entries(raw || {}).forEach(([key, value]) => {
+                if (value == null) return;
+                const text = String(value);
+                if (!text) return;
+                out[key] = text;
+            });
+            return out;
+        };
+        const readOnlyCorePayload = toReadOnlyStringMap({
+            Race: raceName,
+            BaseDisplayName: displayResult.baseName || displayName || '',
+            Nation: nationData.Nation,
+            IsKing: isKing ? 'true' : 'false',
+            NationKingId: isKing ? playFabId : null
         });
+        const readOnlyOptionalPayload = toReadOnlyStringMap({
+            AvatarColor: avatarData.AvatarColor,
+            SkinColorIndex: avatarData.SkinColorIndex,
+            FaceIndex: avatarData.FaceIndex,
+            HairStyleIndex: avatarData.HairStyleIndex,
+            NationGroupId: nationData.NationGroupId,
+            NationGroupName: nationData.NationGroupName
+        });
+        const coreKeysToRemove = isKing ? [] : ['NationKingId'];
+        const writeReadOnlyData = async (dataMap, keysToRemove = []) => {
+            if ((!dataMap || Object.keys(dataMap).length === 0) && (!Array.isArray(keysToRemove) || !keysToRemove.length)) {
+                return;
+            }
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: dataMap || {},
+                KeysToRemove: Array.isArray(keysToRemove) ? keysToRemove : []
+            });
+        };
+        try {
+            await writeReadOnlyData({ ...readOnlyCorePayload, ...readOnlyOptionalPayload }, coreKeysToRemove);
+        } catch (bulkError) {
+            console.warn('[set-race] bulk UpdateUserReadOnlyData failed, retrying by chunks:', bulkError?.errorMessage || bulkError?.message || bulkError);
+            for (const [key, value] of Object.entries(readOnlyCorePayload)) {
+                try {
+                    await writeReadOnlyData({ [key]: value });
+                } catch (singleError) {
+                    const msg = singleError?.errorMessage || singleError?.message || String(singleError);
+                    throw new Error(`${msg} (key:${key})`);
+                }
+            }
+            if (coreKeysToRemove.length) {
+                try {
+                    await writeReadOnlyData({}, coreKeysToRemove);
+                } catch (removeError) {
+                    const msg = removeError?.errorMessage || removeError?.message || String(removeError);
+                    throw new Error(`${msg} (key:${coreKeysToRemove.join(',')})`);
+                }
+            }
+            for (const [key, value] of Object.entries(readOnlyOptionalPayload)) {
+                try {
+                    await writeReadOnlyData({ [key]: value });
+                } catch (optionalError) {
+                    console.warn(`[set-race] optional read-only key skipped: ${key}`, optionalError?.errorMessage || optionalError?.message || optionalError);
+                }
+            }
+        }
 
         let starterIsland = null;
         let createdStarterIsland = false;
