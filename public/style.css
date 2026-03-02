@@ -5798,8 +5798,13 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-defeat-particle.is-rock-ground {
-    font-size: 18px;
-    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.42));
+    font-size: 20px;
+    filter: drop-shadow(0 0 4px rgba(120, 53, 15, 0.3)) drop-shadow(0 0 8px rgba(250, 204, 21, 0.42));
+}
+
+.tarot-kingdom-defeat-particle.is-rock-main {
+    font-size: 28px;
+    filter: drop-shadow(0 0 4px rgba(120, 53, 15, 0.32)) drop-shadow(0 0 8px rgba(250, 204, 21, 0.48));
 }
 
 .tarot-kingdom-defeat-particle.is-fire-char {
@@ -5853,23 +5858,24 @@ body.modal-lock .modal-overlay {
 }
 
 @keyframes tarotKingdomDefeatParticleRockMain {
-    0% { opacity: 0; transform: translate(-50%, -240%) scale(0.46); }
-    48% { opacity: 1; transform: translate(-50%, -82%) scale(0.88); }
-    72% { opacity: 1; transform: translate(-50%, -22%) scale(1.02); }
-    100% { opacity: 0; transform: translate(-50%, 8%) scale(0.72); }
+    0% { opacity: 0; transform: translate(-50%, -220%) scale(0.44) rotate(-110deg); }
+    38% { opacity: 1; transform: translate(-50%, -92%) scale(0.88) rotate(-22deg); }
+    64% { opacity: 1; transform: translate(-50%, -18%) scale(1.04) rotate(10deg); }
+    78% { opacity: 1; transform: translate(-50%, -10%) scale(0.92) rotate(38deg); }
+    100% { opacity: 0; transform: translate(-50%, 6%) scale(0.72) rotate(82deg); }
 }
 
 @keyframes tarotKingdomDefeatParticleRockGround {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.56, 0.18); }
-    44% { opacity: 0; transform: translate(-50%, -50%) scale(0.82, 0.28); }
-    62% { opacity: 0.94; transform: translate(-50%, -50%) scale(1.28, 0.78); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.46, 0.46); }
+    0% { opacity: 0; transform: translate(-50%, -90%) scale(0.52) rotate(0deg); }
+    24% { opacity: 0.9; transform: translate(calc(-50% + 10px), calc(-50% - 34px)) scale(0.82) rotate(42deg); }
+    58% { opacity: 1; transform: translate(calc(-50% + 24px), calc(-50% - 2px)) scale(0.98) rotate(110deg); }
+    100% { opacity: 0; transform: translate(calc(-50% + 36px), calc(-50% + 10px)) scale(0.72) rotate(182deg); }
 }
 
 @keyframes tarotKingdomDefeatParticleRockHit {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.54); }
-    36% { opacity: 1; transform: translate(-50%, -56%) scale(1.04); }
-    100% { opacity: 0; transform: translate(-50%, -74%) scale(1.12); }
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.42); }
+    30% { opacity: 1; transform: translate(-50%, -56%) scale(1.12); }
+    100% { opacity: 0; transform: translate(-50%, -74%) scale(1.24); }
 }
 
 @keyframes tarotKingdomDefeatParticleWaterMain {

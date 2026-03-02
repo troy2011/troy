@@ -702,7 +702,7 @@ const MAJOR_ATTACK_FX = {
 
 const SUIT_ATTACK_DEBUG_FX = {
   Sword: { leadEmoji: '🗡️', markerEmoji: '🗡️', pattern: 'rush', kind: 'slash', label: 'ソード斬撃' },
-  Pentacle: { leadEmoji: '🪦', markerEmoji: '🪦', pattern: 'slam', kind: 'rock', label: 'ペンタクル圧殺' },
+  Pentacle: { leadEmoji: '🪙', markerEmoji: '🪙', pattern: 'slam', kind: 'rock', label: 'ペンタクル直撃' },
   Cup: { leadEmoji: '💦', markerEmoji: '💦', pattern: 'float', kind: 'water', label: 'カップ溶解' },
   Wand: { leadEmoji: '🔥', markerEmoji: '🔥', pattern: 'burst', kind: 'fire', label: 'ワンド燃焼' }
 };
@@ -730,7 +730,7 @@ const isMajorAttackFx = (arcanaFx) => !!(arcanaFx && Number.isFinite(Number(arca
 const ARCANA_DEFEAT_PATTERNS = ['orbit', 'float', 'slam', 'burst', 'rush', 'trickster', 'throne', 'edict', 'sanctum', 'halo', 'verdict', 'rift', 'world'];
 const DEFEAT_MARKER_BY_KIND = {
   slash: '🗡️',
-  rock: '🪦',
+  rock: '🪙',
   water: '💦',
   fire: '🔥'
 };
@@ -1660,7 +1660,9 @@ function playKingdomRamAttackFx(playerIndex, attackCard, targetEl, options = {})
   const durationMs = Math.max(180, Number(options.durationMs) || 220);
   const targetRect = targetEl?.getBoundingClientRect?.();
   const targetWidth = (targetRect && targetRect.width > 0) ? targetRect.width : TAROT_TILE_W;
-  const defaultStopBeforePx = Math.max(2, Math.round(targetWidth * 0.18));
+  // Stop with only a slight overlap so the tackle reads as an impact in front of the target card.
+  const desiredOverlapPx = Math.max(4, Math.min(12, Math.round(targetWidth * 0.14)));
+  const defaultStopBeforePx = Math.max(6, Math.round(targetWidth - desiredOverlapPx));
   const rawStopBeforePx = Number(options.stopBeforePx);
   const stopBeforePx = Number.isFinite(rawStopBeforePx)
     ? Math.max(0, rawStopBeforePx)
@@ -1967,9 +1969,9 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
     // Slash now uses only the sword marker + split clones.
     return;
   } else if (kind === 'rock') {
-    particles.push({ emoji: markerEmoji || '🪦', variant: 'is-rock-main', x: baseX, y: baseY - 54, dur: 560, offset: 0 });
-    particles.push({ emoji: '🕳️', variant: 'is-rock-ground', x: baseX, y: baseY + 18, dur: 430, offset: 150 });
-    particles.push({ emoji: '⛰️', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 2, dur: 280, offset: 188 });
+    particles.push({ emoji: markerEmoji || '🪙', variant: 'is-rock-main', x: baseX, y: baseY - 56, dur: 520, offset: 0 });
+    particles.push({ emoji: '🪙', variant: 'is-rock-ground', x: baseX - 18, y: baseY - 24, dur: 420, offset: 68 });
+    particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 2, dur: 260, offset: 148 });
   } else if (kind === 'water') {
     particles.push({ emoji: markerEmoji || '💦', variant: 'is-water-main', x: baseX, y: baseY - 28, dur: 440, offset: 0 });
     particles.push({ emoji: '💧', variant: 'is-water-drop-a', x: baseX - 20, y: baseY - 12, dur: 300, offset: 120 });
