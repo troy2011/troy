@@ -5804,6 +5804,9 @@ function renderSettlement() {
 function updateButtons() {
   const me = getLocalPlayerIndex();
   if (me < 0 || !s.players?.[me]) {
+    if (ui.modeControls) {
+      ui.modeControls.hidden = true;
+    }
     if (ui.startOnlineButton) {
       ui.startOnlineButton.hidden = true;
       ui.startOnlineButton.disabled = true;
@@ -5811,6 +5814,10 @@ function updateButtons() {
     if (ui.startOfflineButton) {
       ui.startOfflineButton.hidden = true;
       ui.startOfflineButton.disabled = true;
+    }
+    if (ui.restartButton) {
+      ui.restartButton.hidden = true;
+      ui.restartButton.disabled = true;
     }
     ui.playButton.disabled = true;
     ui.clearButton.disabled = true;
@@ -5829,12 +5836,13 @@ function updateButtons() {
   const netMode = isNetModeActive();
   const seatCount = netMode ? getActiveSeatCount() : 1;
   const hasVacancy = netMode ? seatCount < 4 : false;
-  const showModeChoice = shouldShowKingdomModeChoice();
+  const isMatchDone = String(s.phase || '') === 'done';
+  const showModeChoice = shouldShowKingdomModeChoice() && !isMatchDone;
   const isLobbyReadyToStart =
     !s.roundActive &&
     !s.awaitRoundConfirm &&
     Number(s.handNo || 0) <= 0 &&
-    String(s.phase || '') !== 'done';
+    !isMatchDone;
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const hasSelected = !!(s.selected && s.selected.size > 0);
@@ -5842,6 +5850,10 @@ function updateButtons() {
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
   const isConnectingOnline = isKingdomOnlineConnecting();
+  const showModeControls = showModeChoice || isMatchDone;
+  if (ui.modeControls) {
+    ui.modeControls.hidden = !showModeControls;
+  }
   if (ui.startOnlineButton) {
     const showOnlineButton = showModeChoice;
     let onlineLabel = 'オンライン対戦を探す';
@@ -5881,6 +5893,25 @@ function updateButtons() {
     ui.startOfflineButton.disabled = !showOfflineButton || offlineDisabled;
     ui.startOfflineButton.textContent = offlineLabel;
     ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
+  }
+  if (ui.restartButton) {
+    const showRestartButton = isMatchDone;
+    let restartLabel = 'もう一度遊ぶ';
+    let restartDisabled = actionLocked;
+    if (kingdomStartMode === 'online') {
+      if (!netMode) {
+        restartLabel = 'オンライン接続をやり直す';
+      } else if (!tkNet.isHost) {
+        restartLabel = 'ホストの再開を待機中';
+        restartDisabled = true;
+      } else {
+        restartLabel = '同じメンバーでもう一度遊ぶ';
+      }
+    }
+    ui.restartButton.hidden = !showRestartButton;
+    ui.restartButton.disabled = !showRestartButton || restartDisabled;
+    ui.restartButton.textContent = restartLabel;
+    ui.restartButton.classList.toggle('is-selected', showRestartButton);
   }
   if (ui.playButton) {
     ui.playButton.textContent = '選択';
@@ -6070,7 +6101,8 @@ async function activateKingdomOnlineMode() {
   });
 }
 
-function activateKingdomOfflineMode() {
+function activateKingdomOfflineMode(options = {}) {
+  const { renderNow = true, message = 'オフライン対戦を開始できます。' } = options;
   kingdomStartMode = 'offline';
   netManualOfflineMode = true;
   teardownTarotKingdomNetwork();
@@ -6078,17 +6110,24 @@ function activateKingdomOfflineMode() {
   if (!s || (!s.roundActive && !s.awaitRoundConfirm && Number(s.handNo || 0) <= 0)) {
     resetMatch();
   }
-  s.message = 'オフライン対戦を開始できます。';
+  s.message = message;
   applyPresenceToPlayers();
-  render();
+  if (renderNow) {
+    render();
+  }
 }
 
 function activateAndStartKingdomOfflineMode() {
-  activateKingdomOfflineMode();
+  activateKingdomOfflineMode({
+    renderNow: false,
+    message: 'オフライン対戦を開始しています...'
+  });
   if (!s) return;
   if (canStartKingdomRoundFromLobby()) {
     beginNextRound();
+    return;
   }
+  render();
 }
 
 function returnToKingdomModeChoice(message = 'オンラインかオフラインを選択してください。') {
@@ -6138,6 +6177,25 @@ function handleKingdomOfflineStartClick() {
     return;
   }
   activateAndStartKingdomOfflineMode();
+}
+
+async function handleKingdomRestartClick() {
+  if (!s || String(s.phase || '') !== 'done') return;
+  if (kingdomStartMode === 'online') {
+    if (!isNetModeActive()) {
+      await activateKingdomOnlineMode();
+      return;
+    }
+    if (!tkNet.isHost) return;
+    s.message = '新しい対戦を準備しています...';
+    render();
+    await removeCurrentOpenRoomIndex();
+    await requestHostAction({ type: 'startOrNext' }, () => startOrNext());
+    return;
+  }
+  s.message = '新しい対戦を準備しています...';
+  render();
+  startOrNext();
 }
 
 function clearOpenRoomHeartbeatTimer() {
@@ -6261,6 +6319,7 @@ function bindUi() {
   ui.kingdomOverlay = document.getElementById('tarotKingdomEffectOverlay');
   ui.kingdomCutin = document.getElementById('tarotKingdomCutin');
   ui.stateText = document.getElementById('tarotKingdomStateText');
+  ui.modeControls = document.getElementById('tarotKingdomModeControls');
   ui.openRoomsWrap = document.getElementById('tarotKingdomOpenRooms');
   ui.openRoomsList = document.getElementById('tarotKingdomOpenRoomsList');
   ui.settlement = document.getElementById('tarotKingdomSettlement');
@@ -6279,6 +6338,7 @@ function bindUi() {
   }
   ui.startOnlineButton = document.getElementById('tarotKingdomStartOnlineButton');
   ui.startOfflineButton = document.getElementById('tarotKingdomStartOfflineButton');
+  ui.restartButton = document.getElementById('tarotKingdomRestartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
@@ -6306,6 +6366,15 @@ function bindUi() {
   });
   ui.startOfflineButton?.addEventListener('click', () => {
     handleKingdomOfflineStartClick();
+  });
+  ui.restartButton?.addEventListener('click', () => {
+    handleKingdomRestartClick().catch((error) => {
+      console.warn('[tarotKingdom] restart click failed:', error);
+      if (s) {
+        s.message = '再開に失敗しました。もう一度試してください。';
+        render();
+      }
+    });
   });
   ui.playButton?.addEventListener('click', () => humanPlay());
 

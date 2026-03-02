@@ -4508,7 +4508,10 @@ function render() {
 }
 function ensureDailyFortuneOverlay() {
     let overlay = document.getElementById(DAILY_FORTUNE_OVERLAY_ID);
-    if (overlay) return overlay;
+    if (overlay) {
+        applyDailyFortuneOverlayLayout(overlay);
+        return overlay;
+    }
 
     overlay = document.createElement('div');
     overlay.id = DAILY_FORTUNE_OVERLAY_ID;
@@ -4526,12 +4529,49 @@ function ensureDailyFortuneOverlay() {
         </div>
     `;
     document.body.appendChild(overlay);
+    applyDailyFortuneOverlayLayout(overlay);
     overlay.addEventListener('click', (event) => {
         if (event.target === overlay) {
             closeDailyFortuneOverlay();
         }
     });
     return overlay;
+}
+
+function applyDailyFortuneOverlayLayout(overlay) {
+    if (!overlay) return;
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        left: '0',
+        top: '0',
+        right: '0',
+        bottom: '0',
+        width: '100vw',
+        height: '100dvh',
+        zIndex: '3800',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '14px',
+        background: 'rgba(0, 0, 0, 0.72)',
+        boxSizing: 'border-box'
+    });
+    const modal = overlay.querySelector(`#${DAILY_FORTUNE_MODAL_ID}`);
+    if (!modal) return;
+    Object.assign(modal.style, {
+        position: 'relative',
+        width: 'min(520px, calc(100% - 20px))',
+        maxWidth: '520px',
+        maxHeight: 'min(85dvh, 640px)',
+        overflowY: 'auto',
+        borderRadius: '14px',
+        border: '1px solid rgba(255, 215, 122, 0.55)',
+        background: 'linear-gradient(180deg, rgba(22, 29, 45, 0.97), rgba(11, 17, 29, 0.97))',
+        boxShadow: '0 18px 44px rgba(0, 0, 0, 0.45)',
+        padding: '14px 14px 12px',
+        textAlign: 'center',
+        color: '#f8fafc',
+        margin: '0 auto'
+    });
 }
 
 function closeDailyFortuneOverlay() {
@@ -4541,6 +4581,8 @@ function closeDailyFortuneOverlay() {
 
 function openDailyFortuneOverlay() {
     const overlay = ensureDailyFortuneOverlay();
+    document.body.appendChild(overlay);
+    applyDailyFortuneOverlayLayout(overlay);
     overlay.style.display = 'flex';
 }
 

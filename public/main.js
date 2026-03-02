@@ -37,7 +37,7 @@ let lastTransferNoticeId = null;
 window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
-const TAROT_MODULE_VERSION = '20260217a';
+const TAROT_MODULE_VERSION = '20260303b';
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
