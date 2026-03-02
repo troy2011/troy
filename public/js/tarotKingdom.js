@@ -2118,9 +2118,8 @@ function getKingdomDefeatTimingProfile(defeatFxKind = 'normal', options = {}) {
   };
 }
 
-function settleKingdomIncomingFirstCard(ramFx, runIfCurrent, settleDurationMs = 120) {
-  ramSettleFirstCard = true;
-  renderNow();
+function settleKingdomIncomingFirstCard(ramFx, runIfCurrent, renderIncomingNow, resolvePending, settleDurationMs = 120) {
+  if (typeof renderIncomingNow === 'function') renderIncomingNow();
   const firstNode = ui.trick?.querySelector?.('.tarot-card');
   if (firstNode && ramFx?.settleTo) {
     firstNode.style.opacity = '0.24';
@@ -2131,17 +2130,21 @@ function settleKingdomIncomingFirstCard(ramFx, runIfCurrent, settleDurationMs = 
         firstNode.style.opacity = '';
         firstNode.style.transform = '';
       },
-      autoRemove: true
-    });
-    setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), Math.max(0, settleDoneMs) + 12);
+        autoRemove: true
+      });
+    setTimeout(() => runIfCurrent(() => {
+      if (typeof resolvePending === 'function') resolvePending();
+    }), Math.max(0, settleDoneMs) + 12);
     return;
   }
   if (ramFx?.remove) {
     ramFx.remove(72);
-    setTimeout(() => runIfCurrent(() => resolvePendingAfterTrick()), 96);
+    setTimeout(() => runIfCurrent(() => {
+      if (typeof resolvePending === 'function') resolvePending();
+    }), 96);
     return;
   }
-  resolvePendingAfterTrick();
+  if (typeof resolvePending === 'function') resolvePending();
 }
 
 function triggerKingdomTrickShake(level = 0) {
@@ -5455,7 +5458,16 @@ function renderTrick() {
       trickSwapTimer = setTimeout(() => {
         if (swapToken !== trickRenderToken) return;
         trickSwapTimer = null;
-        settleKingdomIncomingFirstCard(ramFx, runIfCurrent, profile.settleMs);
+        settleKingdomIncomingFirstCard(
+          ramFx,
+          runIfCurrent,
+          () => {
+            ramSettleFirstCard = true;
+            renderNow();
+          },
+          resolvePendingAfterTrick,
+          profile.settleMs
+        );
       }, preDefeatMs + swapHoldMs);
       return;
     }
@@ -5521,9 +5533,18 @@ function renderTrick() {
     trickSwapTimer = setTimeout(() => {
       if (swapToken !== trickRenderToken) return;
       trickSwapTimer = null;
-      settleKingdomIncomingFirstCard(ramFx, runIfCurrent, profile.settleMs);
-    }, preDefeatMs + swapHoldMs);
-    return;
+        settleKingdomIncomingFirstCard(
+          ramFx,
+          runIfCurrent,
+          () => {
+            ramSettleFirstCard = true;
+            renderNow();
+          },
+          resolvePendingAfterTrick,
+          profile.settleMs
+        );
+      }, preDefeatMs + swapHoldMs);
+      return;
   }
   if (prevCards.length > 0 && cards.length === 0 && transitionKind === 'clearSweep') {
     trickRenderToken += 1;
