@@ -1403,16 +1403,19 @@ app.post('/api/set-race', async (req, res) => {
         avatarData.HairStyleIndex = Math.floor(Math.random() * 30) + 1;
 
         setRaceStep = 'write-readonly-data';
-        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Data: {
-                "Race": raceName,
+        const readOnlyDataPayload = Object.fromEntries(
+            Object.entries({
+                Race: raceName,
                 BaseDisplayName: displayResult.baseName || displayName || '',
                 ...avatarData,
                 ...nationData,
                 IsKing: isKing ? 'true' : 'false',
                 NationKingId: isKing ? playFabId : ''
-            }
+            }).map(([key, value]) => [key, value == null ? '' : String(value)])
+        );
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: readOnlyDataPayload
         });
 
         let starterIsland = null;
