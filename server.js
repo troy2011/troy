@@ -1277,13 +1277,17 @@ app.post('/api/set-race', async (req, res) => {
             return res.status(400).json({ error: 'Invalid raceName' });
     }
 
+    let setRaceStep = 'init';
     try {
+        setRaceStep = 'resolve-mapping';
         const mapping = nation.NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const deps = createDependencies();
+        setRaceStep = 'ensure-nation-group';
         let groupInfo = await nation.ensureNationGroupExists(firestore, mapping, deps);
         let serverEntityKey = null;
         try {
+            setRaceStep = 'resolve-entity';
             serverEntityKey = await getEntityKeyFromPlayFabId(playFabId);
         } catch (e) {
             console.warn('[set-race] getEntityKeyFromPlayFabId failed:', e?.errorMessage || e?.message || e);
@@ -1301,6 +1305,7 @@ app.post('/api/set-race', async (req, res) => {
         let isKing = !!isKingRequest || !!groupInfo.created;
 
         try {
+            setRaceStep = 'read-player-readonly';
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
                 Keys: ['Nation', 'lineUserId']
@@ -1328,13 +1333,45 @@ app.post('/api/set-race', async (req, res) => {
                 }
             }
 
+            setRaceStep = 'group-add-member';
             await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.AddMembers, {
-                Group: { Id: assignedGroupId, Type: 'group' },
-                Members: [playerEntity]
-            });
+            let addMemberError = null;
+            try {
+                await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                    Group: { Id: assignedGroupId, Type: 'group' },
+                    Members: [playerEntity]
+                });
+            } catch (e) {
+                addMemberError = e;
+                const fallbackEntity = clientEntityKey?.Id && clientEntityKey?.Type ? clientEntityKey : null;
+                const isDifferentEntity =
+                    !!fallbackEntity &&
+                    (String(fallbackEntity.Id) !== String(playerEntity.Id) || String(fallbackEntity.Type) !== String(playerEntity.Type));
+                if (isDifferentEntity) {
+                    try {
+                        await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                            Group: { Id: assignedGroupId, Type: 'group' },
+                            Members: [fallbackEntity]
+                        });
+                        addMemberError = null;
+                    } catch (fallbackError) {
+                        addMemberError = fallbackError;
+                    }
+                }
+            }
+            if (addMemberError) {
+                const addMsg = String(addMemberError?.errorMessage || addMemberError?.message || addMemberError);
+                if (addMsg.includes('EntityIsAlreadyMember')) {
+                    addMemberError = null;
+                } else if (addMsg.includes('入力パラメータ') || addMsg.toLowerCase().includes('invalid input')) {
+                    console.warn('[set-race] AddMembers skipped due to invalid params:', addMsg);
+                    addMemberError = null;
+                }
+            }
+            if (addMemberError) throw addMemberError;
 
             if (isKing) {
+                setRaceStep = 'write-king-doc';
                 const docRef = await nation.getNationGroupDoc(firestore, mapping.groupName);
                 await docRef.set({
                     kingPlayFabId: playFabId,
@@ -1348,6 +1385,7 @@ app.post('/api/set-race', async (req, res) => {
             }
         }
 
+        setRaceStep = 'update-display-name';
         const displayResult = await ensureNationDisplayName(playFabId, assignedNation, displayName || '');
 
         const nationData = {
@@ -1356,6 +1394,7 @@ app.post('/api/set-race', async (req, res) => {
             NationGroupName: assignedGroupName
         };
 
+        setRaceStep = 'update-player-statistics';
         const statsPayload = Object.keys(initialStats).map(key => ({ StatisticName: key, Value: initialStats[key] }));
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, { PlayFabId: playFabId, Statistics: statsPayload });
 
@@ -1363,6 +1402,7 @@ app.post('/api/set-race', async (req, res) => {
         avatarData.FaceIndex = Math.floor(Math.random() * maxFaceIndex) + 1;
         avatarData.HairStyleIndex = Math.floor(Math.random() * 30) + 1;
 
+        setRaceStep = 'write-readonly-data';
         await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
             PlayFabId: playFabId,
             Data: {
@@ -1433,8 +1473,9 @@ app.post('/api/set-race', async (req, res) => {
             starterIsland
         });
     } catch (error) {
-        console.error('[set-race] Error:', error.errorMessage || error.message);
-        res.status(500).json({ error: 'Failed to set race', details: error.errorMessage || error.message });
+        const msg = error?.errorMessage || error?.message || String(error);
+        console.error(`[set-race] Error at ${setRaceStep}:`, msg);
+        res.status(500).json({ error: 'Failed to set race', details: `[${setRaceStep}] ${msg}` });
     }
 });
 
