@@ -1243,7 +1243,7 @@ app.post('/api/login-playfab', async (req, res) => {
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
         const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
-        const entityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
+        const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
 
@@ -1282,7 +1282,15 @@ app.post('/api/set-race', async (req, res) => {
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const deps = createDependencies();
         let groupInfo = await nation.ensureNationGroupExists(firestore, mapping, deps);
-        const playerEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
+        let serverEntityKey = null;
+        try {
+            serverEntityKey = await getEntityKeyFromPlayFabId(playFabId);
+        } catch (e) {
+            console.warn('[set-race] getEntityKeyFromPlayFabId failed:', e?.errorMessage || e?.message || e);
+        }
+        const playerEntity = serverEntityKey?.Id && serverEntityKey?.Type
+            ? serverEntityKey
+            : (clientEntityKey?.Id && clientEntityKey?.Type ? clientEntityKey : null);
         if (!playerEntity) {
             return res.status(400).json({ error: 'Failed to resolve player entity' });
         }
@@ -1393,9 +1401,9 @@ app.post('/api/set-race', async (req, res) => {
             console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
         }
 
-        const starterAssets = await provisionStarterAssets({ playFabId, entityKey });
+        const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
         try {
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, entityKey);
+            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, playerEntity);
         } catch (e) {
             console.warn('[starterGrant] Failed to grant starter PS:', e?.errorMessage || e?.message || e);
         }
