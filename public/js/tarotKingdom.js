@@ -2009,8 +2009,8 @@ function spawnKingdomSlashSplitFx(targetEl, options = {}) {
   const delayMs = Math.max(0, Number(options.delayMs) || 0);
   const durationMs = Math.max(320, Number(options.durationMs) || 560);
   const parts = [
-    { suffix: 'is-top', clip: 'inset(0 0 50% 0 round 0)', midY: '-18%' },
-    { suffix: 'is-bottom', clip: 'inset(50% 0 0 0 round 0)', midY: '18%' }
+    { suffix: 'is-left', clip: 'inset(0 50% 0 0 round 0)' },
+    { suffix: 'is-right', clip: 'inset(0 0 0 50% round 0)' }
   ];
   const nodes = parts.map((part) => {
     const node = targetEl.cloneNode(true);
@@ -2031,7 +2031,6 @@ function spawnKingdomSlashSplitFx(targetEl, options = {}) {
     node.style.height = `${rect.height}px`;
     node.style.clipPath = part.clip;
     node.style.setProperty('--fx-dur', `${durationMs}ms`);
-    node.style.setProperty('--slash-mid-y', part.midY);
     document.body.appendChild(node);
     setTimeout(() => {
       if (!node.parentElement) return;

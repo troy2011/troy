@@ -5206,10 +5206,10 @@ body.modal-lock .modal-overlay {
 
 .tarot-card.is-defeat-primary.is-defeat-slash::after {
     content: var(--defeat-marker-content, "\1F5E1");
-    left: 52%;
-    top: 16%;
+    left: 50%;
+    top: 12%;
     font-size: 40px;
-    transform-origin: 82% 18%;
+    transform-origin: 84% 14%;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.44)) drop-shadow(0 0 8px rgba(250, 204, 21, 0.28));
     animation: tarotKingdomDefeatSlashMarker var(--defeat-marker-ms, 920ms) cubic-bezier(0.16, 0.82, 0.24, 1) forwards;
 }
@@ -5342,31 +5342,31 @@ body.modal-lock .modal-overlay {
 
 @keyframes tarotKingdomDefeatSlash {
     0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1) rotate(0deg); filter: none; }
-    20% { opacity: 1; transform: translate3d(-2px, 0, 0) scale(0.992) rotate(-1deg); filter: brightness(1.02); }
-    34% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.985) rotate(0deg); filter: saturate(1.06); }
+    18% { opacity: 1; transform: translate3d(0, 0, 0) scale(0.996) rotate(0deg); filter: brightness(1.04); }
+    28% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.988) rotate(0deg); filter: saturate(1.08); }
     100% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.985) rotate(0deg); filter: none; }
 }
 
 @keyframes tarotKingdomDefeatSlashMarker {
     0% {
         opacity: 0;
-        transform: translate(8%, -108%) scale(0.74) rotate(-96deg);
+        transform: translate(-10%, -126%) scale(0.74) rotate(16deg);
     }
-    14% {
+    12% {
         opacity: 1;
-        transform: translate(6%, -86%) scale(0.82) rotate(-90deg);
+        transform: translate(-8%, -94%) scale(0.82) rotate(24deg);
     }
-    36% {
+    34% {
         opacity: 1;
-        transform: translate(2%, -34%) scale(0.96) rotate(-66deg);
+        transform: translate(-4%, -36%) scale(0.96) rotate(38deg);
     }
-    60% {
+    58% {
         opacity: 1;
-        transform: translate(-3%, 6%) scale(1.02) rotate(-20deg);
+        transform: translate(0%, 8%) scale(1.01) rotate(56deg);
     }
     100% {
         opacity: 0;
-        transform: translate(-10%, 24%) scale(0.96) rotate(10deg);
+        transform: translate(2%, 44%) scale(0.95) rotate(64deg);
     }
 }
 
@@ -5825,12 +5825,12 @@ body.modal-lock .modal-overlay {
     animation-timing-function: cubic-bezier(0.2, 0.82, 0.24, 1);
 }
 
-.tarot-kingdom-slash-fragment.is-top.run {
-    animation-name: tarotKingdomSlashFragmentTop;
+.tarot-kingdom-slash-fragment.is-left.run {
+    animation-name: tarotKingdomSlashFragmentLeft;
 }
 
-.tarot-kingdom-slash-fragment.is-bottom.run {
-    animation-name: tarotKingdomSlashFragmentBottom;
+.tarot-kingdom-slash-fragment.is-right.run {
+    animation-name: tarotKingdomSlashFragmentRight;
 }
 
 @keyframes tarotKingdomDefeatParticleNormal {
@@ -5901,18 +5901,18 @@ body.modal-lock .modal-overlay {
     100% { opacity: 0; transform: translate(calc(-50% + 2px), calc(-50% + 4px)) scale(0.82); filter: brightness(0.08); }
 }
 
-@keyframes tarotKingdomSlashFragmentTop {
+@keyframes tarotKingdomSlashFragmentLeft {
     0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); filter: brightness(1.06); }
     12% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); filter: brightness(1.12); }
-    46% { opacity: 1; transform: translate3d(-8px, -14px, 0) rotate(-8deg) scale(1.01); filter: brightness(1.02); }
-    100% { opacity: 0; transform: translate3d(-18px, -42px, 0) rotate(-15deg) scale(0.96); filter: brightness(0.94); }
+    44% { opacity: 1; transform: translate3d(-6px, -2px, 0) rotate(-4deg) scale(1.01); filter: brightness(1.02); }
+    100% { opacity: 0; transform: translate3d(-24px, -6px, 0) rotate(-9deg) scale(0.96); filter: brightness(0.94); }
 }
 
-@keyframes tarotKingdomSlashFragmentBottom {
+@keyframes tarotKingdomSlashFragmentRight {
     0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); filter: brightness(1.02); }
     12% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); filter: brightness(1.08); }
-    46% { opacity: 1; transform: translate3d(8px, 14px, 0) rotate(8deg) scale(1.01); filter: brightness(0.98); }
-    100% { opacity: 0; transform: translate3d(18px, 42px, 0) rotate(15deg) scale(0.96); filter: brightness(0.9); }
+    44% { opacity: 1; transform: translate3d(6px, 2px, 0) rotate(4deg) scale(1.01); filter: brightness(0.98); }
+    100% { opacity: 0; transform: translate3d(24px, 6px, 0) rotate(9deg) scale(0.96); filter: brightness(0.9); }
 }
 
 .tarot-card.is-chariot-splitting {
