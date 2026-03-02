@@ -6025,6 +6025,14 @@ function startOrNext() {
   }
 }
 
+function canStartKingdomRoundFromLobby() {
+  if (!s) return false;
+  if (s.awaitRoundConfirm) return false;
+  if (s.roundActive) return false;
+  if (s.phase === 'done') return false;
+  return Number(s.handNo || 0) < TOTAL_HANDS;
+}
+
 async function activateKingdomOnlineMode() {
   kingdomStartMode = 'online';
   netManualOfflineMode = false;
@@ -6078,8 +6086,8 @@ function activateKingdomOfflineMode() {
 function activateAndStartKingdomOfflineMode() {
   activateKingdomOfflineMode();
   if (!s) return;
-  if (!s.roundActive && !s.awaitRoundConfirm) {
-    startOrNext();
+  if (canStartKingdomRoundFromLobby()) {
+    beginNextRound();
   }
 }
 
@@ -6098,19 +6106,28 @@ function returnToKingdomModeChoice(message = 'オンラインかオフライン�
   });
 }
 
-function handleKingdomOnlineStartClick() {
+async function removeCurrentOpenRoomIndex() {
+  if (!isNetModeActive() || !tkNet.isHost || !netOpenRoomIndexEnabled || !tkNet.roomId) return;
+  try {
+    await remove(ref(tkNet.db, `${TK_MATCH_ROOT}/openRooms/${tkNet.roomId}`)).catch(() => {});
+  } catch (_) {
+    // syncOpenRoomIndex will re-open or degrade permission mode if needed
+  }
+}
+
+async function handleKingdomOnlineStartClick() {
   if (!s) return;
   if (isKingdomOnlineConnecting()) return;
   if (kingdomStartMode !== 'online' || !isNetModeActive()) {
-    activateKingdomOnlineMode().catch((error) => {
-      console.warn('[tarotKingdom] online mode activation failed:', error);
-    });
+    await activateKingdomOnlineMode();
     return;
   }
   if (!tkNet.isHost) return;
-  requestHostAction({ type: 'startOrNext' }, () => startOrNext()).catch((error) => {
-    console.warn('[tarotKingdom] start action failed:', error);
-  });
+  if (!canStartKingdomRoundFromLobby()) return;
+  s.message = '対戦を開始しています...';
+  render();
+  await removeCurrentOpenRoomIndex();
+  await requestHostAction({ type: 'startOrNext' }, () => startOrNext());
 }
 
 function handleKingdomOfflineStartClick() {
@@ -6279,7 +6296,13 @@ function bindUi() {
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
   ui.startOnlineButton?.addEventListener('click', () => {
-    handleKingdomOnlineStartClick();
+    handleKingdomOnlineStartClick().catch((error) => {
+      console.warn('[tarotKingdom] online start click failed:', error);
+      if (s) {
+        s.message = 'オンライン開始に失敗しました。もう一度試してください。';
+        render();
+      }
+    });
   });
   ui.startOfflineButton?.addEventListener('click', () => {
     handleKingdomOfflineStartClick();

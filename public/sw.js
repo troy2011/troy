@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v1';
+const CACHE_VERSION = 'troy-app-v2';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 
@@ -34,17 +34,32 @@ function isCacheableRequest(request) {
   return true;
 }
 
+function isFreshCodeAsset(request) {
+  if (!request) return false;
+  const url = new URL(request.url);
+  const path = String(url.pathname || '');
+  return (
+    path === '/' ||
+    path.endsWith('/index.html') ||
+    path.endsWith('.js') ||
+    path.endsWith('.css') ||
+    path.endsWith('.html') ||
+    path.endsWith('.webmanifest')
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (!isCacheableRequest(request)) return;
 
   const isNavigation = request.mode === 'navigate';
-  if (isNavigation) {
+  if (isNavigation || isFreshCodeAsset(request)) {
     event.respondWith(
       fetch(request)
         .then((response) => {
           const cloned = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, cloned)).catch(() => undefined);
+          const cacheName = isNavigation ? RUNTIME_CACHE : CORE_CACHE;
+          caches.open(cacheName).then((cache) => cache.put(request, cloned)).catch(() => undefined);
           return response;
         })
         .catch(async () => {
@@ -67,4 +82,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-
