@@ -702,7 +702,7 @@ const MAJOR_ATTACK_FX = {
 
 const SUIT_ATTACK_DEBUG_FX = {
   Sword: { leadEmoji: '🗡️', markerEmoji: '🗡️', pattern: 'rush', kind: 'slash', label: 'ソード斬撃' },
-  Pentacle: { leadEmoji: '🪙', markerEmoji: '🪙', pattern: 'slam', kind: 'rock', label: 'ペンタクル直撃' },
+  Pentacle: { leadEmoji: '🏅', markerEmoji: '🏅', pattern: 'slam', kind: 'rock', label: 'ペンタクル直撃' },
   Cup: { leadEmoji: '💦', markerEmoji: '💦', pattern: 'float', kind: 'water', label: 'カップ溶解' },
   Wand: { leadEmoji: '🔥', markerEmoji: '🔥', pattern: 'burst', kind: 'fire', label: 'ワンド燃焼' }
 };
@@ -730,7 +730,7 @@ const isMajorAttackFx = (arcanaFx) => !!(arcanaFx && Number.isFinite(Number(arca
 const ARCANA_DEFEAT_PATTERNS = ['orbit', 'float', 'slam', 'burst', 'rush', 'trickster', 'throne', 'edict', 'sanctum', 'halo', 'verdict', 'rift', 'world'];
 const DEFEAT_MARKER_BY_KIND = {
   slash: '🗡️',
-  rock: '🪙',
+  rock: '🏅',
   water: '💦',
   fire: '🔥'
 };
@@ -1969,7 +1969,7 @@ function spawnKingdomDefeatParticles(targetEl, kind = 'normal', options = {}) {
     // Slash now uses only the sword marker + split clones.
     return;
   } else if (kind === 'rock') {
-    particles.push({ emoji: markerEmoji || '🪙', variant: 'is-rock-main', x: baseX, y: baseY - 56, dur: 520, offset: 0 });
+    particles.push({ emoji: markerEmoji || '🏅', variant: 'is-rock-main', x: baseX, y: baseY - 56, dur: 520, offset: 0 });
     particles.push({ emoji: '🪙', variant: 'is-rock-ground', x: baseX - 18, y: baseY - 24, dur: 420, offset: 68 });
     particles.push({ emoji: '💥', variant: 'is-rock-hit', x: baseX + 2, y: baseY + 2, dur: 260, offset: 148 });
   } else if (kind === 'water') {
