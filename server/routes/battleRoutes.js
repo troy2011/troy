@@ -686,6 +686,267 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         }
         return ids;
     };
+    const getPlayerNation = async (playFabId) => {
+        if (!playFabId) return '';
+        try {
+            const result = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: ['Nation']
+            });
+            return String(result?.Data?.Nation?.Value || '').trim().toLowerCase();
+        } catch (error) {
+            console.warn('[Battle] Failed to resolve nation:', error?.errorMessage || error?.message || error);
+            return '';
+        }
+    };
+    const getWorldMapCollection = (mapId) => {
+        const raw = String(mapId || '').trim();
+        if (!raw) return firestore.collection('world_map');
+        return firestore.collection(`world_map_${raw}`);
+    };
+    const normalizeCaptureQueueEntries = (raw) => {
+        if (!Array.isArray(raw)) return [];
+        return raw
+            .map((entry) => ({
+                playFabId: String(entry?.playFabId || '').trim(),
+                nation: String(entry?.nation || '').trim().toLowerCase() || null,
+                joinedAt: Number(entry?.joinedAt) || 0
+            }))
+            .filter((entry) => entry.playFabId);
+    };
+    const getCaptureSpeedMultiplier = (memberCount) => {
+        const count = Math.max(1, Math.floor(Number(memberCount) || 1));
+        return Math.min(4, 1 + ((count - 1) * 0.5));
+    };
+    const updateIslandCaptureAfterBattle = async ({ islandId, mapId, remainingDefenderIds }) => {
+        if (!islandId || !mapId) return null;
+        const islandRef = getWorldMapCollection(mapId).doc(islandId);
+        const now = Date.now();
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(islandRef);
+            if (!snap.exists) throw new Error('IslandNotFound');
+            const data = snap.data() || {};
+            const currentState = data.captureState || {};
+            const currentQueue = normalizeCaptureQueueEntries(currentState.queue);
+            const survivorSet = new Set(
+                Array.isArray(remainingDefenderIds)
+                    ? remainingDefenderIds.map((entry) => String(entry || '').trim()).filter(Boolean)
+                    : []
+            );
+            const nextQueue = currentQueue.filter((entry) => survivorSet.has(entry.playFabId));
+            const baseDurationMs = Math.max(0, Number(currentState.baseDurationMs) || 0);
+            const progressBaseMs = Math.max(
+                0,
+                Math.min(baseDurationMs || Number(currentState.progressBaseMs) || 0, Number(currentState.progressBaseMs) || 0)
+            );
+            const breachedAt = Number(currentState.breachedAt) || now;
+            let nextState;
+            if (nextQueue.length > 0) {
+                const speed = getCaptureSpeedMultiplier(nextQueue.length);
+                const remainingBaseMs = Math.max(0, baseDurationMs - progressBaseMs);
+                nextState = {
+                    ...currentState,
+                    status: 'capturing',
+                    breachedAt,
+                    queue: nextQueue,
+                    progressBaseMs,
+                    lastProgressAt: now,
+                    endsAt: remainingBaseMs <= 0 ? now : now + Math.ceil(remainingBaseMs / speed),
+                    ownerCandidateId: nextQueue[0].playFabId,
+                    ownerCandidateNation: nextQueue[0].nation || null
+                };
+            } else {
+                nextState = {
+                    ...currentState,
+                    status: 'breached',
+                    breachedAt,
+                    queue: [],
+                    progressBaseMs: 0,
+                    lastProgressAt: 0,
+                    endsAt: 0,
+                    ownerCandidateId: null,
+                    ownerCandidateNation: null
+                };
+            }
+            tx.update(islandRef, {
+                captureState: nextState,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return nextState;
+        });
+    };
+    const runSequentialRideBattle = async ({ attackerId, defenderId, partyA, partyB }) => {
+        const battleRef = db.ref('battles').push();
+        const battleId = battleRef.key;
+        const playersPayload = {};
+        const logEntries = {};
+        const roundResults = [];
+        let round = 1;
+        let currentAIndex = 0;
+        let currentBIndex = 0;
+        let lastWinnerId = null;
+        let lastLoserId = null;
+        let timeCursor = Date.now();
+        const appendLog = (line) => {
+            logEntries[timeCursor++] = line;
+        };
+        const rememberPlayer = (player) => {
+            if (!player?.id || playersPayload[player.id]) return;
+            playersPayload[player.id] = {
+                name: player.stats.DisplayName,
+                hp: Math.max(0, Number(player.stats.CurrentHP || 0)),
+                maxHp: player.stats.MaxHP,
+                online: true,
+                level: player.level,
+                stats: { すばやさ: player.stats.すばやさ },
+                avatar: player.avatar,
+                equipment: player.equipment
+            };
+        };
+        const getActiveShipIdForPlayer = async (playFabId) => {
+            if (!playFabId) return null;
+            try {
+                const readOnly = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Keys: ['ActiveShipId']
+                });
+                const value = readOnly?.Data?.ActiveShipId?.Value;
+                return value ? String(value) : null;
+            } catch (error) {
+                console.warn('[RideBattle] Failed to resolve ActiveShipId:', error?.errorMessage || error?.message || error);
+                return null;
+            }
+        };
+        const respawnParty = async (partyIds) => {
+            const respawnShip = app?.locals?.respawnShip;
+            if (!respawnShip || !Array.isArray(partyIds) || partyIds.length === 0) return;
+            for (const playerId of partyIds) {
+                const shipId = await getActiveShipIdForPlayer(playerId);
+                if (!shipId) continue;
+                try {
+                    await respawnShip(playerId, shipId, 'party_defeat');
+                } catch (error) {
+                    console.warn('[RideBattle] Failed to respawn party ship:', error?.message || error);
+                }
+            }
+        };
+
+        while (currentAIndex < partyA.length && currentBIndex < partyB.length) {
+            const fighterAId = partyA[currentAIndex];
+            const fighterBId = partyB[currentBIndex];
+            const playerA = await getPlayerFullProfile(fighterAId);
+            const playerB = await getPlayerFullProfile(fighterBId);
+            rememberPlayer(playerA);
+            rememberPlayer(playerB);
+
+            appendLog(`【連戦 ${round}】${playerA.stats.DisplayName} vs ${playerB.stats.DisplayName}`);
+            const battleResult = await runBattle(playerA, playerB);
+            (battleResult.logs || []).forEach((line) => appendLog(line));
+
+            if (!battleResult?.winner || !battleResult?.loser) {
+                appendLog('勝敗がつかなかった...');
+                break;
+            }
+
+            const winnerId = battleResult.winner.id;
+            const loserId = battleResult.loser.id;
+            lastWinnerId = winnerId;
+            lastLoserId = loserId;
+            roundResults.push({
+                round,
+                attackerId: fighterAId,
+                defenderId: fighterBId,
+                winnerId,
+                loserId
+            });
+
+            await Promise.all([
+                savePlayerHpMp(battleResult.winner),
+                savePlayerHpMp(battleResult.loser)
+            ]);
+            handleBattleRewards(battleId, winnerId, loserId, `round_${round}`).catch((rewardError) => {
+                console.error(`[勝敗処理エラー] battleId: ${battleId}`, rewardError);
+            });
+            recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
+
+            if (winnerId === fighterAId) {
+                currentBIndex += 1;
+            } else {
+                currentAIndex += 1;
+            }
+            round += 1;
+        }
+
+        let defeatedParty = null;
+        if (currentAIndex >= partyA.length && currentBIndex < partyB.length) {
+            defeatedParty = partyA;
+        } else if (currentBIndex >= partyB.length && currentAIndex < partyA.length) {
+            defeatedParty = partyB;
+        }
+        if (defeatedParty && defeatedParty.length > 0) {
+            appendLog('全員が敗北したため船が復活した。');
+            await respawnParty(defeatedParty);
+        }
+
+        const finalBattleState = {
+            status: 'finished',
+            winner: lastWinnerId || null,
+            lastActionPlayer: null,
+            players: playersPayload,
+            log: logEntries,
+            rounds: roundResults
+        };
+
+        await battleRef.set(finalBattleState);
+        recentBattlePairs.set(getPairKey(attackerId, defenderId), Date.now() + battlePairCooldownMs);
+
+        const invitationRef = db.ref('invitations').push();
+        const invitationId = invitationRef.key;
+        const attackerName = playersPayload[attackerId]?.name || attackerId;
+        const defenderName = playersPayload[defenderId]?.name || defenderId;
+        await invitationRef.set({
+            status: 'started',
+            battleId,
+            from: { id: attackerId, name: attackerName },
+            to: { id: defenderId, name: defenderName },
+            createdAt: require('firebase-admin').database.ServerValue.TIMESTAMP
+        });
+
+        try {
+            const notify = async (targetId, payload) => {
+                await firestore
+                    .collection('notifications')
+                    .doc(targetId)
+                    .collection('items')
+                    .add({
+                        type: 'battle_result',
+                        battleId,
+                        ...payload,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+            };
+            for (const roundInfo of roundResults) {
+                const winnerId = roundInfo.winnerId || null;
+                const loserId = roundInfo.loserId || null;
+                if (winnerId) {
+                    await notify(winnerId, { result: 'win', opponentId: loserId, round: roundInfo.round });
+                }
+                if (loserId) {
+                    await notify(loserId, { result: 'lose', opponentId: winnerId, round: roundInfo.round });
+                }
+            }
+        } catch (notifyError) {
+            console.warn('[RideBattle] Notification write failed:', notifyError?.message || notifyError);
+        }
+
+        return {
+            battleId,
+            invitationId,
+            roundResults,
+            remainingPartyA: currentAIndex < partyA.length ? partyA.slice(currentAIndex) : [],
+            remainingPartyB: currentBIndex < partyB.length ? partyB.slice(currentBIndex) : []
+        };
+    };
 
     // ----------------------------------------------------
     // API 11: バトル実行 (自動戦闘・即時決着)
@@ -905,6 +1166,90 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         } catch (error) {
             console.error('[バトル作成エラー]', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'バトル作成中にエラーが発生しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/start-island-capture-battle', async (req, res) => {
+        const { attackerId, islandId, mapId } = req.body || {};
+        if (!attackerId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });
+        }
+
+        try {
+            const islandRef = getWorldMapCollection(mapId).doc(islandId);
+            const islandSnap = await islandRef.get();
+            if (!islandSnap.exists) {
+                return res.status(404).json({ error: 'IslandNotFound' });
+            }
+
+            const islandData = islandSnap.data() || {};
+            const captureQueue = normalizeCaptureQueueEntries(islandData?.captureState?.queue);
+            if (captureQueue.length === 0) {
+                return res.status(409).json({ error: 'CaptureDefendersMissing' });
+            }
+
+            const defenderId = captureQueue[0].playFabId;
+            if (!defenderId || defenderId === attackerId) {
+                return res.status(409).json({ error: 'CaptureBattleInvalid' });
+            }
+
+            const attackerNation = await getPlayerNation(attackerId);
+            const defenderNation = String(captureQueue[0]?.nation || '').toLowerCase();
+            if (attackerNation && defenderNation && attackerNation === defenderNation) {
+                return res.status(403).json({ error: 'SameNationCaptureBattleBlocked' });
+            }
+
+            const [attackerShipMeta, defenderShipMeta] = await Promise.all([
+                resolvePlayerActiveShipMeta(attackerId),
+                resolveDefenderShipMeta(defenderId)
+            ]);
+            const attackerClass = normalizeShipClass(
+                attackerShipMeta?.shipClass || resolveShipClassFromItemId(attackerShipMeta?.itemId)
+            );
+            if (shouldBlockBoardingByShipClass(attackerClass, defenderShipMeta)) {
+                return res.status(403).json({ error: 'BOARDING_CLASS_RESTRICTED' });
+            }
+
+            pruneBattlePairs();
+            const pairKey = getPairKey(attackerId, defenderId);
+            const blockedUntil = recentBattlePairs.get(pairKey) || 0;
+            if (blockedUntil > Date.now()) {
+                return res.status(429).json({ error: 'BattleCooldownActive' });
+            }
+
+            const partyA = await getRidePartyIds(attackerId);
+            const partyB = captureQueue.map((entry) => entry.playFabId).filter(Boolean);
+            if (partyA.length === 0 || partyB.length === 0) {
+                return res.status(409).json({ error: 'CaptureBattlePartyMissing' });
+            }
+
+            const result = await runSequentialRideBattle({
+                attackerId,
+                defenderId,
+                partyA,
+                partyB
+            });
+
+            const nextCaptureState = await updateIslandCaptureAfterBattle({
+                islandId,
+                mapId,
+                remainingDefenderIds: result.remainingPartyB
+            });
+
+            res.json({
+                status: 'Battle Finished',
+                battleId: result.battleId,
+                invitationId: result.invitationId,
+                islandId,
+                mapId,
+                captureState: nextCaptureState || null
+            });
+        } catch (error) {
+            console.error('[start-island-capture-battle] Error:', error?.errorMessage || error?.message || error);
+            res.status(500).json({
+                error: 'Failed to start island capture battle',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 

@@ -283,6 +283,8 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipArrivalTimer = null;
         this.collidingIsland = null;
         this.commandMenuOpen = false;
+        this.islandCommandRefreshTimer = null;
+        this.islandCaptureCompleteTimer = null;
         this.collidingShipId = null;
         this.shipPanelSuppressed = false;
         this.mapOccupationNation = null;
@@ -1232,7 +1234,8 @@ export default class WorldMapScene extends Phaser.Scene {
                         biome: data.biome,
                         biomeFrame: data.biomeFrame,
                         buildingSlots: data.buildingSlots,
-                        buildings: data.buildings || []
+                        buildings: data.buildings || [],
+                        captureState: data.captureState || null
                     });
                     loadedCount++;
                 } catch (islandError) {
@@ -2031,15 +2034,18 @@ export default class WorldMapScene extends Phaser.Scene {
             id: data.id,
             x: data.x,
             y: data.y,
+            mapId: data.mapId || this.mapId,
             width: islandWidth,
             height: islandHeight,
             name: data.name,
+            size: data.size || 'small',
             type: data.type,
             ownerNation: ownerNation,
             ownerId: data.ownerId,
             biome: data.biome,
             buildings: Array.isArray(data.buildings) ? data.buildings : [],
             occupationStatus: data.occupationStatus || null,
+            captureState: data.captureState || null,
             sprites: islandSprites,
             buildingSprites: buildingSprites,
             nameText: nameText,
@@ -2192,6 +2198,11 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
+        if (this.collidingIsland && (!targetIsland || targetIsland.id !== this.collidingIsland.id) && this.isPlayerInIslandCapture(this.collidingIsland)) {
+            this.clearIslandCommandTimers(true);
+            void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
+        }
+
         this.hideIslandCommandMenu();
 
         const distance = Phaser.Math.Distance.Between(startX, startY, x, y);
@@ -2242,7 +2253,10 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateMyShipStoppedPosition();
 
         if (this.shipTargetIsland) {
-            this.claimIsland(this.shipTargetIsland);
+            this.collidingIsland = this.shipTargetIsland;
+            if (!this.commandMenuOpen) {
+                this.showIslandCommandMenu(this.shipTargetIsland);
+            }
         }
 
         if (this.hasEnemyInView()) {
@@ -3794,7 +3808,9 @@ export default class WorldMapScene extends Phaser.Scene {
             biome: data.biome,
             biomeFrame: data.biomeFrame,
             buildingSlots: data.buildingSlots,
-            buildings: data.buildings || []
+            buildings: data.buildings || [],
+            captureState: data.captureState || null,
+            mapId: this.mapId
         });
     }
 
@@ -5462,6 +5478,187 @@ export default class WorldMapScene extends Phaser.Scene {
         }
     }
 
+    getActiveIslandBuilding(islandData) {
+        const buildings = Array.isArray(islandData?.buildings) ? islandData.buildings : [];
+        return buildings.find((entry) => entry && entry.status !== 'demolished') || null;
+    }
+
+    hasActiveIslandBuilding(islandData) {
+        return !!this.getActiveIslandBuilding(islandData);
+    }
+
+    getIslandCaptureState(islandData) {
+        const slotLimitMap = { small: 1, medium: 2, large: 4, giant: 8 };
+        const raw = islandData?.captureState || null;
+        const queue = Array.isArray(raw?.queue)
+            ? raw.queue
+                .filter((entry) => entry && entry.playFabId)
+                .map((entry) => ({
+                    playFabId: entry.playFabId,
+                    nation: String(entry.nation || '').toLowerCase(),
+                    joinedAt: Number(entry.joinedAt) || 0
+                }))
+            : [];
+        const slotLimit = Math.max(1, Number(raw?.slotLimit) || slotLimitMap[String(islandData?.size || 'small').toLowerCase()] || 1);
+        const baseDurationMs = Math.max(60_000, Math.min(300_000, Number(raw?.baseDurationMs) || (slotLimit === 1 ? 60_000 : slotLimit === 2 ? 120_000 : slotLimit === 4 ? 180_000 : 300_000)));
+        const status = String(raw?.status || '').toLowerCase();
+        const activeBuilding = this.getActiveIslandBuilding(islandData);
+        const breached = !activeBuilding;
+        const normalizedStatus = queue.length > 0
+            ? 'capturing'
+            : (status === 'breached' || breached ? 'breached' : 'idle');
+        const endsAt = Number(raw?.endsAt) || 0;
+        return {
+            status: normalizedStatus,
+            queue,
+            slotLimit,
+            baseDurationMs,
+            progressBaseMs: Math.max(0, Number(raw?.progressBaseMs) || 0),
+            lastProgressAt: Number(raw?.lastProgressAt) || 0,
+            endsAt,
+            ownerCandidateId: raw?.ownerCandidateId || queue[0]?.playFabId || null,
+            ownerCandidateNation: raw?.ownerCandidateNation || queue[0]?.nation || null,
+            breached
+        };
+    }
+
+    setIslandCaptureState(islandData, nextState) {
+        if (!islandData) return;
+        islandData.captureState = nextState || null;
+        if (this.collidingIsland?.id === islandData.id) {
+            this.collidingIsland.captureState = islandData.captureState;
+        }
+    }
+
+    isPlayerInIslandCapture(islandData) {
+        const myId = this.playerInfo?.playFabId;
+        if (!myId) return false;
+        const state = this.getIslandCaptureState(islandData);
+        return state.queue.some((entry) => entry.playFabId === myId);
+    }
+
+    clearIslandCommandTimers(includeCapture = true) {
+        if (this.islandCommandRefreshTimer) {
+            clearTimeout(this.islandCommandRefreshTimer);
+            this.islandCommandRefreshTimer = null;
+        }
+        if (includeCapture && this.islandCaptureCompleteTimer) {
+            clearTimeout(this.islandCaptureCompleteTimer);
+            this.islandCaptureCompleteTimer = null;
+        }
+    }
+
+    scheduleIslandCommandRefresh(islandData, delayMs = 1000) {
+        this.clearIslandCommandTimers(false);
+        if (!this.commandMenuOpen || !islandData || this.collidingIsland?.id !== islandData.id) return;
+        const safeDelay = Math.max(250, Math.floor(Number(delayMs) || 1000));
+        this.islandCommandRefreshTimer = setTimeout(() => {
+            this.islandCommandRefreshTimer = null;
+            const latestIsland = this.islandObjects.get(islandData.id) || islandData;
+            if (!this.commandMenuOpen || this.collidingIsland?.id !== latestIsland.id) return;
+            this.showIslandCommandMenu(latestIsland);
+        }, safeDelay);
+    }
+
+    async postIslandCaptureAction(endpoint, islandData) {
+        const playFabId = this.playerInfo?.playFabId;
+        if (!playFabId || !islandData?.id) {
+            throw new Error('ログイン情報が不足しています。');
+        }
+        const res = await fetch((window.buildApiUrl ? window.buildApiUrl(endpoint) : endpoint), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                playFabId,
+                islandId: islandData.id,
+                mapId: islandData.mapId || this.mapId
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+        return data || {};
+    }
+
+    async damageIslandBuildingViaApi(islandData) {
+        const playFabId = this.playerInfo?.playFabId;
+        if (!playFabId || !islandData?.id) {
+            this.showMessage('ログインが必要です。');
+            return;
+        }
+        try {
+            const data = await this.postIslandCaptureAction('/api/damage-island-building', islandData);
+            await this.reloadIslandFromFirestore(islandData.id);
+            const latestIsland = this.islandObjects.get(islandData.id);
+            if (latestIsland) {
+                if (data.captureState) {
+                    this.setIslandCaptureState(latestIsland, data.captureState);
+                }
+                this.collidingIsland = latestIsland;
+                this.showMessage(data.destroyed ? '建物を突破しました。上陸できます。' : '建物に砲撃を命中させた。');
+                this.showIslandCommandMenu(latestIsland);
+            }
+        } catch (error) {
+            console.error('島の砲撃に失敗しました:', error);
+            this.showError(error?.message || '島の砲撃に失敗しました。');
+        }
+    }
+
+    async startIslandCaptureFlow(islandData, mode = 'start', options = {}) {
+        const endpoint = mode === 'join'
+            ? '/api/join-island-capture'
+            : mode === 'cancel'
+                ? '/api/cancel-island-capture'
+                : '/api/start-island-capture';
+        const silent = !!options?.silent;
+        try {
+            const data = await this.postIslandCaptureAction(endpoint, islandData);
+            const latestIsland = this.islandObjects.get(islandData.id) || islandData;
+            this.setIslandCaptureState(latestIsland, data.captureState || null);
+            if (!silent || this.collidingIsland?.id === latestIsland.id) {
+                this.collidingIsland = latestIsland;
+            }
+            if (!silent && mode === 'join') {
+                this.showMessage('占領に参加しました。');
+            } else if (!silent && mode === 'cancel') {
+                this.showMessage('上陸を中断しました。');
+            } else if (!silent) {
+                this.showMessage('上陸を開始しました。');
+            }
+            if (!silent) {
+                this.showIslandCommandMenu(latestIsland);
+            }
+        } catch (error) {
+            console.error('[IslandCapture] Failed:', error);
+            if (!silent) {
+                this.showError(error?.message || '島の占領操作に失敗しました。');
+            }
+        }
+    }
+
+    async completeIslandCaptureFlow(islandData) {
+        try {
+            const data = await this.postIslandCaptureAction('/api/complete-island-capture', islandData);
+            const latestIsland = this.islandObjects.get(islandData.id) || islandData;
+            latestIsland.ownerId = data.ownerId || this.playerInfo.playFabId;
+            latestIsland.ownerNation = data.ownerNation || this.playerInfo.nation || null;
+            latestIsland.captureState = null;
+            if (data.mapOccupationNation !== undefined) {
+                this.mapOccupationNation = data.mapOccupationNation || null;
+                this.updateAreaControlState();
+            }
+            await this.reloadIslandFromFirestore(islandData.id);
+            const reloadedIsland = this.islandObjects.get(islandData.id) || latestIsland;
+            this.collidingIsland = reloadedIsland;
+            this.showMessage(`${reloadedIsland.name || '島'}を占領しました。`);
+            this.showIslandCommandMenu(reloadedIsland);
+        } catch (error) {
+            console.error('[CompleteIslandCapture] Failed:', error);
+            this.showError(error?.message || '島の占領完了に失敗しました。');
+        }
+    }
+
     async claimIsland(islandData) {
         if (!this.playerInfo.playFabId || islandData.ownerId === this.playerInfo.playFabId) {
             return;
@@ -5511,17 +5708,19 @@ export default class WorldMapScene extends Phaser.Scene {
     showIslandCommandMenu(islandData) {
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
+        const statusEl = document.getElementById('islandCommandStatus');
         const actionBtn = document.getElementById('islandCommandAction');
         const tarotBtn = document.getElementById('islandCommandTarot');
         const attackBtn = document.getElementById('islandCommandAttack');
         const closeBtn = document.getElementById('islandCommandClose');
 
-        if (!panel || !title || !actionBtn || !attackBtn || !closeBtn) {
+        if (!panel || !title || !statusEl || !actionBtn || !attackBtn || !closeBtn) {
             console.error('[showIslandCommandMenu] HTMLパネルが見つかりません');
             return;
         }
 
         this.wireIslandCommandPullToClose();
+        this.clearIslandCommandTimers(true);
 
         title.textContent = islandData.name;
 
@@ -5562,6 +5761,52 @@ export default class WorldMapScene extends Phaser.Scene {
         const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
         const canPlayTarot = !!myPlayFabId && isOwner;
         const menuLabel = hasBuilding ? '施設メニュー' : (isResourceIsland ? '採取メニュー' : '建設メニュー');
+        const captureState = this.getIslandCaptureState(islandData);
+        const captureQueue = captureState.queue;
+        const captureLeader = captureQueue[0] || null;
+        const captureLeaderNation = String(captureLeader?.nation || '').toLowerCase();
+        const isCaptureMember = !!myPlayFabId && captureQueue.some((entry) => entry.playFabId === myPlayFabId);
+        const isCaptureLeader = !!myPlayFabId && captureLeader?.playFabId === myPlayFabId;
+        const captureRemainingMs = captureQueue.length > 0 && captureState.endsAt > 0
+            ? Math.max(0, captureState.endsAt - Date.now())
+            : 0;
+        const captureRemainingSeconds = Math.max(0, Math.ceil(captureRemainingMs / 1000));
+        const hasAllyCapture = !!captureLeader && !!playerNation && !!captureLeaderNation && captureLeaderNation === playerNation;
+        const hasEnemyCapture = !!captureLeader && !!playerNation && !!captureLeaderNation && captureLeaderNation !== playerNation;
+        const isEnemyOwned = !!islandData.ownerId && !isOwner && !isOwnNation;
+        const activeBuilding = this.getActiveIslandBuilding(islandData);
+        const buildingMaxHp = Number(activeBuilding?.maxHp) || 0;
+        const buildingCurrentHp = Number.isFinite(Number(activeBuilding?.currentHp))
+            ? Math.max(0, Number(activeBuilding.currentHp))
+            : buildingMaxHp;
+
+        const statusParts = [];
+        if (activeBuilding) {
+            statusParts.push(`建物HP ${buildingCurrentHp}/${buildingMaxHp}`);
+        } else if (isEnemyOwned || captureState.status === 'breached' || captureQueue.length > 0) {
+            statusParts.push('突破済み');
+        }
+        if (captureQueue.length > 0) {
+            const leaderLabel = isCaptureLeader
+                ? 'あなた'
+                : (captureLeaderNation ? `${captureLeaderNation}先頭` : `先頭 ${String(captureLeader?.playFabId || '').slice(0, 6)}`);
+            if (captureRemainingSeconds > 0) {
+                statusParts.push(`占領中 残り${captureRemainingSeconds}秒`);
+            } else {
+                statusParts.push('占領完了可能');
+            }
+            statusParts.push(`参加 ${captureQueue.length}/${captureState.slotLimit}`);
+            statusParts.push(`先頭: ${leaderLabel}`);
+        } else if (!activeBuilding && isEnemyOwned) {
+            statusParts.push(`上陸可能 ${captureQueue.length}/${captureState.slotLimit}`);
+        }
+        if (statusParts.length > 0) {
+            statusEl.style.display = 'block';
+            statusEl.textContent = statusParts.join(' / ');
+        } else {
+            statusEl.style.display = 'none';
+            statusEl.textContent = '';
+        }
 
         let buttonText = `${menuLabel}を開く`;
         let buttonClass = 'info';
@@ -5579,6 +5824,72 @@ export default class WorldMapScene extends Phaser.Scene {
             onClick = async () => {
                 await this.openBuildingMenuForIsland(islandData);
             };
+        } else if (isEnemyOwned) {
+            if (activeBuilding) {
+                buttonText = '建物を砲撃';
+                buttonClass = 'danger';
+                onClick = async () => {
+                    await this.damageIslandBuildingViaApi(islandData);
+                };
+            } else if (hasEnemyCapture && captureLeader) {
+                buttonText = '防衛隊に攻め込む';
+                buttonClass = 'danger';
+                onClick = async () => {
+                    this.hideIslandCommandMenu();
+                    if (typeof window !== 'undefined' && typeof window.startIslandCaptureBattleWithOpponent === 'function') {
+                        const started = await window.startIslandCaptureBattleWithOpponent(
+                            captureLeader.playFabId,
+                            islandData.id,
+                            islandData.mapId || this.mapId
+                        );
+                        if (!started) {
+                            const latestIsland = await this.reloadIslandFromFirestore(islandData.id);
+                            if (latestIsland) {
+                                this.collidingIsland = latestIsland;
+                                this.showIslandCommandMenu(latestIsland);
+                            }
+                        }
+                    } else {
+                        this.showMessage('戦闘システムを読み込めません。');
+                    }
+                };
+            } else if (hasEnemyCapture) {
+                buttonText = '敵が防衛中';
+                buttonClass = 'disabled';
+                onClick = () => this.showMessage('敵と交戦中です。');
+            } else if (isCaptureMember) {
+                if (isCaptureLeader && captureRemainingMs <= 0) {
+                    buttonText = '占領を完了';
+                    buttonClass = 'warning';
+                    onClick = async () => {
+                        await this.completeIslandCaptureFlow(islandData);
+                    };
+                } else {
+                    buttonText = '上陸をやめる';
+                    buttonClass = 'danger';
+                    onClick = async () => {
+                        await this.startIslandCaptureFlow(islandData, 'cancel');
+                    };
+                }
+            } else if (hasAllyCapture) {
+                if (captureQueue.length < captureState.slotLimit) {
+                    buttonText = '占領に参加';
+                    buttonClass = 'warning';
+                    onClick = async () => {
+                        await this.startIslandCaptureFlow(islandData, 'join');
+                    };
+                } else {
+                    buttonText = '上陸枠が満員';
+                    buttonClass = 'disabled';
+                    onClick = () => this.showMessage('この島はこれ以上上陸できません。');
+                }
+            } else {
+                buttonText = '上陸して占領開始';
+                buttonClass = 'warning';
+                onClick = async () => {
+                    await this.startIslandCaptureFlow(islandData, 'start');
+                };
+            }
         } else if (!isOwner && !isInOwnedArea) {
             buttonText = '占領範囲外';
             buttonClass = 'disabled';
@@ -5591,7 +5902,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     await this.openBuildingMenuForIsland(islandData);
                 };
             } else if (canBuildToOccupy) {
-                buttonText = '建築して占領する';
+                buttonText = '建築開始で占領する';
                 buttonClass = 'warning';
                 onClick = async () => {
                     await this.openBuildingMenuForIsland(islandData);
@@ -5600,6 +5911,19 @@ export default class WorldMapScene extends Phaser.Scene {
                 buttonText = '占領不可';
                 buttonClass = 'disabled';
                 onClick = () => this.showMessage('この島は建築して占領できません。');
+            }
+        }
+
+        if (captureQueue.length > 0 && captureRemainingMs > 0) {
+            if (isCaptureLeader) {
+                this.islandCaptureCompleteTimer = setTimeout(() => {
+                    this.islandCaptureCompleteTimer = null;
+                    const latestIsland = this.islandObjects.get(islandData.id) || islandData;
+                    if (!latestIsland || !this.isPlayerInIslandCapture(latestIsland)) return;
+                    void this.completeIslandCaptureFlow(latestIsland);
+                }, captureRemainingMs + 160);
+            } else {
+                this.scheduleIslandCommandRefresh(islandData, Math.min(1000, captureRemainingMs + 120));
             }
         }
 
@@ -5690,6 +6014,7 @@ export default class WorldMapScene extends Phaser.Scene {
      */
     hideIslandCommandMenu() {
         const panel = document.getElementById('islandCommandPanel');
+        this.clearIslandCommandTimers(false);
         if (panel) {
             panel.classList.remove('active');
         }
@@ -6019,7 +6344,15 @@ export default class WorldMapScene extends Phaser.Scene {
         );
         const clearDistance = Math.max(this.collidingIsland.width, this.collidingIsland.height) / 2 + 50;
         if (distance > clearDistance) {
-            this.collidingIsland = null;
+            if (this.isPlayerInIslandCapture(this.collidingIsland)) {
+                this.clearIslandCommandTimers(true);
+                void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
+            }
+            if (this.commandMenuOpen) {
+                this.hideIslandCommandMenu();
+            } else {
+                this.collidingIsland = null;
+            }
         }
     }
 
@@ -6053,6 +6386,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.showIslandCommandMenu(nearest.island);
             }
         } else if (this.collidingIsland) {
+            if (this.isPlayerInIslandCapture(this.collidingIsland)) {
+                this.clearIslandCommandTimers(true);
+                void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
+            }
             this.collidingIsland = null;
             this.hideIslandCommandMenu();
         }

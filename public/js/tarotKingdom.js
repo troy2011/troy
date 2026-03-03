@@ -3541,7 +3541,6 @@ function buildCallPlay(pi, sel) {
   if (sel.length !== 4) return { ok: false, reason: 'コールは手札4枚です。' };
   const cards = sel.map((i) => p.hand[i]).filter(Boolean);
   if (cards.length !== 4) return { ok: false, reason: '選択が不正です。' };
-  if (cards.some((c) => c.kind !== 'minor')) return { ok: false, reason: 'コール手札は小アルカナのみです。' };
   const role = evalRole([base, ...cards], s.lock?.suit || null);
   if (!role || role.strength < ROLE_ST.Straight) return { ok: false, reason: 'コール成立しません。' };
   const baseNumber = Number(base?.number);
@@ -4198,6 +4197,13 @@ function finishRound(winnerIndex) {
     s.message = `ゲーム終了（チップ枯渇）: ${bankruptText} / 勝者: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
     render();
+    if (s.hiddenOracleCard) {
+      hiddenOracleRevealDelayTimer = setTimeout(() => {
+        hiddenOracleRevealDelayTimer = null;
+        if (!s || s.phase !== 'done') return;
+        revealHiddenOracleWithFlip();
+      }, 260);
+    }
     return;
   }
   s.handNo += 1;
@@ -4210,6 +4216,13 @@ function finishRound(winnerIndex) {
     s.message = `ゲーム終了！ 優勝: ${s.players[top].name} (${s.players[top].chips}チップ)`;
     log(s.message);
     render();
+    if (s.hiddenOracleCard) {
+      hiddenOracleRevealDelayTimer = setTimeout(() => {
+        hiddenOracleRevealDelayTimer = null;
+        if (!s || s.phase !== 'done') return;
+        revealHiddenOracleWithFlip();
+      }, 260);
+    }
     return;
   }
   s.dealer = (s.dealer + 1) % 4;
@@ -5042,6 +5055,10 @@ function cardNode(card, opt = {}) {
   label.textContent = getCardNameLabel(card);
   const power = document.createElement('span');
   power.className = 'tarot-card-number';
+  const displayNumberOptions = getCardDisplayNumberOptions(card);
+  if (card?.kind === 'major' && Array.isArray(displayNumberOptions) && displayNumberOptions.length > 1) {
+    power.classList.add('is-center-range');
+  }
   power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
   if (opt.onClick) el.addEventListener('click', opt.onClick);
@@ -5794,10 +5811,28 @@ function renderSettlement() {
   dispatchSettlementCoinFxIfNeeded(data);
 
   if (confirmButton) {
-    const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && s.phase !== 'done';
-    confirmButton.hidden = !canConfirm;
-    confirmButton.disabled = !canConfirm;
-    if (canConfirm) confirmButton.textContent = '確認して次の局へ';
+    const isMatchDone = String(s.phase || '') === 'done';
+    const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && !isMatchDone;
+    const canRestart = isMatchDone;
+    let restartDisabled = false;
+    let restartLabel = 'もう一度遊ぶ';
+    if (kingdomStartMode === 'online') {
+      if (!isNetModeActive()) {
+        restartLabel = 'オンライン接続をやり直す';
+      } else if (!tkNet.isHost) {
+        restartLabel = 'ホストの再開を待機中';
+        restartDisabled = true;
+      } else {
+        restartLabel = '同じメンバーでもう一度遊ぶ';
+      }
+    }
+    confirmButton.hidden = !(canConfirm || canRestart);
+    confirmButton.disabled = canConfirm ? false : (canRestart ? restartDisabled : true);
+    if (canConfirm) {
+      confirmButton.textContent = '確認して次の局へ';
+    } else if (canRestart) {
+      confirmButton.textContent = restartLabel;
+    }
   }
 }
 
@@ -5935,6 +5970,7 @@ function updateButtons() {
   });
   if (ui.actionPopup) {
     const hasReady = popupButtons.some((btn) => !!btn && btn.classList.contains('is-ready'));
+    ui.actionPopup.hidden = isMatchDone;
     ui.actionPopup.classList.toggle('is-human-ready', hasReady);
     ui.actionPopup.classList.toggle('is-call-locked', inCallCinematic);
   }
@@ -6451,6 +6487,12 @@ function bindUi() {
     });
   });
   ui.settlementConfirmButton?.addEventListener('click', () => {
+    if (String(s?.phase || '') === 'done') {
+      handleKingdomRestartClick().catch((error) => {
+        console.warn('[tarotKingdom] settlement restart failed:', error);
+      });
+      return;
+    }
     requestHostAction({ type: 'confirmRound' }, () => confirmRoundSettlement()).catch((error) => {
       console.warn('[tarotKingdom] confirm round action failed:', error);
     });

@@ -66,6 +66,104 @@ const FIXED_BUILDING_RESOURCE_COSTS = {
     },
     shipyard: {
         1: [['RT', 8], ['RS', 2]]
+    },
+    farm: {
+        1: [['RT', 3]]
+    },
+    weapon_shop: {
+        1: [['RT', 4]]
+    },
+    armor_shop: {
+        1: [['RT', 4]]
+    },
+    item_shop: {
+        1: [['RT', 3]]
+    },
+    tavern: {
+        1: [['RT', 2]]
+    },
+    inn: {
+        1: [['RT', 4]]
+    },
+    hot_spring: {
+        1: [['RT', 4]]
+    },
+    repair_dock: {
+        1: [['RT', 5], ['RS', 1]]
+    },
+    temple: {
+        1: [['RT', 10], ['RS', 2]],
+        2: [['RT', 12], ['RS', 3]],
+        3: [['RT', 15], ['RS', 4]]
+    },
+    goddess_statue: {
+        1: [['RT', 6], ['RS', 1]]
+    },
+    arcana_fool_tavern: {
+        1: [['RT', 5], ['RS', 1]]
+    },
+    arcana_magician_school: {
+        1: [['RT', 8], ['RS', 2]]
+    },
+    arcana_priestess_fountain_palace: {
+        1: [['RT', 8], ['RS', 2]]
+    },
+    arcana_empress_garden: {
+        1: [['RT', 8], ['RS', 2]]
+    },
+    arcana_emperor_training: {
+        1: [['RT', 8], ['RS', 2]]
+    },
+    arcana_hierophant_lab: {
+        1: [['RT', 9], ['RS', 2]]
+    },
+    arcana_lovers_palace: {
+        1: [['RT', 9], ['RS', 2]]
+    },
+    arcana_chariot_factory: {
+        1: [['RT', 9], ['RS', 2]]
+    },
+    arcana_strength_fortress: {
+        1: [['RT', 9], ['RS', 2]]
+    },
+    arcana_hermit_lodge: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_wheel_casino: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_justice_court: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_hanged_altar: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_death_mausoleum: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_temperance_spring: {
+        1: [['RT', 10], ['RS', 2]]
+    },
+    arcana_devil_black_market: {
+        1: [['RT', 12], ['RS', 3]]
+    },
+    arcana_tower_judgement: {
+        1: [['RT', 11], ['RS', 2]]
+    },
+    arcana_star_observatory: {
+        1: [['RT', 12], ['RS', 3]]
+    },
+    arcana_moon_shrine: {
+        1: [['RT', 12], ['RS', 3]]
+    },
+    arcana_sun_temple: {
+        1: [['RT', 11], ['RS', 2]]
+    },
+    arcana_judgement_belltower: {
+        1: [['RT', 13], ['RS', 3]]
+    },
+    arcana_world_tree: {
+        1: [['RT', 15], ['RS', 4]]
     }
 };
 
@@ -684,6 +782,7 @@ function initializeShopRoutes(app, deps) {
 
                     buildings.push(entry);
 
+                    const isImmediateOccupation = !island.ownerId;
                     const patch = {
                         buildings,
                         name: islandName,
@@ -697,6 +796,9 @@ function initializeShopRoutes(app, deps) {
                         patch.constructionStatus = 'constructing';
                     } else {
                         patch.constructionStatus = admin.firestore.FieldValue.delete();
+                    }
+                    if (isImmediateOccupation) {
+                        patch.captureState = admin.firestore.FieldValue.delete();
                     }
                     tx.update(ref, patch);
 
@@ -747,6 +849,7 @@ function initializeShopRoutes(app, deps) {
                 success: true,
                 building,
                 cost: costEntries,
+                occupiedByBuild: !currentOwner,
                 message: `${spec.DisplayName || buildingId} の建設を開始しました。`
             });
         } catch (error) {

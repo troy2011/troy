@@ -49,3 +49,31 @@ export function formatCurrencyLabel(code) {
     const key = String(code || '').toUpperCase();
     return CURRENCY_EMOJI[key] || key;
 }
+
+export const RESOURCE_USAGE_INFO = {
+    RR: { short: '舷側砲', detail: '大砲の火薬' },
+    RG: { short: '船修理', detail: '船の補修材' },
+    RY: { short: 'HP回復', detail: 'HP回復用の薬材' },
+    RB: { short: 'MP回復', detail: 'MP回復用のミネラル' },
+    RT: { short: '建物材', detail: '建物用の一般建材' },
+    RS: { short: '骨材', detail: '竜骨や建築の中核骨材' }
+};
+
+export const RESOURCE_SOURCE_INFO = {
+    RR: '火山島で採取',
+    RG: '岩場島で採取',
+    RY: 'キノコ島で採取',
+    RB: '湖島で採取',
+    RT: '森林島で採取',
+    RS: '聖域島で採取'
+};
+
+export function getResourceUsageInfo(code) {
+    const key = String(code || '').toUpperCase();
+    return RESOURCE_USAGE_INFO[key] || { short: '用途未設定', detail: 'まだ用途が設定されていません' };
+}
+
+export function getResourceSourceInfo(code) {
+    const key = String(code || '').toUpperCase();
+    return RESOURCE_SOURCE_INFO[key] || '入手先未設定';
+}

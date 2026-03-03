@@ -81,7 +81,7 @@ function selectPaymentMethod(message = '支払い方法を選択してくださ�
 }
 import * as Player from './player.js';
 import { escapeHtml, msToTime, canPlayAudioElement } from './ui.js';
-import { formatCurrencyLabel } from './config.js';
+import { formatCurrencyLabel, getResourceSourceInfo, getResourceUsageInfo } from './config.js';
 import * as Ship from './ship.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
@@ -120,6 +120,104 @@ const FIXED_BUILDING_RESOURCE_COSTS = {
     },
     shipyard: {
         1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    farm: {
+        1: [{ code: 'RT', amount: 3 }]
+    },
+    weapon_shop: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    armor_shop: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    item_shop: {
+        1: [{ code: 'RT', amount: 3 }]
+    },
+    tavern: {
+        1: [{ code: 'RT', amount: 2 }]
+    },
+    inn: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    hot_spring: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    repair_dock: {
+        1: [{ code: 'RT', amount: 5 }, { code: 'RS', amount: 1 }]
+    },
+    temple: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }],
+        2: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }],
+        3: [{ code: 'RT', amount: 15 }, { code: 'RS', amount: 4 }]
+    },
+    goddess_statue: {
+        1: [{ code: 'RT', amount: 6 }, { code: 'RS', amount: 1 }]
+    },
+    arcana_fool_tavern: {
+        1: [{ code: 'RT', amount: 5 }, { code: 'RS', amount: 1 }]
+    },
+    arcana_magician_school: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_priestess_fountain_palace: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_empress_garden: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_emperor_training: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hierophant_lab: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_lovers_palace: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_chariot_factory: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_strength_fortress: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hermit_lodge: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_wheel_casino: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_justice_court: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hanged_altar: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_death_mausoleum: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_temperance_spring: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_devil_black_market: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_tower_judgement: {
+        1: [{ code: 'RT', amount: 11 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_star_observatory: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_moon_shrine: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_sun_temple: {
+        1: [{ code: 'RT', amount: 11 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_judgement_belltower: {
+        1: [{ code: 'RT', amount: 13 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_world_tree: {
+        1: [{ code: 'RT', amount: 15 }, { code: 'RS', amount: 4 }]
     }
 };
 
@@ -175,7 +273,8 @@ async function confirmFixedResourceSpend({ title, message, costs, confirmLabel =
                 ...entry,
                 current,
                 shortage,
-                label: formatCurrencyLabel(entry.code) || entry.code
+                label: formatCurrencyLabel(entry.code) || entry.code,
+                source: getResourceSourceInfo(entry.code)
             };
         });
         const hasShortage = rows.some((entry) => entry.shortage > 0);
@@ -197,6 +296,7 @@ async function confirmFixedResourceSpend({ title, message, costs, confirmLabel =
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid rgba(148,163,184,0.12);">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                         <div style="font-weight:700;">${escapeHtml(entry.label)}</div>
+                        <div style="font-size:11px; color:#94a3b8;">入手: ${escapeHtml(entry.source)}</div>
                         <div style="font-size:12px; color:#94a3b8;">必要: ${entry.amount} / ${escapeHtml(currentText)}</div>
                     </div>
                     <div style="font-size:12px; font-weight:700; color:${statusColor};">${escapeHtml(statusText)}</div>
@@ -356,10 +456,18 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId,
     if (response && response.success) {
         if (response.building?.status === 'completed') {
             showCompletionNotification(islandId);
-            showRpgMessage(rpgSay.buildCompleted());
+            if (response.occupiedByBuild) {
+                showRpgMessage('この島を占領した');
+            } else {
+                showRpgMessage(rpgSay.buildCompleted());
+            }
         } else {
             startConstructionTimer(islandId, response.building.completionTime);
-            showRpgMessage(rpgSay.buildStarted(response.building?.displayName || response.building?.buildingName || buildingId));
+            if (response.occupiedByBuild) {
+                showRpgMessage('この島を占領した');
+            } else {
+                showRpgMessage(rpgSay.buildStarted(response.building?.displayName || response.building?.buildingName || buildingId));
+            }
         }
     }
 
@@ -529,6 +637,8 @@ export function showBuildingMenu(island, playFabId) {
     const islandLevel = Math.max(1, Math.trunc(Number(island.islandLevel) || 1));
     const resourceCurrency = getResourceCurrencyForBiome(island.biome);
     const isHarvestable = !!resourceCurrency;
+    const resourceUsageInfo = isHarvestable ? getResourceUsageInfo(resourceCurrency) : null;
+    const resourceSourceInfo = isHarvestable ? getResourceSourceInfo(resourceCurrency) : null;
     const hasBuilding = (island.buildings || []).some(b => b && b.status !== 'demolished');
     const isStarterIsland = island?.starterIsland === true;
     const playerNation = (() => {
@@ -730,7 +840,9 @@ export function showBuildingMenu(island, playFabId) {
                 ${isHarvestable ? `
                 <div class="resource-section">
                     <div class="resource-title">資源</div>
-                    <div class="resource-row">資源: <b>${resourceCurrency}</b></div>
+                    <div class="resource-row">資源: <b>${escapeHtml(formatCurrencyLabel(resourceCurrency))}</b></div>
+                    <div class="resource-row">用途: ${escapeHtml(resourceUsageInfo?.detail || '')}</div>
+                    <div class="resource-row">入手: ${escapeHtml(resourceSourceInfo || '')}</div>
                     <div class="resource-row" id="resourceStatus">読み込み中...</div>
                     <button class="btn-harvest" id="btnHarvestResource">採取する</button>
                 </div>
@@ -1259,10 +1371,10 @@ async function loadBuildingList(category, island) {
                         <span class="stat">時間 ${Math.floor(building.buildTime / 60)}分</span>
                         <span class="stat">サイズ: ${getSizeLabelFromTag(building.tags)}</span>
                     </div>
-                    ${renderBuildingCost(building.cost, balances)}
+                    ${renderBuildingCost(building, balances)}
                     ${renderBuildingConditionReason(building)}
                 </div>
-                <button class="btn-build" data-building-id="${building.id}" ${getBuildButtonDisabled(building, balances, hasBuilding) ? 'disabled' : ''}>${getBuildButtonLabel(building, balances, hasBuilding)}</button>
+                <button class="btn-build" data-building-id="${building.id}" ${getBuildButtonDisabled(building, balances, hasBuilding) ? 'disabled' : ''}>${getBuildButtonLabelResolved(building, balances, hasBuilding)}</button>
             </div>
         `).join('');
 
@@ -1279,13 +1391,22 @@ async function loadBuildingList(category, island) {
 }
 
 function normalizeCostEntries(costs) {
-    const entries = Object.entries(costs || {})
-        .map(([code, amount]) => ({
+    const source = Array.isArray(costs)
+        ? costs.map((entry) => ({
+            code: String(entry?.code || entry?.ItemId || '').trim(),
+            amount: Number(entry?.amount ?? entry?.Amount ?? 0)
+        }))
+        : Object.entries(costs || {}).map(([code, amount]) => ({
             code: String(code || '').trim(),
             amount: Number(amount)
-        }))
-        .filter(entry => entry.code && Number.isFinite(entry.amount) && entry.amount > 0);
+        }));
+    const entries = source.filter(entry => entry.code && Number.isFinite(entry.amount) && entry.amount > 0);
     return entries;
+}
+
+function getBuildingConstructionCosts(building) {
+    const fixedCosts = getBuildingFixedResourceCost(building?.id || building?.buildingId || '', 1);
+    return fixedCosts.length ? fixedCosts : normalizeCostEntries(building?.cost || {});
 }
 
 function isCostAffordable(costs, balances) {
@@ -1304,7 +1425,8 @@ function formatCostLabel(costs, balances) {
     }).join(' / ');
 }
 
-function renderBuildingCost(costs, balances) {
+function renderBuildingCost(building, balances) {
+    const costs = getBuildingConstructionCosts(building);
     const affordable = isCostAffordable(costs, balances);
     const costLabel = formatCostLabel(costs, balances);
     return `
@@ -1317,13 +1439,19 @@ function renderBuildingCost(costs, balances) {
 function getBuildButtonDisabled(building, balances, hasBuilding) {
     if (hasBuilding) return true;
     if (building?.meetsCondition === false) return true;
-    return !isCostAffordable(building?.cost, balances);
+    return !isCostAffordable(getBuildingConstructionCosts(building), balances);
 }
 
 function getBuildButtonLabel(building, balances, hasBuilding) {
     if (hasBuilding) return '建設済み';
     if (building?.meetsCondition === false) return '条件未達';
     return isCostAffordable(building?.cost, balances) ? '建設' : '不足';
+}
+
+function getBuildButtonLabelResolved(building, balances, hasBuilding) {
+    if (hasBuilding) return '建設済み';
+    if (building?.meetsCondition === false) return '条件未達';
+    return isCostAffordable(getBuildingConstructionCosts(building), balances) ? '建設' : '不足';
 }
 
 function renderBuildingConditionReason(building) {

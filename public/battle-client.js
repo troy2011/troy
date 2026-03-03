@@ -156,10 +156,7 @@ function showBattleModal(battleId) {
         battleAutoCloseTimer = null;
     }
     battleAutoCloseTimer = setTimeout(() => {
-        battleModal.style.display = 'none';
-        if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
-            window.__battleActiveUntil = 0;
-        }
+        closeBattleModalAndHandlePending();
     }, 5000);
 
     if (battleInterval) {
@@ -270,6 +267,40 @@ function showBattleModal(battleId) {
     });
 }
 
+function closeBattleModalAndHandlePending() {
+    const battleModal = document.getElementById('battleModal');
+    if (battleModal) battleModal.style.display = 'none';
+    if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
+        window.__battleActiveUntil = 0;
+    }
+    reopenPendingIslandCommandAfterBattle();
+}
+
+function reopenPendingIslandCommandAfterBattle() {
+    const pending = (typeof window !== 'undefined') ? window.__pendingIslandCommandAfterBattle : null;
+    if (!pending || !pending.islandId) return;
+    if (typeof window !== 'undefined') {
+        window.__pendingIslandCommandAfterBattle = null;
+    }
+    if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
+        window.showTab('map');
+    }
+    setTimeout(async () => {
+        try {
+            const scene = (typeof window !== 'undefined') ? window.worldMapScene : null;
+            if (!scene || typeof scene.reloadIslandFromFirestore !== 'function' || typeof scene.showIslandCommandMenu !== 'function') {
+                return;
+            }
+            const latestIsland = await scene.reloadIslandFromFirestore(pending.islandId);
+            if (!latestIsland) return;
+            scene.collidingIsland = latestIsland;
+            scene.showIslandCommandMenu(latestIsland);
+        } catch (error) {
+            console.warn('[Battle] Failed to reopen island command after battle:', error);
+        }
+    }, 180);
+}
+
 function resetBattleAutoClose(delayMs) {
     const battleModal = document.getElementById('battleModal');
     if (!battleModal) return;
@@ -278,10 +309,7 @@ function resetBattleAutoClose(delayMs) {
         battleAutoCloseTimer = null;
     }
     battleAutoCloseTimer = setTimeout(() => {
-        battleModal.style.display = 'none';
-        if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
-            window.__battleActiveUntil = 0;
-        }
+        closeBattleModalAndHandlePending();
     }, delayMs);
 }
 
@@ -545,6 +573,9 @@ async function startBattleWithOpponent(opponentId) {
         try {
             const data = await battleDependencies.callApiWithLoader('/api/start-battle', { attackerId: myPlayFabId, defenderId: opponentId });
             if (data && data.battleId) {
+                if (typeof window !== 'undefined') {
+                    window.__pendingIslandCommandAfterBattle = null;
+                }
                 showBattleModal(data.battleId);
                 return true;
             }
@@ -573,12 +604,47 @@ async function startBattleWithOpponent(opponentId) {
         window.showRpgMessage(message);
     }
 }
-function returnToMapAfterBattle() {
-    const battleModal = document.getElementById('battleModal');
-    if (battleModal) battleModal.style.display = 'none';
-    if (typeof window !== 'undefined' && typeof window.showTab === 'function') {
-        window.showTab('map');
+
+async function startIslandCaptureBattleWithOpponent(opponentId, islandId, mapId) {
+    if (!opponentId || !islandId || !mapId) return false;
+    if (!battleDependencies || !battleDependencies.callApiWithLoader) {
+        console.warn('[Battle] Dependencies not ready yet.');
+        return false;
     }
+    if (!myPlayFabId) {
+        console.warn('[Battle] myPlayFabId not initialized yet.');
+        return false;
+    }
+    const activeUntil = Number(window.__battleActiveUntil || 0);
+    if (activeUntil > Date.now()) {
+        const msg = '戦闘中のため新しい戦闘を開始できません。';
+        if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(msg);
+        }
+        return false;
+    }
+
+    try {
+        const data = await battleDependencies.callApiWithLoader('/api/start-island-capture-battle', {
+            attackerId: myPlayFabId,
+            islandId,
+            mapId
+        });
+        if (data && data.battleId) {
+            if (typeof window !== 'undefined') {
+                window.__pendingIslandCommandAfterBattle = { islandId, mapId };
+            }
+            showBattleModal(data.battleId);
+            return true;
+        }
+        console.warn('[Battle] start-island-capture-battle returned no battleId:', data);
+    } catch (error) {
+        console.error('[Battle] startIslandCaptureBattleWithOpponent error:', error);
+    }
+    return false;
+}
+function returnToMapAfterBattle() {
+    closeBattleModalAndHandlePending();
 }
 
 window.returnToMapAfterBattle = returnToMapAfterBattle;
@@ -586,3 +652,4 @@ window.returnToMapAfterBattle = returnToMapAfterBattle;
 
 // expose helper globally
 window.startBattleWithOpponent = startBattleWithOpponent;
+window.startIslandCaptureBattleWithOpponent = startIslandCaptureBattleWithOpponent;

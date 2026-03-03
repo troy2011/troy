@@ -57,6 +57,16 @@ const NATION_ALIAS = {
     swords: 'wind',
     cups: 'water'
 };
+const CAPTURE_MIN_DURATION_MS = 60 * 1000;
+const CAPTURE_MAX_DURATION_MS = 5 * 60 * 1000;
+const CAPTURE_SPEED_PER_EXTRA = 0.5;
+const CAPTURE_SPEED_MAX = 4;
+const CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE = {
+    small: 1,
+    medium: 2,
+    large: 4,
+    giant: 8
+};
 const FIXED_BUILDING_RESOURCE_COSTS = {
     my_house: {
         1: [{ code: 'RT', amount: 2 }],
@@ -83,6 +93,104 @@ const FIXED_BUILDING_RESOURCE_COSTS = {
     },
     shipyard: {
         1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    farm: {
+        1: [{ code: 'RT', amount: 3 }]
+    },
+    weapon_shop: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    armor_shop: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    item_shop: {
+        1: [{ code: 'RT', amount: 3 }]
+    },
+    tavern: {
+        1: [{ code: 'RT', amount: 2 }]
+    },
+    inn: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    hot_spring: {
+        1: [{ code: 'RT', amount: 4 }]
+    },
+    repair_dock: {
+        1: [{ code: 'RT', amount: 5 }, { code: 'RS', amount: 1 }]
+    },
+    temple: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }],
+        2: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }],
+        3: [{ code: 'RT', amount: 15 }, { code: 'RS', amount: 4 }]
+    },
+    goddess_statue: {
+        1: [{ code: 'RT', amount: 6 }, { code: 'RS', amount: 1 }]
+    },
+    arcana_fool_tavern: {
+        1: [{ code: 'RT', amount: 5 }, { code: 'RS', amount: 1 }]
+    },
+    arcana_magician_school: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_priestess_fountain_palace: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_empress_garden: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_emperor_training: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hierophant_lab: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_lovers_palace: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_chariot_factory: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_strength_fortress: {
+        1: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hermit_lodge: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_wheel_casino: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_justice_court: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_hanged_altar: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_death_mausoleum: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_temperance_spring: {
+        1: [{ code: 'RT', amount: 10 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_devil_black_market: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_tower_judgement: {
+        1: [{ code: 'RT', amount: 11 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_star_observatory: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_moon_shrine: {
+        1: [{ code: 'RT', amount: 12 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_sun_temple: {
+        1: [{ code: 'RT', amount: 11 }, { code: 'RS', amount: 2 }]
+    },
+    arcana_judgement_belltower: {
+        1: [{ code: 'RT', amount: 13 }, { code: 'RS', amount: 3 }]
+    },
+    arcana_world_tree: {
+        1: [{ code: 'RT', amount: 15 }, { code: 'RS', amount: 4 }]
     }
 };
 const OWNED_MAP_IDS_KEY = 'OwnedMapIds';
@@ -329,6 +437,150 @@ async function removeOwnedMapId(playFabId, mapId, deps) {
     return setOwnedMapIds(playFabId, next, deps);
 }
 
+function getIslandCaptureSlotLimit(sizeKey) {
+    const normalized = String(sizeKey || 'small').toLowerCase();
+    return Number(CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE[normalized] || CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE.small);
+}
+
+function getBuildingCaptureArea(building) {
+    if (!building) return 0;
+    const inferred = inferLogicSizeFromSlotsRequired(building?.slotsRequired || 1);
+    const logicW = Math.max(1, Number(building.logicW || building.width || inferred.w || 1));
+    const logicH = Math.max(1, Number(building.logicH || building.height || inferred.h || 1));
+    return logicW * logicH;
+}
+
+function getIslandCaptureBaseDurationMs(island) {
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    const primary = buildings.find((entry) => entry && entry.status !== 'demolished') || buildings[0] || null;
+    const area = Math.max(0, getBuildingCaptureArea(primary));
+    if (area <= 1) return CAPTURE_MIN_DURATION_MS;
+    if (area <= 2) return 2 * 60 * 1000;
+    if (area <= 4) return 3 * 60 * 1000;
+    if (area <= 6) return 4 * 60 * 1000;
+    return CAPTURE_MAX_DURATION_MS;
+}
+
+function getCaptureSpeedMultiplier(memberCount) {
+    const count = Math.max(1, Math.floor(Number(memberCount) || 1));
+    return Math.min(CAPTURE_SPEED_MAX, 1 + ((count - 1) * CAPTURE_SPEED_PER_EXTRA));
+}
+
+function normalizeCaptureQueue(raw) {
+    if (!Array.isArray(raw)) return [];
+    const queue = [];
+    raw.forEach((entry) => {
+        const playFabId = String(entry?.playFabId || '').trim();
+        if (!playFabId) return;
+        queue.push({
+            playFabId,
+            nation: String(entry?.nation || '').toLowerCase() || null,
+            joinedAt: Number(entry?.joinedAt) || 0
+        });
+    });
+    return queue;
+}
+
+function hasUndemolishedBuilding(island) {
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    return buildings.some((entry) => entry && entry.status !== 'demolished');
+}
+
+function isIslandBreached(island) {
+    const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+    if (buildings.length === 0) return true;
+    const active = buildings.find((entry) => entry && entry.status !== 'demolished');
+    if (!active) return true;
+    const maxHp = Number(active.maxHp) || Number(active.buildTimeSeconds) || 1;
+    const currentHp = Number.isFinite(Number(active.currentHp)) ? Number(active.currentHp) : maxHp;
+    return currentHp <= 0;
+}
+
+function createIdleCaptureState(island) {
+    const breached = isIslandBreached(island);
+    return {
+        status: breached ? 'breached' : 'idle',
+        breachedAt: breached ? Date.now() : 0,
+        queue: [],
+        slotLimit: getIslandCaptureSlotLimit(island?.size),
+        baseDurationMs: getIslandCaptureBaseDurationMs(island),
+        progressBaseMs: 0,
+        lastProgressAt: 0,
+        endsAt: 0,
+        ownerCandidateId: null,
+        ownerCandidateNation: null
+    };
+}
+
+function sanitizeCaptureState(raw, island) {
+    const fallback = createIdleCaptureState(island);
+    const queue = normalizeCaptureQueue(raw?.queue);
+    const baseDurationMs = getIslandCaptureBaseDurationMs(island);
+    const state = {
+        status: String(raw?.status || fallback.status).toLowerCase(),
+        breachedAt: Number(raw?.breachedAt) || fallback.breachedAt,
+        queue,
+        slotLimit: getIslandCaptureSlotLimit(island?.size),
+        baseDurationMs,
+        progressBaseMs: Math.max(0, Math.min(baseDurationMs, Number(raw?.progressBaseMs) || 0)),
+        lastProgressAt: Number(raw?.lastProgressAt) || 0,
+        endsAt: Number(raw?.endsAt) || 0,
+        ownerCandidateId: raw?.ownerCandidateId ? String(raw.ownerCandidateId) : (queue[0]?.playFabId || null),
+        ownerCandidateNation: raw?.ownerCandidateNation ? String(raw.ownerCandidateNation).toLowerCase() : (queue[0]?.nation || null)
+    };
+    if (queue.length > 0) {
+        state.status = 'capturing';
+    } else if (!isIslandBreached(island)) {
+        state.status = 'idle';
+        state.breachedAt = 0;
+    } else if (state.status !== 'capturing') {
+        state.status = 'breached';
+    }
+    return state;
+}
+
+function advanceCaptureState(state, now = Date.now()) {
+    if (!state || state.status !== 'capturing' || !Array.isArray(state.queue) || state.queue.length === 0) {
+        return state;
+    }
+    const lastAt = Number(state.lastProgressAt) || 0;
+    if (lastAt > 0 && now > lastAt) {
+        const elapsedMs = now - lastAt;
+        state.progressBaseMs = Math.min(
+            state.baseDurationMs,
+            state.progressBaseMs + (elapsedMs * getCaptureSpeedMultiplier(state.queue.length))
+        );
+    }
+    state.lastProgressAt = now;
+    const remainingBaseMs = Math.max(0, state.baseDurationMs - state.progressBaseMs);
+    state.endsAt = remainingBaseMs <= 0
+        ? now
+        : now + Math.ceil(remainingBaseMs / getCaptureSpeedMultiplier(state.queue.length));
+    return state;
+}
+
+function refreshCaptureState(rawState, island, now = Date.now()) {
+    const state = sanitizeCaptureState(rawState, island);
+    state.slotLimit = getIslandCaptureSlotLimit(island?.size);
+    state.baseDurationMs = getIslandCaptureBaseDurationMs(island);
+    state.progressBaseMs = Math.max(0, Math.min(state.baseDurationMs, state.progressBaseMs));
+    if (state.queue.length > 0) {
+        state.status = 'capturing';
+        state.ownerCandidateId = state.queue[0].playFabId;
+        state.ownerCandidateNation = state.queue[0].nation || null;
+        return advanceCaptureState(state, now);
+    }
+    state.lastProgressAt = 0;
+    state.endsAt = 0;
+    state.ownerCandidateId = null;
+    state.ownerCandidateNation = null;
+    state.status = isIslandBreached(island) ? 'breached' : 'idle';
+    if (state.status === 'idle') {
+        state.breachedAt = 0;
+    }
+    return state;
+}
+
 function getWorldMapCollection(firestore, mapId) {
     const raw = String(mapId || '').trim();
     if (!raw) return firestore.collection('world_map');
@@ -537,6 +789,22 @@ function initializeIslandRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, firestore, admin, addEconomyItem, subtractEconomyItem, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getMapOccupationNation, NATION_GROUP_BY_RACE, catalogCache } = deps;
 
     const islandDeps = { promisifyPlayFab, PlayFabServer, admin };
+    const getPlayerNation = async (playFabId) => {
+        if (!playFabId) return '';
+        const nationRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['Nation']
+        });
+        return String(nationRo?.Data?.Nation?.Value || '').toLowerCase();
+    };
+    const respondCaptureState = (res, islandId, mapId, state) => {
+        res.json({
+            success: true,
+            islandId,
+            mapId,
+            captureState: state
+        });
+    };
 
     // 島占領
     app.post('/api/claim-island', async (req, res) => {
@@ -594,6 +862,249 @@ function initializeIslandRoutes(app, deps) {
             if (msg === 'BuildToOccupyNotAllowed') return res.status(403).json({ error: 'BuildToOccupyNotAllowed' });
             console.error('[ClaimIsland] Error:', error);
             res.status(500).json({ error: 'Failed to claim island', details: msg });
+        }
+    });
+
+    app.post('/api/damage-island-building', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        const damage = Math.max(1, Math.floor(Number(req.body?.damage) || 300));
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const playerNation = await getPlayerNation(playFabId);
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const result = await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!snap.exists) throw new Error('IslandNotFound');
+                const data = snap.data() || {};
+                const ownerNation = String(data.ownerNation || data.ownerRace || '').toLowerCase();
+                if (data.ownerId && data.ownerId === playFabId) throw new Error('CannotAttackOwnIsland');
+                if (playerNation && ownerNation && playerNation === ownerNation) throw new Error('FriendlyFireNotAllowed');
+                const buildings = Array.isArray(data.buildings) ? data.buildings.slice() : [];
+                const idx = buildings.findIndex((entry) => entry && entry.status !== 'demolished');
+                if (idx < 0) throw new Error('BuildingNotFound');
+                const current = buildings[idx] || {};
+                const maxHp = Number(current.maxHp) || Number(current.buildTimeSeconds) || 1;
+                const currentHp = Number.isFinite(Number(current.currentHp)) ? Number(current.currentHp) : maxHp;
+                const nextHp = Math.max(0, currentHp - damage);
+                const nextBuilding = {
+                    ...current,
+                    maxHp,
+                    currentHp: nextHp
+                };
+                if (nextHp <= 0) {
+                    nextBuilding.status = 'demolished';
+                }
+                buildings[idx] = nextBuilding;
+                let captureState = data.captureState || null;
+                if (nextHp <= 0) {
+                    captureState = refreshCaptureState({
+                        status: 'breached',
+                        breachedAt: Date.now(),
+                        queue: [],
+                        progressBaseMs: 0,
+                        lastProgressAt: 0,
+                        endsAt: 0
+                    }, { ...data, buildings }, Date.now());
+                }
+                tx.update(ref, {
+                    buildings,
+                    captureState: captureState || data.captureState || null,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                });
+                return {
+                    buildingHp: nextHp,
+                    buildingMaxHp: maxHp,
+                    destroyed: nextHp <= 0,
+                    captureState: captureState || sanitizeCaptureState(data.captureState, data)
+                };
+            });
+            res.json({
+                success: true,
+                islandId,
+                mapId,
+                hp: result.buildingHp,
+                maxHp: result.buildingMaxHp,
+                destroyed: result.destroyed,
+                captureState: result.captureState
+            });
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'BuildingNotFound') return res.status(404).json({ error: '建物がありません' });
+            if (msg === 'CannotAttackOwnIsland') return res.status(403).json({ error: '自分の島は攻撃できません' });
+            if (msg === 'FriendlyFireNotAllowed') return res.status(403).json({ error: '同盟側の島は攻撃できません' });
+            console.error('[DamageIslandBuilding] Error:', error);
+            res.status(500).json({ error: 'Failed to damage island building', details: msg });
+        }
+    });
+
+    const mutateIslandCapture = async ({ playFabId, islandId, mapId, mode }) => {
+        const playerNation = await getPlayerNation(playFabId);
+        if (!playerNation) throw new Error('NationRequired');
+        const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+        const now = Date.now();
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (!snap.exists) throw new Error('IslandNotFound');
+            const data = snap.data() || {};
+            if (data.ownerId && data.ownerId === playFabId) throw new Error('AlreadyOwner');
+            if (!isIslandBreached(data)) throw new Error('IslandNotBreached');
+
+            let state = refreshCaptureState(data.captureState, data, now);
+            const currentIndex = state.queue.findIndex((entry) => entry.playFabId === playFabId);
+
+            if (mode === 'leave') {
+                if (currentIndex >= 0) {
+                    state.queue.splice(currentIndex, 1);
+                }
+            } else {
+                if (currentIndex < 0) {
+                    if (state.queue.length >= state.slotLimit) throw new Error('CaptureFull');
+                    const leadNation = String(state.queue[0]?.nation || '').toLowerCase();
+                    if (leadNation && leadNation !== playerNation) throw new Error('CaptureOccupiedByEnemy');
+                    state.queue.push({
+                        playFabId,
+                        nation: playerNation,
+                        joinedAt: now
+                    });
+                }
+            }
+
+            state = refreshCaptureState(state, data, now);
+            tx.update(ref, {
+                captureState: state,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return state;
+        });
+    };
+
+    app.post('/api/start-island-capture', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const state = await mutateIslandCapture({ playFabId, islandId, mapId, mode: 'start' });
+            respondCaptureState(res, islandId, mapId, state);
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'AlreadyOwner') return res.status(403).json({ error: '自分の島です' });
+            if (msg === 'IslandNotBreached') return res.status(409).json({ error: '建物を破壊してから上陸してください' });
+            if (msg === 'CaptureFull') return res.status(409).json({ error: 'この島はこれ以上上陸できません' });
+            if (msg === 'CaptureOccupiedByEnemy') return res.status(409).json({ error: '敵が占領中です' });
+            if (msg === 'NationRequired') return res.status(400).json({ error: 'NationRequired' });
+            console.error('[StartIslandCapture] Error:', error);
+            res.status(500).json({ error: 'Failed to start island capture', details: msg });
+        }
+    });
+
+    app.post('/api/join-island-capture', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const state = await mutateIslandCapture({ playFabId, islandId, mapId, mode: 'join' });
+            respondCaptureState(res, islandId, mapId, state);
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'AlreadyOwner') return res.status(403).json({ error: '自分の島です' });
+            if (msg === 'IslandNotBreached') return res.status(409).json({ error: '建物を破壊してから上陸してください' });
+            if (msg === 'CaptureFull') return res.status(409).json({ error: 'この島はこれ以上上陸できません' });
+            if (msg === 'CaptureOccupiedByEnemy') return res.status(409).json({ error: '敵が占領中です' });
+            if (msg === 'NationRequired') return res.status(400).json({ error: 'NationRequired' });
+            console.error('[JoinIslandCapture] Error:', error);
+            res.status(500).json({ error: 'Failed to join island capture', details: msg });
+        }
+    });
+
+    app.post('/api/cancel-island-capture', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const state = await mutateIslandCapture({ playFabId, islandId, mapId, mode: 'leave' });
+            respondCaptureState(res, islandId, mapId, state);
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'NationRequired') return res.status(400).json({ error: 'NationRequired' });
+            console.error('[CancelIslandCapture] Error:', error);
+            res.status(500).json({ error: 'Failed to cancel island capture', details: msg });
+        }
+    });
+
+    app.post('/api/complete-island-capture', async (req, res) => {
+        const { playFabId, islandId, mapId } = req.body || {};
+        if (!playFabId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'playFabId, islandId, mapId are required' });
+        }
+        try {
+            const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
+            const now = Date.now();
+            const result = await firestore.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!snap.exists) throw new Error('IslandNotFound');
+                const data = snap.data() || {};
+                let state = refreshCaptureState(data.captureState, data, now);
+                if (!Array.isArray(state.queue) || state.queue.length === 0) throw new Error('CaptureNotStarted');
+                const leader = state.queue[0];
+                if (!leader || leader.playFabId !== playFabId) throw new Error('CaptureLeaderOnly');
+                state = advanceCaptureState(state, now);
+                if (state.progressBaseMs < state.baseDurationMs) throw new Error('CaptureNotReady');
+
+                const nextOwnerNation = leader.nation || null;
+                tx.update(ref, {
+                    ownerId: playFabId,
+                    ownerNation: nextOwnerNation,
+                    captureState: {
+                        status: 'idle',
+                        breachedAt: 0,
+                        queue: [],
+                        slotLimit: getIslandCaptureSlotLimit(data?.size),
+                        baseDurationMs: getIslandCaptureBaseDurationMs(data),
+                        progressBaseMs: 0,
+                        lastProgressAt: 0,
+                        endsAt: 0,
+                        ownerCandidateId: null,
+                        ownerCandidateNation: null
+                    },
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                });
+                return {
+                    ownerId: playFabId,
+                    ownerNation: nextOwnerNation
+                };
+            });
+
+            let updatedMapOccupationNation = null;
+            const centralId = getCentralIslandIdForMap(mapId);
+            if (centralId && centralId === islandId && typeof setMapOccupationNation === 'function') {
+                updatedMapOccupationNation = await setMapOccupationNation(mapId, result.ownerNation || null);
+            }
+
+            res.json({
+                success: true,
+                islandId,
+                mapId,
+                ownerId: result.ownerId,
+                ownerNation: result.ownerNation,
+                mapOccupationNation: updatedMapOccupationNation || null
+            });
+        } catch (error) {
+            const msg = error?.message || String(error);
+            if (msg === 'IslandNotFound') return res.status(404).json({ error: 'Island not found' });
+            if (msg === 'CaptureNotStarted') return res.status(409).json({ error: 'まだ上陸していません' });
+            if (msg === 'CaptureLeaderOnly') return res.status(403).json({ error: '先頭のプレイヤーのみ占領を完了できます' });
+            if (msg === 'CaptureNotReady') return res.status(409).json({ error: 'まだ占領時間が完了していません' });
+            console.error('[CompleteIslandCapture] Error:', error);
+            res.status(500).json({ error: 'Failed to complete island capture', details: msg });
         }
     });
 

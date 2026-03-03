@@ -10,7 +10,7 @@ import {
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
 import { isKing as isKingFlag } from './nationKing.js';
-import { formatCurrencyLabel } from './config.js';
+import { formatCurrencyLabel, getResourceSourceInfo, getResourceUsageInfo } from './config.js';
 
 let myInventory = [];
 let myCurrentEquipment = {};
@@ -41,7 +41,14 @@ function renderResourceSummary() {
 
     container.innerHTML = mapping.map(code => {
         const value = Number(myVirtualCurrency?.[code] || 0);
-        return `<div class="resource-chip">${formatCurrencyLabel(code)}<b>${value}</b></div>`;
+        const usage = getResourceUsageInfo(code);
+        const source = getResourceSourceInfo(code);
+        return `
+            <div class="resource-chip" title="${usage.detail} / ${source}">
+                <span class="resource-chip-main">${formatCurrencyLabel(code)}<b>${value}</b></span>
+                <span class="resource-chip-meta">${usage.short}</span>
+            </div>
+        `;
     }).join('');
 }
 
