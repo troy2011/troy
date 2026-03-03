@@ -106,12 +106,51 @@ async function loadAllCatalogItems(titleEntity) {
         const page = Array.isArray(result?.Items) ? result.Items : [];
         allItems.push(...page);
     }
-    return allItems;
+
+    const draftItems = [];
+    let draftContinuationToken = null;
+    do {
+        const draftResult = await promisifyPlayFab(PlayFabEconomy.GetEntityDraftItems, {
+            Entity: titleEntity,
+            Count: 50,
+            ContinuationToken: draftContinuationToken || undefined
+        });
+        const page = Array.isArray(draftResult?.Items) ? draftResult.Items : [];
+        draftItems.push(...page);
+        draftContinuationToken = draftResult?.ContinuationToken || null;
+    } while (draftContinuationToken);
+
+    const mergedById = new Map();
+    for (const item of allItems) {
+        if (item?.Id) mergedById.set(String(item.Id), item);
+    }
+    for (const item of draftItems) {
+        if (item?.Id) mergedById.set(String(item.Id), item);
+    }
+    return Array.from(mergedById.values());
 }
 
 async function loadCatalogItemByFriendlyId(titleEntity, friendlyId) {
     const key = String(friendlyId || '').trim();
     if (!key) return null;
+    try {
+        const draftResult = await promisifyPlayFab(PlayFabEconomy.GetDraftItem, {
+            Entity: titleEntity,
+            AlternateId: {
+                Type: 'FriendlyId',
+                Value: key
+            }
+        });
+        if (draftResult?.Item) {
+            return draftResult.Item;
+        }
+    } catch (error) {
+        const errorCode = Number(error?.errorCode || 0);
+        const errorName = String(error?.error || '');
+        if (errorCode !== 1047 && errorName !== 'ItemNotFound') {
+            throw error;
+        }
+    }
     try {
         const result = await promisifyPlayFab(PlayFabEconomy.GetItems, {
             Entity: titleEntity,
