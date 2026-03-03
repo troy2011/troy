@@ -8,6 +8,7 @@ import {
     startShipVoyage as requestStartShipVoyage,
     stopShip as requestStopShip,
     upgradeShip as requestUpgradeShip,
+    getInventory as fetchInventory,
     getPlayerShips as fetchPlayerShips,
     getShipsInView as fetchShipsInView,
     getShipAsset as fetchShipAsset,
@@ -15,6 +16,7 @@ import {
 } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { formatCurrencyLabel } from './config.js';
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -64,6 +66,78 @@ let assetDataCache = new LRUCache(200);
 const ASSET_CACHE_TTL = 5 * 60 * 1000;
 let activeShipIdCache = null;
 const SHIP_LEVEL_CAP = 5;
+const NATION_ALIAS = {
+    wands: 'fire',
+    pentacles: 'earth',
+    swords: 'wind',
+    cups: 'water'
+};
+const NATION_PRIMARY_RESOURCE_CODE = {
+    fire: 'RR',
+    earth: 'RG',
+    wind: 'RY',
+    water: 'RB'
+};
+const SHIP_BUILD_RESOURCE_COST_BY_CLASS = {
+    explorer: { RT: 10, national: 25 },
+    merchant: { RS: 1, national: 50 },
+    fighter: { RS: 1, national: 50 },
+    defender: { RS: 1, national: 50 }
+};
+const SHIP_UPGRADE_RESOURCE_COST_BY_CLASS = {
+    explorer: {
+        2: { RT: 5, national: 10 },
+        3: { RT: 10, national: 15 },
+        4: { RT: 15, national: 20 },
+        5: { RT: 20, national: 25 }
+    },
+    default: {
+        2: { national: 20 },
+        3: { national: 30, RS: 1 },
+        4: { national: 40, RS: 1 },
+        5: { national: 50, RS: 1 }
+    }
+};
+
+function normalizeNationKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    return NATION_ALIAS[raw] || raw;
+}
+
+function getCurrentPlayerNationKey() {
+    const nation = window?.myAvatarBaseInfo?.Nation || window?.myAvatarBaseInfo?.nation || '';
+    return normalizeNationKey(nation);
+}
+
+function normalizeShipClass(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function mergeCostEntries(entries) {
+    const merged = new Map();
+    (entries || []).forEach((entry) => {
+        const itemId = String(entry?.ItemId || entry?.itemId || '').trim();
+        const amount = Number(entry?.Amount ?? entry?.amount ?? 0) || 0;
+        if (!itemId || amount <= 0) return;
+        merged.set(itemId, (merged.get(itemId) || 0) + amount);
+    });
+    return Array.from(merged.entries()).map(([ItemId, Amount]) => ({ ItemId, Amount }));
+}
+
+function expandShipCostTemplate(template, nationKey) {
+    if (!template || typeof template !== 'object') return [];
+    const primaryCode = NATION_PRIMARY_RESOURCE_CODE[normalizeNationKey(nationKey)];
+    const expanded = [];
+    Object.entries(template).forEach(([code, rawAmount]) => {
+        const amount = Number(rawAmount) || 0;
+        if (amount <= 0) return;
+        const itemId = code === 'national' ? primaryCode : code;
+        if (!itemId) return;
+        expanded.push({ ItemId: itemId, Amount: amount });
+    });
+    return mergeCostEntries(expanded);
+}
 
 function resolveCatalogShip(assetData) {
     if (!assetData || !window.shipCatalog) return null;
@@ -107,7 +181,7 @@ function buildCostsFromCatalogItem(item) {
     return costs;
 }
 
-function resolveUpgradeCosts(catalogItem, nextLevel) {
+function resolveLegacyUpgradeCosts(catalogItem, nextLevel) {
     const baseCosts = buildCostsFromCatalogItem(catalogItem);
     if (!baseCosts.length) return [];
     const multiplier = Math.max(1, Number(nextLevel) || 1);
@@ -117,9 +191,114 @@ function resolveUpgradeCosts(catalogItem, nextLevel) {
     }));
 }
 
+export function getShipBuildResourceCosts(shipSpec, nationKey = getCurrentPlayerNationKey()) {
+    const shipClass = normalizeShipClass(shipSpec?.class || shipSpec?.Class);
+    const fixedCosts = expandShipCostTemplate(SHIP_BUILD_RESOURCE_COST_BY_CLASS[shipClass], nationKey);
+    if (fixedCosts.length > 0) return fixedCosts;
+    return buildCostsFromCatalogItem(shipSpec);
+}
+
+export function getShipUpgradeResourceCosts(shipSpec, nextLevel, nationKey = getCurrentPlayerNationKey()) {
+    const shipClass = normalizeShipClass(shipSpec?.class || shipSpec?.Class);
+    const classCosts = SHIP_UPGRADE_RESOURCE_COST_BY_CLASS[shipClass] || SHIP_UPGRADE_RESOURCE_COST_BY_CLASS.default;
+    const fixedCosts = expandShipCostTemplate(classCosts?.[nextLevel], nationKey);
+    if (fixedCosts.length > 0) return fixedCosts;
+    return resolveLegacyUpgradeCosts(shipSpec, nextLevel);
+}
+
+export async function getShipResourceBalances(playFabId) {
+    if (!playFabId) return {};
+    const data = await fetchInventory(playFabId, { isSilent: true });
+    return data?.virtualCurrency || {};
+}
+
+export function getShipResourceShortages(costs, balances) {
+    const currentBalances = balances || {};
+    return (costs || []).map((entry) => {
+        const itemId = String(entry?.ItemId || entry?.itemId || '').trim();
+        const required = Number(entry?.Amount ?? entry?.amount ?? 0) || 0;
+        const owned = Number(currentBalances[itemId] || 0) || 0;
+        const shortage = Math.max(0, required - owned);
+        return shortage > 0 ? { ItemId: itemId, required, owned, shortage } : null;
+    }).filter(Boolean);
+}
+
+export function hasEnoughShipResources(costs, balances) {
+    return getShipResourceShortages(costs, balances).length === 0;
+}
+
 function formatCostLabel(costs) {
     if (!Array.isArray(costs) || costs.length === 0) return '不明';
-    return costs.map(cost => `${cost.Amount} ${cost.ItemId}`).join(' / ');
+    return costs.map(cost => `${formatCurrencyLabel(cost.ItemId)} x${cost.Amount}`).join(' / ');
+}
+
+export function renderShipResourceCostHtml(costs, balances = null) {
+    if (!Array.isArray(costs) || costs.length === 0) {
+        return '<span style="color: var(--text-sub);">No cost</span>';
+    }
+    const currentBalances = balances || {};
+    return costs.map((cost) => {
+        const itemId = String(cost?.ItemId || cost?.itemId || '').trim();
+        const required = Number(cost?.Amount ?? cost?.amount ?? 0) || 0;
+        const owned = Number(currentBalances[itemId] || 0) || 0;
+        const enough = balances == null || owned >= required;
+        const color = enough ? 'var(--text-color)' : 'var(--danger-color)';
+        const ownedLabel = balances == null ? '' : `<span style="color:${color}; font-size:12px;">Owned ${owned}</span>`;
+        return `
+            <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);">
+                <span style="font-weight:700; color:${color};">${formatCurrencyLabel(itemId)} x${required}</span>
+                ${ownedLabel}
+            </span>
+        `;
+    }).join('');
+}
+
+async function showShipSpendConfirmation({ title, subtitle = '', costs, balances, confirmLabel = 'Confirm' }) {
+    return new Promise((resolve) => {
+        const shortages = getShipResourceShortages(costs, balances);
+        const canAfford = shortages.length === 0;
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.68)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.padding = '20px';
+        overlay.style.zIndex = '10010';
+
+        const panel = document.createElement('div');
+        panel.style.width = 'min(92vw, 420px)';
+        panel.style.background = 'var(--panel-bg, #111827)';
+        panel.style.border = '1px solid rgba(255,255,255,0.12)';
+        panel.style.borderRadius = '16px';
+        panel.style.boxShadow = '0 24px 60px rgba(0,0,0,0.45)';
+        panel.style.padding = '18px';
+        panel.innerHTML = `
+            <div style="font-size:18px; font-weight:700; margin-bottom:8px;">${title}</div>
+            ${subtitle ? `<div style="font-size:13px; color:var(--text-sub); margin-bottom:12px;">${subtitle}</div>` : ''}
+            <div style="font-size:13px; color:var(--text-sub); margin-bottom:8px;">Required resources</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">${renderShipResourceCostHtml(costs, balances)}</div>
+            ${canAfford ? '' : `<div style="font-size:13px; color:var(--danger-color); margin-bottom:12px;">Missing: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}</div>`}
+            <div style="display:flex; gap:10px;">
+                <button data-role="confirm" style="flex:1; background: ${canAfford ? 'var(--accent-color)' : '#4b5563'}; color: white; padding: 12px; border-radius: 10px; border: none; cursor: ${canAfford ? 'pointer' : 'not-allowed'};" ${canAfford ? '' : 'disabled'}>${confirmLabel}</button>
+                <button data-role="cancel" style="flex:1; background:#374151; color:white; padding:12px; border-radius:10px; border:none; cursor:pointer;">Cancel</button>
+            </div>
+        `;
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        const cleanup = (result) => {
+            overlay.remove();
+            resolve(result);
+        };
+
+        panel.querySelector('[data-role="confirm"]').addEventListener('click', () => cleanup(canAfford));
+        panel.querySelector('[data-role="cancel"]').addEventListener('click', () => cleanup(false));
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(false);
+        });
+    });
 }
 
 export async function getActiveShipId(playFabId) {
@@ -184,12 +363,23 @@ export function calculateCurrentPosition(movement, staticPosition) {
 }
 
 export async function createShip(playFabId, shipItemId, context) {
+    const shipSpec = window?.shipCatalog?.[shipItemId] || null;
+    const balances = context?.resourceBalances || await getShipResourceBalances(playFabId);
+    const costs = getShipBuildResourceCosts(shipSpec, context?.nationKey || getCurrentPlayerNationKey());
+    const confirmed = await showShipSpendConfirmation({
+        title: `Build ${shipSpec?.DisplayName || 'Ship'}`,
+        subtitle: 'Use resources to build this ship.',
+        costs,
+        balances,
+        confirmLabel: 'Build'
+    });
+    if (!confirmed) return null;
+
     const data = await requestCreateShip(
         playFabId,
         shipItemId,
         context?.mapId || null,
-        context?.islandId || null,
-        context?.paymentMethod || null
+        context?.islandId || null
     );
 
     if (data && data.success) {
@@ -274,7 +464,7 @@ export async function stopShip(shipId) {
     return null;
 }
 
-export async function upgradeShip(playFabId, shipId) {
+export async function legacyUpgradeShip_unused(playFabId, shipId) {
     if (!playFabId || !shipId) return null;
     const assetData = await getShipAsset(playFabId, shipId, true);
     if (!assetData) return null;
@@ -287,8 +477,29 @@ export async function upgradeShip(playFabId, shipId) {
 
     const catalogItem = resolveCatalogShip(assetData);
     const nextLevel = currentLevel + 1;
-    const costs = resolveUpgradeCosts(catalogItem, nextLevel);
-    const costLabel = formatCostLabel(costs);
+    const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
+    const balances = await getShipResourceBalances(playFabId);
+    const confirmed = await showShipSpendConfirmation({
+        title: `Lv${nextLevel} Upgrade`,
+        subtitle: 'Use resources to upgrade this ship.',
+        costs,
+        balances,
+        confirmLabel: 'Upgrade'
+    });
+    if (!confirmed) return null;
+
+    const upgradeResult = await requestUpgradeShip(playFabId, shipId);
+    if (upgradeResult && upgradeResult.success) {
+        assetDataCache.set(shipId, { data: upgradeResult.shipData, updatedAt: Date.now() });
+        cachedShipsData.set(shipId, {
+            ...(cachedShipsData.get(shipId) || {}),
+            assetData: upgradeResult.shipData
+        });
+        showRpgMessage(`Ship upgraded to Lv${upgradeResult.level}.`);
+        await displayPlayerShips(playFabId);
+        return upgradeResult;
+    }
+    return null;
     const paymentMethod = await selectPaymentMethod(`船をLv${nextLevel}に強化しますか？\n費用: ${costLabel}`);
     if (!paymentMethod) return null;
 
@@ -304,6 +515,44 @@ export async function upgradeShip(playFabId, shipId) {
         return data;
     }
     return null;
+}
+
+export async function upgradeShip(playFabId, shipId) {
+    if (!playFabId || !shipId) return null;
+
+    const assetData = await getShipAsset(playFabId, shipId, true);
+    if (!assetData) return null;
+
+    const currentLevel = Number(assetData?.Level) || 1;
+    if (currentLevel >= SHIP_LEVEL_CAP) {
+        showRpgMessage('This ship is already at the level cap.');
+        return null;
+    }
+
+    const catalogItem = resolveCatalogShip(assetData);
+    const nextLevel = currentLevel + 1;
+    const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
+    const balances = await getShipResourceBalances(playFabId);
+    const confirmed = await showShipSpendConfirmation({
+        title: `Lv${nextLevel} Upgrade`,
+        subtitle: 'Use resources to upgrade this ship.',
+        costs,
+        balances,
+        confirmLabel: 'Upgrade'
+    });
+    if (!confirmed) return null;
+
+    const upgradeResult = await requestUpgradeShip(playFabId, shipId);
+    if (!upgradeResult || !upgradeResult.success) return null;
+
+    assetDataCache.set(shipId, { data: upgradeResult.shipData, updatedAt: Date.now() });
+    cachedShipsData.set(shipId, {
+        ...(cachedShipsData.get(shipId) || {}),
+        assetData: upgradeResult.shipData
+    });
+    showRpgMessage(`Ship upgraded to Lv${upgradeResult.level}.`);
+    await displayPlayerShips(playFabId);
+    return upgradeResult;
 }
 
 export async function getPlayerShips(playFabId) {
@@ -419,6 +668,17 @@ export function renderShipCard(ship) {
     const eta = isMoving ? formatETA(movement.arrivalTime) : '停泊中';
     const shipLevel = Number(assetData?.Level) || 1;
     const canUpgrade = shipLevel < SHIP_LEVEL_CAP;
+    const nextUpgradeCosts = canUpgrade
+        ? getShipUpgradeResourceCosts(catalogItem || assetData, shipLevel + 1, getCurrentPlayerNationKey())
+        : [];
+    const nextUpgradeCostHtml = canUpgrade
+        ? `
+            <div style="margin-top: 12px;">
+                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">次の強化</div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">${renderShipResourceCostHtml(nextUpgradeCosts)}</div>
+            </div>
+        `
+        : '';
 
     return `
         <div class="ship-card" data-ship-id="${ship.shipId}">
@@ -466,6 +726,7 @@ export function renderShipCard(ship) {
                 </div>
             </div>
             ` : ''}
+            ${nextUpgradeCostHtml}
             <div class="ship-card-actions">
                 <button onclick="window.viewShipDetails('${ship.shipId}')">詳細</button>
                 ${isMoving ? `

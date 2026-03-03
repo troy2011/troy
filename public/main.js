@@ -80,8 +80,8 @@ async function registerServiceWorkerIfAvailable() {
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
     if (!window.isSecureContext && !isLocalHost) return;
     try {
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        console.log('[pwa] service worker registered:', reg.scope);
+        const swReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        console.log('[pwa] service worker registered:', swReg.scope);
     } catch (error) {
         console.warn('[pwa] service worker registration failed:', error);
     }
@@ -779,6 +779,7 @@ async function startScanAndPay() {
 
 let shipCreateInFlight = false;
 let shipCreateContext = null;
+let shipCreateBalances = null;
 
 function blockMapClicksForModal(modalEl) {
     if (!modalEl || modalEl.dataset?.blockMapClicks === 'true') return;
@@ -798,6 +799,7 @@ function blockMapClicksForModal(modalEl) {
 
 async function showCreateShipModal(context) {
     shipCreateContext = context || null;
+    shipCreateBalances = await Ship.getShipResourceBalances(window.myPlayFabId);
     const selectEl = document.getElementById('shipTypeSelect');
     selectEl.innerHTML = ''; // 既存のオプションをクリア
 
@@ -826,6 +828,13 @@ async function showCreateShipModal(context) {
         selectEl.appendChild(option);
     }
 
+    if (!selectEl.options.length) {
+        selectEl.innerHTML = '<option value="">建造できる船がありません</option>';
+        document.getElementById('shipTypeDetails').innerHTML = '現在の種族で建造できる船がありません。';
+        document.getElementById('btnConfirmCreateShip').disabled = true;
+        return;
+    }
+
     const modal = document.getElementById('shipCreateModal');
     blockMapClicksForModal(modal);
     modal.style.display = 'flex';
@@ -841,6 +850,7 @@ function updateShipTypeDetails() {
     const shipItemId = document.getElementById('shipTypeSelect').value;
     if (!shipItemId || !window.shipCatalog[shipItemId]) {
         document.getElementById('shipTypeDetails').innerHTML = '';
+        document.getElementById('btnConfirmCreateShip').disabled = true;
         return;
     }
 
@@ -860,6 +870,11 @@ function updateShipTypeDetails() {
         .filter(([, amount]) => Number(amount) > 0)
         .map(([code, amount]) => `${Number(amount)} ${formatCurrencyLabel(code)}`);
     const costString = costDisplays.length > 0 ? costDisplays.join(' + ') : '無料';
+
+    const resourceCosts = Ship.getShipBuildResourceCosts(info);
+    const shortages = Ship.getShipResourceShortages(resourceCosts, shipCreateBalances || {});
+    const canAfford = shortages.length === 0;
+    document.getElementById('btnConfirmCreateShip').disabled = !canAfford;
 
     const domainLabel = (() => {
         switch (info.Domain) {
@@ -881,6 +896,10 @@ function updateShipTypeDetails() {
     const actionLabel = actionInfo?.label || 'なし';
     const actionDescription = actionInfo?.description || '';
 
+    const shortageLine = canAfford
+        ? '<div style="margin-top: 8px; color: var(--hp-color);">Resources ready</div>'
+        : `<div style="margin-top: 8px; color: var(--danger-color);">Missing: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}</div>`;
+
     document.getElementById('shipTypeDetails').innerHTML = `
         <div>タイプ: ${domainLabel}</div>
         <div>HP: ${info.MaxHP}</div>
@@ -892,22 +911,67 @@ function updateShipTypeDetails() {
         ${actionDescription ? `<div style="font-size: 12px; color: var(--text-sub);">効果: ${actionDescription}</div>` : ''}
         <div style="margin-top: 8px; color: var(--accent-color);">建造費用: ${costString}</div>
     `;
+    document.getElementById('shipTypeDetails').innerHTML = `
+        <div>Type: ${domainLabel}</div>
+        <div>HP: ${info.MaxHP}</div>
+        <div>Speed: ${info.Speed} tile/s</div>
+        <div>Vision: ${visionValue}</div>
+        <div>Cargo: ${info.CargoCapacity}</div>
+        <div>Crew: ${info.CrewCapacity}</div>
+        <div>Action: ${actionLabel}</div>
+        ${actionDescription ? `<div style="font-size: 12px; color: var(--text-sub);">Effect: ${actionDescription}</div>` : ''}
+        <div style="margin-top: 8px; color: var(--accent-color);">Required resources</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">${Ship.renderShipResourceCostHtml(resourceCosts, shipCreateBalances || {})}</div>
+        ${shortageLine}
+    `;
 }
 
-async function confirmCreateShip(playFabId) {
+async function legacyConfirmCreateShip_unused(playFabId) {
     if (shipCreateInFlight) return;
     if (!shipCreateContext || !shipCreateContext.islandId || !shipCreateContext.mapId) {
-        showRpgMessage('首都でのみ新造船が可能です。');
+        showRpgMessage('Cannot determine where to build this ship.');
         return;
     }
     const shipItemId = document.getElementById('shipTypeSelect').value;
     if (!shipItemId) {
-        showRpgMessage('???????????????');
+        showRpgMessage('Select a ship first.');
         return;
     }
     const confirmBtn = document.getElementById('btnConfirmCreateShip');
     shipCreateInFlight = true;
     if (confirmBtn) confirmBtn.disabled = true;
+    try {
+        shipCreateBalances = await Ship.getShipResourceBalances(playFabId);
+        const selectedSpec = window.shipCatalog?.[shipItemId] || null;
+        const resourceCosts = Ship.getShipBuildResourceCosts(selectedSpec);
+        const shortages = Ship.getShipResourceShortages(resourceCosts, shipCreateBalances || {});
+        if (shortages.length > 0) {
+            updateShipTypeDetails();
+            showRpgMessage(`Missing resources: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}`);
+            return;
+        }
+        const createResult = await Ship.createShip(playFabId, shipItemId, {
+            ...(shipCreateContext || {}),
+            resourceBalances: shipCreateBalances,
+            nationKey: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || null
+        });
+        if (createResult) {
+            document.getElementById('shipCreateModal').style.display = 'none';
+            shipCreateContext = null;
+            shipCreateBalances = null;
+            showRpgMessage(`Ship created: ${window.shipCatalog[shipItemId].DisplayName}`);
+            try {
+                await Ship.setActiveShip(playFabId, createResult.shipId);
+            } catch (e) {
+                console.warn('[confirmCreateShip] Failed to set active ship:', e);
+            }
+            await Player.getPoints(playFabId);
+        }
+    } finally {
+        shipCreateInFlight = false;
+        if (confirmBtn) confirmBtn.disabled = false;
+    }
+    return;
 
     try {
         const paymentMethod = await Ship.selectPaymentMethod('支払い方法を選択してください');
@@ -925,6 +989,59 @@ async function confirmCreateShip(playFabId) {
             }
             await Player.getPoints(playFabId); // ??????
         }
+    } finally {
+        shipCreateInFlight = false;
+        if (confirmBtn) confirmBtn.disabled = false;
+    }
+}
+async function confirmCreateShip(playFabId) {
+    if (shipCreateInFlight) return;
+    if (!shipCreateContext || !shipCreateContext.islandId || !shipCreateContext.mapId) {
+        showRpgMessage('Cannot determine where to build this ship.');
+        return;
+    }
+
+    const shipItemId = document.getElementById('shipTypeSelect').value;
+    if (!shipItemId) {
+        showRpgMessage('Select a ship first.');
+        return;
+    }
+
+    const confirmBtn = document.getElementById('btnConfirmCreateShip');
+    shipCreateInFlight = true;
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    try {
+        shipCreateBalances = await Ship.getShipResourceBalances(playFabId);
+        const selectedSpec = window.shipCatalog?.[shipItemId] || null;
+        const resourceCosts = Ship.getShipBuildResourceCosts(selectedSpec);
+        const shortages = Ship.getShipResourceShortages(resourceCosts, shipCreateBalances || {});
+        if (shortages.length > 0) {
+            updateShipTypeDetails();
+            showRpgMessage(`Missing resources: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}`);
+            return;
+        }
+
+        const createResult = await Ship.createShip(playFabId, shipItemId, {
+            ...(shipCreateContext || {}),
+            resourceBalances: shipCreateBalances,
+            nationKey: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || null
+        });
+
+        if (!createResult) return;
+
+        document.getElementById('shipCreateModal').style.display = 'none';
+        shipCreateContext = null;
+        shipCreateBalances = null;
+        showRpgMessage(`Ship created: ${window.shipCatalog[shipItemId].DisplayName}`);
+
+        try {
+            await Ship.setActiveShip(playFabId, createResult.shipId);
+        } catch (error) {
+            console.warn('[confirmCreateShip] Failed to set active ship:', error);
+        }
+
+        await Player.getPoints(playFabId);
     } finally {
         shipCreateInFlight = false;
         if (confirmBtn) confirmBtn.disabled = false;

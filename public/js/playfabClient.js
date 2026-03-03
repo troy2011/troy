@@ -200,8 +200,8 @@ export function setActiveShip(playFabId, shipId, options) {
     return callApiWithLoader('/api/set-active-ship', { playFabId, shipId }, options);
 }
 
-export function createShip(playFabId, shipItemId, mapId, islandId, paymentMethod, options) {
-    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, mapId, islandId, paymentMethod }, options);
+export function createShip(playFabId, shipItemId, mapId, islandId, options) {
+    return callApiWithLoader('/api/create-ship', { playFabId, shipItemId, mapId, islandId }, options);
 }
 
 export function startShipVoyage(shipId, playFabId, destination, options) {
@@ -212,8 +212,8 @@ export function stopShip(shipId, options) {
     return callApiWithLoader('/api/stop-ship', { shipId }, options);
 }
 
-export function upgradeShip(playFabId, shipId, paymentMethod, options) {
-    return callApiWithLoader('/api/upgrade-ship', { playFabId, shipId, paymentMethod }, options);
+export function upgradeShip(playFabId, shipId, options) {
+    return callApiWithLoader('/api/upgrade-ship', { playFabId, shipId }, options);
 }
 
 export function getPlayerShips(playFabId, options) {

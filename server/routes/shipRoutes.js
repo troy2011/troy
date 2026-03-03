@@ -49,9 +49,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
-    const { addEconomyItem, subtractEconomyItem, VIRTUAL_CURRENCY_CODE } = require('../economy');
+    const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
 
-    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
+    const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId, catalogCache, catalogCurrencyMap };
 
     const buildCostsFromItem = (spec) => {
         const costs = [];
@@ -86,11 +86,40 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         return costs;
     };
 
-    const RESOURCE_RATIO_BY_NATION = {
-        fire: { RR: 0.6, RG: 0.3, RT: 0.1 },
-        earth: { RG: 0.6, RR: 0.3, RT: 0.1 },
-        wind: { RY: 0.6, RB: 0.3, RT: 0.1 },
-        water: { RB: 0.6, RY: 0.3, RT: 0.1 }
+    const NATION_PRIMARY_RESOURCE_BY_KEY = {
+        fire: 'RR',
+        earth: 'RG',
+        wind: 'RY',
+        water: 'RB'
+    };
+    const SHIP_BUILD_RESOURCE_COST_BY_CLASS = {
+        explorer: { RT: 10, national: 25 },
+        merchant: { RS: 1, national: 50 },
+        fighter: { RS: 1, national: 50 },
+        defender: { RS: 1, national: 50 }
+    };
+    const SHIP_UPGRADE_RESOURCE_COST_BY_CLASS = {
+        explorer: {
+            2: { RT: 5, national: 10 },
+            3: { RT: 10, national: 15 },
+            4: { RT: 15, national: 20 },
+            5: { RT: 20, national: 25 }
+        },
+        default: {
+            2: { national: 20 },
+            3: { national: 30, RS: 1 },
+            4: { national: 40, RS: 1 },
+            5: { national: 50, RS: 1 }
+        }
+    };
+    const RESOURCE_LABELS = {
+        [VIRTUAL_CURRENCY_CODE]: 'Ps',
+        RR: '🧨',
+        RG: '🪨',
+        RY: '🍄',
+        RB: '🫙',
+        RT: '🪾',
+        RS: '🪵'
     };
     const NATION_ALIAS = {
         wands: 'fire',
@@ -111,7 +140,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         return null;
     };
 
-    const buildShipUpgradeCosts = (shipSpec, nextLevel) => {
+    const buildLegacyShipUpgradeCosts = (shipSpec, nextLevel) => {
         const baseCosts = buildCostsFromItem(shipSpec);
         if (!Array.isArray(baseCosts) || baseCosts.length === 0) return [];
         const multiplier = Math.max(1, Number(nextLevel) || 1);
@@ -125,15 +154,6 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         const raw = String(value || '').trim().toLowerCase();
         if (!raw) return null;
         return NATION_ALIAS[raw] || raw;
-    };
-
-    const computeBaseCostAmount = (costEntries) => {
-        const normalized = Array.isArray(costEntries) ? costEntries : [];
-        const ps = normalized
-            .filter((entry) => String(entry?.ItemId || entry?.itemId || '').toUpperCase() === VIRTUAL_CURRENCY_CODE)
-            .reduce((sum, entry) => sum + (Number(entry?.Amount ?? entry?.amount ?? 0) || 0), 0);
-        if (ps > 0) return ps;
-        return normalized.reduce((sum, entry) => sum + (Number(entry?.Amount ?? entry?.amount ?? 0) || 0), 0);
     };
 
     const mergeCostEntries = (entries, extra) => {
@@ -151,19 +171,66 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         return Array.from(map.entries()).map(([ItemId, Amount]) => ({ ItemId, Amount }));
     };
 
-    const applyNationResourceCosts = (costEntries, nationKey, options = {}) => {
-        const normalizedNation = normalizeNationKey(nationKey);
-        const ratios = normalizedNation ? RESOURCE_RATIO_BY_NATION[normalizedNation] : null;
-        if (!ratios) return costEntries;
-        const baseAmount = computeBaseCostAmount(costEntries);
-        if (baseAmount <= 0) return costEntries;
-        const useSacred = !!options.useSacred;
-        const resources = Object.entries(ratios).map(([code, ratio]) => {
-            const resolvedCode = useSacred && code === 'RT' ? 'RS' : code;
-            return { ItemId: resolvedCode, Amount: Math.max(1, Math.round(baseAmount * ratio)) };
+    const normalizeShipClass = (value) => String(value || '').trim().toLowerCase();
+
+    const expandShipResourceTemplate = (template, nationKey) => {
+        if (!template || typeof template !== 'object') return [];
+        const primaryResource = NATION_PRIMARY_RESOURCE_BY_KEY[normalizeNationKey(nationKey)];
+        const expanded = [];
+        Object.entries(template).forEach(([code, rawAmount]) => {
+            const amount = Number(rawAmount) || 0;
+            if (amount <= 0) return;
+            const itemId = code === 'national' ? primaryResource : code;
+            if (!itemId) return;
+            expanded.push({ ItemId: itemId, Amount: amount });
         });
-        if (options.onlyResource) return resources.map((entry) => ({ ItemId: entry.ItemId, Amount: entry.Amount }));
-        return mergeCostEntries(costEntries, resources);
+        return mergeCostEntries(expanded, []);
+    };
+
+    const resolveShipBuildCosts = (shipSpec, nationKey) => {
+        const shipClass = normalizeShipClass(shipSpec?.class || shipSpec?.Class);
+        const fixedCosts = expandShipResourceTemplate(SHIP_BUILD_RESOURCE_COST_BY_CLASS[shipClass], nationKey);
+        if (fixedCosts.length > 0) return fixedCosts;
+        return buildCostsFromItem(shipSpec);
+    };
+
+    const resolveShipUpgradeCosts = (shipSpec, nationKey, nextLevel) => {
+        const shipClass = normalizeShipClass(shipSpec?.class || shipSpec?.Class);
+        const classCosts = SHIP_UPGRADE_RESOURCE_COST_BY_CLASS[shipClass] || SHIP_UPGRADE_RESOURCE_COST_BY_CLASS.default;
+        const fixedCosts = expandShipResourceTemplate(classCosts?.[nextLevel], nationKey);
+        if (fixedCosts.length > 0) return fixedCosts;
+        return buildLegacyShipUpgradeCosts(shipSpec, nextLevel);
+    };
+
+    const getPlayerCurrencyBalances = async (playFabId) => {
+        const entityKey = await getEntityKeyFromPlayFabId(playFabId);
+        if (!entityKey?.Id || !entityKey?.Type) {
+            throw new Error('EntityKeyNotFound');
+        }
+        const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
+        return getVirtualCurrencyMap(items, { catalogCache, catalogCurrencyMap });
+    };
+
+    const buildCostShortages = (costEntries, balances) => {
+        const currentBalances = balances || {};
+        return (costEntries || []).map((entry) => {
+            const itemId = String(entry?.ItemId || entry?.itemId || '').trim();
+            const required = Number(entry?.Amount ?? entry?.amount ?? 0) || 0;
+            const owned = Number(currentBalances[itemId] || 0) || 0;
+            const shortage = Math.max(0, required - owned);
+            return shortage > 0 ? { ItemId: itemId, required, owned, shortage } : null;
+        }).filter(Boolean);
+    };
+
+    const formatCostListForMessage = (costEntries, balances) => {
+        const currentBalances = balances || {};
+        return (costEntries || []).map((entry) => {
+            const itemId = String(entry?.ItemId || entry?.itemId || '').trim();
+            const required = Number(entry?.Amount ?? entry?.amount ?? 0) || 0;
+            const owned = Number(currentBalances[itemId] || 0) || 0;
+            const label = RESOURCE_LABELS[itemId] || itemId;
+            return `${label}${owned}/${required}`;
+        }).join(' / ');
     };
 
     const resolvePlayerNation = async (playFabId) => {
@@ -733,7 +800,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 console.warn('[create-ship] Failed to fetch latest price data', error?.errorMessage || error?.message || error);
             }
         }
-        if (costsToPay.length === 0) {
+        const shipClassForBuild = normalizeShipClass(shipSpec?.class || shipSpec?.Class);
+        if (costsToPay.length === 0 && !SHIP_BUILD_RESOURCE_COST_BY_CLASS[shipClassForBuild]) {
             console.warn('[create-ship] MissingPriceAmounts', {
                 shipItemId,
                 priceAmounts: shipSpec?.PriceAmounts,
@@ -753,11 +821,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             if (!playerNation) {
                 return res.status(403).json({ error: 'NationNotSet' });
             }
-            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
-            const resourceCosts = applyNationResourceCosts(costsToPay, playerNation, { useSacred: false, onlyResource: true });
-            const resourceCostsResolved = resourceCosts.length > 0 ? resourceCosts : costsToPay;
-            const useResourcePayment = paymentMethod === 'resource';
-            costsToPay = useResourcePayment ? resourceCostsResolved : costsToPay;
+            costsToPay = resolveShipBuildCosts(shipSpec, playerNation);
+            if (!Array.isArray(costsToPay) || costsToPay.length === 0) {
+                return res.status(400).json({ error: 'ShipBuildCostNotConfigured' });
+            }
             const shipRace = String(shipSpec.race || shipSpec.Race || '').toLowerCase().trim();
             if (shipRace && shipRace !== 'common' && playerRace && shipRace !== playerRace) {
                 return res.status(403).json({ error: 'Race restricted ship', details: { shipRace, playerRace } });
@@ -796,6 +863,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
 
             const resolvedSpawnPosition = await findAvailableSpawnPosition(baseSpawnPosition);
+            const balances = await getPlayerCurrencyBalances(playFabId);
+            const shortages = buildCostShortages(costsToPay, balances);
+            if (shortages.length > 0) {
+                return res.status(402).json({
+                    error: '必要資源が足りません',
+                    details: `必要: ${formatCostListForMessage(costsToPay, balances)}`,
+                    costs: costsToPay,
+                    shortages
+                });
+            }
 
             // 1. 建造コストを支払う
             for (const costItem of costsToPay) {
@@ -882,11 +959,14 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 await setActiveShipId(playFabId, shipId, firestoreShipData);
             }
 
-            res.json({ success: true, shipId: shipId, shipData: resolvedShipData, firestoreData: firestoreShipData });
+            res.json({ success: true, shipId: shipId, shipData: resolvedShipData, firestoreData: firestoreShipData, costs: costsToPay });
 
         } catch (error) {
             console.error('[CreateShip] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
+                return res.status(402).json({ error: '必要資源が足りません' });
+            }
+            if (false && error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(402).json({ error: `建造費用が不足しています。(${cost} ${currencyCode} 必要)` });
             }
             res.status(500).json({ error: 'Failed to create ship', details: error.errorMessage || error.message });
@@ -933,15 +1013,20 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(400).json({ error: 'ShipSpecNotFound' });
             }
 
-            let upgradeCosts = buildShipUpgradeCosts(shipSpec, nextLevel);
             const nationForCosts = await resolvePlayerNation(playFabId);
-            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
-            const resourceCosts = applyNationResourceCosts(upgradeCosts, nationForCosts, { useSacred: true, onlyResource: true });
-            const resourceCostsResolved = resourceCosts.length > 0 ? resourceCosts : upgradeCosts;
-            const useResourcePayment = paymentMethod === 'resource';
-            upgradeCosts = useResourcePayment ? resourceCostsResolved : upgradeCosts;
+            let upgradeCosts = resolveShipUpgradeCosts(shipSpec, nationForCosts, nextLevel);
             if (upgradeCosts.length === 0) {
                 return res.status(400).json({ error: 'UpgradeCostNotConfigured' });
+            }
+            const balances = await getPlayerCurrencyBalances(playFabId);
+            const shortages = buildCostShortages(upgradeCosts, balances);
+            if (shortages.length > 0) {
+                return res.status(402).json({
+                    error: '必要資源が足りません',
+                    details: `必要: ${formatCostListForMessage(upgradeCosts, balances)}`,
+                    costs: upgradeCosts,
+                    shortages
+                });
             }
 
             for (const costItem of upgradeCosts) {
@@ -965,7 +1050,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         } catch (error) {
             console.error('[UpgradeShip] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
-                return res.status(402).json({ error: 'InsufficientFunds' });
+                return res.status(402).json({ error: '必要資源が足りません' });
             }
             return res.status(500).json({ error: 'Failed to upgrade ship', details: error.errorMessage || error.message });
         }
