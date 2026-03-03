@@ -637,8 +637,12 @@ async function loadCatalogCache() {
         const localPriceMap = (() => {
             const fallback = {};
             try {
-                const localPath = path.join(__dirname, 'data', 'local', 'catalog_v2_items.json');
-                if (!fs.existsSync(localPath)) return fallback;
+                const localCandidates = [
+                    path.join(__dirname, 'data', 'local', 'catalog_v2_items.json'),
+                    path.join(__dirname, 'catalog_v2_items.json')
+                ];
+                const localPath = localCandidates.find((candidate) => fs.existsSync(candidate));
+                if (!localPath) return fallback;
                 const raw = fs.readFileSync(localPath, 'utf8');
                 const parsed = JSON.parse(raw);
                 const items = Array.isArray(parsed?.Items) ? parsed.Items : [];
