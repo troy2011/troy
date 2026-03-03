@@ -21,6 +21,14 @@ export function getPlayerStats(playFabId, options) {
     return callApiWithLoader('/api/get-stats', { playFabId }, options);
 }
 
+export function recoverHpResource(playFabId, options) {
+    return callApiWithLoader('/api/recover-hp-resource', { playFabId }, options);
+}
+
+export function recoverMpResource(playFabId, options) {
+    return callApiWithLoader('/api/recover-mp-resource', { playFabId }, options);
+}
+
 export function getPoints(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
     return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
@@ -214,6 +222,14 @@ export function stopShip(shipId, options) {
 
 export function upgradeShip(playFabId, shipId, options) {
     return callApiWithLoader('/api/upgrade-ship', { playFabId, shipId }, options);
+}
+
+export function repairShip(playFabId, shipId, tier = 'small', options) {
+    return callApiWithLoader('/api/repair-ship', { playFabId, shipId, tier }, options);
+}
+
+export function consumeShipBroadside(playFabId, options) {
+    return callApiWithLoader('/api/consume-ship-broadside', { playFabId }, options);
 }
 
 export function getPlayerShips(playFabId, options) {

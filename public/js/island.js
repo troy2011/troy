@@ -94,8 +94,140 @@ const SHOP_BUILDINGS = {
     item_shop: { title: '道具屋', categories: ['Consumable'] }
 };
 
+const FIXED_BUILDING_RESOURCE_COSTS = {
+    my_house: {
+        1: [{ code: 'RT', amount: 2 }],
+        2: [{ code: 'RT', amount: 3 }],
+        3: [{ code: 'RT', amount: 5 }, { code: 'RS', amount: 1 }],
+        4: [{ code: 'RT', amount: 7 }, { code: 'RS', amount: 1 }],
+        5: [{ code: 'RT', amount: 9 }, { code: 'RS', amount: 2 }]
+    },
+    watchtower: {
+        1: [{ code: 'RT', amount: 2 }],
+        2: [{ code: 'RT', amount: 2 }],
+        3: [{ code: 'RT', amount: 4 }, { code: 'RS', amount: 1 }]
+    },
+    teslatower: {
+        1: [{ code: 'RT', amount: 2 }],
+        2: [{ code: 'RT', amount: 2 }],
+        3: [{ code: 'RT', amount: 4 }, { code: 'RS', amount: 1 }]
+    },
+    coastal_battery: {
+        1: [{ code: 'RT', amount: 2 }, { code: 'RS', amount: 1 }]
+    },
+    dragon_gate: {
+        1: [{ code: 'RT', amount: 7 }, { code: 'RS', amount: 2 }]
+    },
+    shipyard: {
+        1: [{ code: 'RT', amount: 8 }, { code: 'RS', amount: 2 }]
+    }
+};
+
 function getShopConfig(buildingId) {
     return buildingId ? SHOP_BUILDINGS[buildingId] || null : null;
+}
+
+function getBuildingFixedResourceCost(buildingId, targetLevel = 1) {
+    const table = FIXED_BUILDING_RESOURCE_COSTS[String(buildingId || '').trim()];
+    if (!table) return [];
+    const entries = table[Math.max(1, Math.trunc(Number(targetLevel) || 1))] || [];
+    return entries
+        .map((entry) => ({
+            code: String(entry?.code || '').trim(),
+            amount: Number(entry?.amount ?? 0) || 0
+        }))
+        .filter((entry) => entry.code && entry.amount > 0);
+}
+
+function getActiveBuildingEntry(island) {
+    const list = Array.isArray(island?.buildings) ? island.buildings : [];
+    return list.find((b) => b && b.status !== 'demolished') || null;
+}
+
+async function confirmFixedResourceSpend({ title, message, costs, confirmLabel = '実行する' }) {
+    const entries = Array.isArray(costs) ? costs.filter((entry) => entry?.code && Number(entry?.amount) > 0) : [];
+    if (!entries.length) return true;
+
+    let balances = null;
+    try {
+        const inventory = await fetchInventory(window.myPlayFabId || null, { isSilent: true });
+        balances = inventory?.virtualCurrency || null;
+    } catch (_error) {
+        balances = null;
+    }
+
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.72)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.padding = '16px';
+        overlay.style.zIndex = '10000';
+
+        const canJudge = !!balances;
+        const rows = entries.map((entry) => {
+            const current = canJudge ? Number(balances?.[entry.code] || 0) : null;
+            const shortage = current === null ? 0 : Math.max(0, entry.amount - current);
+            return {
+                ...entry,
+                current,
+                shortage,
+                label: formatCurrencyLabel(entry.code) || entry.code
+            };
+        });
+        const hasShortage = rows.some((entry) => entry.shortage > 0);
+
+        const panel = document.createElement('div');
+        panel.style.background = '#0f172a';
+        panel.style.border = '1px solid rgba(148,163,184,0.24)';
+        panel.style.borderRadius = '14px';
+        panel.style.padding = '16px';
+        panel.style.width = 'min(100%, 360px)';
+        panel.style.color = '#fff';
+        panel.style.boxShadow = '0 18px 40px rgba(0,0,0,0.45)';
+
+        const rowHtml = rows.map((entry) => {
+            const currentText = entry.current === null ? '所持: ?' : `所持: ${entry.current}`;
+            const statusText = entry.shortage > 0 ? `不足: ${entry.shortage}` : 'OK';
+            const statusColor = entry.shortage > 0 ? '#f87171' : '#86efac';
+            return `
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid rgba(148,163,184,0.12);">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <div style="font-weight:700;">${escapeHtml(entry.label)}</div>
+                        <div style="font-size:12px; color:#94a3b8;">必要: ${entry.amount} / ${escapeHtml(currentText)}</div>
+                    </div>
+                    <div style="font-size:12px; font-weight:700; color:${statusColor};">${escapeHtml(statusText)}</div>
+                </div>
+            `;
+        }).join('');
+
+        panel.innerHTML = `
+            <div style="font-size:15px; font-weight:800; margin-bottom:8px;">${escapeHtml(title || '必要資源')}</div>
+            <div style="font-size:12px; color:#cbd5e1; margin-bottom:12px; line-height:1.5;">${escapeHtml(message || '必要な資源を確認してください。')}</div>
+            <div style="border-top:1px solid rgba(148,163,184,0.12); border-bottom:1px solid rgba(148,163,184,0.12); margin-bottom:12px;">${rowHtml}</div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button id="fixedCostCancelBtn" style="padding:8px 12px; background:#475569;">キャンセル</button>
+                <button id="fixedCostConfirmBtn" style="padding:8px 12px;" ${hasShortage ? 'disabled' : ''}>${escapeHtml(confirmLabel)}</button>
+            </div>
+        `;
+
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        const close = (value) => {
+            overlay.remove();
+            resolve(value);
+        };
+
+        panel.querySelector('#fixedCostCancelBtn')?.addEventListener('click', () => close(false));
+        panel.querySelector('#fixedCostConfirmBtn')?.addEventListener('click', () => close(!hasShortage));
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) close(false);
+        });
+    });
 }
 
 export async function detectIslandApproach(shipId) {
@@ -198,8 +330,20 @@ async function collectResource(playFabId, islandId) {
 
 
 export async function startBuildingConstruction(playFabId, islandId, buildingId, options = {}) {
-    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
-    if (!paymentMethod) return null;
+    const fixedCosts = getBuildingFixedResourceCost(buildingId, 1);
+    let paymentMethod = 'resource';
+    if (fixedCosts.length) {
+        const confirmed = await confirmFixedResourceSpend({
+            title: '建設確認',
+            message: `${buildingId} の建設に必要な資源です。`,
+            costs: fixedCosts,
+            confirmLabel: '建設する'
+        });
+        if (!confirmed) return null;
+    } else {
+        paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+        if (!paymentMethod) return null;
+    }
     const response = await requestStartBuildingConstruction(
         playFabId,
         islandId,
@@ -223,8 +367,22 @@ export async function startBuildingConstruction(playFabId, islandId, buildingId,
 }
 
 export async function upgradeIslandLevel(playFabId, islandId) {
-    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
-    if (!paymentMethod) return null;
+    const island = await getIslandDetails(islandId);
+    const currentLevel = Math.max(1, Math.trunc(Number(island?.islandLevel) || 1));
+    const fixedCosts = getBuildingFixedResourceCost('my_house', currentLevel + 1);
+    let paymentMethod = 'resource';
+    if (fixedCosts.length) {
+        const confirmed = await confirmFixedResourceSpend({
+            title: 'マイハウス強化',
+            message: '次の強化に必要な資源です。',
+            costs: fixedCosts,
+            confirmLabel: '強化する'
+        });
+        if (!confirmed) return null;
+    } else {
+        paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+        if (!paymentMethod) return null;
+    }
     const response = await requestUpgradeIslandLevel(playFabId, islandId, window.__currentMapId || null, paymentMethod);
 
     if (response && response.success) {
@@ -237,8 +395,24 @@ export async function upgradeIslandLevel(playFabId, islandId) {
 }
 
 export async function upgradeBuilding(playFabId, islandId) {
-    const paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
-    if (!paymentMethod) return null;
+    const island = await getIslandDetails(islandId);
+    const activeBuilding = getActiveBuildingEntry(island);
+    const rawId = String(activeBuilding?.buildingId || activeBuilding?.id || '').trim();
+    const currentLevel = Math.max(1, Math.trunc(Number(activeBuilding?.level) || 1));
+    const fixedCosts = getBuildingFixedResourceCost(rawId, currentLevel + 1);
+    let paymentMethod = 'resource';
+    if (fixedCosts.length) {
+        const confirmed = await confirmFixedResourceSpend({
+            title: '建物強化',
+            message: `${rawId} の次の強化に必要な資源です。`,
+            costs: fixedCosts,
+            confirmLabel: '強化する'
+        });
+        if (!confirmed) return null;
+    } else {
+        paymentMethod = await selectPaymentMethod('支払い方法を選択してください');
+        if (!paymentMethod) return null;
+    }
     const response = await requestUpgradeBuilding(playFabId, islandId, window.__currentMapId || null, paymentMethod);
     if (response && response.success) {
         const buildingId = response.buildingId || '';

@@ -40,6 +40,34 @@ const NATION_ALIAS = {
     swords: 'wind',
     cups: 'water'
 };
+const FIXED_BUILDING_RESOURCE_COSTS = {
+    my_house: {
+        1: [['RT', 2]],
+        2: [['RT', 3]],
+        3: [['RT', 5], ['RS', 1]],
+        4: [['RT', 7], ['RS', 1]],
+        5: [['RT', 9], ['RS', 2]]
+    },
+    watchtower: {
+        1: [['RT', 2]],
+        2: [['RT', 2]],
+        3: [['RT', 4], ['RS', 1]]
+    },
+    teslatower: {
+        1: [['RT', 2]],
+        2: [['RT', 2]],
+        3: [['RT', 4], ['RS', 1]]
+    },
+    coastal_battery: {
+        1: [['RT', 2], ['RS', 1]]
+    },
+    dragon_gate: {
+        1: [['RT', 7], ['RS', 2]]
+    },
+    shipyard: {
+        1: [['RT', 8], ['RS', 2]]
+    }
+};
 
 function normalizeNationKey(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -86,6 +114,15 @@ function applyNationResourceCosts(costEntries, nationKey, options = {}) {
     });
     if (options.onlyResource) return resources.map((entry) => [entry.ItemId, entry.Amount]);
     return mergeCostEntries(costEntries, resources);
+}
+
+function getFixedBuildingResourceCostEntries(buildingId, targetLevel = 1) {
+    const table = FIXED_BUILDING_RESOURCE_COSTS[String(buildingId || '').trim()];
+    if (!table) return [];
+    const entries = table[Math.max(1, Math.trunc(Number(targetLevel) || 1))] || [];
+    return entries
+        .map(([code, amount]) => [String(code || '').trim(), Number(amount) || 0])
+        .filter(([code, amount]) => code && amount > 0);
 }
 
 function normalizeEntityKey(input) {
@@ -520,11 +557,16 @@ function initializeShopRoutes(app, deps) {
                 costEntries = Object.entries(spec.Cost);
             }
             costEntries = costEntries.filter(([, amount]) => Number(amount) > 0);
-            const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
-            const resourceCosts = applyNationResourceCosts(costEntries, playerNation, { useSacred: false, onlyResource: true });
-            const costEntriesWithResource = resourceCosts.length > 0 ? resourceCosts : costEntries;
-            const useResourcePayment = paymentMethod === 'resource';
-            costEntries = useResourcePayment ? costEntriesWithResource : costEntries;
+            const fixedResourceCosts = getFixedBuildingResourceCostEntries(buildingId, 1);
+            if (fixedResourceCosts.length > 0) {
+                costEntries = fixedResourceCosts;
+            } else {
+                const paymentMethod = String(req?.body?.paymentMethod || '').trim().toLowerCase();
+                const resourceCosts = applyNationResourceCosts(costEntries, playerNation, { useSacred: false, onlyResource: true });
+                const costEntriesWithResource = resourceCosts.length > 0 ? resourceCosts : costEntries;
+                const useResourcePayment = paymentMethod === 'resource';
+                costEntries = useResourcePayment ? costEntriesWithResource : costEntries;
+            }
 
             if (costEntries.length > 0) {
                 const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);

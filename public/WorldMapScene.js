@@ -2441,7 +2441,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const cooldownRemaining = Math.max(0, this.shipSideCannonCooldownUntil - now);
         const chargeRemaining = Math.max(0, this.shipSideCannonChargeUntil - now);
         const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
-        const canUse = !!this.playerShip && allowedClass && cooldownRemaining <= 0 && jamRemaining <= 0 && chargeRemaining <= 0;
+        const canUse = !!this.playerShip && allowedClass && cooldownRemaining <= 0 && jamRemaining <= 0 && chargeRemaining <= 0 && !this.shipSideCannonConsuming;
         const hasShipInfo = !!this.playerShipClass || !!this.playerShipItemId || this.isPlayerGuildShip();
         const shouldShow = hasShipInfo && allowedClass;
 
@@ -2463,12 +2463,41 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipSideCannonStatus.textContent = `Cooldown ${seconds}s`;
             return;
         }
+        if (this.shipSideCannonConsuming) {
+            this.shipSideCannonStatus.textContent = '火薬確認中...';
+            return;
+        }
         if (chargeRemaining > 0) {
             const seconds = Math.max(0.1, Math.ceil(chargeRemaining / 100) / 10);
             this.shipSideCannonStatus.textContent = `照準中 (${seconds}s)`;
             return;
         }
-        this.shipSideCannonStatus.textContent = '左右へ舷側砲撃';
+        this.shipSideCannonStatus.textContent = '左右へ舷側砲撃 (🧨x1)';
+    }
+
+    async consumeShipSideCannonAmmo() {
+        if (!this.playerInfo?.playFabId || this.shipSideCannonConsuming) return false;
+        this.shipSideCannonConsuming = true;
+        this.updateShipSideCannonUi(true);
+        try {
+            const res = await fetch((window.buildApiUrl ? window.buildApiUrl('/api/consume-ship-broadside') : '/api/consume-ship-broadside'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playFabId: this.playerInfo.playFabId })
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.success) {
+                this.showMessage(data?.error || '舷側砲の火薬が足りません');
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.warn('[ShipSideCannon] Failed to consume ammo:', error);
+            this.showMessage('舷側砲の火薬消費に失敗しました');
+            return false;
+        } finally {
+            this.shipSideCannonConsuming = false;
+        }
     }
 
     triggerShipSideCannon() {
@@ -2495,6 +2524,10 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage(`舷側砲クールダウン中 (${seconds}s)`);
             return;
         }
+        if (this.shipSideCannonConsuming) {
+            this.showMessage('舷側砲の火薬を確認中です');
+            return;
+        }
         if (now < this.shipSideCannonChargeUntil) {
             this.showMessage('舷側砲を照準中...');
             return;
@@ -2511,7 +2544,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipSideCannonChargeTimer = null;
         }
 
-        this.shipSideCannonChargeTimer = this.time.delayedCall(chargeMs, () => {
+        this.shipSideCannonChargeTimer = this.time.delayedCall(chargeMs, async () => {
             this.shipSideCannonChargeTimer = null;
             this.shipSideCannonChargeUntil = 0;
             const fireNow = Date.now();
@@ -2529,13 +2562,24 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.updateShipSideCannonUi(true);
                 return;
             }
+            const broadsideBundle = this.getDefenderBroadsideBundle(actionInfo);
+            if (!broadsideBundle.targets.length) {
+                this.showMessage('対象がいません');
+                this.updateShipSideCannonUi(true);
+                return;
+            }
+            const consumed = await this.consumeShipSideCannonAmmo();
+            if (!consumed) {
+                this.updateShipSideCannonUi(true);
+                return;
+            }
 
             this.playSideCannonSfx('fire');
             if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
                 this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, { fontSize: 19, rise: 20, duration: 680 });
             }
             this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
-            this.applyDefenderBroadsideAction(actionInfo);
+            this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
             this.showMessage(`${actionInfo.label}！`);
 
             this.shipSideCannonCooldownUntil = fireNow + (Number(actionInfo.cooldownMs) || 60_000);
@@ -3554,8 +3598,8 @@ export default class WorldMapScene extends Phaser.Scene {
         await this.applyDefenderShieldAction(actionInfo);
     }
 
-    applyDefenderBroadsideAction(actionInfo = {}) {
-        if (!this.playerShip) return;
+    getDefenderBroadsideBundle(actionInfo = {}) {
+        if (!this.playerShip) return null;
         const isSideCannon = String(actionInfo?.type || '').toLowerCase() === 'side_cannon';
         const tile = this.TILE_SIZE;
         const range = tile * Math.max(1, Number(actionInfo?.rangeTiles) || 5);
@@ -3576,7 +3620,24 @@ export default class WorldMapScene extends Phaser.Scene {
                 targetMap.set(target.playFabId, target);
             }
         });
-        const targets = Array.from(targetMap.values());
+        return {
+            isSideCannon,
+            range,
+            angle,
+            damage,
+            origin,
+            effectColor,
+            leftHeading,
+            rightHeading,
+            targets: Array.from(targetMap.values())
+        };
+    }
+
+    applyDefenderBroadsideAction(actionInfo = {}, broadsideBundle = null) {
+        if (!this.playerShip) return;
+        const info = broadsideBundle || this.getDefenderBroadsideBundle(actionInfo);
+        if (!info) return;
+        const { isSideCannon, range, angle, damage, origin, effectColor, leftHeading, rightHeading, targets } = info;
         this.playActionConeEffectAt(origin.x, origin.y, range, angle, leftHeading, effectColor);
         this.playActionConeEffectAt(origin.x, origin.y, range, angle, rightHeading, effectColor);
         const cannonFxOptions = isSideCannon

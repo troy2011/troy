@@ -127,6 +127,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         swords: 'wind',
         cups: 'water'
     };
+    const SHIP_ACTION_RESOURCE_COSTS = {
+        broadside: [{ ItemId: 'RR', Amount: 1 }]
+    };
+    const SHIP_REPAIR_RESOURCE_BY_TIER = {
+        small: { costs: [{ ItemId: 'RG', Amount: 1 }], recoverRatio: 0.25, label: '小修理' }
+    };
 
     const SHIP_LEVEL_CAP = 5;
 
@@ -231,6 +237,22 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const label = RESOURCE_LABELS[itemId] || itemId;
             return `${label}${owned}/${required}`;
         }).join(' / ');
+    };
+
+    const tryConsumeResourceCosts = async (playFabId, costEntries) => {
+        const balances = await getPlayerCurrencyBalances(playFabId);
+        const shortages = buildCostShortages(costEntries, balances);
+        if (shortages.length > 0) {
+            return { success: false, balances, shortages };
+        }
+        for (const costItem of costEntries) {
+            await subtractEconomyItem(playFabId, costItem.ItemId, costItem.Amount, economyDeps);
+        }
+        const nextBalances = { ...balances };
+        for (const costItem of costEntries) {
+            nextBalances[costItem.ItemId] = Math.max(0, (Number(nextBalances[costItem.ItemId] || 0) || 0) - (Number(costItem.Amount) || 0));
+        }
+        return { success: true, balances: nextBalances, shortages: [] };
     };
 
     const resolvePlayerNation = async (playFabId) => {
@@ -1053,6 +1075,140 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(402).json({ error: '必要資源が足りません' });
             }
             return res.status(500).json({ error: 'Failed to upgrade ship', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: 舷側砲の火薬を消費
+     * POST /api/consume-ship-broadside
+     */
+    app.post('/api/consume-ship-broadside', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+
+        try {
+            const costs = SHIP_ACTION_RESOURCE_COSTS.broadside;
+            const consumeResult = await tryConsumeResourceCosts(playFabId, costs);
+            if (!consumeResult.success) {
+                return res.status(402).json({
+                    error: '舷側砲の火薬が足りません',
+                    details: `必要: ${formatCostListForMessage(costs, consumeResult.balances)}`,
+                    costs,
+                    shortages: consumeResult.shortages
+                });
+            }
+            return res.json({ success: true, costs, balances: consumeResult.balances });
+        } catch (error) {
+            console.error('[ConsumeShipBroadside] Error:', error);
+            if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
+                return res.status(402).json({ error: '舷側砲の火薬が足りません' });
+            }
+            return res.status(500).json({ error: 'Failed to consume ship broadside resource', details: error.errorMessage || error.message });
+        }
+    });
+
+    /**
+     * API: 船を修理
+     * POST /api/repair-ship
+     */
+    app.post('/api/repair-ship', async (req, res) => {
+        const { playFabId, shipId, tier } = req.body || {};
+        if (!playFabId || !shipId) {
+            return res.status(400).json({ error: 'playFabId and shipId are required' });
+        }
+
+        try {
+            const shipDoc = await shipsCollection.doc(shipId).get();
+            if (!shipDoc.exists) return res.status(404).json({ error: 'Ship not found' });
+            const shipDocData = shipDoc.data() || {};
+            if (shipDocData.playFabId !== playFabId) {
+                return res.status(403).json({ error: 'Not your ship' });
+            }
+
+            const assetKey = `Ship_${shipId}`;
+            const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Keys: [assetKey]
+            });
+            if (!assetResult?.Data?.[assetKey]?.Value) {
+                return res.status(404).json({ error: 'Ship asset not found' });
+            }
+
+            const repairTier = SHIP_REPAIR_RESOURCE_BY_TIER[String(tier || 'small').trim().toLowerCase()] || SHIP_REPAIR_RESOURCE_BY_TIER.small;
+            const currentShipData = applyShipLevelToShipData(JSON.parse(assetResult.Data[assetKey].Value));
+            const maxHp = Number(currentShipData?.Stats?.MaxHP || 0) || 0;
+            const currentHp = Number.isFinite(Number(currentShipData?.Stats?.CurrentHP))
+                ? Number(currentShipData?.Stats?.CurrentHP)
+                : maxHp;
+            if (!Number.isFinite(maxHp) || maxHp <= 0) {
+                return res.status(400).json({ error: 'ShipHpInvalid' });
+            }
+            if (currentHp >= maxHp) {
+                return res.json({
+                    success: true,
+                    alreadyFull: true,
+                    repairedHp: 0,
+                    hp: currentHp,
+                    maxHp,
+                    shipId,
+                    shipData: currentShipData,
+                    costs: repairTier.costs
+                });
+            }
+
+            const consumeResult = await tryConsumeResourceCosts(playFabId, repairTier.costs);
+            if (!consumeResult.success) {
+                return res.status(402).json({
+                    error: '修理資源が足りません',
+                    details: `必要: ${formatCostListForMessage(repairTier.costs, consumeResult.balances)}`,
+                    costs: repairTier.costs,
+                    shortages: consumeResult.shortages
+                });
+            }
+
+            const repairedHp = Math.max(1, Math.round(maxHp * (Number(repairTier.recoverRatio) || 0.25)));
+            const nextHp = Math.min(maxHp, currentHp + repairedHp);
+            currentShipData.Stats = currentShipData.Stats || {};
+            currentShipData.Stats.CurrentHP = nextHp;
+
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: { [assetKey]: JSON.stringify(currentShipData) }
+            });
+
+            await shipsCollection.doc(shipId).set({
+                currentHp: nextHp,
+                maxHp,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            const activeShipId = await getActiveShipId(playFabId);
+            if (activeShipId === shipId) {
+                await shipsCollection.doc(playFabId).set({
+                    currentHp: nextHp,
+                    maxHp,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+
+            return res.json({
+                success: true,
+                shipId,
+                hp: nextHp,
+                maxHp,
+                repairedHp: nextHp - currentHp,
+                costs: repairTier.costs,
+                shipData: currentShipData,
+                balances: consumeResult.balances
+            });
+        } catch (error) {
+            console.error('[RepairShip] Error:', error);
+            if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
+                return res.status(402).json({ error: '修理資源が足りません' });
+            }
+            return res.status(500).json({ error: 'Failed to repair ship', details: error.errorMessage || error.message });
         }
     });
 

@@ -8,6 +8,7 @@ import {
     startShipVoyage as requestStartShipVoyage,
     stopShip as requestStopShip,
     upgradeShip as requestUpgradeShip,
+    repairShip as requestRepairShip,
     getInventory as fetchInventory,
     getPlayerShips as fetchPlayerShips,
     getShipsInView as fetchShipsInView,
@@ -97,6 +98,12 @@ const SHIP_UPGRADE_RESOURCE_COST_BY_CLASS = {
         4: { national: 40, RS: 1 },
         5: { national: 50, RS: 1 }
     }
+};
+const SHIP_REPAIR_RESOURCE_COST_BY_TIER = {
+    small: { RG: 1 }
+};
+const SHIP_REPAIR_RECOVERY_BY_TIER = {
+    small: 0.25
 };
 
 function normalizeNationKey(value) {
@@ -206,6 +213,11 @@ export function getShipUpgradeResourceCosts(shipSpec, nextLevel, nationKey = get
     return resolveLegacyUpgradeCosts(shipSpec, nextLevel);
 }
 
+export function getShipRepairResourceCosts(tier = 'small') {
+    const template = SHIP_REPAIR_RESOURCE_COST_BY_TIER[String(tier || 'small').trim().toLowerCase()];
+    return expandShipCostTemplate(template, null);
+}
+
 export async function getShipResourceBalances(playFabId) {
     if (!playFabId) return {};
     const data = await fetchInventory(playFabId, { isSilent: true });
@@ -234,7 +246,7 @@ function formatCostLabel(costs) {
 
 export function renderShipResourceCostHtml(costs, balances = null) {
     if (!Array.isArray(costs) || costs.length === 0) {
-        return '<span style="color: var(--text-sub);">No cost</span>';
+        return '<span style="color: var(--text-sub);">費用なし</span>';
     }
     const currentBalances = balances || {};
     return costs.map((cost) => {
@@ -243,7 +255,7 @@ export function renderShipResourceCostHtml(costs, balances = null) {
         const owned = Number(currentBalances[itemId] || 0) || 0;
         const enough = balances == null || owned >= required;
         const color = enough ? 'var(--text-color)' : 'var(--danger-color)';
-        const ownedLabel = balances == null ? '' : `<span style="color:${color}; font-size:12px;">Owned ${owned}</span>`;
+        const ownedLabel = balances == null ? '' : `<span style="color:${color}; font-size:12px;">所持 ${owned}</span>`;
         return `
             <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);">
                 <span style="font-weight:700; color:${color};">${formatCurrencyLabel(itemId)} x${required}</span>
@@ -277,12 +289,12 @@ async function showShipSpendConfirmation({ title, subtitle = '', costs, balances
         panel.innerHTML = `
             <div style="font-size:18px; font-weight:700; margin-bottom:8px;">${title}</div>
             ${subtitle ? `<div style="font-size:13px; color:var(--text-sub); margin-bottom:12px;">${subtitle}</div>` : ''}
-            <div style="font-size:13px; color:var(--text-sub); margin-bottom:8px;">Required resources</div>
+            <div style="font-size:13px; color:var(--text-sub); margin-bottom:8px;">必要資源</div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">${renderShipResourceCostHtml(costs, balances)}</div>
-            ${canAfford ? '' : `<div style="font-size:13px; color:var(--danger-color); margin-bottom:12px;">Missing: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}</div>`}
+            ${canAfford ? '' : `<div style="font-size:13px; color:var(--danger-color); margin-bottom:12px;">不足: ${shortages.map((entry) => `${formatCurrencyLabel(entry.ItemId)} ${entry.shortage}`).join(' / ')}</div>`}
             <div style="display:flex; gap:10px;">
                 <button data-role="confirm" style="flex:1; background: ${canAfford ? 'var(--accent-color)' : '#4b5563'}; color: white; padding: 12px; border-radius: 10px; border: none; cursor: ${canAfford ? 'pointer' : 'not-allowed'};" ${canAfford ? '' : 'disabled'}>${confirmLabel}</button>
-                <button data-role="cancel" style="flex:1; background:#374151; color:white; padding:12px; border-radius:10px; border:none; cursor:pointer;">Cancel</button>
+                <button data-role="cancel" style="flex:1; background:#374151; color:white; padding:12px; border-radius:10px; border:none; cursor:pointer;">キャンセル</button>
             </div>
         `;
         overlay.appendChild(panel);
@@ -367,11 +379,11 @@ export async function createShip(playFabId, shipItemId, context) {
     const balances = context?.resourceBalances || await getShipResourceBalances(playFabId);
     const costs = getShipBuildResourceCosts(shipSpec, context?.nationKey || getCurrentPlayerNationKey());
     const confirmed = await showShipSpendConfirmation({
-        title: `Build ${shipSpec?.DisplayName || 'Ship'}`,
-        subtitle: 'Use resources to build this ship.',
+        title: `${shipSpec?.DisplayName || '船'}を建造`,
+        subtitle: '必要資源を消費して船を建造します。',
         costs,
         balances,
-        confirmLabel: 'Build'
+        confirmLabel: '建造する'
     });
     if (!confirmed) return null;
 
@@ -480,17 +492,17 @@ export async function legacyUpgradeShip_unused(playFabId, shipId) {
     const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
     const balances = await getShipResourceBalances(playFabId);
     const confirmed = await showShipSpendConfirmation({
-        title: `Lv${nextLevel} Upgrade`,
-        subtitle: 'Use resources to upgrade this ship.',
+        title: `Lv${nextLevel}へ強化`,
+        subtitle: '必要資源を消費して船を強化します。',
         costs,
         balances,
-        confirmLabel: 'Upgrade'
+        confirmLabel: '強化する'
     });
     if (!confirmed) return null;
 
     const upgradeResult = await requestUpgradeShip(playFabId, shipId);
     if (upgradeResult && upgradeResult.success) {
-        assetDataCache.set(shipId, { data: upgradeResult.shipData, updatedAt: Date.now() });
+        assetDataCache.set(shipId, { data: upgradeResult.shipData, timestamp: Date.now() });
         cachedShipsData.set(shipId, {
             ...(cachedShipsData.get(shipId) || {}),
             assetData: upgradeResult.shipData
@@ -505,7 +517,7 @@ export async function legacyUpgradeShip_unused(playFabId, shipId) {
 
     const data = await requestUpgradeShip(playFabId, shipId, paymentMethod);
     if (data && data.success) {
-        assetDataCache.set(shipId, { data: data.shipData, updatedAt: Date.now() });
+        assetDataCache.set(shipId, { data: data.shipData, timestamp: Date.now() });
         cachedShipsData.set(shipId, {
             ...(cachedShipsData.get(shipId) || {}),
             assetData: data.shipData
@@ -525,7 +537,7 @@ export async function upgradeShip(playFabId, shipId) {
 
     const currentLevel = Number(assetData?.Level) || 1;
     if (currentLevel >= SHIP_LEVEL_CAP) {
-        showRpgMessage('This ship is already at the level cap.');
+        showRpgMessage('この船はすでに最大レベルです。');
         return null;
     }
 
@@ -534,25 +546,73 @@ export async function upgradeShip(playFabId, shipId) {
     const costs = getShipUpgradeResourceCosts(catalogItem || assetData, nextLevel, getCurrentPlayerNationKey());
     const balances = await getShipResourceBalances(playFabId);
     const confirmed = await showShipSpendConfirmation({
-        title: `Lv${nextLevel} Upgrade`,
-        subtitle: 'Use resources to upgrade this ship.',
+        title: `Lv${nextLevel}へ強化`,
+        subtitle: '必要資源を消費して船を強化します。',
         costs,
         balances,
-        confirmLabel: 'Upgrade'
+        confirmLabel: '強化する'
     });
     if (!confirmed) return null;
 
     const upgradeResult = await requestUpgradeShip(playFabId, shipId);
     if (!upgradeResult || !upgradeResult.success) return null;
 
-    assetDataCache.set(shipId, { data: upgradeResult.shipData, updatedAt: Date.now() });
+    assetDataCache.set(shipId, { data: upgradeResult.shipData, timestamp: Date.now() });
     cachedShipsData.set(shipId, {
         ...(cachedShipsData.get(shipId) || {}),
         assetData: upgradeResult.shipData
     });
-    showRpgMessage(`Ship upgraded to Lv${upgradeResult.level}.`);
+    showRpgMessage(`船がLv${upgradeResult.level}になりました。`);
     await displayPlayerShips(playFabId);
     return upgradeResult;
+}
+
+export async function repairShip(playFabId, shipId, tier = 'small') {
+    if (!playFabId || !shipId) return null;
+
+    const assetData = await getShipAsset(playFabId, shipId, true);
+    if (!assetData) return null;
+
+    const maxHp = Number(assetData?.Stats?.MaxHP || 0) || 0;
+    const currentHp = Number.isFinite(Number(assetData?.Stats?.CurrentHP))
+        ? Number(assetData?.Stats?.CurrentHP)
+        : maxHp;
+    if (maxHp > 0 && currentHp >= maxHp) {
+        showRpgMessage('この船はすでに最大HPです。');
+        return null;
+    }
+
+    const normalizedTier = String(tier || 'small').trim().toLowerCase();
+    const costs = getShipRepairResourceCosts(normalizedTier);
+    const balances = await getShipResourceBalances(playFabId);
+    const recoverRatio = Number(SHIP_REPAIR_RECOVERY_BY_TIER[normalizedTier] || 0.25);
+    const confirmed = await showShipSpendConfirmation({
+        title: '船を小修理',
+        subtitle: `${formatCostLabel(costs)}を消費して、最大HPの${Math.round(recoverRatio * 100)}%を回復します。`,
+        costs,
+        balances,
+        confirmLabel: '修理する'
+    });
+    if (!confirmed) return null;
+
+    try {
+        const repairResult = await requestRepairShip(playFabId, shipId, normalizedTier);
+        if (!repairResult || !repairResult.success) return null;
+
+        assetDataCache.set(shipId, { data: repairResult.shipData, timestamp: Date.now() });
+        cachedShipsData.set(shipId, {
+            ...(cachedShipsData.get(shipId) || {}),
+            assetData: repairResult.shipData
+        });
+        showRpgMessage(repairResult.repairedHp > 0
+            ? `船を小修理しました（HP +${repairResult.repairedHp}）`
+            : 'この船はすでに最大HPです。');
+        await displayPlayerShips(playFabId);
+        return repairResult;
+    } catch (error) {
+        showRpgMessage(error?.message || '船の修理に失敗しました。');
+        return null;
+    }
 }
 
 export async function getPlayerShips(playFabId) {
@@ -668,6 +728,9 @@ export function renderShipCard(ship) {
     const eta = isMoving ? formatETA(movement.arrivalTime) : '停泊中';
     const shipLevel = Number(assetData?.Level) || 1;
     const canUpgrade = shipLevel < SHIP_LEVEL_CAP;
+    const currentHp = Number(assetData?.Stats?.CurrentHP ?? 0);
+    const maxHp = Number(assetData?.Stats?.MaxHP ?? 0);
+    const canRepair = maxHp > 0 && currentHp < maxHp;
     const nextUpgradeCosts = canUpgrade
         ? getShipUpgradeResourceCosts(catalogItem || assetData, shipLevel + 1, getCurrentPlayerNationKey())
         : [];
@@ -739,6 +802,9 @@ export function renderShipCard(ship) {
                 ` : `
                 <button disabled>Lv最大</button>
                 `}
+                <button data-variant="accent" onclick="window.repairShip('${ship.shipId}')" ${canRepair ? '' : 'disabled'}>
+                    ${canRepair ? '小修理' : '満タン'}
+                </button>
                 <button data-role="active-button" onclick="window.setActiveShip('${ship.shipId}')" ${isActive ? 'disabled' : ''}>
                     ${isActive ? '使用中' : '使用する'}
                 </button>
@@ -1124,5 +1190,9 @@ if (typeof window !== 'undefined') {
     window.upgradeShip = (shipId) => {
         const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
         return upgradeShip(playFabId, shipId);
+    };
+    window.repairShip = (shipId) => {
+        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        return repairShip(playFabId, shipId);
     };
 }

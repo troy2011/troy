@@ -8,6 +8,24 @@ const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const RESOURCE_RECOVERY_SETTINGS = {
+    hp: {
+        itemId: 'RY',
+        targetStat: 'HP',
+        maxStat: 'MaxHP',
+        amount: 5,
+        fullMessage: 'HPはすでに満タンです。',
+        missingMessage: '🍄が足りません。'
+    },
+    mp: {
+        itemId: 'RB',
+        targetStat: 'MP',
+        maxStat: 'MaxMP',
+        amount: 1,
+        fullMessage: 'MPはすでに満タンです。',
+        missingMessage: '🫙が足りません。'
+    }
+};
 
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
@@ -19,6 +37,61 @@ function normalizeEntityKey(input) {
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion } = deps;
+
+    async function applyResourceRecovery(playFabId, recoveryKey) {
+        const config = RESOURCE_RECOVERY_SETTINGS[recoveryKey];
+        if (!config) {
+            return { ok: false, status: 400, error: '不正な回復種別です。' };
+        }
+
+        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
+            PlayFabId: playFabId
+        });
+        const currentStats = {};
+        if (Array.isArray(statsResult?.Statistics)) {
+            statsResult.Statistics.forEach((stat) => {
+                currentStats[stat.StatisticName] = stat.Value;
+            });
+        }
+
+        const currentValue = Number(currentStats[config.targetStat] || 0);
+        const maxValue = Number(currentStats[config.maxStat] || currentValue || 0);
+        if (currentValue >= maxValue) {
+            return { ok: false, status: 400, error: config.fullMessage };
+        }
+
+        const currentBalance = Number(await getCurrencyBalance(playFabId, config.itemId)) || 0;
+        if (currentBalance < 1) {
+            return {
+                ok: false,
+                status: 402,
+                error: config.missingMessage,
+                shortages: [{
+                    itemId: config.itemId,
+                    required: 1,
+                    current: currentBalance,
+                    shortage: 1 - currentBalance
+                }]
+            };
+        }
+
+        await subtractEconomyItem(playFabId, config.itemId, 1);
+
+        const recoveredValue = Math.min(currentValue + config.amount, maxValue);
+        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: config.targetStat, Value: recoveredValue }]
+        });
+
+        return {
+            ok: true,
+            targetStat: config.targetStat,
+            recovered: recoveredValue - currentValue,
+            newValue: recoveredValue,
+            maxValue,
+            consumed: { itemId: config.itemId, amount: 1 }
+        };
+    }
 
     // インベントリ取得
     app.post('/api/get-inventory', async (req, res) => {
@@ -166,6 +239,52 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });
+        }
+    });
+
+    app.post('/api/recover-hp-resource', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        try {
+            const result = await applyResourceRecovery(playFabId, 'hp');
+            if (!result.ok) {
+                return res.status(result.status || 400).json({
+                    error: result.error,
+                    shortages: result.shortages || []
+                });
+            }
+            res.json({
+                status: 'success',
+                message: `🍄でHPが${result.recovered}回復した。`,
+                updatedStats: { [result.targetStat]: result.newValue },
+                consumed: result.consumed
+            });
+        } catch (error) {
+            console.error('[resource-recover-hp] エラー', error.errorMessage || error.message || error);
+            res.status(500).json({ error: 'HP回復に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/recover-mp-resource', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        try {
+            const result = await applyResourceRecovery(playFabId, 'mp');
+            if (!result.ok) {
+                return res.status(result.status || 400).json({
+                    error: result.error,
+                    shortages: result.shortages || []
+                });
+            }
+            res.json({
+                status: 'success',
+                message: `🫙でMPが${result.recovered}回復した。`,
+                updatedStats: { [result.targetStat]: result.newValue },
+                consumed: result.consumed
+            });
+        } catch (error) {
+            console.error('[resource-recover-mp] エラー', error.errorMessage || error.message || error);
+            res.status(500).json({ error: 'MP回復に失敗しました。', details: error.errorMessage || error.message });
         }
     });
 

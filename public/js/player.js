@@ -2,6 +2,8 @@
 
 import {
     getPlayerStats as fetchPlayerStats,
+    recoverHpResource as requestRecoverHpResource,
+    recoverMpResource as requestRecoverMpResource,
     getPoints as fetchPoints,
     addPoints as requestAddPoints,
     usePoints as requestUsePoints,
@@ -39,6 +41,28 @@ function updatePlayerStatsDisplay() {
     document.getElementById('currentDef').innerText = みのまもり;
     document.getElementById('currentAgi').innerText = すばやさ;
     document.getElementById('currentInt').innerText = かしこさ;
+    const hpRecoverBtn = document.getElementById('btnRecoverHP');
+    const mpRecoverBtn = document.getElementById('btnRecoverMP');
+    if (hpRecoverBtn) hpRecoverBtn.disabled = HP >= MaxHP;
+    if (mpRecoverBtn) mpRecoverBtn.disabled = MP >= MaxMP;
+}
+
+export async function recoverHpResource(playFabId) {
+    const data = await requestRecoverHpResource(playFabId);
+    if (data?.updatedStats) {
+        myPlayerStats = { ...myPlayerStats, ...data.updatedStats };
+        updatePlayerStatsDisplay();
+    }
+    return data;
+}
+
+export async function recoverMpResource(playFabId) {
+    const data = await requestRecoverMpResource(playFabId);
+    if (data?.updatedStats) {
+        myPlayerStats = { ...myPlayerStats, ...data.updatedStats };
+        updatePlayerStatsDisplay();
+    }
+    return data;
 }
 
 export async function getPoints(playFabId) {

@@ -348,6 +348,32 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 10px;
 }
 
+.home-vital-row {
+    min-height: 24px;
+}
+
+.home-vital-action {
+    flex: 0 0 auto;
+    min-width: 58px;
+    padding: 4px 7px;
+    font-size: 10px;
+    line-height: 1.1;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.24);
+}
+
+.home-vital-action.home-vital-action-mp {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.24);
+}
+
+.home-vital-action:disabled {
+    background: #374151;
+    color: #9ca3af;
+    box-shadow: none;
+}
+
 .home-ps-lamp {
     position: absolute;
     top: 6px;
@@ -643,12 +669,14 @@ body[data-sea-tone="night"] .home-hero-card {
 
 .ship-card-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 12px;
 }
 
 .ship-card-actions button {
-    flex: 1;
+    flex: 1 1 calc(33.333% - 6px);
+    min-width: 96px;
     padding: 8px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.08);
