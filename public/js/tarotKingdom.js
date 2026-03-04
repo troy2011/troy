@@ -11,6 +11,7 @@ const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
 const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
 const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
+const ROLE_TIE_SUIT_TIER = { Wand: 4, Cup: 3, Pentacle: 2, Sword: 1, None: 0 };
 const SUIT_MASK = { None: 0, Wand: 1, Cup: 2, Sword: 4, Pentacle: 8, All: 15 };
 const SUIT_PAIR_MASK_A = SUIT_MASK.Wand | SUIT_MASK.Cup;
 const SUIT_PAIR_MASK_B = SUIT_MASK.Sword | SUIT_MASK.Pentacle;
@@ -700,6 +701,26 @@ const getPrimarySuitFromPlay = (play) => {
   }
   return null;
 };
+const getRoleTieSuitScore = (play) => {
+  const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
+    ? play.cardsTable
+    : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
+  if (!cards.length) return 0;
+  const keyCard = String(play?.type || '') === 'role'
+    ? getRoleKeyCard(play?.role, cards)
+    : null;
+  const targetCard = keyCard || cards[0];
+  if (!targetCard) return 0;
+  const suits = suitsForCard(targetCard, false).filter((suit) => suit && suit !== 'None');
+  if (!suits.length) return 0;
+  const base = suits.reduce((max, suit) => Math.max(max, ROLE_TIE_SUIT_TIER[suit] || 0), 0);
+  return targetCard?.kind === 'major' ? 10 + base : base;
+};
+const compareRoleTieBySuit = (play, trick) => {
+  const a = getRoleTieSuitScore(play);
+  const b = getRoleTieSuitScore(trick);
+  return a === b ? 0 : (a > b ? 1 : -1);
+};
 const MAJOR_ATTACK_FX = {
   0: { leadEmoji: '🃏', markerEmoji: '🐕', pattern: 'trickster', kind: 'normal', heroDurationMs: 900 },
   1: { leadEmoji: '🪄', markerEmoji: '♾️', pattern: 'orbit', kind: 'normal', heroDurationMs: 940 },
@@ -905,17 +926,23 @@ function getRoleKeyCard(role, cards) {
   if (!role || !Array.isArray(cards) || !cards.length) return null;
   const baseCards = cards.filter(Boolean);
   if (!baseCards.length) return null;
-  const target = Number(role?.primary?.[0] || 0);
-  let candidates = target > 0
-    ? baseCards.filter((card) => cStrength(card) === target)
-    : [];
-  if (!candidates.length) candidates = baseCards.slice();
   const bestSuitTier = (card) => {
     const suits = suitsForCard(card, false).filter((suit) => suit && suit !== 'None');
     if (!suits.length) return 0;
     const tier = suits.reduce((max, suit) => Math.max(max, SUIT_TIER[suit] || 0), 0);
     return card?.kind === 'major' ? 10 + tier : tier;
   };
+  const majorCards = baseCards.filter((card) => card?.kind === 'major');
+  let candidates = majorCards.length
+    ? majorCards.slice()
+    : [];
+  if (!candidates.length) {
+    const target = Number(role?.primary?.[0] || 0);
+    candidates = target > 0
+      ? baseCards.filter((card) => cStrength(card) === target)
+      : [];
+  }
+  if (!candidates.length) candidates = baseCards.slice();
   candidates.sort((a, b) => {
     const strengthDiff = cStrength(b) - cStrength(a);
     if (strengthDiff !== 0) return strengthDiff;
@@ -3720,10 +3747,6 @@ function getAceFinishRuleViolation(play) {
   if (remaining.length === 0 && played.length > 0 && played.every(isMinorAceCard)) {
     return 'A上がりは禁止です。';
   }
-  // 最後の1手で大アルカナを含んで上がることを禁止
-  if (remaining.length === 0 && played.length > 0 && played.every((card) => card?.kind === 'major')) {
-    return '大アルカナ上がりは禁止です。';
-  }
   return null;
 }
 
@@ -3779,11 +3802,10 @@ function validatePlay(play, mode) {
   const roleCmp = compareRole(play.role, s.trick.role);
   if (roleCmp > 0) return { ok: true };
   if (roleCmp < 0) return { ok: false, reason: '場より強い役が必要です。' };
-  const playMask = getPlaySuitMask(play);
-  const trickMask = getPlaySuitMask(s.trick);
-  return isSuitMatchupCompatible(playMask, trickMask)
-    ? { ok: true }
-    : { ok: false, reason: '同役同値は相性スート（W↔C / S↔P）のみ有効です。' };
+  const suitCmp = compareRoleTieBySuit(play, s.trick);
+  if (suitCmp > 0) return { ok: true };
+  if (suitCmp < 0) return { ok: false, reason: '同役同値はハイカードのスートが必要です。' };
+  return { ok: false, reason: '同役同値はハイカードのスートも同等です。' };
 }
 
 function removeHand(p, idxs) {
