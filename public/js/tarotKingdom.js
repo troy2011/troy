@@ -125,6 +125,8 @@ const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
 let kingdomLocalInfoMessage = '';
 let kingdomLocalInfoTimer = null;
+let kingdomLocalPriorityMessage = '';
+let kingdomLocalPriorityTimer = null;
 let kingdomLocalGraveOpen = false;
 let localHandSortDrawLock = false;
 let kingdomLocalAutoFold = false;
@@ -1037,6 +1039,23 @@ function setLocalInfoMessage(text, holdMs = 1800) {
   }, holdMs);
 }
 
+function setLocalPriorityMessage(text, holdMs = 1800) {
+  if (kingdomLocalPriorityTimer) {
+    clearTimeout(kingdomLocalPriorityTimer);
+    kingdomLocalPriorityTimer = null;
+  }
+  kingdomLocalPriorityMessage = String(text || '').trim();
+  if (s) renderSummary();
+  if (!kingdomLocalPriorityMessage || holdMs <= 0) return;
+  const current = kingdomLocalPriorityMessage;
+  kingdomLocalPriorityTimer = setTimeout(() => {
+    kingdomLocalPriorityTimer = null;
+    if (kingdomLocalPriorityMessage !== current) return;
+    kingdomLocalPriorityMessage = '';
+    if (s) renderSummary();
+  }, holdMs);
+}
+
 function clearLocalAutoFold() {
   kingdomLocalAutoFold = false;
   kingdomLocalAutoFoldPending = false;
@@ -1191,7 +1210,7 @@ function showPlayError(reason) {
   if (!s) return;
   const detail = (String(reason || '出せません。').trim()) || '出せません。';
   const hint = getShortPlayHelp(detail);
-  setLocalInfoMessage(hint
+  setLocalPriorityMessage(hint
     ? `出せない理由: ${detail} / ${hint}`
     : `出せない理由: ${detail}`, 2400);
   if (!ui.stateText) return;
@@ -3337,6 +3356,11 @@ function resetMatch() {
   clearPendingTurnAdvanceAfterTrick();
   s = initState();
   clearLocalInfoMessage(false);
+  if (kingdomLocalPriorityTimer) {
+    clearTimeout(kingdomLocalPriorityTimer);
+    kingdomLocalPriorityTimer = null;
+  }
+  kingdomLocalPriorityMessage = '';
   kingdomLocalGraveOpen = false;
   clearLocalAutoFold();
   kingdomLocalAutoFoldPrevReverse = false;
@@ -5787,7 +5811,7 @@ function renderSummary() {
     }
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
-  ui.stateText.textContent = localStateOverride || kingdomLocalInfoMessage || s.message || '';
+  ui.stateText.textContent = kingdomLocalPriorityMessage || localStateOverride || kingdomLocalInfoMessage || s.message || '';
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
     ui.selectedEffect.hidden = true;
@@ -6704,6 +6728,11 @@ export function destroyTarotKingdomPage() {
   localHandSortDrawLock = false;
   clearLocalAutoFold();
   kingdomLocalAutoFoldPrevReverse = false;
+  if (kingdomLocalPriorityTimer) {
+    clearTimeout(kingdomLocalPriorityTimer);
+    kingdomLocalPriorityTimer = null;
+  }
+  kingdomLocalPriorityMessage = '';
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();
