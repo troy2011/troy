@@ -129,6 +129,7 @@ let localHandSortDrawLock = false;
 let kingdomLocalAutoFold = false;
 let kingdomLocalAutoFoldPending = false;
 let kingdomLocalAutoFoldPrevReverse = false;
+let kingdomLocalAutoFoldPrevCallToken = '';
 const KINGDOM_TRACE_ENABLED = true;
 let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
@@ -982,32 +983,6 @@ function getKingdomCardEffectDescription(card) {
   return '';
 }
 
-function updateSelectedCardEffectLabel(playerIndex, selectedIndexes) {
-  if (!ui.selectedEffect) return;
-  const hide = () => {
-    ui.selectedEffect.textContent = '';
-    ui.selectedEffect.hidden = true;
-  };
-  if (!s || !Array.isArray(selectedIndexes) || selectedIndexes.length !== 1) {
-    hide();
-    return;
-  }
-  const hand = s.players?.[playerIndex]?.hand;
-  if (!Array.isArray(hand)) {
-    hide();
-    return;
-  }
-  const targetIndex = Number(selectedIndexes[0]);
-  const card = Number.isInteger(targetIndex) ? hand[targetIndex] : null;
-  const effectText = getKingdomCardEffectDescription(card);
-  if (!effectText) {
-    hide();
-    return;
-  }
-  ui.selectedEffect.textContent = `${getCardNameLabel(card)}: ${effectText}`;
-  ui.selectedEffect.hidden = false;
-}
-
 function clearLocalInfoMessage(renderNow = false) {
   if (kingdomLocalInfoTimer) {
     clearTimeout(kingdomLocalInfoTimer);
@@ -1038,6 +1013,22 @@ function setLocalInfoMessage(text, holdMs = 1800) {
 function clearLocalAutoFold() {
   kingdomLocalAutoFold = false;
   kingdomLocalAutoFoldPending = false;
+  kingdomLocalAutoFoldPrevCallToken = '';
+}
+
+function getAutoFoldCallToken(play) {
+  if (!(play && play.type === 'role' && play.call)) return '';
+  const owner = Number.isFinite(Number(play.owner)) ? Number(play.owner) : -1;
+  const count = Number.isFinite(Number(play.count)) ? Number(play.count) : 0;
+  const cards = Array.isArray(play.cardsTable)
+    ? play.cardsTable.map((card) => [
+        String(card?.kind || ''),
+        String(card?.suit || ''),
+        String(card?.number ?? ''),
+        String(card?.displayNumberOverride ?? '')
+      ].join(':')).join('|')
+    : '';
+  return [owner, String(play.role || ''), count, cards].join('#');
 }
 
 function syncLocalAutoFoldState() {
@@ -1049,9 +1040,10 @@ function syncLocalAutoFoldState() {
   const me = getLocalPlayerIndex();
   const myTurn = me >= 0 && s.phase === 'turn' && s.turn === me;
   const currentReverse = !!s.reverse;
-  const currentIsCall = !!(s.lastPlay && s.lastPlay.type === 'role' && s.lastPlay.call);
+  const currentCallToken = getAutoFoldCallToken(s.lastPlay);
+  const hasNewCall = !!(currentCallToken && currentCallToken !== kingdomLocalAutoFoldPrevCallToken);
   if (kingdomLocalAutoFold) {
-    if (!s.roundActive || !s.trick || currentIsCall || currentReverse !== kingdomLocalAutoFoldPrevReverse) {
+    if (!s.roundActive || !s.trick || hasNewCall || currentReverse !== kingdomLocalAutoFoldPrevReverse) {
       clearLocalAutoFold();
     }
   }
@@ -1081,20 +1073,14 @@ function processLocalAutoFold() {
   }, 0);
 }
 
-function renderLocalSelectedInfo(playerIndex, selectedIndexes) {
-  if (!ui.selectedEffect) return;
-  updateSelectedCardEffectLabel(playerIndex, selectedIndexes);
-  if (!ui.selectedEffect.hidden) return;
+function buildLocalStateTextOverride(playerIndex, selectedIndexes) {
   const selectedText = buildSelectedCardInfoMessage(playerIndex, selectedIndexes);
   if (selectedText) {
-    ui.selectedEffect.textContent = selectedText;
-    ui.selectedEffect.hidden = false;
-    return;
+    return selectedText;
   }
-  if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(playerIndex)) return;
+  if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(playerIndex)) return '';
   const minorTop = s.hermitPreview.minorTop || null;
-  ui.selectedEffect.textContent = `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'}`;
-  ui.selectedEffect.hidden = false;
+  return `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'}`;
 }
 
 function getVisibleHermitPreviewForLocalPlayer() {
@@ -5587,11 +5573,6 @@ function renderHand() {
   const freezeActive = freezeUntil > Date.now();
   if (!freezeActive && !inOpeningDeal && !localHandSortDrawLock) applyLocalHandSortMode(false);
   const selected = sanitizeSelected(me);
-  if (ui.selectedEffect) {
-    ui.selectedEffect.textContent = '';
-    ui.selectedEffect.hidden = true;
-  }
-  renderLocalSelectedInfo(me, selected);
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
   const canSelect = !!(s.roundActive && !inOpeningDeal && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
@@ -5758,6 +5739,9 @@ function renderOracleCard() {
 
 function renderSummary() {
   const hermitPreviewCard = getVisibleHermitPreviewForLocalPlayer();
+  const me = getLocalPlayerIndex();
+  const localSelected = me >= 0 ? sanitizeSelected(me) : [];
+  const localStateOverride = me >= 0 ? buildLocalStateTextOverride(me, localSelected) : '';
   const turnText = s.roundActive ? ` / ターン ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
   if (ui.turn) ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
@@ -5781,7 +5765,11 @@ function renderSummary() {
     }
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
-  ui.stateText.textContent = kingdomLocalInfoMessage || s.message || '';
+  ui.stateText.textContent = localStateOverride || kingdomLocalInfoMessage || s.message || '';
+  if (ui.selectedEffect) {
+    ui.selectedEffect.textContent = '';
+    ui.selectedEffect.hidden = true;
+  }
   if (ui.score) ui.score.textContent = '';
   if (ui.openOracle) {
     if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
@@ -6624,6 +6612,7 @@ function bindUi() {
     kingdomLocalAutoFold = true;
     kingdomLocalAutoFoldPending = false;
     kingdomLocalAutoFoldPrevReverse = !!s.reverse;
+    kingdomLocalAutoFoldPrevCallToken = getAutoFoldCallToken(s.lastPlay);
     setLocalInfoMessage('フォールド中: 場が流れるか、11バックか、コールで解除', 1400);
     render();
   });
