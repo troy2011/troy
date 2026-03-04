@@ -344,6 +344,34 @@ function initializeShopRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, firestore, admin, catalogCache, addEconomyItem, subtractEconomyItem, getCurrencyBalance, getNationTaxRateBps, applyTax, addNationTreasury, setMapOccupationNation, getMapOccupationNation, getVirtualCurrencyMap, getAllInventoryItems, getEntityKeyForPlayFabId, NATION_GROUP_BY_RACE } = deps;
 
     // ショップ状態取得
+    function parseCatalogStat(itemData, keys) {
+        for (const key of keys) {
+            const raw = itemData?.[key];
+            const value = Number.parseInt(raw, 10);
+            if (Number.isFinite(value)) return value;
+        }
+        return 0;
+    }
+
+    function getCatalogPrimaryStat(itemData) {
+        const category = itemData?.Category || null;
+        if (category === 'Weapon') {
+            return { label: '攻撃', value: parseCatalogStat(itemData, ['Attack', 'Atk', 'Power', 'attack', 'atk']) };
+        }
+        if (category === 'Armor' || category === 'Shield') {
+            return { label: '防御', value: parseCatalogStat(itemData, ['Defense', 'Def', 'defense', 'def']) };
+        }
+        return null;
+    }
+
+    function getPreferredEquipSlot(itemData) {
+        const category = itemData?.Category || null;
+        if (category === 'Weapon') return 'RightHand';
+        if (category === 'Shield') return 'LeftHand';
+        if (category === 'Armor') return 'Armor';
+        return null;
+    }
+
     app.post('/api/get-shop-state', async (req, res) => {
         const { islandId, mapId } = req.body || {};
         if (!islandId) return res.status(400).json({ error: 'islandId is required' });
@@ -364,11 +392,16 @@ function initializeShopRoutes(app, deps) {
                 const override = pricing.itemPrices?.[itemId] || {};
                 const fixedBuy = Number.isFinite(Number(override.buyPrice)) ? Number(override.buyPrice) : null;
                 const fixedSell = Number.isFinite(Number(override.sellPrice)) ? Number(override.sellPrice) : null;
+                const primaryStat = getCatalogPrimaryStat(itemData);
                 return {
                     itemId,
                     count,
                     name: itemData.DisplayName || itemId,
                     category: itemData.Category || null,
+                    preferredEquipSlot: getPreferredEquipSlot(itemData),
+                    primaryStatLabel: primaryStat?.label || null,
+                    primaryStatValue: Number(primaryStat?.value || 0),
+                    description: itemData.Description || '',
                     sellPrice: base.sellPrice,
                     buyPrice: base.buyPrice,
                     fixedBuyPrice: fixedBuy,

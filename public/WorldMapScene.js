@@ -1,8 +1,10 @@
 import * as Phaser from 'phaser';
 import { RACE_COLORS } from 'config';
-import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, query, where, orderBy, limit, setDoc, serverTimestamp } from 'firebase/firestore';
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
+import * as Player from './js/player.js';
+import { getShipResourceStorage as fetchShipResourceStorage, consumeVoyageMp as requestConsumeVoyageMp } from './js/playfabClient.js';
 
 // ========================================
 // 定数定義
@@ -251,6 +253,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipActionActive = false;
         this.shipActionButton = null;
         this.shipActionStatus = null;
+        this.shipCombatResourceStatus = null;
         this.shipSideCannonPanel = null;
         this.shipSideCannonButton = null;
         this.shipSideCannonStatus = null;
@@ -258,6 +261,14 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSideCannonChargeUntil = 0;
         this.shipSideCannonUiLastUpdate = 0;
         this.shipSideCannonChargeTimer = null;
+        this.shipCombatResourceStorage = {
+            activeShipId: null,
+            cargoResources: {},
+            cargoCapacity: 0,
+            cargoUsed: 0
+        };
+        this.shipCombatResourceFetchedAt = 0;
+        this.shipCombatResourceFetchPromise = null;
         this.hitStopUntil = 0;
         this.hitStopTimer = null;
         this.hitStopActive = false;
@@ -277,14 +288,21 @@ export default class WorldMapScene extends Phaser.Scene {
         this.cameraFollowLerp = 1;
         this.currentCameraFollowTarget = null;
         this.shipMoving = false;
+        this.shipMovePending = false;
         this.shipTargetX = 0;
         this.shipTargetY = 0;
         this.shipTargetIsland = null;
         this.shipArrivalTimer = null;
+        this.shipDockRecoveryTimer = null;
+        this.shipDockRecoveryBusy = false;
+        this.shipDockRecoveryIslandId = null;
         this.collidingIsland = null;
         this.commandMenuOpen = false;
         this.islandCommandRefreshTimer = null;
         this.islandCaptureCompleteTimer = null;
+        this.islandCaptureAlertStateById = new Map();
+        this.lastEnemyShipActionWarnAt = new Map();
+        this.lastIncomingThreatWarnAt = 0;
         this.collidingShipId = null;
         this.shipPanelSuppressed = false;
         this.mapOccupationNation = null;
@@ -318,10 +336,15 @@ export default class WorldMapScene extends Phaser.Scene {
         this.rideStatusUnsubscribe = null;
         this.rideSelfUnsubscribe = null;
         this.rideRequestSeen = new Set();
+        this.rideStatusSeen = new Set();
+        this.rideStatusInitialized = false;
+        this.rideRequestTtlMs = 45 * 1000;
         this.ridingShipId = null;
         this.ridingOwnerId = null;
         this.ridingSince = null;
         this.rideLeaveButton = null;
+        this.rideStatusLabel = null;
+        this.rideHostMissingSince = 0;
         this.rideSyncTimer = null;
         this.myPassengerIcons = [];
         this.ghostShip = null;
@@ -333,6 +356,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.minimapStormOverlay = null;
         this.minimapStormUntil = 0;
         this.minimapStormTimer = null;
+        this.lastMinimapOverlayDrawAt = 0;
 
         this.constructionSprites = [];
         this.constructionUnsubscribe = null;
@@ -557,6 +581,15 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         if (this.rideRequestSeen) {
             this.rideRequestSeen.clear();
+        }
+        if (this.rideStatusSeen) {
+            this.rideStatusSeen.clear();
+        }
+        this.rideStatusInitialized = false;
+        this.rideHostMissingSince = 0;
+        if (this.rideStatusLabel) {
+            this.rideStatusLabel.remove?.();
+            this.rideStatusLabel = null;
         }
         if (this.myPassengerIcons && this.myPassengerIcons.length > 0) {
             this.myPassengerIcons.forEach(icon => icon?.destroy?.());
@@ -1133,6 +1166,7 @@ export default class WorldMapScene extends Phaser.Scene {
                     const assetData = await Ship.getShipAsset(this.playerInfo.playFabId, shipId, true);
                     if (assetData) {
                         this.setPlayerShipAssetData(assetData);
+                        this.requestShipCombatResourceStorage(true);
                         if (assetData.Domain) {
                             this.playerShipDomain = String(assetData.Domain).toLowerCase();
                         }
@@ -1525,6 +1559,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         const graphics = this.add.graphics();
         const myId = this.playerInfo?.playFabId || null;
+        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const now = Date.now();
         const scale = this.minimapConfig.scale;
         const ownedColor = 0x4cc9f0;
         const capitalColor = 0xffd166;
@@ -1544,6 +1580,25 @@ export default class WorldMapScene extends Phaser.Scene {
             if (myId && island.ownerId === myId) {
                 graphics.fillStyle(ownedColor, 0.85);
                 graphics.fillRect(mx - dotSize / 2, my - dotSize / 2, dotSize, dotSize);
+            }
+
+            const captureState = this.getIslandCaptureState(island);
+            const queue = Array.isArray(captureState?.queue) ? captureState.queue : [];
+            if (queue.length > 0) {
+                const leader = queue[0] || null;
+                const leaderNation = String(leader?.nation || '').toLowerCase();
+                const ownerNation = String(island?.nation || island?.Nation || '').toLowerCase();
+                const isMyQueue = !!leader && (leader.playFabId === myId || (!!myNation && leaderNation === myNation));
+                const isEnemyWarning = !isMyQueue;
+                const pulse = 0.75 + (Math.sin(now / 180) * 0.2);
+                const warningColor = isEnemyWarning
+                    ? (ownerNation && ownerNation === myNation ? 0xff5d73 : 0xffa94d)
+                    : (ownerNation && leaderNation && ownerNation === leaderNation ? 0x6dd3ff : 0x63e6be);
+                const warningSize = isEnemyWarning ? 3.5 : 2.5;
+                graphics.lineStyle(1, warningColor, Phaser.Math.Clamp(pulse, 0.45, 1));
+                graphics.strokeCircle(mx, my, warningSize + 1.5);
+                graphics.fillStyle(warningColor, Phaser.Math.Clamp(pulse, 0.55, 1));
+                graphics.fillCircle(mx, my, warningSize);
             }
         });
 
@@ -2101,6 +2156,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if ((x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) ||
             (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom)) {
+            this.requestShipCombatResourceStorage(true);
             return true;
         }
 
@@ -2175,7 +2231,74 @@ export default class WorldMapScene extends Phaser.Scene {
         errorText.setDepth(GAME_CONFIG.DEPTH.MESSAGE + 1);
     }
 
-    moveShipTo(x, y, targetIsland) {
+    async autoDisembarkPassengersWithoutMp(durationMs, fallbackX, fallbackY) {
+        if (!this.firestore || !this.playerInfo?.playFabId || !Number.isFinite(durationMs) || durationMs <= 0) {
+            return { droppedCount: 0, droppedNames: [] };
+        }
+
+        try {
+            const rideQuery = query(
+                collection(this.firestore, 'ships'),
+                where('ridingOwnerId', '==', this.playerInfo.playFabId)
+            );
+            const snapshot = await getDocs(rideQuery);
+            if (!snapshot || snapshot.empty) {
+                return { droppedCount: 0, droppedNames: [] };
+            }
+
+            const droppedNames = [];
+            for (const passengerDoc of snapshot.docs) {
+                const data = passengerDoc.data() || {};
+                const passengerId = String(data.playFabId || passengerDoc.id || '').trim();
+                if (!passengerId) continue;
+
+                let voyageResult = null;
+                try {
+                    voyageResult = await requestConsumeVoyageMp(passengerId, durationMs, { isSilent: true });
+                } catch (error) {
+                    console.warn('[Ride] Failed to consume passenger voyage MP:', passengerId, error);
+                    voyageResult = null;
+                }
+
+                if (voyageResult && String(voyageResult.status || '') !== 'blocked') {
+                    continue;
+                }
+
+                await setDoc(doc(this.firestore, 'ships', passengerDoc.id), {
+                    ridingShipId: null,
+                    ridingOwnerId: null,
+                    ridingSince: null,
+                    currentX: fallbackX,
+                    currentY: fallbackY,
+                    targetX: fallbackX,
+                    targetY: fallbackY,
+                    arrivalTime: null,
+                    position: { x: fallbackX, y: fallbackY },
+                    movement: {
+                        isMoving: false,
+                        departureTime: null,
+                        arrivalTime: null,
+                        departurePos: { x: fallbackX, y: fallbackY },
+                        destinationPos: { x: fallbackX, y: fallbackY }
+                    },
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                const displayName = String(data.displayName || passengerId).trim();
+                droppedNames.push(displayName || passengerId);
+            }
+
+            return {
+                droppedCount: droppedNames.length,
+                droppedNames
+            };
+        } catch (error) {
+            console.warn('[Ride] Failed to prepare passengers for voyage:', error);
+            return { droppedCount: 0, droppedNames: [] };
+        }
+    }
+
+    async moveShipTo(x, y, targetIsland, options = {}) {
         console.log('[moveShipTo] Called with x:', x, 'y:', y, 'targetIsland:', targetIsland);
         this.hideBoardingButton();
 
@@ -2193,8 +2316,8 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        if (this.shipMoving || !this.canMove) {
-            this.showMessage(this.shipMoving ? '移動中です。' : (!this.canMove ? '移動クールダウン中です。' : '遠すぎて移動できません。'));
+        if (this.shipMoving || this.shipMovePending || !this.canMove) {
+            this.showMessage(this.shipMoving || this.shipMovePending ? '移動中です。' : (!this.canMove ? '移動クールダウン中です。' : '遠すぎて移動できません。'));
             return;
         }
 
@@ -2208,6 +2331,35 @@ export default class WorldMapScene extends Phaser.Scene {
         const distance = Phaser.Math.Distance.Between(startX, startY, x, y);
         const speed = this.getEffectiveShipSpeed();
         const duration = (distance / speed) * 1000;
+        if (!options?.skipMpCost && this.playerInfo?.playFabId) {
+            this.shipMovePending = true;
+            try {
+                const voyageResult = await Player.consumeVoyageMp(this.playerInfo.playFabId, duration);
+                if (!voyageResult) {
+                    this.showMessage('航海準備に失敗した...');
+                    return;
+                }
+                if (voyageResult.status === 'blocked') {
+                    this.showMessage(voyageResult.error || '長距離航海にはMPが足りない...');
+                    return;
+                }
+                const passengerPrep = await this.autoDisembarkPassengersWithoutMp(duration, startX, startY);
+                if (passengerPrep.droppedCount > 0) {
+                    if (passengerPrep.droppedNames.length === 1) {
+                        this.showMessage(`${passengerPrep.droppedNames[0]}はMP不足で自動下船した。`);
+                    } else if (passengerPrep.droppedNames.length === 2) {
+                        this.showMessage(`${passengerPrep.droppedNames[0]}、${passengerPrep.droppedNames[1]}はMP不足で自動下船した。`);
+                    } else {
+                        this.showMessage(`${passengerPrep.droppedNames[0]} ほか${passengerPrep.droppedCount - 1}人はMP不足で自動下船した。`);
+                    }
+                } else if (Number(voyageResult.voyageCost || 0) > 0 && voyageResult.message) {
+                    this.showMessage(voyageResult.message);
+                }
+            } finally {
+                this.shipMovePending = false;
+            }
+        }
+        this.stopDockedMpRecoveryTimer();
         this.updateMyShipPosition(x, y);
 
         const animKey = this.getShipAnimKey(startX, startY, x, y);
@@ -2242,7 +2394,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.stopShipMovement();
         }
         this.canMove = true;
-        this.moveShipTo(x, y, null);
+        this.moveShipTo(x, y, null, { skipMpCost: true });
     }
 
     onShipArrived() {
@@ -2257,6 +2409,9 @@ export default class WorldMapScene extends Phaser.Scene {
             if (!this.commandMenuOpen) {
                 this.showIslandCommandMenu(this.shipTargetIsland);
             }
+            this.startDockedMpRecoveryForIsland(this.shipTargetIsland);
+        } else {
+            this.stopDockedMpRecoveryTimer();
         }
 
         if (this.hasEnemyInView()) {
@@ -2266,6 +2421,81 @@ export default class WorldMapScene extends Phaser.Scene {
         } else {
             this.canMove = true;
         }
+    }
+
+    stopDockedMpRecoveryTimer() {
+        if (this.shipDockRecoveryTimer) {
+            this.shipDockRecoveryTimer.remove(false);
+            this.shipDockRecoveryTimer = null;
+        }
+        this.shipDockRecoveryBusy = false;
+        this.shipDockRecoveryIslandId = null;
+    }
+
+    getActiveIslandBuildingIdsForDock(islandData) {
+        if (!Array.isArray(islandData?.buildings)) return [];
+        return islandData.buildings
+            .filter((building) => building && building.status !== 'demolished')
+            .map((building) => String(building.itemId || building.id || '').trim().toLowerCase())
+            .filter(Boolean);
+    }
+
+    isDockRecoveryIsland(islandData) {
+        if (!islandData || !this.playerInfo?.playFabId) return false;
+        const activeIds = this.getActiveIslandBuildingIdsForDock(islandData);
+        if (activeIds.length === 0) return false;
+
+        const myPlayFabId = String(this.playerInfo.playFabId || '').trim();
+        const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const islandOwnerId = String(islandData.ownerId || '').trim();
+        const islandNation = String(islandData.ownerNation || islandData.nation || '').toLowerCase();
+        const isOwner = !!myPlayFabId && islandOwnerId === myPlayFabId;
+        const isFriendlyNation = !!playerNation && !!islandNation && islandNation === playerNation;
+
+        const hasMyHome = activeIds.some((id) => id.startsWith('my_house'));
+        if (hasMyHome && isOwner) return true;
+
+        const hasPort = activeIds.includes('shipyard') || activeIds.includes('repair_dock');
+        return hasPort && (isOwner || isFriendlyNation);
+    }
+
+    async tryRecoverDockedMp(islandData) {
+        if (!this.playerInfo?.playFabId || this.shipDockRecoveryBusy) return;
+        const currentIsland = this.collidingIsland || islandData;
+        if (!currentIsland || !islandData || currentIsland.id !== islandData.id) return;
+        if (this.shipMoving || !this.isDockRecoveryIsland(currentIsland)) return;
+
+        this.shipDockRecoveryBusy = true;
+        try {
+            const result = await Player.recoverDockedMp(this.playerInfo.playFabId);
+            if (result?.status === 'ok' && Number(result.recovered || 0) > 0 && result.message) {
+                this.showMessage(result.message);
+            }
+        } catch (error) {
+            console.error('[dock-mp-recovery] Failed:', error);
+        } finally {
+            this.shipDockRecoveryBusy = false;
+        }
+    }
+
+    startDockedMpRecoveryForIsland(islandData) {
+        this.stopDockedMpRecoveryTimer();
+        if (!islandData || !this.isDockRecoveryIsland(islandData)) return;
+
+        this.shipDockRecoveryIslandId = islandData.id;
+        void this.tryRecoverDockedMp(islandData);
+        this.shipDockRecoveryTimer = this.time.addEvent({
+            delay: 30 * 1000,
+            loop: true,
+            callback: () => {
+                const currentIsland = this.collidingIsland || islandData;
+                if (!currentIsland || currentIsland.id !== islandData.id || !this.isDockRecoveryIsland(currentIsland)) {
+                    this.stopDockedMpRecoveryTimer();
+                    return;
+                }
+                void this.tryRecoverDockedMp(currentIsland);
+            }
+        });
     }
 
     stopShipAnimation() {
@@ -2391,8 +2621,77 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.shipActionButton = button;
         this.shipActionStatus = status;
+        let resourceStatus = panel.querySelector('.ship-combat-resource-status');
+        if (!resourceStatus) {
+            resourceStatus = document.createElement('div');
+            resourceStatus.className = 'ship-combat-resource-status';
+            panel.appendChild(resourceStatus);
+        }
+        this.shipCombatResourceStatus = resourceStatus;
         button.addEventListener('click', () => this.triggerShipAction());
+        this.requestShipCombatResourceStorage(true);
+        this.updateShipCombatResourceHud();
         this.updateShipActionUi(true);
+    }
+
+    normalizeShipCombatResourceStorage(data = null) {
+        const source = data || {};
+        const normalizeMap = (map) => {
+            const result = {};
+            ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'].forEach((code) => {
+                result[code] = Math.max(0, Math.trunc(Number(map?.[code] || 0)));
+            });
+            return result;
+        };
+        return {
+            activeShipId: source.activeShipId || null,
+            cargoResources: normalizeMap(source.cargoResources),
+            cargoCapacity: Math.max(0, Math.trunc(Number(source.cargoCapacity || 0))),
+            cargoUsed: Math.max(0, Math.trunc(Number(source.cargoUsed || 0)))
+        };
+    }
+
+    buildShipCombatResourceHudText() {
+        const storage = this.shipCombatResourceStorage || {};
+        if (!storage.activeShipId) {
+            return '海戦資源 利用にはアクティブ船が必要';
+        }
+        const cargo = storage.cargoResources || {};
+        const powder = Math.max(0, Math.trunc(Number(cargo.RR || 0)));
+        const repair = Math.max(0, Math.trunc(Number(cargo.RG || 0)));
+        const hpAid = Math.max(0, Math.trunc(Number(cargo.RY || 0)));
+        const mpAid = Math.max(0, Math.trunc(Number(cargo.RB || 0)));
+        const used = Math.max(0, Math.trunc(Number(storage.cargoUsed || 0)));
+        const cap = Math.max(0, Math.trunc(Number(storage.cargoCapacity || 0)));
+        return `海戦資源 🧨${powder} 🪨${repair} 🍄${hpAid} 🫙${mpAid} / 船倉 ${used}/${cap}`;
+    }
+
+    updateShipCombatResourceHud() {
+        if (!this.shipCombatResourceStatus) return;
+        this.shipCombatResourceStatus.textContent = this.buildShipCombatResourceHudText();
+    }
+
+    requestShipCombatResourceStorage(force = false) {
+        const playFabId = this.playerInfo?.playFabId;
+        if (!playFabId) return;
+        const now = Date.now();
+        if (this.shipCombatResourceFetchPromise) return;
+        if (!force && (now - this.shipCombatResourceFetchedAt) < 1500) return;
+        this.shipCombatResourceFetchedAt = now;
+        this.shipCombatResourceFetchPromise = fetchShipResourceStorage(playFabId, { isSilent: true })
+            .then((data) => {
+                if (!data?.success) return;
+                this.shipCombatResourceStorage = this.normalizeShipCombatResourceStorage(data);
+                this.updateShipCombatResourceHud();
+                this.updateShipActionUi(true);
+                this.updateShipSideCannonUi(true);
+            })
+            .catch((error) => {
+                console.warn('[ShipCombatHud] Failed to load ship resource storage:', error);
+            })
+            .finally(() => {
+                this.shipCombatResourceFetchPromise = null;
+            });
     }
 
     setupShipSideCannonUi() {
@@ -2449,6 +2748,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const now = Date.now();
         if (!force && now - this.shipSideCannonUiLastUpdate < 250) return;
         this.shipSideCannonUiLastUpdate = now;
+        this.updateShipCombatResourceHud();
 
         const panel = this.shipSideCannonPanel;
         const allowedClass = this.canUseShipSideCannon();
@@ -2474,7 +2774,7 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         if (cooldownRemaining > 0) {
             const seconds = Math.ceil(cooldownRemaining / 1000);
-            this.shipSideCannonStatus.textContent = `Cooldown ${seconds}s`;
+            this.shipSideCannonStatus.textContent = `再装填 ${seconds}s / 火薬 ${Math.max(0, Math.trunc(Number(this.shipCombatResourceStorage?.cargoResources?.RR || 0)))}`;
             return;
         }
         if (this.shipSideCannonConsuming) {
@@ -2511,6 +2811,7 @@ export default class WorldMapScene extends Phaser.Scene {
             return false;
         } finally {
             this.shipSideCannonConsuming = false;
+            this.updateShipSideCannonUi(true);
         }
     }
 
@@ -2551,6 +2852,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const chargeMs = Math.max(80, Number(actionInfo.chargeMs) || 150);
         this.shipSideCannonChargeUntil = now + chargeMs;
         this.playSideCannonChargeEffect(chargeMs);
+        this.playShipActionTelegraph(actionInfo, chargeMs + 120);
         this.playSideCannonSfx('charge');
         this.updateShipSideCannonUi(true);
         if (this.shipSideCannonChargeTimer) {
@@ -2936,7 +3238,9 @@ export default class WorldMapScene extends Phaser.Scene {
         const debuffActive = now < this.shipActionSpeedDebuffUntil;
         const boostMultiplier = boostActive ? Number(this.shipActionSpeedBoostMultiplier) || 1.5 : 1;
         const debuffMultiplier = debuffActive ? Number(this.shipActionSpeedDebuffMultiplier) || 1 : 1;
-        return Math.max(1, this.shipBaseSpeed * boostMultiplier * debuffMultiplier);
+        const currentMp = Math.max(0, Number(Player.getMyPlayerStats?.()?.MP || 0));
+        const mpMultiplier = currentMp <= 0 ? 0.7 : 1;
+        return Math.max(1, this.shipBaseSpeed * boostMultiplier * debuffMultiplier * mpMultiplier);
     }
 
     updateShipActionUi(force = false) {
@@ -2944,6 +3248,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const now = Date.now();
         if (!force && now - this.shipActionUiLastUpdate < 250) return;
         this.shipActionUiLastUpdate = now;
+        this.updateShipCombatResourceHud();
 
         const actionInfo = this.getShipActionType();
         const cooldownRemaining = Math.max(0, this.shipActionCooldownUntil - now);
@@ -2951,7 +3256,7 @@ export default class WorldMapScene extends Phaser.Scene {
         const canUse = cooldownRemaining <= 0 && jamRemaining <= 0 && actionInfo.type !== 'none';
 
         this.shipActionButton.disabled = !canUse;
-        this.shipActionButton.textContent = actionInfo.type === 'none' ? 'No Action' : 'Action';
+        this.shipActionButton.textContent = actionInfo.type === 'none' ? '行動なし' : '船アクション';
 
         if (actionInfo.type === 'none') {
             this.shipActionStatus.textContent = '';
@@ -2963,7 +3268,7 @@ export default class WorldMapScene extends Phaser.Scene {
             this.shipActionStatus.textContent = `妨害中 (${seconds}s)`;
         } else if (cooldownRemaining > 0) {
             const seconds = Math.ceil(cooldownRemaining / 1000);
-            this.shipActionStatus.textContent = `Cooldown ${seconds}s`;
+            this.shipActionStatus.textContent = `再装填 ${seconds}s / 補修 ${Math.max(0, Math.trunc(Number(this.shipCombatResourceStorage?.cargoResources?.RG || 0)))}`;
         } else {
             this.shipActionStatus.textContent = actionInfo.label;
         }
@@ -3023,6 +3328,111 @@ export default class WorldMapScene extends Phaser.Scene {
         return key === 'water' || key === 'underwater' || key === 'sea_underwater' || key === 'submarine';
     }
 
+    formatShipCargoOutcomeText(resources) {
+        const labels = {
+            RR: '🧨',
+            RG: '🪨',
+            RY: '🍄',
+            RB: '🫙',
+            RT: '🪾',
+            RS: '🪵'
+        };
+        const parts = Object.entries(resources || {})
+            .map(([itemId, amount]) => [String(itemId || '').trim(), Number(amount || 0) || 0])
+            .filter(([itemId, amount]) => itemId && amount > 0)
+            .map(([itemId, amount]) => `${labels[itemId] || itemId}x${amount}`);
+        return parts.join(' ');
+    }
+
+    getShipCargoEmoji(itemId) {
+        const key = String(itemId || '').trim().toUpperCase();
+        const emojiMap = {
+            RR: '🧨',
+            RG: '🪨',
+            RY: '🍄',
+            RB: '🫙',
+            RT: '🪾',
+            RS: '🪵'
+        };
+        return emojiMap[key] || '📦';
+    }
+
+    getWorldShipSpriteByPlayFabId(playFabId) {
+        const key = String(playFabId || '').trim();
+        if (!key) return null;
+        if (key === this.playerInfo?.playFabId) {
+            return this.playerShip || null;
+        }
+        return this.otherShips.get(key)?.sprite || null;
+    }
+
+    playShipCargoTransferFx(cargoOutcome, winnerId, defeatedId) {
+        if (!cargoOutcome || Number(cargoOutcome.totalTransferred || 0) <= 0) return;
+        const sourceSprite = this.getWorldShipSpriteByPlayFabId(defeatedId);
+        const targetSprite = this.getWorldShipSpriteByPlayFabId(winnerId);
+        if (!sourceSprite || !targetSprite) return;
+        const entries = Object.entries(cargoOutcome.transferred || {})
+            .map(([itemId, amount]) => [String(itemId || '').trim().toUpperCase(), Math.max(0, Math.floor(Number(amount) || 0))])
+            .filter(([itemId, amount]) => itemId && amount > 0);
+        if (entries.length === 0) return;
+        let delayOffset = 0;
+        entries.forEach(([itemId, amount]) => {
+            const emoji = this.getShipCargoEmoji(itemId);
+            const bursts = Math.max(1, Math.min(4, amount));
+            for (let i = 0; i < bursts; i += 1) {
+                this.time.delayedCall(delayOffset + (i * 60), () => {
+                    if (!sourceSprite.active || !targetSprite.active) return;
+                    const sx = sourceSprite.x + Phaser.Math.Between(-8, 8);
+                    const sy = sourceSprite.y - 10 + Phaser.Math.Between(-4, 4);
+                    const tx = targetSprite.x + Phaser.Math.Between(-8, 8);
+                    const ty = targetSprite.y - 14 + Phaser.Math.Between(-6, 3);
+                    this.playEmojiShot(emoji, sx, sy, tx, ty);
+                });
+            }
+            const floatDelay = delayOffset + (bursts * 60) + 120;
+            this.time.delayedCall(floatDelay, () => {
+                if (!targetSprite.active) return;
+                this.spawnDamageNumber(targetSprite.x, targetSprite.y - 20, `+${amount}${emoji}`, 0x7be495);
+            });
+            delayOffset += 120;
+        });
+    }
+
+    notifyShipCargoOutcome(cargoOutcome, winnerId, defeatedId) {
+        if (!cargoOutcome) {
+            return;
+        }
+        const canShowMessage = typeof window !== 'undefined' && typeof window.showRpgMessage === 'function';
+        const myId = this.playerInfo?.playFabId || null;
+        if (!myId) return;
+        this.playShipCargoTransferFx(cargoOutcome, winnerId, defeatedId);
+
+        if (myId === defeatedId && Number(cargoOutcome.totalDropped || 0) > 0) {
+            const lostText = this.formatShipCargoOutcomeText(cargoOutcome.dropped || {});
+            this.requestShipCombatResourceStorage(true);
+            this.showMessage(lostText ? `流失 ${lostText}` : '流失');
+            if (canShowMessage) {
+                window.showRpgMessage(lostText ? `船倉資源を失った ${lostText}` : '船倉資源を失った');
+            }
+            return;
+        }
+
+        if (myId === winnerId) {
+            if (Number(cargoOutcome.totalTransferred || 0) > 0) {
+                const gainedText = this.formatShipCargoOutcomeText(cargoOutcome.transferred || {});
+                this.requestShipCombatResourceStorage(true);
+                this.showMessage(gainedText ? `戦利品 ${gainedText}` : '戦利品獲得');
+                if (canShowMessage) {
+                    window.showRpgMessage(gainedText ? `船倉資源を奪った ${gainedText}` : '船倉資源を奪った');
+                }
+            } else if (Number(cargoOutcome.totalDropped || 0) > 0) {
+                if (canShowMessage) {
+                    window.showRpgMessage('敵の資源は海に沈んだ…');
+                }
+            }
+        }
+    }
+
     applyPlayerShipDomain() {
         if (!this.playerShip?.body) return;
         const isAir = this.isAirDomain(this.playerShipDomain);
@@ -3063,6 +3473,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
     stopShipMovement() {
         if (!this.playerShip) return;
+        this.stopDockedMpRecoveryTimer();
         this.shipMoving = false;
         this.playerShip.body.setVelocity(0, 0);
         if (this.shipTween) {
@@ -3144,6 +3555,8 @@ export default class WorldMapScene extends Phaser.Scene {
             this.showMessage(`妨害中 (${seconds}s)`);
             return;
         }
+
+        this.playShipActionTelegraph(actionInfo, 320);
 
         if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
             const actionType = String(actionInfo.type || '').toLowerCase();
@@ -3295,10 +3708,20 @@ export default class WorldMapScene extends Phaser.Scene {
                         if (target && target.sprite) {
                             const maxHp = Number(target.hp?.max || result.hp || 0);
                             target.hp = { current: Number(result.hp), max: maxHp };
-                            this.playShipHitEffect(target.sprite.x, target.sprite.y, result.damageTaken);
+                            this.playShipHitEffect(
+                                target.sprite.x,
+                                target.sprite.y,
+                                result.damageTaken,
+                                target.sprite,
+                                this.playerShip?.x,
+                                this.playerShip?.y
+                            );
                             if (result.respawnPosition) {
                                 target.sprite.setPosition(result.respawnPosition.x, result.respawnPosition.y);
                             }
+                        }
+                        if (result.respawned) {
+                            this.notifyShipCargoOutcome(result.cargoOutcome, attackerIdOverride || this.playerInfo?.playFabId, result.playFabId);
                         }
                     });
                 }
@@ -3820,6 +4243,7 @@ export default class WorldMapScene extends Phaser.Scene {
         islandData.sprites?.forEach(sprite => sprite?.destroy?.());
         islandData.buildingSprites?.forEach(sprite => sprite?.destroy?.());
         islandData.nameText?.destroy?.();
+        islandData.captureOverlay?.container?.destroy?.();
         islandData.interactiveZone?.destroy?.();
         islandData.physicsGroup?.destroy?.(true);
         this.islandObjects.delete(islandId);
@@ -4054,6 +4478,23 @@ export default class WorldMapScene extends Phaser.Scene {
 
     setupRideLeaveUi() {
         if (typeof document === 'undefined' || this.rideLeaveButton) return;
+        const label = document.createElement('div');
+        label.id = 'rideStatusLabel';
+        label.style.position = 'fixed';
+        label.style.right = '16px';
+        label.style.bottom = '168px';
+        label.style.zIndex = '9999';
+        label.style.padding = '8px 12px';
+        label.style.borderRadius = '10px';
+        label.style.border = '1px solid rgba(255,255,255,0.18)';
+        label.style.background = 'rgba(15,23,42,0.88)';
+        label.style.color = '#fff';
+        label.style.fontSize = '12px';
+        label.style.lineHeight = '1.35';
+        label.style.display = 'none';
+        document.body.appendChild(label);
+        this.rideStatusLabel = label;
+
         const button = document.createElement('button');
         button.id = 'rideLeaveButton';
         button.textContent = '下船する';
@@ -4072,11 +4513,37 @@ export default class WorldMapScene extends Phaser.Scene {
         });
         document.body.appendChild(button);
         this.rideLeaveButton = button;
+        this.updateRideStatusUi();
     }
 
     updateRideLeaveUi() {
         if (!this.rideLeaveButton) return;
         this.rideLeaveButton.style.display = this.ridingShipId ? 'block' : 'none';
+        this.updateRideStatusUi();
+    }
+
+    getRideStatusText() {
+        const passengerCount = Math.max(0, Array.from(this.otherShips.values())
+            .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
+            .length);
+        if (this.ridingShipId && this.ridingOwnerId) {
+            const hostShip = this.otherShips.get(this.ridingOwnerId);
+            const hostName = String(hostShip?.displayName || hostShip?.data?.displayName || hostShip?.data?.ownerName || this.ridingOwnerId || '不明').trim();
+            return `同乗中: ${hostName}`;
+        }
+        if (passengerCount > 0) {
+            const capacity = Math.max(1, Number(this.playerShip?.data?.crewCapacity || this.activeShip?.crewCapacity || this.playerShip?.crewCapacity || passengerCount + 1));
+            const occupied = Math.min(capacity, passengerCount + 1);
+            return `乗客 ${occupied}/${capacity}`;
+        }
+        return '';
+    }
+
+    updateRideStatusUi() {
+        if (!this.rideStatusLabel) return;
+        const text = this.getRideStatusText();
+        this.rideStatusLabel.textContent = text;
+        this.rideStatusLabel.style.display = text ? 'block' : 'none';
     }
 
     async requestRide(targetPlayFabId, displayName = '') {
@@ -4086,9 +4553,19 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
         try {
-            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+            const { doc, setDoc, serverTimestamp, getDoc } = await import('firebase/firestore');
             const requestId = `${targetPlayFabId}_${this.playerInfo.playFabId}`;
             const requestRef = doc(this.firestore, 'shipRideRequests', requestId);
+            const existingSnap = await getDoc(requestRef);
+            if (existingSnap.exists()) {
+                const existing = existingSnap.data() || {};
+                const status = String(existing.status || '');
+                const expiresAtMs = Number(existing.expiresAtMs || 0);
+                if (status === 'pending' && expiresAtMs > Date.now()) {
+                    this.showMessage('すでに同乗申請中です。返答を待ってください。');
+                    return;
+                }
+            }
             await setDoc(requestRef, {
                 requestId,
                 requesterId: this.playerInfo.playFabId,
@@ -4096,6 +4573,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 targetId: targetPlayFabId,
                 targetName: displayName || '',
                 status: 'pending',
+                expiresAtMs: Date.now() + this.rideRequestTtlMs,
                 mapId: this.mapId || null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -4121,11 +4599,27 @@ export default class WorldMapScene extends Phaser.Scene {
         );
         this.rideRequestUnsubscribe = onSnapshot(reqQuery, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
-                if (change.type !== 'added') return;
                 const data = change.doc.data() || {};
                 const requestId = data.requestId || change.doc.id;
-                if (this.rideRequestSeen.has(requestId)) return;
-                this.rideRequestSeen.add(requestId);
+                const expiresAtMs = Number(data.expiresAtMs || 0);
+                if (expiresAtMs > 0 && expiresAtMs <= Date.now()) {
+                    void (async () => {
+                        try {
+                            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+                            await setDoc(doc(this.firestore, 'shipRideRequests', requestId), {
+                                status: 'expired',
+                                updatedAt: serverTimestamp()
+                            }, { merge: true });
+                        } catch (error) {
+                            console.warn('[Ride] Failed to expire request:', error);
+                        }
+                    })();
+                    return;
+                }
+                if (change.type !== 'added') return;
+                const signature = `${requestId}:${expiresAtMs || 0}`;
+                if (this.rideRequestSeen.has(signature)) return;
+                this.rideRequestSeen.add(signature);
                 void this.promptRideRequest(data);
             });
         });
@@ -4134,12 +4628,30 @@ export default class WorldMapScene extends Phaser.Scene {
             collection(this.firestore, 'shipRideRequests'),
             where('requesterId', '==', this.playerInfo.playFabId)
         );
+        this.rideStatusSeen.clear();
+        this.rideStatusInitialized = false;
         this.rideStatusUnsubscribe = onSnapshot(statusQuery, (snapshot) => {
+            if (!this.rideStatusInitialized) {
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data() || {};
+                    const requestId = data.requestId || docSnap.id;
+                    const status = String(data.status || '');
+                    this.rideStatusSeen.add(`${requestId}:${status}`);
+                });
+                this.rideStatusInitialized = true;
+                return;
+            }
             snapshot.docChanges().forEach((change) => {
+                if (change.type === 'removed') return;
                 const data = change.doc.data() || {};
-                if (data.status === 'accepted' && data.targetId) {
+                const requestId = data.requestId || change.doc.id;
+                const status = String(data.status || '');
+                const signature = `${requestId}:${status}`;
+                if (this.rideStatusSeen.has(signature)) return;
+                this.rideStatusSeen.add(signature);
+                if (status === 'accepted' && data.targetId) {
                     this.showMessage('同乗が承認されました。');
-                } else if (data.status === 'denied') {
+                } else if (status === 'denied') {
                     this.showMessage('同乗が拒否されました。');
                 }
             });
@@ -4183,6 +4695,15 @@ export default class WorldMapScene extends Phaser.Scene {
             const { doc, setDoc, serverTimestamp, getDoc, query, collection, where, getDocs } = await import('firebase/firestore');
             const requestId = request.requestId || `${request.targetId}_${request.requesterId}`;
             const reqRef = doc(this.firestore, 'shipRideRequests', requestId);
+            const expiresAtMs = Number(request?.expiresAtMs || 0);
+            if (expiresAtMs > 0 && expiresAtMs <= Date.now()) {
+                await setDoc(reqRef, {
+                    status: 'expired',
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                this.showMessage('同乗申請の有効期限が切れました。');
+                return;
+            }
             if (!accepted) {
                 await setDoc(reqRef, {
                     status: 'denied',
@@ -4202,12 +4723,13 @@ export default class WorldMapScene extends Phaser.Scene {
                 const passengerSnap = await getDocs(passengerQuery);
                 const passengerCount = passengerSnap.size || 0;
                 if (passengerCount + 1 >= crewCapacity) {
+                    const occupied = Math.max(1, passengerCount + 1);
                     await setDoc(reqRef, {
                         status: 'denied',
                         updatedAt: serverTimestamp(),
                         reason: 'CrewCapacityFull'
                     }, { merge: true });
-                    this.showMessage('定員がいっぱいです。');
+                    this.showMessage(`定員です（${occupied}/${crewCapacity}）。`);
                     return;
                 }
             }
@@ -4236,17 +4758,32 @@ export default class WorldMapScene extends Phaser.Scene {
     async leaveRide() {
         if (!this.firestore || !this.playerInfo?.playFabId) return;
         try {
-            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
             const shipRef = doc(this.firestore, 'ships', this.playerInfo.playFabId);
+            const currentX = Number.isFinite(this.playerShip?.x) ? this.playerShip.x : null;
+            const currentY = Number.isFinite(this.playerShip?.y) ? this.playerShip.y : null;
             await setDoc(shipRef, {
                 ridingShipId: null,
                 ridingOwnerId: null,
                 ridingSince: null,
+                currentX,
+                currentY,
+                targetX: currentX,
+                targetY: currentY,
+                arrivalTime: null,
+                position: (currentX != null && currentY != null) ? { x: currentX, y: currentY } : null,
+                movement: (currentX != null && currentY != null) ? {
+                    isMoving: false,
+                    departureTime: null,
+                    arrivalTime: null,
+                    departurePos: { x: currentX, y: currentY },
+                    destinationPos: { x: currentX, y: currentY }
+                } : null,
                 updatedAt: serverTimestamp()
             }, { merge: true });
             this.ridingShipId = null;
             this.ridingOwnerId = null;
             this.ridingSince = null;
+            this.rideHostMissingSince = 0;
             this.canMove = true;
             this.updateRideLeaveUi();
             this.updateRideCameraFollow();
@@ -4254,6 +4791,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
                 .length;
             this.updatePassengerIconsForHost(this.playerShip, passengerCount, this.myPassengerIcons);
+            this.updateRideStatusUi();
             this.showMessage('下船しました。');
         } catch (error) {
             console.warn('[Ride] Failed to leave ride:', error);
@@ -4286,13 +4824,26 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!this.ridingShipId || !this.ridingOwnerId || !this.playerShip) return;
         const targetShip = this.otherShips.get(this.ridingOwnerId);
         const targetSprite = targetShip?.sprite;
-        if (!targetSprite) return;
+        if (!targetSprite) {
+            if (!this.rideHostMissingSince) {
+                this.rideHostMissingSince = Date.now();
+                return;
+            }
+            if (Date.now() - this.rideHostMissingSince >= 2500) {
+                this.showMessage('乗っていた船との接続が切れたため自動下船しました。');
+                this.rideHostMissingSince = 0;
+                void this.leaveRide();
+            }
+            return;
+        }
+        this.rideHostMissingSince = 0;
         this.playerShip.setPosition(targetSprite.x, targetSprite.y);
         this.updateRideCameraFollow();
         const passengerCount = Array.from(this.otherShips.values())
             .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
             .length;
         this.updatePassengerIconsForHost(this.playerShip, passengerCount, this.myPassengerIcons);
+        this.updateRideStatusUi();
     }
 
     updatePassengerIconsForHost(hostSprite, passengerCount, store) {
@@ -4448,26 +4999,57 @@ export default class WorldMapScene extends Phaser.Scene {
                 if (attacker?.playFabId === myId) {
                     const maxHp = Number(this.playerHp?.max || attacker.hp || 0);
                     this.playerHp = { current: Number(attacker.hp), max: maxHp };
-                    this.playShipHitEffect(this.playerShip?.x, this.playerShip?.y, attacker.damageTaken);
+                    this.playShipHitEffect(
+                        this.playerShip?.x,
+                        this.playerShip?.y,
+                        attacker.damageTaken,
+                        this.playerShip,
+                        defenderPos?.x,
+                        defenderPos?.y
+                    );
                 } else if (attacker?.playFabId) {
                     const target = this.otherShips.get(attacker.playFabId);
                     if (target && target.sprite) {
                         const maxHp = Number(target.hp?.max || attacker.hp || 0);
                         target.hp = { current: Number(attacker.hp), max: maxHp };
-                        this.playShipHitEffect(target.sprite.x, target.sprite.y, attacker.damageTaken);
+                        this.playShipHitEffect(
+                            target.sprite.x,
+                            target.sprite.y,
+                            attacker.damageTaken,
+                            target.sprite,
+                            defenderPos?.x,
+                            defenderPos?.y
+                        );
                     }
                 }
                 if (defender?.playFabId === myId) {
                     const maxHp = Number(this.playerHp?.max || defender.hp || 0);
                     this.playerHp = { current: Number(defender.hp), max: maxHp };
-                    this.playShipHitEffect(this.playerShip?.x, this.playerShip?.y, defender.damageTaken);
+                    this.playShipHitEffect(
+                        this.playerShip?.x,
+                        this.playerShip?.y,
+                        defender.damageTaken,
+                        this.playerShip,
+                        attackerPos?.x,
+                        attackerPos?.y
+                    );
                 } else if (defender?.playFabId) {
                     const target = this.otherShips.get(defender.playFabId);
                     if (target && target.sprite) {
                         const maxHp = Number(target.hp?.max || defender.hp || 0);
                         target.hp = { current: Number(defender.hp), max: maxHp };
-                        this.playShipHitEffect(target.sprite.x, target.sprite.y, defender.damageTaken);
+                        this.playShipHitEffect(
+                            target.sprite.x,
+                            target.sprite.y,
+                            defender.damageTaken,
+                            target.sprite,
+                            attackerPos?.x,
+                            attackerPos?.y
+                        );
                     }
+                }
+                if (Number(attacker?.damageTaken || 0) > 0 || Number(defender?.damageTaken || 0) > 0) {
+                    this.applyHitStop(95);
                 }
                 const attackerRespawned = data.attacker?.playFabId === myId && data.attacker?.respawned;
                 const defenderRespawned = data.defender?.playFabId === myId && data.defender?.respawned;
@@ -4476,6 +5058,15 @@ export default class WorldMapScene extends Phaser.Scene {
                     window.showRpgMessage(msg);
                     const revive = window.rpgSay?.shipRespawned ? window.rpgSay.shipRespawned() : 'ふねが復活した！';
                     setTimeout(() => window.showRpgMessage(revive), 1200);
+                }
+                if (data?.cargoOutcome) {
+                    const winnerId = data.attacker?.respawned && !data.defender?.respawned
+                        ? data.defender?.playFabId
+                        : (!data.attacker?.respawned && data.defender?.respawned ? data.attacker?.playFabId : null);
+                    const defeatedId = data.attacker?.respawned && !data.defender?.respawned
+                        ? data.attacker?.playFabId
+                        : (!data.attacker?.respawned && data.defender?.respawned ? data.defender?.playFabId : null);
+                    this.notifyShipCargoOutcome(data.cargoOutcome, winnerId, defeatedId);
                 }
             }
         } catch (error) {
@@ -4636,7 +5227,77 @@ export default class WorldMapScene extends Phaser.Scene {
         hpBar.fillRect(barX + 1, barY + 1, Math.max(0, (barWidth - 2) * ratio), Math.max(1, barHeight - 2));
     }
 
-    playShipHitEffect(x, y, damageValue = null) {
+    flashShipHitTarget(targetSprite, sourceX = null, sourceY = null) {
+        if (!targetSprite || !targetSprite.active) return;
+        if (typeof targetSprite.clearTint === 'function') {
+            targetSprite.setTintFill(0xffffff);
+            this.time.delayedCall(90, () => {
+                if (targetSprite.active && typeof targetSprite.clearTint === 'function') {
+                    targetSprite.clearTint();
+                }
+            });
+        }
+        const baseScaleX = Number(targetSprite.scaleX) || 1;
+        const baseScaleY = Number(targetSprite.scaleY) || 1;
+        if (targetSprite.__shipHitScaleTween) {
+            targetSprite.__shipHitScaleTween.stop();
+        }
+        if (targetSprite.__shipHitTiltTween) {
+            targetSprite.__shipHitTiltTween.stop();
+        }
+        targetSprite.setScale(baseScaleX, baseScaleY);
+        targetSprite.angle = 0;
+        targetSprite.__shipHitScaleTween = this.tweens.add({
+            targets: targetSprite,
+            scaleX: baseScaleX * 1.08,
+            scaleY: baseScaleY * 1.08,
+            duration: 90,
+            yoyo: true,
+            ease: 'Quad.easeOut',
+            onComplete: () => {
+                if (targetSprite.active) {
+                    targetSprite.setScale(baseScaleX, baseScaleY);
+                }
+            }
+        });
+        const tiltSign = Number.isFinite(sourceX) && Number.isFinite(targetSprite.x)
+            ? (sourceX <= targetSprite.x ? 1 : -1)
+            : (Phaser.Math.Between(0, 1) === 0 ? -1 : 1);
+        targetSprite.__shipHitTiltTween = this.tweens.add({
+            targets: targetSprite,
+            angle: 6 * tiltSign,
+            duration: 70,
+            yoyo: true,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+                if (targetSprite.active) {
+                    targetSprite.angle = 0;
+                }
+            }
+        });
+        const hpBar = targetSprite.__hpBar;
+        if (hpBar && hpBar.active) {
+            if (hpBar.__shipHitFlashTween) {
+                hpBar.__shipHitFlashTween.stop();
+            }
+            hpBar.setAlpha(1);
+            hpBar.__shipHitFlashTween = this.tweens.add({
+                targets: hpBar,
+                alpha: 0.35,
+                duration: 70,
+                yoyo: true,
+                repeat: 1,
+                ease: 'Sine.easeOut',
+                onComplete: () => {
+                    if (hpBar.active) {
+                        hpBar.setAlpha(1);
+                    }
+                }
+            });
+        }
+    }
+
+    playShipHitEffect(x, y, damageValue = null, targetSprite = null, sourceX = null, sourceY = null) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         const now = Date.now();
         const key = `${Math.round(x)}:${Math.round(y)}`;
@@ -4648,8 +5309,10 @@ export default class WorldMapScene extends Phaser.Scene {
             this.spawnDamageNumber(x, y - 12, `-${Math.round(damageValue)}`, 0xff6b6b);
         }
         this.spawnImpactBurst(x, y);
+        this.playEmojiBurst(['💦', '💧', '💥'], x, y - 6, { fontSize: 15, rise: 18, duration: 520 });
+        this.flashShipHitTarget(targetSprite, sourceX, sourceY);
         if (this.cameras?.main) {
-            this.cameras.main.shake(80, 0.002);
+            this.cameras.main.shake(110, 0.003);
         }
     }
 
@@ -4813,16 +5476,21 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angleDeg, this.getFacingAngleRad());
     }
 
-    playActionConeEffectAt(x, y, range, angleDeg, headingRad = 0, color = 0xffd166) {
+    playActionConeEffectAt(x, y, range, angleDeg, headingRad = 0, color = 0xffd166, options = null) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const effectOptions = options || {};
         const graphics = this.add.graphics();
         graphics.setAlpha(0.95);
         graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.ignoreOnUiCamera(graphics);
         const start = headingRad - Phaser.Math.DegToRad(angleDeg / 2);
         const end = headingRad + Phaser.Math.DegToRad(angleDeg / 2);
-        graphics.fillStyle(color, 0.22);
-        graphics.lineStyle(2, color, 0.78);
+        const fillAlpha = Number.isFinite(Number(effectOptions.fillAlpha)) ? Phaser.Math.Clamp(Number(effectOptions.fillAlpha), 0, 1) : 0.22;
+        const lineAlpha = Number.isFinite(Number(effectOptions.lineAlpha)) ? Phaser.Math.Clamp(Number(effectOptions.lineAlpha), 0, 1) : 0.78;
+        const lineWidth = Math.max(1, Number(effectOptions.lineWidth) || 2);
+        const effectDuration = Math.max(120, Number(effectOptions.durationMs) || 260);
+        graphics.fillStyle(color, fillAlpha);
+        graphics.lineStyle(lineWidth, color, lineAlpha);
         graphics.beginPath();
         graphics.moveTo(x, y);
         graphics.arc(x, y, range, start, end, false);
@@ -4832,7 +5500,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.tweens.add({
             targets: graphics,
             alpha: 0,
-            duration: 260,
+            duration: effectDuration,
             ease: 'Quad.easeOut',
             onComplete: () => graphics.destroy()
         });
@@ -4843,23 +5511,97 @@ export default class WorldMapScene extends Phaser.Scene {
         this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radius);
     }
 
-    playActionCircleEffectAt(x, y, radius, color = 0x7bdff2) {
+    playActionCircleEffectAt(x, y, radius, color = 0x7bdff2, options = null) {
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const effectOptions = options || {};
         const graphics = this.add.graphics();
         graphics.setAlpha(0.95);
         graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
         this.ignoreOnUiCamera(graphics);
-        graphics.lineStyle(2, color, 0.78);
+        const lineAlpha = Number.isFinite(Number(effectOptions.lineAlpha)) ? Phaser.Math.Clamp(Number(effectOptions.lineAlpha), 0, 1) : 0.78;
+        const fillAlpha = Number.isFinite(Number(effectOptions.fillAlpha)) ? Phaser.Math.Clamp(Number(effectOptions.fillAlpha), 0, 1) : 0.18;
+        const lineWidth = Math.max(1, Number(effectOptions.lineWidth) || 2);
+        const effectDuration = Math.max(120, Number(effectOptions.durationMs) || 280);
+        graphics.lineStyle(lineWidth, color, lineAlpha);
         graphics.strokeCircle(x, y, radius);
-        graphics.fillStyle(color, 0.18);
+        graphics.fillStyle(color, fillAlpha);
         graphics.fillCircle(x, y, radius);
         this.tweens.add({
             targets: graphics,
             alpha: 0,
-            duration: 280,
+            duration: effectDuration,
             ease: 'Quad.easeOut',
             onComplete: () => graphics.destroy()
         });
+    }
+
+    playShipActionTelegraph(actionInfo = {}, durationMs = 320) {
+        if (!this.playerShip) return;
+        const effectColor = this.getActionEffectColor(actionInfo?.effect, 0xffd166);
+        const effectOptions = {
+            durationMs,
+            fillAlpha: 0.1,
+            lineAlpha: 0.92,
+            lineWidth: 3
+        };
+        const type = String(actionInfo?.type || '').toLowerCase();
+        const rangeTiles = Number(actionInfo?.rangeTiles) || 0;
+        const radiusTiles = Number(actionInfo?.radiusTiles) || 0;
+        if (Number.isFinite(radiusTiles) && radiusTiles > 0) {
+            this.playActionCircleEffectAt(this.playerShip.x, this.playerShip.y, radiusTiles * this.TILE_SIZE, effectColor, effectOptions);
+            return;
+        }
+        if (!Number.isFinite(rangeTiles) || rangeTiles <= 0) return;
+        const range = rangeTiles * this.TILE_SIZE;
+        const heading = this.getFacingAngleRad();
+        if (type === 'defender_broadside' || type === 'side_cannon') {
+            const angle = Number(actionInfo?.angle) || 60;
+            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading - Math.PI / 2, effectColor, effectOptions);
+            this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading + Math.PI / 2, effectColor, effectOptions);
+            this.playActionTelegraphLine(this.playerShip.x, this.playerShip.y, range, heading - Math.PI / 2, effectColor, durationMs);
+            this.playActionTelegraphLine(this.playerShip.x, this.playerShip.y, range, heading + Math.PI / 2, effectColor, durationMs);
+            return;
+        }
+        const angle = Number(actionInfo?.angle) || 50;
+        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, effectColor, effectOptions);
+        this.playActionTelegraphLine(this.playerShip.x, this.playerShip.y, range, heading, effectColor, durationMs);
+    }
+
+    playActionTelegraphLine(x, y, range, headingRad = 0, color = 0xffd166, durationMs = 320) {
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(range) || range <= 0) return;
+        const dx = Math.cos(headingRad);
+        const dy = Math.sin(headingRad);
+        const startX = x + dx * 14;
+        const startY = y + dy * 14;
+        const endX = x + dx * range;
+        const endY = y + dy * range;
+        const graphics = this.add.graphics();
+        graphics.setAlpha(0.92);
+        graphics.setDepth(GAME_CONFIG.DEPTH.MESSAGE);
+        this.ignoreOnUiCamera(graphics);
+        graphics.lineStyle(3, color, 0.92);
+        graphics.beginPath();
+        graphics.moveTo(startX, startY);
+        graphics.lineTo(endX, endY);
+        graphics.strokePath();
+        graphics.fillStyle(color, 0.9);
+        graphics.fillCircle(endX, endY, 3);
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: Math.max(140, Number(durationMs) || 320),
+            ease: 'Quad.easeOut',
+            onComplete: () => graphics.destroy()
+        });
+    }
+
+    notifyIslandCaptureAlert(islandData, stateLabel, leaderName, isEnemyWarning) {
+        if (!islandData?.id || !isEnemyWarning) return;
+        const key = `${stateLabel}:${leaderName}`;
+        if (this.islandCaptureAlertStateById.get(islandData.id) === key) return;
+        this.islandCaptureAlertStateById.set(islandData.id, key);
+        const islandName = islandData.name || '島';
+        this.showMessage(`${islandName} ${stateLabel}`);
     }
 
     playEmojiBurst(emojis, x, y, options = {}) {
@@ -4995,6 +5737,83 @@ export default class WorldMapScene extends Phaser.Scene {
         return String(target?.data?.nation || target?.data?.Nation || target?.sprite?.__ownerNation || '').toLowerCase();
     }
 
+    isThreateningShipAction(data = {}) {
+        const effect = String(data?.effect || '').toLowerCase();
+        const type = String(data?.type || '').toLowerCase();
+        if (type === 'defender_shield' || type === 'support') return false;
+        const safeEffects = new Set([
+            '',
+            'shield',
+            'support',
+            'speed_boost',
+            'island_pass',
+            'invisible'
+        ]);
+        return !safeEffects.has(effect);
+    }
+
+    showEnemyShipActionWarning(sourceId, label, fallbackX, fallbackY) {
+        if (!sourceId || !this.isEnemyShipId(sourceId)) return;
+        const now = Date.now();
+        const lastAt = Number(this.lastEnemyShipActionWarnAt.get(sourceId) || 0);
+        if (now - lastAt < 900) return;
+        this.lastEnemyShipActionWarnAt.set(sourceId, now);
+        const sprite = this.otherShips.get(sourceId)?.sprite || null;
+        const x = Number.isFinite(sprite?.x) ? sprite.x : Number(fallbackX);
+        const y = Number.isFinite(sprite?.y) ? sprite.y : Number(fallbackY);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const text = /砲|弾|爆|砲撃/.test(String(label || '')) ? '砲撃' : '攻撃';
+        this.spawnDamageNumber(x, y - 26, '⚠', 0xff7b7b);
+        this.spawnDamageNumber(x, y - 10, text, 0xffd166);
+    }
+
+    isPointThreatenedByShipAction(px, py, originX, originY, data = {}) {
+        if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(originX) || !Number.isFinite(originY)) return false;
+        const radiusTiles = Number(data?.radiusTiles);
+        if (Number.isFinite(radiusTiles) && radiusTiles > 0) {
+            const radius = this.TILE_SIZE * radiusTiles;
+            return Phaser.Math.Distance.Between(px, py, originX, originY) <= radius;
+        }
+
+        const rangeTiles = Number(data?.rangeTiles);
+        const angleDeg = Number(data?.angle);
+        if (!(Number.isFinite(rangeTiles) && rangeTiles > 0 && Number.isFinite(angleDeg))) {
+            return false;
+        }
+
+        const range = this.TILE_SIZE * rangeTiles;
+        const dx = px - originX;
+        const dy = py - originY;
+        const dist = Math.sqrt((dx * dx) + (dy * dy));
+        if (dist > range) return false;
+
+        const effect = String(data?.effect || '').toLowerCase();
+        const heading = Number(data?.heading) || 0;
+        const halfAngle = Phaser.Math.DegToRad(Math.max(1, angleDeg) / 2);
+        const targetAngle = Math.atan2(dy, dx);
+        const headings = effect === 'broadside'
+            ? [heading - Math.PI / 2, heading + Math.PI / 2]
+            : [heading];
+
+        return headings.some((candidate) => {
+            const diff = Phaser.Math.Angle.Wrap(targetAngle - candidate);
+            return Math.abs(diff) <= halfAngle;
+        });
+    }
+
+    showIncomingThreatWarning(label = '') {
+        if (!this.playerShip) return;
+        const now = Date.now();
+        if (now - this.lastIncomingThreatWarnAt < 800) return;
+        this.lastIncomingThreatWarnAt = now;
+        const text = /砲|弾|爆|砲撃/.test(String(label || '')) ? '危険砲撃' : '危険';
+        this.spawnDamageNumber(this.playerShip.x, this.playerShip.y - 30, '‼', 0xff6b6b);
+        this.spawnDamageNumber(this.playerShip.x, this.playerShip.y - 14, text, 0xffd166);
+        if (this.cameras?.main) {
+            this.cameras.main.shake(80, 0.0024);
+        }
+    }
+
     isEnemyShipId(playFabId) {
         if (!playFabId || !this.playerInfo?.playFabId) return false;
         if (playFabId === this.playerInfo.playFabId) return false;
@@ -5102,6 +5921,10 @@ export default class WorldMapScene extends Phaser.Scene {
                 const y = Number(data.y);
                 if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
+                if (this.isThreateningShipAction(data)) {
+                    this.showEnemyShipActionWarning(data.sourceId || null, data.label || '', x, y);
+                }
+
                 const effect = String(data.effect || '').toLowerCase();
                 if (Array.isArray(data.emojis) && data.emojis.length > 0) {
                     this.playEmojiBurst(data.emojis, x, y - 12);
@@ -5186,6 +6009,9 @@ export default class WorldMapScene extends Phaser.Scene {
                             this.applyKnockbackFrom(x, y, targetId, knockbackTiles);
                         }
                     });
+                    if (targets.includes(this.playerInfo?.playFabId)) {
+                        this.showIncomingThreatWarning(data.label || effect);
+                    }
                 } else if (Number.isFinite(Number(data.rangeTiles)) && Number.isFinite(Number(data.angle))) {
                     const range = this.TILE_SIZE * Number(data.rangeTiles);
                     const heading = Number(data.heading) || 0;
@@ -5196,6 +6022,9 @@ export default class WorldMapScene extends Phaser.Scene {
                         this.playActionConeEffectAt(x, y, range, angle, heading + Math.PI / 2, color);
                     } else {
                         this.playActionConeEffectAt(x, y, range, angle, heading, color);
+                    }
+                    if (this.playerShip && this.isPointThreatenedByShipAction(this.playerShip.x, this.playerShip.y, x, y, data)) {
+                        this.showIncomingThreatWarning(data.label || effect);
                     }
                 } else {
                     this.spawnImpactBurst(x, y);
@@ -5522,12 +6351,137 @@ export default class WorldMapScene extends Phaser.Scene {
         };
     }
 
+    getIslandCaptureSpeedMultiplier(memberCount) {
+        const count = Math.max(1, Math.floor(Number(memberCount) || 1));
+        return Math.min(4, 1 + ((count - 1) * 0.5));
+    }
+
     setIslandCaptureState(islandData, nextState) {
         if (!islandData) return;
         islandData.captureState = nextState || null;
         if (this.collidingIsland?.id === islandData.id) {
             this.collidingIsland.captureState = islandData.captureState;
         }
+    }
+
+    ensureIslandCaptureOverlay(islandData) {
+        if (!islandData) return null;
+        if (islandData.captureOverlay?.container?.active) {
+            return islandData.captureOverlay;
+        }
+        const container = this.add.container(0, 0);
+        container.setDepth(GAME_CONFIG.DEPTH.NAME_TEXT + 1);
+        this.ignoreOnUiCamera(container);
+        const panel = this.add.graphics();
+        const barBg = this.add.graphics();
+        const barFill = this.add.graphics();
+        const label = this.add.text(0, -14, '', {
+            fontSize: '11px',
+            color: '#fff7c2',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        const detail = this.add.text(0, 2, '', {
+            fontSize: '10px',
+            color: '#d7f3ff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        container.add([panel, barBg, barFill, label, detail]);
+        islandData.captureOverlay = { container, panel, barBg, barFill, label, detail };
+        return islandData.captureOverlay;
+    }
+
+    updateIslandCaptureOverlays() {
+        if (!this.islandObjects || this.islandObjects.size === 0) return;
+        const now = Date.now();
+        const myId = this.playerInfo?.playFabId || null;
+        const myNation = String(this.playerInfo?.nation || '').toLowerCase();
+        this.islandObjects.forEach((islandData) => {
+            const state = this.getIslandCaptureState(islandData);
+            const queue = Array.isArray(state.queue) ? state.queue : [];
+            if (queue.length <= 0) {
+                if (islandData?.id) {
+                    this.islandCaptureAlertStateById.delete(islandData.id);
+                }
+                if (islandData.captureOverlay?.container) {
+                    islandData.captureOverlay.container.setVisible(false);
+                }
+                return;
+            }
+            const overlay = this.ensureIslandCaptureOverlay(islandData);
+            if (!overlay) return;
+            const width = 92;
+            const barWidth = 72;
+            const totalMs = Math.max(
+                Number(state.baseDurationMs) || 0,
+                Math.max(0, Number(state.progressBaseMs) || 0) + Math.max(0, Number(state.endsAt) - now) * this.getIslandCaptureSpeedMultiplier(queue.length)
+            );
+            const remainingMs = Math.max(0, Number(state.endsAt) - now);
+            const progressRatio = totalMs > 0 ? Phaser.Math.Clamp(1 - (remainingMs / totalMs), 0, 1) : 1;
+            const leader = queue[0] || null;
+            const leaderName = leader?.playFabId === this.playerInfo?.playFabId
+                ? 'あなた'
+                : String(leader?.playFabId || '').slice(0, 6);
+            const leaderNation = String(leader?.nation || '').toLowerCase();
+            const ownerNation = String(islandData?.nation || islandData?.Nation || '').toLowerCase();
+            const isMyQueue = !!leader && (leader.playFabId === myId || (!!myNation && leaderNation === myNation));
+            const isOwnerHolding = !!ownerNation && !!leaderNation && ownerNation === leaderNation;
+            const isEnemyWarning = !isMyQueue;
+            const pulse = 0.86 + (Math.sin(now / 180) * 0.12);
+            let panelColor = 0x08131f;
+            let panelAlpha = 0.8;
+            let barColor = 0xffd166;
+            let labelColor = '#fff7c2';
+            let detailColor = '#d7f3ff';
+            let stateLabel = '占領中';
+
+            if (isOwnerHolding) {
+                stateLabel = isMyQueue ? '防衛中' : '敵防衛中';
+            } else if (ownerNation && leaderNation && ownerNation !== leaderNation) {
+                stateLabel = isMyQueue ? '制圧中' : (ownerNation === myNation ? '敵襲中' : '敵占領中');
+            } else if (!isMyQueue) {
+                stateLabel = '敵占領中';
+            }
+
+            if (isEnemyWarning) {
+                panelColor = ownerNation === myNation ? 0x3a0d12 : 0x24110d;
+                panelAlpha = ownerNation === myNation ? 0.92 : 0.86;
+                barColor = ownerNation === myNation ? 0xff6b6b : 0xff9f43;
+                labelColor = ownerNation === myNation ? '#ffd6d6' : '#ffe4c7';
+                detailColor = ownerNation === myNation ? '#ffe7e7' : '#fff1de';
+            } else if (stateLabel === '防衛中') {
+                panelColor = 0x102534;
+                panelAlpha = 0.84;
+                barColor = 0x6dd3ff;
+                labelColor = '#d8f6ff';
+                detailColor = '#dff8ff';
+            } else if (stateLabel === '制圧中') {
+                panelColor = 0x0d2a1c;
+                panelAlpha = 0.84;
+                barColor = 0x63e6be;
+                labelColor = '#d8ffee';
+                detailColor = '#dcfff2';
+            }
+
+            overlay.container.setVisible(true);
+            overlay.container.setAlpha(isEnemyWarning ? pulse : 1);
+            overlay.container.setPosition(islandData.x + (islandData.width / 2), islandData.y - 18);
+            overlay.panel.clear();
+            overlay.panel.fillStyle(panelColor, panelAlpha);
+            overlay.panel.fillRoundedRect(-(width / 2), -24, width, 34, 8);
+            overlay.barBg.clear();
+            overlay.barBg.fillStyle(0x000000, 0.6);
+            overlay.barBg.fillRoundedRect(-(barWidth / 2), 10, barWidth, 6, 3);
+            overlay.barFill.clear();
+            overlay.barFill.fillStyle(barColor, 0.95);
+            overlay.barFill.fillRoundedRect(-(barWidth / 2) + 1, 11, Math.max(2, (barWidth - 2) * progressRatio), 4, 2);
+            overlay.label.setColor(labelColor);
+            overlay.detail.setColor(detailColor);
+            overlay.label.setText(`${stateLabel} ${Math.max(0, Math.ceil(remainingMs / 1000))}s`);
+            overlay.detail.setText(`${queue.length}/${state.slotLimit}人 先頭:${leaderName}`);
+            this.notifyIslandCaptureAlert(islandData, stateLabel, leaderName, isEnemyWarning);
+        });
     }
 
     isPlayerInIslandCapture(islandData) {
@@ -5596,7 +6550,15 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.setIslandCaptureState(latestIsland, data.captureState);
                 }
                 this.collidingIsland = latestIsland;
-                this.showMessage(data.destroyed ? '建物を突破しました。上陸できます。' : '建物に砲撃を命中させた。');
+                const storageDamageText = this.formatShipCargoOutcomeText(data.storageDamage || {});
+                const storageLootedText = this.formatShipCargoOutcomeText(data.storageLooted || {});
+                if (data.destroyed && storageDamageText && storageLootedText) {
+                    this.showMessage(`建物を突破。敵倉庫に被害 ${storageDamageText} / 略奪 ${storageLootedText}`);
+                } else if (data.destroyed && storageDamageText) {
+                    this.showMessage(`建物を突破。敵倉庫にも被害 ${storageDamageText}`);
+                } else {
+                    this.showMessage(data.destroyed ? '建物を突破しました。上陸できます。' : '建物に砲撃を命中させた。');
+                }
                 this.showIslandCommandMenu(latestIsland);
             }
         } catch (error) {
@@ -6138,6 +7100,12 @@ export default class WorldMapScene extends Phaser.Scene {
         this.interpolateOtherShips();
         this.updateShipShadows();
         this.updateShipHpBars();
+        this.updateIslandCaptureOverlays();
+        const now = Date.now();
+        if (!this.lastMinimapOverlayDrawAt || now - this.lastMinimapOverlayDrawAt >= 180) {
+            this.drawOwnedAreasOnMinimap();
+            this.lastMinimapOverlayDrawAt = now;
+        }
         this.pruneOtherShips();
         this.checkShipShipCollisions();
         this.checkAirObstacleCollisions();
@@ -6145,6 +7113,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.clearCollidingIslandWhenFar();
         this.updateShipActionMines();
         this.updateShipActionEffects();
+        this.requestShipCombatResourceStorage();
         this.updateShipActionUi();
         this.updateShipSideCannonUi();
         this.updateCreateIslandUi();
@@ -7136,6 +8105,7 @@ export default class WorldMapScene extends Phaser.Scene {
             shipObject.guildVisual.container.setPosition(shipObject.sprite.x, shipObject.sprite.y);
             this.setGuildShipVisualFrame(shipObject.guildVisual, directionKey, frameIndex);
         }
+        this.updateRideStatusUi();
     }
 
     getShipAnimKey(startX, startY, x, y) {
@@ -7169,6 +8139,10 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      */
     removeOtherShip(playFabId) {
+        if (this.ridingOwnerId && playFabId === this.ridingOwnerId) {
+            this.showMessage('乗っていた船がいなくなったため自動下船しました。');
+            void this.leaveRide();
+        }
         const shipObject = this.otherShips.get(playFabId);
         if (shipObject) {
             this.destroyShipHpBar(shipObject?.sprite);
@@ -7589,6 +8563,7 @@ export default class WorldMapScene extends Phaser.Scene {
     shutdown() {
         this.teardownShipGeoSubscriptions();
         console.log('[Firestore] Unsubscribed from ships collection');
+        this.stopDockedMpRecoveryTimer();
 
         if (this.shipSideCannonChargeTimer) {
             this.shipSideCannonChargeTimer.remove(false);

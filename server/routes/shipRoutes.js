@@ -50,6 +50,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
+    const resourceStorage = require('../resourceStorage');
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId, catalogCache, catalogCurrencyMap };
 
@@ -253,6 +254,107 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             nextBalances[costItem.ItemId] = Math.max(0, (Number(nextBalances[costItem.ItemId] || 0) || 0) - (Number(costItem.Amount) || 0));
         }
         return { success: true, balances: nextBalances, shortages: [] };
+    };
+
+    const getShipCargoBalances = async (playFabId, shipId) => {
+        const asset = await resourceStorage.getShipAsset(playFabId, shipId, { promisifyPlayFab, PlayFabServer });
+        if (!asset) {
+            throw new Error('ShipAssetNotFound');
+        }
+        const cargo = resourceStorage.getShipResourceCargo(asset);
+        const capacity = resourceStorage.getShipCargoCapacity(asset);
+        return { asset, cargo, capacity };
+    };
+
+    const tryConsumeShipCargoCosts = async (playFabId, shipId, costEntries) => {
+        const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
+        const shortages = buildCostShortages(costEntries, cargo);
+        if (shortages.length > 0) {
+            return { success: false, balances: cargo, shortages, asset, capacity };
+        }
+        const nextCargo = { ...cargo };
+        for (const costItem of costEntries) {
+            const itemId = String(costItem.ItemId || costItem.itemId || '').trim();
+            const amount = Number(costItem.Amount || costItem.amount || 0) || 0;
+            nextCargo[itemId] = Math.max(0, (Number(nextCargo[itemId] || 0) || 0) - amount);
+        }
+        resourceStorage.setShipResourceCargo(asset, nextCargo);
+        await resourceStorage.updateShipAsset(playFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
+        return { success: true, balances: nextCargo, shortages: [], asset, capacity };
+    };
+
+    const resolveShipCargoDefeatOutcome = async ({
+        defeatedPlayFabId,
+        defeatedShipId,
+        winnerPlayFabId = null,
+        winnerShipId = null,
+        winnerIsGuildShip = false
+    }) => {
+        if (!defeatedPlayFabId || !defeatedShipId) {
+            return null;
+        }
+        const defeatedAsset = await resourceStorage.getShipAsset(defeatedPlayFabId, defeatedShipId, { promisifyPlayFab, PlayFabServer });
+        if (!defeatedAsset) {
+            return null;
+        }
+
+        const defeatedCargo = resourceStorage.getShipResourceCargo(defeatedAsset);
+        const totalDefeatedCargo = resourceStorage.sumResourceMap(defeatedCargo);
+        if (totalDefeatedCargo <= 0) {
+            return {
+                defeatedShipId,
+                winnerShipId: winnerShipId || null,
+                transferred: resourceStorage.normalizeResourceMap({}),
+                dropped: resourceStorage.normalizeResourceMap({}),
+                totalTransferred: 0,
+                totalDropped: 0
+            };
+        }
+
+        const transferred = resourceStorage.normalizeResourceMap({});
+        const dropped = resourceStorage.normalizeResourceMap(defeatedCargo);
+        let winnerAsset = null;
+
+        if (
+            winnerPlayFabId &&
+            winnerShipId &&
+            !winnerIsGuildShip &&
+            !(winnerPlayFabId === defeatedPlayFabId && winnerShipId === defeatedShipId)
+        ) {
+            winnerAsset = await resourceStorage.getShipAsset(winnerPlayFabId, winnerShipId, { promisifyPlayFab, PlayFabServer });
+            if (winnerAsset) {
+                const winnerCargo = resourceStorage.getShipResourceCargo(winnerAsset);
+                let remainingCapacity = Math.max(
+                    0,
+                    resourceStorage.getShipCargoCapacity(winnerAsset) - resourceStorage.sumResourceMap(winnerCargo)
+                );
+                for (const itemId of resourceStorage.RESOURCE_ITEM_IDS) {
+                    if (remainingCapacity <= 0) break;
+                    const available = Number(dropped[itemId] || 0) || 0;
+                    if (available <= 0) continue;
+                    const moved = Math.min(available, remainingCapacity);
+                    if (moved <= 0) continue;
+                    winnerCargo[itemId] = (Number(winnerCargo[itemId] || 0) || 0) + moved;
+                    transferred[itemId] = moved;
+                    dropped[itemId] = Math.max(0, available - moved);
+                    remainingCapacity -= moved;
+                }
+                resourceStorage.setShipResourceCargo(winnerAsset, winnerCargo);
+                await resourceStorage.updateShipAsset(winnerPlayFabId, winnerShipId, winnerAsset, { promisifyPlayFab, PlayFabServer });
+            }
+        }
+
+        resourceStorage.setShipResourceCargo(defeatedAsset, {});
+        await resourceStorage.updateShipAsset(defeatedPlayFabId, defeatedShipId, defeatedAsset, { promisifyPlayFab, PlayFabServer });
+
+        return {
+            defeatedShipId,
+            winnerShipId: winnerShipId || null,
+            transferred,
+            dropped,
+            totalTransferred: resourceStorage.sumResourceMap(transferred),
+            totalDropped: resourceStorage.sumResourceMap(dropped)
+        };
     };
 
     const resolvePlayerNation = async (playFabId) => {
@@ -933,6 +1035,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             shipData.Skills = shipSpec.Skills || [];
             shipData.Equipment = { Cannon: null, Sail: null, Hull: null, Anchor: null };
             shipData.Cargo = [];
+            shipData.ResourceCargo = resourceStorage.normalizeResourceMap({});
             shipData.Crew = [{ PlayFabId: playFabId, Role: 'Captain' }];
             shipData.Owner = playFabId;
             shipData.CreatedAt = new Date().toISOString();
@@ -981,7 +1084,23 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 await setActiveShipId(playFabId, shipId, firestoreShipData);
             }
 
-            res.json({ success: true, shipId: shipId, shipData: resolvedShipData, firestoreData: firestoreShipData, costs: costsToPay });
+            let ownershipItemGranted = false;
+            try {
+                await addEconomyItem(playFabId, shipItemId, 1, economyDeps);
+                ownershipItemGranted = true;
+                console.log(`[CreateShip] Added ownership proof ${shipItemId} for ${playFabId}`);
+            } catch (ownershipError) {
+                console.warn(`[CreateShip] Failed to add ownership proof ${shipItemId} for ${playFabId}:`, ownershipError?.errorMessage || ownershipError?.message || ownershipError);
+            }
+
+            res.json({
+                success: true,
+                shipId: shipId,
+                shipData: resolvedShipData,
+                firestoreData: firestoreShipData,
+                costs: costsToPay,
+                ownershipItemGranted
+            });
 
         } catch (error) {
             console.error('[CreateShip] Error:', error);
@@ -1083,23 +1202,28 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/consume-ship-broadside
      */
     app.post('/api/consume-ship-broadside', async (req, res) => {
-        const { playFabId } = req.body || {};
+        const { playFabId, shipId: requestedShipId } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
 
         try {
+            const activeShipId = requestedShipId || await getActiveShipId(playFabId);
+            if (!activeShipId) {
+                return res.status(400).json({ error: 'ActiveShipRequired' });
+            }
             const costs = SHIP_ACTION_RESOURCE_COSTS.broadside;
-            const consumeResult = await tryConsumeResourceCosts(playFabId, costs);
+            const consumeResult = await tryConsumeShipCargoCosts(playFabId, activeShipId, costs);
             if (!consumeResult.success) {
                 return res.status(402).json({
                     error: '舷側砲の火薬が足りません',
                     details: `必要: ${formatCostListForMessage(costs, consumeResult.balances)}`,
                     costs,
-                    shortages: consumeResult.shortages
+                    shortages: consumeResult.shortages,
+                    shipId: activeShipId
                 });
             }
-            return res.json({ success: true, costs, balances: consumeResult.balances });
+            return res.json({ success: true, costs, balances: consumeResult.balances, shipId: activeShipId });
         } catch (error) {
             console.error('[ConsumeShipBroadside] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
@@ -1158,7 +1282,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 });
             }
 
-            const consumeResult = await tryConsumeResourceCosts(playFabId, repairTier.costs);
+            const consumeResult = await tryConsumeShipCargoCosts(playFabId, shipId, repairTier.costs);
             if (!consumeResult.success) {
                 return res.status(402).json({
                     error: '修理資源が足りません',
@@ -1167,6 +1291,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     shortages: consumeResult.shortages
                 });
             }
+            currentShipData.ResourceCargo = resourceStorage.getShipResourceCargo(consumeResult.asset);
 
             const repairedHp = Math.max(1, Math.round(maxHp * (Number(repairTier.recoverRatio) || 0.25)));
             const nextHp = Math.min(maxHp, currentHp + repairedHp);
@@ -1209,6 +1334,145 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 return res.status(402).json({ error: '修理資源が足りません' });
             }
             return res.status(500).json({ error: 'Failed to repair ship', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/get-ship-resource-storage', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        try {
+            const activeShipId = await getActiveShipId(playFabId);
+            const homeBalances = await getPlayerCurrencyBalances(playFabId);
+            const homeResources = resourceStorage.normalizeResourceMap(homeBalances);
+            const preset = await resourceStorage.getShipCargoPreset(playFabId, { promisifyPlayFab, PlayFabServer });
+            if (!activeShipId) {
+                return res.json({
+                    success: true,
+                    activeShipId: null,
+                    homeResources,
+                    cargoResources: resourceStorage.normalizeResourceMap({}),
+                    cargoCapacity: 0,
+                    cargoUsed: 0,
+                    preset
+                });
+            }
+            const { cargo, capacity } = await getShipCargoBalances(playFabId, activeShipId);
+            return res.json({
+                success: true,
+                activeShipId,
+                homeResources,
+                cargoResources: cargo,
+                cargoCapacity: capacity,
+                cargoUsed: resourceStorage.sumResourceMap(cargo),
+                preset
+            });
+        } catch (error) {
+            console.error('[GetShipResourceStorage] Error:', error);
+            return res.status(500).json({ error: 'Failed to get ship resource storage', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/deposit-ship-resources', async (req, res) => {
+        const { playFabId, shipId: requestedShipId } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        try {
+            const shipId = requestedShipId || await getActiveShipId(playFabId);
+            if (!shipId) {
+                return res.status(400).json({ error: 'ActiveShipRequired' });
+            }
+            const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
+            const transferred = {};
+            for (const itemId of resourceStorage.RESOURCE_ITEM_IDS) {
+                const amount = Number(cargo[itemId] || 0) || 0;
+                if (amount <= 0) continue;
+                await addEconomyItem(playFabId, itemId, amount, economyDeps);
+                transferred[itemId] = amount;
+            }
+            const nextCargo = resourceStorage.setShipResourceCargo(asset, {});
+            await resourceStorage.updateShipAsset(playFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
+            const nextHomeBalances = resourceStorage.normalizeResourceMap(await getPlayerCurrencyBalances(playFabId));
+            return res.json({
+                success: true,
+                shipId,
+                transferred: resourceStorage.normalizeResourceMap(transferred),
+                cargoResources: nextCargo,
+                cargoCapacity: capacity,
+                cargoUsed: 0,
+                homeResources: nextHomeBalances
+            });
+        } catch (error) {
+            console.error('[DepositShipResources] Error:', error);
+            return res.status(500).json({ error: 'Failed to deposit ship resources', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/save-ship-resource-preset', async (req, res) => {
+        const { playFabId, preset } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        try {
+            const savedPreset = await resourceStorage.saveShipCargoPreset(playFabId, preset, { promisifyPlayFab, PlayFabServer });
+            return res.json({ success: true, preset: savedPreset });
+        } catch (error) {
+            console.error('[SaveShipResourcePreset] Error:', error);
+            return res.status(500).json({ error: 'Failed to save ship preset', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/apply-ship-resource-preset', async (req, res) => {
+        const { playFabId, shipId: requestedShipId } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'playFabId is required' });
+        }
+        try {
+            const shipId = requestedShipId || await getActiveShipId(playFabId);
+            if (!shipId) {
+                return res.status(400).json({ error: 'ActiveShipRequired' });
+            }
+            const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
+            const preset = await resourceStorage.getShipCargoPreset(playFabId, { promisifyPlayFab, PlayFabServer });
+            const homeBalances = resourceStorage.normalizeResourceMap(await getPlayerCurrencyBalances(playFabId));
+            const nextCargo = { ...cargo };
+            let remainingCapacity = Math.max(0, capacity - resourceStorage.sumResourceMap(cargo));
+            const transferred = {};
+
+            for (const itemId of resourceStorage.RESOURCE_ITEM_IDS) {
+                if (remainingCapacity <= 0) break;
+                const target = Number(preset[itemId] || 0) || 0;
+                const current = Number(nextCargo[itemId] || 0) || 0;
+                const missing = Math.max(0, target - current);
+                if (missing <= 0) continue;
+                const available = Number(homeBalances[itemId] || 0) || 0;
+                const moved = Math.min(missing, available, remainingCapacity);
+                if (moved <= 0) continue;
+                await subtractEconomyItem(playFabId, itemId, moved, economyDeps);
+                nextCargo[itemId] = current + moved;
+                homeBalances[itemId] = Math.max(0, available - moved);
+                transferred[itemId] = moved;
+                remainingCapacity -= moved;
+            }
+
+            resourceStorage.setShipResourceCargo(asset, nextCargo);
+            await resourceStorage.updateShipAsset(playFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
+
+            return res.json({
+                success: true,
+                shipId,
+                transferred: resourceStorage.normalizeResourceMap(transferred),
+                cargoResources: resourceStorage.normalizeResourceMap(nextCargo),
+                cargoCapacity: capacity,
+                cargoUsed: resourceStorage.sumResourceMap(nextCargo),
+                homeResources: resourceStorage.normalizeResourceMap(homeBalances),
+                preset
+            });
+        } catch (error) {
+            console.error('[ApplyShipResourcePreset] Error:', error);
+            return res.status(500).json({ error: 'Failed to apply ship preset', details: error.errorMessage || error.message });
         }
     });
 
@@ -1504,6 +1768,37 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             ]);
             const attackerRespawnInfo = respawnResults[0] || null;
             const defenderRespawnInfo = respawnResults[1] || null;
+            let cargoOutcome = null;
+            if (attackerRespawn && !defenderRespawn && !defenderIsGuildShip) {
+                cargoOutcome = await resolveShipCargoDefeatOutcome({
+                    defeatedPlayFabId: attackerId,
+                    defeatedShipId: attackerShipId,
+                    winnerPlayFabId: defenderId,
+                    winnerShipId: defenderShipId,
+                    winnerIsGuildShip: false
+                });
+            } else if (defenderRespawn && !attackerRespawn && !defenderIsGuildShip) {
+                cargoOutcome = await resolveShipCargoDefeatOutcome({
+                    defeatedPlayFabId: defenderId,
+                    defeatedShipId: defenderShipId,
+                    winnerPlayFabId: attackerId,
+                    winnerShipId: attackerShipId,
+                    winnerIsGuildShip: false
+                });
+            } else {
+                if (attackerRespawn) {
+                    await resolveShipCargoDefeatOutcome({
+                        defeatedPlayFabId: attackerId,
+                        defeatedShipId: attackerShipId
+                    });
+                }
+                if (defenderRespawn && !defenderIsGuildShip) {
+                    await resolveShipCargoDefeatOutcome({
+                        defeatedPlayFabId: defenderId,
+                        defeatedShipId: defenderShipId
+                    });
+                }
+            }
 
             return res.json({
                 success: true,
@@ -1529,7 +1824,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 },
                 baseDamage: baseDamage,
                 attackerDamage,
-                defenderDamage
+                defenderDamage,
+                cargoOutcome
             });
         } catch (error) {
             console.error('[RamShip] Error:', error);
@@ -1557,6 +1853,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 Keys: ['Nation']
             });
             const attackerNation = String(attackerNationResult?.Data?.Nation?.Value || '').trim().toLowerCase();
+            const attackerActiveShipId = await getActiveShipId(attackerId);
 
             const results = [];
             for (const targetId of targets) {
@@ -1650,6 +1947,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 });
 
                 const respawnResult = defenderRespawn ? await respawnShip(targetId, defenderShipId, 'action') : null;
+                const cargoOutcome = defenderRespawn
+                    ? await resolveShipCargoDefeatOutcome({
+                        defeatedPlayFabId: targetId,
+                        defeatedShipId: defenderShipId,
+                        winnerPlayFabId: attackerId,
+                        winnerShipId: attackerActiveShipId,
+                        winnerIsGuildShip: false
+                    })
+                    : null;
                 results.push({
                     playFabId: targetId,
                     shipId: defenderShipId,
@@ -1659,7 +1965,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     shieldFactor: shieldActive ? shieldFactor : null,
                     respawned: defenderRespawn,
                     respawnPosition: respawnResult?.position || respawnResult || null,
-                    repairUntil: respawnResult?.repairUntil || null
+                    repairUntil: respawnResult?.repairUntil || null,
+                    cargoOutcome
                 });
             }
 

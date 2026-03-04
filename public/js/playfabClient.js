@@ -29,6 +29,14 @@ export function recoverMpResource(playFabId, options) {
     return callApiWithLoader('/api/recover-mp-resource', { playFabId }, options);
 }
 
+export function consumeVoyageMp(playFabId, durationMs, options) {
+    return callApiWithLoader('/api/consume-voyage-mp', { playFabId, durationMs }, options);
+}
+
+export function recoverDockedMp(playFabId, options) {
+    return callApiWithLoader('/api/recover-docked-mp', { playFabId }, options);
+}
+
 export function getPoints(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
     return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
@@ -230,6 +238,22 @@ export function repairShip(playFabId, shipId, tier = 'small', options) {
 
 export function consumeShipBroadside(playFabId, options) {
     return callApiWithLoader('/api/consume-ship-broadside', { playFabId }, options);
+}
+
+export function getShipResourceStorage(playFabId, options) {
+    return callApiWithLoader('/api/get-ship-resource-storage', { playFabId }, options);
+}
+
+export function depositShipResources(playFabId, shipId = null, options) {
+    return callApiWithLoader('/api/deposit-ship-resources', { playFabId, shipId }, options);
+}
+
+export function saveShipResourcePreset(playFabId, preset, options) {
+    return callApiWithLoader('/api/save-ship-resource-preset', { playFabId, preset }, options);
+}
+
+export function applyShipResourcePreset(playFabId, shipId = null, options) {
+    return callApiWithLoader('/api/apply-ship-resource-preset', { playFabId, shipId }, options);
 }
 
 export function getPlayerShips(playFabId, options) {

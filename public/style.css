@@ -1721,6 +1721,16 @@ body.modal-lock .modal-overlay {
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
+.ship-combat-resource-status {
+    max-width: 220px;
+    font-size: 10px;
+    line-height: 1.35;
+    color: rgba(226, 232, 240, 0.92);
+    text-align: right;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    opacity: 0.95;
+}
+
 .ship-side-cannon-panel .ship-action-status {
     text-align: left;
 }
@@ -1869,6 +1879,53 @@ body.modal-lock .modal-overlay {
     flex-wrap: wrap;
     gap: 8px 12px;
     font-size: 13px;
+}
+
+.resource-summary-section {
+    width: 100%;
+}
+
+.resource-summary-section + .resource-summary-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.resource-summary-subtitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(226, 232, 240, 0.84);
+    margin-bottom: 6px;
+}
+
+.resource-summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.resource-summary-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.resource-summary-btn {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+    color: #f8fafc;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.resource-summary-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .resource-chip {
@@ -4315,6 +4372,21 @@ body.modal-lock .modal-overlay {
     background:
         radial-gradient(120% 90% at 50% -10%, rgba(226, 232, 240, 0.24), rgba(255, 255, 255, 0) 40%),
         linear-gradient(180deg, #475569, #111827);
+}
+
+#tarotKingdomFoldButton {
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(253, 186, 116, 0.28), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #c2410c, #7c2d12);
+}
+
+#tarotKingdomFoldButton.is-active {
+    border-color: rgba(251, 191, 36, 0.9);
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.52),
+        0 0 20px rgba(249, 115, 22, 0.42),
+        0 10px 20px rgba(0, 0, 0, 0.52);
+    filter: none;
 }
 
 #tarotKingdomPassButton {
@@ -7053,12 +7125,38 @@ body.modal-lock .modal-overlay {
     margin-bottom: 10px;
 }
 
-.tarot-fortune-card-host .tarot-card {
-    flex: 0 0 var(--tarot-card-w, 58px);
+.tarot-fortune-card-shell {
+    position: relative;
+    width: var(--tarot-card-w, 64px);
+    min-width: var(--tarot-card-w, 64px);
+    height: var(--tarot-card-h, 100px);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
-.tarot-fortune-card.is-reversed {
-    transform: rotate(180deg);
+.tarot-fortune-card-shell.is-static,
+.tarot-fortune-card-shell.is-revealed {
+    cursor: default;
+}
+
+.tarot-fortune-card-shell:focus-visible {
+    outline: 2px solid rgba(248, 226, 168, 0.92);
+    outline-offset: 4px;
+}
+
+.tarot-fortune-card-shell:disabled {
+    opacity: 1;
+}
+
+.tarot-fortune-card-shell.is-reversed .tarot-fortune-card-art {
+    transform: translate(-50%, -50%) rotate(180deg);
 }
 
 .tarot-fortune-text {

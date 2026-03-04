@@ -9,6 +9,10 @@ import {
     stopShip as requestStopShip,
     upgradeShip as requestUpgradeShip,
     repairShip as requestRepairShip,
+    getShipResourceStorage as requestShipResourceStorage,
+    depositShipResources as requestDepositShipResources,
+    saveShipResourcePreset as requestSaveShipResourcePreset,
+    applyShipResourcePreset as requestApplyShipResourcePreset,
     getInventory as fetchInventory,
     getPlayerShips as fetchPlayerShips,
     getShipsInView as fetchShipsInView,
@@ -105,6 +109,21 @@ const SHIP_REPAIR_RESOURCE_COST_BY_TIER = {
 const SHIP_REPAIR_RECOVERY_BY_TIER = {
     small: 0.25
 };
+const SHIP_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
+let shipResourceStorageCache = null;
+
+function normalizeShipResourceMap(input) {
+    const normalized = {};
+    SHIP_RESOURCE_IDS.forEach((itemId) => {
+        const amount = Number(input?.[itemId] || 0);
+        normalized[itemId] = Math.max(0, Math.floor(Number.isFinite(amount) ? amount : 0));
+    });
+    return normalized;
+}
+
+function sumShipResourceMap(input) {
+    return SHIP_RESOURCE_IDS.reduce((sum, itemId) => sum + (Number(input?.[itemId] || 0) || 0), 0);
+}
 
 function normalizeNationKey(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -224,6 +243,188 @@ export async function getShipResourceBalances(playFabId) {
     return data?.virtualCurrency || {};
 }
 
+export async function getShipResourceStorage(playFabId, forceRefresh = false) {
+    if (!playFabId) {
+        return {
+            activeShipId: null,
+            homeResources: normalizeShipResourceMap({}),
+            cargoResources: normalizeShipResourceMap({}),
+            cargoCapacity: 0,
+            cargoUsed: 0,
+            preset: normalizeShipResourceMap({})
+        };
+    }
+    if (!forceRefresh && shipResourceStorageCache?.playFabId === playFabId) {
+        return shipResourceStorageCache.data;
+    }
+    const data = await requestShipResourceStorage(playFabId, { isSilent: true });
+    const normalized = {
+        activeShipId: data?.activeShipId || null,
+        homeResources: normalizeShipResourceMap(data?.homeResources),
+        cargoResources: normalizeShipResourceMap(data?.cargoResources),
+        cargoCapacity: Number(data?.cargoCapacity || 0) || 0,
+        cargoUsed: Number(data?.cargoUsed || 0) || 0,
+        preset: normalizeShipResourceMap(data?.preset)
+    };
+    shipResourceStorageCache = { playFabId, data: normalized };
+    return normalized;
+}
+
+function invalidateShipResourceStorage(playFabId = null) {
+    if (!playFabId || shipResourceStorageCache?.playFabId === playFabId) {
+        shipResourceStorageCache = null;
+    }
+}
+
+function renderShipResourceSummary(resources, { balances = null, compact = false } = {}) {
+    const current = normalizeShipResourceMap(resources);
+    const owned = balances ? normalizeShipResourceMap(balances) : null;
+    const visibleIds = SHIP_RESOURCE_IDS.filter((itemId) => (current[itemId] || 0) > 0 || (!compact && owned && (owned[itemId] || 0) > 0));
+    if (!visibleIds.length) {
+        return '<span style="color: var(--text-sub);">なし</span>';
+    }
+    return visibleIds.map((itemId) => {
+        const amount = current[itemId] || 0;
+        const ownedAmount = owned ? owned[itemId] || 0 : null;
+        const tone = owned && amount > ownedAmount ? 'var(--danger-color)' : 'var(--text-color)';
+        return `
+            <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); font-size:12px;">
+                <span style="font-weight:700; color:${tone};">${formatCurrencyLabel(itemId)} x${amount}</span>
+                ${owned ? `<span style="color: var(--text-sub);">倉庫 ${ownedAmount}</span>` : ''}
+            </span>
+        `;
+    }).join('');
+}
+
+async function showShipCargoPresetEditor(playFabId) {
+    const storage = await getShipResourceStorage(playFabId, true);
+    return new Promise((resolve) => {
+        const draft = normalizeShipResourceMap(storage.preset);
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.72)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.padding = '20px';
+        overlay.style.zIndex = '10012';
+
+        const panel = document.createElement('div');
+        panel.style.width = 'min(94vw, 460px)';
+        panel.style.maxHeight = '80vh';
+        panel.style.overflowY = 'auto';
+        panel.style.background = 'var(--panel-bg, #111827)';
+        panel.style.border = '1px solid rgba(255,255,255,0.12)';
+        panel.style.borderRadius = '16px';
+        panel.style.boxShadow = '0 24px 60px rgba(0,0,0,0.45)';
+        panel.style.padding = '18px';
+
+        const capacity = Number(storage.cargoCapacity || 0) || 0;
+        const renderRows = () => {
+            const total = sumShipResourceMap(draft);
+            panel.innerHTML = `
+                <div style="font-size:18px; font-weight:700; margin-bottom:8px;">マイセット編集</div>
+                <div style="font-size:13px; color:var(--text-sub); margin-bottom:12px;">船倉へ一括補充する目標数を設定します。容量 ${total}/${capacity}</div>
+                <div style="display:grid; gap:10px; margin-bottom:14px;">
+                    ${SHIP_RESOURCE_IDS.map((itemId) => `
+                        <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,0.04);">
+                            <div>
+                                <div style="font-weight:700;">${formatCurrencyLabel(itemId)}</div>
+                                <div style="font-size:12px; color:var(--text-sub);">倉庫 ${storage.homeResources[itemId] || 0}</div>
+                            </div>
+                            <div style="display:inline-flex; align-items:center; gap:8px;">
+                                <button data-item="${itemId}" data-delta="-1" style="width:36px; height:36px; border:none; border-radius:10px; background:#374151; color:#fff; font-weight:700;">−</button>
+                                <span style="min-width:48px; text-align:center; font-weight:700;">${draft[itemId] || 0}</span>
+                                <button data-item="${itemId}" data-delta="1" style="width:36px; height:36px; border:none; border-radius:10px; background:var(--accent-color); color:#fff; font-weight:700;">＋</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button data-role="save" style="flex:1; background:var(--accent-color); color:#fff; padding:12px; border:none; border-radius:10px;">保存</button>
+                    <button data-role="cancel" style="flex:1; background:#374151; color:#fff; padding:12px; border:none; border-radius:10px;">閉じる</button>
+                </div>
+            `;
+            panel.querySelectorAll('button[data-item]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const itemId = button.dataset.item;
+                    const delta = Number(button.dataset.delta || 0) || 0;
+                    const nextValue = Math.max(0, (draft[itemId] || 0) + delta);
+                    const otherTotal = total - (draft[itemId] || 0);
+                    if (delta > 0 && capacity > 0 && otherTotal + nextValue > capacity) {
+                        showRpgMessage(`船倉容量を超えます（${capacity}）`);
+                        return;
+                    }
+                    draft[itemId] = nextValue;
+                    renderRows();
+                });
+            });
+            panel.querySelector('[data-role="save"]').addEventListener('click', async () => {
+                try {
+                    const saved = await requestSaveShipResourcePreset(playFabId, draft);
+                    invalidateShipResourceStorage(playFabId);
+                    await getShipResourceStorage(playFabId, true);
+                    showRpgMessage('マイセットを保存しました。');
+                    cleanup(saved?.preset || draft);
+                } catch (error) {
+                    showRpgMessage(error?.message || 'マイセットの保存に失敗しました。');
+                }
+            });
+            panel.querySelector('[data-role="cancel"]').addEventListener('click', () => cleanup(null));
+        };
+
+        const cleanup = (result) => {
+            overlay.remove();
+            resolve(result);
+        };
+
+        renderRows();
+        overlay.appendChild(panel);
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(null);
+        });
+        document.body.appendChild(overlay);
+    });
+}
+
+export async function depositActiveShipResources(playFabId, shipId = null) {
+    if (!playFabId) return null;
+    try {
+        const result = await requestDepositShipResources(playFabId, shipId, { isSilent: true });
+        invalidateShipResourceStorage(playFabId);
+        if (result?.success) {
+            showRpgMessage('船倉の資源をすべて倉庫へ預けました。');
+            await displayPlayerShips(playFabId);
+            return result;
+        }
+        showRpgMessage(result?.error || '資源の預け入れに失敗しました。');
+        return null;
+    } catch (error) {
+        showRpgMessage(error?.message || '資源の預け入れに失敗しました。');
+        return null;
+    }
+}
+
+export async function applyActiveShipPreset(playFabId, shipId = null) {
+    if (!playFabId) return null;
+    try {
+        const result = await requestApplyShipResourcePreset(playFabId, shipId, { isSilent: true });
+        invalidateShipResourceStorage(playFabId);
+        if (result?.success) {
+            const moved = sumShipResourceMap(result.transferred);
+            showRpgMessage(moved > 0 ? `マイセットで${moved}個補充しました。` : '補充できる資源がありません。');
+            await displayPlayerShips(playFabId);
+            return result;
+        }
+        showRpgMessage(result?.error || 'マイセット補充に失敗しました。');
+        return null;
+    } catch (error) {
+        showRpgMessage(error?.message || 'マイセット補充に失敗しました。');
+        return null;
+    }
+}
+
 export function getShipResourceShortages(costs, balances) {
     const currentBalances = balances || {};
     return (costs || []).map((entry) => {
@@ -326,6 +527,7 @@ export async function setActiveShip(playFabId, shipId) {
     const result = await requestSetActiveShip(playFabId, shipId);
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || shipId;
+        invalidateShipResourceStorage(playFabId);
 
         const container = document.getElementById('playerShipsContainer');
         if (container) {
@@ -584,11 +786,11 @@ export async function repairShip(playFabId, shipId, tier = 'small') {
 
     const normalizedTier = String(tier || 'small').trim().toLowerCase();
     const costs = getShipRepairResourceCosts(normalizedTier);
-    const balances = await getShipResourceBalances(playFabId);
+    const balances = normalizeShipResourceMap(assetData?.ResourceCargo);
     const recoverRatio = Number(SHIP_REPAIR_RECOVERY_BY_TIER[normalizedTier] || 0.25);
     const confirmed = await showShipSpendConfirmation({
         title: '船を小修理',
-        subtitle: `${formatCostLabel(costs)}を消費して、最大HPの${Math.round(recoverRatio * 100)}%を回復します。`,
+        subtitle: `${formatCostLabel(costs)}を消費して、最大HPの${Math.round(recoverRatio * 100)}%を回復します（船倉消費）。`,
         costs,
         balances,
         confirmLabel: '修理する'
@@ -731,6 +933,9 @@ export function renderShipCard(ship) {
     const currentHp = Number(assetData?.Stats?.CurrentHP ?? 0);
     const maxHp = Number(assetData?.Stats?.MaxHP ?? 0);
     const canRepair = maxHp > 0 && currentHp < maxHp;
+    const shipCargoResources = normalizeShipResourceMap(assetData?.ResourceCargo);
+    const shipCargoUsed = sumShipResourceMap(shipCargoResources);
+    const shipCargoCapacity = Number(assetData?.Stats?.CargoCapacity || 0) || 0;
     const nextUpgradeCosts = canUpgrade
         ? getShipUpgradeResourceCosts(catalogItem || assetData, shipLevel + 1, getCurrentPlayerNationKey())
         : [];
@@ -739,6 +944,22 @@ export function renderShipCard(ship) {
             <div style="margin-top: 12px;">
                 <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">次の強化</div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px;">${renderShipResourceCostHtml(nextUpgradeCosts)}</div>
+            </div>
+        `
+        : '';
+    const shipCargoHtml = isActive
+        ? `
+            <div style="margin-top: 12px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">
+                    <div style="font-size: 12px; color: var(--text-sub);">船倉資源</div>
+                    <div style="font-size: 12px; color: var(--text-sub);">${shipCargoUsed}/${shipCargoCapacity}</div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">${renderShipResourceSummary(shipCargoResources, { compact: true })}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <button data-variant="accent" onclick="window.depositShipResources('${ship.shipId}')">全部預ける</button>
+                    <button data-variant="accent" onclick="window.applyShipCargoPreset('${ship.shipId}')">マイセット補充</button>
+                    <button onclick="window.editShipCargoPreset()">マイセット編集</button>
+                </div>
             </div>
         `
         : '';
@@ -790,6 +1011,7 @@ export function renderShipCard(ship) {
             </div>
             ` : ''}
             ${nextUpgradeCostHtml}
+            ${shipCargoHtml}
             <div class="ship-card-actions">
                 <button onclick="window.viewShipDetails('${ship.shipId}')">詳細</button>
                 ${isMoving ? `
@@ -1194,5 +1416,17 @@ if (typeof window !== 'undefined') {
     window.repairShip = (shipId) => {
         const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
         return repairShip(playFabId, shipId);
+    };
+    window.depositShipResources = (shipId) => {
+        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        return depositActiveShipResources(playFabId, shipId);
+    };
+    window.applyShipCargoPreset = (shipId) => {
+        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        return applyActiveShipPreset(playFabId, shipId);
+    };
+    window.editShipCargoPreset = () => {
+        const playFabId = window.myPlayFabId || window.myPlayFabLoginInfo?.playFabId;
+        return showShipCargoPresetEditor(playFabId);
     };
 }

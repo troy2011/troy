@@ -5,7 +5,8 @@ import {
     getEquipment as fetchEquipment,
     equipItem as requestEquipItem,
     useItem as requestUseItem,
-    sellItem as requestSellItem
+    sellItem as requestSellItem,
+    getShipResourceStorage as fetchShipResourceStorage
 } from './playfabClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
@@ -18,6 +19,13 @@ let myVirtualCurrency = {};
 let myExperience = 0;
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
+let myShipResourceStorage = {
+    activeShipId: null,
+    homeResources: {},
+    cargoResources: {},
+    cargoCapacity: 0,
+    cargoUsed: 0
+};
 
 function getActiveInventoryCategory() {
     if (typeof document === 'undefined') return 'All';
@@ -38,9 +46,8 @@ function renderResourceSummary() {
     if (!container) return;
 
     const mapping = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
-
-    container.innerHTML = mapping.map(code => {
-        const value = Number(myVirtualCurrency?.[code] || 0);
+    const renderChipList = (resources) => mapping.map(code => {
+        const value = Number(resources?.[code] || 0);
         const usage = getResourceUsageInfo(code);
         const source = getResourceSourceInfo(code);
         return `
@@ -50,6 +57,113 @@ function renderResourceSummary() {
             </div>
         `;
     }).join('');
+
+    const shipSubtitle = myShipResourceStorage?.activeShipId
+        ? `船倉 ${Number(myShipResourceStorage?.cargoUsed || 0)}/${Number(myShipResourceStorage?.cargoCapacity || 0)}`
+        : '船倉（アクティブ船なし）';
+    const hasActiveShip = !!myShipResourceStorage?.activeShipId;
+
+    container.innerHTML = `
+        <div class="resource-summary-section">
+            <div class="resource-summary-subtitle">${shipSubtitle}</div>
+            <div class="resource-summary-grid">${renderChipList(myShipResourceStorage?.cargoResources || {})}</div>
+        </div>
+        <div class="resource-summary-section">
+            <div class="resource-summary-subtitle">倉庫</div>
+            <div class="resource-summary-grid">${renderChipList(myVirtualCurrency || {})}</div>
+        </div>
+        <div class="resource-summary-actions">
+            <button type="button" class="resource-summary-btn" id="btnResourceDepositAll" ${hasActiveShip ? '' : 'disabled'}>全部預ける</button>
+            <button type="button" class="resource-summary-btn" id="btnResourceApplyPreset" ${hasActiveShip ? '' : 'disabled'}>マイセット補充</button>
+        </div>
+    `;
+
+    const depositBtn = container.querySelector('#btnResourceDepositAll');
+    if (depositBtn) {
+        depositBtn.addEventListener('click', handleDepositAllResourcesClick);
+    }
+    const presetBtn = container.querySelector('#btnResourceApplyPreset');
+    if (presetBtn) {
+        presetBtn.addEventListener('click', handleApplyResourcePresetClick);
+    }
+}
+
+function normalizeResourceSummaryMap(resourceMap) {
+    const mapping = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
+    const normalized = {};
+    mapping.forEach((code) => {
+        normalized[code] = Math.max(0, Math.trunc(Number(resourceMap?.[code] || 0)));
+    });
+    return normalized;
+}
+
+async function syncShipResourceSummary(playFabId) {
+    if (!playFabId) {
+        myShipResourceStorage = {
+            activeShipId: null,
+            homeResources: normalizeResourceSummaryMap(myVirtualCurrency),
+            cargoResources: normalizeResourceSummaryMap({}),
+            cargoCapacity: 0,
+            cargoUsed: 0
+        };
+        return;
+    }
+    const data = await fetchShipResourceStorage(playFabId, { isSilent: true });
+    if (!data?.success) {
+        return;
+    }
+    myShipResourceStorage = {
+        activeShipId: data.activeShipId || null,
+        homeResources: normalizeResourceSummaryMap(data.homeResources),
+        cargoResources: normalizeResourceSummaryMap(data.cargoResources),
+        cargoCapacity: Math.max(0, Math.trunc(Number(data.cargoCapacity || 0))),
+        cargoUsed: Math.max(0, Math.trunc(Number(data.cargoUsed || 0)))
+    };
+    myVirtualCurrency = { ...myVirtualCurrency, ...normalizeResourceSummaryMap(data.homeResources) };
+}
+
+function applyShipResourceSummaryResponse(data) {
+    if (!data) return;
+    myShipResourceStorage = {
+        activeShipId: data.activeShipId || data.shipId || myShipResourceStorage?.activeShipId || null,
+        homeResources: normalizeResourceSummaryMap(data.homeResources),
+        cargoResources: normalizeResourceSummaryMap(data.cargoResources),
+        cargoCapacity: Math.max(0, Math.trunc(Number(data.cargoCapacity || myShipResourceStorage?.cargoCapacity || 0))),
+        cargoUsed: Math.max(0, Math.trunc(Number(data.cargoUsed || 0)))
+    };
+    myVirtualCurrency = { ...myVirtualCurrency, ...normalizeResourceSummaryMap(data.homeResources) };
+}
+
+async function handleDepositAllResourcesClick() {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId || !myShipResourceStorage?.activeShipId) return;
+    const cargoUsed = Number(myShipResourceStorage?.cargoUsed || 0);
+    if (cargoUsed <= 0) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('船倉に預ける資源がありません。');
+        }
+        return;
+    }
+    const data = await depositShipResources(playFabId, myShipResourceStorage.activeShipId);
+    if (!data?.success) return;
+    applyShipResourceSummaryResponse(data);
+    renderResourceSummary();
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage('船倉の資源を倉庫へ預けました。');
+    }
+}
+
+async function handleApplyResourcePresetClick() {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId || !myShipResourceStorage?.activeShipId) return;
+    const data = await applyShipResourcePreset(playFabId, myShipResourceStorage.activeShipId);
+    if (!data?.success) return;
+    applyShipResourceSummaryResponse(data);
+    renderResourceSummary();
+    const movedTotal = Object.values(data.transferred || {}).reduce((sum, value) => sum + (Number(value || 0) || 0), 0);
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(movedTotal > 0 ? 'マイセットぶんを船倉へ補充しました。' : '補充できる資源がありませんでした。');
+    }
 }
 
 function calculateLevelFromExp(expValue) {
@@ -108,6 +222,7 @@ export async function getInventory(playFabId) {
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
+    await syncShipResourceSummary(playFabId);
     await getEquipment(playFabId);
     renderInventoryGrid(getActiveInventoryCategory());
     renderResourceSummary();
@@ -123,7 +238,12 @@ export async function getInventory(playFabId) {
 
 export async function refreshResourceSummary(playFabId) {
     const now = Date.now();
-    if (now - lastInventoryFetchAt < 1500) return;
+    if (now - lastInventoryFetchAt < 1500) {
+        await syncShipResourceSummary(playFabId);
+        renderResourceSummary();
+        updateExperienceUI();
+        return;
+    }
     const data = await fetchInventory(playFabId);
     if (data) {
         if (Array.isArray(data.inventory)) {
@@ -131,6 +251,7 @@ export async function refreshResourceSummary(playFabId) {
         }
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
+        await syncShipResourceSummary(playFabId);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
         renderResourceSummary();

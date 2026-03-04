@@ -27,7 +27,8 @@ import {
     checkIslandRebuildable as requestCheckIslandRebuildable,
     rebuildIsland as requestRebuildIsland,
     getDemolishedIslands as fetchDemolishedIslands,
-    getInventory as fetchInventory
+    getInventory as fetchInventory,
+    getEquipment as fetchEquipment
 } from './playfabClient.js';
 
 function selectPaymentMethod(message = '支払い方法を選択してください') {
@@ -93,6 +94,77 @@ const SHOP_BUILDINGS = {
     armor_shop: { title: '防具屋', categories: ['Armor', 'Shield'] },
     item_shop: { title: '道具屋', categories: ['Consumable'] }
 };
+
+function getShopItemCategory(item) {
+    return item?.customData?.Category || item?.category || null;
+}
+
+function getShopItemName(item) {
+    return item?.name || item?.customData?.DisplayName || item?.itemId || 'なし';
+}
+
+function parseShopItemStat(item, keys) {
+    for (const key of keys) {
+        const raw = item?.customData?.[key] ?? item?.[key];
+        const value = Number.parseInt(raw, 10);
+        if (Number.isFinite(value)) return value;
+    }
+    return 0;
+}
+
+function getShopPrimaryStat(item) {
+    const category = getShopItemCategory(item);
+    if (category === 'Weapon') {
+        return { label: '攻撃', value: parseShopItemStat(item, ['Attack', 'Atk', 'Power', 'primaryStatValue']) };
+    }
+    if (category === 'Armor' || category === 'Shield') {
+        return { label: '防御', value: parseShopItemStat(item, ['Defense', 'Def', 'primaryStatValue']) };
+    }
+    return null;
+}
+
+function buildEquippedItemLookup(inventory, equipment) {
+    const byItemId = new Map();
+    (Array.isArray(inventory) ? inventory : []).forEach((item) => {
+        if (item?.itemId && !byItemId.has(item.itemId)) {
+            byItemId.set(item.itemId, item);
+        }
+    });
+    return {
+        RightHand: byItemId.get(equipment?.RightHand || '') || null,
+        LeftHand: byItemId.get(equipment?.LeftHand || '') || null,
+        Armor: byItemId.get(equipment?.Armor || '') || null
+    };
+}
+
+function getPreferredEquipSlotForShopItem(item) {
+    const slot = item?.preferredEquipSlot || null;
+    if (slot) return slot;
+    const category = getShopItemCategory(item);
+    if (category === 'Weapon') return 'RightHand';
+    if (category === 'Shield') return 'LeftHand';
+    if (category === 'Armor') return 'Armor';
+    return null;
+}
+
+function renderShopComparison(item, equippedLookup) {
+    const stat = getShopPrimaryStat(item);
+    const slot = getPreferredEquipSlotForShopItem(item);
+    if (!stat || !slot) return '';
+    const currentItem = equippedLookup?.[slot] || null;
+    const currentStat = currentItem ? getShopPrimaryStat(currentItem) : null;
+    const currentValue = Number(currentStat?.value || 0);
+    const delta = stat.value - currentValue;
+    const deltaColor = delta > 0 ? '#7ef29a' : delta < 0 ? '#ff8d8d' : 'rgba(255,255,255,0.72)';
+    const deltaPrefix = delta > 0 ? '+' : '';
+    const slotLabel = slot === 'Armor' ? '装備中' : slot === 'LeftHand' ? '左手' : '右手';
+    return `
+        <div class="shop-compare-row" style="margin-top:4px; font-size:12px; color:rgba(255,255,255,0.82);">
+            <div>${slotLabel}: ${escapeHtml(getShopItemName(currentItem))} (${stat.label}${currentValue})</div>
+            <div style="color:${deltaColor}; font-weight:700;">比較: ${deltaPrefix}${delta}</div>
+        </div>
+    `;
+}
 
 const FIXED_BUILDING_RESOURCE_COSTS = {
     my_house: {
@@ -1467,9 +1539,10 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
     sellList.innerHTML = '読み込み中...';
     buyList.innerHTML = '読み込み中...';
     try {
-        const [shopState, inventoryResult] = await Promise.all([
+        const [shopState, inventoryResult, equipmentResult] = await Promise.all([
             fetchShopState(island.id, window.__currentMapId || null, { isSilent: true }),
-            fetchInventory(playFabId, { isSilent: true })
+            fetchInventory(playFabId, { isSilent: true }),
+            fetchEquipment(playFabId, { isSilent: true }).catch(() => ({ equipment: {} }))
         ]);
         const pricing = shopState?.pricing || { buyMultiplier: 0.7, sellMultiplier: 1.2, itemPrices: {} };
         const itemPrices = pricing.itemPrices || {};
@@ -1480,6 +1553,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
 
         const inventory = Array.isArray(inventoryResult?.inventory) ? inventoryResult.inventory : [];
         const allowed = shopConfig?.categories || [];
+        const equippedLookup = buildEquippedItemLookup(inventory, equipmentResult?.equipment || {});
         const sellItems = inventory.filter(item => {
             const category = item?.customData?.Category || null;
             return !allowed.length || (category && allowed.includes(category));
@@ -1492,6 +1566,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const fixedBuy = Number.isFinite(Number(itemPrices?.[item.itemId]?.buyPrice)) ? Number(itemPrices[item.itemId].buyPrice) : null;
                 const price = fixedBuy != null ? fixedBuy : Math.floor(sellPrice * Number(pricing.buyMultiplier || 0));
                 const instanceId = item.instances?.[0] || '';
+                const comparison = renderShopComparison(item, equippedLookup);
                 const ownerControls = shopState?.ownerId === playFabId
                     ? `
                         <div class="shop-price-row" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -1509,6 +1584,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                     <div class="building-item" style="margin-bottom:8px;">
                         <div class="building-details">
                             <div class="building-name">${escapeHtml(item.name)}</div>
+                            ${comparison}
                             <div class="building-description">在庫: ${item.count} / 買い取り: ${price} Ps</div>
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">
@@ -1528,6 +1604,14 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                 const fixedSell = Number.isFinite(Number(item.fixedSellPrice)) ? Number(item.fixedSellPrice) : null;
                 const base = Number(item.buyPrice || item.sellPrice || 0);
                 const price = fixedSell != null ? fixedSell : Math.floor(base * Number(pricing.sellMultiplier || 0));
+                const primaryStat = getShopPrimaryStat(item);
+                const statLine = primaryStat
+                    ? `<div class="building-description">${primaryStat.label}: ${primaryStat.value}</div>`
+                    : '';
+                const descriptionLine = item?.description
+                    ? `<div class="building-description">${escapeHtml(item.description)}</div>`
+                    : '';
+                const comparison = renderShopComparison(item, equippedLookup);
                 const ownerControls = shopState?.ownerId === playFabId
                     ? `
                         <div class="shop-price-row" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -1545,6 +1629,9 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                     <div class="building-item" style="margin-bottom:8px;">
                         <div class="building-details">
                             <div class="building-name">${escapeHtml(item.name)}</div>
+                            ${statLine}
+                            ${descriptionLine}
+                            ${comparison}
                             <div class="building-description">在庫: ${item.count} / 価格: ${price} Ps</div>
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">

@@ -145,31 +145,37 @@ async function emitBattleEventIfPossible(battleId, participantIds) {
 
 // --- バトル中ロジック ---
 
-function showBattleModal(battleId) {
-    currentBattleId = battleId;
-    const battleModal = document.getElementById('battleModal');
-    battleModal.style.display = 'flex';
-    setBattleActiveWindow(5000);
-
+function clearBattleAutoCloseTimer() {
     if (battleAutoCloseTimer) {
         clearTimeout(battleAutoCloseTimer);
         battleAutoCloseTimer = null;
     }
-    battleAutoCloseTimer = setTimeout(() => {
-        closeBattleModalAndHandlePending();
-    }, 5000);
+}
+
+function stopBattleStateListener() {
+    if (typeof battleStateListener === 'function') {
+        try {
+            battleStateListener();
+        } catch (error) {
+            console.warn('[Battle] Failed to stop battle listener:', error);
+        }
+    }
+    battleStateListener = null;
+}
+
+function showBattleModal(battleId) {
+    stopBattleStateListener();
+    currentBattleId = battleId;
+    const battleModal = document.getElementById('battleModal');
+    battleModal.style.display = 'flex';
+    setBattleActiveWindow(5000);
+    clearBattleAutoCloseTimer();
 
     if (battleInterval) {
         clearInterval(battleInterval);
         battleInterval = null;
     }
     isMyActionReady = false;
-
-    if (battleStateListener) {
-        // ★ v184: 既存のリスナーを確実に解除
-        import('firebase/database').then(({ off }) => off(dbRef(db, 'battles/' + currentBattleId), 'value', battleStateListener));
-        battleStateListener = null;
-    }
 
     const battleRef = dbRef(db, 'battles/' + battleId);
 
@@ -268,6 +274,14 @@ function showBattleModal(battleId) {
 }
 
 function closeBattleModalAndHandlePending() {
+    clearBattleAutoCloseTimer();
+    stopBattleStateListener();
+    currentBattleId = null;
+    localBattleState = null;
+    if (battleInterval) {
+        clearInterval(battleInterval);
+        battleInterval = null;
+    }
     const battleModal = document.getElementById('battleModal');
     if (battleModal) battleModal.style.display = 'none';
     if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
@@ -304,10 +318,7 @@ function reopenPendingIslandCommandAfterBattle() {
 function resetBattleAutoClose(delayMs) {
     const battleModal = document.getElementById('battleModal');
     if (!battleModal) return;
-    if (battleAutoCloseTimer) {
-        clearTimeout(battleAutoCloseTimer);
-        battleAutoCloseTimer = null;
-    }
+    clearBattleAutoCloseTimer();
     battleAutoCloseTimer = setTimeout(() => {
         closeBattleModalAndHandlePending();
     }, delayMs);
@@ -627,6 +638,7 @@ async function startIslandCaptureBattleWithOpponent(opponentId, islandId, mapId)
     try {
         const data = await battleDependencies.callApiWithLoader('/api/start-island-capture-battle', {
             attackerId: myPlayFabId,
+            opponentId,
             islandId,
             mapId
         });

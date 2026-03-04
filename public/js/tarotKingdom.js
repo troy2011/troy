@@ -122,6 +122,13 @@ let settlementCoinEventTimers = [];
 let settlementChipAnimTimers = new Map();
 const HAND_SORT_MODE = { SUIT: 'suit', VALUE: 'value' };
 let localHandSortMode = HAND_SORT_MODE.VALUE;
+let kingdomLocalInfoMessage = '';
+let kingdomLocalInfoTimer = null;
+let kingdomLocalGraveOpen = false;
+let localHandSortDrawLock = false;
+let kingdomLocalAutoFold = false;
+let kingdomLocalAutoFoldPending = false;
+let kingdomLocalAutoFoldPrevReverse = false;
 const KINGDOM_TRACE_ENABLED = true;
 let kingdomTraceFlowSeed = 0;
 const kingdomRowFxTimers = new Map();
@@ -593,7 +600,11 @@ function freezeLocalHandAutoSort(ms = 1100) {
 
 function onPlayerDrewCard(playerIndex, freezeMs = 1100) {
   if (!s || !s.players?.[playerIndex]) return;
-  if (isLocalPlayer(playerIndex)) {
+  if (!isNpcPlayer(playerIndex)) {
+    // Human-controlled seats keep draw order so the hand can stay unsorted during
+    // the flip/freeze window and only the local client re-sorts after the freeze.
+    if (!isLocalPlayer(playerIndex)) return;
+    localHandSortDrawLock = true;
     freezeLocalHandAutoSort(freezeMs);
     return;
   }
@@ -634,10 +645,11 @@ function toggleLocalHandSortMode() {
   localHandSortMode = localHandSortMode === HAND_SORT_MODE.SUIT
     ? HAND_SORT_MODE.VALUE
     : HAND_SORT_MODE.SUIT;
+  localHandSortDrawLock = false;
   applyLocalHandSortMode(true);
-  s.message = localHandSortMode === HAND_SORT_MODE.SUIT
+  setLocalInfoMessage(localHandSortMode === HAND_SORT_MODE.SUIT
     ? '手札をスート順に並び替えました。'
-    : '手札を数値順に並び替えました。';
+    : '手札を数値順に並び替えました。', 1400);
   render();
 }
 const suitMaskForCard = (card) => {
@@ -947,7 +959,7 @@ function getKingdomCardEffectDescription(card) {
       6: 'どのカードでもペア出し可能',
       7: '通常ドローで引くと2枚に増殖',
       8: '大アルカナ8は強制クリア',
-      9: '単騎で次の小/大ドローを予見',
+      9: 'セットで次の小アルカナを予見（この局）',
       10: '単騎で数値+1〜6（表示のみ変化）',
       11: '11バック（局内永続）',
       12: '生贄で星+2（このカードは消える）',
@@ -996,6 +1008,102 @@ function updateSelectedCardEffectLabel(playerIndex, selectedIndexes) {
   ui.selectedEffect.hidden = false;
 }
 
+function clearLocalInfoMessage(renderNow = false) {
+  if (kingdomLocalInfoTimer) {
+    clearTimeout(kingdomLocalInfoTimer);
+    kingdomLocalInfoTimer = null;
+  }
+  if (!kingdomLocalInfoMessage) return;
+  kingdomLocalInfoMessage = '';
+  if (renderNow && s) renderSummary();
+}
+
+function setLocalInfoMessage(text, holdMs = 1800) {
+  if (kingdomLocalInfoTimer) {
+    clearTimeout(kingdomLocalInfoTimer);
+    kingdomLocalInfoTimer = null;
+  }
+  kingdomLocalInfoMessage = String(text || '').trim();
+  if (s) renderSummary();
+  if (!kingdomLocalInfoMessage || holdMs <= 0) return;
+  const current = kingdomLocalInfoMessage;
+  kingdomLocalInfoTimer = setTimeout(() => {
+    kingdomLocalInfoTimer = null;
+    if (kingdomLocalInfoMessage !== current) return;
+    kingdomLocalInfoMessage = '';
+    if (s) renderSummary();
+  }, holdMs);
+}
+
+function clearLocalAutoFold() {
+  kingdomLocalAutoFold = false;
+  kingdomLocalAutoFoldPending = false;
+}
+
+function syncLocalAutoFoldState() {
+  if (!s) {
+    clearLocalAutoFold();
+    kingdomLocalAutoFoldPrevReverse = false;
+    return;
+  }
+  const me = getLocalPlayerIndex();
+  const myTurn = me >= 0 && s.phase === 'turn' && s.turn === me;
+  const currentReverse = !!s.reverse;
+  const currentIsCall = !!(s.lastPlay && s.lastPlay.type === 'role' && s.lastPlay.call);
+  if (kingdomLocalAutoFold) {
+    if (!s.roundActive || !s.trick || currentIsCall || currentReverse !== kingdomLocalAutoFoldPrevReverse) {
+      clearLocalAutoFold();
+    }
+  }
+  if (kingdomLocalAutoFoldPending && (!kingdomLocalAutoFold || !myTurn || !s.trick || s.phase !== 'turn')) {
+    kingdomLocalAutoFoldPending = false;
+  }
+  kingdomLocalAutoFoldPrevReverse = currentReverse;
+}
+
+function processLocalAutoFold() {
+  if (!s || !kingdomLocalAutoFold || kingdomLocalAutoFoldPending) return;
+  const me = getLocalPlayerIndex();
+  if (me < 0) return;
+  if (!(s.roundActive && s.phase === 'turn' && s.turn === me && s.trick)) return;
+  kingdomLocalAutoFoldPending = true;
+  setTimeout(() => {
+    if (!s || !kingdomLocalAutoFold) {
+      kingdomLocalAutoFoldPending = false;
+      return;
+    }
+    requestHostAction({ type: 'pass' }, () => passAction(me)).then((ok) => {
+      if (!ok) kingdomLocalAutoFoldPending = false;
+    }).catch((error) => {
+      kingdomLocalAutoFoldPending = false;
+      console.warn('[tarotKingdom] auto fold failed:', error);
+    });
+  }, 0);
+}
+
+function renderLocalSelectedInfo(playerIndex, selectedIndexes) {
+  if (!ui.selectedEffect) return;
+  updateSelectedCardEffectLabel(playerIndex, selectedIndexes);
+  if (!ui.selectedEffect.hidden) return;
+  const selectedText = buildSelectedCardInfoMessage(playerIndex, selectedIndexes);
+  if (selectedText) {
+    ui.selectedEffect.textContent = selectedText;
+    ui.selectedEffect.hidden = false;
+    return;
+  }
+  if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(playerIndex)) return;
+  const minorTop = s.hermitPreview.minorTop || null;
+  ui.selectedEffect.textContent = `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'}`;
+  ui.selectedEffect.hidden = false;
+}
+
+function getVisibleHermitPreviewForLocalPlayer() {
+  if (!s?.roundActive || s?.hiddenOracleRevealed) return null;
+  const me = getLocalPlayerIndex();
+  if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(me)) return null;
+  return s.hermitPreview.minorTop || null;
+}
+
 function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {
   if (!s || !Array.isArray(selectedIndexes)) return '';
   const hand = s.players?.[playerIndex]?.hand;
@@ -1041,16 +1149,16 @@ function showKingdomCardEffectInfo(card, prefix = '効果') {
   if (!s || !card) return;
   const name = getCardNameLabel(card);
   const effectText = getKingdomCardEffectDescription(card);
-  s.message = effectText
+  setLocalInfoMessage(effectText
     ? `${prefix}: ${name} / ${effectText}`
-    : `${prefix}: ${name}（固有効果なし）`;
-  renderSummary();
+    : `${prefix}: ${name}（固有効果なし）`, 2200);
 }
 
 function getShortPlayHelp(reason) {
   const text = String(reason || '');
   if (!text) return '';
-  if (text.includes('ストレートコール制限')) return 'ヒント: 手札全体（選択中含む）に場札と同数値が1枚でもあると不可です。';
+  if (text.includes('ストレートコール制限: 手札（選択中含む）に場札と同数値があるため不可')) return 'ヒント: 手札全体（選択中含む）に場札と同数値が1枚でもあると不可です。';
+  if (text.includes('ストレートコール制限: 場札がハイカードになる構成は不可')) return 'ヒント: 場札がストレートの最高値になる形は不可です。ただしAに対する2-3-4-5だけ例外です。';
   if (text.includes('同スートが5枚以上あるため不可')) return 'ヒント: フラッシュコールは、手札全体（選択中含む）で場札と同スートが4枚以下のときのみ可能です。';
   if (text.includes('場札がハイカードになる構成は不可')) return 'ヒント: 場札が5枚中のハイカードにならない組み方にしてください。';
   if (text.includes('同スートが5枚以上必要')) return 'ヒント: 現仕様では同スート5枚以上はフラッシュコール不可です。';
@@ -1070,11 +1178,9 @@ function showPlayError(reason) {
   if (!s) return;
   const detail = (String(reason || '出せません。').trim()) || '出せません。';
   const hint = getShortPlayHelp(detail);
-  s.message = hint
+  setLocalInfoMessage(hint
     ? `出せない理由: ${detail} / ${hint}`
-    : `出せない理由: ${detail}`;
-  log(`⚠ ${s.message}`);
-  render();
+    : `出せない理由: ${detail}`, 2400);
   if (!ui.stateText) return;
   ui.stateText.classList.remove('is-error');
   void ui.stateText.offsetWidth;
@@ -2088,6 +2194,9 @@ function clearRoundState() {
   clearRoundStartCinematicTimer();
   clearOpeningDealTimers();
   clearDrawHandFlipTimers();
+  clearLocalInfoMessage(false);
+  kingdomLocalGraveOpen = false;
+  localHandSortDrawLock = false;
   s.trick = null;
   s.leadRequiredOwner = null;
   s.lastPlay = null;
@@ -2407,6 +2516,7 @@ function serializeStateForNet() {
     return value;
   }));
   next.selected = [];
+  next.graveOpen = false;
   return {
     schema: KINGDOM_NET_SCHEMA_VERSION,
     updatedAt: Date.now(),
@@ -2911,6 +3021,7 @@ function applyRemoteRoomState(payload) {
   if (netManualOfflineMode) return;
   const next = deserializeStateFromNet(payload);
   if (!next) return;
+  clearLocalInfoMessage(false);
   const localSeat = Number(tkNet.localSeat);
   const prevSelectedKeys = [];
   if (
@@ -3212,6 +3323,12 @@ function resetMatch() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   s = initState();
+  clearLocalInfoMessage(false);
+  kingdomLocalGraveOpen = false;
+  clearLocalAutoFold();
+  kingdomLocalAutoFoldPrevReverse = false;
+  npcActInFlight = false;
+  netLastStateHash = '';
   if (trickSwapTimer) { clearTimeout(trickSwapTimer); trickSwapTimer = null; }
   trickRenderKey = '';
   trickRenderToken += 1;
@@ -3294,6 +3411,8 @@ function setupHand() {
   clearNpcTimer();
   clearOpeningDealTimers();
   clearRoundState();
+  clearLocalAutoFold();
+  kingdomLocalAutoFoldPrevReverse = false;
   // 表オラクルは毎局再抽選
   s.openOracleCard = shuf(mkMajor())[0] || null;
   s.openOracle = openOracleRank(s.openOracleCard);
@@ -3548,6 +3667,14 @@ function buildCallPlay(pi, sel) {
     && p.hand.some((c) => Number(c?.number) === baseNumber);
   if (role.key === 'Straight' && hasSameNumberInHand) {
     return { ok: false, reason: 'ストレートコール制限: 手札（選択中含む）に場札と同数値があるため不可です。' };
+  }
+  if (role.key === 'Straight') {
+    const basePower = cStrength(base);
+    const straightHighValue = Number(role?.primary?.[0] || 0);
+    const isAceWheelException = isMinorAceCard(base) && straightHighValue === 5;
+    if (!isAceWheelException && basePower === straightHighValue) {
+      return { ok: false, reason: 'ストレートコール制限: 場札がハイカードになる構成は不可です。' };
+    }
   }
   if (role.key === 'Flush') {
     const baseSuit = (suitsForCard(base, false) || [])[0] || 'None';
@@ -3897,7 +4024,6 @@ function clearTrick(leader) {
   s.trickForcedCount = 0;
   s.starDrainAuraOwner = null;
   s.passStarDrainAuraOwner = null;
-  s.hermitPreview = null;
   s.trickDefeatFx = null;
   s.trickTransitionKind = 'clearSweep';
   s.trick = null;
@@ -3981,14 +4107,13 @@ function applySetEffects(play) {
     log(`${pName(play.owner)}: 恋人でペアワイルド`);
     triggerKingdomActionFx(play.owner, '恋人: ペア化', { overlay: 'action', durationMs: 700, cutin: true });
   }
-  if (cards.length === 1 && hasMajor(9)) {
+  if (hasMajor(9)) {
     const minorTop = s.minorDeck[s.minorDeck.length - 1] || null;
-    const majorTop = s.majorDeck[s.majorDeck.length - 1] || null;
-    s.hermitPreview = { owner: play.owner, minorTop, majorTop, at: Date.now() };
+    s.hermitPreview = { owner: play.owner, minorTop, at: Date.now() };
     if (isLocalPlayer(play.owner)) {
-      s.message = `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'} / 大=${majorTop ? getCardNameLabel(majorTop) : 'なし'}`;
+      setLocalInfoMessage(`隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'}`, 2600);
     }
-    log(`${pName(play.owner)}: 隠者で山札を予見`);
+    log(`${pName(play.owner)}: 隠者で小アルカナを予見`);
     triggerKingdomActionFx(play.owner, '隠者: 予見', { overlay: 'draw', durationMs: 760, cutin: true });
   }
   if (cards.length === 1 && hasMajor(10)) {
@@ -3997,8 +4122,12 @@ function applySetEffects(play) {
     play.wheelBoost = boost;
     play.wheelDisplayNumber = boostedNumber;
     play.setPower = boostedNumber;
-    if (play.cardsTable?.[0]) play.cardsTable[0].displayNumberOverride = boostedNumber;
-    if (play.cardsHand?.[0]) play.cardsHand[0].displayNumberOverride = boostedNumber;
+    (play.cardsTable || [])
+      .filter((card) => card?.kind === 'major' && Number(card?.number || 0) === 10)
+      .forEach((card) => { card.displayNumberOverride = boostedNumber; });
+    (play.cardsHand || [])
+      .filter((card) => card?.kind === 'major' && Number(card?.number || 0) === 10)
+      .forEach((card) => { card.displayNumberOverride = boostedNumber; });
     log(`${pName(play.owner)}: 運命の輪で数値+${boost}`);
     triggerKingdomActionFx(play.owner, `運命の輪 +${boost}`, { overlay: 'action', durationMs: 780, cutin: true });
   }
@@ -4048,7 +4177,7 @@ function applySetEffects(play) {
   if (has(14) && cards.length === 1) {
     const cur = cards[0];
     const prevSuit = (play?.prevLeadSuit && play.prevLeadSuit !== 'None') ? play.prevLeadSuit : null;
-    if (prevSuit && cur.kind === 'major' && cur.number === 14) {
+    if (prevSuit && hasMajor(14)) {
       // 節制: 直前の場札スートを基準にロック
       s.lock = { suit: prevSuit, min: null };
       log(`${pName(play.owner)}: 節制ロック (${SUIT_LABEL[prevSuit]})`);
@@ -5456,12 +5585,13 @@ function renderHand() {
   const drawFlipActive = !!(!inOpeningDeal && drawFlipCardId && drawFlipPlayer === me && now < drawFlipEndAt);
   const freezeUntil = Number(s.handSortFreezeUntil || 0);
   const freezeActive = freezeUntil > Date.now();
-  if (!freezeActive && !inOpeningDeal) applyLocalHandSortMode(false);
+  if (!freezeActive && !inOpeningDeal && !localHandSortDrawLock) applyLocalHandSortMode(false);
   const selected = sanitizeSelected(me);
   if (ui.selectedEffect) {
     ui.selectedEffect.textContent = '';
     ui.selectedEffect.hidden = true;
   }
+  renderLocalSelectedInfo(me, selected);
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
   const canCommit = (s.roundActive && s.phase === 'turn' && s.turn === me) || drawMe;
   const canSelect = !!(s.roundActive && !inOpeningDeal && Array.isArray(s.players[me]?.hand) && s.players[me].hand.length > 0);
@@ -5472,11 +5602,8 @@ function renderHand() {
     }
     if (s.selected.has(idx)) s.selected.delete(idx);
     else s.selected.add(idx);
-    const selectedNow = sanitizeSelected(me);
-    const infoText = buildSelectedCardInfoMessage(me, selectedNow);
-    s.message = infoText || (canCommit
-      ? '選択中'
-      : '選択中（あなたのターン待ち）');
+    sanitizeSelected(me);
+    clearLocalInfoMessage(false);
     render();
   };
   s.players[me].hand.forEach((c, i) => {
@@ -5503,11 +5630,8 @@ function clearSelectedCards(withMessage = true) {
   if (!s.selected || s.selected.size <= 0) return;
   s.selected.clear();
   if (withMessage) {
-    if (s.roundActive && (s.phase === 'turn' || s.phase === 'draw')) {
-      s.message = '選択を解除しました。';
-    } else {
-      s.message = '';
-    }
+    if (s.roundActive && (s.phase === 'turn' || s.phase === 'draw')) setLocalInfoMessage('選択を解除しました。', 1200);
+    else clearLocalInfoMessage(false);
   }
   render();
 }
@@ -5515,19 +5639,19 @@ function clearSelectedCards(withMessage = true) {
 function toggleGraveyard() {
   if (!s) return;
   if (s.pendingJudgment != null) {
-    s.graveOpen = true;
+    kingdomLocalGraveOpen = true;
     render();
     return;
   }
-  s.graveOpen = !s.graveOpen;
-  s.message = s.graveOpen ? '墓地を表示します。' : '墓地を閉じました。';
+  kingdomLocalGraveOpen = !kingdomLocalGraveOpen;
+  setLocalInfoMessage(kingdomLocalGraveOpen ? '墓地を表示します。' : '墓地を閉じました。', 1200);
   render();
 }
 
 function renderJudgment() {
   const inJudgment = s.pendingJudgment != null;
   const forceVisible = inJudgment;
-  const visible = forceVisible || !!s.graveOpen;
+  const visible = forceVisible || !!kingdomLocalGraveOpen;
   if (!visible) {
     ui.judgmentArea.style.display = 'none';
     ui.judgmentOptions.innerHTML = '';
@@ -5605,8 +5729,7 @@ function renderJudgment() {
               });
             }
             : () => {
-              s.message = `${getCardNameLabel(entry.card)} は ${pName(entry.owner)} が出したカード`;
-              renderSummary();
+              setLocalInfoMessage(`${getCardNameLabel(entry.card)} は ${pName(entry.owner)} が出したカード`, 1800);
             }
         });
         node.classList.add('is-mini');
@@ -5620,6 +5743,7 @@ function renderJudgment() {
 }
 
 function renderOracleCard() {
+  const hermitPreviewCard = getVisibleHermitPreviewForLocalPlayer();
   if (ui.oracleCard) {
     ui.oracleCard.innerHTML = '';
     const card = (s.openOracleRevealed && s.openOracleCard) ? s.openOracleCard : null;
@@ -5627,12 +5751,13 @@ function renderOracleCard() {
   }
   if (ui.hiddenOracleCard) {
     ui.hiddenOracleCard.innerHTML = '';
-    const hiddenCard = (s.hiddenOracleRevealed && s.hiddenOracleCard) ? s.hiddenOracleCard : null;
+    const hiddenCard = hermitPreviewCard || ((s.hiddenOracleRevealed && s.hiddenOracleCard) ? s.hiddenOracleCard : null);
     ui.hiddenOracleCard.appendChild(cardNode(hiddenCard, { small: true }));
   }
 }
 
 function renderSummary() {
+  const hermitPreviewCard = getVisibleHermitPreviewForLocalPlayer();
   const turnText = s.roundActive ? ` / ターン ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
   if (ui.turn) ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
@@ -5656,7 +5781,7 @@ function renderSummary() {
     }
   }
   ui.root?.classList.toggle('is-reverse', !!s.reverse);
-  ui.stateText.textContent = s.message || '';
+  ui.stateText.textContent = kingdomLocalInfoMessage || s.message || '';
   if (ui.score) ui.score.textContent = '';
   if (ui.openOracle) {
     if (!s.openOracleCard) ui.openOracle.textContent = '表: なし';
@@ -5664,7 +5789,11 @@ function renderSummary() {
     else ui.openOracle.textContent = `表: ${getCardNameLabel(s.openOracleCard)} ${s.openOracle != null ? `(オラクル ${getCardNumberLabel({ kind: 'minor', number: s.openOracle, suit: 'None' })})` : '(表オラクルなし)'}`;
   }
   if (ui.hiddenOracle) {
-    ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
+    if (hermitPreviewCard) {
+      ui.hiddenOracle.textContent = `予見: ${getCardNameLabel(hermitPreviewCard)} (${getCardNumberLabel(hermitPreviewCard)})`;
+    } else {
+      ui.hiddenOracle.textContent = s.hiddenOracleCard ? `裏: ${getCardNameLabel(s.hiddenOracleCard)} (${getCardNumberLabel(s.hiddenOracleCard)})` : '裏: 未公開';
+    }
   }
   if (ui.log) {
     const logs = Array.isArray(s?.logs) ? s.logs : [];
@@ -5856,6 +5985,7 @@ function updateButtons() {
     }
     ui.playButton.disabled = true;
     ui.clearButton.disabled = true;
+    if (ui.foldButton) ui.foldButton.disabled = true;
     ui.passButton.disabled = true;
     ui.drawMinorButton.disabled = true;
     ui.drawMajorButton.disabled = true;
@@ -5958,14 +6088,23 @@ function updateButtons() {
       : (localHandSortMode === HAND_SORT_MODE.SUIT ? '数値順' : 'スート順');
     ui.clearButton.disabled = actionLocked || !(canClearSelection || canToggleSort);
   }
+  if (ui.foldButton) {
+    ui.foldButton.textContent = kingdomLocalAutoFold ? 'フォールド中' : 'フォールド';
+    ui.foldButton.disabled = kingdomLocalAutoFold
+      ? false
+      : (actionLocked || !(s.roundActive && s.phase === 'turn' && !!s.trick));
+    ui.foldButton.classList.toggle('is-ready', !!(!ui.foldButton.disabled && (kingdomLocalAutoFold || myTurn)));
+    ui.foldButton.classList.toggle('is-active', kingdomLocalAutoFold);
+  }
   ui.passButton.disabled = actionLocked || !myTurn;
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
   ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
   const actionReadyPhase = myTurn || drawMe;
-  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.passButton];
+  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton];
   popupButtons.forEach((btn) => {
     if (!btn) return;
-    const isReady = !!(actionReadyPhase && !btn.disabled);
+    const isFoldActive = btn === ui.foldButton && kingdomLocalAutoFold;
+    const isReady = !!(isFoldActive || (actionReadyPhase && !btn.disabled));
     btn.classList.toggle('is-ready', isReady);
   });
   if (ui.actionPopup) {
@@ -5979,7 +6118,7 @@ function updateButtons() {
       ui.graveToggleButton.textContent = '墓地（審判中）';
       ui.graveToggleButton.disabled = true;
     } else {
-      ui.graveToggleButton.textContent = s.graveOpen ? '墓地を閉じる' : '墓地を見る';
+      ui.graveToggleButton.textContent = kingdomLocalGraveOpen ? '墓地を閉じる' : '墓地を見る';
       ui.graveToggleButton.disabled = actionLocked || !s.roundActive;
     }
   }
@@ -6000,6 +6139,7 @@ function updateButtons() {
 
 function render() {
   if (!s) return;
+  syncLocalAutoFoldState();
   resolveReversePersistSuspend();
   enforceLeadTurnInvariant();
   renderSummary();
@@ -6011,6 +6151,7 @@ function render() {
   renderHand();
   renderJudgment();
   updateButtons();
+  processLocalAutoFold();
   syncHumanTurnCueState();
   if (isNetModeActive() && tkNet.isHost) {
     scheduleOpenRoomHeartbeat();
@@ -6085,10 +6226,16 @@ function confirmRoundSettlement() {
 }
 
 function startOrNext() {
-  if (!s || s.phase === 'done') resetMatch();
-  if (s.awaitRoundConfirm) return;
+  const restartingDoneMatch = !s || s.phase === 'done';
+  if (restartingDoneMatch) {
+    resetMatch();
+  }
+  if (!s || s.awaitRoundConfirm) return;
   if (!s.roundActive && s.handNo < TOTAL_HANDS) {
     beginNextRound();
+    if (isNetModeActive() && tkNet.isHost) {
+      queueStatePublish(true);
+    }
   }
 }
 
@@ -6377,6 +6524,7 @@ function bindUi() {
   ui.restartButton = document.getElementById('tarotKingdomRestartButton');
   ui.playButton = document.getElementById('tarotKingdomPlayButton');
   ui.clearButton = document.getElementById('tarotKingdomClearButton');
+  ui.foldButton = document.getElementById('tarotKingdomFoldButton');
   ui.passButton = document.getElementById('tarotKingdomPassButton');
   ui.drawMinorButton = document.getElementById('tarotKingdomDrawMinorButton');
   ui.drawMajorButton = document.getElementById('tarotKingdomDrawMajorButton');
@@ -6461,6 +6609,24 @@ function bindUi() {
       console.warn('[tarotKingdom] pass action failed:', error);
     });
   });
+  ui.foldButton?.addEventListener('click', () => {
+    if (kingdomLocalAutoFold) {
+      clearLocalAutoFold();
+      setLocalInfoMessage('フォールド解除', 900);
+      render();
+      return;
+    }
+    if (!s?.roundActive || s.phase !== 'turn') return;
+    if (!s.trick) {
+      showPlayError('場がある時だけフォールドできます。');
+      return;
+    }
+    kingdomLocalAutoFold = true;
+    kingdomLocalAutoFoldPending = false;
+    kingdomLocalAutoFoldPrevReverse = !!s.reverse;
+    setLocalInfoMessage('フォールド中: 場が流れるか、11バックか、コールで解除', 1400);
+    render();
+  });
   ui.drawMinorButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
     requestHostAction({ type: 'draw', deckType: 'minor' }, () => {
@@ -6524,6 +6690,9 @@ export async function loadTarotKingdomPage() {
 export function destroyTarotKingdomPage() {
   kingdomStartMode = '';
   netManualOfflineMode = false;
+  localHandSortDrawLock = false;
+  clearLocalAutoFold();
+  kingdomLocalAutoFoldPrevReverse = false;
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
   clearNpcTimer();

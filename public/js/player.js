@@ -4,6 +4,8 @@ import {
     getPlayerStats as fetchPlayerStats,
     recoverHpResource as requestRecoverHpResource,
     recoverMpResource as requestRecoverMpResource,
+    consumeVoyageMp as requestConsumeVoyageMp,
+    recoverDockedMp as requestRecoverDockedMp,
     getPoints as fetchPoints,
     addPoints as requestAddPoints,
     usePoints as requestUsePoints,
@@ -47,11 +49,16 @@ function updatePlayerStatsDisplay() {
     if (mpRecoverBtn) mpRecoverBtn.disabled = MP >= MaxMP;
 }
 
+function applyUpdatedStats(updatedStats) {
+    if (!updatedStats || typeof updatedStats !== 'object') return;
+    myPlayerStats = { ...myPlayerStats, ...updatedStats };
+    updatePlayerStatsDisplay();
+}
+
 export async function recoverHpResource(playFabId) {
     const data = await requestRecoverHpResource(playFabId);
     if (data?.updatedStats) {
-        myPlayerStats = { ...myPlayerStats, ...data.updatedStats };
-        updatePlayerStatsDisplay();
+        applyUpdatedStats(data.updatedStats);
     }
     return data;
 }
@@ -59,8 +66,23 @@ export async function recoverHpResource(playFabId) {
 export async function recoverMpResource(playFabId) {
     const data = await requestRecoverMpResource(playFabId);
     if (data?.updatedStats) {
-        myPlayerStats = { ...myPlayerStats, ...data.updatedStats };
-        updatePlayerStatsDisplay();
+        applyUpdatedStats(data.updatedStats);
+    }
+    return data;
+}
+
+export async function consumeVoyageMp(playFabId, durationMs) {
+    const data = await requestConsumeVoyageMp(playFabId, durationMs, { isSilent: true });
+    if (data?.updatedStats) {
+        applyUpdatedStats(data.updatedStats);
+    }
+    return data;
+}
+
+export async function recoverDockedMp(playFabId) {
+    const data = await requestRecoverDockedMp(playFabId, { isSilent: true });
+    if (data?.updatedStats) {
+        applyUpdatedStats(data.updatedStats);
     }
     return data;
 }

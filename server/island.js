@@ -3,6 +3,7 @@
 
 const { geohashForLocation } = require('geofire-common');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const resourceStorage = require('./resourceStorage');
 const {
     getSizeTag,
     sizeTagMatchesIsland,
@@ -67,6 +68,15 @@ const CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE = {
     large: 4,
     giant: 8
 };
+const HOME_STORAGE_RESOURCE_CODES = ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'];
+const MY_HOME_STORAGE_DAMAGE_RATIO_BY_LEVEL = {
+    1: 0.36,
+    2: 0.28,
+    3: 0.22,
+    4: 0.16,
+    5: 0.12
+};
+const MY_HOME_STORAGE_LOOT_RATIO = 0.5;
 const FIXED_BUILDING_RESOURCE_COSTS = {
     my_house: {
         1: [{ code: 'RT', amount: 2 }],
@@ -442,6 +452,11 @@ function getIslandCaptureSlotLimit(sizeKey) {
     return Number(CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE[normalized] || CAPTURE_SLOT_LIMIT_BY_ISLAND_SIZE.small);
 }
 
+function getMyHomeStorageDamageRatio(level) {
+    const normalizedLevel = Math.max(1, Math.trunc(Number(level) || 1));
+    return MY_HOME_STORAGE_DAMAGE_RATIO_BY_LEVEL[normalizedLevel] || MY_HOME_STORAGE_DAMAGE_RATIO_BY_LEVEL[5];
+}
+
 function getBuildingCaptureArea(building) {
     if (!building) return 0;
     const inferred = inferLogicSizeFromSlotsRequired(building?.slotsRequired || 1);
@@ -797,6 +812,90 @@ function initializeIslandRoutes(app, deps) {
         });
         return String(nationRo?.Data?.Nation?.Value || '').toLowerCase();
     };
+    const applyMyHomeStorageDamage = async ({ defenderPlayFabId, attackerPlayFabId = null, buildingLevel = 1 }) => {
+        if (!defenderPlayFabId) {
+            return { damaged: {}, looted: {}, lost: {}, totalDamaged: 0, totalLooted: 0, totalLost: 0 };
+        }
+        const entityKey = await getEntityKeyForPlayFabId(defenderPlayFabId);
+        const items = await getAllInventoryItems(entityKey);
+        const balances = getVirtualCurrencyMap(items);
+        const ratio = getMyHomeStorageDamageRatio(buildingLevel);
+        const damaged = {};
+        const looted = {};
+        const lost = {};
+        let totalDamaged = 0;
+        let totalLooted = 0;
+        let totalLost = 0;
+
+        let attackerShipId = null;
+        let attackerShipData = null;
+        let attackerCargo = null;
+        let remainingCapacity = 0;
+
+        if (attackerPlayFabId) {
+            try {
+                attackerShipId = await resourceStorage.getActiveShipId(attackerPlayFabId, { promisifyPlayFab, PlayFabServer });
+                if (attackerShipId) {
+                    attackerShipData = await resourceStorage.getShipAsset(attackerPlayFabId, attackerShipId, { promisifyPlayFab, PlayFabServer });
+                    if (attackerShipData) {
+                        attackerCargo = resourceStorage.getShipResourceCargo(attackerShipData);
+                        const cargoCapacity = resourceStorage.getShipCargoCapacity(attackerShipData);
+                        remainingCapacity = Math.max(0, cargoCapacity - resourceStorage.sumResourceMap(attackerCargo));
+                    }
+                }
+            } catch (error) {
+                console.warn('[DamageIslandBuilding] Failed to prepare attacker cargo loot:', error?.errorMessage || error?.message || error);
+                attackerShipId = null;
+                attackerShipData = null;
+                attackerCargo = null;
+                remainingCapacity = 0;
+            }
+        }
+
+        for (const code of HOME_STORAGE_RESOURCE_CODES) {
+            const balance = Math.max(0, Math.trunc(Number(balances?.[code] || 0)));
+            if (balance <= 0) continue;
+            const damageAmount = Math.min(balance, Math.max(1, Math.floor(balance * ratio)));
+            if (damageAmount <= 0) continue;
+            try {
+                await subtractEconomyItem(defenderPlayFabId, code, damageAmount);
+                damaged[code] = damageAmount;
+                totalDamaged += damageAmount;
+                let lootedAmount = 0;
+                if (attackerCargo && remainingCapacity > 0) {
+                    const desiredLoot = Math.min(
+                        damageAmount,
+                        Math.max(1, Math.round(damageAmount * MY_HOME_STORAGE_LOOT_RATIO))
+                    );
+                    lootedAmount = Math.min(desiredLoot, remainingCapacity);
+                    if (lootedAmount > 0) {
+                        attackerCargo[code] = Math.max(0, Math.trunc(Number(attackerCargo[code] || 0))) + lootedAmount;
+                        looted[code] = (looted[code] || 0) + lootedAmount;
+                        totalLooted += lootedAmount;
+                        remainingCapacity -= lootedAmount;
+                    }
+                }
+                const lostAmount = Math.max(0, damageAmount - lootedAmount);
+                if (lostAmount > 0) {
+                    lost[code] = lostAmount;
+                    totalLost += lostAmount;
+                }
+            } catch (error) {
+                console.warn(`[DamageIslandBuilding] Failed to apply home storage loss for ${defenderPlayFabId} ${code}:`, error?.errorMessage || error?.message || error);
+            }
+        }
+
+        if (attackerShipData && attackerShipId && attackerCargo) {
+            try {
+                resourceStorage.setShipResourceCargo(attackerShipData, attackerCargo);
+                await resourceStorage.updateShipAsset(attackerPlayFabId, attackerShipId, attackerShipData, { promisifyPlayFab, PlayFabServer });
+            } catch (error) {
+                console.warn('[DamageIslandBuilding] Failed to persist attacker cargo loot:', error?.errorMessage || error?.message || error);
+            }
+        }
+
+        return { damaged, looted, lost, totalDamaged, totalLooted, totalLost };
+    };
     const respondCaptureState = (res, islandId, mapId, state) => {
         res.json({
             success: true,
@@ -888,6 +987,8 @@ function initializeIslandRoutes(app, deps) {
                 const maxHp = Number(current.maxHp) || Number(current.buildTimeSeconds) || 1;
                 const currentHp = Number.isFinite(Number(current.currentHp)) ? Number(current.currentHp) : maxHp;
                 const nextHp = Math.max(0, currentHp - damage);
+                const buildingId = String(current.buildingId || current.id || '');
+                const isMyHome = buildingId === 'my_house' || buildingId.startsWith('my_house');
                 const nextBuilding = {
                     ...current,
                     maxHp,
@@ -917,9 +1018,23 @@ function initializeIslandRoutes(app, deps) {
                     buildingHp: nextHp,
                     buildingMaxHp: maxHp,
                     destroyed: nextHp <= 0,
-                    captureState: captureState || sanitizeCaptureState(data.captureState, data)
+                    captureState: captureState || sanitizeCaptureState(data.captureState, data),
+                    storageDamageOwnerId: nextHp <= 0 && isMyHome ? String(data.ownerId || '').trim() : '',
+                    storageDamageEligible: nextHp <= 0 && isMyHome,
+                    storageDamageLevel: Math.max(1, Math.trunc(Number(current.level || 1)))
                 };
             });
+            let storageDamage = {};
+            let storageLooted = {};
+            if (result.storageDamageEligible && result.storageDamageOwnerId) {
+                const storageOutcome = await applyMyHomeStorageDamage({
+                    defenderPlayFabId: result.storageDamageOwnerId,
+                    attackerPlayFabId: playFabId,
+                    buildingLevel: result.storageDamageLevel
+                });
+                storageDamage = storageOutcome.damaged || {};
+                storageLooted = storageOutcome.looted || {};
+            }
             res.json({
                 success: true,
                 islandId,
@@ -927,7 +1042,9 @@ function initializeIslandRoutes(app, deps) {
                 hp: result.buildingHp,
                 maxHp: result.buildingMaxHp,
                 destroyed: result.destroyed,
-                captureState: result.captureState
+                captureState: result.captureState,
+                storageDamage,
+                storageLooted
             });
         } catch (error) {
             const msg = error?.message || String(error);

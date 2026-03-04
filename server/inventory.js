@@ -2,6 +2,7 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
+const resourceStorage = require('./resourceStorage');
 
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
@@ -22,10 +23,74 @@ const RESOURCE_RECOVERY_SETTINGS = {
         targetStat: 'MP',
         maxStat: 'MaxMP',
         amount: 1,
+        resolveAmount: (stats, maxValue) => Math.max(1, Math.ceil(Number(maxValue || stats?.MaxMP || 1) * 0.25)),
         fullMessage: 'MPはすでに満タンです。',
         missingMessage: '🫙が足りません。'
     }
 };
+const VOYAGE_MP_SETTINGS = {
+    freeSeconds: 30,
+    extraStepSeconds: 90,
+    baseCost: 1
+};
+const VOYAGE_MP_CLASS_ADJUSTMENTS = {
+    common: 0,
+    explorer: -1,
+    merchant: 0,
+    fighter: 0,
+    defender: 1,
+    guild: 2
+};
+const DOCKED_MP_RECOVERY_SETTINGS = {
+    amount: 1,
+    cooldownMs: 30 * 1000,
+    internalKey: 'DockedMpRecoveryAt'
+};
+const OFFLINE_MP_RECOVERY_SETTINGS = {
+    amount: 1,
+    intervalMs: 15 * 60 * 1000,
+    internalKey: 'OfflineMpRecoveryAt'
+};
+
+function calculateVoyageMpCost(durationMs) {
+    const durationValue = Number(durationMs);
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+        return 0;
+    }
+    const durationSeconds = durationValue / 1000;
+    if (durationSeconds <= VOYAGE_MP_SETTINGS.freeSeconds) {
+        return 0;
+    }
+    return VOYAGE_MP_SETTINGS.baseCost + Math.floor((durationSeconds - VOYAGE_MP_SETTINGS.freeSeconds) / VOYAGE_MP_SETTINGS.extraStepSeconds);
+}
+
+function normalizeShipClassFromItemId(itemId) {
+    const key = String(itemId || '').toLowerCase();
+    if (!key) return null;
+    if (key === 'ship_common_boat' || key.includes('common')) return 'common';
+    if (key === 'guild' || key.includes('guild')) return 'guild';
+    if (key.includes('explorer')) return 'explorer';
+    if (key.includes('merchant')) return 'merchant';
+    if (key.includes('defender')) return 'defender';
+    if (key.includes('fighter')) return 'fighter';
+    return null;
+}
+
+async function resolveActiveShipClass(playFabId, deps) {
+    const { promisifyPlayFab, PlayFabServer } = deps;
+    const activeShipId = await resourceStorage.getActiveShipId(playFabId, { promisifyPlayFab, PlayFabServer });
+    if (!activeShipId) return null;
+    const shipData = await resourceStorage.getShipAsset(playFabId, activeShipId, { promisifyPlayFab, PlayFabServer });
+    if (!shipData) return null;
+    const itemId = String(shipData?.ItemId || '').trim();
+    return normalizeShipClassFromItemId(itemId);
+}
+
+function applyVoyageMpClassAdjustment(baseCost, shipClass) {
+    if (baseCost <= 0) return 0;
+    const delta = Number(VOYAGE_MP_CLASS_ADJUSTMENTS[String(shipClass || '').toLowerCase()] || 0);
+    return Math.max(1, baseCost + delta);
+}
 
 function normalizeEntityKey(input) {
     const id = input?.Id || input?.id || null;
@@ -38,29 +103,127 @@ function normalizeEntityKey(input) {
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion } = deps;
 
+    async function getPlayerStatsMap(playFabId) {
+        const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
+            PlayFabId: playFabId
+        });
+        const currentStats = {};
+        if (Array.isArray(result?.Statistics)) {
+            result.Statistics.forEach((stat) => {
+                currentStats[stat.StatisticName] = stat.Value;
+            });
+        }
+        return currentStats;
+    }
+
+    async function applyOfflineMpRecovery(playFabId) {
+        const currentStats = await getPlayerStatsMap(playFabId);
+        const currentMp = Math.max(0, Number(currentStats.MP || 0));
+        const maxMp = Math.max(currentMp, Number(currentStats.MaxMP || currentMp || 0));
+        const nowMs = Date.now();
+        const internalResult = await promisifyPlayFab(PlayFabServer.GetUserInternalData, {
+            PlayFabId: playFabId,
+            Keys: [OFFLINE_MP_RECOVERY_SETTINGS.internalKey]
+        });
+        const lastRecoverAt = Number(
+            internalResult?.Data?.[OFFLINE_MP_RECOVERY_SETTINGS.internalKey]?.Value || 0
+        );
+
+        if (!Number.isFinite(lastRecoverAt) || lastRecoverAt <= 0) {
+            await promisifyPlayFab(PlayFabServer.UpdateUserInternalData, {
+                PlayFabId: playFabId,
+                Data: {
+                    [OFFLINE_MP_RECOVERY_SETTINGS.internalKey]: String(nowMs)
+                }
+            });
+            return { currentStats, recovered: 0 };
+        }
+
+        if (currentMp >= maxMp) {
+            if (nowMs - lastRecoverAt >= OFFLINE_MP_RECOVERY_SETTINGS.intervalMs) {
+                await promisifyPlayFab(PlayFabServer.UpdateUserInternalData, {
+                    PlayFabId: playFabId,
+                    Data: {
+                        [OFFLINE_MP_RECOVERY_SETTINGS.internalKey]: String(nowMs)
+                    }
+                });
+            }
+            return { currentStats, recovered: 0 };
+        }
+
+        const elapsedMs = Math.max(0, nowMs - lastRecoverAt);
+        const recoveredSteps = Math.floor(elapsedMs / OFFLINE_MP_RECOVERY_SETTINGS.intervalMs);
+        if (recoveredSteps <= 0) {
+            return { currentStats, recovered: 0 };
+        }
+
+        const recovered = Math.min(
+            maxMp - currentMp,
+            recoveredSteps * OFFLINE_MP_RECOVERY_SETTINGS.amount
+        );
+        if (recovered <= 0) {
+            return { currentStats, recovered: 0 };
+        }
+
+        const newMp = currentMp + recovered;
+        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: 'MP', Value: newMp }]
+        });
+
+        const nextRecoverAt = newMp >= maxMp
+            ? nowMs
+            : lastRecoverAt + (
+                Math.ceil(recovered / OFFLINE_MP_RECOVERY_SETTINGS.amount) *
+                OFFLINE_MP_RECOVERY_SETTINGS.intervalMs
+            );
+        await promisifyPlayFab(PlayFabServer.UpdateUserInternalData, {
+            PlayFabId: playFabId,
+            Data: {
+                [OFFLINE_MP_RECOVERY_SETTINGS.internalKey]: String(nextRecoverAt)
+            }
+        });
+
+        return {
+            currentStats: { ...currentStats, MP: newMp },
+            recovered
+        };
+    }
+
     async function applyResourceRecovery(playFabId, recoveryKey) {
         const config = RESOURCE_RECOVERY_SETTINGS[recoveryKey];
         if (!config) {
             return { ok: false, status: 400, error: '不正な回復種別です。' };
         }
 
-        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
-            PlayFabId: playFabId
-        });
-        const currentStats = {};
-        if (Array.isArray(statsResult?.Statistics)) {
-            statsResult.Statistics.forEach((stat) => {
-                currentStats[stat.StatisticName] = stat.Value;
-            });
-        }
+        const currentStats = config.targetStat === 'MP'
+            ? (await applyOfflineMpRecovery(playFabId)).currentStats
+            : await getPlayerStatsMap(playFabId);
 
         const currentValue = Number(currentStats[config.targetStat] || 0);
         const maxValue = Number(currentStats[config.maxStat] || currentValue || 0);
         if (currentValue >= maxValue) {
             return { ok: false, status: 400, error: config.fullMessage };
         }
+        const recoverAmount = Math.max(
+            1,
+            Number(
+                typeof config.resolveAmount === 'function'
+                    ? config.resolveAmount(currentStats, maxValue)
+                    : config.amount
+            ) || 1
+        );
 
-        const currentBalance = Number(await getCurrencyBalance(playFabId, config.itemId)) || 0;
+        const activeShipId = await resourceStorage.getActiveShipId(playFabId, { promisifyPlayFab, PlayFabServer });
+        if (!activeShipId) {
+            return { ok: false, status: 400, error: '使用中の船が必要です。' };
+        }
+        const shipData = await resourceStorage.getShipAsset(playFabId, activeShipId, { promisifyPlayFab, PlayFabServer });
+        if (!shipData) {
+            return { ok: false, status: 404, error: '使用中の船データが見つかりません。' };
+        }
+        const shipCargo = resourceStorage.getShipResourceCargo(shipData);
+        const currentBalance = Number(shipCargo[config.itemId] || 0) || 0;
         if (currentBalance < 1) {
             return {
                 ok: false,
@@ -75,9 +238,11 @@ function initializeInventoryRoutes(app, deps) {
             };
         }
 
-        await subtractEconomyItem(playFabId, config.itemId, 1);
+        shipCargo[config.itemId] = Math.max(0, currentBalance - 1);
+        resourceStorage.setShipResourceCargo(shipData, shipCargo);
+        await resourceStorage.updateShipAsset(playFabId, activeShipId, shipData, { promisifyPlayFab, PlayFabServer });
 
-        const recoveredValue = Math.min(currentValue + config.amount, maxValue);
+        const recoveredValue = Math.min(currentValue + recoverAmount, maxValue);
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
             Statistics: [{ StatisticName: config.targetStat, Value: recoveredValue }]
@@ -89,6 +254,7 @@ function initializeInventoryRoutes(app, deps) {
             recovered: recoveredValue - currentValue,
             newValue: recoveredValue,
             maxValue,
+            shipId: activeShipId,
             consumed: { itemId: config.itemId, amount: 1 }
         };
     }
@@ -100,6 +266,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
+            await applyOfflineMpRecovery(playFabId);
             let experience = 0;
             if (typeof ensureDailyBountyConversion === 'function') {
                 try {
@@ -225,15 +392,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
         console.log(`[ステータス取得] ${playFabId} のステータスを取得します...`);
         try {
-            const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
-                PlayFabId: playFabId
-            });
-            const stats = {};
-            if (result.Statistics) {
-                result.Statistics.forEach(stat => {
-                    stats[stat.StatisticName] = stat.Value;
-                });
-            }
+            const stats = (await applyOfflineMpRecovery(playFabId)).currentStats;
             console.log('[ステータス取得] 完了');
             res.json({ stats: stats });
         } catch (error) {
@@ -285,6 +444,127 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[resource-recover-mp] エラー', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'MP回復に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/consume-voyage-mp', async (req, res) => {
+        const { playFabId, durationMs } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+
+        const baseVoyageCost = calculateVoyageMpCost(durationMs);
+
+        try {
+            let shipClass = null;
+            try {
+                shipClass = await resolveActiveShipClass(playFabId, { promisifyPlayFab, PlayFabServer });
+            } catch (shipError) {
+                console.warn('[consume-voyage-mp] ship class resolve failed', shipError?.errorMessage || shipError?.message || shipError);
+            }
+            const voyageCost = applyVoyageMpClassAdjustment(baseVoyageCost, shipClass);
+            const currentStats = (await applyOfflineMpRecovery(playFabId)).currentStats;
+
+            const currentMp = Math.max(0, Number(currentStats.MP || 0));
+            if (voyageCost <= 0) {
+                return res.json({
+                    status: 'ok',
+                    baseVoyageCost,
+                    voyageCost: 0,
+                    shipClass,
+                    updatedStats: { MP: currentMp },
+                    message: '短い航海のためMP消費はありません。'
+                });
+            }
+
+            if (currentMp < voyageCost) {
+                return res.json({
+                    status: 'blocked',
+                    baseVoyageCost,
+                    voyageCost,
+                    shipClass,
+                    currentMp,
+                    requiredMp: voyageCost,
+                    error: `長距離航海にはMPが${voyageCost}必要です。（現在 ${currentMp}）`
+                });
+            }
+
+            const newMp = Math.max(0, currentMp - voyageCost);
+            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                PlayFabId: playFabId,
+                Statistics: [{ StatisticName: 'MP', Value: newMp }]
+            });
+
+        res.json({
+            status: 'ok',
+            baseVoyageCost,
+            voyageCost,
+            shipClass,
+            updatedStats: { MP: newMp },
+            message: `長距離航海でMPを${voyageCost}消費した。`
+        });
+        } catch (error) {
+            console.error('[consume-voyage-mp] エラー', error.errorMessage || error.message || error);
+            res.status(500).json({ error: '航海MPの更新に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    app.post('/api/recover-docked-mp', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+
+        try {
+            const currentStats = (await applyOfflineMpRecovery(playFabId)).currentStats;
+
+            const currentMp = Math.max(0, Number(currentStats.MP || 0));
+            const maxMp = Math.max(currentMp, Number(currentStats.MaxMP || currentMp || 0));
+            if (currentMp >= maxMp) {
+                return res.json({
+                    status: 'full',
+                    updatedStats: { MP: currentMp },
+                    recovered: 0
+                });
+            }
+
+            const internalResult = await promisifyPlayFab(PlayFabServer.GetUserInternalData, {
+                PlayFabId: playFabId,
+                Keys: [DOCKED_MP_RECOVERY_SETTINGS.internalKey]
+            });
+            const lastRecoverAt = Number(
+                internalResult?.Data?.[DOCKED_MP_RECOVERY_SETTINGS.internalKey]?.Value || 0
+            );
+            const nowMs = Date.now();
+            const remainingMs = lastRecoverAt > 0
+                ? Math.max(0, DOCKED_MP_RECOVERY_SETTINGS.cooldownMs - (nowMs - lastRecoverAt))
+                : 0;
+            if (remainingMs > 0) {
+                return res.json({
+                    status: 'cooldown',
+                    updatedStats: { MP: currentMp },
+                    recovered: 0,
+                    remainingMs
+                });
+            }
+
+            const newMp = Math.min(maxMp, currentMp + DOCKED_MP_RECOVERY_SETTINGS.amount);
+            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                PlayFabId: playFabId,
+                Statistics: [{ StatisticName: 'MP', Value: newMp }]
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserInternalData, {
+                PlayFabId: playFabId,
+                Data: {
+                    [DOCKED_MP_RECOVERY_SETTINGS.internalKey]: String(nowMs)
+                }
+            });
+
+            return res.json({
+                status: 'ok',
+                updatedStats: { MP: newMp },
+                recovered: newMp - currentMp,
+                message: `停泊中にMPが${newMp - currentMp}回復した。`
+            });
+        } catch (error) {
+            console.error('[recover-docked-mp] エラー', error.errorMessage || error.message || error);
+            return res.status(500).json({ error: '停泊中のMP回復に失敗しました。', details: error.errorMessage || error.message });
         }
     });
 

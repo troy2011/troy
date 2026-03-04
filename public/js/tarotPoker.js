@@ -366,6 +366,65 @@ async function animateBackToFrontOnElement(cardEl, finalCard) {
     cardEl.replaceWith(revealed);
 }
 
+function createDailyFortuneCardElement(card, options = {}) {
+    const {
+        hidden = true,
+        clickable = false,
+        reversed = false,
+        onReveal = null
+    } = options;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'tarot-fortune-card-shell';
+    if (hidden && clickable) {
+        el.classList.add('is-clickable');
+        el.setAttribute('aria-label', 'カードをめくる');
+        el.addEventListener('click', () => {
+            revealDailyFortuneCardElement(el, card, { reversed, onReveal });
+        });
+    } else {
+        el.classList.add('is-static');
+        el.disabled = true;
+    }
+
+    const art = document.createElement('div');
+    art.className = 'tarot-card-art tarot-fortune-card-art';
+    setArtSpriteByIndex(art, hidden ? TAROT_BACK_SPRITE_INDEX : getTarotSpriteIndex(card));
+    el.appendChild(art);
+
+    if (!hidden) {
+        el.dataset.revealed = '1';
+        el.classList.add('is-revealed');
+        if (reversed) el.classList.add('is-reversed');
+    }
+
+    return el;
+}
+
+async function revealDailyFortuneCardElement(cardEl, card, options = {}) {
+    if (!cardEl || !card) return;
+    if (cardEl.dataset.revealed === '1' || cardEl.dataset.revealing === '1') return;
+    const art = cardEl.querySelector('.tarot-fortune-card-art');
+    if (!art) return;
+
+    cardEl.dataset.revealing = '1';
+    cardEl.disabled = true;
+    for (const frame of TAROT_REVEAL_FRAMES) {
+        setArtSpriteByIndex(art, frame);
+        await wait(TAROT_REVEAL_FRAME_MS);
+    }
+    setArtSpriteByIndex(art, getTarotSpriteIndex(card));
+    if (options.reversed) cardEl.classList.add('is-reversed');
+    cardEl.classList.remove('is-clickable');
+    cardEl.classList.add('is-revealed', 'is-static');
+    cardEl.dataset.revealed = '1';
+    delete cardEl.dataset.revealing;
+
+    if (typeof options.onReveal === 'function') {
+        options.onReveal(cardEl);
+    }
+}
+
 async function revealCpuHandFromBack() {
     if (!ui.cpuHand || !state?.players?.cpu?.hand) return;
     const cpuCards = state.players.cpu.hand;
@@ -4586,7 +4645,7 @@ function openDailyFortuneOverlay() {
     overlay.style.display = 'flex';
 }
 
-function renderDailyFortuneResult(result) {
+function renderDailyFortuneResultLegacy(result) {
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
@@ -4605,6 +4664,34 @@ function renderDailyFortuneResult(result) {
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
     textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
+}
+
+function renderDailyFortuneResult(result) {
+    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+    if (!cardHost || !textEl || !titleEl) return;
+
+    const card = getCardDataFromFortuneResult(result);
+    const isReversed = String(result?.orientation || '') === 'reversed';
+    const orientationLabel = isReversed ? '逆位置' : '正位置';
+    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
+    const finalizeReveal = () => {
+        titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
+        textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
+    };
+
+    const cardEl = createDailyFortuneCardElement(card, {
+        hidden: true,
+        clickable: true,
+        reversed: isReversed,
+        onReveal: finalizeReveal
+    });
+
+    cardHost.innerHTML = '';
+    cardHost.appendChild(cardEl);
+    titleEl.textContent = '本日の運勢';
+    textEl.textContent = 'カードをタップしてめくってください。';
 }
 
 async function requestDailyFortuneStatus(playFabId) {

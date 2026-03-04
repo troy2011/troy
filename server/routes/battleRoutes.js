@@ -864,9 +864,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 savePlayerHpMp(battleResult.winner),
                 savePlayerHpMp(battleResult.loser)
             ]);
-            handleBattleRewards(battleId, winnerId, loserId, `round_${round}`).catch((rewardError) => {
+            try {
+                await handleBattleRewards(battleId, winnerId, loserId, `round_${round}`);
+            } catch (rewardError) {
                 console.error(`[勝敗処理エラー] battleId: ${battleId}`, rewardError);
-            });
+            }
             recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
 
             if (winnerId === fighterAId) {
@@ -1077,9 +1079,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     savePlayerHpMp(battleResult.winner),
                     savePlayerHpMp(battleResult.loser)
                 ]);
-                handleBattleRewards(battleId, winnerId, loserId, `round_${round}`).catch(rewardError => {
+                try {
+                    await handleBattleRewards(battleId, winnerId, loserId, `round_${round}`);
+                } catch (rewardError) {
                     console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
-                });
+                }
                 recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
 
                 if (winnerId === fighterAId) {
@@ -1170,7 +1174,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/start-island-capture-battle', async (req, res) => {
-        const { attackerId, islandId, mapId } = req.body || {};
+        const { attackerId, opponentId, islandId, mapId } = req.body || {};
         if (!attackerId || !islandId || !mapId) {
             return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });
         }
@@ -1191,6 +1195,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const defenderId = captureQueue[0].playFabId;
             if (!defenderId || defenderId === attackerId) {
                 return res.status(409).json({ error: 'CaptureBattleInvalid' });
+            }
+            if (opponentId && String(opponentId) !== String(defenderId)) {
+                return res.status(409).json({ error: 'CaptureBattleTargetChanged' });
             }
 
             const attackerNation = await getPlayerNation(attackerId);
@@ -1432,7 +1439,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 }
                 return currentBattleState;
 
-            }).then(result => {
+            }).then(async (result) => {
                 if (!result.committed) {
                     console.log(`[バトルアクション] トランザクション中断 (競合または条件不一致): ${battleId}`);
                     return res.status(409).json({ error: 'アクションを処理できませんでした（競合発生）。' });
@@ -1448,10 +1455,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     const loserId = Object.keys(finalBattleState.players).find(id => id !== winnerId);
 
                     if (winnerId && loserId) {
-                        // 非同期で報酬処理を実行（クライアントへの応答をブロックしない）
-                        handleBattleRewards(battleId, winnerId, loserId).catch(rewardError => {
+                        try {
+                            await handleBattleRewards(battleId, winnerId, loserId);
+                        } catch (rewardError) {
                             console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
-                        });
+                        }
                     }
                 }
 
@@ -1511,9 +1519,11 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             await battleRef.update(updates);
 
             // 報酬処理を実行
-            handleBattleRewards(battleId, playFabId, opponentId).catch(rewardError => {
+            try {
+                await handleBattleRewards(battleId, playFabId, opponentId);
+            } catch (rewardError) {
                 console.error(`[報酬処理エラー@不戦勝] battleId: ${battleId}`, rewardError);
-            });
+            }
 
             res.json({ status: 'success', message: '不戦勝が確定しました。' });
 
