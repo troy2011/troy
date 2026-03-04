@@ -228,8 +228,6 @@ const ui = {
 
 const DAILY_FORTUNE_OVERLAY_ID = 'dailyTarotFortuneOverlay';
 const DAILY_FORTUNE_MODAL_ID = 'dailyTarotFortuneModal';
-const DAILY_FORTUNE_DRAW_BUTTON_ID = 'dailyTarotFortuneDrawButton';
-const DAILY_FORTUNE_CLOSE_BUTTON_ID = 'dailyTarotFortuneCloseButton';
 const DAILY_FORTUNE_CARD_HOST_ID = 'dailyTarotFortuneCardHost';
 const DAILY_FORTUNE_TEXT_ID = 'dailyTarotFortuneText';
 const DAILY_FORTUNE_TITLE_ID = 'dailyTarotFortuneTitle';
@@ -4580,11 +4578,7 @@ function ensureDailyFortuneOverlay() {
             <div id="${DAILY_FORTUNE_TITLE_ID}" class="tarot-fortune-title">本日の運勢</div>
             <div class="tarot-fortune-sub">1日1回だけ、タロットで運勢を占えます。</div>
             <div id="${DAILY_FORTUNE_CARD_HOST_ID}" class="tarot-fortune-card-host"></div>
-            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">中央のボタンで占いを開始してください。</div>
-            <div class="tarot-fortune-actions">
-                <button id="${DAILY_FORTUNE_DRAW_BUTTON_ID}" type="button">占う</button>
-                <button id="${DAILY_FORTUNE_CLOSE_BUTTON_ID}" type="button" style="display:none;">閉じる</button>
-            </div>
+            <div id="${DAILY_FORTUNE_TEXT_ID}" class="tarot-fortune-text">運勢を読み込み中...</div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -4705,14 +4699,9 @@ async function requestDailyFortuneDraw(playFabId) {
 async function handleDailyFortuneDraw(playFabId) {
     if (!playFabId || dailyFortuneInFlight) return;
     dailyFortuneInFlight = true;
-    const drawButton = document.getElementById(DAILY_FORTUNE_DRAW_BUTTON_ID);
-    const closeButton = document.getElementById(DAILY_FORTUNE_CLOSE_BUTTON_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     try {
-        if (drawButton) {
-            drawButton.disabled = true;
-            drawButton.textContent = '占い中...';
-        }
+        if (textEl) textEl.textContent = '運勢を読み込み中...';
         const data = await requestDailyFortuneDraw(playFabId);
         if (data?.result) {
             renderDailyFortuneResult(data.result);
@@ -4735,40 +4724,21 @@ async function handleDailyFortuneDraw(playFabId) {
         if (textEl) {
             textEl.textContent = `占いに失敗しました: ${error?.message || 'unknown error'}`;
         }
-        if (drawButton) drawButton.disabled = false;
     } finally {
-        if (drawButton) {
-            drawButton.textContent = '占う';
-            drawButton.style.display = dailyFortuneClaimedSession ? 'none' : 'inline-flex';
-            drawButton.disabled = dailyFortuneClaimedSession;
-        }
-        if (closeButton) closeButton.style.display = 'inline-flex';
         dailyFortuneInFlight = false;
     }
 }
 
 function setupDailyFortuneOverlay(playFabId) {
     openDailyFortuneOverlay();
-    const drawButton = document.getElementById(DAILY_FORTUNE_DRAW_BUTTON_ID);
-    const closeButton = document.getElementById(DAILY_FORTUNE_CLOSE_BUTTON_ID);
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
 
     if (titleEl) titleEl.textContent = '本日の運勢';
     if (cardHost) cardHost.innerHTML = '';
-    if (textEl) textEl.textContent = '中央のボタンで占いを開始してください。';
-
-    if (drawButton) {
-        drawButton.style.display = 'inline-flex';
-        drawButton.disabled = false;
-        drawButton.textContent = '占う';
-        drawButton.onclick = () => handleDailyFortuneDraw(playFabId);
-    }
-    if (closeButton) {
-        closeButton.style.display = 'inline-flex';
-        closeButton.onclick = () => closeDailyFortuneOverlay();
-    }
+    if (textEl) textEl.textContent = '運勢を読み込み中...';
+    handleDailyFortuneDraw(playFabId);
 }
 
 async function maybeShowDailyFortunePrompt(playFabId, options = {}) {

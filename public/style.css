@@ -7145,18 +7145,6 @@ body.modal-lock .modal-overlay {
     margin-bottom: 10px;
 }
 
-.tarot-fortune-actions {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.tarot-fortune-actions button {
-    min-width: 128px;
-    min-height: 38px;
-}
-
 @media (max-width: 900px) {
     .tarot-poker-columns {
         display: grid;
