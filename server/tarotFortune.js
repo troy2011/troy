@@ -1,6 +1,16 @@
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 
 const FORTUNE_DATA_KEY = 'DailyTarotFortune';
+const DAILY_BOUNTY_GACHA_DATA_KEY = 'DailyBountyGachaReward';
+const DAILY_BOUNTY_STAT_NAME = 'bounty_ranking';
+const DAILY_BOUNTY_TOP_COUNT = Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_TOP_COUNT || 3)));
+const DAILY_BOUNTY_GACHA_TABLE_ID = String(process.env.DAILY_BOUNTY_GACHA_TABLE_ID || process.env.GACHA_DROP_TABLE_ID || 'gacha_table');
+const DAILY_BOUNTY_GACHA_CATALOG_VERSION = String(process.env.DAILY_BOUNTY_GACHA_CATALOG_VERSION || process.env.GACHA_CATALOG_VERSION || 'main');
+const DAILY_BOUNTY_PULLS_BY_POSITION = {
+    1: Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_PULLS_1 || 3))),
+    2: Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_PULLS_2 || 2))),
+    3: Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_PULLS_3 || 1)))
+};
 
 const SUITS = ['Wand', 'Sword', 'Cup', 'Pentacle'];
 const SUIT_LABEL = {
@@ -329,6 +339,117 @@ async function writeFortuneRecord(playFabId, record, promisifyPlayFab, PlayFabSe
     });
 }
 
+function normalizePlayFabId(value) {
+    return String(value || '').trim().replace(/^playfab:/i, '').toUpperCase();
+}
+
+function normalizeDailyBountyRewardRecord(raw, todayKey) {
+    const record = raw && typeof raw === 'object' ? raw : {};
+    const dayKey = String(record.dayKey || '');
+    const itemIds = Array.isArray(record.itemIds)
+        ? record.itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)
+        : [];
+    const rank = Number(record.rank || 0);
+    const pulls = Number(record.pulls || itemIds.length || 0);
+    const eligible = !!record.eligible;
+    const alreadyClaimed = dayKey === String(todayKey || '');
+    return {
+        dayKey,
+        eligible,
+        awarded: itemIds.length > 0,
+        alreadyClaimed,
+        rank: Number.isFinite(rank) && rank > 0 ? rank : null,
+        pulls: Number.isFinite(pulls) && pulls > 0 ? pulls : 0,
+        items: itemIds.map((itemId) => ({ itemId, amount: 1 }))
+    };
+}
+
+async function readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer) {
+    const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Keys: [DAILY_BOUNTY_GACHA_DATA_KEY]
+    });
+    const raw = ro?.Data?.[DAILY_BOUNTY_GACHA_DATA_KEY]?.Value || '';
+    return parseJsonSafe(raw);
+}
+
+async function writeDailyBountyRewardRecord(playFabId, record, promisifyPlayFab, PlayFabServer) {
+    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+        PlayFabId: playFabId,
+        Data: {
+            [DAILY_BOUNTY_GACHA_DATA_KEY]: JSON.stringify(record)
+        }
+    });
+}
+
+function getDailyBountyPullCount(position) {
+    const pos = Math.max(1, Math.floor(Number(position) || 0));
+    return Math.max(0, Number(DAILY_BOUNTY_PULLS_BY_POSITION[pos] || 0));
+}
+
+async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
+    const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
+    const current = await readDailyBountyRewardRecord(playFabId, promisifyPlayFab, PlayFabServer);
+    const currentNormalized = normalizeDailyBountyRewardRecord(current, todayKey);
+    if (currentNormalized.alreadyClaimed) {
+        return currentNormalized;
+    }
+
+    const rankingResult = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
+        StatisticName: DAILY_BOUNTY_STAT_NAME,
+        StartPosition: 0,
+        MaxResultsCount: DAILY_BOUNTY_TOP_COUNT
+    });
+    const ranking = Array.isArray(rankingResult?.Leaderboard) ? rankingResult.Leaderboard : [];
+    const selfId = normalizePlayFabId(playFabId);
+    let rank = null;
+    for (let i = 0; i < ranking.length; i += 1) {
+        const entryId = normalizePlayFabId(ranking[i]?.PlayFabId);
+        if (entryId && entryId === selfId) {
+            rank = i + 1;
+            break;
+        }
+    }
+
+    if (!rank) {
+        const notEligibleRecord = {
+            dayKey: todayKey,
+            checkedAt: new Date().toISOString(),
+            eligible: false,
+            rank: null,
+            pulls: 0,
+            itemIds: []
+        };
+        await writeDailyBountyRewardRecord(playFabId, notEligibleRecord, promisifyPlayFab, PlayFabServer);
+        return normalizeDailyBountyRewardRecord(notEligibleRecord, todayKey);
+    }
+
+    const pulls = getDailyBountyPullCount(rank);
+    const grantedItemIds = [];
+    for (let i = 0; i < pulls; i += 1) {
+        const randomResult = await promisifyPlayFab(PlayFabServer.EvaluateRandomResultTable, {
+            TableId: DAILY_BOUNTY_GACHA_TABLE_ID,
+            CatalogVersion: DAILY_BOUNTY_GACHA_CATALOG_VERSION
+        });
+        const itemId = String(randomResult?.ResultItemId || '').trim();
+        if (!itemId) continue;
+        const idempotencyId = `daily-bounty-gacha-${normalizePlayFabId(playFabId)}-${todayKey}-r${rank}-p${i + 1}-${itemId}`;
+        await addEconomyItem(playFabId, itemId, 1, { idempotencyId });
+        grantedItemIds.push(itemId);
+    }
+
+    const rewardRecord = {
+        dayKey: todayKey,
+        checkedAt: new Date().toISOString(),
+        eligible: true,
+        rank,
+        pulls,
+        itemIds: grantedItemIds
+    };
+    await writeDailyBountyRewardRecord(playFabId, rewardRecord, promisifyPlayFab, PlayFabServer);
+    return normalizeDailyBountyRewardRecord(rewardRecord, todayKey);
+}
+
 function initializeTarotFortuneRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem, getCurrencyBalance } = deps;
 
@@ -363,12 +484,19 @@ function initializeTarotFortuneRoutes(app, deps) {
             const current = await readFortuneRecord(playFabId, promisifyPlayFab, PlayFabServer);
             if (current && String(current.dayKey || '') === todayKey) {
                 const balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+                let dailyBountyReward = null;
+                try {
+                    dailyBountyReward = await claimDailyBountyGachaReward(playFabId, deps, todayKey);
+                } catch (rewardError) {
+                    console.warn('[daily-bounty-gacha] claim skipped (already fortune claimed):', rewardError?.errorMessage || rewardError?.message || rewardError);
+                }
                 return res.json({
                     ok: true,
                     alreadyClaimed: true,
                     currency: VIRTUAL_CURRENCY_CODE,
                     balance,
-                    result: current
+                    result: current,
+                    dailyBountyReward
                 });
             }
 
@@ -396,6 +524,12 @@ function initializeTarotFortuneRoutes(app, deps) {
             const idempotencyId = `tarot-fortune-${playFabId}-${todayKey}`;
             await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, rewardPs, { idempotencyId });
             await writeFortuneRecord(playFabId, result, promisifyPlayFab, PlayFabServer);
+            let dailyBountyReward = null;
+            try {
+                dailyBountyReward = await claimDailyBountyGachaReward(playFabId, deps, todayKey);
+            } catch (rewardError) {
+                console.warn('[daily-bounty-gacha] claim skipped:', rewardError?.errorMessage || rewardError?.message || rewardError);
+            }
             const balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
 
             return res.json({
@@ -404,7 +538,8 @@ function initializeTarotFortuneRoutes(app, deps) {
                 currency: VIRTUAL_CURRENCY_CODE,
                 awarded: rewardPs,
                 balance,
-                result
+                result,
+                dailyBountyReward
             });
         } catch (error) {
             console.error('[tarot-fortune-draw] Error:', error?.errorMessage || error?.message || error);

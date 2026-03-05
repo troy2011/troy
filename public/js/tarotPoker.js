@@ -4676,11 +4676,14 @@ function renderDailyFortuneResultLegacy(result) {
     textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
 }
 
-function renderDailyFortuneResult(result) {
+function renderDailyFortuneResult(result, options = {}) {
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
     if (!cardHost || !textEl || !titleEl) return;
+    const onRevealComplete = typeof options?.onRevealComplete === 'function'
+        ? options.onRevealComplete
+        : null;
 
     const card = getCardDataFromFortuneResult(result);
     const isReversed = String(result?.orientation || '') === 'reversed';
@@ -4691,17 +4694,112 @@ function renderDailyFortuneResult(result) {
         textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
     };
 
+    const handleReveal = async () => {
+        finalizeReveal();
+        if (onRevealComplete) {
+            await onRevealComplete(result);
+        }
+    };
+
     const cardEl = createDailyFortuneCardElement(card, {
         hidden: true,
         clickable: true,
         reversed: isReversed,
-        onReveal: finalizeReveal
+        onReveal: () => { void handleReveal(); }
     });
 
     cardHost.innerHTML = '';
     cardHost.appendChild(cardEl);
     titleEl.textContent = '本日の運勢';
     textEl.textContent = 'カードをタップしてめくってください。';
+}
+
+function normalizeDailyBountyReward(rawReward) {
+    const reward = rawReward && typeof rawReward === 'object' ? rawReward : {};
+    const items = Array.isArray(reward.items)
+        ? reward.items
+            .map((item) => {
+                const itemId = String(item?.itemId || item?.ItemId || '').trim();
+                if (!itemId) return null;
+                const amount = Math.max(1, Math.floor(Number(item?.amount || item?.Amount || 1) || 1));
+                return { itemId, amount };
+            })
+            .filter(Boolean)
+        : [];
+    const rank = Number(reward.rank || 0);
+    const pulls = Math.max(items.length, Math.floor(Number(reward.pulls || 0) || 0));
+    return {
+        awarded: !!reward.awarded && items.length > 0,
+        alreadyClaimed: !!reward.alreadyClaimed,
+        eligible: !!reward.eligible,
+        rank: Number.isFinite(rank) && rank > 0 ? rank : null,
+        pulls,
+        items
+    };
+}
+
+async function playDailyBountyRewardPresentation(rawReward) {
+    const reward = normalizeDailyBountyReward(rawReward);
+    if (!reward.awarded || reward.alreadyClaimed) return;
+    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
+    if (!cardHost || !textEl || !titleEl) return;
+
+    const rankLabel = reward.rank ? `第${reward.rank}位` : '受賞';
+    titleEl.textContent = '賞金首ランキング報酬';
+    textEl.textContent = `${rankLabel}報酬: ガチャ演出中...`;
+
+    const wrap = document.createElement('div');
+    wrap.style.display = 'grid';
+    wrap.style.gap = '8px';
+    wrap.style.padding = '6px';
+
+    const reel = document.createElement('div');
+    reel.textContent = '🎰';
+    reel.style.fontSize = '42px';
+    reel.style.lineHeight = '1';
+    reel.style.filter = 'drop-shadow(0 0 10px rgba(255, 215, 120, 0.55))';
+    reel.style.animation = 'tarotKingdomPulseGlow 620ms ease-in-out infinite alternate';
+    wrap.appendChild(reel);
+
+    const list = document.createElement('div');
+    list.style.display = 'grid';
+    list.style.gap = '6px';
+    const rows = reward.items.map((item, index) => {
+        const row = document.createElement('div');
+        row.textContent = `抽選 ${index + 1}: ???`;
+        row.style.fontSize = '13px';
+        row.style.padding = '6px 8px';
+        row.style.borderRadius = '8px';
+        row.style.border = '1px solid rgba(255, 215, 122, 0.35)';
+        row.style.background = 'rgba(14, 22, 36, 0.72)';
+        row.style.opacity = '0.65';
+        row.style.transform = 'translateY(4px)';
+        row.style.transition = 'transform 200ms ease, opacity 200ms ease, border-color 200ms ease';
+        list.appendChild(row);
+        return row;
+    });
+    wrap.appendChild(list);
+
+    cardHost.innerHTML = '';
+    cardHost.appendChild(wrap);
+    await wait(420);
+
+    for (let i = 0; i < reward.items.length; i += 1) {
+        const item = reward.items[i];
+        const row = rows[i];
+        if (!row) continue;
+        row.textContent = `🎁 ${item.itemId} x${item.amount}`;
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+        row.style.borderColor = 'rgba(144, 238, 144, 0.68)';
+        await wait(360);
+    }
+
+    reel.style.animation = '';
+    reel.textContent = '✨';
+    textEl.textContent = `${rankLabel}報酬を受け取りました（${reward.items.length}件）`;
 }
 
 async function requestDailyFortuneStatus(playFabId) {
@@ -4720,7 +4818,15 @@ async function handleDailyFortuneDraw(playFabId) {
         if (textEl) textEl.textContent = '運勢を読み込み中...';
         const data = await requestDailyFortuneDraw(playFabId);
         if (data?.result) {
-            renderDailyFortuneResult(data.result);
+            const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
+            const shouldRunRewardFx = reward.awarded && !reward.alreadyClaimed;
+            renderDailyFortuneResult(data.result, {
+                onRevealComplete: shouldRunRewardFx
+                    ? async () => {
+                        await playDailyBountyRewardPresentation(reward);
+                    }
+                    : null
+            });
             dailyFortuneClaimedSession = true;
             dailyFortuneCanDrawSession = false;
         }
