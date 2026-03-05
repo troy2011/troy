@@ -21,11 +21,32 @@ const SUIT_THEME_COLOR = {
 const ARCANA_FLUSH_SUIT_OPTIONS = {
     0: ['All'],
     1: ['All'],
+    2: ['Cup'],
+    3: ['Pentacle'],
+    4: ['Wand'],
+    5: ['Sword'],
+    6: ['Cup'],
+    7: ['Sword'],
+    8: ['Wand'],
+    9: ['Pentacle'],
+    11: ['Sword'],
+    12: ['Pentacle'],
+    13: ['Cup'],
+    14: ['Wand'],
     16: ['Sword'],
     17: ['Cup'],
     18: ['Pentacle'],
     19: ['Wand']
 };
+
+function getArcanaBaseSuit(number) {
+    const suitOptions = ARCANA_FLUSH_SUIT_OPTIONS[Number(number)];
+    if (Array.isArray(suitOptions) && suitOptions.length > 0) {
+        if (suitOptions.includes('All')) return 'All';
+        if (SUITS.includes(suitOptions[0])) return suitOptions[0];
+    }
+    return 'None';
+}
 
 const EFFECT_TYPE = {
     WORLD: 'World',
@@ -535,12 +556,7 @@ function buildDeck() {
         if (number === 21) effectType = EFFECT_TYPE.WORLD;
         if (number === 20) effectType = EFFECT_TYPE.JUDGMENT;
         if (number === 0) effectType = EFFECT_TYPE.FOOL;
-        let suit = 'None';
-        if (number === 1) suit = 'All';
-        else if (number === 16) suit = 'Sword';
-        else if (number === 17) suit = 'Cup';
-        else if (number === 18) suit = 'Pentacle';
-        else if (number === 19) suit = 'Wand';
+        const suit = getArcanaBaseSuit(number);
         deck.push({
             id: `arcana-${number}`,
             number,

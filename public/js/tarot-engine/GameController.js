@@ -2,6 +2,24 @@ import { HandEvaluator } from './HandEvaluator.js';
 const FATE_ACTION_NUMBERS = new Set([2, 5, 9, 12, 19, 20]);
 const DEFAULT_WHEEL_MUTATION_POOL = [0, 1, 3, 4, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 21];
 const MINOR_SUITS = ['Wand', 'Pentacle', 'Cup', 'Sword'];
+const ARCANA_SPECIAL_SUIT = {
+    2: 'Cup',
+    3: 'Pentacle',
+    4: 'Wand',
+    5: 'Sword',
+    6: 'Cup',
+    7: 'Sword',
+    8: 'Wand',
+    9: 'Pentacle',
+    11: 'Sword',
+    12: 'Pentacle',
+    13: 'Cup',
+    14: 'Wand',
+    16: 'Sword',
+    17: 'Cup',
+    18: 'Pentacle',
+    19: 'Wand'
+};
 function randomPick(list, rng) {
     if (!list.length) {
         throw new Error('randomPick: 空リストは選択できません。');
@@ -43,10 +61,7 @@ function createMajorDeck() {
 }
 function fateArcanaSuitForNumber(number) {
     if (number === 1) return 'All';
-    if (number === 16) return 'Sword';
-    if (number === 17) return 'Cup';
-    if (number === 18) return 'Pentacle';
-    if (number === 19) return 'Wand';
+    if (ARCANA_SPECIAL_SUIT[number]) return ARCANA_SPECIAL_SUIT[number];
     return 'None';
 }
 function shuffleCards(cards, rng) {

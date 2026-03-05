@@ -572,18 +572,21 @@ async function requireKingContext(playFabId, firestore, deps) {
     const groupId = await getNationGroupIdByNation(nation, firestore, deps);
     if (!groupId) throw new Error('NationGroupNotFound');
 
-    const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
+    const groupDocRef = getNationGroupDoc(firestore, mapping.groupName);
+    const groupSnap = await groupDocRef.get();
     const storedKingId = groupSnap.exists ? normalizePlayFabId(groupSnap.data()?.kingPlayFabId || '') : '';
-    if (storedKingId && storedKingId !== kingId) throw new Error('NotKing');
+    const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: kingId,
+        Keys: ['IsKing']
+    });
+    const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
+    if (!isKing) throw new Error('NotKing');
 
-    if (!storedKingId) {
-        const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: kingId,
-            Keys: ['IsKing', 'NationKingId']
-        });
-        const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
-        const roKingId = normalizePlayFabId(kingRo?.Data?.NationKingId?.Value || '');
-        if (!isKing || (roKingId && roKingId !== kingId)) throw new Error('NotKing');
+    if (storedKingId !== kingId) {
+        await groupDocRef.set({
+            kingPlayFabId: kingId,
+            kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
     }
 
     return { kingId, nation, mapping, groupId };
@@ -746,7 +749,7 @@ function initializeNationRoutes(app, deps) {
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
-                Keys: ['NationGroupId', 'IsKing', 'NationKingId']
+                Keys: ['NationGroupId', 'IsKing']
             });
             if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) {
                 return res.json({ notInNation: true });
@@ -754,29 +757,26 @@ function initializeNationRoutes(app, deps) {
 
             const selfId = normalizePlayFabId(playFabId);
             const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
-            const roKingId = normalizePlayFabId(ro?.Data?.NationKingId?.Value || '');
-            if (!isKingFlag || (roKingId && roKingId !== selfId)) {
+            if (!isKingFlag) {
                 return res.status(403).json({ error: 'Only the king can view this page' });
             }
-            if (isKingFlag && (!roKingId || roKingId === selfId)) {
-                try {
-                    const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
-                    const mapping = getNationMappingByNation(nation);
-                    if (mapping) {
-                        const docRef = getNationGroupDoc(firestore, mapping.groupName);
-                        const docSnap = await docRef.get();
-                        const storedKingId = normalizePlayFabId(docSnap.data()?.kingPlayFabId || '');
-                        if (storedKingId !== selfId) {
-                            await docRef.set({
-                                kingPlayFabId: selfId,
-                                kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
-                            }, { merge: true });
-                        }
+            try {
+                const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+                const mapping = getNationMappingByNation(nation);
+                if (mapping) {
+                    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+                    const docSnap = await docRef.get();
+                    const storedKingId = normalizePlayFabId(docSnap.data()?.kingPlayFabId || '');
+                    if (storedKingId !== selfId) {
+                        await docRef.set({
+                            kingPlayFabId: selfId,
+                            kingAssignedAt: admin.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
                     }
-                    await ensureKingStarterCrown(playFabId, nation, { promisifyPlayFab, PlayFabServer, addEconomyItem });
-                } catch (syncError) {
-                    console.warn('[get-nation-king-page] Failed to sync kingPlayFabId:', syncError?.message || syncError);
                 }
+                await ensureKingStarterCrown(playFabId, nation, { promisifyPlayFab, PlayFabServer, addEconomyItem });
+            } catch (syncError) {
+                console.warn('[get-nation-king-page] Failed to sync kingPlayFabId:', syncError?.message || syncError);
             }
 
             const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {

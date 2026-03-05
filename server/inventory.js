@@ -99,6 +99,16 @@ function normalizeEntityKey(input) {
     return { Id: String(id), Type: String(type) };
 }
 
+function parseBooleanFlag(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
+function resolveIsKingFlag(readOnlyData) {
+    if (!readOnlyData || typeof readOnlyData !== 'object') return false;
+    return parseBooleanFlag(readOnlyData?.IsKing?.Value);
+}
+
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion } = deps;
@@ -302,6 +312,16 @@ function initializeInventoryRoutes(app, deps) {
             });
             const inventoryList = Array.from(itemMap.values());
             const virtualCurrency = getVirtualCurrencyMap(items);
+            let isKing = false;
+            try {
+                const readOnlyData = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Keys: ['IsKing']
+                });
+                isKing = resolveIsKingFlag(readOnlyData?.Data);
+            } catch (rankError) {
+                console.warn('[Inventory] resolve isKing failed:', rankError?.errorMessage || rankError?.message || rankError);
+            }
             const currencyKeys = Object.keys(virtualCurrency || {});
             console.log('[Inventory] currency summary', {
                 playFabId,
@@ -309,7 +329,7 @@ function initializeInventoryRoutes(app, deps) {
                 virtualCurrency
             });
             console.log('[Inventory] fetch complete');
-            res.json({ inventory: inventoryList, virtualCurrency, experience });
+            res.json({ inventory: inventoryList, virtualCurrency, experience, isKing });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'インベントリ取得に失敗しました。', details: error.errorMessage || error.message });

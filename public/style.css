@@ -3533,7 +3533,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-hand .tarot-card.is-selected {
-    transform: translateY(-6px) scale(1.03);
+    transform: translateY(-6px);
     border-color: var(--tarot-interact-selected, rgba(255, 225, 244, 0.98));
     box-shadow:
         0 0 0 1px var(--tarot-interact-border-soft, rgba(244, 114, 182, 0.78)),
@@ -5057,7 +5057,7 @@ body.modal-lock .modal-overlay {
         0 0 0 1px var(--tarot-interact-border-soft),
         0 0 16px var(--tarot-interact-glow),
         inset 0 0 0 1px rgba(255, 255, 255, 0.28);
-    transform: translateY(-6px) scale(1.02);
+    transform: translateY(-6px);
     animation: none !important;
 }
 
@@ -5256,6 +5256,10 @@ body.modal-lock .modal-overlay {
     filter: blur(2px) saturate(1.1);
     opacity: 0.34;
     animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
+}
+
+.tarot-card.is-arcana-match.is-selected::before {
+    filter: saturate(1.1);
 }
 
 .tarot-card.is-arcana-match .tarot-card-number {
@@ -6180,7 +6184,7 @@ body.modal-lock .modal-overlay {
             rgba(56, 189, 248, 0.24)
         );
     mix-blend-mode: screen;
-    filter: blur(2px) saturate(1.1);
+    filter: saturate(1.1);
     opacity: 0.34;
     animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
 }
@@ -6217,6 +6221,39 @@ body.modal-lock .modal-overlay {
 .tarot-card.is-arcana.arcana-suit-hybrid .tarot-card-title,
 .tarot-card.is-arcana.arcana-suit-hybrid .tarot-card-number {
     color: #f8fafc;
+}
+
+/* Mini tarot cards: reduce white arcana outline so suit color stays visible. */
+.tarot-kingdom-hand .tarot-card.is-arcana,
+.tarot-kingdom-oracle-card .tarot-card.is-arcana,
+.tarot-kingdom-grave-slot .tarot-card.is-arcana,
+.tarot-poker-column--npc-mini .tarot-card.is-arcana {
+    border-color: rgba(15, 23, 42, 0.82);
+    box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.5),
+        0 0 8px rgba(56, 189, 248, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tarot-kingdom-hand .tarot-card.is-arcana::before,
+.tarot-kingdom-oracle-card .tarot-card.is-arcana::before,
+.tarot-kingdom-grave-slot .tarot-card.is-arcana::before,
+.tarot-poker-column--npc-mini .tarot-card.is-arcana::before {
+    opacity: 0.14;
+    filter: saturate(1.02);
+}
+
+.tarot-kingdom-hand .tarot-card.is-arcana.arcana-suit-hybrid,
+.tarot-kingdom-oracle-card .tarot-card.is-arcana.arcana-suit-hybrid,
+.tarot-kingdom-grave-slot .tarot-card.is-arcana.arcana-suit-hybrid,
+.tarot-poker-column--npc-mini .tarot-card.is-arcana.arcana-suit-hybrid {
+    background:
+        linear-gradient(
+            135deg,
+            rgba(248, 250, 252, 0.96) 0 40%,
+            var(--arcana-color, #b11818) 40% 100%
+        ),
+        linear-gradient(180deg, #f8fafc, #e5e7eb);
 }
 
 @keyframes tarotArcanaSparkle {
@@ -7117,6 +7154,10 @@ body.modal-lock .modal-overlay {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+}
+
+.tarot-fortune-card-shell .tarot-fortune-card-art {
+    transform-origin: center center;
 }
 
 .tarot-fortune-card-shell.is-static,

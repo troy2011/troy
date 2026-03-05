@@ -1125,15 +1125,25 @@ function buildLocalStateTextOverride(playerIndex, selectedIndexes) {
     return selectedText;
   }
   if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(playerIndex)) return '';
-  const minorTop = s.hermitPreview.minorTop || null;
+  const minorTop = getCurrentHermitPreviewMinorTop();
   return `隠者の予見: 小=${minorTop ? getCardNameLabel(minorTop) : 'なし'}`;
+}
+
+function getCurrentHermitPreviewMinorTop() {
+  if (!s?.hermitPreview) return null;
+  const deckTop = (Array.isArray(s?.minorDeck) && s.minorDeck.length > 0)
+    ? (s.minorDeck[s.minorDeck.length - 1] || null)
+    : null;
+  if (deckTop) return deckTop;
+  // Backward compatibility for already-synced state that only has snapshot.
+  return s.hermitPreview.minorTop || null;
 }
 
 function getVisibleHermitPreviewForLocalPlayer() {
   if (!s?.roundActive || s?.hiddenOracleRevealed) return null;
   const me = getLocalPlayerIndex();
   if (!s?.hermitPreview || Number(s.hermitPreview.owner) !== Number(me)) return null;
-  return s.hermitPreview.minorTop || null;
+  return getCurrentHermitPreviewMinorTop();
 }
 
 function buildSelectedCardInfoMessage(playerIndex, selectedIndexes) {

@@ -10,13 +10,13 @@ import {
 } from './playfabClient.js';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
-import { isKing as isKingFlag } from './nationKing.js';
 import { formatCurrencyLabel, getResourceSourceInfo, getResourceUsageInfo } from './config.js';
 
 let myInventory = [];
 let myCurrentEquipment = {};
 let myVirtualCurrency = {};
 let myExperience = 0;
+let myIsKing = false;
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let myShipResourceStorage = {
@@ -200,7 +200,7 @@ function updateExperienceUI() {
 
     const data = calculateLevelFromExp(myExperience);
     const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
-    const rankName = getRankName(data.level, isKingFlag());
+    const rankName = getRankName(data.level, myIsKing);
 
     rankEl.textContent = rankName;
     progressEl.textContent = String(data.expInto);
@@ -219,6 +219,7 @@ export async function getInventory(playFabId) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
+        myIsKing = !!data.isKing;
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
@@ -251,6 +252,7 @@ export async function refreshResourceSummary(playFabId) {
         }
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(data.experience || 0);
+        myIsKing = !!data.isKing;
         await syncShipResourceSummary(playFabId);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);

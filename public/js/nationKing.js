@@ -67,7 +67,7 @@ export async function refreshKingNav(playFabId) {
 
     try {
         const data = await getNationKingPage(playFabId, { isSilent: true });
-        _isKing = !!data;
+        _isKing = !!(data && !data.notInNation);
     } catch (error) {
         _isKing = false;
     }
@@ -79,7 +79,13 @@ export async function loadKingPage(playFabId) {
     _setMessage('');
 
     const data = await getNationKingPage(playFabId);
-    if (!data) return;
+    if (!data || data.notInNation) {
+        _isKing = false;
+        const nav = document.getElementById('navKing');
+        if (nav) nav.style.display = 'none';
+        return;
+    }
+    _isKing = true;
     _lastPageData = data;
 
     const currentEl = document.getElementById('kingAnnouncementCurrent');
