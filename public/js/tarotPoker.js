@@ -3777,7 +3777,9 @@ function createCardElement(card, options = {}) {
         if (Number(card.number) === 1 || getCardSuitOptionsForFlush(card).includes('All')) {
             el.classList.add('arcana-all-corners');
         } else if (visualOptions.length >= 1) {
+            const arcanaSuit = String(visualOptions[0] || '').toLowerCase();
             el.classList.add('arcana-suit-hybrid');
+            if (arcanaSuit) el.classList.add(`arcana-suit-${arcanaSuit}`);
             el.style.setProperty('--arcana-color', getSuitThemeColor(visualOptions[0]));
         }
     }

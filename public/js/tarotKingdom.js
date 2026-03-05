@@ -95,6 +95,8 @@ let trickSwapTimer = null;
 let stateErrorTimer = null;
 let kingdomCutinTimer = null;
 let kingdomOverlayTimer = null;
+let kingdomTrickSceneFlashKind = '';
+let kingdomTrickSceneFlashTimer = null;
 let oracleRevealDelayTimer = null;
 let oracleFlipSwapTimer = null;
 let oracleFlipEndTimer = null;
@@ -163,6 +165,75 @@ const tkNet = {
   localPlayerName: '',
   presenceRef: null
 };
+const KINGDOM_TRICK_SCENE_CLASSES = [
+  'is-scene-lock',
+  'is-scene-lock-wand',
+  'is-scene-lock-cup',
+  'is-scene-lock-sword',
+  'is-scene-lock-pentacle',
+  'is-scene-back',
+  'is-scene-cut',
+  'is-scene-skip'
+];
+
+function clearKingdomTrickSceneFlash(shouldRender = false) {
+  if (kingdomTrickSceneFlashTimer) {
+    clearTimeout(kingdomTrickSceneFlashTimer);
+    kingdomTrickSceneFlashTimer = null;
+  }
+  kingdomTrickSceneFlashKind = '';
+  if (shouldRender) render();
+}
+
+function triggerKingdomTrickSceneFlash(kind, durationMs = 780) {
+  if (!kind) return;
+  if (!['cut', 'skip'].includes(String(kind))) return;
+  kingdomTrickSceneFlashKind = String(kind);
+  if (kingdomTrickSceneFlashTimer) {
+    clearTimeout(kingdomTrickSceneFlashTimer);
+    kingdomTrickSceneFlashTimer = null;
+  }
+  const holdMs = Math.max(220, Number(durationMs) || 0);
+  kingdomTrickSceneFlashTimer = setTimeout(() => {
+    kingdomTrickSceneFlashTimer = null;
+    kingdomTrickSceneFlashKind = '';
+    render();
+  }, holdMs);
+  render();
+}
+
+function syncKingdomTrickSceneClass() {
+  if (!ui.trick) return;
+  ui.trick.classList.remove(...KINGDOM_TRICK_SCENE_CLASSES);
+  const lockSuit = s?.lock?.suit || null;
+  const hasLock = !!lockSuit;
+  const hasReverse = !!s?.reverse;
+  const flashKind = String(kingdomTrickSceneFlashKind || '');
+  let scene = '';
+  if (flashKind === 'cut') scene = 'cut';
+  else if (flashKind === 'skip') scene = 'skip';
+  else if (hasLock) scene = 'lock';
+  else if (hasReverse) scene = 'back';
+  if (scene === 'cut') {
+    ui.trick.classList.add('is-scene-cut');
+    return;
+  }
+  if (scene === 'skip') {
+    ui.trick.classList.add('is-scene-skip');
+    return;
+  }
+  if (scene === 'lock') {
+    ui.trick.classList.add('is-scene-lock');
+    const key = String(lockSuit || '').toLowerCase();
+    if (['wand', 'cup', 'sword', 'pentacle'].includes(key)) {
+      ui.trick.classList.add(`is-scene-lock-${key}`);
+    }
+    return;
+  }
+  if (scene === 'back') {
+    ui.trick.classList.add('is-scene-back');
+  }
+}
 
 function traceKingdomFlow(step, details = '') {
   if (!KINGDOM_TRACE_ENABLED) return;
@@ -2216,6 +2287,7 @@ function clearRoundState() {
   clearOpeningDealTimers();
   clearDrawHandFlipTimers();
   clearLocalInfoMessage(false);
+  clearKingdomTrickSceneFlash(false);
   kingdomLocalGraveOpen = false;
   localHandSortDrawLock = false;
   s.trick = null;
@@ -3343,6 +3415,7 @@ async function ensureTarotKingdomNetwork() {
 function resetMatch() {
   clearSettlementGainFx();
   clearPendingTurnAdvanceAfterTrick();
+  clearKingdomTrickSceneFlash(false);
   s = initState();
   clearLocalInfoMessage(false);
   if (kingdomLocalPriorityTimer) {
@@ -4161,14 +4234,17 @@ function applySetEffects(play) {
   } else if (has(5)) {
     skip = cards.length; log(`${pName(play.owner)}: 5スキップ x${cards.length}`);
     triggerKingdomActionFx(play.owner, `5スキップ x${cards.length}`, { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-skip' });
+    triggerKingdomTrickSceneFlash('skip', 760 + (Math.max(1, cards.length) * 120));
   }
   if (has(8)) {
     if (cards.length >= 2 || cards.some((c) => c.kind === 'major' && c.number === 8)) {
       forceClear = true; s.callOnly = false; log(`${pName(play.owner)}: 8カットでクリア`);
       triggerKingdomActionFx(play.owner, '8カット', { overlay: 'clear', durationMs: 860, cutin: true, cutinClass: 'is-kingdom-cut' });
+      triggerKingdomTrickSceneFlash('cut', 980);
     } else {
       s.callOnly = true; log(`${pName(play.owner)}: 8カット（コール猶予）`);
       triggerKingdomActionFx(play.owner, '8カット', { overlay: 'action', durationMs: 780, cutin: true, cutinClass: 'is-kingdom-cut' });
+      triggerKingdomTrickSceneFlash('cut', 840);
     }
   } else s.callOnly = false;
   if (has(11)) {
@@ -5179,6 +5255,7 @@ function cardNode(card, opt = {}) {
     } else if (SPECIAL_SUIT[Number(card.number)]) {
       const arcanaSuit = SPECIAL_SUIT[Number(card.number)];
       el.classList.add('arcana-suit-hybrid');
+      el.classList.add(`arcana-suit-${String(arcanaSuit).toLowerCase()}`);
       if (arcanaSuit && SUIT_COLOR[arcanaSuit]) {
         el.style.setProperty('--arcana-color', SUIT_COLOR[arcanaSuit]);
       }
@@ -5266,6 +5343,7 @@ function renderPlayers() {
 
 function renderTrick() {
   const cards = s.trick?.cardsTable || [];
+  syncKingdomTrickSceneClass();
   let ramSettleFirstCard = false;
   const resolvePendingAfterTrick = () => {
     if (typeof pendingTurnAdvanceAfterTrick !== 'function') return;
@@ -6750,6 +6828,7 @@ export function destroyTarotKingdomPage() {
     clearTimeout(kingdomOverlayTimer);
     kingdomOverlayTimer = null;
   }
+  clearKingdomTrickSceneFlash(false);
   kingdomRowFxTimers.forEach((timerId) => clearTimeout(timerId));
   kingdomRowFxTimers.clear();
 
