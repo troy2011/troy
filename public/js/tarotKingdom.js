@@ -84,6 +84,9 @@ const TK_MATCH_ROOT = 'tarotKingdomMatch';
 const TK_FALLBACK_AUTO_ROOM_COUNT = 6;
 const TK_OPEN_ROOM_HEARTBEAT_MS = 10000;
 const TK_OPEN_ROOM_STALE_MS = 45000;
+const KINGDOM_MOBILE_BREAKPOINT = 640;
+const KINGDOM_MOBILE_MIN_HEIGHT = 420;
+const KINGDOM_MOBILE_BOTTOM_GAP = 8;
 
 const ui = {};
 let s = null;
@@ -152,6 +155,8 @@ let netOpenRoomsCache = {};
 let netOpenRoomIndexEnabled = true;
 let netManualOfflineMode = false;
 let kingdomStartMode = '';
+let kingdomViewportSyncQueued = false;
+let kingdomViewportWatchBound = false;
 const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', until: 0 }));
 const tkNet = {
   enabled: false,
@@ -175,6 +180,7 @@ const KINGDOM_TRICK_SCENE_CLASSES = [
   'is-scene-cut',
   'is-scene-skip'
 ];
+const KINGDOM_RANK_MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 function clearKingdomTrickSceneFlash(shouldRender = false) {
   if (kingdomTrickSceneFlashTimer) {
@@ -233,6 +239,88 @@ function syncKingdomTrickSceneClass() {
   if (scene === 'back') {
     ui.trick.classList.add('is-scene-back');
   }
+}
+
+function getKingdomChipRanking() {
+  if (!s?.players || !Array.isArray(s.players)) return [];
+  const rows = s.players.map((player, index) => ({
+    index,
+    name: String(player?.name || `P${index + 1}`),
+    chips: Math.max(0, Number(player?.chips) || 0)
+  }));
+  rows.sort((a, b) => {
+    if (b.chips !== a.chips) return b.chips - a.chips;
+    return a.index - b.index;
+  });
+  return rows.map((row, i) => ({
+    ...row,
+    rank: i + 1,
+    medal: KINGDOM_RANK_MEDAL[i + 1] || ''
+  }));
+}
+
+function isMobileKingdomViewport() {
+  if (typeof window === 'undefined') return false;
+  if (!window.matchMedia) return window.innerWidth <= KINGDOM_MOBILE_BREAKPOINT;
+  return window.matchMedia(`(max-width: ${KINGDOM_MOBILE_BREAKPOINT}px)`).matches;
+}
+
+function getVisibleBottomNavHeight() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return 0;
+  const nav = document.getElementById('bottomNav');
+  if (!nav) return 0;
+  const style = window.getComputedStyle(nav);
+  if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return 0;
+  const rect = nav.getBoundingClientRect();
+  return Math.max(0, Math.round(rect.height || 0));
+}
+
+function syncKingdomViewportHeight() {
+  if (typeof window === 'undefined' || !ui.root) return;
+  const root = ui.root;
+  const rootStyle = window.getComputedStyle(root);
+  if (rootStyle.display === 'none') return;
+  if (!isMobileKingdomViewport()) {
+    root.style.removeProperty('--tarot-kingdom-mobile-height');
+    return;
+  }
+  const viewportHeight = Math.max(
+    0,
+    Number(window.visualViewport?.height) || 0,
+    Number(window.innerHeight) || 0
+  );
+  if (!viewportHeight) return;
+  const rootTop = Number(root.getBoundingClientRect().top) || 0;
+  const navHeight = getVisibleBottomNavHeight();
+  const available = Math.floor(viewportHeight - rootTop - navHeight - KINGDOM_MOBILE_BOTTOM_GAP);
+  if (available <= 0) return;
+  root.style.setProperty(
+    '--tarot-kingdom-mobile-height',
+    `${Math.max(KINGDOM_MOBILE_MIN_HEIGHT, available)}px`
+  );
+}
+
+function queueSyncKingdomViewportHeight() {
+  if (kingdomViewportSyncQueued) return;
+  kingdomViewportSyncQueued = true;
+  requestAnimationFrame(() => {
+    kingdomViewportSyncQueued = false;
+    syncKingdomViewportHeight();
+  });
+}
+
+function bindKingdomViewportWatch() {
+  if (kingdomViewportWatchBound || typeof window === 'undefined') return;
+  const onViewportChange = () => {
+    queueSyncKingdomViewportHeight();
+  };
+  window.addEventListener('resize', onViewportChange, { passive: true });
+  window.addEventListener('orientationchange', onViewportChange, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onViewportChange, { passive: true });
+    window.visualViewport.addEventListener('scroll', onViewportChange, { passive: true });
+  }
+  kingdomViewportWatchBound = true;
 }
 
 function traceKingdomFlow(step, details = '') {
@@ -938,6 +1026,10 @@ function getCardNameLabel(card) {
 
 function getCardNumberLabel(card) {
   if (!card) return '';
+  if (card.displayNumberLabelOverride != null) {
+    const overrideLabel = String(card.displayNumberLabelOverride || '').trim();
+    if (overrideLabel) return overrideLabel;
+  }
   const options = getCardDisplayNumberOptions(card);
   if (!Array.isArray(options) || options.length <= 0) return '';
   if (options.length === 1) {
@@ -958,10 +1050,24 @@ function getCardDisplayNumberOptions(card) {
   }
   const n = Number(card.number) || 0;
   if (card.kind !== 'major') return [n];
-  // 大アルカナ本体 number は保持し、表示のみ可変候補を見せる。
-  if (n === 3) return [3, 13];
-  if (n === 4) return [4, 14];
+  // 大アルカナ本体の通常表示は素の番号を使う。
+  if (n === 3) return [3];
+  if (n === 4) return [4];
   return [n];
+}
+
+function shouldRollCardNumber(card) {
+  if (!card || card.kind !== 'major') return false;
+  if (card.displayNumberLabelOverride != null) {
+    const label = String(card.displayNumberLabelOverride || '').trim();
+    if (label) return true;
+  }
+  if (card.displayNumberOverride != null) {
+    const shown = Number(card.displayNumberOverride) || 0;
+    const base = Number(card.number) || 0;
+    return shown > 0 && shown !== base;
+  }
+  return false;
 }
 
 function isRomanOnlyLabel(text) {
@@ -2208,11 +2314,15 @@ function evalRole(cards, lockSuit = null) {
     return out;
   });
   let best = null;
+  let bestRows = null;
   const walk = (i, picked) => {
     if (i >= options.length) {
       if (lockSuit && !picked.every((r) => r.suit === lockSuit)) return;
       const role = evalRoleVariant(picked, cards);
-      if (role && (!best || compareRole(role, best) > 0)) best = role;
+      if (role && (!best || compareRole(role, best) > 0)) {
+        best = role;
+        bestRows = picked.slice();
+      }
       return;
     }
     options[i].forEach((row) => {
@@ -2223,6 +2333,20 @@ function evalRole(cards, lockSuit = null) {
     });
   };
   walk(0, []);
+  if (best && Array.isArray(bestRows) && bestRows.length > 0) {
+    const switchByCardId = {};
+    bestRows.forEach((row) => {
+      const card = row?.src;
+      if (!card || card.kind !== 'major' || !card.id) return;
+      const base = Number(card.number || 0);
+      const raw = Number(row.raw || 0);
+      if (base === 3 && raw === 13) switchByCardId[String(card.id)] = 13;
+      else if (base === 4 && raw === 14) switchByCardId[String(card.id)] = 14;
+    });
+    if (Object.keys(switchByCardId).length > 0) {
+      best.displayNumberSwitchByCardId = switchByCardId;
+    }
+  }
   return best;
 }
 
@@ -4708,11 +4832,44 @@ function applyPlay(pi, play, retryDepth = 0) {
     play.cardsTable = removed.slice();
     play.tableOwners = play.cardsTable.map(() => pi);
   }
+  // Clear stale, transient number labels before applying the current-play label hints.
+  const clearTransientNumberLabel = (card) => {
+    if (!card || typeof card !== 'object') return;
+    if (Object.prototype.hasOwnProperty.call(card, 'displayNumberLabelOverride')) {
+      delete card.displayNumberLabelOverride;
+    }
+  };
+  play.cardsTable.forEach(clearTransientNumberLabel);
+  play.cardsHand.forEach(clearTransientNumberLabel);
   if (play.type === 'set' && Number(play.count || 0) === 1 && play.cardsTable?.[0]?.kind === 'major') {
     const majorNo = Number(play.cardsTable[0].number || 0);
     if ([16, 17, 18, 19].includes(majorNo)) {
       play.cardsTable[0].displayNumberOverride = 14;
       if (play.cardsHand?.[0]) play.cardsHand[0].displayNumberOverride = 14;
+    }
+  }
+  if (play.type === 'set') {
+    const chosen = Number(play.number || 0);
+    const applySetSwitchLabel = (card) => {
+      if (!card || card.kind !== 'major') return;
+      const n = Number(card.number || 0);
+      if (n === 3 && chosen === 13) card.displayNumberLabelOverride = '3→13';
+      if (n === 4 && chosen === 14) card.displayNumberLabelOverride = '4→14';
+    };
+    play.cardsTable.forEach(applySetSwitchLabel);
+    play.cardsHand.forEach(applySetSwitchLabel);
+  } else if (isRolePlay) {
+    const switchMap = play?.role?.displayNumberSwitchByCardId;
+    if (switchMap && typeof switchMap === 'object') {
+      const applyRoleSwitchLabel = (card) => {
+        if (!card || card.kind !== 'major' || !card.id) return;
+        const target = Number(switchMap[String(card.id)] || 0);
+        const n = Number(card.number || 0);
+        if (n === 3 && target === 13) card.displayNumberLabelOverride = '3→13';
+        if (n === 4 && target === 14) card.displayNumberLabelOverride = '4→14';
+      };
+      play.cardsTable.forEach(applyRoleSwitchLabel);
+      play.cardsHand.forEach(applyRoleSwitchLabel);
     }
   }
   // 大アルカナは墓地へ送らない（場からは取り除かれるが墓地には残さない）
@@ -5287,6 +5444,9 @@ function cardNode(card, opt = {}) {
   if (card?.kind === 'major' && Array.isArray(displayNumberOptions) && displayNumberOptions.length > 1) {
     power.classList.add('is-center-range');
   }
+  if (opt.numberRolling || shouldRollCardNumber(card)) {
+    power.classList.add('is-rolling');
+  }
   power.textContent = getCardNumberLabel(card);
   el.appendChild(art); el.appendChild(label); el.appendChild(power);
   if (opt.onClick) el.addEventListener('click', opt.onClick);
@@ -5295,6 +5455,13 @@ function cardNode(card, opt = {}) {
 
 function renderPlayers() {
   ui.players.innerHTML = '';
+  const showRankingMedals = !!s?.roundSettlement || String(s?.phase || '') === 'done';
+  const rankByIndex = new Map();
+  if (showRankingMedals) {
+    getKingdomChipRanking().forEach((entry) => {
+      rankByIndex.set(entry.index, entry);
+    });
+  }
   const callOwner = (s.phase === 'callCinematic' && s.callMergeFx?.owner != null)
     ? Number(s.callMergeFx.owner)
     : null;
@@ -5302,6 +5469,9 @@ function renderPlayers() {
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
     row.dataset.playerIndex = String(i);
+    const rankInfo = showRankingMedals ? (rankByIndex.get(i) || null) : null;
+    if (rankInfo?.rank === 1) row.classList.add('is-rank-first');
+    if (String(s?.phase || '') === 'done' && i === Number(s?.champion)) row.classList.add('is-rank-champion');
     const isLastOne = Number(p?.hand?.length || 0) === 1;
     if (i === activeTurnPlayer) row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
@@ -5337,6 +5507,15 @@ function renderPlayers() {
     right.appendChild(handMeta);
     right.appendChild(slash);
     right.appendChild(chipsMeta);
+    if (showRankingMedals) {
+      if (rankInfo?.medal) {
+        const medal = document.createElement('span');
+        medal.className = 'tarot-kingdom-rank-medal';
+        medal.textContent = rankInfo.medal;
+        medal.title = `総合${rankInfo.rank}位`;
+        right.appendChild(medal);
+      }
+    }
     row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
   });
 }
@@ -5962,6 +6141,7 @@ function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
   const show = !!data;
+  ui.root?.classList.toggle('is-settlement-open', show);
   if (panel) {
     panel.hidden = !show;
     panel.style.display = show ? '' : 'none';
@@ -5978,6 +6158,81 @@ function renderSettlement() {
   if (body) {
     body.innerHTML = '';
 
+    const ranking = getKingdomChipRanking();
+    const startChipsByIndex = new Map();
+    if (Number.isInteger(Number(data.winnerIndex))) {
+      startChipsByIndex.set(
+        Number(data.winnerIndex),
+        Math.max(0, Number(data.winnerStartChips) || 0)
+      );
+    }
+    (data.rows || []).forEach((row) => {
+      const payerIndex = Number(row?.payerIndex);
+      if (!Number.isInteger(payerIndex)) return;
+      startChipsByIndex.set(
+        payerIndex,
+        Math.max(0, Number(row?.payerStartChips) || 0)
+      );
+    });
+    const rankingCard = document.createElement('div');
+    rankingCard.className = 'tarot-kingdom-settlement-ranking';
+    const rankingTitle = document.createElement('div');
+    rankingTitle.className = 'tarot-kingdom-settlement-ranking-title';
+    rankingTitle.textContent = String(s?.phase || '') === 'done' ? '最終順位（総合）' : '現在順位';
+    rankingCard.appendChild(rankingTitle);
+    const championEntry = (() => {
+      if (!ranking.length) return null;
+      if (Number.isInteger(Number(s?.champion))) {
+        return ranking.find((entry) => entry.index === Number(s.champion)) || ranking[0];
+      }
+      return ranking[0];
+    })();
+    if (String(s?.phase || '') === 'done' && championEntry) {
+      const championLine = document.createElement('div');
+      championLine.className = 'tarot-kingdom-settlement-ranking-champion';
+      championLine.textContent = `🏆 総合優勝: ${championEntry.name}`;
+      rankingCard.appendChild(championLine);
+    }
+    const rankingList = document.createElement('div');
+    rankingList.className = 'tarot-kingdom-settlement-ranking-list';
+    ranking.forEach((entry) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'tarot-kingdom-settlement-ranking-item';
+      if (entry.rank <= 3) rowEl.classList.add(`is-rank-${entry.rank}`);
+      if (entry.index === Number(s?.champion)) rowEl.classList.add('is-champion');
+      const left = document.createElement('div');
+      left.className = 'tarot-kingdom-settlement-ranking-left';
+      const medal = document.createElement('span');
+      medal.className = 'tarot-kingdom-settlement-ranking-medal';
+      medal.textContent = entry.medal || `#${entry.rank}`;
+      const name = document.createElement('span');
+      name.className = 'tarot-kingdom-settlement-ranking-name';
+      name.textContent = entry.name;
+      left.appendChild(medal);
+      left.appendChild(name);
+      const right = document.createElement('div');
+      right.className = 'tarot-kingdom-settlement-ranking-right';
+      const chips = document.createElement('span');
+      chips.className = 'tarot-kingdom-settlement-ranking-chips';
+      chips.textContent = `${entry.chips} TP`;
+      right.appendChild(chips);
+      const start = startChipsByIndex.has(entry.index)
+        ? Number(startChipsByIndex.get(entry.index) || 0)
+        : Number(entry.chips || 0);
+      const delta = Math.round(Number(entry.chips || 0) - start);
+      if (delta !== 0) {
+        const deltaEl = document.createElement('span');
+        deltaEl.className = `tarot-kingdom-settlement-ranking-delta ${delta > 0 ? 'is-plus' : 'is-minus'}`;
+        deltaEl.textContent = `${delta > 0 ? '+' : ''}${delta}`;
+        right.appendChild(deltaEl);
+      }
+      rowEl.appendChild(left);
+      rowEl.appendChild(right);
+      rankingList.appendChild(rowEl);
+    });
+    rankingCard.appendChild(rankingList);
+    body.appendChild(rankingCard);
+
     const winnerAnchor = document.createElement('div');
     winnerAnchor.id = 'tarotKingdomSettlementWinnerAnchor';
     winnerAnchor.className = 'tarot-kingdom-settlement-winner';
@@ -5985,7 +6240,7 @@ function renderSettlement() {
     winnerMain.className = 'tarot-kingdom-settlement-winner-main';
     const shownGain = Math.max(0, Number(data.displayTotalGain ?? data.totalGain) || 0);
     const shownWinnerChips = Math.max(0, Number(data.displayWinnerChips ?? data.winnerFinalChips ?? 0));
-    winnerMain.textContent = `勝者 ${data.winnerName} / 受取 +${shownGain} TP / 現在 ${shownWinnerChips} TP`;
+    winnerMain.textContent = `局結果: ${data.winnerName} / 受取 +${shownGain} TP / 現在 ${shownWinnerChips} TP`;
     const winnerSub = document.createElement('div');
     winnerSub.className = 'tarot-kingdom-settlement-winner-sub';
     const stars = Math.max(0, Number(data.starBonus) || 0);
@@ -6030,12 +6285,6 @@ function renderSettlement() {
       pot.textContent = `POT受取: ${data.potAward} TP`;
       body.appendChild(pot);
     }
-
-    const currentTotal = s.players.reduce((sum, player) => sum + Math.max(0, Number(player?.chips) || 0), 0);
-    const total = document.createElement('div');
-    total.className = 'tarot-kingdom-settlement-total';
-    total.textContent = `現在総チップ: ${currentTotal} TP`;
-    body.appendChild(total);
 
   }
 
@@ -6241,6 +6490,7 @@ function updateButtons() {
 
 function render() {
   if (!s) return;
+  queueSyncKingdomViewportHeight();
   syncLocalAutoFoldState();
   resolveReversePersistSuspend();
   enforceLeadTurnInvariant();
@@ -6641,6 +6891,8 @@ function bindUi() {
   ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
+  bindKingdomViewportWatch();
+  queueSyncKingdomViewportHeight();
   ui.startOnlineButton?.addEventListener('click', () => {
     handleKingdomOnlineStartClick().catch((error) => {
       console.warn('[tarotKingdom] online start click failed:', error);

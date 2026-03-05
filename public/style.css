@@ -3020,6 +3020,7 @@ body.modal-lock .modal-overlay {
     --tarot-card-h: 88px;
     --tarot-art-w: 48px;
     --tarot-art-h: 80px;
+    --tarot-kingdom-mobile-height: auto;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 136px);
 }
 
@@ -3280,6 +3281,116 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-settlement-body {
     display: grid;
     gap: 6px;
+}
+
+.tarot-kingdom-settlement-ranking {
+    border: 1px solid rgba(250, 204, 21, 0.34);
+    border-radius: 9px;
+    padding: 6px 8px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.62), rgba(30, 41, 59, 0.48));
+}
+
+.tarot-kingdom-settlement-ranking-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fde68a;
+    margin-bottom: 4px;
+}
+
+.tarot-kingdom-settlement-ranking-champion {
+    margin-bottom: 4px;
+    padding: 4px 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.42), rgba(120, 53, 15, 0.22));
+    color: #fde68a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.tarot-kingdom-settlement-ranking-list {
+    display: grid;
+    gap: 4px;
+}
+
+.tarot-kingdom-settlement-ranking-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.44);
+    padding: 4px 6px;
+}
+
+.tarot-kingdom-settlement-ranking-item.is-rank-1 {
+    border-color: rgba(251, 191, 36, 0.62);
+    box-shadow:
+        inset 0 0 0 1px rgba(251, 191, 36, 0.2),
+        0 0 12px rgba(251, 191, 36, 0.14);
+}
+
+.tarot-kingdom-settlement-ranking-item.is-rank-2 {
+    border-color: rgba(203, 213, 225, 0.52);
+}
+
+.tarot-kingdom-settlement-ranking-item.is-rank-3 {
+    border-color: rgba(251, 146, 60, 0.52);
+}
+
+.tarot-kingdom-settlement-ranking-item.is-champion {
+    box-shadow:
+        inset 0 0 0 1px rgba(251, 191, 36, 0.28),
+        0 0 16px rgba(251, 191, 36, 0.18);
+}
+
+.tarot-kingdom-settlement-ranking-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.tarot-kingdom-settlement-ranking-medal {
+    font-size: 18px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.tarot-kingdom-settlement-ranking-name {
+    font-size: 12px;
+    font-weight: 800;
+    color: #e2e8f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tarot-kingdom-settlement-ranking-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.tarot-kingdom-settlement-ranking-chips {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.tarot-kingdom-settlement-ranking-delta {
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.tarot-kingdom-settlement-ranking-delta.is-plus {
+    color: #86efac;
+}
+
+.tarot-kingdom-settlement-ranking-delta.is-minus {
+    color: #fca5a5;
 }
 
 .tarot-kingdom-settlement-head {
@@ -3771,6 +3882,24 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
     color: #cbd5e1;
     white-space: nowrap;
+}
+
+.tarot-kingdom-rank-medal {
+    font-size: 20px;
+    line-height: 1;
+    margin-left: 2px;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.tarot-kingdom-player-row.is-rank-first {
+    border-color: rgba(251, 191, 36, 0.62);
+    box-shadow:
+        inset 0 0 0 1px rgba(251, 191, 36, 0.18),
+        0 0 12px rgba(251, 191, 36, 0.18);
+}
+
+.tarot-kingdom-player-row.is-rank-champion {
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.46), rgba(92, 39, 11, 0.42));
 }
 
 .tarot-kingdom-meta-hand {
@@ -6213,6 +6342,12 @@ body.modal-lock .modal-overlay {
     letter-spacing: -0.04em;
 }
 
+/* Reuse the existing pot-roll motion for card number value shifts. */
+.tarot-card-number.is-rolling {
+    animation: tarotPotRoll 0.11s linear 4;
+    transform-origin: 50% 58%;
+}
+
 .tarot-card:not(.is-arcana).wand .tarot-card-number {
     color: #fecaca;
 }
@@ -7338,6 +7473,88 @@ body.modal-lock .modal-overlay {
         font-size: 12px;
     }
 
+    #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
+        margin: 8px;
+        padding: 10px;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 118px);
+        height: var(--tarot-kingdom-mobile-height, auto);
+        min-height: var(--tarot-kingdom-mobile-height, auto);
+        max-height: var(--tarot-kingdom-mobile-height, none);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow: hidden;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-state-text {
+        margin: 4px 0 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-openrooms,
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-settlement,
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-controls {
+        margin: 4px 0 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 6px;
+        overflow: hidden;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-panel {
+        padding: 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-panel-title {
+        margin-bottom: 4px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-trick {
+        min-height: calc(var(--tarot-card-h, 88px) + 2px);
+        gap: 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomHand.tarot-kingdom-hand {
+        gap: 4px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomPlayers {
+        max-height: 128px;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-row {
+        min-height: 30px;
+        padding: 4px 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomLog.tarot-log {
+        margin-top: 6px;
+        max-height: 68px;
+        padding: 5px 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot.is-settlement-open .tarot-kingdom-layout,
+    #tabContentTarot #tarotKingdomRoot.is-settlement-open #tarotKingdomLog {
+        display: none;
+    }
+
+    #tabContentTarot #tarotKingdomRoot.is-settlement-open #tarotKingdomSettlement {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        margin-bottom: 4px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot.is-settlement-open .tarot-kingdom-settlement-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
     #tabContentTarot .tarot-kingdom-header {
         margin-bottom: 6px;
     }
@@ -7583,6 +7800,26 @@ body.modal-lock .modal-overlay {
     #tabContentTarot .tarot-log-row {
         margin-bottom: 4px;
         font-size: 11px;
+    }
+}
+
+@media (max-width: 640px) and (max-height: 760px) {
+    #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
+        padding: 8px;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 108px);
+        gap: 4px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-panel {
+        padding: 5px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomPlayers {
+        max-height: 110px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomLog.tarot-log {
+        max-height: 56px;
     }
 }
 
