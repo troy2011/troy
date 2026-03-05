@@ -1146,16 +1146,16 @@ function getKingdomCardEffectDescription(card) {
       7: '通常ドローで引くと2枚に増殖',
       8: '大アルカナ8は強制クリア',
       9: 'セットで次の小アルカナを予見（この局）',
-      10: '単騎で数値+1〜6（表示のみ変化）',
+      10: '単騎で数値+1〜6',
       11: '11バック（局内永続）',
       12: '生贄で星+2（このカードは消える）',
       13: '次のクリアまで、他者が出すたび星-1',
       14: '節制ロック（直前スート縛り）',
       15: '次のクリアまで、他者がパスで星-1',
-      16: '単騎時はソード14扱い（表示のみ変化）',
-      17: '単騎時はカップ14扱い（表示のみ変化）',
-      18: '単騎時はペンタクル14扱い（表示のみ変化）',
-      19: '単騎時はワンド14扱い（表示のみ変化）',
+      16: '単騎時はソード14扱い',
+      17: '単騎時はカップ14扱い',
+      18: '単騎時はペンタクル14扱い',
+      19: '単騎時はワンド14扱い',
       20: 'クリアで墓地から1枚回収',
       21: '単騎でどんな場札にも返せる'
     };
@@ -1352,33 +1352,10 @@ function showKingdomCardEffectInfo(card, prefix = '効果') {
     : `${prefix}: ${name}（固有効果なし）`, 2200);
 }
 
-function getShortPlayHelp(reason) {
-  const text = String(reason || '');
-  if (!text) return '';
-  if (text.includes('ストレートコール制限: 手札（選択中含む）に場札と同数値があるため不可')) return 'ヒント: 手札全体（選択中含む）に場札と同数値が1枚でもあると不可です。';
-  if (text.includes('ストレートコール制限: 場札がハイカードになる構成は不可')) return 'ヒント: 場札がストレートの最高値になる形は不可です。ただしAに対する2-3-4-5だけ例外です。';
-  if (text.includes('同スートが5枚以上あるため不可')) return 'ヒント: フラッシュコールは、手札全体（選択中含む）で場札と同スートが4枚以下のときのみ可能です。';
-  if (text.includes('場札がハイカードになる構成は不可')) return 'ヒント: 場札が5枚中のハイカードにならない組み方にしてください。';
-  if (text.includes('同スートが5枚以上必要')) return 'ヒント: 現仕様では同スート5枚以上はフラッシュコール不可です。';
-  if (text.includes('フラッシュコール制限')) return 'ヒント: 場札がハイカードにならない構成で5枚を作ってください。';
-  if (text.includes('コールは手札4枚')) return 'ヒント: コール時は手札を4枚だけ選択します。';
-  if (text.includes('コール対象は1枚場札のみ')) return 'ヒント: コールは場札が1枚のときだけ使えます。';
-  if (text.includes('場の大アルカナ1枚にはコールできません')) return 'ヒント: 場が大アルカナ単騎のときは通常出しで対応します。';
-  if (text.includes('星がない')) return 'ヒント: クリアで星を増やしてから再挑戦してください。';
-  if (text.includes('スート縛り')) return 'ヒント: 縛られているスートと同じ色のカードを選択してください。';
-  if (text.includes('場札より強い数値')) return 'ヒント: 場札より強い数値に選び直してください。';
-  if (text.includes('同じ形式/枚数')) return 'ヒント: 場と同じ枚数・形式で出してください。';
-  if (text.includes('5枚選択')) return 'ヒント: 5枚役は5枚ちょうど選択してください。';
-  return '';
-}
-
 function showPlayError(reason) {
   if (!s) return;
   const detail = (String(reason || '出せません。').trim()) || '出せません。';
-  const hint = getShortPlayHelp(detail);
-  setLocalPriorityMessage(hint
-    ? `出せない理由: ${detail} / ${hint}`
-    : `出せない理由: ${detail}`, 2400);
+  setLocalPriorityMessage(`出せない理由: ${detail}`, 2400);
   if (!ui.stateText) return;
   ui.stateText.classList.remove('is-error');
   void ui.stateText.offsetWidth;

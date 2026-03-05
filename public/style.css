@@ -6353,7 +6353,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card:not(.is-arcana).sword .tarot-card-number {
-    color: #fef3c7;
+    color: #fde047;
 }
 
 .tarot-card:not(.is-arcana).cup .tarot-card-number {
@@ -6471,7 +6471,7 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-card.is-arcana.arcana-suit-hybrid.arcana-suit-sword {
-    --arcana-number-color: #fde68a;
+    --arcana-number-color: #fde047;
 }
 
 .tarot-card.is-arcana.arcana-suit-hybrid.arcana-suit-cup {
