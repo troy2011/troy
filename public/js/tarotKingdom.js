@@ -490,13 +490,13 @@ function queueSettlementGain(amount) {
       const t = Math.min(1, (Date.now() - startAt) / durationMs);
       const eased = 1 - ((1 - t) ** 3);
       s.roundSettlement.displayTotalGain = Math.round(from + ((to - from) * eased));
-      renderSettlement();
+      renderPlayers();
       if (t < 1) {
         settlementGainAnimTimer = setTimeout(tick, 16);
         return;
       }
       s.roundSettlement.displayTotalGain = to;
-      renderSettlement();
+      renderPlayers();
       settlementGainAnimTimer = null;
       runNext();
     };
@@ -529,7 +529,7 @@ function animateSettlementChipField(key, readValue, writeValue, toValue, duratio
   const to = Math.max(0, Math.round(Number(toValue) || 0));
   if (from === to) {
     writeValue(to);
-    renderSettlement();
+    renderPlayers();
     return;
   }
   const prevTimerId = settlementChipAnimTimers.get(key);
@@ -548,7 +548,7 @@ function animateSettlementChipField(key, readValue, writeValue, toValue, duratio
     const eased = 1 - Math.pow(1 - t, 3);
     const v = Math.round(from + ((to - from) * eased));
     writeValue(v);
-    renderSettlement();
+    renderPlayers();
     if (t >= 1) {
       settlementChipAnimTimers.delete(key);
       return;
@@ -1642,7 +1642,7 @@ function triggerKingdomGrandWinnerFx(playerIndex) {
   });
   playKingdomCoinEffect(playerIndex, 14, '🪙', {
     fromPot: true,
-    targetSelector: '#tarotKingdomSettlementWinnerAnchor',
+    targetPlayerIndex: playerIndex,
     className: 'is-payout is-finale',
     delayMs: 220
   });
@@ -5432,6 +5432,15 @@ function cardNode(card, opt = {}) {
 
 function renderPlayers() {
   ui.players.innerHTML = '';
+  const settlementData = s?.roundSettlement || null;
+  if (settlementData) {
+    const winnerName = String(settlementData.winnerName || pName(Number(settlementData.winnerIndex)));
+    const shownGain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
+    const summary = document.createElement('div');
+    summary.className = 'tarot-kingdom-players-summary';
+    summary.textContent = `局結果: ${winnerName} +${shownGain}TP`;
+    ui.players.appendChild(summary);
+  }
   const showRankingMedals = !!s?.roundSettlement || String(s?.phase || '') === 'done';
   const rankByIndex = new Map();
   if (showRankingMedals) {
@@ -5442,10 +5451,19 @@ function renderPlayers() {
   const callOwner = (s.phase === 'callCinematic' && s.callMergeFx?.owner != null)
     ? Number(s.callMergeFx.owner)
     : null;
+  const settlementRowsByPayer = new Map();
+  if (settlementData && Array.isArray(settlementData.rows)) {
+    settlementData.rows.forEach((row) => {
+      const idx = Number(row?.payerIndex);
+      if (Number.isInteger(idx)) settlementRowsByPayer.set(idx, row);
+    });
+  }
   const activeTurnPlayer = getActiveTurnPlayerIndex();
   s.players.forEach((p, i) => {
     const row = document.createElement('div'); row.className = 'tarot-kingdom-player-row';
+    if (settlementData) row.classList.add('is-settlement');
     row.dataset.playerIndex = String(i);
+    row.id = `tarotKingdomPlayerAnchor-${i}`;
     const rankInfo = showRankingMedals ? (rankByIndex.get(i) || null) : null;
     if (rankInfo?.rank === 1) row.classList.add('is-rank-first');
     if (String(s?.phase || '') === 'done' && i === Number(s?.champion)) row.classList.add('is-rank-champion');
@@ -5478,12 +5496,44 @@ function renderPlayers() {
     const slash = document.createElement('span');
     slash.className = 'tarot-kingdom-meta-sep';
     slash.textContent = '/';
+    const isSettlementWinner = !!settlementData && i === Number(settlementData.winnerIndex);
+    const settlementPayerRow = settlementRowsByPayer.get(i) || null;
+    const shownChips = (() => {
+      if (settlementPayerRow) return Math.max(0, Number(settlementPayerRow.displayPayerChips ?? settlementPayerRow.payerFinalChips ?? p.chips) || 0);
+      if (isSettlementWinner) return Math.max(0, Number(settlementData.displayWinnerChips ?? settlementData.winnerFinalChips ?? p.chips) || 0);
+      return Math.max(0, Number(p.chips) || 0);
+    })();
     const chipsMeta = document.createElement('span');
     chipsMeta.className = 'tarot-kingdom-meta-chips';
-    chipsMeta.textContent = `${p.chips}チップ`;
+    chipsMeta.textContent = `${shownChips}チップ`;
     right.appendChild(handMeta);
     right.appendChild(slash);
     right.appendChild(chipsMeta);
+    if (settlementPayerRow) {
+      const pay = Math.max(0, Number(settlementPayerRow.pay) || 0);
+      if (pay > 0) {
+        const loss = document.createElement('span');
+        loss.className = 'tarot-kingdom-settle-chip is-loss';
+        loss.textContent = `-${pay}TP`;
+        right.appendChild(loss);
+      }
+    } else if (isSettlementWinner) {
+      const gain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
+      if (gain > 0) {
+        const gainEl = document.createElement('span');
+        gainEl.className = 'tarot-kingdom-settle-chip is-gain';
+        gainEl.textContent = `+${gain}TP`;
+        right.appendChild(gainEl);
+      }
+      const stars = Math.max(0, Number(settlementData.starBonus) || 0);
+      const oracleHits = Math.max(0, Number(settlementData.oracleHits) || 0);
+      if (stars > 0 || oracleHits > 0) {
+        const factor = document.createElement('span');
+        factor.className = 'tarot-kingdom-settle-chip is-factor';
+        factor.textContent = `★${stars} O${oracleHits}`;
+        right.appendChild(factor);
+      }
+    }
     if (showRankingMedals) {
       if (rankInfo?.medal) {
         const medal = document.createElement('span');
@@ -6063,14 +6113,14 @@ function renderSummary() {
 function dispatchSettlementCoinFxIfNeeded(data) {
   if (!data || data.coinFxDispatched) return;
   if (typeof document === 'undefined') return;
-  const winnerAnchor = document.querySelector('#tarotKingdomSettlementWinnerAnchor');
+  const winnerIndex = Number(data.winnerIndex);
+  const winnerAnchor = document.querySelector(`#tarotKingdomPlayerAnchor-${winnerIndex}`) || getKingdomPlayerAnchor(winnerIndex);
   if (!winnerAnchor) return;
 
   data.coinFxDispatched = true;
-  const targetSelector = '#tarotKingdomSettlementWinnerAnchor';
+  const targetElement = winnerAnchor;
   (data.coinEvents || []).forEach((event) => {
     const payerIndex = Number(event?.payerIndex);
-    const fromSelector = `#tarotKingdomSettlementPayerAnchor-${payerIndex}`;
     const pay = Math.max(0, Number(event?.pay) || 0);
     const count = Math.max(1, Number(event?.coinCount) || 4);
     const delayMs = Math.max(0, Number(event?.delayMs) || 0);
@@ -6079,12 +6129,11 @@ function dispatchSettlementCoinFxIfNeeded(data) {
       applySettlementPayerChipDelta(payerIndex, -pay, 220);
     }, delayMs);
     scheduleSettlementCoinFx(() => {
-      const fromEl = document.querySelector(fromSelector);
-      const toEl = document.querySelector(targetSelector);
-      if (!fromEl || !toEl) return;
+      const fromElement = document.querySelector(`#tarotKingdomPlayerAnchor-${payerIndex}`) || getKingdomPlayerAnchor(payerIndex);
+      if (!fromElement || !targetElement) return;
       playKingdomCoinEffect(payerIndex, count, '🪙', {
-        sourceElement: fromEl,
-        targetElement: toEl,
+        sourceElement: fromElement,
+        targetElement,
         className: 'is-payout'
       });
     }, delayMs);
@@ -6097,12 +6146,11 @@ function dispatchSettlementCoinFxIfNeeded(data) {
   if (data.bonusCoinFx) {
     const bonusDelay = Math.max(0, Number(data.bonusCoinFx.delayMs) || 0);
     const bonusCount = Math.max(1, Number(data.bonusCoinFx.coinCount) || 4);
-    const winnerIndex = Number(data.winnerIndex);
     const bonusPay = Math.max(0, Number(data.potAward) || 0);
     scheduleSettlementCoinFx(() => {
       playKingdomCoinEffect(winnerIndex, bonusCount, '👑', {
         fromPot: true,
-        targetSelector,
+        targetElement,
         className: 'is-payout'
       });
     }, bonusDelay);
@@ -6113,156 +6161,16 @@ function dispatchSettlementCoinFxIfNeeded(data) {
 }
 
 function renderSettlement() {
-  const panel = ui.settlement;
-  const body = ui.settlementBody;
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
   const show = !!data;
-  ui.root?.classList.toggle('is-settlement-open', show);
-  if (panel) {
-    panel.hidden = !show;
-    panel.style.display = show ? '' : 'none';
-  }
+  ui.root?.classList.remove('is-settlement-open');
   if (!show) {
-    if (body) body.innerHTML = '';
     if (confirmButton) {
       confirmButton.hidden = true;
       confirmButton.disabled = true;
     }
     return;
-  }
-
-  if (body) {
-    body.innerHTML = '';
-
-    const ranking = getKingdomChipRanking();
-    const startChipsByIndex = new Map();
-    if (Number.isInteger(Number(data.winnerIndex))) {
-      startChipsByIndex.set(
-        Number(data.winnerIndex),
-        Math.max(0, Number(data.winnerStartChips) || 0)
-      );
-    }
-    (data.rows || []).forEach((row) => {
-      const payerIndex = Number(row?.payerIndex);
-      if (!Number.isInteger(payerIndex)) return;
-      startChipsByIndex.set(
-        payerIndex,
-        Math.max(0, Number(row?.payerStartChips) || 0)
-      );
-    });
-    const rankingCard = document.createElement('div');
-    rankingCard.className = 'tarot-kingdom-settlement-ranking';
-    const rankingTitle = document.createElement('div');
-    rankingTitle.className = 'tarot-kingdom-settlement-ranking-title';
-    rankingTitle.textContent = String(s?.phase || '') === 'done' ? '最終順位（総合）' : '現在順位';
-    rankingCard.appendChild(rankingTitle);
-    const championEntry = (() => {
-      if (!ranking.length) return null;
-      if (Number.isInteger(Number(s?.champion))) {
-        return ranking.find((entry) => entry.index === Number(s.champion)) || ranking[0];
-      }
-      return ranking[0];
-    })();
-    if (String(s?.phase || '') === 'done' && championEntry) {
-      const championLine = document.createElement('div');
-      championLine.className = 'tarot-kingdom-settlement-ranking-champion';
-      championLine.textContent = `🏆 総合優勝: ${championEntry.name}`;
-      rankingCard.appendChild(championLine);
-    }
-    const rankingList = document.createElement('div');
-    rankingList.className = 'tarot-kingdom-settlement-ranking-list';
-    ranking.forEach((entry) => {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'tarot-kingdom-settlement-ranking-item';
-      if (entry.rank <= 3) rowEl.classList.add(`is-rank-${entry.rank}`);
-      if (entry.index === Number(s?.champion)) rowEl.classList.add('is-champion');
-      const left = document.createElement('div');
-      left.className = 'tarot-kingdom-settlement-ranking-left';
-      const medal = document.createElement('span');
-      medal.className = 'tarot-kingdom-settlement-ranking-medal';
-      medal.textContent = entry.medal || `#${entry.rank}`;
-      const name = document.createElement('span');
-      name.className = 'tarot-kingdom-settlement-ranking-name';
-      name.textContent = entry.name;
-      left.appendChild(medal);
-      left.appendChild(name);
-      const right = document.createElement('div');
-      right.className = 'tarot-kingdom-settlement-ranking-right';
-      const chips = document.createElement('span');
-      chips.className = 'tarot-kingdom-settlement-ranking-chips';
-      chips.textContent = `${entry.chips} TP`;
-      right.appendChild(chips);
-      const start = startChipsByIndex.has(entry.index)
-        ? Number(startChipsByIndex.get(entry.index) || 0)
-        : Number(entry.chips || 0);
-      const delta = Math.round(Number(entry.chips || 0) - start);
-      if (delta !== 0) {
-        const deltaEl = document.createElement('span');
-        deltaEl.className = `tarot-kingdom-settlement-ranking-delta ${delta > 0 ? 'is-plus' : 'is-minus'}`;
-        deltaEl.textContent = `${delta > 0 ? '+' : ''}${delta}`;
-        right.appendChild(deltaEl);
-      }
-      rowEl.appendChild(left);
-      rowEl.appendChild(right);
-      rankingList.appendChild(rowEl);
-    });
-    rankingCard.appendChild(rankingList);
-    body.appendChild(rankingCard);
-
-    const winnerAnchor = document.createElement('div');
-    winnerAnchor.id = 'tarotKingdomSettlementWinnerAnchor';
-    winnerAnchor.className = 'tarot-kingdom-settlement-winner';
-    const winnerMain = document.createElement('div');
-    winnerMain.className = 'tarot-kingdom-settlement-winner-main';
-    const shownGain = Math.max(0, Number(data.displayTotalGain ?? data.totalGain) || 0);
-    const shownWinnerChips = Math.max(0, Number(data.displayWinnerChips ?? data.winnerFinalChips ?? 0));
-    winnerMain.textContent = `局結果: ${data.winnerName} / 受取 +${shownGain} TP / 現在 ${shownWinnerChips} TP`;
-    const winnerSub = document.createElement('div');
-    winnerSub.className = 'tarot-kingdom-settlement-winner-sub';
-    const stars = Math.max(0, Number(data.starBonus) || 0);
-    const starText = stars > 0 ? '★'.repeat(stars) : '★0';
-    winnerSub.textContent = `${starText} / オラクルx${Math.max(0, Number(data.oracleHits) || 0)}`;
-    winnerAnchor.appendChild(winnerMain);
-    winnerAnchor.appendChild(winnerSub);
-    body.appendChild(winnerAnchor);
-
-    (data.rows || []).forEach((row) => {
-      const rowEl = document.createElement('div');
-      rowEl.id = `tarotKingdomSettlementPayerAnchor-${Number(row.payerIndex)}`;
-      rowEl.className = 'tarot-kingdom-settlement-row';
-
-      const top = document.createElement('div');
-      top.className = 'tarot-kingdom-settlement-row-top';
-      top.textContent = `${row.payerName} → ${row.receiverName}`;
-      rowEl.appendChild(top);
-
-      const values = document.createElement('div');
-      values.className = 'tarot-kingdom-settlement-row-values';
-      const shownPayerChips = Math.max(0, Number(row.displayPayerChips ?? row.payerFinalChips ?? 0));
-      values.textContent = `支払 ${row.pay} TP / 受取 ${row.pay} TP / 現在 ${shownPayerChips} TP`;
-      rowEl.appendChild(values);
-
-      const formula = document.createElement('div');
-      formula.className = 'tarot-kingdom-settlement-row-formula';
-      formula.textContent = `計算式: 手札${row.remain} x 係数${row.scoreFactor} = ${row.pay}TP`;
-      rowEl.appendChild(formula);
-
-      const factors = document.createElement('div');
-      factors.className = 'tarot-kingdom-settlement-row-formula';
-      factors.textContent = `係数内訳: ${row.factorSummary || '基本x1'}`;
-      rowEl.appendChild(factors);
-
-      body.appendChild(rowEl);
-    });
-
-    if (data.potAward > 0) {
-      const pot = document.createElement('div');
-      pot.className = 'tarot-kingdom-settlement-pot';
-      pot.textContent = `POT受取: ${data.potAward} TP`;
-      body.appendChild(pot);
-    }
-
   }
 
   dispatchSettlementCoinFxIfNeeded(data);
@@ -6428,7 +6336,7 @@ function updateButtons() {
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
   ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
   const actionReadyPhase = myTurn || drawMe;
-  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton];
+  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton, ui.settlementConfirmButton];
   popupButtons.forEach((btn) => {
     if (!btn) return;
     const isFoldActive = btn === ui.foldButton && kingdomLocalAutoFold;
@@ -6437,7 +6345,8 @@ function updateButtons() {
   });
   if (ui.actionPopup) {
     const hasReady = popupButtons.some((btn) => !!btn && btn.classList.contains('is-ready'));
-    ui.actionPopup.hidden = isMatchDone;
+    const confirmVisible = !!(ui.settlementConfirmButton && !ui.settlementConfirmButton.hidden);
+    ui.actionPopup.hidden = isMatchDone && !confirmVisible;
     ui.actionPopup.classList.toggle('is-human-ready', hasReady);
     ui.actionPopup.classList.toggle('is-call-locked', inCallCinematic);
   }
@@ -6473,9 +6382,9 @@ function render() {
   enforceLeadTurnInvariant();
   renderSummary();
   setOpenRoomsVisibility(shouldShowOpenRoomsLobby());
+  renderPlayers();
   renderSettlement();
   renderOracleCard();
-  renderPlayers();
   renderTrick();
   renderHand();
   renderJudgment();
@@ -6834,8 +6743,6 @@ function bindUi() {
   ui.modeControls = document.getElementById('tarotKingdomModeControls');
   ui.openRoomsWrap = document.getElementById('tarotKingdomOpenRooms');
   ui.openRoomsList = document.getElementById('tarotKingdomOpenRoomsList');
-  ui.settlement = document.getElementById('tarotKingdomSettlement');
-  ui.settlementBody = document.getElementById('tarotKingdomSettlementBody');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
   ui.actionPopup = document.getElementById('tarotKingdomActionPopup');
   if (ui.actionPopup) {
@@ -7106,8 +7013,6 @@ export function destroyTarotKingdomPage() {
   if (ui.judgmentOptions) ui.judgmentOptions.innerHTML = '';
   if (ui.judgmentArea) ui.judgmentArea.style.display = 'none';
   ui.actionPopup?.classList.remove('is-call-locked');
-  if (ui.settlementBody) ui.settlementBody.innerHTML = '';
-  if (ui.settlement) ui.settlement.hidden = true;
 
   trickRenderKey = '';
   trickRenderToken += 1;
