@@ -11,7 +11,6 @@ const GRAVE_RANK_ORDER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
 const GRAVE_RANK_LABEL = { 1: 'A', 11: 'P', 12: 'N', 13: 'Q', 14: 'K' };
 const SUIT_LABEL = { Wand: 'ワンド', Cup: 'カップ', Sword: 'ソード', Pentacle: 'ペンタクル', None: '無' };
 const SUIT_TIER = { Wand: 2, Cup: 2, Sword: 1, Pentacle: 1, None: 0 };
-const ROLE_TIE_SUIT_TIER = { Wand: 4, Cup: 3, Pentacle: 2, Sword: 1, None: 0 };
 const SUIT_MASK = { None: 0, Wand: 1, Cup: 2, Sword: 4, Pentacle: 8, All: 15 };
 const SUIT_PAIR_MASK_A = SUIT_MASK.Wand | SUIT_MASK.Cup;
 const SUIT_PAIR_MASK_B = SUIT_MASK.Sword | SUIT_MASK.Pentacle;
@@ -560,7 +559,7 @@ function pullCardFromDiscard(ownerIndex, targetCard) {
 }
 const openOracleRank = (majorCard) => (!majorCard ? null : (majorCard.number === 1 || majorCard.number === 15 ? 1 : (majorCard.number >= 2 && majorCard.number <= 14 ? majorCard.number : null)));
 const suitsForCard = (c, role = false) => c.kind === 'minor' ? [c.suit] : (c.number === 1 ? SUITS.slice() : (SPECIAL_SUIT[c.number] ? [SPECIAL_SUIT[c.number]] : ['None']));
-const HAND_SORT_SUIT_ORDER = { Wand: 0, Pentacle: 1, Cup: 2, Sword: 3, None: 4 };
+const HAND_SORT_SUIT_ORDER = { Sword: 0, Cup: 1, Pentacle: 2, Wand: 3, None: 4 };
 const handSortSuitKey = (card) => {
   if (!card) return 99;
   if (card.kind === 'minor') return Number(HAND_SORT_SUIT_ORDER[card.suit] ?? 9);
@@ -702,26 +701,6 @@ const getPrimarySuitFromPlay = (play) => {
     if (suits.includes('Wand')) return 'Wand';
   }
   return null;
-};
-const getRoleTieSuitScore = (play) => {
-  const cards = (Array.isArray(play?.cardsTable) && play.cardsTable.length > 0)
-    ? play.cardsTable
-    : (Array.isArray(play?.cardsHand) ? play.cardsHand : []);
-  if (!cards.length) return 0;
-  const keyCard = String(play?.type || '') === 'role'
-    ? getRoleKeyCard(play?.role, cards)
-    : null;
-  const targetCard = keyCard || cards[0];
-  if (!targetCard) return 0;
-  const suits = suitsForCard(targetCard, false).filter((suit) => suit && suit !== 'None');
-  if (!suits.length) return 0;
-  const base = suits.reduce((max, suit) => Math.max(max, ROLE_TIE_SUIT_TIER[suit] || 0), 0);
-  return targetCard?.kind === 'major' ? 10 + base : base;
-};
-const compareRoleTieBySuit = (play, trick) => {
-  const a = getRoleTieSuitScore(play);
-  const b = getRoleTieSuitScore(trick);
-  return a === b ? 0 : (a > b ? 1 : -1);
 };
 const MAJOR_ATTACK_FX = {
   0: { leadEmoji: '🃏', markerEmoji: '🐕', pattern: 'trickster', kind: 'normal', heroDurationMs: 900 },
@@ -3836,10 +3815,11 @@ function validatePlay(play, mode) {
   const roleCmp = compareRole(play.role, s.trick.role);
   if (roleCmp > 0) return { ok: true };
   if (roleCmp < 0) return { ok: false, reason: '場より強い役が必要です。' };
-  const suitCmp = compareRoleTieBySuit(play, s.trick);
-  if (suitCmp > 0) return { ok: true };
-  if (suitCmp < 0) return { ok: false, reason: '同役同値はハイカードのスートが必要です。' };
-  return { ok: false, reason: '同役同値はハイカードのスートも同等です。' };
+  const playMask = getPlaySuitMask(play);
+  const trickMask = getPlaySuitMask(s.trick);
+  return isSuitMatchupCompatible(playMask, trickMask)
+    ? { ok: true }
+    : { ok: false, reason: '同役同値は相性スート（W↔C / S↔P）のみ有効です。' };
 }
 
 function removeHand(p, idxs) {

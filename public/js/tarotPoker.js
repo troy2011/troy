@@ -1,12 +1,12 @@
 import { HandEvaluator as TarotEngineHandEvaluator } from './tarot-engine/HandEvaluator.js';
 import { GameController as TarotGameController } from './tarot-engine/GameController.js';
 
-const SUITS = ['Wand', 'Sword', 'Cup', 'Pentacle'];
+const SUITS = ['Sword', 'Cup', 'Pentacle', 'Wand'];
 const SUIT_RANK = {
-    Wand: 4,
-    Pentacle: 3,
-    Cup: 2,
-    Sword: 1,
+    Sword: 4,
+    Cup: 3,
+    Pentacle: 2,
+    Wand: 1,
     None: 0,
     All: 0
 };
