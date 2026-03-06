@@ -31,21 +31,58 @@ const ensureTarotKingdomModule = async () => {
     return tarotKingdomModule;
 };
 
+let spinTarotModule = null;
+const SPIN_TAROT_MODULE_VERSION = '20260306a';
+const ensureSpinTarotModule = async () => {
+    if (spinTarotModule) return spinTarotModule;
+    spinTarotModule = await import(`./spinTarot.js?v=${SPIN_TAROT_MODULE_VERSION}`);
+    return spinTarotModule;
+};
+
 let tarotModeBound = false;
 let currentTarotMode = 'poker';
 let tarotPokerLoaded = false;
 let tarotKingdomLoaded = false;
+let tarotSpinLoaded = false;
 
-const getTarotModeElements = () => ({
-    selectRoot: document.getElementById('tarotGameSelectRoot'),
-    pokerButton: document.getElementById('tarotModePoker'),
-    kingdomButton: document.getElementById('tarotModeKingdom'),
-    pokerRoot: document.getElementById('tarotPokerRoot'),
-    kingdomRoot: document.getElementById('tarotKingdomRoot')
-});
+const ensureSpinTarotModeElements = () => {
+    const selectRoot = document.getElementById('tarotGameSelectRoot');
+    const switchRoot = selectRoot?.querySelector('.tarot-game-switch');
+    if (switchRoot && !document.getElementById('tarotModeSpin')) {
+        const button = document.createElement('button');
+        button.id = 'tarotModeSpin';
+        button.type = 'button';
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', 'false');
+        button.textContent = 'Spin Tarot';
+        switchRoot.appendChild(button);
+    }
+
+    const kingdomRoot = document.getElementById('tarotKingdomRoot');
+    if (kingdomRoot && !document.getElementById('tarotSpinRoot')) {
+        const spinRoot = document.createElement('div');
+        spinRoot.id = 'tarotSpinRoot';
+        spinRoot.className = 'content-area tarot-spin-root';
+        spinRoot.style.display = 'none';
+        kingdomRoot.insertAdjacentElement('afterend', spinRoot);
+    }
+};
+
+const getTarotModeElements = () => {
+    ensureSpinTarotModeElements();
+    return {
+        selectRoot: document.getElementById('tarotGameSelectRoot'),
+        pokerButton: document.getElementById('tarotModePoker'),
+        kingdomButton: document.getElementById('tarotModeKingdom'),
+        spinButton: document.getElementById('tarotModeSpin'),
+        pokerRoot: document.getElementById('tarotPokerRoot'),
+        kingdomRoot: document.getElementById('tarotKingdomRoot'),
+        spinRoot: document.getElementById('tarotSpinRoot')
+    };
+};
 
 const showTarotModeSelection = () => {
-    const { selectRoot, pokerRoot, kingdomRoot, pokerButton, kingdomButton } = getTarotModeElements();
+    const { selectRoot, pokerRoot, kingdomRoot, spinRoot, pokerButton, kingdomButton, spinButton } = getTarotModeElements();
     if (selectRoot) {
         selectRoot.style.display = 'block';
     }
@@ -55,6 +92,9 @@ const showTarotModeSelection = () => {
     if (kingdomRoot) {
         kingdomRoot.style.display = 'none';
     }
+    if (spinRoot) {
+        spinRoot.style.display = 'none';
+    }
     if (pokerButton) {
         pokerButton.classList.remove('is-active');
         pokerButton.setAttribute('aria-selected', 'false');
@@ -63,11 +103,15 @@ const showTarotModeSelection = () => {
         kingdomButton.classList.remove('is-active');
         kingdomButton.setAttribute('aria-selected', 'false');
     }
+    if (spinButton) {
+        spinButton.classList.remove('is-active');
+        spinButton.setAttribute('aria-selected', 'false');
+    }
 };
 
 const applyTarotModeUi = (mode) => {
-    const normalized = mode === 'kingdom' ? 'kingdom' : 'poker';
-    const { selectRoot, pokerButton, kingdomButton, pokerRoot, kingdomRoot } = getTarotModeElements();
+    const normalized = mode === 'kingdom' || mode === 'spin' ? mode : 'poker';
+    const { selectRoot, pokerButton, kingdomButton, spinButton, pokerRoot, kingdomRoot, spinRoot } = getTarotModeElements();
     if (selectRoot) {
         selectRoot.style.display = 'none';
     }
@@ -77,6 +121,9 @@ const applyTarotModeUi = (mode) => {
     if (kingdomRoot) {
         kingdomRoot.style.display = normalized === 'kingdom' ? 'block' : 'none';
     }
+    if (spinRoot) {
+        spinRoot.style.display = normalized === 'spin' ? 'block' : 'none';
+    }
     if (pokerButton) {
         pokerButton.classList.toggle('is-active', normalized === 'poker');
         pokerButton.setAttribute('aria-selected', normalized === 'poker' ? 'true' : 'false');
@@ -85,9 +132,22 @@ const applyTarotModeUi = (mode) => {
         kingdomButton.classList.toggle('is-active', normalized === 'kingdom');
         kingdomButton.setAttribute('aria-selected', normalized === 'kingdom' ? 'true' : 'false');
     }
+    if (spinButton) {
+        spinButton.classList.toggle('is-active', normalized === 'spin');
+        spinButton.setAttribute('aria-selected', normalized === 'spin' ? 'true' : 'false');
+    }
 };
 
 const ensureTarotModeLoaded = async (mode, forceLoad = false) => {
+    if (mode === 'spin') {
+        if (!forceLoad && tarotSpinLoaded) return;
+        const SpinTarot = await ensureSpinTarotModule();
+        if (typeof SpinTarot.loadSpinTarotPage === 'function') {
+            await SpinTarot.loadSpinTarotPage();
+        }
+        tarotSpinLoaded = true;
+        return;
+    }
     if (mode === 'kingdom') {
         if (!forceLoad && tarotKingdomLoaded) return;
         const Kingdom = await ensureTarotKingdomModule();
@@ -108,7 +168,7 @@ const ensureTarotModeLoaded = async (mode, forceLoad = false) => {
 
 const setTarotMode = async (mode, options = {}) => {
     const { ensureLoaded = true, forceLoad = false } = options;
-    const normalized = mode === 'kingdom' ? 'kingdom' : 'poker';
+    const normalized = mode === 'kingdom' || mode === 'spin' ? mode : 'poker';
     currentTarotMode = normalized;
     applyTarotModeUi(normalized);
     if (ensureLoaded) {
@@ -118,8 +178,8 @@ const setTarotMode = async (mode, options = {}) => {
 
 const bindTarotModeSwitch = () => {
     if (tarotModeBound) return;
-    const { pokerButton, kingdomButton } = getTarotModeElements();
-    if (!pokerButton || !kingdomButton) return;
+    const { pokerButton, kingdomButton, spinButton } = getTarotModeElements();
+    if (!pokerButton || !kingdomButton || !spinButton) return;
 
     pokerButton.addEventListener('click', () => {
         setTarotMode('poker', { ensureLoaded: true }).catch((error) => {
@@ -131,10 +191,16 @@ const bindTarotModeSwitch = () => {
             console.error('[tarot] failed to switch to kingdom mode:', error);
         });
     });
+    spinButton.addEventListener('click', () => {
+        setTarotMode('spin', { ensureLoaded: true }).catch((error) => {
+            console.error('[tarot] failed to switch to spin tarot mode:', error);
+        });
+    });
     tarotModeBound = true;
 };
 
 const prepareTarotTab = async () => {
+    ensureSpinTarotModeElements();
     bindTarotModeSwitch();
     showTarotModeSelection();
 };
@@ -1214,6 +1280,13 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     Kingdom.destroyTarotKingdomPage();
                 }
                 tarotKingdomLoaded = false;
+            }
+            if (tarotSpinLoaded) {
+                const SpinTarot = await ensureSpinTarotModule();
+                if (typeof SpinTarot.destroySpinTarotPage === 'function') {
+                    SpinTarot.destroySpinTarotPage();
+                }
+                tarotSpinLoaded = false;
             }
         } catch (error) {
             console.warn('[showTab] Failed to destroy tarot modules:', error);
