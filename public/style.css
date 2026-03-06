@@ -3779,6 +3779,12 @@ body.modal-lock .modal-overlay {
     gap: 6px;
 }
 
+.tarot-kingdom-player-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
 .tarot-kingdom-players-summary {
     padding: 4px 8px;
     border-radius: 8px;

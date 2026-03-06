@@ -4409,6 +4409,8 @@ function finishRound(winnerIndex) {
   s.hiddenOracleRevealed = false;
   const hidden = s.hiddenOracleCard ? idNum(s.hiddenOracleCard) : null;
   const oracleHits = winner.discard.reduce((a, c) => a + ((s.openOracle != null && idNum(c) === s.openOracle) || (hidden != null && idNum(c) === hidden) ? 1 : 0), 0);
+  const starBonusBase = Math.max(0, Number(winner.stars) || 0);
+  const starBonusTotal = starBonusBase + Math.max(0, Number(oracleHits) || 0);
   let fxDelayMs = 360;
   let totalGain = 0;
   const settlement = {
@@ -4418,7 +4420,7 @@ function finishRound(winnerIndex) {
     winnerStartChips: Math.max(0, Number(chipsBeforeSettlement[winnerIndex]) || 0),
     winnerFinalChips: 0,
     displayWinnerChips: Math.max(0, Number(chipsBeforeSettlement[winnerIndex]) || 0),
-    starBonus: Math.max(0, Number(winner.stars) || 0),
+    starBonus: starBonusBase,
     oracleHits,
     rows: [],
     coinEvents: [],
@@ -4433,12 +4435,11 @@ function finishRound(winnerIndex) {
     if (i === winnerIndex) return;
     const remain = loser.hand.length;
     const acePenalty = countAceMinor(loser.hand) * A_PENALTY;
-    const scoreFactor = 1 + settlement.starBonus + oracleHits + acePenalty;
+    const scoreFactor = 1 + starBonusTotal + acePenalty;
     const pay = remain * scoreFactor;
     const factorParts = [
       { label: '基本', value: 1 },
-      { label: '★', value: settlement.starBonus },
-      { label: 'アルカナ', value: oracleHits },
+      { label: '★', value: starBonusTotal },
       { label: 'A所持', value: acePenalty }
     ];
     const factorSummary = factorParts
@@ -4453,8 +4454,8 @@ function finishRound(winnerIndex) {
       receiverIndex: winnerIndex,
       receiverName: winner.name,
       remain,
-      starBonus: settlement.starBonus,
-      oracleHits,
+      starBonus: starBonusTotal,
+      oracleHits: 0,
       acePenalty,
       scoreFactor,
       factorSummary,
@@ -5441,7 +5442,7 @@ function renderPlayers() {
     summary.textContent = `局結果: ${winnerName} +${shownGain}TP`;
     ui.players.appendChild(summary);
   }
-  const showRankingMedals = !!s?.roundSettlement || String(s?.phase || '') === 'done';
+  const showRankingMedals = String(s?.phase || '') === 'done';
   const rankByIndex = new Map();
   if (showRankingMedals) {
     getKingdomChipRanking().forEach((entry) => {
@@ -5477,7 +5478,14 @@ function renderPlayers() {
     }
     const left = document.createElement('div');
     left.className = 'tarot-kingdom-player-name';
-    const starCount = Math.max(0, Number(p.stars) || 0);
+    const isSettlementWinner = !!settlementData && i === Number(settlementData.winnerIndex);
+    const starCount = Math.max(
+      0,
+      Number(p.stars) || 0,
+      isSettlementWinner
+        ? (Math.max(0, Number(settlementData.starBonus) || 0) + Math.max(0, Number(settlementData.oracleHits) || 0))
+        : 0
+    );
     left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
     const right = document.createElement('div');
     right.className = 'tarot-kingdom-player-meta';
@@ -5496,7 +5504,6 @@ function renderPlayers() {
     const slash = document.createElement('span');
     slash.className = 'tarot-kingdom-meta-sep';
     slash.textContent = '/';
-    const isSettlementWinner = !!settlementData && i === Number(settlementData.winnerIndex);
     const settlementPayerRow = settlementRowsByPayer.get(i) || null;
     const shownChips = (() => {
       if (settlementPayerRow) return Math.max(0, Number(settlementPayerRow.displayPayerChips ?? settlementPayerRow.payerFinalChips ?? p.chips) || 0);
@@ -5525,12 +5532,11 @@ function renderPlayers() {
         gainEl.textContent = `+${gain}TP`;
         right.appendChild(gainEl);
       }
-      const stars = Math.max(0, Number(settlementData.starBonus) || 0);
-      const oracleHits = Math.max(0, Number(settlementData.oracleHits) || 0);
-      if (stars > 0 || oracleHits > 0) {
+      const stars = Math.max(0, Number(settlementData.starBonus) || 0) + Math.max(0, Number(settlementData.oracleHits) || 0);
+      if (stars > 0) {
         const factor = document.createElement('span');
         factor.className = 'tarot-kingdom-settle-chip is-factor';
-        factor.textContent = `★${stars} O${oracleHits}`;
+        factor.textContent = `★${'⭐'.repeat(Math.min(8, stars))}${stars > 8 ? `+${stars - 8}` : ''}`;
         right.appendChild(factor);
       }
     }
@@ -6336,7 +6342,7 @@ function updateButtons() {
   ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
   ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
   const actionReadyPhase = myTurn || drawMe;
-  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton, ui.settlementConfirmButton];
+  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton];
   popupButtons.forEach((btn) => {
     if (!btn) return;
     const isFoldActive = btn === ui.foldButton && kingdomLocalAutoFold;
@@ -6345,8 +6351,7 @@ function updateButtons() {
   });
   if (ui.actionPopup) {
     const hasReady = popupButtons.some((btn) => !!btn && btn.classList.contains('is-ready'));
-    const confirmVisible = !!(ui.settlementConfirmButton && !ui.settlementConfirmButton.hidden);
-    ui.actionPopup.hidden = isMatchDone && !confirmVisible;
+    ui.actionPopup.hidden = isMatchDone;
     ui.actionPopup.classList.toggle('is-human-ready', hasReady);
     ui.actionPopup.classList.toggle('is-call-locked', inCallCinematic);
   }
