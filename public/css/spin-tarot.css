@@ -992,7 +992,8 @@
 }
 
 .tarot-spin-root .spin-tarot-board .tarot-card-art {
-    transform: scale(1.12);
+    transform: translate(-50%, -50%) scale(1.12);
+    transform-origin: center center;
 }
 
 .tarot-spin-root .spin-tarot-board .tarot-card-title {
@@ -1199,15 +1200,71 @@
     }
 
     .tarot-spin-root .spin-tarot-main-stage {
-        padding: 8px;
+        gap: 6px;
+        padding: 7px;
     }
 
     .tarot-spin-root .spin-tarot-result-main {
         font-size: 12px;
     }
 
-    .tarot-spin-root .spin-tarot-quick-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+    .tarot-spin-root .spin-tarot-header {
+        gap: 5px;
+    }
+
+    .tarot-spin-root .spin-tarot-hud {
+        gap: 4px;
+    }
+
+    .tarot-spin-root .spin-tarot-hud-chip {
+        min-height: 20px;
+        padding: 3px 7px;
+        font-size: 10px;
+    }
+
+    .tarot-spin-root .spin-tarot-board-head {
+        gap: 4px;
+        margin-bottom: 6px;
+    }
+
+    .tarot-spin-root .spin-tarot-stage-pills {
+        gap: 4px;
+    }
+
+    .tarot-spin-root .spin-tarot-stage-pills span {
+        padding: 4px 7px;
+        font-size: 10px;
+    }
+
+    .tarot-spin-root .spin-tarot-battle-strip,
+    .tarot-spin-root .spin-tarot-result-strip {
+        padding: 7px 9px;
+    }
+
+    .tarot-spin-root .spin-tarot-controls {
+        gap: 5px;
+    }
+
+    .tarot-spin-root .spin-tarot-bet-row {
+        gap: 4px;
+    }
+
+    .tarot-spin-root .spin-tarot-bet-btn,
+    .tarot-spin-root .spin-tarot-ghost-btn,
+    .tarot-spin-root .spin-tarot-hold-btn {
+        padding: 5px 6px;
+        font-size: 9px;
+    }
+
+    .tarot-spin-root .spin-tarot-action-row {
+        position: sticky;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+        z-index: 3;
+        padding: 6px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 214, 102, 0.16);
+        background: linear-gradient(180deg, rgba(7, 10, 18, 0.94), rgba(16, 20, 33, 0.98));
+        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
     }
 }
 
@@ -1219,12 +1276,27 @@
     }
 
     .tarot-spin-root .spin-tarot-board-wrap {
-        padding: 10px;
+        padding: 8px;
     }
 
     .tarot-spin-root .spin-tarot-stage-pills span,
     .tarot-spin-root .spin-tarot-hud-chip {
         font-size: 10px;
+    }
+
+    .tarot-spin-root .spin-tarot-action-row {
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 6px;
+        padding: 5px;
+    }
+
+    .tarot-spin-root .spin-tarot-ghost-btn {
+        min-height: 34px;
+    }
+
+    .tarot-spin-root .spin-tarot-spin-btn {
+        min-height: 38px;
+        font-size: 16px;
     }
 
     .tarot-spin-root .spin-tarot-board .tarot-card-number {
