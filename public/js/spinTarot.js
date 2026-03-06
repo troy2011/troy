@@ -334,7 +334,7 @@ function bindEvents() {
     });
 }
 
-async async function handleSpin() {
+async function handleSpin() {
     if (spinning || !state) return;
     const result = performSpin(state, CONFIG);
     state = result.state;
