@@ -17,6 +17,18 @@ const HAND_STRENGTH = {
 };
 
 const CARD_POOL = buildCardPool(SPIN_TAROT_CONFIG);
+const POKER_STRAIGHTS = [
+    [10, 11, 12, 13, 1],
+    [9, 10, 11, 12, 13],
+    [8, 9, 10, 11, 12],
+    [7, 8, 9, 10, 11],
+    [6, 7, 8, 9, 10],
+    [5, 6, 7, 8, 9],
+    [4, 5, 6, 7, 8],
+    [3, 4, 5, 6, 7],
+    [2, 3, 4, 5, 6],
+    [1, 2, 3, 4, 5]
+];
 
 export function getSpinTarotConfig() {
     return SPIN_TAROT_CONFIG;
@@ -41,7 +53,7 @@ export function getSpriteStyle(index) {
 export function getCardSpriteIndex(card) {
     if (!card || card.kind === 'blank') return SPIN_TAROT_SPRITE_CONFIG.backIndex;
     if (card.kind === 'major') return SPIN_TAROT_SPRITE_CONFIG.majorArcanaOffset + Number(card.number || 0);
-    const number = Math.max(1, Math.min(14, Number(card.rank || card.number || 1))) - 1;
+    const number = Math.max(1, Math.min(13, Number(card.rank || card.number || 1))) - 1;
     if (card.suit === 'Wand') return number;
     if (card.suit === 'Pentacle') return 20 + number;
     if (card.suit === 'Cup') return 40 + number;
@@ -53,10 +65,10 @@ export function getCardFace(card) {
     if (!card || card.kind === 'blank') return '▒';
     if (card.isWild) return 'W';
     const rank = Number(card.rank || 0);
-    if (rank === 11) return 'P';
-    if (rank === 12) return 'N';
-    if (rank === 13) return 'Q';
-    if (rank === 14) return 'K';
+    if (rank === 1) return 'A';
+    if (rank === 11) return 'J';
+    if (rank === 12) return 'Q';
+    if (rank === 13) return 'K';
     return String(rank || '?');
 }
 
@@ -71,13 +83,16 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
     const currentArcana = rollMajorArcana(config, 'normal', config.kingdomRank.minRank);
     return {
         version: 1,
-        board: createOpeningBoard(config),
+        board: createBlankBoard(config),
         holdMask: Array(config.board.reels).fill(false),
         lockedHolds: Array(config.board.reels).fill(false),
+        phase: 'deal',
+        deck: [],
         coins: config.startingResources.coins,
         totalPayout: 0,
         lastBetCost: 0,
         betIndex: 0,
+        activeLineCount: config.lineSelection?.defaultActiveLines || config.board.paylines.length,
         spinCount: 0,
         turnCount: 0,
         castleHp: config.startingResources.castleHp,
@@ -111,7 +126,8 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         previewSuit: rollPreviewSuit(),
         logs: [
             `新しい遠征開始。次の襲来は ${zone.label} ${zone.spinsRemaining}G。`,
-            `${currentArcana.label} が中央に灯った。`
+            `${currentArcana.label} が中央に灯った。`,
+            'BET と有効ラインを決めて DEAL。'
         ],
         gameOver: false
     };
@@ -123,6 +139,7 @@ export function cloneState(state) {
         board: state.board.map((row) => row.map(cloneCard)),
         holdMask: state.holdMask.slice(),
         lockedHolds: state.lockedHolds.slice(),
+        deck: Array.isArray(state.deck) ? state.deck.map((card) => cloneCard(card)) : [],
         zone: state.zone ? { ...state.zone } : null,
         battle: state.battle ? { ...state.battle } : null,
         premium: state.premium ? { ...state.premium } : null,
@@ -137,17 +154,42 @@ export function cloneState(state) {
 
 export function setBetIndex(state, betIndex, config = SPIN_TAROT_CONFIG) {
     const next = cloneState(state);
+    if (next.phase === 'hold') return next;
     next.betIndex = clamp(Number(betIndex) || 0, 0, config.betLevels.length - 1);
     return next;
 }
 
+export function setActiveLineCount(state, activeLineCount, config = SPIN_TAROT_CONFIG) {
+    const next = cloneState(state);
+    if (next.phase === 'hold') return next;
+    next.activeLineCount = normalizeActiveLineCount(activeLineCount, config);
+    return next;
+}
+
+export function stepActiveLineCount(state, direction, config = SPIN_TAROT_CONFIG) {
+    const next = cloneState(state);
+    if (next.phase === 'hold') return next;
+    const choices = getLineChoices(config);
+    const current = normalizeActiveLineCount(next.activeLineCount, config);
+    const currentIndex = Math.max(0, choices.indexOf(current));
+    const step = Number(direction) >= 0 ? 1 : -1;
+    next.activeLineCount = choices[clamp(currentIndex + step, 0, choices.length - 1)];
+    return next;
+}
+
+export function getLineChoices(config = SPIN_TAROT_CONFIG) {
+    return getAllowedLineCounts(config);
+}
+
 export function toggleHold(state, column, config = SPIN_TAROT_CONFIG) {
     const next = cloneState(state);
+    if (next.phase !== 'hold') return next;
     const reel = clamp(Number(column) || 0, 0, config.board.reels - 1);
     if (next.lockedHolds[reel]) return next;
     const centerCard = next.board[1]?.[reel];
     if (!centerCard || centerCard.kind === 'blank') return next;
     next.holdMask[reel] = !next.holdMask[reel];
+    syncHoldPreview(next, config);
     pushLog(next, `${reel + 1}列目を ${next.holdMask[reel] ? 'HOLD' : '解除'}。`, config);
     return next;
 }
@@ -160,10 +202,15 @@ export function getBetInfo(state, config = SPIN_TAROT_CONFIG) {
     return config.betLevels[state.betIndex] || config.betLevels[0];
 }
 
+export function getDealCost(state, config = SPIN_TAROT_CONFIG) {
+    const betInfo = getBetInfo(state, config);
+    return Number(betInfo.cost || 0) * Number(state.activeLineCount || config.lineSelection?.defaultActiveLines || 1);
+}
+
 export function canSpin(state, config = SPIN_TAROT_CONFIG) {
     if (state.gameOver) return false;
-    const betInfo = getBetInfo(state, config);
-    return state.coins >= betInfo.cost;
+    if (state.phase === 'hold') return true;
+    return state.coins >= getDealCost(state, config);
 }
 
 export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
@@ -172,13 +219,40 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     if (state.gameOver) {
         return { ok: false, state, reason: 'game-over' };
     }
-    if (state.coins < betInfo.cost) {
-        pushLog(state, 'コイン不足でスピンできない。', config);
-        return { ok: false, state, reason: 'coin-shortage' };
+    const events = {
+        preAlert: false,
+        cutin: null,
+        notes: []
+    };
+
+    if (state.phase !== 'hold') {
+        const dealCost = getDealCost(state, config);
+        if (state.coins < dealCost) {
+            pushLog(state, 'コイン不足で DEAL できない。', config);
+            return { ok: false, state, reason: 'coin-shortage' };
+        }
+        state.coins -= dealCost;
+        state.lastBetCost = dealCost;
+        state.totalPayout = 0;
+        state.lastAttackDamage = 0;
+        state.lastEnemyDamage = 0;
+        state.lastTreasureCoins = 0;
+        state.attackMultiplier = 1;
+        state.lineResults = [];
+        state.lineSummaries = [];
+        state.lastEffects = [];
+        state.lastCutin = null;
+        state.omenBreak = false;
+        state.preAlert = false;
+        state.holdMask = Array(config.board.reels).fill(false);
+        state.deck = createShuffledDeck(config);
+        state.board = dealOpeningBoard(state, config);
+        state.phase = 'hold';
+        pushLog(state, `DEAL ${dealCost} 枚。中央ラインに配札。`, config);
+        events.notes.push('dealt');
+        return { ok: true, state, events };
     }
 
-    state.coins -= betInfo.cost;
-    state.lastBetCost = betInfo.cost;
     state.spinCount += 1;
     state.turnCount += 1;
     state.totalPayout = 0;
@@ -192,16 +266,14 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     state.lastCutin = null;
     state.omenBreak = false;
     state.preAlert = shouldTriggerPreAlert(state, config);
-
-    const events = {
-        preAlert: state.preAlert,
-        cutin: null,
-        notes: []
-    };
+    events.preAlert = state.preAlert;
 
     maybeStartPremium(state, config, events);
 
     if (triggerFreezeIfNeeded(state, config, betInfo, events)) {
+        state.phase = 'deal';
+        state.deck = [];
+        state.holdMask = Array(config.board.reels).fill(false);
         finalizePostSpinState(state, config);
         return { ok: true, state, events };
     }
@@ -209,18 +281,18 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     const drawOptions = buildDrawOptions(state, config);
     state.board = spinBoard(state, config, drawOptions);
 
-    let evaluation = evaluateBoard(state.board, config, betInfo);
+    let evaluation = evaluateBoard(state.board, state, config, betInfo);
 
     if (!evaluation.hasRole && state.currentArcana?.redrawOnMiss) {
         state.board = spinBoard(state, config, drawOptions);
-        evaluation = evaluateBoard(state.board, config, betInfo);
+        evaluation = evaluateBoard(state.board, state, config, betInfo);
         state.lastEffects.push('運命の輪が再抽選を発動');
         events.notes.push('wheel-redraw');
     }
 
     if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.mysteryWild.holdRank)) {
         state.board = applyMysteryWild(state.board, state);
-        evaluation = evaluateBoard(state.board, config, betInfo);
+        evaluation = evaluateBoard(state.board, state, config, betInfo);
         if (evaluation.hasRole) {
             state.lastEffects.push('2の逆転がワイルド化');
             events.notes.push('mystery-wild');
@@ -230,7 +302,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.skipNudge.holdRank)) {
         const nudgeResult = applySkipNudge(state.board, state, config, drawOptions);
         state.board = nudgeResult.board;
-        evaluation = evaluateBoard(state.board, config, betInfo);
+        evaluation = evaluateBoard(state.board, state, config, betInfo);
         if (evaluation.hasRole) {
             state.lastEffects.push(`5のスキップで ${nudgeResult.detail}`);
             events.notes.push('skip-nudge');
@@ -239,7 +311,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
 
     if (state.pendingGuaranteeRole === 'TwoPair' && evaluation.bestStrength < HAND_STRENGTH.TwoPair) {
         forceGuaranteedTwoPair(state, config, drawOptions);
-        evaluation = evaluateBoard(state.board, config, betInfo);
+        evaluation = evaluateBoard(state.board, state, config, betInfo);
         state.lastEffects.push('吊るされた男の保証が発動');
         events.notes.push('guarantee-two-pair');
     }
@@ -286,6 +358,9 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         events.cutin = buildCutin(state.currentArcana.number, `${state.currentArcana.label} が点灯`);
     }
 
+    state.phase = 'deal';
+    state.deck = [];
+    state.holdMask = Array(config.board.reels).fill(false);
     finalizePostSpinState(state, config);
     return { ok: true, state, events };
 }
@@ -298,7 +373,7 @@ export function describeEnemy(enemy) {
 function buildCardPool(config) {
     const pool = [];
     config.suits.forEach((suit) => {
-        for (let rank = 1; rank <= 14; rank += 1) {
+        for (const rank of config.deck?.ranks || []) {
             pool.push({
                 suit: suit.key,
                 rank,
@@ -318,7 +393,8 @@ function buildDrawOptions(state, config) {
             : null;
     return {
         suitFilter,
-        config
+        config,
+        state
     };
 }
 
@@ -328,6 +404,26 @@ function createOpeningBoard(config, drawOptions = null) {
         board[1][reel] = drawCard(drawOptions || { config });
     }
     return board;
+}
+
+function createShuffledDeck(config) {
+    const deck = CARD_POOL.map((card) => createMinorCard(card.suit, card.rank));
+    for (let index = deck.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomInt(0, index);
+        [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
+    }
+    return deck;
+}
+
+function dealOpeningBoard(state, config) {
+    const board = createBlankBoard(config);
+    const drawOptions = buildDrawOptions(state, config);
+    for (let reel = 0; reel < config.board.reels; reel += 1) {
+        board[1][reel] = drawCard(drawOptions);
+    }
+    state.board = board;
+    syncHoldPreview(state, config);
+    return state.board;
 }
 
 function createBlankBoard(config) {
@@ -353,12 +449,47 @@ function createMinorCard(suit, rank, extra = {}) {
 
 function drawCard(options = {}) {
     const config = options.config || SPIN_TAROT_CONFIG;
+    const state = options.state || null;
+    if (state && Array.isArray(state.deck) && state.deck.length > 0) {
+        const matchIndex = findDeckCardIndex(state.deck, options);
+        if (matchIndex >= 0) {
+            const [picked] = state.deck.splice(matchIndex, 1);
+            return cloneCard(picked);
+        }
+        const [picked] = state.deck.splice(0, 1);
+        return cloneCard(picked);
+    }
     const suitFilter = Array.isArray(options.suitFilter) && options.suitFilter.length
         ? new Set(options.suitFilter)
         : null;
     const pool = CARD_POOL.filter((card) => !suitFilter || suitFilter.has(card.suit));
     const pick = weightedPick(pool);
     return createMinorCard(pick.suit, pick.rank);
+}
+
+function drawSpecificCard(options = {}, criteria = {}) {
+    const state = options.state || null;
+    if (!state || !Array.isArray(state.deck) || state.deck.length === 0) {
+        return null;
+    }
+    const targetRanks = Array.isArray(criteria.ranks) ? new Set(criteria.ranks.map((rank) => Number(rank))) : null;
+    const targetSuits = Array.isArray(criteria.suits) ? new Set(criteria.suits) : null;
+    const index = state.deck.findIndex((card) => {
+        if (!card || card.kind === 'blank') return false;
+        if (targetRanks && !targetRanks.has(Number(card.rank || 0))) return false;
+        if (targetSuits && !targetSuits.has(card.suit)) return false;
+        return true;
+    });
+    if (index < 0) return null;
+    const [picked] = state.deck.splice(index, 1);
+    return cloneCard(picked);
+}
+
+function findDeckCardIndex(deck, options = {}) {
+    const suitFilter = Array.isArray(options.suitFilter) && options.suitFilter.length
+        ? new Set(options.suitFilter)
+        : null;
+    return deck.findIndex((card) => !suitFilter || suitFilter.has(card.suit));
 }
 
 function weightedPick(entries) {
@@ -376,8 +507,61 @@ function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
 
+function getAllowedLineCounts(config) {
+    const configured = Array.isArray(config.lineSelection?.allowedCounts) && config.lineSelection.allowedCounts.length
+        ? config.lineSelection.allowedCounts
+        : null;
+    const counts = configured
+        ? configured
+        : Array.from(
+            { length: (config.lineSelection?.maxActiveLines || config.board.paylines.length) - (config.lineSelection?.minActiveLines || 1) + 1 },
+            (_, index) => (config.lineSelection?.minActiveLines || 1) + index
+        );
+    return Array.from(new Set(
+        counts
+            .map((value) => clamp(Number(value) || 0, config.lineSelection?.minActiveLines || 1, config.lineSelection?.maxActiveLines || config.board.paylines.length))
+            .filter((value) => value >= 1 && value <= config.board.paylines.length)
+    )).sort((left, right) => left - right);
+}
+
+function normalizeActiveLineCount(activeLineCount, config) {
+    const choices = getAllowedLineCounts(config);
+    const requested = Number(activeLineCount) || config.lineSelection?.defaultActiveLines || choices[choices.length - 1];
+    let closest = choices[0];
+    let smallestGap = Math.abs(closest - requested);
+    choices.forEach((value) => {
+        const gap = Math.abs(value - requested);
+        if (gap < smallestGap || (gap === smallestGap && value > closest)) {
+            closest = value;
+            smallestGap = gap;
+        }
+    });
+    return closest;
+}
+
 function randomInt(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function getRankStrength(rank) {
+    const numericRank = Number(rank || 0);
+    return numericRank === 1 ? 14 : numericRank;
+}
+
+function getRankOrder(config = SPIN_TAROT_CONFIG) {
+    return (config.deck?.ranks || [])
+        .slice()
+        .sort((left, right) => getRankStrength(right) - getRankStrength(left));
+}
+
+function isHighRank(rank) {
+    const numericRank = Number(rank || 0);
+    return numericRank === 1 || numericRank >= 11;
+}
+
+function isRoyalGrowthRank(rank) {
+    const numericRank = Number(rank || 0);
+    return numericRank === 1 || numericRank >= 11;
 }
 
 function chance(probability) {
@@ -450,6 +634,20 @@ function spinBoard(state, config, drawOptions) {
     return board;
 }
 
+function syncHoldPreview(state, config) {
+    if (state.phase !== 'hold') return;
+    for (let reel = 0; reel < config.board.reels; reel += 1) {
+        const center = state.board[1]?.[reel];
+        if (state.holdMask[reel] && center && center.kind !== 'blank') {
+            state.board[0][reel] = createMinorCard(center.suit, center.rank, { isHeldSync: true });
+            state.board[2][reel] = createMinorCard(center.suit, center.rank, { isHeldSync: true });
+        } else {
+            state.board[0][reel] = createBlankCard();
+            state.board[2][reel] = createBlankCard();
+        }
+    }
+}
+
 function hasHeldRank(state, rank) {
     return state.holdMask.some((held, reel) => held && Number(state.board[1]?.[reel]?.rank || 0) === Number(rank));
 }
@@ -493,19 +691,19 @@ function applySkipNudge(board, state, config, drawOptions) {
         }
     });
 
-    let evaluation = evaluateBoard(nextBoard, config, { level: 1, cost: 1 });
+    let evaluation = evaluateBoard(nextBoard, state, config, { level: 1, cost: 1 });
     if (!evaluation.hasRole) {
         const midRanks = nextBoard[1].map((card) => Number(card.rank || 0)).filter(Boolean);
-        const targetRank = getMostCommonRank(midRanks) || randomInt(1, 14);
+        const targetRank = getMostCommonRank(midRanks) || pickRandomDeckRank(config);
         const targetReels = openReels.length >= 2 ? openReels.slice(0, 2) : openReels.slice(0, 1);
         if (targetReels.length >= 1) {
-            nextBoard[1][targetReels[0]] = createMinorCard(randomSuit(), targetRank);
+            nextBoard[1][targetReels[0]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         }
         if (targetReels.length >= 2) {
-            nextBoard[1][targetReels[1]] = createMinorCard(randomSuit(), targetRank);
+            nextBoard[1][targetReels[1]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         } else if (targetReels.length === 1) {
             const buddyReel = targetReels[0] === 0 ? 1 : 0;
-            nextBoard[1][buddyReel] = createMinorCard(randomSuit(), targetRank);
+            nextBoard[1][buddyReel] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         }
     }
 
@@ -536,7 +734,7 @@ function applyCascade(board, state, evaluation, config, drawOptions, betInfo) {
     const multiplier = destroyedCount > 0
         ? clamp(1 + (destroyedCount * config.minorArcana.cascade.multiplierStep), 1, 9)
         : 1;
-    const reevaluated = evaluateBoard(nextBoard, config, betInfo);
+    const reevaluated = evaluateBoard(nextBoard, state, config, betInfo);
     reevaluated.totalPayout *= multiplier;
     return {
         board: nextBoard,
@@ -547,23 +745,32 @@ function applyCascade(board, state, evaluation, config, drawOptions, betInfo) {
 }
 
 function forceGuaranteedTwoPair(state, config, drawOptions) {
-    const targetRanks = [randomInt(6, 10), randomInt(11, 14)];
+    const targetRanks = [pickRandomDeckRank(config, 6, 10), pickRandomHighDeckRank(config)];
     for (let reel = 0; reel < config.board.reels; reel += 1) {
         if (reel <= 1) {
-            state.board[1][reel] = createMinorCard(randomSuit(), targetRanks[0]);
+            state.board[1][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[0]] }) || drawCard(drawOptions);
         } else if (reel <= 3) {
-            state.board[1][reel] = createMinorCard(randomSuit(), targetRanks[1]);
+            state.board[1][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[1]] }) || drawCard(drawOptions);
         } else {
             state.board[1][reel] = drawCard(drawOptions);
         }
     }
 }
 
-function randomSuit() {
-    return SUIT_KEYS[randomInt(0, SUIT_KEYS.length - 1)];
+function pickRandomDeckRank(config, min = 1, max = 13) {
+    const ranks = (config.deck?.ranks || []).filter((rank) => rank >= min && rank <= max);
+    if (!ranks.length) return min;
+    return ranks[randomInt(0, ranks.length - 1)];
 }
-function evaluateBoard(board, config, betInfo) {
-    const lineResults = config.board.paylines.map((line) => {
+
+function pickRandomHighDeckRank(config) {
+    const ranks = (config.deck?.ranks || []).filter((rank) => isHighRank(rank));
+    if (!ranks.length) return 13;
+    return ranks[randomInt(0, ranks.length - 1)];
+}
+function evaluateBoard(board, state, config, betInfo) {
+    const activePaylines = getActivePaylines(state, config);
+    const lineResults = activePaylines.map((line) => {
         const cards = line.rows.map((row, reel) => board[row][reel]);
         const coords = line.rows.map((row, reel) => ({ row, reel }));
         const hand = evaluateHand(cards, { maxBet: betInfo.level === config.betLevels[config.betLevels.length - 1].level });
@@ -608,9 +815,9 @@ function evaluateHand(cards, options = {}) {
         return buildHandResult('StraightFlush', straightFlush.suit, 500);
     }
 
-    const fourKind = findFourKind(rankCounts, wildCount);
+    const fourKind = findFourKind(rankCounts, wildCount, SPIN_TAROT_CONFIG);
     if (fourKind) {
-        return buildHandResult(fourKind.rank >= 11 ? 'FourKindHigh' : 'FourKindLow', fourKind.rank, fourKind.rank >= 11 ? 150 : 50);
+        return buildHandResult(isHighRank(fourKind.rank) ? 'FourKindHigh' : 'FourKindLow', fourKind.rank, isHighRank(fourKind.rank) ? 150 : 50);
     }
 
     if (findFullHouse(rankCounts, wildCount)) {
@@ -664,22 +871,16 @@ function findStraightFlush(normals, wildCount) {
         return { suit: 'Wand', isRoyal: true };
     }
     if (new Set(normals.map((card) => card.suit)).size > 1) return null;
-    const suit = normals[0]?.suit || 'Wand';
-    const ranks = normals.map((card) => Number(card.rank || 0));
-    for (let start = 10; start >= 1; start -= 1) {
-        const target = new Set([start, start + 1, start + 2, start + 3, start + 4]);
-        if (ranks.every((rank) => target.has(rank)) && (new Set(ranks).size + wildCount) >= 5) {
-            return {
-                suit,
-                isRoyal: start === 10
-            };
-        }
-    }
-    return null;
+    const straight = findStraightPattern(normals, wildCount);
+    if (!straight) return null;
+    return {
+        suit: normals[0]?.suit || 'Wand',
+        isRoyal: straight.isRoyal
+    };
 }
 
-function findFourKind(rankCounts, wildCount) {
-    for (let rank = 14; rank >= 1; rank -= 1) {
+function findFourKind(rankCounts, wildCount, config = SPIN_TAROT_CONFIG) {
+    for (const rank of getRankOrder(config)) {
         if ((rankCounts.get(rank) || 0) + wildCount >= 4) {
             return { rank };
         }
@@ -688,8 +889,9 @@ function findFourKind(rankCounts, wildCount) {
 }
 
 function findFullHouse(rankCounts, wildCount) {
-    for (let tripleRank = 14; tripleRank >= 1; tripleRank -= 1) {
-        for (let pairRank = 14; pairRank >= 1; pairRank -= 1) {
+    const ranks = getRankOrder();
+    for (const tripleRank of ranks) {
+        for (const pairRank of ranks) {
             if (tripleRank === pairRank) continue;
             let needed = Math.max(0, 3 - (rankCounts.get(tripleRank) || 0));
             needed += Math.max(0, 2 - (rankCounts.get(pairRank) || 0));
@@ -708,27 +910,41 @@ function findFlush(normals, suitSet, wildCount) {
 }
 
 function findStraight(normals, wildCount) {
-    const ranks = normals.map((card) => Number(card.rank || 0));
-    for (let start = 10; start >= 1; start -= 1) {
-        const target = new Set([start, start + 1, start + 2, start + 3, start + 4]);
-        if (ranks.every((rank) => target.has(rank)) && (new Set(ranks).size + wildCount) >= 5) {
-            return true;
+    return !!findStraightPattern(normals, wildCount);
+}
+
+function findStraightPattern(normals, wildCount) {
+    const ranks = normals.map((card) => Number(card.rank || 0)).filter(Boolean);
+    if (new Set(ranks).size !== ranks.length) return null;
+    for (const sequence of POKER_STRAIGHTS) {
+        const target = new Set(sequence);
+        if (!ranks.every((rank) => target.has(rank))) continue;
+        const missing = sequence.filter((rank) => !ranks.includes(rank)).length;
+        if (missing <= wildCount && (ranks.length + wildCount) >= 5) {
+            return {
+                sequence,
+                isRoyal: sequence[0] === 10 && sequence[4] === 1
+            };
         }
     }
-    return false;
+    return null;
 }
 
 function findThreeKind(rankCounts, wildCount) {
-    for (let rank = 14; rank >= 1; rank -= 1) {
+    for (const rank of getRankOrder()) {
         if ((rankCounts.get(rank) || 0) + wildCount >= 3) return true;
     }
     return false;
 }
 
 function findTwoPair(rankCounts, wildCount) {
-    for (let first = 14; first >= 1; first -= 1) {
-        for (let second = first - 1; second >= 1; second -= 1) {
-            const need = Math.max(0, 2 - (rankCounts.get(first) || 0)) + Math.max(0, 2 - (rankCounts.get(second) || 0));
+    const ranks = getRankOrder();
+    for (let firstIndex = 0; firstIndex < ranks.length; firstIndex += 1) {
+        for (let secondIndex = firstIndex + 1; secondIndex < ranks.length; secondIndex += 1) {
+            const first = ranks[firstIndex];
+            const second = ranks[secondIndex];
+            const need = Math.max(0, 2 - (rankCounts.get(first) || 0))
+                + Math.max(0, 2 - (rankCounts.get(second) || 0));
             if (need <= wildCount) return true;
         }
     }
@@ -736,7 +952,7 @@ function findTwoPair(rankCounts, wildCount) {
 }
 
 function findOnePair(rankCounts, wildCount) {
-    for (let rank = 14; rank >= 1; rank -= 1) {
+    for (const rank of getRankOrder()) {
         if ((rankCounts.get(rank) || 0) + wildCount >= 2) return true;
     }
     return false;
@@ -757,25 +973,30 @@ function getMostCommonRank(ranks) {
     ranks.forEach((rank) => counts.set(rank, (counts.get(rank) || 0) + 1));
     return Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0]?.[0] || null;
 }
+
+function getActivePaylines(state, config) {
+    const count = normalizeActiveLineCount(state?.activeLineCount, config);
+    return config.board.paylines.slice(0, count);
+}
 function applyCourtGrowth(state, evaluation, config, betInfo) {
-    const courtCards = state.board.flat().filter((card) => Number(card.rank || 0) >= 11 && !card.isWild);
+    const courtCards = state.board.flat().filter((card) => isRoyalGrowthRank(card?.rank) && !card?.isWild);
     const statMultiplier = Number(betInfo.statMultiplier || 1);
     const queenBoost = Number(state.currentArcana?.queenMultiplier || 1);
     const kingBoost = Number(state.currentArcana?.kingMultiplier || 1);
 
     courtCards.forEach((card) => {
-        if (card.rank === 11) {
+        if (Number(card.rank || 0) === 11) {
             state.population += config.statusGrowth[11].population * statMultiplier;
-        } else if (card.rank === 12) {
+        } else if (Number(card.rank || 0) === 12) {
             state.knights += config.statusGrowth[12].knights * statMultiplier;
-        } else if (card.rank === 13) {
+        } else if (Number(card.rank || 0) === 13) {
             const gain = config.statusGrowth[13].rankGauge * statMultiplier;
             state.rankGauge += gain;
             state.queenGauge += config.statusGrowth[13].queenGauge * statMultiplier * queenBoost;
-        } else if (card.rank === 14) {
-            const gain = config.statusGrowth[14].rankGauge * statMultiplier;
+        } else if (Number(card.rank || 0) === 1) {
+            const gain = config.statusGrowth[1].rankGauge * statMultiplier;
             state.rankGauge += gain;
-            state.kingGauge += config.statusGrowth[14].kingGauge * statMultiplier * kingBoost;
+            state.kingGauge += config.statusGrowth[1].kingGauge * statMultiplier * kingBoost;
         }
     });
 
@@ -979,7 +1200,7 @@ function computePlayerDamage(state, evaluation, config, betInfo) {
         damage += Math.floor(Math.max(1, state.mages) * config.combat.magePower * arcana.magicNova);
     }
     if (arcana.deathCounter) {
-        const shiftedCourts = state.board.flat().filter((card) => Number(card.rank || 0) >= 11).length;
+        const shiftedCourts = state.board.flat().filter((card) => isRoyalGrowthRank(card?.rank)).length;
         damage += Math.floor(shiftedCourts * arcana.deathCounter * 6);
     }
 

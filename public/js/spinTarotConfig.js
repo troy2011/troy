@@ -38,16 +38,26 @@ export const SPIN_TAROT_CONFIG = {
         rows: 3,
         reels: 5,
         paylines: [
-            { id: 'top', label: 'TOP', rows: [0, 0, 0, 0, 0] },
             { id: 'mid', label: 'MID', rows: [1, 1, 1, 1, 1] },
+            { id: 'top', label: 'TOP', rows: [0, 0, 0, 0, 0] },
             { id: 'bot', label: 'BOT', rows: [2, 2, 2, 2, 2] },
-            { id: 'v-up', label: 'V', rows: [0, 1, 2, 1, 0] },
-            { id: 'v-down', label: 'Λ', rows: [2, 1, 0, 1, 2] },
             { id: 'diag-fall', label: '＼', rows: [0, 0, 1, 2, 2] },
             { id: 'diag-rise', label: '／', rows: [2, 2, 1, 0, 0] },
+            { id: 'v-up', label: 'V', rows: [0, 1, 2, 1, 0] },
+            { id: 'v-down', label: 'Λ', rows: [2, 1, 0, 1, 2] },
             { id: 'zig-right', label: 'Z1', rows: [1, 0, 1, 2, 1] },
             { id: 'zig-left', label: 'Z2', rows: [1, 2, 1, 0, 1] }
         ]
+    },
+    deck: {
+        finite: true,
+        ranks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    },
+    lineSelection: {
+        defaultActiveLines: 9,
+        minActiveLines: 1,
+        maxActiveLines: 9,
+        allowedCounts: [1, 3, 5, 9]
     },
     suits: [
         { key: 'Wand', label: 'ワンド', icon: '🪄', enemyEmoji: '🧙', weight: 1 },
@@ -56,20 +66,19 @@ export const SPIN_TAROT_CONFIG = {
         { key: 'Pentacle', label: 'ペンタクル', icon: '🪙', enemyEmoji: '👺', weight: 1 }
     ],
     rankWeights: {
-        1: 1.1,
-        2: 0.92,
+        1: 1,
+        2: 1,
         3: 1,
         4: 1,
-        5: 0.88,
-        6: 1.05,
-        7: 1.05,
-        8: 0.82,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
         9: 1,
-        10: 0.95,
-        11: 0.7,
-        12: 0.62,
-        13: 0.5,
-        14: 0.46
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1
     },
     payoutTable: {
         OnePair: { multiplier: 0, label: 'ワンペア' },
@@ -79,7 +88,7 @@ export const SPIN_TAROT_CONFIG = {
         Flush: { multiplier: 7, label: 'フラッシュ' },
         FullHouse: { multiplier: 10, label: 'フルハウス' },
         FourKindLow: { multiplier: 50, label: 'フォーカード(1-10)' },
-        FourKindHigh: { multiplier: 150, label: 'フォーカード(11-14)' },
+        FourKindHigh: { multiplier: 150, label: 'フォーカード(J-A)' },
         StraightFlush: { multiplier: 500, label: 'ストレートフラッシュ' },
         RoyalStraightFlush: { multiplier: 4000, label: 'ロイヤルストレートフラッシュ' }
     },
@@ -95,10 +104,10 @@ export const SPIN_TAROT_CONFIG = {
         castleMaxHp: 180
     },
     statusGrowth: {
+        1: { rankGauge: 8, kingGauge: 8, summary: 'エースゲージ' },
         11: { population: 8, summary: '人口' },
         12: { knights: 2, summary: '騎士' },
-        13: { rankGauge: 6, queenGauge: 6, summary: '女帝ゲージ' },
-        14: { rankGauge: 8, kingGauge: 8, summary: '皇帝ゲージ' },
+        13: { rankGauge: 6, queenGauge: 6, summary: 'クイーンゲージ' },
         flushMageGain: 1
     },
     combat: {

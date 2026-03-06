@@ -5,11 +5,13 @@ import {
     getBetInfo,
     getCardFace,
     getCardSpriteIndex,
-    getCardText,
+    getDealCost,
+    getLineChoices,
     getMajorArcana,
     getSpinTarotConfig,
     getSpriteStyle,
     performSpin,
+    stepActiveLineCount,
     setBetIndex,
     toggleHold
 } from './spinTarotEngine.js';
@@ -22,6 +24,29 @@ let state = null;
 let spinning = false;
 let cutin = null;
 let cutinTimer = null;
+let openPanels = {
+    lines: false,
+    log: false
+};
+
+const ARCANA_SUIT_CLASS_BY_NUMBER = {
+    2: 'cup',
+    3: 'pentacle',
+    4: 'wand',
+    5: 'sword',
+    6: 'cup',
+    7: 'sword',
+    8: 'wand',
+    9: 'pentacle',
+    11: 'sword',
+    12: 'pentacle',
+    13: 'cup',
+    14: 'wand',
+    16: 'sword',
+    17: 'cup',
+    18: 'pentacle',
+    19: 'wand'
+};
 
 export async function loadSpinTarotPage() {
     await ensureStylesheet();
@@ -66,113 +91,129 @@ function render() {
     const hitCells = getHitCellSet();
     const enemy = state.battle;
     const zoneText = state.zone ? `${state.zone.label} ${state.zone.spinsRemaining}/${state.zone.totalSpins}` : '防衛戦';
-    const premiumText = state.premium ? `BONUS: ${state.premium.label} ${state.premium.spinsRemaining}G` : 'BONUS: 通常';
+    const premiumText = state.premium ? `${state.premium.label} ${state.premium.spinsRemaining}G` : '通常抽選';
+    const leadRole = state.phase === 'hold'
+        ? '中央ラインで HOLD を選択'
+        : (state.lineSummaries[0] || '中央5枚を選んで HOLD');
+    const leadEffect = state.lastEffects[0] || '演出なし';
+    const totalWager = getDealCost(state, CONFIG);
+    const isHoldPhase = state.phase === 'hold';
+    const mainActionLabel = isHoldPhase ? 'DRAW/SPIN' : 'DEAL';
+    const lineChoices = getLineChoices(CONFIG);
+    const currentLineIndex = Math.max(0, lineChoices.indexOf(state.activeLineCount));
+    const canDecreaseLines = !isHoldPhase && currentLineIndex > 0;
+    const canIncreaseLines = !isHoldPhase && currentLineIndex < lineChoices.length - 1;
 
     root.classList.add('spin-tarot-mounted');
     root.classList.toggle('is-spinning', spinning);
     root.innerHTML = `
         <div class="spin-tarot-shell">
-            <section class="spin-tarot-stage">
-                <div class="spin-tarot-stage-top">
+            ${renderCutin()}
+            <div class="spin-tarot-viewport">
+                <section class="spin-tarot-header">
                     <div class="spin-tarot-hud">
                         <div class="spin-tarot-hud-chip">🪙 ${state.coins}</div>
                         <div class="spin-tarot-hud-chip">🏰 ${Math.max(0, state.castleHp)}/${state.castleMaxHp}</div>
                         <div class="spin-tarot-hud-chip">🎚 ${zoneText}</div>
+                        <div class="spin-tarot-hud-chip">🎯 LINES ${state.activeLineCount}</div>
+                        <div class="spin-tarot-hud-chip">${enemy ? '⚔ 防衛戦' : `🎁 ${escapeHtml(premiumText)}`}</div>
                     </div>
-                    <div class="spin-tarot-battle-box ${enemy ? 'is-danger' : ''}">
+                    <div class="spin-tarot-battle-box spin-tarot-battle-strip ${enemy ? 'is-danger' : ''}">
                         <div class="spin-tarot-battle-title">${enemy ? describeEnemy(enemy) : `予告スート ${getSuitBadge(state.previewSuit)}`}</div>
                         <div class="spin-tarot-bar"><span style="width:${percent(enemy ? enemy.hp : state.castleHp, enemy ? enemy.maxHp : state.castleMaxHp)}%"></span></div>
-                        <div class="spin-tarot-battle-meta">${enemy ? `ENEMY HP ${enemy.hp}/${enemy.maxHp}` : premiumText}</div>
+                        <div class="spin-tarot-battle-meta">${enemy ? `ENEMY HP ${enemy.hp}/${enemy.maxHp}` : `${escapeHtml(leadRole)} / ${escapeHtml(leadEffect)}`}</div>
                     </div>
-                </div>
+                </section>
 
-                <div class="spin-tarot-arcana-panel">
-                    <div class="spin-tarot-arcana-art" data-sprite-index="${80 + Number(state.currentArcana?.number || 1)}"></div>
+                <section class="spin-tarot-arcana-panel spin-tarot-arcana-strip">
+                    ${renderArcanaCard(state.currentArcana)}
                     <div class="spin-tarot-arcana-copy">
                         <div class="spin-tarot-arcana-kicker">${activeArcana.icon} MAJOR ARCANA</div>
                         <div class="spin-tarot-arcana-title">${escapeHtml(state.currentArcana?.label || '1. 魔術師')}</div>
                         <div class="spin-tarot-arcana-text">${escapeHtml(state.currentArcana?.summary || '')}</div>
                         <div class="spin-tarot-arcana-tags">
                             <span>${state.omenBreak ? '⚠️ 法則崩れ' : '🔭 予告中'}</span>
-                            <span>${state.pendingGuaranteeRole ? '🪢 保証待機' : '🃏 通常抽選'}</span>
+                            <span>${state.pendingGuaranteeRole ? '🪢 保証待機' : '🃏 通常'}</span>
                             <span>${state.attackMultiplier > 1 ? `✖ ${state.attackMultiplier}` : '✦ 等倍'}</span>
                         </div>
                     </div>
-                    ${renderCutin()}
-                </div>
+                </section>
 
-                <div class="spin-tarot-kingdom-grid">
-                    <div class="spin-tarot-stat-card">
-                        <h3>王国ステータス</h3>
-                        <div class="spin-tarot-stat-list">
-                            ${renderStat('👥 人口', state.population)}
-                            ${renderStat('🛡 騎士', state.knights)}
-                            ${renderStat('🧙 魔法使い', state.mages)}
-                            ${renderStat('♗ ビショップ', state.bishops)}
-                            ${renderStat('👸 女帝', state.queenGauge)}
-                            ${renderStat('🤴 皇帝', state.kingGauge)}
-                            ${renderStat('🏅 国家ランク', state.nationRank)}
+                <section class="spin-tarot-quick-grid">
+                    ${renderQuickChip('👥 人口', state.population)}
+                    ${renderQuickChip('🛡 騎士', state.knights)}
+                    ${renderQuickChip('🧙 魔', state.mages)}
+                    ${renderQuickChip('♗ 僧', state.bishops)}
+                    ${renderQuickChip('🏅 Rank', state.nationRank)}
+                    ${renderQuickChip('🎯 配当', state.totalPayout)}
+                    ${renderQuickChip('⚔ 与ダメ', state.lastAttackDamage)}
+                    ${renderQuickChip('💥 被ダメ', state.lastEnemyDamage)}
+                    ${renderQuickChip('🎁 宝箱', state.lastTreasureCoins)}
+                    ${renderQuickChip('💰 BET', betInfo.label)}
+                    ${renderQuickChip('🧾 WAGER', totalWager)}
+                </section>
+
+                <section class="spin-tarot-slot-panel">
+                    <div class="spin-tarot-controls">
+                        <div class="spin-tarot-line-controls">
+                            <button class="spin-tarot-step-btn" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
+                            <div class="spin-tarot-line-readout">
+                                <span>有効ライン</span>
+                                <strong>${state.activeLineCount}</strong>
+                            </div>
+                            <button class="spin-tarot-step-btn" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
+                        </div>
+                        <div class="spin-tarot-bet-row">
+                            ${CONFIG.betLevels.map((entry, index) => `
+                                <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" data-bet-index="${index}" ${spinning || isHoldPhase ? 'disabled' : ''}>
+                                    ${escapeHtml(entry.label)}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="spin-tarot-action-row">
+                            <button id="spinTarotNewRun" class="spin-tarot-ghost-btn" ${spinning ? 'disabled' : ''}>NEW RUN</button>
+                            <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>${mainActionLabel}</button>
                         </div>
                     </div>
-                    <div class="spin-tarot-stat-card">
-                        <h3>最新結果</h3>
-                        <div class="spin-tarot-stat-list">
-                            ${renderStat('💰 BET', `${betInfo.label}`)}
-                            ${renderStat('🎯 配当', state.totalPayout)}
-                            ${renderStat('⚔ 与ダメ', state.lastAttackDamage)}
-                            ${renderStat('💥 被ダメ', state.lastEnemyDamage)}
-                            ${renderStat('🎁 宝箱', state.lastTreasureCoins)}
-                            ${renderStat('📜 役', (state.lineSummaries[0] || '待機'))}
-                            ${renderStat('🪄 演出', (state.lastEffects[0] || 'なし'))}
+
+                    <div class="spin-tarot-board-wrap">
+                        <div class="spin-tarot-board">
+                            ${state.board.map((row, rowIndex) => row.map((card, reel) => renderCard(card, rowIndex, reel, hitCells.has(`${rowIndex}:${reel}`))).join('')).join('')}
+                        </div>
+                        <div class="spin-tarot-hold-row">
+                            ${state.board[1].map((card, reel) => `
+                                <button class="spin-tarot-hold-btn ${state.holdMask[reel] ? 'is-held' : ''} ${state.lockedHolds[reel] ? 'is-locked' : ''}"
+                                    data-hold-index="${reel}" ${(spinning || !isHoldPhase || state.lockedHolds[reel] || card.kind === 'blank') ? 'disabled' : ''}>
+                                    ${state.lockedHolds[reel] ? 'LOCK' : state.holdMask[reel] ? 'HOLD' : 'KEEP'}
+                                </button>
+                            `).join('')}
                         </div>
                     </div>
-                </div>
-            </section>
 
-            <section class="spin-tarot-slot-panel">
-                <div class="spin-tarot-controls">
-                    <div class="spin-tarot-bet-row">
-                        ${CONFIG.betLevels.map((entry, index) => `
-                            <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" data-bet-index="${index}" ${spinning ? 'disabled' : ''}>
-                                ${escapeHtml(entry.label)}
-                            </button>
-                        `).join('')}
+                    <div class="spin-tarot-collapse-stack">
+                        ${renderCollapse(
+                            'lines',
+                            `${state.activeLineCount}ライン / 役`,
+                            leadRole,
+                            `
+                                <div class="spin-tarot-line-list">
+                                    ${(state.lineSummaries.length ? state.lineSummaries : ['中央5枚を選んで HOLD']).map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
+                                </div>
+                            `
+                        )}
+                        ${renderCollapse(
+                            'log',
+                            'バトルログ',
+                            state.logs[0] || 'ログなし',
+                            `
+                                <div class="spin-tarot-log">
+                                    ${state.logs.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
+                                </div>
+                            `
+                        )}
                     </div>
-                    <div class="spin-tarot-action-row">
-                        <button id="spinTarotNewRun" class="spin-tarot-ghost-btn" ${spinning ? 'disabled' : ''}>NEW RUN</button>
-                        <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>SPIN</button>
-                    </div>
-                </div>
-
-                <div class="spin-tarot-board-wrap">
-                    <div class="spin-tarot-board">
-                        ${state.board.map((row, rowIndex) => row.map((card, reel) => renderCard(card, rowIndex, reel, hitCells.has(`${rowIndex}:${reel}`))).join('')).join('')}
-                    </div>
-                    <div class="spin-tarot-hold-row">
-                        ${state.board[1].map((card, reel) => `
-                            <button class="spin-tarot-hold-btn ${state.holdMask[reel] ? 'is-held' : ''} ${state.lockedHolds[reel] ? 'is-locked' : ''}"
-                                data-hold-index="${reel}" ${(spinning || state.lockedHolds[reel] || card.kind === 'blank') ? 'disabled' : ''}>
-                                ${state.lockedHolds[reel] ? 'LOCK' : state.holdMask[reel] ? 'HOLD' : 'KEEP'}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-
-                <div class="spin-tarot-foot">
-                    <div class="spin-tarot-line-box">
-                        <h3>9ライン常時有効</h3>
-                        <div class="spin-tarot-line-list">
-                            ${(state.lineSummaries.length ? state.lineSummaries : ['中央5枚を選んで HOLD']).map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
-                        </div>
-                    </div>
-                    <div class="spin-tarot-line-box">
-                        <h3>バトルログ</h3>
-                        <div class="spin-tarot-log">
-                            ${state.logs.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
-                        </div>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     `;
 
@@ -202,10 +243,24 @@ function bindEvents() {
             render();
         });
     });
+    root.querySelectorAll('[data-line-step]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const step = Number(button.getAttribute('data-line-step') || 0);
+            state = stepActiveLineCount(state, step, CONFIG);
+            render();
+        });
+    });
     root.querySelectorAll('[data-hold-index]').forEach((button) => {
         button.addEventListener('click', () => {
             state = toggleHold(state, Number(button.getAttribute('data-hold-index') || 0), CONFIG);
             render();
+        });
+    });
+    root.querySelectorAll('[data-panel-id]').forEach((panel) => {
+        panel.addEventListener('toggle', () => {
+            const panelId = String(panel.getAttribute('data-panel-id') || '');
+            if (!panelId) return;
+            openPanels[panelId] = panel.open;
         });
     });
 }
@@ -250,26 +305,72 @@ function renderCutin() {
     `;
 }
 
-function renderCard(card, row, reel, isHit) {
+function renderArcanaCard(arcanaState) {
+    const number = Number(arcanaState?.number || 1);
     const classes = [
-        'spin-tarot-card',
-        row === 1 ? 'is-center' : '',
-        isHit ? 'is-hit' : '',
-        card?.isWild ? 'is-wild' : '',
-        card?.kind === 'blank' ? 'is-blank' : '',
-        state.holdMask[reel] && row === 1 ? 'is-held-core' : ''
+        'tarot-card',
+        'is-arcana',
+        'is-static',
+        getArcanaSuitClass(number),
+        number === 1 ? 'arcana-all-corners' : ''
     ].filter(Boolean).join(' ');
     return `
-        <div class="${classes}">
-            <div class="spin-tarot-card-art" data-sprite-index="${getCardSpriteIndex(card)}"></div>
-            <div class="spin-tarot-card-top">${escapeHtml(getCardText(card))}</div>
-            <div class="spin-tarot-card-face">${escapeHtml(getCardFace(card))}</div>
+        <div class="spin-tarot-oracle-card">
+            <div class="${classes}">
+                <span class="tarot-card-art" data-sprite-index="${80 + number}"></span>
+                <span class="tarot-card-title">${escapeHtml(arcanaState?.label || '1. 魔術師')}</span>
+                <span class="tarot-card-number is-center-range">${escapeHtml(String(number))}</span>
+            </div>
         </div>
     `;
 }
 
-function renderStat(label, value) {
-    return `<div class="spin-tarot-stat-row"><span>${escapeHtml(String(label))}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+function renderCard(card, row, reel, isHit) {
+    const classes = [
+        'tarot-card',
+        'spin-tarot-board-card',
+        getCardSuitClass(card),
+        card?.kind === 'major' ? 'is-arcana' : '',
+        card?.isWild ? 'all-suit spin-tarot-board-card--wild' : '',
+        card?.kind === 'blank' ? 'is-hidden is-blank' : '',
+        'is-static',
+        row === 1 ? 'is-center' : '',
+        isHit ? 'is-hit' : '',
+        state.holdMask[reel] && row === 1 ? 'is-held-core' : ''
+    ].filter(Boolean).join(' ');
+    const numberLabel = card?.kind === 'blank'
+        ? ''
+        : card?.isWild
+            ? 'W'
+            : getCardFace(card);
+    return `
+        <div class="${classes}">
+            <span class="tarot-card-art" data-sprite-index="${getCardSpriteIndex(card)}"></span>
+            <span class="tarot-card-title">${escapeHtml(getCardTitle(card))}</span>
+            <span class="tarot-card-number">${escapeHtml(numberLabel)}</span>
+        </div>
+    `;
+}
+
+function renderQuickChip(label, value) {
+    return `
+        <div class="spin-tarot-mini-chip">
+            <span class="spin-tarot-mini-key">${escapeHtml(String(label))}</span>
+            <strong class="spin-tarot-mini-value">${escapeHtml(String(value))}</strong>
+        </div>
+    `;
+}
+
+function renderCollapse(panelId, title, summary, body) {
+    return `
+        <details class="spin-tarot-collapse" data-panel-id="${escapeHtml(panelId)}" ${openPanels[panelId] ? 'open' : ''}>
+            <summary>
+                <span class="spin-tarot-collapse-title">${escapeHtml(title)}</span>
+                <span class="spin-tarot-collapse-summary">${escapeHtml(summary)}</span>
+            </summary>
+            <div class="spin-tarot-collapse-body">${body}</div>
+        </details>
+    `;
 }
 
 function getHitCellSet() {
@@ -285,6 +386,28 @@ function getSuitBadge(suitKey) {
     const suit = CONFIG.suits.find((entry) => entry.key === suitKey);
     if (!suit) return String(suitKey);
     return `${suit.icon} ${suit.label}`;
+}
+
+function getCardSuitClass(card) {
+    if (!card || card.kind === 'blank') return 'none';
+    if (card.isWild) return 'all-suit';
+    if (card.suit === 'Wand') return 'wand';
+    if (card.suit === 'Sword') return 'sword';
+    if (card.suit === 'Cup') return 'cup';
+    if (card.suit === 'Pentacle') return 'pentacle';
+    return 'none';
+}
+
+function getCardTitle(card) {
+    if (!card || card.kind === 'blank') return 'VOID';
+    if (card.isWild) return 'WILD';
+    const suit = CONFIG.suits.find((entry) => entry.key === card.suit);
+    return suit?.label || 'CARD';
+}
+
+function getArcanaSuitClass(number) {
+    const suitClass = ARCANA_SUIT_CLASS_BY_NUMBER[Number(number)];
+    return suitClass ? `arcana-suit-hybrid arcana-suit-${suitClass}` : '';
 }
 
 function percent(value, max) {
