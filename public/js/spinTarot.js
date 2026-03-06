@@ -99,6 +99,7 @@ function render() {
     const totalWager = getDealCost(state, CONFIG);
     const isHoldPhase = state.phase === 'hold';
     const mainActionLabel = isHoldPhase ? 'DRAW/SPIN' : 'DEAL';
+    const hasWin = (state.lineResults || []).some((line) => line.kind !== 'Miss');
     const lineChoices = getLineChoices(CONFIG);
     const currentLineIndex = Math.max(0, lineChoices.indexOf(state.activeLineCount));
     const canDecreaseLines = !isHoldPhase && currentLineIndex > 0;
@@ -107,7 +108,7 @@ function render() {
     root.classList.add('spin-tarot-mounted');
     root.classList.toggle('is-spinning', spinning);
     root.innerHTML = `
-        <div class="spin-tarot-shell">
+        <div class="spin-tarot-shell ${hasWin ? 'has-win' : ''} ${enemy ? 'is-battle-active' : ''}">
             ${renderCutin()}
             <div class="spin-tarot-viewport">
                 <section class="spin-tarot-header">
@@ -118,10 +119,62 @@ function render() {
                         <div class="spin-tarot-hud-chip">🎯 LINES ${state.activeLineCount}</div>
                         <div class="spin-tarot-hud-chip">${enemy ? '⚔ 防衛戦' : `🎁 ${escapeHtml(premiumText)}`}</div>
                     </div>
+                </section>
+
+                <section class="spin-tarot-slot-panel spin-tarot-main-stage">
+                    <div class="spin-tarot-board-wrap">
+                        <div class="spin-tarot-board-head">
+                            <div class="spin-tarot-board-kicker">${isHoldPhase ? 'CHOOSE YOUR HOLD' : (enemy ? '⚔ DEFENSE PHASE' : '🎰 SPIN POKER CORE')}</div>
+                            <div class="spin-tarot-board-title">${escapeHtml(leadRole)}</div>
+                            <div class="spin-tarot-stage-pills">
+                                <span>${activeArcana.icon} ${escapeHtml(state.currentArcana?.label || '1. 魔術師')}</span>
+                                <span>${enemy ? '⚔ 防衛戦' : `🎁 ${escapeHtml(premiumText)}`}</span>
+                                <span>${isHoldPhase ? '🫳 HOLD PHASE' : '🎲 DEAL PHASE'}</span>
+                            </div>
+                            <div class="spin-tarot-board-subtitle">${escapeHtml(enemy ? `${describeEnemy(enemy)} / ${leadEffect}` : (leadEffect || state.lineSummaries[0] || '中央ラインから全ラインへ役を広げる'))}</div>
+                        </div>
+                        <div class="spin-tarot-board">
+                            ${state.board.map((row, rowIndex) => row.map((card, reel) => renderCard(card, rowIndex, reel, hitCells.has(`${rowIndex}:${reel}`))).join('')).join('')}
+                        </div>
+                        <div class="spin-tarot-hold-row">
+                            ${state.board[1].map((card, reel) => `
+                                <button class="spin-tarot-hold-btn ${state.holdMask[reel] ? 'is-held' : ''} ${state.lockedHolds[reel] ? 'is-locked' : ''}"
+                                    data-hold-index="${reel}" ${(spinning || !isHoldPhase || state.lockedHolds[reel] || card.kind === 'blank') ? 'disabled' : ''}>
+                                    ${state.lockedHolds[reel] ? 'LOCK' : state.holdMask[reel] ? 'HOLD' : 'KEEP'}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
                     <div class="spin-tarot-battle-box spin-tarot-battle-strip ${enemy ? 'is-danger' : ''}">
                         <div class="spin-tarot-battle-title">${enemy ? describeEnemy(enemy) : `予告スート ${getSuitBadge(state.previewSuit)}`}</div>
                         <div class="spin-tarot-bar"><span style="width:${percent(enemy ? enemy.hp : state.castleHp, enemy ? enemy.maxHp : state.castleMaxHp)}%"></span></div>
-                        <div class="spin-tarot-battle-meta">${enemy ? `ENEMY HP ${enemy.hp}/${enemy.maxHp}` : `${escapeHtml(leadRole)} / ${escapeHtml(leadEffect)}`}</div>
+                        <div class="spin-tarot-battle-meta">${enemy ? `ENEMY HP ${enemy.hp}/${enemy.maxHp}` : `${escapeHtml(zoneText)} / ${escapeHtml(leadRole)}`}</div>
+                    </div>
+
+                    ${renderResultStrip()}
+
+                    <div class="spin-tarot-controls">
+                        <div class="spin-tarot-line-controls">
+                            <button class="spin-tarot-step-btn" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
+                            <div class="spin-tarot-line-readout">
+                                <span>有効ライン</span>
+                                <strong>${state.activeLineCount}</strong>
+                            </div>
+                            <button class="spin-tarot-step-btn" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
+                        </div>
+
+                        <div class="spin-tarot-bet-row">
+                            ${CONFIG.betLevels.map((entry, index) => `
+                                <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" data-bet-index="${index}" ${spinning || isHoldPhase ? 'disabled' : ''}>
+                                    ${escapeHtml(entry.label)}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="spin-tarot-action-row">
+                            <button id="spinTarotNewRun" class="spin-tarot-ghost-btn" ${spinning ? 'disabled' : ''}>NEW RUN</button>
+                            <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>${mainActionLabel}</button>
+                        </div>
                     </div>
                 </section>
 
@@ -153,65 +206,27 @@ function render() {
                     ${renderQuickChip('🧾 WAGER', totalWager)}
                 </section>
 
-                <section class="spin-tarot-slot-panel">
-                    <div class="spin-tarot-controls">
-                        <div class="spin-tarot-line-controls">
-                            <button class="spin-tarot-step-btn" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
-                            <div class="spin-tarot-line-readout">
-                                <span>有効ライン</span>
-                                <strong>${state.activeLineCount}</strong>
+                <section class="spin-tarot-collapse-stack">
+                    ${renderCollapse(
+                        'lines',
+                        `${state.activeLineCount}ライン / 役`,
+                        leadRole,
+                        `
+                            <div class="spin-tarot-line-list">
+                                ${(state.lineSummaries.length ? state.lineSummaries : ['中央5枚を選んで HOLD']).map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
                             </div>
-                            <button class="spin-tarot-step-btn" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
-                        </div>
-                        <div class="spin-tarot-bet-row">
-                            ${CONFIG.betLevels.map((entry, index) => `
-                                <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" data-bet-index="${index}" ${spinning || isHoldPhase ? 'disabled' : ''}>
-                                    ${escapeHtml(entry.label)}
-                                </button>
-                            `).join('')}
-                        </div>
-                        <div class="spin-tarot-action-row">
-                            <button id="spinTarotNewRun" class="spin-tarot-ghost-btn" ${spinning ? 'disabled' : ''}>NEW RUN</button>
-                            <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>${mainActionLabel}</button>
-                        </div>
-                    </div>
-
-                    <div class="spin-tarot-board-wrap">
-                        <div class="spin-tarot-board">
-                            ${state.board.map((row, rowIndex) => row.map((card, reel) => renderCard(card, rowIndex, reel, hitCells.has(`${rowIndex}:${reel}`))).join('')).join('')}
-                        </div>
-                        <div class="spin-tarot-hold-row">
-                            ${state.board[1].map((card, reel) => `
-                                <button class="spin-tarot-hold-btn ${state.holdMask[reel] ? 'is-held' : ''} ${state.lockedHolds[reel] ? 'is-locked' : ''}"
-                                    data-hold-index="${reel}" ${(spinning || !isHoldPhase || state.lockedHolds[reel] || card.kind === 'blank') ? 'disabled' : ''}>
-                                    ${state.lockedHolds[reel] ? 'LOCK' : state.holdMask[reel] ? 'HOLD' : 'KEEP'}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <div class="spin-tarot-collapse-stack">
-                        ${renderCollapse(
-                            'lines',
-                            `${state.activeLineCount}ライン / 役`,
-                            leadRole,
-                            `
-                                <div class="spin-tarot-line-list">
-                                    ${(state.lineSummaries.length ? state.lineSummaries : ['中央5枚を選んで HOLD']).map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
-                                </div>
-                            `
-                        )}
-                        ${renderCollapse(
-                            'log',
-                            'バトルログ',
-                            state.logs[0] || 'ログなし',
-                            `
-                                <div class="spin-tarot-log">
-                                    ${state.logs.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
-                                </div>
-                            `
-                        )}
-                    </div>
+                        `
+                    )}
+                    ${renderCollapse(
+                        'log',
+                        'バトルログ',
+                        state.logs[0] || 'ログなし',
+                        `
+                            <div class="spin-tarot-log">
+                                ${state.logs.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
+                            </div>
+                        `
+                    )}
                 </section>
             </div>
         </div>
@@ -278,6 +293,7 @@ async function handleSpin() {
     render();
     await wait(CONFIG.ui.spinBounceMs);
     spinning = false;
+    triggerOutcomeHaptics();
     if (result.events?.cutin) queueCutin(result.events.cutin);
     render();
 }
@@ -344,7 +360,7 @@ function renderCard(card, row, reel, isHit) {
             ? 'W'
             : getCardFace(card);
     return `
-        <div class="${classes}">
+        <div class="${classes}" style="--reel-index:${reel}; --row-index:${row};">
             <span class="tarot-card-art" data-sprite-index="${getCardSpriteIndex(card)}"></span>
             <span class="tarot-card-title">${escapeHtml(getCardTitle(card))}</span>
             <span class="tarot-card-number">${escapeHtml(numberLabel)}</span>
@@ -357,6 +373,47 @@ function renderQuickChip(label, value) {
         <div class="spin-tarot-mini-chip">
             <span class="spin-tarot-mini-key">${escapeHtml(String(label))}</span>
             <strong class="spin-tarot-mini-value">${escapeHtml(String(value))}</strong>
+        </div>
+    `;
+}
+
+function renderResultStrip() {
+    const hasPayout = Number(state?.totalPayout || 0) > 0;
+    const hasAttack = Number(state?.lastAttackDamage || 0) > 0;
+    const hasDamage = Number(state?.lastEnemyDamage || 0) > 0;
+    const hasTreasure = Number(state?.lastTreasureCoins || 0) > 0;
+    const isHoldPhase = state?.phase === 'hold';
+    const classes = [
+        'spin-tarot-result-strip',
+        hasPayout || hasAttack ? 'is-win' : '',
+        hasDamage ? 'is-danger' : '',
+        hasTreasure ? 'is-treasure' : '',
+        isHoldPhase ? 'is-hold' : ''
+    ].filter(Boolean).join(' ');
+    const leadText = isHoldPhase
+        ? '中央ラインを固定して DRAW へ'
+        : hasPayout
+            ? `${state.lineSummaries[0] || '役成立'} / 配当 ${state.totalPayout}`
+            : hasTreasure
+                ? `宝箱 ${state.lastTreasureCoins} 枚を獲得`
+                : hasAttack
+                    ? `攻撃 ${state.lastAttackDamage} ダメージ`
+                    : hasDamage
+                        ? `城壁 ${state.lastEnemyDamage} ダメージ`
+                        : (state.lineSummaries[0] || '中央5枚を選んで HOLD');
+    const detailItems = [
+        hasPayout ? `🎯 ${state.totalPayout}` : '',
+        hasAttack ? `⚔ ${state.lastAttackDamage}` : '',
+        hasDamage ? `💥 ${state.lastEnemyDamage}` : '',
+        hasTreasure ? `🎁 ${state.lastTreasureCoins}` : '',
+        state.lastEffects[0] || ''
+    ].filter(Boolean);
+    return `
+        <div class="${classes}">
+            <div class="spin-tarot-result-main">${escapeHtml(leadText)}</div>
+            <div class="spin-tarot-result-meta">
+                ${detailItems.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}
+            </div>
         </div>
     `;
 }
@@ -426,6 +483,31 @@ function vibrateOnce(ms = 30) {
         } catch (_) {
             // no-op
         }
+    }
+}
+
+function vibratePattern(pattern) {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        try {
+            navigator.vibrate(pattern);
+        } catch (_) {
+            // no-op
+        }
+    }
+}
+
+function triggerOutcomeHaptics() {
+    if (!state || state.phase === 'hold') return;
+    if (Number(state.totalPayout || 0) >= 20 || Number(state.lastTreasureCoins || 0) > 0) {
+        vibratePattern([18, 24, 34]);
+        return;
+    }
+    if (Number(state.totalPayout || 0) > 0 || Number(state.lastAttackDamage || 0) > 0) {
+        vibratePattern([16, 18, 24]);
+        return;
+    }
+    if (Number(state.lastEnemyDamage || 0) > 0) {
+        vibrateOnce(26);
     }
 }
 
