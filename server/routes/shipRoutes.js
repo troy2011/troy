@@ -45,14 +45,58 @@ function worldToLatLng(point) {
  * データ構造メモ (省略)
  */
 
-function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap) {
+function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap, authTools = {}) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
     const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
     const resourceStorage = require('../resourceStorage');
+    const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId, catalogCache, catalogCurrencyMap };
+    const MAX_SHIP_ACTION_DAMAGE = 1000;
+    const MAX_SHIP_ACTION_DURATION_MS = 30000;
+    const normalizePlayFabId = (value) => String(value || '').trim().replace(/^playfab:/i, '').toUpperCase();
+
+    async function requireAuthedPlayFabId(req, res, playFabId) {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return playFabId;
+        }
+        return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function requireVerifiedRequester(req, res) {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return '';
+        }
+        return requireAuthenticatedPlayFabId(req, res);
+    }
+
+    async function assertOwnedShip(playFabId, shipId) {
+        const shipDoc = await shipsCollection.doc(shipId).get();
+        if (!shipDoc.exists) {
+            throw new Error('ShipNotFound');
+        }
+        const shipData = shipDoc.data() || {};
+        const ownerPlayFabId = normalizePlayFabId(shipData.playFabId || extractPlayFabIdFromShipId(shipId));
+        if (!ownerPlayFabId || ownerPlayFabId !== normalizePlayFabId(playFabId)) {
+            throw new Error('NotYourShip');
+        }
+        return { shipDoc, shipData };
+    }
+
+    function handleShipOwnershipError(res, error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        if (message === 'ShipNotFound') {
+            res.status(404).json({ error: 'Ship not found' });
+            return true;
+        }
+        if (message === 'NotYourShip') {
+            res.status(403).json({ error: 'Not your ship' });
+            return true;
+        }
+        return false;
+    }
 
     const buildCostsFromItem = (spec) => {
         const costs = [];
@@ -742,8 +786,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     // API: 使用中の船を取得
     // ----------------------------------------------------
     app.post('/api/get-active-ship', async (req, res) => {
-        const { playFabId } = req.body || {};
+        let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
             const activeShipId = await getActiveShipId(playFabId);
@@ -758,15 +804,14 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     // API: 使用中の船を切り替え
     // ----------------------------------------------------
     app.post('/api/set-active-ship', async (req, res) => {
-        const { playFabId, shipId } = req.body || {};
+        let { playFabId, shipId } = req.body || {};
         if (!playFabId || !shipId) return res.status(400).json({ error: 'playFabId and shipId are required' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
             // 1) Firestoreで所有者チェック
-            const shipDoc = await shipsCollection.doc(shipId).get();
-            if (!shipDoc.exists) return res.status(404).json({ error: 'Ship not found' });
-            const shipData = shipDoc.data() || {};
-            if (shipData.playFabId !== playFabId) return res.status(403).json({ error: 'Not your ship' });
+            const { shipData } = await assertOwnedShip(playFabId, shipId);
 
             // 2) PlayFab側のShip_キーでも存在チェック（不正なshipId弾き）
             const assetKey = `Ship_${shipId}`;
@@ -779,6 +824,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             await setActiveShipId(playFabId, shipId, shipData);
             res.json({ success: true, activeShipId: shipId });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[SetActiveShip] Error:', error);
             res.status(500).json({ error: 'Failed to set active ship', details: error.errorMessage || error.message });
         }
@@ -876,7 +922,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * Body: { playFabId, shipItemId, mapId, islandId }
      */
     app.post('/api/create-ship', async (req, res) => {
-        const { playFabId, shipItemId, spawnPosition, mapId, islandId } = req.body;
+        let { playFabId, shipItemId, spawnPosition, mapId, islandId } = req.body;
         console.log('[create-ship] incoming', {
             playFabId,
             shipItemId,
@@ -888,6 +934,8 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId || !shipItemId) {
             return res.status(400).json({ error: 'playFabId and shipItemId are required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         if (!mapId || !islandId) {
             return res.status(400).json({ error: 'Capital island is required' });
         }
@@ -1119,18 +1167,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/upgrade-ship
      */
     app.post('/api/upgrade-ship', async (req, res) => {
-        const { playFabId, shipId } = req.body || {};
+        let { playFabId, shipId } = req.body || {};
         if (!playFabId || !shipId) {
             return res.status(400).json({ error: 'playFabId and shipId are required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
-            const shipDoc = await shipsCollection.doc(shipId).get();
-            if (!shipDoc.exists) return res.status(404).json({ error: 'Ship not found' });
-            const shipDocData = shipDoc.data() || {};
-            if (shipDocData.playFabId !== playFabId) {
-                return res.status(403).json({ error: 'Not your ship' });
-            }
+            await assertOwnedShip(playFabId, shipId);
 
             const assetKey = `Ship_${shipId}`;
             const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -1189,6 +1234,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
             res.json({ success: true, shipId, shipData: leveledData, level: nextLevel, costs: upgradeCosts });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[UpgradeShip] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(402).json({ error: '必要資源が足りません' });
@@ -1202,16 +1248,19 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/consume-ship-broadside
      */
     app.post('/api/consume-ship-broadside', async (req, res) => {
-        const { playFabId, shipId: requestedShipId } = req.body || {};
+        let { playFabId, shipId: requestedShipId } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
             const activeShipId = requestedShipId || await getActiveShipId(playFabId);
             if (!activeShipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
+            await assertOwnedShip(playFabId, activeShipId);
             const costs = SHIP_ACTION_RESOURCE_COSTS.broadside;
             const consumeResult = await tryConsumeShipCargoCosts(playFabId, activeShipId, costs);
             if (!consumeResult.success) {
@@ -1225,6 +1274,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
             return res.json({ success: true, costs, balances: consumeResult.balances, shipId: activeShipId });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[ConsumeShipBroadside] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(402).json({ error: '舷側砲の火薬が足りません' });
@@ -1238,18 +1288,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/repair-ship
      */
     app.post('/api/repair-ship', async (req, res) => {
-        const { playFabId, shipId, tier } = req.body || {};
+        let { playFabId, shipId, tier } = req.body || {};
         if (!playFabId || !shipId) {
             return res.status(400).json({ error: 'playFabId and shipId are required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
-            const shipDoc = await shipsCollection.doc(shipId).get();
-            if (!shipDoc.exists) return res.status(404).json({ error: 'Ship not found' });
-            const shipDocData = shipDoc.data() || {};
-            if (shipDocData.playFabId !== playFabId) {
-                return res.status(403).json({ error: 'Not your ship' });
-            }
+            await assertOwnedShip(playFabId, shipId);
 
             const assetKey = `Ship_${shipId}`;
             const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -1329,6 +1376,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 balances: consumeResult.balances
             });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[RepairShip] Error:', error);
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
                 return res.status(402).json({ error: '修理資源が足りません' });
@@ -1338,10 +1386,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     });
 
     app.post('/api/get-ship-resource-storage', async (req, res) => {
-        const { playFabId } = req.body || {};
+        let { playFabId } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const activeShipId = await getActiveShipId(playFabId);
             const homeBalances = await getPlayerCurrencyBalances(playFabId);
@@ -1375,15 +1425,18 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     });
 
     app.post('/api/deposit-ship-resources', async (req, res) => {
-        const { playFabId, shipId: requestedShipId } = req.body || {};
+        let { playFabId, shipId: requestedShipId } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const shipId = requestedShipId || await getActiveShipId(playFabId);
             if (!shipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
+            await assertOwnedShip(playFabId, shipId);
             const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
             const transferred = {};
             for (const itemId of resourceStorage.RESOURCE_ITEM_IDS) {
@@ -1405,16 +1458,19 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 homeResources: nextHomeBalances
             });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[DepositShipResources] Error:', error);
             return res.status(500).json({ error: 'Failed to deposit ship resources', details: error.errorMessage || error.message });
         }
     });
 
     app.post('/api/save-ship-resource-preset', async (req, res) => {
-        const { playFabId, preset } = req.body || {};
+        let { playFabId, preset } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const savedPreset = await resourceStorage.saveShipCargoPreset(playFabId, preset, { promisifyPlayFab, PlayFabServer });
             return res.json({ success: true, preset: savedPreset });
@@ -1425,15 +1481,18 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     });
 
     app.post('/api/apply-ship-resource-preset', async (req, res) => {
-        const { playFabId, shipId: requestedShipId } = req.body || {};
+        let { playFabId, shipId: requestedShipId } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const shipId = requestedShipId || await getActiveShipId(playFabId);
             if (!shipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
+            await assertOwnedShip(playFabId, shipId);
             const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
             const preset = await resourceStorage.getShipCargoPreset(playFabId, { promisifyPlayFab, PlayFabServer });
             const homeBalances = resourceStorage.normalizeResourceMap(await getPlayerCurrencyBalances(playFabId));
@@ -1471,6 +1530,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 preset
             });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[ApplyShipResourcePreset] Error:', error);
             return res.status(500).json({ error: 'Failed to apply ship preset', details: error.errorMessage || error.message });
         }
@@ -1588,10 +1648,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/ram-ship
      */
     app.post('/api/ram-ship', async (req, res) => {
-        const { attackerId, defenderId } = req.body || {};
+        let { attackerId, defenderId } = req.body || {};
         if (!attackerId || !defenderId || attackerId === defenderId) {
             return res.status(400).json({ error: 'attackerId and defenderId are required and must be different' });
         }
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
 
         try {
             const baseDamage = 300;
@@ -1842,9 +1904,21 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!attackerId || !Array.isArray(targets) || targets.length === 0) {
             return res.status(400).json({ error: 'attackerId and targets are required' });
         }
+        const authenticatedPlayFabId = await requireVerifiedRequester(req, res);
+        if (typeof requireAuthenticatedPlayFabId === 'function' && !authenticatedPlayFabId) return;
+        const normalizedRequesterId = normalizePlayFabId(authenticatedPlayFabId);
+        const normalizedAttackerId = normalizePlayFabId(attackerId);
+        const normalizedTargets = targets.map((targetId) => normalizePlayFabId(targetId)).filter(Boolean);
+        const requesterIsAttacker = !normalizedRequesterId || normalizedRequesterId === normalizedAttackerId;
+        const requesterIsSelfTarget = normalizedRequesterId
+            && normalizedTargets.length === 1
+            && normalizedTargets[0] === normalizedRequesterId;
+        if (!requesterIsAttacker && !requesterIsSelfTarget) {
+            return res.status(403).json({ error: 'Only the attacker or the impacted player can submit this action.' });
+        }
         const damageValue = Number(damage);
-        if (!Number.isFinite(damageValue) || damageValue <= 0) {
-            return res.status(400).json({ error: 'damage must be a positive number' });
+        if (!Number.isFinite(damageValue) || damageValue <= 0 || damageValue > MAX_SHIP_ACTION_DAMAGE) {
+            return res.status(400).json({ error: `damage must be a positive number up to ${MAX_SHIP_ACTION_DAMAGE}` });
         }
 
         try {
@@ -1986,13 +2060,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/ship-action-player-damage
      */
     app.post('/api/ship-action-player-damage', async (req, res) => {
-        const { attackerId, targets, damage } = req.body || {};
+        let { attackerId, targets, damage } = req.body || {};
         if (!attackerId || !Array.isArray(targets) || targets.length === 0) {
             return res.status(400).json({ error: 'attackerId and targets are required' });
         }
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
         const damageValue = Number(damage);
-        if (!Number.isFinite(damageValue) || damageValue <= 0) {
-            return res.status(400).json({ error: 'damage must be a positive number' });
+        if (!Number.isFinite(damageValue) || damageValue <= 0 || damageValue > MAX_SHIP_ACTION_DAMAGE) {
+            return res.status(400).json({ error: `damage must be a positive number up to ${MAX_SHIP_ACTION_DAMAGE}` });
         }
 
         try {
@@ -2050,13 +2126,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/ship-action-immune
      */
     app.post('/api/ship-action-immune', async (req, res) => {
-        const { playFabId, durationMs } = req.body || {};
+        let { playFabId, durationMs } = req.body || {};
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         const durationValue = Number(durationMs);
-        if (!Number.isFinite(durationValue) || durationValue <= 0) {
-            return res.status(400).json({ error: 'durationMs must be a positive number' });
+        if (!Number.isFinite(durationValue) || durationValue <= 0 || durationValue > MAX_SHIP_ACTION_DURATION_MS) {
+            return res.status(400).json({ error: `durationMs must be a positive number up to ${MAX_SHIP_ACTION_DURATION_MS}` });
         }
         try {
             const immuneUntil = Date.now() + durationValue;
@@ -2076,13 +2154,15 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/ship-action-shield
      */
     app.post('/api/ship-action-shield', async (req, res) => {
-        const { attackerId, targets, durationMs, shieldFactor } = req.body || {};
+        let { attackerId, targets, durationMs, shieldFactor } = req.body || {};
         if (!attackerId || !Array.isArray(targets) || targets.length === 0) {
             return res.status(400).json({ error: 'attackerId and targets are required' });
         }
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
         const durationValue = Number(durationMs);
-        if (!Number.isFinite(durationValue) || durationValue <= 0) {
-            return res.status(400).json({ error: 'durationMs must be a positive number' });
+        if (!Number.isFinite(durationValue) || durationValue <= 0 || durationValue > MAX_SHIP_ACTION_DURATION_MS) {
+            return res.status(400).json({ error: `durationMs must be a positive number up to ${MAX_SHIP_ACTION_DURATION_MS}` });
         }
         const factorRaw = Number.isFinite(Number(shieldFactor)) ? Number(shieldFactor) : 0.6;
         const factorValue = Math.min(1, Math.max(0.2, factorRaw));
@@ -2140,10 +2220,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/respawn-ship
      */
     app.post('/api/respawn-ship', async (req, res) => {
-        const { playFabId, shipId, reason } = req.body || {};
+        let { playFabId, shipId, reason } = req.body || {};
         if (!playFabId || !shipId) return res.status(400).json({ error: 'playFabId and shipId are required' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
+            await assertOwnedShip(playFabId, shipId);
             const result = await respawnShip(playFabId, shipId, reason || 'manual');
             res.json({
                 success: true,
@@ -2151,6 +2234,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 repairUntil: result?.repairUntil || null
             });
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[RespawnShip] Error:', error);
             res.status(500).json({ error: 'Failed to respawn ship', details: error.errorMessage || error.message });
         }
@@ -2367,17 +2451,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/stop-ship
      */
     app.post('/api/stop-ship', async (req, res) => {
-        const { shipId } = req.body;
+        let { shipId, playFabId } = req.body;
 
-        if (!shipId) {
-            return res.status(400).json({ error: 'shipId is required' });
+        if (!shipId || !playFabId) {
+            return res.status(400).json({ error: 'shipId and playFabId are required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
-            const shipDoc = await db.collection('ships').doc(shipId).get();
-            if (!shipDoc.exists) {
-                return res.status(404).json({ error: 'Ship not found' });
-            }
+            const { shipDoc } = await assertOwnedShip(playFabId, shipId);
 
             const shipData = shipDoc.data();
             const movement = shipData.movement;
@@ -2404,6 +2487,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             res.json({ success: true, currentPosition: currentPos });
 
         } catch (error) {
+            if (handleShipOwnershipError(res, error)) return;
             console.error('[StopShip] Error:', error);
             res.status(500).json({ error: 'Failed to stop ship', details: error.message });
         }
@@ -2414,11 +2498,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
      * POST /api/get-player-ships
      */
     app.post('/api/get-player-ships', async (req, res) => {
-        const { playFabId } = req.body;
+        let { playFabId } = req.body;
 
         if (!playFabId) {
             return res.status(400).json({ error: 'playFabId is required' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
             const activeShipId = await getActiveShipId(playFabId);

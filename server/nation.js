@@ -645,7 +645,7 @@ async function ensureKingStarterCrown(playFabId, nation, deps) {
 
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
 
     const nationDeps = {
         promisifyPlayFab,
@@ -669,6 +669,13 @@ function initializeNationRoutes(app, deps) {
             console.warn('[display-event] Failed to emit:', error?.message || error);
         }
     };
+
+    async function requireAuthedPlayFabId(req, res, playFabId) {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return playFabId;
+        }
+        return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
 
     // 国家グループ取得
     app.post('/api/get-nation-group', async (req, res) => {
@@ -745,23 +752,25 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/get-nation-king-page', async (req, res) => {
         const { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: requesterPlayFabId,
                 Keys: ['NationGroupId', 'IsKing']
             });
             if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) {
                 return res.json({ notInNation: true });
             }
 
-            const selfId = normalizePlayFabId(playFabId);
+            const selfId = normalizePlayFabId(requesterPlayFabId);
             const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
             if (!isKingFlag) {
                 return res.status(403).json({ error: 'Only the king can view this page' });
             }
             try {
-                const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+                const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
                 const mapping = getNationMappingByNation(nation);
                 if (mapping) {
                     const docRef = getNationGroupDoc(firestore, mapping.groupName);
@@ -774,13 +783,13 @@ function initializeNationRoutes(app, deps) {
                         }, { merge: true });
                     }
                 }
-                await ensureKingStarterCrown(playFabId, nation, { promisifyPlayFab, PlayFabServer, addEconomyItem });
+                await ensureKingStarterCrown(requesterPlayFabId, nation, { promisifyPlayFab, PlayFabServer, addEconomyItem });
             } catch (syncError) {
                 console.warn('[get-nation-king-page] Failed to sync kingPlayFabId:', syncError?.message || syncError);
             }
 
             const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-                PlayFabId: playFabId,
+                PlayFabId: requesterPlayFabId,
                 FunctionName: 'GetNationKingPageData',
                 FunctionParameter: {},
                 GeneratePlayStreamEvent: false
@@ -805,7 +814,7 @@ function initializeNationRoutes(app, deps) {
 
             const payload = csResult ? (csResult.FunctionResult || {}) : {};
             try {
-                const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+                const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
                 const mapping = getNationMappingByNation(nation);
                 if (groupId) {
@@ -873,13 +882,15 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/king-set-grant-multiplier', async (req, res) => {
         const { playFabId, grantMultiplier } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const multiplierValue = Number(grantMultiplier);
         if (!Number.isFinite(multiplierValue) || multiplierValue < 0) {
             return res.status(400).json({ error: 'Grant multiplier must be 0 or greater' });
         }
 
         try {
-            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             await setGroupDataValues(context.groupId, { grantMultiplier: String(multiplierValue) });
             res.json({ success: true, grantMultiplier: multiplierValue });
         } catch (error) {
@@ -898,6 +909,8 @@ function initializeNationRoutes(app, deps) {
         if (!playFabId || !newKingPlayFabId) {
             return res.status(400).json({ error: 'playFabId and newKingPlayFabId are required' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         const targetKingId = normalizePlayFabId(newKingPlayFabId);
         if (!targetKingId) {
@@ -905,7 +918,7 @@ function initializeNationRoutes(app, deps) {
         }
 
         try {
-            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             if (context.kingId === targetKingId) {
                 return res.json({ success: true, newKingPlayFabId: targetKingId, alreadyKing: true });
             }
@@ -991,10 +1004,12 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/king-set-troy-open', async (req, res) => {
         const { playFabId, isOpen } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const nextOpen = !!isOpen;
 
         try {
-            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
             if (!nextOpen) {
                 await deleteCollectionDocs(roomRef.collection('members'));
@@ -1030,8 +1045,10 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/get-troy-status', async (req, res) => {
         const { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.json({ isOpen: false, members: [], notInNation: true });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.json({ isOpen: false, members: [], notInNation: true });
@@ -1053,7 +1070,7 @@ function initializeNationRoutes(app, deps) {
                     joinedAt: data.joinedAt ? data.joinedAt.toMillis?.() || data.joinedAt : null
                 };
             });
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             let checkout = null;
             if (memberId) {
                 const checkoutSnap = await roomRef.collection('checkouts').doc(memberId).get();
@@ -1080,10 +1097,12 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/troy-checkout', async (req, res) => {
         const { playFabId, items, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const { lineClient } = deps;
         if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -1095,7 +1114,7 @@ function initializeNationRoutes(app, deps) {
                 return res.status(403).json({ error: 'TroyClosed' });
             }
 
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const memberSnap = await roomRef.collection('members').doc(memberId).get();
             if (!memberSnap.exists) {
                 return res.status(403).json({ error: 'NotInTroy' });
@@ -1127,8 +1146,8 @@ function initializeNationRoutes(app, deps) {
             }
 
             const buyerName = String(displayName || '').trim()
-                || await getPlayerDisplayName(playFabId, { promisifyPlayFab, PlayFabServer })
-                || playFabId;
+                || await getPlayerDisplayName(requesterPlayFabId, { promisifyPlayFab, PlayFabServer })
+                || requesterPlayFabId;
 
             await checkoutRef.set({
                 playFabId: memberId,
@@ -1182,10 +1201,12 @@ function initializeNationRoutes(app, deps) {
         const { playFabId, itemName, price, quantity, total, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!itemName) return res.status(400).json({ error: 'itemName is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const { lineClient } = deps;
         if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -1196,7 +1217,7 @@ function initializeNationRoutes(app, deps) {
             if (!roomSnap.exists || !roomData.isOpen) {
                 return res.status(403).json({ error: 'TroyClosed' });
             }
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const memberSnap = await roomRef.collection('members').doc(memberId).get();
             if (!memberSnap.exists) {
                 return res.status(403).json({ error: 'NotInTroy' });
@@ -1211,8 +1232,8 @@ function initializeNationRoutes(app, deps) {
             }
 
             const buyerName = String(displayName || '').trim()
-                || await getPlayerDisplayName(playFabId, { promisifyPlayFab, PlayFabServer })
-                || playFabId;
+                || await getPlayerDisplayName(requesterPlayFabId, { promisifyPlayFab, PlayFabServer })
+                || requesterPlayFabId;
             const safeQty = Math.max(1, Math.floor(Number(quantity) || 1));
             const priceValue = Math.max(0, Math.floor(Number(price) || 0));
             const orderAmount = Math.max(0, priceValue * safeQty);
@@ -1249,7 +1270,7 @@ function initializeNationRoutes(app, deps) {
                     }
                     grantAmount = Math.floor(orderAmount * 0.1 * grantMultiplier);
                     if (grantAmount > 0) {
-                        await addEconomyItem(playFabId, 'PS', grantAmount);
+                        await addEconomyItem(requesterPlayFabId, 'PS', grantAmount);
                         grantApplied = true;
                     }
                 } catch (error) {
@@ -1294,8 +1315,10 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/troy-join', async (req, res) => {
         const { playFabId, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -1306,7 +1329,7 @@ function initializeNationRoutes(app, deps) {
                 return res.status(403).json({ error: 'TroyClosed' });
             }
 
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const name = String(displayName || '').trim().slice(0, 40) || memberId;
             await roomRef.collection('members').doc(memberId).set({
                 playFabId: memberId,
@@ -1330,13 +1353,15 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/troy-leave', async (req, res) => {
         const { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.json({ success: true });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.json({ success: true });
 
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
             await roomRef.collection('members').doc(memberId).delete();
             res.json({ success: true });
@@ -1350,13 +1375,15 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/get-troy-chat', async (req, res) => {
         const { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(403).json({ error: 'NotInNation' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(403).json({ error: 'NotInNation' });
 
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
             const memberSnap = await roomRef.collection('members').doc(memberId).get();
             if (!memberSnap.exists) {
@@ -1393,13 +1420,15 @@ function initializeNationRoutes(app, deps) {
         const text = String(message || '').trim();
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!text) return res.status(400).json({ error: 'Message is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(403).json({ error: 'NotInNation' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(403).json({ error: 'NotInNation' });
 
-            const memberId = normalizePlayFabId(playFabId);
+            const memberId = normalizePlayFabId(requesterPlayFabId);
             const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
             const memberSnap = await roomRef.collection('members').doc(memberId).get();
             if (!memberSnap.exists) {
@@ -1428,6 +1457,8 @@ function initializeNationRoutes(app, deps) {
         if (!playFabId || !receiverPlayFabId) {
             return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const value = Math.floor(Number(amount) || 0);
         if (!Number.isFinite(value) || value <= 0) {
             return res.status(400).json({ error: 'Amount must be greater than 0' });
@@ -1437,7 +1468,7 @@ function initializeNationRoutes(app, deps) {
         }
 
         try {
-            const context = await requireKingContext(playFabId, firestore, nationDeps);
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             const receiverId = normalizePlayFabId(receiverPlayFabId);
             if (!receiverId) return res.status(400).json({ error: 'Invalid receiver PlayFab ID' });
 
@@ -1564,10 +1595,12 @@ function initializeNationRoutes(app, deps) {
         if (playFabId === targetPlayFabId) {
             return res.status(400).json({ error: 'Cannot exile self' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         try {
             const kingCheck = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
-                PlayFabId: playFabId,
+                PlayFabId: requesterPlayFabId,
                 FunctionName: 'GetNationKingPageData',
                 FunctionParameter: {},
                 GeneratePlayStreamEvent: false
@@ -1581,7 +1614,7 @@ function initializeNationRoutes(app, deps) {
             }
 
             const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: requesterPlayFabId,
                 Keys: ['Nation', 'Race']
             });
             const kingNation = String(kingRo?.Data?.Nation?.Value || '').toLowerCase();
@@ -1645,7 +1678,7 @@ function initializeNationRoutes(app, deps) {
                 PlayFabAdmin
             });
 
-            const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, playFabId, targetNationIsland || kingNation || null);
+            const transferResult = await transferOwnedIslands(firestore, targetPlayFabId, requesterPlayFabId, targetNationIsland || kingNation || null);
             let starterIsland = null;
             try {
                 const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
@@ -1686,13 +1719,15 @@ function initializeNationRoutes(app, deps) {
         if (!playFabId || !currency) {
             return res.status(400).json({ error: 'playFabId and currency are required' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         const value = Math.floor(Number(amount) || 0);
         if (!Number.isFinite(value) || value <= 0) {
             return res.status(400).json({ error: 'Amount must be greater than 0' });
         }
 
         try {
-            const nation = await getNationForPlayer(playFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) {
                 return res.status(400).json({ error: 'Nation not set' });
             }
@@ -1701,7 +1736,7 @@ function initializeNationRoutes(app, deps) {
                 return res.status(400).json({ error: 'Invalid nation' });
             }
 
-            await subtractEconomyItem(playFabId, String(currency).toUpperCase(), value);
+            await subtractEconomyItem(requesterPlayFabId, String(currency).toUpperCase(), value);
 
             const normalizedCurrency = String(currency).toUpperCase();
             const groupEntity = await getNationGroupEntityKey(nation, firestore, nationDeps);
@@ -1767,8 +1802,10 @@ function initializeNationRoutes(app, deps) {
         if (!playFabId || !fromMapId || !toMapId) {
             return res.status(400).json({ error: 'playFabId/fromMapId/toMapId are required' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
-            const kingContext = await requireKingContext(playFabId, firestore, { promisifyPlayFab, PlayFabServer });
+            const kingContext = await requireKingContext(requesterPlayFabId, firestore, { promisifyPlayFab, PlayFabServer });
             const placementOpen = await getWorldMapPlacementOpen({ promisifyPlayFab, PlayFabAdmin });
             if (!placementOpen) {
                 return res.status(403).json({ error: 'PlacementClosed' });

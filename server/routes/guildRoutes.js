@@ -105,6 +105,12 @@ async function saveGuildData(guildId, data, promisifyPlayFab) {
     });
 }
 
+function normalizePlayFabId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
 /**
  * ギルド関連のAPIルートを初期化
  * @param {Express} app - Expressアプリケーション
@@ -112,16 +118,87 @@ async function saveGuildData(guildId, data, promisifyPlayFab) {
  * @param {Object} PlayFabServer - PlayFab Server API
  * @param {Object} PlayFabAdmin - PlayFab Admin API
  */
-function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveItemId) {
+function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveItemId, authTools = {}) {
 
     const economyDeps = { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, resolveItemId };
+    const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
+
+    async function requireAuthedPlayFabId(req, res, playFabId) {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return playFabId;
+        }
+        return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function resolvePlayerEntityKey(playFabId) {
+        let resolvedEntity = await getEntityKeyFromPlayFabId(playFabId);
+        if (resolvedEntity?.Id && resolvedEntity?.Type) {
+            return resolvedEntity;
+        }
+        const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+            PlayFabId: playFabId,
+            ProfileConstraints: { ShowEntity: true, ShowLinkedAccounts: true }
+        });
+        const entityId = entityResult?.PlayerProfile?.Entity?.Id || entityResult?.PlayerProfile?.PlayerId || null;
+        const entityType = entityResult?.PlayerProfile?.Entity?.Type || (entityId ? 'title_player_account' : null);
+        if (entityId && entityType) {
+            return { Id: entityId, Type: entityType };
+        }
+        return null;
+    }
+
+    async function assertGuildMembership(playFabId, guildId) {
+        const entityKey = await resolvePlayerEntityKey(playFabId);
+        if (!entityKey?.Id || !entityKey?.Type) {
+            throw new Error('PlayerEntityNotFound');
+        }
+        const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+            Entity: entityKey
+        });
+        const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
+        const isMember = groups.some((groupEntry) => String(groupEntry?.Group?.Id || '') === String(guildId || ''));
+        if (!isMember) {
+            throw new Error('NotGuildMember');
+        }
+        return entityKey;
+    }
+
+    async function assertGuildOwner(playFabId, guildId) {
+        await assertGuildMembership(playFabId, guildId);
+        const guildData = await getGuildData(guildId, promisifyPlayFab);
+        const ownerId = normalizePlayFabId(guildData?.ownerPlayFabId);
+        const requesterId = normalizePlayFabId(playFabId);
+        if (!ownerId || ownerId !== requesterId) {
+            throw new Error('NotGuildOwner');
+        }
+        return guildData;
+    }
+
+    function handleGuildAccessError(res, error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        if (message === 'PlayerEntityNotFound') {
+            res.status(400).json({ error: 'プレイヤー情報の取得に失敗しました。' });
+            return true;
+        }
+        if (message === 'NotGuildMember') {
+            res.status(403).json({ error: 'ギルドメンバーのみ実行できます。' });
+            return true;
+        }
+        if (message === 'NotGuildOwner') {
+            res.status(403).json({ error: 'ギルドオーナーのみ実行できます。' });
+            return true;
+        }
+        return false;
+    }
 
     // ----------------------------------------------------
     // API: ギルド情報を取得
     // ----------------------------------------------------
     app.post('/api/get-guild-info', async (req, res) => {
-        const { playFabId, entityKey } = req.body;
+        const { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド情報取得] ${playFabId} のギルド情報を取得します...`);
 
@@ -129,10 +206,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             await ensureTitleEntityToken();
 
             // プレイヤーのEntityKeyを取得
-            let resolvedEntity = entityKey && entityKey.Id && entityKey.Type ? entityKey : null;
+            let resolvedEntity = await resolvePlayerEntityKey(requesterPlayFabId);
             if (!resolvedEntity) {
                 const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                    PlayFabId: playFabId,
+                    PlayFabId: requesterPlayFabId,
                     ProfileConstraints: { ShowEntity: true }
                 });
                 const entityId = entityResult?.PlayerProfile?.Entity?.Id || null;
@@ -212,6 +289,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildName) {
             return res.status(400).json({ error: 'IDまたはギルド名がありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         if (guildName.trim().length === 0) {
             return res.status(400).json({ error: 'ギルド名を入力してください。' });
@@ -390,6 +469,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId) {
             return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド加入] ${playFabId} がギルド ${guildId} に加入申請します...`);
 
@@ -487,6 +568,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     app.post('/api/leave-guild', async (req, res) => {
         const { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド脱退] ${playFabId} がギルドから脱退します...`);
 
@@ -550,10 +633,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId) {
             return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルドメンバー取得] ギルド ${guildId} のメンバー一覧を取得します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             const groupEntity = {
                 Id: guildId,
                 Type: 'group'
@@ -610,6 +696,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルドメンバー取得エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'メンバー一覧の取得に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -623,10 +710,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId) {
             return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[加入申請取得] ギルド ${guildId} の加入申請を取得します...`);
 
         try {
+            await assertGuildOwner(requesterPlayFabId, guildId);
             const groupEntity = { Id: guildId, Type: 'group' };
 
             // PlayFab Groups APIで申請リストを取得
@@ -666,6 +756,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[加入申請取得エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: '加入申請の取得に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -679,10 +770,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || !applicantId) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[加入申請承認] ${applicantId} の申請を承認します...`);
 
         try {
+            await assertGuildOwner(requesterPlayFabId, guildId);
             // 申請者のEntityKeyを取得
             const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: applicantId,
@@ -714,6 +808,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[加入申請承認エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: '加入申請の承認に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -727,10 +822,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || !applicantId) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[加入申請拒否] ${applicantId} の申請を拒否します...`);
 
         try {
+            await assertGuildOwner(requesterPlayFabId, guildId);
             // 申請者のEntityKeyを取得
             const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: applicantId,
@@ -762,6 +860,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[加入申請拒否エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: '加入申請の拒否に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -775,10 +874,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId) {
             return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルドチャット取得] ギルド ${guildId} のチャットを取得します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             const guildData = await getGuildData(guildId, promisifyPlayFab);
             const messages = guildData.chatMessages || [];
 
@@ -790,6 +892,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルドチャット取得エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'チャットメッセージの取得に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -803,6 +906,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || !message) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         if (message.trim().length === 0) {
             return res.status(400).json({ error: 'メッセージを入力してください。' });
@@ -815,6 +920,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[ギルドチャット送信] ${playFabId} がメッセージを送信します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             // プレイヤー名を取得
             const profileResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: playFabId,
@@ -855,6 +961,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルドチャット送信エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'メッセージの送信に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -868,10 +975,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId) {
             return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド倉庫取得] ギルド ${guildId} の倉庫を取得します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             const guildData = await getGuildData(guildId, promisifyPlayFab);
             const warehouse = guildData.warehouse || [];
 
@@ -881,6 +991,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルド倉庫取得エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'ギルド倉庫の取得に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -894,10 +1005,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || !itemInstanceId || !itemId) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド倉庫寄付] ${playFabId} がアイテムを寄付します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             // プレイヤーからアイテムを消費
             await economy.subtractEconomyItem(playFabId, itemId, 1, economyDeps);
 
@@ -929,6 +1043,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルド倉庫寄付エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'アイテムの寄付に失敗しました。', details: error.errorMessage || error.message });
         }
@@ -942,10 +1057,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || warehouseIndex === undefined) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド倉庫引き出し] ${playFabId} がアイテムを引き出します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             // ギルドデータを取得
             const guildData = await getGuildData(guildId, promisifyPlayFab);
 
@@ -972,6 +1090,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルド倉庫引き出しエラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'アイテムの引き出しに失敗しました。', details: error.errorMessage || error.message });
         }
@@ -1011,10 +1130,13 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!playFabId || !guildId || !exp) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
 
         console.log(`[ギルド経験値追加] ギルド ${guildId} に ${exp} EXP を追加します...`);
 
         try {
+            await assertGuildMembership(requesterPlayFabId, guildId);
             // ギルドデータを取得
             const guildData = await getGuildData(guildId, promisifyPlayFab);
 
@@ -1044,6 +1166,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             });
 
         } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
             console.error('[ギルド経験値追加エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'ギルド経験値の追加に失敗しました。', details: error.errorMessage || error.message });
         }

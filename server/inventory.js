@@ -92,13 +92,6 @@ function applyVoyageMpClassAdjustment(baseCost, shipClass) {
     return Math.max(1, baseCost + delta);
 }
 
-function normalizeEntityKey(input) {
-    const id = input?.Id || input?.id || null;
-    const type = input?.Type || input?.type || null;
-    if (!id || !type) return null;
-    return { Id: String(id), Type: String(type) };
-}
-
 function parseBooleanFlag(value) {
     const normalized = String(value ?? '').trim().toLowerCase();
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
@@ -111,7 +104,14 @@ function resolveIsKingFlag(readOnlyData) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
+
+    async function requireAuthedPlayFabId(req, res, playFabId) {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return playFabId;
+        }
+        return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
 
     async function getPlayerStatsMap(playFabId) {
         const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
@@ -271,9 +271,10 @@ function initializeInventoryRoutes(app, deps) {
 
     // インベントリ取得
     app.post('/api/get-inventory', async (req, res) => {
-        const { playFabId } = req.body;
-        const requestEntity = normalizeEntityKey(req.body.entityKey);
+        let { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
             await applyOfflineMpRecovery(playFabId);
@@ -286,7 +287,7 @@ function initializeInventoryRoutes(app, deps) {
                     console.warn('[bounty-reset] Failed:', resetError?.errorMessage || resetError?.message || resetError);
                 }
             }
-            const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId);
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const itemMap = new Map();
             items.forEach((item) => {
@@ -338,8 +339,10 @@ function initializeInventoryRoutes(app, deps) {
 
     // 装備設定
     app.post('/api/equip-item', async (req, res) => {
-        const { playFabId, itemId, slot } = req.body;
+        let { playFabId, itemId, slot } = req.body;
         if (!playFabId || !slot) return res.status(400).json({ error: 'IDまたはスロット情報がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         const validSlots = { 'RightHand': 'Equipped_RightHand', 'LeftHand': 'Equipped_LeftHand', 'Armor': 'Equipped_Armor' };
         const dataKey = validSlots[slot];
@@ -387,8 +390,10 @@ function initializeInventoryRoutes(app, deps) {
 
     // 装備取得
     app.post('/api/get-equipment', async (req, res) => {
-        const { playFabId } = req.body;
+        let { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         console.log(`[装備取得] ${playFabId} の装備を取得します...`);
         try {
             const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
@@ -408,8 +413,10 @@ function initializeInventoryRoutes(app, deps) {
 
     // ステータス取得
     app.post('/api/get-stats', async (req, res) => {
-        const { playFabId } = req.body;
+        let { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         console.log(`[ステータス取得] ${playFabId} のステータスを取得します...`);
         try {
             const stats = (await applyOfflineMpRecovery(playFabId)).currentStats;
@@ -422,8 +429,10 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     app.post('/api/recover-hp-resource', async (req, res) => {
-        const { playFabId } = req.body || {};
+        let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const result = await applyResourceRecovery(playFabId, 'hp');
             if (!result.ok) {
@@ -445,8 +454,10 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     app.post('/api/recover-mp-resource', async (req, res) => {
-        const { playFabId } = req.body || {};
+        let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             const result = await applyResourceRecovery(playFabId, 'mp');
             if (!result.ok) {
@@ -468,8 +479,10 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     app.post('/api/consume-voyage-mp', async (req, res) => {
-        const { playFabId, durationMs } = req.body || {};
+        let { playFabId, durationMs } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         const baseVoyageCost = calculateVoyageMpCost(durationMs);
 
@@ -528,8 +541,10 @@ function initializeInventoryRoutes(app, deps) {
     });
 
     app.post('/api/recover-docked-mp', async (req, res) => {
-        const { playFabId } = req.body || {};
+        let { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
             const currentStats = (await applyOfflineMpRecovery(playFabId)).currentStats;
@@ -590,10 +605,12 @@ function initializeInventoryRoutes(app, deps) {
 
     // アイテム使用
     app.post('/api/use-item', async (req, res) => {
-        const { playFabId, itemInstanceId, itemId } = req.body;
+        let { playFabId, itemInstanceId, itemId } = req.body;
         if (!playFabId || !itemInstanceId || !itemId) {
             return res.status(400).json({ error: 'IDまたはアイテム情報が不足しています。' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         console.log(`[アイテム使用] ${playFabId} がアイテム (Instance: ${itemInstanceId}) を使用します...`);
 
@@ -656,10 +673,12 @@ function initializeInventoryRoutes(app, deps) {
 
     // アイテム売却
     app.post('/api/sell-item', async (req, res) => {
-        const { playFabId, itemInstanceId, itemId } = req.body;
+        let { playFabId, itemInstanceId, itemId } = req.body;
         if (!playFabId || !itemInstanceId || !itemId) {
             return res.status(400).json({ error: 'IDまたはアイテム情報が不足しています。' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         console.log(`[アイテム売却] ${playFabId} がアイテム (Instance: ${itemInstanceId}) を売却します...`);
 
@@ -707,8 +726,10 @@ function initializeInventoryRoutes(app, deps) {
 
     // ガチャ
     app.post('/api/pull-gacha', async (req, res) => {
-        const { playFabId } = req.body;
+        let { playFabId } = req.body;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
         try {
             await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, GACHA_COST);
             const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);

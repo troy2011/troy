@@ -196,6 +196,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
 const firestore = getFirestore(firebaseApp); // Firestore インスタンス
+window.__firebaseAuth = auth;
 window.__tkDb = db;
 window.__tkUid = null;
 
@@ -216,6 +217,7 @@ async function initializeLiff() {
         document.getElementById('globalPlayerName').innerText = myLineProfile.displayName;
 
         const loginData = await callApiWithLoader('/api/login-playfab', {
+            lineAccessToken: typeof liff.getAccessToken === 'function' ? liff.getAccessToken() : '',
             lineUserId: myLineProfile.userId,
             displayName: myLineProfile.displayName,
             pictureUrl: myLineProfile.pictureUrl
@@ -1136,7 +1138,7 @@ async function viewShipDetails(shipId) {
 async function stopShip(shipId) {
     if (!confirm('この船を停止しますか？')) return;
 
-    const data = await Ship.stopShip(shipId);
+    const data = await Ship.stopShip(shipId, myPlayFabId);
     if (data) {
         showRpgMessage('船を停止しました');
         await Ship.displayPlayerShips(myPlayFabId);

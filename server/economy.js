@@ -196,7 +196,7 @@ async function ensureDailyBountyConversion(playFabId, deps) {
 
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
 
     const economyDeps = {
         promisifyPlayFab,
@@ -219,12 +219,11 @@ function initializeEconomyRoutes(app, deps) {
     // ポイント取得
     app.post('/api/get-points', async (req, res) => {
         const playFabId = req.body.playFabId;
-        const requestEntity = normalizeEntityKey(req.body.entityKey);
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+        if (!authenticatedPlayFabId) return;
         try {
-            const entityKey = requestEntity
-                ? requestEntity
-                : await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
+            const entityKey = await getEntityKeyForPlayFabId(authenticatedPlayFabId, { getEntityKeyFromPlayFabId });
             const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
             const totals = getVirtualCurrencyMap(items, {
                 catalogCache: economyDeps.catalogCache,
@@ -248,11 +247,13 @@ function initializeEconomyRoutes(app, deps) {
         if (!playFabId || !amount) {
             return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
         }
+        const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+        if (!authenticatedPlayFabId) return;
         try {
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount, economyDeps);
-            const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
+            await addEconomyItem(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, amount, economyDeps);
+            const newBalance = await getCurrencyBalance(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
             await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: playFabId,
+                PlayFabId: authenticatedPlayFabId,
                 Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
             });
             res.json({ newBalance });
@@ -271,11 +272,13 @@ function initializeEconomyRoutes(app, deps) {
         if (!playFabId || !amount) {
             return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
         }
+        const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+        if (!authenticatedPlayFabId) return;
         try {
-            await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, amount, economyDeps);
-            const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
+            await subtractEconomyItem(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, amount, economyDeps);
+            const newBalance = await getCurrencyBalance(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
             await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                PlayFabId: playFabId,
+                PlayFabId: authenticatedPlayFabId,
                 Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
             });
             res.json({ newBalance });
@@ -364,7 +367,6 @@ function initializeEconomyRoutes(app, deps) {
 
         const fromId = normalizePlayFabId(req.body?.fromId);
         const toId = normalizePlayFabId(req.body?.toId);
-        const fromEntityKey = normalizeEntityKey(req.body?.fromEntityKey);
         const requestId = String(req.body?.requestId || '').trim();
         const amountInt = parseInt(req.body?.amount, 10);
         if (!fromId || !toId || !amountInt || amountInt <= 0) {
@@ -376,15 +378,13 @@ function initializeEconomyRoutes(app, deps) {
         if (fromId === toId) {
             return res.status(400).json({ error: '同じアカウントには送金できません。' });
         }
+        const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, fromId);
+        if (!authenticatedPlayFabId) return;
         try {
             const idempotencyFor = (suffix) => requestId ? `${requestId}:${suffix}` : null;
-            const payerDeps = fromEntityKey
-                ? { ...economyDeps, givingEntityOverride: fromEntityKey, idempotencyId: idempotencyFor('ps-transfer') }
-                : { ...economyDeps, idempotencyId: idempotencyFor('ps-transfer') };
-            await transferEconomyItem(fromId, toId, VIRTUAL_CURRENCY_CODE, amountInt, payerDeps);
-            const payerNewBalance = fromEntityKey
-                ? await getCurrencyBalanceWithEntity(fromEntityKey, VIRTUAL_CURRENCY_CODE, economyDeps)
-                : await getCurrencyBalance(fromId, VIRTUAL_CURRENCY_CODE, economyDeps);
+            const payerDeps = { ...economyDeps, idempotencyId: idempotencyFor('ps-transfer') };
+            await transferEconomyItem(authenticatedPlayFabId, toId, VIRTUAL_CURRENCY_CODE, amountInt, payerDeps);
+            const payerNewBalance = await getCurrencyBalance(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, economyDeps);
             try {
                 const receiverNewBalance = await getCurrencyBalance(toId, VIRTUAL_CURRENCY_CODE, economyDeps);
                 let bountyAdded = false;
@@ -393,17 +393,13 @@ function initializeEconomyRoutes(app, deps) {
                 let bountyTransferred = 0;
                 let bountyShortage = false;
                 try {
-                    const payerBounty = fromEntityKey
-                        ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
-                        : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                    const payerBounty = await getCurrencyBalance(authenticatedPlayFabId, 'BT', economyDeps);
                     const bountyTransfer = Math.min(Math.max(0, payerBounty), amountInt);
                     bountyShortage = payerBounty < amountInt;
                     if (bountyTransfer > 0) {
-                        await transferEconomyItem(fromId, toId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-transfer') });
+                        await transferEconomyItem(authenticatedPlayFabId, toId, 'BT', bountyTransfer, { ...payerDeps, idempotencyId: idempotencyFor('bt-transfer') });
                         receiverNewBounty = await getCurrencyBalance(toId, 'BT', economyDeps);
-                        payerNewBounty = fromEntityKey
-                            ? await getCurrencyBalanceWithEntity(fromEntityKey, 'BT', economyDeps)
-                            : await getCurrencyBalance(fromId, 'BT', economyDeps);
+                        payerNewBounty = await getCurrencyBalance(authenticatedPlayFabId, 'BT', economyDeps);
                         bountyAdded = true;
                         bountyTransferred = bountyTransfer;
                     }
@@ -411,7 +407,7 @@ function initializeEconomyRoutes(app, deps) {
                     console.warn('[transfer-points] Failed to sync bounty:', bountyError?.errorMessage || bountyError?.message || bountyError);
                 }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: fromId,
+                    PlayFabId: authenticatedPlayFabId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: payerNewBalance }]
                 });
                 const receiverStats = [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }];
@@ -424,7 +420,7 @@ function initializeEconomyRoutes(app, deps) {
                 });
                 if (bountyAdded && payerNewBounty !== null) {
                     await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                        PlayFabId: fromId,
+                        PlayFabId: authenticatedPlayFabId,
                         Statistics: [{ StatisticName: 'bounty_ranking', Value: payerNewBounty }]
                     });
                 }
@@ -442,7 +438,7 @@ function initializeEconomyRoutes(app, deps) {
                     };
                     const [toName, fromName] = await Promise.all([
                         getDisplayName(toId),
-                        getDisplayName(fromId)
+                        getDisplayName(authenticatedPlayFabId)
                     ]);
                     addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}PS勝ち取った！`, 'システム');
                     pushDisplayEvent({
@@ -461,7 +457,7 @@ function initializeEconomyRoutes(app, deps) {
                             .collection('items')
                             .add({
                                 type: 'transfer_in',
-                                fromId,
+                                fromId: authenticatedPlayFabId,
                                 amount: amountInt,
                                 currency: VIRTUAL_CURRENCY_CODE,
                                 balanceAfter: receiverNewBalance,
@@ -483,7 +479,7 @@ function initializeEconomyRoutes(app, deps) {
         } catch (subtractError) {
             const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';
             if (String(subtractMessage).includes('EntityKeyNotFound')) {
-                const hint = fromEntityKey ? '送金元の認証が無効です。再ログインしてください。' : '送金元のアカウントが見つかりません。';
+                const hint = '送金元のアカウントが見つかりません。';
                 return res.status(400).json({ error: hint });
             }
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {

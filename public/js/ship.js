@@ -667,8 +667,8 @@ export async function startShipVoyage(shipId, playFabId, destination) {
     return null;
 }
 
-export async function stopShip(shipId) {
-    const data = await requestStopShip(shipId);
+export async function stopShip(shipId, playFabId) {
+    const data = await requestStopShip(shipId, playFabId);
 
     if (data && data.success) {
         console.log(`[StopShip] Ship ${shipId} stopped at (${data.currentPosition.x}, ${data.currentPosition.y})`);

@@ -521,7 +521,7 @@ async function runBattle(playerA, playerB) {
 // ----------------------------------------------------
 // ★ v42: server.js から呼び出される初期化関数
 // ----------------------------------------------------
-function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveItemId, constants) {
+function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveItemId, constants, authTools = {}) {
 
     // ★ v42: モジュールレベル変数に代入
     _promisifyPlayFab = promisifyPlayFab;
@@ -540,6 +540,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         LEADERBOARD_NAME,
         BATTLE_REWARD_POINTS
     } = constants;
+    const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
     const battlePairCooldownMs = 60 * 1000;
     const recentBattlePairs = new Map();
     const pruneBattlePairs = () => {
@@ -552,6 +553,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const left = String(a || '');
         const right = String(b || '');
         return left < right ? `${left}|${right}` : `${right}|${left}`;
+    };
+    const requireAuthedPlayFabId = async (req, res, playFabId) => {
+        if (typeof requireAuthenticatedPlayFabId !== 'function') {
+            return playFabId;
+        }
+        return requireAuthenticatedPlayFabId(req, res, playFabId);
     };
     const BOARDING_BLOCKED_ATTACKER_CLASSES = new Set(['explorer', 'common']);
     const BOARDING_PROTECTED_TARGET_CLASSES = new Set(['fighter', 'defender', 'merchant']);
@@ -954,8 +961,10 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     // API 11: バトル実行 (自動戦闘・即時決着)
     // ----------------------------------------------------
     app.post('/api/start-battle', async (req, res) => {
-        const { attackerId, defenderId } = req.body;
+        let { attackerId, defenderId } = req.body;
         if (!attackerId || !defenderId) return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
         if (attackerId === defenderId) return res.status(400).json({ error: '自分自身とは対戦できません。' });
         const [attackerShipMeta, defenderShipMeta] = await Promise.all([
             resolvePlayerActiveShipMeta(attackerId),
@@ -1174,10 +1183,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     });
 
     app.post('/api/start-island-capture-battle', async (req, res) => {
-        const { attackerId, opponentId, islandId, mapId } = req.body || {};
+        let { attackerId, opponentId, islandId, mapId } = req.body || {};
         if (!attackerId || !islandId || !mapId) {
             return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });
         }
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
 
         try {
             const islandRef = getWorldMapCollection(mapId).doc(islandId);
@@ -1264,10 +1275,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     // API 18: 対戦招待を承諾し、バトルを開始する (★ v123で追加, v141で復活)
     // ----------------------------------------------------
     app.post('/api/accept-battle', async (req, res) => {
-        const { playFabId, invitationId } = req.body;
+        let { playFabId, invitationId } = req.body;
         if (!playFabId || !invitationId) {
             return res.status(400).json({ error: 'リクエスト情報が不足しています。' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         console.log(`[招待承諾] invitationId: ${invitationId}, player: ${playFabId}`);
 
@@ -1378,10 +1391,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     // API 17: リアルタイムバトルアクション実行 (★ v121で追加)
     // ----------------------------------------------------
     app.post('/api/battle-action', async (req, res) => {
-        const { playFabId, battleId, action } = req.body;
+        let { playFabId, battleId, action } = req.body;
         if (!playFabId || !battleId || !action) {
             return res.status(400).json({ error: 'リクエスト情報が不足しています。' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         console.log(`[バトルアクション] battleId: ${battleId}, player: ${playFabId}, action: ${action}`);
 
@@ -1396,6 +1411,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const initialBattleState = initialSnapshot.val();
             if (!initialBattleState || !initialBattleState.players) {
                 return res.status(404).json({ error: 'バトルが見つかりません。' });
+            }
+            if (!initialBattleState.players[attackerId]) {
+                return res.status(403).json({ error: 'このバトルの参加者ではありません。' });
             }
             const defenderId = Object.keys(initialBattleState.players).find(id => id !== attackerId);
             if (!defenderId) {
@@ -1421,9 +1439,16 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                     console.log('[トランザクション] 中断: バトル終了済み');
                     return; // 中断
                 }
+                if (!currentBattleState.players || !currentBattleState.players[attackerId] || !currentBattleState.players[defenderId]) {
+                    console.log('[トランザクション] 中断: 参加者情報が不正');
+                    return; // 中断
+                }
                 if (currentBattleState.players[attackerId].hp <= 0) {
                     console.log('[トランザクション] 中断: 攻撃者HPが0');
                     return; // 中断
+                }
+                if (!currentBattleState.log || typeof currentBattleState.log !== 'object') {
+                    currentBattleState.log = {};
                 }
 
                 // ★★★ ここでダメージを反映 ★★★
@@ -1478,10 +1503,12 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
     // ★★★ 修正: 相手の切断による不戦勝を処理するAPIを追加 ★★★
     app.post('/api/claim-win-by-disconnect', async (req, res) => {
-        const { playFabId, battleId } = req.body;
+        let { playFabId, battleId } = req.body;
         if (!playFabId || !battleId) {
             return res.status(400).json({ error: 'リクエスト情報が不足しています。' });
         }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         console.log(`[不戦勝処理] ${playFabId} が相手の切断を申告。 battleId: ${battleId}`);
 
@@ -1494,6 +1521,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             if (!battleState || battleState.status === 'finished') {
                 console.log('[不戦勝処理] バトルは既に終了しています。');
                 return res.json({ status: 'already_finished' });
+            }
+            if (!battleState.players || !battleState.players[playFabId]) {
+                return res.status(403).json({ error: 'このバトルの参加者ではありません。' });
             }
 
             const opponentId = Object.keys(battleState.players).find(id => id !== playFabId);

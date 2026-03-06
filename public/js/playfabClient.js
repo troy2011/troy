@@ -224,8 +224,8 @@ export function startShipVoyage(shipId, playFabId, destination, options) {
     return callApiWithLoader('/api/start-ship-voyage', { shipId, playFabId, destination }, options);
 }
 
-export function stopShip(shipId, options) {
-    return callApiWithLoader('/api/stop-ship', { shipId }, options);
+export function stopShip(shipId, playFabId, options) {
+    return callApiWithLoader('/api/stop-ship', { shipId, playFabId }, options);
 }
 
 export function upgradeShip(playFabId, shipId, options) {

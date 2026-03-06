@@ -8,6 +8,7 @@ const fs = require('fs');
 const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
+const { buildAuthHelpers } = require('./server/auth');
 
 // PlayFab モジュール
 const {
@@ -71,6 +72,11 @@ admin.initializeApp({
 });
 
 const firestore = admin.firestore();
+const authHelpers = buildAuthHelpers({ admin });
+const {
+    verifyLineAccessToken,
+    requireAuthenticatedPlayFabId
+} = authHelpers;
 
 const lineClient = new line.Client({
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
@@ -808,6 +814,7 @@ function createDependencies() {
         getGroupDataValue,
         setGroupDataValues,
         getEntityKeyFromPlayFabId,
+        requireAuthenticatedPlayFabId,
         NATION_GROUP_BY_RACE: nation.NATION_GROUP_BY_RACE,
         // economy関数
         getEntityKeyForPlayFabId: (playFabId) => economy.getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId }),
@@ -1162,10 +1169,14 @@ async function cleanupFirestoreForPlayFabId(playFabId) {
 
 // ログインAPI
 app.post('/api/login-playfab', async (req, res) => {
-    const { lineUserId, displayName, pictureUrl } = req.body || {};
-    if (!lineUserId) return res.status(400).json({ error: 'lineUserId is required' });
+    const { lineAccessToken } = req.body || {};
+    if (!lineAccessToken) return res.status(400).json({ error: 'lineAccessToken is required' });
 
     try {
+        const lineProfile = await verifyLineAccessToken(lineAccessToken);
+        const lineUserId = lineProfile.userId;
+        const displayName = lineProfile.displayName || String(req.body?.displayName || '').trim();
+        const pictureUrl = lineProfile.pictureUrl || String(req.body?.pictureUrl || '').trim();
         const loginResult = await promisifyPlayFab(PlayFabServer.LoginWithCustomID, {
             CustomId: lineUserId,
             CreateAccount: true
@@ -1251,17 +1262,24 @@ app.post('/api/login-playfab', async (req, res) => {
             firebaseToken
         });
     } catch (error) {
-        console.error('[login-playfab] Error:', error?.errorMessage || error?.message || error);
-        return res.status(500).json({ error: 'PlayFab login failed', details: error?.errorMessage || error?.message || error });
+        const message = error?.errorMessage || error?.message || error;
+        if (String(message).includes('LineAccessTokenRequired') || String(message).includes('HTTP 401')) {
+            return res.status(401).json({ error: 'LINE authentication failed', details: message });
+        }
+        console.error('[login-playfab] Error:', message);
+        return res.status(500).json({ error: 'PlayFab login failed', details: message });
     }
 });
 
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, displayName, isKing: isKingRequest } = req.body || {};
+        const { playFabId, raceName, displayName } = req.body || {};
         const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
+
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+    if (!authenticatedPlayFabId) return;
 
     let initialStats = {};
     let avatarData = {};
@@ -1318,7 +1336,7 @@ app.post('/api/set-race', async (req, res) => {
         let assignedGroupId = groupInfo.groupId;
         let assignedGroupName = groupInfo.groupName;
         const assignedNation = mapping.island;
-        let isKing = !!isKingRequest || !!groupInfo.created;
+        let isKing = !!groupInfo.created;
 
         try {
             setRaceStep = 'read-player-readonly';
@@ -1572,6 +1590,7 @@ async function main() {
         PlayFabServer,
         PlayFabEconomy,
         getEntityKeyFromPlayFabId,
+        requireAuthenticatedPlayFabId,
         catalogCache,
         catalogCurrencyMap,
         resolveItemId: resolveCatalogItemId,
@@ -1601,6 +1620,7 @@ async function main() {
         addEconomyItem: deps.addEconomyItem,
         subtractEconomyItem: deps.subtractEconomyItem,
         getCurrencyBalance: deps.getCurrencyBalance,
+        requireAuthenticatedPlayFabId,
         ensureDailyBountyConversion: (playFabId) => economy.ensureDailyBountyConversion(playFabId, {
             promisifyPlayFab,
             PlayFabServer,
@@ -1619,11 +1639,14 @@ async function main() {
     chat.initializeChatRoutes(app);
 
     // バトルルート
-    const db = admin.database();
-    battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveCatalogItemId, sharedConstants, db);
+    battleRoutes.initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, lineClient, catalogCache, catalogCurrencyMap, resolveCatalogItemId, sharedConstants, {
+        requireAuthenticatedPlayFabId
+    });
 
     // ギルドルート
-    guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveCatalogItemId);
+    guildRoutes.initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, resolveCatalogItemId, {
+        requireAuthenticatedPlayFabId
+    });
 
     // 船ルート
     shipRoutes.initializeShipRoutes(
@@ -1634,7 +1657,10 @@ async function main() {
         PlayFabEconomy,
         catalogCache,
         resolveCatalogItemId,
-        catalogCurrencyMap
+        catalogCurrencyMap,
+        {
+            requireAuthenticatedPlayFabId
+        }
     );
 
     app.listen(PORT, () => {
