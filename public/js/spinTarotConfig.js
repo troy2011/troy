@@ -9,11 +9,15 @@ export const SPIN_TAROT_SPRITE_CONFIG = {
 };
 
 export const SPIN_TAROT_MAJOR_ARCANA = {
-    0: { name: '愚者', icon: '🃏', summary: 'ロングフリーズで強制ジャックポット。' },
+    0: { name: '愚者', icon: '🃏', summary: 'スピン開始時に中央がワイルドになる。フリーズ時はジャックポット。', foolWild: true, freezeJackpot: true },
+
     1: { name: '魔術師', icon: '✨', summary: '勝利時に魔法使いストックを追加。', mageGain: 2 },
-    2: { name: '女教皇', icon: '💧', summary: '勝利時に城壁を回復。', castleHeal: 16 },
-    3: { name: '女帝', icon: '👑', summary: '勝利時のクイーンゲージ上昇量アップ。', queenMultiplier: 2 },
-    4: { name: '皇帝', icon: '🦁', summary: '勝利時のキングゲージ上昇量アップ。', kingMultiplier: 2 },
+    2: { name: '女教皇', icon: '💧', summary: '勝利時に各キャラを回復。', unitHeal: 16 },
+
+    3: { name: '女帝', icon: '👑', summary: '役成立で人口が増加。', populationGain: 10, queenMultiplier: 2 },
+
+    4: { name: '皇帝', icon: '🦁', summary: '勝利時に士気が高まり攻撃力上昇。', kingMultiplier: 2, moraleBoost: 1.2 },
+
     5: { name: '法王', icon: '⛪', summary: '勝利時にビショップを補充。', bishopGain: 1 },
     6: { name: '恋人', icon: '💞', summary: '勝利時に城壁を大回復。', castleHeal: 30 },
     7: { name: '戦車', icon: '🚎', summary: '横ライン成立時にナイト砲撃。', horizontalKnightBurst: 1.6 },
@@ -30,7 +34,7 @@ export const SPIN_TAROT_MAJOR_ARCANA = {
     18: { name: '月', icon: '🌙', summary: '敵に幻惑を付与し、次の敵攻撃を反射。', confuseTurns: 1 },
     19: { name: '太陽', icon: '☀️', summary: '勝利時に大きな全体魔法ダメージ。', magicNova: 2.2 },
     20: { name: '審判', icon: '📯', summary: '斜めライン成立時に大貫通ダメージ。', diagonalJudgementBurst: 2.8 },
-    21: { name: '世界', icon: '🌍', summary: 'ロングフリーズで最強ボーナス。', worldJackpot: true }
+    21: { name: '世界', icon: '🌍', summary: '最強フリーズで世界制覇。次のバトルはランク3から開始。', worldJackpot: true, globalVictory: true }
 };
 
 export const SPIN_TAROT_CONFIG = {

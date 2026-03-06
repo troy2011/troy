@@ -298,6 +298,18 @@
 }
 
 .tarot-spin-root .spin-tarot-card.is-wild {
+}
+
+/* highlight winning cards briefly */
+.tarot-spin-root .spin-tarot-card.win-flash {
+    animation: winFlash 0.8s ease-out;
+}
+
+@keyframes winFlash {
+    0%,100% { box-shadow: 0 0 0 rgba(255,209,102,0); }
+    50%     { box-shadow: 0 0 16px rgba(255,209,102,0.8); }
+}
+
     background: linear-gradient(180deg, rgba(92, 57, 144, 0.94), rgba(19, 12, 38, 0.98));
 }
 

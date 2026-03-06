@@ -24,10 +24,15 @@ let state = null;
 let spinning = false;
 let cutin = null;
 let cutinTimer = null;
+let lastWinCoords = null;                  // recently‑winning cells for flash effect
 let openPanels = {
     lines: false,
     log: false
 };
+
+// keyboard handler reference so we can remove it later
+let keydownHandler = null;
+
 
 const ARCANA_SUIT_CLASS_BY_NUMBER = {
     2: 'cup',
@@ -53,16 +58,23 @@ export async function loadSpinTarotPage() {
     root = document.getElementById('tarotSpinRoot');
     if (!root) return;
     if (!state) state = createInitialState(CONFIG);
+    bindKeyboard();
     render();
 }
+
 
 export function destroySpinTarotPage() {
     if (cutinTimer) {
         clearTimeout(cutinTimer);
         cutinTimer = null;
     }
+    if (keydownHandler && typeof document !== 'undefined') {
+        document.removeEventListener('keydown', keydownHandler);
+        keydownHandler = null;
+    }
     cutin = null;
     spinning = false;
+    lastWinCoords = null;
     if (root) {
         root.innerHTML = '';
         root.classList.remove('spin-tarot-mounted', 'is-spinning');
@@ -71,7 +83,49 @@ export function destroySpinTarotPage() {
     state = null;
 }
 
+
 async function ensureStylesheet() {
+}
+
+function bindKeyboard() {
+    if (keydownHandler) return;
+    keydownHandler = (e) => {
+        if (!state || spinning) return;
+        switch (e.code) {
+            case 'Space':
+                handleSpin().catch((err) => console.error(err));
+                e.preventDefault();
+                break;
+            case 'ArrowLeft':
+                state = setBetIndex(state, state.betIndex - 1, CONFIG);
+                render();
+                e.preventDefault();
+                break;
+            case 'ArrowRight':
+                state = setBetIndex(state, state.betIndex + 1, CONFIG);
+                render();
+                e.preventDefault();
+                break;
+            case 'ArrowUp':
+                state = stepActiveLineCount(state, 1, CONFIG);
+                render();
+                e.preventDefault();
+                break;
+            case 'ArrowDown':
+                state = stepActiveLineCount(state, -1, CONFIG);
+                render();
+                e.preventDefault();
+                break;
+            case 'KeyH':
+                if (state.phase === 'hold') {
+                    state = toggleHold(state, 2, CONFIG);
+                    render();
+                }
+                break;
+        }
+    };
+    document.addEventListener('keydown', keydownHandler);
+}
     if (document.getElementById(STYLE_ID)) return;
     const link = document.createElement('link');
     link.id = STYLE_ID;
@@ -85,6 +139,7 @@ async function ensureStylesheet() {
 }
 
 function render() {
+    // ensure tips on controls
     if (!root || !state) return;
     const betInfo = getBetInfo(state, CONFIG);
     const activeArcana = getMajorArcana(state.currentArcana?.number);
@@ -156,24 +211,24 @@ function render() {
 
                     <div class="spin-tarot-controls">
                         <div class="spin-tarot-line-controls">
-                            <button class="spin-tarot-step-btn" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
+                            <button class="spin-tarot-step-btn" title="ライン減少 (↑/↓キーでも変更)" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
                             <div class="spin-tarot-line-readout">
                                 <span>有効ライン</span>
                                 <strong>${state.activeLineCount}</strong>
                             </div>
-                            <button class="spin-tarot-step-btn" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
+                            <button class="spin-tarot-step-btn" title="ライン増加 (↑/↓キーでも変更)" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
                         </div>
 
                         <div class="spin-tarot-bet-row">
                             ${CONFIG.betLevels.map((entry, index) => `
-                                <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" data-bet-index="${index}" ${spinning || isHoldPhase ? 'disabled' : ''}>
+                                <button class="spin-tarot-bet-btn ${index === state.betIndex ? 'is-active' : ''}" title="ベット ${index+1} (←/→キーでも変更)" data-bet-index="${index}" ${spinning || isHoldPhase ? 'disabled' : ''}>
                                     ${escapeHtml(entry.label)}
                                 </button>
                             `).join('')}
                         </div>
                         <div class="spin-tarot-action-row">
                             <button id="spinTarotNewRun" class="spin-tarot-ghost-btn" ${spinning ? 'disabled' : ''}>NEW RUN</button>
-                            <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>${mainActionLabel}</button>
+                            <button id="spinTarotSpinButton" class="spin-tarot-spin-btn" title="スペースキーでスピン/ディール" ${(spinning || !canSpin(state, CONFIG)) ? 'disabled' : ''}>${mainActionLabel}</button>
                         </div>
                     </div>
                 </section>
@@ -280,7 +335,7 @@ function bindEvents() {
     });
 }
 
-async function handleSpin() {
+async async function handleSpin() {
     if (spinning || !state) return;
     const result = performSpin(state, CONFIG);
     state = result.state;
@@ -295,6 +350,17 @@ async function handleSpin() {
     spinning = false;
     triggerOutcomeHaptics();
     if (result.events?.cutin) queueCutin(result.events.cutin);
+
+    // flash winning cards
+    const hasWin = (state.lineResults || []).some((line) => line.kind !== 'Miss');
+    if (hasWin) {
+        lastWinCoords = getHitCellSetFromState(state);
+        setTimeout(() => {
+            lastWinCoords = null;
+            render();
+        }, 800);
+    }
+
     render();
 }
 
@@ -342,6 +408,8 @@ function renderArcanaCard(arcanaState) {
 }
 
 function renderCard(card, row, reel, isHit) {
+    const coordKey = `${row}:${reel}`;
+    const isFlash = lastWinCoords && lastWinCoords.has(coordKey);
     const classes = [
         'tarot-card',
         'spin-tarot-board-card',
@@ -352,6 +420,7 @@ function renderCard(card, row, reel, isHit) {
         'is-static',
         row === 1 ? 'is-center' : '',
         isHit ? 'is-hit' : '',
+        isFlash ? 'win-flash' : '',
         state.holdMask[reel] && row === 1 ? 'is-held-core' : ''
     ].filter(Boolean).join(' ');
     const numberLabel = card?.kind === 'blank'
@@ -433,6 +502,14 @@ function renderCollapse(panelId, title, summary, body) {
 function getHitCellSet() {
     const set = new Set();
     (state.lineResults || [])
+        .filter((line) => line.kind !== 'Miss')
+        .forEach((line) => line.coords.forEach((coord) => set.add(`${coord.row}:${coord.reel}`)));
+    return set;
+}
+
+function getHitCellSetFromState(st) {
+    const set = new Set();
+    (st.lineResults || [])
         .filter((line) => line.kind !== 'Miss')
         .forEach((line) => line.coords.forEach((coord) => set.add(`${coord.row}:${coord.reel}`)));
     return set;

@@ -247,6 +247,12 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         state.holdMask = Array(config.board.reels).fill(false);
         state.deck = createShuffledDeck(config);
         state.board = dealOpeningBoard(state, config);
+        // fool arcana makes center tile wild immediately
+        if (state.currentArcana?.foolWild) {
+            const center = Math.floor((config.board.reels || 5) / 2);
+            state.board[1][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
+            pushLog(state, '愚者の力で中央がワイルドになった！', config);
+        }
         state.phase = 'hold';
         pushLog(state, `DEAL ${dealCost} 枚。中央ラインに配札。`, config);
         events.notes.push('dealt');
@@ -282,6 +288,21 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     state.board = spinBoard(state, config, drawOptions);
 
     let evaluation = evaluateBoard(state.board, state, config, betInfo);
+
+    // world arcana generates an automatic jackpot / victory
+    if (state.currentArcana?.worldJackpot) {
+        // ensure royal straight flush if not present
+        if (!evaluation.hasRole || evaluation.bestStrength < HAND_STRENGTH.RoyalStraightFlush) {
+            state.board = buildRoyalStraightFlushBoard(config);
+            evaluation = evaluateBoard(state.board, state, config, betInfo);
+        }
+        const bonus = Math.floor(1000 * Number(betInfo.cost || 1));
+        state.coins += bonus;
+        state.totalPayout += bonus;
+        state.nationRank = config.kingdomRank.maxRank;
+        state.lastEffects.push('世界ジャックポットが発動！');
+        events.notes.push('world-jackpot');
+    }
 
     if (!evaluation.hasRole && state.currentArcana?.redrawOnMiss) {
         state.board = spinBoard(state, config, drawOptions);
@@ -428,6 +449,17 @@ function dealOpeningBoard(state, config) {
 
 function createBlankBoard(config) {
     return Array.from({ length: config.board.rows }, () => Array.from({ length: config.board.reels }, () => createBlankCard()));
+}
+
+function buildRoyalStraightFlushBoard(config) {
+    // put a royal straight flush on the center row, suit chosen arbitrarily
+    const board = createBlankBoard(config);
+    const suit = config.suits[0]?.key || 'Wand';
+    const ranks = [10, 11, 12, 13, 1];
+    for (let reel = 0; reel < config.board.reels; reel += 1) {
+        board[1][reel] = createMinorCard(suit, ranks[reel % ranks.length]);
+    }
+    return board;
 }
 
 function createBlankCard() {
@@ -790,6 +822,7 @@ function evaluateBoard(board, state, config, betInfo) {
         bestLine: roleLines.sort(compareLines)[0] || null,
         hasRole: roleLines.length > 0,
         bestStrength: roleLines.reduce((max, line) => Math.max(max, HAND_STRENGTH[line.kind] || 0), 0),
+        totalMultiplier,
         totalPayout: Math.max(0, Math.floor(totalMultiplier * Number(betInfo.cost || 0)))
     };
 }
@@ -1017,23 +1050,46 @@ function updateNationRank(state, config) {
     }
 }
 
+
+// determine a multiplier based on how strong the hand was; at bare minimum 1
+function getArcanaStrength(evaluation, betInfo) {
+    // use totalMultiplier which is sum of line.multiplier values
+    const multiplier = (evaluation && evaluation.totalMultiplier) || 0;
+    return Math.max(1, multiplier);
+}
+
 function resolveArcanaOnWin(state, evaluation, config, betInfo) {
     if (!evaluation.hasRole) return;
     const arcana = getMajorArcana(state.currentArcana?.number);
+    const strength = getArcanaStrength(evaluation, betInfo);
     const horizontalHits = evaluation.lineResults.filter((line) => line.kind !== 'Miss' && HORIZONTAL_LINE_IDS.has(line.id)).length;
     const diagonalHits = evaluation.lineResults.filter((line) => line.kind !== 'Miss' && !HORIZONTAL_LINE_IDS.has(line.id)).length;
 
     if (arcana.mageGain) {
-        state.mages += arcana.mageGain * Number(betInfo.statMultiplier || 1);
+        state.mages += Math.floor(arcana.mageGain * strength * Number(betInfo.statMultiplier || 1));
     }
     if (arcana.bishopGain) {
-        state.bishops += arcana.bishopGain;
+        state.bishops += Math.floor(arcana.bishopGain * strength);
     }
     if (arcana.castleHeal) {
-        state.castleHp = Math.min(state.castleMaxHp, state.castleHp + arcana.castleHeal);
+        state.castleHp = Math.min(state.castleMaxHp, state.castleHp + Math.floor(arcana.castleHeal * strength));
+    }
+    if (arcana.unitHeal) {
+        const heal = Math.floor(arcana.unitHeal * strength);
+        state.knights += heal;
+        state.bishops += heal;
+        state.mages += heal;
+        state.population += heal;
+    }
+    if (arcana.populationGain) {
+        state.population += Math.floor(arcana.populationGain * strength);
+    }
+    if (arcana.moraleBoost) {
+        // apply morale as additional multiplier on attack for this spin
+        state.attackMultiplier *= 1 + (arcana.moraleBoost - 1) * strength;
     }
     if (arcana.payoutMultiplier) {
-        const bonus = Math.floor(state.totalPayout * (arcana.payoutMultiplier - 1));
+        const bonus = Math.floor(state.totalPayout * (arcana.payoutMultiplier - 1) * strength);
         state.totalPayout += bonus;
         state.coins += bonus;
     }
@@ -1057,6 +1113,7 @@ function resolveArcanaOnWin(state, evaluation, config, betInfo) {
         state.lastEffects.push('斜め貫通魔法が発動');
     }
 }
+
 
 function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
     if (state.premium?.type === 'treasure') {
@@ -1164,6 +1221,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
 function computePlayerDamage(state, evaluation, config, betInfo) {
     const winLines = evaluation.lineResults.filter((line) => line.kind !== 'Miss');
     if (winLines.length === 0) return 0;
+    const strength = evaluation.totalMultiplier || 1;
     let damage = winLines.reduce((sum, line) => {
         return sum + config.combat.lineAttackBase + Math.floor(line.multiplier * config.combat.payoutToDamageRatio * 10);
     }, 0);
@@ -1176,32 +1234,35 @@ function computePlayerDamage(state, evaluation, config, betInfo) {
 
     if (horizontalHits > 0 && arcana.horizontalKnightBurst) {
         const knightAmmo = Math.min(state.knights, horizontalHits);
-        damage += Math.floor(knightAmmo * config.combat.knightPower * arcana.horizontalKnightBurst * Number(betInfo.statMultiplier || 1));
+        damage += Math.floor(knightAmmo * config.combat.knightPower * arcana.horizontalKnightBurst * strength * Number(betInfo.statMultiplier || 1));
         state.knights = Math.max(0, state.knights - knightAmmo);
     }
     if (horizontalHits > 0 && arcana.horizontalJusticeBurst) {
-        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalJusticeBurst);
+        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalJusticeBurst * strength);
     }
     if (horizontalHits > 0 && arcana.horizontalTowerBurst) {
-        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalTowerBurst);
+        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalTowerBurst * strength);
     }
     if (diagonalHits > 0 && arcana.diagonalBishopBurst) {
         const bishopAmmo = Math.min(state.bishops, diagonalHits);
-        damage += Math.floor(Math.max(1, bishopAmmo) * config.combat.bishopPower * arcana.diagonalBishopBurst);
+        damage += Math.floor(Math.max(1, bishopAmmo) * config.combat.bishopPower * arcana.diagonalBishopBurst * strength);
         state.bishops = Math.max(0, state.bishops - bishopAmmo);
     }
     if (diagonalHits > 0 && arcana.diagonalDevilBurst) {
-        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalDevilBurst);
+        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalDevilBurst * strength);
     }
     if (diagonalHits > 0 && arcana.diagonalJudgementBurst) {
-        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalJudgementBurst);
+        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalJudgementBurst * strength);
     }
     if (arcana.magicNova) {
-        damage += Math.floor(Math.max(1, state.mages) * config.combat.magePower * arcana.magicNova);
+        damage += Math.floor(Math.max(1, state.mages) * config.combat.magePower * arcana.magicNova * strength);
     }
     if (arcana.deathCounter) {
         const shiftedCourts = state.board.flat().filter((card) => isRoyalGrowthRank(card?.rank)).length;
-        damage += Math.floor(shiftedCourts * arcana.deathCounter * 6);
+        damage += Math.floor(shiftedCourts * arcana.deathCounter * 6 * strength);
+    }
+    if (arcana.worldJackpot && state.battle) {
+        damage += state.battle.hp;
     }
 
     damage *= Number(betInfo.statMultiplier || 1);
@@ -1257,6 +1318,21 @@ function triggerFreezeIfNeeded(state, config, betInfo, events) {
     state.totalPayout = jackpot;
     state.lastEffects.push('ロングフリーズでジャックポット');
     pushLog(state, `${frozenArcana.label} のフリーズで ${jackpot} 枚獲得。`, config);
+    // apply foolWild immediately if present
+    if (frozenArcana.foolWild) {
+        const center = Math.floor((config.board.reels || 5) / 2);
+        if (state.board && state.board[1]) {
+            state.board[1][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
+            pushLog(state, 'フリーズ中に愚者が現れ、中央がワイルドになった！', config);
+        }
+    }
+
+    if (frozenArcana.worldJackpot || frozenArcana.globalVictory) {
+        // global victory: crank nation rank to max and prepare next battle as tier3
+        state.nationRank = config.kingdomRank.maxRank;
+        state.lastEffects.push('世界の力が炸裂し、敵国を圧倒！次バトルはランク3から開始。');
+        pushLog(state, '次のバトルもランク3からスタートする。', config);
+    }
 
     if (state.battle) {
         state.lastAttackDamage = state.battle.hp;
