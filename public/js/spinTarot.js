@@ -85,6 +85,16 @@ export function destroySpinTarotPage() {
 
 
 async function ensureStylesheet() {
+    if (document.getElementById(STYLE_ID)) return;
+    const link = document.createElement('link');
+    link.id = STYLE_ID;
+    link.rel = 'stylesheet';
+    link.href = './css/spin-tarot.css?v=20260306a';
+    document.head.appendChild(link);
+    await new Promise((resolve) => {
+        link.addEventListener('load', resolve, { once: true });
+        link.addEventListener('error', resolve, { once: true });
+    });
 }
 
 function bindKeyboard() {
@@ -125,17 +135,6 @@ function bindKeyboard() {
         }
     };
     document.addEventListener('keydown', keydownHandler);
-}
-    if (document.getElementById(STYLE_ID)) return;
-    const link = document.createElement('link');
-    link.id = STYLE_ID;
-    link.rel = 'stylesheet';
-    link.href = './css/spin-tarot.css?v=20260306a';
-    document.head.appendChild(link);
-    await new Promise((resolve) => {
-        link.addEventListener('load', resolve, { once: true });
-        link.addEventListener('error', resolve, { once: true });
-    });
 }
 
 function render() {
