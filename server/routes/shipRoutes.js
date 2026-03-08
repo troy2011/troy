@@ -48,7 +48,7 @@ function worldToLatLng(point) {
 function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap, authTools = {}) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
-    const { getEntityKeyFromPlayFabId, PlayFabAuthentication } = require('../playfab');
+    const { getEntityKeyFromPlayFabId, getTitleEntityKey, withTitleEntityToken } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
     const resourceStorage = require('../resourceStorage');
     const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
@@ -955,13 +955,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         let costsToPay = buildCostsFromItem(shipSpec);
         if (costsToPay.length === 0) {
             try {
-                const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
-                const titleEntity = tokenResult?.Entity;
+                const titleEntity = await getTitleEntityKey();
                 if (titleEntity?.Id && titleEntity?.Type) {
-                    const latestResult = await promisifyPlayFab(PlayFabEconomy.GetItems, {
+                    const latestResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.GetItems, {
                         Entity: titleEntity,
                         Ids: [shipItemId]
-                    });
+                    }));
                     const latestItem = Array.isArray(latestResult?.Items) ? latestResult.Items[0] : null;
                     const latestCosts = buildCostsFromItem(latestItem);
                     if (latestCosts.length > 0) {

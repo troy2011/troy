@@ -1,7 +1,7 @@
 // guild.js - ギルド機能のサーバー側API
 // PlayFab Groups APIを使用したギルド管理
 
-const { PlayFabGroups, PlayFabData, PlayFabAuthentication, ensureTitleEntityToken, getEntityKeyFromPlayFabId } = require('../playfab');
+const { PlayFabGroups, PlayFabData, withTitleEntityToken, getEntityKeyFromPlayFabId } = require('../playfab');
 const economy = require('../economy');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
@@ -59,10 +59,10 @@ function calculateGuildLevel(exp) {
  */
 async function getGuildData(guildId, promisifyPlayFab) {
     try {
-        const result = await promisifyPlayFab(PlayFabData.GetObjects, {
+        const result = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
             Entity: { Id: guildId, Type: 'group' },
             EscapeObject: false
-        });
+        }));
 
         if (result.Objects && result.Objects.GuildData) {
             return JSON.parse(result.Objects.GuildData.DataObject);
@@ -94,7 +94,7 @@ async function getGuildData(guildId, promisifyPlayFab) {
  * @param {Object} data - 保存するデータ
  */
 async function saveGuildData(guildId, data, promisifyPlayFab) {
-    await promisifyPlayFab(PlayFabData.SetObjects, {
+    await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.SetObjects, {
         Entity: { Id: guildId, Type: 'group' },
         Objects: [
             {
@@ -102,7 +102,7 @@ async function saveGuildData(guildId, data, promisifyPlayFab) {
                 DataObject: data
             }
         ]
-    });
+    }));
 }
 
 function normalizePlayFabId(value) {
@@ -130,6 +130,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    function callTitleScopedApi(apiFunction, request) {
+        return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
+    }
+
     async function resolvePlayerEntityKey(playFabId) {
         let resolvedEntity = await getEntityKeyFromPlayFabId(playFabId);
         if (resolvedEntity?.Id && resolvedEntity?.Type) {
@@ -152,7 +156,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         if (!entityKey?.Id || !entityKey?.Type) {
             throw new Error('PlayerEntityNotFound');
         }
-        const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+        const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
             Entity: entityKey
         });
         const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
@@ -203,8 +207,6 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[ギルド情報取得] ${playFabId} のギルド情報を取得します...`);
 
         try {
-            await ensureTitleEntityToken();
-
             // プレイヤーのEntityKeyを取得
             let resolvedEntity = await resolvePlayerEntityKey(requesterPlayFabId);
             if (!resolvedEntity) {
@@ -223,7 +225,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             }
 
             // プレイヤーが所属するグループを取得
-            const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
                 Entity: resolvedEntity
             });
 
@@ -240,7 +242,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const memberRole = group.RoleName || 'メンバー';
 
             // メンバー数を取得するために、グループメンバーを取得
-            const membersResult = await promisifyPlayFab(PlayFabGroups.ListGroupMembers, {
+            const membersResult = await callTitleScopedApi(PlayFabGroups.ListGroupMembers, {
                 Group: { Id: guildId, Type: 'group' }
             });
 
@@ -319,7 +321,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             // 既にギルドに所属していないか確認
-            const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
                 Entity: entityKey
             });
 
@@ -328,7 +330,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             }
 
             // ギルドを作成
-            const createResult = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
+            const createResult = await callTitleScopedApi(PlayFabGroups.CreateGroup, {
                 GroupName: guildName.trim(),
                 Entity: entityKey
             });
@@ -491,7 +493,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             // 既にギルドに所属していないか確認
-            const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
                 Entity: entityKey
             });
 
@@ -508,7 +510,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             // まず、招待を使って加入を試みる
             try {
                 // 招待として処理（Admin権限でメンバーを追加）
-                await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                await callTitleScopedApi(PlayFabGroups.AddMembers, {
                     Group: groupEntity,
                     Members: [entityKey],
                     RoleId: 'members' // デフォルトのメンバーロール
@@ -519,7 +521,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 // ギルド名を取得
                 let guildName = 'Unknown Guild';
                 try {
-                    const groupResult = await promisifyPlayFab(PlayFabGroups.GetGroup, {
+                    const groupResult = await callTitleScopedApi(PlayFabGroups.GetGroup, {
                         Group: groupEntity
                     });
                     guildName = groupResult.GroupName || 'Unknown Guild';
@@ -537,7 +539,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 // AddMembersが失敗した場合は、ApplyToGroupで申請を行う
                 console.log(`[ギルド加入] AddMembersに失敗。申請方式に切り替えます...`);
 
-                await promisifyPlayFab(PlayFabGroups.ApplyToGroup, {
+                await callTitleScopedApi(PlayFabGroups.ApplyToGroup, {
                     Group: groupEntity,
                     Entity: entityKey
                 });
@@ -590,7 +592,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             // 現在所属しているギルドを取得
-            const membershipResult = await promisifyPlayFab(PlayFabGroups.ListMembership, {
+            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
                 Entity: entityKey
             });
 
@@ -607,7 +609,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             // ギルドから脱退
-            await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+            await callTitleScopedApi(PlayFabGroups.RemoveMembers, {
                 Group: groupEntity,
                 Members: [entityKey]
             });
@@ -646,7 +648,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             };
 
             // ギルドメンバーを取得
-            const membersResult = await promisifyPlayFab(PlayFabGroups.ListGroupMembers, {
+            const membersResult = await callTitleScopedApi(PlayFabGroups.ListGroupMembers, {
                 Group: groupEntity
             });
 
@@ -720,7 +722,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const groupEntity = { Id: guildId, Type: 'group' };
 
             // PlayFab Groups APIで申請リストを取得
-            const applicationsResult = await promisifyPlayFab(PlayFabGroups.ListGroupApplications, {
+            const applicationsResult = await callTitleScopedApi(PlayFabGroups.ListGroupApplications, {
                 Group: groupEntity
             });
 
@@ -795,7 +797,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const groupEntity = { Id: guildId, Type: 'group' };
 
             // 申請を承認
-            await promisifyPlayFab(PlayFabGroups.AcceptGroupApplication, {
+            await callTitleScopedApi(PlayFabGroups.AcceptGroupApplication, {
                 Group: groupEntity,
                 Entity: applicantEntityKey
             });
@@ -847,7 +849,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const groupEntity = { Id: guildId, Type: 'group' };
 
             // 申請を拒否（削除）
-            await promisifyPlayFab(PlayFabGroups.RemoveGroupApplication, {
+            await callTitleScopedApi(PlayFabGroups.RemoveGroupApplication, {
                 Group: groupEntity,
                 Entity: applicantEntityKey
             });

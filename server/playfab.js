@@ -9,6 +9,7 @@ const PlayFabEconomy = PlayFab.PlayFabEconomy || require('playfab-sdk/Scripts/Pl
 let _titleEntityTokenReady = false;
 let _titleEntityTokenExpiresAtMs = 0;
 let _titleEntityTokenPromise = null;
+let _titleEntityKey = null;
 const TITLE_ENTITY_TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
 
 function configurePlayFab({ titleId, secretKey }) {
@@ -52,10 +53,14 @@ async function refreshTitleEntityToken() {
         }
         _titleEntityTokenReady = true;
         _titleEntityTokenExpiresAtMs = parseEntityTokenExpirationMs(tokenResult?.TokenExpiration);
+        _titleEntityKey = tokenResult?.Entity?.Id && tokenResult?.Entity?.Type
+            ? { Id: String(tokenResult.Entity.Id), Type: String(tokenResult.Entity.Type) }
+            : null;
         return entityToken;
     })().catch((error) => {
         _titleEntityTokenReady = false;
         _titleEntityTokenExpiresAtMs = 0;
+        _titleEntityKey = null;
         if (PlayFab?._internalSettings) {
             PlayFab._internalSettings.entityToken = null;
         }
@@ -94,6 +99,11 @@ async function withTitleEntityToken(action, options = {}) {
         await ensureTitleEntityToken({ forceRefresh: true });
         return action();
     }
+}
+
+async function getTitleEntityKey(options = {}) {
+    await ensureTitleEntityToken(options);
+    return _titleEntityKey ? { ..._titleEntityKey } : null;
 }
 
 async function getGroupDataValue(groupId, key) {
@@ -180,6 +190,7 @@ module.exports = {
     promisifyPlayFab,
     ensureTitleEntityToken,
     withTitleEntityToken,
+    getTitleEntityKey,
     isEntityTokenExpiredError,
     getGroupDataValue,
     setGroupDataValues,

@@ -2,7 +2,7 @@
 // 国家関連のAPI
 
 const { addGlobalChatMessage } = require('./chat');
-const { PlayFabData } = require('./playfab');
+const { PlayFabData, withTitleEntityToken } = require('./playfab');
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -39,6 +39,10 @@ const KING_STARTER_CROWN_BY_NATION = {
     earth: 'metal_black_11',
     water: 'metal_black_12'
 };
+
+function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
+    return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
+}
 
 function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
@@ -340,15 +344,14 @@ async function getPlayerDisplayName(playFabId, deps) {
 }
 
 async function ensureNationGroupExists(firestore, mapping, deps) {
-    const { promisifyPlayFab, PlayFabAdmin, PlayFabGroups, ensureTitleEntityToken, admin } = deps;
+    const { promisifyPlayFab, PlayFabAdmin, PlayFabGroups, admin } = deps;
 
     const docRef = await getNationGroupDoc(firestore, mapping.groupName);
     const docSnap = await docRef.get();
     if (docSnap.exists && docSnap.data()?.groupId) {
         const existingGroupId = docSnap.data().groupId;
         try {
-            await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.GetGroup, {
+            await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.GetGroup, {
                 Group: { Id: existingGroupId, Type: 'group' }
             });
             return {
@@ -374,8 +377,7 @@ async function ensureNationGroupExists(firestore, mapping, deps) {
     }
     if (titleGroupId) {
         try {
-            await ensureTitleEntityToken();
-            await promisifyPlayFab(PlayFabGroups.GetGroup, {
+            await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.GetGroup, {
                 Group: { Id: titleGroupId, Type: 'group' }
             });
             await docRef.set({
@@ -391,8 +393,7 @@ async function ensureNationGroupExists(firestore, mapping, deps) {
         }
     }
 
-    await ensureTitleEntityToken();
-    const createResult = await promisifyPlayFab(PlayFabGroups.CreateGroup, {
+    const createResult = await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.CreateGroup, {
         GroupName: mapping.groupName
     });
     const groupId = createResult?.Group?.Id || null;
@@ -514,7 +515,7 @@ async function updateGuildOwnerAndShipOwner(guildId, newOwnerPlayFabId, deps) {
     let guildUpdated = false;
     let shipUpdated = false;
     try {
-        const result = await promisifyPlayFab(PlayFabData.GetObjects, {
+        const result = await callTitleScopedApi(promisifyPlayFab, PlayFabData.GetObjects, {
             Entity: { Id: guildId, Type: 'group' },
             EscapeObject: false
         });
@@ -530,7 +531,7 @@ async function updateGuildOwnerAndShipOwner(guildId, newOwnerPlayFabId, deps) {
         }
         if (guildData && typeof guildData === 'object') {
             guildData.ownerPlayFabId = newOwnerPlayFabId;
-            await promisifyPlayFab(PlayFabData.SetObjects, {
+            await callTitleScopedApi(promisifyPlayFab, PlayFabData.SetObjects, {
                 Entity: { Id: guildId, Type: 'group' },
                 Objects: [{ ObjectName: 'GuildData', DataObject: guildData }]
             });
@@ -645,14 +646,13 @@ async function ensureKingStarterCrown(playFabId, nation, deps) {
 
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, ensureTitleEntityToken, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
 
     const nationDeps = {
         promisifyPlayFab,
         PlayFabServer,
         PlayFabAdmin,
         PlayFabGroups,
-        ensureTitleEntityToken,
         admin,
         getGroupDataValue,
         setGroupDataValues,
@@ -967,7 +967,7 @@ function initializeNationRoutes(app, deps) {
             try {
                 const entity = await getPlayerEntity(context.kingId, { promisifyPlayFab, PlayFabServer });
                 if (entity) {
-                    const membership = await promisifyPlayFab(PlayFabGroups.ListMembership, { Entity: entity });
+                    const membership = await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.ListMembership, { Entity: entity });
                     const groups = membership?.Groups || [];
                     const guildGroup = groups.find((groupEntry) => {
                         const id = groupEntry?.Group?.Id || '';
@@ -1641,7 +1641,7 @@ function initializeNationRoutes(app, deps) {
                 if (prevMapping) {
                     try {
                         const prevGroup = await ensureNationGroupExists(firestore, prevMapping, nationDeps);
-                        await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                        await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.RemoveMembers, {
                             Group: { Id: prevGroup.groupId, Type: 'group' },
                             Members: [playerEntity]
                         });
@@ -1652,7 +1652,7 @@ function initializeNationRoutes(app, deps) {
             }
 
             try {
-                await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                await callTitleScopedApi(promisifyPlayFab, PlayFabGroups.AddMembers, {
                     Group: { Id: kingNationGroupId, Type: 'group' },
                     Members: [playerEntity]
                 });
