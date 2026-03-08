@@ -2,6 +2,7 @@
 // 経済関連のユーティリティ関数
 
 const { addGlobalChatMessage } = require('./chat');
+const { withTitleEntityToken } = require('./playfab');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 
@@ -41,11 +42,11 @@ async function getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconom
     const items = [];
     let token = null;
     do {
-        const result = await promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
+        const result = await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.GetInventoryItems, {
             Entity: entityKey,
             Count: 50,
             ContinuationToken: token || undefined
-        });
+        }));
         const page = Array.isArray(result?.Items) ? result.Items : [];
         items.push(...page);
         token = result?.ContinuationToken || null;
@@ -104,7 +105,7 @@ async function addEconomyItem(playFabId, itemId, amount, deps) {
         Item: { Id: resolvedItemId }
     };
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
-    await promisifyPlayFab(PlayFabEconomy.AddInventoryItems, request);
+    await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.AddInventoryItems, request));
     return entityKey;
 }
 
@@ -119,7 +120,7 @@ async function subtractEconomyItem(playFabId, itemId, amount, deps) {
         Item: { Id: resolvedItemId }
     };
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
-    await promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, request);
+    await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, request));
     return entityKey;
 }
 
@@ -136,7 +137,7 @@ async function transferEconomyItem(fromPlayFabId, toPlayFabId, itemId, amount, d
         Amount: Number(amount)
     };
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
-    await promisifyPlayFab(PlayFabEconomy.TransferInventoryItems, request);
+    await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.TransferInventoryItems, request));
     return { givingEntity, receivingEntity };
 }
 

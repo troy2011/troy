@@ -1,7 +1,7 @@
 // battle.js (v42 - 共通関数をexportsするように変更)
 require('dotenv').config();
 const economy = require('../economy');
-const { getEntityKeyFromPlayFabId } = require('../playfab');
+const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -29,11 +29,11 @@ async function getAllInventoryItems(playFabId) {
     const items = [];
     let token = null;
     do {
-        const result = await _promisifyPlayFab(_PlayFabEconomy.GetInventoryItems, {
+        const result = await withTitleEntityToken(() => _promisifyPlayFab(_PlayFabEconomy.GetInventoryItems, {
             Entity: entityKey,
             Count: 100,
             ContinuationToken: token || undefined
-        });
+        }));
         const page = Array.isArray(result?.Items) ? result.Items : [];
         items.push(...page);
         token = result?.ContinuationToken || null;

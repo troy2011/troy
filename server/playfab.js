@@ -7,6 +7,9 @@ const PlayFabData = PlayFab.PlayFabData || require('playfab-sdk/Scripts/PlayFab/
 const PlayFabEconomy = PlayFab.PlayFabEconomy || require('playfab-sdk/Scripts/PlayFab/PlayFabEconomy');
 
 let _titleEntityTokenReady = false;
+let _titleEntityTokenExpiresAtMs = 0;
+let _titleEntityTokenPromise = null;
+const TITLE_ENTITY_TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
 
 function configurePlayFab({ titleId, secretKey }) {
     if (titleId) PlayFab.settings.titleId = titleId;
@@ -24,22 +27,80 @@ function promisifyPlayFab(apiFunction, request) {
     });
 }
 
-async function ensureTitleEntityToken() {
-    if (_titleEntityTokenReady && PlayFab._internalSettings?.entityToken) return;
-    const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
-    const entityToken = tokenResult?.EntityToken;
-    if (entityToken && PlayFab?._internalSettings) {
-        PlayFab._internalSettings.entityToken = entityToken;
+function parseEntityTokenExpirationMs(value) {
+    const expiresAtMs = Date.parse(String(value || ''));
+    return Number.isFinite(expiresAtMs) ? expiresAtMs : 0;
+}
+
+function hasUsableTitleEntityToken() {
+    const entityToken = String(PlayFab?._internalSettings?.entityToken || '').trim();
+    if (!_titleEntityTokenReady || !entityToken) return false;
+    if (_titleEntityTokenExpiresAtMs <= 0) return true;
+    return (Date.now() + TITLE_ENTITY_TOKEN_REFRESH_BUFFER_MS) < _titleEntityTokenExpiresAtMs;
+}
+
+async function refreshTitleEntityToken() {
+    if (_titleEntityTokenPromise) return _titleEntityTokenPromise;
+    _titleEntityTokenPromise = (async () => {
+        const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+        const entityToken = String(tokenResult?.EntityToken || '').trim();
+        if (!entityToken) {
+            throw new Error('TitleEntityTokenMissing');
+        }
+        if (PlayFab?._internalSettings) {
+            PlayFab._internalSettings.entityToken = entityToken;
+        }
+        _titleEntityTokenReady = true;
+        _titleEntityTokenExpiresAtMs = parseEntityTokenExpirationMs(tokenResult?.TokenExpiration);
+        return entityToken;
+    })().catch((error) => {
+        _titleEntityTokenReady = false;
+        _titleEntityTokenExpiresAtMs = 0;
+        if (PlayFab?._internalSettings) {
+            PlayFab._internalSettings.entityToken = null;
+        }
+        throw error;
+    }).finally(() => {
+        _titleEntityTokenPromise = null;
+    });
+    return _titleEntityTokenPromise;
+}
+
+async function ensureTitleEntityToken(options = {}) {
+    if (!options.forceRefresh && hasUsableTitleEntityToken()) return;
+    await refreshTitleEntityToken();
+}
+
+function isEntityTokenExpiredError(error) {
+    const message = [
+        error?.error,
+        error?.errorMessage,
+        error?.message
+    ].filter(Boolean).join(' ');
+    return /EntityTokenExpired|InvalidEntityToken|EntityTokenMissing|entity token/i.test(message);
+}
+
+async function withTitleEntityToken(action, options = {}) {
+    if (typeof action !== 'function') {
+        throw new TypeError('withTitleEntityToken requires an action function.');
     }
-    _titleEntityTokenReady = true;
+    await ensureTitleEntityToken(options);
+    try {
+        return await action();
+    } catch (error) {
+        if (!isEntityTokenExpiredError(error)) {
+            throw error;
+        }
+        await ensureTitleEntityToken({ forceRefresh: true });
+        return action();
+    }
 }
 
 async function getGroupDataValue(groupId, key) {
     if (!groupId || !key) return null;
-    await ensureTitleEntityToken();
-    const result = await promisifyPlayFab(PlayFabData.GetObjects, {
+    const result = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
         Entity: { Id: groupId, Type: 'group' }
-    });
+    }));
     const objects = result?.Data?.Objects || result?.Objects || {};
     const entry = objects[key];
     if (!entry) return null;
@@ -57,15 +118,14 @@ async function getGroupDataValue(groupId, key) {
 
 async function setGroupDataValues(groupId, values) {
     if (!groupId) return null;
-    await ensureTitleEntityToken();
     const objects = Object.entries(values || {}).map(([key, value]) => ({
         ObjectName: key,
         DataObject: String(value)
     }));
-    return promisifyPlayFab(PlayFabData.SetObjects, {
+    return withTitleEntityToken(() => promisifyPlayFab(PlayFabData.SetObjects, {
         Entity: { Id: groupId, Type: 'group' },
         Objects: objects
-    });
+    }));
 }
 
 async function getEntityKeyFromPlayFabId(playFabId) {
@@ -119,6 +179,8 @@ module.exports = {
     configurePlayFab,
     promisifyPlayFab,
     ensureTitleEntityToken,
+    withTitleEntityToken,
+    isEntityTokenExpiredError,
     getGroupDataValue,
     setGroupDataValues,
     getEntityKeyFromPlayFabId
