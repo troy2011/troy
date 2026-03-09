@@ -5439,7 +5439,9 @@ function renderPlayers() {
     const shownGain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
     const summary = document.createElement('div');
     summary.className = 'tarot-kingdom-players-summary';
-    summary.textContent = `局結果: ${winnerName} +${shownGain}TP`;
+    summary.textContent = String(s?.phase || '') === 'done'
+      ? `最終結果: ${winnerName} +${shownGain}TP`
+      : `局結果: ${winnerName} +${shownGain}TP`;
     ui.players.appendChild(summary);
   }
   const showRankingMedals = String(s?.phase || '') === 'done';
@@ -5468,7 +5470,7 @@ function renderPlayers() {
     const rankInfo = showRankingMedals ? (rankByIndex.get(i) || null) : null;
     if (rankInfo?.rank === 1) row.classList.add('is-rank-first');
     if (String(s?.phase || '') === 'done' && i === Number(s?.champion)) row.classList.add('is-rank-champion');
-    const isLastOne = Number(p?.hand?.length || 0) === 1;
+    const isLastOne = !settlementData && Number(p?.hand?.length || 0) === 1;
     if (i === activeTurnPlayer) row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
     if (isLastOne) row.classList.add('is-last-one');
@@ -5496,14 +5498,6 @@ function renderPlayers() {
       right.appendChild(warn);
     }
     const handCount = Math.max(0, Number(p?.hand?.length || 0));
-    const handMeta = document.createElement('span');
-    handMeta.className = 'tarot-kingdom-meta-hand';
-    if (handCount <= 3) handMeta.classList.add('is-low');
-    if (handCount <= 1) handMeta.classList.add('is-critical');
-    handMeta.textContent = `手札${handCount}`;
-    const slash = document.createElement('span');
-    slash.className = 'tarot-kingdom-meta-sep';
-    slash.textContent = '/';
     const settlementPayerRow = settlementRowsByPayer.get(i) || null;
     const shownChips = (() => {
       if (settlementPayerRow) return Math.max(0, Number(settlementPayerRow.displayPayerChips ?? settlementPayerRow.payerFinalChips ?? p.chips) || 0);
@@ -5511,10 +5505,22 @@ function renderPlayers() {
       return Math.max(0, Number(p.chips) || 0);
     })();
     const chipsMeta = document.createElement('span');
-    chipsMeta.className = 'tarot-kingdom-meta-chips';
+    chipsMeta.className = settlementData
+      ? 'tarot-kingdom-meta-chips is-settlement'
+      : 'tarot-kingdom-meta-chips';
     chipsMeta.textContent = `${shownChips}チップ`;
-    right.appendChild(handMeta);
-    right.appendChild(slash);
+    if (!settlementData) {
+      const handMeta = document.createElement('span');
+      handMeta.className = 'tarot-kingdom-meta-hand';
+      if (handCount <= 3) handMeta.classList.add('is-low');
+      if (handCount <= 1) handMeta.classList.add('is-critical');
+      handMeta.textContent = `手札${handCount}`;
+      const slash = document.createElement('span');
+      slash.className = 'tarot-kingdom-meta-sep';
+      slash.textContent = '/';
+      right.appendChild(handMeta);
+      right.appendChild(slash);
+    }
     right.appendChild(chipsMeta);
     if (settlementPayerRow) {
       const pay = Math.max(0, Number(settlementPayerRow.pay) || 0);
@@ -5531,13 +5537,6 @@ function renderPlayers() {
         gainEl.className = 'tarot-kingdom-settle-chip is-gain';
         gainEl.textContent = `+${gain}TP`;
         right.appendChild(gainEl);
-      }
-      const stars = Math.max(0, Number(settlementData.starBonus) || 0) + Math.max(0, Number(settlementData.oracleHits) || 0);
-      if (stars > 0) {
-        const factor = document.createElement('span');
-        factor.className = 'tarot-kingdom-settle-chip is-factor';
-        factor.textContent = `★${'⭐'.repeat(Math.min(8, stars))}${stars > 8 ? `+${stars - 8}` : ''}`;
-        right.appendChild(factor);
       }
     }
     if (showRankingMedals) {
@@ -6186,7 +6185,7 @@ function renderSettlement() {
     const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && !isMatchDone;
     const canRestart = isMatchDone;
     let restartDisabled = false;
-    let restartLabel = 'もう一度遊ぶ';
+    let restartLabel = '新しく対戦する';
     if (kingdomStartMode === 'online') {
       if (!isNetModeActive()) {
         restartLabel = 'オンライン接続をやり直す';
@@ -6194,7 +6193,7 @@ function renderSettlement() {
         restartLabel = 'ホストの再開を待機中';
         restartDisabled = true;
       } else {
-        restartLabel = '同じメンバーでもう一度遊ぶ';
+        restartLabel = '同じメンバーで新しく対戦する';
       }
     }
     confirmButton.hidden = !(canConfirm || canRestart);
@@ -6303,7 +6302,7 @@ function updateButtons() {
   }
   if (ui.restartButton) {
     const showRestartButton = isMatchDone;
-    let restartLabel = 'もう一度遊ぶ';
+    let restartLabel = '新しく対戦する';
     let restartDisabled = actionLocked;
     if (kingdomStartMode === 'online') {
       if (!netMode) {
@@ -6312,7 +6311,7 @@ function updateButtons() {
         restartLabel = 'ホストの再開を待機中';
         restartDisabled = true;
       } else {
-        restartLabel = '同じメンバーでもう一度遊ぶ';
+        restartLabel = '同じメンバーで新しく対戦する';
       }
     }
     ui.restartButton.hidden = !showRestartButton;
