@@ -30,6 +30,7 @@ import {
     getInventory as fetchInventory,
     getEquipment as fetchEquipment
 } from './playfabClient.js';
+import { refreshResourceSummary } from './inventory.js';
 
 function selectPaymentMethod(message = '支払い方法を選択してください') {
     return new Promise((resolve) => {
@@ -1371,8 +1372,10 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
             const result = await requestHotSpringBath(playFabId, island.id, window.__currentMapId || null);
             if (result && result.success) {
                 showRpgMessage('温泉で体力が回復した！');
-                await Player.getPlayerStats(playFabId);
-                await Player.getPoints(playFabId);
+                await Promise.all([
+                    Player.getPlayerStats(playFabId),
+                    refreshResourceSummary(playFabId, { force: true })
+                ]);
             } else if (result?.error) {
                 showRpgMessage(result.error);
             }
@@ -1408,6 +1411,10 @@ function setupBuildingMenuEvents(sheet, island, playFabId, closeSheetFn) {
             const result = await requestDonateNationCurrency(playFabId, currency, amount);
             if (result && result.success) {
                 input.value = '0';
+                await Promise.all([
+                    Player.getPlayerStats(playFabId),
+                    refreshResourceSummary(playFabId, { force: true })
+                ]);
                 showRpgMessage('寄付しました。');
             } else if (result?.error) {
                 showRpgMessage(result.error);

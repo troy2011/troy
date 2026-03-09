@@ -1,8 +1,13 @@
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const {
+    PLAYER_DAILY_CONTRIBUTION_STAT,
+    ensureDailyContributionVersionForToday,
+    getPreviousJstDateKey
+} = require('./contributionStats');
 
 const FORTUNE_DATA_KEY = 'DailyTarotFortune';
 const DAILY_BOUNTY_GACHA_DATA_KEY = 'DailyBountyGachaReward';
-const DAILY_BOUNTY_STAT_NAME = 'bounty_ranking';
+const DAILY_BOUNTY_STAT_NAME = PLAYER_DAILY_CONTRIBUTION_STAT;
 const DAILY_BOUNTY_TOP_COUNT = Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_TOP_COUNT || 3)));
 const DAILY_BOUNTY_GACHA_TABLE_ID = String(process.env.DAILY_BOUNTY_GACHA_TABLE_ID || process.env.GACHA_DROP_TABLE_ID || 'gacha_table');
 const DAILY_BOUNTY_GACHA_CATALOG_VERSION = String(process.env.DAILY_BOUNTY_GACHA_CATALOG_VERSION || process.env.GACHA_CATALOG_VERSION || 'main');
@@ -346,6 +351,7 @@ function normalizePlayFabId(value) {
 function normalizeDailyBountyRewardRecord(raw, todayKey) {
     const record = raw && typeof raw === 'object' ? raw : {};
     const dayKey = String(record.dayKey || '');
+    const rewardDayKey = String(record.rewardDayKey || '');
     const itemIds = Array.isArray(record.itemIds)
         ? record.itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)
         : [];
@@ -355,6 +361,7 @@ function normalizeDailyBountyRewardRecord(raw, todayKey) {
     const alreadyClaimed = dayKey === String(todayKey || '');
     return {
         dayKey,
+        rewardDayKey,
         eligible,
         awarded: itemIds.length > 0,
         alreadyClaimed,
@@ -395,10 +402,28 @@ async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
         return currentNormalized;
     }
 
+    const contributionState = await ensureDailyContributionVersionForToday(deps, { todayKey });
+    const rewardDayKey = contributionState.rewardDayKey || getPreviousJstDateKey(todayKey);
+    const rewardVersion = contributionState.rewardVersion;
+    if (!Number.isFinite(rewardVersion)) {
+        const notReadyRecord = {
+            dayKey: todayKey,
+            rewardDayKey,
+            checkedAt: new Date().toISOString(),
+            eligible: false,
+            rank: null,
+            pulls: 0,
+            itemIds: []
+        };
+        await writeDailyBountyRewardRecord(playFabId, notReadyRecord, promisifyPlayFab, PlayFabServer);
+        return normalizeDailyBountyRewardRecord(notReadyRecord, todayKey);
+    }
+
     const rankingResult = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
         StatisticName: DAILY_BOUNTY_STAT_NAME,
         StartPosition: 0,
-        MaxResultsCount: DAILY_BOUNTY_TOP_COUNT
+        MaxResultsCount: DAILY_BOUNTY_TOP_COUNT,
+        Version: rewardVersion
     });
     const ranking = Array.isArray(rankingResult?.Leaderboard) ? rankingResult.Leaderboard : [];
     const selfId = normalizePlayFabId(playFabId);
@@ -414,6 +439,7 @@ async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
     if (!rank) {
         const notEligibleRecord = {
             dayKey: todayKey,
+            rewardDayKey,
             checkedAt: new Date().toISOString(),
             eligible: false,
             rank: null,
@@ -440,6 +466,7 @@ async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
 
     const rewardRecord = {
         dayKey: todayKey,
+        rewardDayKey,
         checkedAt: new Date().toISOString(),
         eligible: true,
         rank,

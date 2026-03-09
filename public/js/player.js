@@ -94,6 +94,10 @@ export async function getPoints(playFabId) {
     }
 }
 
+export function syncPointsDisplay(points) {
+    updatePointsDisplays(points);
+}
+
 export async function addPoints(playFabId) {
     const data = await requestAddPoints(playFabId, 10);
     if (data) {
@@ -175,7 +179,7 @@ export async function getRanking() {
 export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
     if (!rankingListEl) return;
-    rankingListEl.innerHTML = '<li>（懸賞金ランキングを読み込んでいます...）</li>';
+    rankingListEl.innerHTML = '<li>（日次貢献度ランキングを読み込んでいます...）</li>';
     const data = await fetchBountyRanking();
     if (data?.ranking) {
         const myDisplayName = window.myLineProfile?.displayName;
@@ -184,7 +188,8 @@ export async function getBountyRanking() {
             const isMyRank = myDisplayName && entry.displayName === myDisplayName;
             const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
             const medal = getRankMedal(index);
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${entry.score}BT)</li>`;
+            const score = Number(entry.contribution ?? entry.score ?? 0) || 0;
+            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${score}貢献)</li>`;
         }).join('') || '<li>（データがありません）</li>';
     }
 }

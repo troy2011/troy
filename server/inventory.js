@@ -2,6 +2,11 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
+const {
+    applyDerivedPlayerLevelToStats,
+    buildStatsMapFromStatistics,
+    getPlayerContributionTotal
+} = require('./playerLevel');
 const resourceStorage = require('./resourceStorage');
 
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
@@ -117,13 +122,8 @@ function initializeInventoryRoutes(app, deps) {
         const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, {
             PlayFabId: playFabId
         });
-        const currentStats = {};
-        if (Array.isArray(result?.Statistics)) {
-            result.Statistics.forEach((stat) => {
-                currentStats[stat.StatisticName] = stat.Value;
-            });
-        }
-        return currentStats;
+        const currentStats = buildStatsMapFromStatistics(result?.Statistics);
+        return applyDerivedPlayerLevelToStats(currentStats).stats;
     }
 
     async function applyOfflineMpRecovery(playFabId) {
@@ -277,12 +277,11 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
-            await applyOfflineMpRecovery(playFabId);
-            let experience = 0;
+            const { currentStats } = await applyOfflineMpRecovery(playFabId);
+            let experience = getPlayerContributionTotal(currentStats);
             if (typeof ensureDailyBountyConversion === 'function') {
                 try {
-                    const result = await ensureDailyBountyConversion(playFabId);
-                    experience = Number(result?.exp) || 0;
+                    await ensureDailyBountyConversion(playFabId);
                 } catch (resetError) {
                     console.warn('[bounty-reset] Failed:', resetError?.errorMessage || resetError?.message || resetError);
                 }
@@ -330,7 +329,14 @@ function initializeInventoryRoutes(app, deps) {
                 virtualCurrency
             });
             console.log('[Inventory] fetch complete');
-            res.json({ inventory: inventoryList, virtualCurrency, experience, isKing });
+            res.json({
+                inventory: inventoryList,
+                virtualCurrency,
+                experience,
+                contribution: experience,
+                level: Number(currentStats?.Level || 1) || 1,
+                isKing
+            });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
             res.status(500).json({ error: 'インベントリ取得に失敗しました。', details: error.errorMessage || error.message });
@@ -419,7 +425,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[ステータス取得] ${playFabId} のステータスを取得します...`);
         try {
-            const stats = (await applyOfflineMpRecovery(playFabId)).currentStats;
+            const stats = applyDerivedPlayerLevelToStats((await applyOfflineMpRecovery(playFabId)).currentStats).stats;
             console.log('[ステータス取得] 完了');
             res.json({ stats: stats });
         } catch (error) {

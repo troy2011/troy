@@ -1740,7 +1740,9 @@ function initializeIslandRoutes(app, deps) {
                 await addEconomyItem(ownerId, 'PS', net, requestEntity);
             }
             if (tax > 0) {
-                await addNationTreasury(nationValue || userNation, tax, firestore, deps);
+                await addNationTreasury(nationValue || userNation, tax, firestore, deps, {
+                    contributorPlayFabId: playFabId
+                });
             }
 
             await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {

@@ -18,6 +18,12 @@ const {
 const { getWorldMapCollection, findIslandDocAcrossMaps, addOwnedMapId, hasMyHouseOwned } = require('./island');
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 const { invalidateMapCache } = require('./islandEffects');
+const {
+    canShopCloneItem,
+    isShopCopyForbiddenItem,
+    pickRandomShopSeedInventory,
+    sortShopInventoryEntries
+} = require('./shopInventory');
 
 const RESOURCE_BIOME_JP = {
     '火山': 'volcanic',
@@ -372,6 +378,67 @@ function initializeShopRoutes(app, deps) {
         return null;
     }
 
+    function getActiveBuildingEntry(island) {
+        const buildings = Array.isArray(island?.buildings) ? island.buildings : [];
+        return buildings.find((entry) => entry && entry.status !== 'demolished') || null;
+    }
+
+    async function ensureShopInventorySeeded(ref, requestedBuildingId) {
+        if (!requestedBuildingId || !SHOP_BUILDING_CATEGORIES[requestedBuildingId]) {
+            return { seeded: false, island: null };
+        }
+
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (!snap.exists) throw new Error('IslandNotFound');
+
+            const island = snap.data() || {};
+            const activeBuilding = getActiveBuildingEntry(island);
+            const activeBuildingId = String(activeBuilding?.buildingId || activeBuilding?.id || '').trim();
+            if (!activeBuilding || activeBuildingId !== requestedBuildingId) {
+                return { seeded: false, island };
+            }
+            if (String(activeBuilding?.status || '') !== 'completed') {
+                return { seeded: false, island };
+            }
+
+            const existingInventory = Array.isArray(island.shopInventory) ? island.shopInventory : [];
+            const alreadySeeded = existingInventory.length > 0
+                || Number(island.shopSeedVersion || 0) > 0
+                || Number(island.shopSeededAt || 0) > 0;
+            if (alreadySeeded) {
+                return { seeded: false, island };
+            }
+
+            const shopLevel = Math.max(1, Math.floor(Number(activeBuilding?.level) || 1));
+            const seededInventory = pickRandomShopSeedInventory({
+                buildingId: requestedBuildingId,
+                shopLevel,
+                catalogCache
+            });
+            if (!seededInventory.length) {
+                return { seeded: false, island };
+            }
+            const seededAt = Date.now();
+            tx.update(ref, {
+                shopInventory: seededInventory,
+                shopSeedVersion: 1,
+                shopSeededAt: seededAt,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            return {
+                seeded: true,
+                island: {
+                    ...island,
+                    shopInventory: seededInventory,
+                    shopSeedVersion: 1,
+                    shopSeededAt: seededAt
+                }
+            };
+        });
+    }
+
     app.post('/api/get-shop-state', async (req, res) => {
         const { islandId, mapId } = req.body || {};
         if (!islandId) return res.status(400).json({ error: 'islandId is required' });
@@ -379,12 +446,21 @@ function initializeShopRoutes(app, deps) {
             const ref = getWorldMapCollection(firestore, mapId).doc(islandId);
             const snap = await ref.get();
             if (!snap.exists) return res.status(404).json({ error: 'IslandNotFound' });
-            const island = snap.data() || {};
-            const buildingId = getShopBuildingId(island);
+            let island = snap.data() || {};
+            let buildingId = getShopBuildingId(island);
+            if (buildingId && SHOP_BUILDING_CATEGORIES[buildingId]) {
+                const seeded = await ensureShopInventorySeeded(ref, buildingId);
+                if (seeded?.island) {
+                    island = seeded.island;
+                    buildingId = getShopBuildingId(island);
+                }
+            }
+            const activeBuilding = getActiveBuildingEntry(island);
+            const shopLevel = Math.max(1, Math.floor(Number(activeBuilding?.level) || 1));
             const categories = SHOP_BUILDING_CATEGORIES[buildingId] || [];
             const pricing = getShopPricing(island);
             const inventory = Array.isArray(island.shopInventory) ? island.shopInventory : [];
-            const items = inventory.map((entry) => {
+            const items = sortShopInventoryEntries(inventory.map((entry) => {
                 const itemId = entry.itemId;
                 const count = Number(entry.count) || 0;
                 const itemData = catalogCache[itemId] || {};
@@ -405,13 +481,16 @@ function initializeShopRoutes(app, deps) {
                     sellPrice: base.sellPrice,
                     buyPrice: base.buyPrice,
                     fixedBuyPrice: fixedBuy,
-                    fixedSellPrice: fixedSell
+                    fixedSellPrice: fixedSell,
+                    copyForbidden: isShopCopyForbiddenItem(itemData),
+                    copyEligible: canShopCloneItem({ buildingId, shopLevel, itemData })
                 };
-            });
+            }), buildingId);
             res.json({
                 islandId,
                 ownerId: island.ownerId || null,
                 buildingId,
+                shopLevel,
                 categories,
                 pricing,
                 inventory: items
@@ -585,7 +664,9 @@ function initializeShopRoutes(app, deps) {
                     await addEconomyItem(ownerId, VIRTUAL_CURRENCY_CODE, net);
                 }
                 if (tax > 0) {
-                    await addNationTreasury(nationValue, tax, firestore, deps);
+                    await addNationTreasury(nationValue, tax, firestore, deps, {
+                        contributorPlayFabId: playFabId
+                    });
                 }
             }
 
@@ -955,6 +1036,14 @@ function initializeShopRoutes(app, deps) {
             });
 
             if (result.completed) {
+                const completedBuildingId = String(result?.building?.buildingId || result?.building?.id || '').trim();
+                if (completedBuildingId && SHOP_BUILDING_CATEGORIES[completedBuildingId]) {
+                    try {
+                        await ensureShopInventorySeeded(ref, completedBuildingId);
+                    } catch (seedError) {
+                        console.warn('[CheckBuildingCompletion] shop seed failed:', seedError?.message || seedError);
+                    }
+                }
                 invalidateMapCache(resolvedMapId);
             }
 

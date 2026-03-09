@@ -2,6 +2,7 @@
 require('dotenv').config();
 const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
+const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -129,6 +130,7 @@ async function getPlayerFullProfile(playFabId) {
     if (statsResult.Statistics) {
         statsResult.Statistics.forEach(stat => { stats[stat.StatisticName] = stat.Value; });
     }
+    Object.assign(stats, applyDerivedPlayerLevelToStats(stats).stats);
     if (!stats.MaxHP) stats.MaxHP = stats.HP;
     if (!stats.MaxMP) stats.MaxMP = stats.MP;
     stats.CurrentHP = stats.HP;

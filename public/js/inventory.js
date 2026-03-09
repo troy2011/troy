@@ -216,10 +216,12 @@ export async function getInventory(playFabId) {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';
     const data = await fetchInventory(playFabId);
     if (data) {
+        const contributionValue = data.contribution ?? data.experience ?? 0;
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
-        myExperience = Number(data.experience || 0);
+        myExperience = Number(contributionValue || 0);
         myIsKing = !!data.isKing;
+        Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
@@ -237,9 +239,10 @@ export async function getInventory(playFabId) {
     }
 }
 
-export async function refreshResourceSummary(playFabId) {
+export async function refreshResourceSummary(playFabId, options = {}) {
     const now = Date.now();
-    if (now - lastInventoryFetchAt < 1500) {
+    const force = options && options.force === true;
+    if (!force && now - lastInventoryFetchAt < 1500) {
         await syncShipResourceSummary(playFabId);
         renderResourceSummary();
         updateExperienceUI();
@@ -247,12 +250,14 @@ export async function refreshResourceSummary(playFabId) {
     }
     const data = await fetchInventory(playFabId);
     if (data) {
+        const contributionValue = data.contribution ?? data.experience ?? 0;
         if (Array.isArray(data.inventory)) {
             myInventory = data.inventory;
         }
         myVirtualCurrency = data.virtualCurrency || {};
-        myExperience = Number(data.experience || 0);
+        myExperience = Number(contributionValue || 0);
         myIsKing = !!data.isKing;
+        Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
         await syncShipResourceSummary(playFabId);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);

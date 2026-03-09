@@ -3,6 +3,11 @@
 
 const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
+const { addPlayerNationContribution } = require('./playerLevel');
+const {
+    PLAYER_DAILY_CONTRIBUTION_STAT,
+    ensureDailyContributionVersionForToday
+} = require('./contributionStats');
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
@@ -466,8 +471,16 @@ async function addNationTreasury(nation, amount, firestore, deps, options = {}) 
     if (value > 0) {
         await deps.addEconomyItem(entityKey.Id, 'PS', value, { entityKeyOverride: entityKey, idempotencyId: options.idempotencyId });
     }
+    let contribution = null;
+    if (value > 0 && options.contributorPlayFabId) {
+        try {
+            contribution = await addPlayerNationContribution(options.contributorPlayFabId, value, deps);
+        } catch (error) {
+            console.warn('[addNationTreasury] Failed to update player contribution:', error?.errorMessage || error?.message || error);
+        }
+    }
     const treasuryPs = await getGroupTreasuryBalance(entityKey.Id, deps);
-    return { groupId: entityKey.Id, treasuryPs };
+    return { groupId: entityKey.Id, treasuryPs, contribution };
 }
 
 async function getNationTreasuryRanking(firestore, deps) {
@@ -653,6 +666,7 @@ function initializeNationRoutes(app, deps) {
         PlayFabServer,
         PlayFabAdmin,
         PlayFabGroups,
+        firestore,
         admin,
         getGroupDataValue,
         setGroupDataValues,
@@ -849,32 +863,37 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // PlayFab全体の懸賞金ランキング（ディスプレイ用）
+    // PlayFab全体の日次貢献度ランキング（ディスプレイ用）
     app.get('/api/troy-bounty-ranking', async (req, res) => {
         const limitRaw = Number.parseInt(String(req.query?.limit || '10'), 10);
         const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
         try {
+            const contributionState = await ensureDailyContributionVersionForToday(nationDeps);
             const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-                StatisticName: 'bounty_ranking',
+                StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT,
                 StartPosition: 0,
                 MaxResultsCount: limit,
-                ProfileConstraints: { ShowDisplayName: true }
+                ProfileConstraints: { ShowDisplayName: true },
+                Version: contributionState.activeVersion
             });
             const entries = Array.isArray(result?.Leaderboard) ? result.Leaderboard : [];
             const ranking = entries.map((entry) => ({
                 position: Number(entry?.Position) + 1,
                 playFabId: String(entry?.PlayFabId || '').trim(),
                 displayName: String(entry?.DisplayName || '').trim() || String(entry?.PlayFabId || '').trim() || 'Unknown',
+                contribution: Number(entry?.StatValue) || 0,
+                score: Number(entry?.StatValue) || 0,
                 bounty: Number(entry?.StatValue) || 0
             }));
             res.json({
                 scope: 'global',
+                dayKey: contributionState.activeDayKey,
                 updatedAt: Date.now(),
                 ranking
             });
         } catch (error) {
             console.error('[troy-bounty-ranking] Error:', error?.errorMessage || error?.message || error);
-            res.status(500).json({ error: 'Failed to load global bounty ranking' });
+            res.status(500).json({ error: 'Failed to load global contribution ranking' });
         }
     });
 
@@ -1259,7 +1278,9 @@ function initializeNationRoutes(app, deps) {
 
             if (orderAmount > 0) {
                 try {
-                    const treasuryResult = await addNationTreasury(nation, orderAmount, firestore, nationDeps);
+                    const treasuryResult = await addNationTreasury(nation, orderAmount, firestore, nationDeps, {
+                        contributorPlayFabId: requesterPlayFabId
+                    });
                     treasuryUpdated = true;
                     treasuryPs = treasuryResult?.treasuryPs ?? null;
                     const groupId = treasuryResult?.groupId || await getNationGroupIdByNation(nation, firestore, nationDeps);
@@ -1499,7 +1520,10 @@ function initializeNationRoutes(app, deps) {
             let treasuryUpdated = true;
             let treasuryErrorMessage = '';
             try {
-                await addNationTreasury(context.nation, value, firestore, nationDeps, { idempotencyId: idempotencyFor('treasury') });
+                await addNationTreasury(context.nation, value, firestore, nationDeps, {
+                    idempotencyId: idempotencyFor('treasury'),
+                    contributorPlayFabId: receiverId
+                });
             } catch (treasuryError) {
                 treasuryUpdated = false;
                 treasuryErrorMessage = treasuryError?.errorMessage || treasuryError?.message || String(treasuryError);
@@ -1744,8 +1768,13 @@ function initializeNationRoutes(app, deps) {
                 return res.status(500).json({ error: 'Nation group not found' });
             }
             await addEconomyItem(groupEntity.Id, normalizedCurrency, value, groupEntity);
+            const contribution = await addPlayerNationContribution(requesterPlayFabId, value, nationDeps);
 
-            res.json({ success: true });
+            res.json({
+                success: true,
+                contribution: contribution?.contributionTotal ?? value,
+                level: contribution?.level ?? 1
+            });
         } catch (error) {
             console.error('[donate-nation-currency] Error:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: 'Failed to donate currency' });

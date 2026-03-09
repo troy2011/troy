@@ -848,7 +848,7 @@ function createDependencies() {
         applyTax: economy.applyTax,
         // nation関数
         getNationTaxRateBps: (nation, fs, d) => require('./server/nation').getNationTaxRateBps(nation, fs || firestore, d || createDependencies()),
-        addNationTreasury: (nation, amount, fs, d) => require('./server/nation').addNationTreasury(nation, amount, fs || firestore, d || createDependencies()),
+        addNationTreasury: (nation, amount, fs, d, options) => require('./server/nation').addNationTreasury(nation, amount, fs || firestore, d || createDependencies(), options),
         getMapOccupationNation: (mapId) => require('./server/nation').getMapOccupationNation(mapId, { promisifyPlayFab, PlayFabAdmin }),
         setMapOccupationNation: (mapId, nation) => require('./server/nation').setMapOccupationNation(mapId, nation, { promisifyPlayFab, PlayFabAdmin, firestore, admin }),
         // island関数
@@ -1588,6 +1588,7 @@ async function main() {
     economy.initializeEconomyRoutes(app, {
         promisifyPlayFab,
         PlayFabServer,
+        PlayFabAdmin,
         PlayFabEconomy,
         getEntityKeyFromPlayFabId,
         requireAuthenticatedPlayFabId,

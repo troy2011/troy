@@ -4734,6 +4734,7 @@ function normalizeDailyBountyReward(rawReward) {
         awarded: !!reward.awarded && items.length > 0,
         alreadyClaimed: !!reward.alreadyClaimed,
         eligible: !!reward.eligible,
+        rewardDayKey: String(reward.rewardDayKey || '').trim(),
         rank: Number.isFinite(rank) && rank > 0 ? rank : null,
         pulls,
         items
@@ -4749,8 +4750,9 @@ async function playDailyBountyRewardPresentation(rawReward) {
     if (!cardHost || !textEl || !titleEl) return;
 
     const rankLabel = reward.rank ? `第${reward.rank}位` : '受賞';
-    titleEl.textContent = '賞金首ランキング報酬';
-    textEl.textContent = `${rankLabel}報酬: ガチャ演出中...`;
+    titleEl.textContent = '前日貢献度ランキング報酬';
+    const rewardDayLabel = reward.rewardDayKey ? `${reward.rewardDayKey}集計 ` : '';
+    textEl.textContent = `${rewardDayLabel}${rankLabel}報酬: ガチャ演出中...`;
 
     const wrap = document.createElement('div');
     wrap.style.display = 'grid';

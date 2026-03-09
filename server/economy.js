@@ -3,6 +3,10 @@
 
 const { addGlobalChatMessage } = require('./chat');
 const { withTitleEntityToken } = require('./playfab');
+const {
+    PLAYER_DAILY_CONTRIBUTION_STAT,
+    ensureDailyContributionVersionForToday
+} = require('./contributionStats');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 
@@ -197,7 +201,7 @@ async function ensureDailyBountyConversion(playFabId, deps) {
 
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
 
     const economyDeps = {
         promisifyPlayFab,
@@ -326,14 +330,22 @@ function initializeEconomyRoutes(app, deps) {
         }
     });
 
-    // 賞金ランキング取得
+    // 日次貢献度ランキング取得
     app.post('/api/get-bounty-ranking', async (req, res) => {
         try {
+            const contributionState = await ensureDailyContributionVersionForToday({
+                firestore,
+                admin,
+                promisifyPlayFab,
+                PlayFabServer,
+                PlayFabAdmin
+            });
             const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-                StatisticName: 'bounty_ranking',
+                StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT,
                 StartPosition: 0,
                 MaxResultsCount: 10,
-                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
+                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true },
+                Version: contributionState.activeVersion
             });
             let ranking = [];
             if (result && result.Leaderboard) {
@@ -347,11 +359,14 @@ function initializeEconomyRoutes(app, deps) {
                     };
                 });
             }
-            res.json({ ranking });
+            res.json({
+                ranking,
+                dayKey: contributionState.activeDayKey
+            });
         } catch (error) {
-            console.error('賞金ランキング取得失敗:', error.errorMessage || error.message || error);
+            console.error('貢献度ランキング取得失敗:', error.errorMessage || error.message || error);
             return res.status(500).json({
-                error: '賞金ランキング取得に失敗しました。',
+                error: '貢献度ランキング取得に失敗しました。',
                 details: error.errorMessage || error.message
             });
         }

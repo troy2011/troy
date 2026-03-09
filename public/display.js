@@ -52,7 +52,7 @@
     const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
 
     if (rankingSub) {
-      rankingSub.textContent = 'PlayFab 懸賞金ランキング';
+      rankingSub.textContent = 'PlayFab 日次貢献度ランキング';
     }
 
     if (ranking.length === 0) {
@@ -78,7 +78,8 @@
 
       const bounty = document.createElement('div');
       bounty.className = 'ranking-bounty';
-      bounty.textContent = `${formatNumber(row.bounty)} BT`;
+      const contribution = Number(row.contribution ?? row.score ?? row.bounty ?? 0) || 0;
+      bounty.textContent = `${formatNumber(contribution)} 貢献`;
 
       line.appendChild(rank);
       line.appendChild(name);
