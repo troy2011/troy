@@ -4673,9 +4673,18 @@ function renderDailyFortuneResultLegacy(result) {
     cardHost.appendChild(cardEl);
 
     const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
-    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
-    textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
+    textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;
+}
+
+function getDailyFortuneRewardText(result) {
+    const rewardType = String(result?.rewardType || '').trim().toLowerCase();
+    if (rewardType === 'card') {
+        const rewardItemName = String(result?.rewardItemName || result?.cardName || 'カード').trim();
+        return `「${rewardItemName}」を受け取った。`;
+    }
+    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
+    return `+${reward}Ps`;
 }
 
 function renderDailyFortuneResult(result, options = {}) {
@@ -4690,10 +4699,9 @@ function renderDailyFortuneResult(result, options = {}) {
     const card = getCardDataFromFortuneResult(result);
     const isReversed = String(result?.orientation || '') === 'reversed';
     const orientationLabel = isReversed ? '逆位置' : '正位置';
-    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     const finalizeReveal = () => {
         titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
-        textEl.textContent = `${String(result?.fortune || '')}  +${reward}Ps`;
+        textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;
     };
 
     const handleReveal = async () => {
@@ -4843,8 +4851,14 @@ async function handleDailyFortuneDraw(playFabId) {
         const pointMessage = document.getElementById('pointMessage');
         if (pointMessage && data?.result) {
             const name = String(data.result.cardName || 'カード');
-            const reward = Math.max(0, Math.floor(Number(data.result.rewardPs || 0)));
-            pointMessage.textContent = `本日の運勢「${name}」: +${reward}Ps`;
+            const rewardText = getDailyFortuneRewardText(data.result);
+            pointMessage.textContent = `本日の運勢「${name}」: ${rewardText}`;
+        }
+        const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
+        const shouldRefreshInventory = String(data?.result?.rewardType || '').trim().toLowerCase() === 'card'
+            || (reward.awarded && !reward.alreadyClaimed);
+        if (shouldRefreshInventory && typeof window !== 'undefined' && typeof window.refreshInventory === 'function') {
+            await window.refreshInventory({ force: true });
         }
     } catch (error) {
         if (textEl) {

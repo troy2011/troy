@@ -79,6 +79,18 @@ export function equipItem(playFabId, itemId, slot, options) {
     return callApiWithLoader('/api/equip-item', { playFabId, itemId, slot }, options);
 }
 
+export function manifestTarotCard(playFabId, itemId, slot, options) {
+    return callApiWithLoader('/api/manifest-tarot-card', { playFabId, itemId, slot }, options);
+}
+
+export function studyTarotCard(playFabId, itemId, options) {
+    return callApiWithLoader('/api/study-tarot-card', { playFabId, itemId }, options);
+}
+
+export function awakenMajorArcana(playFabId, itemId, options) {
+    return callApiWithLoader('/api/awaken-major-arcana', { playFabId, itemId }, options);
+}
+
 export function useItem(playFabId, itemInstanceId, itemId, options) {
     return callApiWithLoader('/api/use-item', { playFabId, itemInstanceId, itemId }, options);
 }

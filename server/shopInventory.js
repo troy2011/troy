@@ -53,6 +53,9 @@ function getCatalogPrimaryStatValue(itemData) {
     if (category === 'Weapon') {
         return parseCatalogStat(itemData, ['Attack', 'Atk', 'Power', 'attack', 'atk']);
     }
+    if (category === 'Offhand') {
+        return parseCatalogStat(itemData, ['MagicPower', 'Int', 'Intelligence']);
+    }
     if (category === 'Armor' || category === 'Shield') {
         return parseCatalogStat(itemData, ['Defense', 'Def', 'defense', 'def']);
     }

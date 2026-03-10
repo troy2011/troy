@@ -92,7 +92,7 @@ let constructionTimers = new Map();
 
 const SHOP_BUILDINGS = {
     weapon_shop: { title: '武器屋', categories: ['Weapon'] },
-    armor_shop: { title: '防具屋', categories: ['Armor', 'Shield'] },
+    armor_shop: { title: '防具屋', categories: ['Armor', 'Shield', 'Offhand'] },
     item_shop: { title: '道具屋', categories: ['Consumable'] }
 };
 
@@ -117,6 +117,9 @@ function getShopPrimaryStat(item) {
     const category = getShopItemCategory(item);
     if (category === 'Weapon') {
         return { label: '攻撃', value: parseShopItemStat(item, ['Attack', 'Atk', 'Power', 'primaryStatValue']) };
+    }
+    if (category === 'Offhand') {
+        return { label: '術補', value: parseShopItemStat(item, ['MagicPower', 'Int', 'Intelligence', 'primaryStatValue']) };
     }
     if (category === 'Armor' || category === 'Shield') {
         return { label: '防御', value: parseShopItemStat(item, ['Defense', 'Def', 'primaryStatValue']) };
@@ -144,6 +147,7 @@ function getPreferredEquipSlotForShopItem(item) {
     const category = getShopItemCategory(item);
     if (category === 'Weapon') return 'RightHand';
     if (category === 'Shield') return 'LeftHand';
+    if (category === 'Offhand') return 'LeftHand';
     if (category === 'Armor') return 'Armor';
     return null;
 }

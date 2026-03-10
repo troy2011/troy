@@ -364,6 +364,9 @@ function initializeShopRoutes(app, deps) {
         if (category === 'Weapon') {
             return { label: '攻撃', value: parseCatalogStat(itemData, ['Attack', 'Atk', 'Power', 'attack', 'atk']) };
         }
+        if (category === 'Offhand') {
+            return { label: '術補', value: parseCatalogStat(itemData, ['MagicPower', 'Int', 'Intelligence']) };
+        }
         if (category === 'Armor' || category === 'Shield') {
             return { label: '防御', value: parseCatalogStat(itemData, ['Defense', 'Def', 'defense', 'def']) };
         }
@@ -374,6 +377,7 @@ function initializeShopRoutes(app, deps) {
         const category = itemData?.Category || null;
         if (category === 'Weapon') return 'RightHand';
         if (category === 'Shield') return 'LeftHand';
+        if (category === 'Offhand') return 'LeftHand';
         if (category === 'Armor') return 'Armor';
         return null;
     }

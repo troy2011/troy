@@ -598,32 +598,83 @@
 
                     <!-- 装備スロット -->
                     <div id="equipmentGrid">
-                        <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手装備">
-                            <div class="equip-slot-icon">⚔</div>
+                        <div class="equip-slot major-arcana-slot" data-slot="majorarcana" data-tooltip="体 / 大アルカナ">
+                            <div class="equip-slot-icon">🃏</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">武器</label>
+                                <label class="equip-slot-label">体</label>
+                                <span id="equippedMajorArcana" class="equip-slot-name">なし</span>
+                                <div id="equippedMajorArcanaStats" class="equip-slot-stats"></div>
+                            </div>
+                            <div class="equip-slot-glow"></div>
+                        </div>
+                        <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="頭具現 / 小アルカナ" data-tarot-manifest="true">
+                            <div class="equip-slot-icon">👑</div>
+                            <div class="equip-slot-content">
+                                <label class="equip-slot-label">頭</label>
+                                <span id="equippedArmor" class="equip-slot-name">なし</span>
+                                <div id="equippedArmorStats" class="equip-slot-stats"></div>
+                            </div>
+                            <div class="equip-slot-glow"></div>
+                        </div>
+                        <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手具現 / 小アルカナ" data-tarot-manifest="true">
+                            <div class="equip-slot-icon">✦</div>
+                            <div class="equip-slot-content">
+                                <label class="equip-slot-label">右手</label>
                                 <span id="equippedRightHand" class="equip-slot-name">なし</span>
                                 <div id="equippedRightHandStats" class="equip-slot-stats"></div>
                             </div>
                             <div class="equip-slot-glow"></div>
                         </div>
-                        <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手装備">
-                            <div class="equip-slot-icon">🛡</div>
+                        <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手具現 / 小アルカナ" data-tarot-manifest="true">
+                            <div class="equip-slot-icon">✧</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">盾</label>
+                                <label class="equip-slot-label">左手</label>
                                 <span id="equippedLeftHand" class="equip-slot-name">なし</span>
                                 <div id="equippedLeftHandStats" class="equip-slot-stats"></div>
                             </div>
                             <div class="equip-slot-glow"></div>
                         </div>
-                        <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="防具">
-                            <div class="equip-slot-icon">⛑</div>
+                        <div class="equip-slot accessory-slot" data-slot="accessory" data-tooltip="アクセサリー具現 / 小アルカナ" data-tarot-manifest="true">
+                            <div class="equip-slot-icon">❂</div>
                             <div class="equip-slot-content">
-                                <label class="equip-slot-label">防具</label>
-                                <span id="equippedArmor" class="equip-slot-name">なし</span>
-                                <div id="equippedArmorStats" class="equip-slot-stats"></div>
+                                <label class="equip-slot-label">アクセサリー</label>
+                                <span id="equippedAccessory" class="equip-slot-name">なし</span>
+                                <div id="equippedAccessoryStats" class="equip-slot-stats"></div>
                             </div>
                             <div class="equip-slot-glow"></div>
+                        </div>
+                    </div>
+                    <div class="tarot-equip-guide">
+                        <div class="tarot-equip-guide-chip"><strong>体</strong>は必須です。大アルカナを切り替えると4部位の具現化名も変わります。</div>
+                        <div class="tarot-equip-guide-chip"><strong>小アルカナ</strong>は頭・右手・左手・アクセサリーへ具現化します。</div>
+                        <div class="tarot-equip-guide-chip"><strong>具現化時</strong>にカードを1枚消費し、選んだ部位の現在装備を上書きします。</div>
+                    </div>
+                    <div class="tarot-loadout-panel">
+                        <div class="tarot-loadout-header">
+                            <div>
+                                <h3>現在装着中のタロット</h3>
+                                <p>5枚役判定はここに並ぶ 体 + 4部位 のカードを使います。</p>
+                            </div>
+                            <span class="tarot-loadout-badge">5枚役</span>
+                        </div>
+                        <div id="tarotLoadoutRole" class="tarot-loadout-role">
+                            <div class="tarot-loadout-role-label">現在の役</div>
+                            <div class="tarot-loadout-role-main">未成立</div>
+                            <div class="tarot-loadout-role-bonus">役ボーナスなし</div>
+                            <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
+                        </div>
+                        <div id="tarotLoadoutGrid" class="tarot-loadout-grid"></div>
+                    </div>
+                    <div class="tarot-combat-grid">
+                        <div id="activeTarotAwakeningPanel" class="tarot-combat-card">
+                            <div class="tarot-combat-card-label">装備中の大アルカナ効果</div>
+                            <div class="tarot-combat-card-title">未装着</div>
+                            <div class="tarot-combat-card-body">体に大アルカナを装備すると、覚醒段階に応じた常在効果が反映されます。</div>
+                        </div>
+                        <div id="tarotSkillListPanel" class="tarot-combat-card">
+                            <div class="tarot-combat-card-label">習得済みの術</div>
+                            <div class="tarot-combat-card-title">未習得</div>
+                            <div class="tarot-combat-card-body">小アルカナから習得した術がここに並びます。現在の装備で使える術は強調表示されます。</div>
                         </div>
                     </div>
                 </div>
@@ -681,9 +732,14 @@
                         <button class="inventory-tab-btn active" data-category="All">すべて</button>
                         <button class="inventory-tab-btn" data-category="Weapon">武器</button>
                         <button class="inventory-tab-btn" data-category="Shield">盾</button>
+                        <button class="inventory-tab-btn" data-category="Offhand">副手</button>
                         <button class="inventory-tab-btn" data-category="Armor">防具</button>
+                        <button class="inventory-tab-btn" data-category="Accessory">アクセサリー</button>
+                        <button class="inventory-tab-btn" data-category="TarotMajor">大アルカナ</button>
+                        <button class="inventory-tab-btn" data-category="TarotMinor">小アルカナ</button>
                         <button class="inventory-tab-btn" data-category="Consumable">消耗品</button>
                     </div>
+                    <div id="inventoryTabHint" class="inventory-tab-hint">大アルカナで体を切り替え、小アルカナで4部位を具現化します。</div>
 
                     <div id="inventoryGrid"></div>
                     <!-- 旧リスト表示用（非表示） -->

@@ -192,20 +192,21 @@ function buildExistingItemMaps(items) {
 
 async function upsertCatalogItem(localItem, existingItem, publish) {
     const payload = cloneJson(localItem);
+    delete payload.Tags;
     if (!payload.Type) payload.Type = 'catalogItem';
-    if (existingItem?.Id && !payload.Id) {
+    if (existingItem?.Id) {
         payload.Id = String(existingItem.Id);
     }
     if (existingItem?.ETag && !payload.ETag) {
         payload.ETag = String(existingItem.ETag);
     }
     const hasExistingItem = !!existingItem?.Id;
-    const invoke = async (itemPayload) => {
+    const invoke = async (itemPayload, forceCreate = false) => {
         const request = {
             Item: itemPayload,
             Publish: !!publish
         };
-        if (hasExistingItem) {
+        if (hasExistingItem && !forceCreate) {
             return promisifyPlayFab(PlayFabEconomy.UpdateDraftItem, request);
         }
         return promisifyPlayFab(PlayFabEconomy.CreateDraftItem, request);
@@ -226,6 +227,9 @@ async function upsertCatalogItem(localItem, existingItem, publish) {
         }
 
         if (!retryPayload) {
+            if (hasExistingItem && /The item could not be found/i.test(baseMessage)) {
+                return invoke(payload, true);
+            }
             throw error;
         }
 
@@ -237,6 +241,9 @@ async function upsertCatalogItem(localItem, existingItem, publish) {
                 const finalPayload = cloneJson(retryPayload);
                 delete finalPayload.PriceOptions;
                 return invoke(finalPayload);
+            }
+            if (hasExistingItem && /The item could not be found/i.test(retryMessage)) {
+                return invoke(retryPayload, true);
             }
             throw retryError;
         }
@@ -292,6 +299,22 @@ async function main() {
             } catch (firstError) {
                 const duplicateId = extractExistingIdFromDuplicateError(firstError);
                 if (!duplicateId) {
+                    if (friendlyId) {
+                        const duplicateMatch = await loadCatalogItemByFriendlyId(titleEntity, friendlyId);
+                        if (duplicateMatch?.Id) {
+                            existingItem = duplicateMatch;
+                            existingMaps.byId.set(String(duplicateMatch.Id), duplicateMatch);
+                            existingMaps.byFriendlyId.set(friendlyId, duplicateMatch);
+                            result = await upsertCatalogItem(localItem, existingItem, args.publish);
+                            const returnedItem = result?.Item || duplicateMatch;
+                            const nextFriendlyId = getFriendlyId(returnedItem) || friendlyId;
+                            if (returnedItem?.Id) existingMaps.byId.set(String(returnedItem.Id), returnedItem);
+                            if (nextFriendlyId) existingMaps.byFriendlyId.set(nextFriendlyId, returnedItem);
+                            updatedCount += 1;
+                            console.log(`[catalog:sync] updated: ${label}`);
+                            continue;
+                        }
+                    }
                     throw firstError;
                 }
                 existingItem = {

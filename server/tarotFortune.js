@@ -297,6 +297,28 @@ function getRewardPoints(card) {
     return Math.max(0, Math.floor(Number(card.number) || 0));
 }
 
+function buildFortuneReward(card, orientation) {
+    const isReversed = String(orientation || '') === 'reversed';
+    if (isReversed) {
+        const rewardPs = getRewardPoints(card);
+        return {
+            rewardType: 'ps',
+            rewardPs,
+            rewardItemId: '',
+            rewardItemName: '',
+            rewardLabel: `+${rewardPs}Ps`
+        };
+    }
+    const rewardItemName = getCardName(card);
+    return {
+        rewardType: 'card',
+        rewardPs: 0,
+        rewardItemId: String(card?.id || '').trim(),
+        rewardItemName,
+        rewardLabel: `${rewardItemName}を獲得`
+    };
+}
+
 function getCardName(card) {
     if (!card) return '';
     if (card.isArcana) {
@@ -533,7 +555,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                 return res.status(500).json({ error: 'TarotDeckEmpty' });
             }
             const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
-            const rewardPs = getRewardPoints(card);
+            const reward = buildFortuneReward(card, orientation);
             const result = {
                 dayKey: todayKey,
                 drawnAt: new Date().toISOString(),
@@ -545,11 +567,20 @@ function initializeTarotFortuneRoutes(app, deps) {
                 orientation,
                 cardName: getCardName(card),
                 fortune: getFortuneText(card, orientation),
-                rewardPs
+                rewardType: reward.rewardType,
+                rewardPs: reward.rewardPs,
+                rewardItemId: reward.rewardItemId,
+                rewardItemName: reward.rewardItemName,
+                rewardLabel: reward.rewardLabel
             };
 
-            const idempotencyId = `tarot-fortune-${playFabId}-${todayKey}`;
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, rewardPs, { idempotencyId });
+            if (reward.rewardType === 'ps' && reward.rewardPs > 0) {
+                const idempotencyId = `tarot-fortune-ps-${playFabId}-${todayKey}`;
+                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, reward.rewardPs, { idempotencyId });
+            } else if (reward.rewardType === 'card' && reward.rewardItemId) {
+                const idempotencyId = `tarot-fortune-card-${playFabId}-${todayKey}-${reward.rewardItemId}`;
+                await addEconomyItem(playFabId, reward.rewardItemId, 1, { idempotencyId });
+            }
             await writeFortuneRecord(playFabId, result, promisifyPlayFab, PlayFabServer);
             let dailyBountyReward = null;
             try {
@@ -563,7 +594,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                 ok: true,
                 alreadyClaimed: false,
                 currency: VIRTUAL_CURRENCY_CODE,
-                awarded: rewardPs,
+                awarded: reward.rewardPs,
                 balance,
                 result,
                 dailyBountyReward

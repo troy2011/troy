@@ -98,7 +98,7 @@ function computeConstructionStatus(buildings) {
 // ショップ関連定数
 const SHOP_BUILDING_CATEGORIES = {
     weapon_shop: ['Weapon'],
-    armor_shop: ['Armor', 'Shield'],
+    armor_shop: ['Armor', 'Shield', 'Offhand'],
     item_shop: ['Consumable']
 };
 

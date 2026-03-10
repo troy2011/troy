@@ -8,6 +8,36 @@ const {
     getPlayerContributionTotal
 } = require('./playerLevel');
 const resourceStorage = require('./resourceStorage');
+const {
+    TAROT_MAJOR_SLOT,
+    TAROT_EQUIPMENT_SLOT_TO_KEY,
+    TAROT_MANIFESTATION_SLOT_TO_KEY,
+    TAROT_MANIFESTATION_SLOTS,
+    isTarotEquipmentSlot,
+    canEquipTarotItemToSlot,
+    getStarterMajorArcanaItemId,
+    getCanonicalManifestationSlot,
+    isTarotManifestationSlot,
+    buildTarotManifestationEntry,
+    parseStoredEquipmentValue,
+    isTarotManifestationEntry,
+    isTarotMinorCategory,
+    isTarotMajorCategory
+} = require('./tarotCards');
+const {
+    TROY_SKILLS_DATA_KEY,
+    LEGACY_TROY_SKILLS_DATA_KEY,
+    TAROT_AWAKENINGS_DATA_KEY,
+    MINOR_SKILL_MAX_LEVEL,
+    MAJOR_AWAKEN_MAX_LEVEL,
+    parseJsonValue,
+    getMinorSkillId,
+    buildMinorSkillState,
+    mapSkillsBySourceItem
+} = require('./tarotSkills');
+const {
+    getMajorArcanaAwakeningState
+} = require('./tarotAwakenings');
 
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
@@ -116,6 +146,100 @@ function initializeInventoryRoutes(app, deps) {
             return playFabId;
         }
         return requireAuthenticatedPlayFabId(req, res, playFabId);
+    }
+
+    async function getPlayerReadOnlyData(playFabId, keys) {
+        return promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: Array.isArray(keys) ? keys : []
+        });
+    }
+
+    async function getPlayerDisplayName(playFabId) {
+        try {
+            const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true }
+            });
+            return String(profile?.PlayerProfile?.DisplayName || '').trim();
+        } catch (error) {
+            console.warn('[inventory] display name resolve failed:', error?.errorMessage || error?.message || error);
+            return '';
+        }
+    }
+
+    async function getPlayerNation(playFabId) {
+        const readOnly = await getPlayerReadOnlyData(playFabId, ['Nation']);
+        return String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+    }
+
+    async function getPlayerTarotProgress(playFabId) {
+        const readOnly = await getPlayerReadOnlyData(playFabId, [
+            TROY_SKILLS_DATA_KEY,
+            LEGACY_TROY_SKILLS_DATA_KEY,
+            TAROT_AWAKENINGS_DATA_KEY
+        ]);
+        const skills = parseJsonValue(
+            readOnly?.Data?.[TROY_SKILLS_DATA_KEY]?.Value
+            || readOnly?.Data?.[LEGACY_TROY_SKILLS_DATA_KEY]?.Value,
+            {}
+        );
+        const awakenings = parseJsonValue(readOnly?.Data?.[TAROT_AWAKENINGS_DATA_KEY]?.Value, {});
+        return { skills, awakenings };
+    }
+
+    async function savePlayerTarotProgress(playFabId, { skills, awakenings }) {
+        const updateData = {};
+        if (skills) {
+            updateData[TROY_SKILLS_DATA_KEY] = JSON.stringify(skills);
+        }
+        if (awakenings) {
+            updateData[TAROT_AWAKENINGS_DATA_KEY] = JSON.stringify(awakenings);
+        }
+        if (!Object.keys(updateData).length) return;
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: updateData,
+            Permission: 'Public'
+        });
+    }
+
+    function getInventoryItemTotal(items, itemId) {
+        const targetId = String(itemId || '').trim();
+        if (!targetId) return 0;
+        return (items || []).reduce((total, item) => {
+            const currentId = String(item?.Id || item?.ItemId || '').trim();
+            if (currentId !== targetId) return total;
+            return total + (getItemAmount(item) || 0);
+        }, 0);
+    }
+
+    async function ensureStarterMajorArcanaEquipped(playFabId) {
+        const readOnly = await getPlayerReadOnlyData(playFabId, [TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana, 'Nation']);
+        const currentMajor = String(readOnly?.Data?.[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || '').trim();
+        if (currentMajor) {
+            return currentMajor;
+        }
+        const nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        const starterMajorId = getStarterMajorArcanaItemId(nation);
+        if (!starterMajorId) return '';
+
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const items = await getAllInventoryItems(entityKey);
+        if (getInventoryItemTotal(items, starterMajorId) <= 0) {
+            await addEconomyItem(playFabId, starterMajorId, 1, {
+                idempotencyId: `starter-major-${playFabId}-${starterMajorId}`
+            });
+        }
+
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: {
+                [TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]: starterMajorId
+            },
+            Permission: 'Public'
+        });
+        return starterMajorId;
     }
 
     async function getPlayerStatsMap(playFabId) {
@@ -277,6 +401,7 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[インベントリ取得] ${playFabId} の持ち物を取得します...`);
         try {
+            await ensureStarterMajorArcanaEquipped(playFabId);
             const { currentStats } = await applyOfflineMpRecovery(playFabId);
             let experience = getPlayerContributionTotal(currentStats);
             if (typeof ensureDailyBountyConversion === 'function') {
@@ -312,16 +437,26 @@ function initializeInventoryRoutes(app, deps) {
             });
             const inventoryList = Array.from(itemMap.values());
             const virtualCurrency = getVirtualCurrencyMap(items);
+            const { skills: tarotSkills, awakenings: tarotAwakenings } = await getPlayerTarotProgress(playFabId);
             let isKing = false;
+            let equippedMajorArcanaId = '';
             try {
                 const readOnlyData = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                     PlayFabId: playFabId,
-                    Keys: ['IsKing']
+                    Keys: ['IsKing', TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]
                 });
                 isKing = resolveIsKingFlag(readOnlyData?.Data);
+                equippedMajorArcanaId = String(readOnlyData?.Data?.[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || '').trim();
             } catch (rankError) {
                 console.warn('[Inventory] resolve isKing failed:', rankError?.errorMessage || rankError?.message || rankError);
             }
+            const activeTarotAwakening = equippedMajorArcanaId
+                ? getMajorArcanaAwakeningState({
+                    itemId: equippedMajorArcanaId,
+                    name: catalogCache?.[equippedMajorArcanaId]?.DisplayName || equippedMajorArcanaId,
+                    customData: catalogCache?.[equippedMajorArcanaId] || {}
+                }, tarotAwakenings)
+                : null;
             const currencyKeys = Object.keys(virtualCurrency || {});
             console.log('[Inventory] currency summary', {
                 playFabId,
@@ -335,7 +470,11 @@ function initializeInventoryRoutes(app, deps) {
                 experience,
                 contribution: experience,
                 level: Number(currentStats?.Level || 1) || 1,
-                isKing
+                isKing,
+                tarotSkills,
+                tarotSkillByCard: mapSkillsBySourceItem(tarotSkills),
+                tarotAwakenings,
+                activeTarotAwakening
             });
         } catch (error) {
             console.error('[インベントリ取得] 取得失敗', error.errorMessage || error.message || error);
@@ -350,21 +489,64 @@ function initializeInventoryRoutes(app, deps) {
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
 
-        const validSlots = { 'RightHand': 'Equipped_RightHand', 'LeftHand': 'Equipped_LeftHand', 'Armor': 'Equipped_Armor' };
+        const validSlots = {
+            RightHand: 'Equipped_RightHand',
+            LeftHand: 'Equipped_LeftHand',
+            Armor: 'Equipped_Armor',
+            Accessory: 'Equipped_Accessory',
+            ...TAROT_EQUIPMENT_SLOT_TO_KEY
+        };
         const dataKey = validSlots[slot];
         if (!dataKey) return res.status(400).json({ error: '不正なスロットです。' });
 
         const dataToUpdate = {};
 
         if (itemId) {
-            dataToUpdate[dataKey] = itemId;
             const itemData = catalogCache[itemId];
-            if (itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
+            const normalizedCategory = String(itemData?.Category || '').trim();
+            const isTwoHandedWeapon = normalizedCategory === 'Weapon'
+                && (Number(itemData?.sprite_w || 0) > 32 || Number(itemData?.sprite_h || 0) > 32);
+            if (isTarotEquipmentSlot(slot)) {
+                if (!itemData || !canEquipTarotItemToSlot(itemData, slot)) {
+                    return res.status(400).json({ error: 'このカードはその枠に装備できません。' });
+                }
+                if (slot === TAROT_MAJOR_SLOT) {
+                    const entityKey = await getEntityKeyForPlayFabId(playFabId);
+                    const items = await getAllInventoryItems(entityKey);
+                    if (getInventoryItemTotal(items, itemId) <= 0) {
+                        return res.status(400).json({ error: 'その大アルカナを所持していません。' });
+                    }
+                }
+            } else if (slot === 'RightHand') {
+                if (normalizedCategory !== 'Weapon') {
+                    return res.status(400).json({ error: 'この装備は右手に装備できません。' });
+                }
+            } else if (slot === 'LeftHand') {
+                if (!['Weapon', 'Shield', 'Offhand'].includes(normalizedCategory)) {
+                    return res.status(400).json({ error: 'この装備は左手に装備できません。' });
+                }
+                if (isTwoHandedWeapon) {
+                    return res.status(400).json({ error: '両手武器は左手に装備できません。' });
+                }
+            } else if (slot === 'Armor') {
+                if (normalizedCategory !== 'Armor') {
+                    return res.status(400).json({ error: 'この装備は防具枠に装備できません。' });
+                }
+            } else if (slot === 'Accessory') {
+                if (normalizedCategory !== 'Accessory') {
+                    return res.status(400).json({ error: 'この装備はアクセサリー枠に装備できません。' });
+                }
+            }
+            dataToUpdate[dataKey] = itemId;
+            if (itemData && isTwoHandedWeapon) {
                 console.log(`[装備] 両手武器 (${itemId}) を装備します`);
                 dataToUpdate['Equipped_RightHand'] = itemId;
                 dataToUpdate['Equipped_LeftHand'] = null;
             }
         } else {
+            if (slot === TAROT_MAJOR_SLOT) {
+                return res.status(400).json({ error: '体の大アルカナは外せません。' });
+            }
             const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
             const currentRightHandId = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
             const itemData = currentRightHandId ? catalogCache[currentRightHandId] : null;
@@ -402,18 +584,239 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[装備取得] ${playFabId} の装備を取得します...`);
         try {
+            await ensureStarterMajorArcanaEquipped(playFabId);
+            const equipmentKeys = [
+                'Equipped_RightHand',
+                'Equipped_LeftHand',
+                'Equipped_Armor',
+                'Equipped_Accessory',
+                TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana
+            ];
             const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId, Keys: ["Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor"]
+                PlayFabId: playFabId, Keys: equipmentKeys
             });
             const equipment = {};
-            if (result.Data && result.Data.Equipped_RightHand) equipment.RightHand = result.Data.Equipped_RightHand.Value;
-            if (result.Data && result.Data.Equipped_LeftHand) equipment.LeftHand = result.Data.Equipped_LeftHand.Value;
-            if (result.Data && result.Data.Equipped_Armor) equipment.Armor = result.Data.Equipped_Armor.Value;
+            const assignEquipmentValue = (slotName, rawValue) => {
+                const parsed = parseStoredEquipmentValue(rawValue);
+                if (parsed === null || parsed === undefined || parsed === '') return;
+                equipment[slotName] = parsed;
+            };
+            assignEquipmentValue('RightHand', result?.Data?.Equipped_RightHand?.Value || null);
+            assignEquipmentValue('LeftHand', result?.Data?.Equipped_LeftHand?.Value || null);
+            assignEquipmentValue('Armor', result?.Data?.Equipped_Armor?.Value || null);
+            assignEquipmentValue('Accessory', result?.Data?.Equipped_Accessory?.Value || null);
+            assignEquipmentValue(TAROT_MAJOR_SLOT, result?.Data?.[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || null);
             console.log('[装備取得] 完了', equipment);
             res.json({ equipment: equipment });
         } catch (error) {
             console.error('[装備取得] エラー', error.errorMessage);
             res.status(500).json({ error: '装備の取得に失敗しました。', details: error.errorMessage });
+        }
+    });
+
+    app.post('/api/manifest-tarot-card', async (req, res) => {
+        let { playFabId, itemId, slot } = req.body || {};
+        if (!playFabId || !itemId || !slot) {
+            return res.status(400).json({ error: 'IDまたは具現化先の情報がありません。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        const normalizedSlot = getCanonicalManifestationSlot(slot);
+        if (!isTarotManifestationSlot(normalizedSlot)) {
+            return res.status(400).json({ error: '不正な具現化先です。' });
+        }
+
+        try {
+            const minorCardData = catalogCache[itemId];
+            if (!minorCardData || !isTarotMinorCategory(minorCardData.Category)) {
+                return res.status(400).json({ error: 'そのカードは具現化できません。' });
+            }
+
+            const majorItemId = await ensureStarterMajorArcanaEquipped(playFabId);
+            if (!majorItemId) {
+                return res.status(400).json({ error: '体の大アルカナが設定されていません。' });
+            }
+            const majorCardData = catalogCache[majorItemId];
+            if (!majorCardData) {
+                return res.status(400).json({ error: '体の大アルカナ情報が見つかりません。' });
+            }
+
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const inventoryItems = await getAllInventoryItems(entityKey);
+            if (getInventoryItemTotal(inventoryItems, itemId) <= 0) {
+                return res.status(400).json({ error: '具現化に使うカードを所持していません。' });
+            }
+
+            const manifestedByName = await getPlayerDisplayName(playFabId);
+            const manifestation = buildTarotManifestationEntry(
+                normalizedSlot,
+                { itemId: majorItemId, name: majorCardData.DisplayName || majorItemId, customData: majorCardData },
+                { itemId, name: minorCardData.DisplayName || itemId, customData: minorCardData },
+                {
+                    majorItemId,
+                    sourceCardId: itemId,
+                    sourceCardName: minorCardData.DisplayName || itemId,
+                    manifestedByPlayFabId: playFabId,
+                    manifestedByName,
+                    catalogCache
+                }
+            );
+            const manifestationKey = TAROT_MANIFESTATION_SLOT_TO_KEY[normalizedSlot];
+            const nowStamp = Date.now();
+
+            await subtractEconomyItem(playFabId, itemId, 1, {
+                idempotencyId: `manifest-tarot-${playFabId}-${normalizedSlot}-${itemId}-${nowStamp}`
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: {
+                    [manifestationKey]: JSON.stringify(manifestation)
+                },
+                Permission: 'Public'
+            });
+
+            return res.json({
+                success: true,
+                slot: normalizedSlot,
+                manifestation
+            });
+        } catch (error) {
+            console.error('[manifest-tarot-card] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: 'カードの具現化に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
+        }
+    });
+
+    app.post('/api/study-tarot-card', async (req, res) => {
+        let { playFabId, itemId } = req.body || {};
+        if (!playFabId || !itemId) {
+            return res.status(400).json({ error: '習得に使うカード情報がありません。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const minorCardData = catalogCache[itemId];
+            if (!minorCardData || !isTarotMinorCategory(minorCardData.Category)) {
+                return res.status(400).json({ error: 'そのカードでは術を習得できません。' });
+            }
+
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const inventoryItems = await getAllInventoryItems(entityKey);
+            if (getInventoryItemTotal(inventoryItems, itemId) <= 0) {
+                return res.status(400).json({ error: '習得に使うカードを所持していません。' });
+            }
+
+            const { skills, awakenings } = await getPlayerTarotProgress(playFabId);
+            const skillId = getMinorSkillId(itemId, minorCardData);
+            const currentSkill = skills?.[skillId] || null;
+            const nextLevel = (Number(currentSkill?.level || 0) || 0) + 1;
+            if (nextLevel > MINOR_SKILL_MAX_LEVEL) {
+                return res.status(400).json({ error: 'この術はすでに最大まで修めています。' });
+            }
+
+            const updatedSkill = buildMinorSkillState(itemId, {
+                ...minorCardData,
+                DisplayName: minorCardData.DisplayName || itemId
+            }, nextLevel, currentSkill);
+            updatedSkill.learnedAt = currentSkill?.learnedAt || new Date().toISOString();
+            updatedSkill.copiesSpent = (Number(currentSkill?.copiesSpent || 0) || 0) + 1;
+
+            const updatedSkills = {
+                ...(skills || {}),
+                [skillId]: updatedSkill
+            };
+            const nowStamp = Date.now();
+            await subtractEconomyItem(playFabId, itemId, 1, {
+                idempotencyId: `study-tarot-${playFabId}-${itemId}-${nowStamp}`
+            });
+            await savePlayerTarotProgress(playFabId, {
+                skills: updatedSkills,
+                awakenings
+            });
+
+            return res.json({
+                success: true,
+                action: currentSkill ? 'upgraded' : 'learned',
+                skill: updatedSkill,
+                tarotSkills: updatedSkills,
+                tarotSkillByCard: mapSkillsBySourceItem(updatedSkills),
+                message: currentSkill
+                    ? `${updatedSkill.name} が Lv${updatedSkill.level} になった。`
+                    : `${updatedSkill.name} を習得した。`
+            });
+        } catch (error) {
+            console.error('[study-tarot-card] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: 'タロットカードからの習得に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
+        }
+    });
+
+    app.post('/api/awaken-major-arcana', async (req, res) => {
+        let { playFabId, itemId } = req.body || {};
+        if (!playFabId || !itemId) {
+            return res.status(400).json({ error: '覚醒に使う大アルカナ情報がありません。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const majorCardData = catalogCache[itemId];
+            if (!majorCardData || !isTarotMajorCategory(majorCardData.Category)) {
+                return res.status(400).json({ error: 'そのカードは大アルカナではありません。' });
+            }
+
+            const currentMajorId = await ensureStarterMajorArcanaEquipped(playFabId);
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const inventoryItems = await getAllInventoryItems(entityKey);
+            const totalCopies = getInventoryItemTotal(inventoryItems, itemId);
+            const requiredCopies = currentMajorId === itemId ? 2 : 1;
+            if (totalCopies < requiredCopies) {
+                return res.status(400).json({
+                    error: currentMajorId === itemId
+                        ? '装着中の体を残すため、この大アルカナは予備が1枚必要です。'
+                        : '覚醒に使う大アルカナを所持していません。'
+                });
+            }
+
+            const { skills, awakenings } = await getPlayerTarotProgress(playFabId);
+            const currentLevel = Number(awakenings?.[itemId] || 0) || 0;
+            if (currentLevel >= MAJOR_AWAKEN_MAX_LEVEL) {
+                return res.status(400).json({ error: 'この大アルカナはすでに最大まで覚醒しています。' });
+            }
+
+            const updatedAwakenings = {
+                ...(awakenings || {}),
+                [itemId]: currentLevel + 1
+            };
+            const nowStamp = Date.now();
+            await subtractEconomyItem(playFabId, itemId, 1, {
+                idempotencyId: `awaken-arcana-${playFabId}-${itemId}-${nowStamp}`
+            });
+            await savePlayerTarotProgress(playFabId, {
+                skills,
+                awakenings: updatedAwakenings
+            });
+
+            return res.json({
+                success: true,
+                itemId,
+                awakeningLevel: updatedAwakenings[itemId],
+                maxLevel: MAJOR_AWAKEN_MAX_LEVEL,
+                tarotAwakenings: updatedAwakenings,
+                message: `${majorCardData.DisplayName || itemId} の覚醒が Lv${updatedAwakenings[itemId]} になった。`
+            });
+        } catch (error) {
+            console.error('[awaken-major-arcana] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: '大アルカナの覚醒に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 

@@ -734,7 +734,7 @@ body[data-sea-tone="night"] .home-hero-card {
 /* 装備スロット - 洗練されたデザイン */
 #equipmentGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 12px;
     width: 100%;
     margin-top: 16px;
@@ -845,6 +845,15 @@ body[data-sea-tone="night"] .home-hero-card {
     color: var(--accent-color);
 }
 
+.major-arcana-slot .equip-slot-name,
+.weapon-slot .equip-slot-name,
+.shield-slot .equip-slot-name,
+.armor-slot .equip-slot-name,
+.accessory-slot .equip-slot-name {
+    min-height: 40px;
+    -webkit-line-clamp: 3;
+}
+
 /* ステータス表示 */
 .equip-slot-stats {
     display: flex;
@@ -863,7 +872,8 @@ body[data-sea-tone="night"] .home-hero-card {
     color: var(--hp-color);
     font-weight: 700;
     border: 1px solid rgba(16, 185, 129, 0.3);
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .equip-slot-stats span.stat-atk {
@@ -912,6 +922,535 @@ body[data-sea-tone="night"] .home-hero-card {
 
 .armor-slot .equip-slot-icon {
     filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+}
+
+.major-arcana-slot .equip-slot-icon {
+    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.55));
+}
+
+.minor-arcana-slot .equip-slot-icon {
+    filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.55));
+}
+
+.accessory-slot .equip-slot-icon {
+    filter: drop-shadow(0 0 10px rgba(244, 114, 182, 0.55));
+}
+
+.tarot-equip-guide {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.tarot-equip-guide-chip {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.72));
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.tarot-equip-guide-chip strong {
+    color: var(--accent-color);
+}
+
+.tarot-loadout-panel {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background:
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 35%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.76));
+}
+
+.tarot-loadout-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tarot-loadout-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.tarot-loadout-header p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--text-sub);
+    line-height: 1.5;
+}
+
+.tarot-loadout-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--accent-color);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tarot-loadout-role {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.68)),
+        radial-gradient(circle at top right, rgba(148, 163, 184, 0.12), transparent 32%);
+}
+
+.tarot-loadout-role.is-active {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow:
+        0 0 0 1px rgba(245, 158, 11, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tarot-loadout-role-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-sub);
+    font-weight: 700;
+}
+
+.tarot-loadout-role-main {
+    margin-top: 4px;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.tarot-loadout-role.is-active .tarot-loadout-role-main {
+    color: #fde68a;
+}
+
+.tarot-loadout-role-bonus {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+    color: rgba(226, 232, 240, 0.9);
+}
+
+.tarot-loadout-role.is-active .tarot-loadout-role-bonus {
+    color: #fef3c7;
+}
+
+.tarot-loadout-role-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-sub);
+}
+
+.tarot-loadout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.tarot-loadout-card {
+    --loadout-accent: rgba(148, 163, 184, 0.34);
+    --loadout-accent-strong: rgba(226, 232, 240, 0.54);
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.14), transparent 30%),
+        linear-gradient(180deg, rgba(17, 24, 39, 0.82), rgba(15, 23, 42, 0.94));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 16px 28px -20px rgba(0, 0, 0, 0.92);
+    min-height: 188px;
+    overflow: hidden;
+}
+
+.tarot-loadout-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(145deg, rgba(248, 250, 252, 0.12) 0 26%, transparent 30%),
+        linear-gradient(145deg, rgba(248, 250, 252, 0.02) 0 50%, var(--loadout-accent) 52% 100%);
+    opacity: 0.96;
+}
+
+.tarot-loadout-card[data-suit="wand"] {
+    --loadout-accent: rgba(127, 29, 29, 0.6);
+    --loadout-accent-strong: rgba(254, 202, 202, 0.9);
+}
+
+.tarot-loadout-card[data-suit="sword"] {
+    --loadout-accent: rgba(146, 114, 12, 0.58);
+    --loadout-accent-strong: rgba(253, 224, 71, 0.88);
+}
+
+.tarot-loadout-card[data-suit="cup"] {
+    --loadout-accent: rgba(30, 64, 175, 0.58);
+    --loadout-accent-strong: rgba(191, 219, 254, 0.9);
+}
+
+.tarot-loadout-card[data-suit="pentacle"] {
+    --loadout-accent: rgba(21, 128, 61, 0.56);
+    --loadout-accent-strong: rgba(187, 247, 208, 0.88);
+}
+
+.tarot-loadout-card[data-suit="all"] {
+    --loadout-accent: rgba(99, 102, 241, 0.54);
+    --loadout-accent-strong: rgba(255, 255, 255, 0.94);
+}
+
+.tarot-loadout-card.is-arcana[data-suit="all"]::before {
+    background:
+        radial-gradient(circle at 14% 14%, rgba(220, 38, 38, 0.96) 0 7px, transparent 8px),
+        radial-gradient(circle at 86% 14%, rgba(250, 204, 21, 0.96) 0 7px, transparent 8px),
+        radial-gradient(circle at 14% 86%, rgba(59, 130, 246, 0.96) 0 7px, transparent 8px),
+        radial-gradient(circle at 86% 86%, rgba(34, 197, 94, 0.96) 0 7px, transparent 8px),
+        linear-gradient(145deg, rgba(248, 250, 252, 0.18) 0 46%, rgba(99, 102, 241, 0.42) 54% 100%);
+}
+
+.tarot-loadout-card.is-arcana:not(.is-empty) {
+    border-color: rgba(255, 255, 255, 0.34);
+    box-shadow:
+        0 0 0 1px rgba(226, 232, 240, 0.22),
+        0 18px 32px -20px rgba(15, 23, 42, 0.9),
+        0 0 18px rgba(96, 165, 250, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tarot-loadout-card.is-empty {
+    opacity: 0.82;
+    border-style: dashed;
+}
+
+.tarot-loadout-slot {
+    position: relative;
+    z-index: 1;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-sub);
+    font-weight: 700;
+}
+
+.tarot-loadout-suit {
+    align-self: flex-start;
+    position: relative;
+    z-index: 1;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--loadout-accent-strong);
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tarot-loadout-visual {
+    width: 72px;
+    height: 120px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+        linear-gradient(180deg, rgba(148, 163, 184, 0.18), rgba(51, 65, 85, 0.32)),
+        rgba(15, 23, 42, 0.92);
+    box-shadow: 0 12px 20px -16px rgba(0, 0, 0, 0.9);
+    align-self: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.tarot-loadout-visual::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.2));
+    pointer-events: none;
+}
+
+.tarot-loadout-card.is-empty .tarot-loadout-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-sub);
+    font-size: 28px;
+}
+
+.tarot-combat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.tarot-combat-card {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.76));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 18px 28px -24px rgba(15, 23, 42, 0.94);
+}
+
+.tarot-combat-card-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-sub);
+    font-weight: 700;
+}
+
+.tarot-combat-card-title {
+    margin-top: 4px;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.tarot-combat-card-body {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-sub);
+}
+
+.tarot-awakening-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.tarot-awakening-lines {
+    display: grid;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.tarot-awakening-line {
+    padding: 7px 9px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.44);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    color: rgba(226, 232, 240, 0.92);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.tarot-skill-summary {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tarot-skill-summary-chip {
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.58);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    color: var(--text-sub);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.tarot-skill-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.tarot-skill-entry {
+    display: grid;
+    gap: 6px;
+    padding: 10px 11px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.48);
+}
+
+.tarot-skill-entry.is-usable {
+    border-color: rgba(34, 197, 94, 0.34);
+    background:
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.14), transparent 36%),
+        rgba(15, 23, 42, 0.58);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08);
+}
+
+.tarot-skill-entry.is-waiting {
+    opacity: 0.88;
+}
+
+.tarot-skill-entry-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tarot-skill-entry-name {
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.tarot-skill-entry-level {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.16);
+    color: #bfdbfe;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.tarot-skill-entry-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tarot-skill-entry-meta span {
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.62);
+    font-size: 10px;
+    color: var(--text-sub);
+}
+
+.tarot-skill-entry.is-usable .tarot-skill-entry-meta .is-status {
+    border-color: rgba(34, 197, 94, 0.28);
+    color: #bbf7d0;
+}
+
+.tarot-skill-entry.is-waiting .tarot-skill-entry-meta .is-status {
+    border-color: rgba(148, 163, 184, 0.2);
+    color: #e2e8f0;
+}
+
+.tarot-skill-entry-body {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-sub);
+}
+
+.tarot-loadout-number {
+    position: absolute;
+    left: 6px;
+    bottom: 5px;
+    z-index: 2;
+    min-width: 22px;
+    padding: 2px 5px;
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.74);
+    color: var(--loadout-accent-strong);
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: -0.03em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 8px 14px -10px rgba(0, 0, 0, 0.95);
+}
+
+.tarot-loadout-card.is-empty .tarot-loadout-number {
+    display: none;
+}
+
+.tarot-loadout-number:empty {
+    display: none;
+}
+
+.tarot-loadout-title {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.45;
+    text-align: center;
+}
+
+.tarot-loadout-detail {
+    position: relative;
+    z-index: 1;
+    font-size: 11px;
+    color: var(--text-sub);
+    line-height: 1.5;
+    text-align: center;
+}
+
+.inventory-tab-hint {
+    margin: 8px 0 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    background: rgba(15, 23, 42, 0.55);
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+#itemDetailButtons {
+    flex-wrap: wrap;
+}
+
+.item-detail-action-note {
+    flex-basis: 100%;
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    background: rgba(120, 53, 15, 0.18);
+    color: #fef3c7;
+    font-size: 12px;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+
+.major-arcana-slot .equip-slot-stats,
+.weapon-slot .equip-slot-stats,
+.shield-slot .equip-slot-stats,
+.armor-slot .equip-slot-stats,
+.accessory-slot .equip-slot-stats {
+    min-height: 28px;
 }
 
 /* レア度に応じた装備スロットのスタイル */
@@ -1028,6 +1567,14 @@ body[data-sea-tone="night"] .home-hero-card {
 
     .equip-slot-name {
         font-size: 10px;
+    }
+
+    .major-arcana-slot .equip-slot-name,
+    .weapon-slot .equip-slot-name,
+    .shield-slot .equip-slot-name,
+    .armor-slot .equip-slot-name,
+    .accessory-slot .equip-slot-name {
+        min-height: 34px;
     }
 
     .equip-slot::after {

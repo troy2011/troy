@@ -392,15 +392,46 @@ async function initializeAppFeatures() {
     document.querySelectorAll('.equip-slot').forEach(slot => {
         slot.addEventListener('click', async () => {
             const slotType = slot.dataset.slot;
+            const currentEquipment = Inventory.getMyCurrentEquipment();
+            const inventoryItems = Inventory.getMyInventory();
+            const slotKeyMap = {
+                rightHand: 'RightHand',
+                leftHand: 'LeftHand',
+                armor: 'Armor',
+                accessory: 'Accessory',
+                majorarcana: 'MajorArcana'
+            };
+            const currentSlotKey = slotKeyMap[slotType] || '';
+            const currentEntry = currentSlotKey ? currentEquipment?.[currentSlotKey] : null;
+            const currentItem = (currentEntry && typeof currentEntry === 'object' && currentEntry.customData)
+                ? currentEntry
+                : inventoryItems.find((item) => item.instances?.includes(currentEntry))
+                    || inventoryItems.find((item) => item.itemId === currentEntry)
+                    || null;
+            const currentCategory = String(currentItem?.customData?.Category || '').trim();
+            const isCurrentManifest = !!(currentEntry && typeof currentEntry === 'object' && currentEntry.customData?.Manifested);
             let targetCategory = 'All';
 
-            // スロットタイプに応じてカテゴリを決定
-            if (slotType === 'rightHand') {
+            if (slotType === 'majorarcana') {
+                targetCategory = 'TarotMajor';
+            } else if (isCurrentManifest) {
+                targetCategory = 'TarotMinor';
+            } else if (currentCategory === 'Weapon' || currentCategory === 'Shield' || currentCategory === 'Offhand' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
+                targetCategory = currentCategory;
+            } else if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
+                targetCategory = 'TarotMajor';
+            } else if (currentCategory === 'TarotMinor' || currentCategory === 'MinorArcana' || currentCategory === 'TarotArcanaMinor') {
+                targetCategory = 'TarotMinor';
+            } else if (slot.dataset.tarotManifest === 'true') {
+                targetCategory = 'TarotMinor';
+            } else if (slotType === 'rightHand') {
                 targetCategory = 'Weapon';
             } else if (slotType === 'leftHand') {
-                targetCategory = 'Shield';
+                targetCategory = 'Offhand';
             } else if (slotType === 'armor') {
                 targetCategory = 'Armor';
+            } else if (slotType === 'accessory') {
+                targetCategory = 'Accessory';
             }
 
             // インベントリタブに移動
@@ -1165,6 +1196,10 @@ async function startShipVoyageUI(shipId) {
 // HTMLのonclick属性から呼び出せるように、モジュールスコープ内の関数をwindowオブジェクトに登録します。
 window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
 window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, slot);
+window.manifestTarotCard = (itemId, slot) => Inventory.manifestTarotCard(myPlayFabId, itemId, slot);
+window.studyTarotCard = (itemId) => Inventory.studyTarotCard(myPlayFabId, itemId);
+window.awakenMajorArcana = (itemId) => Inventory.awakenMajorArcana(myPlayFabId, itemId);
+window.refreshInventory = (options = {}) => Inventory.getInventory(myPlayFabId, options);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);
 window.sellItem = (instanceId, itemId) => Inventory.sellItem(myPlayFabId, instanceId, itemId);
 window.showSellConfirmationModal = Inventory.showSellConfirmationModal;

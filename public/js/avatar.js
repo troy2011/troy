@@ -1,6 +1,8 @@
 // c:/Users/ikeda/my-liff-app/public/js/avatar.js
 
 import { AVATAR_PART_OFFSETS } from './config.js';
+import { TAROT_MAJOR_SLOT, buildTarotCardMeta, buildTarotLoadoutEntry } from './tarotCards.js';
+import { summarizeTarotLoadoutRole } from './tarotRoles.js';
 
 const spritePromiseCache = new Map();
 
@@ -52,6 +54,85 @@ function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = 
     const resolved = resolveSpritePathByAvatarColor(spritePath, itemCategory, avatarColor);
     if (!resolved || resolved === spritePath) return [spritePath];
     return [resolved, spritePath];
+}
+
+function setTarotLoadoutSprite(element, sprite) {
+    if (!element) return;
+    if (!sprite?.path) {
+        element.style.backgroundImage = 'none';
+        element.style.backgroundSize = '';
+        element.style.backgroundPosition = '';
+        element.textContent = '🂠';
+        return;
+    }
+    const width = Number(sprite.width || 48) || 48;
+    const height = Number(sprite.height || 80) || 80;
+    const cols = Math.max(1, Number(sprite.cols || 10) || 10);
+    const index = Math.max(0, Number(sprite.index || 0) || 0);
+    const targetWidth = element.clientWidth || 72;
+    const targetHeight = element.clientHeight || 120;
+    const scale = Math.min(targetWidth / width, targetHeight / height);
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    element.textContent = '';
+    element.style.backgroundImage = `url('${sprite.path}')`;
+    element.style.backgroundRepeat = 'no-repeat';
+    element.style.backgroundSize = `${cols * width * scale}px auto`;
+    element.style.backgroundPosition = `${-(col * width * scale)}px ${-(row * height * scale)}px`;
+}
+
+function renderTarotLoadoutGrid(majorArcanaItem, manifestationItems) {
+    const grid = document.getElementById('tarotLoadoutGrid');
+    const summary = document.getElementById('tarotLoadoutRole');
+    if (!grid) return;
+    const entries = [
+        buildTarotLoadoutEntry(TAROT_MAJOR_SLOT, majorArcanaItem),
+        ...manifestationItems.map(({ slot, item }) => buildTarotLoadoutEntry(slot, item))
+    ];
+    const role = summarizeTarotLoadoutRole(entries);
+    if (summary) {
+        summary.className = `tarot-loadout-role${role?.strength > 0 ? ' is-active' : ''}`;
+        summary.innerHTML = `
+            <div class="tarot-loadout-role-label">現在の役</div>
+            <div class="tarot-loadout-role-main">${role?.label || '未成立'}</div>
+            <div class="tarot-loadout-role-bonus">${role?.bonusText || '役ボーナスなし'}</div>
+            <div class="tarot-loadout-role-hint">${role?.hint || '5枚の札が揃うと役判定されます。'}</div>
+        `;
+    }
+    grid.innerHTML = '';
+    entries.forEach((entry) => {
+        const card = document.createElement('div');
+        card.className = `tarot-loadout-card${entry.isEmpty ? ' is-empty' : ''}${entry.isArcana ? ' is-arcana' : ''}`;
+        card.dataset.suit = entry.suitKey || 'none';
+
+        const slotEl = document.createElement('div');
+        slotEl.className = 'tarot-loadout-slot';
+        slotEl.textContent = entry.slotLabel;
+
+        const suitEl = document.createElement('div');
+        suitEl.className = 'tarot-loadout-suit';
+        suitEl.textContent = entry.suitLabel || '無属性';
+
+        const visualEl = document.createElement('div');
+        visualEl.className = 'tarot-loadout-visual';
+        setTarotLoadoutSprite(visualEl, entry.sprite);
+
+        const numberEl = document.createElement('div');
+        numberEl.className = 'tarot-loadout-number';
+        numberEl.textContent = entry.numberLabel || '';
+        visualEl.appendChild(numberEl);
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'tarot-loadout-title';
+        titleEl.textContent = entry.title;
+
+        const detailEl = document.createElement('div');
+        detailEl.className = 'tarot-loadout-detail';
+        detailEl.textContent = entry.detail;
+
+        card.append(slotEl, suitEl, visualEl, titleEl, detailEl);
+        grid.appendChild(card);
+    });
 }
 
 /**
@@ -185,6 +266,7 @@ export function preloadEquipmentSprites(equipment, itemSource, avatarColor = nul
     if (!equipment) return;
     const getItemDetails = (id) => {
         if (!id) return null;
+        if (typeof id === 'object' && id.customData) return id;
         if (Array.isArray(itemSource)) {
             return itemSource.find(i =>
                 (i.instances && i.instances.includes(id)) || i.itemId === id
@@ -198,7 +280,8 @@ export function preloadEquipmentSprites(equipment, itemSource, avatarColor = nul
     const items = [
         getItemDetails(equipment.RightHand),
         getItemDetails(equipment.LeftHand),
-        getItemDetails(equipment.Armor)
+        getItemDetails(equipment.Armor),
+        getItemDetails(equipment.Accessory)
     ].filter(Boolean);
     items.forEach((item) => {
         const path = item?.customData?.sprite_path;
@@ -320,6 +403,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     // 2. アイテム詳細を取得するヘルパー
     const getItemDetails = (id) => {
         if (!id) return null;
+        if (typeof id === 'object' && id.customData) return id;
         if (Array.isArray(itemSource)) {
             return itemSource.find(i =>
                 (i.instances && i.instances.includes(id)) || i.itemId === id
@@ -333,6 +417,8 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const isTwoHanded = rightHandItem?.customData && (parseInt(rightHandItem.customData.sprite_w, 10) > 32 || parseInt(rightHandItem.customData.sprite_h, 10) > 32);
     const leftHandItem = isTwoHanded ? null : getItemDetails(equipment.LeftHand);
     const armorItem = getItemDetails(equipment.Armor);
+    const accessoryItem = getItemDetails(equipment.Accessory);
+    const majorArcanaItem = getItemDetails(equipment.MajorArcana);
 
     // 相手の場合は左右のアイテムを入れ替えて表示
     const finalRightHandItem = isOpponent ? leftHandItem : rightHandItem;
@@ -405,6 +491,19 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
                     if (defValue && parseInt(defValue) > 0) {
                         stats.push(`<span class="stat-def">\u9632\u5fa1 +${defValue}</span>`);
                     }
+                    const magicValue = cd ? (cd.MagicPower ?? cd.Int ?? cd.Intelligence) : null;
+                    if (stats.length < 2 && magicValue && parseInt(magicValue) > 0) {
+                        stats.push(`<span class="stat-def">\u8853\u88dc +${magicValue}</span>`);
+                    }
+                    if (stats.length === 0) {
+                        const tarotMeta = buildTarotCardMeta(cd);
+                        const fallbackLine = slot === 'MajorArcana'
+                            ? (tarotMeta[1] || tarotMeta[0])
+                            : (cd?.SourceCardName ? `札: ${cd.SourceCardName}` : tarotMeta[0]);
+                        if (fallbackLine) {
+                            stats.push(`<span>${fallbackLine}</span>`);
+                        }
+                    }
 
                     statsEl.innerHTML = stats.join('');
                 }
@@ -432,6 +531,16 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             document.querySelector('.shield-slot'));
         updateEquipmentSlot('equippedArmor', 'equippedArmorStats', armorItem, 'Armor',
             document.querySelector('.armor-slot'));
+        updateEquipmentSlot('equippedAccessory', 'equippedAccessoryStats', accessoryItem, 'Accessory',
+            document.querySelector('.accessory-slot'));
+        updateEquipmentSlot('equippedMajorArcana', 'equippedMajorArcanaStats', majorArcanaItem, 'MajorArcana',
+            document.querySelector('.major-arcana-slot'));
+        renderTarotLoadoutGrid(majorArcanaItem, [
+            { slot: 'Armor', item: armorItem },
+            { slot: 'RightHand', item: rightHandItem },
+            { slot: 'LeftHand', item: leftHandItem },
+            { slot: 'Accessory', item: accessoryItem }
+        ]);
 
         // 両手持ち武器の場合、左手スロットをクリア
         if (isTwoHanded) {
