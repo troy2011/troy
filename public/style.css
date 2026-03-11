@@ -5281,6 +5281,11 @@ body.modal-lock .modal-overlay {
         linear-gradient(180deg, #4f46e5, #312e81);
 }
 
+#tarotKingdomDrawMajorButton,
+#tarotKingdomDrawMinorButton {
+    display: none !important;
+}
+
 .tarot-bet-popup {
     position: fixed;
     left: 50%;

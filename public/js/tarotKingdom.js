@@ -6168,7 +6168,8 @@ function dispatchSettlementCoinFxIfNeeded(data) {
 function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
-  const show = !!data;
+  const isMatchDone = String(s?.phase || '') === 'done';
+  const show = !!data || isMatchDone;
   ui.root?.classList.remove('is-settlement-open');
   if (!show) {
     if (confirmButton) {
@@ -6178,10 +6179,9 @@ function renderSettlement() {
     return;
   }
 
-  dispatchSettlementCoinFxIfNeeded(data);
+  if (data) dispatchSettlementCoinFxIfNeeded(data);
 
   if (confirmButton) {
-    const isMatchDone = String(s.phase || '') === 'done';
     const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && !isMatchDone;
     const canRestart = isMatchDone;
     let restartDisabled = false;
@@ -6236,8 +6236,12 @@ function updateButtons() {
     ui.passButton.classList.remove('is-minor-draw');
     ui.drawMinorButton.hidden = true;
     ui.drawMinorButton.disabled = true;
+    ui.drawMinorButton.style.display = 'none';
+    ui.drawMinorButton.setAttribute('aria-hidden', 'true');
     ui.drawMajorButton.hidden = true;
     ui.drawMajorButton.disabled = true;
+    ui.drawMajorButton.style.display = 'none';
+    ui.drawMajorButton.setAttribute('aria-hidden', 'true');
     if (ui.graveToggleButton) ui.graveToggleButton.disabled = true;
     return;
   }
@@ -6358,8 +6362,12 @@ function updateButtons() {
   ui.passButton.classList.toggle('is-minor-draw', drawMe);
   ui.drawMinorButton.hidden = true;
   ui.drawMinorButton.disabled = true;
+  ui.drawMinorButton.style.display = 'none';
+  ui.drawMinorButton.setAttribute('aria-hidden', 'true');
   ui.drawMajorButton.hidden = true;
   ui.drawMajorButton.disabled = true;
+  ui.drawMajorButton.style.display = 'none';
+  ui.drawMajorButton.setAttribute('aria-hidden', 'true');
   const actionReadyPhase = myTurn || drawMe;
   const popupButtons = [ui.graveToggleButton, ui.foldButton, ui.passButton];
   popupButtons.forEach((btn) => {
