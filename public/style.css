@@ -9693,3 +9693,255 @@ textarea {
         max-height: 22dvh;
     }
 }
+
+.king-page-note {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-sub);
+}
+
+.king-card,
+.king-editor-card,
+.troy-admin-card {
+    position: relative;
+    z-index: 1;
+}
+
+.king-card-label,
+.king-field-label,
+.troy-admin-label,
+.troy-admin-field-label {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-bottom: 6px;
+}
+
+.king-card-label,
+.troy-admin-label {
+    margin-bottom: 8px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.king-inline-actions,
+.troy-admin-actions {
+    flex-wrap: wrap;
+}
+
+.king-inline-actions button,
+.troy-admin-actions button {
+    flex: 1 1 132px;
+}
+
+.king-help-text,
+.troy-admin-help {
+    line-height: 1.55;
+}
+
+.king-announcement-current {
+    margin-top: 4px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.56);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.king-editor-card {
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.88)),
+        radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.08), transparent 58%);
+    box-shadow:
+        0 16px 28px rgba(2, 6, 23, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.troy-admin-grid {
+    gap: 12px;
+}
+
+.troy-admin-actions-wide {
+    align-items: flex-end;
+}
+
+.battle-status-card {
+    padding: 8px 8px 6px !important;
+    border-radius: 14px !important;
+    background: rgba(15, 23, 42, 0.82) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.battle-status-card-enemy {
+    border-color: rgba(239, 68, 68, 0.55) !important;
+}
+
+.battle-status-card-player {
+    border-color: rgba(16, 185, 129, 0.55) !important;
+}
+
+.battle-status-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.battle-health-track {
+    overflow: hidden;
+    border-radius: 999px !important;
+    background: rgba(51, 65, 85, 0.92) !important;
+}
+
+.battle-health-fill {
+    border-radius: inherit;
+}
+
+.battle-health-text {
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.battle-atb-track {
+    border-radius: 999px !important;
+    background: rgba(51, 65, 85, 0.9) !important;
+}
+
+.battle-atb-fill {
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.96), rgba(251, 191, 36, 0.96)) !important;
+}
+
+.battle-log-shell {
+    position: relative;
+}
+
+.battle-log-shell::before {
+    content: 'BATTLE LOG';
+    position: absolute;
+    left: 12px;
+    top: 8px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    color: #94a3b8;
+}
+
+.battle-command-shell {
+    position: relative;
+}
+
+.battle-command-placeholder {
+    margin: 0;
+    color: #94a3b8 !important;
+}
+
+@media (max-width: 640px) {
+    #bottomNav {
+        justify-content: space-between;
+        gap: 4px;
+        overflow: visible;
+        padding: 8px 6px calc(6px + var(--safe-bottom));
+    }
+
+    .nav-button {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        height: 56px;
+        padding: 6px 2px;
+        border-radius: 14px;
+    }
+
+    .nav-button .nav-icon {
+        font-size: 18px;
+    }
+
+    .nav-button span:last-child {
+        font-size: 8px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+    }
+
+    #tabContentTarot .tarot-bet-popup {
+        padding: 24px 8px 8px;
+    }
+
+    #tabContentTarot .tarot-betting-actions {
+        overflow: visible;
+        justify-content: space-between;
+        gap: 4px;
+    }
+
+    #tabContentTarot .tarot-betting-actions button {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        height: 50px;
+        min-height: 50px;
+        padding: 4px 1px;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        white-space: normal;
+        word-break: keep-all;
+        line-height: 1.12;
+        font-size: 10px;
+        letter-spacing: -0.01em;
+    }
+
+    #tabContentTarot #tarotKingdomPassButton {
+        flex: 1 1 0;
+        width: auto;
+    }
+
+    #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand {
+        --tarot-card-w: 22px;
+        --tarot-card-h: 36px;
+        --tarot-card-radius: 5px;
+        --tarot-card-padding: 1px;
+        --tarot-card-number-size: 10px;
+        --tarot-card-title-size: 6px;
+        gap: 2px;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        overflow: hidden;
+    }
+
+    #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand .tarot-card-art {
+        transform: translate(-50%, -50%) scale(0.42);
+    }
+
+    #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand .tarot-card.is-selected {
+        transform: translateY(-4px);
+    }
+
+    #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand .tarot-card.is-selected::after {
+        width: 11px;
+        height: 11px;
+        font-size: 8px;
+    }
+
+    .troy-admin-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .troy-admin-actions-wide {
+        align-items: stretch !important;
+    }
+
+    .troy-admin-actions-wide > div:last-child {
+        width: 100%;
+    }
+
+    .king-inline-actions button,
+    .troy-admin-actions button {
+        flex-basis: 100%;
+    }
+}

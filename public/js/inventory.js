@@ -297,6 +297,9 @@ function renderTarotProgressPanels() {
 }
 
 function getInventoryTabHint(category) {
+    if (category === 'Resource') {
+        return '船倉と倉庫の資源をまとめて確認できます。必要ならここから一括預け入れや補充を行います。';
+    }
     if (category === 'TarotMajor') {
         return '体は必須です。大アルカナは外せませんが、別の大アルカナに変更できます。';
     }
@@ -319,6 +322,9 @@ function updateInventoryTabHint(category) {
 }
 
 function getEmptyInventoryMessage(category) {
+    if (category === 'Resource') {
+        return '表示できる資源がありません。';
+    }
     if (category === 'TarotMajor') {
         return '大アルカナはまだありません。初期の体は国に応じて自動で装着されます。';
     }
@@ -738,7 +744,22 @@ export function switchInventoryTab(category) {
 
 export function renderInventoryGrid(category) {
     const gridEl = document.getElementById('inventoryGrid');
+    const resourceSummaryEl = document.getElementById('resourceSummary');
+    const sortEl = document.getElementById('inventorySort');
+    const isResourceCategory = category === 'Resource';
+
     gridEl.innerHTML = '';
+    if (resourceSummaryEl) {
+        resourceSummaryEl.style.display = isResourceCategory ? 'block' : 'none';
+    }
+    if (sortEl) {
+        sortEl.disabled = isResourceCategory;
+        sortEl.style.visibility = isResourceCategory ? 'hidden' : 'visible';
+    }
+
+    if (isResourceCategory) {
+        return;
+    }
 
     const filtered = (category === 'All')
         ? myInventory

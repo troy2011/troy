@@ -145,27 +145,27 @@
                     </div>
                 </div>
                 <div id="troyKingControls" class="content-area" style="display: none;">
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">TROY 営業状態</div>
-                        <div style="display:flex; align-items:center; gap:12px;">
+                    <div class="troy-admin-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="troy-admin-label" style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">TROY 営業状態</div>
+                        <div class="troy-admin-actions" style="display:flex; align-items:center; gap:12px;">
                             <div id="kingTroyStatus" style="font-weight:700;">CLOSE</div>
                             <button id="btnKingTroyOpen" style="background: var(--hp-color);">OPEN</button>
                             <button id="btnKingTroyClose" style="background: #4b5563;">CLOSE</button>
                         </div>
                     </div>
-                    <div id="kingGrantCard" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">受領 → PS 付与（QRコード）</div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div id="kingGrantCard" class="troy-admin-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="troy-admin-label" style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">受領 → PS 付与（QRコード）</div>
+                        <div class="troy-admin-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                             <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受取人 PlayFabId</div>
+                                <div class="troy-admin-field-label" style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受取人 PlayFabId</div>
                                 <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                                <div style="display:flex; gap:10px; margin-top: 8px;">
+                                <div class="troy-admin-actions" style="display:flex; gap:10px; margin-top: 8px;">
                                     <button id="btnKingScanReceiver" style="background: #374151;">QRで読み取り</button>
                                     <button id="btnKingClearReceiver" style="background: #4b5563;">クリア</button>
                                 </div>
                             </div>
                             <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受領金額（¥）</div>
+                                <div class="troy-admin-field-label" style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">受領金額（¥）</div>
                                 <div class="transfer-quick-row">
                                     <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
                                     <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
@@ -176,26 +176,26 @@
                                     <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
                                     <span>¥</span>
                                 </div>
-                                <div style="display:flex; gap:10px; margin-top: 8px;">
+                                <div class="troy-admin-actions" style="display:flex; gap:10px; margin-top: 8px;">
                                     <button id="btnKingGrantPs" style="background: var(--hp-color);">付与する</button>
                                 </div>
                             </div>
                         </div>
                         <div id="kingGrantPreview" style="margin-top: 10px; font-size: 12px; color: var(--text-sub);"></div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+                    <div class="troy-admin-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="troy-admin-actions troy-admin-actions-wide" style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
                             <div>
-                                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与倍率（10% × 倍率）</div>
+                                <div class="troy-admin-field-label" style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">付与倍率（10% × 倍率）</div>
                                 <input id="kingGrantMultiplierInput" type="number" min="0" step="0.1" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
                             </div>
                             <div style="flex:1;"></div>
-                            <div style="display:flex; gap:10px; align-items:flex-end;">
+                            <div class="troy-admin-actions" style="display:flex; gap:10px; align-items:flex-end;">
                                 <button id="btnKingSetGrantMultiplier" style="background: var(--accent-color);">倍率を保存</button>
                                 <button id="btnKingReload" style="background: #4b5563;">再読み込み</button>
                             </div>
                         </div>
-                        <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">受領金額の10% × 倍率をPSとして付与します。国庫には受領額がPSで加算されます。</div>
+                        <div class="troy-admin-help" style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">受領金額の10% × 倍率をPSとして付与します。国庫には受領額がPSで加算されます。</div>
                         <div id="kingTreasuryInfo" style="margin-top: 8px; font-size: 12px; color: var(--text-sub);"></div>
                     </div>
                 </div>
@@ -598,10 +598,6 @@
                 </div>
                 <!-- 資源 & 装備スロット -->
                 <div class="content-area avatar-card inventory-section active" data-panel="loadout">
-                    <div id="resourceSummary" class="resource-summary">
-                        <div class="resource-summary-title">資源</div>
-                        <div class="resource-summary-row" id="resourceSummaryRows"></div>
-                    </div>
                     <div class="avatar-container" id="avatar">
                         <div id="avatar-layer-body" class="avatar-layer"></div>
                         <div id="avatar-layer-head" class="avatar-layer"></div>
@@ -746,6 +742,7 @@
                     <p id="pointMessage" style="font-size:12px; color:var(--text-sub); margin: 4px 0 10px;"></p>
 
                     <div id="inventoryTabs">
+                        <button class="inventory-tab-btn" data-category="Resource">資源</button>
                         <button class="inventory-tab-btn active" data-category="All">すべて</button>
                         <button class="inventory-tab-btn" data-category="Weapon">武器</button>
                         <button class="inventory-tab-btn" data-category="Shield">盾</button>
@@ -758,6 +755,10 @@
                     </div>
                     <div id="inventoryTabHint" class="inventory-tab-hint">大アルカナで体を切り替え、小アルカナで4部位を具現化します。</div>
 
+                    <div id="resourceSummary" class="resource-summary" style="display:none;">
+                        <div class="resource-summary-title">資源</div>
+                        <div class="resource-summary-row" id="resourceSummaryRows"></div>
+                    </div>
                     <div id="inventoryGrid"></div>
                     <!-- 旧リスト表示用（非表示） -->
                     <ul id="inventoryList" style="display:none;"></ul>
@@ -893,44 +894,44 @@
             <div id="tabContentKing" class="tab-content" style="display: none;">
                 <div class="content-area">
                     <h2>王のページ</h2>
-                    <p style="font-size:12px; color:var(--text-sub);">このページは各国（島）グループの王だけが閲覧できます。</p>
+                    <p class="king-page-note">このページは各国（島）グループの王だけが閲覧できます。</p>
 
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">王の譲渡（QRコード）</div>
+                    <div class="king-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="king-card-label">王の譲渡（QRコード）</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">次の王（PlayFabId）</div>
+                            <div class="king-field-label">次の王（PlayFabId）</div>
                             <input id="kingTransferTargetId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                            <div style="display:flex; gap:10px; margin-top: 8px;">
+                            <div class="king-inline-actions" style="display:flex; gap:10px; margin-top: 8px;">
                                 <button id="btnKingScanTransferTarget" style="background: #374151;">QRで読み取り</button>
                                 <button id="btnKingTransfer" style="background: var(--danger-color);">王を譲渡</button>
                             </div>
-                            <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">譲渡後はこのページにアクセスできなくなります。</div>
+                            <div class="king-help-text" style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">譲渡後はこのページにアクセスできなくなります。</div>
                         </div>
                     </div>
 
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;">亡命の受け入れ（QRコード）</div>
+                    <div class="king-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="king-card-label">亡命の受け入れ（QRコード）</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">亡命希望者（PlayFabId）</div>
+                            <div class="king-field-label">亡命希望者（PlayFabId）</div>
                             <input id="kingExileTargetId" type="text" placeholder="QRで読み取り or 手入力" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px;" />
-                            <div style="display:flex; gap:10px; margin-top: 8px;">
+                            <div class="king-inline-actions" style="display:flex; gap:10px; margin-top: 8px;">
                                 <button id="btnKingScanExileTarget" style="background: #374151;">QRで読み取り</button>
                                 <button id="btnKingExile" style="background: var(--accent-color);">亡命させる</button>
                             </div>
-                            <div style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">島は全て手放し、亡命先の国付近に再配置されます。</div>
+                            <div class="king-help-text" style="margin-top: 8px; font-size: 11px; color: var(--text-sub);">島は全て手放し、亡命先の国付近に再配置されます。</div>
                         </div>
                     </div>
 
-                    <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">現在の告知</div>
-                        <div id="kingAnnouncementCurrent" style="white-space: pre-wrap; font-size: 14px;">-</div>
+                    <div class="king-card" style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                        <div class="king-card-label">現在の告知</div>
+                        <div id="kingAnnouncementCurrent" class="king-announcement-current" style="white-space: pre-wrap; font-size: 14px;">-</div>
                         <div id="kingAnnouncementMeta" style="margin-top: 6px; font-size: 11px; color: var(--text-sub);"></div>
                     </div>
 
-                    <div style="margin-top: 14px;">
-                        <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 6px;">新しい告知（200文字まで）</div>
+                    <div class="king-editor-card" style="margin-top: 14px;">
+                        <div class="king-field-label">新しい告知（200文字まで）</div>
                         <textarea id="kingAnnouncementInput" maxlength="200" rows="4" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #111827; color: #fff; font-size: 14px; resize: vertical;"></textarea>
-                        <div style="display:flex; gap:10px; margin-top: 10px;">
+                        <div class="king-inline-actions" style="display:flex; gap:10px; margin-top: 10px;">
                             <button id="btnKingSaveAnnouncement" style="background: var(--hp-color);">告知を更新</button>
                             <button id="btnKingReload2" style="background: #4b5563;">再読み込み</button>
                         </div>
@@ -1000,12 +1001,12 @@
             <div id="battleStage">
                 <!-- 相手 -->
                 <div class="battle-player-area" id="battlePlayerA">
-                    <div style="background:rgba(255,0,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #ef4444;">
-                        <div id="battlePlayerAName" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">Enemy</div>
-                        <div style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
-                            <div id="battlePlayerAHpBar" style="height:100%; width:100%; background:#ef4444; transition:width 0.3s;"></div>
+                    <div class="battle-status-card battle-status-card-enemy" style="background:rgba(255,0,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #ef4444;">
+                        <div id="battlePlayerAName" class="battle-status-name" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">Enemy</div>
+                        <div class="battle-health-track" style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
+                            <div id="battlePlayerAHpBar" class="battle-health-fill battle-health-fill-enemy" style="height:100%; width:100%; background:#ef4444; transition:width 0.3s;"></div>
                         </div>
-                        <div id="battlePlayerAHpText" style="font-size:10px;">-/-</div>
+                        <div id="battlePlayerAHpText" class="battle-health-text" style="font-size:10px;">-/-</div>
                     </div>
                     <div id="battle-avatar-A" class="battle-avatar-container">
                         <div id="battle-avatar-A-layer-body" class="avatar-layer"></div>
@@ -1017,20 +1018,20 @@
                         <div id="battle-avatar-A-layer-hand-left" class="avatar-layer"></div>
                         <div id="battle-avatar-A-layer-shield-left" class="avatar-layer"></div>
                     </div>
-                    <div style="height:4px; width:100%; background:#374151; margin-top:5px; border-radius:2px;">
+                    <div class="battle-atb-track battle-atb-track-enemy" style="height:4px; width:100%; background:#374151; margin-top:5px; border-radius:2px;">
                          <!-- 敵のATBは非表示でもよいが、表示するならここ -->
-                         <div id="battlePlayerAAtbBar" style="height:100%; width:0%; background:var(--accent-color);"></div>
+                         <div id="battlePlayerAAtbBar" class="battle-atb-fill" style="height:100%; width:0%; background:var(--accent-color);"></div>
                     </div>
                 </div>
 
                 <!-- 自分 -->
                 <div class="battle-player-area" id="battlePlayerB">
-                    <div style="background:rgba(0,255,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #10b981;">
-                        <div id="battlePlayerBName" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">You</div>
-                        <div style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
-                            <div id="battlePlayerBHpBar" style="height:100%; width:100%; background:#10b981; transition:width 0.3s;"></div>
+                    <div class="battle-status-card battle-status-card-player" style="background:rgba(0,255,0,0.1); padding:4px; border-radius:4px; width:100%; text-align:center; border:1px solid #10b981;">
+                        <div id="battlePlayerBName" class="battle-status-name" style="font-size:12px; overflow:hidden; text-overflow:ellipsis;">You</div>
+                        <div class="battle-health-track" style="height:6px; background:#374151; margin-top:2px; border-radius:3px;">
+                            <div id="battlePlayerBHpBar" class="battle-health-fill battle-health-fill-player" style="height:100%; width:100%; background:#10b981; transition:width 0.3s;"></div>
                         </div>
-                         <div id="battlePlayerBHpText" style="font-size:10px;">-/-</div>
+                         <div id="battlePlayerBHpText" class="battle-health-text" style="font-size:10px;">-/-</div>
                     </div>
                     <div id="battle-avatar-B" class="battle-avatar-container">
                         <div id="battle-avatar-B-layer-body" class="avatar-layer"></div>
@@ -1043,15 +1044,15 @@
                         <div id="battle-avatar-B-layer-shield-left" class="avatar-layer"></div>
                     </div>
                     <!-- 自分のATB -->
-                     <div style="height:8px; width:100%; background:#374151; margin-top:5px; border-radius:4px; overflow:hidden; border:1px solid #d97706;">
-                         <div id="battlePlayerBAtbBar" style="height:100%; width:0%; background:var(--accent-color); transition:width 0.1s linear;"></div>
+                     <div class="battle-atb-track battle-atb-track-player" style="height:8px; width:100%; background:#374151; margin-top:5px; border-radius:4px; overflow:hidden; border:1px solid #d97706;">
+                         <div id="battlePlayerBAtbBar" class="battle-atb-fill" style="height:100%; width:0%; background:var(--accent-color); transition:width 0.1s linear;"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="battleLogContainer" style="font-size:12px; color:#ccc;"></div>
-            <div id="battleCommandArea" style="min-height:50px; display:flex; align-items:center; justify-content:center;">
-                <p style="color:#6b7280; font-size:12px;">準備中...</p>
+            <div id="battleLogContainer" class="battle-log-shell" style="font-size:12px; color:#ccc;"></div>
+            <div id="battleCommandArea" class="battle-command-shell" style="min-height:50px; display:flex; align-items:center; justify-content:center;">
+                <p class="battle-command-placeholder" style="color:#6b7280; font-size:12px;">準備中...</p>
             </div>
         </div>
     </div>
