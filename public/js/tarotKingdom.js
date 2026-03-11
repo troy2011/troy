@@ -6220,15 +6220,23 @@ function updateButtons() {
       ui.startOfflineButton.hidden = true;
       ui.startOfflineButton.disabled = true;
     }
-    if (ui.restartButton) {
+  if (ui.restartButton) {
       ui.restartButton.hidden = true;
       ui.restartButton.disabled = true;
     }
     ui.playButton.disabled = true;
     ui.clearButton.disabled = true;
-    if (ui.foldButton) ui.foldButton.disabled = true;
+    if (ui.foldButton) {
+      ui.foldButton.disabled = true;
+      ui.foldButton.textContent = 'フォールド';
+      ui.foldButton.classList.remove('is-major-draw');
+    }
     ui.passButton.disabled = true;
+    ui.passButton.textContent = 'パス';
+    ui.passButton.classList.remove('is-minor-draw');
+    ui.drawMinorButton.hidden = true;
     ui.drawMinorButton.disabled = true;
+    ui.drawMajorButton.hidden = true;
     ui.drawMajorButton.disabled = true;
     if (ui.graveToggleButton) ui.graveToggleButton.disabled = true;
     return;
@@ -6251,6 +6259,8 @@ function updateButtons() {
     !isMatchDone;
   const myTurn = s.roundActive && s.phase === 'turn' && s.turn === me;
   const drawMe = s.roundActive && s.phase === 'draw' && s.pendingDraw === me;
+  const canDrawMinor = drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND;
+  const canDrawMajor = drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND;
   const hasSelected = !!(s.selected && s.selected.size > 0);
   const canClearSelection = hasSelected;
   const canToggleSort = !hasSelected && myHandCount > 1;
@@ -6330,18 +6340,28 @@ function updateButtons() {
     ui.clearButton.disabled = actionLocked || !(canClearSelection || canToggleSort);
   }
   if (ui.foldButton) {
-    ui.foldButton.textContent = kingdomLocalAutoFold ? 'フォールド中' : 'フォールド';
-    ui.foldButton.disabled = kingdomLocalAutoFold
-      ? false
-      : (actionLocked || !(s.roundActive && s.phase === 'turn' && !!s.trick));
-    ui.foldButton.classList.toggle('is-ready', !!(!ui.foldButton.disabled && (kingdomLocalAutoFold || myTurn)));
-    ui.foldButton.classList.toggle('is-active', kingdomLocalAutoFold);
+    if (drawMe) {
+      ui.foldButton.textContent = '★ドロー';
+      ui.foldButton.disabled = actionLocked || !canDrawMajor;
+    } else {
+      ui.foldButton.textContent = kingdomLocalAutoFold ? 'フォールド中' : 'フォールド';
+      ui.foldButton.disabled = kingdomLocalAutoFold
+        ? false
+        : (actionLocked || !(s.roundActive && s.phase === 'turn' && !!s.trick));
+    }
+    ui.foldButton.classList.toggle('is-ready', !!(!ui.foldButton.disabled && (drawMe || kingdomLocalAutoFold || myTurn)));
+    ui.foldButton.classList.toggle('is-active', !drawMe && kingdomLocalAutoFold);
+    ui.foldButton.classList.toggle('is-major-draw', drawMe);
   }
-  ui.passButton.disabled = actionLocked || !myTurn;
-  ui.drawMinorButton.disabled = actionLocked || !(drawMe && s.minorDeck.length > 0 && myHandCount < START_HAND);
-  ui.drawMajorButton.disabled = actionLocked || !(drawMe && s.majorDeck.length > 0 && myStars > 0 && myHandCount < START_HAND);
+  ui.passButton.textContent = drawMe ? 'ドロー' : 'パス';
+  ui.passButton.disabled = drawMe ? (actionLocked || !canDrawMinor) : (actionLocked || !myTurn);
+  ui.passButton.classList.toggle('is-minor-draw', drawMe);
+  ui.drawMinorButton.hidden = true;
+  ui.drawMinorButton.disabled = true;
+  ui.drawMajorButton.hidden = true;
+  ui.drawMajorButton.disabled = true;
   const actionReadyPhase = myTurn || drawMe;
-  const popupButtons = [ui.drawMajorButton, ui.drawMinorButton, ui.graveToggleButton, ui.foldButton, ui.passButton];
+  const popupButtons = [ui.graveToggleButton, ui.foldButton, ui.passButton];
   popupButtons.forEach((btn) => {
     if (!btn) return;
     const isFoldActive = btn === ui.foldButton && kingdomLocalAutoFold;
@@ -6844,14 +6864,31 @@ function bindUi() {
     }
     toggleLocalHandSortMode();
   });
+  const requestHumanDraw = (deckType) => {
+    const me = getLocalPlayerIndex();
+    requestHostAction({ type: 'draw', deckType }, () => {
+      if (s?.phase === 'draw' && s.pendingDraw === me) applyDrawChoice(deckType);
+    }).catch((error) => {
+      console.warn(`[tarotKingdom] draw ${deckType} action failed:`, error);
+    });
+  };
   ui.passButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
+    if (s?.roundActive && s.phase === 'draw' && s.pendingDraw === me) {
+      requestHumanDraw('minor');
+      return;
+    }
     if (!(s?.roundActive && s.phase === 'turn' && s.turn === me)) return;
     requestHostAction({ type: 'pass' }, () => passAction(me)).catch((error) => {
       console.warn('[tarotKingdom] pass action failed:', error);
     });
   });
   ui.foldButton?.addEventListener('click', () => {
+    const me = getLocalPlayerIndex();
+    if (s?.roundActive && s.phase === 'draw' && s.pendingDraw === me) {
+      requestHumanDraw('major');
+      return;
+    }
     if (kingdomLocalAutoFold) {
       clearLocalAutoFold();
       setLocalInfoMessage('フォールド解除', 900);
@@ -6870,22 +6907,8 @@ function bindUi() {
     setLocalInfoMessage('フォールド中: 場が流れるか、11バックか、コールで解除', 1400);
     render();
   });
-  ui.drawMinorButton?.addEventListener('click', () => {
-    const me = getLocalPlayerIndex();
-    requestHostAction({ type: 'draw', deckType: 'minor' }, () => {
-      if (s?.phase === 'draw' && s.pendingDraw === me) applyDrawChoice('minor');
-    }).catch((error) => {
-      console.warn('[tarotKingdom] draw minor action failed:', error);
-    });
-  });
-  ui.drawMajorButton?.addEventListener('click', () => {
-    const me = getLocalPlayerIndex();
-    requestHostAction({ type: 'draw', deckType: 'major' }, () => {
-      if (s?.phase === 'draw' && s.pendingDraw === me) applyDrawChoice('major');
-    }).catch((error) => {
-      console.warn('[tarotKingdom] draw major action failed:', error);
-    });
-  });
+  ui.drawMinorButton?.addEventListener('click', () => requestHumanDraw('minor'));
+  ui.drawMajorButton?.addEventListener('click', () => requestHumanDraw('major'));
   ui.graveToggleButton?.addEventListener('click', () => toggleGraveyard());
   ui.judgmentSkipButton?.addEventListener('click', () => {
     const me = getLocalPlayerIndex();
