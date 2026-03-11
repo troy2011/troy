@@ -97,11 +97,20 @@
                     </div>
                 </div>
                 <div class="content-area home-qr-card home-card">
+                    <div class="home-card-header">
+                        <span class="home-card-emoji">▣</span>
+                        <span class="home-card-title">MY QR</span>
+                    </div>
                     <div id="myQrArea" class="home-qr-area">
                         <canvas id="myQrCanvas"></canvas>
                     </div>
+                    <p class="home-card-note">受け取りやスキャン支払いに使います。</p>
                 </div>
                 <div class="content-area home-transfer-card home-card">
+                    <div class="home-card-header">
+                        <span class="home-card-emoji">↗</span>
+                        <span class="home-card-title">PS 送金</span>
+                    </div>
                     <div class="transfer-quick-row">
                         <button class="transfer-quick-btn" data-amount="100">100</button>
                         <button class="transfer-quick-btn" data-amount="500">500</button>
@@ -113,6 +122,7 @@
                         <span>PS</span>
                     </div>
                     <button id="btnScanPay" class="transfer-send-btn">渡す</button>
+                    <p class="home-card-note">金額を決めて相手の QR を読み取ります。</p>
                 </div>
             </div>
 
@@ -280,6 +290,7 @@
                         <button id="tarotModePoker" type="button" role="tab" aria-selected="false">タロット・ポーカー</button>
                         <button id="tarotModeKingdom" type="button" role="tab" aria-selected="false">タロットキングダム</button>
                     </div>
+                    <p class="tarot-game-select-note">短期決戦ならポーカー、長期戦ならキングダムです。</p>
                 </div>
                 <div id="tarotPokerRoot" class="content-area tarot-poker-root">
                     <div class="tarot-poker-header">
@@ -399,7 +410,7 @@
                         <div id="tarotJudgmentOptions" class="tarot-judgment-options"></div>
                     </div>
                     <div id="tarotResultText" class="tarot-result-text"></div>
-                    <div id="tarotLog" class="tarot-log"></div>
+                    <div id="tarotLog" class="tarot-log tarot-log--poker"></div>
                 </div>
                 <div id="tarotKingdomRoot" class="content-area tarot-kingdom-root" style="display:none;">
                     <div class="tarot-kingdom-header">
@@ -473,7 +484,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="tarotKingdomLog" class="tarot-log"></div>
+                    <div id="tarotKingdomLog" class="tarot-log tarot-log--kingdom"></div>
                 </div>
             </div>
 
@@ -518,6 +529,7 @@
 
                 <!-- 島コマンドパネル（下からスライドイン） -->
                 <div id="islandCommandPanel" class="island-command-panel">
+                    <div class="sheet-handle island-command-handle" aria-hidden="true"></div>
                     <div class="island-command-header">
                         <div class="respawn-info">
                             <span class="respawn-label">島:</span>
@@ -579,8 +591,13 @@
 
             <!-- 5. インベントリタブ -->
             <div id="tabContentInventory" class="tab-content" style="display: none;">
+                <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
+                    <button class="inventory-panel-btn active" data-panel="loadout" type="button">装備</button>
+                    <button class="inventory-panel-btn" data-panel="stats" type="button">能力</button>
+                    <button class="inventory-panel-btn" data-panel="items" type="button">持ち物</button>
+                </div>
                 <!-- 資源 & 装備スロット -->
-                <div class="content-area avatar-card">
+                <div class="content-area avatar-card inventory-section active" data-panel="loadout">
                     <div id="resourceSummary" class="resource-summary">
                         <div class="resource-summary-title">資源</div>
                         <div class="resource-summary-row" id="resourceSummaryRows"></div>
@@ -680,7 +697,7 @@
                 </div>
 
                 <!-- ステータス -->
-                <div class="content-area" id="playerStatsArea">
+                <div class="content-area inventory-section" id="playerStatsArea" data-panel="stats">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <h2>ステータス</h2>
                         <button id="btnGetStats" style="padding:6px 12px; font-size:12px;">更新</button>
@@ -717,7 +734,7 @@
                     </div>
                 </div>
 
-                <div class="content-area">
+                <div class="content-area inventory-section" data-panel="items">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <h2>アイテム</h2>
                         <select id="inventorySort" style="background: #374151; color: #fff; border: none; padding: 4px; border-radius: 4px; font-size:12px;">
@@ -750,30 +767,30 @@
 <!-- 5. QR/バトル/ギルドタブ -->
             <div id="tabContentQr" class="tab-content" style="display: none;">
                 <!-- QRバトル -->
-                <div class="content-area">
+                <div class="content-area qr-battle-card">
                     <h2>QRバトル</h2>
-                    <div id="battleArea">
-                        <button id="btnScanBattle" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+                    <div id="battleArea" class="battle-entry-card">
+                        <button id="btnScanBattle" class="battle-entry-btn">
                             <span style="font-size:24px;">⚔️</span>
                             対戦を挑む
                         </button>
-                        <p id="battleResult" style="font-size:12px; text-align:center;"></p>
+                        <p id="battleResult" class="battle-entry-result"></p>
                     </div>
                 </div>
 
                 <!-- ギルド機能エリア -->
-                <div class="content-area">
+                <div class="content-area guild-card">
                     <h2>ギルド</h2>
 
                     <!-- ギルド未加入時の表示 -->
-                    <div id="guildNotJoined" style="display: none;">
-                        <p style="text-align: center; color: var(--text-sub); margin: 20px 0;">ギルドに加入していません</p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <button id="btnCreateGuild" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding: 20px;">
+                    <div id="guildNotJoined" class="guild-empty-state" style="display: none;">
+                        <p class="guild-empty-copy">ギルドに加入していません</p>
+                        <div class="guild-entry-grid">
+                            <button id="btnCreateGuild" class="guild-entry-btn">
                                 <span style="font-size:24px;">🏴‍☠️</span>
                                 ギルド作成
                             </button>
-                            <button id="btnScanJoinGuild" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding: 20px;">
+                            <button id="btnScanJoinGuild" class="guild-entry-btn">
                                 <span style="font-size:24px;">📱</span>
                                 QRで加入
                             </button>
@@ -781,29 +798,29 @@
                     </div>
 
                     <!-- ギルド加入済み時の表示 -->
-                    <div id="guildJoined" style="display: none;">
-                        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div id="guildJoined" class="guild-joined-panel" style="display: none;">
+                        <div class="guild-summary-card">
+                            <div class="guild-summary-header">
                                 <h3 id="guildName" style="margin: 0; color: var(--accent-color);">ギルド名</h3>
-                                <span id="guildRole" style="font-size: 12px; color: var(--text-sub);">メンバー</span>
+                                <span id="guildRole" class="guild-role-pill">メンバー</span>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; margin-bottom: 12px;">
-                                <div>
+                            <div class="guild-stat-grid">
+                                <div class="guild-stat">
                                     <span style="color: var(--text-sub);">メンバー:</span>
                                     <span id="guildMemberCount" style="color: var(--text-main); font-weight: bold;">0</span>
                                     <span style="color: var(--text-sub);">/</span>
                                     <span id="guildMaxMembers" style="color: var(--text-sub);">10</span>
                                 </div>
-                                <div>
+                                <div class="guild-stat">
                                     <span style="color: var(--text-sub);">レベル:</span>
                                     <span id="guildLevel" style="color: var(--accent-color); font-weight: bold;">1</span>
                                 </div>
-                                <div>
+                                <div class="guild-stat">
                                     <span style="color: var(--text-sub);">資金:</span>
                                     <span id="guildTreasury" style="color: var(--hp-color); font-weight: bold;">0</span>
                                     <span style="color: var(--text-sub);"> Ps</span>
                                 </div>
-                                <div id="guildPendingApplicationsDiv" style="display: none;">
+                                <div id="guildPendingApplicationsDiv" class="guild-stat" style="display: none;">
                                     <span style="color: var(--text-sub);">申請:</span>
                                     <span id="guildPendingApplications" style="color: var(--accent-color); font-weight: bold;">0</span>
                                     <span style="color: var(--text-sub);"> 件</span>
@@ -811,30 +828,30 @@
                             </div>
 
                             <!-- 経験値バー -->
-                            <div style="margin-top: 8px;">
-                                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">
+                            <div class="guild-exp-card">
+                                <div class="guild-exp-head">
                                     <span>EXP</span>
                                     <span><span id="guildExpProgress">0</span> / <span id="guildExpRequired">100</span></span>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.3); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div class="guild-exp-track">
                                     <div id="guildExpBar" style="background: linear-gradient(90deg, var(--accent-color), var(--hp-color)); height: 100%; width: 0%; transition: width 0.5s;"></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- ギルド招待QRコード -->
-                        <div style="text-align: center; margin: 20px 0;">
-                            <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 10px;">ギルド招待QRコード</p>
+                        <div class="guild-qr-section">
+                            <p class="guild-qr-copy">ギルド招待QRコード</p>
                             <canvas id="guildQrCanvas" style="margin: 0 auto;"></canvas>
                         </div>
 
                         <!-- ギルドアクション -->
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px;">
-                            <button id="btnViewGuildMembers">👥 メンバー</button>
-                            <button id="btnViewGuildChat">💬 チャット</button>
-                            <button id="btnViewGuildWarehouse">📦 倉庫</button>
-                            <button id="btnViewGuildApplications" style="display: none;">📋 申請管理</button>
-                            <button id="btnLeaveGuild" style="background: var(--danger-color); grid-column: span 2;">脱退</button>
+                        <div class="guild-action-grid">
+                            <button id="btnViewGuildMembers" class="guild-action-btn">👥 メンバー</button>
+                            <button id="btnViewGuildChat" class="guild-action-btn">💬 チャット</button>
+                            <button id="btnViewGuildWarehouse" class="guild-action-btn">📦 倉庫</button>
+                            <button id="btnViewGuildApplications" class="guild-action-btn" style="display: none;">📋 申請管理</button>
+                            <button id="btnLeaveGuild" class="guild-action-btn guild-action-btn-danger">脱退</button>
                         </div>
                     </div>
                 </div>
@@ -852,22 +869,22 @@
 
                     <!-- ★★★ 修正箇所: psRankingArea を追加し、更新ボタンとリストをラップする ★★★ -->
                     <div id="psRankingArea">
-                        <div style="text-align:right; margin-bottom:10px;">
-                            <button id="btnGetRanking" style="font-size:12px; padding:4px 10px;">更新</button>
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetRanking" class="ranking-refresh-btn">更新</button>
                         </div>
-                        <ol id="rankingList"></ol>
+                        <ol id="rankingList" class="ranking-list"></ol>
                     </div>
                     
                     <!-- ★★★ 修正箇所: bountyRankingArea を追加 ★★★ -->
                     <div id="bountyRankingArea" style="display: none;">
-                        <ol id="bountyRankingList"></ol>
+                        <ol id="bountyRankingList" class="ranking-list"></ol>
                     </div>
 
                     <div id="treasuryRankingArea" style="display: none;">
-                        <div style="text-align:right; margin-bottom:10px;">
-                            <button id="btnGetTreasuryRanking" style="font-size:12px; padding:4px 10px;">更新</button>
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetTreasuryRanking" class="ranking-refresh-btn">更新</button>
                         </div>
-                        <ol id="treasuryRankingList"></ol>
+                        <ol id="treasuryRankingList" class="ranking-list"></ol>
                     </div>
                 </div>
             </div>
@@ -957,8 +974,9 @@
 
     <!-- アイテム詳細モーダル -->
     <div id="itemDetailModal" class="modal-overlay">
-        <div class="modal-content">
-            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+        <div class="modal-content item-detail-sheet">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="item-detail-head" style="display: flex; align-items: center; margin-bottom: 15px;">
                 <div id="itemDetailIcon" style="width: 64px; height: 64px; margin-right: 15px; background-color: rgba(0,0,0,0.3); border-radius: 8px; image-rendering: pixelated; transform: scale(1.5); transform-origin: center;"></div>
                 <div style="text-align: left; flex:1;">
                     <h3 id="itemDetailName" style="margin: 0; color: var(--accent-color);">アイテム名</h3>
@@ -972,13 +990,13 @@
             <div id="itemDetailButtons" class="modal-buttons">
                 <!-- アクションボタン -->
             </div>
-            <button onclick="document.getElementById('itemDetailModal').style.display='none'" style="margin-top: 15px; background: #4b5563; width:100%;">閉じる</button>
+            <button class="item-detail-close" onclick="window.closeItemDetailModal && window.closeItemDetailModal()" style="margin-top: 15px; background: #4b5563; width:100%;">閉じる</button>
         </div>
     </div>
 
     <!-- バトルモーダル -->
     <div id="battleModal" class="modal-overlay">
-        <div class="modal-content" style="background: rgba(17, 24, 39, 0.95);">
+        <div class="modal-content battle-modal-shell" style="background: rgba(17, 24, 39, 0.95);">
             <div id="battleStage">
                 <!-- 相手 -->
                 <div class="battle-player-area" id="battlePlayerA">

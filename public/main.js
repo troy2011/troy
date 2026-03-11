@@ -383,6 +383,9 @@ async function initializeAppFeatures() {
     document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryTab(btn.dataset.category));
     });
+    document.querySelectorAll('.inventory-panel-btn').forEach(btn => {
+        btn.addEventListener('click', () => Inventory.switchInventoryPanel(btn.dataset.panel));
+    });
     document.getElementById('inventorySort').addEventListener('change', () => {
         const currentCategory = document.querySelector('.inventory-tab-btn.active').dataset.category;
         Inventory.renderInventoryGrid(currentCategory);
@@ -436,6 +439,7 @@ async function initializeAppFeatures() {
 
             // インベントリタブに移動
             await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
+            Inventory.switchInventoryPanel('items', { preserveScroll: true });
 
             // カテゴリタブを切り替え
             if (targetCategory !== 'All') {
@@ -1199,6 +1203,7 @@ window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, sl
 window.manifestTarotCard = (itemId, slot) => Inventory.manifestTarotCard(myPlayFabId, itemId, slot);
 window.studyTarotCard = (itemId) => Inventory.studyTarotCard(myPlayFabId, itemId);
 window.awakenMajorArcana = (itemId) => Inventory.awakenMajorArcana(myPlayFabId, itemId);
+window.closeItemDetailModal = Inventory.closeItemDetailModal;
 window.refreshInventory = (options = {}) => Inventory.getInventory(myPlayFabId, options);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);
 window.sellItem = (instanceId, itemId) => Inventory.sellItem(myPlayFabId, instanceId, itemId);

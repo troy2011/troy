@@ -17,6 +17,9 @@ import { getNationLabel } from './nationLabels.js';
 
 let myPlayerStats = {};
 const LOW_PS_THRESHOLD = 200;
+const FALLBACK_AVATAR = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="48" fill="#1f2937"/><circle cx="48" cy="38" r="18" fill="#64748b"/><path d="M18 82c6-16 19-24 30-24s24 8 30 24" fill="#94a3b8"/></svg>'
+)}`;
 
 export function getMyPlayerStats() {
     return myPlayerStats;
@@ -159,56 +162,129 @@ function triggerVaultSlide(element) {
     setTimeout(() => element.classList.remove('slide'), 520);
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatNumber(value) {
+    return Number(value || 0).toLocaleString('ja-JP');
+}
+
+function getRankMedal(index) {
+    if (index === 0) return '🥇';
+    if (index === 1) return '🥈';
+    if (index === 2) return '🥉';
+    return '';
+}
+
+function renderRankingState(message) {
+    return `<li class="ranking-state">${escapeHtml(message)}</li>`;
+}
+
+function renderRankingAvatar({ avatarUrl, label }) {
+    if (avatarUrl) {
+        const src = escapeHtml(avatarUrl);
+        const alt = escapeHtml(label || 'avatar');
+        return `<img src="${src}" alt="${alt}" class="rank-icon ranking-avatar" onerror="this.src='${FALLBACK_AVATAR}'">`;
+    }
+    const text = escapeHtml(String(label || '?').trim().slice(0, 1) || '?');
+    return `<div class="ranking-avatar ranking-avatar-fallback" aria-hidden="true">${text}</div>`;
+}
+
+function renderRankingRows(entries, options = {}) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        return renderRankingState(options.emptyMessage || '（データがありません）');
+    }
+    const myDisplayName = window.myLineProfile?.displayName;
+    return entries.map((entry, index) => {
+        const rank = index + 1;
+        const name = options.getName ? options.getName(entry, index) : (entry.displayName || '不明');
+        const score = options.getScore ? options.getScore(entry, index) : 0;
+        const meta = options.getMeta ? options.getMeta(entry, index) : '';
+        const avatarUrl = options.getAvatar ? options.getAvatar(entry, index) : entry.avatarUrl;
+        const avatarLabel = options.getAvatarLabel ? options.getAvatarLabel(entry, index) : name;
+        const medal = getRankMedal(index);
+        const isMyRank = options.isMyRank ? options.isMyRank(entry, index, myDisplayName) : (myDisplayName && entry.displayName === myDisplayName);
+        const podiumClass = rank <= 3 ? ` ranking-row-top ranking-row-top-${rank}` : '';
+        return `
+            <li class="ranking-row${isMyRank ? ' myRank' : ''}${podiumClass}">
+                <div class="ranking-rank-badge">
+                    <span class="ranking-rank-medal">${medal || '#'}</span>
+                    <span class="ranking-rank-number">${rank}</span>
+                </div>
+                ${renderRankingAvatar({ avatarUrl, label: avatarLabel })}
+                <div class="ranking-row-main">
+                    <div class="ranking-row-name">${escapeHtml(name)}</div>
+                    <div class="ranking-row-meta">${escapeHtml(meta || (isMyRank ? 'あなたの順位' : `${rank}位`))}</div>
+                </div>
+                <div class="ranking-row-score">
+                    <span class="ranking-row-score-value">${escapeHtml(score)}</span>
+                </div>
+            </li>
+        `;
+    }).join('');
+}
+
 export async function getRanking() {
     const rankingListEl = document.getElementById('rankingList');
     if (!rankingListEl) return;
-    rankingListEl.innerHTML = '<li>（ランキングを読み込んでいます...）</li>';
+    rankingListEl.innerHTML = renderRankingState('（ランキングを読み込んでいます...）');
     const data = await fetchRanking();
     if (data?.ranking) {
-        const myDisplayName = window.myLineProfile?.displayName;
-        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
-        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
-            const isMyRank = myDisplayName && entry.displayName === myDisplayName;
-            const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            const medal = getRankMedal(index);
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${entry.score}Ps)</li>`;
-        }).join('') || '<li>（データがありません）</li>';
+        rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+            getName: (entry) => entry.displayName || '冒険者',
+            getScore: (entry) => `${formatNumber(entry.score)} Ps`,
+            getMeta: (entry, index) => (index < 3 ? '上位ランカー' : '総資産ランキング')
+        });
+        return;
     }
+    rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
 export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
     if (!rankingListEl) return;
-    rankingListEl.innerHTML = '<li>（日次貢献度ランキングを読み込んでいます...）</li>';
+    rankingListEl.innerHTML = renderRankingState('（日次貢献度ランキングを読み込んでいます...）');
     const data = await fetchBountyRanking();
     if (data?.ranking) {
-        const myDisplayName = window.myLineProfile?.displayName;
-        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
-        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
-            const isMyRank = myDisplayName && entry.displayName === myDisplayName;
-            const iconSrc = entry.avatarUrl || 'https://placehold.co/40x40/4a5568/e2e8f0?text=?';
-            const medal = getRankMedal(index);
-            const score = Number(entry.contribution ?? entry.score ?? 0) || 0;
-            return `<li${isMyRank ? ' class="myRank"' : ''}><img src="${iconSrc}" class="rank-icon" onerror="this.src='https://placehold.co/40x40/4a5568/e2e8f0?text=?'">${medal}${entry.displayName}(${score}貢献)</li>`;
-        }).join('') || '<li>（データがありません）</li>';
+        rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+            getName: (entry) => entry.displayName || '冒険者',
+            getScore: (entry) => `${formatNumber(entry.contribution ?? entry.score)} 貢献`,
+            getMeta: (entry, index) => (index < 3 ? '本日の上位貢献者' : '日次ランキング')
+        });
+        return;
     }
+    rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
 export async function getNationTreasuryRanking() {
     const rankingListEl = document.getElementById('treasuryRankingList');
     if (!rankingListEl) return;
-    rankingListEl.innerHTML = '<li>（国庫ランキングを読み込んでいます...）</li>';
+    rankingListEl.innerHTML = renderRankingState('（国庫ランキングを読み込んでいます...）');
     const data = await fetchNationTreasuryRanking();
     if (data?.ranking) {
-        const getRankMedal = (index) => (index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '');
-        rankingListEl.innerHTML = data.ranking.map((entry, index) => {
-            const nationKey = String(entry.nation || '').toLowerCase();
-            const label = getNationLabel(nationKey) || entry.nation || '不明';
-            const value = Number(entry.treasuryPs || 0);
-            const medal = getRankMedal(index);
-            return `<li>${medal}${label} (${value}Ps)</li>`;
-        }).join('') || '<li>（データがありません）</li>';
+        rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+            getName: (entry) => {
+                const nationKey = String(entry.nation || '').toLowerCase();
+                return getNationLabel(nationKey) || entry.nation || '不明';
+            },
+            getScore: (entry) => `${formatNumber(entry.treasuryPs)} Ps`,
+            getMeta: (entry, index) => (index === 0 ? '最も潤う王国' : '国庫ランキング'),
+            getAvatar: () => '',
+            getAvatarLabel: (entry) => {
+                const nationKey = String(entry.nation || '').toLowerCase();
+                return (getNationLabel(nationKey) || entry.nation || '国').slice(0, 1);
+            },
+            isMyRank: () => false
+        });
+        return;
     }
+    rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
 export function showRanking(type) {

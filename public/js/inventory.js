@@ -39,6 +39,7 @@ let myTarotSkills = {};
 let myTarotSkillByCard = {};
 let myTarotAwakenings = {};
 let myActiveTarotAwakening = null;
+let activeInventoryPanel = 'loadout';
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let myShipResourceStorage = {
@@ -53,6 +54,60 @@ function getActiveInventoryCategory() {
     if (typeof document === 'undefined') return 'All';
     const active = document.querySelector('.inventory-tab-btn.active');
     return active?.dataset?.category || 'All';
+}
+
+function getVisibleModalCount() {
+    if (typeof document === 'undefined') return 0;
+    return Array.from(document.querySelectorAll('.modal-overlay')).filter((modal) => {
+        if (!modal) return false;
+        const display = String(modal.style?.display || '').trim().toLowerCase();
+        return display === 'flex' || modal.classList.contains('active');
+    }).length;
+}
+
+function syncModalLockState() {
+    if (typeof document === 'undefined') return;
+    document.body.classList.toggle('modal-lock', getVisibleModalCount() > 0);
+}
+
+function hideModal(modal) {
+    if (!modal) return;
+    modal.style.display = 'none';
+    syncModalLockState();
+}
+
+function showModal(modal) {
+    if (!modal) return;
+    modal.style.display = 'flex';
+    syncModalLockState();
+}
+
+export function closeItemDetailModal() {
+    hideModal(document.getElementById('itemDetailModal'));
+}
+
+function normalizeInventoryPanel(panel) {
+    return ['loadout', 'stats', 'items'].includes(panel) ? panel : 'loadout';
+}
+
+export function switchInventoryPanel(panel, options = {}) {
+    if (typeof document === 'undefined') return;
+    activeInventoryPanel = normalizeInventoryPanel(panel);
+    document.querySelectorAll('.inventory-panel-btn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.panel === activeInventoryPanel);
+    });
+    document.querySelectorAll('#tabContentInventory .inventory-section').forEach((section) => {
+        section.classList.toggle('active', section.dataset.panel === activeInventoryPanel);
+    });
+    const tabContent = document.getElementById('tabContentInventory');
+    if (tabContent) {
+        tabContent.dataset.inventoryPanel = activeInventoryPanel;
+    }
+    if (options.preserveScroll) return;
+    const switcher = document.getElementById('inventoryMobileSwitch');
+    if (switcher) {
+        switcher.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
 }
 
 function getInventoryItemByReference(itemRef) {
@@ -507,6 +562,7 @@ export async function getInventory(playFabId, options = {}) {
     updateExperienceUI();
     renderTarotProgressPanels();
     updateInventoryTabHint(getActiveInventoryCategory());
+    switchInventoryPanel(activeInventoryPanel, { preserveScroll: true });
     lastInventoryFetchAt = Date.now();
     })();
     try {
@@ -578,7 +634,7 @@ export async function equipItem(playFabId, itemId, slot) {
         // アイテム詳細モーダルを閉じる
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
-            modal.style.display = 'none';
+            closeItemDetailModal();
         }
     }
 }
@@ -598,7 +654,7 @@ export async function manifestTarotCard(playFabId, itemId, slot) {
         await getInventory(playFabId, { force: true });
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
-            modal.style.display = 'none';
+            closeItemDetailModal();
         }
         if (typeof window.showRpgMessage === 'function') {
             const title = data?.manifestation?.name || `${slotLabel}の具現化`;
@@ -620,7 +676,7 @@ export async function studyTarotCard(playFabId, itemId) {
         await getInventory(playFabId, { force: true });
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
-            modal.style.display = 'none';
+            closeItemDetailModal();
         }
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(data?.message || '術を修めた。');
@@ -641,7 +697,7 @@ export async function awakenMajorArcana(playFabId, itemId) {
         await getInventory(playFabId, { force: true });
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
-            modal.style.display = 'none';
+            closeItemDetailModal();
         }
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(data?.message || '大アルカナが覚醒した。');
@@ -658,7 +714,7 @@ export async function useItem(playFabId, itemInstanceId, itemId) {
         // アイテム詳細モーダルを閉じる
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
-            modal.style.display = 'none';
+            closeItemDetailModal();
         }
     }
 }
@@ -672,6 +728,7 @@ export async function sellItem(playFabId, itemInstanceId, itemId) {
 }
 
 export function switchInventoryTab(category) {
+    switchInventoryPanel('items', { preserveScroll: true });
     document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.category === category);
     });
@@ -948,7 +1005,7 @@ function showItemDetailModal(item) {
         buttonsEl.innerHTML += `<button style="background: #a0aec0;" onclick="window.showSellConfirmationModal('${instanceId}', '${item.itemId}')">\u58f2\u5374</button>`;
     }
 
-    modal.style.display = 'flex';
+    showModal(modal);
 }
 
 export function showSellConfirmationModal(itemInstanceId, itemId) {
@@ -958,20 +1015,20 @@ export function showSellConfirmationModal(itemInstanceId, itemId) {
     document.getElementById('sellItemName').innerText = item.name;
     document.getElementById('sellItemPrice').innerText = item.customData.SellPrice;
     const modal = document.getElementById('sellConfirmationModal');
-    modal.style.display = 'flex';
+    showModal(modal);
 
     const confirmBtn = document.getElementById('btnConfirmSell');
     const newConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     newConfirmBtn.onclick = () => {
-        modal.style.display = 'none';
+        hideModal(modal);
         window.sellItem(itemInstanceId, itemId);
     };
 
     const cancelBtn = document.getElementById('btnCancelSell');
     const newCancelBtn = cancelBtn.cloneNode(true);
     cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    newCancelBtn.onclick = () => { modal.style.display = 'none'; };
+    newCancelBtn.onclick = () => { hideModal(modal); };
 }
 
 function updateEquipmentAndAvatarDisplay() {

@@ -168,6 +168,7 @@ function showBattleModal(battleId) {
     currentBattleId = battleId;
     const battleModal = document.getElementById('battleModal');
     battleModal.style.display = 'flex';
+    document.body.classList.add('modal-lock');
     setBattleActiveWindow(5000);
     clearBattleAutoCloseTimer();
 
@@ -284,6 +285,7 @@ function closeBattleModalAndHandlePending() {
     }
     const battleModal = document.getElementById('battleModal');
     if (battleModal) battleModal.style.display = 'none';
+    document.body.classList.remove('modal-lock');
     if (Number(window.__battleActiveUntil || 0) <= Date.now()) {
         window.__battleActiveUntil = 0;
     }

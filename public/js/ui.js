@@ -1304,6 +1304,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
 
     const navEl = document.getElementById(`nav${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (navEl) navEl.classList.add('active');
+    if (document.body) {
+        document.body.dataset.currentTab = tabId;
+    }
+    if (tabId !== 'map') {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+    }
 
     try {
         if (!tabLoaded[tabId]) {
