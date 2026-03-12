@@ -2073,7 +2073,14 @@ export default class WorldMapScene extends Phaser.Scene {
                 return;
             }
 
-            if (this.collidingIsland && this.collidingIsland.id === islandData.id) {
+            const dockBuffer = this.isAirDomain(this.playerShipDomain) ? 0 : this.TILE_SIZE * 0.4;
+            const currentIsland = this.getCurrentIslandUnderPlayer(dockBuffer);
+            const isDockedIsland =
+                (this.collidingIsland && this.collidingIsland.id === islandData.id) ||
+                (currentIsland && currentIsland.id === islandData.id);
+
+            if (isDockedIsland) {
+                this.collidingIsland = islandData;
                 const tutorial = (typeof window !== 'undefined') ? window.__tutorialFirstIsland : null;
                 if (tutorial?.stage === 'arrived' && tutorial?.islandId === islandData.id) {
                     await this.openBuildingMenuForIsland(islandData);
@@ -2621,11 +2628,16 @@ export default class WorldMapScene extends Phaser.Scene {
 
         this.shipActionButton = button;
         this.shipActionStatus = status;
-        let resourceStatus = panel.querySelector('.ship-combat-resource-status');
+        const bar = document.getElementById('mapActionBar');
+        let resourceStatus = document.getElementById('shipCombatResourceStatus');
         if (!resourceStatus) {
             resourceStatus = document.createElement('div');
             resourceStatus.className = 'ship-combat-resource-status';
-            panel.appendChild(resourceStatus);
+            if (bar) {
+                bar.prepend(resourceStatus);
+            } else {
+                panel.prepend(resourceStatus);
+            }
         }
         this.shipCombatResourceStatus = resourceStatus;
         button.addEventListener('click', () => this.triggerShipAction());
@@ -2760,11 +2772,11 @@ export default class WorldMapScene extends Phaser.Scene {
         const shouldShow = hasShipInfo && allowedClass;
 
         if (panel) {
-            panel.style.display = shouldShow ? 'flex' : 'none';
+            panel.style.display = 'flex';
         }
         this.shipSideCannonButton.disabled = !canUse;
         if (!shouldShow) {
-            this.shipSideCannonStatus.textContent = '';
+            this.shipSideCannonStatus.textContent = hasShipInfo ? '対応船のみ' : '船が必要';
             return;
         }
         if (jamRemaining > 0) {
@@ -3256,10 +3268,10 @@ export default class WorldMapScene extends Phaser.Scene {
         const canUse = cooldownRemaining <= 0 && jamRemaining <= 0 && actionInfo.type !== 'none';
 
         this.shipActionButton.disabled = !canUse;
-        this.shipActionButton.textContent = actionInfo.type === 'none' ? '行動なし' : '船アクション';
+        this.shipActionButton.textContent = '船アクション';
 
         if (actionInfo.type === 'none') {
-            this.shipActionStatus.textContent = '';
+            this.shipActionStatus.textContent = '行動なし';
             return;
         }
 
@@ -4277,16 +4289,51 @@ export default class WorldMapScene extends Phaser.Scene {
         return true;
     }
 
+    clearNavigationTarget() {
+        this.navTargetId = null;
+        this.navTargetLabel = null;
+        this.updateNavigationHud();
+    }
+
+    getCurrentIslandUnderPlayer(buffer = 0) {
+        if (!this.playerShip || !this.islandObjects || this.islandObjects.size === 0) return null;
+        const px = this.playerShip.x;
+        const py = this.playerShip.y;
+        let currentIsland = null;
+        this.islandObjects.forEach((islandData) => {
+            if (currentIsland || !islandData) return;
+            const withinX = px >= islandData.x - buffer && px <= islandData.x + islandData.width + buffer;
+            const withinY = py >= islandData.y - buffer && py <= islandData.y + islandData.height + buffer;
+            if (withinX && withinY) {
+                currentIsland = islandData;
+            }
+        });
+        return currentIsland;
+    }
+
     updateNavigationHud() {
         const hud = document.getElementById('mapNavHud');
-        if (hud) hud.style.display = 'none';
+        const arrowEl = document.getElementById('mapNavArrow');
+        const labelEl = document.getElementById('mapNavLabel');
+        const distanceEl = document.getElementById('mapNavDistance');
+        const clearBtn = document.getElementById('mapNavClear');
+        if (clearBtn && !clearBtn.dataset.bound) {
+            clearBtn.dataset.bound = '1';
+            clearBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.clearNavigationTarget();
+            });
+        }
         if (!this.navTargetId || !this.playerShip || !this.islandObjects) {
+            if (hud) hud.hidden = true;
             if (this.navArrow) this.navArrow.setVisible(false);
             if (this.navDistanceText) this.navDistanceText.setVisible(false);
             return;
         }
         const islandData = this.islandObjects.get(this.navTargetId);
         if (!islandData) {
+            if (hud) hud.hidden = true;
             if (this.navArrow) this.navArrow.setVisible(false);
             if (this.navDistanceText) this.navDistanceText.setVisible(false);
             return;
@@ -4295,9 +4342,8 @@ export default class WorldMapScene extends Phaser.Scene {
         const targetY = islandData.y + islandData.height / 2;
         const dx = targetX - this.playerShip.x;
         const dy = targetY - this.playerShip.y;
-        const withinX = this.playerShip.x >= islandData.x && this.playerShip.x <= islandData.x + islandData.width;
-        const withinY = this.playerShip.y >= islandData.y && this.playerShip.y <= islandData.y + islandData.height;
-        if (withinX && withinY) {
+        const currentIsland = this.getCurrentIslandUnderPlayer();
+        if (currentIsland && currentIsland.id === islandData.id) {
             if (typeof window !== 'undefined' && window.__tutorialFirstIsland?.stage === 'nav') {
                 const tutorial = window.__tutorialFirstIsland;
                 if (tutorial?.islandId === this.navTargetId && typeof window.showRpgMessage === 'function') {
@@ -4305,29 +4351,27 @@ export default class WorldMapScene extends Phaser.Scene {
                     tutorial.stage = 'arrived';
                 }
             }
-            this.navTargetId = null;
-            this.navTargetLabel = null;
-            if (this.navArrow) this.navArrow.setVisible(false);
-            if (this.navDistanceText) this.navDistanceText.setVisible(false);
+            this.clearNavigationTarget();
             return;
         }
         const distPx = Math.sqrt(dx * dx + dy * dy);
         const distTiles = Math.max(0, Math.round(distPx / this.TILE_SIZE));
 
         const angleRad = Math.atan2(dy, dx);
-        const unitX = distPx > 0 ? dx / distPx : 0;
-        const unitY = distPx > 0 ? dy / distPx : 0;
-        const radius = 30;
-        if (this.navArrow) {
-            this.navArrow.setPosition(this.playerShip.x + unitX * radius, this.playerShip.y + unitY * radius);
-            this.navArrow.setRotation(angleRad + Math.PI / 2);
-            this.navArrow.setVisible(true);
+        if (hud) {
+            hud.hidden = false;
         }
-        if (this.navDistanceText) {
-            this.navDistanceText.setPosition(this.playerShip.x, this.playerShip.y - 26);
-            this.navDistanceText.setText(`距離 ${distTiles}`);
-            this.navDistanceText.setVisible(true);
+        if (labelEl) {
+            labelEl.textContent = this.navTargetLabel || islandData.name || 'NAV';
         }
+        if (distanceEl) {
+            distanceEl.textContent = `距離 ${distTiles}`;
+        }
+        if (arrowEl) {
+            arrowEl.style.transform = `rotate(${angleRad + Math.PI / 2}rad)`;
+        }
+        if (this.navArrow) this.navArrow.setVisible(false);
+        if (this.navDistanceText) this.navDistanceText.setVisible(false);
     }
 
     updatePositionHud() {
@@ -6981,7 +7025,8 @@ export default class WorldMapScene extends Phaser.Scene {
             panel.classList.remove('active');
         }
         this.commandMenuOpen = false;
-        this.collidingIsland = null;
+        const dockBuffer = this.isAirDomain(this.playerShipDomain) ? 0 : this.TILE_SIZE * 0.4;
+        this.collidingIsland = this.getCurrentIslandUnderPlayer(dockBuffer);
     }
 
     wireIslandCommandPullToClose() {
@@ -7329,38 +7374,22 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!this.playerShip || !this.isAirDomain(this.playerShipDomain)) return;
         if (!this.islandObjects || this.islandObjects.size === 0) return;
 
-        const buffer = this.TILE_SIZE * 2;
-        let nearest = null;
-        this.islandObjects.forEach((islandData) => {
-            const left = islandData.x;
-            const right = islandData.x + islandData.width;
-            const top = islandData.y;
-            const bottom = islandData.y + islandData.height;
-            const px = this.playerShip.x;
-            const py = this.playerShip.y;
-            const dx = Math.max(0, left - px, px - right);
-            const dy = Math.max(0, top - py, py - bottom);
-            if (dx <= buffer && dy <= buffer) {
-                const dist = Math.hypot(dx, dy);
-                if (!nearest || dist < nearest.distance) {
-                    nearest = { island: islandData, distance: dist };
-                }
-            }
-        });
+        const currentIsland = this.getCurrentIslandUnderPlayer();
+        if (currentIsland) {
+            this.collidingIsland = currentIsland;
+            return;
+        }
 
-        if (nearest?.island) {
-            if (!this.collidingIsland || this.collidingIsland.id !== nearest.island.id) {
-                this.collidingIsland = nearest.island;
-                this.showMessage(`${nearest.island.name}に接近しました。`);
-                this.showIslandCommandMenu(nearest.island);
-            }
-        } else if (this.collidingIsland) {
+        if (this.collidingIsland) {
             if (this.isPlayerInIslandCapture(this.collidingIsland)) {
                 this.clearIslandCommandTimers(true);
                 void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
             }
-            this.collidingIsland = null;
-            this.hideIslandCommandMenu();
+            if (this.commandMenuOpen) {
+                this.hideIslandCommandMenu();
+            } else {
+                this.collidingIsland = null;
+            }
         }
     }
 

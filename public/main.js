@@ -380,14 +380,14 @@ async function initializeAppFeatures() {
     initMapChat(myPlayFabId);
     initTroyChat(myPlayFabId);
 
-    document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => Inventory.switchInventoryTab(btn.dataset.category));
+    document.querySelectorAll('.inventory-primary-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.group));
     });
     document.querySelectorAll('.inventory-panel-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryPanel(btn.dataset.panel));
     });
     document.getElementById('inventorySort').addEventListener('change', () => {
-        const currentCategory = document.querySelector('.inventory-tab-btn.active').dataset.category;
+        const currentCategory = Inventory.getActiveInventoryCategory();
         Inventory.renderInventoryGrid(currentCategory);
     });
 

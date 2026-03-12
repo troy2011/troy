@@ -22,7 +22,9 @@ import {
     buildTarotManifestation,
     compareTarotItems,
     getCanonicalTarotCategory,
+    getTarotRankLabel,
     getTarotSlotLabel,
+    getTarotSuitLabel,
     isTarotMajorCategory,
     isTarotManifestationData,
     isTarotMinorCategory,
@@ -40,6 +42,8 @@ let myTarotSkillByCard = {};
 let myTarotAwakenings = {};
 let myActiveTarotAwakening = null;
 let activeInventoryPanel = 'loadout';
+let activeInventoryGroup = 'All';
+let activeInventoryCategory = 'All';
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let myShipResourceStorage = {
@@ -50,10 +54,115 @@ let myShipResourceStorage = {
     cargoUsed: 0
 };
 
-function getActiveInventoryCategory() {
-    if (typeof document === 'undefined') return 'All';
-    const active = document.querySelector('.inventory-tab-btn.active');
-    return active?.dataset?.category || 'All';
+const INVENTORY_GROUPS = {
+    All: { label: '全部', category: 'All', tabs: [] },
+    Equipment: {
+        label: '装備',
+        category: 'Weapon',
+        tabs: [
+            { category: 'Weapon', label: '武器' },
+            { category: 'Shield', label: '盾' },
+            { category: 'Offhand', label: '副手' },
+            { category: 'Armor', label: '防具' },
+            { category: 'Accessory', label: 'アクセ' }
+        ]
+    },
+    Tarot: {
+        label: 'タロット',
+        category: 'TarotMajor',
+        tabs: [
+            { category: 'TarotMajor', label: '大アルカナ' },
+            { category: 'TarotMinor', label: '小アルカナ' }
+        ]
+    },
+    Consumable: { label: '消耗品', category: 'Consumable', tabs: [] },
+    Resource: { label: '資源', category: 'Resource', tabs: [] }
+};
+
+const INVENTORY_SORT_OPTIONS = {
+    All: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'power_desc', label: '攻撃力順' },
+        { value: 'defense_desc', label: '防御力順' },
+        { value: 'magic_desc', label: '術補順' },
+        { value: 'count_desc', label: '所持数順' }
+    ],
+    Weapon: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'power_desc', label: '攻撃力順' }
+    ],
+    Shield: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'defense_desc', label: '防御力順' }
+    ],
+    Offhand: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'magic_desc', label: '術補順' },
+        { value: 'heal_desc', label: '回復順' }
+    ],
+    Armor: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'defense_desc', label: '防御力順' }
+    ],
+    Accessory: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'power_desc', label: '攻撃力順' },
+        { value: 'defense_desc', label: '防御力順' }
+    ],
+    TarotMajor: [
+        { value: 'default', label: '札順' },
+        { value: 'awakening_desc', label: '覚醒順' }
+    ],
+    TarotMinor: [
+        { value: 'default', label: '札順' },
+        { value: 'skill_level_desc', label: '術Lv順' }
+    ],
+    Consumable: [
+        { value: 'default', label: 'おすすめ順' },
+        { value: 'count_desc', label: '所持数順' }
+    ],
+    Resource: []
+};
+
+export function getActiveInventoryCategory() {
+    return activeInventoryCategory;
+}
+
+function getInventoryGroupForCategory(category) {
+    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'Equipment';
+    if (['TarotMajor', 'TarotMinor'].includes(category)) return 'Tarot';
+    if (category === 'Consumable') return 'Consumable';
+    if (category === 'Resource') return 'Resource';
+    return 'All';
+}
+
+function getDefaultInventoryCategory(group) {
+    return INVENTORY_GROUPS[group]?.category || 'All';
+}
+
+function renderInventoryTabControls() {
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll('.inventory-primary-tab-btn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.group === activeInventoryGroup);
+    });
+
+    const container = document.getElementById('inventoryTabs');
+    if (!container) return;
+    const tabs = INVENTORY_GROUPS[activeInventoryGroup]?.tabs || [];
+    if (!tabs.length) {
+        container.innerHTML = '';
+        container.dataset.group = '';
+        container.hidden = true;
+        return;
+    }
+    container.dataset.group = activeInventoryGroup;
+    container.hidden = false;
+    container.innerHTML = tabs.map((tab) => `
+        <button class="inventory-tab-btn${tab.category === activeInventoryCategory ? ' active' : ''}" data-category="${tab.category}" type="button">${tab.label}</button>
+    `).join('');
+    container.querySelectorAll('.inventory-tab-btn').forEach((button) => {
+        button.addEventListener('click', () => switchInventoryTab(button.dataset.category));
+    });
 }
 
 function getVisibleModalCount() {
@@ -321,6 +430,20 @@ function updateInventoryTabHint(category) {
     hintEl.textContent = getInventoryTabHint(category);
 }
 
+function updateInventorySortOptions(category) {
+    const sortEl = document.getElementById('inventorySort');
+    if (!sortEl) return;
+    const options = INVENTORY_SORT_OPTIONS[category] || INVENTORY_SORT_OPTIONS.All;
+    const currentValue = sortEl.value;
+    sortEl.innerHTML = options.map((option) => `<option value="${option.value}">${option.label}</option>`).join('');
+    const nextValue = options.some((option) => option.value === currentValue)
+        ? currentValue
+        : (options[0]?.value || 'default');
+    sortEl.value = nextValue;
+    sortEl.disabled = category === 'Resource';
+    sortEl.style.visibility = category === 'Resource' ? 'hidden' : 'visible';
+}
+
 function getEmptyInventoryMessage(category) {
     if (category === 'Resource') {
         return '表示できる資源がありません。';
@@ -338,6 +461,476 @@ function getEmptyInventoryMessage(category) {
         return 'このカテゴリの副手はまだありません。';
     }
     return 'このカテゴリのアイテムはありません。';
+}
+
+function getInventoryCategoryLabel(category) {
+    const canonicalCategory = getCanonicalTarotCategory(category);
+    if (canonicalCategory === 'TarotMajor') return '大アルカナ';
+    if (canonicalCategory === 'TarotMinor') return '小アルカナ';
+    if (canonicalCategory === 'Weapon') return '武器';
+    if (canonicalCategory === 'Shield') return '盾';
+    if (canonicalCategory === 'Offhand') return '副手';
+    if (canonicalCategory === 'Armor') return '防具';
+    if (canonicalCategory === 'Accessory') return 'アクセ';
+    if (canonicalCategory === 'Consumable') return '消耗品';
+    if (canonicalCategory === 'Resource') return '資源';
+    return canonicalCategory || '不明';
+}
+
+function getInventoryLayout(category) {
+    if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
+    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
+    if (category === 'Consumable') return 'consumable';
+    if (category === 'All') return 'mixed';
+    return 'mixed';
+}
+
+function getInventoryCategoryOrder(category) {
+    const canonicalCategory = getCanonicalTarotCategory(category);
+    if (canonicalCategory === 'Weapon') return 1;
+    if (canonicalCategory === 'Shield') return 2;
+    if (canonicalCategory === 'Offhand') return 3;
+    if (canonicalCategory === 'Armor') return 4;
+    if (canonicalCategory === 'Accessory') return 5;
+    if (canonicalCategory === 'TarotMajor') return 6;
+    if (canonicalCategory === 'TarotMinor') return 7;
+    if (canonicalCategory === 'Consumable') return 8;
+    return 99;
+}
+
+function getInventoryStatValue(itemData, statKey) {
+    return Number(itemData?.[statKey] ?? 0) || 0;
+}
+
+function compareInventoryItemsDefault(a, b, selectedCategory) {
+    const leftCategory = getCanonicalTarotCategory(a?.customData?.Category);
+    const rightCategory = getCanonicalTarotCategory(b?.customData?.Category);
+    if (selectedCategory === 'All' && leftCategory !== rightCategory) {
+        return getInventoryCategoryOrder(leftCategory) - getInventoryCategoryOrder(rightCategory);
+    }
+    if ((leftCategory === 'TarotMajor' && rightCategory === 'TarotMajor')
+        || (leftCategory === 'TarotMinor' && rightCategory === 'TarotMinor')) {
+        return compareTarotItems(a, b);
+    }
+
+    const focusCategory = selectedCategory === 'All' ? leftCategory : selectedCategory;
+    if (focusCategory === 'Weapon') {
+        const powerDiff = getInventoryStatValue(b?.customData, 'Power') - getInventoryStatValue(a?.customData, 'Power');
+        if (powerDiff !== 0) return powerDiff;
+    }
+    if (focusCategory === 'Shield' || focusCategory === 'Armor') {
+        const defenseDiff = getInventoryStatValue(b?.customData, 'Defense') - getInventoryStatValue(a?.customData, 'Defense');
+        if (defenseDiff !== 0) return defenseDiff;
+    }
+    if (focusCategory === 'Offhand') {
+        const magicDiff = getInventoryStatValue(b?.customData, 'MagicPower') - getInventoryStatValue(a?.customData, 'MagicPower');
+        if (magicDiff !== 0) return magicDiff;
+        const healDiff = getInventoryStatValue(b?.customData, 'HealPower') - getInventoryStatValue(a?.customData, 'HealPower');
+        if (healDiff !== 0) return healDiff;
+    }
+    return String(a?.name || '').localeCompare(String(b?.name || ''), 'ja');
+}
+
+function isInventoryItemEquipped(item) {
+    const instanceId = item?.instances?.[0];
+    const itemId = item?.itemId;
+    return Object.values(myCurrentEquipment || {}).some((equippedValue) => equippedValue === instanceId || equippedValue === itemId);
+}
+
+function getItemEffectSummary(effect) {
+    if (!effect || typeof effect !== 'object') return '';
+    const effectType = String(effect.Type || '').trim();
+    const amount = Number(effect.Amount || 0) || 0;
+    if (!effectType) return '';
+    const suffix = amount ? ` ${amount}` : '';
+    return `${effectType}${suffix}`.trim();
+}
+
+function getInventoryCardSubtitle(item, canonicalCategory) {
+    const cd = item?.customData || {};
+    if (canonicalCategory === 'TarotMajor') {
+        const parts = [String(cd.ArcanaRole || '').trim(), `宿り ${getTarotSuitLabel(cd)}`.trim()].filter(Boolean);
+        return parts.join(' / ');
+    }
+    if (canonicalCategory === 'TarotMinor') {
+        const parts = [getTarotSuitLabel(cd), getTarotRankLabel(cd)].filter(Boolean);
+        return parts.join(' / ');
+    }
+    if (canonicalCategory === 'Offhand') {
+        const parts = [];
+        if (cd.MagicPower) parts.push(`術補 ${cd.MagicPower}`);
+        if (cd.HealPower) parts.push(`回復 ${cd.HealPower}`);
+        if (cd.CastRate) parts.push(`詠唱 ${cd.CastRate}`);
+        return parts.join(' / ') || '左手の術補装備';
+    }
+    if (canonicalCategory === 'Consumable') {
+        return getItemEffectSummary(cd.Effect) || String(item?.description || '').trim() || '消耗アイテム';
+    }
+    if (isTarotManifestationData(cd)) {
+        const parts = [String(cd.MajorArcanaName || '').trim(), String(cd.ArcanaSuitLabel || '').trim()].filter(Boolean);
+        return parts.join(' / ');
+    }
+    const statParts = [];
+    if (cd.Power) statParts.push(`攻 ${cd.Power}`);
+    if (cd.Defense) statParts.push(`防 ${cd.Defense}`);
+    if (cd.MagicPower) statParts.push(`術補 ${cd.MagicPower}`);
+    if (cd.HealPower) statParts.push(`回復 ${cd.HealPower}`);
+    if (statParts.length) return statParts.join(' / ');
+    return String(item?.description || '').trim() || '詳細を見る';
+}
+
+function getInventoryCardChips(item, canonicalCategory) {
+    const cd = item?.customData || {};
+    const chips = [];
+    if (canonicalCategory === 'TarotMajor') {
+        const number = Number(cd.ArcanaNumber ?? cd.CardNumber);
+        if (Number.isFinite(number)) chips.push(`No.${number}`);
+        const awakeningLevel = getMajorAwakeningLevel(item.itemId);
+        if (awakeningLevel > 0) chips.push(`覚醒Lv${awakeningLevel}`);
+        const passive = String(cd.PassiveName || cd.ArcanaPassive || '').trim();
+        if (passive) chips.push(passive);
+        return chips.slice(0, 3);
+    }
+    if (canonicalCategory === 'TarotMinor') {
+        const learnedSkill = getTarotSkillStateForItem(item.itemId);
+        if (learnedSkill) {
+            chips.push(`術Lv${learnedSkill.level}`);
+            chips.push(isTarotSkillUsableNow(learnedSkill) ? '発動可' : '装備待ち');
+        } else {
+            chips.push('未習得');
+        }
+        const keyword = String(cd.SkillKeyword || cd.ArcanaKeyword || '').trim();
+        if (keyword) chips.push(keyword);
+        return chips.slice(0, 3);
+    }
+    if (canonicalCategory === 'Consumable') {
+        const effectSummary = getItemEffectSummary(cd.Effect);
+        if (effectSummary) chips.push(effectSummary);
+        return chips.slice(0, 2);
+    }
+    const statChips = [
+        cd.Power ? `攻 ${cd.Power}` : '',
+        cd.Defense ? `防 ${cd.Defense}` : '',
+        cd.MagicPower ? `術補 ${cd.MagicPower}` : '',
+        cd.HealPower ? `回復 ${cd.HealPower}` : '',
+        cd.CastRate ? `詠唱 ${cd.CastRate}` : '',
+        cd.MpEfficiency ? `MP効率 ${cd.MpEfficiency}` : '',
+        cd.StatusRate ? `状態 ${cd.StatusRate}` : ''
+    ].filter(Boolean);
+    return statChips.slice(0, 3);
+}
+
+function getInventoryCardFooter(item, canonicalCategory) {
+    const cd = item?.customData || {};
+    if (canonicalCategory === 'TarotMajor') {
+        if (myActiveTarotAwakening?.itemId === item?.itemId) {
+            return myActiveTarotAwakening.summary || '装着中の加護が有効です。';
+        }
+        return String(cd.ArcanaRole || '').trim();
+    }
+    if (canonicalCategory === 'TarotMinor') {
+        const learnedSkill = getTarotSkillStateForItem(item?.itemId);
+        if (learnedSkill) {
+            return learnedSkill.name || getTarotSkillRequirementLabel(learnedSkill);
+        }
+        return '1枚で術を習得';
+    }
+    if (canonicalCategory === 'Consumable') {
+        return String(item?.description || '').trim() || '使うと効果を発揮します。';
+    }
+    if (canonicalCategory === 'Offhand') {
+        return '杖と組み合わせると術が伸びます。';
+    }
+    return '';
+}
+
+function createInventoryBadge(label, tone = '') {
+    const badge = document.createElement('span');
+    badge.className = `inventory-item-badge${tone ? ` is-${tone}` : ''}`;
+    badge.textContent = label;
+    return badge;
+}
+
+function createInventoryChip(label, tone = '') {
+    const chip = document.createElement('span');
+    chip.className = `inventory-item-chip${tone ? ` is-${tone}` : ''}`;
+    chip.textContent = label;
+    return chip;
+}
+
+function getEquippedSlotsForItem(item) {
+    const instanceId = item?.instances?.[0];
+    const itemId = item?.itemId;
+    return Object.entries(myCurrentEquipment || {})
+        .filter(([, equippedValue]) => equippedValue === instanceId || equippedValue === itemId)
+        .map(([slot]) => slot);
+}
+
+function isTwoHandedWeapon(item) {
+    const cd = item?.customData || {};
+    return getCanonicalTarotCategory(cd.Category) === 'Weapon'
+        && (Number(cd.sprite_w || 0) > 32 || Number(cd.sprite_h || 0) > 32);
+}
+
+function getPreferredManifestSlot() {
+    return TAROT_MINOR_SLOTS.find((slot) => !myCurrentEquipment?.[slot]) || null;
+}
+
+function getPrimaryDiffForCategory(item, canonicalCategory, currentItem) {
+    const cd = item?.customData || {};
+    const currentData = currentItem?.customData || {};
+    if (!currentItem) return 0;
+    if (canonicalCategory === 'Weapon') return getInventoryStatValue(cd, 'Power') - getInventoryStatValue(currentData, 'Power');
+    if (canonicalCategory === 'Shield' || canonicalCategory === 'Armor') return getInventoryStatValue(cd, 'Defense') - getInventoryStatValue(currentData, 'Defense');
+    if (canonicalCategory === 'Offhand') {
+        const magicDiff = getInventoryStatValue(cd, 'MagicPower') - getInventoryStatValue(currentData, 'MagicPower');
+        if (magicDiff !== 0) return magicDiff;
+        return getInventoryStatValue(cd, 'HealPower') - getInventoryStatValue(currentData, 'HealPower');
+    }
+    if (canonicalCategory === 'Accessory') {
+        const powerDiff = getInventoryStatValue(cd, 'Power') - getInventoryStatValue(currentData, 'Power');
+        if (powerDiff !== 0) return powerDiff;
+        return getInventoryStatValue(cd, 'Defense') - getInventoryStatValue(currentData, 'Defense');
+    }
+    return 0;
+}
+
+function getInventoryComparisonSummary(item, canonicalCategory) {
+    let slot = null;
+    if (canonicalCategory === 'Weapon') slot = 'RightHand';
+    if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') slot = 'LeftHand';
+    if (canonicalCategory === 'Armor') slot = 'Armor';
+    if (canonicalCategory === 'Accessory') slot = 'Accessory';
+    if (!slot) return null;
+
+    const slotLabel = getTarotSlotLabel(slot);
+    const equippedRef = myCurrentEquipment?.[slot];
+    const currentItem = equippedRef ? getInventoryItemByReference(equippedRef) : null;
+    const currentRef = currentItem?.instances?.[0] || currentItem?.itemId || '';
+    const itemRef = item?.instances?.[0] || item?.itemId || '';
+    if (!currentItem) {
+        return { text: `${slotLabel}は空き`, tone: 'open' };
+    }
+    if (String(currentRef) === String(itemRef)) {
+        return { text: `${slotLabel}に装備中`, tone: 'equipped' };
+    }
+
+    const currentData = currentItem.customData || {};
+    const nextData = item.customData || {};
+    const pairs = [
+        ['Power', '攻'],
+        ['Defense', '防'],
+        ['MagicPower', '術'],
+        ['HealPower', '回'],
+        ['CastRate', '詠']
+    ];
+    const diffs = pairs
+        .map(([key, label]) => {
+            const delta = getInventoryStatValue(nextData, key) - getInventoryStatValue(currentData, key);
+            if (!delta) return '';
+            return `${label}${delta > 0 ? '+' : ''}${delta}`;
+        })
+        .filter(Boolean)
+        .slice(0, 3);
+    const primaryDiff = getPrimaryDiffForCategory(item, canonicalCategory, currentItem);
+    if (!diffs.length) {
+        return { text: `${slotLabel}比 変化なし`, tone: 'flat' };
+    }
+    return {
+        text: `${slotLabel}比 ${diffs.join(' ')}`,
+        tone: primaryDiff > 0 ? 'up' : primaryDiff < 0 ? 'down' : 'flat'
+    };
+}
+
+function getInventoryQuickAction(item, canonicalCategory) {
+    const playFabId = window.myPlayFabId || null;
+    if (!playFabId) return null;
+    const equippedSlots = getEquippedSlotsForItem(item);
+    const itemId = item?.itemId;
+    const instanceId = item?.instances?.[0];
+
+    if (canonicalCategory === 'Weapon') {
+        if (isTwoHandedWeapon(item)) {
+            if (equippedSlots.includes('RightHand')) {
+                return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
+            }
+            return { label: '両手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+        }
+        if (equippedSlots.includes('RightHand')) {
+            return { label: '右手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'RightHand') };
+        }
+        if (equippedSlots.includes('LeftHand')) {
+            return { label: '左手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
+        }
+        return { label: '右手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'RightHand') };
+    }
+    if (canonicalCategory === 'Shield' || canonicalCategory === 'Offhand') {
+        if (equippedSlots.includes('LeftHand')) {
+            return { label: '左手解除', tone: 'remove', run: () => equipItem(playFabId, null, 'LeftHand') };
+        }
+        return { label: '左手装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'LeftHand') };
+    }
+    if (canonicalCategory === 'Armor') {
+        if (equippedSlots.includes('Armor')) {
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'Armor') };
+        }
+        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Armor') };
+    }
+    if (canonicalCategory === 'Accessory') {
+        if (equippedSlots.includes('Accessory')) {
+            return { label: '外す', tone: 'remove', run: () => equipItem(playFabId, null, 'Accessory') };
+        }
+        return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Accessory') };
+    }
+    if (canonicalCategory === 'TarotMajor') {
+        const isCurrentMajor = String(myCurrentEquipment?.[TAROT_MAJOR_SLOT] || '').trim() === String(itemId || '').trim();
+        const awakeningLevel = getMajorAwakeningLevel(itemId);
+        if (isCurrentMajor && (Number(item?.count || 0) || 0) > 1 && awakeningLevel < 5) {
+            return { label: '覚醒+1', tone: 'awaken', run: () => awakenMajorArcana(playFabId, itemId) };
+        }
+        if (!isCurrentMajor) {
+            return { label: '体変更', tone: 'equip', run: () => equipItem(playFabId, itemId, TAROT_MAJOR_SLOT) };
+        }
+        return null;
+    }
+    if (canonicalCategory === 'TarotMinor') {
+        const learnedSkill = getTarotSkillStateForItem(itemId);
+        const maxLevel = Number(learnedSkill?.maxLevel || 5) || 5;
+        if (!learnedSkill || (Number(learnedSkill.level || 0) || 0) < maxLevel) {
+            return { label: learnedSkill ? '術強化' : '術化', tone: 'study', run: () => studyTarotCard(playFabId, itemId) };
+        }
+        const preferredSlot = getPreferredManifestSlot();
+        if (preferredSlot) {
+            return { label: `${getTarotSlotLabel(preferredSlot)}具現`, tone: 'manifest', run: () => manifestTarotCard(playFabId, itemId, preferredSlot) };
+        }
+        return null;
+    }
+    if (canonicalCategory === 'Consumable' && instanceId) {
+        return { label: '使う', tone: 'use', run: () => useItem(playFabId, instanceId, itemId) };
+    }
+    return null;
+}
+
+function createInventoryCell(item, requestedCategory) {
+    const cd = item?.customData || {};
+    const canonicalCategory = getCanonicalTarotCategory(cd.Category);
+    const layout = requestedCategory === 'All'
+        ? 'mixed'
+        : getInventoryLayout(requestedCategory);
+    const cell = document.createElement('div');
+    cell.className = `inventory-item-cell inventory-item-cell--${layout}`;
+    cell.dataset.layout = layout;
+    cell.dataset.category = canonicalCategory || 'Unknown';
+    cell.onclick = () => showItemDetailModal(item);
+    const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
+    const quickAction = getInventoryQuickAction(item, canonicalCategory);
+    if (compareSummary?.tone) {
+        cell.classList.add(`is-${compareSummary.tone}`);
+    }
+    if (quickAction?.tone) {
+        cell.classList.add(`has-${quickAction.tone}`);
+    }
+    if (isInventoryItemEquipped(item)) {
+        cell.classList.add('is-equipped');
+    }
+
+    const head = document.createElement('div');
+    head.className = 'inventory-item-head';
+    head.appendChild(createInventoryBadge(getInventoryCategoryLabel(canonicalCategory), canonicalCategory.toLowerCase()));
+
+    const headMeta = document.createElement('div');
+    headMeta.className = 'inventory-item-head-meta';
+    const isEquipped = isInventoryItemEquipped(item);
+    if (canonicalCategory === 'TarotMajor' && String(myCurrentEquipment?.[TAROT_MAJOR_SLOT] || '').trim() === String(item.itemId || '').trim()) {
+        headMeta.appendChild(createInventoryBadge('体', 'active'));
+    } else if (isEquipped) {
+        headMeta.appendChild(createInventoryBadge('装備中', 'active'));
+    }
+    if ((Number(item?.count || 0) || 0) > 1) {
+        headMeta.appendChild(createInventoryBadge(`x${item.count}`, 'count'));
+    }
+    head.appendChild(headMeta);
+    cell.appendChild(head);
+
+    const main = document.createElement('div');
+    main.className = 'inventory-item-main';
+
+    const iconFrame = document.createElement('div');
+    iconFrame.className = 'inventory-item-icon-frame';
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'inventory-item-icon';
+    setSpriteIcon(
+        iconDiv,
+        cd.sprite_path,
+        parseInt(cd.sprite_index, 10) || 0,
+        parseInt(cd.sprite_w, 10) || 32,
+        parseInt(cd.sprite_h, 10) || 32,
+        1,
+        cd.Category,
+        window.myAvatarBaseInfo?.AvatarColor
+    );
+    iconFrame.appendChild(iconDiv);
+    main.appendChild(iconFrame);
+
+    const copy = document.createElement('div');
+    copy.className = 'inventory-item-copy';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'inventory-item-name';
+    nameEl.textContent = item?.name || '不明なアイテム';
+    copy.appendChild(nameEl);
+
+    const subtitle = getInventoryCardSubtitle(item, canonicalCategory);
+    if (subtitle) {
+        const subtitleEl = document.createElement('div');
+        subtitleEl.className = 'inventory-item-subtitle';
+        subtitleEl.textContent = subtitle;
+        copy.appendChild(subtitleEl);
+    }
+
+    const chips = getInventoryCardChips(item, canonicalCategory);
+    if (chips.length) {
+        const chipRow = document.createElement('div');
+        chipRow.className = 'inventory-item-chip-row';
+        chips.forEach((chipLabel) => chipRow.appendChild(createInventoryChip(chipLabel)));
+        copy.appendChild(chipRow);
+    }
+
+    const footer = getInventoryCardFooter(item, canonicalCategory);
+    if (footer) {
+        const footerEl = document.createElement('div');
+        footerEl.className = 'inventory-item-footer';
+        footerEl.textContent = footer;
+        copy.appendChild(footerEl);
+    }
+
+    main.appendChild(copy);
+    cell.appendChild(main);
+
+    if (compareSummary || quickAction) {
+        const tail = document.createElement('div');
+        tail.className = 'inventory-item-tail';
+        if (compareSummary) {
+            const compareEl = document.createElement('div');
+            compareEl.className = `inventory-item-compare is-${compareSummary.tone || 'flat'}`;
+            compareEl.textContent = compareSummary.text;
+            tail.appendChild(compareEl);
+        }
+        if (quickAction) {
+            const actionButton = document.createElement('button');
+            actionButton.type = 'button';
+            actionButton.className = `inventory-item-quick-action is-${quickAction.tone || 'default'}`;
+            actionButton.textContent = quickAction.label;
+            actionButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await quickAction.run();
+            });
+            tail.appendChild(actionButton);
+        }
+        cell.appendChild(tail);
+    }
+
+    return cell;
 }
 
 function getManifestationOverwriteSlots(slot, itemId) {
@@ -563,6 +1156,8 @@ export async function getInventory(playFabId, options = {}) {
     }
     await syncShipResourceSummary(playFabId);
     await getEquipment(playFabId);
+    renderInventoryTabControls();
+    updateInventorySortOptions(getActiveInventoryCategory());
     renderInventoryGrid(getActiveInventoryCategory());
     renderResourceSummary();
     updateExperienceUI();
@@ -605,6 +1200,8 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         await syncShipResourceSummary(playFabId);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
+        renderInventoryTabControls();
+        updateInventorySortOptions(getActiveInventoryCategory());
         renderResourceSummary();
         updateExperienceUI();
         if (Array.isArray(data.inventory)) {
@@ -735,11 +1332,25 @@ export async function sellItem(playFabId, itemInstanceId, itemId) {
 
 export function switchInventoryTab(category) {
     switchInventoryPanel('items', { preserveScroll: true });
-    document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.category === category);
-    });
-    updateInventoryTabHint(category);
-    renderInventoryGrid(category);
+    activeInventoryCategory = category || 'All';
+    activeInventoryGroup = getInventoryGroupForCategory(activeInventoryCategory);
+    renderInventoryTabControls();
+    updateInventorySortOptions(activeInventoryCategory);
+    updateInventoryTabHint(activeInventoryCategory);
+    renderInventoryGrid(activeInventoryCategory);
+}
+
+export function switchInventoryGroup(group) {
+    switchInventoryPanel('items', { preserveScroll: true });
+    activeInventoryGroup = INVENTORY_GROUPS[group] ? group : 'All';
+    const currentGroup = getInventoryGroupForCategory(activeInventoryCategory);
+    if (currentGroup !== activeInventoryGroup) {
+        activeInventoryCategory = getDefaultInventoryCategory(activeInventoryGroup);
+    }
+    renderInventoryTabControls();
+    updateInventorySortOptions(activeInventoryCategory);
+    updateInventoryTabHint(activeInventoryCategory);
+    renderInventoryGrid(activeInventoryCategory);
 }
 
 export function renderInventoryGrid(category) {
@@ -747,14 +1358,14 @@ export function renderInventoryGrid(category) {
     const resourceSummaryEl = document.getElementById('resourceSummary');
     const sortEl = document.getElementById('inventorySort');
     const isResourceCategory = category === 'Resource';
+    const layout = getInventoryLayout(category);
 
     gridEl.innerHTML = '';
+    gridEl.dataset.layout = layout;
+    gridEl.dataset.category = category || 'All';
+    updateInventorySortOptions(category);
     if (resourceSummaryEl) {
         resourceSummaryEl.style.display = isResourceCategory ? 'block' : 'none';
-    }
-    if (sortEl) {
-        sortEl.disabled = isResourceCategory;
-        sortEl.style.visibility = isResourceCategory ? 'hidden' : 'visible';
     }
 
     if (isResourceCategory) {
@@ -768,10 +1379,43 @@ export function renderInventoryGrid(category) {
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {
         if (sortOrder === 'power_desc') {
-            return (b.customData?.Power || 0) - (a.customData?.Power || 0);
+            const diff = (b.customData?.Power || 0) - (a.customData?.Power || 0);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
         }
         if (sortOrder === 'defense_desc') {
-            return (b.customData?.Defense || 0) - (a.customData?.Defense || 0);
+            const diff = (b.customData?.Defense || 0) - (a.customData?.Defense || 0);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
+        }
+        if (sortOrder === 'magic_desc') {
+            const diff = (b.customData?.MagicPower || 0) - (a.customData?.MagicPower || 0);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
+        }
+        if (sortOrder === 'heal_desc') {
+            const diff = (b.customData?.HealPower || 0) - (a.customData?.HealPower || 0);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
+        }
+        if (sortOrder === 'count_desc') {
+            const diff = (Number(b.count || 0) || 0) - (Number(a.count || 0) || 0);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
+        }
+        if (sortOrder === 'awakening_desc') {
+            const diff = getMajorAwakeningLevel(b.itemId) - getMajorAwakeningLevel(a.itemId);
+            if (diff !== 0) return diff;
+            return compareInventoryItemsDefault(a, b, category);
+        }
+        if (sortOrder === 'skill_level_desc') {
+            const leftSkill = getTarotSkillStateForItem(a.itemId);
+            const rightSkill = getTarotSkillStateForItem(b.itemId);
+            const diff = (Number(rightSkill?.level || 0) || 0) - (Number(leftSkill?.level || 0) || 0);
+            if (diff !== 0) return diff;
+            const usableDiff = Number(isTarotSkillUsableNow(rightSkill)) - Number(isTarotSkillUsableNow(leftSkill));
+            if (usableDiff !== 0) return usableDiff;
+            return compareInventoryItemsDefault(a, b, category);
         }
         const leftCategory = getCanonicalTarotCategory(a.customData?.Category);
         const rightCategory = getCanonicalTarotCategory(b.customData?.Category);
@@ -779,7 +1423,7 @@ export function renderInventoryGrid(category) {
             || (leftCategory === 'TarotMinor' && rightCategory === 'TarotMinor')) {
             return compareTarotItems(a, b);
         }
-        return 0; // default
+        return compareInventoryItemsDefault(a, b, category);
     });
 
     if (sorted.length === 0) {
@@ -790,32 +1434,7 @@ export function renderInventoryGrid(category) {
     sorted.forEach(item => {
         const instanceId = item.instances?.[0];
         if (!instanceId) return;
-
-        const cell = document.createElement('div');
-        cell.className = 'inventory-item-cell';
-        cell.onclick = () => showItemDetailModal(item);
-
-        const iconDiv = document.createElement('div');
-        iconDiv.className = 'inventory-item-icon';
-        cell.appendChild(iconDiv);
-
-        const cd = item.customData || {};
-        setSpriteIcon(iconDiv, cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32, 1, cd.Category, window.myAvatarBaseInfo?.AvatarColor);
-
-        if (item.count > 1) {
-            const countSpan = document.createElement('span');
-            countSpan.className = 'inventory-item-count';
-            countSpan.innerText = `x${item.count}`;
-            cell.appendChild(countSpan);
-        }
-        const equippedValues = Object.values(myCurrentEquipment || {}).filter(Boolean);
-        if (equippedValues.includes(instanceId) || equippedValues.includes(item.itemId)) {
-            const equippedSpan = document.createElement('span');
-            equippedSpan.className = 'inventory-item-equipped-mark';
-            equippedSpan.innerText = 'E';
-            cell.appendChild(equippedSpan);
-        }
-        gridEl.appendChild(cell);
+        gridEl.appendChild(createInventoryCell(item, category));
     });
 }
 
@@ -869,13 +1488,7 @@ function showItemDetailModal(item) {
 
     setSpriteIcon(document.getElementById('itemDetailIcon'), cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32, 1, cd.Category, window.myAvatarBaseInfo?.AvatarColor);
     document.getElementById('itemDetailName').innerText = item.name;
-    document.getElementById('itemDetailCategory').innerText = canonicalCategory === 'TarotMajor'
-        ? '大アルカナ'
-        : canonicalCategory === 'TarotMinor'
-            ? '小アルカナ'
-            : cd.Category === 'Offhand'
-                ? '副手'
-            : (cd.Category || '不明');
+    document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
     document.getElementById('itemDetailDescription').innerText = item.description || '説明がありません。';
 
     const statsEl = document.getElementById('itemDetailStats');

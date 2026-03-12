@@ -499,13 +499,14 @@
                     </div>
                 </div>
                 <div id="phaser-container" class="map-stage"></div>
-        <div id="mapNavHud" style="position:absolute; top:12px; left:12px; z-index: 1200; display:none; align-items:center; gap:8px; padding:6px 10px; border-radius:10px; background: rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:12px;">
-            <div id="mapNavArrow" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; transform: rotate(0deg);">▲</div>
-            <div>
-                <div id="mapNavLabel" style="font-weight:700; font-size:12px;">NAV</div>
-                <div id="mapNavDistance" style="font-size:11px; color:rgba(255,255,255,0.8);">距離: -</div>
-            </div>
-        </div>
+                <div id="mapNavHud" class="map-nav-pill" hidden>
+                    <div id="mapNavArrow" class="map-nav-pill-arrow">▲</div>
+                    <div class="map-nav-pill-copy">
+                        <div id="mapNavLabel" class="map-nav-pill-label">NAV</div>
+                        <div id="mapNavDistance" class="map-nav-pill-distance">距離: -</div>
+                    </div>
+                    <button type="button" id="mapNavClear" class="map-nav-pill-clear" aria-label="ナビを解除">×</button>
+                </div>
 
         <div id="mapSelectModal" class="modal-overlay" style="position:fixed; inset:0; z-index: 4000; display:none; align-items:center; justify-content:center; background: rgba(10,12,18,0.75);">
             <div style="width:min(520px, 92vw); max-height: 85vh; overflow:auto; background:#0b1220; border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:16px; color:#fff;">
@@ -517,15 +518,26 @@
                 <div id="mapSelectArcanaList" style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px;"></div>
             </div>
                 </div>
-                <div id="shipActionPanel" class="ship-action-panel app-action-panel">
-                    <div id="shipActionStatus" class="ship-action-status"></div>
-                    <button id="shipActionButton" class="ship-action-button">Action</button>
+                <div id="mapActionBar" class="tarot-bet-popup map-action-bar app-action-panel">
+                    <div class="map-action-meta">
+                        <div id="shipCombatResourceStatus" class="ship-combat-resource-status"></div>
+                    </div>
+                    <div class="tarot-betting-actions map-action-buttons">
+                        <div id="createIslandPanel" class="map-action-slot">
+                            <button id="createIslandButton" class="ship-action-button ship-action-button-sub map-action-button">島を作成</button>
+                        </div>
+                        <div id="shipSideCannonPanel" class="map-action-slot">
+                            <button id="shipSideCannonButton" class="ship-action-button ship-side-cannon-button map-action-button">舷側砲</button>
+                        </div>
+                        <div id="shipActionPanel" class="map-action-slot">
+                            <button id="shipActionButton" class="ship-action-button map-action-button">船アクション</button>
+                        </div>
+                    </div>
+                    <div class="map-action-status-row">
+                        <div id="shipSideCannonStatus" class="map-action-status-chip"></div>
+                        <div id="shipActionStatus" class="map-action-status-chip"></div>
+                    </div>
                 </div>
-                <div id="shipSideCannonPanel" class="ship-side-cannon-panel app-action-panel">
-                    <div id="shipSideCannonStatus" class="ship-action-status"></div>
-                    <button id="shipSideCannonButton" class="ship-action-button ship-side-cannon-button">舷側砲</button>
-                </div>
-                <button id="createIslandButton" class="ship-action-button ship-action-button-sub create-island-top-button">島を作成</button>
 
                 <!-- 島コマンドパネル（下からスライドイン） -->
                 <div id="islandCommandPanel" class="island-command-panel">
@@ -657,10 +669,8 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                     </div>
-                    <div class="tarot-equip-guide">
-                        <div class="tarot-equip-guide-chip"><strong>体</strong>は必須です。大アルカナを切り替えると4部位の具現化名も変わります。</div>
-                        <div class="tarot-equip-guide-chip"><strong>小アルカナ</strong>は頭・右手・左手・アクセサリーへ具現化します。</div>
-                        <div class="tarot-equip-guide-chip"><strong>具現化時</strong>にカードを1枚消費し、選んだ部位の現在装備を上書きします。</div>
+                    <div class="tarot-equip-guide tarot-equip-guide--compact">
+                        <div class="tarot-equip-guide-inline"><strong>体</strong>は大アルカナ、<strong>小アルカナ</strong>は4部位へ具現化、<strong>具現化時</strong>はカードを1枚消費して現在装備を上書きします。</div>
                     </div>
                     <div class="tarot-loadout-panel">
                         <div class="tarot-loadout-header">
@@ -678,18 +688,21 @@
                         </div>
                         <div id="tarotLoadoutGrid" class="tarot-loadout-grid"></div>
                     </div>
-                    <div class="tarot-combat-grid">
-                        <div id="activeTarotAwakeningPanel" class="tarot-combat-card">
-                            <div class="tarot-combat-card-label">装備中の大アルカナ効果</div>
-                            <div class="tarot-combat-card-title">未装着</div>
-                            <div class="tarot-combat-card-body">体に大アルカナを装備すると、覚醒段階に応じた常在効果が反映されます。</div>
+                    <details class="tarot-combat-disclosure">
+                        <summary>大アルカナ効果と習得済みの術を見る</summary>
+                        <div class="tarot-combat-grid">
+                            <div id="activeTarotAwakeningPanel" class="tarot-combat-card">
+                                <div class="tarot-combat-card-label">装備中の大アルカナ効果</div>
+                                <div class="tarot-combat-card-title">未装着</div>
+                                <div class="tarot-combat-card-body">体に大アルカナを装備すると、覚醒段階に応じた常在効果が反映されます。</div>
+                            </div>
+                            <div id="tarotSkillListPanel" class="tarot-combat-card">
+                                <div class="tarot-combat-card-label">習得済みの術</div>
+                                <div class="tarot-combat-card-title">未習得</div>
+                                <div class="tarot-combat-card-body">小アルカナから習得した術がここに並びます。現在の装備で使える術は強調表示されます。</div>
+                            </div>
                         </div>
-                        <div id="tarotSkillListPanel" class="tarot-combat-card">
-                            <div class="tarot-combat-card-label">習得済みの術</div>
-                            <div class="tarot-combat-card-title">未習得</div>
-                            <div class="tarot-combat-card-body">小アルカナから習得した術がここに並びます。現在の装備で使える術は強調表示されます。</div>
-                        </div>
-                    </div>
+                    </details>
                 </div>
 
                 <!-- ステータス -->
@@ -741,18 +754,14 @@
                     </div>
                     <p id="pointMessage" style="font-size:12px; color:var(--text-sub); margin: 4px 0 10px;"></p>
 
-                    <div id="inventoryTabs">
-                        <button class="inventory-tab-btn" data-category="Resource">資源</button>
-                        <button class="inventory-tab-btn active" data-category="All">すべて</button>
-                        <button class="inventory-tab-btn" data-category="Weapon">武器</button>
-                        <button class="inventory-tab-btn" data-category="Shield">盾</button>
-                        <button class="inventory-tab-btn" data-category="Offhand">副手</button>
-                        <button class="inventory-tab-btn" data-category="Armor">防具</button>
-                        <button class="inventory-tab-btn" data-category="Accessory">アクセサリー</button>
-                        <button class="inventory-tab-btn" data-category="TarotMajor">大アルカナ</button>
-                        <button class="inventory-tab-btn" data-category="TarotMinor">小アルカナ</button>
-                        <button class="inventory-tab-btn" data-category="Consumable">消耗品</button>
+                    <div id="inventoryPrimaryTabs" class="inventory-primary-tabs">
+                        <button class="inventory-primary-tab-btn active" data-group="All" type="button">全部</button>
+                        <button class="inventory-primary-tab-btn" data-group="Equipment" type="button">装備</button>
+                        <button class="inventory-primary-tab-btn" data-group="Tarot" type="button">タロット</button>
+                        <button class="inventory-primary-tab-btn" data-group="Consumable" type="button">消耗品</button>
+                        <button class="inventory-primary-tab-btn" data-group="Resource" type="button">資源</button>
                     </div>
+                    <div id="inventoryTabs"></div>
                     <div id="inventoryTabHint" class="inventory-tab-hint">大アルカナで体を切り替え、小アルカナで4部位を具現化します。</div>
 
                     <div id="resourceSummary" class="resource-summary" style="display:none;">
