@@ -1171,6 +1171,9 @@ body[data-sea-tone="night"] .home-hero-card {
 .tarot-loadout-visual {
     width: 72px;
     height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background:
@@ -1674,6 +1677,10 @@ body[data-sea-tone="night"] .home-hero-card {
     height: 80%;
     image-rendering: pixelated;
     object-fit: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: block;
+    flex: 0 0 auto;
 }
 
 .inventory-item-count {
@@ -8794,14 +8801,70 @@ textarea {
 }
 
 .item-detail-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
     align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.item-detail-icon-frame {
+    width: 72px;
+    height: 108px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background:
+        linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96)),
+        rgba(2, 6, 23, 0.88);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.item-detail-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+
+#itemDetailIcon {
+    width: 48px;
+    height: 80px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    flex: 0 0 auto;
+}
+
+#itemDetailName {
+    margin: 0;
+    color: var(--accent-color);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+#itemDetailCategory {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-sub);
 }
 
 #itemDetailDescription {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.22);
+    font-size: 14px;
     line-height: 1.65;
 }
 
 #itemDetailStats {
+    margin: 0 0 18px;
+    font-weight: 700;
     line-height: 1.7;
 }
 
@@ -8813,6 +8876,12 @@ textarea {
 
 #itemDetailButtons button {
     width: 100%;
+}
+
+.item-detail-close {
+    width: 100%;
+    margin-top: 8px;
+    background: #4b5563;
 }
 
 .item-detail-action-note {
@@ -10271,6 +10340,9 @@ textarea {
 #tabContentInventory .tarot-loadout-visual {
     width: 34px;
     height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 7px;
 }
 
@@ -10363,27 +10435,8 @@ textarea {
     flex-direction: column;
 }
 
-.item-detail-head {
-    order: 1;
-}
-
 #itemDetailButtons {
-    order: 2;
-    margin-bottom: 14px;
-}
-
-#itemDetailDescription {
-    order: 3;
-    margin-bottom: 12px !important;
-}
-
-#itemDetailStats {
-    order: 4;
-    margin-bottom: 12px !important;
-}
-
-.item-detail-close {
-    order: 5;
+    margin-bottom: 12px;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="mixed"] {
@@ -10483,6 +10536,11 @@ textarea {
     height: auto;
     max-width: none;
     max-height: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: block;
+    flex: 0 0 auto;
+    margin: 0 auto;
 }
 
 #tabContentInventory .inventory-item-copy {
@@ -10639,6 +10697,10 @@ textarea {
     height: 98px;
     flex-basis: 98px;
     border-radius: 16px;
+}
+
+#tabContentInventory .inventory-item-cell--tarot .inventory-item-icon {
+    margin: 0 auto;
 }
 
 #tabContentInventory .inventory-item-cell--tarot .inventory-item-copy {

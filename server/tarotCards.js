@@ -533,7 +533,7 @@ function resolveTarotManifestationTemplate(slot, majorItemId, minorItemData, opt
     const suitKey = normalizeSuitKey(minorItemData?.ArcanaSuit || minorItemData?.Suit);
     const styleId = getManifestStyleId(majorItemId);
     const groupId = getManifestTemplateGroupId(styleId, normalizedSlot, suitKey);
-    const groupDefinition = groupId ? TAROT_MANIFESTATION_TEMPLATE_GROUPS[groupId] : null;
+    const groupDefinition = groupId ? TAROT_MANIFEST_TEMPLATE_GROUPS[groupId] : null;
     const templateEntry = groupId ? pickTemplateByRank(catalogCache, groupId, getTarotRankValue(minorItemData)) : null;
     const templateCategory = normalizeCategory(templateEntry?.Category);
     const groupCategory = normalizeCategory(groupDefinition?.category);

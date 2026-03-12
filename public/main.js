@@ -437,6 +437,9 @@ async function initializeAppFeatures() {
                 targetCategory = 'Accessory';
             }
 
+            const nextManifestTargetSlot = slot.dataset.tarotManifest === 'true' ? currentSlotKey : null;
+            Inventory.setInventoryManifestTargetSlot(nextManifestTargetSlot);
+
             // インベントリタブに移動
             await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
             Inventory.switchInventoryPanel('items', { preserveScroll: true });

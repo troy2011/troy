@@ -62,6 +62,7 @@ function setTarotLoadoutSprite(element, sprite) {
         element.style.backgroundImage = 'none';
         element.style.backgroundSize = '';
         element.style.backgroundPosition = '';
+        element.style.backgroundRepeat = '';
         element.textContent = '🂠';
         return;
     }
@@ -74,11 +75,13 @@ function setTarotLoadoutSprite(element, sprite) {
     const scale = Math.min(targetWidth / width, targetHeight / height);
     const col = index % cols;
     const row = Math.floor(index / cols);
+    const offsetX = ((targetWidth - (width * scale)) / 2) - (col * width * scale);
+    const offsetY = ((targetHeight - (height * scale)) / 2) - (row * height * scale);
     element.textContent = '';
     element.style.backgroundImage = `url('${sprite.path}')`;
     element.style.backgroundRepeat = 'no-repeat';
     element.style.backgroundSize = `${cols * width * scale}px auto`;
-    element.style.backgroundPosition = `${-(col * width * scale)}px ${-(row * height * scale)}px`;
+    element.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
 }
 
 function renderTarotLoadoutGrid(majorArcanaItem, manifestationItems) {

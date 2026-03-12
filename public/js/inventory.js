@@ -23,6 +23,7 @@ import {
     compareTarotItems,
     getCanonicalTarotCategory,
     getTarotRankLabel,
+    getTarotSpriteFrame,
     getTarotSlotLabel,
     getTarotSuitLabel,
     isTarotMajorCategory,
@@ -44,6 +45,7 @@ let myActiveTarotAwakening = null;
 let activeInventoryPanel = 'loadout';
 let activeInventoryGroup = 'All';
 let activeInventoryCategory = 'All';
+let activeManifestTargetSlot = null;
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
 let myShipResourceStorage = {
@@ -126,6 +128,31 @@ const INVENTORY_SORT_OPTIONS = {
 
 export function getActiveInventoryCategory() {
     return activeInventoryCategory;
+}
+
+function normalizeManifestTargetSlot(slot) {
+    const normalized = String(slot || '').trim();
+    if (!normalized) return null;
+    if (normalized === 'Armor' || normalized === 'RightHand' || normalized === 'LeftHand' || normalized === 'Accessory') {
+        return normalized;
+    }
+    if (normalized === 'armor') return 'Armor';
+    if (normalized === 'rightHand') return 'RightHand';
+    if (normalized === 'leftHand') return 'LeftHand';
+    if (normalized === 'accessory') return 'Accessory';
+    return null;
+}
+
+function getManifestTargetSlot() {
+    return normalizeManifestTargetSlot(activeManifestTargetSlot);
+}
+
+export function setInventoryManifestTargetSlot(slot, options = {}) {
+    activeManifestTargetSlot = normalizeManifestTargetSlot(slot);
+    if (options.refresh && activeInventoryCategory === 'TarotMinor') {
+        updateInventoryTabHint(activeInventoryCategory);
+        renderInventoryGrid(activeInventoryCategory);
+    }
 }
 
 function getInventoryGroupForCategory(category) {
@@ -413,6 +440,10 @@ function getInventoryTabHint(category) {
         return '体は必須です。大アルカナは外せませんが、別の大アルカナに変更できます。';
     }
     if (category === 'TarotMinor') {
+        const targetSlot = getManifestTargetSlot();
+        if (targetSlot) {
+            return `${getTarotSlotLabel(targetSlot)}に具現化する小アルカナを選んでください。具現化するとカードを1枚消費します。`;
+        }
         return '小アルカナは頭・右手・左手・アクセサリーへ具現化します。具現化するとカードを1枚消費します。';
     }
     if (category === 'Accessory') {
@@ -673,6 +704,8 @@ function isTwoHandedWeapon(item) {
 }
 
 function getPreferredManifestSlot() {
+    const targetSlot = getManifestTargetSlot();
+    if (targetSlot) return targetSlot;
     return TAROT_MINOR_SLOTS.find((slot) => !myCurrentEquipment?.[slot]) || null;
 }
 
@@ -796,12 +829,16 @@ function getInventoryQuickAction(item, canonicalCategory) {
     if (canonicalCategory === 'TarotMinor') {
         const learnedSkill = getTarotSkillStateForItem(itemId);
         const maxLevel = Number(learnedSkill?.maxLevel || 5) || 5;
-        if (!learnedSkill || (Number(learnedSkill.level || 0) || 0) < maxLevel) {
-            return { label: learnedSkill ? '術強化' : '術化', tone: 'study', run: () => studyTarotCard(playFabId, itemId) };
-        }
         const preferredSlot = getPreferredManifestSlot();
         if (preferredSlot) {
-            return { label: `${getTarotSlotLabel(preferredSlot)}具現`, tone: 'manifest', run: () => manifestTarotCard(playFabId, itemId, preferredSlot) };
+            const hasCurrentManifest = !!myCurrentEquipment?.[preferredSlot];
+            const actionLabel = hasCurrentManifest
+                ? `${getTarotSlotLabel(preferredSlot)}上書き`
+                : `${getTarotSlotLabel(preferredSlot)}具現`;
+            return { label: actionLabel, tone: 'manifest', run: () => manifestTarotCard(playFabId, itemId, preferredSlot) };
+        }
+        if (!learnedSkill || (Number(learnedSkill.level || 0) || 0) < maxLevel) {
+            return { label: learnedSkill ? '術強化' : '術化', tone: 'study', run: () => studyTarotCard(playFabId, itemId) };
         }
         return null;
     }
@@ -859,14 +896,15 @@ function createInventoryCell(item, requestedCategory) {
     iconFrame.className = 'inventory-item-icon-frame';
     const iconDiv = document.createElement('div');
     iconDiv.className = 'inventory-item-icon';
+    const spriteFrame = getInventorySpriteFrame(item);
     setSpriteIcon(
         iconDiv,
-        cd.sprite_path,
-        parseInt(cd.sprite_index, 10) || 0,
-        parseInt(cd.sprite_w, 10) || 32,
-        parseInt(cd.sprite_h, 10) || 32,
+        spriteFrame.path,
+        spriteFrame.index,
+        spriteFrame.width,
+        spriteFrame.height,
         1,
-        cd.Category,
+        spriteFrame.category,
         window.myAvatarBaseInfo?.AvatarColor
     );
     iconFrame.appendChild(iconDiv);
@@ -1254,6 +1292,7 @@ export async function manifestTarotCard(playFabId, itemId, slot) {
 
     const data = await requestManifestTarotCard(playFabId, itemId, slot);
     if (data !== null) {
+        setInventoryManifestTargetSlot(null);
         await getInventory(playFabId, { force: true });
         const modal = document.getElementById('itemDetailModal');
         if (modal) {
@@ -1334,6 +1373,9 @@ export function switchInventoryTab(category) {
     switchInventoryPanel('items', { preserveScroll: true });
     activeInventoryCategory = category || 'All';
     activeInventoryGroup = getInventoryGroupForCategory(activeInventoryCategory);
+    if (activeInventoryCategory !== 'TarotMinor') {
+        setInventoryManifestTargetSlot(null);
+    }
     renderInventoryTabControls();
     updateInventorySortOptions(activeInventoryCategory);
     updateInventoryTabHint(activeInventoryCategory);
@@ -1346,6 +1388,9 @@ export function switchInventoryGroup(group) {
     const currentGroup = getInventoryGroupForCategory(activeInventoryCategory);
     if (currentGroup !== activeInventoryGroup) {
         activeInventoryCategory = getDefaultInventoryCategory(activeInventoryGroup);
+    }
+    if (activeInventoryCategory !== 'TarotMinor') {
+        setInventoryManifestTargetSlot(null);
     }
     renderInventoryTabControls();
     updateInventorySortOptions(activeInventoryCategory);
@@ -1440,7 +1485,14 @@ export function renderInventoryGrid(category) {
 
 function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteHeight = 32, scale = 1, itemCategory = null, avatarColor = null) {
     if (!element || !imageUrl || spriteIndex < 0) {
-        if (element) element.style.backgroundImage = 'none';
+        if (element) {
+            element.style.backgroundImage = 'none';
+            element.style.width = '';
+            element.style.height = '';
+            element.style.backgroundSize = '';
+            element.style.backgroundPosition = '';
+            element.style.backgroundRepeat = '';
+        }
         return;
     }
 
@@ -1459,6 +1511,11 @@ function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             element.style.width = `${spriteWidth * scale}px`;
             element.style.height = `${spriteHeight * scale}px`;
             element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+            element.style.backgroundRepeat = 'no-repeat';
+            element.style.display = 'block';
+            element.style.flex = '0 0 auto';
+            element.style.margin = '0 auto';
+            element.style.imageRendering = 'pixelated';
 
             const sheetColumns = Math.max(1, Math.floor(img.width / spriteWidth));
             const col = spriteIndex % sheetColumns;
@@ -1476,17 +1533,51 @@ function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteH
     tryLoad(0);
 }
 
+function getInventorySpriteFrame(item) {
+    const cd = item?.customData || {};
+    const canonicalCategory = getCanonicalTarotCategory(cd.Category);
+    if (canonicalCategory === 'TarotMajor' || canonicalCategory === 'TarotMinor') {
+        const tarotFrame = getTarotSpriteFrame(item);
+        if (tarotFrame?.path) {
+            return {
+                path: tarotFrame.path,
+                index: Number(tarotFrame.index || 0) || 0,
+                width: Number(tarotFrame.width || 48) || 48,
+                height: Number(tarotFrame.height || 80) || 80,
+                category: cd.Category
+            };
+        }
+    }
+    return {
+        path: cd.sprite_path,
+        index: parseInt(cd.sprite_index, 10) || 0,
+        width: parseInt(cd.sprite_w, 10) || 32,
+        height: parseInt(cd.sprite_h, 10) || 32,
+        category: cd.Category
+    };
+}
+
 function showItemDetailModal(item) {
     const modal = document.getElementById('itemDetailModal');
     const cd = item.customData || {};
     const instanceId = item.instances?.[0];
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
+    const spriteFrame = getInventorySpriteFrame(item);
     const isCurrentMajorEquipped = String(myCurrentEquipment?.[TAROT_MAJOR_SLOT] || '').trim() === String(item.itemId || '').trim();
     const appendStatLine = (html) => {
         statsEl.innerHTML += `${statsEl.innerHTML ? '<br>' : ''}${html}`;
     };
 
-    setSpriteIcon(document.getElementById('itemDetailIcon'), cd.sprite_path, parseInt(cd.sprite_index, 10) || 0, parseInt(cd.sprite_w, 10) || 32, parseInt(cd.sprite_h, 10) || 32, 1, cd.Category, window.myAvatarBaseInfo?.AvatarColor);
+    setSpriteIcon(
+        document.getElementById('itemDetailIcon'),
+        spriteFrame.path,
+        spriteFrame.index,
+        spriteFrame.width,
+        spriteFrame.height,
+        1,
+        spriteFrame.category,
+        window.myAvatarBaseInfo?.AvatarColor
+    );
     document.getElementById('itemDetailName').innerText = item.name;
     document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
     document.getElementById('itemDetailDescription').innerText = item.description || '説明がありません。';
@@ -1521,6 +1612,7 @@ function showItemDetailModal(item) {
     if (isTarotMinorCategory(canonicalCategory)) {
         const learnedSkill = getTarotSkillStateForItem(item.itemId);
         const majorArcanaItem = getInventoryItemByReference(myCurrentEquipment[TAROT_MAJOR_SLOT]);
+        const targetManifestSlot = getManifestTargetSlot();
         if (majorArcanaItem?.name) {
             appendStatLine(`<span>現在の体: <strong>${majorArcanaItem.name}</strong></span>`);
         }
@@ -1531,7 +1623,8 @@ function showItemDetailModal(item) {
         } else {
             appendStatLine('<span>未習得: この札を1枚使うと対応する術を習得できます。</span>');
         }
-        TAROT_MINOR_SLOTS.forEach((slot) => {
+        const previewSlots = targetManifestSlot ? [targetManifestSlot] : TAROT_MINOR_SLOTS;
+        previewSlots.forEach((slot) => {
             const manifestation = buildTarotManifestation(slot, majorArcanaItem, item);
             if (!manifestation.title) return;
             appendStatLine(`<span>${getTarotSlotLabel(slot)}具現: <strong>${manifestation.title}</strong></span>`);
@@ -1619,18 +1712,23 @@ function showItemDetailModal(item) {
         appendActionNote('小アルカナを具現化するとカードを1枚消費し、既存武具の姿と性能で装備化されます。選んだ部位の現在装備は上書きされます。');
         const learnedSkill = getTarotSkillStateForItem(equipItemId);
         const canStudy = !learnedSkill || (Number(learnedSkill.level || 0) || 0) < (Number(learnedSkill.maxLevel || 5) || 5);
+        const targetManifestSlot = getManifestTargetSlot();
         appendActionNote('小アルカナは具現化素材にも、術の習得・強化素材にも使えます。');
-        if (canStudy) {
-            buttonsEl.innerHTML += `<button onclick="window.studyTarotCard('${equipItemId}')">${getTarotStudyActionLabel(equipItemId)}</button>`;
-        } else {
-            buttonsEl.innerHTML += '<button disabled>この札の術は最大</button>';
+        if (targetManifestSlot) {
+            appendActionNote(`今は ${getTarotSlotLabel(targetManifestSlot)} に具現化する札を選択中です。`);
         }
-        TAROT_MINOR_SLOTS.forEach((slot) => {
+        const manifestationSlots = targetManifestSlot ? [targetManifestSlot] : TAROT_MINOR_SLOTS;
+        manifestationSlots.forEach((slot) => {
             const slotLabel = getTarotSlotLabel(slot);
             const hasCurrentManifest = !!myCurrentEquipment?.[slot];
             const actionLabel = hasCurrentManifest ? `${slotLabel}を上書き具現` : `${slotLabel}に具現化`;
             buttonsEl.innerHTML += `<button onclick="window.manifestTarotCard('${equipItemId}', '${slot}')">${actionLabel}</button>`;
         });
+        if (canStudy) {
+            buttonsEl.innerHTML += `<button onclick="window.studyTarotCard('${equipItemId}')">${getTarotStudyActionLabel(equipItemId)}</button>`;
+        } else {
+            buttonsEl.innerHTML += '<button disabled>この札の術は最大</button>';
+        }
     } else if (cd.Category === 'Consumable') {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;
     }
