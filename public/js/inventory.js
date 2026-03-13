@@ -509,9 +509,9 @@ function getInventoryCategoryLabel(category) {
 }
 
 function getInventoryLayout(category) {
-    if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
-    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
-    if (category === 'Consumable') return 'consumable';
+    if (category === 'TarotMajor' || category === 'TarotMinor') return 'mixed';
+    if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'mixed';
+    if (category === 'Consumable') return 'mixed';
     if (category === 'All') return 'mixed';
     return 'mixed';
 }
