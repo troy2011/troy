@@ -269,6 +269,11 @@ export default class WorldMapScene extends Phaser.Scene {
         };
         this.shipCombatResourceFetchedAt = 0;
         this.shipCombatResourceFetchPromise = null;
+        this.shipCombatResourcePollIntervalMs = 10_000;
+        this.shipCombatResourceBackoffUntil = 0;
+        this.onShipCombatResourceWindowFocus = null;
+        this.onShipCombatResourceVisibilityChange = null;
+        this.onMapTabVisible = null;
         this.hitStopUntil = 0;
         this.hitStopTimer = null;
         this.hitStopActive = false;
@@ -1156,6 +1161,7 @@ export default class WorldMapScene extends Phaser.Scene {
             if (this.uiCamera) this.uiCamera.setSize(this.scale.width, this.scale.height);
             this.updateZoomFromVisionRange();
             if (this.positionText) this.positionText.setPosition(12, this.scale.height - 10);
+            this.updateMapActionBarLayout();
         });
 
         if (typeof window !== 'undefined') {
@@ -2163,7 +2169,6 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if ((x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) ||
             (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom)) {
-            this.requestShipCombatResourceStorage(true);
             return true;
         }
 
@@ -2641,8 +2646,10 @@ export default class WorldMapScene extends Phaser.Scene {
         }
         this.shipCombatResourceStatus = resourceStatus;
         button.addEventListener('click', () => this.triggerShipAction());
+        this.registerShipCombatResourceRefreshTriggers();
         this.requestShipCombatResourceStorage(true);
         this.updateShipCombatResourceHud();
+        this.updateMapActionBarLayout();
         this.updateShipActionUi(true);
     }
 
@@ -2663,6 +2670,68 @@ export default class WorldMapScene extends Phaser.Scene {
         };
     }
 
+    sumShipCombatResourceMap(map = null) {
+        return ['RR', 'RG', 'RY', 'RB', 'RT', 'RS']
+            .reduce((sum, code) => sum + Math.max(0, Math.trunc(Number(map?.[code] || 0))), 0);
+    }
+
+    setShipCombatResourceStorage(data = null) {
+        const source = (data && typeof data === 'object') ? data : {};
+        const prev = this.normalizeShipCombatResourceStorage(this.shipCombatResourceStorage);
+        const hasProp = (key) => Object.prototype.hasOwnProperty.call(source, key);
+        const next = this.normalizeShipCombatResourceStorage({
+            activeShipId: hasProp('activeShipId') ? source.activeShipId : prev.activeShipId,
+            cargoResources: hasProp('cargoResources') ? source.cargoResources : prev.cargoResources,
+            cargoCapacity: hasProp('cargoCapacity') ? source.cargoCapacity : prev.cargoCapacity,
+            cargoUsed: hasProp('cargoUsed')
+                ? source.cargoUsed
+                : (hasProp('cargoResources') ? this.sumShipCombatResourceMap(source.cargoResources) : prev.cargoUsed)
+        });
+        this.shipCombatResourceStorage = next;
+        this.updateShipCombatResourceHud();
+        this.updateShipActionUi(true);
+        this.updateShipSideCannonUi(true);
+    }
+
+    applyShipCombatResourceDelta(resourceMap = null, multiplier = 1) {
+        const delta = this.normalizeShipCombatResourceStorage({ cargoResources: resourceMap }).cargoResources;
+        const prev = this.normalizeShipCombatResourceStorage(this.shipCombatResourceStorage);
+        const nextCargo = {};
+        ['RR', 'RG', 'RY', 'RB', 'RT', 'RS'].forEach((code) => {
+            const current = Math.max(0, Math.trunc(Number(prev.cargoResources?.[code] || 0)));
+            const change = Math.max(0, Math.trunc(Number(delta?.[code] || 0))) * multiplier;
+            nextCargo[code] = Math.max(0, current + change);
+        });
+        this.setShipCombatResourceStorage({
+            cargoResources: nextCargo,
+            cargoUsed: this.sumShipCombatResourceMap(nextCargo)
+        });
+    }
+
+    registerShipCombatResourceRefreshTriggers() {
+        if (typeof window === 'undefined' || typeof document === 'undefined' || this.onShipCombatResourceWindowFocus) {
+            return;
+        }
+        const refreshIfMapVisible = () => {
+            if (document.body?.dataset.currentTab !== 'map') return;
+            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
+        };
+        this.onShipCombatResourceWindowFocus = () => {
+            refreshIfMapVisible();
+        };
+        this.onShipCombatResourceVisibilityChange = () => {
+            if (document.hidden) return;
+            refreshIfMapVisible();
+        };
+        this.onMapTabVisible = () => {
+            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
+            this.updateMapActionBarLayout();
+        };
+        window.addEventListener('focus', this.onShipCombatResourceWindowFocus);
+        document.addEventListener('visibilitychange', this.onShipCombatResourceVisibilityChange);
+        window.addEventListener('tab:map-visible', this.onMapTabVisible);
+    }
+
     buildShipCombatResourceHudText() {
         const storage = this.shipCombatResourceStorage || {};
         if (!storage.activeShipId) {
@@ -2678,9 +2747,30 @@ export default class WorldMapScene extends Phaser.Scene {
         return `海戦資源 🧨${powder} 🪨${repair} 🍄${hpAid} 🫙${mpAid} / 船倉 ${used}/${cap}`;
     }
 
+    updateMapActionBarLayout() {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return;
+        const bar = document.getElementById('mapActionBar');
+        const chatArea = document.getElementById('mapChatArea');
+        if (!bar || !chatArea) return;
+        const chatRect = chatArea.getBoundingClientRect();
+        const chatStyles = window.getComputedStyle(chatArea);
+        const marginBottom = Math.max(0, Number.parseFloat(chatStyles.marginBottom || '0') || 0);
+        const reserve = Math.ceil(chatRect.height + marginBottom + 12);
+        bar.style.bottom = `${reserve}px`;
+    }
+
     updateShipCombatResourceHud() {
         if (!this.shipCombatResourceStatus) return;
         this.shipCombatResourceStatus.textContent = this.buildShipCombatResourceHudText();
+    }
+
+    isShipCombatResourceThrottleError(error) {
+        const message = [
+            error?.error,
+            error?.errorMessage,
+            error?.message
+        ].filter(Boolean).join(' ');
+        return /maximum API request rate|throttl/i.test(message);
     }
 
     requestShipCombatResourceStorage(force = false) {
@@ -2688,17 +2778,19 @@ export default class WorldMapScene extends Phaser.Scene {
         if (!playFabId) return;
         const now = Date.now();
         if (this.shipCombatResourceFetchPromise) return;
-        if (!force && (now - this.shipCombatResourceFetchedAt) < 1500) return;
+        if (now < this.shipCombatResourceBackoffUntil) return;
+        if (!force && (now - this.shipCombatResourceFetchedAt) < this.shipCombatResourcePollIntervalMs) return;
         this.shipCombatResourceFetchedAt = now;
         this.shipCombatResourceFetchPromise = fetchShipResourceStorage(playFabId, { isSilent: true })
             .then((data) => {
                 if (!data?.success) return;
-                this.shipCombatResourceStorage = this.normalizeShipCombatResourceStorage(data);
-                this.updateShipCombatResourceHud();
-                this.updateShipActionUi(true);
-                this.updateShipSideCannonUi(true);
+                this.shipCombatResourceBackoffUntil = 0;
+                this.setShipCombatResourceStorage(data);
             })
             .catch((error) => {
+                if (this.isShipCombatResourceThrottleError(error)) {
+                    this.shipCombatResourceBackoffUntil = Date.now() + 30_000;
+                }
                 console.warn('[ShipCombatHud] Failed to load ship resource storage:', error);
             })
             .finally(() => {
@@ -2816,6 +2908,11 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.showMessage(data?.error || '舷側砲の火薬が足りません');
                 return false;
             }
+            this.setShipCombatResourceStorage({
+                activeShipId: data.shipId || this.shipCombatResourceStorage?.activeShipId,
+                cargoResources: data.balances,
+                cargoUsed: this.sumShipCombatResourceMap(data.balances)
+            });
             return true;
         } catch (error) {
             console.warn('[ShipSideCannon] Failed to consume ammo:', error);
@@ -3421,7 +3518,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
         if (myId === defeatedId && Number(cargoOutcome.totalDropped || 0) > 0) {
             const lostText = this.formatShipCargoOutcomeText(cargoOutcome.dropped || {});
-            this.requestShipCombatResourceStorage(true);
+            this.applyShipCombatResourceDelta(cargoOutcome.dropped || {}, -1);
             this.showMessage(lostText ? `流失 ${lostText}` : '流失');
             if (canShowMessage) {
                 window.showRpgMessage(lostText ? `船倉資源を失った ${lostText}` : '船倉資源を失った');
@@ -3432,7 +3529,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (myId === winnerId) {
             if (Number(cargoOutcome.totalTransferred || 0) > 0) {
                 const gainedText = this.formatShipCargoOutcomeText(cargoOutcome.transferred || {});
-                this.requestShipCombatResourceStorage(true);
+                this.applyShipCombatResourceDelta(cargoOutcome.transferred || {}, 1);
                 this.showMessage(gainedText ? `戦利品 ${gainedText}` : '戦利品獲得');
                 if (canShowMessage) {
                     window.showRpgMessage(gainedText ? `船倉資源を奪った ${gainedText}` : '船倉資源を奪った');
@@ -7158,7 +7255,6 @@ export default class WorldMapScene extends Phaser.Scene {
         this.clearCollidingIslandWhenFar();
         this.updateShipActionMines();
         this.updateShipActionEffects();
-        this.requestShipCombatResourceStorage();
         this.updateShipActionUi();
         this.updateShipSideCannonUi();
         this.updateCreateIslandUi();
@@ -8617,6 +8713,18 @@ export default class WorldMapScene extends Phaser.Scene {
         if (this.onActiveShipChanged && typeof window !== 'undefined') {
             window.removeEventListener('ship:active-changed', this.onActiveShipChanged);
             this.onActiveShipChanged = null;
+        }
+        if (this.onShipCombatResourceWindowFocus && typeof window !== 'undefined') {
+            window.removeEventListener('focus', this.onShipCombatResourceWindowFocus);
+            this.onShipCombatResourceWindowFocus = null;
+        }
+        if (this.onShipCombatResourceVisibilityChange && typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', this.onShipCombatResourceVisibilityChange);
+            this.onShipCombatResourceVisibilityChange = null;
+        }
+        if (this.onMapTabVisible && typeof window !== 'undefined') {
+            window.removeEventListener('tab:map-visible', this.onMapTabVisible);
+            this.onMapTabVisible = null;
         }
 
         this.otherShips.forEach((shipObject) => {

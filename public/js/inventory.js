@@ -433,6 +433,9 @@ function renderTarotProgressPanels() {
 }
 
 function getInventoryTabHint(category) {
+    if (['All', 'Weapon', 'Shield', 'Armor', 'Consumable'].includes(category)) {
+        return '';
+    }
     if (category === 'Resource') {
         return '船倉と倉庫の資源をまとめて確認できます。必要ならここから一括預け入れや補充を行います。';
     }
@@ -458,7 +461,9 @@ function getInventoryTabHint(category) {
 function updateInventoryTabHint(category) {
     const hintEl = document.getElementById('inventoryTabHint');
     if (!hintEl) return;
-    hintEl.textContent = getInventoryTabHint(category);
+    const hintText = getInventoryTabHint(category);
+    hintEl.textContent = hintText;
+    hintEl.hidden = !hintText;
 }
 
 function updateInventorySortOptions(category) {

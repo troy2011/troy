@@ -1307,6 +1307,11 @@ export async function showTab(tabId, playerInfo, options = {}) {
     if (document.body) {
         document.body.dataset.currentTab = tabId;
     }
+    if (typeof window !== 'undefined' && tabId === 'map') {
+        window.dispatchEvent(new CustomEvent('tab:map-visible', {
+            detail: { tabId, playerInfo, options }
+        }));
+    }
     if (tabId !== 'map') {
         window.scrollTo({ top: 0, behavior: 'auto' });
     }

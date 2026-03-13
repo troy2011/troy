@@ -1419,7 +1419,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             });
         } catch (error) {
             console.error('[GetShipResourceStorage] Error:', error);
-            return res.status(500).json({ error: 'Failed to get ship resource storage', details: error.errorMessage || error.message });
+            const details = error.errorMessage || error.message;
+            const isThrottled = /maximum API request rate|throttl/i.test(String(details || ''));
+            return res.status(isThrottled ? 429 : 500).json({
+                error: isThrottled ? 'ShipResourceStorageThrottled' : 'Failed to get ship resource storage',
+                details
+            });
         }
     });
 

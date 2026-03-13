@@ -5,11 +5,11 @@ import {
     joinTroy,
     sendTroyCheckout
 } from './playfabClient.js';
+import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { isKing, refreshKingNav, loadKingPage } from './nationKing.js';
 
 let _wired = false;
 let _menuWired = false;
-let _pollTimer = null;
 let _lastStatus = null;
 let _orderTotal = 0;
 let _orderItems = [];
@@ -18,8 +18,23 @@ let _checkoutSession = null;
 let _checkoutLocked = false;
 let _menuActiveId = 'drinks';
 const _menuQtyByKey = new Map();
+let _statusRoomUnsubscribe = null;
+let _statusMembersUnsubscribe = null;
+let _statusCheckoutUnsubscribe = null;
+let _statusSnapshotState = {
+    nation: null,
+    isOpen: false,
+    members: [],
+    checkout: null
+};
 
 const TROY_MENU_IDS = ['drinks', 'appetizer', 'dryfood', 'hotfood', 'main', 'points'];
+const TROY_GROUP_BY_NATION = {
+    fire: 'nation_fire_island',
+    earth: 'nation_earth_island',
+    wind: 'nation_wind_island',
+    water: 'nation_water_island'
+};
 
 const TROY_PRODUCT_MENUS = {
     drinks: {
@@ -666,6 +681,110 @@ function getDisplayName() {
     return window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player';
 }
 
+function normalizePlayFabId(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function resolveTroyNationKey() {
+    return String(
+        _lastStatus?.nation
+        || window.myAvatarBaseInfo?.Nation
+        || window.myAvatarBaseInfo?.nation
+        || ''
+    ).trim().toLowerCase();
+}
+
+function toMillis(value) {
+    if (value?.toMillis) return value.toMillis();
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
+function stopStatusSubscription() {
+    if (_statusRoomUnsubscribe) {
+        _statusRoomUnsubscribe();
+        _statusRoomUnsubscribe = null;
+    }
+    if (_statusMembersUnsubscribe) {
+        _statusMembersUnsubscribe();
+        _statusMembersUnsubscribe = null;
+    }
+    if (_statusCheckoutUnsubscribe) {
+        _statusCheckoutUnsubscribe();
+        _statusCheckoutUnsubscribe = null;
+    }
+}
+
+function publishSnapshotStatus() {
+    renderStatus({
+        nation: _statusSnapshotState.nation,
+        isOpen: !!_statusSnapshotState.isOpen,
+        members: Array.isArray(_statusSnapshotState.members) ? _statusSnapshotState.members : [],
+        checkout: _statusSnapshotState.checkout || null
+    });
+}
+
+function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey()) {
+    stopStatusSubscription();
+    const groupName = TROY_GROUP_BY_NATION[String(nationKey || '').toLowerCase()];
+    const memberId = normalizePlayFabId(playFabId);
+    if (!groupName || !memberId) return false;
+    const db = getFirestore();
+    const roomRef = doc(db, 'troy_rooms', groupName);
+    const membersQuery = query(collection(roomRef, 'members'), orderBy('joinedAt', 'asc'), limit(50));
+    const checkoutRef = doc(roomRef, 'checkouts', memberId);
+
+    _statusSnapshotState = {
+        nation: nationKey,
+        isOpen: false,
+        members: [],
+        checkout: null
+    };
+
+    const handleSnapshotError = (label, error) => {
+        console.warn(`[Troy] ${label} snapshot failed:`, error);
+        stopStatusSubscription();
+    };
+
+    _statusRoomUnsubscribe = onSnapshot(roomRef, (snapshot) => {
+        _statusSnapshotState.isOpen = !!snapshot.data()?.isOpen;
+        publishSnapshotStatus();
+    }, (error) => handleSnapshotError('room', error));
+
+    _statusMembersUnsubscribe = onSnapshot(membersQuery, (snapshot) => {
+        _statusSnapshotState.members = snapshot.docs.map((entry) => {
+            const data = entry.data() || {};
+            return {
+                playFabId: entry.id,
+                displayName: data.displayName || entry.id,
+                joinedAt: toMillis(data.joinedAt)
+            };
+        });
+        publishSnapshotStatus();
+    }, (error) => handleSnapshotError('members', error));
+
+    _statusCheckoutUnsubscribe = onSnapshot(checkoutRef, (snapshot) => {
+        if (!snapshot.exists()) {
+            _statusSnapshotState.checkout = null;
+            publishSnapshotStatus();
+            return;
+        }
+        const data = snapshot.data() || {};
+        _statusSnapshotState.checkout = {
+            status: data.status || 'pending',
+            total: Number(data.total || 0),
+            items: Array.isArray(data.items) ? data.items : [],
+            createdAt: toMillis(data.createdAt),
+            approvedAt: toMillis(data.approvedAt)
+        };
+        publishSnapshotStatus();
+    }, (error) => handleSnapshotError('checkout', error));
+
+    return true;
+}
+
 function renderEntryList(members) {
     const { list, empty } = getTroyElements();
     if (!list || !empty) return;
@@ -691,6 +810,9 @@ function renderEntryList(members) {
 
 function renderStatus(data) {
     _lastStatus = data;
+    if (typeof window !== 'undefined') {
+        window.__troyStatus = data;
+    }
     const { badge, section } = getTroyElements();
     if (badge) {
         const isOpen = !!data?.isOpen;
@@ -733,6 +855,7 @@ function wireHandlers(playFabId) {
             const result = await joinTroy(playFabId, name);
             if (result) {
                 await refreshStatus(playFabId, { isSilent: true });
+                attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());
                 const isMember = isTroyMember(_lastStatus, playFabId);
                 if (!wasMember && isMember) {
                     const entryPrice = 500;
@@ -748,15 +871,6 @@ function wireHandlers(playFabId) {
     }
 }
 
-function startPolling(playFabId) {
-    if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = setInterval(() => {
-        const tab = document.getElementById('tabContentTroy');
-        if (!tab || tab.style.display === 'none') return;
-        refreshStatus(playFabId, { isSilent: true });
-    }, 5000);
-}
-
 export async function loadTroyPage(playFabId) {
     wireHandlers(playFabId);
     wireMenuPopups();
@@ -766,5 +880,5 @@ export async function loadTroyPage(playFabId) {
     }
     await refreshStatus(playFabId);
     updateTroyRoleUI();
-    startPolling(playFabId);
+    attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());
 }

@@ -1975,36 +1975,15 @@ export function playConstructionSound(start = true) {
     const audio = document.getElementById('audioConstruction');
 
     if (!audio) {
-        const newAudio = document.createElement('audio');
-        newAudio.id = 'audioConstruction';
-        newAudio.loop = true;
-        newAudio.volume = 0.3;
+        return;
+    }
 
-        const sources = [
-            { src: '/audio/construction.mp3', type: 'audio/mpeg' },
-            { src: '/audio/construction.ogg', type: 'audio/ogg' }
-        ];
-
-        sources.forEach(source => {
-            const sourceElement = document.createElement('source');
-            sourceElement.src = source.src;
-            sourceElement.type = source.type;
-            newAudio.appendChild(sourceElement);
-        });
-
-        document.body.appendChild(newAudio);
-
-        if (start && canPlayAudioElement(newAudio)) {
-            newAudio.play().catch(e => console.warn('Construction sound play failed:', e));
-        }
+    if (start) {
+        if (!canPlayAudioElement(audio)) return;
+        audio.currentTime = 0;
+        audio.play().catch(e => console.warn('Construction sound play failed:', e));
     } else {
-        if (start) {
-            if (!canPlayAudioElement(audio)) return;
-            audio.currentTime = 0;
-            audio.play().catch(e => console.warn('Construction sound play failed:', e));
-        } else {
-            audio.pause();
-        }
+        audio.pause();
     }
 }
 

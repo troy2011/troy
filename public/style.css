@@ -10903,7 +10903,7 @@ textarea {
     position: absolute;
     left: 8px;
     right: 8px;
-    bottom: calc(220px + 8px);
+    bottom: calc(220px + 12px);
     z-index: 1200;
     width: auto;
     max-width: none;
@@ -10915,6 +10915,10 @@ textarea {
         radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.12), transparent 42%);
     border-color: rgba(148, 163, 184, 0.18);
     box-shadow: 0 18px 30px rgba(2, 6, 23, 0.42);
+}
+
+#tabContentMap:not(.map-ready) .map-action-bar {
+    display: none;
 }
 
 #tabContentMap .map-action-bar::before {

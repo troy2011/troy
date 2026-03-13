@@ -1470,23 +1470,219 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
+          "Value": "dagger_08"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シャドウエッジ",
+        "ja-JP": "シャドウエッジ"
+      },
+      "Description": {
+        "NEUTRAL": "闇に溶け込む漆黒の刃を持つ短剣。",
+        "ja-JP": "闇に溶け込む漆黒の刃を持つ短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 27,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 7,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_09"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "クリスタルダガー",
+        "ja-JP": "クリスタルダガー"
+      },
+      "Description": {
+        "NEUTRAL": "硬質な水晶を削り出して作られた、美しくも鋭い短剣。",
+        "ja-JP": "硬質な水晶を削り出して作られた、美しくも鋭い短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 8,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_10"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ドラゴントゥース",
+        "ja-JP": "ドラゴントゥース"
+      },
+      "Description": {
+        "NEUTRAL": "竜の牙を加工して作られた、強靭な短剣。",
+        "ja-JP": "竜の牙を加工して作られた、強靭な短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 34,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 9,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_11"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファントムナイフ",
+        "ja-JP": "ファントムナイフ"
+      },
+      "Description": {
+        "NEUTRAL": "実体があるようでないような、幻影を纏った短剣。",
+        "ja-JP": "実体があるようでないような、幻影を纏った短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 38,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 10,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_12"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブラッドラスト",
+        "ja-JP": "ブラッドラスト"
+      },
+      "Description": {
+        "NEUTRAL": "敵の生き血を啜ることで輝きを増す、呪われた短剣。",
+        "ja-JP": "敵の生き血を啜ることで輝きを増す、呪われた短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 42,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 11,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_13"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ルーンダガー",
+        "ja-JP": "ルーンダガー"
+      },
+      "Description": {
+        "NEUTRAL": "古代のルーン文字が刻まれ、魔法の力を宿した短剣。",
+        "ja-JP": "古代のルーン文字が刻まれ、魔法の力を宿した短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 46,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 12,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "dagger_14"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "神殺しの短剣",
+        "ja-JP": "神殺しの短剣"
+      },
+      "Description": {
+        "NEUTRAL": "かつて神に挑んだ者が使ったとされる、究極の短剣。",
+        "ja-JP": "かつて神に挑んだ者が使ったとされる、究極の短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 55,
+        "sprite_path": "./Sprites/weapons/melee weapons/dagger.png",
+        "sprite_index": 13,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
           "Value": "hat_black_01"
         }
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "くろいぼうし",
-        "ja-JP": "くろいぼうし"
+        "NEUTRAL": "星霜のサンタキャップ",
+        "ja-JP": "星霜のサンタキャップ"
       },
       "Description": {
-        "NEUTRAL": "おしゃれな黒い帽子。",
-        "ja-JP": "おしゃれな黒い帽子。"
+        "NEUTRAL": "白い縁取りが目を引く、祝祭シーズンの定番帽。",
+        "ja-JP": "白い縁取りが目を引く、祝祭シーズンの定番帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 4,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 0,
         "sprite_w": 32,
@@ -1503,18 +1699,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "シルクハット",
-        "ja-JP": "シルクハット"
+        "NEUTRAL": "鷹羽のハンターハット",
+        "ja-JP": "鷹羽のハンターハット"
       },
       "Description": {
-        "NEUTRAL": "紳士がかぶる黒いシルクハット。",
-        "ja-JP": "紳士がかぶる黒いシルクハット。"
+        "NEUTRAL": "羽根飾りを差した狩人の帽子。森の追跡に映える。",
+        "ja-JP": "羽根飾りを差した狩人の帽子。森の追跡に映える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 5,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 1,
         "sprite_w": 32,
@@ -1531,18 +1727,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "キャプテンハット",
-        "ja-JP": "キャプテンハット"
+        "NEUTRAL": "夜会のシルクハット",
+        "ja-JP": "夜会のシルクハット"
       },
       "Description": {
-        "NEUTRAL": "船長の証である、威厳のある黒い帽子。",
-        "ja-JP": "船長の証である、威厳のある黒い帽子。"
+        "NEUTRAL": "艶のある高帽。礼装にも賭場にも似合う。",
+        "ja-JP": "艶のある高帽。礼装にも賭場にも似合う。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 7,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 2,
         "sprite_w": 32,
@@ -1559,18 +1755,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フェドラハット",
-        "ja-JP": "フェドラハット"
+        "NEUTRAL": "旅布のストローハット",
+        "ja-JP": "旅布のストローハット"
       },
       "Description": {
-        "NEUTRAL": "探偵がかぶっていそうな、おしゃれな黒い帽子。",
-        "ja-JP": "探偵がかぶっていそうな、おしゃれな黒い帽子。"
+        "NEUTRAL": "麦わら風に編まれた布帽子。軽くて長旅向け。",
+        "ja-JP": "麦わら風に編まれた布帽子。軽くて長旅向け。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 3,
         "sprite_w": 32,
@@ -1587,18 +1783,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ベレー帽",
-        "ja-JP": "ベレー帽"
+        "NEUTRAL": "星紋の魔導帽",
+        "ja-JP": "星紋の魔導帽"
       },
       "Description": {
-        "NEUTRAL": "芸術家がかぶるような、おしゃれな黒いベレー帽。",
-        "ja-JP": "芸術家がかぶるような、おしゃれな黒いベレー帽。"
+        "NEUTRAL": "魔導士が愛用する深い鍔の帽子。術式の集中を助ける。",
+        "ja-JP": "魔導士が愛用する深い鍔の帽子。術式の集中を助ける。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 9,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 4,
         "sprite_w": 32,
@@ -1615,18 +1811,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フード",
-        "ja-JP": "フード"
+        "NEUTRAL": "漆黒ウィザードハット",
+        "ja-JP": "漆黒ウィザードハット"
       },
       "Description": {
-        "NEUTRAL": "顔を隠すための、シンプルな黒いフード。",
-        "ja-JP": "顔を隠すための、シンプルな黒いフード。"
+        "NEUTRAL": "王道のとんがり帽。魔法使いらしさを強く演出する。",
+        "ja-JP": "王道のとんがり帽。魔法使いらしさを強く演出する。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 10,
+        "Defense": 3,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 5,
         "sprite_w": 32,
@@ -1643,18 +1839,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "山賊の頭巾",
-        "ja-JP": "山賊の頭巾"
+        "NEUTRAL": "見習い海賊の三角帽",
+        "ja-JP": "見習い海賊の三角帽"
       },
       "Description": {
-        "NEUTRAL": "顔を隠し、威圧感を与える山賊の頭巾。",
-        "ja-JP": "顔を隠し、威圧感を与える山賊の頭巾。"
+        "NEUTRAL": "下っ端海賊に支給される粗めの三角帽。",
+        "ja-JP": "下っ端海賊に支給される粗めの三角帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 11,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 6,
         "sprite_w": 32,
@@ -1671,18 +1867,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ターバン",
-        "ja-JP": "ターバン"
+        "NEUTRAL": "砂海のターバン",
+        "ja-JP": "砂海のターバン"
       },
       "Description": {
-        "NEUTRAL": "砂漠地帯で日差しや砂を防ぐためのターバン。",
-        "ja-JP": "砂漠地帯で日差しや砂を防ぐためのターバン。"
+        "NEUTRAL": "熱風と砂塵を防ぐ巻き布。乾いた海域で頼れる。",
+        "ja-JP": "熱風と砂塵を防ぐ巻き布。乾いた海域で頼れる。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 12,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 7,
         "sprite_w": 32,
@@ -1699,18 +1895,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヘッドバンド",
-        "ja-JP": "ヘッドバンド"
+        "NEUTRAL": "見習い海賊の三角帽・改",
+        "ja-JP": "見習い海賊の三角帽・改"
       },
       "Description": {
-        "NEUTRAL": "髪をまとめるためのシンプルなヘッドバンド。",
-        "ja-JP": "髪をまとめるためのシンプルなヘッドバンド。"
+        "NEUTRAL": "角度を強めた三角シルエットの海賊帽。",
+        "ja-JP": "角度を強めた三角シルエットの海賊帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 13,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 8,
         "sprite_w": 32,
@@ -1727,18 +1923,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "海賊のバンダナ",
-        "ja-JP": "海賊のバンダナ"
+        "NEUTRAL": "影潜りのフード",
+        "ja-JP": "影潜りのフード"
       },
       "Description": {
-        "NEUTRAL": "海賊たちが好んで身につける黒いバンダナ。",
-        "ja-JP": "海賊たちが好んで身につける黒いバンダナ。"
+        "NEUTRAL": "顔を陰に落として気配を消す潜行向けフード。",
+        "ja-JP": "顔を陰に落として気配を消す潜行向けフード。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 14,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 9,
         "sprite_w": 32,
@@ -1755,18 +1951,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "まほうつかいのぼうし",
-        "ja-JP": "まほうつかいのぼうし"
+        "NEUTRAL": "書庫守の学帽",
+        "ja-JP": "書庫守の学帽"
       },
       "Description": {
-        "NEUTRAL": "とんがりが特徴的な魔法使いの帽子。",
-        "ja-JP": "とんがりが特徴的な魔法使いの帽子。"
+        "NEUTRAL": "学者に好まれる端正な帽子。知性を印象づける。",
+        "ja-JP": "学者に好まれる端正な帽子。知性を印象づける。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 8,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 10,
         "sprite_w": 32,
@@ -1783,18 +1979,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "司祭の帽子",
-        "ja-JP": "司祭の帽子"
+        "NEUTRAL": "羽飾りベレー",
+        "ja-JP": "羽飾りベレー"
       },
       "Description": {
-        "NEUTRAL": "高位の聖職者がかぶる、格式高い帽子。",
-        "ja-JP": "高位の聖職者がかぶる、格式高い帽子。"
+        "NEUTRAL": "ベレーに羽根を添えた洒落帽。芸術肌の装いに合う。",
+        "ja-JP": "ベレーに羽根を添えた洒落帽。芸術肌の装いに合う。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 15,
+        "Defense": 4,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 11,
         "sprite_w": 32,
@@ -1811,18 +2007,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "道化師の帽子",
-        "ja-JP": "道化師の帽子"
+        "NEUTRAL": "荒野のガンマンハット",
+        "ja-JP": "荒野のガンマンハット"
       },
       "Description": {
-        "NEUTRAL": "陽気な道化師がかぶる、三つの飾りがついた帽子。",
-        "ja-JP": "陽気な道化師がかぶる、三つの飾りがついた帽子。"
+        "NEUTRAL": "広いつばで日差しを切る決闘者の帽子。",
+        "ja-JP": "広いつばで日差しを切る決闘者の帽子。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 16,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 12,
         "sprite_w": 32,
@@ -1839,18 +2035,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "学者の帽子",
-        "ja-JP": "学者の帽子"
+        "NEUTRAL": "蛇遣いのターバン",
+        "ja-JP": "蛇遣いのターバン"
       },
       "Description": {
-        "NEUTRAL": "卒業式などでかぶる、四角い板がついた帽子。",
-        "ja-JP": "卒業式などでかぶる、四角い板がついた帽子。"
+        "NEUTRAL": "蛇使いが巻く異国風の頭布。妖しい雰囲気を纏う。",
+        "ja-JP": "蛇使いが巻く異国風の頭布。妖しい雰囲気を纏う。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 17,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 13,
         "sprite_w": 32,
@@ -1867,18 +2063,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "王冠",
-        "ja-JP": "王冠"
+        "NEUTRAL": "宵魔女の三角帽",
+        "ja-JP": "宵魔女の三角帽"
       },
       "Description": {
-        "NEUTRAL": "一国の王であることを示す、威厳のある王冠。",
-        "ja-JP": "一国の王であることを示す、威厳のある王冠。"
+        "NEUTRAL": "鋭く尖った先端が印象的な魔女帽。",
+        "ja-JP": "鋭く尖った先端が印象的な魔女帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 20,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 14,
         "sprite_w": 32,
@@ -1895,18 +2091,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ティアラ",
-        "ja-JP": "ティアラ"
+        "NEUTRAL": "孤峰のコーンハット",
+        "ja-JP": "孤峰のコーンハット"
       },
       "Description": {
-        "NEUTRAL": "王女や貴婦人が身につける、美しい髪飾り。",
-        "ja-JP": "王女や貴婦人が身につける、美しい髪飾り。"
+        "NEUTRAL": "富士山のような単峰シルエットを持つ帽子。",
+        "ja-JP": "富士山のような単峰シルエットを持つ帽子。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 18,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 15,
         "sprite_w": 32,
@@ -1923,18 +2119,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "花の髪飾り",
-        "ja-JP": "花の髪飾り"
+        "NEUTRAL": "紋入り見習い海賊帽",
+        "ja-JP": "紋入り見習い海賊帽"
       },
       "Description": {
-        "NEUTRAL": "美しい花をかたどった髪飾り。",
-        "ja-JP": "美しい花をかたどった髪飾り。"
+        "NEUTRAL": "柄入りの布地で仕立てた下っ端向け海賊帽。",
+        "ja-JP": "柄入りの布地で仕立てた下っ端向け海賊帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 19,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 16,
         "sprite_w": 32,
@@ -1951,18 +2147,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "羽飾り",
-        "ja-JP": "羽飾り"
+        "NEUTRAL": "旅人のマフラーフード",
+        "ja-JP": "旅人のマフラーフード"
       },
       "Description": {
-        "NEUTRAL": "大きな羽をあしらった、華やかな髪飾り。",
-        "ja-JP": "大きな羽をあしらった、華やかな髪飾り。"
+        "NEUTRAL": "首元を守る巻布一体型。寒風対策に優れる。",
+        "ja-JP": "首元を守る巻布一体型。寒風対策に優れる。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 21,
+        "Defense": 5,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 17,
         "sprite_w": 32,
@@ -1979,18 +2175,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "角",
-        "ja-JP": "角"
+        "NEUTRAL": "紋入り見習い海賊帽・弐",
+        "ja-JP": "紋入り見習い海賊帽・弐"
       },
       "Description": {
-        "NEUTRAL": "悪魔や獣のような、ねじれた角。",
-        "ja-JP": "悪魔や獣のような、ねじれた角。"
+        "NEUTRAL": "柄の配置を変えた派生型の海賊帽。",
+        "ja-JP": "柄の配置を変えた派生型の海賊帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 22,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 18,
         "sprite_w": 32,
@@ -2007,18 +2203,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鹿の角",
-        "ja-JP": "鹿の角"
+        "NEUTRAL": "隻眼狼のフード",
+        "ja-JP": "隻眼狼のフード"
       },
       "Description": {
-        "NEUTRAL": "立派な鹿の角を模した飾り。",
-        "ja-JP": "立派な鹿の角を模した飾り。"
+        "NEUTRAL": "目元だけを見せる戦闘向けフード。威圧感が高い。",
+        "ja-JP": "目元だけを見せる戦闘向けフード。威圧感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 23,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 19,
         "sprite_w": 32,
@@ -2035,18 +2231,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "天使の輪",
-        "ja-JP": "天使の輪"
+        "NEUTRAL": "船長のキャプテンハット",
+        "ja-JP": "船長のキャプテンハット"
       },
       "Description": {
-        "NEUTRAL": "清らかな天使の頭上に浮かぶ光の輪。",
-        "ja-JP": "清らかな天使の頭上に浮かぶ光の輪。"
+        "NEUTRAL": "海賊団を率いる者の証。重厚な存在感を放つ。",
+        "ja-JP": "海賊団を率いる者の証。重厚な存在感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 25,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 20,
         "sprite_w": 32,
@@ -2063,18 +2259,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "眼帯",
-        "ja-JP": "眼帯"
+        "NEUTRAL": "漆黒ベレー",
+        "ja-JP": "漆黒ベレー"
       },
       "Description": {
-        "NEUTRAL": "片目を覆うための、実用的な眼帯。",
-        "ja-JP": "片目を覆うための、実用的な眼帯。"
+        "NEUTRAL": "落ち着いた丸型シルエットの定番ベレー。",
+        "ja-JP": "落ち着いた丸型シルエットの定番ベレー。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 24,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 21,
         "sprite_w": 32,
@@ -2091,18 +2287,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "モノクル",
-        "ja-JP": "モノクル"
+        "NEUTRAL": "羽飾りガンマンハット",
+        "ja-JP": "羽飾りガンマンハット"
       },
       "Description": {
-        "NEUTRAL": "片眼鏡。知的な印象を与える。",
-        "ja-JP": "片眼鏡。知的な印象を与える。"
+        "NEUTRAL": "羽根を挿した決闘帽。華やかさと荒野感を両立。",
+        "ja-JP": "羽根を挿した決闘帽。華やかさと荒野感を両立。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 26,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 22,
         "sprite_w": 32,
@@ -2119,18 +2315,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "マスク",
-        "ja-JP": "マスク"
+        "NEUTRAL": "シンドバッドターバン",
+        "ja-JP": "シンドバッドターバン"
       },
       "Description": {
-        "NEUTRAL": "口元を覆うためのマスク。",
-        "ja-JP": "口元を覆うためのマスク。"
+        "NEUTRAL": "冒険譚の船乗りを思わせる優雅な巻布帽。",
+        "ja-JP": "冒険譚の船乗りを思わせる優雅な巻布帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 28,
+        "Defense": 6,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 23,
         "sprite_w": 32,
@@ -2147,18 +2343,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "仮面",
-        "ja-JP": "仮面"
+        "NEUTRAL": "クラッシュド魔女帽",
+        "ja-JP": "クラッシュド魔女帽"
       },
       "Description": {
-        "NEUTRAL": "顔の上半分を隠す、仮面舞踏会で使うような仮面。",
-        "ja-JP": "顔の上半分を隠す、仮面舞踏会で使うような仮面。"
+        "NEUTRAL": "先端を潰したラフな魔女帽。使い込まれた風合い。",
+        "ja-JP": "先端を潰したラフな魔女帽。使い込まれた風合い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 24,
         "sprite_w": 32,
@@ -2175,18 +2371,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヘッドフォン",
-        "ja-JP": "ヘッドフォン"
+        "NEUTRAL": "砂海のターバン・結",
+        "ja-JP": "砂海のターバン・結"
       },
       "Description": {
-        "NEUTRAL": "音楽を聴くためのヘッドフォン。なぜか防御力が上がる。",
-        "ja-JP": "音楽を聴くためのヘッドフォン。なぜか防御力が上がる。"
+        "NEUTRAL": "層を増やして巻いた重ね仕様のターバン。",
+        "ja-JP": "層を増やして巻いた重ね仕様のターバン。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 32,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 25,
         "sprite_w": 32,
@@ -2203,18 +2399,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "うさぎの耳",
-        "ja-JP": "うさぎの耳"
+        "NEUTRAL": "骸骨印の見習い海賊帽",
+        "ja-JP": "骸骨印の見習い海賊帽"
       },
       "Description": {
-        "NEUTRAL": "可愛らしいうさぎの耳を模したカチューシャ。",
-        "ja-JP": "可愛らしいうさぎの耳を模したカチューシャ。"
+        "NEUTRAL": "ドクロマーク入りの下っ端海賊帽。気合い重視。",
+        "ja-JP": "ドクロマーク入りの下っ端海賊帽。気合い重視。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 34,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 26,
         "sprite_w": 32,
@@ -2231,18 +2427,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "猫の耳",
-        "ja-JP": "猫の耳"
+        "NEUTRAL": "影忍マスク",
+        "ja-JP": "影忍マスク"
       },
       "Description": {
-        "NEUTRAL": "可愛らしい猫の耳を模したカチューシャ。",
-        "ja-JP": "可愛らしい猫の耳を模したカチューシャ。"
+        "NEUTRAL": "目元以外を覆う忍者装束のフェイスマスク。",
+        "ja-JP": "目元以外を覆う忍者装束のフェイスマスク。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 35,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 27,
         "sprite_w": 32,
@@ -2259,18 +2455,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "狐の耳",
-        "ja-JP": "狐の耳"
+        "NEUTRAL": "骸骨印の見習い海賊帽・弐",
+        "ja-JP": "骸骨印の見習い海賊帽・弐"
       },
       "Description": {
-        "NEUTRAL": "賢そうな狐の耳を模したカチューシャ。",
-        "ja-JP": "賢そうな狐の耳を模したカチューシャ。"
+        "NEUTRAL": "ドクロ意匠を強調した海賊帽の派生型。",
+        "ja-JP": "ドクロ意匠を強調した海賊帽の派生型。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 28,
         "sprite_w": 32,
@@ -2287,18 +2483,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "熊の耳",
-        "ja-JP": "熊の耳"
+        "NEUTRAL": "半面フード",
+        "ja-JP": "半面フード"
       },
       "Description": {
-        "NEUTRAL": "力強い熊の耳を模したカチューシャ。",
-        "ja-JP": "力強い熊の耳を模したカチューシャ。"
+        "NEUTRAL": "顔だけを抜いた軽装フード。視界と隠密を両立。",
+        "ja-JP": "顔だけを抜いた軽装フード。視界と隠密を両立。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 7,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 29,
         "sprite_w": 32,
@@ -2315,18 +2511,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エルフの耳飾り",
-        "ja-JP": "エルフの耳飾り"
+        "NEUTRAL": "羽飾り学帽",
+        "ja-JP": "羽飾り学帽"
       },
       "Description": {
-        "NEUTRAL": "エルフ族が身につける、繊細なデザインの耳飾り。",
-        "ja-JP": "エルフ族が身につける、繊細なデザインの耳飾り。"
+        "NEUTRAL": "学帽に羽根飾りを加えた儀礼用スタイル。",
+        "ja-JP": "学帽に羽根飾りを加えた儀礼用スタイル。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 30,
         "sprite_w": 32,
@@ -2343,18 +2539,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドワーフの耳飾り",
-        "ja-JP": "ドワーフの耳飾り"
+        "NEUTRAL": "旗艦提督の制帽",
+        "ja-JP": "旗艦提督の制帽"
       },
       "Description": {
-        "NEUTRAL": "ドワーフ族が身につける、頑丈な金属の耳飾り。",
-        "ja-JP": "ドワーフ族が身につける、頑丈な金属の耳飾り。"
+        "NEUTRAL": "提督クラスの権威を示す制帽。端正で力強い。",
+        "ja-JP": "提督クラスの権威を示す制帽。端正で力強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 31,
         "sprite_w": 32,
@@ -2371,18 +2567,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オークの鼻輪",
-        "ja-JP": "オークの鼻輪"
+        "NEUTRAL": "サイドアップハット",
+        "ja-JP": "サイドアップハット"
       },
       "Description": {
-        "NEUTRAL": "オーク族の戦士が勇気の証としてつける鼻輪。",
-        "ja-JP": "オーク族の戦士が勇気の証としてつける鼻輪。"
+        "NEUTRAL": "両脇を跳ね上げた海兵風ハット。",
+        "ja-JP": "両脇を跳ね上げた海兵風ハット。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 44,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 32,
         "sprite_w": 32,
@@ -2399,18 +2595,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴブリンの耳飾り",
-        "ja-JP": "ゴブリンの耳飾り"
+        "NEUTRAL": "平頂ソフトキャップ",
+        "ja-JP": "平頂ソフトキャップ"
       },
       "Description": {
-        "NEUTRAL": "ゴブリンがガラクタから作った、ユニークな耳飾り。",
-        "ja-JP": "ゴブリンがガラクタから作った、ユニークな耳飾り。"
+        "NEUTRAL": "坊主頭のように滑らかな平たい帽子。",
+        "ja-JP": "坊主頭のように滑らかな平たい帽子。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 45,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 33,
         "sprite_w": 32,
@@ -2427,18 +2623,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "サンタの帽子",
-        "ja-JP": "サンタの帽子"
+        "NEUTRAL": "ベルト付きクラッシュド魔女帽",
+        "ja-JP": "ベルト付きクラッシュド魔女帽"
       },
       "Description": {
-        "NEUTRAL": "クリスマスの夜に現れる、心優しい老人がかぶる帽子。",
-        "ja-JP": "クリスマスの夜に現れる、心優しい老人がかぶる帽子。"
+        "NEUTRAL": "潰れ先端にベルト装飾を足した魔女帽。",
+        "ja-JP": "潰れ先端にベルト装飾を足した魔女帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 46,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 34,
         "sprite_w": 32,
@@ -2455,18 +2651,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "トナカイの角",
-        "ja-JP": "トナカイの角"
+        "NEUTRAL": "ミイラの覗き包帯",
+        "ja-JP": "ミイラの覗き包帯"
       },
       "Description": {
-        "NEUTRAL": "サンタのそりを引く、トナカイの角を模したカチューシャ。",
-        "ja-JP": "サンタのそりを引く、トナカイの角を模したカチューシャ。"
+        "NEUTRAL": "包帯を重ね巻きし、目元だけを覗かせる。",
+        "ja-JP": "包帯を重ね巻きし、目元だけを覗かせる。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 48,
+        "Defense": 8,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 35,
         "sprite_w": 32,
@@ -2483,18 +2679,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ジャック・オー・ランタン",
-        "ja-JP": "ジャック・オー・ランタン"
+        "NEUTRAL": "戦陣ハチマキ",
+        "ja-JP": "戦陣ハチマキ"
       },
       "Description": {
-        "NEUTRAL": "ハロウィンの夜に灯される、カボチャのお化けの被り物。",
-        "ja-JP": "ハロウィンの夜に灯される、カボチャのお化けの被り物。"
+        "NEUTRAL": "額で結んで気合いを入れる定番の鉢巻。",
+        "ja-JP": "額で結んで気合いを入れる定番の鉢巻。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 50,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 36,
         "sprite_w": 32,
@@ -2511,18 +2707,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "お化けの頭巾",
-        "ja-JP": "お化けの頭巾"
+        "NEUTRAL": "放浪者のロングタオル",
+        "ja-JP": "放浪者のロングタオル"
       },
       "Description": {
-        "NEUTRAL": "シーツをかぶっただけのような、シンプルなお化けの頭巾。",
-        "ja-JP": "シーツをかぶっただけのような、シンプルなお化けの頭巾。"
+        "NEUTRAL": "長髪のように垂れる巻きタオル。旅装に映える。",
+        "ja-JP": "長髪のように垂れる巻きタオル。旅装に映える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 52,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 37,
         "sprite_w": 32,
@@ -2539,18 +2735,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "フランケンシュタインのボルト",
-        "ja-JP": "フランケンシュタインのボルト"
+        "NEUTRAL": "戦陣ハチマキ・弐",
+        "ja-JP": "戦陣ハチマキ・弐"
       },
       "Description": {
-        "NEUTRAL": "人造人間の首に刺さっている、大きなボルト。",
-        "ja-JP": "人造人間の首に刺さっている、大きなボルト。"
+        "NEUTRAL": "結び位置を変えた派生型の鉢巻。",
+        "ja-JP": "結び位置を変えた派生型の鉢巻。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 54,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 38,
         "sprite_w": 32,
@@ -2567,18 +2763,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "吸血鬼のシルクハット",
-        "ja-JP": "吸血鬼のシルクハット"
+        "NEUTRAL": "口当て付き潜伏フード",
+        "ja-JP": "口当て付き潜伏フード"
       },
       "Description": {
-        "NEUTRAL": "高貴な吸血鬼が愛用する、古風なシルクハット。",
-        "ja-JP": "高貴な吸血鬼が愛用する、古風なシルクハット。"
+        "NEUTRAL": "口元ガードを備えた潜伏用フード。防塵性が高い。",
+        "ja-JP": "口元ガードを備えた潜伏用フード。防塵性が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 55,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 39,
         "sprite_w": 32,
@@ -2595,18 +2791,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミイラ男の包帯",
-        "ja-JP": "ミイラ男の包帯"
+        "NEUTRAL": "森番のハンターハット",
+        "ja-JP": "森番のハンターハット"
       },
       "Description": {
-        "NEUTRAL": "古代のミイラが巻いている、ボロボロの包帯。",
-        "ja-JP": "古代のミイラが巻いている、ボロボロの包帯。"
+        "NEUTRAL": "羽根なしの狩人帽。実用性重視の作り。",
+        "ja-JP": "羽根なしの狩人帽。実用性重視の作り。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 56,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 40,
         "sprite_w": 32,
@@ -2623,18 +2819,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "狼男の耳",
-        "ja-JP": "狼男の耳"
+        "NEUTRAL": "鉄椀キャップ",
+        "ja-JP": "鉄椀キャップ"
       },
       "Description": {
-        "NEUTRAL": "満月を見て変身した狼男の、鋭い耳。",
-        "ja-JP": "満月を見て変身した狼男の、鋭い耳。"
+        "NEUTRAL": "お椀を伏せたような丸い外観のユニーク帽。",
+        "ja-JP": "お椀を伏せたような丸い外観のユニーク帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 58,
+        "Defense": 9,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 41,
         "sprite_w": 32,
@@ -2651,18 +2847,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "魔女の帽子",
-        "ja-JP": "魔女の帽子"
+        "NEUTRAL": "羽飾りサイドアップハット",
+        "ja-JP": "羽飾りサイドアップハット"
       },
       "Description": {
-        "NEUTRAL": "ハロウィンの魔女がかぶる、大きくて黒いとんがり帽子。",
-        "ja-JP": "ハロウィンの魔女がかぶる、大きくて黒いとんがり帽子。"
+        "NEUTRAL": "跳ね上げハットに羽根を添えた華装モデル。",
+        "ja-JP": "跳ね上げハットに羽根を添えた華装モデル。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 60,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 42,
         "sprite_w": 32,
@@ -2679,18 +2875,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "死神のフード",
-        "ja-JP": "死神のフード"
+        "NEUTRAL": "妖精のキャップ",
+        "ja-JP": "妖精のキャップ"
       },
       "Description": {
-        "NEUTRAL": "魂を刈る死神が身にまとう、深くかぶったフード。",
-        "ja-JP": "魂を刈る死神が身にまとう、深くかぶったフード。"
+        "NEUTRAL": "小さく尖ったシルエットが愛らしい妖精帽。",
+        "ja-JP": "小さく尖ったシルエットが愛らしい妖精帽。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 62,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 43,
         "sprite_w": 32,
@@ -2707,18 +2903,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ピエロの帽子",
-        "ja-JP": "ピエロの帽子"
+        "NEUTRAL": "ベルト付きウィザードハット",
+        "ja-JP": "ベルト付きウィザードハット"
       },
       "Description": {
-        "NEUTRAL": "サーカスを盛り上げるピエロの、カラフルな帽子。",
-        "ja-JP": "サーカスを盛り上げるピエロの、カラフルな帽子。"
+        "NEUTRAL": "帽体をベルトで締めた魔法使いの標準装備。",
+        "ja-JP": "帽体をベルトで締めた魔法使いの標準装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 64,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 44,
         "sprite_w": 32,
@@ -2735,18 +2931,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カウボーイハット",
-        "ja-JP": "カウボーイハット"
+        "NEUTRAL": "ミイラの覗き包帯・極",
+        "ja-JP": "ミイラの覗き包帯・極"
       },
       "Description": {
-        "NEUTRAL": "西部のカウボーイがかぶる、つばの広い帽子。",
-        "ja-JP": "西部のカウボーイがかぶる、つばの広い帽子。"
+        "NEUTRAL": "巻数を増やし、目元だけ残した重包帯仕様。",
+        "ja-JP": "巻数を増やし、目元だけ残した重包帯仕様。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 65,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 45,
         "sprite_w": 32,
@@ -2763,18 +2959,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "インディアンの羽飾り",
-        "ja-JP": "インディアンの羽飾り"
+        "NEUTRAL": "結び鉢巻",
+        "ja-JP": "結び鉢巻"
       },
       "Description": {
-        "NEUTRAL": "部族の戦士がつける、勇気の象徴である羽飾り。",
-        "ja-JP": "部族の戦士がつける、勇気の象徴である羽飾り。"
+        "NEUTRAL": "後ろで力強く結ぶクラシックな鉢巻。",
+        "ja-JP": "後ろで力強く結ぶクラシックな鉢巻。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 66,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 46,
         "sprite_w": 32,
@@ -2791,18 +2987,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ファラオの頭巾",
-        "ja-JP": "ファラオの頭巾"
+        "NEUTRAL": "全巻きミイラターバン",
+        "ja-JP": "全巻きミイラターバン"
       },
       "Description": {
-        "NEUTRAL": "古代エジプトの王、ファラオがかぶっていたとされる頭巾。",
-        "ja-JP": "古代エジプトの王、ファラオがかぶっていたとされる頭巾。"
+        "NEUTRAL": "頭部全体を包帯で覆うミイラ風ヘッドラップ。",
+        "ja-JP": "頭部全体を包帯で覆うミイラ風ヘッドラップ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 68,
+        "Defense": 10,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 47,
         "sprite_w": 32,
@@ -2819,18 +3015,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "宇宙飛行士のヘルメット",
-        "ja-JP": "宇宙飛行士のヘルメット"
+        "NEUTRAL": "雪原防寒フード",
+        "ja-JP": "雪原防寒フード"
       },
       "Description": {
-        "NEUTRAL": "宇宙空間でも活動できる、最新鋭のヘルメット。",
-        "ja-JP": "宇宙空間でも活動できる、最新鋭のヘルメット。"
+        "NEUTRAL": "極寒地向けの防寒頭巾。顔面だけを露出して保温する。",
+        "ja-JP": "極寒地向けの防寒頭巾。顔面だけを露出して保温する。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 70,
+        "Defense": 11,
         "sprite_path": "./Sprites/wardrobe/cloth/hat_black.png",
         "sprite_index": 48,
         "sprite_w": 32,
@@ -2851,8 +3047,8 @@
         "ja-JP": "むぎわらぼうし"
       },
       "Description": {
-        "NEUTRAL": "日差しを防ぐ涼しげな帽子。",
-        "ja-JP": "日差しを防ぐ涼しげな帽子。"
+        "NEUTRAL": "海賊の帽子といったらこれ。",
+        "ja-JP": "海賊の帽子といったらこれ。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -2903,12 +3099,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "リボン付き麦わら帽子",
-        "ja-JP": "リボン付き麦わら帽子"
+        "NEUTRAL": "まんじゅう笠",
+        "ja-JP": "まんじゅう笠"
       },
       "Description": {
-        "NEUTRAL": "青いリボンが巻かれた、可愛らしい麦わら帽子。",
-        "ja-JP": "青いリボンが巻かれた、可愛らしい麦わら帽子。"
+        "NEUTRAL": "日よけや雨具として仕事用に使用される。",
+        "ja-JP": "日よけや雨具として仕事用に使用される。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -2931,12 +3127,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "農夫の麦わら帽子",
-        "ja-JP": "農夫の麦わら帽子"
+        "NEUTRAL": "編笠",
+        "ja-JP": "編笠"
       },
       "Description": {
-        "NEUTRAL": "使い古された、味のある麦わら帽子。",
-        "ja-JP": "使い古された、味のある麦わら帽子。"
+        "NEUTRAL": "おじいさんが作った笠。",
+        "ja-JP": "おじいさんが作った笠。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -2959,12 +3155,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "海賊の麦わら帽子",
-        "ja-JP": "海賊の麦わら帽子"
+        "NEUTRAL": "虚無僧笠",
+        "ja-JP": "虚無僧笠"
       },
       "Description": {
-        "NEUTRAL": "とある偉大な海賊がかぶっていたという麦わら帽子。",
-        "ja-JP": "とある偉大な海賊がかぶっていたという麦わら帽子。"
+        "NEUTRAL": "尺八の修行や隠密の変装用。",
+        "ja-JP": "尺八の修行や隠密の変装用。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -5171,18 +5367,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのかぶと",
-        "ja-JP": "こくてつのかぶと"
+        "NEUTRAL": "火の王の冠",
+        "ja-JP": "火の王の冠"
       },
       "Description": {
-        "NEUTRAL": "黒光りする金属で作られた重厚な兜。",
-        "ja-JP": "黒光りする金属で作られた重厚な兜。"
+        "NEUTRAL": "炎の王権を象徴する冠兜。赤熱の威圧感を放つ。",
+        "ja-JP": "炎の王権を象徴する冠兜。赤熱の威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 22,
+        "Defense": 85,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 0,
         "sprite_w": 32,
@@ -5199,18 +5395,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのフルヘルム",
-        "ja-JP": "こくてつのフルヘルム"
+        "NEUTRAL": "獅子紋ヘルム",
+        "ja-JP": "獅子紋ヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、顔全体を覆う兜。",
-        "ja-JP": "黒鉄で作られた、顔全体を覆う兜。"
+        "NEUTRAL": "獅子の気迫を刻んだ頭装備。正面突破の意志を示す。",
+        "ja-JP": "獅子の気迫を刻んだ頭装備。正面突破の意志を示す。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 25,
+        "Defense": 71,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 1,
         "sprite_w": 32,
@@ -5227,18 +5423,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのつの兜",
-        "ja-JP": "こくてつのつの兜"
+        "NEUTRAL": "海蛇紋ヘルム",
+        "ja-JP": "海蛇紋ヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られ、禍々しい角が生えた兜。",
-        "ja-JP": "黒鉄で作られ、禍々しい角が生えた兜。"
+        "NEUTRAL": "うねる海蛇を意匠化した兜。海戦での執念を宿す。",
+        "ja-JP": "うねる海蛇を意匠化した兜。海戦での執念を宿す。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 28,
+        "Defense": 72,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 2,
         "sprite_w": 32,
@@ -5255,18 +5451,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダークナイトヘルム",
-        "ja-JP": "ダークナイトヘルム"
+        "NEUTRAL": "鳳凰冠ヘルム",
+        "ja-JP": "鳳凰冠ヘルム"
       },
       "Description": {
-        "NEUTRAL": "闇の騎士が身につける、不気味なオーラを放つ兜。",
-        "ja-JP": "闇の騎士が身につける、不気味なオーラを放つ兜。"
+        "NEUTRAL": "鳳凰の翼を思わせる造形の冠兜。再起の象徴。",
+        "ja-JP": "鳳凰の翼を思わせる造形の冠兜。再起の象徴。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 30,
+        "Defense": 73,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 3,
         "sprite_w": 32,
@@ -5283,18 +5479,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのサレット",
-        "ja-JP": "こくてつのサレット"
+        "NEUTRAL": "駿馬の冠兜",
+        "ja-JP": "駿馬の冠兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られたサレット。不気味な威圧感を放つ。",
-        "ja-JP": "黒鉄で作られたサレット。不気味な威圧感を放つ。"
+        "NEUTRAL": "馬の疾走感を意匠に落とし込んだ軽快な王冠型ヘルム。",
+        "ja-JP": "馬の疾走感を意匠に落とし込んだ軽快な王冠型ヘルム。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 32,
+        "Defense": 74,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 4,
         "sprite_w": 32,
@@ -5311,18 +5507,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのアーメット",
-        "ja-JP": "こくてつのアーメット"
+        "NEUTRAL": "鹿角ヘルム",
+        "ja-JP": "鹿角ヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、重騎士の兜。",
-        "ja-JP": "黒鉄で作られた、重騎士の兜。"
+        "NEUTRAL": "枝分かれした鹿角飾りを備えた威容の兜。",
+        "ja-JP": "枝分かれした鹿角飾りを備えた威容の兜。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 34,
+        "Defense": 75,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 5,
         "sprite_w": 32,
@@ -5339,18 +5535,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのバシネット",
-        "ja-JP": "こくてつのバシネット"
+        "NEUTRAL": "羽飾りヘルム",
+        "ja-JP": "羽飾りヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、鼻当て付きの兜。",
-        "ja-JP": "黒鉄で作られた、鼻当て付きの兜。"
+        "NEUTRAL": "羽根飾りで縦方向の迫力を強めた儀礼装備。",
+        "ja-JP": "羽根飾りで縦方向の迫力を強めた儀礼装備。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 36,
+        "Defense": 76,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 6,
         "sprite_w": 32,
@@ -5367,18 +5563,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのグレートヘルム",
-        "ja-JP": "こくてつのグレートヘルム"
+        "NEUTRAL": "風の王の冠",
+        "ja-JP": "風の王の冠"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、威圧感のあるバケツ型の兜。",
-        "ja-JP": "黒鉄で作られた、威圧感のあるバケツ型の兜。"
+        "NEUTRAL": "風を司る王の印。軽やかさと気高さを両立する。",
+        "ja-JP": "風を司る王の印。軽やかさと気高さを両立する。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 38,
+        "Defense": 85,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 7,
         "sprite_w": 32,
@@ -5395,18 +5591,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのコロナ",
-        "ja-JP": "こくてつのコロナ"
+        "NEUTRAL": "イルカ紋ヘルム",
+        "ja-JP": "イルカ紋ヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、古代ローマ兵士風の兜。",
-        "ja-JP": "黒鉄で作られた、古代ローマ兵士風の兜。"
+        "NEUTRAL": "波を跳ねるイルカの意匠を持つ海洋系ヘルム。",
+        "ja-JP": "波を跳ねるイルカの意匠を持つ海洋系ヘルム。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 40,
+        "Defense": 78,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 8,
         "sprite_w": 32,
@@ -5423,18 +5619,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのバイキングヘルム",
-        "ja-JP": "こくてつのバイキングヘルム"
+        "NEUTRAL": "覇王の冠",
+        "ja-JP": "覇王の冠"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、勇ましい角飾りの兜。",
-        "ja-JP": "黒鉄で作られた、勇ましい角飾りの兜。"
+        "NEUTRAL": "王の中の王を示す重厚な冠兜。圧倒的な存在感。",
+        "ja-JP": "王の中の王を示す重厚な冠兜。圧倒的な存在感。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 42,
+        "Defense": 79,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 9,
         "sprite_w": 32,
@@ -5451,18 +5647,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのサムライヘルム",
-        "ja-JP": "こくてつのサムライヘルム"
+        "NEUTRAL": "地の王の冠",
+        "ja-JP": "地の王の冠"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、侍の兜。",
-        "ja-JP": "黒鉄で作られた、侍の兜。"
+        "NEUTRAL": "大地の堅牢さを象徴する王冠型装備。守勢に強い印象。",
+        "ja-JP": "大地の堅牢さを象徴する王冠型装備。守勢に強い印象。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 44,
+        "Defense": 85,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 10,
         "sprite_w": 32,
@@ -5479,18 +5675,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのファランクスヘルム",
-        "ja-JP": "こくてつのファランクスヘルム"
+        "NEUTRAL": "水の王の冠",
+        "ja-JP": "水の王の冠"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、古代ギリシャ兵の兜。",
-        "ja-JP": "黒鉄で作られた、古代ギリシャ兵の兜。"
+        "NEUTRAL": "流麗な曲線で水の王権を表現した冠兜。",
+        "ja-JP": "流麗な曲線で水の王権を表現した冠兜。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 46,
+        "Defense": 85,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 11,
         "sprite_w": 32,
@@ -5507,18 +5703,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつの王冠",
-        "ja-JP": "こくてつの王冠"
+        "NEUTRAL": "コリント兜",
+        "ja-JP": "コリント兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、闇の王の王冠。",
-        "ja-JP": "黒鉄で作られた、闇の王の王冠。"
+        "NEUTRAL": "T字開口を持つ古典型。大きなクレストで威容を示す。",
+        "ja-JP": "T字開口を持つ古典型。大きなクレストで威容を示す。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 48,
+        "Defense": 82,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 12,
         "sprite_w": 32,
@@ -5535,18 +5731,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのティアラ",
-        "ja-JP": "こくてつのティアラ"
+        "NEUTRAL": "フリギア兜",
+        "ja-JP": "フリギア兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、闇の女王のティアラ。",
-        "ja-JP": "黒鉄で作られた、闇の女王のティアラ。"
+        "NEUTRAL": "前方へ流れる頂部形状が特徴。装飾クレストとの相性が高い。",
+        "ja-JP": "前方へ流れる頂部形状が特徴。装飾クレストとの相性が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 50,
+        "Defense": 83,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 13,
         "sprite_w": 32,
@@ -5563,18 +5759,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのサークレット",
-        "ja-JP": "こくてつのサークレット"
+        "NEUTRAL": "イリュリア兜",
+        "ja-JP": "イリュリア兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、呪われしサークレット。",
-        "ja-JP": "黒鉄で作られた、呪われしサークレット。"
+        "NEUTRAL": "開放的な顔周りと頂部リブで、視界と聴覚を確保する。",
+        "ja-JP": "開放的な顔周りと頂部リブで、視界と聴覚を確保する。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 52,
+        "Defense": 84,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 14,
         "sprite_w": 32,
@@ -5591,18 +5787,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつの月桂冠",
-        "ja-JP": "こくてつの月桂冠"
+        "NEUTRAL": "ガレア",
+        "ja-JP": "ガレア"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、不名誉の月桂冠。",
-        "ja-JP": "黒鉄で作られた、不名誉の月桂冠。"
+        "NEUTRAL": "ローマ軍系の実戦装備。可動頬当てと後頭ガードで防護を高める。",
+        "ja-JP": "ローマ軍系の実戦装備。可動頬当てと後頭ガードで防護を高める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 54,
+        "Defense": 85,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 15,
         "sprite_w": 32,
@@ -5619,18 +5815,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのアイパッチ",
-        "ja-JP": "こくてつのアイパッチ"
+        "NEUTRAL": "ボイオティア兜",
+        "ja-JP": "ボイオティア兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、傷を隠すためのアイパッチ。",
-        "ja-JP": "黒鉄で作られた、傷を隠すためのアイパッチ。"
+        "NEUTRAL": "騎兵向けの広い視界を確保した形式。長時間運用に向く。",
+        "ja-JP": "騎兵向けの広い視界を確保した形式。長時間運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 55,
+        "Defense": 86,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 16,
         "sprite_w": 32,
@@ -5647,18 +5843,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのサイバーバイザー",
-        "ja-JP": "こくてつのサイバーバイザー"
+        "NEUTRAL": "アッティカ兜",
+        "ja-JP": "アッティカ兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、旧式のサイバーバイザー。",
-        "ja-JP": "黒鉄で作られた、旧式のサイバーバイザー。"
+        "NEUTRAL": "鼻当てを抑えた開放型。指揮官の識別にも使われる伝統様式。",
+        "ja-JP": "鼻当てを抑えた開放型。指揮官の識別にも使われる伝統様式。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 56,
+        "Defense": 87,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 17,
         "sprite_w": 32,
@@ -5675,18 +5871,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのドリル",
-        "ja-JP": "こくてつのドリル"
+        "NEUTRAL": "カルキディケー兜",
+        "ja-JP": "カルキディケー兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、錆びついたドリル。",
-        "ja-JP": "黒鉄で作られた、錆びついたドリル。"
+        "NEUTRAL": "耳の開口と頬当てで機能性を確保した、ヘレニズム系の実戦モデル。",
+        "ja-JP": "耳の開口と頬当てで機能性を確保した、ヘレニズム系の実戦モデル。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 58,
+        "Defense": 88,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 18,
         "sprite_w": 32,
@@ -5703,18 +5899,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのプロペラ",
-        "ja-JP": "こくてつのプロペラ"
+        "NEUTRAL": "アラビアンヘルム",
+        "ja-JP": "アラビアンヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、回らないプロペラ。",
-        "ja-JP": "黒鉄で作られた、回らないプロペラ。"
+        "NEUTRAL": "砂海文化を思わせる意匠の頭装備。しなやかな曲線が特徴。",
+        "ja-JP": "砂海文化を思わせる意匠の頭装備。しなやかな曲線が特徴。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 60,
+        "Defense": 89,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 19,
         "sprite_w": 32,
@@ -5731,18 +5927,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのアンテナ",
-        "ja-JP": "こくてつのアンテナ"
+        "NEUTRAL": "アラビアンマスクヘルム",
+        "ja-JP": "アラビアンマスクヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、折れたアンテナ。",
-        "ja-JP": "黒鉄で作られた、折れたアンテナ。"
+        "NEUTRAL": "口元まで覆う砂塵対策型。異国風の神秘性が高い。",
+        "ja-JP": "口元まで覆う砂塵対策型。異国風の神秘性が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 62,
+        "Defense": 90,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 20,
         "sprite_w": 32,
@@ -5759,18 +5955,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのロウソク",
-        "ja-JP": "こくてつのロウソク"
+        "NEUTRAL": "侍兜",
+        "ja-JP": "侍兜"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、火の灯らないロウソク。",
-        "ja-JP": "黒鉄で作られた、火の灯らないロウソク。"
+        "NEUTRAL": "和の武人装束を象徴する兜。重心が低く堂々とした造形。",
+        "ja-JP": "和の武人装束を象徴する兜。重心が低く堂々とした造形。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 64,
+        "Defense": 91,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 21,
         "sprite_w": 32,
@@ -5787,18 +5983,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "こくてつのちょんまげ",
-        "ja-JP": "こくてつのちょんまげ"
+        "NEUTRAL": "魔角フルフェイスヘルム",
+        "ja-JP": "魔角フルフェイスヘルム"
       },
       "Description": {
-        "NEUTRAL": "黒鉄で作られた、重々しいちょんまげ。",
-        "ja-JP": "黒鉄で作られた、重々しいちょんまげ。"
+        "NEUTRAL": "悪魔角のような突起を持つフルフェイス兜。禍々しい威圧を与える。",
+        "ja-JP": "悪魔角のような突起を持つフルフェイス兜。禍々しい威圧を与える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Armor",
-        "Defense": 65,
+        "Defense": 92,
         "sprite_path": "./Sprites/wardrobe/metal/metal_black.png",
         "sprite_index": 22,
         "sprite_w": 32,
@@ -5830,7 +6026,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 0,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5858,7 +6054,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 1,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5886,7 +6082,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 2,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5914,7 +6110,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 3,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5942,7 +6138,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 4,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5970,7 +6166,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 5,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -5998,7 +6194,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 6,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6026,7 +6222,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 7,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6054,7 +6250,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 8,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6082,7 +6278,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 9,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6110,7 +6306,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 10,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6138,7 +6334,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 11,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6166,7 +6362,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 12,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6194,7 +6390,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 13,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6222,7 +6418,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 14,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6250,7 +6446,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 15,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6278,7 +6474,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 16,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6306,7 +6502,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 17,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6334,7 +6530,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 18,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6362,7 +6558,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 19,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6390,7 +6586,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 20,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6418,7 +6614,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 21,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6446,7 +6642,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 22,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6474,7 +6670,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 23,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6502,7 +6698,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 24,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6530,7 +6726,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 25,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6558,7 +6754,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 26,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6586,7 +6782,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 27,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6614,7 +6810,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 28,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6642,7 +6838,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 29,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6670,7 +6866,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 30,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6698,7 +6894,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 31,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6726,7 +6922,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 32,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6754,7 +6950,7 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 33,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
       }
     },
@@ -6782,8 +6978,288 @@
         "sprite_path": "./Sprites/weapons/melee weapons/polearm.png",
         "sprite_index": 34,
         "sprite_w": 32,
-        "sprite_h": 48,
+        "sprite_h": 64,
         "sprite_cols": 12
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_01"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "フリントロック",
+        "ja-JP": "フリントロック"
+      },
+      "Description": {
+        "NEUTRAL": "海賊の代名詞とも言える、片手で扱える小型の銃。",
+        "ja-JP": "海賊の代名詞とも言える、片手で扱える小型の銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 12,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_05"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "クイーン・アン",
+        "ja-JP": "クイーン・アン"
+      },
+      "Description": {
+        "NEUTRAL": "アン女王の時代に流行した、ネジ込み式銃身を持つピストル。",
+        "ja-JP": "アン女王の時代に流行した、ネジ込み式銃身を持つピストル。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 16,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_06"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ペッパーボックス",
+        "ja-JP": "ペッパーボックス"
+      },
+      "Description": {
+        "NEUTRAL": "、手動で銃身全体を回転させて次弾を撃つ回転式拳銃。",
+        "ja-JP": "、手動で銃身全体を回転させて次弾を撃つ回転式拳銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 14,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol.png",
+        "sprite_index": 20,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_01"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブランダーバス",
+        "ja-JP": "ブランダーバス"
+      },
+      "Description": {
+        "NEUTRAL": "拡散しやすい散弾銃。",
+        "ja-JP": "拡散しやすい散弾銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 18,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 0,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_02"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ビッグブランダーバス",
+        "ja-JP": "ビッグブランダーバス"
+      },
+      "Description": {
+        "NEUTRAL": "銃口がラッパ状に広がった短い前装式散弾銃。",
+        "ja-JP": "銃口がラッパ状に広がった短い前装式散弾銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 18,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 5,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_03"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "マスケット",
+        "ja-JP": "マスケット"
+      },
+      "Description": {
+        "NEUTRAL": "射程と威力に優れた長銃。",
+        "ja-JP": "射程と威力に優れた長銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 22,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 10,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_04"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブラウン・ベス",
+        "ja-JP": "ブラウン・ベス"
+      },
+      "Description": {
+        "NEUTRAL": "イギリス軍の象徴であり、世界で最も有名なマスケット銃。",
+        "ja-JP": "イギリス軍の象徴であり、世界で最も有名なマスケット銃。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 22,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 15,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_05"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ノック・ガン",
+        "ja-JP": "ノック・ガン"
+      },
+      "Description": {
+        "NEUTRAL": "7本の銃身を持つ特殊なフリントロック式多銃身火器。",
+        "ja-JP": "7本の銃身を持つ特殊なフリントロック式多銃身火器。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 26,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 20,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 4
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_06"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ペンシルベニア",
+        "ja-JP": "ペンシルベニア"
+      },
+      "Description": {
+        "NEUTRAL": "マスト上からの狙撃武器としては最強クラス。",
+        "ja-JP": "マスト上からの狙撃武器としては最強クラス。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 25,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "gun_big_07"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジェザイル",
+        "ja-JP": "ジェザイル"
+      },
+      "Description": {
+        "NEUTRAL": "極めて長い射程距離と高い精度を誇る。",
+        "ja-JP": "極めて長い射程距離と高い精度を誇る。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/ranged weapons/pistol_big.png",
+        "sprite_index": 30,
+        "sprite_w": 64,
+        "sprite_h": 32,
+        "sprite_cols": 7
       }
     },
     {
@@ -6795,18 +7271,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "きのたて",
-        "ja-JP": "きのたて"
+        "NEUTRAL": "樹皮の小盾",
+        "ja-JP": "樹皮の小盾"
       },
       "Description": {
-        "NEUTRAL": "簡易的な木の盾。",
-        "ja-JP": "簡易的な木の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 5,
+        "Defense": 8,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 0,
         "sprite_w": 32,
@@ -6823,18 +7299,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "せいどうのたて",
-        "ja-JP": "せいどうのたて"
+        "NEUTRAL": "古木の丸盾",
+        "ja-JP": "古木の丸盾"
       },
       "Description": {
-        "NEUTRAL": "青銅で作られた盾。",
-        "ja-JP": "青銅で作られた盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 8,
+        "Defense": 10,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 1,
         "sprite_w": 32,
@@ -6851,18 +7327,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "てつのたて",
-        "ja-JP": "てつのたて"
+        "NEUTRAL": "船大工の木盾",
+        "ja-JP": "船大工の木盾"
       },
       "Description": {
-        "NEUTRAL": "標準的な鉄の盾。",
-        "ja-JP": "標準的な鉄の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 10,
+        "Defense": 12,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 2,
         "sprite_w": 32,
@@ -6879,18 +7355,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カイトシールド",
-        "ja-JP": "カイトシールド"
+        "NEUTRAL": "旅人の木盾",
+        "ja-JP": "旅人の木盾"
       },
       "Description": {
-        "NEUTRAL": "下側が尖った、騎士が好む形状の盾。",
-        "ja-JP": "下側が尖った、騎士が好む形状の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 12,
+        "Defense": 14,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 3,
         "sprite_w": 32,
@@ -6907,18 +7383,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "タワーシールド",
-        "ja-JP": "タワーシールド"
+        "NEUTRAL": "浮桟橋の楯",
+        "ja-JP": "浮桟橋の楯"
       },
       "Description": {
-        "NEUTRAL": "全身を隠せるほどの巨大な盾。防御力は随一。",
-        "ja-JP": "全身を隠せるほどの巨大な盾。防御力は随一。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 15,
+        "Defense": 16,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 4,
         "sprite_w": 32,
@@ -6935,18 +7411,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スパイクシールド",
-        "ja-JP": "スパイクシールド"
+        "NEUTRAL": "港番の木盾",
+        "ja-JP": "港番の木盾"
       },
       "Description": {
-        "NEUTRAL": "表面に鋭いトゲがついた攻撃的な盾。",
-        "ja-JP": "表面に鋭いトゲがついた攻撃的な盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 16,
+        "Defense": 18,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 5,
         "sprite_w": 32,
@@ -6963,18 +7439,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バックラー",
-        "ja-JP": "バックラー"
+        "NEUTRAL": "流木の守盾",
+        "ja-JP": "流木の守盾"
       },
       "Description": {
-        "NEUTRAL": "腕に取り付ける小型の盾。素早い動きを阻害しない。",
-        "ja-JP": "腕に取り付ける小型の盾。素早い動きを阻害しない。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 17,
+        "Defense": 20,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 6,
         "sprite_w": 32,
@@ -6991,18 +7467,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ラウンドシールド",
-        "ja-JP": "ラウンドシールド"
+        "NEUTRAL": "甲板の木盾",
+        "ja-JP": "甲板の木盾"
       },
       "Description": {
-        "NEUTRAL": "取り回しのしやすい、一般的な円形の盾。",
-        "ja-JP": "取り回しのしやすい、一般的な円形の盾。"
+        "NEUTRAL": "木材を厚く重ねた基礎装備。軽くて扱いやすい。",
+        "ja-JP": "木材を厚く重ねた基礎装備。軽くて扱いやすい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 18,
+        "Defense": 22,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 7,
         "sprite_w": 32,
@@ -7019,18 +7495,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヒーターシールド",
-        "ja-JP": "ヒーターシールド"
+        "NEUTRAL": "鉄縁の木盾",
+        "ja-JP": "鉄縁の木盾"
       },
       "Description": {
-        "NEUTRAL": "カイトシールドを小型化した、取り回しの良い盾。",
-        "ja-JP": "カイトシールドを小型化した、取り回しの良い盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 19,
+        "Defense": 24,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 8,
         "sprite_w": 32,
@@ -7047,18 +7523,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スクトゥム",
-        "ja-JP": "スクトゥム"
+        "NEUTRAL": "鋲打ち木盾",
+        "ja-JP": "鋲打ち木盾"
       },
       "Description": {
-        "NEUTRAL": "古代ローマ軍が使った、長方形の大きな盾。",
-        "ja-JP": "古代ローマ軍が使った、長方形の大きな盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 20,
+        "Defense": 26,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 9,
         "sprite_w": 32,
@@ -7075,18 +7551,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホプロン",
-        "ja-JP": "ホプロン"
+        "NEUTRAL": "鍛鉄リム盾",
+        "ja-JP": "鍛鉄リム盾"
       },
       "Description": {
-        "NEUTRAL": "古代ギリシャの重装歩兵が使った、大きな円形の盾。",
-        "ja-JP": "古代ギリシャの重装歩兵が使った、大きな円形の盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 22,
+        "Defense": 28,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 10,
         "sprite_w": 32,
@@ -7103,18 +7579,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "バイキングシールド",
-        "ja-JP": "バイキングシールド"
+        "NEUTRAL": "船渠補強盾",
+        "ja-JP": "船渠補強盾"
       },
       "Description": {
-        "NEUTRAL": "バイキングが使った、中央に鉄製のボスが付いた円形の盾。",
-        "ja-JP": "バイキングが使った、中央に鉄製のボスが付いた円形の盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 24,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 11,
         "sprite_w": 32,
@@ -7131,18 +7607,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "パヴィース",
-        "ja-JP": "パヴィース"
+        "NEUTRAL": "鉄帯の守盾",
+        "ja-JP": "鉄帯の守盾"
       },
       "Description": {
-        "NEUTRAL": "地面に立てて使う、クロスボウ兵のための大きな盾。",
-        "ja-JP": "地面に立てて使う、クロスボウ兵のための大きな盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 25,
+        "Defense": 32,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 12,
         "sprite_w": 32,
@@ -7159,18 +7635,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ランタンシールド",
-        "ja-JP": "ランタンシールド"
+        "NEUTRAL": "鉄化粧の木盾",
+        "ja-JP": "鉄化粧の木盾"
       },
       "Description": {
-        "NEUTRAL": "盾の中央にランタンや武器を仕込んだ、特殊な盾。",
-        "ja-JP": "盾の中央にランタンや武器を仕込んだ、特殊な盾。"
+        "NEUTRAL": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。",
+        "ja-JP": "木盾に鉄縁と鋲を足した改修品。受けの安定感が高い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 26,
+        "Defense": 34,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 13,
         "sprite_w": 32,
@@ -7187,20 +7663,48 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アディルガ",
-        "ja-JP": "アディルガ"
+        "NEUTRAL": "黒鉄の丸盾",
+        "ja-JP": "黒鉄の丸盾"
       },
       "Description": {
-        "NEUTRAL": "革で作られた、軽くて丈夫な盾。",
-        "ja-JP": "革で作られた、軽くて丈夫な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 28,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 14,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 10
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "shield_16"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "鉄心の凧盾",
+        "ja-JP": "鉄心の凧盾"
+      },
+      "Description": {
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Shield",
+        "Defense": 38,
+        "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
+        "sprite_index": 15,
         "sprite_w": 32,
         "sprite_h": 32,
         "sprite_cols": 10
@@ -7215,18 +7719,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴールデンシールド",
-        "ja-JP": "ゴールデンシールド"
+        "NEUTRAL": "鉄鉢の守盾",
+        "ja-JP": "鉄鉢の守盾"
       },
       "Description": {
-        "NEUTRAL": "黄金で作られた、豪華な盾。",
-        "ja-JP": "黄金で作られた、豪華な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 30,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 16,
         "sprite_w": 32,
@@ -7243,18 +7747,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミスリルシールド",
-        "ja-JP": "ミスリルシールド"
+        "NEUTRAL": "重鉄の塔盾",
+        "ja-JP": "重鉄の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属ミスリルで作られた、軽くて頑丈な盾。",
-        "ja-JP": "伝説の金属ミスリルで作られた、軽くて頑丈な盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 32,
+        "Defense": 42,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 17,
         "sprite_w": 32,
@@ -7271,18 +7775,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "デモンシールド",
-        "ja-JP": "デモンシールド"
+        "NEUTRAL": "鉄壁の戦盾",
+        "ja-JP": "鉄壁の戦盾"
       },
       "Description": {
-        "NEUTRAL": "悪魔の力が宿る、禍々しい盾。",
-        "ja-JP": "悪魔の力が宿る、禍々しい盾。"
+        "NEUTRAL": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。",
+        "ja-JP": "鉄板を主材にした実戦盾。打撃と斬撃の両方に強い。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 35,
+        "Defense": 44,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 18,
         "sprite_w": 32,
@@ -7299,18 +7803,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ホーリーシールド",
-        "ja-JP": "ホーリーシールド"
+        "NEUTRAL": "鋼縁の鉄盾",
+        "ja-JP": "鋼縁の鉄盾"
       },
       "Description": {
-        "NEUTRAL": "聖なる力が込められた、邪悪を退ける盾。",
-        "ja-JP": "聖なる力が込められた、邪悪を退ける盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 38,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 19,
         "sprite_w": 32,
@@ -7327,18 +7831,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "クリスタルシールド",
-        "ja-JP": "クリスタルシールド"
+        "NEUTRAL": "鋼爪の守盾",
+        "ja-JP": "鋼爪の守盾"
       },
       "Description": {
-        "NEUTRAL": "全体が水晶でできた、透明で美しい盾。",
-        "ja-JP": "全体が水晶でできた、透明で美しい盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 40,
+        "Defense": 48,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 20,
         "sprite_w": 32,
@@ -7355,18 +7859,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ボーンシールド",
-        "ja-JP": "ボーンシールド"
+        "NEUTRAL": "鋼化粧の戦盾",
+        "ja-JP": "鋼化粧の戦盾"
       },
       "Description": {
-        "NEUTRAL": "巨大な獣の骨を組み合わせて作られた盾。",
-        "ja-JP": "巨大な獣の骨を組み合わせて作られた盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 42,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 21,
         "sprite_w": 32,
@@ -7383,18 +7887,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オリハルコンシールド",
-        "ja-JP": "オリハルコンシールド"
+        "NEUTRAL": "鋼鎧の塔盾",
+        "ja-JP": "鋼鎧の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の金属オリハルコンで作られた究極の盾。",
-        "ja-JP": "伝説の金属オリハルコンで作られた究極の盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 50,
+        "Defense": 52,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 22,
         "sprite_w": 32,
@@ -7411,18 +7915,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ミラーシールド",
-        "ja-JP": "ミラーシールド"
+        "NEUTRAL": "鋼意匠の丸盾",
+        "ja-JP": "鋼意匠の丸盾"
       },
       "Description": {
-        "NEUTRAL": "鏡のように磨かれた、魔法を反射するという盾。",
-        "ja-JP": "鏡のように磨かれた、魔法を反射するという盾。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 45,
+        "Defense": 54,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 23,
         "sprite_w": 32,
@@ -7439,18 +7943,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "亀の甲羅",
-        "ja-JP": "亀の甲羅"
+        "NEUTRAL": "鋼心の近衛盾",
+        "ja-JP": "鋼心の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "巨大な亀の甲羅をそのまま使った盾。非常に硬い。",
-        "ja-JP": "巨大な亀の甲羅をそのまま使った盾。非常に硬い。"
+        "NEUTRAL": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。",
+        "ja-JP": "鉄地に鋼装飾を重ねた上位盾。強打でも形が崩れにくい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 48,
+        "Defense": 56,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 24,
         "sprite_w": 32,
@@ -7467,18 +7971,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "鍋の蓋",
-        "ja-JP": "鍋の蓋"
+        "NEUTRAL": "黄銅金飾盾",
+        "ja-JP": "黄銅金飾盾"
       },
       "Description": {
-        "NEUTRAL": "間に合わせの盾として使われる、意外と頑丈な鍋の蓋。",
-        "ja-JP": "間に合わせの盾として使われる、意外と頑丈な鍋の蓋。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 3,
+        "Defense": 58,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 25,
         "sprite_w": 32,
@@ -7495,18 +7999,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エルフの盾",
-        "ja-JP": "エルフの盾"
+        "NEUTRAL": "王都の金盾",
+        "ja-JP": "王都の金盾"
       },
       "Description": {
-        "NEUTRAL": "エルフの職人が作った、軽くて優美な盾。",
-        "ja-JP": "エルフの職人が作った、軽くて優美な盾。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 33,
+        "Defense": 60,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 26,
         "sprite_w": 32,
@@ -7523,18 +8027,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドワーフの盾",
-        "ja-JP": "ドワーフの盾"
+        "NEUTRAL": "黄金の守護盾",
+        "ja-JP": "黄金の守護盾"
       },
       "Description": {
-        "NEUTRAL": "ドワーフの職人が作った、頑丈な金属の盾。",
-        "ja-JP": "ドワーフの職人が作った、頑丈な金属の盾。"
+        "NEUTRAL": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。",
+        "ja-JP": "金飾を纏った高級盾。儀礼性と防御力を兼ね備える。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 36,
+        "Defense": 62,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 27,
         "sprite_w": 32,
@@ -7551,18 +8055,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オークの盾",
-        "ja-JP": "オークの盾"
+        "NEUTRAL": "紅潮の円盾",
+        "ja-JP": "紅潮の円盾"
       },
       "Description": {
-        "NEUTRAL": "オークが戦利品から作った、無骨な盾。",
-        "ja-JP": "オークが戦利品から作った、無骨な盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 39,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 28,
         "sprite_w": 32,
@@ -7579,18 +8083,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ゴブリンの盾",
-        "ja-JP": "ゴブリンの盾"
+        "NEUTRAL": "緋炎の凧盾",
+        "ja-JP": "緋炎の凧盾"
       },
       "Description": {
-        "NEUTRAL": "ゴブリンが拾い集めたガラクタで作った、奇妙な盾。",
-        "ja-JP": "ゴブリンが拾い集めたガラクタで作った、奇妙な盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 41,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 29,
         "sprite_w": 32,
@@ -7607,18 +8111,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アイギスの盾",
-        "ja-JP": "アイギスの盾"
+        "NEUTRAL": "朱槍の守盾",
+        "ja-JP": "朱槍の守盾"
       },
       "Description": {
-        "NEUTRAL": "女神が持つ、あらゆる邪悪を払うという伝説の聖なる盾。",
-        "ja-JP": "女神が持つ、あらゆる邪悪を払うという伝説の聖なる盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 60,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 30,
         "sprite_w": 32,
@@ -7635,18 +8139,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "プリトウェン",
-        "ja-JP": "プリトウェン"
+        "NEUTRAL": "紅鉄の塔盾",
+        "ja-JP": "紅鉄の塔盾"
       },
       "Description": {
-        "NEUTRAL": "伝説の王が持っていたとされる、美しい装飾の盾。",
-        "ja-JP": "伝説の王が持っていたとされる、美しい装飾の盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 58,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 31,
         "sprite_w": 32,
@@ -7663,18 +8167,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スヴェル",
-        "ja-JP": "スヴェル"
+        "NEUTRAL": "戦旗の赤盾",
+        "ja-JP": "戦旗の赤盾"
       },
       "Description": {
-        "NEUTRAL": "太陽のように輝き、敵の目をくらませるという魔法の盾。",
-        "ja-JP": "太陽のように輝き、敵の目をくらませるという魔法の盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 55,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 32,
         "sprite_w": 32,
@@ -7691,18 +8195,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アンキレー",
-        "ja-JP": "アンキレー"
+        "NEUTRAL": "火紋の戦盾",
+        "ja-JP": "火紋の戦盾"
       },
       "Description": {
-        "NEUTRAL": "天から落ちてきたとされる、国家の運命を左右する聖なる盾。",
-        "ja-JP": "天から落ちてきたとされる、国家の運命を左右する聖なる盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 52,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 33,
         "sprite_w": 32,
@@ -7719,12 +8223,12 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダインスレイフの盾",
-        "ja-JP": "ダインスレイフの盾"
+        "NEUTRAL": "血潮の近衛盾",
+        "ja-JP": "血潮の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "魔剣ダインスレイフと対になる、呪われた盾。",
-        "ja-JP": "魔剣ダインスレイフと対になる、呪われた盾。"
+        "NEUTRAL": "赤塗装の突撃盾。前線で威圧感を放つ。",
+        "ja-JP": "赤塗装の突撃盾。前線で威圧感を放つ。"
       },
       "ContentType": "Durable",
       "Tags": [],
@@ -7747,18 +8251,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アキレウスの盾",
-        "ja-JP": "アキレウスの盾"
+        "NEUTRAL": "深森の円盾",
+        "ja-JP": "深森の円盾"
       },
       "Description": {
-        "NEUTRAL": "神が作り上げた、世界のすべてが描かれているという芸術的な盾。",
-        "ja-JP": "神が作り上げた、世界のすべてが描かれているという芸術的な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 62,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 35,
         "sprite_w": 32,
@@ -7775,18 +8279,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ローゼンシールド",
-        "ja-JP": "ローゼンシールド"
+        "NEUTRAL": "若葉の凧盾",
+        "ja-JP": "若葉の凧盾"
       },
       "Description": {
-        "NEUTRAL": "薔薇の紋章が美しい、高貴な騎士の盾。",
-        "ja-JP": "薔薇の紋章が美しい、高貴な騎士の盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 64,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 36,
         "sprite_w": 32,
@@ -7803,18 +8307,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ドラゴンシールド",
-        "ja-JP": "ドラゴンシールド"
+        "NEUTRAL": "苔岩の守盾",
+        "ja-JP": "苔岩の守盾"
       },
       "Description": {
-        "NEUTRAL": "ドラゴンの鱗で作られた、非常に頑丈な盾。",
-        "ja-JP": "ドラゴンの鱗で作られた、非常に頑丈な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 66,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 37,
         "sprite_w": 32,
@@ -7831,18 +8335,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スパイダーシールド",
-        "ja-JP": "スパイダーシールド"
+        "NEUTRAL": "森風の塔盾",
+        "ja-JP": "森風の塔盾"
       },
       "Description": {
-        "NEUTRAL": "蜘蛛の巣の模様が描かれた、不気味な盾。",
-        "ja-JP": "蜘蛛の巣の模様が描かれた、不気味な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 68,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 38,
         "sprite_w": 32,
@@ -7859,18 +8363,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スカルシールド",
-        "ja-JP": "スカルシールド"
+        "NEUTRAL": "翡翠の戦盾",
+        "ja-JP": "翡翠の戦盾"
       },
       "Description": {
-        "NEUTRAL": "髑髏の飾りがついた、死の香りがする盾。",
-        "ja-JP": "髑髏の飾りがついた、死の香りがする盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 70,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 39,
         "sprite_w": 32,
@@ -7887,18 +8391,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "アイシールド",
-        "ja-JP": "アイシールド"
+        "NEUTRAL": "風樹の近衛盾",
+        "ja-JP": "風樹の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "中央に大きな目が描かれた、見る者を不安にさせる盾。",
-        "ja-JP": "中央に大きな目が描かれた、見る者を不安にさせる盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 72,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 40,
         "sprite_w": 32,
@@ -7915,18 +8419,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "カオスシールド",
-        "ja-JP": "カオスシールド"
+        "NEUTRAL": "緑閃の護盾",
+        "ja-JP": "緑閃の護盾"
       },
       "Description": {
-        "NEUTRAL": "混沌の力が渦巻く、予測不可能な盾。",
-        "ja-JP": "混沌の力が渦巻く、予測不可能な盾。"
+        "NEUTRAL": "緑塗装の野戦盾。地形に溶け込み守りを固める。",
+        "ja-JP": "緑塗装の野戦盾。地形に溶け込み守りを固める。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 75,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 41,
         "sprite_w": 32,
@@ -7943,18 +8447,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オーダーシールド",
-        "ja-JP": "オーダーシールド"
+        "NEUTRAL": "潮汐の円盾",
+        "ja-JP": "潮汐の円盾"
       },
       "Description": {
-        "NEUTRAL": "秩序の力が宿る、揺るぎない防御を誇る盾。",
-        "ja-JP": "秩序の力が宿る、揺るぎない防御を誇る盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 78,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 42,
         "sprite_w": 32,
@@ -7971,18 +8475,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "マジックシールド",
-        "ja-JP": "マジックシールド"
+        "NEUTRAL": "蒼海の凧盾",
+        "ja-JP": "蒼海の凧盾"
       },
       "Description": {
-        "NEUTRAL": "魔法の障壁を展開し、物理攻撃だけでなく魔法攻撃も防ぐ盾。",
-        "ja-JP": "魔法の障壁を展開し、物理攻撃だけでなく魔法攻撃も防ぐ盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 80,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 43,
         "sprite_w": 32,
@@ -7999,18 +8503,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スペルシールド",
-        "ja-JP": "スペルシールド"
+        "NEUTRAL": "水紋の守盾",
+        "ja-JP": "水紋の守盾"
       },
       "Description": {
-        "NEUTRAL": "特定の呪文を吸収する力を持つ、特殊な盾。",
-        "ja-JP": "特定の呪文を吸収する力を持つ、特殊な盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 82,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 44,
         "sprite_w": 32,
@@ -8027,18 +8531,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "エレメンタルシールド",
-        "ja-JP": "エレメンタルシールド"
+        "NEUTRAL": "群青の塔盾",
+        "ja-JP": "群青の塔盾"
       },
       "Description": {
-        "NEUTRAL": "炎、水、風、土の四大元素の力を宿した盾。",
-        "ja-JP": "炎、水、風、土の四大元素の力を宿した盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 85,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 45,
         "sprite_w": 32,
@@ -8055,18 +8559,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ライトシールド",
-        "ja-JP": "ライトシールド"
+        "NEUTRAL": "蒼雷の戦盾",
+        "ja-JP": "蒼雷の戦盾"
       },
       "Description": {
-        "NEUTRAL": "光の力で邪悪を払う、聖騎士の盾。",
-        "ja-JP": "光の力で邪悪を払う、聖騎士の盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 88,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 46,
         "sprite_w": 32,
@@ -8083,18 +8587,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ダークシールド",
-        "ja-JP": "ダークシールド"
+        "NEUTRAL": "凍波の近衛盾",
+        "ja-JP": "凍波の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "闇の力で攻撃を吸収する、暗黒騎士の盾。",
-        "ja-JP": "闇の力で攻撃を吸収する、暗黒騎士の盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 90,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 47,
         "sprite_w": 32,
@@ -8111,18 +8615,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ブラッドシールド",
-        "ja-JP": "ブラッドシールド"
+        "NEUTRAL": "青星の護盾",
+        "ja-JP": "青星の護盾"
       },
       "Description": {
-        "NEUTRAL": "受けたダメージの一部を吸収し、持ち主の力に変える呪われた盾。",
-        "ja-JP": "受けたダメージの一部を吸収し、持ち主の力に変える呪われた盾。"
+        "NEUTRAL": "青塗装の水戦盾。冷静な守備運用に向く。",
+        "ja-JP": "青塗装の水戦盾。冷静な守備運用に向く。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 92,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 48,
         "sprite_w": 32,
@@ -8139,18 +8643,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ソウルシールド",
-        "ja-JP": "ソウルシールド"
+        "NEUTRAL": "黄昏の円盾",
+        "ja-JP": "黄昏の円盾"
       },
       "Description": {
-        "NEUTRAL": "倒した敵の魂を喰らい、防御力を高める邪悪な盾。",
-        "ja-JP": "倒した敵の魂を喰らい、防御力を高める邪悪な盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 94,
+        "Defense": 30,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 49,
         "sprite_w": 32,
@@ -8167,18 +8671,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "タイムシールド",
-        "ja-JP": "タイムシールド"
+        "NEUTRAL": "砂金の凧盾",
+        "ja-JP": "砂金の凧盾"
       },
       "Description": {
-        "NEUTRAL": "時を操り、敵の攻撃を遅らせることができる魔法の盾。",
-        "ja-JP": "時を操り、敵の攻撃を遅らせることができる魔法の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 95,
+        "Defense": 33,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 50,
         "sprite_w": 32,
@@ -8195,18 +8699,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "スペースシールド",
-        "ja-JP": "スペースシールド"
+        "NEUTRAL": "陽光の守盾",
+        "ja-JP": "陽光の守盾"
       },
       "Description": {
-        "NEUTRAL": "空間を歪め、敵の攻撃を別の場所へ転送する異次元の盾。",
-        "ja-JP": "空間を歪め、敵の攻撃を別の場所へ転送する異次元の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 96,
+        "Defense": 36,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 51,
         "sprite_w": 32,
@@ -8223,18 +8727,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "グラビティシールド",
-        "ja-JP": "グラビティシールド"
+        "NEUTRAL": "雷光の塔盾",
+        "ja-JP": "雷光の塔盾"
       },
       "Description": {
-        "NEUTRAL": "重力を操り、敵の攻撃を引き寄せたり反発させたりする盾。",
-        "ja-JP": "重力を操り、敵の攻撃を引き寄せたり反発させたりする盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 97,
+        "Defense": 40,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 52,
         "sprite_w": 32,
@@ -8251,18 +8755,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "ヴォイドシールド",
-        "ja-JP": "ヴォイドシールド"
+        "NEUTRAL": "黄金波の戦盾",
+        "ja-JP": "黄金波の戦盾"
       },
       "Description": {
-        "NEUTRAL": "あらゆるものを無に帰す、虚無の力を宿した盾。",
-        "ja-JP": "あらゆるものを無に帰す、虚無の力を宿した盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 98,
+        "Defense": 43,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 53,
         "sprite_w": 32,
@@ -8279,18 +8783,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "コスモシールド",
-        "ja-JP": "コスモシールド"
+        "NEUTRAL": "暁光の近衛盾",
+        "ja-JP": "暁光の近衛盾"
       },
       "Description": {
-        "NEUTRAL": "宇宙の法則を内包する、神々の盾。",
-        "ja-JP": "宇宙の法則を内包する、神々の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 99,
+        "Defense": 46,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 54,
         "sprite_w": 32,
@@ -8307,18 +8811,18 @@
       ],
       "Type": "catalogItem",
       "Title": {
-        "NEUTRAL": "オメガシールド",
-        "ja-JP": "オメガシールド"
+        "NEUTRAL": "天日輪の護盾",
+        "ja-JP": "天日輪の護盾"
       },
       "Description": {
-        "NEUTRAL": "すべての終わりを告げる、終焉の盾。",
-        "ja-JP": "すべての終わりを告げる、終焉の盾。"
+        "NEUTRAL": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。",
+        "ja-JP": "黄塗装の上位盾。視認性が高く終盤装備に相応しい。"
       },
       "ContentType": "Durable",
       "Tags": [],
       "DisplayProperties": {
         "Category": "Shield",
-        "Defense": 99,
+        "Defense": 50,
         "sprite_path": "./Sprites/weapons/melee weapons/shield.png",
         "sprite_index": 55,
         "sprite_w": 32,
@@ -9133,6 +9637,174 @@
         "Power": 24,
         "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
         "sprite_index": 6,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_08"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "サーベル",
+        "ja-JP": "サーベル"
+      },
+      "Description": {
+        "NEUTRAL": "騎兵隊が使う、湾曲した軍用剣。",
+        "ja-JP": "騎兵隊が使う、湾曲した軍用剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 26,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 7,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_09"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カトラス",
+        "ja-JP": "カトラス"
+      },
+      "Description": {
+        "NEUTRAL": "海賊が愛用する、短く幅広の剣。",
+        "ja-JP": "海賊が愛用する、短く幅広の剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 28,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 8,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_10"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラディウス",
+        "ja-JP": "グラディウス"
+      },
+      "Description": {
+        "NEUTRAL": "古代ローマの戦士が使った短剣。",
+        "ja-JP": "古代ローマの戦士が使った短剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 30,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 9,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_11"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファルシオン",
+        "ja-JP": "ファルシオン"
+      },
+      "Description": {
+        "NEUTRAL": "先端が膨らんだ独特な形状の片手剣。",
+        "ja-JP": "先端が膨らんだ独特な形状の片手剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 32,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 10,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_12"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "バスタードソード",
+        "ja-JP": "バスタードソード"
+      },
+      "Description": {
+        "NEUTRAL": "片手でも両手でも扱える、汎用性の高い剣。",
+        "ja-JP": "片手でも両手でも扱える、汎用性の高い剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 34,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 11,
+        "sprite_w": 32,
+        "sprite_h": 32,
+        "sprite_cols": 7
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "sword_13"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "フランベルジュ",
+        "ja-JP": "フランベルジュ"
+      },
+      "Description": {
+        "NEUTRAL": "炎のように波打つ刃を持つ、特殊な形状の剣。",
+        "ja-JP": "炎のように波打つ刃を持つ、特殊な形状の剣。"
+      },
+      "ContentType": "Durable",
+      "Tags": [],
+      "DisplayProperties": {
+        "Category": "Weapon",
+        "Power": 36,
+        "sprite_path": "./Sprites/weapons/melee weapons/sword.png",
+        "sprite_index": 12,
         "sprite_w": 32,
         "sprite_h": 32,
         "sprite_cols": 7

@@ -23,6 +23,32 @@ function getPlayerPosition() {
     return { x: Number(ship.x) || 0, y: Number(ship.y) || 0 };
 }
 
+const TROY_GROUP_BY_NATION = {
+    fire: 'nation_fire_island',
+    earth: 'nation_earth_island',
+    wind: 'nation_wind_island',
+    water: 'nation_water_island'
+};
+
+function resolveTroyNationKey() {
+    return String(
+        window.__troyStatus?.nation
+        || window.myAvatarBaseInfo?.Nation
+        || window.myAvatarBaseInfo?.nation
+        || ''
+    ).trim().toLowerCase();
+}
+
+function resolveTroyGroupName() {
+    return TROY_GROUP_BY_NATION[resolveTroyNationKey()] || null;
+}
+
+function toMillis(value) {
+    if (value?.toMillis) return value.toMillis();
+    const num = Number(value);
+    return Number.isFinite(num) ? num : Date.now();
+}
+
 function createChatController(options) {
     const config = {
         containerId: options.containerId,
@@ -36,6 +62,7 @@ function createChatController(options) {
     let pollTimer = null;
     let cachedGuildId = null;
     let wired = false;
+    let liveMessagesUnsubscribe = null;
 
     function getChatElements() {
         return {
@@ -91,6 +118,52 @@ function createChatController(options) {
             container.appendChild(row);
         });
         container.scrollTop = container.scrollHeight;
+    }
+
+    function stopLiveMessages() {
+        if (liveMessagesUnsubscribe) {
+            liveMessagesUnsubscribe();
+            liveMessagesUnsubscribe = null;
+        }
+    }
+
+    async function startTroyMessageStream(playFabId) {
+        stopLiveMessages();
+        const status = window.__troyStatus || null;
+        const memberId = String(playFabId || '').trim().toLowerCase();
+        if (!status || !Array.isArray(status.members)) return false;
+        const isMember = status.members.some((entry) => String(entry?.playFabId || '').trim().toLowerCase() === memberId);
+        if (!isMember) return false;
+        const groupName = resolveTroyGroupName();
+        if (!groupName) return false;
+        try {
+            const { getFirestore, collection, query, orderBy, limit, onSnapshot } = await import('firebase/firestore');
+            const db = getFirestore();
+            const chatQuery = query(
+                collection(db, 'troy_rooms', groupName, 'chat'),
+                orderBy('createdAt', 'asc'),
+                limit(50)
+            );
+            liveMessagesUnsubscribe = onSnapshot(chatQuery, (snapshot) => {
+                const messages = snapshot.docs.map((entry) => {
+                    const data = entry.data() || {};
+                    return {
+                        message: data.message || '',
+                        displayName: data.displayName || 'Player',
+                        timestamp: toMillis(data.createdAt)
+                    };
+                });
+                renderMessages(messages);
+            }, (error) => {
+                console.warn('[MapChat] Troy snapshot failed:', error);
+                stopLiveMessages();
+            });
+            return true;
+        } catch (error) {
+            console.warn('[MapChat] Failed to start Troy chat snapshot:', error);
+            stopLiveMessages();
+            return false;
+        }
     }
 
     async function fetchMessages(playFabId) {
@@ -156,13 +229,21 @@ function createChatController(options) {
         renderMessages(messages);
     }
 
-    function setActiveChannel(channel, playFabId) {
+    async function setActiveChannel(channel, playFabId) {
         activeChannel = channel;
         const { tabButtons } = getChatElements();
         tabButtons.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.chat === channel);
         });
-        refreshMessages(playFabId);
+        if (channel === 'troy') {
+            const started = await startTroyMessageStream(playFabId);
+            if (!started) {
+                await refreshMessages(playFabId);
+            }
+            return;
+        }
+        stopLiveMessages();
+        await refreshMessages(playFabId);
     }
 
     function startPolling(playFabId) {
@@ -170,6 +251,7 @@ function createChatController(options) {
         pollTimer = setInterval(() => {
             const isActive = typeof config.isActive === 'function' ? config.isActive() : true;
             if (!isActive) return;
+            if (activeChannel === 'troy') return;
             refreshMessages(playFabId);
         }, 5000);
     }
@@ -182,7 +264,7 @@ function createChatController(options) {
 
         tabButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
-                setActiveChannel(btn.dataset.chat, playFabId);
+                void setActiveChannel(btn.dataset.chat, playFabId);
             });
         });
 
@@ -192,7 +274,9 @@ function createChatController(options) {
             const ok = await sendMessage(playFabId, message);
             if (ok) {
                 input.value = '';
-                await refreshMessages(playFabId);
+                if (activeChannel !== 'troy' || !liveMessagesUnsubscribe) {
+                    await refreshMessages(playFabId);
+                }
             }
         });
 
@@ -202,7 +286,7 @@ function createChatController(options) {
             sendButton.click();
         });
 
-        setActiveChannel(activeChannel, playFabId);
+        void setActiveChannel(activeChannel, playFabId);
         startPolling(playFabId);
     }
 
