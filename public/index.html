@@ -124,6 +124,23 @@
                     <button id="btnScanPay" class="transfer-send-btn">渡す</button>
                     <p class="home-card-note">金額を決めて相手の QR を読み取ります。</p>
                 </div>
+                <div class="content-area home-social-card home-card">
+                    <div class="home-card-header">
+                        <span class="home-card-emoji">◎</span>
+                        <span class="home-card-title">交流</span>
+                    </div>
+                    <div class="home-shortcut-grid">
+                        <button class="home-shortcut-btn" type="button" onclick="showTab('qr')">
+                            <span class="home-shortcut-main">交流を開く</span>
+                            <span class="home-shortcut-sub">QRバトルとギルド</span>
+                        </button>
+                        <button class="home-shortcut-btn home-shortcut-btn-secondary" type="button" onclick="showTab('ranking')">
+                            <span class="home-shortcut-main">順位を見る</span>
+                            <span class="home-shortcut-sub">PS / 貢献 / 国庫</span>
+                        </button>
+                    </div>
+                    <p class="home-card-note">交流と順位はホームから開けます。</p>
+                </div>
             </div>
 
             <!-- 1.5 TROYタブ -->
@@ -538,6 +555,9 @@
                         <div id="shipActionStatus" class="map-action-status-chip"></div>
                     </div>
                 </div>
+                <div class="map-secondary-actions">
+                    <button id="mapOwnedIslandsShortcut" class="map-secondary-action-btn" type="button" onclick="showTab('islands')">所有する島</button>
+                </div>
 
                 <!-- 島コマンドパネル（下からスライドイン） -->
                 <div id="islandCommandPanel" class="island-command-panel">
@@ -574,7 +594,10 @@
             <!-- 3. 島タブ -->
             <div id="tabContentIslands" class="tab-content" style="display: none;">
                 <div class="content-area">
-                    <h2>所有する島</h2>
+                    <div class="secondary-screen-header">
+                        <h2>所有する島</h2>
+                        <button class="secondary-screen-back" type="button" onclick="showTab('map')">地図へ戻る</button>
+                    </div>
                     <p style="font-size:12px; color:var(--text-sub);">自分が所有している島の一覧です。</p>
                     <div style="display:flex; gap:10px; align-items:center; margin-top: 10px;">
                         <label for="islandSortSelect" style="font-size:12px; color: var(--text-sub);">並び順</label>
@@ -965,13 +988,13 @@
         <button id="navMap" class="nav-button" onclick="showTab('map')">
             <span class="nav-icon">🗺️</span><span>地図</span>
         </button>
-        <button id="navIslands" class="nav-button" onclick="showTab('islands')">
+        <button id="navIslands" class="nav-button" onclick="showTab('islands')" style="display:none;">
             <span class="nav-icon">🏝️</span><span>島</span>
         </button>
         <button id="navInventory" class="nav-button" onclick="showTab('inventory')">
             <span class="nav-icon">🎒</span><span>持ち物</span>
         </button>
-        <button id="navQr" class="nav-button" onclick="showTab('qr')">
+        <button id="navQr" class="nav-button" onclick="showTab('qr')" style="display:none;">
             <span class="nav-icon">⚔️</span><span>交流</span>
         </button>
         <button id="navRanking" class="nav-button" onclick="showTab('ranking')">

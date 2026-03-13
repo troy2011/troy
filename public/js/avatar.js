@@ -193,8 +193,20 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             layer.style.width = `${spriteWidth * scale}px`;
             layer.style.height = `${spriteHeight * scale}px`;
 
-            // 縦長の画像の場合、上にはみ出すように調整
-            layer.style.top = (spriteHeight > 32) ? `-${(spriteHeight - 32) * scale}px` : '0px';
+            // 縦長スプライトは部位ごとに少し上へ逃がすが、全量を持ち上げると
+            // 下端が切れやすいので、補正量は控えめにして見切れを防ぐ。
+            const overflowHeight = Math.max(0, spriteHeight - 32) * scale;
+            let topOffset = 0;
+            if (overflowHeight > 0) {
+                if (layerId.includes('weapon-right') || layerId.includes('shield-left')) {
+                    topOffset = -Math.round(overflowHeight * 0.55);
+                } else if (layerId.includes('layer-armor')) {
+                    topOffset = -Math.round(overflowHeight * 0.4);
+                } else {
+                    topOffset = -Math.round(overflowHeight * 0.5);
+                }
+            }
+            layer.style.top = `${topOffset}px`;
 
             // パーツごとの位置オフセットを適用
             let transformValue = '';
@@ -211,9 +223,6 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                 if (itemCategory === 'Shield') {
                     offsetX += AVATAR_PART_OFFSETS.shield.x;
                     offsetY += AVATAR_PART_OFFSETS.shield.y;
-                }
-                if (itemCategory === 'Weapon' && spriteHeight > 32) {
-                    offsetY += AVATAR_PART_OFFSETS.tallWeapon.y;
                 }
                 transformValue += ` translateX(${offsetX}px) translateY(${offsetY}px)`;
             } else if (layerId.includes('shield-left')) {

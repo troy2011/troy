@@ -2750,13 +2750,8 @@ export default class WorldMapScene extends Phaser.Scene {
     updateMapActionBarLayout() {
         if (typeof document === 'undefined' || typeof window === 'undefined') return;
         const bar = document.getElementById('mapActionBar');
-        const chatArea = document.getElementById('mapChatArea');
-        if (!bar || !chatArea) return;
-        const chatRect = chatArea.getBoundingClientRect();
-        const chatStyles = window.getComputedStyle(chatArea);
-        const marginBottom = Math.max(0, Number.parseFloat(chatStyles.marginBottom || '0') || 0);
-        const reserve = Math.ceil(chatRect.height + marginBottom + 12);
-        bar.style.bottom = `${reserve}px`;
+        if (!bar) return;
+        bar.style.bottom = '';
     }
 
     updateShipCombatResourceHud() {

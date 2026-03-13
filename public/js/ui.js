@@ -1180,6 +1180,7 @@ function updateHomeAvatarSeaTone() {
 export async function showTab(tabId, playerInfo, options = {}) {
     console.log('[showTab] Called with tabId:', tabId, 'playerInfo:', playerInfo);
     const currentActiveTab = document.querySelector('.nav-button.active');
+    const currentTabId = document.body?.dataset.currentTab || null;
     const mapLoadLabel = null;
 
     const mapSelectOptions = {
@@ -1217,7 +1218,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 return;
             }
         }
-        if (currentActiveTab && currentActiveTab.id === 'navMap') {
+        if (currentTabId === 'map') {
             showWorldMapModal(playerInfo);
             if (mapLoadLabel) console.timeEnd(mapLoadLabel);
             return;
@@ -1302,7 +1303,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
     const contentEl = document.getElementById(`tabContent${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
     if (contentEl) contentEl.style.display = 'block';
 
-    const navEl = document.getElementById(`nav${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`);
+    const navProxyMap = {
+        islands: 'map',
+        qr: 'home'
+    };
+    const navTargetId = navProxyMap[tabId] || tabId;
+    const navEl = document.getElementById(`nav${navTargetId.charAt(0).toUpperCase() + navTargetId.slice(1)}`);
     if (navEl) navEl.classList.add('active');
     if (document.body) {
         document.body.dataset.currentTab = tabId;

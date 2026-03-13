@@ -495,6 +495,43 @@ body[data-sea-tone="night"] .home-hero-card {
     color: var(--text-main);
 }
 
+.home-shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.home-shortcut-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    min-height: 68px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
+    color: #f8fafc;
+    box-shadow: none;
+    text-align: left;
+}
+
+.home-shortcut-btn-secondary {
+    background: linear-gradient(180deg, rgba(36, 31, 59, 0.92), rgba(17, 24, 39, 0.96));
+}
+
+.home-shortcut-main {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.home-shortcut-sub {
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
 .home-qr-area {
     text-align: center;
     margin: 12px 0 4px;
@@ -8700,6 +8737,12 @@ textarea {
     display: block;
 }
 
+#tabContentInventory .avatar-card.inventory-section.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 #inventoryTabs {
     position: sticky;
     top: calc(122px + var(--safe-top));
@@ -10162,11 +10205,12 @@ textarea {
 #tabContentInventory .avatar-card {
     padding: 14px 10px 16px;
     gap: 10px;
+    overflow: visible;
 }
 
 #tabContentInventory .avatar-container {
     transform: scale(1.45);
-    margin: 14px 0 10px;
+    margin: 14px auto 18px;
 }
 
 #tabContentInventory #equipmentGrid {
@@ -10900,14 +10944,15 @@ textarea {
 }
 
 #tabContentMap .map-action-bar {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: calc(220px + 12px);
-    z-index: 1200;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 20;
     width: auto;
     max-width: none;
     transform: none;
+    margin: 8px 16px 12px;
     padding: 10px;
     border-radius: 20px;
     background:
@@ -10917,12 +10962,52 @@ textarea {
     box-shadow: 0 18px 30px rgba(2, 6, 23, 0.42);
 }
 
+#tabContentMap .map-secondary-actions {
+    margin: 0 16px 12px;
+}
+
+#tabContentMap .map-secondary-action-btn {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.78);
+    color: #e2e8f0;
+    box-shadow: none;
+}
+
 #tabContentMap:not(.map-ready) .map-action-bar {
+    display: none;
+}
+
+#tabContentMap:not(.map-ready) .map-secondary-actions {
     display: none;
 }
 
 #tabContentMap .map-action-bar::before {
     display: none;
+}
+
+.secondary-screen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.secondary-screen-header h2 {
+    margin-bottom: 0;
+}
+
+.secondary-screen-back {
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.88);
+    color: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: none;
+    white-space: nowrap;
 }
 
 #tabContentMap .map-action-meta {
