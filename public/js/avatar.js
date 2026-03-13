@@ -59,6 +59,7 @@ function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = 
 function setTarotLoadoutSprite(element, sprite) {
     if (!element) return;
     if (!sprite?.path) {
+        delete element.dataset.tarotSpriteKey;
         element.style.backgroundImage = 'none';
         element.style.backgroundSize = '';
         element.style.backgroundPosition = '';
@@ -68,20 +69,26 @@ function setTarotLoadoutSprite(element, sprite) {
     }
     const width = Number(sprite.width || 48) || 48;
     const height = Number(sprite.height || 80) || 80;
-    const cols = Math.max(1, Number(sprite.cols || 10) || 10);
     const index = Math.max(0, Number(sprite.index || 0) || 0);
-    const targetWidth = element.clientWidth || 72;
-    const targetHeight = element.clientHeight || 120;
-    const scale = Math.min(targetWidth / width, targetHeight / height);
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const offsetX = ((targetWidth - (width * scale)) / 2) - (col * width * scale);
-    const offsetY = ((targetHeight - (height * scale)) / 2) - (row * height * scale);
+    const requestedCols = Math.max(1, Number(sprite.cols || 10) || 10);
+    const spriteKey = [sprite.path, index, width, height, requestedCols].join('|');
+    element.dataset.tarotSpriteKey = spriteKey;
     element.textContent = '';
-    element.style.backgroundImage = `url('${sprite.path}')`;
-    element.style.backgroundRepeat = 'no-repeat';
-    element.style.backgroundSize = `${cols * width * scale}px auto`;
-    element.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
+    loadSpriteImage(sprite.path).then((img) => {
+        if (!img || element.dataset.tarotSpriteKey !== spriteKey) return;
+        const targetWidth = element.clientWidth || 72;
+        const targetHeight = element.clientHeight || 120;
+        const scale = Math.min(targetWidth / width, targetHeight / height);
+        const sheetColumns = Math.max(1, requestedCols || Math.floor(img.width / width) || 1);
+        const col = index % sheetColumns;
+        const row = Math.floor(index / sheetColumns);
+        const offsetX = ((targetWidth - (width * scale)) / 2) - (col * width * scale);
+        const offsetY = ((targetHeight - (height * scale)) / 2) - (row * height * scale);
+        element.style.backgroundImage = `url('${sprite.path}')`;
+        element.style.backgroundRepeat = 'no-repeat';
+        element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+        element.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
+    });
 }
 
 function renderTarotLoadoutGrid(majorArcanaItem, manifestationItems) {
