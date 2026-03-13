@@ -1172,8 +1172,15 @@ function updateExperienceUI() {
 
 export async function getInventory(playFabId, options = {}) {
     const now = Date.now();
-    if (inventoryFetchPromise) return inventoryFetchPromise;
     const force = options && options.force === true;
+    if (inventoryFetchPromise && !force) return inventoryFetchPromise;
+    if (inventoryFetchPromise && force) {
+        try {
+            await inventoryFetchPromise;
+        } catch (_error) {
+            // Ignore the stale fetch result and continue with a fresh request.
+        }
+    }
     if (!force && now - lastInventoryFetchAt < 1500) return;
     inventoryFetchPromise = (async () => {
     document.getElementById('inventoryGrid').innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">（持ち物を読み込んでいます...）</p>';

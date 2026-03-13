@@ -419,7 +419,9 @@ function initializeInventoryRoutes(app, deps) {
                 if (!itemId || getCurrencyIdFromItem(item, catalogCache)) return;
                 const catalogData = catalogCache[itemId] || {};
                 const name = catalogData.DisplayName || catalogData.Title || itemId;
-                const amount = getItemAmount(item) || 1;
+                const rawAmount = item?.Amount ?? item?.amount;
+                const amount = rawAmount == null ? 1 : (Number(rawAmount) || 0);
+                if (amount <= 0) return;
                 if (itemMap.has(itemId)) {
                     const existing = itemMap.get(itemId);
                     existing.count += amount;
