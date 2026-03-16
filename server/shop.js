@@ -669,7 +669,9 @@ function initializeShopRoutes(app, deps) {
                 }
                 if (tax > 0) {
                     await addNationTreasury(nationValue, tax, firestore, deps, {
-                        contributorPlayFabId: playFabId
+                        contributorPlayFabId: playFabId,
+                        source: 'shop_tax',
+                        label: '売上税'
                     });
                 }
             }

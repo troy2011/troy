@@ -1741,7 +1741,9 @@ function initializeIslandRoutes(app, deps) {
             }
             if (tax > 0) {
                 await addNationTreasury(nationValue || userNation, tax, firestore, deps, {
-                    contributorPlayFabId: playFabId
+                    contributorPlayFabId: playFabId,
+                    source: 'hot_spring_tax',
+                    label: '温泉税'
                 });
             }
 
