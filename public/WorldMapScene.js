@@ -4,7 +4,12 @@ import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, onSnapshot, 
 import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import * as Ship from './js/ship.js';
 import * as Player from './js/player.js';
-import { getShipResourceStorage as fetchShipResourceStorage, consumeVoyageMp as requestConsumeVoyageMp } from './js/playfabClient.js';
+import {
+    getShipResourceStorage as fetchShipResourceStorage,
+    consumeVoyageMp as requestConsumeVoyageMp,
+    getCapitalWarState as requestCapitalWarState,
+    performCapitalWarAction as requestCapitalWarAction
+} from './js/playfabClient.js';
 
 // ========================================
 // 定数定義
@@ -305,7 +310,9 @@ export default class WorldMapScene extends Phaser.Scene {
         this.commandMenuOpen = false;
         this.islandCommandRefreshTimer = null;
         this.islandCaptureCompleteTimer = null;
+        this.capitalCaptureCompleteTimer = null;
         this.islandCaptureAlertStateById = new Map();
+        this.capitalWarStateByNation = new Map();
         this.lastEnemyShipActionWarnAt = new Map();
         this.lastIncomingThreatWarnAt = 0;
         this.collidingShipId = null;
@@ -2333,9 +2340,12 @@ export default class WorldMapScene extends Phaser.Scene {
             return;
         }
 
-        if (this.collidingIsland && (!targetIsland || targetIsland.id !== this.collidingIsland.id) && this.isPlayerInIslandCapture(this.collidingIsland)) {
-            this.clearIslandCommandTimers(true);
-            void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
+        if (this.collidingIsland && (!targetIsland || targetIsland.id !== this.collidingIsland.id)) {
+            if (this.isPlayerInIslandCapture(this.collidingIsland)) {
+                this.clearIslandCommandTimers(true);
+                void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
+            }
+            void this.leaveCapitalCaptureSilently(this.collidingIsland);
         }
 
         this.hideIslandCommandMenu();
@@ -6627,6 +6637,76 @@ export default class WorldMapScene extends Phaser.Scene {
         return state.queue.some((entry) => entry.playFabId === myId);
     }
 
+    getCapitalNationForIsland(islandData) {
+        if (!islandData) return '';
+        const explicit = String(islandData.ownerNation || islandData.nation || '').toLowerCase().trim();
+        if (explicit) return explicit;
+        const mapKey = String(islandData.mapId || this.mapId || '').toLowerCase();
+        if (mapKey === 'wands') return 'fire';
+        if (mapKey === 'pentacles') return 'earth';
+        if (mapKey === 'cups') return 'water';
+        if (mapKey === 'swords') return 'wind';
+        return '';
+    }
+
+    getCachedCapitalWarState(islandData) {
+        const nation = this.getCapitalNationForIsland(islandData);
+        return nation ? (this.capitalWarStateByNation.get(nation) || null) : null;
+    }
+
+    async fetchCapitalWarState(islandData, force = false) {
+        const playFabId = this.playerInfo?.playFabId;
+        const nation = this.getCapitalNationForIsland(islandData);
+        if (!playFabId || !nation) return null;
+        if (!force && this.capitalWarStateByNation.has(nation)) {
+            return this.capitalWarStateByNation.get(nation) || null;
+        }
+        const data = await requestCapitalWarState(playFabId, nation, { isSilent: true });
+        const capitalWar = data?.capitalWar || null;
+        if (capitalWar) {
+            this.capitalWarStateByNation.set(nation, capitalWar);
+            if (islandData) islandData.capitalWarState = capitalWar;
+        }
+        return capitalWar;
+    }
+
+    isPlayerInCapitalCapture(islandData) {
+        const myId = this.playerInfo?.playFabId;
+        if (!myId) return false;
+        const capitalWar = islandData?.capitalWarState || this.getCachedCapitalWarState(islandData);
+        const queue = Array.isArray(capitalWar?.capitalCapture?.queue) ? capitalWar.capitalCapture.queue : [];
+        return queue.some((entry) => entry.playFabId === myId);
+    }
+
+    async triggerCapitalWarAction(islandData, action, { forceRefresh = true, successMessage = '', isSilent = false } = {}) {
+        const playFabId = this.playerInfo?.playFabId;
+        const nation = this.getCapitalNationForIsland(islandData);
+        if (!playFabId || !nation) {
+            throw new Error('首都戦を処理できません');
+        }
+        const data = await requestCapitalWarAction(playFabId, nation, action, { isSilent });
+        const capitalWar = data?.capitalWar || null;
+        if (capitalWar) {
+            this.capitalWarStateByNation.set(nation, capitalWar);
+            if (islandData) islandData.capitalWarState = capitalWar;
+        } else if (forceRefresh) {
+            await this.fetchCapitalWarState(islandData, true);
+        }
+        if (successMessage) {
+            this.showMessage(successMessage);
+        }
+        return capitalWar;
+    }
+
+    async leaveCapitalCaptureSilently(islandData) {
+        if (!this.isPlayerInCapitalCapture(islandData)) return;
+        try {
+            await this.triggerCapitalWarAction(islandData, 'capture_leave', { forceRefresh: false, isSilent: true });
+        } catch (error) {
+            console.warn('[CapitalCapture] Failed to leave silently:', error?.message || error);
+        }
+    }
+
     clearIslandCommandTimers(includeCapture = true) {
         if (this.islandCommandRefreshTimer) {
             clearTimeout(this.islandCommandRefreshTimer);
@@ -6635,6 +6715,10 @@ export default class WorldMapScene extends Phaser.Scene {
         if (includeCapture && this.islandCaptureCompleteTimer) {
             clearTimeout(this.islandCaptureCompleteTimer);
             this.islandCaptureCompleteTimer = null;
+        }
+        if (includeCapture && this.capitalCaptureCompleteTimer) {
+            clearTimeout(this.capitalCaptureCompleteTimer);
+            this.capitalCaptureCompleteTimer = null;
         }
     }
 
@@ -6803,7 +6887,225 @@ export default class WorldMapScene extends Phaser.Scene {
      *
      *
      */
-    showIslandCommandMenu(islandData) {
+    async showCapitalCommandMenu(islandData, refs) {
+        const { panel, title, statusEl, actionBtn, tarotBtn, attackBtn, closeBtn } = refs;
+        const myPlayFabId = this.playerInfo?.playFabId;
+        const playerNation = String(this.playerInfo?.nation || '').toLowerCase();
+        const capitalNation = this.getCapitalNationForIsland(islandData);
+        let capitalWar = this.getCachedCapitalWarState(islandData);
+        try {
+            capitalWar = await this.fetchCapitalWarState(islandData, true) || capitalWar;
+        } catch (error) {
+            console.warn('[CapitalWar] Failed to load state:', error?.message || error);
+        }
+        const capture = capitalWar?.capitalCapture || {};
+        const queue = Array.isArray(capture.queue) ? capture.queue : [];
+        const leader = queue[0] || null;
+        const leaderNation = String(leader?.nation || '').toLowerCase();
+        const isOwnNation = !!playerNation && !!capitalNation && playerNation === capitalNation;
+        const isCaptureMember = !!myPlayFabId && queue.some((entry) => entry.playFabId === myPlayFabId);
+        const isCaptureLeader = !!leader && leader.playFabId === myPlayFabId;
+        const hasAllyCapture = !!leader && !!playerNation && leaderNation === playerNation;
+        const hasEnemyCapture = !!leader && !!playerNation && leaderNation && leaderNation !== playerNation;
+        const captureRemainingMs = Math.max(0, Number(capture.remainingMs) || 0);
+        const captureRemainingSeconds = Math.max(0, Math.ceil(captureRemainingMs / 1000));
+        const wallEntry = (Array.isArray(capitalWar?.capitalStatus) ? capitalWar.capitalStatus : []).find((entry) => entry.part === 'walls') || null;
+        const wallText = wallEntry
+            ? (wallEntry.exact && wallEntry.value != null ? `城壁 ${wallEntry.value}%` : `城壁 ${wallEntry.band?.label || '-'}`)
+            : '城壁 -';
+        const statusParts = [wallText];
+        if (capture.raidUnlocked) {
+            statusParts.push('国庫襲撃可能');
+        } else if (capture.raidCooldownActive) {
+            statusParts.push(`再襲撃防衛中 ${Math.max(1, Math.ceil((Number(capture.raidCooldownRemainingMs) || 0) / 60000))}分`);
+        } else if (capture.breached) {
+            statusParts.push('上陸可能');
+        }
+        if (!isOwnNation && !capture.intelGranted) {
+            statusParts.push('偵察で詳細表示');
+        }
+        if (queue.length > 0) {
+            statusParts.push(`制圧 ${queue.length}/${Math.max(1, Number(capture.slotLimit) || 1)}`);
+            if (captureRemainingSeconds > 0) {
+                statusParts.push(`残り${captureRemainingSeconds}秒`);
+            } else {
+                statusParts.push('制圧完了可能');
+            }
+        }
+        statusEl.style.display = 'block';
+        statusEl.textContent = statusParts.join(' / ');
+        title.textContent = `${islandData.name} 首都`;
+
+        let buttonText = '工作';
+        let buttonClass = 'warning';
+        let onClick = async () => {
+            await this.triggerCapitalWarAction(islandData, 'sabotage', { successMessage: '工作隊を送り込みました。' });
+            await this.showIslandCommandMenu(islandData);
+        };
+
+        let tarotVisible = false;
+        let tarotText = '偵察';
+        let tarotClass = 'info';
+        let tarotOnClick = async () => {
+            await this.triggerCapitalWarAction(islandData, 'recon', { successMessage: '首都の偵察に成功しました。' });
+            await this.showIslandCommandMenu(islandData);
+        };
+
+        let attackVisible = false;
+        let attackText = capture.breached ? '攻城' : '艦砲射撃';
+        let attackClass = 'danger';
+        let attackOnClick = async () => {
+            await this.triggerCapitalWarAction(islandData, capture.breached ? 'siege' : 'ship_attack', {
+                successMessage: capture.breached ? '首都へ攻城を行いました。' : '首都へ艦砲射撃を行いました。'
+            });
+            await this.showIslandCommandMenu(islandData);
+        };
+
+        if (!myPlayFabId) {
+            buttonText = 'ログインが必要';
+            buttonClass = 'disabled';
+            onClick = () => this.showMessage('ログインしてください。');
+        } else if (isOwnNation) {
+            buttonText = '首都を修理';
+            buttonClass = 'info';
+            onClick = async () => {
+                await this.triggerCapitalWarAction(islandData, 'repair', { successMessage: '首都設備を修理しました。' });
+                await this.showIslandCommandMenu(islandData);
+            };
+            tarotVisible = true;
+            tarotText = '首都メニュー';
+            tarotClass = 'info';
+            tarotOnClick = async () => {
+                await this.openBuildingMenuForIsland(islandData);
+            };
+        } else {
+            tarotVisible = true;
+            attackVisible = true;
+            if (capture.raidUnlocked) {
+                buttonText = '国庫襲撃は王のみ';
+                buttonClass = 'disabled';
+                onClick = () => this.showMessage('国庫襲撃は王ページから実行します。');
+                attackVisible = false;
+            } else if (hasEnemyCapture && leader) {
+                buttonText = '防衛隊で迎撃';
+                buttonClass = 'danger';
+                onClick = async () => {
+                    this.hideIslandCommandMenu();
+                    if (typeof window !== 'undefined' && typeof window.startCapitalCaptureBattleWithOpponent === 'function') {
+                        const started = await window.startCapitalCaptureBattleWithOpponent(
+                            leader.playFabId,
+                            islandData.id,
+                            islandData.mapId || this.mapId
+                        );
+                        if (!started) {
+                            await this.fetchCapitalWarState(islandData, true);
+                            await this.showIslandCommandMenu(islandData);
+                        }
+                    }
+                };
+            } else if (isCaptureMember) {
+                if (isCaptureLeader && captureRemainingMs <= 0) {
+                    buttonText = '首都制圧を完了';
+                    buttonClass = 'warning';
+                    onClick = async () => {
+                        await this.triggerCapitalWarAction(islandData, 'capture_complete', { successMessage: '首都制圧を完了しました。' });
+                        await this.showIslandCommandMenu(islandData);
+                    };
+                } else {
+                    buttonText = '首都から撤退';
+                    buttonClass = 'danger';
+                    onClick = async () => {
+                        await this.triggerCapitalWarAction(islandData, 'capture_leave', { successMessage: '首都制圧から離脱しました。' });
+                        await this.showIslandCommandMenu(islandData);
+                    };
+                }
+            } else if (hasAllyCapture) {
+                if (queue.length < (Number(capture.slotLimit) || 1)) {
+                    buttonText = '制圧に参加';
+                    buttonClass = 'warning';
+                    onClick = async () => {
+                        await this.triggerCapitalWarAction(islandData, 'capture_join', { successMessage: '首都制圧に参加しました。' });
+                        await this.showIslandCommandMenu(islandData);
+                    };
+                } else {
+                    buttonText = '制圧枠が満員';
+                    buttonClass = 'disabled';
+                    onClick = () => this.showMessage('これ以上は首都制圧に参加できません。');
+                }
+            } else if (capture.breached) {
+                buttonText = '首都に乗り込む';
+                buttonClass = 'warning';
+                onClick = async () => {
+                    await this.triggerCapitalWarAction(islandData, 'capture_start', { successMessage: '首都へ上陸しました。' });
+                    await this.showIslandCommandMenu(islandData);
+                };
+            }
+        }
+
+        if (queue.length > 0 && captureRemainingMs > 0 && !capture.raidUnlocked) {
+            if (isCaptureLeader) {
+                this.capitalCaptureCompleteTimer = setTimeout(() => {
+                    this.capitalCaptureCompleteTimer = null;
+                    const latestIsland = this.islandObjects.get(islandData.id) || islandData;
+                    if (!latestIsland || !this.isPlayerInCapitalCapture(latestIsland)) return;
+                    void this.triggerCapitalWarAction(latestIsland, 'capture_complete', { successMessage: '首都制圧を完了しました。' })
+                        .then(() => this.showIslandCommandMenu(latestIsland));
+                }, captureRemainingMs + 160);
+            } else {
+                this.scheduleIslandCommandRefresh(islandData, Math.min(1000, captureRemainingMs + 120));
+            }
+        }
+
+        actionBtn.textContent = buttonText;
+        actionBtn.className = `island-command-btn ${buttonClass}`;
+        if (tarotBtn) {
+            tarotBtn.textContent = tarotText;
+            tarotBtn.className = `island-command-btn ${tarotClass}`;
+            tarotBtn.style.display = tarotVisible ? 'block' : 'none';
+        }
+        attackBtn.textContent = attackText;
+        attackBtn.className = `island-command-btn ${attackClass}`;
+        attackBtn.style.display = attackVisible ? 'block' : 'none';
+
+        const newActionBtn = actionBtn.cloneNode(true);
+        actionBtn.parentNode.replaceChild(newActionBtn, actionBtn);
+        const newTarotBtn = tarotBtn ? tarotBtn.cloneNode(true) : null;
+        if (tarotBtn && newTarotBtn) {
+            tarotBtn.parentNode.replaceChild(newTarotBtn, tarotBtn);
+        }
+        const newAttackBtn = attackBtn.cloneNode(true);
+        attackBtn.parentNode.replaceChild(newAttackBtn, attackBtn);
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+
+        newActionBtn.addEventListener('click', () => {
+            void onClick();
+        });
+        if (newTarotBtn && tarotVisible) {
+            newTarotBtn.addEventListener('click', () => {
+                void tarotOnClick();
+            });
+        } else if (newTarotBtn) {
+            newTarotBtn.style.display = 'none';
+        }
+        if (attackVisible) {
+            newAttackBtn.addEventListener('click', () => {
+                void attackOnClick();
+            });
+        } else {
+            newAttackBtn.style.display = 'none';
+        }
+        newCloseBtn.addEventListener('click', () => {
+            this.hideIslandCommandMenu();
+        });
+
+        setTimeout(() => {
+            panel.classList.add('active');
+        }, 10);
+        this.commandMenuOpen = true;
+    }
+
+    async showIslandCommandMenu(islandData) {
         const panel = document.getElementById('islandCommandPanel');
         const title = document.getElementById('islandCommandTitle');
         const statusEl = document.getElementById('islandCommandStatus');
@@ -6821,6 +7123,11 @@ export default class WorldMapScene extends Phaser.Scene {
         this.clearIslandCommandTimers(true);
 
         title.textContent = islandData.name;
+        const isCapitalIsland = String(islandData.occupationStatus || '').toLowerCase() === 'capital';
+        if (isCapitalIsland) {
+            await this.showCapitalCommandMenu(islandData, { panel, title, statusEl, actionBtn, tarotBtn, attackBtn, closeBtn });
+            return;
+        }
 
         const myPlayFabId = this.playerInfo?.playFabId;
         const isOwner = !!myPlayFabId && islandData.ownerId === myPlayFabId;
@@ -6853,7 +7160,6 @@ export default class WorldMapScene extends Phaser.Scene {
         const islandNation = String(islandData.ownerNation || islandData.nation || mapNation || biomeId || '').toLowerCase();
         const isOwnNation = !!playerNation && !!islandNation && playerNation === islandNation;
         const isUnoccupied = !islandData.ownerId;
-        const isCapitalIsland = String(islandData.occupationStatus || '').toLowerCase() === 'capital';
         const canBuildToOccupy = !isOwner && isInOwnedArea && isUnoccupied && isOwnNation && !isResourceIsland && !hasBuilding;
         const autoAttackConfig = this.getIslandAutoAttackConfig(islandData);
         const canAutoAttack = !!myPlayFabId && !!autoAttackConfig && (isOwner || isOwnNation);
@@ -7453,6 +7759,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.clearIslandCommandTimers(true);
                 void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
             }
+            void this.leaveCapitalCaptureSilently(this.collidingIsland);
             if (this.commandMenuOpen) {
                 this.hideIslandCommandMenu();
             } else {
@@ -7476,6 +7783,7 @@ export default class WorldMapScene extends Phaser.Scene {
                 this.clearIslandCommandTimers(true);
                 void this.startIslandCaptureFlow(this.collidingIsland, 'cancel', { silent: true });
             }
+            void this.leaveCapitalCaptureSilently(this.collidingIsland);
             if (this.commandMenuOpen) {
                 this.hideIslandCommandMenu();
             } else {

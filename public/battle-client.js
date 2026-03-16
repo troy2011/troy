@@ -657,6 +657,46 @@ async function startIslandCaptureBattleWithOpponent(opponentId, islandId, mapId)
     }
     return false;
 }
+
+async function startCapitalCaptureBattleWithOpponent(opponentId, islandId, mapId) {
+    if (!opponentId || !islandId || !mapId) return false;
+    if (!battleDependencies || !battleDependencies.callApiWithLoader) {
+        console.warn('[Battle] Dependencies not ready yet.');
+        return false;
+    }
+    if (!myPlayFabId) {
+        console.warn('[Battle] myPlayFabId not initialized yet.');
+        return false;
+    }
+    const activeUntil = Number(window.__battleActiveUntil || 0);
+    if (activeUntil > Date.now()) {
+        const msg = '戦闘中のため新しい戦闘を開始できません。';
+        if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(msg);
+        }
+        return false;
+    }
+
+    try {
+        const data = await battleDependencies.callApiWithLoader('/api/start-capital-capture-battle', {
+            attackerId: myPlayFabId,
+            opponentId,
+            islandId,
+            mapId
+        });
+        if (data && data.battleId) {
+            if (typeof window !== 'undefined') {
+                window.__pendingIslandCommandAfterBattle = { islandId, mapId };
+            }
+            showBattleModal(data.battleId);
+            return true;
+        }
+        console.warn('[Battle] start-capital-capture-battle returned no battleId:', data);
+    } catch (error) {
+        console.error('[Battle] startCapitalCaptureBattleWithOpponent error:', error);
+    }
+    return false;
+}
 function returnToMapAfterBattle() {
     closeBattleModalAndHandlePending();
 }
@@ -667,3 +707,4 @@ window.returnToMapAfterBattle = returnToMapAfterBattle;
 // expose helper globally
 window.startBattleWithOpponent = startBattleWithOpponent;
 window.startIslandCaptureBattleWithOpponent = startIslandCaptureBattleWithOpponent;
+window.startCapitalCaptureBattleWithOpponent = startCapitalCaptureBattleWithOpponent;

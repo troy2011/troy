@@ -2,8 +2,11 @@
 
 import {
     getNationKingPage,
+    deployNationWarWeapon,
+    prepareNationWarStrike,
+    respondNationWarIntercept,
+    raidNationTreasury,
     setNationAnnouncement,
-    setNationGrantMultiplier,
     grantPs,
     setTroyOpen,
     transferKing,
@@ -31,11 +34,234 @@ function _formatEpochMs(ms) {
     }
 }
 
-function _grantPreview(amount, multiplier) {
+function _escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _formatTreasuryAmount(amount, currency, direction = 'in') {
+    const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+    const sign = direction === 'out' ? '-' : '+';
+    return `${sign}${safeAmount.toLocaleString()} ${String(currency || 'PS').toUpperCase()}`;
+}
+
+function _formatRatePercentFromBps(rateBps) {
+    const safeBps = Math.max(0, Math.floor(Number(rateBps) || 0));
+    return `${(safeBps / 100).toFixed(safeBps % 100 === 0 ? 0 : 2)}%`;
+}
+
+function _renderTreasuryOverview(summary = [], entries = []) {
+    const summaryEl = document.getElementById('kingTreasurySummary');
+    const entriesEl = document.getElementById('kingTreasuryEntries');
+    if (summaryEl) {
+        if (Array.isArray(summary) && summary.length) {
+            summaryEl.innerHTML = summary.map((row) => `
+                <div class="king-treasury-summary-chip is-${row.direction === 'out' ? 'out' : 'in'}">
+                    <span>${_escapeHtml(row.label || '国庫更新')}</span>
+                    <strong>${_escapeHtml(_formatTreasuryAmount(row.totalAmount, row.currency, row.direction))}</strong>
+                    <span>${Math.max(1, Number(row.count) || 1)}件</span>
+                </div>
+            `).join('');
+        } else {
+            summaryEl.innerHTML = '';
+        }
+    }
+    if (entriesEl) {
+        if (Array.isArray(entries) && entries.length) {
+            entriesEl.innerHTML = entries.map((entry) => {
+                const meta = [_formatEpochMs(entry.timestampMs), entry.actorName || entry.actorId || '', entry.note || '']
+                    .filter(Boolean)
+                    .join(' / ');
+                return `
+                    <div class="king-treasury-entry">
+                        <div class="king-treasury-entry-main">${_escapeHtml(entry.label || '国庫更新')}</div>
+                        <div class="king-treasury-entry-amount is-${entry.direction === 'out' ? 'out' : 'in'}">${_escapeHtml(_formatTreasuryAmount(entry.amount, entry.currency, entry.direction))}</div>
+                        <div class="king-treasury-entry-meta">${_escapeHtml(meta || '履歴情報なし')}</div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            entriesEl.innerHTML = '';
+        }
+    }
+}
+
+function _formatDuration(ms) {
+    const safeMs = Math.max(0, Math.floor(Number(ms) || 0));
+    if (!safeMs) return '0秒';
+    const totalSeconds = Math.ceil(safeMs / 1000);
+    if (totalSeconds < 60) return `${totalSeconds}秒`;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) return seconds ? `${minutes}分${seconds}秒` : `${minutes}分`;
+    const hours = Math.floor(minutes / 60);
+    const remainMinutes = minutes % 60;
+    return remainMinutes ? `${hours}時間${remainMinutes}分` : `${hours}時間`;
+}
+
+function _renderNationWar(war = null) {
+    const sectionEl = document.getElementById('kingWarSection');
+    const capitalEl = document.getElementById('kingWarCapital');
+    const activeEl = document.getElementById('kingWarActiveSystems');
+    const incomingEl = document.getElementById('kingWarIncoming');
+    const enemiesEl = document.getElementById('kingWarEnemies');
+    const globalLogsEl = document.getElementById('kingWarGlobalLogs');
+    const nationLogsEl = document.getElementById('kingWarNationLogs');
+    const deploySelectEl = document.getElementById('kingWarDeployWeapon');
+    const strikeWeaponEl = document.getElementById('kingWarStrikeWeapon');
+    const strikeTargetNationEl = document.getElementById('kingWarTargetNation');
+    const strikeTargetPartEl = document.getElementById('kingWarTargetPart');
+    const summaryEl = document.getElementById('kingWarSummary');
+    if (!sectionEl) return;
+    if (!war) {
+        sectionEl.style.display = 'none';
+        return;
+    }
+    sectionEl.style.display = '';
+    if (summaryEl) {
+        const capture = war.capitalCapture || null;
+        const captureText = capture?.raidUnlocked
+            ? '国庫襲撃可能'
+            : capture?.raidCooldownActive
+                ? `再襲撃防衛中 ${_formatDuration(capture.raidCooldownRemainingMs)}`
+            : capture?.status === 'capturing'
+                ? `首都制圧中 ${capture.queueCount || 0}/${capture.slotLimit || 0}`
+                : capture?.breached
+                    ? '上陸可能'
+                    : '外郭健在';
+        summaryEl.innerText = `${war.nationLabel || ''} / ${war.nationModelLabel || ''} / ${captureText}`;
+    }
+    if (capitalEl) {
+        const capture = war.capitalCapture || null;
+        const captureCard = capture ? `
+            <div class="king-war-capital-chip is-${_escapeHtml(capture.raidUnlocked ? 'low' : (capture.breached ? 'medium' : 'high'))}">
+                <div class="king-war-capital-label">首都制圧</div>
+                <div class="king-war-capital-value">${capture.raidUnlocked ? '完了' : `${Math.max(0, Math.round((Number(capture.progressRatio) || 0) * 100))}%`}</div>
+                <div class="king-war-capital-band">${_escapeHtml(capture.raidUnlocked ? '襲撃可' : (capture.raidCooldownActive ? '防衛再編中' : (capture.breached ? '上陸可' : '未突破')))}</div>
+            </div>
+        ` : '';
+        capitalEl.innerHTML = captureCard + (Array.isArray(war.capitalStatus) ? war.capitalStatus : []).map((entry) => `
+            <div class="king-war-capital-chip is-${_escapeHtml(entry.band?.key || 'medium')}">
+                <div class="king-war-capital-label">${_escapeHtml(entry.label || '')}</div>
+                <div class="king-war-capital-value">${Math.max(0, Number(entry.value) || 0)}%</div>
+                <div class="king-war-capital-band">${_escapeHtml(entry.band?.label || '')}</div>
+            </div>
+        `).join('');
+    }
+    if (activeEl) {
+        const systems = Array.isArray(war.activeSystems) ? war.activeSystems : [];
+        activeEl.innerHTML = systems.length ? systems.map((entry) => `
+            <div class="king-war-system-card">
+                <div class="king-war-system-main">
+                    <strong>${_escapeHtml(entry.label || '')}</strong>
+                    <span>${_escapeHtml(entry.description || '')}</span>
+                </div>
+                <div class="king-war-system-meta">
+                    <span>${_escapeHtml(entry.role || '')}</span>
+                    ${entry.ammoRemaining > 0 ? `<span>残弾 ${Math.max(0, Number(entry.ammoRemaining) || 0)}</span>` : ''}
+                    <span>${_escapeHtml(_formatDuration(entry.remainingMs))}</span>
+                </div>
+            </div>
+        `).join('') : '<div class="king-war-empty">配備中の兵器はありません。</div>';
+    }
+    if (incomingEl) {
+        const incomingList = Array.isArray(war.incoming) ? war.incoming : [];
+        const interceptorOptions = Array.isArray(war.interceptorOptions) ? war.interceptorOptions : [];
+        incomingEl.innerHTML = incomingList.length ? incomingList.map((entry) => `
+            <div class="king-war-incoming-card">
+                <div class="king-war-incoming-title">${_escapeHtml(entry.weaponName || '飛来物')}</div>
+                <div class="king-war-incoming-meta">
+                    <span>識別 ${_escapeHtml(entry.identifyLabel || '不明')}</span>
+                    <span>命中見込み ${_escapeHtml(entry.hitOutlookLabel || '不明')}</span>
+                    <span>デコイ疑い ${_escapeHtml(entry.decoyRiskLabel || '不明')}</span>
+                    <span>狙い ${_escapeHtml(entry.targetLabel || '不明')}</span>
+                    <span>到達まで ${_escapeHtml(_formatDuration(entry.remainingMs))}</span>
+                </div>
+                <div class="king-war-intercept-row">
+                    <select class="king-war-select king-war-intercept-system" data-incoming-id="${_escapeHtml(entry.id)}">
+                        <option value="">迎撃兵器を選択</option>
+                        ${interceptorOptions.map((option) => `<option value="${_escapeHtml(option.id)}">${_escapeHtml(option.label)}</option>`).join('')}
+                    </select>
+                    <button type="button" class="king-war-action-btn is-attack" data-war-action="intercept" data-incoming-id="${_escapeHtml(entry.id)}">迎撃する</button>
+                    <button type="button" class="king-war-action-btn is-muted" data-war-action="skip" data-incoming-id="${_escapeHtml(entry.id)}">見送る</button>
+                </div>
+            </div>
+        `).join('') : '<div class="king-war-empty">現在の飛来警報はありません。</div>';
+    }
+    if (enemiesEl) {
+        const rows = Array.isArray(war.enemyNations) ? war.enemyNations : [];
+        enemiesEl.innerHTML = rows.length ? rows.map((entry) => `
+            <div class="king-war-enemy-card">
+                <div class="king-war-enemy-head">
+                    <strong>${_escapeHtml(entry.label || '')}</strong>
+                    <span>国庫 ${Number(entry.treasuryPs || 0).toLocaleString()} PS</span>
+                </div>
+                <div class="king-war-enemy-parts">
+                    ${(Array.isArray(entry.capitalStatus) ? entry.capitalStatus : []).map((part) => `
+                        <span class="king-war-enemy-part is-${_escapeHtml(part.band?.key || 'medium')}">${_escapeHtml(part.label || '')} ${Math.max(0, Number(part.value) || 0)}%</span>
+                    `).join('')}
+                </div>
+                <div class="king-war-enemy-foot">
+                    <span>${entry.raidEligible ? `襲撃可能 / 推定 ${Number(entry.raidExpectedPs || 0).toLocaleString()} PS` : `襲撃不可 / 推定 ${Number(entry.raidRatePercent || 0).toLocaleString()}%`} / ${entry.capitalCapture?.raidUnlocked ? '制圧完了' : (entry.capitalCapture?.raidCooldownActive ? `再襲撃防衛中 ${_formatDuration(entry.capitalCapture.raidCooldownRemainingMs)}` : (entry.capitalCapture?.status === 'capturing' ? `制圧中 ${entry.capitalCapture.queueCount || 0}/${entry.capitalCapture.slotLimit || 0}` : (entry.capitalCapture?.breached ? '上陸可' : '未突破')))}</span>
+                    <button type="button" class="king-war-action-btn is-attack" data-war-action="raid" data-target-nation="${_escapeHtml(entry.nation)}" ${entry.raidEligible ? '' : 'disabled'}>国庫襲撃</button>
+                </div>
+            </div>
+        `).join('') : '<div class="king-war-empty">敵国の首都情報はまだありません。</div>';
+    }
+    if (globalLogsEl) {
+        const rows = Array.isArray(war.logs?.global) ? war.logs.global : [];
+        globalLogsEl.innerHTML = rows.length ? rows.map((entry) => `
+            <div class="king-war-log-entry">
+                <div class="king-war-log-main">${_escapeHtml(entry.summary || '')}</div>
+                <div class="king-war-log-meta">${_escapeHtml(_formatEpochMs(entry.createdAtMs))}</div>
+            </div>
+        `).join('') : '<div class="king-war-empty">全体戦況ログはまだありません。</div>';
+    }
+    if (nationLogsEl) {
+        const rows = Array.isArray(war.logs?.nation) ? war.logs.nation : [];
+        nationLogsEl.innerHTML = rows.length ? rows.map((entry) => `
+            <div class="king-war-log-entry">
+                <div class="king-war-log-main">${_escapeHtml(entry.summary || '')}</div>
+                <div class="king-war-log-meta">${_escapeHtml([_formatEpochMs(entry.createdAtMs), entry.details].filter(Boolean).join(' / '))}</div>
+            </div>
+        `).join('') : '<div class="king-war-empty">自国戦況ログはまだありません。</div>';
+    }
+    if (deploySelectEl) {
+        const rows = Array.isArray(war.deployWeapons) ? war.deployWeapons : [];
+        deploySelectEl.innerHTML = rows.length ? rows.map((entry) => `
+            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()} PS${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
+        `).join('') : '<option value="">配備可能な兵器がありません</option>';
+    }
+    if (strikeWeaponEl) {
+        const rows = Array.isArray(war.strikeWeapons) ? war.strikeWeapons : [];
+        strikeWeaponEl.innerHTML = rows.length ? rows.map((entry) => `
+            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()} PS${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
+        `).join('') : '<option value="">攻撃兵器がありません</option>';
+    }
+    if (strikeTargetNationEl) {
+        strikeTargetNationEl.innerHTML = (Array.isArray(war.targetOptions) ? war.targetOptions : []).map((entry) => `
+            <option value="${_escapeHtml(entry.value)}">${_escapeHtml(entry.label)}</option>
+        `).join('');
+    }
+    if (strikeTargetPartEl && !strikeTargetPartEl.options.length) {
+        strikeTargetPartEl.innerHTML = `
+            <option value="airDefense">防空</option>
+            <option value="walls" selected>城壁</option>
+            <option value="vault">金庫</option>
+            <option value="command">指揮</option>
+        `;
+    }
+}
+
+function _grantPreview(amount, rateBps) {
     const gross = Math.max(0, Math.floor(Number(amount) || 0));
-    const multi = Math.max(0, Number(multiplier) || 0);
-    const grant = Math.floor(gross * 0.1 * multi);
-    return { gross, grant, multiplier: multi };
+    const safeRateBps = Math.max(0, Math.floor(Number(rateBps) || 0));
+    const grant = Math.floor(gross * (safeRateBps / 10000));
+    return { gross, grant, rateBps: safeRateBps };
 }
 
 function _extractErrorMessage(error, fallback = '付与に失敗しました。') {
@@ -91,8 +317,8 @@ export async function loadKingPage(playFabId) {
     const currentEl = document.getElementById('kingAnnouncementCurrent');
     const metaEl = document.getElementById('kingAnnouncementMeta');
     const inputEl = document.getElementById('kingAnnouncementInput');
-    const grantMultiplierInputEl = document.getElementById('kingGrantMultiplierInput');
     const treasuryEl = document.getElementById('kingTreasuryInfo');
+    const cashbackRateEl = document.getElementById('kingCashbackRateInfo');
     const previewEl = document.getElementById('kingGrantPreview');
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
@@ -106,23 +332,27 @@ export async function loadKingPage(playFabId) {
     }
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
 
-    if (grantMultiplierInputEl) {
-        const multiplier = Number.isFinite(Number(data.grantMultiplier)) ? Number(data.grantMultiplier) : 1;
-        grantMultiplierInputEl.value = String(multiplier);
-    }
     if (treasuryEl) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
         treasuryEl.innerText = `国庫: ${treasuryPs} Ps`;
     }
+    if (cashbackRateEl) {
+        const rank = Math.max(1, Number(data.treasuryRank) || 1);
+        cashbackRateEl.innerText = `${_formatRatePercentFromBps(data.troyCashbackRateBps)} / 国庫${rank}位`;
+    }
+    _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
     if (troyStatusEl || grantCardEl) {
         const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
         if (grantCardEl) grantCardEl.style.display = isOpen ? '' : 'none';
     }
     if (previewEl && grantAmountEl) {
-        const p = _grantPreview(grantAmountEl.value, data.grantMultiplier);
-        previewEl.innerText = p.gross > 0 ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps` : '';
+        const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
+        previewEl.innerText = p.gross > 0
+            ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+            : '';
     }
+    _renderNationWar(data.war);
 
     _wireHandlers(playFabId);
 }
@@ -136,8 +366,6 @@ function _wireHandlers(playFabId) {
     const reloadBtn = document.getElementById('btnKingReload');
     const reloadBtn2 = document.getElementById('btnKingReload2');
     const inputEl = document.getElementById('kingAnnouncementInput');
-    const grantMultiplierSaveBtn = document.getElementById('btnKingSetGrantMultiplier');
-    const grantMultiplierInputEl = document.getElementById('kingGrantMultiplierInput');
     const grantReceiverEl = document.getElementById('kingGrantReceiverId');
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const grantBtn = document.getElementById('btnKingGrantPs');
@@ -154,6 +382,13 @@ function _wireHandlers(playFabId) {
     const scanExileBtn = document.getElementById('btnKingScanExileTarget');
     const exileBtn = document.getElementById('btnKingExile');
     const previewEl = document.getElementById('kingGrantPreview');
+    const warSectionEl = document.getElementById('kingWarSection');
+    const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
+    const warStrikeWeaponEl = document.getElementById('kingWarStrikeWeapon');
+    const warTargetNationEl = document.getElementById('kingWarTargetNation');
+    const warTargetPartEl = document.getElementById('kingWarTargetPart');
+    const warDeployBtn = document.getElementById('btnKingWarDeploy');
+    const warStrikeBtn = document.getElementById('btnKingWarStrike');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
@@ -178,29 +413,15 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (grantMultiplierSaveBtn) {
-        grantMultiplierSaveBtn.addEventListener('click', async () => {
-            const raw = grantMultiplierInputEl ? grantMultiplierInputEl.value : '1';
-            const grantMultiplier = Number(raw);
-            if (!Number.isFinite(grantMultiplier) || grantMultiplier <= 0) {
-                _setMessage('付与倍率は0より大きい値を入力してください。', true);
-                return;
-            }
-            const result = await setNationGrantMultiplier(playFabId, grantMultiplier);
-            if (result) {
-                _setMessage('付与倍率を保存しました。');
-                await loadKingPage(playFabId);
-            }
-        });
-    }
-
     if (grantAmountEl && previewEl) {
         grantAmountEl.addEventListener('input', () => {
-            const multiplier = _lastPageData && Number.isFinite(Number(_lastPageData.grantMultiplier))
-                ? Number(_lastPageData.grantMultiplier)
-                : 1;
-            const p = _grantPreview(grantAmountEl.value, multiplier);
-            previewEl.innerText = p.gross > 0 ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps` : '';
+            const rateBps = _lastPageData && Number.isFinite(Number(_lastPageData.troyCashbackRateBps))
+                ? Number(_lastPageData.troyCashbackRateBps)
+                : 0;
+            const p = _grantPreview(grantAmountEl.value, rateBps);
+            previewEl.innerText = p.gross > 0
+                ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+                : '';
         });
     }
 
@@ -244,7 +465,8 @@ function _wireHandlers(playFabId) {
                 const requestId = createRequestId('king-grant');
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount, requestId);
                 if (result) {
-                    const baseMessage = `付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps）。`;
+                    const rankLabel = Math.max(1, Number(result.treasuryRank) || 1);
+                    const baseMessage = `付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
                     if (result.treasuryUpdated === false) {
                         _setMessage(`${baseMessage} 国庫更新に失敗しました: ${result.treasuryError || 'Unknown error'}`, true);
                     } else {
@@ -346,6 +568,98 @@ function _wireHandlers(playFabId) {
                 const transferred = typeof result.transferredIslands === 'number' ? ` / islands: ${result.transferredIslands}` : '';
                 _setMessage(`Exile completed.${transferred}`);
                 showRpgMessage(rpgSay.exileDone());
+            }
+        });
+    }
+
+    if (warDeployBtn && warDeployWeaponEl) {
+        warDeployBtn.addEventListener('click', async () => {
+            const weaponId = String(warDeployWeaponEl.value || '').trim();
+            if (!weaponId) {
+                _setMessage('配備する兵器を選んでください。', true);
+                return;
+            }
+            const previous = warDeployBtn.innerText;
+            warDeployBtn.disabled = true;
+            warDeployBtn.innerText = '配備中...';
+            try {
+                await deployNationWarWeapon(playFabId, weaponId);
+                _setMessage('兵器を配備しました。');
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '兵器の配備に失敗しました。'), true);
+            } finally {
+                warDeployBtn.disabled = false;
+                warDeployBtn.innerText = previous;
+            }
+        });
+    }
+
+    if (warStrikeBtn && warStrikeWeaponEl && warTargetNationEl && warTargetPartEl) {
+        warStrikeBtn.addEventListener('click', async () => {
+            const weaponId = String(warStrikeWeaponEl.value || '').trim();
+            const targetNation = String(warTargetNationEl.value || '').trim();
+            const targetPart = String(warTargetPartEl.value || '').trim();
+            if (!weaponId || !targetNation || !targetPart) {
+                _setMessage('攻撃兵器・対象国・狙う部位を選んでください。', true);
+                return;
+            }
+            const previous = warStrikeBtn.innerText;
+            warStrikeBtn.disabled = true;
+            warStrikeBtn.innerText = '準備中...';
+            try {
+                await prepareNationWarStrike(playFabId, weaponId, targetNation, targetPart);
+                _setMessage('攻撃準備を開始しました。');
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '攻撃準備に失敗しました。'), true);
+            } finally {
+                warStrikeBtn.disabled = false;
+                warStrikeBtn.innerText = previous;
+            }
+        });
+    }
+
+    if (warSectionEl) {
+        warSectionEl.addEventListener('click', async (event) => {
+            const button = event.target instanceof Element ? event.target.closest('[data-war-action]') : null;
+            if (!button) return;
+            const action = String(button.getAttribute('data-war-action') || '').trim().toLowerCase();
+            const incomingId = String(button.getAttribute('data-incoming-id') || '').trim();
+            const targetNation = String(button.getAttribute('data-target-nation') || '').trim();
+            if (!action) return;
+            if ((action === 'intercept' || action === 'skip') && !incomingId) return;
+            if (action === 'raid' && !targetNation) return;
+            const previous = button.innerText;
+            button.setAttribute('disabled', 'disabled');
+            button.innerText = action === 'intercept' ? '迎撃中...' : action === 'raid' ? '襲撃中...' : '更新中...';
+            try {
+                if (action === 'raid') {
+                    const result = await raidNationTreasury(playFabId, targetNation);
+                    const rewardCount = Number(result?.participantRewardCount || 0);
+                    const rewardSuffix = rewardCount > 0
+                        ? ` 参加者へタロットカード ${rewardCount} 枚を配布しました。`
+                        : '';
+                    _setMessage(`国庫襲撃を実行しました。${rewardSuffix}`);
+                    await loadKingPage(playFabId);
+                    return;
+                }
+                let interceptSystemId = '';
+                if (action === 'intercept') {
+                    const select = warSectionEl.querySelector(`.king-war-intercept-system[data-incoming-id="${incomingId}"]`);
+                    interceptSystemId = select ? String(select.value || '').trim() : '';
+                    if (!interceptSystemId) {
+                        throw new Error('迎撃兵器を選んでください。');
+                    }
+                }
+                await respondNationWarIntercept(playFabId, incomingId, action, interceptSystemId);
+                _setMessage(action === 'intercept' ? '迎撃命令を出しました。' : '迎撃を見送りました。');
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '迎撃判断の更新に失敗しました。'), true);
+            } finally {
+                button.removeAttribute('disabled');
+                button.innerText = previous;
             }
         });
     }

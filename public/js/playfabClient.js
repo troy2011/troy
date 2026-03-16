@@ -91,6 +91,14 @@ export function awakenMajorArcana(playFabId, itemId, options) {
     return callApiWithLoader('/api/awaken-major-arcana', { playFabId, itemId }, options);
 }
 
+export function getCapitalWarState(playFabId, targetNation, options) {
+    return callApiWithLoader('/api/get-capital-war-state', { playFabId, targetNation }, options);
+}
+
+export function performCapitalWarAction(playFabId, targetNation, action, options) {
+    return callApiWithLoader('/api/nation-war-capital-action', { playFabId, targetNation, action }, options);
+}
+
 export function useItem(playFabId, itemInstanceId, itemId, options) {
     return callApiWithLoader('/api/use-item', { playFabId, itemInstanceId, itemId }, options);
 }
@@ -176,12 +184,24 @@ export function getNationKingPage(playFabId, options) {
     return callApiWithLoader('/api/get-nation-king-page', { playFabId }, options);
 }
 
-export function setNationAnnouncement(playFabId, message, options) {
-    return callApiWithLoader('/api/set-nation-announcement', { playFabId, message }, options);
+export function deployNationWarWeapon(playFabId, weaponId, options) {
+    return callApiWithLoader('/api/nation-war-deploy', { playFabId, weaponId }, options);
 }
 
-export function setNationGrantMultiplier(playFabId, grantMultiplier, options) {
-    return callApiWithLoader('/api/king-set-grant-multiplier', { playFabId, grantMultiplier }, options);
+export function prepareNationWarStrike(playFabId, weaponId, targetNation, targetPart, options) {
+    return callApiWithLoader('/api/nation-war-prepare-strike', { playFabId, weaponId, targetNation, targetPart }, options);
+}
+
+export function respondNationWarIntercept(playFabId, incomingId, action, interceptSystemId, options) {
+    return callApiWithLoader('/api/nation-war-intercept', { playFabId, incomingId, action, interceptSystemId }, options);
+}
+
+export function raidNationTreasury(playFabId, targetNation, options) {
+    return callApiWithLoader('/api/nation-war-raid-treasury', { playFabId, targetNation }, options);
+}
+
+export function setNationAnnouncement(playFabId, message, options) {
+    return callApiWithLoader('/api/set-nation-announcement', { playFabId, message }, options);
 }
 
 export function grantPs(playFabId, receiverPlayFabId, amount, requestId, options) {

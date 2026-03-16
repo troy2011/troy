@@ -9563,6 +9563,317 @@ textarea {
     line-height: 1.6;
 }
 
+.king-treasury-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.king-treasury-summary:empty,
+.king-treasury-entries:empty {
+    display: none;
+}
+
+.king-treasury-summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    font-size: 11px;
+    color: #e2e8f0;
+}
+
+.king-treasury-summary-chip.is-in {
+    border-color: rgba(34, 197, 94, 0.26);
+    color: #dcfce7;
+}
+
+.king-treasury-summary-chip.is-out {
+    border-color: rgba(248, 113, 113, 0.26);
+    color: #fee2e2;
+}
+
+.king-treasury-entries {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.king-treasury-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.king-treasury-entry-main {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.king-treasury-entry-amount {
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.king-treasury-entry-amount.is-in {
+    color: #86efac;
+}
+
+.king-treasury-entry-amount.is-out {
+    color: #fca5a5;
+}
+
+.king-treasury-entry-meta {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.king-war-card {
+    overflow: hidden;
+}
+
+.king-war-capital-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.king-war-capital-chip {
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.king-war-capital-chip.is-high {
+    border-color: rgba(16, 185, 129, 0.34);
+}
+
+.king-war-capital-chip.is-medium {
+    border-color: rgba(245, 158, 11, 0.34);
+}
+
+.king-war-capital-chip.is-low {
+    border-color: rgba(239, 68, 68, 0.34);
+}
+
+.king-war-capital-label {
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+.king-war-capital-value {
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.king-war-capital-band {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
+.king-war-forms {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.king-war-form-card,
+.king-war-block {
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.68);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.king-war-form-card {
+    display: grid;
+    gap: 8px;
+}
+
+.king-war-select {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(2, 6, 23, 0.84);
+    color: #fff;
+    font-size: 14px;
+}
+
+.king-war-action-btn {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 14px;
+    background: var(--accent-color);
+    color: #fff;
+    font-weight: 700;
+}
+
+.king-war-action-btn.is-attack {
+    background: var(--danger-color);
+}
+
+.king-war-action-btn.is-muted {
+    background: rgba(71, 85, 105, 0.92);
+}
+
+.king-war-system-list,
+.king-war-incoming-list,
+.king-war-enemy-list,
+.king-war-log-list {
+    display: grid;
+    gap: 10px;
+}
+
+.king-war-system-card,
+.king-war-incoming-card,
+.king-war-enemy-card,
+.king-war-log-entry {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(2, 6, 23, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.king-war-system-main,
+.king-war-log-main {
+    display: grid;
+    gap: 4px;
+    color: #f8fafc;
+    font-size: 13px;
+}
+
+.king-war-system-main span,
+.king-war-log-meta,
+.king-war-incoming-meta {
+    color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.king-war-system-meta {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #cbd5e1;
+    font-size: 11px;
+}
+
+.king-war-system-meta span,
+.king-war-incoming-meta span {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.88);
+}
+
+.king-war-incoming-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.king-war-enemy-head,
+.king-war-enemy-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+
+.king-war-enemy-head {
+    color: #f8fafc;
+    font-size: 13px;
+}
+
+.king-war-enemy-head span,
+.king-war-enemy-foot span {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.king-war-enemy-parts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.king-war-enemy-part {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.88);
+    color: #e2e8f0;
+    font-size: 11px;
+}
+
+.king-war-enemy-part.is-high {
+    border: 1px solid rgba(16, 185, 129, 0.34);
+}
+
+.king-war-enemy-part.is-medium {
+    border: 1px solid rgba(245, 158, 11, 0.34);
+}
+
+.king-war-enemy-part.is-low {
+    border: 1px solid rgba(239, 68, 68, 0.34);
+}
+
+.king-war-enemy-foot .king-war-action-btn {
+    width: auto;
+    min-width: 112px;
+}
+
+.king-war-incoming-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.king-war-intercept-row {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.king-war-log-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.king-war-empty {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.56);
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
 #tabContentTarot {
     --tarot-mobile-shell-bg:
         linear-gradient(180deg, rgba(9, 14, 24, 0.98), rgba(17, 24, 39, 1)),

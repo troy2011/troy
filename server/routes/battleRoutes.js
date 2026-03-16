@@ -12,6 +12,10 @@ const {
 const { getTarotRoleSummaryFromEquipment } = require('../tarotRoles');
 const { TAROT_AWAKENINGS_DATA_KEY } = require('../tarotSkills');
 const { getMajorArcanaAwakeningState } = require('../tarotAwakenings');
+const {
+    CAPITAL_CAPTURE_BREACH_WALLS,
+    normalizeNationWarState
+} = require('../nationWarWeapons');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -1332,6 +1336,97 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             return nextState;
         });
     };
+    const getCapitalNationFromIsland = (islandData = {}, mapId = '') => {
+        const explicitNation = String(islandData.ownerNation || islandData.nation || '').trim().toLowerCase();
+        if (explicitNation) return explicitNation;
+        const mapKey = String(mapId || islandData.mapId || '').trim().toLowerCase();
+        if (mapKey === 'wands') return 'fire';
+        if (mapKey === 'pentacles') return 'earth';
+        if (mapKey === 'cups') return 'water';
+        if (mapKey === 'swords') return 'wind';
+        return '';
+    };
+    const getCapitalCaptureSpeedMultiplier = (memberCount) => {
+        const count = Math.max(1, Math.floor(Number(memberCount) || 1));
+        return Math.min(4, 1 + ((count - 1) * 0.5));
+    };
+    const updateCapitalCaptureAfterBattle = async ({ nation, remainingDefenderIds }) => {
+        const nationKey = String(nation || '').trim().toLowerCase();
+        if (!nationKey) return null;
+        const warRef = firestore.collection('nation_wars').doc(nationKey);
+        const now = Date.now();
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(warRef);
+            const currentState = normalizeNationWarState(snap.exists ? (snap.data() || {}) : null, nationKey, now);
+            const currentCapture = currentState.capitalCaptureState || {};
+            const currentQueue = Array.isArray(currentCapture.queue) ? currentCapture.queue : [];
+            const survivorSet = new Set(
+                Array.isArray(remainingDefenderIds)
+                    ? remainingDefenderIds.map((entry) => String(entry || '').trim()).filter(Boolean)
+                    : []
+            );
+            const nextQueue = currentQueue.filter((entry) => survivorSet.has(entry.playFabId));
+            const baseDurationMs = Math.max(0, Number(currentCapture.baseDurationMs) || 0);
+            const progressBaseMs = Math.max(
+                0,
+                Math.min(baseDurationMs || Number(currentCapture.progressBaseMs) || 0, Number(currentCapture.progressBaseMs) || 0)
+            );
+            const breachedAt = Number(currentCapture.breachedAt) || now;
+            let nextCaptureState;
+            if (Number(currentCapture.raidUnlockedAtMs) > 0) {
+                nextCaptureState = currentCapture;
+            } else if (currentState.capitalStatus.walls > CAPITAL_CAPTURE_BREACH_WALLS) {
+                nextCaptureState = {
+                    ...currentCapture,
+                    status: 'idle',
+                    breachedAt: 0,
+                    queue: [],
+                    progressBaseMs: 0,
+                    lastProgressAt: 0,
+                    endsAt: 0,
+                    ownerCandidateId: null,
+                    ownerCandidateNation: null
+                };
+            } else if (nextQueue.length > 0) {
+                const speed = getCapitalCaptureSpeedMultiplier(nextQueue.length);
+                const remainingBaseMs = Math.max(0, baseDurationMs - progressBaseMs);
+                nextCaptureState = {
+                    ...currentCapture,
+                    status: 'capturing',
+                    breachedAt,
+                    queue: nextQueue,
+                    progressBaseMs,
+                    lastProgressAt: now,
+                    endsAt: remainingBaseMs <= 0 ? now : now + Math.ceil(remainingBaseMs / speed),
+                    ownerCandidateId: nextQueue[0].playFabId,
+                    ownerCandidateNation: nextQueue[0].nation || null
+                };
+            } else {
+                nextCaptureState = {
+                    ...currentCapture,
+                    status: 'breached',
+                    breachedAt,
+                    queue: [],
+                    progressBaseMs: 0,
+                    lastProgressAt: 0,
+                    endsAt: 0,
+                    ownerCandidateId: null,
+                    ownerCandidateNation: null
+                };
+            }
+            const nextState = {
+                ...currentState,
+                capitalCaptureState: nextCaptureState,
+                updatedAtMs: now
+            };
+            tx.set(warRef, {
+                ...nextState,
+                nation: nationKey,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            return nextState.capitalCaptureState;
+        });
+    };
     const runSequentialRideBattle = async ({ attackerId, defenderId, partyA, partyB }) => {
         const battleRef = db.ref('battles').push();
         const battleId = battleRef.key;
@@ -1816,6 +1911,108 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             console.error('[start-island-capture-battle] Error:', error?.errorMessage || error?.message || error);
             res.status(500).json({
                 error: 'Failed to start island capture battle',
+                details: error?.errorMessage || error?.message || String(error)
+            });
+        }
+    });
+
+    app.post('/api/start-capital-capture-battle', async (req, res) => {
+        let { attackerId, opponentId, islandId, mapId } = req.body || {};
+        if (!attackerId || !islandId || !mapId) {
+            return res.status(400).json({ error: 'attackerId, islandId, mapId are required' });
+        }
+        attackerId = await requireAuthedPlayFabId(req, res, attackerId);
+        if (!attackerId) return;
+
+        try {
+            const islandRef = getWorldMapCollection(mapId).doc(islandId);
+            const islandSnap = await islandRef.get();
+            if (!islandSnap.exists) {
+                return res.status(404).json({ error: 'IslandNotFound' });
+            }
+
+            const islandData = islandSnap.data() || {};
+            if (String(islandData.occupationStatus || '').trim().toLowerCase() !== 'capital') {
+                return res.status(409).json({ error: 'CapitalBattleInvalid' });
+            }
+
+            const defenderNation = getCapitalNationFromIsland(islandData, mapId);
+            if (!defenderNation) {
+                return res.status(409).json({ error: 'CapitalNationMissing' });
+            }
+
+            const warRef = firestore.collection('nation_wars').doc(defenderNation);
+            const warSnap = await warRef.get();
+            const warState = normalizeNationWarState(warSnap.exists ? (warSnap.data() || {}) : null, defenderNation, Date.now());
+            const captureQueue = Array.isArray(warState.capitalCaptureState?.queue)
+                ? warState.capitalCaptureState.queue.filter((entry) => entry?.playFabId)
+                : [];
+            if (captureQueue.length === 0) {
+                return res.status(409).json({ error: 'CapitalCaptureDefendersMissing' });
+            }
+
+            const defenderId = captureQueue[0].playFabId;
+            if (!defenderId || defenderId === attackerId) {
+                return res.status(409).json({ error: 'CapitalCaptureBattleInvalid' });
+            }
+            if (opponentId && String(opponentId) !== String(defenderId)) {
+                return res.status(409).json({ error: 'CapitalCaptureTargetChanged' });
+            }
+
+            const attackerNation = await getPlayerNation(attackerId);
+            if (attackerNation && defenderNation && attackerNation === defenderNation) {
+                return res.status(403).json({ error: 'SameNationCaptureBattleBlocked' });
+            }
+
+            const [attackerShipMeta, defenderShipMeta] = await Promise.all([
+                resolvePlayerActiveShipMeta(attackerId),
+                resolveDefenderShipMeta(defenderId)
+            ]);
+            const attackerClass = normalizeShipClass(
+                attackerShipMeta?.shipClass || resolveShipClassFromItemId(attackerShipMeta?.itemId)
+            );
+            if (shouldBlockBoardingByShipClass(attackerClass, defenderShipMeta)) {
+                return res.status(403).json({ error: 'BOARDING_CLASS_RESTRICTED' });
+            }
+
+            pruneBattlePairs();
+            const pairKey = getPairKey(attackerId, defenderId);
+            const blockedUntil = recentBattlePairs.get(pairKey) || 0;
+            if (blockedUntil > Date.now()) {
+                return res.status(429).json({ error: 'BattleCooldownActive' });
+            }
+
+            const partyA = await getRidePartyIds(attackerId);
+            const partyB = captureQueue.map((entry) => entry.playFabId).filter(Boolean);
+            if (partyA.length === 0 || partyB.length === 0) {
+                return res.status(409).json({ error: 'CapitalCaptureBattlePartyMissing' });
+            }
+
+            const result = await runSequentialRideBattle({
+                attackerId,
+                defenderId,
+                partyA,
+                partyB
+            });
+
+            const nextCaptureState = await updateCapitalCaptureAfterBattle({
+                nation: defenderNation,
+                remainingDefenderIds: result.remainingPartyB
+            });
+
+            res.json({
+                status: 'Battle Finished',
+                battleId: result.battleId,
+                invitationId: result.invitationId,
+                islandId,
+                mapId,
+                capitalNation: defenderNation,
+                capitalCaptureState: nextCaptureState || null
+            });
+        } catch (error) {
+            console.error('[start-capital-capture-battle] Error:', error?.errorMessage || error?.message || error);
+            res.status(500).json({
+                error: 'Failed to start capital capture battle',
                 details: error?.errorMessage || error?.message || String(error)
             });
         }

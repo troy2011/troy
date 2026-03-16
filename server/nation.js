@@ -5,6 +5,21 @@ const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
 const { addPlayerNationContribution } = require('./playerLevel');
 const {
+    CAPITAL_CAPTURE_BASE_DURATION_MS,
+    CAPITAL_CAPTURE_BREACH_WALLS,
+    CAPITAL_CAPTURE_SLOT_LIMIT,
+    CAPITAL_PART_LABELS,
+    createDefaultNationWarState,
+    normalizeNationWarState,
+    normalizeCapitalCaptureState,
+    getNationWarWeaponDefinition,
+    listNationWarWeapons,
+    canNationUseWeapon,
+    getNationModelByNation,
+    getNationModelLabel,
+    getNationLabel
+} = require('./nationWarWeapons');
+const {
     PLAYER_DAILY_CONTRIBUTION_STAT,
     ensureDailyContributionVersionForToday
 } = require('./contributionStats');
@@ -45,6 +60,37 @@ const KING_STARTER_CROWN_BY_NATION = {
     water: 'metal_black_12'
 };
 
+const MAX_TREASURY_RECENT_ENTRIES = 20;
+const TREASURY_SOURCE_LABELS = {
+    troy_order: 'TROY会計',
+    king_grant_receipt: '王の受領',
+    shop_tax: '売上税',
+    hot_spring_tax: '温泉税',
+    nation_donation: '国庫寄付',
+    war_deploy: '兵器配備',
+    war_strike: '攻撃準備',
+    war_raid: '国庫襲撃',
+    manual_adjustment: '国庫調整'
+};
+const TREASURY_CASHBACK_RATE_BPS_BY_RANK = [1300, 1100, 900, 700];
+const NATION_WAR_EVENT_LIMIT = 40;
+const NATION_WAR_STATE_COLLECTION = 'nation_wars';
+const NATION_WAR_EVENT_COLLECTION = 'nation_war_events';
+const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
+const NATION_WAR_MAX_RAID_AMOUNT = 100000;
+const NATION_WAR_RECON_COST_PS = 200;
+const NATION_WAR_REPAIR_COST_PS = 400;
+const NATION_WAR_SABOTAGE_COST_PS = 350;
+const NATION_WAR_RECON_DURATION_MS = 10 * 60 * 1000;
+const NATION_WAR_CAPTURE_REPAIR_AMOUNT = 5;
+const NATION_WAR_SABOTAGE_COMMAND_DAMAGE = 5;
+const NATION_WAR_SHIP_ATTACK_WALL_DAMAGE = 8;
+const NATION_WAR_SIEGE_WALL_DAMAGE = 3;
+const NATION_WAR_POST_RAID_WALLS = 65;
+const NATION_WAR_POST_RAID_COOLDOWN_MS = 30 * 60 * 1000;
+const NATION_WAR_CARD_REWARD_MAJOR_CHANCE = 0.2;
+const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
+
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
 }
@@ -53,6 +99,16 @@ function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function pickRandomNationWarTarotCardId() {
+    if (Math.random() < NATION_WAR_CARD_REWARD_MAJOR_CHANCE) {
+        return `arcana-${Math.floor(Math.random() * 22)}`;
+    }
+    const suits = ['wand', 'sword', 'cup', 'pentacle'];
+    const suit = suits[Math.floor(Math.random() * suits.length)] || 'wand';
+    const rank = 1 + Math.floor(Math.random() * 14);
+    return `minor-${suit}-${rank}`;
 }
 
 async function getLineUserId(playFabId, deps) {
@@ -461,6 +517,84 @@ async function getNationTaxRateBps(nation, firestore, deps) {
     return bps;
 }
 
+function buildTreasuryRecentEntry(entry = {}) {
+    const rawAmount = Number(entry?.signedAmount ?? entry?.amount ?? 0);
+    const amount = Math.max(0, Math.floor(Math.abs(rawAmount) || 0));
+    const direction = String(entry?.direction || (rawAmount < 0 ? 'out' : 'in')).toLowerCase() === 'out' ? 'out' : 'in';
+    const currency = String(entry?.currency || 'PS').trim().toUpperCase() || 'PS';
+    const source = String(entry?.source || 'manual_adjustment').trim().toLowerCase() || 'manual_adjustment';
+    const label = String(entry?.label || TREASURY_SOURCE_LABELS[source] || '国庫更新').trim().slice(0, 40) || '国庫更新';
+    const timestampMs = Math.max(0, Math.floor(Number(entry?.timestampMs || Date.now()) || Date.now()));
+    const actorId = normalizePlayFabId(entry?.actorId || '');
+    const actorName = String(entry?.actorName || '').trim().slice(0, 40);
+    const note = String(entry?.note || '').trim().slice(0, 80);
+    const entryId = String(entry?.entryId || entry?.id || `${source}:${currency}:${direction}:${amount}:${timestampMs}:${actorId || 'anon'}`)
+        .trim()
+        .slice(0, 120);
+    return {
+        entryId,
+        direction,
+        currency,
+        amount,
+        source,
+        label,
+        timestampMs,
+        actorId,
+        actorName,
+        note
+    };
+}
+
+async function appendNationTreasuryRecentEntry(nation, firestore, admin, entry = {}) {
+    const mapping = getNationMappingByNation(nation);
+    if (!mapping || !firestore || !admin) return;
+    const nextEntry = buildTreasuryRecentEntry(entry);
+    if (!nextEntry.amount) return;
+    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+    await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const currentRaw = Array.isArray(snap.data()?.treasuryRecentEntries) ? snap.data().treasuryRecentEntries : [];
+        const current = currentRaw
+            .map((row) => buildTreasuryRecentEntry(row))
+            .filter((row) => row.amount > 0 && row.entryId !== nextEntry.entryId);
+        const recentEntries = [nextEntry, ...current]
+            .sort((a, b) => b.timestampMs - a.timestampMs)
+            .slice(0, MAX_TREASURY_RECENT_ENTRIES);
+        tx.set(docRef, {
+            treasuryRecentEntries: recentEntries,
+            treasuryRecentUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    });
+}
+
+function buildTreasuryOverview(entries = []) {
+    const recentEntries = (Array.isArray(entries) ? entries : [])
+        .map((entry) => buildTreasuryRecentEntry(entry))
+        .filter((entry) => entry.amount > 0)
+        .sort((a, b) => b.timestampMs - a.timestampMs)
+        .slice(0, MAX_TREASURY_RECENT_ENTRIES);
+    const summaryMap = new Map();
+    recentEntries.forEach((entry) => {
+        const key = `${entry.direction}|${entry.currency}|${entry.source}`;
+        const existing = summaryMap.get(key) || {
+            direction: entry.direction,
+            currency: entry.currency,
+            source: entry.source,
+            label: entry.label,
+            totalAmount: 0,
+            count: 0
+        };
+        existing.totalAmount += entry.amount;
+        existing.count += 1;
+        summaryMap.set(key, existing);
+    });
+    const summary = Array.from(summaryMap.values()).sort((a, b) => {
+        if (a.direction !== b.direction) return a.direction === 'in' ? -1 : 1;
+        return b.totalAmount - a.totalAmount;
+    });
+    return { recentEntries, summary };
+}
+
 async function addNationTreasury(nation, amount, firestore, deps, options = {}) {
     const value = Math.max(0, Math.floor(Number(amount) || 0));
     const entityKey = await getNationGroupEntityKey(nation, firestore, deps);
@@ -477,6 +611,22 @@ async function addNationTreasury(nation, amount, firestore, deps, options = {}) 
             contribution = await addPlayerNationContribution(options.contributorPlayFabId, value, deps);
         } catch (error) {
             console.warn('[addNationTreasury] Failed to update player contribution:', error?.errorMessage || error?.message || error);
+        }
+    }
+    if (value > 0) {
+        try {
+            await appendNationTreasuryRecentEntry(nation, firestore, deps?.admin, {
+                entryId: options.idempotencyId || '',
+                amount: value,
+                currency: options.currency || 'PS',
+                source: options.source || 'manual_adjustment',
+                label: options.label,
+                actorId: options.contributorPlayFabId || '',
+                actorName: options.contributorName || '',
+                note: options.note || ''
+            });
+        } catch (error) {
+            console.warn('[addNationTreasury] Failed to append treasury entry:', error?.message || error);
         }
     }
     const treasuryPs = await getGroupTreasuryBalance(entityKey.Id, deps);
@@ -501,8 +651,796 @@ async function getNationTreasuryRanking(firestore, deps) {
         }
     }
 
-    rows.sort((a, b) => b.treasuryPs - a.treasuryPs);
+    rows.sort((a, b) => (b.treasuryPs - a.treasuryPs) || String(a.nation || '').localeCompare(String(b.nation || '')));
     return rows;
+}
+
+function getTreasuryCashbackRateBpsByRank(rank) {
+    const normalizedRank = Math.max(1, Math.floor(Number(rank) || 1));
+    return TREASURY_CASHBACK_RATE_BPS_BY_RANK[Math.min(normalizedRank, TREASURY_CASHBACK_RATE_BPS_BY_RANK.length) - 1]
+        || TREASURY_CASHBACK_RATE_BPS_BY_RANK[TREASURY_CASHBACK_RATE_BPS_BY_RANK.length - 1];
+}
+
+async function getNationTreasuryCashbackInfo(nation, firestore, deps) {
+    const ranking = await getNationTreasuryRanking(firestore, deps);
+    const nationKey = String(nation || '').toLowerCase();
+    const rankIndex = ranking.findIndex((row) => String(row?.nation || '').toLowerCase() === nationKey);
+    const rank = rankIndex >= 0 ? rankIndex + 1 : ranking.length + 1;
+    const rateBps = getTreasuryCashbackRateBpsByRank(rank);
+    return {
+        rank,
+        rateBps,
+        rateRatio: rateBps / 10000,
+        ratePercent: rateBps / 100,
+        ranking
+    };
+}
+
+function getNationWarDoc(firestore, nation) {
+    return firestore.collection(NATION_WAR_STATE_COLLECTION).doc(String(nation || '').toLowerCase());
+}
+
+function getNationWarEventsCollection(firestore) {
+    return firestore.collection(NATION_WAR_EVENT_COLLECTION);
+}
+
+function clampWarPercent(value) {
+    return Math.max(0, Math.min(100, Math.floor(Number(value) || 0)));
+}
+
+function getWarPercentBand(value) {
+    const safe = clampWarPercent(value);
+    if (safe >= 70) return { key: 'high', label: '高' };
+    if (safe >= 40) return { key: 'medium', label: '中' };
+    return { key: 'low', label: '低' };
+}
+
+function getWarCertaintyBand(value) {
+    const safe = clampWarPercent(value);
+    if (safe >= 70) return { key: 'high', label: '確実' };
+    if (safe >= 40) return { key: 'medium', label: '推定' };
+    return { key: 'low', label: '不明' };
+}
+
+function getCapitalCaptureSpeedMultiplier(memberCount) {
+    const count = Math.max(1, Math.floor(Number(memberCount) || 1));
+    return Math.min(4, 1 + ((count - 1) * 0.5));
+}
+
+function buildCapitalCaptureQueueEntry(playFabId, nation, nowMs, shipId = '') {
+    return {
+        playFabId: String(playFabId || '').trim(),
+        nation: String(nation || '').trim().toLowerCase(),
+        shipId: String(shipId || '').trim(),
+        joinedAt: Math.max(0, Math.floor(Number(nowMs) || Date.now()))
+    };
+}
+
+function advanceNationWarCaptureState(state, nowMs = Date.now()) {
+    if (!state || state.status !== 'capturing' || !Array.isArray(state.queue) || state.queue.length === 0) {
+        return state;
+    }
+    const safeNow = Math.max(0, Math.floor(Number(nowMs) || Date.now()));
+    const lastAt = Number(state.lastProgressAt) || 0;
+    if (lastAt > 0 && safeNow > lastAt) {
+        const elapsedMs = safeNow - lastAt;
+        state.progressBaseMs = Math.min(
+            state.baseDurationMs,
+            state.progressBaseMs + (elapsedMs * getCapitalCaptureSpeedMultiplier(state.queue.length))
+        );
+    }
+    state.lastProgressAt = safeNow;
+    const remainingBaseMs = Math.max(0, state.baseDurationMs - state.progressBaseMs);
+    state.endsAt = remainingBaseMs <= 0
+        ? safeNow
+        : safeNow + Math.ceil(remainingBaseMs / getCapitalCaptureSpeedMultiplier(state.queue.length));
+    return state;
+}
+
+function refreshNationWarCaptureState(rawState, warState, nowMs = Date.now()) {
+    const safeNow = Math.max(0, Math.floor(Number(nowMs) || Date.now()));
+    const state = normalizeCapitalCaptureState(rawState, warState?.capitalStatus, safeNow);
+    const breached = clampWarPercent(warState?.capitalStatus?.walls) <= CAPITAL_CAPTURE_BREACH_WALLS;
+    state.slotLimit = CAPITAL_CAPTURE_SLOT_LIMIT;
+    state.baseDurationMs = CAPITAL_CAPTURE_BASE_DURATION_MS;
+    state.intelByNation = Object.entries(state.intelByNation || {}).reduce((acc, [nation, expiresAtMs]) => {
+        const key = String(nation || '').trim().toLowerCase();
+        const safeExpiresAtMs = Math.max(0, Math.floor(Number(expiresAtMs) || 0));
+        if (key && safeExpiresAtMs > safeNow) acc[key] = safeExpiresAtMs;
+        return acc;
+    }, {});
+    state.progressBaseMs = Math.max(0, Math.min(state.baseDurationMs, Math.floor(Number(state.progressBaseMs) || 0)));
+    if (state.raidUnlockedAtMs > 0) {
+        state.status = 'captured';
+        state.queue = [];
+        state.progressBaseMs = state.baseDurationMs;
+        state.lastProgressAt = 0;
+        state.endsAt = 0;
+        return state;
+    }
+    if (!breached) {
+        state.status = 'idle';
+        state.breachedAt = 0;
+        state.queue = [];
+        state.progressBaseMs = 0;
+        state.lastProgressAt = 0;
+        state.endsAt = 0;
+        state.ownerCandidateId = null;
+        state.ownerCandidateNation = null;
+        return state;
+    }
+    if (!state.breachedAt) {
+        state.breachedAt = safeNow;
+    }
+    if (Array.isArray(state.queue) && state.queue.length > 0) {
+        state.status = 'capturing';
+        state.ownerCandidateId = state.queue[0].playFabId;
+        state.ownerCandidateNation = state.queue[0].nation || null;
+        return advanceNationWarCaptureState(state, safeNow);
+    }
+    state.status = 'breached';
+    state.lastProgressAt = 0;
+    state.endsAt = 0;
+    state.ownerCandidateId = null;
+    state.ownerCandidateNation = null;
+    return state;
+}
+
+async function resolveNationWarCaptureState(nation, state, firestore, admin) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const safeNow = Date.now();
+    const nextState = normalizeNationWarState(state, nationKey, safeNow);
+    const prevCaptureState = nextState.capitalCaptureState || null;
+    const refreshedCaptureState = refreshNationWarCaptureState(prevCaptureState, nextState, safeNow);
+    let changed = JSON.stringify(prevCaptureState || {}) !== JSON.stringify(refreshedCaptureState || {});
+    nextState.capitalCaptureState = refreshedCaptureState;
+    if (
+        refreshedCaptureState.status === 'capturing'
+        && refreshedCaptureState.progressBaseMs >= refreshedCaptureState.baseDurationMs
+        && refreshedCaptureState.queue.length > 0
+        && !refreshedCaptureState.raidUnlockedAtMs
+    ) {
+        const leader = refreshedCaptureState.queue[0] || null;
+        const participantIds = refreshedCaptureState.queue.map((entry) => String(entry.playFabId || '').trim()).filter(Boolean);
+        refreshedCaptureState.status = 'captured';
+        refreshedCaptureState.raidUnlockedAtMs = safeNow;
+        refreshedCaptureState.raidUnlockedByNation = leader?.nation || null;
+        refreshedCaptureState.lastCapturedByNation = leader?.nation || null;
+        refreshedCaptureState.lastCapturedAtMs = safeNow;
+        refreshedCaptureState.lastCaptureParticipantIds = Array.from(new Set(participantIds)).slice(0, 8);
+        refreshedCaptureState.progressBaseMs = refreshedCaptureState.baseDurationMs;
+        refreshedCaptureState.queue = [];
+        refreshedCaptureState.lastProgressAt = 0;
+        refreshedCaptureState.endsAt = 0;
+        changed = true;
+        await appendNationWarEvent(firestore, admin, {
+            type: 'capital_capture_complete',
+            publicLevel: 'global',
+            summary: `${getNationLabel(nationKey)}の首都防衛が崩れ、国庫襲撃が可能になった`,
+            details: leader?.nation ? `${getNationLabel(leader.nation)}の攻城隊が制圧を完了` : '制圧が完了した。',
+            participants: [nationKey, leader?.nation].filter(Boolean),
+            attackerNation: leader?.nation || '',
+            defenderNation: nationKey
+        });
+    }
+    if (changed) {
+        nextState.capitalCaptureState = refreshedCaptureState;
+        await saveNationWarState(nationKey, nextState, firestore, admin);
+    }
+    return nextState;
+}
+
+function canViewCapitalIntel(viewerNation, defenderNation, captureState) {
+    const viewerKey = String(viewerNation || '').trim().toLowerCase();
+    const defenderKey = String(defenderNation || '').trim().toLowerCase();
+    if (!viewerKey) return false;
+    if (viewerKey === defenderKey) return true;
+    const expiresAtMs = Math.max(0, Math.floor(Number(captureState?.intelByNation?.[viewerKey]) || 0));
+    return expiresAtMs > Date.now();
+}
+
+function buildCapitalCapturePayload(captureState, viewerNation = '', defenderNation = '') {
+    const safeNow = Date.now();
+    const state = captureState && typeof captureState === 'object'
+        ? captureState
+        : normalizeCapitalCaptureState(null, { walls: 100 }, safeNow);
+    const queue = Array.isArray(state.queue) ? state.queue : [];
+    const intelGranted = canViewCapitalIntel(viewerNation, defenderNation, state);
+    const raidCooldownUntilMs = Math.max(0, Math.floor(Number(state.raidCooldownUntilMs) || 0));
+    const raidCooldownActive = raidCooldownUntilMs > safeNow;
+    const raidUnlocked = state.raidUnlockedAtMs > 0 && !raidCooldownActive;
+    return {
+        status: state.status,
+        slotLimit: state.slotLimit,
+        queueCount: queue.length,
+        queue: queue.map((entry) => ({
+            playFabId: entry.playFabId,
+            nation: entry.nation,
+            joinedAt: entry.joinedAt
+        })),
+        remainingMs: queue.length > 0 && state.endsAt > 0 ? Math.max(0, state.endsAt - safeNow) : 0,
+        progressRatio: state.baseDurationMs > 0 ? Math.max(0, Math.min(1, state.progressBaseMs / state.baseDurationMs)) : 0,
+        breached: state.status === 'breached' || state.status === 'capturing' || state.status === 'captured',
+        breachThreshold: CAPITAL_CAPTURE_BREACH_WALLS,
+        raidUnlocked,
+        raidUnlockedAtMs: state.raidUnlockedAtMs,
+        raidUnlockedByNation: state.raidUnlockedByNation || null,
+        raidCooldownUntilMs,
+        raidCooldownRemainingMs: raidCooldownActive ? Math.max(0, raidCooldownUntilMs - safeNow) : 0,
+        raidCooldownActive,
+        intelGranted,
+        intelRemainingMs: intelGranted && viewerNation && viewerNation !== defenderNation
+            ? Math.max(0, Math.floor(Number(state.intelByNation?.[String(viewerNation).trim().toLowerCase()] || 0) - safeNow))
+            : 0
+    };
+}
+
+function buildNationWarSystemEntry(weapon, nowMs) {
+    const deployedAtMs = Math.max(0, Math.floor(Number(nowMs) || Date.now()));
+    const durationMs = Math.max(0, Math.floor(Number(weapon?.durationSeconds || 0) * 1000));
+    return {
+        id: `${String(weapon?.id || 'system')}:${deployedAtMs}:${Math.random().toString(36).slice(2, 8)}`,
+        weaponId: String(weapon?.id || '').trim().toLowerCase(),
+        deployedAtMs,
+        expiresAtMs: durationMs > 0 ? (deployedAtMs + durationMs) : 0,
+        ammoRemaining: Math.max(0, Math.floor(Number(weapon?.ammo) || 0))
+    };
+}
+
+function buildNationWarStrikeEntry({ attackerNation, defenderNation, weapon, targetPart, attackBonus }, nowMs) {
+    const createdAtMs = Math.max(0, Math.floor(Number(nowMs) || Date.now()));
+    const prepMs = Math.max(0, Math.floor(Number(weapon?.prepSeconds || 0) * 1000));
+    return {
+        id: `${String(weapon?.id || 'strike')}:${createdAtMs}:${Math.random().toString(36).slice(2, 8)}`,
+        attackerNation: String(attackerNation || '').trim().toLowerCase(),
+        defenderNation: String(defenderNation || '').trim().toLowerCase(),
+        weaponId: String(weapon?.id || '').trim().toLowerCase(),
+        targetPart: String(targetPart || '').trim() || 'walls',
+        createdAtMs,
+        launchAtMs: createdAtMs + prepMs,
+        decision: 'pending',
+        interceptSystemId: '',
+        attackBonus: {
+            hit: Math.floor(Number(attackBonus?.hit) || 0),
+            damage: Math.floor(Number(attackBonus?.damage) || 0),
+            damageByPart: Object.entries(attackBonus?.damageByPart || {}).reduce((acc, [part, value]) => {
+                acc[String(part || '').trim()] = Math.floor(Number(value) || 0);
+                return acc;
+            }, {})
+        },
+        targetKnown: false
+    };
+}
+
+async function appendNationWarEvent(firestore, admin, event = {}) {
+    if (!firestore || !admin) return null;
+    const createdAtMs = Math.max(0, Math.floor(Number(event.createdAtMs) || Date.now()));
+    const payload = {
+        type: String(event.type || 'info').trim().toLowerCase() || 'info',
+        publicLevel: String(event.publicLevel || 'nation').trim().toLowerCase() || 'nation',
+        summary: String(event.summary || '').trim().slice(0, 180),
+        details: String(event.details || '').trim().slice(0, 260),
+        participants: Array.from(new Set((Array.isArray(event.participants) ? event.participants : [])
+            .map((row) => String(row || '').trim().toLowerCase())
+            .filter(Boolean))).slice(0, 4),
+        attackerNation: String(event.attackerNation || '').trim().toLowerCase(),
+        defenderNation: String(event.defenderNation || '').trim().toLowerCase(),
+        weaponId: String(event.weaponId || '').trim().toLowerCase(),
+        createdAtMs,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (!payload.summary) return null;
+    await getNationWarEventsCollection(firestore).add(payload);
+    if (payload.publicLevel === 'global') {
+        addGlobalChatMessage(payload.summary, 'War');
+    }
+    return payload;
+}
+
+async function getRecentNationWarLogs(firestore, nation) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const snap = await getNationWarEventsCollection(firestore)
+        .orderBy('createdAtMs', 'desc')
+        .limit(NATION_WAR_EVENT_LIMIT)
+        .get();
+    const rows = snap.docs.map((doc) => {
+        const data = doc.data() || {};
+        return {
+            id: doc.id,
+            type: String(data.type || 'info').trim().toLowerCase() || 'info',
+            publicLevel: String(data.publicLevel || 'nation').trim().toLowerCase() || 'nation',
+            summary: String(data.summary || '').trim(),
+            details: String(data.details || '').trim(),
+            participants: Array.isArray(data.participants) ? data.participants.map((row) => String(row || '').trim().toLowerCase()).filter(Boolean) : [],
+            attackerNation: String(data.attackerNation || '').trim().toLowerCase(),
+            defenderNation: String(data.defenderNation || '').trim().toLowerCase(),
+            weaponId: String(data.weaponId || '').trim().toLowerCase(),
+            createdAtMs: Math.max(0, Math.floor(Number(data.createdAtMs) || 0))
+        };
+    });
+    return {
+        global: rows.filter((row) => row.publicLevel === 'global').slice(0, 12),
+        nation: rows.filter((row) => row.participants.includes(nationKey) || row.publicLevel === 'global').slice(0, 16),
+        detailed: rows.filter((row) => row.participants.includes(nationKey)).slice(0, 20)
+    };
+}
+
+async function subtractNationTreasury(nation, amount, firestore, deps, options = {}) {
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    const entityKey = await getNationGroupEntityKey(nation, firestore, deps);
+    if (!entityKey) return null;
+    if (!deps?.subtractEconomyItem) {
+        throw new Error('Missing subtractEconomyItem dependency');
+    }
+    if (value > 0) {
+        await deps.subtractEconomyItem(entityKey.Id, 'PS', value, { entityKeyOverride: entityKey, idempotencyId: options.idempotencyId });
+    }
+    if (value > 0) {
+        try {
+            await appendNationTreasuryRecentEntry(nation, firestore, deps?.admin, {
+                entryId: options.idempotencyId || '',
+                amount: value,
+                direction: 'out',
+                currency: options.currency || 'PS',
+                source: options.source || 'manual_adjustment',
+                label: options.label,
+                actorId: options.actorId || '',
+                actorName: options.actorName || '',
+                note: options.note || ''
+            });
+        } catch (error) {
+            console.warn('[subtractNationTreasury] Failed to append treasury entry:', error?.message || error);
+        }
+    }
+    const treasuryPs = await getGroupTreasuryBalance(entityKey.Id, deps);
+    return { groupId: entityKey.Id, treasuryPs };
+}
+
+function getActiveNationWarSystems(state, nowMs) {
+    return (Array.isArray(state?.activeSystems) ? state.activeSystems : [])
+        .filter((system) => !system.expiresAtMs || system.expiresAtMs > nowMs);
+}
+
+function collectNationWarBonuses(state, nowMs) {
+    const totals = {
+        defense: { detect: 0, identify: 0, interceptSupport: 0, enemyHitPenalty: 0 },
+        recon: { detect: 0, identify: 0 },
+        attack: { hit: 0, damage: 0, damageByPart: {} }
+    };
+    getActiveNationWarSystems(state, nowMs).forEach((system) => {
+        const weapon = getNationWarWeaponDefinition(system.weaponId);
+        const defenseEffects = weapon?.effects?.defense || {};
+        const reconEffects = weapon?.effects?.recon || {};
+        const attackEffects = weapon?.effects?.attack || {};
+        totals.defense.detect += Math.floor(Number(defenseEffects.detect) || 0);
+        totals.defense.identify += Math.floor(Number(defenseEffects.identify) || 0);
+        totals.defense.interceptSupport += Math.floor(Number(defenseEffects.interceptSupport) || 0);
+        totals.defense.enemyHitPenalty += Math.floor(Number(defenseEffects.enemyHitPenalty) || 0);
+        totals.recon.detect += Math.floor(Number(reconEffects.detect) || 0);
+        totals.recon.identify += Math.floor(Number(reconEffects.identify) || 0);
+        totals.attack.hit += Math.floor(Number(attackEffects.hit) || 0);
+        totals.attack.damage += Math.floor(Number(attackEffects.damage) || 0);
+        Object.entries(attackEffects.damageByPart || {}).forEach(([part, value]) => {
+            const key = String(part || '').trim();
+            if (!key) return;
+            totals.attack.damageByPart[key] = (totals.attack.damageByPart[key] || 0) + Math.floor(Number(value) || 0);
+        });
+    });
+    return totals;
+}
+
+function buildNationWarAttackSnapshot(state, nowMs) {
+    const totals = collectNationWarBonuses(state, nowMs);
+    return {
+        hit: totals.attack.hit,
+        damage: totals.attack.damage,
+        damageByPart: totals.attack.damageByPart
+    };
+}
+
+function buildNationWarIncomingIntel(incoming, defenderState, nowMs) {
+    const weapon = getNationWarWeaponDefinition(incoming.weaponId);
+    const capitalStatus = defenderState?.capitalStatus || createDefaultNationWarState(defenderState?.nation || '').capitalStatus;
+    const totals = collectNationWarBonuses(defenderState, nowMs);
+    const identifyScore = clampWarPercent(45 + totals.defense.identify + totals.recon.identify - Math.floor(Number(weapon?.identifyDifficulty) || 0));
+    const hitScore = clampWarPercent(
+        Math.floor(Number(weapon?.hit) || 0)
+        + Math.floor(Number(incoming?.attackBonus?.hit) || 0)
+        - totals.defense.enemyHitPenalty
+        - Math.floor(Number(capitalStatus.airDefense || 0) * 0.12)
+    );
+    const decoyRiskScore = clampWarPercent(Math.floor(Number(weapon?.decoyValue) || 0) - Math.floor((totals.defense.identify + totals.recon.identify) * 0.6) + 35);
+    const identifyBand = getWarCertaintyBand(identifyScore);
+    const hitBand = getWarPercentBand(hitScore);
+    const decoyBand = getWarPercentBand(decoyRiskScore);
+    const targetBand = identifyScore >= 65 ? CAPITAL_PART_LABELS[incoming.targetPart] || '不明' : '不明';
+    const weaponName = identifyScore >= 70
+        ? weapon?.label || '飛来物'
+        : identifyScore >= 40
+            ? `推定 ${weapon?.label || '飛来物'}`
+            : '正体不明の飛来物';
+    return {
+        identifyScore,
+        hitScore,
+        decoyRiskScore,
+        identifyBand,
+        hitBand,
+        decoyBand,
+        weaponName,
+        targetLabel: targetBand
+    };
+}
+
+function applyNationWarDamage(capitalStatus, incoming, weapon) {
+    const next = { ...capitalStatus };
+    const attackBonus = incoming.attackBonus || {};
+    (Array.isArray(weapon?.payload) ? weapon.payload : []).forEach((entry) => {
+        const part = String(entry?.part || '').trim();
+        if (!part || !Object.prototype.hasOwnProperty.call(next, part)) return;
+        const baseDamage = Math.floor(Number(entry?.damage) || 0);
+        const extraDamage = Math.floor(Number(attackBonus.damage) || 0) + Math.floor(Number(attackBonus.damageByPart?.[part]) || 0);
+        next[part] = clampWarPercent(next[part] - baseDamage - extraDamage);
+    });
+    return next;
+}
+
+function calculateNationWarRaidPlan(capitalStatus, treasuryPs, captureState = null) {
+    const safeTreasury = Math.max(0, Math.floor(Number(treasuryPs) || 0));
+    const safeStatus = {
+        walls: clampWarPercent(capitalStatus?.walls),
+        vault: clampWarPercent(capitalStatus?.vault),
+        command: clampWarPercent(capitalStatus?.command)
+    };
+    const safeNow = Date.now();
+    const raidCooldownUntilMs = Math.max(0, Math.floor(Number(captureState?.raidCooldownUntilMs) || 0));
+    const raidCooldownActive = raidCooldownUntilMs > safeNow;
+    const breachOpen = Math.max(0, Math.floor(Number(captureState?.raidUnlockedAtMs) || 0)) > 0 && !raidCooldownActive;
+    const raidRate = 0.10
+        + (((100 - safeStatus.vault) / 100) * 0.08)
+        + (((100 - safeStatus.command) / 100) * 0.04);
+    const maxSpendable = Math.max(0, safeTreasury - NATION_WAR_MIN_TREASURY_RESERVE);
+    const expectedAmount = breachOpen
+        ? Math.max(0, Math.min(NATION_WAR_MAX_RAID_AMOUNT, Math.floor(maxSpendable * raidRate)))
+        : 0;
+    return {
+        breachOpen,
+        reservePs: NATION_WAR_MIN_TREASURY_RESERVE,
+        raidRate,
+        expectedAmount,
+        remainingAfterRaid: Math.max(0, safeTreasury - expectedAmount),
+        raidCooldownUntilMs,
+        raidCooldownActive,
+        raidCooldownRemainingMs: raidCooldownActive ? Math.max(0, raidCooldownUntilMs - safeNow) : 0
+    };
+}
+
+async function loadNationWarState(nation, firestore, admin, deps) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const docRef = getNationWarDoc(firestore, nationKey);
+    const snap = await docRef.get();
+    const nowMs = Date.now();
+    const state = normalizeNationWarState(snap.exists ? snap.data() : null, nationKey, nowMs);
+    if (!snap.exists) {
+        await docRef.set({
+            ...state,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    }
+    return state;
+}
+
+async function saveNationWarState(nation, state, firestore, admin) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const docRef = getNationWarDoc(firestore, nationKey);
+    await docRef.set({
+        ...state,
+        nation: nationKey,
+        updatedAtMs: Date.now(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+}
+
+async function resolveNationWarIncoming(nation, state, firestore, admin) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const nowMs = Date.now();
+    const nextState = normalizeNationWarState(state, nationKey, nowMs);
+    const previousSystemCount = Array.isArray(nextState.activeSystems) ? nextState.activeSystems.length : 0;
+    nextState.activeSystems = getActiveNationWarSystems(nextState, nowMs);
+    nextState.capitalCaptureState = refreshNationWarCaptureState(nextState.capitalCaptureState, nextState, nowMs);
+    const remainingIncoming = [];
+    let changed = nextState.activeSystems.length !== previousSystemCount;
+    for (const incoming of nextState.incoming) {
+        if (incoming.launchAtMs > nowMs) {
+            remainingIncoming.push(incoming);
+            continue;
+        }
+        const weapon = getNationWarWeaponDefinition(incoming.weaponId);
+        if (!weapon) {
+            changed = true;
+            continue;
+        }
+        const totals = collectNationWarBonuses(nextState, nowMs);
+        const autoSkip = incoming.decision === 'pending';
+        const interceptSystem = incoming.decision === 'intercept'
+            ? nextState.activeSystems.find((system) => system.id === incoming.interceptSystemId)
+            : null;
+        let intercepted = false;
+        let interceptSummary = '';
+        if (interceptSystem) {
+            const interceptWeapon = getNationWarWeaponDefinition(interceptSystem.weaponId);
+            if (interceptWeapon && interceptSystem.ammoRemaining > 0) {
+                interceptSystem.ammoRemaining -= 1;
+                const interceptChance = clampWarPercent(
+                    Math.floor(Number(interceptWeapon.intercept) || 0)
+                    + totals.defense.interceptSupport
+                    + Math.floor(Number(interceptWeapon.detect || 0) / 8)
+                    + Math.floor(Number(interceptWeapon.identify || 0) / 8)
+                    - Math.floor(Number(weapon.detectDifficulty || 0) * 0.15)
+                    - Math.floor(Number(weapon.identifyDifficulty || 0) * 0.1)
+                    - Math.floor(Number(weapon.decoyValue || 0) * 0.08)
+                );
+                intercepted = Math.random() * 100 < interceptChance;
+                interceptSummary = `${interceptWeapon.label}で迎撃${intercepted ? '成功' : '失敗'}`;
+                await appendNationWarEvent(firestore, admin, {
+                    type: intercepted ? 'intercept_success' : 'intercept_fail',
+                    publicLevel: 'global',
+                    summary: `${getNationLabel(nationKey)}が${weapon.label}への迎撃を${intercepted ? '成功' : '失敗'}`,
+                    details: `${interceptWeapon.label} / 判定: ${interceptChance}%相当`,
+                    participants: [nationKey, incoming.attackerNation],
+                    attackerNation: incoming.attackerNation,
+                    defenderNation: nationKey,
+                    weaponId: incoming.weaponId
+                });
+            }
+        }
+        if (!intercepted) {
+            const hitChance = clampWarPercent(
+                Math.floor(Number(weapon.hit) || 0)
+                + Math.floor(Number(incoming.attackBonus?.hit) || 0)
+                - totals.defense.enemyHitPenalty
+                - Math.floor(Number(nextState.capitalStatus.airDefense || 0) * 0.12)
+            );
+            const didHit = Math.random() * 100 < hitChance;
+            if (didHit && Array.isArray(weapon.payload) && weapon.payload.length) {
+                const previousWalls = clampWarPercent(nextState.capitalStatus.walls);
+                nextState.capitalStatus = applyNationWarDamage(nextState.capitalStatus, incoming, weapon);
+                nextState.capitalCaptureState = refreshNationWarCaptureState(nextState.capitalCaptureState, nextState, nowMs);
+                const targetLabel = CAPITAL_PART_LABELS[incoming.targetPart] || '首都';
+                await appendNationWarEvent(firestore, admin, {
+                    type: 'strike_hit',
+                    publicLevel: 'global',
+                    summary: `${weapon.label}が${getNationLabel(nationKey)}の${targetLabel}に命中`,
+                    details: `被害を確認。${autoSkip ? '迎撃判断が間に合わなかった。' : (interceptSummary || '迎撃なし')}`,
+                    participants: [nationKey, incoming.attackerNation],
+                    attackerNation: incoming.attackerNation,
+                    defenderNation: nationKey,
+                    weaponId: incoming.weaponId
+                });
+                if (previousWalls > CAPITAL_CAPTURE_BREACH_WALLS && nextState.capitalStatus.walls <= CAPITAL_CAPTURE_BREACH_WALLS) {
+                    await appendNationWarEvent(firestore, admin, {
+                        type: 'capital_breach',
+                        publicLevel: 'global',
+                        summary: `${getNationLabel(nationKey)}の城壁が破られ、首都へ上陸可能になった`,
+                        details: '前線プレイヤーは首都へ乗り込み、制圧を進められる。',
+                        participants: [nationKey, incoming.attackerNation],
+                        attackerNation: incoming.attackerNation,
+                        defenderNation: nationKey,
+                        weaponId: incoming.weaponId
+                    });
+                }
+            } else {
+                await appendNationWarEvent(firestore, admin, {
+                    type: 'strike_miss',
+                    publicLevel: 'global',
+                    summary: `${weapon.label}は${getNationLabel(nationKey)}への有効打を与えられず`,
+                    details: weapon.role === 'decoy'
+                        ? '飛来物はデコイと判明した。'
+                        : (interceptSummary || '海上で失速した。'),
+                    participants: [nationKey, incoming.attackerNation],
+                    attackerNation: incoming.attackerNation,
+                    defenderNation: nationKey,
+                    weaponId: incoming.weaponId
+                });
+            }
+        }
+        changed = true;
+    }
+    nextState.incoming = remainingIncoming;
+    nextState.activeSystems = nextState.activeSystems.filter((system) => {
+        const weapon = getNationWarWeaponDefinition(system.weaponId);
+        if (weapon?.role !== 'intercept') return true;
+        return system.ammoRemaining > 0 && (!system.expiresAtMs || system.expiresAtMs > nowMs);
+    });
+    nextState.capitalCaptureState = refreshNationWarCaptureState(nextState.capitalCaptureState, nextState, nowMs);
+    if (
+        nextState.capitalCaptureState.status === 'capturing'
+        && nextState.capitalCaptureState.progressBaseMs >= nextState.capitalCaptureState.baseDurationMs
+        && nextState.capitalCaptureState.queue.length > 0
+        && !nextState.capitalCaptureState.raidUnlockedAtMs
+    ) {
+        const leader = nextState.capitalCaptureState.queue[0] || null;
+        nextState.capitalCaptureState.status = 'captured';
+        nextState.capitalCaptureState.raidUnlockedAtMs = nowMs;
+        nextState.capitalCaptureState.raidUnlockedByNation = leader?.nation || null;
+        nextState.capitalCaptureState.progressBaseMs = nextState.capitalCaptureState.baseDurationMs;
+        nextState.capitalCaptureState.queue = [];
+        nextState.capitalCaptureState.lastProgressAt = 0;
+        nextState.capitalCaptureState.endsAt = 0;
+        changed = true;
+        await appendNationWarEvent(firestore, admin, {
+            type: 'capital_capture_complete',
+            publicLevel: 'global',
+            summary: `${getNationLabel(nationKey)}の首都防衛が崩れ、国庫襲撃が可能になった`,
+            details: leader?.nation ? `${getNationLabel(leader.nation)}の攻城隊が制圧を完了` : '首都制圧が完了した。',
+            participants: [nationKey, leader?.nation].filter(Boolean),
+            attackerNation: leader?.nation || '',
+            defenderNation: nationKey
+        });
+    }
+    if (changed) {
+        await saveNationWarState(nationKey, nextState, firestore, admin);
+    }
+    return nextState;
+}
+
+async function buildNationWarPagePayload(nation, state, firestore, admin, deps) {
+    const nationKey = String(nation || '').trim().toLowerCase();
+    const nowMs = Date.now();
+    const activeSystems = getActiveNationWarSystems(state, nowMs);
+    const logs = await getRecentNationWarLogs(firestore, nationKey);
+    const strikeWeapons = listNationWarWeapons(nationKey, 'strike');
+    const deployWeapons = listNationWarWeapons(nationKey, 'deploy');
+    const enemyNations = await Promise.all(Object.keys(NATION_GROUP_BY_NATION)
+        .filter((key) => key !== nationKey)
+        .map(async (key) => {
+            let enemyState = await resolveNationWarIncoming(key, await loadNationWarState(key, firestore, admin, deps), firestore, admin);
+            enemyState = await resolveNationWarCaptureState(key, enemyState, firestore, admin);
+            const enemyGroupId = await getNationGroupIdByNation(key, firestore, deps);
+            const treasuryPs = enemyGroupId ? await getGroupTreasuryBalance(enemyGroupId, deps) : 0;
+            const raidPlan = calculateNationWarRaidPlan(enemyState.capitalStatus, treasuryPs, enemyState.capitalCaptureState);
+            return {
+                nation: key,
+                label: getNationLabel(key),
+                treasuryPs,
+                raidEligible: raidPlan.breachOpen && raidPlan.expectedAmount > 0,
+                raidExpectedPs: raidPlan.expectedAmount,
+                raidRatePercent: Number((raidPlan.raidRate * 100).toFixed(1)),
+                capitalCapture: buildCapitalCapturePayload(enemyState.capitalCaptureState, nationKey, key),
+                capitalStatus: Object.entries(enemyState.capitalStatus || {}).map(([part, value]) => ({
+                    part,
+                    label: CAPITAL_PART_LABELS[part] || part,
+                    value: clampWarPercent(value),
+                    band: getWarPercentBand(value)
+                }))
+            };
+        }));
+    return {
+        nation: nationKey,
+        nationLabel: getNationLabel(nationKey),
+        nationModel: getNationModelByNation(nationKey),
+        nationModelLabel: getNationModelLabel(getNationModelByNation(nationKey)),
+        capitalCapture: buildCapitalCapturePayload(state.capitalCaptureState, nationKey, nationKey),
+        capitalStatus: Object.entries(state.capitalStatus || {}).map(([part, value]) => ({
+            part,
+            label: CAPITAL_PART_LABELS[part] || part,
+            value: clampWarPercent(value),
+            band: getWarPercentBand(value)
+        })),
+        activeSystems: activeSystems.map((system) => {
+            const weapon = getNationWarWeaponDefinition(system.weaponId);
+            return {
+                id: system.id,
+                weaponId: system.weaponId,
+                label: weapon?.label || system.weaponId,
+                role: String(weapon?.role || '').trim(),
+                description: weapon?.description || '',
+                ammoRemaining: Math.max(0, Math.floor(Number(system.ammoRemaining) || 0)),
+                expiresAtMs: system.expiresAtMs,
+                remainingMs: Math.max(0, Math.floor(Number(system.expiresAtMs || 0) - nowMs)),
+                band: getWarPercentBand(system.ammoRemaining > 0 ? 100 : 0)
+            };
+        }),
+        incoming: (Array.isArray(state.incoming) ? state.incoming : []).map((incoming) => {
+            const intel = buildNationWarIncomingIntel(incoming, state, nowMs);
+            return {
+                id: incoming.id,
+                weaponId: incoming.weaponId,
+                weaponName: intel.weaponName,
+                identifyLabel: intel.identifyBand.label,
+                identifyBand: intel.identifyBand,
+                hitOutlookLabel: intel.hitBand.label,
+                hitOutlookBand: intel.hitBand,
+                decoyRiskLabel: intel.decoyBand.label,
+                decoyRiskBand: intel.decoyBand,
+                targetLabel: intel.targetLabel,
+                launchAtMs: incoming.launchAtMs,
+                remainingMs: Math.max(0, Math.floor(Number(incoming.launchAtMs || 0) - nowMs)),
+                decision: incoming.decision,
+                interceptSystemId: incoming.interceptSystemId || ''
+            };
+        }).sort((a, b) => a.launchAtMs - b.launchAtMs),
+        strikeWeapons: strikeWeapons.map((weapon) => ({
+            id: weapon.id,
+            label: weapon.label,
+            costPs: weapon.costPs,
+            prepSeconds: Math.max(0, Math.floor(Number(weapon.prepSeconds) || 0)),
+            cooldownSeconds: Math.max(0, Math.floor(Number(weapon.cooldownSeconds) || 0)),
+            description: weapon.description || '',
+            cooldownRemainingMs: Math.max(0, Math.floor(Number(state.cooldowns?.[weapon.id] || 0) - nowMs))
+        })),
+        deployWeapons: deployWeapons.map((weapon) => ({
+            id: weapon.id,
+            label: weapon.label,
+            role: weapon.role,
+            costPs: weapon.costPs,
+            durationSeconds: Math.max(0, Math.floor(Number(weapon.durationSeconds) || 0)),
+            cooldownSeconds: Math.max(0, Math.floor(Number(weapon.cooldownSeconds) || 0)),
+            ammo: Math.max(0, Math.floor(Number(weapon.ammo) || 0)),
+            description: weapon.description || '',
+            cooldownRemainingMs: Math.max(0, Math.floor(Number(state.cooldowns?.[weapon.id] || 0) - nowMs))
+        })),
+        interceptorOptions: activeSystems
+            .map((system) => {
+                const weapon = getNationWarWeaponDefinition(system.weaponId);
+                if (weapon?.role !== 'intercept' || system.ammoRemaining <= 0) return null;
+                return {
+                    id: system.id,
+                    weaponId: system.weaponId,
+                    label: `${weapon.label} / 残弾${system.ammoRemaining}`,
+                    ammoRemaining: system.ammoRemaining
+                };
+            })
+            .filter(Boolean),
+        targetOptions: Object.keys(NATION_GROUP_BY_NATION)
+            .filter((key) => key !== nationKey)
+            .map((key) => ({
+                value: key,
+                label: getNationLabel(key)
+            })),
+        enemyNations,
+        logs
+    };
+}
+
+function buildCapitalStatusForViewer(capitalStatus, viewerNation, targetNation, captureState) {
+    const exact = canViewCapitalIntel(viewerNation, targetNation, captureState);
+    return Object.entries(capitalStatus || {}).map(([part, value]) => ({
+        part,
+        label: CAPITAL_PART_LABELS[part] || part,
+        value: exact ? clampWarPercent(value) : null,
+        band: getWarPercentBand(value),
+        exact
+    }));
+}
+
+function buildCapitalWarStatePayload(targetNation, viewerNation, state, treasuryPs = 0) {
+    const targetNationKey = String(targetNation || '').trim().toLowerCase();
+    const viewerNationKey = String(viewerNation || '').trim().toLowerCase();
+    const capture = buildCapitalCapturePayload(state.capitalCaptureState, viewerNationKey, targetNationKey);
+    const isOwnNation = !!viewerNationKey && viewerNationKey === targetNationKey;
+    return {
+        nation: targetNationKey,
+        nationLabel: getNationLabel(targetNationKey),
+        isOwnNation,
+        treasuryPs: Math.max(0, Math.floor(Number(treasuryPs) || 0)),
+        capitalStatus: buildCapitalStatusForViewer(state.capitalStatus, viewerNationKey, targetNationKey, state.capitalCaptureState),
+        capitalCapture: capture,
+        actions: {
+            canRecon: !isOwnNation,
+            canRepair: isOwnNation,
+            canSabotage: !isOwnNation && !capture.raidUnlocked,
+            canShipAttack: !isOwnNation,
+            canCapture: !isOwnNation && capture.breached,
+            canRaid: !isOwnNation && capture.raidUnlocked
+        }
+    };
+}
+
+function pickCapitalRepairPart(capitalStatus = {}) {
+    return Object.entries(capitalStatus)
+        .filter(([part]) => Object.prototype.hasOwnProperty.call(CAPITAL_PART_LABELS, part))
+        .sort((a, b) => (clampWarPercent(a[1]) - clampWarPercent(b[1])) || String(a[0]).localeCompare(String(b[0])))[0]?.[0] || 'walls';
 }
 
 async function getPlayerEntity(playFabId, deps) {
@@ -574,7 +1512,7 @@ async function updateGuildOwnerAndShipOwner(guildId, newOwnerPlayFabId, deps) {
 }
 
 async function requireKingContext(playFabId, firestore, deps) {
-    const { promisifyPlayFab, PlayFabServer } = deps;
+    const { promisifyPlayFab, PlayFabServer, admin } = deps;
     const kingId = normalizePlayFabId(playFabId);
     if (!kingId) throw new Error('InvalidPlayFabId');
 
@@ -671,6 +1609,7 @@ function initializeNationRoutes(app, deps) {
         getGroupDataValue,
         setGroupDataValues,
         addEconomyItem,
+        subtractEconomyItem,
         getAllInventoryItems: deps.getAllInventoryItems,
         getVirtualCurrencyMap: deps.getVirtualCurrencyMap
     };
@@ -832,19 +1771,24 @@ function initializeNationRoutes(app, deps) {
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
                 const mapping = getNationMappingByNation(nation);
                 if (groupId) {
-                    const grantMultiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
-                    const grantMultiplierValue = Number(grantMultiplierRaw);
-                    const grantMultiplier = Number.isFinite(grantMultiplierValue) && grantMultiplierValue >= 0
-                        ? grantMultiplierValue
-                        : 1;
                     const treasuryPs = await getGroupTreasuryBalance(groupId, nationDeps);
-                    payload.grantMultiplier = grantMultiplier;
+                    const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
+                    const treasuryOverview = buildTreasuryOverview(groupSnap.data()?.treasuryRecentEntries || []);
+                    const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
                     payload.treasuryPs = treasuryPs;
+                    payload.treasuryRank = cashbackInfo.rank;
+                    payload.troyCashbackRateBps = cashbackInfo.rateBps;
+                    payload.troyCashbackRatePercent = cashbackInfo.ratePercent;
+                    payload.treasuryRecentEntries = treasuryOverview.recentEntries;
+                    payload.treasurySummary = treasuryOverview.summary;
                 }
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
                     payload.troyOpen = !!roomSnap.data()?.isOpen;
                 }
+                let warState = await resolveNationWarIncoming(nation, await loadNationWarState(nation, firestore, admin, nationDeps), firestore, admin);
+                warState = await resolveNationWarCaptureState(nation, warState, firestore, admin);
+                payload.war = await buildNationWarPagePayload(nation, warState, firestore, admin, nationDeps);
             } catch (e) {
                 console.warn('[get-nation-king-page] Failed to load group tax data:', e?.message || e);
             }
@@ -897,28 +1841,581 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // 付与倍率設定
+    // 還元率の王設定は廃止
     app.post('/api/king-set-grant-multiplier', async (req, res) => {
-        const { playFabId, grantMultiplier } = req.body || {};
+        const { playFabId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
-        const multiplierValue = Number(grantMultiplier);
-        if (!Number.isFinite(multiplierValue) || multiplierValue < 0) {
-            return res.status(400).json({ error: 'Grant multiplier must be 0 or greater' });
-        }
-
         try {
             const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
-            await setGroupDataValues(context.groupId, { grantMultiplier: String(multiplierValue) });
-            res.json({ success: true, grantMultiplier: multiplierValue });
+            const cashbackInfo = await getNationTreasuryCashbackInfo(context.nation, firestore, nationDeps);
+            res.status(410).json({
+                error: 'GrantMultiplierDeprecated',
+                message: '還元率の王設定は廃止されました。国庫順位で自動決定されます。',
+                treasuryRank: cashbackInfo.rank,
+                troyCashbackRateBps: cashbackInfo.rateBps
+            });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
             if (String(msg).includes('NotKing')) {
                 return res.status(403).json({ error: 'NotKing' });
             }
             console.error('[king-set-grant-multiplier] Error:', msg);
-            res.status(500).json({ error: 'Failed to set grant multiplier' });
+            res.status(500).json({ error: 'Failed to resolve cashback rate' });
+        }
+    });
+
+    app.post('/api/get-capital-war-state', async (req, res) => {
+        const { playFabId, targetNation } = req.body || {};
+        if (!playFabId || !targetNation) {
+            return res.status(400).json({ error: 'playFabId and targetNation are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const viewerNation = await getNationForPlayer(requesterPlayFabId, nationDeps);
+            const targetNationKey = String(targetNation || '').trim().toLowerCase();
+            if (!NATION_GROUP_BY_NATION[targetNationKey]) {
+                return res.status(400).json({ error: 'InvalidTargetNation' });
+            }
+            let warState = await resolveNationWarIncoming(targetNationKey, await loadNationWarState(targetNationKey, firestore, admin, nationDeps), firestore, admin);
+            warState = await resolveNationWarCaptureState(targetNationKey, warState, firestore, admin);
+            const groupId = await getNationGroupIdByNation(targetNationKey, firestore, nationDeps);
+            const treasuryPs = groupId ? await getGroupTreasuryBalance(groupId, nationDeps) : 0;
+            res.json({
+                success: true,
+                capitalWar: buildCapitalWarStatePayload(targetNationKey, viewerNation, warState, treasuryPs)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            console.error('[get-capital-war-state] Error:', msg);
+            res.status(500).json({ error: 'Failed to load capital war state', details: String(msg) });
+        }
+    });
+
+    app.post('/api/nation-war-capital-action', async (req, res) => {
+        const { playFabId, targetNation, action } = req.body || {};
+        if (!playFabId || !targetNation || !action) {
+            return res.status(400).json({ error: 'playFabId, targetNation and action are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const playerNation = await getNationForPlayer(requesterPlayFabId, nationDeps);
+            if (!playerNation || !NATION_GROUP_BY_NATION[playerNation]) {
+                return res.status(400).json({ error: 'NationRequired' });
+            }
+            const targetNationKey = String(targetNation || '').trim().toLowerCase();
+            if (!NATION_GROUP_BY_NATION[targetNationKey]) {
+                return res.status(400).json({ error: 'InvalidTargetNation' });
+            }
+            const normalizedAction = String(action || '').trim().toLowerCase();
+            let warState = await resolveNationWarIncoming(targetNationKey, await loadNationWarState(targetNationKey, firestore, admin, nationDeps), firestore, admin);
+            warState = await resolveNationWarCaptureState(targetNationKey, warState, firestore, admin);
+            const nowMs = Date.now();
+            const isOwnNation = playerNation === targetNationKey;
+            const spendPlayerPs = async (amount, tag) => {
+                const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+                if (safeAmount <= 0) return;
+                await subtractEconomyItem(requesterPlayFabId, 'PS', safeAmount, { idempotencyId: `nation-war-capital:${tag}:${requesterPlayFabId}:${targetNationKey}:${nowMs}` });
+            };
+
+            if (normalizedAction === 'recon') {
+                if (isOwnNation) return res.status(403).json({ error: 'OwnCapitalReconNotAllowed' });
+                await spendPlayerPs(NATION_WAR_RECON_COST_PS, 'recon');
+                warState.capitalCaptureState.intelByNation[playerNation] = nowMs + NATION_WAR_RECON_DURATION_MS;
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                await saveNationWarState(targetNationKey, warState, firestore, admin);
+                await appendNationWarEvent(firestore, admin, {
+                    type: 'capital_recon',
+                    publicLevel: 'nation',
+                    summary: `${getNationLabel(playerNation)}の偵察隊が${getNationLabel(targetNationKey)}首都の情報を掴んだ`,
+                    details: `${Math.ceil(NATION_WAR_RECON_DURATION_MS / 60000)}分間、首都情報を詳細表示できる。`,
+                    participants: [playerNation, targetNationKey],
+                    attackerNation: playerNation,
+                    defenderNation: targetNationKey
+                });
+            } else if (normalizedAction === 'repair') {
+                if (!isOwnNation) return res.status(403).json({ error: 'EnemyCapitalRepairNotAllowed' });
+                await spendPlayerPs(NATION_WAR_REPAIR_COST_PS, 'repair');
+                const part = pickCapitalRepairPart(warState.capitalStatus);
+                warState.capitalStatus[part] = clampWarPercent(warState.capitalStatus[part] + NATION_WAR_CAPTURE_REPAIR_AMOUNT);
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                await saveNationWarState(targetNationKey, warState, firestore, admin);
+                await appendNationWarEvent(firestore, admin, {
+                    type: 'capital_repair',
+                    publicLevel: 'nation',
+                    summary: `${getNationLabel(targetNationKey)}の工兵隊が${CAPITAL_PART_LABELS[part] || '首都設備'}を修復`,
+                    details: `回復量 ${NATION_WAR_CAPTURE_REPAIR_AMOUNT}`,
+                    participants: [targetNationKey],
+                    defenderNation: targetNationKey
+                });
+            } else if (normalizedAction === 'sabotage') {
+                if (isOwnNation) return res.status(403).json({ error: 'OwnCapitalSabotageNotAllowed' });
+                await spendPlayerPs(NATION_WAR_SABOTAGE_COST_PS, 'sabotage');
+                warState.capitalStatus.command = clampWarPercent(warState.capitalStatus.command - NATION_WAR_SABOTAGE_COMMAND_DAMAGE);
+                if (warState.capitalCaptureState.status === 'capturing' && warState.capitalCaptureState.ownerCandidateNation === playerNation) {
+                    warState.capitalCaptureState.progressBaseMs = Math.min(
+                        warState.capitalCaptureState.baseDurationMs,
+                        warState.capitalCaptureState.progressBaseMs + 12000
+                    );
+                }
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                await saveNationWarState(targetNationKey, warState, firestore, admin);
+                await appendNationWarEvent(firestore, admin, {
+                    type: 'capital_sabotage',
+                    publicLevel: 'nation',
+                    summary: `${getNationLabel(playerNation)}の工作隊が${getNationLabel(targetNationKey)}首都へ浸透`,
+                    details: `指揮に ${NATION_WAR_SABOTAGE_COMMAND_DAMAGE} ダメージ`,
+                    participants: [playerNation, targetNationKey],
+                    attackerNation: playerNation,
+                    defenderNation: targetNationKey
+                });
+            } else if (normalizedAction === 'ship_attack' || normalizedAction === 'siege') {
+                if (isOwnNation) return res.status(403).json({ error: 'OwnCapitalAttackNotAllowed' });
+                const previousWalls = clampWarPercent(warState.capitalStatus.walls);
+                const damage = previousWalls <= CAPITAL_CAPTURE_BREACH_WALLS
+                    ? NATION_WAR_SIEGE_WALL_DAMAGE
+                    : NATION_WAR_SHIP_ATTACK_WALL_DAMAGE;
+                warState.capitalStatus.walls = clampWarPercent(previousWalls - damage);
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                await saveNationWarState(targetNationKey, warState, firestore, admin);
+                await appendNationWarEvent(firestore, admin, {
+                    type: normalizedAction === 'siege' ? 'capital_siege' : 'capital_ship_attack',
+                    publicLevel: 'global',
+                    summary: `${getNationLabel(playerNation)}が${getNationLabel(targetNationKey)}首都へ${normalizedAction === 'siege' ? '攻城' : '艦砲射撃'}を敢行`,
+                    details: `城壁に ${damage} ダメージ`,
+                    participants: [playerNation, targetNationKey],
+                    attackerNation: playerNation,
+                    defenderNation: targetNationKey
+                });
+                if (previousWalls > CAPITAL_CAPTURE_BREACH_WALLS && warState.capitalStatus.walls <= CAPITAL_CAPTURE_BREACH_WALLS) {
+                    await appendNationWarEvent(firestore, admin, {
+                        type: 'capital_breach',
+                        publicLevel: 'global',
+                        summary: `${getNationLabel(targetNationKey)}の城壁が破られ、首都へ上陸可能になった`,
+                        details: '前線プレイヤーは首都へ乗り込み、制圧を進められる。',
+                        participants: [playerNation, targetNationKey],
+                        attackerNation: playerNation,
+                        defenderNation: targetNationKey
+                    });
+                }
+            } else if (normalizedAction === 'capture_start' || normalizedAction === 'capture_join' || normalizedAction === 'capture_leave' || normalizedAction === 'capture_complete') {
+                if (isOwnNation) return res.status(403).json({ error: 'OwnCapitalCaptureNotAllowed' });
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                if (Math.max(0, Math.floor(Number(warState.capitalCaptureState.raidCooldownUntilMs) || 0)) > nowMs && normalizedAction !== 'capture_leave') {
+                    return res.status(409).json({ error: 'CapitalRaidCooldownActive' });
+                }
+                if (warState.capitalCaptureState.raidUnlockedAtMs > 0 && normalizedAction !== 'capture_leave') {
+                    return res.status(409).json({ error: 'CapitalAlreadyCaptured' });
+                }
+                if (clampWarPercent(warState.capitalStatus.walls) > CAPITAL_CAPTURE_BREACH_WALLS) {
+                    return res.status(409).json({ error: 'CapitalNotBreached' });
+                }
+                const queue = Array.isArray(warState.capitalCaptureState.queue) ? warState.capitalCaptureState.queue : [];
+                const currentIndex = queue.findIndex((entry) => entry.playFabId === requesterPlayFabId);
+                if (normalizedAction === 'capture_leave') {
+                    if (currentIndex >= 0) queue.splice(currentIndex, 1);
+                } else if (normalizedAction === 'capture_complete') {
+                    if (queue.length <= 0) return res.status(409).json({ error: 'CaptureNotStarted' });
+                    const leader = queue[0];
+                    if (!leader || leader.playFabId !== requesterPlayFabId) return res.status(403).json({ error: 'CaptureLeaderOnly' });
+                    warState.capitalCaptureState = advanceNationWarCaptureState(warState.capitalCaptureState, nowMs);
+                    if (warState.capitalCaptureState.progressBaseMs < warState.capitalCaptureState.baseDurationMs) {
+                        return res.status(409).json({ error: 'CaptureNotReady' });
+                    }
+                    const participantIds = queue.map((entry) => String(entry.playFabId || '').trim()).filter(Boolean);
+                    warState.capitalCaptureState.status = 'captured';
+                    warState.capitalCaptureState.raidUnlockedAtMs = nowMs;
+                    warState.capitalCaptureState.raidUnlockedByNation = playerNation;
+                    warState.capitalCaptureState.lastCapturedByNation = playerNation;
+                    warState.capitalCaptureState.lastCapturedAtMs = nowMs;
+                    warState.capitalCaptureState.lastCaptureParticipantIds = Array.from(new Set(participantIds)).slice(0, 8);
+                    warState.capitalCaptureState.progressBaseMs = warState.capitalCaptureState.baseDurationMs;
+                    warState.capitalCaptureState.queue = [];
+                    warState.capitalCaptureState.lastProgressAt = 0;
+                    warState.capitalCaptureState.endsAt = 0;
+                    await appendNationWarEvent(firestore, admin, {
+                        type: 'capital_capture_complete',
+                        publicLevel: 'global',
+                        summary: `${getNationLabel(targetNationKey)}の首都防衛が崩れ、国庫襲撃が可能になった`,
+                        details: `${getNationLabel(playerNation)}の攻城隊が制圧を完了`,
+                        participants: [playerNation, targetNationKey],
+                        attackerNation: playerNation,
+                        defenderNation: targetNationKey
+                    });
+                } else {
+                    if (currentIndex < 0) {
+                        if (queue.length >= warState.capitalCaptureState.slotLimit) {
+                            return res.status(409).json({ error: 'CaptureFull' });
+                        }
+                        const leadNation = String(queue[0]?.nation || '').toLowerCase();
+                        if (leadNation && leadNation !== playerNation) {
+                            return res.status(409).json({ error: 'CaptureOccupiedByEnemy' });
+                        }
+                        queue.push(buildCapitalCaptureQueueEntry(requesterPlayFabId, playerNation, nowMs));
+                    }
+                }
+                warState.capitalCaptureState.queue = queue;
+                warState.capitalCaptureState = refreshNationWarCaptureState(warState.capitalCaptureState, warState, nowMs);
+                await saveNationWarState(targetNationKey, warState, firestore, admin);
+                if (normalizedAction === 'capture_start' || normalizedAction === 'capture_join') {
+                    await appendNationWarEvent(firestore, admin, {
+                        type: 'capital_capture_start',
+                        publicLevel: 'nation',
+                        summary: `${getNationLabel(playerNation)}が${getNationLabel(targetNationKey)}首都へ上陸`,
+                        details: `参加 ${warState.capitalCaptureState.queue.length}/${warState.capitalCaptureState.slotLimit}`,
+                        participants: [playerNation, targetNationKey],
+                        attackerNation: playerNation,
+                        defenderNation: targetNationKey
+                    });
+                }
+            } else {
+                return res.status(400).json({ error: 'InvalidAction' });
+            }
+
+            warState = await resolveNationWarCaptureState(targetNationKey, warState, firestore, admin);
+            const groupId = await getNationGroupIdByNation(targetNationKey, firestore, nationDeps);
+            const treasuryPs = groupId ? await getGroupTreasuryBalance(groupId, nationDeps) : 0;
+            res.json({
+                success: true,
+                capitalWar: buildCapitalWarStatePayload(targetNationKey, playerNation, warState, treasuryPs)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            console.error('[nation-war-capital-action] Error:', msg);
+            res.status(500).json({ error: 'Failed to process capital action', details: String(msg) });
+        }
+    });
+
+    app.post('/api/nation-war-deploy', async (req, res) => {
+        const { playFabId, weaponId } = req.body || {};
+        if (!playFabId || !weaponId) {
+            return res.status(400).json({ error: 'playFabId and weaponId are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const weapon = getNationWarWeaponDefinition(weaponId);
+            if (!weapon || weapon.actionType !== 'deploy' || !canNationUseWeapon(context.nation, weaponId)) {
+                return res.status(400).json({ error: 'InvalidWeapon' });
+            }
+            const nowMs = Date.now();
+            let warState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            const cooldownUntil = Math.max(0, Math.floor(Number(warState.cooldowns?.[weapon.id] || 0)));
+            if (cooldownUntil > nowMs) {
+                return res.status(409).json({ error: 'WeaponCooldown', remainingMs: cooldownUntil - nowMs });
+            }
+            const alreadyActive = getActiveNationWarSystems(warState, nowMs).some((system) => system.weaponId === weapon.id);
+            if (alreadyActive) {
+                return res.status(409).json({ error: 'AlreadyActive' });
+            }
+            const groupTreasury = await getGroupTreasuryBalance(context.groupId, nationDeps);
+            if (groupTreasury < weapon.costPs) {
+                return res.status(400).json({ error: 'InsufficientTreasury', treasuryPs: groupTreasury, costPs: weapon.costPs });
+            }
+            const spendResult = await subtractNationTreasury(context.nation, weapon.costPs, firestore, nationDeps, {
+                idempotencyId: `nation-war-deploy:${context.nation}:${weapon.id}:${nowMs}`,
+                source: 'war_deploy',
+                label: `兵器配備: ${weapon.label}`,
+                actorId: context.kingId
+            });
+            warState.activeSystems.push(buildNationWarSystemEntry(weapon, nowMs));
+            warState.cooldowns[weapon.id] = nowMs + (Math.max(0, Math.floor(Number(weapon.cooldownSeconds) || 0)) * 1000);
+            await saveNationWarState(context.nation, warState, firestore, admin);
+            await appendNationWarEvent(firestore, admin, {
+                type: 'system_deploy',
+                publicLevel: 'nation',
+                summary: `${getNationLabel(context.nation)}が${weapon.label}を配備`,
+                details: weapon.description || '国家システムを配備した。',
+                participants: [context.nation],
+                attackerNation: context.nation,
+                weaponId: weapon.id
+            });
+            const resolvedState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            res.json({
+                success: true,
+                treasuryPs: spendResult?.treasuryPs ?? null,
+                war: await buildNationWarPagePayload(context.nation, resolvedState, firestore, admin, nationDeps)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[nation-war-deploy] Error:', msg);
+            res.status(500).json({ error: 'Failed to deploy weapon', details: String(msg) });
+        }
+    });
+
+    app.post('/api/nation-war-prepare-strike', async (req, res) => {
+        const { playFabId, weaponId, targetNation, targetPart } = req.body || {};
+        if (!playFabId || !weaponId || !targetNation) {
+            return res.status(400).json({ error: 'playFabId, weaponId and targetNation are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const defenderNation = String(targetNation || '').trim().toLowerCase();
+            if (!NATION_GROUP_BY_NATION[defenderNation] || defenderNation === context.nation) {
+                return res.status(400).json({ error: 'InvalidTargetNation' });
+            }
+            const safeTargetPart = CAPITAL_PART_LABELS[String(targetPart || '').trim()] ? String(targetPart || '').trim() : 'walls';
+            const weapon = getNationWarWeaponDefinition(weaponId);
+            if (!weapon || weapon.actionType !== 'strike' || !canNationUseWeapon(context.nation, weaponId)) {
+                return res.status(400).json({ error: 'InvalidWeapon' });
+            }
+            const nowMs = Date.now();
+            let attackerState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            let defenderState = await resolveNationWarIncoming(defenderNation, await loadNationWarState(defenderNation, firestore, admin, nationDeps), firestore, admin);
+            const cooldownUntil = Math.max(0, Math.floor(Number(attackerState.cooldowns?.[weapon.id] || 0)));
+            if (cooldownUntil > nowMs) {
+                return res.status(409).json({ error: 'WeaponCooldown', remainingMs: cooldownUntil - nowMs });
+            }
+            const groupTreasury = await getGroupTreasuryBalance(context.groupId, nationDeps);
+            if (groupTreasury < weapon.costPs) {
+                return res.status(400).json({ error: 'InsufficientTreasury', treasuryPs: groupTreasury, costPs: weapon.costPs });
+            }
+            const spendResult = await subtractNationTreasury(context.nation, weapon.costPs, firestore, nationDeps, {
+                idempotencyId: `nation-war-strike:${context.nation}:${weapon.id}:${nowMs}`,
+                source: 'war_strike',
+                label: `攻撃準備: ${weapon.label}`,
+                actorId: context.kingId
+            });
+            const attackBonus = buildNationWarAttackSnapshot(attackerState, nowMs);
+            defenderState.incoming.push(buildNationWarStrikeEntry({
+                attackerNation: context.nation,
+                defenderNation,
+                weapon,
+                targetPart: safeTargetPart,
+                attackBonus
+            }, nowMs));
+            attackerState.cooldowns[weapon.id] = nowMs + (Math.max(0, Math.floor(Number(weapon.cooldownSeconds) || 0)) * 1000);
+            await saveNationWarState(context.nation, attackerState, firestore, admin);
+            await saveNationWarState(defenderNation, defenderState, firestore, admin);
+            await appendNationWarEvent(firestore, admin, {
+                type: 'strike_prepare',
+                publicLevel: 'global',
+                summary: `${getNationLabel(context.nation)}が${weapon.label}の発射準備を開始`,
+                details: `${getNationLabel(defenderNation)}の${CAPITAL_PART_LABELS[safeTargetPart] || '首都'}を狙っている。`,
+                participants: [context.nation, defenderNation],
+                attackerNation: context.nation,
+                defenderNation,
+                weaponId: weapon.id
+            });
+            await appendNationWarEvent(firestore, admin, {
+                type: 'incoming_alert',
+                publicLevel: 'nation',
+                summary: `${getNationLabel(defenderNation)}が飛来警報を受信`,
+                details: `${Math.max(1, Math.ceil(Number(weapon.prepSeconds || 0) / 60))}分後に到達見込み。`,
+                participants: [context.nation, defenderNation],
+                attackerNation: context.nation,
+                defenderNation,
+                weaponId: weapon.id
+            });
+            const resolvedState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            res.json({
+                success: true,
+                treasuryPs: spendResult?.treasuryPs ?? null,
+                war: await buildNationWarPagePayload(context.nation, resolvedState, firestore, admin, nationDeps)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[nation-war-prepare-strike] Error:', msg);
+            res.status(500).json({ error: 'Failed to prepare strike', details: String(msg) });
+        }
+    });
+
+    app.post('/api/nation-war-intercept', async (req, res) => {
+        const { playFabId, incomingId, action, interceptSystemId } = req.body || {};
+        if (!playFabId || !incomingId || !action) {
+            return res.status(400).json({ error: 'playFabId, incomingId and action are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const nowMs = Date.now();
+            let warState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            const incoming = warState.incoming.find((row) => row.id === String(incomingId));
+            if (!incoming) {
+                return res.status(404).json({ error: 'IncomingNotFound' });
+            }
+            if (incoming.launchAtMs <= nowMs) {
+                return res.status(409).json({ error: 'IncomingAlreadyResolving' });
+            }
+            const normalizedAction = String(action || '').trim().toLowerCase();
+            if (normalizedAction !== 'intercept' && normalizedAction !== 'skip') {
+                return res.status(400).json({ error: 'InvalidAction' });
+            }
+            incoming.decision = normalizedAction;
+            incoming.interceptSystemId = '';
+            if (normalizedAction === 'intercept') {
+                const system = getActiveNationWarSystems(warState, nowMs)
+                    .find((row) => row.id === String(interceptSystemId || '').trim());
+                if (!system) {
+                    return res.status(400).json({ error: 'InterceptorNotFound' });
+                }
+                const weapon = getNationWarWeaponDefinition(system.weaponId);
+                if (!weapon || weapon.role !== 'intercept' || system.ammoRemaining <= 0) {
+                    return res.status(400).json({ error: 'InterceptorUnavailable' });
+                }
+                incoming.interceptSystemId = system.id;
+            }
+            await saveNationWarState(context.nation, warState, firestore, admin);
+            const incomingWeapon = getNationWarWeaponDefinition(incoming.weaponId);
+            await appendNationWarEvent(firestore, admin, {
+                type: normalizedAction === 'intercept' ? 'intercept_order' : 'intercept_skip',
+                publicLevel: 'nation',
+                summary: normalizedAction === 'intercept'
+                    ? `${getNationLabel(context.nation)}が${incomingWeapon?.label || '飛来物'}への迎撃を指示`
+                    : `${getNationLabel(context.nation)}が${incomingWeapon?.label || '飛来物'}への迎撃を見送った`,
+                details: normalizedAction === 'intercept'
+                    ? `迎撃兵器: ${getNationWarWeaponDefinition(incoming.interceptSystemId ? (warState.activeSystems.find((row) => row.id === incoming.interceptSystemId)?.weaponId || '') : '')?.label || '未設定'}`
+                    : '脅威判定を見送り、消耗を抑える。',
+                participants: [context.nation, incoming.attackerNation],
+                attackerNation: incoming.attackerNation,
+                defenderNation: context.nation,
+                weaponId: incoming.weaponId
+            });
+            const resolvedState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            res.json({
+                success: true,
+                war: await buildNationWarPagePayload(context.nation, resolvedState, firestore, admin, nationDeps)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[nation-war-intercept] Error:', msg);
+            res.status(500).json({ error: 'Failed to update intercept order', details: String(msg) });
+        }
+    });
+
+    app.post('/api/nation-war-raid-treasury', async (req, res) => {
+        const { playFabId, targetNation } = req.body || {};
+        if (!playFabId || !targetNation) {
+            return res.status(400).json({ error: 'playFabId and targetNation are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const defenderNation = String(targetNation || '').trim().toLowerCase();
+            if (!NATION_GROUP_BY_NATION[defenderNation] || defenderNation === context.nation) {
+                return res.status(400).json({ error: 'InvalidTargetNation' });
+            }
+            const attackerState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            const defenderState = await resolveNationWarIncoming(defenderNation, await loadNationWarState(defenderNation, firestore, admin, nationDeps), firestore, admin);
+            const defenderGroupId = await getNationGroupIdByNation(defenderNation, firestore, nationDeps);
+            const defenderTreasuryPs = defenderGroupId ? await getGroupTreasuryBalance(defenderGroupId, nationDeps) : 0;
+            const raidPlan = calculateNationWarRaidPlan(defenderState.capitalStatus, defenderTreasuryPs, defenderState.capitalCaptureState);
+            if (!raidPlan.breachOpen) {
+                return res.status(409).json({ error: 'CapitalNotBreached' });
+            }
+            if (raidPlan.expectedAmount <= 0) {
+                return res.status(409).json({ error: 'NothingToRaid', treasuryPs: defenderTreasuryPs });
+            }
+            const raidAmount = raidPlan.expectedAmount;
+            const raidId = `nation-war-raid:${context.nation}:${defenderNation}:${Date.now()}`;
+            const raidParticipantIds = (
+                defenderState.capitalCaptureState?.lastCapturedByNation === context.nation
+                    ? defenderState.capitalCaptureState?.lastCaptureParticipantIds
+                    : []
+            );
+            const participantIds = Array.isArray(raidParticipantIds)
+                ? Array.from(new Set(raidParticipantIds.map((row) => String(row || '').trim()).filter(Boolean))).slice(0, 8)
+                : [];
+            const participantRewardPulls = raidAmount >= NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD ? 2 : 1;
+            const participantRewards = [];
+            const spendResult = await subtractNationTreasury(defenderNation, raidAmount, firestore, nationDeps, {
+                idempotencyId: `${raidId}:out`,
+                source: 'war_raid',
+                label: `国庫襲撃: ${getNationLabel(context.nation)}`,
+                actorId: context.kingId,
+                note: `${getNationLabel(context.nation)}による襲撃`
+            });
+            await addNationTreasury(context.nation, raidAmount, firestore, nationDeps, {
+                idempotencyId: `${raidId}:in`,
+                source: 'war_raid',
+                label: `国庫襲撃戦果: ${getNationLabel(defenderNation)}`,
+                note: `${getNationLabel(defenderNation)}からの戦果`
+            });
+            for (const participantId of participantIds) {
+                const grantedItemIds = [];
+                for (let pullIndex = 0; pullIndex < participantRewardPulls; pullIndex += 1) {
+                    const rewardItemId = pickRandomNationWarTarotCardId();
+                    await addEconomyItem(participantId, rewardItemId, 1, {
+                        idempotencyId: `${raidId}:card:${participantId}:${pullIndex + 1}:${rewardItemId}`
+                    });
+                    grantedItemIds.push(rewardItemId);
+                }
+                participantRewards.push({
+                    playFabId: participantId,
+                    itemIds: grantedItemIds
+                });
+            }
+            const participantRewardCount = participantRewards.reduce(
+                (sum, entry) => sum + (Array.isArray(entry?.itemIds) ? entry.itemIds.length : 0),
+                0
+            );
+            defenderState.capitalStatus.walls = Math.max(
+                clampWarPercent(defenderState.capitalStatus.walls),
+                NATION_WAR_POST_RAID_WALLS
+            );
+            defenderState.capitalStatus.vault = clampWarPercent(defenderState.capitalStatus.vault - 12);
+            defenderState.capitalStatus.command = clampWarPercent(defenderState.capitalStatus.command - 6);
+            defenderState.capitalCaptureState.raidUnlockedAtMs = 0;
+            defenderState.capitalCaptureState.raidUnlockedByNation = null;
+            defenderState.capitalCaptureState.raidCooldownUntilMs = Date.now() + NATION_WAR_POST_RAID_COOLDOWN_MS;
+            defenderState.capitalCaptureState.queue = [];
+            defenderState.capitalCaptureState.progressBaseMs = 0;
+            defenderState.capitalCaptureState.lastProgressAt = 0;
+            defenderState.capitalCaptureState.endsAt = 0;
+            defenderState.capitalCaptureState.ownerCandidateId = null;
+            defenderState.capitalCaptureState.ownerCandidateNation = null;
+            defenderState.capitalCaptureState.breachedAt = 0;
+            defenderState.capitalCaptureState.lastCapturedByNation = null;
+            defenderState.capitalCaptureState.lastCapturedAtMs = 0;
+            defenderState.capitalCaptureState.lastCaptureParticipantIds = [];
+            defenderState.capitalCaptureState = refreshNationWarCaptureState(defenderState.capitalCaptureState, defenderState, Date.now());
+            await saveNationWarState(defenderNation, defenderState, firestore, admin);
+            const rewardDetails = participantRewardCount > 0
+                ? ` 制圧参加者 ${participantRewards.length} 名にタロットカード ${participantRewardCount} 枚を配布。`
+                : '';
+            await appendNationWarEvent(firestore, admin, {
+                type: 'treasury_raid',
+                publicLevel: 'global',
+                summary: `${getNationLabel(context.nation)}が${getNationLabel(defenderNation)}の国庫を襲撃`,
+                details: `${raidAmount.toLocaleString()} PS を奪取。${rewardDetails}城壁は ${NATION_WAR_POST_RAID_WALLS}% まで復旧し、再襲撃は ${Math.floor(NATION_WAR_POST_RAID_COOLDOWN_MS / 60000)} 分後まで不可。`,
+                participants: [context.nation, defenderNation],
+                attackerNation: context.nation,
+                defenderNation
+            });
+            const resolvedState = await resolveNationWarIncoming(context.nation, await loadNationWarState(context.nation, firestore, admin, nationDeps), firestore, admin);
+            res.json({
+                success: true,
+                raidAmount,
+                defenderTreasuryPs: spendResult?.treasuryPs ?? null,
+                participantRewardPulls,
+                participantRewardCount,
+                participantRewards,
+                war: await buildNationWarPagePayload(context.nation, resolvedState, firestore, admin, nationDeps)
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[nation-war-raid-treasury] Error:', msg);
+            res.status(500).json({ error: 'Failed to raid treasury', details: String(msg) });
         }
     });
 
@@ -1272,24 +2769,26 @@ function initializeNationRoutes(app, deps) {
             let treasuryPs = null;
             let treasuryError = null;
             let grantAmount = 0;
-            let grantMultiplier = 1;
+            let cashbackRateBps = getTreasuryCashbackRateBpsByRank(2);
+            let treasuryRank = 2;
             let grantApplied = false;
             let grantError = null;
 
             if (orderAmount > 0) {
                 try {
+                    const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
+                    cashbackRateBps = cashbackInfo.rateBps;
+                    treasuryRank = cashbackInfo.rank;
                     const treasuryResult = await addNationTreasury(nation, orderAmount, firestore, nationDeps, {
-                        contributorPlayFabId: requesterPlayFabId
+                        contributorPlayFabId: requesterPlayFabId,
+                        contributorName: buyerName,
+                        source: 'troy_order',
+                        label: 'TROY会計',
+                        note: orderLine
                     });
                     treasuryUpdated = true;
                     treasuryPs = treasuryResult?.treasuryPs ?? null;
-                    const groupId = treasuryResult?.groupId || await getNationGroupIdByNation(nation, firestore, nationDeps);
-                    if (groupId) {
-                        const multiplierRaw = await getGroupDataValue(groupId, 'grantMultiplier');
-                        const multiplierValue = Number(multiplierRaw);
-                        grantMultiplier = Number.isFinite(multiplierValue) && multiplierValue >= 0 ? multiplierValue : 1;
-                    }
-                    grantAmount = Math.floor(orderAmount * 0.1 * grantMultiplier);
+                    grantAmount = Math.floor(orderAmount * (cashbackRateBps / 10000));
                     if (grantAmount > 0) {
                         await addEconomyItem(requesterPlayFabId, 'PS', grantAmount);
                         grantApplied = true;
@@ -1322,7 +2821,8 @@ function initializeNationRoutes(app, deps) {
                 treasuryPs,
                 treasuryError,
                 grantAmount,
-                grantMultiplier,
+                cashbackRateBps,
+                treasuryRank,
                 grantApplied,
                 grantError
             });
@@ -1492,17 +2992,15 @@ function initializeNationRoutes(app, deps) {
             const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             const receiverId = normalizePlayFabId(receiverPlayFabId);
             if (!receiverId) return res.status(400).json({ error: 'Invalid receiver PlayFab ID' });
-
-            const multiplierRaw = await getGroupDataValue(context.groupId, 'grantMultiplier');
-            const multiplierValue = Number(multiplierRaw);
-            const multiplier = Number.isFinite(multiplierValue) && multiplierValue > 0 ? multiplierValue : 1;
-
-            const grantAmount = Math.floor(value * 0.1 * multiplier);
+            const cashbackInfo = await getNationTreasuryCashbackInfo(context.nation, firestore, nationDeps);
+            const cashbackRateBps = cashbackInfo.rateBps;
+            const treasuryRank = cashbackInfo.rank;
+            const grantAmount = Math.floor(value * (cashbackRateBps / 10000));
             if (grantAmount <= 0) {
-                const minReceived = Math.ceil(10 / multiplier);
+                const minReceived = Math.ceil(10000 / cashbackRateBps);
                 return res.status(400).json({
                     error: 'Grant amount is zero',
-                    details: `received=${value}, multiplier=${multiplier}, minReceived=${minReceived}`
+                    details: `received=${value}, cashbackRateBps=${cashbackRateBps}, minReceived=${minReceived}`
                 });
             }
 
@@ -1522,7 +3020,9 @@ function initializeNationRoutes(app, deps) {
             try {
                 await addNationTreasury(context.nation, value, firestore, nationDeps, {
                     idempotencyId: idempotencyFor('treasury'),
-                    contributorPlayFabId: receiverId
+                    contributorPlayFabId: receiverId,
+                    source: 'king_grant_receipt',
+                    label: '王の受領'
                 });
             } catch (treasuryError) {
                 treasuryUpdated = false;
@@ -1542,7 +3042,7 @@ function initializeNationRoutes(app, deps) {
                             amount: grantAmount,
                             currency: 'PS',
                             receivedAmount: value,
-                            grantMultiplier: multiplier,
+                            cashbackRateBps,
                             createdAt: admin.firestore.FieldValue.serverTimestamp()
                         });
                 } catch (notifyError) {
@@ -1592,7 +3092,8 @@ function initializeNationRoutes(app, deps) {
                 success: true,
                 receivedAmount: value,
                 grantAmount,
-                grantMultiplier: multiplier,
+                cashbackRateBps,
+                treasuryRank,
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
                 receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
                 treasuryUpdated,
@@ -1769,6 +3270,17 @@ function initializeNationRoutes(app, deps) {
             }
             await addEconomyItem(groupEntity.Id, normalizedCurrency, value, groupEntity);
             const contribution = await addPlayerNationContribution(requesterPlayFabId, value, nationDeps);
+            try {
+                await appendNationTreasuryRecentEntry(nation, firestore, admin, {
+                    amount: value,
+                    currency: normalizedCurrency,
+                    source: 'nation_donation',
+                    label: '国庫寄付',
+                    actorId: requesterPlayFabId
+                });
+            } catch (ledgerError) {
+                console.warn('[donate-nation-currency] Failed to append treasury entry:', ledgerError?.message || ledgerError);
+            }
 
             res.json({
                 success: true,
