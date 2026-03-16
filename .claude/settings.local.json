@@ -1,15 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)",
-      "Bash(npm install:*)",
-      "Bash(ls:*)",
-      "Bash(findstr:*)",
-      "Bash(dir:*)",
-      "Bash(find:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run:*)",
-      "Bash(node --version:*)"
+      "Bash(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Read(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "MultiEdit(*)",
+      "NotebookEdit(*)",
+      "WebFetch(*)",
+      "WebSearch(*)"
     ],
     "deny": [],
     "ask": []
