@@ -2531,7 +2531,7 @@ function showHumanTurnCue() {
     ui.yourTurnBadge.classList.add('show');
   }
 
-  vibrateOnce(24);
+  vibrateOnce(55);
 }
 
 function syncHumanTurnCueState() {
@@ -4914,7 +4914,7 @@ function applyPlay(pi, play, retryDepth = 0) {
     clearPendingTurnAdvanceAfterTrick();
     pulseKingdomPotAnchor(Math.max(760, callCinematicMs - 140));
     playKingdomCoinEffect(pi, getKingdomCallCoinCount(callFxLevel), '🪙', { className: 'is-call-bet', delayMs: 90 });
-    vibrateOnce(32);
+    vibrateOnce(65);
     clearNpcTimer();
     s.phase = 'callCinematic';
     s.message = `${p.name}がコール！ 場札を5枚役に取り込み中...`;

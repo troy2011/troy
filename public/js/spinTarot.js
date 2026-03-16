@@ -275,7 +275,7 @@ async function handleSpin() {
         return;
     }
     spinning = true;
-    if (result.events?.preAlert) vibrateOnce(38);
+    if (result.events?.preAlert) vibrateOnce(65);
     render();
     await wait(CONFIG.ui.spinBounceMs);
     spinning = false;
@@ -461,15 +461,15 @@ function vibratePattern(pattern) {
 function triggerOutcomeHaptics() {
     if (!state || state.phase === 'hold') return;
     if (Number(state.totalPayout || 0) >= 20 || Number(state.lastTreasureCoins || 0) > 0) {
-        vibratePattern([18, 24, 34]);
+        vibratePattern([60, 40, 90]);
         return;
     }
     if (Number(state.totalPayout || 0) > 0 || Number(state.lastAttackDamage || 0) > 0) {
-        vibratePattern([16, 18, 24]);
+        vibratePattern([50, 35, 70]);
         return;
     }
     if (Number(state.lastEnemyDamage || 0) > 0) {
-        vibrateOnce(26);
+        vibrateOnce(55);
     }
 }
 

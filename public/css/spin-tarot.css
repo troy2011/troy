@@ -310,6 +310,7 @@
     50%     { box-shadow: 0 0 16px rgba(255,209,102,0.8); }
 }
 
+.tarot-spin-root .spin-tarot-card.is-arcana {
     background: linear-gradient(180deg, rgba(92, 57, 144, 0.94), rgba(19, 12, 38, 0.98));
 }
 
@@ -938,7 +939,13 @@
 }
 
 .tarot-spin-root .spin-tarot-controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
     gap: 8px;
+    padding: 8px 0 env(safe-area-inset-bottom, 0px);
+    background:
+        linear-gradient(180deg, rgba(8, 11, 22, 0) 0%, rgba(8, 11, 22, 0.97) 18%);
 }
 
 .tarot-spin-root .spin-tarot-board-wrap {
