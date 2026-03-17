@@ -4405,16 +4405,21 @@ body.modal-lock .modal-overlay {
 }
 
 #tarotKingdomSettlementConfirmButton {
-    min-height: 34px;
-    min-width: 196px;
+    min-height: 28px;
+    min-width: 0;
     max-width: 100%;
-    padding: 6px 14px;
-    border-radius: 9px;
+    padding: 4px 11px;
+    border-radius: 999px;
     border: 1px solid rgba(245, 158, 11, 0.5);
     background: linear-gradient(180deg, #b45309, #78350f);
     color: #f8fafc;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 #tarotKingdomSettlementConfirmButton:disabled {
@@ -4451,6 +4456,14 @@ body.modal-lock .modal-overlay {
     font-weight: 700;
     margin-bottom: 6px;
     color: #e5e7eb;
+}
+
+.tarot-kingdom-panel-title--actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .tarot-kingdom-trick-title {
@@ -4721,18 +4734,13 @@ body.modal-lock .modal-overlay {
     gap: 6px;
 }
 
-.tarot-kingdom-players.has-settlement {
-    max-height: min(38vh, 248px);
-    overflow-y: auto;
-    padding-right: 2px;
-    align-content: start;
-    scrollbar-gutter: stable;
-}
-
 .tarot-kingdom-player-actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
-    margin-top: 8px;
+    margin-top: 0;
+    margin-left: auto;
+    flex: 0 0 auto;
 }
 
 .tarot-kingdom-players-summary {
@@ -4861,26 +4869,24 @@ body.modal-lock .modal-overlay {
 .tarot-kingdom-player-row.is-settlement {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
     min-height: 30px;
-    padding: 4px 7px;
+    padding: 7px 7px 4px;
 }
 
 .tarot-kingdom-player-row.is-settlement .tarot-kingdom-player-meta {
     flex-wrap: nowrap;
     justify-content: flex-end;
+    gap: 4px;
     max-width: min(58%, 260px);
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-}
-
-.tarot-kingdom-player-row.is-settlement .tarot-kingdom-player-meta::-webkit-scrollbar {
-    display: none;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .tarot-kingdom-player-row.is-settlement .tarot-kingdom-rank-medal {
-    font-size: 16px;
-    margin-left: 0;
+    font-size: 18px;
+    margin-left: 2px;
 }
 
 .tarot-kingdom-rank-medal {
@@ -4957,35 +4963,38 @@ body.modal-lock .modal-overlay {
     font-weight: 800;
 }
 
-.tarot-kingdom-settle-chip {
+.tarot-kingdom-settle-float {
+    position: absolute;
+    top: 0;
+    right: 8px;
+    transform: translateY(-48%);
     display: inline-flex;
     align-items: center;
-    padding: 1px 6px;
+    padding: 2px 7px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 900;
     letter-spacing: 0.01em;
     border: 1px solid rgba(148, 163, 184, 0.42);
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(15, 23, 42, 0.96);
     color: #e2e8f0;
+    box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.3),
+        0 4px 10px rgba(2, 6, 23, 0.42);
+    pointer-events: none;
+    z-index: 1;
 }
 
-.tarot-kingdom-settle-chip.is-gain {
+.tarot-kingdom-settle-float.is-gain {
     border-color: rgba(34, 197, 94, 0.62);
-    background: rgba(21, 128, 61, 0.28);
-    color: #bbf7d0;
+    background: rgba(21, 128, 61, 0.92);
+    color: #dcfce7;
 }
 
-.tarot-kingdom-settle-chip.is-loss {
+.tarot-kingdom-settle-float.is-loss {
     border-color: rgba(248, 113, 113, 0.62);
-    background: rgba(127, 29, 29, 0.32);
-    color: #fecaca;
-}
-
-.tarot-kingdom-settle-chip.is-factor {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(12, 74, 110, 0.35);
-    color: #bae6fd;
+    background: rgba(127, 29, 29, 0.92);
+    color: #fee2e2;
 }
 
 .tarot-kingdom-flag {
@@ -10947,14 +10956,25 @@ textarea {
         font-size: 10px;
     }
 
-    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-actions {
-        margin-top: 6px;
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-panel-title--actions {
+        gap: 6px;
     }
 
-    #tabContentTarot #tarotKingdomRoot #tarotKingdomPlayers.has-settlement {
-        max-height: min(34dvh, 220px);
-        overflow-y: auto;
-        padding-right: 2px;
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-actions {
+        margin-top: 0;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomSettlementConfirmButton {
+        padding: 4px 10px;
+        font-size: 10px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-row.is-settlement {
+        padding-top: 8px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-settle-float {
+        right: 7px;
     }
 
     #tabContentTarot #tarotKingdomRoot #tarotKingdomLog.tarot-log {

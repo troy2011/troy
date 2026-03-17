@@ -5457,7 +5457,6 @@ function cardNode(card, opt = {}) {
 function renderPlayers() {
   const settlementData = s?.roundSettlement || null;
   const showRankingMedals = String(s?.phase || '') === 'done';
-  ui.players.classList.toggle('has-settlement', !!settlementData || showRankingMedals);
   ui.players.innerHTML = '';
   if (settlementData) {
     const winnerName = String(settlementData.winnerName || pName(Number(settlementData.winnerIndex)));
@@ -5546,21 +5545,20 @@ function renderPlayers() {
       right.appendChild(slash);
     }
     right.appendChild(chipsMeta);
+    let settleFloat = null;
     if (settlementPayerRow) {
       const pay = Math.max(0, Number(settlementPayerRow.pay) || 0);
       if (pay > 0) {
-        const loss = document.createElement('span');
-        loss.className = 'tarot-kingdom-settle-chip is-loss';
-        loss.textContent = `-${pay}TP`;
-        right.appendChild(loss);
+        settleFloat = document.createElement('span');
+        settleFloat.className = 'tarot-kingdom-settle-float is-loss';
+        settleFloat.textContent = `-${pay}TP`;
       }
     } else if (isSettlementWinner) {
       const gain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
       if (gain > 0) {
-        const gainEl = document.createElement('span');
-        gainEl.className = 'tarot-kingdom-settle-chip is-gain';
-        gainEl.textContent = `+${gain}TP`;
-        right.appendChild(gainEl);
+        settleFloat = document.createElement('span');
+        settleFloat.className = 'tarot-kingdom-settle-float is-gain';
+        settleFloat.textContent = `+${gain}TP`;
       }
     }
     if (showRankingMedals) {
@@ -5572,7 +5570,10 @@ function renderPlayers() {
         right.appendChild(medal);
       }
     }
-    row.appendChild(left); row.appendChild(right); ui.players.appendChild(row);
+    row.appendChild(left);
+    row.appendChild(right);
+    if (settleFloat) row.appendChild(settleFloat);
+    ui.players.appendChild(row);
   });
 }
 
