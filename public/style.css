@@ -4721,6 +4721,14 @@ body.modal-lock .modal-overlay {
     gap: 6px;
 }
 
+.tarot-kingdom-players.has-settlement {
+    max-height: min(38vh, 248px);
+    overflow-y: auto;
+    padding-right: 2px;
+    align-content: start;
+    scrollbar-gutter: stable;
+}
+
 .tarot-kingdom-player-actions {
     display: flex;
     justify-content: flex-end;
@@ -4858,9 +4866,16 @@ body.modal-lock .modal-overlay {
 }
 
 .tarot-kingdom-player-row.is-settlement .tarot-kingdom-player-meta {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    max-width: min(52%, 240px);
+    max-width: min(58%, 260px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+.tarot-kingdom-player-row.is-settlement .tarot-kingdom-player-meta::-webkit-scrollbar {
+    display: none;
 }
 
 .tarot-kingdom-player-row.is-settlement .tarot-kingdom-rank-medal {
@@ -10934,6 +10949,12 @@ textarea {
 
     #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-actions {
         margin-top: 6px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot #tarotKingdomPlayers.has-settlement {
+        max-height: min(34dvh, 220px);
+        overflow-y: auto;
+        padding-right: 2px;
     }
 
     #tabContentTarot #tarotKingdomRoot #tarotKingdomLog.tarot-log {

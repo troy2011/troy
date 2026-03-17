@@ -93,6 +93,7 @@ let s = null;
 let bound = false;
 let npcTimer = null;
 let trickRenderKey = '';
+let trickRenderIdentityKey = '';
 let trickRenderToken = 0;
 let trickSwapTimer = null;
 let stateErrorTimer = null;
@@ -1227,7 +1228,8 @@ function getAutoFoldCallToken(play) {
         String(card?.kind || ''),
         String(card?.suit || ''),
         String(card?.number ?? ''),
-        String(card?.displayNumberOverride ?? '')
+        String(card?.displayNumberOverride ?? ''),
+        String(card?.displayNumberLabelOverride ?? '')
       ].join(':')).join('|')
     : '';
   return [owner, String(play.role || ''), count, cards].join('#');
@@ -3531,6 +3533,7 @@ function resetMatch() {
   netLastStateHash = '';
   if (trickSwapTimer) { clearTimeout(trickSwapTimer); trickSwapTimer = null; }
   trickRenderKey = '';
+  trickRenderIdentityKey = '';
   trickRenderToken += 1;
   if (stateErrorTimer) { clearTimeout(stateErrorTimer); stateErrorTimer = null; }
   clearOracleFlipTimers();
@@ -3867,14 +3870,6 @@ function buildCallPlay(pi, sel) {
     && p.hand.some((c) => Number(c?.number) === baseNumber);
   if (role.key === 'Straight' && hasSameNumberInHand) {
     return { ok: false, reason: 'ストレートコール制限: 手札（選択中含む）に場札と同数値があるため不可です。' };
-  }
-  if (role.key === 'Straight') {
-    const basePower = cStrength(base);
-    const straightHighValue = Number(role?.primary?.[0] || 0);
-    const isAceWheelException = isMinorAceCard(base) && straightHighValue === 5;
-    if (!isAceWheelException && basePower === straightHighValue) {
-      return { ok: false, reason: 'ストレートコール制限: 場札がハイカードになる構成は不可です。' };
-    }
   }
   if (role.key === 'Flush') {
     const baseSuit = (suitsForCard(base, false) || [])[0] || 'None';
@@ -4813,6 +4808,9 @@ function applyPlay(pi, play, retryDepth = 0) {
   // Clear stale, transient number labels before applying the current-play label hints.
   const clearTransientNumberLabel = (card) => {
     if (!card || typeof card !== 'object') return;
+    if (Object.prototype.hasOwnProperty.call(card, 'displayNumberOverride')) {
+      delete card.displayNumberOverride;
+    }
     if (Object.prototype.hasOwnProperty.call(card, 'displayNumberLabelOverride')) {
       delete card.displayNumberLabelOverride;
     }
@@ -4831,8 +4829,8 @@ function applyPlay(pi, play, retryDepth = 0) {
     const applySetSwitchLabel = (card) => {
       if (!card || card.kind !== 'major') return;
       const n = Number(card.number || 0);
-      if (n === 3 && chosen === 13) card.displayNumberLabelOverride = '3→13';
-      if (n === 4 && chosen === 14) card.displayNumberLabelOverride = '4→14';
+      if (n === 3 && chosen === 13) card.displayNumberOverride = 13;
+      if (n === 4 && chosen === 14) card.displayNumberOverride = 14;
     };
     play.cardsTable.forEach(applySetSwitchLabel);
     play.cardsHand.forEach(applySetSwitchLabel);
@@ -4843,8 +4841,8 @@ function applyPlay(pi, play, retryDepth = 0) {
         if (!card || card.kind !== 'major' || !card.id) return;
         const target = Number(switchMap[String(card.id)] || 0);
         const n = Number(card.number || 0);
-        if (n === 3 && target === 13) card.displayNumberLabelOverride = '3→13';
-        if (n === 4 && target === 14) card.displayNumberLabelOverride = '4→14';
+        if (n === 3 && target === 13) card.displayNumberOverride = 13;
+        if (n === 4 && target === 14) card.displayNumberOverride = 14;
       };
       play.cardsTable.forEach(applyRoleSwitchLabel);
       play.cardsHand.forEach(applyRoleSwitchLabel);
@@ -5129,6 +5127,52 @@ function summarizeNpcHandPotential(playerIndex) {
   };
 }
 
+function getNpcPlayCardStats(play) {
+  const cards = Array.isArray(play?.cardsHand) ? play.cardsHand : [];
+  let majorCount = 0;
+  let aceCount = 0;
+  let maxStrength = 0;
+  let totalStrength = 0;
+  cards.forEach((card) => {
+    if (!card) return;
+    if (card.kind === 'major') majorCount += 1;
+    if (isMinorAceCard(card)) aceCount += 1;
+    const strength = Number(cStrength(card) || 0);
+    if (strength > maxStrength) maxStrength = strength;
+    totalStrength += strength;
+  });
+  return { majorCount, aceCount, maxStrength, totalStrength };
+}
+
+function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED) {
+  if (a?.type !== b?.type) {
+    if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
+      if (a?.type === 'role' && b?.type === 'set') return -1;
+      if (a?.type === 'set' && b?.type === 'role') return 1;
+    } else {
+      if (a?.type === 'role' && b?.type === 'set') return 1;
+      if (a?.type === 'set' && b?.type === 'role') return -1;
+    }
+  }
+  const aCount = Number(a?.count || 0);
+  const bCount = Number(b?.count || 0);
+  if (aCount !== bCount) return aCount - bCount;
+  if (a?.type === 'role' && b?.type === 'role') {
+    const roleCmp = compareRole(a?.role, b?.role);
+    if (roleCmp !== 0) return roleCmp;
+  } else if (a?.type === 'set' && b?.type === 'set') {
+    const setOrder = setCmp(a?.setPower ?? a?.number, b?.setPower ?? b?.number);
+    if (setOrder !== 0) return setOrder;
+  }
+  const aStats = getNpcPlayCardStats(a);
+  const bStats = getNpcPlayCardStats(b);
+  if (aStats.majorCount !== bStats.majorCount) return aStats.majorCount - bStats.majorCount;
+  if (aStats.aceCount !== bStats.aceCount) return aStats.aceCount - bStats.aceCount;
+  if (aStats.maxStrength !== bStats.maxStrength) return aStats.maxStrength - bStats.maxStrength;
+  if (aStats.totalStrength !== bStats.totalStrength) return aStats.totalStrength - bStats.totalStrength;
+  return Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
+}
+
 function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
   if (!Array.isArray(sets) || !sets.length || !(singleOnlyIds instanceof Set) || !singleOnlyIds.size) return null;
   const aiStyle = getNpcAiStyle(pi);
@@ -5138,6 +5182,8 @@ function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
     return !!cardId && singleOnlyIds.has(cardId);
   });
   if (!candidates.length) return null;
+  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
+  return candidates[0] || null;
   candidates.sort((a, b) => {
     const aPower = a?.setPower ?? a?.number ?? 0;
     const bPower = b?.setPower ?? b?.number ?? 0;
@@ -5193,9 +5239,7 @@ function npcDecide(pi) {
     if (!calls.length) return { action: 'pass' };
     const outNow = calls.find((m) => m.selected.length === p.hand.length);
     if (outNow) return { action: 'play', play: outNow };
-    calls.sort((a, b) => (aiStyle === NPC_AI_STYLE.CAUTIOUS
-      ? compareRole(a.role, b.role)
-      : compareRole(b.role, a.role)));
+    calls.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
     return { action: 'play', play: calls[0] };
   }
   const all = [...calls, ...roles, ...sets];
@@ -5216,28 +5260,7 @@ function npcDecide(pi) {
 }
 
 function sortNpcPlayCandidates(all, aiStyle = NPC_AI_STYLE.BALANCED) {
-  all.sort((a, b) => {
-    if (aiStyle === NPC_AI_STYLE.CAUTIOUS) {
-      if (a.type === 'role' && b.type === 'set') return 1;
-      if (a.type === 'set' && b.type === 'role') return -1;
-      if (a.type === 'role' && b.type === 'role') return compareRole(a.role, b.role);
-      return setCmp(a.setPower ?? a.number, b.setPower ?? b.number)
-        || (Number(a?.count || 0) - Number(b?.count || 0))
-        || (Number(a?.suitTier || 0) - Number(b?.suitTier || 0));
-    }
-    if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
-      if (a.type === 'role' && b.type === 'set') return -1;
-      if (a.type === 'set' && b.type === 'role') return 1;
-      if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
-      return setCmp(b.setPower ?? b.number, a.setPower ?? a.number)
-        || (Number(b?.count || 0) - Number(a?.count || 0))
-        || (Number(b?.suitTier || 0) - Number(a?.suitTier || 0));
-    }
-    if (a.type === 'role' && b.type === 'set') return -1;
-    if (a.type === 'set' && b.type === 'role') return 1;
-    if (a.type === 'role' && b.type === 'role') return compareRole(b.role, a.role);
-    return setCmp(b.setPower ?? b.number, a.setPower ?? a.number) || (b.suitTier - a.suitTier);
-  });
+  all.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
   return all;
 }
 
@@ -5432,8 +5455,10 @@ function cardNode(card, opt = {}) {
 }
 
 function renderPlayers() {
-  ui.players.innerHTML = '';
   const settlementData = s?.roundSettlement || null;
+  const showRankingMedals = String(s?.phase || '') === 'done';
+  ui.players.classList.toggle('has-settlement', !!settlementData || showRankingMedals);
+  ui.players.innerHTML = '';
   if (settlementData) {
     const winnerName = String(settlementData.winnerName || pName(Number(settlementData.winnerIndex)));
     const shownGain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
@@ -5444,7 +5469,6 @@ function renderPlayers() {
       : `局結果: ${winnerName} +${shownGain}TP`;
     ui.players.appendChild(summary);
   }
-  const showRankingMedals = String(s?.phase || '') === 'done';
   const rankByIndex = new Map();
   if (showRankingMedals) {
     getKingdomChipRanking().forEach((entry) => {
@@ -5582,8 +5606,23 @@ function renderTrick() {
       }
     }
   }
+  const nextIdentityKey = cards.length
+    ? cards.map((c) => [
+        String(c?.id || ''),
+        String(c?.kind || ''),
+        String(c?.suit || ''),
+        String(c?.number ?? '')
+      ].join(':')).join('|')
+    : '__empty__';
   const nextKey = cards.length
-    ? cards.map((c) => c?.id || `${c?.kind || ''}:${c?.suit || ''}:${c?.number ?? ''}`).join('|')
+    ? cards.map((c) => [
+        String(c?.id || ''),
+        String(c?.kind || ''),
+        String(c?.suit || ''),
+        String(c?.number ?? ''),
+        String(c?.displayNumberOverride ?? ''),
+        String(c?.displayNumberLabelOverride ?? '')
+      ].join(':')).join('|')
     : '__empty__';
   const renderNow = () => {
     ui.trick.classList.remove('is-hit-stop');
@@ -5648,6 +5687,12 @@ function renderTrick() {
     if (!hasVisibleNode) renderNow();
     return;
   }
+  if (nextIdentityKey === trickRenderIdentityKey) {
+    trickRenderKey = nextKey;
+    renderNow();
+    return;
+  }
+  trickRenderIdentityKey = nextIdentityKey;
   trickRenderKey = nextKey;
 
   if (trickSwapTimer) {
@@ -7050,6 +7095,7 @@ export function destroyTarotKingdomPage() {
   ui.actionPopup?.classList.remove('is-call-locked');
 
   trickRenderKey = '';
+  trickRenderIdentityKey = '';
   trickRenderToken += 1;
   npcActInFlight = false;
   teardownTarotKingdomNetwork();
