@@ -694,8 +694,8 @@ function buildTarotManifestationEntry(slot, majorItem, minorItem, options = {}) 
     const manifestedAt = String(options.manifestedAt || new Date().toISOString());
     const manifestedByName = String(options.manifestedByName || '').trim();
     const description = templateName
-        ? `${sourceCardName || '小アルカナ'}が${getTarotSlotLabel(normalizedSlot)}で${templateName}に具現化した装備。`
-        : `${sourceCardName || '小アルカナ'}が${getTarotSlotLabel(normalizedSlot)}に具現化した装備。`;
+        ? `${sourceCardName || '小アルカナ'}が具現化した${getTarotSlotLabel(normalizedSlot)}装備「${templateName}」。`
+        : `${sourceCardName || '小アルカナ'}が具現化した${getTarotSlotLabel(normalizedSlot)}装備。`;
     return {
         kind: 'tarot_manifestation',
         slot: normalizedSlot,

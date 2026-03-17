@@ -9,7 +9,8 @@
     "check:encoding:staged": "node scripts/check-encoding.js --staged",
     "setup:hooks": "git config core.hooksPath .githooks",
     "catalog:sync": "node scripts/sync-catalog-v2.js",
-    "catalog:sync:publish": "node scripts/sync-catalog-v2.js --publish"
+    "catalog:sync:publish": "node scripts/sync-catalog-v2.js --publish",
+    "catalog:get": "node scripts/get-catalog-item.js"
   },
   "keywords": [],
   "author": "",
