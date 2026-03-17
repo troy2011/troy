@@ -10960,20 +10960,15 @@ textarea {
     }
 
     #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand {
-        --tarot-card-w: 21px;
-        --tarot-card-h: 34px;
-        --tarot-card-radius: 4px;
-        --tarot-card-padding: 1px;
-        --tarot-card-number-size: 9px;
-        --tarot-card-title-size: 6px;
         gap: 1px;
         flex-wrap: nowrap;
-        justify-content: space-between;
-        overflow: hidden;
-    }
-
-    #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand .tarot-card-art {
-        transform: translate(-50%, -50%) scale(0.4);
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-top: 4px;
+        padding-bottom: 2px;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
     }
 
     #tabContentTarot #tarotKingdomHand.tarot-kingdom-hand .tarot-card.is-selected {
