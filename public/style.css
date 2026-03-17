@@ -4875,6 +4875,10 @@ body.modal-lock .modal-overlay {
     padding: 7px 7px 4px;
 }
 
+.tarot-kingdom-player-row.is-settlement.has-settle-float {
+    padding-right: 74px;
+}
+
 .tarot-kingdom-player-row.is-settlement .tarot-kingdom-player-meta {
     flex-wrap: nowrap;
     justify-content: flex-end;
@@ -10971,6 +10975,10 @@ textarea {
 
     #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-row.is-settlement {
         padding-top: 8px;
+    }
+
+    #tabContentTarot #tarotKingdomRoot .tarot-kingdom-player-row.is-settlement.has-settle-float {
+        padding-right: 70px;
     }
 
     #tabContentTarot #tarotKingdomRoot .tarot-kingdom-settle-float {

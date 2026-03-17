@@ -5017,18 +5017,29 @@ function hasNpcStraightSeed(values) {
   return (list[list.length - 1] - list[0]) <= 4;
 }
 
-function collectNpcRoleSeedCardIds(pi) {
+function collectNpcRoleSeedInfo(pi) {
   const p = s.players?.[pi];
-  if (!p) return new Set();
-  const out = new Set();
+  if (!p) return new Map();
+  const out = new Map();
   const hand = Array.isArray(p.hand) ? p.hand : [];
+  const touch = (card, key, amount = 1) => {
+    const cardId = card?.id;
+    if (!cardId) return;
+    let entry = out.get(cardId);
+    if (!entry) {
+      entry = { flushSeedCount: 0, straightSeedCount: 0 };
+      out.set(cardId, entry);
+    }
+    entry[key] += amount;
+  };
 
   // 3枚以上同スートがある時は、フラッシュの種として残す。
   SUITS.forEach((suit) => {
     const suitCards = hand.filter((card) => suitsForCard(card, true).includes(suit));
     if (suitCards.length >= 3) {
+      const weight = Math.max(1, suitCards.length - 2);
       suitCards.forEach((card) => {
-        if (card?.id) out.add(card.id);
+        touch(card, 'flushSeedCount', weight);
       });
     }
   });
@@ -5064,7 +5075,7 @@ function collectNpcRoleSeedCardIds(pi) {
     walk(0, []);
     if (canSeed) {
       pickedCards.forEach((card) => {
-        if (card?.id) out.add(card.id);
+        touch(card, 'straightSeedCount', 1);
       });
     }
   });
@@ -5072,11 +5083,21 @@ function collectNpcRoleSeedCardIds(pi) {
   return out;
 }
 
+function collectNpcRoleSeedCardIds(pi) {
+  const out = new Set();
+  collectNpcRoleSeedInfo(pi).forEach((entry, cardId) => {
+    if ((Number(entry?.flushSeedCount || 0) + Number(entry?.straightSeedCount || 0)) > 0) {
+      out.add(cardId);
+    }
+  });
+  return out;
+}
+
 function collectNpcSingleOnlyCardIds(pi, calls, roles, sets) {
   const p = s.players?.[pi];
   if (!p) return new Set();
   const multiUse = new Set();
-  const roleSeed = collectNpcRoleSeedCardIds(pi);
+  const roleSeedInfo = collectNpcRoleSeedInfo(pi);
   const addCards = (play) => {
     (play?.cardsHand || []).forEach((card) => {
       if (card?.id) multiUse.add(card.id);
@@ -5089,7 +5110,11 @@ function collectNpcSingleOnlyCardIds(pi, calls, roles, sets) {
   });
   const out = new Set();
   p.hand.forEach((card) => {
-    if (card?.id && !multiUse.has(card.id) && !roleSeed.has(card.id)) out.add(card.id);
+    if (!card?.id) return;
+    if (card.kind === 'major' || isMinorAceCard(card)) return;
+    if (multiUse.has(card.id)) return;
+    if (roleSeedInfo.has(card.id)) return;
+    out.add(card.id);
   });
   return out;
 }
@@ -5144,7 +5169,111 @@ function getNpcPlayCardStats(play) {
   return { majorCount, aceCount, maxStrength, totalStrength };
 }
 
-function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED) {
+function createNpcReserveContext(pi, calls = [], roles = [], sets = []) {
+  const p = s.players?.[pi];
+  const byCardId = new Map();
+  const roleSeedInfo = collectNpcRoleSeedInfo(pi);
+  const ensureEntry = (card) => {
+    const cardId = card?.id;
+    if (!cardId) return null;
+    let entry = byCardId.get(cardId);
+    if (!entry) {
+      entry = {
+        callCount: 0,
+        roleCount: 0,
+        multiSetCount: 0,
+        flushSeedCount: 0,
+        straightSeedCount: 0,
+        isMajor: card?.kind === 'major',
+        isAce: isMinorAceCard(card)
+      };
+      byCardId.set(cardId, entry);
+    }
+    return entry;
+  };
+  const bumpCards = (play, key) => {
+    (play?.cardsHand || []).forEach((card) => {
+      const entry = ensureEntry(card);
+      if (entry) entry[key] += 1;
+    });
+  };
+  (p?.hand || []).forEach((card) => {
+    const entry = ensureEntry(card);
+    if (!entry) return;
+    const seed = roleSeedInfo.get(card.id);
+    if (seed) {
+      entry.flushSeedCount = Number(seed.flushSeedCount || 0);
+      entry.straightSeedCount = Number(seed.straightSeedCount || 0);
+    }
+  });
+  (calls || []).forEach((play) => bumpCards(play, 'callCount'));
+  (roles || []).forEach((play) => bumpCards(play, 'roleCount'));
+  (sets || []).forEach((play) => {
+    if (Number(play?.count || 0) >= 2) bumpCards(play, 'multiSetCount');
+  });
+  const singleOnlyIds = new Set();
+  byCardId.forEach((entry, cardId) => {
+    const seedWeight = entry.flushSeedCount + entry.straightSeedCount;
+    entry.futureUseWeight =
+      (entry.roleCount * 20)
+      + (entry.callCount * 16)
+      + (entry.multiSetCount * 12)
+      + (entry.flushSeedCount * 8)
+      + (entry.straightSeedCount * 7);
+    entry.isProtected = entry.futureUseWeight > 0;
+    entry.isSingleOnly = !entry.isProtected && !entry.isMajor && !entry.isAce;
+    entry.preserveBias = entry.futureUseWeight + seedWeight + (entry.isMajor ? 5 : 0) + (entry.isAce ? 4 : 0);
+    if (entry.isSingleOnly) singleOnlyIds.add(cardId);
+  });
+  return {
+    byCardId,
+    singleOnlyIds,
+    playStats: new WeakMap()
+  };
+}
+
+function getNpcPlayReserveStats(play, reserveContext) {
+  if (!reserveContext) {
+    return {
+      preserveBias: 0,
+      futureUseWeight: 0,
+      protectedCardCount: 0,
+      deadSingleCount: 0,
+      seedTouchCount: 0,
+      roleTouchCount: 0,
+      callTouchCount: 0,
+      multiSetTouchCount: 0
+    };
+  }
+  const cached = reserveContext.playStats.get(play);
+  if (cached) return cached;
+  const out = {
+    preserveBias: 0,
+    futureUseWeight: 0,
+    protectedCardCount: 0,
+    deadSingleCount: 0,
+    seedTouchCount: 0,
+    roleTouchCount: 0,
+    callTouchCount: 0,
+    multiSetTouchCount: 0
+  };
+  (play?.cardsHand || []).forEach((card) => {
+    const entry = reserveContext.byCardId.get(card?.id);
+    if (!entry) return;
+    out.preserveBias += Number(entry.preserveBias || 0);
+    out.futureUseWeight += Number(entry.futureUseWeight || 0);
+    if (entry.isProtected) out.protectedCardCount += 1;
+    if (entry.isSingleOnly) out.deadSingleCount += 1;
+    if ((Number(entry.flushSeedCount || 0) + Number(entry.straightSeedCount || 0)) > 0) out.seedTouchCount += 1;
+    if (Number(entry.roleCount || 0) > 0) out.roleTouchCount += 1;
+    if (Number(entry.callCount || 0) > 0) out.callTouchCount += 1;
+    if (Number(entry.multiSetCount || 0) > 0) out.multiSetTouchCount += 1;
+  });
+  reserveContext.playStats.set(play, out);
+  return out;
+}
+
+function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED, reserveContext = null) {
   if (a?.type !== b?.type) {
     if (aiStyle === NPC_AI_STYLE.AGGRESSIVE) {
       if (a?.type === 'role' && b?.type === 'set') return -1;
@@ -5157,6 +5286,18 @@ function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED) {
   const aCount = Number(a?.count || 0);
   const bCount = Number(b?.count || 0);
   if (aCount !== bCount) return aCount - bCount;
+  const aReserve = getNpcPlayReserveStats(a, reserveContext);
+  const bReserve = getNpcPlayReserveStats(b, reserveContext);
+  if (aCount === 1 && bCount === 1 && a?.type === 'set' && b?.type === 'set') {
+    if (aReserve.deadSingleCount !== bReserve.deadSingleCount) return bReserve.deadSingleCount - aReserve.deadSingleCount;
+  }
+  if (aReserve.preserveBias !== bReserve.preserveBias) return aReserve.preserveBias - bReserve.preserveBias;
+  if (aReserve.futureUseWeight !== bReserve.futureUseWeight) return aReserve.futureUseWeight - bReserve.futureUseWeight;
+  if (aReserve.protectedCardCount !== bReserve.protectedCardCount) return aReserve.protectedCardCount - bReserve.protectedCardCount;
+  if (aReserve.seedTouchCount !== bReserve.seedTouchCount) return aReserve.seedTouchCount - bReserve.seedTouchCount;
+  if (aReserve.roleTouchCount !== bReserve.roleTouchCount) return aReserve.roleTouchCount - bReserve.roleTouchCount;
+  if (aReserve.callTouchCount !== bReserve.callTouchCount) return aReserve.callTouchCount - bReserve.callTouchCount;
+  if (aReserve.multiSetTouchCount !== bReserve.multiSetTouchCount) return aReserve.multiSetTouchCount - bReserve.multiSetTouchCount;
   if (a?.type === 'role' && b?.type === 'role') {
     const roleCmp = compareRole(a?.role, b?.role);
     if (roleCmp !== 0) return roleCmp;
@@ -5173,28 +5314,16 @@ function compareNpcPlaysForConserve(a, b, aiStyle = NPC_AI_STYLE.BALANCED) {
   return Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
 }
 
-function pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds) {
-  if (!Array.isArray(sets) || !sets.length || !(singleOnlyIds instanceof Set) || !singleOnlyIds.size) return null;
+function pickNpcOpeningSinglePlay(pi, sets, reserveContext) {
+  if (!Array.isArray(sets) || !sets.length || !reserveContext?.singleOnlyIds?.size) return null;
   const aiStyle = getNpcAiStyle(pi);
   const candidates = sets.filter((play) => {
     if (play?.type !== 'set' || Number(play.count) !== 1) return false;
     const cardId = play?.cardsHand?.[0]?.id;
-    return !!cardId && singleOnlyIds.has(cardId);
+    return !!cardId && reserveContext.singleOnlyIds.has(cardId);
   });
   if (!candidates.length) return null;
-  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
-  return candidates[0] || null;
-  candidates.sort((a, b) => {
-    const aPower = a?.setPower ?? a?.number ?? 0;
-    const bPower = b?.setPower ?? b?.number ?? 0;
-    const byPower = aiStyle === NPC_AI_STYLE.AGGRESSIVE
-      ? setCmp(bPower, aPower)
-      : setCmp(aPower, bPower); // 慎重/標準は弱い方、強気は高い方から処理
-    if (byPower !== 0) return byPower;
-    return aiStyle === NPC_AI_STYLE.AGGRESSIVE
-      ? Number(b?.suitTier || 0) - Number(a?.suitTier || 0)
-      : Number(a?.suitTier || 0) - Number(b?.suitTier || 0);
-  });
+  candidates.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle, reserveContext));
   return candidates[0] || null;
 }
 
@@ -5235,11 +5364,12 @@ function pickNpcPressurePlay(calls, roles, sets) {
 function npcDecide(pi) {
   const aiStyle = getNpcAiStyle(pi);
   const p = s.players[pi], calls = callMoves(pi), sets = setMoves(pi), roles = roleMoves(pi);
+  const reserveContext = createNpcReserveContext(pi, calls, roles, sets);
   if (s.callOnly) {
     if (!calls.length) return { action: 'pass' };
     const outNow = calls.find((m) => m.selected.length === p.hand.length);
     if (outNow) return { action: 'play', play: outNow };
-    calls.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
+    calls.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle, reserveContext));
     return { action: 'play', play: calls[0] };
   }
   const all = [...calls, ...roles, ...sets];
@@ -5251,30 +5381,29 @@ function npcDecide(pi) {
     if (pressurePlay) return { action: 'play', play: pressurePlay };
   }
   if (isNpcOpeningPhase(pi)) {
-    const singleOnlyIds = collectNpcSingleOnlyCardIds(pi, calls, roles, sets);
-    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
+    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, reserveContext);
     if (openingSingle) return { action: 'play', play: openingSingle };
   }
-  sortNpcPlayCandidates(all, aiStyle);
+  sortNpcPlayCandidates(all, aiStyle, reserveContext);
   return { action: 'play', play: all[0] };
 }
 
-function sortNpcPlayCandidates(all, aiStyle = NPC_AI_STYLE.BALANCED) {
-  all.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle));
+function sortNpcPlayCandidates(all, aiStyle = NPC_AI_STYLE.BALANCED, reserveContext = null) {
+  all.sort((a, b) => compareNpcPlaysForConserve(a, b, aiStyle, reserveContext));
   return all;
 }
 
 function pickBestNpcLeadPlay(pi) {
   const sets = setMoves(pi);
   const roles = roleMoves(pi);
+  const reserveContext = createNpcReserveContext(pi, [], roles, sets);
   if (isNpcOpeningPhase(pi)) {
-    const singleOnlyIds = collectNpcSingleOnlyCardIds(pi, [], roles, sets);
-    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, singleOnlyIds);
+    const openingSingle = pickNpcOpeningSinglePlay(pi, sets, reserveContext);
     if (openingSingle) return openingSingle;
   }
   const all = [...roles, ...sets];
   if (!all.length) return null;
-  return sortNpcPlayCandidates(all, getNpcAiStyle(pi))[0] || null;
+  return sortNpcPlayCandidates(all, getNpcAiStyle(pi), reserveContext)[0] || null;
 }
 
 function recoverNpcNoTrickState(pi) {
@@ -5454,16 +5583,23 @@ function cardNode(card, opt = {}) {
   return el;
 }
 
+function isKingdomMatchDoneState(state = s) {
+  if (!state) return false;
+  if (String(state.phase || '') === 'done') return true;
+  return state.champion != null && !state.roundActive && !state.awaitRoundConfirm && !!state.roundSettlement;
+}
+
 function renderPlayers() {
   const settlementData = s?.roundSettlement || null;
-  const showRankingMedals = String(s?.phase || '') === 'done';
+  const isMatchDone = isKingdomMatchDoneState(s);
+  const showRankingMedals = isMatchDone;
   ui.players.innerHTML = '';
   if (settlementData) {
     const winnerName = String(settlementData.winnerName || pName(Number(settlementData.winnerIndex)));
     const shownGain = Math.max(0, Number(settlementData.displayTotalGain ?? settlementData.totalGain) || 0);
     const summary = document.createElement('div');
     summary.className = 'tarot-kingdom-players-summary';
-    summary.textContent = String(s?.phase || '') === 'done'
+    summary.textContent = isMatchDone
       ? `最終結果: ${winnerName} +${shownGain}TP`
       : `局結果: ${winnerName} +${shownGain}TP`;
     ui.players.appendChild(summary);
@@ -5492,7 +5628,7 @@ function renderPlayers() {
     row.id = `tarotKingdomPlayerAnchor-${i}`;
     const rankInfo = showRankingMedals ? (rankByIndex.get(i) || null) : null;
     if (rankInfo?.rank === 1) row.classList.add('is-rank-first');
-    if (String(s?.phase || '') === 'done' && i === Number(s?.champion)) row.classList.add('is-rank-champion');
+    if (isMatchDone && i === Number(s?.champion)) row.classList.add('is-rank-champion');
     const isLastOne = !settlementData && Number(p?.hand?.length || 0) === 1;
     if (i === activeTurnPlayer) row.classList.add('is-turn');
     if (isLocalPlayer(i)) row.classList.add('is-human');
@@ -5561,6 +5697,7 @@ function renderPlayers() {
         settleFloat.textContent = `+${gain}TP`;
       }
     }
+    if (settleFloat) row.classList.add('has-settle-float');
     if (showRankingMedals) {
       if (rankInfo?.medal) {
         const medal = document.createElement('span');
@@ -6214,7 +6351,7 @@ function dispatchSettlementCoinFxIfNeeded(data) {
 function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
-  const isMatchDone = String(s?.phase || '') === 'done';
+  const isMatchDone = isKingdomMatchDoneState(s);
   const show = !!data || isMatchDone;
   ui.root?.classList.remove('is-settlement-open');
   if (!show) {
@@ -6231,7 +6368,7 @@ function renderSettlement() {
     const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && !isMatchDone;
     const canRestart = isMatchDone;
     let restartDisabled = false;
-    let restartLabel = '新しく対戦する';
+    let restartLabel = 'もう一度ゲームを始める';
     if (kingdomStartMode === 'online') {
       if (!isNetModeActive()) {
         restartLabel = 'オンライン接続をやり直す';
@@ -6239,7 +6376,7 @@ function renderSettlement() {
         restartLabel = 'ホストの再開を待機中';
         restartDisabled = true;
       } else {
-        restartLabel = '同じメンバーで新しく対戦する';
+        restartLabel = '同じメンバーでもう一度ゲームを始める';
       }
     }
     confirmButton.hidden = !(canConfirm || canRestart);
@@ -6300,7 +6437,7 @@ function updateButtons() {
   const netMode = isNetModeActive();
   const seatCount = netMode ? getActiveSeatCount() : 1;
   const hasVacancy = netMode ? seatCount < 4 : false;
-  const isMatchDone = String(s.phase || '') === 'done';
+  const isMatchDone = isKingdomMatchDoneState(s);
   const showModeChoice = shouldShowKingdomModeChoice() && !isMatchDone;
   const isLobbyReadyToStart =
     !s.roundActive &&
@@ -6316,7 +6453,7 @@ function updateButtons() {
   const canToggleSort = !hasSelected && myHandCount > 1;
   const canPlayNow = myTurn || drawMe;
   const isConnectingOnline = isKingdomOnlineConnecting();
-  const showModeControls = showModeChoice || isMatchDone;
+  const showModeControls = showModeChoice;
   if (ui.modeControls) {
     ui.modeControls.hidden = !showModeControls;
   }
@@ -6361,23 +6498,9 @@ function updateButtons() {
     ui.startOfflineButton.classList.toggle('is-selected', kingdomStartMode === 'offline');
   }
   if (ui.restartButton) {
-    const showRestartButton = isMatchDone;
-    let restartLabel = '新しく対戦する';
-    let restartDisabled = actionLocked;
-    if (kingdomStartMode === 'online') {
-      if (!netMode) {
-        restartLabel = 'オンライン接続をやり直す';
-      } else if (!tkNet.isHost) {
-        restartLabel = 'ホストの再開を待機中';
-        restartDisabled = true;
-      } else {
-        restartLabel = '同じメンバーで新しく対戦する';
-      }
-    }
-    ui.restartButton.hidden = !showRestartButton;
-    ui.restartButton.disabled = !showRestartButton || restartDisabled;
-    ui.restartButton.textContent = restartLabel;
-    ui.restartButton.classList.toggle('is-selected', showRestartButton);
+    ui.restartButton.hidden = true;
+    ui.restartButton.disabled = true;
+    ui.restartButton.classList.remove('is-selected');
   }
   if (ui.playButton) {
     ui.playButton.textContent = '選択';
@@ -6535,14 +6658,14 @@ function beginNextRound() {
 
 function confirmRoundSettlement() {
   if (!s || !s.awaitRoundConfirm) return;
-  if (s.handNo >= TOTAL_HANDS || s.phase === 'done') return;
+  if (s.handNo >= TOTAL_HANDS || isKingdomMatchDoneState(s)) return;
   s.awaitRoundConfirm = false;
   s.roundSettlement = null;
   beginNextRound();
 }
 
 function startOrNext() {
-  const restartingDoneMatch = !s || s.phase === 'done';
+  const restartingDoneMatch = !s || isKingdomMatchDoneState(s);
   if (restartingDoneMatch) {
     resetMatch();
   }
