@@ -171,7 +171,10 @@
                         </div>
                     </div>
                     <div id="kingGrantCard" class="troy-admin-card">
-                        <div class="troy-admin-label">受領 → PS 付与（QRコード）</div>
+                        <div class="troy-admin-label">会計待ち → 承認</div>
+                        <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
+                        <div class="troy-admin-help">会計待ち一覧から承認すると、PS付与と国庫反映をまとめて処理できます。手動受領は下の入力欄から行います。</div>
+                        <div class="troy-admin-field-label">手動受領（QRコード）</div>
                         <div class="troy-admin-grid">
                             <div>
                                 <div class="troy-admin-field-label">受取人 PlayFabId</div>
@@ -269,7 +272,7 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">カテゴリを選ぶと、Menuが開きます。数量を決めて追加できます。</div>
+                        <div class="troy-menu-note">単品はその場で「すぐ注文」。複数だけ下書きカートにまとめて会計できます。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
@@ -287,12 +290,12 @@
                 </div>
                 <div class="content-area">
                     <div id="troyCheckoutCard" class="troy-checkout">
-                        <div class="troy-checkout-title">会計</div>
+                        <div class="troy-checkout-title">まとめ注文カート</div>
                         <div class="troy-checkout-total">合計: <span id="troyOrderTotal">¥0</span></div>
                         <div id="troyOrderList" class="troy-checkout-list"></div>
                         <div class="troy-checkout-actions">
-                            <div id="troyCheckoutStatus" class="troy-checkout-status">未会計</div>
-                            <button id="btnTroyCheckout" class="troy-checkout-confirm" type="button">会計する</button>
+                            <div id="troyCheckoutStatus" class="troy-checkout-status">下書きカート</div>
+                            <button id="btnTroyCheckout" class="troy-checkout-confirm" type="button">まとめて会計</button>
                         </div>
                     </div>
                 </div>

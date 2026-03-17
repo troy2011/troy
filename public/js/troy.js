@@ -253,11 +253,11 @@ function getMenuItemEmoji(item) {
 function getMenuSubnote(menuId) {
     switch (menuId) {
         case 'drinks':
-            return '🥤 ドリンクを表示中。数量を決めて追加。';
+            return '🥤 単品なら「すぐ注文」。飲み比べやまとめ注文だけ下書きカートへ。';
         case 'points':
-            return '🪙 ポイントは即時反映ではなく会計承認後に処理されます。';
+            return '🪙 単品購入が主導線です。まとめたい時だけ下書きカートへ。';
         default:
-            return '🍴 欲しい品を選んで、数量を調整して追加してください。';
+            return '🍴 単品は「すぐ注文」。複数だけ下書きカートにまとめます。';
     }
 }
 
@@ -284,11 +284,15 @@ function addMenuItemToOrder(menuId, item, index) {
     const priceValue = parseYenPrice(item?.price);
     if (!priceValue) return;
     const qty = getMenuItemQty(menuId, item, index);
-    const orderName = item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
+    const orderName = getOrderItemName(item);
     addOrderItemLocal(orderName, priceValue, qty);
     if (typeof window.showRpgMessage === 'function') {
         window.showRpgMessage(`${orderName} ×${qty} を追加しました。`);
     }
+}
+
+function getOrderItemName(item) {
+    return item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
 }
 
 function updateMenuCartSummary() {
@@ -311,20 +315,64 @@ function renderOrderSummary() {
     if (!_orderItems.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-checkout-empty';
-        empty.textContent = '注文はまだありません';
+        empty.textContent = '下書きカートは空です';
         list.appendChild(empty);
         updateCheckoutStatus();
         return;
     }
-    _orderItems.forEach((item) => {
+    const canEdit = !_checkoutLocked;
+    _orderItems.forEach((item, index) => {
         const row = document.createElement('div');
         row.className = 'troy-checkout-item';
+        const main = document.createElement('div');
+        main.className = 'troy-checkout-item-main';
         const name = document.createElement('span');
+        name.className = 'troy-checkout-item-name';
         name.textContent = item.name;
-        const price = document.createElement('span');
-        price.textContent = formatYen(item.price * item.quantity);
-        row.appendChild(name);
-        row.appendChild(price);
+        const meta = document.createElement('span');
+        meta.className = 'troy-checkout-item-meta';
+        meta.textContent = `${formatYen(item.price)} × ${Math.max(1, Number(item.quantity) || 1)}`;
+        main.append(name, meta);
+        row.appendChild(main);
+
+        if (canEdit) {
+            const actions = document.createElement('div');
+            actions.className = 'troy-checkout-item-actions';
+
+            const minusBtn = document.createElement('button');
+            minusBtn.type = 'button';
+            minusBtn.className = 'troy-checkout-qty-btn';
+            minusBtn.textContent = '−';
+            minusBtn.dataset.orderAdjust = '-1';
+            minusBtn.dataset.orderIndex = String(index);
+            minusBtn.disabled = Math.max(1, Number(item.quantity) || 1) <= 1;
+
+            const qty = document.createElement('span');
+            qty.className = 'troy-checkout-item-qty';
+            qty.textContent = `${Math.max(1, Number(item.quantity) || 1)}`;
+
+            const plusBtn = document.createElement('button');
+            plusBtn.type = 'button';
+            plusBtn.className = 'troy-checkout-qty-btn';
+            plusBtn.textContent = '＋';
+            plusBtn.dataset.orderAdjust = '+1';
+            plusBtn.dataset.orderIndex = String(index);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'troy-checkout-remove-btn';
+            removeBtn.textContent = '削除';
+            removeBtn.dataset.orderRemove = 'true';
+            removeBtn.dataset.orderIndex = String(index);
+
+            actions.append(minusBtn, qty, plusBtn, removeBtn);
+            row.appendChild(actions);
+        }
+
+        const lineTotal = document.createElement('span');
+        lineTotal.className = 'troy-checkout-item-total';
+        lineTotal.textContent = formatYen((Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1));
+        row.appendChild(lineTotal);
         list.appendChild(row);
     });
     updateCheckoutStatus();
@@ -335,12 +383,12 @@ function updateCheckoutStatus() {
     const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
     const pending = _checkoutLocked && _checkoutSession?.status === 'pending';
     if (status) {
-        status.textContent = pending ? '承認待ち' : '未会計';
+        status.textContent = pending ? '承認待ち' : '下書きカート';
     }
     if (checkoutBtn) {
         const hasOrder = _orderTotal > 0;
         checkoutBtn.disabled = pending || !isMember || !hasOrder;
-        checkoutBtn.textContent = pending ? '承認待ち' : '会計する';
+        checkoutBtn.textContent = pending ? '承認待ち' : 'まとめて会計';
     }
 }
 
@@ -381,13 +429,49 @@ function resetOrderSummary() {
     renderOrderSummary();
 }
 
-function addOrderItemLocal(name, price, quantity = 1) {
+function recalculateOrderTotal() {
+    _orderTotal = _orderItems.reduce((sum, item) => {
+        const price = Math.max(0, Number(item?.price) || 0);
+        const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+        return sum + price * quantity;
+    }, 0);
+}
+
+function updateOrderItemQuantity(index, delta) {
+    const targetIndex = Number(index);
+    if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= _orderItems.length) return;
+    const item = _orderItems[targetIndex];
+    if (!item) return;
+    const nextQuantity = Math.max(1, Math.floor(Number(item.quantity) || 1) + Math.floor(Number(delta) || 0));
+    item.quantity = nextQuantity;
+    recalculateOrderTotal();
+    renderOrderSummary();
+}
+
+function removeOrderItem(index) {
+    const targetIndex = Number(index);
+    if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= _orderItems.length) return;
+    _orderItems.splice(targetIndex, 1);
+    recalculateOrderTotal();
+    renderOrderSummary();
+}
+
+function addOrMergeOrderItem(name, price, quantity = 1) {
     const normalizedPrice = Number(price) || 0;
     if (!normalizedPrice) return;
     const qty = Math.max(1, Math.floor(Number(quantity) || 1));
-    _orderTotal += normalizedPrice * qty;
-    _orderItems.push({ name, price: normalizedPrice, quantity: qty });
+    const existing = _orderItems.find((item) => item && item.name === name && Number(item.price) === normalizedPrice);
+    if (existing) {
+        existing.quantity = Math.max(1, Math.floor(Number(existing.quantity) || 1) + qty);
+    } else {
+        _orderItems.push({ name, price: normalizedPrice, quantity: qty });
+    }
+    recalculateOrderTotal();
     renderOrderSummary();
+}
+
+function addOrderItemLocal(name, price, quantity = 1) {
+    addOrMergeOrderItem(name, price, quantity);
 }
 
 function getOrderModalElements() {
@@ -436,10 +520,7 @@ async function confirmOrder(playFabId) {
     }
     const item = _pendingOrder;
     const quantity = item.quantity || 1;
-    const nextTotal = _orderTotal + item.price * quantity;
-    _orderTotal = nextTotal;
-    _orderItems.push({ name: item.name, price: item.price, quantity });
-    renderOrderSummary();
+    addOrMergeOrderItem(item.name, item.price, quantity);
     closeOrderModal();
     if (typeof window.showRpgMessage === 'function') {
         window.showRpgMessage('注文を追加しました。');
@@ -485,6 +566,59 @@ async function submitCheckout(playFabId) {
             window.showRpgMessage('会計送信に失敗しました。');
         } else {
             alert('会計送信に失敗しました。');
+        }
+    }
+}
+
+async function submitQuickCheckout(playFabId, item, quantity = 1) {
+    if (_checkoutLocked) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('承認待ちの会計があります。');
+        }
+        return;
+    }
+    if (!isTroyMember(_lastStatus, playFabId)) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('入店してから注文できます。');
+        } else {
+            alert('入店してから注文できます。');
+        }
+        return;
+    }
+    const orderName = getOrderItemName(item);
+    const normalizedPrice = parseYenPrice(item?.price);
+    const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+    if (!normalizedPrice) return;
+    if (_orderItems.length > 0 && _orderTotal > 0) {
+        const ok = confirm('現在のカート内容はそのまま残りません。この単品注文を優先して送信しますか？');
+        if (!ok) return;
+    }
+    try {
+        const checkoutItems = [{ name: orderName, price: normalizedPrice, quantity: normalizedQuantity }];
+        const checkoutTotal = normalizedPrice * normalizedQuantity;
+        const result = await sendTroyCheckout(playFabId, {
+            items: checkoutItems,
+            total: checkoutTotal,
+            displayName: getDisplayName()
+        });
+        if (result?.checkout) {
+            _checkoutSession = result.checkout;
+            _checkoutLocked = true;
+            _orderItems = checkoutItems;
+            _orderTotal = checkoutTotal;
+            renderOrderSummary();
+            updateOrderAvailability(isTroyMember(_lastStatus, playFabId));
+            closeMenuModal();
+            if (typeof window.showRpgMessage === 'function') {
+                window.showRpgMessage(`${orderName} の単品注文を送信しました。承認待ちです。`);
+            }
+        }
+    } catch (error) {
+        console.warn('[TroyQuickCheckout] Failed:', error?.message || error);
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('単品注文の送信に失敗しました。');
+        } else {
+            alert('単品注文の送信に失敗しました。');
         }
     }
 }
@@ -569,7 +703,12 @@ function openMenuModal(menuId) {
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.className = 'troy-menu-add-btn';
-        addBtn.textContent = '追加';
+        addBtn.textContent = '下書きへ';
+
+        const quickBtn = document.createElement('button');
+        quickBtn.type = 'button';
+        quickBtn.className = 'troy-menu-quick-btn';
+        quickBtn.textContent = 'すぐ注文';
 
         const syncQty = () => {
             const qty = getMenuItemQty(menuId, item, index);
@@ -594,8 +733,13 @@ function openMenuModal(menuId) {
             updateMenuCartSummary();
         });
 
+        quickBtn.addEventListener('click', async () => {
+            const qty = getMenuItemQty(menuId, item, index);
+            await submitQuickCheckout(window.myPlayFabId, item, qty);
+        });
+
         syncQty();
-        actions.append(minusBtn, qtyDisplay, plusBtn, addBtn);
+        actions.append(minusBtn, qtyDisplay, plusBtn, quickBtn, addBtn);
         meta.append(price, actions);
         body.append(concept);
         if (item.content) body.append(content);
@@ -655,6 +799,26 @@ function wireMenuPopups() {
                 checkoutCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 checkoutCard.classList.add('is-focus');
                 window.setTimeout(() => checkoutCard.classList.remove('is-focus'), 650);
+            }
+        });
+    }
+    const orderElements = getOrderElements();
+    if (orderElements.list) {
+        orderElements.list.addEventListener('click', (event) => {
+            if (_checkoutLocked) return;
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+            const adjustButton = target.closest('[data-order-adjust]');
+            if (adjustButton) {
+                const index = Number(adjustButton.getAttribute('data-order-index'));
+                const delta = Number(adjustButton.getAttribute('data-order-adjust'));
+                updateOrderItemQuantity(index, delta);
+                return;
+            }
+            const removeButton = target.closest('[data-order-remove="true"]');
+            if (removeButton) {
+                const index = Number(removeButton.getAttribute('data-order-index'));
+                removeOrderItem(index);
             }
         });
     }

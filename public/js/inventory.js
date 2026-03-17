@@ -1718,8 +1718,8 @@ function showItemDetailModal(item) {
                     appendStatLine(`<span>${line}</span>`);
                 });
             }
-            appendStatLine('<span>装着中の体を残したまま覚醒するには、予備の大アルカナが1枚必要です。</span>');
         }
+        appendStatLine('<span>覚醒するには予備の大アルカナが1枚必要です。最後の1枚は残してください。</span>');
     }
     if (isTarotMinorCategory(canonicalCategory)) {
         const learnedSkill = getTarotSkillStateForItem(item.itemId);
@@ -1810,15 +1810,14 @@ function showItemDetailModal(item) {
             buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', '${TAROT_MAJOR_SLOT}')">${getTarotSlotLabel(TAROT_MAJOR_SLOT)}を変更</button>`;
         }
         const awakeningLevel = getMajorAwakeningLevel(equipItemId);
-        const needsReserveCopy = isCurrentMajorEquipped;
-        const canAwaken = awakeningLevel < 5 && item.count > (needsReserveCopy ? 1 : 0);
+        const canAwaken = awakeningLevel < 5 && item.count > 1;
         appendActionNote('大アルカナの重複は覚醒素材になります。覚醒するとカードを1枚消費します。');
         if (awakeningLevel >= 5) {
             buttonsEl.innerHTML += '<button disabled>覚醒最大</button>';
         } else if (canAwaken) {
             buttonsEl.innerHTML += `<button onclick="window.awakenMajorArcana('${equipItemId}')">覚醒 +1</button>`;
         } else {
-            buttonsEl.innerHTML += `<button disabled>${needsReserveCopy ? '予備1枚が必要' : '覚醒素材不足'}</button>`;
+            buttonsEl.innerHTML += '<button disabled>予備1枚が必要</button>';
         }
     } else if (isTarotMinorCategory(canonicalCategory)) {
         appendActionNote('小アルカナを具現化するとカードを1枚消費し、既存武具の姿と性能で装備化されます。選んだ部位の現在装備は上書きされます。');

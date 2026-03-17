@@ -1555,6 +1555,45 @@ function getKingStarterCrownGrantDataKey(nation) {
     return `KingStarterCrownGranted_${key}`;
 }
 
+function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
+    return (Array.isArray(checkoutDocs) ? checkoutDocs : [])
+        .map((doc) => {
+            const data = typeof doc?.data === 'function' ? (doc.data() || {}) : (doc || {});
+            const status = String(data.status || 'pending').trim().toLowerCase();
+            if (status !== 'pending') return null;
+            const items = Array.isArray(data.items) ? data.items : [];
+            const normalizedItems = items
+                .map((item) => {
+                    const name = String(item?.name || item?.itemName || '').trim();
+                    const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+                    const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+                    if (!name || !price) return null;
+                    return {
+                        name,
+                        quantity,
+                        price,
+                        lineTotal: price * quantity
+                    };
+                })
+                .filter(Boolean);
+            const total = Math.max(0, Math.floor(Number(data.total) || normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)));
+            const createdAtRaw = data.createdAt?.toMillis ? data.createdAt.toMillis() : Number(data.createdAt) || 0;
+            const totalItems = normalizedItems.reduce((sum, item) => sum + item.quantity, 0);
+            const summary = normalizedItems.slice(0, 3).map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ''}`).join(' / ');
+            return {
+                playFabId: normalizePlayFabId(data.playFabId || doc?.id || ''),
+                displayName: String(data.displayName || doc?.id || 'Player').trim(),
+                total,
+                totalItems,
+                summary,
+                items: normalizedItems,
+                createdAtMs: createdAtRaw
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => (a.createdAtMs - b.createdAtMs) || String(a.playFabId || '').localeCompare(String(b.playFabId || '')));
+}
+
 async function ensureKingStarterCrown(playFabId, nation, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
     const kingId = normalizePlayFabId(playFabId);
@@ -1785,6 +1824,11 @@ function initializeNationRoutes(app, deps) {
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
                     payload.troyOpen = !!roomSnap.data()?.isOpen;
+                    const checkoutSnap = await getTroyRoomDoc(firestore, mapping.groupName)
+                        .collection('checkouts')
+                        .limit(30)
+                        .get();
+                    payload.troyPendingCheckouts = buildTroyPendingCheckoutPayload(checkoutSnap.docs);
                 }
                 let warState = await resolveNationWarIncoming(nation, await loadNationWarState(nation, firestore, admin, nationDeps), firestore, admin);
                 warState = await resolveNationWarCaptureState(nation, warState, firestore, admin);

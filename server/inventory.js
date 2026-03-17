@@ -271,23 +271,47 @@ function initializeInventoryRoutes(app, deps) {
         }, 0);
     }
 
+    async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
+        const starterMajorId = getStarterMajorArcanaItemId(String(nation || '').trim().toLowerCase());
+        if (!starterMajorId) {
+            return {
+                starterMajorId: '',
+                items: Array.isArray(inventoryItems) ? inventoryItems : []
+            };
+        }
+
+        let items = Array.isArray(inventoryItems) ? inventoryItems : null;
+        let resolvedEntityKey = entityKey;
+        if (!items) {
+            resolvedEntityKey = resolvedEntityKey || await getEntityKeyForPlayFabId(playFabId);
+            items = await getAllInventoryItems(resolvedEntityKey);
+        }
+        if (getInventoryItemTotal(items, starterMajorId) > 0) {
+            return { starterMajorId, items };
+        }
+
+        await addEconomyItem(playFabId, starterMajorId, 1, {
+            // Keep the player's initial major arcana available as a switch target.
+            idempotencyId: `starter-major-${playFabId}-${starterMajorId}`
+        });
+        resolvedEntityKey = resolvedEntityKey || await getEntityKeyForPlayFabId(playFabId);
+        items = await getAllInventoryItems(resolvedEntityKey);
+        return { starterMajorId, items };
+    }
+
     async function ensureStarterMajorArcanaEquipped(playFabId) {
         const readOnly = await getPlayerReadOnlyData(playFabId, [TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana, 'Nation']);
+        const nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        await ensureStarterMajorArcanaOwned(playFabId, nation);
         const currentMajor = String(readOnly?.Data?.[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || '').trim();
         if (currentMajor) {
             return currentMajor;
         }
-        const nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
         const starterMajorId = getStarterMajorArcanaItemId(nation);
         if (!starterMajorId) return '';
 
         const entityKey = await getEntityKeyForPlayFabId(playFabId);
-        const items = await getAllInventoryItems(entityKey);
-        if (getInventoryItemTotal(items, starterMajorId) <= 0) {
-            await addEconomyItem(playFabId, starterMajorId, 1, {
-                idempotencyId: `starter-major-${playFabId}-${starterMajorId}`
-            });
-        }
+        await ensureStarterMajorArcanaOwned(playFabId, nation, await getAllInventoryItems(entityKey), entityKey);
 
         await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
             PlayFabId: playFabId,
@@ -829,16 +853,14 @@ function initializeInventoryRoutes(app, deps) {
                 return res.status(400).json({ error: 'そのカードは大アルカナではありません。' });
             }
 
-            const currentMajorId = await ensureStarterMajorArcanaEquipped(playFabId);
+            await ensureStarterMajorArcanaEquipped(playFabId);
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const inventoryItems = await getAllInventoryItems(entityKey);
             const totalCopies = getInventoryItemTotal(inventoryItems, itemId);
-            const requiredCopies = currentMajorId === itemId ? 2 : 1;
+            const requiredCopies = 2;
             if (totalCopies < requiredCopies) {
                 return res.status(400).json({
-                    error: currentMajorId === itemId
-                        ? '装着中の体を残すため、この大アルカナは予備が1枚必要です。'
-                        : '覚醒に使う大アルカナを所持していません。'
+                    error: '覚醒するには予備の大アルカナが1枚必要です。最後の1枚は残してください。'
                 });
             }
 
