@@ -16,8 +16,9 @@ let _orderItems = [];
 let _pendingOrder = null;
 let _checkoutSession = null;
 let _checkoutLocked = false;
-let _menuActiveId = 'drinks';
+let _menuActiveId = 'nonalcohol';
 const _menuQtyByKey = new Map();
+const _menuOptionByKey = new Map();
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
 let _statusCheckoutUnsubscribe = null;
@@ -28,13 +29,15 @@ let _statusSnapshotState = {
     checkout: null
 };
 
-const TROY_MENU_IDS = ['drinks', 'appetizer', 'dryfood', 'hotfood', 'main', 'points'];
+const TROY_MENU_IDS = ['nonalcohol', 'alcohol', 'food', 'points'];
 const TROY_GROUP_BY_NATION = {
     fire: 'nation_fire_island',
     earth: 'nation_earth_island',
     wind: 'nation_wind_island',
     water: 'nation_water_island'
 };
+
+const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ'];
 
 const TROY_PRODUCT_MENUS = {
     drinks: {
@@ -43,37 +46,26 @@ const TROY_PRODUCT_MENUS = {
     },
     appetizer: {
         title: '貯蔵品 (軽いおつまみ)',
-        items: [
-            { concept: '海賊の保存食', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/nuts?lock=5101' },
-            { concept: '深海の黒真珠', content: 'チョコ', price: 600, image: 'https://loremflickr.com/640/420/chocolate?lock=5102' },
-            { concept: '南国島からの略奪品', content: 'ドライフルーツ', price: 700, image: 'https://loremflickr.com/640/420/dried,fruit?lock=5103' },
-            { concept: '人魚の涙', content: 'オリーブ＆ピクルス', price: 600, image: 'https://loremflickr.com/640/420/olive,pickle?lock=5104' }
-        ]
+        items: []
     },
     dryfood: {
         title: '略奪品 (乾きもの)',
-        items: [
-            { concept: 'クラーケンの干し肉', content: 'ビーフジャーキー', price: 900, image: 'https://loremflickr.com/640/420/beef,jerky?lock=5105' }
-        ]
+        items: []
     },
     hotfood: {
         title: '船上の宴 (温かい料理)',
         items: [
-            { concept: '海底の黄金ポテト', content: 'フライドポテト', price: 700, image: 'https://loremflickr.com/640/420/french,fries?lock=5106' },
-            { concept: '砲丸揚げ', content: 'チーズボール', price: 800, image: 'https://loremflickr.com/640/420/cheese,balls?lock=5107' },
-            { concept: 'デッドマンズ・フィンガー', content: 'ソーセージ盛り合わせ', price: 1000, image: 'https://loremflickr.com/640/420/sausage?lock=5108' },
-            { concept: '黒ひげピザ', content: 'ミックスピザ', price: 1300, image: 'https://loremflickr.com/640/420/pizza?lock=5109' },
-            { concept: '密輸船のオイル煮', content: 'オイルサーディン', price: 900, image: 'https://loremflickr.com/640/420/sardine?lock=5110' }
+            { concept: '黄金ポテト', content: 'フライドポテト', price: 500, image: 'https://loremflickr.com/640/420/french,fries?lock=5106', emoji: '🍟' },
+            { concept: '海賊肉ナゲット', content: 'チキンナゲット', price: 500, image: 'https://loremflickr.com/640/420/chicken,nuggets?lock=5142', emoji: '🍗' },
+            { concept: '甲板のピザパン', content: 'ピザトースト', price: 500, image: 'https://loremflickr.com/640/420/pizza,toast?lock=5143', emoji: '🍞' },
+            { concept: 'クラーケンの足', content: 'フランクフルト', price: 500, image: 'https://loremflickr.com/640/420/frankfurt,sausage?lock=5144', emoji: '🌭' },
+            { concept: '人魚のワッフル', content: 'ワッフル', price: 500, image: 'https://loremflickr.com/640/420/waffle?lock=5145', emoji: '🧇' },
+            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨' }
         ]
     },
     main: {
         title: '腹の糧 (主食)',
-        items: [
-            { concept: '七つの海の戦利品', content: '本日のパスタ', price: 1100, image: 'https://loremflickr.com/640/420/pasta?lock=5111' },
-            { concept: '黒潮の一皿', content: '海鮮リゾット', price: 1300, image: 'https://loremflickr.com/640/420/risotto,seafood?lock=5115' },
-            { concept: '甲板炊き込み', content: 'ガーリックライス', price: 1000, image: 'https://loremflickr.com/640/420/garlic,rice?lock=5116' },
-            { concept: '大砲火薬カレー', content: 'スパイスカレー', price: 1200, image: 'https://loremflickr.com/640/420/curry?lock=5117' }
-        ]
+        items: []
     },
     points: {
         title: 'ポイント',
@@ -86,39 +78,67 @@ const TROY_PRODUCT_MENUS = {
 };
 
 const TROY_DAY_CAFE_DRINK_ITEMS = [
-    { concept: '船長のブレンド', content: 'ホットコーヒー', price: 600, image: 'https://loremflickr.com/640/420/coffee?lock=5121' },
-    { concept: '見張り台の一杯', content: 'アイスコーヒー', price: 650, image: 'https://loremflickr.com/640/420/iced,coffee?lock=5122' },
-    { concept: '王室の茶会', content: 'ストレートティー', price: 600, image: 'https://loremflickr.com/640/420/tea?lock=5123' },
-    { concept: '潮風ミルクティー', content: 'ロイヤルミルクティー', price: 700, image: 'https://loremflickr.com/640/420/milk,tea?lock=5124' },
-    { concept: '港町ラテ', content: 'カフェラテ', price: 750, image: 'https://loremflickr.com/640/420/latte?lock=5125' },
-    { concept: '宝箱ココア', content: 'ホットココア', price: 700, image: 'https://loremflickr.com/640/420/cocoa?lock=5126' }
+    { concept: '船長のブレンド', content: 'ホットコーヒー', price: 500, image: 'https://loremflickr.com/640/420/coffee?lock=5121' },
+    { concept: '見張り台の一杯', content: 'アイスコーヒー', price: 500, image: 'https://loremflickr.com/640/420/iced,coffee?lock=5122' },
+    { concept: '王室の茶会', content: 'ストレートティー', price: 500, image: 'https://loremflickr.com/640/420/tea?lock=5123' },
+    { concept: '潮風ミルクティー', content: 'ロイヤルミルクティー', price: 500, image: 'https://loremflickr.com/640/420/milk,tea?lock=5124' },
+    { concept: '港町ラテ', content: 'カフェラテ', price: 500, image: 'https://loremflickr.com/640/420/latte?lock=5125' },
+    { concept: '宝箱ココア', content: 'ホットココア', price: 500, image: 'https://loremflickr.com/640/420/cocoa?lock=5126' }
 ];
 
-const TROY_NIGHT_DRINK_ITEMS = [
-    { concept: '黒潮ラムコーク', content: 'ラムコーク', price: 900, image: 'https://loremflickr.com/640/420/rum,coke?lock=5131' },
-    { concept: '航海士のハイボール', content: 'ハイボール', price: 850, image: 'https://loremflickr.com/640/420/highball?lock=5132' },
-    { concept: '赤灯台ワイン', content: '赤ワイン', price: 950, image: 'https://loremflickr.com/640/420/red,wine?lock=5133' },
-    { concept: '白波レモンサワー', content: 'レモンサワー', price: 820, image: 'https://loremflickr.com/640/420/lemon,sour?lock=5134' },
-    { concept: '海賊ジントニック', content: 'ジントニック', price: 900, image: 'https://loremflickr.com/640/420/gin,tonic?lock=5135' },
-    { concept: '月夜のモヒート', content: 'モヒート', price: 950, image: 'https://loremflickr.com/640/420/mojito?lock=5136' },
-    { concept: 'ソフトコーラ', content: 'コーラ', price: 450, image: 'https://loremflickr.com/640/420/cola?lock=5137' },
-    { concept: '港のジンジャー', content: 'ジンジャーエール', price: 450, image: 'https://loremflickr.com/640/420/ginger,ale?lock=5138' }
+const TROY_NON_ALCOHOL_EXTRA_ITEMS = [
+    { concept: 'ソフトコーラ', content: 'コーラ', price: 500, image: 'https://loremflickr.com/640/420/cola?lock=5137', emoji: '🥤' },
+    { concept: '港のジンジャー', content: 'ジンジャーエール', price: 500, image: 'https://loremflickr.com/640/420/ginger,ale?lock=5138', emoji: '🥤' },
+    { concept: 'ノンアルコールビール', content: '瓶', price: 600, image: 'https://loremflickr.com/640/420/nonalcoholic,beer?lock=5140', emoji: '🍺' }
 ];
 
-function isDayCafeHours(now = new Date()) {
-    const hour = now.getHours();
-    return hour >= 9 && hour < 16;
+const TROY_ALCOHOL_ITEMS = [
+    { concept: 'ラム', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
+    { concept: 'ウォッカ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
+    { concept: 'テキーラ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
+    { concept: 'ジン', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
+    { concept: 'リキュール', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🍸' },
+    { concept: 'ビール', content: 'ジョッキ', price: 800, image: 'https://loremflickr.com/640/420/beer?lock=5141', emoji: '🍺' },
+    { concept: 'ワインボトル', content: 'ボトル', price: 3000, image: 'https://loremflickr.com/640/420/wine,bottle?lock=5139', emoji: '🍷' }
+];
+
+function getNonAlcoholDrinkMenuData() {
+    return {
+        title: 'ノンアル',
+        items: [...TROY_DAY_CAFE_DRINK_ITEMS, ...TROY_NON_ALCOHOL_EXTRA_ITEMS]
+    };
 }
 
-function getDrinkMenuData(now = new Date()) {
+function getAlcoholDrinkMenuData() {
     return {
-        title: 'ドリンク',
-        items: [...TROY_DAY_CAFE_DRINK_ITEMS, ...TROY_NIGHT_DRINK_ITEMS]
+        title: 'アルコール',
+        items: TROY_ALCOHOL_ITEMS
+    };
+}
+
+function getFoodMenuData() {
+    return {
+        title: 'フード',
+        items: [
+            ...TROY_PRODUCT_MENUS.appetizer.items,
+            ...TROY_PRODUCT_MENUS.dryfood.items,
+            ...TROY_PRODUCT_MENUS.hotfood.items,
+            ...TROY_PRODUCT_MENUS.main.items
+        ]
     };
 }
 
 function getMenuDataById(menuId) {
-    return menuId === 'drinks' ? getDrinkMenuData() : TROY_PRODUCT_MENUS[menuId];
+    switch (menuId) {
+        case 'nonalcohol':
+            return getNonAlcoholDrinkMenuData();
+        case 'alcohol':
+            return getAlcoholDrinkMenuData();
+        case 'food':
+            return getFoodMenuData();
+        default:
+            return TROY_PRODUCT_MENUS[menuId];
+    }
 }
 
 function getMenuCategoryList() {
@@ -130,6 +150,21 @@ function getMenuCategoryList() {
 
 function getMenuItemKey(menuId, item, index) {
     return `${menuId}:${index}:${item?.concept || ''}:${item?.content || ''}`;
+}
+
+function getMenuItemOption(menuId, item, index) {
+    if (!Array.isArray(item?.mixers) || !item.mixers.length) return '';
+    const key = getMenuItemKey(menuId, item, index);
+    const current = String(_menuOptionByKey.get(key) || '').trim();
+    return item.mixers.includes(current) ? current : item.mixers[0];
+}
+
+function setMenuItemOption(menuId, item, index, value) {
+    if (!Array.isArray(item?.mixers) || !item.mixers.length) return '';
+    const key = getMenuItemKey(menuId, item, index);
+    const normalized = item.mixers.includes(String(value || '').trim()) ? String(value).trim() : item.mixers[0];
+    _menuOptionByKey.set(key, normalized);
+    return normalized;
 }
 
 function getMenuItemQty(menuId, item, index) {
@@ -227,6 +262,9 @@ function parseYenPrice(value) {
 
 function getMenuItemEmoji(item) {
     const text = `${item?.concept || ''} ${item?.content || ''}`;
+    if (text.includes('ラム') || text.includes('ウォッカ') || text.includes('テキーラ') || text.includes('ジン')) return '🥃';
+    if (text.includes('リキュール')) return '🍸';
+    if (text.includes('ワインボトル')) return '🍷';
     if (text.includes('ポイント購入') || text.includes('Ps')) return '🪙';
     if (text.includes('コーヒー') || text.includes('ラテ') || text.includes('ココア')) return '☕';
     if (text.includes('ティー') || text.includes('紅茶')) return '🫖';
@@ -252,12 +290,16 @@ function getMenuItemEmoji(item) {
 
 function getMenuSubnote(menuId) {
     switch (menuId) {
-        case 'drinks':
-            return '🥤 単品なら「すぐ注文」。飲み比べやまとめ注文だけ下書きカートへ。';
+        case 'nonalcohol':
+            return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。';
+        case 'alcohol':
+            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円です。';
+        case 'food':
+            return '🍴 フードはすべて500円。単品は「すぐ注文」。';
         case 'points':
-            return '🪙 単品購入が主導線です。まとめたい時だけ下書きカートへ。';
+            return '🪙 単品購入が主導線です。まとめたい時だけカートへ。';
         default:
-            return '🍴 単品は「すぐ注文」。複数だけ下書きカートにまとめます。';
+            return '🍴 単品は「すぐ注文」。複数だけカートにまとめます。';
     }
 }
 
@@ -284,14 +326,16 @@ function addMenuItemToOrder(menuId, item, index) {
     const priceValue = parseYenPrice(item?.price);
     if (!priceValue) return;
     const qty = getMenuItemQty(menuId, item, index);
-    const orderName = getOrderItemName(item);
+    const optionLabel = getMenuItemOption(menuId, item, index);
+    const orderName = getOrderItemName(item, optionLabel);
     addOrderItemLocal(orderName, priceValue, qty);
     if (typeof window.showRpgMessage === 'function') {
         window.showRpgMessage(`${orderName} ×${qty} を追加しました。`);
     }
 }
 
-function getOrderItemName(item) {
+function getOrderItemName(item, optionLabel = '') {
+    if (optionLabel) return `${item?.concept || item?.name || '商品'} × ${optionLabel}`;
     return item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
 }
 
@@ -315,7 +359,7 @@ function renderOrderSummary() {
     if (!_orderItems.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-checkout-empty';
-        empty.textContent = '下書きカートは空です';
+        empty.textContent = 'カートは空です';
         list.appendChild(empty);
         updateCheckoutStatus();
         return;
@@ -383,7 +427,7 @@ function updateCheckoutStatus() {
     const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
     const pending = _checkoutLocked && _checkoutSession?.status === 'pending';
     if (status) {
-        status.textContent = pending ? '承認待ち' : '下書きカート';
+        status.textContent = pending ? '承認待ち' : 'カート';
     }
     if (checkoutBtn) {
         const hasOrder = _orderTotal > 0;
@@ -585,7 +629,7 @@ async function submitQuickCheckout(playFabId, item, quantity = 1) {
         }
         return;
     }
-    const orderName = getOrderItemName(item);
+    const orderName = getOrderItemName(item, item.optionLabel);
     const normalizedPrice = parseYenPrice(item?.price);
     const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
     if (!normalizedPrice) return;
@@ -677,6 +721,32 @@ function openMenuModal(menuId) {
         content.className = 'troy-menu-modal-item-content';
         content.textContent = item.content || '';
 
+        let optionLabel = '';
+        let optionRow = null;
+        if (Array.isArray(item.mixers) && item.mixers.length) {
+            optionRow = document.createElement('div');
+            optionRow.className = 'troy-menu-modal-option-row';
+
+            const optionLabelEl = document.createElement('label');
+            optionLabelEl.className = 'troy-menu-modal-option-label';
+            optionLabelEl.textContent = '割り物';
+
+            const optionSelect = document.createElement('select');
+            optionSelect.className = 'troy-menu-mix-select';
+            item.mixers.forEach((option) => {
+                const optionEl = document.createElement('option');
+                optionEl.value = option;
+                optionEl.textContent = option;
+                optionSelect.appendChild(optionEl);
+            });
+            optionSelect.value = getMenuItemOption(menuId, item, index);
+            optionLabel = optionSelect.value;
+            optionSelect.addEventListener('change', () => {
+                optionLabel = setMenuItemOption(menuId, item, index, optionSelect.value);
+            });
+            optionRow.append(optionLabelEl, optionSelect);
+        }
+
         const meta = document.createElement('div');
         meta.className = 'troy-menu-modal-item-meta';
 
@@ -703,7 +773,7 @@ function openMenuModal(menuId) {
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.className = 'troy-menu-add-btn';
-        addBtn.textContent = '下書きへ';
+        addBtn.textContent = 'カートへ';
 
         const quickBtn = document.createElement('button');
         quickBtn.type = 'button';
@@ -735,7 +805,7 @@ function openMenuModal(menuId) {
 
         quickBtn.addEventListener('click', async () => {
             const qty = getMenuItemQty(menuId, item, index);
-            await submitQuickCheckout(window.myPlayFabId, item, qty);
+            await submitQuickCheckout(window.myPlayFabId, { ...item, optionLabel }, qty);
         });
 
         syncQty();
@@ -743,6 +813,7 @@ function openMenuModal(menuId) {
         meta.append(price, actions);
         body.append(concept);
         if (item.content) body.append(content);
+        if (optionRow) body.append(optionRow);
         body.append(meta);
         cardEl.append(hero, body);
         list.appendChild(cardEl);

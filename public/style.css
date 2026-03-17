@@ -3527,6 +3527,29 @@ body.modal-lock .modal-overlay {
     color: #cbd5e1;
 }
 
+.troy-menu-modal-option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.troy-menu-modal-option-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.troy-menu-mix-select {
+    min-height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(15, 23, 42, 0.88);
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
 .troy-menu-modal-item-meta {
     display: flex;
     align-items: center;
