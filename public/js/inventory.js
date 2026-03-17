@@ -55,6 +55,68 @@ let myShipResourceStorage = {
     cargoCapacity: 0,
     cargoUsed: 0
 };
+const ITEM_SPRITE_PRESETS = Object.freeze([
+    { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },
+    { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['hat_straw_'], path: './Sprites/wardrobe/cloth/hat_straw.png', width: 32, height: 32, cols: 5, twoHanded: false },
+    { idPrefixes: ['leather01_'], path: './Sprites/wardrobe/leather/leather01.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['leather02_'], path: './Sprites/wardrobe/leather/leather02.png', width: 32, height: 48, cols: 4, twoHanded: false },
+    { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
+    { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false }
+]);
+
+function resolveInventorySpritePreset(itemOrData) {
+    const data = itemOrData?.customData || itemOrData || {};
+    const itemId = String(itemOrData?.itemId || data?.ItemId || data?.FriendlyId || '').trim().toLowerCase();
+    const spritePath = String(data?.sprite_path || '').trim().toLowerCase();
+    return ITEM_SPRITE_PRESETS.find((preset) =>
+        (spritePath && spritePath === String(preset.path).toLowerCase())
+        || preset.idPrefixes.some((prefix) => itemId.startsWith(prefix))
+    ) || null;
+}
+
+function normalizeInventorySpriteFrame(path, width = 32, height = 32, itemOrData = null) {
+    const preset = resolveInventorySpritePreset(itemOrData || { sprite_path: path });
+    if (preset) {
+        return {
+            width: preset.width,
+            height: preset.height,
+            cols: preset.cols,
+            path: preset.path
+        };
+    }
+    return {
+        width: Number(width) || 32,
+        height: Number(height) || 32,
+        cols: undefined,
+        path
+    };
+}
+
+function isTwoHandedInventoryWeapon(itemOrData) {
+    const data = itemOrData?.customData || itemOrData || {};
+    if (getCanonicalTarotCategory(data.Category) !== 'Weapon') return false;
+    if (data?.TwoHanded === true || String(data?.TwoHanded || '').trim().toLowerCase() === 'true') {
+        return true;
+    }
+    const preset = resolveInventorySpritePreset(itemOrData);
+    if (preset && typeof preset.twoHanded === 'boolean') {
+        return preset.twoHanded;
+    }
+    return Number(data?.sprite_w || 0) > 32 || Number(data?.sprite_h || 0) > 32;
+}
 
 const INVENTORY_GROUPS = {
     All: { label: '全部', category: 'All', tabs: [] },
@@ -223,7 +285,7 @@ export function closeItemDetailModal() {
 }
 
 function normalizeInventoryPanel(panel) {
-    return ['loadout', 'stats', 'items'].includes(panel) ? panel : 'loadout';
+    return ['loadout', 'items'].includes(panel) ? panel : 'loadout';
 }
 
 export function switchInventoryPanel(panel, options = {}) {
@@ -239,7 +301,7 @@ export function switchInventoryPanel(panel, options = {}) {
     if (tabContent) {
         tabContent.dataset.inventoryPanel = activeInventoryPanel;
     }
-    if (options.preserveScroll) return;
+    if (!options.scrollSwitcher) return;
     const switcher = document.getElementById('inventoryMobileSwitch');
     if (switcher) {
         switcher.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -249,13 +311,41 @@ export function switchInventoryPanel(panel, options = {}) {
 function getInventoryItemByReference(itemRef) {
     if (!itemRef) return null;
     if (itemRef && typeof itemRef === 'object' && itemRef.customData) return itemRef;
-    return myInventory.find((inventoryItem) => inventoryItem.instances?.includes(itemRef))
-        || myInventory.find((inventoryItem) => inventoryItem.itemId === itemRef)
+    const displayInventory = getDisplayInventoryEntries();
+    return displayInventory.find((inventoryItem) => inventoryItem.instances?.includes(itemRef))
+        || displayInventory.find((inventoryItem) => inventoryItem.itemId === itemRef)
         || null;
 }
 
 function isManifestationEntry(entry) {
     return !!(entry && typeof entry === 'object' && isTarotManifestationData(entry.customData));
+}
+
+function buildManifestInventoryEntry(slot, manifestation) {
+    if (!isManifestationEntry(manifestation)) return null;
+    const normalizedSlot = String(slot || manifestation?.customData?.ManifestedSlot || '').trim();
+    const manifestId = `manifest:${normalizedSlot}:${String(manifestation?.customData?.SourceCardId || manifestation?.customData?.ManifestedItemId || manifestation?.name || 'item').trim()}`;
+    return {
+        name: manifestation?.name || manifestation?.customData?.ManifestedItemName || `${getTarotSlotLabel(normalizedSlot)}の具現化`,
+        count: 1,
+        itemId: manifestId,
+        description: manifestation?.description || '',
+        instances: [manifestId],
+        customData: {
+            ...(manifestation?.customData || {}),
+            InventorySource: 'Manifestation',
+            InventoryManifestSlot: normalizedSlot
+        }
+    };
+}
+
+function getDisplayInventoryEntries() {
+    const entries = [...myInventory];
+    Object.entries(myCurrentEquipment || {}).forEach(([slot, equippedValue]) => {
+        const manifestEntry = buildManifestInventoryEntry(slot, equippedValue);
+        if (manifestEntry) entries.push(manifestEntry);
+    });
+    return entries;
 }
 
 function getTarotSkillStateForItem(itemId) {
@@ -440,14 +530,10 @@ function getInventoryTabHint(category) {
         return '船倉と倉庫の資源をまとめて確認できます。必要ならここから一括預け入れや補充を行います。';
     }
     if (category === 'TarotMajor') {
-        return '体は必須です。大アルカナは外せませんが、別の大アルカナに変更できます。';
+        return '';
     }
     if (category === 'TarotMinor') {
-        const targetSlot = getManifestTargetSlot();
-        if (targetSlot) {
-            return `${getTarotSlotLabel(targetSlot)}に具現化する小アルカナを選んでください。具現化するとカードを1枚消費します。`;
-        }
-        return '小アルカナは頭・右手・左手・アクセサリーへ具現化します。具現化するとカードを1枚消費します。';
+        return '';
     }
     if (category === 'Accessory') {
         return 'アクセサリーは通常装備としても使えます。小アルカナのアクセサリー具現とは別の入手手段です。';
@@ -568,6 +654,10 @@ function compareInventoryItemsDefault(a, b, selectedCategory) {
 }
 
 function isInventoryItemEquipped(item) {
+    if (isManifestationEntry(item)) {
+        const slot = String(item?.customData?.InventoryManifestSlot || item?.customData?.ManifestedSlot || '').trim();
+        return !!(slot && isManifestationEntry(myCurrentEquipment?.[slot]));
+    }
     const instanceId = item?.instances?.[0];
     const itemId = item?.itemId;
     return Object.values(myCurrentEquipment || {}).some((equippedValue) => equippedValue === instanceId || equippedValue === itemId);
@@ -695,6 +785,10 @@ function createInventoryChip(label, tone = '') {
 }
 
 function getEquippedSlotsForItem(item) {
+    if (isManifestationEntry(item)) {
+        const slot = String(item?.customData?.InventoryManifestSlot || item?.customData?.ManifestedSlot || '').trim();
+        return slot ? [slot] : [];
+    }
     const instanceId = item?.instances?.[0];
     const itemId = item?.itemId;
     return Object.entries(myCurrentEquipment || {})
@@ -703,9 +797,7 @@ function getEquippedSlotsForItem(item) {
 }
 
 function isTwoHandedWeapon(item) {
-    const cd = item?.customData || {};
-    return getCanonicalTarotCategory(cd.Category) === 'Weapon'
-        && (Number(cd.sprite_w || 0) > 32 || Number(cd.sprite_h || 0) > 32);
+    return isTwoHandedInventoryWeapon(item);
 }
 
 function getPreferredManifestSlot() {
@@ -987,7 +1079,7 @@ function getManifestationOverwriteSlots(slot, itemId) {
     const isTwoHanded = normalizedSlot === 'RightHand'
         && !isTarotMajorCategory(cd.Category)
         && !isTarotMinorCategory(cd.Category)
-        && (Number(cd.sprite_w || 0) > 32 || Number(cd.sprite_h || 0) > 32);
+        && isTwoHandedInventoryWeapon(nextItem);
     if (isTwoHanded && isManifestationEntry(myCurrentEquipment?.LeftHand)) {
         targets.push(getTarotSlotLabel('LeftHand'));
     }
@@ -1429,9 +1521,10 @@ export function renderInventoryGrid(category) {
         return;
     }
 
+    const displayInventory = getDisplayInventoryEntries();
     const filtered = (category === 'All')
-        ? myInventory
-        : myInventory.filter(item => matchesInventoryCategory(item.customData?.Category, category));
+        ? displayInventory
+        : displayInventory.filter(item => matchesInventoryCategory(item.customData?.Category, category));
 
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {
@@ -1489,8 +1582,6 @@ export function renderInventoryGrid(category) {
     }
 
     sorted.forEach(item => {
-        const instanceId = item.instances?.[0];
-        if (!instanceId) return;
         gridEl.appendChild(createInventoryCell(item, category));
     });
 }
@@ -1510,6 +1601,9 @@ function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 
     const resolvedPath = resolveSpritePathByAvatarColor(imageUrl, itemCategory, avatarColor);
     const candidates = (resolvedPath && resolvedPath !== imageUrl) ? [resolvedPath, imageUrl] : [imageUrl];
+    const normalizedSize = normalizeInventorySpriteFrame(imageUrl, spriteWidth, spriteHeight, { sprite_path: imageUrl });
+    spriteWidth = normalizedSize.width;
+    spriteHeight = normalizedSize.height;
 
     const tryLoad = (index) => {
         if (index >= candidates.length) {
@@ -1560,11 +1654,17 @@ function getInventorySpriteFrame(item) {
             };
         }
     }
+    const frameSize = normalizeInventorySpriteFrame(
+        cd.sprite_path,
+        parseInt(cd.sprite_w, 10) || 32,
+        parseInt(cd.sprite_h, 10) || 32,
+        item
+    );
     return {
-        path: cd.sprite_path,
+        path: frameSize.path || cd.sprite_path,
         index: parseInt(cd.sprite_index, 10) || 0,
-        width: parseInt(cd.sprite_w, 10) || 32,
-        height: parseInt(cd.sprite_h, 10) || 32,
+        width: frameSize.width,
+        height: frameSize.height,
         category: cd.Category
     };
 }
@@ -1657,7 +1757,7 @@ function showItemDetailModal(item) {
     };
 
     if (cd.Category === 'Weapon') {
-        const isTwoHanded = cd.sprite_w > 32 || cd.sprite_h > 32;
+        const isTwoHanded = isTwoHandedInventoryWeapon(item);
         if (isTwoHanded) {
             const hasManifestOverwrite = getManifestationOverwriteSlots('RightHand', equipItemId).length > 0;
             if (hasManifestOverwrite) {

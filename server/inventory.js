@@ -86,6 +86,63 @@ const OFFLINE_MP_RECOVERY_SETTINGS = {
     intervalMs: 15 * 60 * 1000,
     internalKey: 'OfflineMpRecoveryAt'
 };
+const ITEM_SPRITE_PRESETS = Object.freeze([
+    { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },
+    { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['hat_straw_'], path: './Sprites/wardrobe/cloth/hat_straw.png', width: 32, height: 32, cols: 5, twoHanded: false },
+    { idPrefixes: ['leather01_'], path: './Sprites/wardrobe/leather/leather01.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['leather02_'], path: './Sprites/wardrobe/leather/leather02.png', width: 32, height: 48, cols: 4, twoHanded: false },
+    { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
+    { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false }
+]);
+
+function resolveCatalogSpritePreset(itemId, itemData = {}) {
+    const key = String(itemId || itemData?.ItemId || itemData?.FriendlyId || '').trim().toLowerCase();
+    const spritePath = String(itemData?.sprite_path || itemData?.SpritePath || '').trim().toLowerCase();
+    for (const preset of ITEM_SPRITE_PRESETS) {
+        if (spritePath && spritePath === String(preset.path).toLowerCase()) return preset;
+        if (preset.idPrefixes.some((prefix) => key.startsWith(prefix))) return preset;
+    }
+    return null;
+}
+
+function normalizeCatalogDisplayData(itemId, itemData = {}) {
+    const normalized = { ...(itemData || {}) };
+    const preset = resolveCatalogSpritePreset(itemId, normalized);
+    if (!preset) return normalized;
+    normalized.sprite_path = preset.path;
+    normalized.sprite_w = preset.width;
+    normalized.sprite_h = preset.height;
+    normalized.sprite_cols = preset.cols;
+    if (preset.weaponType && !normalized.WeaponType) {
+        normalized.WeaponType = preset.weaponType;
+    }
+    return normalized;
+}
+
+function isTwoHandedCatalogWeapon(itemId, itemData = {}) {
+    if (!itemData || String(itemData?.Category || '').trim() !== 'Weapon') return false;
+    if (itemData?.TwoHanded === true || String(itemData?.TwoHanded || '').trim().toLowerCase() === 'true') {
+        return true;
+    }
+    const preset = resolveCatalogSpritePreset(itemId, itemData);
+    if (preset && typeof preset.twoHanded === 'boolean') {
+        return preset.twoHanded;
+    }
+    return Number(itemData?.sprite_w || 0) > 32 || Number(itemData?.sprite_h || 0) > 32;
+}
 
 function calculateVoyageMpCost(durationMs) {
     const durationValue = Number(durationMs);
@@ -417,7 +474,7 @@ function initializeInventoryRoutes(app, deps) {
             items.forEach((item) => {
                 const itemId = item?.Id || item?.ItemId;
                 if (!itemId || getCurrencyIdFromItem(item, catalogCache)) return;
-                const catalogData = catalogCache[itemId] || {};
+                const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
                 const name = catalogData.DisplayName || catalogData.Title || itemId;
                 const rawAmount = item?.Amount ?? item?.amount;
                 const amount = rawAmount == null ? 1 : (Number(rawAmount) || 0);
@@ -504,10 +561,9 @@ function initializeInventoryRoutes(app, deps) {
         const dataToUpdate = {};
 
         if (itemId) {
-            const itemData = catalogCache[itemId];
+            const itemData = normalizeCatalogDisplayData(itemId, catalogCache[itemId]);
             const normalizedCategory = String(itemData?.Category || '').trim();
-            const isTwoHandedWeapon = normalizedCategory === 'Weapon'
-                && (Number(itemData?.sprite_w || 0) > 32 || Number(itemData?.sprite_h || 0) > 32);
+            const isTwoHandedWeapon = isTwoHandedCatalogWeapon(itemId, itemData);
             if (isTarotEquipmentSlot(slot)) {
                 if (!itemData || !canEquipTarotItemToSlot(itemData, slot)) {
                     return res.status(400).json({ error: 'このカードはその枠に装備できません。' });
@@ -551,9 +607,9 @@ function initializeInventoryRoutes(app, deps) {
             }
             const currentEquipmentResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ["Equipped_RightHand"] });
             const currentRightHandId = currentEquipmentResult.Data && currentEquipmentResult.Data.Equipped_RightHand ? currentEquipmentResult.Data.Equipped_RightHand.Value : null;
-            const itemData = currentRightHandId ? catalogCache[currentRightHandId] : null;
+            const itemData = currentRightHandId ? normalizeCatalogDisplayData(currentRightHandId, catalogCache[currentRightHandId]) : null;
 
-            if (slot === 'RightHand' && itemData && itemData.Category === 'Weapon' && (itemData.sprite_w > 32 || itemData.sprite_h > 32)) {
+            if (slot === 'RightHand' && isTwoHandedCatalogWeapon(currentRightHandId, itemData)) {
                 console.log(`[装備解除] 両手武器 (${currentRightHandId}) を外します`);
                 dataToUpdate['Equipped_RightHand'] = null;
                 dataToUpdate['Equipped_LeftHand'] = null;
@@ -630,7 +686,7 @@ function initializeInventoryRoutes(app, deps) {
         }
 
         try {
-            const minorCardData = catalogCache[itemId];
+            const minorCardData = normalizeCatalogDisplayData(itemId, catalogCache[itemId]);
             if (!minorCardData || !isTarotMinorCategory(minorCardData.Category)) {
                 return res.status(400).json({ error: 'そのカードは具現化できません。' });
             }
@@ -639,7 +695,7 @@ function initializeInventoryRoutes(app, deps) {
             if (!majorItemId) {
                 return res.status(400).json({ error: '体の大アルカナが設定されていません。' });
             }
-            const majorCardData = catalogCache[majorItemId];
+            const majorCardData = normalizeCatalogDisplayData(majorItemId, catalogCache[majorItemId]);
             if (!majorCardData) {
                 return res.status(400).json({ error: '体の大アルカナ情報が見つかりません。' });
             }

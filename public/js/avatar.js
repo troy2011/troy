@@ -5,6 +5,77 @@ import { TAROT_MAJOR_SLOT, buildTarotCardMeta, buildTarotLoadoutEntry } from './
 import { summarizeTarotLoadoutRole } from './tarotRoles.js';
 
 const spritePromiseCache = new Map();
+const ITEM_SPRITE_PRESETS = Object.freeze([
+    { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16, twoHanded: false },
+    { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['hat_straw_'], path: './Sprites/wardrobe/cloth/hat_straw.png', width: 32, height: 32, cols: 5, twoHanded: false },
+    { idPrefixes: ['leather01_'], path: './Sprites/wardrobe/leather/leather01.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['leather02_'], path: './Sprites/wardrobe/leather/leather02.png', width: 32, height: 48, cols: 4, twoHanded: false },
+    { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
+    { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff' },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false }
+]);
+
+function resolveAvatarSpritePreset(item) {
+    const data = item?.customData || item || {};
+    const itemId = String(item?.itemId || data?.ItemId || data?.FriendlyId || '').trim().toLowerCase();
+    const spritePath = String(data?.sprite_path || '').trim().toLowerCase();
+    return ITEM_SPRITE_PRESETS.find((preset) =>
+        (spritePath && spritePath === String(preset.path).toLowerCase())
+        || preset.idPrefixes.some((prefix) => itemId.startsWith(prefix))
+    ) || null;
+}
+
+function normalizeSpriteFrameSize(imageUrl, spriteWidth = 32, spriteHeight = 32, item = null) {
+    const preset = resolveAvatarSpritePreset(item || { sprite_path: imageUrl });
+    if (preset) {
+        return { width: preset.width, height: preset.height, path: preset.path };
+    }
+    return { width: Number(spriteWidth) || 32, height: Number(spriteHeight) || 32, path: imageUrl };
+}
+
+function getAvatarItemSpriteMeta(item) {
+    const data = item?.customData || {};
+    const preset = resolveAvatarSpritePreset(item);
+    if (preset) {
+        return {
+            path: preset.path,
+            index: parseInt(data.sprite_index, 10) || 0,
+            width: preset.width,
+            height: preset.height
+        };
+    }
+    return {
+        path: data.sprite_path,
+        index: parseInt(data.sprite_index, 10) || 0,
+        width: parseInt(data.sprite_w, 10) || 32,
+        height: parseInt(data.sprite_h, 10) || 32
+    };
+}
+
+function isTwoHandedAvatarWeapon(item) {
+    const data = item?.customData || {};
+    if (String(data?.Category || '').trim() !== 'Weapon') return false;
+    if (data?.TwoHanded === true || String(data?.TwoHanded || '').trim().toLowerCase() === 'true') {
+        return true;
+    }
+    const preset = resolveAvatarSpritePreset(item);
+    if (preset && typeof preset.twoHanded === 'boolean') {
+        return preset.twoHanded;
+    }
+    return (parseInt(data.sprite_w, 10) || 0) > 32 || (parseInt(data.sprite_h, 10) || 0) > 32;
+}
 
 function loadSpriteImage(url) {
     if (!url) return Promise.resolve(null);
@@ -189,6 +260,9 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                 return;
             }
             layer.style.backgroundImage = `url('${currentUrl}')`;
+            const normalizedSize = normalizeSpriteFrameSize(currentUrl, spriteWidth, spriteHeight);
+            spriteWidth = normalizedSize.width;
+            spriteHeight = normalizedSize.height;
             const scale = 2; // アバターの表示倍率
             layer.style.width = `${spriteWidth * scale}px`;
             layer.style.height = `${spriteHeight * scale}px`;
@@ -303,7 +377,8 @@ export function preloadEquipmentSprites(equipment, itemSource, avatarColor = nul
         getItemDetails(equipment.Accessory)
     ].filter(Boolean);
     items.forEach((item) => {
-        const path = item?.customData?.sprite_path;
+        const spriteMeta = getAvatarItemSpriteMeta(item);
+        const path = spriteMeta.path;
         const category = item?.customData?.Category || null;
         const resolvedPath = resolveSpritePathByAvatarColor(path, category, avatarColor);
         if (resolvedPath) loadSpriteImage(resolvedPath);
@@ -433,7 +508,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
 
     // 3. 装備品の描画
     const rightHandItem = getItemDetails(equipment.RightHand);
-    const isTwoHanded = rightHandItem?.customData && (parseInt(rightHandItem.customData.sprite_w, 10) > 32 || parseInt(rightHandItem.customData.sprite_h, 10) > 32);
+    const isTwoHanded = isTwoHandedAvatarWeapon(rightHandItem);
     const leftHandItem = isTwoHanded ? null : getItemDetails(equipment.LeftHand);
     const armorItem = getItemDetails(equipment.Armor);
     const accessoryItem = getItemDetails(equipment.Accessory);
@@ -446,7 +521,8 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const drawItem = (layer, item) => {
         if (item?.customData) {
             const cd = item.customData;
-            drawLayer(`${prefix}-layer-${layer}`, cd.sprite_path, parseInt(cd.sprite_index) || 0, parseInt(cd.sprite_w) || 32, parseInt(cd.sprite_h) || 32, cd.Category, avatarColor);
+            const spriteMeta = getAvatarItemSpriteMeta(item);
+            drawLayer(`${prefix}-layer-${layer}`, spriteMeta.path, spriteMeta.index, spriteMeta.width, spriteMeta.height, cd.Category, avatarColor);
         } else {
             drawLayer(`${prefix}-layer-${layer}`, null, -1);
         }

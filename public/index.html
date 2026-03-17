@@ -691,7 +691,6 @@
             <div id="tabContentInventory" class="tab-content" style="display: none;">
                 <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
                     <button class="inventory-panel-btn active" data-panel="loadout" type="button">装備</button>
-                    <button class="inventory-panel-btn" data-panel="stats" type="button">能力</button>
                     <button class="inventory-panel-btn" data-panel="items" type="button">持ち物</button>
                 </div>
                 <!-- 資源 & 装備スロット -->
@@ -705,6 +704,42 @@
                         <div id="avatar-layer-weapon-right" class="avatar-layer"></div>
                         <div id="avatar-layer-hand-left" class="avatar-layer"></div>
                         <div id="avatar-layer-shield-left" class="avatar-layer"></div>
+                    </div>
+                    <div class="inventory-loadout-stats">
+                        <div class="section-header inventory-stats-header">
+                            <h2>ステータス</h2>
+                            <button id="btnGetStats" class="section-header-btn">更新</button>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item" data-stat="atk">
+                                <span class="stat-label">⚔️ 攻撃</span>
+                                <span class="stat-value-group">
+                                    <span class="stat-value" id="currentStr">?</span>
+                                    <span class="stat-bonus" id="currentStrBonus"></span>
+                                </span>
+                            </div>
+                            <div class="stat-item" data-stat="def">
+                                <span class="stat-label">🛡️ 防御</span>
+                                <span class="stat-value-group">
+                                    <span class="stat-value" id="currentDef">?</span>
+                                    <span class="stat-bonus" id="currentDefBonus"></span>
+                                </span>
+                            </div>
+                            <div class="stat-item" data-stat="agi">
+                                <span class="stat-label">💨 敏捷</span>
+                                <span class="stat-value-group">
+                                    <span class="stat-value" id="currentAgi">?</span>
+                                    <span class="stat-bonus" id="currentAgiBonus"></span>
+                                </span>
+                            </div>
+                            <div class="stat-item" data-stat="int">
+                                <span class="stat-label">🔮 知力</span>
+                                <span class="stat-value-group">
+                                    <span class="stat-value" id="currentInt">?</span>
+                                    <span class="stat-bonus" id="currentIntBonus"></span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 装備スロット -->
@@ -789,44 +824,6 @@
                             </div>
                         </div>
                     </details>
-                </div>
-
-                <!-- ステータス -->
-                <div class="content-area inventory-section" id="playerStatsArea" data-panel="stats">
-                    <div class="section-header">
-                        <h2>ステータス</h2>
-                        <button id="btnGetStats" class="section-header-btn">更新</button>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item" data-stat="atk">
-                            <span class="stat-label">⚔️ 攻撃</span>
-                            <span class="stat-value-group">
-                                <span class="stat-value" id="currentStr">?</span>
-                                <span class="stat-bonus" id="currentStrBonus"></span>
-                            </span>
-                        </div>
-                        <div class="stat-item" data-stat="def">
-                            <span class="stat-label">🛡️ 防御</span>
-                            <span class="stat-value-group">
-                                <span class="stat-value" id="currentDef">?</span>
-                                <span class="stat-bonus" id="currentDefBonus"></span>
-                            </span>
-                        </div>
-                        <div class="stat-item" data-stat="agi">
-                            <span class="stat-label">💨 敏捷</span>
-                            <span class="stat-value-group">
-                                <span class="stat-value" id="currentAgi">?</span>
-                                <span class="stat-bonus" id="currentAgiBonus"></span>
-                            </span>
-                        </div>
-                        <div class="stat-item" data-stat="int">
-                            <span class="stat-label">🔮 知力</span>
-                            <span class="stat-value-group">
-                                <span class="stat-value" id="currentInt">?</span>
-                                <span class="stat-bonus" id="currentIntBonus"></span>
-                            </span>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="content-area inventory-section" data-panel="items">

@@ -47,6 +47,55 @@ const TAROT_FACE_LABELS = {
     QUEEN: 'クイーン',
     KING: 'キング'
 };
+const ITEM_SPRITE_PRESETS = Object.freeze([
+    { idPrefixes: ['accessory_', 'offhand_'], path: './Sprites/items/icons.png', width: 16, height: 16, cols: 16 },
+    { idPrefixes: ['hat_black_'], path: './Sprites/wardrobe/cloth/hat_black.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['hat_straw_'], path: './Sprites/wardrobe/cloth/hat_straw.png', width: 32, height: 32, cols: 5 },
+    { idPrefixes: ['leather01_'], path: './Sprites/wardrobe/leather/leather01.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['leather02_'], path: './Sprites/wardrobe/leather/leather02.png', width: 32, height: 48, cols: 4 },
+    { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10 },
+    { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10 },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7 },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7 },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5 },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10 },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12 },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13 },
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6 },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5 },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4 }
+]);
+
+function resolveManifestSpritePreset(itemId, spritePath = '') {
+    const key = String(itemId || '').trim().toLowerCase();
+    const normalizedPath = String(spritePath || '').trim().toLowerCase();
+    return ITEM_SPRITE_PRESETS.find((preset) =>
+        (normalizedPath && normalizedPath === String(preset.path).toLowerCase())
+        || preset.idPrefixes.some((prefix) => key.startsWith(prefix))
+    ) || null;
+}
+
+function normalizeManifestSpriteFrame(itemId, spritePath, spriteWidth = 32, spriteHeight = 32, spriteCols = 0) {
+    const preset = resolveManifestSpritePreset(itemId, spritePath);
+    if (preset) {
+        return {
+            path: preset.path,
+            width: preset.width,
+            height: preset.height,
+            cols: preset.cols
+        };
+    }
+    return {
+        path: String(spritePath || '').trim(),
+        width: Number(spriteWidth) || 32,
+        height: Number(spriteHeight) || 32,
+        cols: Number(spriteCols) || undefined
+    };
+}
+
 const TAROT_ROMAN_NUMERALS = {
     1: 'I',
     2: 'II',
@@ -628,11 +677,20 @@ function buildTarotManifestationEntry(slot, majorItem, minorItem, options = {}) 
     const statusRate = useTemplateStats
         ? (Number(templateData?.StatusRate ?? 0) || 0)
         : (Number(minorData?.StatusRate ?? 0) || 0);
-    const spritePath = String(templateData?.sprite_path || minorData?.sprite_path || '').trim();
+    const templateItemId = template.templateItemId || getTemplateFriendlyId(templateData);
+    const rawSpritePath = String(templateData?.sprite_path || minorData?.sprite_path || '').trim();
     const spriteIndex = Number(templateData?.sprite_index ?? minorData?.sprite_index ?? 0) || 0;
-    const spriteWidth = Number(templateData?.sprite_w ?? minorData?.sprite_w ?? 32) || 32;
-    const spriteHeight = Number(templateData?.sprite_h ?? minorData?.sprite_h ?? 32) || 32;
-    const spriteColumns = Number(templateData?.sprite_cols ?? minorData?.sprite_cols ?? 0) || undefined;
+    const normalizedSpriteFrame = normalizeManifestSpriteFrame(
+        templateItemId,
+        rawSpritePath,
+        Number(templateData?.sprite_w ?? minorData?.sprite_w ?? 32) || 32,
+        Number(templateData?.sprite_h ?? minorData?.sprite_h ?? 32) || 32,
+        Number(templateData?.sprite_cols ?? minorData?.sprite_cols ?? 0) || 0
+    );
+    const spritePath = normalizedSpriteFrame.path;
+    const spriteWidth = normalizedSpriteFrame.width;
+    const spriteHeight = normalizedSpriteFrame.height;
+    const spriteColumns = normalizedSpriteFrame.cols;
     const manifestedAt = String(options.manifestedAt || new Date().toISOString());
     const manifestedByName = String(options.manifestedByName || '').trim();
     const description = templateName
