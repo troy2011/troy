@@ -762,6 +762,33 @@ function buildTarotManifestationEntry(slot, majorItem, minorItem, options = {}) 
     };
 }
 
+function applyTarotManifestationNaming(manifestation, options = {}) {
+    if (!manifestation || typeof manifestation !== 'object') return manifestation;
+    const next = {
+        ...manifestation,
+        customData: {
+            ...(manifestation.customData || {})
+        }
+    };
+    const customName = String(options.customName || '').trim();
+    const hasCustomName = !!customName;
+    const slot = getCanonicalManifestationSlot(next.slot || next.customData?.ManifestedSlot || '');
+    const slotLabel = String(next.slotLabel || next.customData?.ManifestedSlotLabel || getTarotSlotLabel(slot)).trim() || getTarotSlotLabel(slot);
+    const sourceCardName = String(next.sourceCardName || next.customData?.SourceCardName || '小アルカナ').trim() || '小アルカナ';
+    const templateName = String(next.manifestedItemName || next.customData?.ManifestedItemName || next.name || '').trim();
+    const displayName = hasCustomName ? customName : (templateName || next.name || slotLabel);
+
+    next.name = displayName;
+    next.description = hasCustomName
+        ? `${sourceCardName}が具現化した${slotLabel}装備「${displayName}」。`
+        : `${sourceCardName}が具現化した${slotLabel}装備「${templateName || displayName}」。`;
+    next.customData.CustomName = customName;
+    next.customData.DisplayName = displayName;
+    next.customData.NameMode = hasCustomName ? 'custom' : 'template';
+    next.customData.NameFinalized = true;
+    return next;
+}
+
 module.exports = {
     TAROT_MAJOR_CATEGORIES,
     TAROT_MINOR_CATEGORIES,
@@ -793,5 +820,6 @@ module.exports = {
     parseStoredEquipmentValue,
     isTarotManifestationEntry,
     buildTarotManifestationName,
-    buildTarotManifestationEntry
+    buildTarotManifestationEntry,
+    applyTarotManifestationNaming
 };

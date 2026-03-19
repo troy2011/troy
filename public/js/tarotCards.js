@@ -186,12 +186,19 @@ export function getTarotSlotLabel(slot) {
     return TAROT_SLOT_LABELS[normalized] || TAROT_SLOT_LABELS[String(slot || '').trim()] || String(slot || '').trim();
 }
 
+function isCustomNamedManifestation(itemData) {
+    if (!isTarotManifestationData(itemData)) return false;
+    const customName = String(itemData?.CustomName || '').trim();
+    const nameMode = String(itemData?.NameMode || '').trim().toLowerCase();
+    return !!customName || nameMode === 'custom';
+}
+
 export function buildTarotCardMeta(itemData) {
     if (isTarotManifestationData(itemData)) {
         const lines = [];
         if (itemData.ManifestStyleLabel) lines.push(`型: ${itemData.ManifestStyleLabel}`);
         if (itemData.MajorArcanaName) lines.push(`体: ${itemData.MajorArcanaName}`);
-        if (itemData.ManifestedItemName) lines.push(`具現先: ${itemData.ManifestedItemName}`);
+        if (itemData.ManifestedItemName && !isCustomNamedManifestation(itemData)) lines.push(`具現先: ${itemData.ManifestedItemName}`);
         if (itemData.ArcanaSuitLabel) lines.push(`宿り: ${itemData.ArcanaSuitLabel}`);
         if (itemData.SourceCardName) lines.push(`札: ${itemData.SourceCardName}`);
         if (itemData.ManifestedBy) lines.push(`具現者: ${itemData.ManifestedBy}`);
@@ -413,9 +420,11 @@ export function buildTarotLoadoutEntry(slot, item) {
         };
     }
     if (isTarotManifestationData(itemData)) {
-        const cardTitle = String(itemData?.SourceCardName || [getTarotSuitLabel(itemData), getTarotRankLabel(itemData)].filter(Boolean).join(' ')).trim() || '小アルカナ';
+        const isCustomNamed = isCustomNamedManifestation(itemData);
+        const cardTitle = String(item?.name || itemData?.DisplayName || itemData?.CustomName || itemData?.SourceCardName || [getTarotSuitLabel(itemData), getTarotRankLabel(itemData)].filter(Boolean).join(' ')).trim() || '小アルカナ';
         const detailParts = [];
-        if (itemData?.ManifestedItemName) detailParts.push(`具現: ${itemData.ManifestedItemName}`);
+        if (itemData?.SourceCardName) detailParts.push(`札: ${itemData.SourceCardName}`);
+        if (itemData?.ManifestedItemName && !isCustomNamed) detailParts.push(`具現: ${itemData.ManifestedItemName}`);
         if (itemData?.ManifestStyleLabel) detailParts.push(`型: ${itemData.ManifestStyleLabel}`);
         const suitKey = getSuitKey(itemData) || 'none';
         return {

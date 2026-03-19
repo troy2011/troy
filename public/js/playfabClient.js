@@ -79,8 +79,19 @@ export function equipItem(playFabId, itemId, slot, options) {
     return callApiWithLoader('/api/equip-item', { playFabId, itemId, slot }, options);
 }
 
+export function previewTarotManifestation(playFabId, itemId, slot, options) {
+    return callApiWithLoader('/api/preview-tarot-manifestation', { playFabId, itemId, slot }, options);
+}
+
 export function manifestTarotCard(playFabId, itemId, slot, options) {
-    return callApiWithLoader('/api/manifest-tarot-card', { playFabId, itemId, slot }, options);
+    return callApiWithLoader('/api/manifest-tarot-card', {
+        playFabId,
+        itemId,
+        slot,
+        previewToken: options?.previewToken,
+        customName: options?.customName,
+        useCustomName: options?.useCustomName
+    }, options);
 }
 
 export function studyTarotCard(playFabId, itemId, options) {
@@ -231,6 +242,10 @@ export function sendTroyCheckout(playFabId, payload, options) {
 
 export function sendTroyOrder(playFabId, order, options) {
     return callApiWithLoader('/api/troy-order', { playFabId, ...order }, options);
+}
+
+export function undoTroyLastOrder(playFabId, options) {
+    return callApiWithLoader('/api/troy-undo-last-order', { playFabId }, options);
 }
 
 export function setTroyOpen(playFabId, isOpen, options) {

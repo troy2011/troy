@@ -3056,6 +3056,118 @@ body.modal-lock .modal-overlay {
     color: #fef3c7;
 }
 
+.troy-open-tab-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background:
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.1), transparent 42%),
+        rgba(15, 23, 42, 0.5);
+}
+
+.troy-open-tab-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.troy-open-tab-head-main {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.troy-open-tab-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #fff3c4;
+}
+
+.troy-open-tab-meta {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-sub);
+}
+
+.troy-open-tab-list {
+    display: grid;
+    gap: 8px;
+}
+
+.troy-open-tab-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(2, 6, 23, 0.35);
+}
+
+.troy-open-tab-item.is-latest {
+    border-color: rgba(251, 191, 36, 0.28);
+    background: rgba(120, 53, 15, 0.16);
+}
+
+.troy-open-tab-item-main {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.troy-open-tab-item-name {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.troy-open-tab-item-meta {
+    color: var(--text-sub);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.troy-open-tab-item-total {
+    color: #fef3c7;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.troy-open-tab-empty {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px dashed rgba(148, 163, 184, 0.2);
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.6;
+    background: rgba(2, 6, 23, 0.18);
+}
+
+.troy-open-tab-undo {
+    flex: 0 0 auto;
+    border: 1px solid rgba(251, 191, 36, 0.38);
+    border-radius: 999px;
+    background: rgba(120, 53, 15, 0.28);
+    color: #fff7d6;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 7px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.troy-open-tab-undo:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
 .king-pending-checkout-list {
     display: grid;
     gap: 10px;
@@ -3436,7 +3548,50 @@ body.modal-lock .modal-overlay {
     cursor: not-allowed;
 }
 
+.troy-menu-favorite-btn {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.8);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.troy-menu-favorite-btn.is-active {
+    border-color: rgba(251, 191, 36, 0.68);
+    background: rgba(120, 53, 15, 0.4);
+    color: #fff7d6;
+}
+
+.troy-menu-modal-empty {
+    padding: 18px 14px;
+    border-radius: 12px;
+    border: 1px dashed rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.45);
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.6;
+    text-align: center;
+}
+
 @media (max-width: 560px) {
+    .troy-open-tab-head {
+        display: grid;
+        gap: 10px;
+    }
+    .troy-open-tab-undo {
+        width: 100%;
+    }
+    .troy-open-tab-item {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+    .troy-open-tab-item-total {
+        justify-self: flex-start;
+    }
     .troy-menu-modal-card {
         width: 96vw;
         padding: 12px;
@@ -3464,6 +3619,9 @@ body.modal-lock .modal-overlay {
     .troy-order-inline-status {
         font-size: 11px;
         padding: 8px 9px;
+    }
+    .troy-open-tab-meta {
+        font-size: 11px;
     }
 }
 
@@ -8945,11 +9103,13 @@ textarea {
     background: rgba(148, 163, 184, 0.52);
 }
 
-#itemDetailModal {
+#itemDetailModal,
+#tarotManifestPreviewModal {
     align-items: flex-end;
 }
 
-#itemDetailModal .item-detail-sheet {
+#itemDetailModal .item-detail-sheet,
+#tarotManifestPreviewModal .item-detail-sheet {
     width: 100%;
     max-width: none;
     max-height: 86dvh;
@@ -9030,6 +9190,95 @@ textarea {
     margin: 0 0 18px;
     font-weight: 700;
     line-height: 1.7;
+}
+
+#tarotManifestPreviewIcon {
+    width: 64px;
+    height: 96px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    flex: 0 0 auto;
+}
+
+#tarotManifestPreviewName {
+    margin: 0;
+    color: var(--accent-color);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+#tarotManifestPreviewSubline {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-sub);
+}
+
+#tarotManifestPreviewDescription {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.22);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+#tarotManifestPreviewStats {
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(8, 15, 29, 0.64);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    font-weight: 700;
+    line-height: 1.7;
+}
+
+.tarot-manifest-preview-namebox {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tarot-manifest-preview-namebox label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+#tarotManifestPreviewNameInput {
+    width: 100%;
+    min-height: 46px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.82);
+    color: #f8fafc;
+    font-size: 16px;
+}
+
+#tarotManifestPreviewNameInput::placeholder {
+    color: rgba(226, 232, 240, 0.42);
+}
+
+.tarot-manifest-preview-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+
+.tarot-manifest-preview-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 0;
+}
+
+.tarot-manifest-preview-actions button {
+    width: 100%;
+}
+
+.tarot-manifest-preview-actions .item-detail-close {
+    margin-top: 0;
 }
 
 #itemDetailButtons {
@@ -11122,7 +11371,8 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-#itemDetailModal .item-detail-sheet {
+#itemDetailModal .item-detail-sheet,
+#tarotManifestPreviewModal .item-detail-sheet {
     display: flex;
     flex-direction: column;
 }

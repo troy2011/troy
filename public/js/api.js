@@ -80,6 +80,10 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
         console.error(`Error in callApiWithLoader for ${endpointName}:`, error);
         if (spinner) spinner.style.display = 'none';
 
+        if (options.throwOnError) {
+            throw error;
+        }
+
         if (options.isSilent) {
             return null;
         }

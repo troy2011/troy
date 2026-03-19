@@ -4,6 +4,7 @@ import {
     getInventory as fetchInventory,
     getEquipment as fetchEquipment,
     equipItem as requestEquipItem,
+    previewTarotManifestation as requestPreviewTarotManifestation,
     manifestTarotCard as requestManifestTarotCard,
     studyTarotCard as requestStudyTarotCard,
     awakenMajorArcana as requestAwakenMajorArcana,
@@ -48,6 +49,7 @@ let activeInventoryCategory = 'All';
 let activeManifestTargetSlot = null;
 let lastInventoryFetchAt = 0;
 let inventoryFetchPromise = null;
+let pendingTarotManifestPreview = null;
 let myShipResourceStorage = {
     activeShipId: null,
     homeResources: {},
@@ -282,6 +284,158 @@ function showModal(modal) {
 
 export function closeItemDetailModal() {
     hideModal(document.getElementById('itemDetailModal'));
+}
+
+function getTarotManifestPreviewModalElements() {
+    return {
+        modal: document.getElementById('tarotManifestPreviewModal'),
+        icon: document.getElementById('tarotManifestPreviewIcon'),
+        name: document.getElementById('tarotManifestPreviewName'),
+        subline: document.getElementById('tarotManifestPreviewSubline'),
+        description: document.getElementById('tarotManifestPreviewDescription'),
+        stats: document.getElementById('tarotManifestPreviewStats'),
+        input: document.getElementById('tarotManifestPreviewNameInput'),
+        hint: document.getElementById('tarotManifestPreviewHint'),
+        confirmName: document.getElementById('btnTarotManifestConfirmName'),
+        confirmTemplate: document.getElementById('btnTarotManifestUseTemplate'),
+        cancel: document.getElementById('btnTarotManifestCancel')
+    };
+}
+
+export function closeTarotManifestPreviewModal() {
+    pendingTarotManifestPreview = null;
+    hideModal(document.getElementById('tarotManifestPreviewModal'));
+}
+
+function appendManifestPreviewStat(statsEl, label, value) {
+    if (!statsEl || !Number(value)) return;
+    statsEl.innerHTML += `${statsEl.innerHTML ? '<br>' : ''}<span>${label}: <strong>${value}</strong></span>`;
+}
+
+async function finalizeTarotManifestationPreview(playFabId, options = {}) {
+    if (!pendingTarotManifestPreview?.previewToken) return;
+    const { input } = getTarotManifestPreviewModalElements();
+    const useCustomName = options.useCustomName === true;
+    const customName = String(input?.value || '').trim();
+    if (useCustomName && !customName) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('命名する場合は名前を入力してください。');
+        }
+        return;
+    }
+
+    const data = await requestManifestTarotCard(playFabId, pendingTarotManifestPreview.sourceCardId, pendingTarotManifestPreview.slot, {
+        previewToken: pendingTarotManifestPreview.previewToken,
+        customName,
+        useCustomName
+    });
+    if (data === null) return;
+
+    setInventoryManifestTargetSlot(null);
+    closeTarotManifestPreviewModal();
+    await getInventory(playFabId, { force: true });
+    closeItemDetailModal();
+    if (typeof window.showRpgMessage === 'function') {
+        const title = data?.manifestation?.name || `${getTarotSlotLabel(data?.slot)}の具現化`;
+        window.showRpgMessage(`${title} を具現化した。`);
+    }
+}
+
+function showTarotManifestPreviewModal(playFabId, previewPayload = {}) {
+    const preview = previewPayload?.preview || {};
+    const manifestation = preview.manifestation || {};
+    const itemData = manifestation?.customData || {};
+    const slot = String(manifestation?.slot || itemData?.ManifestedSlot || '').trim();
+    const slotLabel = manifestation?.slotLabel || itemData?.ManifestedSlotLabel || getTarotSlotLabel(slot);
+    const sourceCardName = manifestation?.sourceCardName || itemData?.SourceCardName || '小アルカナ';
+    const suggestedName = String(preview?.suggestedName || manifestation?.manifestedItemName || manifestation?.name || '').trim();
+
+    const {
+        modal,
+        icon,
+        name,
+        subline,
+        description,
+        stats,
+        input,
+        hint,
+        confirmName,
+        confirmTemplate,
+        cancel
+    } = getTarotManifestPreviewModalElements();
+    if (!modal || !icon || !name || !subline || !description || !stats || !input || !hint || !confirmName || !confirmTemplate || !cancel) {
+        return;
+    }
+    pendingTarotManifestPreview = {
+        previewToken: String(previewPayload?.previewToken || '').trim(),
+        slot,
+        sourceCardId: String(manifestation?.sourceCardId || itemData?.SourceCardId || '').trim(),
+        suggestedName
+    };
+
+    setSpriteIcon(
+        icon,
+        itemData.sprite_path,
+        parseInt(itemData.sprite_index, 10) || 0,
+        parseInt(itemData.sprite_w, 10) || 32,
+        parseInt(itemData.sprite_h, 10) || 32,
+        1.2,
+        itemData.Category,
+        window.myAvatarBaseInfo?.AvatarColor
+    );
+    name.innerText = suggestedName || `${slotLabel}の具現装備`;
+    subline.innerText = `${slotLabel} / 札: ${sourceCardName}`;
+    description.innerText = [
+        `${sourceCardName}が${slotLabel}に具現化した姿です。`,
+        myCurrentEquipment?.[slot] ? '現在の装備は上書きされます。' : '',
+        'この場で一度だけ命名できます。名前を付けない場合はテンプレート名のまま確定します。'
+    ].filter(Boolean).join(' ');
+
+    stats.innerHTML = '';
+    appendManifestPreviewStat(stats, '攻撃力', itemData.Power);
+    appendManifestPreviewStat(stats, '防御力', itemData.Defense);
+    appendManifestPreviewStat(stats, 'すばやさ', itemData.Agi);
+    appendManifestPreviewStat(stats, 'かしこさ', itemData.Int);
+    appendManifestPreviewStat(stats, '魔力', itemData.MagicPower);
+    appendManifestPreviewStat(stats, '回復力', itemData.HealPower);
+    appendManifestPreviewStat(stats, 'MP効率', itemData.MpEfficiency);
+    appendManifestPreviewStat(stats, '詠唱速度', itemData.CastRate);
+    appendManifestPreviewStat(stats, '状態成功', itemData.StatusRate);
+
+    const maxLength = Math.max(1, Number(preview?.customNameMaxLength || 16) || 16);
+    input.value = '';
+    input.maxLength = maxLength;
+    input.placeholder = suggestedName || '名前を入力';
+    hint.innerText = `候補名: ${suggestedName || 'なし'} / 命名は1回だけです。`;
+
+    const nextConfirmName = confirmName.cloneNode(true);
+    confirmName.parentNode.replaceChild(nextConfirmName, confirmName);
+    const nextConfirmTemplate = confirmTemplate.cloneNode(true);
+    confirmTemplate.parentNode.replaceChild(nextConfirmTemplate, confirmTemplate);
+    const nextCancel = cancel.cloneNode(true);
+    cancel.parentNode.replaceChild(nextCancel, cancel);
+
+    const syncNameButton = () => {
+        nextConfirmName.disabled = !String(input.value || '').trim();
+    };
+    input.oninput = syncNameButton;
+    syncNameButton();
+
+    nextConfirmName.onclick = async () => {
+        await finalizeTarotManifestationPreview(playFabId, { useCustomName: true });
+    };
+    nextConfirmTemplate.onclick = async () => {
+        await finalizeTarotManifestationPreview(playFabId, { useCustomName: false });
+    };
+    nextCancel.onclick = () => {
+        closeTarotManifestPreviewModal();
+    };
+    modal.onclick = (event) => {
+        if (event.target === modal) closeTarotManifestPreviewModal();
+    };
+
+    showModal(modal);
+    input.focus();
 }
 
 function normalizeInventoryPanel(panel) {
@@ -1385,28 +1539,10 @@ export async function equipItem(playFabId, itemId, slot) {
 }
 
 export async function manifestTarotCard(playFabId, itemId, slot) {
-    const slotLabel = getTarotSlotLabel(slot);
-    const hasCurrentEquipment = !!myCurrentEquipment?.[slot];
-    const confirmText = hasCurrentEquipment
-        ? `${slotLabel}の現在の装備を上書きして具現化します。\nカードは1枚消失します。実行しますか？`
-        : `${slotLabel}に具現化します。\nカードは1枚消失します。実行しますか？`;
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm(confirmText)) {
-        return;
-    }
-
-    const data = await requestManifestTarotCard(playFabId, itemId, slot);
-    if (data !== null) {
-        setInventoryManifestTargetSlot(null);
-        await getInventory(playFabId, { force: true });
-        const modal = document.getElementById('itemDetailModal');
-        if (modal) {
-            closeItemDetailModal();
-        }
-        if (typeof window.showRpgMessage === 'function') {
-            const title = data?.manifestation?.name || `${slotLabel}の具現化`;
-            window.showRpgMessage(`${title} を具現化した。`);
-        }
-    }
+    const data = await requestPreviewTarotManifestation(playFabId, itemId, slot);
+    if (data === null) return;
+    closeItemDetailModal();
+    showTarotManifestPreviewModal(playFabId, data);
 }
 
 export async function studyTarotCard(playFabId, itemId) {

@@ -1,6 +1,7 @@
 // server/inventory.js
 // インベントリ・装備関連のAPI
 
+const { randomUUID } = require('crypto');
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
 const {
     applyDerivedPlayerLevelToStats,
@@ -19,6 +20,7 @@ const {
     getCanonicalManifestationSlot,
     isTarotManifestationSlot,
     buildTarotManifestationEntry,
+    applyTarotManifestationNaming,
     parseStoredEquipmentValue,
     isTarotManifestationEntry,
     isTarotMinorCategory,
@@ -44,6 +46,9 @@ const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const TAROT_MANIFEST_PREVIEW_DATA_KEY = 'TarotManifestPreview';
+const TAROT_MANIFEST_PREVIEW_TTL_MS = 10 * 60 * 1000;
+const TAROT_MANIFEST_CUSTOM_NAME_MAX_LENGTH = 16;
 const RESOURCE_RECOVERY_SETTINGS = {
     hp: {
         itemId: 'RY',
@@ -269,6 +274,81 @@ function initializeInventoryRoutes(app, deps) {
             if (currentId !== targetId) return total;
             return total + (getItemAmount(item) || 0);
         }, 0);
+    }
+
+    function sanitizeTarotManifestCustomName(value) {
+        return String(value || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, TAROT_MANIFEST_CUSTOM_NAME_MAX_LENGTH);
+    }
+
+    async function saveTarotManifestPreviewState(playFabId, previewState = null) {
+        await promisifyPlayFab(PlayFabServer.UpdateUserInternalData, {
+            PlayFabId: playFabId,
+            Data: {
+                [TAROT_MANIFEST_PREVIEW_DATA_KEY]: previewState ? JSON.stringify(previewState) : ''
+            }
+        });
+    }
+
+    async function loadTarotManifestPreviewState(playFabId) {
+        const result = await promisifyPlayFab(PlayFabServer.GetUserInternalData, {
+            PlayFabId: playFabId,
+            Keys: [TAROT_MANIFEST_PREVIEW_DATA_KEY]
+        });
+        return parseJsonValue(result?.Data?.[TAROT_MANIFEST_PREVIEW_DATA_KEY]?.Value, null);
+    }
+
+    async function buildTarotManifestPreview(playFabId, itemId, slot) {
+        const normalizedSlot = getCanonicalManifestationSlot(slot);
+        if (!isTarotManifestationSlot(normalizedSlot)) {
+            return { ok: false, status: 400, error: '不正な具現化先です。' };
+        }
+
+        const minorCardData = normalizeCatalogDisplayData(itemId, catalogCache[itemId]);
+        if (!minorCardData || !isTarotMinorCategory(minorCardData.Category)) {
+            return { ok: false, status: 400, error: 'そのカードは具現化できません。' };
+        }
+
+        const majorItemId = await ensureStarterMajorArcanaEquipped(playFabId);
+        if (!majorItemId) {
+            return { ok: false, status: 400, error: '体の大アルカナが設定されていません。' };
+        }
+        const majorCardData = normalizeCatalogDisplayData(majorItemId, catalogCache[majorItemId]);
+        if (!majorCardData) {
+            return { ok: false, status: 400, error: '体の大アルカナ情報が見つかりません。' };
+        }
+
+        const entityKey = await getEntityKeyForPlayFabId(playFabId);
+        const inventoryItems = await getAllInventoryItems(entityKey);
+        if (getInventoryItemTotal(inventoryItems, itemId) <= 0) {
+            return { ok: false, status: 400, error: '具現化に使うカードを所持していません。' };
+        }
+
+        const manifestedByName = await getPlayerDisplayName(playFabId);
+        const previewManifestation = buildTarotManifestationEntry(
+            normalizedSlot,
+            { itemId: majorItemId, name: majorCardData.DisplayName || majorItemId, customData: majorCardData },
+            { itemId, name: minorCardData.DisplayName || itemId, customData: minorCardData },
+            {
+                majorItemId,
+                sourceCardId: itemId,
+                sourceCardName: minorCardData.DisplayName || itemId,
+                manifestedByPlayFabId: playFabId,
+                manifestedByName,
+                catalogCache
+            }
+        );
+        return {
+            ok: true,
+            playFabId,
+            slot: normalizedSlot,
+            sourceCardId: itemId,
+            sourceCardName: minorCardData.DisplayName || itemId,
+            majorItemId,
+            previewManifestation
+        };
     }
 
     async function ensureStarterMajorArcanaOwned(playFabId, nation, inventoryItems = null, entityKey = null) {
@@ -696,7 +776,7 @@ function initializeInventoryRoutes(app, deps) {
         }
     });
 
-    app.post('/api/manifest-tarot-card', async (req, res) => {
+    app.post('/api/preview-tarot-manifestation', async (req, res) => {
         let { playFabId, itemId, slot } = req.body || {};
         if (!playFabId || !itemId || !slot) {
             return res.status(400).json({ error: 'IDまたは具現化先の情報がありません。' });
@@ -704,51 +784,114 @@ function initializeInventoryRoutes(app, deps) {
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
 
-        const normalizedSlot = getCanonicalManifestationSlot(slot);
-        if (!isTarotManifestationSlot(normalizedSlot)) {
-            return res.status(400).json({ error: '不正な具現化先です。' });
+        try {
+            const previewResult = await buildTarotManifestPreview(playFabId, itemId, slot);
+            if (!previewResult?.ok) {
+                return res.status(previewResult?.status || 400).json({ error: previewResult?.error || '具現化プレビューを生成できません。' });
+            }
+
+            const nowMs = Date.now();
+            const previewState = {
+                token: randomUUID(),
+                createdAtMs: nowMs,
+                expiresAtMs: nowMs + TAROT_MANIFEST_PREVIEW_TTL_MS,
+                slot: previewResult.slot,
+                sourceCardId: previewResult.sourceCardId,
+                sourceCardName: previewResult.sourceCardName,
+                majorItemId: previewResult.majorItemId,
+                manifestation: previewResult.previewManifestation
+            };
+            await saveTarotManifestPreviewState(playFabId, previewState);
+
+            return res.json({
+                success: true,
+                previewToken: previewState.token,
+                expiresAtMs: previewState.expiresAtMs,
+                preview: {
+                    manifestation: previewState.manifestation,
+                    suggestedName: String(
+                        previewState.manifestation?.manifestedItemName
+                        || previewState.manifestation?.name
+                        || ''
+                    ).trim(),
+                    customNameMaxLength: TAROT_MANIFEST_CUSTOM_NAME_MAX_LENGTH
+                }
+            });
+        } catch (error) {
+            console.error('[preview-tarot-manifestation] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: '具現化プレビューの生成に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
+    });
+
+    app.post('/api/manifest-tarot-card', async (req, res) => {
+        let { playFabId, itemId, slot, previewToken, customName, useCustomName } = req.body || {};
+        if (!playFabId) {
+            return res.status(400).json({ error: 'IDまたは具現化先の情報がありません。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
 
         try {
-            const minorCardData = normalizeCatalogDisplayData(itemId, catalogCache[itemId]);
-            if (!minorCardData || !isTarotMinorCategory(minorCardData.Category)) {
-                return res.status(400).json({ error: 'そのカードは具現化できません。' });
+            let normalizedSlot = getCanonicalManifestationSlot(slot);
+            let sourceCardId = String(itemId || '').trim();
+            let manifestation = null;
+            const hasPreviewToken = !!String(previewToken || '').trim();
+            const wantsCustomName = useCustomName === true || String(useCustomName || '').trim().toLowerCase() === 'true';
+            const sanitizedCustomName = sanitizeTarotManifestCustomName(customName);
+
+            if (wantsCustomName && !sanitizedCustomName) {
+                return res.status(400).json({ error: '命名する場合は名前を入力してください。' });
             }
 
-            const majorItemId = await ensureStarterMajorArcanaEquipped(playFabId);
-            if (!majorItemId) {
-                return res.status(400).json({ error: '体の大アルカナが設定されていません。' });
+            if (hasPreviewToken) {
+                const previewState = await loadTarotManifestPreviewState(playFabId);
+                if (!previewState || String(previewState?.token || '').trim() !== String(previewToken).trim()) {
+                    return res.status(409).json({ error: '具現化プレビューの有効期限が切れました。' });
+                }
+                if (Date.now() > Math.max(0, Number(previewState?.expiresAtMs) || 0)) {
+                    try {
+                        await saveTarotManifestPreviewState(playFabId, null);
+                    } catch (clearError) {
+                        console.warn('[manifest-tarot-card] Expired preview clear failed:', clearError?.errorMessage || clearError?.message || clearError);
+                    }
+                    return res.status(409).json({ error: '具現化プレビューの有効期限が切れました。' });
+                }
+
+                normalizedSlot = getCanonicalManifestationSlot(previewState.slot);
+                sourceCardId = String(previewState.sourceCardId || '').trim();
+                manifestation = applyTarotManifestationNaming(previewState.manifestation, {
+                    customName: wantsCustomName ? sanitizedCustomName : ''
+                });
+            } else {
+                if (!sourceCardId || !normalizedSlot) {
+                    return res.status(400).json({ error: 'IDまたは具現化先の情報がありません。' });
+                }
+                const previewResult = await buildTarotManifestPreview(playFabId, sourceCardId, normalizedSlot);
+                if (!previewResult?.ok) {
+                    return res.status(previewResult?.status || 400).json({ error: previewResult?.error || 'カードの具現化に失敗しました。' });
+                }
+                normalizedSlot = previewResult.slot;
+                manifestation = applyTarotManifestationNaming(previewResult.previewManifestation, { customName: '' });
             }
-            const majorCardData = normalizeCatalogDisplayData(majorItemId, catalogCache[majorItemId]);
-            if (!majorCardData) {
-                return res.status(400).json({ error: '体の大アルカナ情報が見つかりません。' });
+
+            if (!isTarotManifestationSlot(normalizedSlot) || !sourceCardId || !manifestation) {
+                return res.status(400).json({ error: 'カードの具現化情報が不正です。' });
             }
 
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const inventoryItems = await getAllInventoryItems(entityKey);
-            if (getInventoryItemTotal(inventoryItems, itemId) <= 0) {
+            if (getInventoryItemTotal(inventoryItems, sourceCardId) <= 0) {
                 return res.status(400).json({ error: '具現化に使うカードを所持していません。' });
             }
 
-            const manifestedByName = await getPlayerDisplayName(playFabId);
-            const manifestation = buildTarotManifestationEntry(
-                normalizedSlot,
-                { itemId: majorItemId, name: majorCardData.DisplayName || majorItemId, customData: majorCardData },
-                { itemId, name: minorCardData.DisplayName || itemId, customData: minorCardData },
-                {
-                    majorItemId,
-                    sourceCardId: itemId,
-                    sourceCardName: minorCardData.DisplayName || itemId,
-                    manifestedByPlayFabId: playFabId,
-                    manifestedByName,
-                    catalogCache
-                }
-            );
             const manifestationKey = TAROT_MANIFESTATION_SLOT_TO_KEY[normalizedSlot];
             const nowStamp = Date.now();
 
-            await subtractEconomyItem(playFabId, itemId, 1, {
-                idempotencyId: `manifest-tarot-${playFabId}-${normalizedSlot}-${itemId}-${nowStamp}`
+            await subtractEconomyItem(playFabId, sourceCardId, 1, {
+                idempotencyId: `manifest-tarot-${playFabId}-${normalizedSlot}-${sourceCardId}-${nowStamp}`
             });
             await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
                 PlayFabId: playFabId,
@@ -757,6 +900,13 @@ function initializeInventoryRoutes(app, deps) {
                 },
                 Permission: 'Public'
             });
+            if (hasPreviewToken) {
+                try {
+                    await saveTarotManifestPreviewState(playFabId, null);
+                } catch (clearError) {
+                    console.warn('[manifest-tarot-card] Preview clear failed:', clearError?.errorMessage || clearError?.message || clearError);
+                }
+            }
 
             return res.json({
                 success: true,

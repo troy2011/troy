@@ -275,10 +275,23 @@
                         <div class="troy-menu-title">メニュー</div>
                         <div class="troy-menu-note">数量を選んでそのまま注文できます。PSは注文ごとに即時付与され、支払いは最後にまとめて行います。</div>
                         <div id="troyOrderStatusInline" class="troy-order-inline-status">注文ごとにPSが即時付与されます。支払いは最後にまとめて行います。</div>
+                        <div id="troyOpenTabCard" class="troy-open-tab-card">
+                            <div class="troy-open-tab-head">
+                                <div class="troy-open-tab-head-main">
+                                    <div class="troy-open-tab-title">現在の未会計伝票</div>
+                                    <div id="troyOpenTabMeta" class="troy-open-tab-meta">未会計の注文はありません。</div>
+                                </div>
+                                <button id="btnTroyUndoLastOrder" class="troy-open-tab-undo" type="button" disabled>最後の1件を取り消す</button>
+                            </div>
+                            <div id="troyOpenTabList" class="troy-open-tab-list">
+                                <div class="troy-open-tab-empty">注文するとここに明細が表示されます。会計後は自動で退店します。</div>
+                            </div>
+                        </div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
                                 <ul class="troy-menu-items">
+                                    <li class="troy-menu-item-button" data-menu-id="favorite">いつもの</li>
                                     <li class="troy-menu-item-button" data-menu-id="nonalcohol">ノンアル</li>
                                     <li class="troy-menu-item-button" data-menu-id="alcohol">アルコール</li>
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
@@ -1061,6 +1074,33 @@
                 <!-- アクションボタン -->
             </div>
             <button class="item-detail-close" onclick="window.closeItemDetailModal && window.closeItemDetailModal()">閉じる</button>
+        </div>
+    </div>
+
+    <div id="tarotManifestPreviewModal" class="modal-overlay">
+        <div class="modal-content item-detail-sheet tarot-manifest-preview-sheet">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="item-detail-head">
+                <div class="item-detail-icon-frame">
+                    <div id="tarotManifestPreviewIcon"></div>
+                </div>
+                <div class="item-detail-copy">
+                    <h3 id="tarotManifestPreviewName">具現化候補</h3>
+                    <p id="tarotManifestPreviewSubline"></p>
+                </div>
+            </div>
+            <p id="tarotManifestPreviewDescription"></p>
+            <div id="tarotManifestPreviewStats"></div>
+            <div class="tarot-manifest-preview-namebox">
+                <label for="tarotManifestPreviewNameInput">命名</label>
+                <input id="tarotManifestPreviewNameInput" type="text" maxlength="16" placeholder="名前を入力" autocomplete="off" />
+                <div id="tarotManifestPreviewHint" class="tarot-manifest-preview-hint"></div>
+            </div>
+            <div class="modal-buttons tarot-manifest-preview-actions">
+                <button id="btnTarotManifestConfirmName">命名して確定</button>
+                <button id="btnTarotManifestUseTemplate">名前は付けない</button>
+                <button id="btnTarotManifestCancel" class="item-detail-close">やめる</button>
+            </div>
         </div>
     </div>
 

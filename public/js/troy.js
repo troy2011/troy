@@ -3,7 +3,8 @@
 import {
     getTroyStatus,
     joinTroy,
-    sendTroyOrder
+    sendTroyOrder,
+    undoTroyLastOrder
 } from './playfabClient.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { isKing, refreshKingNav, loadKingPage } from './nationKing.js';
@@ -15,6 +16,10 @@ let _checkoutSession = null;
 let _menuActiveId = 'nonalcohol';
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
+let _undoCountdownTimerId = 0;
+let _favoriteDrinkEntries = [];
+let _pendingAutoLeaveNotice = false;
+let _pendingAutoLeaveTimerId = 0;
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
 let _statusCheckoutUnsubscribe = null;
@@ -25,7 +30,8 @@ let _statusSnapshotState = {
     checkout: null
 };
 
-const TROY_MENU_IDS = ['nonalcohol', 'alcohol', 'food', 'points'];
+const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'food', 'points'];
+const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GROUP_BY_NATION = {
     fire: 'nation_fire_island',
     earth: 'nation_earth_island',
@@ -112,6 +118,115 @@ function getAlcoholDrinkMenuData() {
     };
 }
 
+function isDrinkMenuId(menuId, item = null) {
+    const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
+    return sourceMenuId === 'nonalcohol' || sourceMenuId === 'alcohol';
+}
+
+function buildFavoriteDrinkId(menuId, item, optionLabel = '') {
+    const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
+    const concept = String(item?.concept || item?.name || '').trim().toLowerCase();
+    const price = parseYenPrice(item?.price);
+    const option = String(optionLabel || item?.optionLabel || '').trim().toLowerCase();
+    return `${sourceMenuId}:${concept}:${price}:${option}`;
+}
+
+function sanitizeFavoriteDrinkEntry(entry = {}) {
+    const menuId = String(entry?.menuId || '').trim();
+    const concept = String(entry?.concept || entry?.name || '').trim();
+    const price = parseYenPrice(entry?.price);
+    if (!isDrinkMenuId(menuId) || !concept || !price) return null;
+    const optionLabel = String(entry?.optionLabel || '').trim();
+    return {
+        favoriteId: String(entry?.favoriteId || buildFavoriteDrinkId(menuId, entry, optionLabel)).trim(),
+        menuId,
+        concept,
+        content: String(entry?.content || '').trim(),
+        price,
+        image: String(entry?.image || '').trim(),
+        emoji: String(entry?.emoji || '').trim(),
+        optionLabel,
+        savedAtMs: Math.max(0, Math.floor(Number(entry?.savedAtMs) || Date.now()))
+    };
+}
+
+function getFavoriteStorageKey(playFabId = window.myPlayFabId) {
+    const memberId = normalizePlayFabId(playFabId || '');
+    return `${TROY_FAVORITES_STORAGE_PREFIX}${memberId || 'guest'}`;
+}
+
+function saveFavoriteDrinkEntries(playFabId = window.myPlayFabId) {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        window.localStorage.setItem(getFavoriteStorageKey(playFabId), JSON.stringify(_favoriteDrinkEntries));
+    } catch (error) {
+        console.warn('[TroyFavorites] Save failed:', error);
+    }
+}
+
+function loadFavoriteDrinkEntries(playFabId = window.myPlayFabId) {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        _favoriteDrinkEntries = [];
+        return;
+    }
+    try {
+        const raw = window.localStorage.getItem(getFavoriteStorageKey(playFabId));
+        const parsed = raw ? JSON.parse(raw) : [];
+        _favoriteDrinkEntries = (Array.isArray(parsed) ? parsed : [])
+            .map((entry) => sanitizeFavoriteDrinkEntry(entry))
+            .filter(Boolean)
+            .sort((a, b) => b.savedAtMs - a.savedAtMs);
+    } catch (error) {
+        console.warn('[TroyFavorites] Load failed:', error);
+        _favoriteDrinkEntries = [];
+    }
+}
+
+function buildFavoriteDrinkEntry(menuId, item, optionLabel = '') {
+    const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
+    const normalizedOption = String(optionLabel || item?.optionLabel || '').trim();
+    return sanitizeFavoriteDrinkEntry({
+        favoriteId: buildFavoriteDrinkId(sourceMenuId, item, normalizedOption),
+        menuId: sourceMenuId,
+        concept: String(item?.concept || item?.name || '').trim(),
+        content: normalizedOption
+            ? `割り物: ${normalizedOption}`
+            : String(item?.content || '').trim(),
+        price: parseYenPrice(item?.price),
+        image: item?.image,
+        emoji: item?.emoji || getMenuItemEmoji(item),
+        optionLabel: normalizedOption,
+        savedAtMs: Date.now()
+    });
+}
+
+function isFavoriteDrink(menuId, item, optionLabel = '') {
+    const favoriteId = buildFavoriteDrinkId(menuId, item, optionLabel);
+    return !!favoriteId && _favoriteDrinkEntries.some((entry) => entry.favoriteId === favoriteId);
+}
+
+function toggleFavoriteDrink(menuId, item, optionLabel = '') {
+    if (!isDrinkMenuId(menuId, item)) return false;
+    const entry = buildFavoriteDrinkEntry(menuId, item, optionLabel);
+    if (!entry?.favoriteId) return false;
+    const existingIndex = _favoriteDrinkEntries.findIndex((row) => row.favoriteId === entry.favoriteId);
+    if (existingIndex >= 0) {
+        _favoriteDrinkEntries.splice(existingIndex, 1);
+        saveFavoriteDrinkEntries();
+        return false;
+    }
+    _favoriteDrinkEntries = [entry, ..._favoriteDrinkEntries].slice(0, 24);
+    saveFavoriteDrinkEntries();
+    return true;
+}
+
+function getFavoriteDrinkMenuData() {
+    return {
+        title: 'いつもの',
+        items: _favoriteDrinkEntries.map((entry) => ({ ...entry }))
+    };
+}
+
 function getFoodMenuData() {
     return {
         title: 'フード',
@@ -126,6 +241,8 @@ function getFoodMenuData() {
 
 function getMenuDataById(menuId) {
     switch (menuId) {
+        case 'favorite':
+            return getFavoriteDrinkMenuData();
         case 'nonalcohol':
             return getNonAlcoholDrinkMenuData();
         case 'alcohol':
@@ -270,6 +387,8 @@ function getMenuItemEmoji(item) {
 
 function getMenuSubnote(menuId) {
     switch (menuId) {
+        case 'favorite':
+            return '★ お気に入り登録したドリンクだけを並べています。割り物を指定した注文は、その組み合わせのまま呼び出せます。';
         case 'nonalcohol':
             return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。注文ごとにPSが付与され、支払いは最後にまとめます。';
         case 'alcohol':
@@ -288,16 +407,175 @@ function getOrderItemName(item, optionLabel = '') {
     return item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
 }
 
+function normalizeCheckoutItems(items = []) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const name = String(item?.name || item?.itemName || '').trim();
+            const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+            const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+            if (!name || !price) return null;
+            return {
+                name,
+                quantity,
+                price,
+                grantedPs: Math.max(0, Math.floor(Number(item?.grantedPs) || 0)),
+                cashbackRateBps: Math.max(0, Math.floor(Number(item?.cashbackRateBps) || 0)),
+                orderId: String(item?.orderId || '').trim(),
+                orderedAtMs: Math.max(0, Math.floor(Number(item?.orderedAtMs) || 0)),
+                undoUntilMs: Math.max(0, Math.floor(Number(item?.undoUntilMs) || 0)),
+                lineTotal: Math.max(0, Math.floor(Number(item?.lineTotal) || (price * quantity)))
+            };
+        })
+        .filter(Boolean);
+}
+
+function sanitizeCheckoutSession(checkout = null) {
+    if (!checkout || typeof checkout !== 'object') return null;
+    const items = normalizeCheckoutItems(checkout.items);
+    const status = String(checkout.status || '').trim().toLowerCase();
+    return {
+        status,
+        total: Math.max(0, Math.floor(Number(checkout.total) || items.reduce((sum, item) => sum + item.lineTotal, 0))),
+        totalItems: Math.max(0, Math.floor(Number(checkout.totalItems) || items.reduce((sum, item) => sum + item.quantity, 0))),
+        grantTotal: Math.max(0, Math.floor(Number(checkout.grantTotal) || items.reduce((sum, item) => sum + item.grantedPs, 0))),
+        items,
+        createdAt: toMillis(checkout.createdAt),
+        updatedAt: toMillis(checkout.updatedAt),
+        lastOrderedAt: toMillis(checkout.lastOrderedAt)
+    };
+}
+
+function clearUndoCountdownTimer() {
+    if (_undoCountdownTimerId) {
+        clearTimeout(_undoCountdownTimerId);
+        _undoCountdownTimerId = 0;
+    }
+}
+
+function clearPendingAutoLeaveNotice() {
+    _pendingAutoLeaveNotice = false;
+    if (_pendingAutoLeaveTimerId) {
+        clearTimeout(_pendingAutoLeaveTimerId);
+        _pendingAutoLeaveTimerId = 0;
+    }
+}
+
+function schedulePendingAutoLeaveNotice() {
+    clearPendingAutoLeaveNotice();
+    _pendingAutoLeaveNotice = true;
+    _pendingAutoLeaveTimerId = window.setTimeout(() => {
+        _pendingAutoLeaveNotice = false;
+        _pendingAutoLeaveTimerId = 0;
+    }, 1500);
+}
+
+function formatUndoCountdown(ms) {
+    const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = `${totalSeconds % 60}`.padStart(2, '0');
+    return `${minutes}:${seconds}`;
+}
+
+function getUndoEligibleLastOrder(checkout = _checkoutSession, nowMs = Date.now()) {
+    const session = sanitizeCheckoutSession(checkout);
+    if (String(session?.status || '') !== 'open') return null;
+    const lastItem = Array.isArray(session?.items) ? session.items[session.items.length - 1] : null;
+    if (!lastItem) return null;
+    if (!lastItem.orderId || !lastItem.undoUntilMs || nowMs > lastItem.undoUntilMs) return null;
+    if (String(lastItem.name || '').trim() === '入店チャージ') return null;
+    return lastItem;
+}
+
+function renderOpenTabCard() {
+    const metaEl = document.getElementById('troyOpenTabMeta');
+    const listEl = document.getElementById('troyOpenTabList');
+    const undoBtn = document.getElementById('btnTroyUndoLastOrder');
+    if (!metaEl || !listEl || !undoBtn) return;
+
+    clearUndoCountdownTimer();
+    const session = sanitizeCheckoutSession(_checkoutSession);
+    const checkoutStatus = String(session?.status || '').trim().toLowerCase();
+    const hasOpenTab = (checkoutStatus === 'open' || checkoutStatus === 'pending') && Array.isArray(session?.items) && session.items.length > 0;
+
+    if (!hasOpenTab) {
+        metaEl.textContent = '未会計の注文はありません。';
+        listEl.innerHTML = '<div class="troy-open-tab-empty">注文するとここに明細が表示されます。会計後は自動で退店します。</div>';
+        undoBtn.disabled = true;
+        undoBtn.textContent = '最後の1件を取り消す';
+        return;
+    }
+
+    const totalLabel = `${checkoutStatus === 'pending' ? '旧会計待ち' : '未会計'} ${session.totalItems}点 / ${formatYen(session.total)}`;
+    metaEl.textContent = session.grantTotal > 0 ? `${totalLabel} / 付与済み ${session.grantTotal} Ps` : totalLabel;
+    listEl.innerHTML = '';
+
+    const items = session.items.slice().reverse();
+    items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'troy-open-tab-item';
+        if (index === 0) row.classList.add('is-latest');
+
+        const main = document.createElement('div');
+        main.className = 'troy-open-tab-item-main';
+
+        const name = document.createElement('div');
+        name.className = 'troy-open-tab-item-name';
+        name.textContent = item.name;
+
+        const detail = document.createElement('div');
+        detail.className = 'troy-open-tab-item-meta';
+        const detailParts = [];
+        if (item.orderedAtMs > 0) {
+            detailParts.push(new Date(item.orderedAtMs).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+        }
+        detailParts.push(`${item.quantity}点`);
+        if (item.grantedPs > 0) {
+            detailParts.push(`+${item.grantedPs} Ps`);
+        }
+        if (index === 0) {
+            detailParts.push('最新');
+        }
+        detail.textContent = detailParts.join(' / ');
+
+        const total = document.createElement('div');
+        total.className = 'troy-open-tab-item-total';
+        total.textContent = formatYen(item.lineTotal);
+
+        main.append(name, detail);
+        row.append(main, total);
+        listEl.appendChild(row);
+    });
+
+    const undoItem = getUndoEligibleLastOrder(session);
+    if (undoItem) {
+        undoBtn.disabled = false;
+        undoBtn.textContent = `最後の1件を取り消す (${formatUndoCountdown(undoItem.undoUntilMs - Date.now())})`;
+        _undoCountdownTimerId = window.setTimeout(() => {
+            _undoCountdownTimerId = 0;
+            renderOpenTabCard();
+        }, 1000);
+        return;
+    }
+
+    undoBtn.disabled = true;
+    undoBtn.textContent = checkoutStatus === 'pending'
+        ? '最後の1件を取り消す'
+        : '最後の1件を取り消せません';
+}
+
 function updateCheckoutStatus() {
     const status = document.getElementById('troyOrderStatusInline');
+    const session = sanitizeCheckoutSession(_checkoutSession);
+    _checkoutSession = session;
+    renderOpenTabCard();
     if (!status) return;
-    const checkoutStatus = String(_checkoutSession?.status || '').trim().toLowerCase();
+    const checkoutStatus = String(session?.status || '').trim().toLowerCase();
     const hasOpenTab = checkoutStatus === 'open' || checkoutStatus === 'pending';
     if (hasOpenTab) {
-        const items = Array.isArray(_checkoutSession?.items) ? _checkoutSession.items : [];
-        const total = Number(_checkoutSession?.total || 0);
-        const totalItems = Math.max(0, Number(_checkoutSession?.totalItems) || items.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0));
-        const grantTotal = Math.max(0, Number(_checkoutSession?.grantTotal) || 0);
+        const items = Array.isArray(session?.items) ? session.items : [];
+        const total = Number(session?.total || 0);
+        const totalItems = Math.max(0, Number(session?.totalItems) || items.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0));
+        const grantTotal = Math.max(0, Number(session?.grantTotal) || 0);
         if (checkoutStatus === 'pending') {
             status.textContent = `旧会計待ち: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal} Ps` : ''}`;
         } else {
@@ -311,18 +589,34 @@ function updateCheckoutStatus() {
 }
 
 function applyCheckoutFromStatus(data) {
-    const checkout = data?.checkout || null;
+    const checkout = sanitizeCheckoutSession(data?.checkout || null);
     const previousStatus = String(_checkoutSession?.status || '').trim().toLowerCase();
     const nextStatus = String(checkout?.status || '').trim().toLowerCase();
+    const stillMember = isTroyMember(data, window.myPlayFabId);
 
     if (checkout && (nextStatus === 'open' || nextStatus === 'pending')) {
+        clearPendingAutoLeaveNotice();
         _checkoutSession = checkout;
         updateCheckoutStatus();
         return;
     }
 
-    if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && typeof window.showRpgMessage === 'function') {
-        window.showRpgMessage('会計が完了しました。');
+    if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && !stillMember) {
+        clearPendingAutoLeaveNotice();
+        closeMenuModal();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計が完了しました。退店しました。');
+        }
+    } else if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && stillMember) {
+        schedulePendingAutoLeaveNotice();
+    } else if (!checkout && !stillMember && _pendingAutoLeaveNotice) {
+        clearPendingAutoLeaveNotice();
+        closeMenuModal();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('会計が完了しました。退店しました。');
+        }
+    } else if (stillMember) {
+        clearPendingAutoLeaveNotice();
     }
 
     _checkoutSession = null;
@@ -377,6 +671,42 @@ async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) 
     }
 }
 
+async function handleUndoLastOrder(playFabId) {
+    const lastItem = getUndoEligibleLastOrder(_checkoutSession);
+    if (!lastItem) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage('取り消せる注文がありません。');
+        }
+        return;
+    }
+    try {
+        const result = await undoTroyLastOrder(playFabId, { isSilent: true, throwOnError: true });
+        _checkoutSession = result?.checkout || null;
+        updateCheckoutStatus();
+        const undoneName = String(result?.undoneItem?.name || lastItem.name || '注文').trim();
+        if (typeof window.showRpgMessage === 'function') {
+            const total = Number(result?.checkout?.total || 0);
+            const label = total > 0 ? `未会計 ${formatYen(total)}` : '伝票を空にしました。';
+            window.showRpgMessage(`${undoneName} を取り消しました。${label}`);
+        }
+    } catch (error) {
+        console.warn('[TroyUndo] Failed:', error?.message || error);
+        const message = (() => {
+            const detail = String(error?.message || '').trim();
+            if (detail.includes('付与済みPSを消費しているため取り消せません')) return detail;
+            if (detail.includes('CheckoutChanged')) return '注文内容が更新されたため、もう一度確認してください。';
+            if (detail.includes('UndoExpired')) return '取り消し可能時間を過ぎました。';
+            if (detail.includes('入店チャージは取り消せません')) return '入店チャージは取り消せません。';
+            return '最後の1件の取り消しに失敗しました。';
+        })();
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(message);
+        } else {
+            alert(message);
+        }
+    }
+}
+
 function openMenuModal(menuId) {
     const data = getMenuDataById(menuId);
     if (!data) return;
@@ -393,7 +723,7 @@ function openMenuModal(menuId) {
     } = getMenuModalElements();
     if (!modal || !list) return;
 
-    if (title) title.textContent = 'Menu';
+    if (title) title.textContent = `Menu / ${data.title}`;
     if (subnote) subnote.textContent = getMenuSubnote(menuId);
     if (card) card.dataset.menuId = menuId;
 
@@ -411,6 +741,16 @@ function openMenuModal(menuId) {
     }
 
     list.innerHTML = '';
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'troy-menu-modal-empty';
+        empty.textContent = menuId === 'favorite'
+            ? 'お気に入り登録したドリンクがここに表示されます。'
+            : '表示できる商品がありません。';
+        list.appendChild(empty);
+        modal.style.display = 'flex';
+        return;
+    }
     data.items.forEach((item, index) => {
         const cardEl = document.createElement('article');
         cardEl.className = 'troy-menu-modal-item';
@@ -431,7 +771,7 @@ function openMenuModal(menuId) {
         content.className = 'troy-menu-modal-item-content';
         content.textContent = item.content || '';
 
-        let optionLabel = '';
+        let optionLabel = menuId === 'favorite' ? String(item?.optionLabel || '').trim() : '';
         let optionRow = null;
         if (Array.isArray(item.mixers) && item.mixers.length) {
             optionRow = document.createElement('div');
@@ -453,6 +793,7 @@ function openMenuModal(menuId) {
             optionLabel = optionSelect.value;
             optionSelect.addEventListener('change', () => {
                 optionLabel = setMenuItemOption(menuId, item, index, optionSelect.value);
+                syncFavoriteButton();
             });
             optionRow.append(optionLabelEl, optionSelect);
         }
@@ -485,6 +826,30 @@ function openMenuModal(menuId) {
         quickBtn.className = 'troy-menu-quick-btn';
         quickBtn.textContent = '注文する';
 
+        let favoriteBtn = null;
+        const syncFavoriteButton = () => {
+            if (!favoriteBtn) return;
+            const active = isFavoriteDrink(menuId, item, optionLabel);
+            favoriteBtn.classList.toggle('is-active', active);
+            favoriteBtn.textContent = active ? '★ いつもの' : '☆ いつもの';
+        };
+
+        if (isDrinkMenuId(menuId, item)) {
+            favoriteBtn = document.createElement('button');
+            favoriteBtn.type = 'button';
+            favoriteBtn.className = 'troy-menu-favorite-btn';
+            favoriteBtn.addEventListener('click', () => {
+                const active = toggleFavoriteDrink(menuId, item, optionLabel);
+                syncFavoriteButton();
+                if (_menuActiveId === 'favorite') {
+                    openMenuModal('favorite');
+                }
+                if (typeof window.showRpgMessage === 'function') {
+                    window.showRpgMessage(active ? '「いつもの」に追加しました。' : '「いつもの」から外しました。');
+                }
+            });
+        }
+
         const syncQty = () => {
             const qty = getMenuItemQty(menuId, item, index);
             qtyDisplay.textContent = `${qty}`;
@@ -509,6 +874,8 @@ function openMenuModal(menuId) {
         });
 
         syncQty();
+        syncFavoriteButton();
+        if (favoriteBtn) actions.append(favoriteBtn);
         actions.append(minusBtn, qtyDisplay, plusBtn, quickBtn);
         meta.append(price, actions);
         body.append(concept);
@@ -732,6 +1099,7 @@ function wireHandlers(playFabId) {
     _wired = true;
 
     const { joinBtn } = getTroyElements();
+    const undoBtn = document.getElementById('btnTroyUndoLastOrder');
     if (joinBtn) {
         joinBtn.addEventListener('click', async () => {
             const name = getDisplayName();
@@ -751,9 +1119,16 @@ function wireHandlers(playFabId) {
             }
         });
     }
+    if (undoBtn) {
+        undoBtn.addEventListener('click', async () => {
+            if (undoBtn.disabled) return;
+            await handleUndoLastOrder(playFabId);
+        });
+    }
 }
 
 export async function loadTroyPage(playFabId) {
+    loadFavoriteDrinkEntries(playFabId);
     wireHandlers(playFabId);
     wireMenuPopups();
     const isKingUser = await refreshKingNav(playFabId);

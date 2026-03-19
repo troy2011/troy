@@ -285,6 +285,8 @@ function getJapanDayKey(date = new Date()) {
     }
 }
 
+const TROY_LAST_ORDER_UNDO_WINDOW_MS = 45 * 1000;
+
 function isPlacementAllowedByWeekday(date = new Date()) {
     const weekday = getJapanWeekdayNumber(date);
     return WORLD_MAP_PLACEMENT_WEEKDAYS_JST.has(weekday);
@@ -1626,16 +1628,42 @@ function normalizeTroyCheckoutItems(items = []) {
             const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
             const price = Math.max(0, Math.floor(Number(item?.price) || 0));
             if (!name || !price) return null;
+            const orderedAtMs = Math.max(0, Math.floor(Number(item?.orderedAtMs) || 0));
+            const undoUntilMs = Math.max(0, Math.floor(Number(item?.undoUntilMs) || 0));
             return {
                 name,
                 quantity,
                 price,
                 grantedPs: Math.max(0, Math.floor(Number(item?.grantedPs) || 0)),
                 cashbackRateBps: Math.max(0, Math.floor(Number(item?.cashbackRateBps) || 0)),
+                orderId: String(item?.orderId || '').trim(),
+                orderedAtMs,
+                undoUntilMs,
                 lineTotal: price * quantity
             };
         })
         .filter(Boolean);
+}
+
+function isTroyUndoProtectedItem(item = {}) {
+    const name = String(item?.name || '').trim();
+    return name === '入店チャージ';
+}
+
+function buildStoredTroyCheckoutItem(item = {}) {
+    const normalized = normalizeTroyCheckoutItems([item])[0];
+    if (!normalized) return null;
+    const stored = {
+        name: normalized.name,
+        quantity: normalized.quantity,
+        price: normalized.price,
+        grantedPs: normalized.grantedPs,
+        cashbackRateBps: normalized.cashbackRateBps
+    };
+    if (normalized.orderId) stored.orderId = normalized.orderId;
+    if (normalized.orderedAtMs > 0) stored.orderedAtMs = normalized.orderedAtMs;
+    if (normalized.undoUntilMs > 0) stored.undoUntilMs = normalized.undoUntilMs;
+    return stored;
 }
 
 function buildTroyCheckoutPayload(docOrData = null) {
@@ -2929,13 +2957,19 @@ function initializeNationRoutes(app, deps) {
             }
 
             const existingItems = checkoutStatus === 'open' && Array.isArray(checkoutData.items) ? checkoutData.items : [];
-            const nextItems = existingItems.concat([{
+            const orderedAtMs = Date.now();
+            const orderId = `troy:${memberId}:${orderedAtMs}:${Math.random().toString(36).slice(2, 8)}`;
+            const nextItem = buildStoredTroyCheckoutItem({
                 name: String(itemName || '').trim(),
                 price: priceValue,
                 quantity: safeQty,
                 grantedPs: grantAmount,
-                cashbackRateBps
-            }]);
+                cashbackRateBps,
+                orderId,
+                orderedAtMs,
+                undoUntilMs: orderedAtMs + TROY_LAST_ORDER_UNDO_WINDOW_MS
+            });
+            const nextItems = existingItems.concat(nextItem ? [nextItem] : []);
             const nextNormalizedItems = normalizeTroyCheckoutItems(nextItems);
             const nextTotal = nextNormalizedItems.reduce((sum, item) => sum + item.lineTotal, 0);
             const nextTotalItems = nextNormalizedItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -2996,6 +3030,215 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[troy-order] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to send order' });
+        }
+    });
+
+    app.post('/api/troy-undo-last-order', async (req, res) => {
+        const { playFabId } = req.body || {};
+        const requestId = String(req.body?.requestId || '').trim();
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const { lineClient } = deps;
+            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) return res.status(400).json({ error: 'NationNotSet' });
+            const mapping = getNationMappingByNation(nation);
+            if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
+
+            const memberId = normalizePlayFabId(requesterPlayFabId);
+            const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+            const roomSnap = await roomRef.get();
+            const memberSnap = await roomRef.collection('members').doc(memberId).get();
+            if (!memberSnap.exists) {
+                return res.status(403).json({ error: 'NotInTroy' });
+            }
+
+            const checkoutRef = roomRef.collection('checkouts').doc(memberId);
+            const checkoutSnap = await checkoutRef.get();
+            if (!checkoutSnap.exists) {
+                return res.status(404).json({ error: 'CheckoutNotFound' });
+            }
+
+            const checkoutPayload = buildTroyCheckoutPayload(checkoutSnap);
+            if (!checkoutPayload || checkoutPayload.status !== 'open') {
+                return res.status(409).json({ error: 'UndoNotAllowed' });
+            }
+
+            const lastItem = Array.isArray(checkoutPayload.items) ? checkoutPayload.items[checkoutPayload.items.length - 1] : null;
+            if (!lastItem) {
+                return res.status(404).json({ error: 'LastOrderNotFound' });
+            }
+            if (!lastItem.orderId || !lastItem.undoUntilMs) {
+                return res.status(409).json({ error: 'UndoExpired' });
+            }
+            if (isTroyUndoProtectedItem(lastItem)) {
+                return res.status(409).json({ error: 'LastOrderNotUndoable', details: '入店チャージは取り消せません。' });
+            }
+            if (Date.now() > lastItem.undoUntilMs) {
+                return res.status(409).json({ error: 'UndoExpired' });
+            }
+
+            const undoBaseId = requestId || `troy-undo:${memberId}:${lastItem.orderId}`;
+            let psReverted = false;
+            if (lastItem.grantedPs > 0) {
+                try {
+                    await subtractEconomyItem(memberId, 'PS', lastItem.grantedPs, {
+                        idempotencyId: `${undoBaseId}:ps-revert`
+                    });
+                    psReverted = true;
+                } catch (subtractError) {
+                    const subtractMessage = subtractError?.errorMessage || subtractError?.message || String(subtractError);
+                    if (
+                        subtractError?.apiErrorInfo?.apiError === 'InsufficientFunds'
+                        || String(subtractMessage).includes('InsufficientFunds')
+                    ) {
+                        return res.status(409).json({ error: 'GrantedPsAlreadyUsed', details: '付与済みPSを消費しているため取り消せません。' });
+                    }
+                    return res.status(500).json({ error: 'FailedToRevertPs', details: subtractMessage });
+                }
+            }
+
+            let nextCheckout = null;
+            try {
+                await firestore.runTransaction(async (tx) => {
+                    const freshSnap = await tx.get(checkoutRef);
+                    if (!freshSnap.exists) {
+                        throw new Error('UndoCheckoutMissing');
+                    }
+                    const freshCheckout = buildTroyCheckoutPayload(freshSnap);
+                    if (!freshCheckout || freshCheckout.status !== 'open') {
+                        throw new Error('UndoCheckoutChanged');
+                    }
+                    const freshItems = Array.isArray(freshCheckout.items) ? freshCheckout.items : [];
+                    const freshLastItem = freshItems[freshItems.length - 1] || null;
+                    if (!freshLastItem || freshLastItem.orderId !== lastItem.orderId) {
+                        throw new Error('UndoCheckoutChanged');
+                    }
+                    if (Date.now() > Math.max(0, Number(freshLastItem.undoUntilMs) || 0)) {
+                        throw new Error('UndoExpired');
+                    }
+                    if (isTroyUndoProtectedItem(freshLastItem)) {
+                        throw new Error('UndoProtected');
+                    }
+
+                    const remainingStoredItems = freshItems
+                        .slice(0, -1)
+                        .map((item) => buildStoredTroyCheckoutItem(item))
+                        .filter(Boolean);
+                    const remainingItems = normalizeTroyCheckoutItems(remainingStoredItems);
+                    const nextTotal = remainingItems.reduce((sum, item) => sum + item.lineTotal, 0);
+                    const nextTotalItems = remainingItems.reduce((sum, item) => sum + item.quantity, 0);
+                    const nextGrantTotal = remainingItems.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+                    const nowTs = admin.firestore.FieldValue.serverTimestamp();
+
+                    if (!remainingItems.length) {
+                        tx.delete(checkoutRef);
+                        nextCheckout = null;
+                        return;
+                    }
+
+                    const lastRemainingItem = remainingItems[remainingItems.length - 1] || null;
+                    tx.set(checkoutRef, {
+                        items: remainingStoredItems,
+                        total: nextTotal,
+                        totalItems: nextTotalItems,
+                        grantTotal: nextGrantTotal,
+                        status: 'open',
+                        updatedAt: nowTs,
+                        lastOrderedAt: lastRemainingItem?.orderedAtMs
+                            ? admin.firestore.Timestamp.fromMillis(lastRemainingItem.orderedAtMs)
+                            : nowTs
+                    }, { merge: true });
+
+                    nextCheckout = {
+                        status: 'open',
+                        total: nextTotal,
+                        totalItems: nextTotalItems,
+                        grantTotal: nextGrantTotal,
+                        items: remainingItems
+                    };
+                });
+            } catch (transactionError) {
+                if (psReverted && lastItem.grantedPs > 0) {
+                    try {
+                        await addEconomyItem(memberId, 'PS', lastItem.grantedPs, {
+                            idempotencyId: `${undoBaseId}:ps-restore`
+                        });
+                    } catch (restoreError) {
+                        console.error('[troy-undo-last-order] Compensation failed:', restoreError?.errorMessage || restoreError?.message || restoreError);
+                        return res.status(500).json({ error: 'UndoCompensationFailed' });
+                    }
+                }
+
+                const transactionMessage = transactionError?.message || String(transactionError);
+                if (transactionMessage === 'UndoExpired') {
+                    return res.status(409).json({ error: 'UndoExpired' });
+                }
+                if (transactionMessage === 'UndoProtected') {
+                    return res.status(409).json({ error: 'LastOrderNotUndoable', details: '入店チャージは取り消せません。' });
+                }
+                if (transactionMessage === 'UndoCheckoutMissing' || transactionMessage === 'UndoCheckoutChanged') {
+                    return res.status(409).json({ error: 'CheckoutChanged' });
+                }
+                throw transactionError;
+            }
+
+            let receiverBalance = null;
+            if (psReverted && getCurrencyBalance) {
+                try {
+                    receiverBalance = await getCurrencyBalance(memberId, 'PS');
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: memberId,
+                        Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                    });
+                } catch (balanceError) {
+                    console.warn('[troy-undo-last-order] Balance sync failed:', balanceError?.errorMessage || balanceError?.message || balanceError);
+                }
+            }
+
+            const buyerName = String(checkoutPayload.displayName || memberSnap.data()?.displayName || memberId).trim() || memberId;
+            const lineTotal = Math.max(0, Number(lastItem.lineTotal) || ((Number(lastItem.price) || 0) * (Number(lastItem.quantity) || 1)));
+            const remainingTotal = Math.max(0, Number(nextCheckout?.total) || 0);
+            const remainingItems = Math.max(0, Number(nextCheckout?.totalItems) || 0);
+            const orderLine = `${String(lastItem.name || '注文')}${Number(lastItem.quantity) > 1 ? ` x${Math.max(1, Math.floor(Number(lastItem.quantity) || 1))}` : ''}`;
+            const kingPlayFabId = String(roomSnap.data()?.updatedBy || '').trim();
+            if (lineClient && kingPlayFabId) {
+                try {
+                    const kingLineUserId = await getLineUserId(kingPlayFabId, { promisifyPlayFab, PlayFabServer });
+                    if (kingLineUserId) {
+                        const message = [
+                            '【TROY取消】',
+                            `注文者: ${buyerName}`,
+                            `取消内容: ${orderLine}`,
+                            `取消金額: ¥${lineTotal.toLocaleString('ja-JP')}`,
+                            lastItem.grantedPs > 0 ? `戻しPS: ${Math.max(0, Math.floor(Number(lastItem.grantedPs) || 0)).toLocaleString('ja-JP')} Ps` : null,
+                            remainingTotal > 0
+                                ? `未会計合計: ¥${remainingTotal.toLocaleString('ja-JP')} (${remainingItems}点)`
+                                : '未会計合計: なし'
+                        ].filter(Boolean).join('\n');
+                        await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
+                    }
+                } catch (lineError) {
+                    console.warn('[troy-undo-last-order] Line notify failed:', lineError?.message || lineError);
+                }
+            }
+
+            pushDisplayEvent({
+                type: 'splash',
+                label: `取消: ${buyerName} ${orderLine}`
+            });
+
+            res.json({
+                success: true,
+                undoneItem: lastItem,
+                checkout: nextCheckout,
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined
+            });
+        } catch (error) {
+            console.error('[troy-undo-last-order] Error:', error?.message || error);
+            res.status(500).json({ error: 'Failed to undo last order' });
         }
     });
 
