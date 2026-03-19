@@ -171,9 +171,9 @@
                         </div>
                     </div>
                     <div id="kingGrantCard" class="troy-admin-card">
-                        <div class="troy-admin-label">会計待ち → 承認</div>
+                        <div class="troy-admin-label">未会計客一覧</div>
                         <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
-                        <div class="troy-admin-help">会計待ち一覧から承認すると、PS付与と国庫反映をまとめて処理できます。手動受領は下の入力欄から行います。</div>
+                        <div class="troy-admin-help">注文時のPS付与は即時反映されます。ここでは未会計の客ごとに、現金受領後の国庫反映だけを行います。手動受領は下の入力欄から行います。</div>
                         <div class="troy-admin-field-label">手動受領（QRコード）</div>
                         <div class="troy-admin-grid">
                             <div>
@@ -208,6 +208,7 @@
                             <div>
                                 <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
                                 <div id="kingCashbackRateInfo">-</div>
+                                <div id="kingTroyTodaySales" class="king-help-text"></div>
                             </div>
                             <div class="troy-admin-actions">
                                 <button id="btnKingReload" class="btn-muted">再読み込み</button>
@@ -272,7 +273,8 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">単品はその場で「すぐ注文」。複数だけカートにまとめて会計できます。</div>
+                        <div class="troy-menu-note">数量を選んでそのまま注文できます。PSは注文ごとに即時付与され、支払いは最後にまとめて行います。</div>
+                        <div id="troyOrderStatusInline" class="troy-order-inline-status">注文ごとにPSが即時付与されます。支払いは最後にまとめて行います。</div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
@@ -286,17 +288,6 @@
                         </ul>
                     </div>
                 </div>
-                <div class="content-area">
-                    <div id="troyCheckoutCard" class="troy-checkout">
-                        <div class="troy-checkout-title">カート</div>
-                        <div class="troy-checkout-total">合計: <span id="troyOrderTotal">¥0</span></div>
-                        <div id="troyOrderList" class="troy-checkout-list"></div>
-                        <div class="troy-checkout-actions">
-                            <div id="troyCheckoutStatus" class="troy-checkout-status">カート</div>
-                            <button id="btnTroyCheckout" class="troy-checkout-confirm" type="button">まとめて会計</button>
-                        </div>
-                    </div>
-                </div>
                 <div id="troyMenuModal" class="troy-menu-modal modal-overlay">
                     <div class="troy-menu-modal-card">
                         <div class="troy-menu-modal-header">
@@ -307,29 +298,6 @@
                             <div id="troyMenuModalCategories" class="troy-menu-modal-categories"></div>
                             <div id="troyMenuModalSubnote" class="troy-menu-modal-subnote"></div>
                             <div id="troyMenuModalList" class="troy-menu-modal-list"></div>
-                        </div>
-                        <div class="troy-menu-modal-footer">
-                            <div class="troy-menu-modal-cart">
-                                <span id="troyMenuCartCount" class="troy-menu-modal-cart-count">0点</span>
-                                <span id="troyMenuCartTotal" class="troy-menu-modal-cart-total">¥0</span>
-                            </div>
-                            <button id="troyMenuJumpCheckout" class="troy-menu-modal-cart-btn" type="button">注文内容を見る</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="troyOrderModal" class="troy-order-modal modal-overlay">
-                    <div class="troy-order-modal-card">
-                        <div class="troy-order-modal-header">
-                            <div class="troy-order-modal-title">注文確認</div>
-                            <button id="troyOrderModalClose" class="troy-order-modal-close" type="button">×</button>
-                        </div>
-                        <div class="troy-order-modal-body">
-                            <div id="troyOrderItemName" class="troy-order-item-name"></div>
-                            <div id="troyOrderItemPrice" class="troy-order-item-price"></div>
-                            <div class="troy-order-modal-actions">
-                                <button id="troyOrderConfirm" class="troy-order-confirm" type="button">注文する</button>
-                                <button id="troyOrderCancel" class="troy-order-cancel" type="button">キャンセル</button>
-                            </div>
                         </div>
                     </div>
                 </div>

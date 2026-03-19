@@ -269,6 +269,22 @@ function getJapanWeekdayNumber(date = new Date()) {
     }
 }
 
+function getJapanDayKey(date = new Date()) {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(date);
+    } catch {
+        const year = date.getUTCFullYear();
+        const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+        const day = `${date.getUTCDate()}`.padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+}
+
 function isPlacementAllowedByWeekday(date = new Date()) {
     const weekday = getJapanWeekdayNumber(date);
     return WORLD_MAP_PLACEMENT_WEEKDAYS_JST.has(weekday);
@@ -565,6 +581,54 @@ async function appendNationTreasuryRecentEntry(nation, firestore, admin, entry =
             treasuryRecentUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
     });
+}
+
+async function addTroyDailySales(nation, amount, firestore, admin) {
+    const mapping = getNationMappingByNation(nation);
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!mapping || !firestore || !admin || value <= 0) return null;
+    const dayKey = getJapanDayKey();
+    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+    let nextTotal = value;
+    let nextCount = 1;
+    await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const data = snap.data() || {};
+        const currentDayKey = String(data.troyTodaySalesDayKey || '').trim();
+        const currentTotal = currentDayKey === dayKey ? Math.max(0, Math.floor(Number(data.troyTodaySalesTotal) || 0)) : 0;
+        const currentCount = currentDayKey === dayKey ? Math.max(0, Math.floor(Number(data.troyTodaySalesCount) || 0)) : 0;
+        nextTotal = currentTotal + value;
+        nextCount = currentCount + 1;
+        tx.set(docRef, {
+            troyTodaySalesDayKey: dayKey,
+            troyTodaySalesTotal: nextTotal,
+            troyTodaySalesCount: nextCount,
+            troyTodaySalesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    });
+    return { dayKey, total: nextTotal, count: nextCount };
+}
+
+function buildTroyTodaySalesSnapshot(groupData = {}) {
+    const todayDayKey = getJapanDayKey();
+    const storedDayKey = String(groupData?.troyTodaySalesDayKey || '').trim();
+    if (storedDayKey === todayDayKey) {
+        return {
+            dayKey: todayDayKey,
+            total: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesTotal) || 0)),
+            count: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesCount) || 0))
+        };
+    }
+    const fallbackEntries = Array.isArray(groupData?.treasuryRecentEntries) ? groupData.treasuryRecentEntries : [];
+    const troyEntries = fallbackEntries
+        .map((entry) => buildTreasuryRecentEntry(entry))
+        .filter((entry) => entry.direction === 'in' && ['troy_settlement', 'troy_order'].includes(entry.source))
+        .filter((entry) => getJapanDayKey(new Date(entry.timestampMs || 0)) === todayDayKey);
+    return {
+        dayKey: todayDayKey,
+        total: troyEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
+        count: troyEntries.length
+    };
 }
 
 function buildTreasuryOverview(entries = []) {
@@ -1555,41 +1619,59 @@ function getKingStarterCrownGrantDataKey(nation) {
     return `KingStarterCrownGranted_${key}`;
 }
 
-function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
-    return (Array.isArray(checkoutDocs) ? checkoutDocs : [])
-        .map((doc) => {
-            const data = typeof doc?.data === 'function' ? (doc.data() || {}) : (doc || {});
-            const status = String(data.status || 'pending').trim().toLowerCase();
-            if (status !== 'pending') return null;
-            const items = Array.isArray(data.items) ? data.items : [];
-            const normalizedItems = items
-                .map((item) => {
-                    const name = String(item?.name || item?.itemName || '').trim();
-                    const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
-                    const price = Math.max(0, Math.floor(Number(item?.price) || 0));
-                    if (!name || !price) return null;
-                    return {
-                        name,
-                        quantity,
-                        price,
-                        lineTotal: price * quantity
-                    };
-                })
-                .filter(Boolean);
-            const total = Math.max(0, Math.floor(Number(data.total) || normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)));
-            const createdAtRaw = data.createdAt?.toMillis ? data.createdAt.toMillis() : Number(data.createdAt) || 0;
-            const totalItems = normalizedItems.reduce((sum, item) => sum + item.quantity, 0);
-            const summary = normalizedItems.slice(0, 3).map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ''}`).join(' / ');
+function normalizeTroyCheckoutItems(items = []) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const name = String(item?.name || item?.itemName || '').trim();
+            const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+            const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+            if (!name || !price) return null;
             return {
-                playFabId: normalizePlayFabId(data.playFabId || doc?.id || ''),
-                displayName: String(data.displayName || doc?.id || 'Player').trim(),
-                total,
-                totalItems,
-                summary,
-                items: normalizedItems,
-                createdAtMs: createdAtRaw
+                name,
+                quantity,
+                price,
+                grantedPs: Math.max(0, Math.floor(Number(item?.grantedPs) || 0)),
+                cashbackRateBps: Math.max(0, Math.floor(Number(item?.cashbackRateBps) || 0)),
+                lineTotal: price * quantity
             };
         })
+        .filter(Boolean);
+}
+
+function buildTroyCheckoutPayload(docOrData = null) {
+    const hasDataFn = typeof docOrData?.data === 'function';
+    const data = hasDataFn ? (docOrData.data() || {}) : (docOrData || {});
+    const fallbackId = hasDataFn ? String(docOrData?.id || '').trim() : String(data?.playFabId || '').trim();
+    const status = String(data.status || 'open').trim().toLowerCase();
+    const items = normalizeTroyCheckoutItems(data.items);
+    const total = Math.max(0, Math.floor(Number(data.total) || items.reduce((sum, item) => sum + item.lineTotal, 0)));
+    const totalItems = Math.max(0, Math.floor(Number(data.totalItems) || items.reduce((sum, item) => sum + item.quantity, 0)));
+    const createdAtRaw = data.createdAt?.toMillis ? data.createdAt.toMillis() : Number(data.createdAt) || 0;
+    const updatedAtRaw = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Number(data.updatedAt) || 0;
+    const lastOrderedAtRaw = data.lastOrderedAt?.toMillis ? data.lastOrderedAt.toMillis() : Number(data.lastOrderedAt) || 0;
+    const settledAtRaw = data.settledAt?.toMillis ? data.settledAt.toMillis() : Number(data.settledAt) || 0;
+    const grantTotal = Math.max(0, Math.floor(Number(data.grantTotal) || 0));
+    const summary = items.slice(0, 3).map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ''}`).join(' / ');
+    return {
+        playFabId: normalizePlayFabId(data.playFabId || fallbackId),
+        displayName: String(data.displayName || fallbackId || 'Player').trim(),
+        status,
+        total,
+        totalItems,
+        grantTotal,
+        summary,
+        items,
+        createdAtMs: createdAtRaw,
+        updatedAtMs: updatedAtRaw,
+        lastOrderedAtMs: lastOrderedAtRaw,
+        settledAtMs: settledAtRaw
+    };
+}
+
+function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
+    return (Array.isArray(checkoutDocs) ? checkoutDocs : [])
+        .map((doc) => buildTroyCheckoutPayload(doc))
+        .filter((entry) => entry && (entry.status === 'open' || entry.status === 'pending'))
         .filter(Boolean)
         .sort((a, b) => (a.createdAtMs - b.createdAtMs) || String(a.playFabId || '').localeCompare(String(b.playFabId || '')));
 }
@@ -1812,6 +1894,7 @@ function initializeNationRoutes(app, deps) {
                 if (groupId) {
                     const treasuryPs = await getGroupTreasuryBalance(groupId, nationDeps);
                     const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
+                    const groupData = groupSnap.data() || {};
                     const treasuryOverview = buildTreasuryOverview(groupSnap.data()?.treasuryRecentEntries || []);
                     const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
                     payload.treasuryPs = treasuryPs;
@@ -1820,6 +1903,7 @@ function initializeNationRoutes(app, deps) {
                     payload.troyCashbackRatePercent = cashbackInfo.ratePercent;
                     payload.treasuryRecentEntries = treasuryOverview.recentEntries;
                     payload.treasurySummary = treasuryOverview.summary;
+                    payload.troyTodaySales = buildTroyTodaySalesSnapshot(groupData);
                 }
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
@@ -2635,14 +2719,19 @@ function initializeNationRoutes(app, deps) {
             if (memberId) {
                 const checkoutSnap = await roomRef.collection('checkouts').doc(memberId).get();
                 if (checkoutSnap.exists) {
-                    const checkoutData = checkoutSnap.data() || {};
-                    checkout = {
-                        status: checkoutData.status || 'pending',
-                        total: Number(checkoutData.total || 0),
-                        items: Array.isArray(checkoutData.items) ? checkoutData.items : [],
-                        createdAt: checkoutData.createdAt ? checkoutData.createdAt.toMillis?.() || checkoutData.createdAt : null,
-                        approvedAt: checkoutData.approvedAt ? checkoutData.approvedAt.toMillis?.() || checkoutData.approvedAt : null
-                    };
+                    const checkoutPayload = buildTroyCheckoutPayload(checkoutSnap);
+                    if (checkoutPayload && (checkoutPayload.status === 'open' || checkoutPayload.status === 'pending')) {
+                        checkout = {
+                            status: checkoutPayload.status,
+                            total: checkoutPayload.total,
+                            totalItems: checkoutPayload.totalItems,
+                            grantTotal: checkoutPayload.grantTotal,
+                            items: checkoutPayload.items,
+                            createdAt: checkoutPayload.createdAtMs || null,
+                            updatedAt: checkoutPayload.updatedAtMs || null,
+                            lastOrderedAt: checkoutPayload.lastOrderedAtMs || null
+                        };
+                    }
                 }
             }
 
@@ -2758,7 +2847,7 @@ function initializeNationRoutes(app, deps) {
 
     // TROY注文通知
     app.post('/api/troy-order', async (req, res) => {
-        const { playFabId, itemName, price, quantity, total, displayName } = req.body || {};
+        const { playFabId, itemName, price, quantity, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!itemName) return res.status(400).json({ error: 'itemName is required' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
@@ -2797,56 +2886,85 @@ function initializeNationRoutes(app, deps) {
             const safeQty = Math.max(1, Math.floor(Number(quantity) || 1));
             const priceValue = Math.max(0, Math.floor(Number(price) || 0));
             const orderAmount = Math.max(0, priceValue * safeQty);
-            const totalValue = Number(total);
+            if (!orderAmount) {
+                return res.status(400).json({ error: 'InvalidOrderAmount' });
+            }
             const priceLabel = Number.isFinite(priceValue) ? `¥${priceValue.toLocaleString('ja-JP')}` : '不明';
-            const totalLabel = Number.isFinite(totalValue) ? `¥${totalValue.toLocaleString('ja-JP')}` : '不明';
             const orderLine = `${String(itemName)}${safeQty > 1 ? ` x${safeQty}` : ''}`;
-            const message = [
-                '【TROY注文】',
-                `注文者: ${buyerName}`,
-                `内容: ${orderLine}`,
-                `金額: ${priceLabel}`,
-                `会計合計: ${totalLabel}`
-            ].join('\n');
 
-            let treasuryUpdated = false;
-            let treasuryPs = null;
-            let treasuryError = null;
             let grantAmount = 0;
             let cashbackRateBps = getTreasuryCashbackRateBpsByRank(2);
             let treasuryRank = 2;
             let grantApplied = false;
             let grantError = null;
+            let receiverBalance = null;
 
-            if (orderAmount > 0) {
-                try {
-                    const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
-                    cashbackRateBps = cashbackInfo.rateBps;
-                    treasuryRank = cashbackInfo.rank;
-                    const treasuryResult = await addNationTreasury(nation, orderAmount, firestore, nationDeps, {
-                        contributorPlayFabId: requesterPlayFabId,
-                        contributorName: buyerName,
-                        source: 'troy_order',
-                        label: 'TROY会計',
-                        note: orderLine
-                    });
-                    treasuryUpdated = true;
-                    treasuryPs = treasuryResult?.treasuryPs ?? null;
-                    grantAmount = Math.floor(orderAmount * (cashbackRateBps / 10000));
-                    if (grantAmount > 0) {
-                        await addEconomyItem(requesterPlayFabId, 'PS', grantAmount);
-                        grantApplied = true;
+            try {
+                const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
+                cashbackRateBps = cashbackInfo.rateBps;
+                treasuryRank = cashbackInfo.rank;
+                grantAmount = Math.floor(orderAmount * (cashbackRateBps / 10000));
+                if (grantAmount > 0) {
+                    await addEconomyItem(requesterPlayFabId, 'PS', grantAmount);
+                    grantApplied = true;
+                    if (getCurrencyBalance) {
+                        receiverBalance = await getCurrencyBalance(requesterPlayFabId, 'PS');
+                        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                            PlayFabId: requesterPlayFabId,
+                            Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                        });
                     }
-                } catch (error) {
-                    const msg = error?.errorMessage || error?.message || String(error);
-                    if (!treasuryUpdated) {
-                        treasuryError = msg;
-                    } else {
-                        grantError = msg;
-                    }
-                    console.warn('[troy-order] Treasury/Grant failed:', msg);
                 }
+            } catch (error) {
+                grantError = error?.errorMessage || error?.message || String(error);
+                console.warn('[troy-order] Grant failed:', grantError);
             }
+
+            const checkoutRef = roomRef.collection('checkouts').doc(memberId);
+            const checkoutSnap = await checkoutRef.get();
+            const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
+            const checkoutStatus = String(checkoutData.status || '').trim().toLowerCase();
+            if (checkoutSnap.exists && checkoutStatus && checkoutStatus !== 'open') {
+                return res.status(409).json({ error: 'CheckoutPending' });
+            }
+
+            const existingItems = checkoutStatus === 'open' && Array.isArray(checkoutData.items) ? checkoutData.items : [];
+            const nextItems = existingItems.concat([{
+                name: String(itemName || '').trim(),
+                price: priceValue,
+                quantity: safeQty,
+                grantedPs: grantAmount,
+                cashbackRateBps
+            }]);
+            const nextNormalizedItems = normalizeTroyCheckoutItems(nextItems);
+            const nextTotal = nextNormalizedItems.reduce((sum, item) => sum + item.lineTotal, 0);
+            const nextTotalItems = nextNormalizedItems.reduce((sum, item) => sum + item.quantity, 0);
+            const nextGrantTotal = Math.max(0, Math.floor(Number(checkoutData.grantTotal) || 0)) + grantAmount;
+            const nowTs = admin.firestore.FieldValue.serverTimestamp();
+            const updatePayload = {
+                playFabId: memberId,
+                displayName: buyerName,
+                status: 'open',
+                items: nextItems,
+                total: nextTotal,
+                totalItems: nextTotalItems,
+                grantTotal: nextGrantTotal,
+                updatedAt: nowTs,
+                lastOrderedAt: nowTs
+            };
+            if (!(checkoutSnap.exists && checkoutStatus === 'open')) {
+                updatePayload.createdAt = nowTs;
+            }
+            await checkoutRef.set(updatePayload, { merge: true });
+
+            const message = [
+                '【TROY注文】',
+                `注文者: ${buyerName}`,
+                `内容: ${orderLine}`,
+                `金額: ${priceLabel}`,
+                `今回付与: ${grantAmount.toLocaleString('ja-JP')} Ps`,
+                `未会計合計: ¥${nextTotal.toLocaleString('ja-JP')}`
+            ].join('\n');
 
             try {
                 await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
@@ -2861,14 +2979,19 @@ function initializeNationRoutes(app, deps) {
             res.json({
                 success: true,
                 orderAmount,
-                treasuryUpdated,
-                treasuryPs,
-                treasuryError,
                 grantAmount,
                 cashbackRateBps,
                 treasuryRank,
                 grantApplied,
-                grantError
+                grantError,
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
+                checkout: {
+                    status: 'open',
+                    total: nextTotal,
+                    totalItems: nextTotalItems,
+                    grantTotal: nextGrantTotal,
+                    items: nextNormalizedItems
+                }
             });
         } catch (error) {
             console.error('[troy-order] Error:', error?.message || error);
@@ -3152,6 +3275,148 @@ function initializeNationRoutes(app, deps) {
             }
             console.error('[king-grant-ps] Error:', msg);
             res.status(500).json({ error: 'Failed to grant PS', details: msg });
+        }
+    });
+
+    app.post('/api/king-settle-troy-checkout', async (req, res) => {
+        const { playFabId, receiverPlayFabId, expectedTotal } = req.body || {};
+        const requestId = String(req.body?.requestId || '').trim();
+        if (!playFabId || !receiverPlayFabId) {
+            return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const receiverId = normalizePlayFabId(receiverPlayFabId);
+            if (!receiverId) return res.status(400).json({ error: 'Invalid receiver PlayFab ID' });
+
+            const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
+            const checkoutRef = roomRef.collection('checkouts').doc(receiverId);
+            const checkoutSnap = await checkoutRef.get();
+            if (!checkoutSnap.exists) {
+                return res.status(404).json({ error: 'CheckoutNotFound' });
+            }
+
+            const checkoutPayload = buildTroyCheckoutPayload(checkoutSnap);
+            if (!checkoutPayload || checkoutPayload.total <= 0) {
+                return res.status(400).json({ error: 'InvalidCheckout' });
+            }
+            if (!['open', 'pending'].includes(checkoutPayload.status)) {
+                return res.status(409).json({ error: 'CheckoutAlreadyClosed' });
+            }
+
+            const expected = Math.max(0, Math.floor(Number(expectedTotal) || 0));
+            if (expected > 0 && checkoutPayload.total !== expected) {
+                return res.status(409).json({
+                    error: 'CheckoutChanged',
+                    currentTotal: checkoutPayload.total
+                });
+            }
+
+            const settleBaseId = requestId
+                || `troy-settle:${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
+            const idempotencyFor = (suffix) => `${settleBaseId}:${suffix}`;
+
+            let grantAmount = 0;
+            let cashbackRateBps = 0;
+            let treasuryRank = null;
+            let grantApplied = false;
+            let grantError = null;
+
+            if (checkoutPayload.status === 'pending') {
+                try {
+                    const cashbackInfo = await getNationTreasuryCashbackInfo(context.nation, firestore, nationDeps);
+                    cashbackRateBps = cashbackInfo.rateBps;
+                    treasuryRank = cashbackInfo.rank;
+                    grantAmount = Math.floor(checkoutPayload.total * (cashbackRateBps / 10000));
+                    if (grantAmount > 0) {
+                        await addEconomyItem(receiverId, 'PS', grantAmount, { idempotencyId: idempotencyFor('ps-grant') });
+                        grantApplied = true;
+                        if (getCurrencyBalance) {
+                            const receiverBalance = await getCurrencyBalance(receiverId, 'PS');
+                            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                                PlayFabId: receiverId,
+                                Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                            });
+                        }
+                    }
+                } catch (grantIssue) {
+                    grantError = grantIssue?.errorMessage || grantIssue?.message || String(grantIssue);
+                    console.warn('[king-settle-troy-checkout] Legacy grant failed:', grantError);
+                    return res.status(500).json({ error: 'FailedToGrantPs', details: grantError });
+                }
+            }
+
+            let treasuryUpdated = true;
+            let treasuryErrorMessage = '';
+            let treasuryPs = null;
+            try {
+                const treasuryResult = await addNationTreasury(context.nation, checkoutPayload.total, firestore, nationDeps, {
+                    idempotencyId: idempotencyFor('treasury'),
+                    contributorPlayFabId: receiverId,
+                    contributorName: checkoutPayload.displayName,
+                    source: 'troy_settlement',
+                    label: 'TROY会計',
+                    note: checkoutPayload.summary || `${checkoutPayload.totalItems}点`
+                });
+                treasuryPs = treasuryResult?.treasuryPs ?? null;
+            } catch (treasuryError) {
+                treasuryUpdated = false;
+                treasuryErrorMessage = treasuryError?.errorMessage || treasuryError?.message || String(treasuryError);
+                console.warn('[king-settle-troy-checkout] Treasury failed:', treasuryErrorMessage);
+                return res.status(500).json({ error: 'FailedToUpdateTreasury', details: treasuryErrorMessage });
+            }
+
+            let troyTodaySales = null;
+            try {
+                troyTodaySales = await addTroyDailySales(context.nation, checkoutPayload.total, firestore, admin);
+            } catch (salesError) {
+                console.warn('[king-settle-troy-checkout] Daily sales update failed:', salesError?.message || salesError);
+            }
+
+            try {
+                await checkoutRef.delete();
+            } catch (deleteError) {
+                const msg = deleteError?.errorMessage || deleteError?.message || String(deleteError);
+                console.warn('[king-settle-troy-checkout] Checkout delete failed:', msg);
+                return res.status(500).json({ error: 'FailedToCloseCheckout', details: msg });
+            }
+
+            try {
+                await roomRef.collection('members').doc(receiverId).delete();
+            } catch (memberDeleteError) {
+                console.warn('[king-settle-troy-checkout] Member delete failed:', memberDeleteError?.message || memberDeleteError);
+            }
+
+            pushDisplayEvent({
+                type: 'flare',
+                label: `会計済: ${checkoutPayload.displayName}`
+            });
+
+            res.json({
+                success: true,
+                receivedAmount: checkoutPayload.total,
+                totalItems: checkoutPayload.totalItems,
+                grantAmount,
+                cashbackRateBps,
+                treasuryRank,
+                treasuryUpdated,
+                treasuryError: treasuryUpdated ? undefined : treasuryErrorMessage,
+                treasuryPs,
+                grantApplied,
+                grantError,
+                settledStatus: checkoutPayload.status,
+                troyTodaySales
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[king-settle-troy-checkout] Error:', msg);
+            res.status(500).json({ error: 'Failed to settle checkout', details: msg });
         }
     });
 

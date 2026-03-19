@@ -212,6 +212,15 @@ export function approveTroyCheckout(playFabId, receiverPlayFabId, amount, reques
     return grantPs(playFabId, receiverPlayFabId, amount, requestId, options);
 }
 
+export function settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, options) {
+    return callApiWithLoader('/api/king-settle-troy-checkout', {
+        playFabId,
+        receiverPlayFabId,
+        expectedTotal,
+        requestId
+    }, options);
+}
+
 export function getTroyStatus(playFabId, options) {
     return callApiWithLoader('/api/get-troy-status', { playFabId }, options);
 }

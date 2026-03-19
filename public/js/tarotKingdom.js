@@ -1634,7 +1634,7 @@ function triggerKingdomGrandWinnerFx(playerIndex) {
     cutinClass: 'is-kingdom-grand-win',
     delayMs: 120
   });
-  triggerKingdomActionFx(playerIndex, `${pName(playerIndex)} CHAMPION`, {
+  triggerKingdomActionFx(playerIndex, 'CHAMPION', {
     overlay: 'grandfinal',
     overlayHoldMs: 1300,
     durationMs: 1200,
