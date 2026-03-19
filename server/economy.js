@@ -314,6 +314,7 @@ function initializeEconomyRoutes(app, deps) {
                     const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                     return {
                         position: entry.Position,
+                        playFabId: entry.PlayFabId || null,
                         displayName: entry.DisplayName || '名無し',
                         score: entry.StatValue,
                         avatarUrl: avatarUrl
@@ -353,6 +354,7 @@ function initializeEconomyRoutes(app, deps) {
                     const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                     return {
                         position: entry.Position,
+                        playFabId: entry.PlayFabId || null,
                         displayName: entry.DisplayName || '名無し',
                         score: entry.StatValue,
                         avatarUrl: avatarUrl

@@ -3331,6 +3331,7 @@ function initializeNationRoutes(app, deps) {
                     const data = doc.data() || {};
                     const ts = data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt;
                     return {
+                        playFabId: data.playFabId || '',
                         message: data.message || '',
                         displayName: data.displayName || 'Player',
                         timestamp: ts || Date.now()

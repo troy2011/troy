@@ -2858,6 +2858,38 @@ body.modal-lock .modal-overlay {
     display: flex;
 }
 
+.player-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.player-link:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+}
+
+.player-link:focus-visible {
+    outline: 2px solid rgba(245, 158, 11, 0.7);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.player-link-inline {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
 #tabContentMap.map-ready .map-loading-overlay {
     opacity: 0;
     pointer-events: none;
@@ -9104,12 +9136,14 @@ textarea {
 }
 
 #itemDetailModal,
-#tarotManifestPreviewModal {
+#tarotManifestPreviewModal,
+#playerProfileModal {
     align-items: flex-end;
 }
 
 #itemDetailModal .item-detail-sheet,
-#tarotManifestPreviewModal .item-detail-sheet {
+#tarotManifestPreviewModal .item-detail-sheet,
+#playerProfileModal .item-detail-sheet {
     width: 100%;
     max-width: none;
     max-height: 86dvh;
@@ -9279,6 +9313,100 @@ textarea {
 
 .tarot-manifest-preview-actions .item-detail-close {
     margin-top: 0;
+}
+
+.player-profile-sheet {
+    gap: 0;
+}
+
+.player-profile-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.player-profile-avatar-shell {
+    width: 112px;
+    min-width: 112px;
+    height: 128px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background:
+        radial-gradient(circle at top, rgba(251, 191, 36, 0.12), transparent 52%),
+        linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(9, 14, 24, 0.98));
+    overflow: hidden;
+}
+
+#playerProfileAvatar.player-profile-avatar {
+    margin: 0;
+    transform: scale(1.65);
+}
+
+#playerProfileName {
+    margin: 0;
+    color: var(--accent-color);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+#playerProfileNation {
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+#playerProfileMeta {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--text-sub);
+    word-break: break-all;
+}
+
+.player-profile-equipment {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.player-profile-equip-row {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(8, 15, 29, 0.58);
+}
+
+.player-profile-equip-row span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.player-profile-equip-row strong {
+    min-width: 0;
+    font-size: 13px;
+    color: #f8fafc;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.player-profile-empty {
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px dashed rgba(148, 163, 184, 0.2);
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.6;
+    background: rgba(8, 15, 29, 0.34);
 }
 
 #itemDetailButtons {
@@ -11372,9 +11500,27 @@ textarea {
 }
 
 #itemDetailModal .item-detail-sheet,
-#tarotManifestPreviewModal .item-detail-sheet {
+#tarotManifestPreviewModal .item-detail-sheet,
+#playerProfileModal .item-detail-sheet {
     display: flex;
     flex-direction: column;
+}
+
+@media (max-width: 640px) {
+    .player-profile-head {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        text-align: center;
+    }
+
+    .player-profile-avatar-shell {
+        width: 100%;
+        max-width: 200px;
+    }
+
+    .player-profile-equip-row {
+        grid-template-columns: 68px minmax(0, 1fr);
+    }
 }
 
 #itemDetailButtons {

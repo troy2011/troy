@@ -8,6 +8,7 @@ import {
 } from './playfabClient.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { isKing, refreshKingNav, loadKingPage } from './nationKing.js';
+import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 let _wired = false;
 let _menuWired = false;
@@ -52,7 +53,10 @@ const TROY_PRODUCT_MENUS = {
     },
     dryfood: {
         title: '略奪品 (乾きもの)',
-        items: []
+        items: [
+            { concept: '船室のチョコ片', content: 'チョコ', price: 500, image: 'https://loremflickr.com/640/420/chocolate?lock=5147', emoji: '🍫' },
+            { concept: '航海士のミックスナッツ', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/mixed,nuts?lock=5148', emoji: '🥜' }
+        ]
     },
     hotfood: {
         title: '船上の宴 (温かい料理)',
@@ -62,7 +66,8 @@ const TROY_PRODUCT_MENUS = {
             { concept: '甲板のピザパン', content: 'ピザトースト', price: 500, image: 'https://loremflickr.com/640/420/pizza,toast?lock=5143', emoji: '🍞' },
             { concept: 'クラーケンの足', content: 'フランクフルト', price: 500, image: 'https://loremflickr.com/640/420/frankfurt,sausage?lock=5144', emoji: '🌭' },
             { concept: '人魚のワッフル', content: 'ワッフル', price: 500, image: 'https://loremflickr.com/640/420/waffle?lock=5145', emoji: '🧇' },
-            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨' }
+            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨' },
+            { concept: '夜更けの甲板ヌードル', content: 'カップラーメン', price: 500, image: 'https://loremflickr.com/640/420/cup,noodle?lock=5149', emoji: '🍜' }
         ]
     },
     main: {
@@ -1056,6 +1061,7 @@ function renderEntryList(members) {
         row.className = 'troy-entry-item';
         const name = document.createElement('b');
         name.textContent = member.displayName || member.playFabId || 'Player';
+        decoratePlayerTriggerElement(name, member.playFabId, { className: 'player-link-inline' });
         const meta = document.createElement('span');
         meta.textContent = member.joinedAt ? new Date(member.joinedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '';
         row.appendChild(name);

@@ -1,4 +1,5 @@
 import { ref, get, set, push, remove, onValue, onChildAdded, onDisconnect, serverTimestamp } from 'firebase/database';
+import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 const TAROT_SPRITE_SRC = 'Sprites/Buildings/tarot.png';
 const TAROT_TILE_W = 48;
@@ -158,7 +159,7 @@ let netManualOfflineMode = false;
 let kingdomStartMode = '';
 let kingdomViewportSyncQueued = false;
 let kingdomViewportWatchBound = false;
-const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', until: 0 }));
+const presenceGraceBySeat = Array.from({ length: 4 }, () => ({ uid: null, name: '', playFabId: '', until: 0 }));
 const tkNet = {
   enabled: false,
   roomId: '',
@@ -695,6 +696,24 @@ const chooseSetNumberCandidate = (cards, reverse = false) => {
   return Number(sorted[0]);
 };
 const pName = (i) => s.players[i]?.name || `P${i + 1}`;
+const pPlayFabId = (i) => String(s?.players?.[i]?.playFabId || '').trim();
+function appendPlayerNameNode(container, label, playFabId) {
+  if (!container) return null;
+  const nameNode = document.createElement('span');
+  nameNode.textContent = String(label || 'Player');
+  if (playFabId) {
+    decoratePlayerTriggerElement(nameNode, playFabId, { className: 'player-link-inline' });
+  }
+  container.appendChild(nameNode);
+  return nameNode;
+}
+function setInlinePlayerLabel(container, prefix, playerIndex, suffix = '') {
+  if (!container) return;
+  container.textContent = '';
+  if (prefix) container.append(prefix);
+  appendPlayerNameNode(container, pName(playerIndex), pPlayFabId(playerIndex));
+  if (suffix) container.append(suffix);
+}
 const hasAceMinor = (cards) => cards.some((c) => c.kind === 'minor' && c.number === 1);
 const countAceMinor = (cards) => cards.reduce((total, c) => total + ((c.kind === 'minor' && c.number === 1) ? 1 : 0), 0);
 const hasCourt = (c) => { const n = idNum(c); return n >= 11 && n <= 14; };
@@ -2840,7 +2859,8 @@ function applyPresenceToPlayers() {
       uid: tkNet.uid,
       seat: localSeat,
       displayName: localName,
-      name: localName
+      name: localName,
+      playFabId: window.myPlayFabId || ''
     };
   }
 
@@ -2853,7 +2873,8 @@ function applyPresenceToPlayers() {
       p.isNpc = false;
       p.name = occName;
       p.uid = occ.uid || null;
-      presenceGraceBySeat[i] = { uid: p.uid, name: occName, until: now + PRESENCE_AWAY_GRACE_MS };
+      p.playFabId = String(occ.playFabId || '').trim();
+      presenceGraceBySeat[i] = { uid: p.uid, name: occName, playFabId: p.playFabId, until: now + PRESENCE_AWAY_GRACE_MS };
       continue;
     }
     const grace = presenceGraceBySeat[i];
@@ -2861,12 +2882,14 @@ function applyPresenceToPlayers() {
       p.isNpc = false;
       p.name = String(grace.name || fallbackNames[i] || `P${i + 1}`);
       p.uid = grace.uid || null;
+      p.playFabId = String(grace.playFabId || '').trim();
       continue;
     }
     p.isNpc = true;
     p.name = fallbackNames[i] || `NPC${i}`;
     p.uid = null;
-    presenceGraceBySeat[i] = { uid: null, name: '', until: 0 };
+    p.playFabId = '';
+    presenceGraceBySeat[i] = { uid: null, name: '', playFabId: '', until: 0 };
   }
 }
 
@@ -3381,6 +3404,7 @@ function teardownTarotKingdomNetwork() {
   presenceGraceBySeat.forEach((slot) => {
     slot.uid = null;
     slot.name = '';
+    slot.playFabId = '';
     slot.until = 0;
   });
   netOpenRoomsCache = {};
@@ -3577,8 +3601,13 @@ function resetMatch() {
     const fallbackName = String(window.myPlayFabDisplayName || window.myLineProfile?.displayName || 'あなた');
     s.players.forEach((p, idx) => {
       p.isNpc = idx !== tkNet.localSeat;
-      if (idx === tkNet.localSeat) p.name = fallbackName;
-      else p.name = idx === 1 ? 'NPC1' : (idx === 2 ? 'NPC2' : 'NPC3');
+      if (idx === tkNet.localSeat) {
+        p.name = fallbackName;
+        p.playFabId = String(window.myPlayFabId || '').trim();
+      } else {
+        p.name = idx === 1 ? 'NPC1' : (idx === 2 ? 'NPC2' : 'NPC3');
+        p.playFabId = '';
+      }
     });
   } else {
     applyPresenceToPlayers();
@@ -5647,7 +5676,12 @@ function renderPlayers() {
         ? (Math.max(0, Number(settlementData.starBonus) || 0) + Math.max(0, Number(settlementData.oracleHits) || 0))
         : 0
     );
-    left.textContent = `${p.name}${starCount > 0 ? ` ${'⭐'.repeat(starCount)}` : ''}`;
+    appendPlayerNameNode(left, p.name, String(p.playFabId || '').trim());
+    if (starCount > 0) {
+      const stars = document.createElement('span');
+      stars.textContent = ` ${'⭐'.repeat(starCount)}`;
+      left.appendChild(stars);
+    }
     const right = document.createElement('div');
     right.className = 'tarot-kingdom-player-meta';
     if (isLastOne) {
@@ -5740,7 +5774,7 @@ function renderTrick() {
         const roleSuffix = s.trick?.type === 'role' && s.trick?.role
           ? `/${getRoleBaseLabel(s.trick.role)}`
           : '';
-        ui.trickOwner.textContent = `場札主: ${pName(owner)} 手札${handCount}${roleSuffix}`;
+        setInlinePlayerLabel(ui.trickOwner, '場札主: ', owner, ` 手札${handCount}${roleSuffix}`);
       }
     }
   }
@@ -6252,7 +6286,13 @@ function renderSummary() {
   const localStateOverride = me >= 0 ? buildLocalStateTextOverride(me, localSelected) : '';
   const turnText = s.roundActive ? ` / ターン ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   ui.round.textContent = `局 ${Math.min(s.handNo + 1, TOTAL_HANDS)} / ${TOTAL_HANDS}${turnText}`;
-  if (ui.turn) ui.turn.textContent = s.roundActive ? `${pName(s.turn)}の手番` : '待機中';
+  if (ui.turn) {
+    if (s.roundActive) {
+      setInlinePlayerLabel(ui.turn, '', s.turn, 'の手番');
+    } else {
+      ui.turn.textContent = '待機中';
+    }
+  }
   if (ui.reverseChip) {
     const showReverse = !!s.roundActive && !!s.reverse;
     ui.reverseChip.hidden = !showReverse;

@@ -216,8 +216,8 @@ function showBattleModal(battleId) {
         const me = battleState.players[myId];
         const opponent = battleState.players[opponentId];
 
-        updateBattleStatusDisplay('battlePlayerA', opponent);
-        updateBattleStatusDisplay('battlePlayerB', me);
+        updateBattleStatusDisplay('battlePlayerA', opponent, opponentId);
+        updateBattleStatusDisplay('battlePlayerB', me, myId);
 
         // ★ v184: renderBattleAvatarを介さず、直接renderAvatarを呼び出す
         await renderOpponentAvatar(opponent, battleDependencies.renderAvatar, battleDependencies.callApiWithLoader);
@@ -497,9 +497,14 @@ function startBattleLoop(initialBattleState) {
     loop(); // 最初のループを開始
 }
 
-function updateBattleStatusDisplay(prefix, playerData) {
+function updateBattleStatusDisplay(prefix, playerData, playerId = '') {
     const nameEl = document.getElementById(`${prefix}Name`);
-    if (nameEl) nameEl.innerText = playerData.name;
+    if (nameEl) {
+        nameEl.innerText = playerData.name;
+        if (typeof window !== 'undefined' && typeof window.decoratePlayerTriggerElement === 'function') {
+            window.decoratePlayerTriggerElement(nameEl, playerId, { label: playerData.name, className: 'player-link-inline' });
+        }
+    }
 
     const hpTextEl = document.getElementById(`${prefix}HpText`);
     if (hpTextEl) hpTextEl.innerText = `${playerData.hp}/${playerData.maxHp}`;

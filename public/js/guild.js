@@ -17,6 +17,7 @@ import {
 } from './playfabClient.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { getNationLabel } from './nationLabels.js';
+import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;
@@ -294,6 +295,7 @@ function renderGuildMembers(members) {
         const nameSpan = document.createElement('span');
         nameSpan.textContent = member.displayName || 'Unknown';
         nameSpan.style.cssText = 'font-weight: bold; color: var(--text-main);';
+        decoratePlayerTriggerElement(nameSpan, member.playFabId, { className: 'player-link-inline' });
 
         const roleSpan = document.createElement('span');
         roleSpan.textContent = member.role || 'メンバー';
@@ -357,6 +359,7 @@ function renderGuildChat(messages) {
         const nameSpan = document.createElement('span');
         nameSpan.textContent = msg.displayName || 'Unknown';
         nameSpan.style.cssText = 'font-weight: bold; color: var(--accent-color); font-size: 14px;';
+        decoratePlayerTriggerElement(nameSpan, msg.playFabId, { className: 'player-link-inline' });
 
         const timeSpan = document.createElement('span');
         const msgTime = new Date(msg.timestamp);
@@ -589,6 +592,7 @@ function renderGuildApplications(applications, playFabId) {
         const nameSpan = document.createElement('span');
         nameSpan.textContent = app.displayName || 'Unknown';
         nameSpan.style.cssText = 'font-weight: bold; color: var(--text-main); display: block; margin-bottom: 8px;';
+        decoratePlayerTriggerElement(nameSpan, app.playFabId, { className: 'player-link-inline' });
 
         const buttonsDiv = document.createElement('div');
         buttonsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px;';

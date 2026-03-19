@@ -75,6 +75,10 @@ export function getEquipment(playFabId, options) {
     return callApiWithLoader('/api/get-equipment', { playFabId }, options);
 }
 
+export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
+    return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
+}
+
 export function equipItem(playFabId, itemId, slot, options) {
     return callApiWithLoader('/api/equip-item', { playFabId, itemId, slot }, options);
 }

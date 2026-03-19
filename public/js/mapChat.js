@@ -11,6 +11,7 @@ import {
     sendGlobalChat
 } from './playfabClient.js';
 import { showRpgMessage } from './rpgMessages.js';
+import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 function getPlayerDisplayName() {
     return window.myPlayFabDisplayName || window.myLineProfile?.displayName || window.myPlayFabId || 'Player';
@@ -101,6 +102,7 @@ function createChatController(options) {
             const nameSpan = document.createElement('span');
             nameSpan.textContent = msg.displayName || 'Player';
             nameSpan.style.cssText = 'font-weight: 700; color: var(--accent-color); font-size: 12px;';
+            decoratePlayerTriggerElement(nameSpan, msg.playFabId, { className: 'player-link-inline' });
 
             const timeSpan = document.createElement('span');
             const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
@@ -148,6 +150,7 @@ function createChatController(options) {
                 const messages = snapshot.docs.map((entry) => {
                     const data = entry.data() || {};
                     return {
+                        playFabId: data.playFabId || '',
                         message: data.message || '',
                         displayName: data.displayName || 'Player',
                         timestamp: toMillis(data.createdAt)

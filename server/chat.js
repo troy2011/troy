@@ -14,6 +14,7 @@ function trimChat(list, limit) {
 
 function normalizeChatMessage(entry) {
     return {
+        playFabId: entry.playFabId || '',
         message: entry.message,
         displayName: entry.displayName || 'Player',
         timestamp: entry.timestamp
@@ -28,10 +29,11 @@ function initializeChatRoutes(app) {
 
     // グローバルチャット送信
     app.post('/api/send-global-chat', async (req, res) => {
-        const { message, displayName } = req.body || {};
+        const { playFabId, message, displayName } = req.body || {};
         const text = String(message || '').trim();
         if (!text) return res.status(400).json({ error: 'Message is required' });
         globalChatMessages.push({
+            playFabId: String(playFabId || '').trim(),
             message: text,
             displayName: String(displayName || 'Player'),
             timestamp: Date.now()
@@ -59,12 +61,13 @@ function initializeChatRoutes(app) {
 
     // 近くのチャット送信
     app.post('/api/send-nearby-chat', async (req, res) => {
-        const { message, displayName } = req.body || {};
+        const { playFabId, message, displayName } = req.body || {};
         const text = String(message || '').trim();
         if (!text) return res.status(400).json({ error: 'Message is required' });
         const x = Number(req?.body?.x);
         const y = Number(req?.body?.y);
         nearbyChatMessages.push({
+            playFabId: String(playFabId || '').trim(),
             message: text,
             displayName: String(displayName || 'Player'),
             timestamp: Date.now(),

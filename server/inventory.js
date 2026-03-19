@@ -235,6 +235,67 @@ function initializeInventoryRoutes(app, deps) {
         return String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
     }
 
+    function buildAvatarBaseFromReadOnly(readOnlyData = {}) {
+        return {
+            Race: String(readOnlyData?.Race?.Value || 'human').trim() || 'human',
+            Nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
+            AvatarColor: String(readOnlyData?.AvatarColor?.Value || '').trim() || 'brown',
+            SkinColorIndex: Math.max(1, Number(readOnlyData?.SkinColorIndex?.Value || 1) || 1),
+            FaceIndex: Math.max(1, Number(readOnlyData?.FaceIndex?.Value || 1) || 1),
+            HairStyleIndex: Math.max(1, Number(readOnlyData?.HairStyleIndex?.Value || 1) || 1),
+            HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1)
+        };
+    }
+
+    function buildPublicEquipmentItem(itemRef) {
+        if (!itemRef) return null;
+        if (typeof itemRef === 'object' && itemRef.customData) return itemRef;
+        const itemId = String(itemRef || '').trim();
+        if (!itemId) return null;
+        const catalogData = normalizeCatalogDisplayData(itemId, catalogCache[itemId] || {});
+        return {
+            itemId,
+            name: catalogData.DisplayName || itemId,
+            description: catalogData.Description || '',
+            customData: catalogData
+        };
+    }
+
+    function getPublicEquipmentDisplayName(itemRef) {
+        if (itemRef && typeof itemRef === 'object') {
+            return String(
+                itemRef.name
+                || itemRef.customData?.DisplayName
+                || itemRef.customData?.ManifestedItemName
+                || ''
+            ).trim() || '装備中';
+        }
+        const item = buildPublicEquipmentItem(itemRef);
+        return item?.name || '未装備';
+    }
+
+    function buildPublicItemSource(equipment = {}) {
+        const itemSource = {};
+        ['RightHand', 'LeftHand', 'Armor', 'Accessory', TAROT_MAJOR_SLOT].forEach((slot) => {
+            const itemRef = equipment?.[slot];
+            if (!itemRef || typeof itemRef !== 'string') return;
+            const item = buildPublicEquipmentItem(itemRef);
+            if (!item) return;
+            itemSource[itemRef] = item;
+        });
+        return itemSource;
+    }
+
+    function buildPublicEquipmentList(equipment = {}) {
+        return [
+            { slot: 'Armor', label: getTarotSlotLabel('Armor'), name: getPublicEquipmentDisplayName(equipment.Armor) },
+            { slot: 'RightHand', label: getTarotSlotLabel('RightHand'), name: getPublicEquipmentDisplayName(equipment.RightHand) },
+            { slot: 'LeftHand', label: getTarotSlotLabel('LeftHand'), name: getPublicEquipmentDisplayName(equipment.LeftHand) },
+            { slot: 'Accessory', label: getTarotSlotLabel('Accessory'), name: getPublicEquipmentDisplayName(equipment.Accessory) },
+            { slot: TAROT_MAJOR_SLOT, label: getTarotSlotLabel(TAROT_MAJOR_SLOT), name: getPublicEquipmentDisplayName(equipment[TAROT_MAJOR_SLOT]) }
+        ];
+    }
+
     async function getPlayerTarotProgress(playFabId) {
         const readOnly = await getPlayerReadOnlyData(playFabId, [
             TROY_SKILLS_DATA_KEY,
@@ -773,6 +834,72 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[装備取得] エラー', error.errorMessage);
             res.status(500).json({ error: '装備の取得に失敗しました。', details: error.errorMessage });
+        }
+    });
+
+    app.post('/api/get-player-public-profile', async (req, res) => {
+        let { playFabId, targetPlayFabId } = req.body || {};
+        if (!playFabId || !targetPlayFabId) {
+            return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
+        }
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const targetId = String(targetPlayFabId || '').trim();
+            const readOnlyKeys = [
+                'Race',
+                'Nation',
+                'AvatarColor',
+                'SkinColorIndex',
+                'FaceIndex',
+                'HairStyleIndex',
+                'HairColorIndex',
+                'Equipped_RightHand',
+                'Equipped_LeftHand',
+                'Equipped_Armor',
+                'Equipped_Accessory',
+                TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana
+            ];
+            const [profileResult, readOnlyResult] = await Promise.all([
+                promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                    PlayFabId: targetId,
+                    ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
+                }),
+                getPlayerReadOnlyData(targetId, readOnlyKeys)
+            ]);
+            const readOnlyData = readOnlyResult?.Data || {};
+            const equipment = {};
+            const assignEquipmentValue = (slotName, rawValue) => {
+                const parsed = parseStoredEquipmentValue(rawValue);
+                if (parsed === null || parsed === undefined || parsed === '') return;
+                equipment[slotName] = parsed;
+            };
+            assignEquipmentValue('RightHand', readOnlyData?.Equipped_RightHand?.Value || null);
+            assignEquipmentValue('LeftHand', readOnlyData?.Equipped_LeftHand?.Value || null);
+            assignEquipmentValue('Armor', readOnlyData?.Equipped_Armor?.Value || null);
+            assignEquipmentValue('Accessory', readOnlyData?.Equipped_Accessory?.Value || null);
+            assignEquipmentValue(TAROT_MAJOR_SLOT, readOnlyData?.[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || null);
+
+            return res.json({
+                success: true,
+                profile: {
+                    playFabId: targetId,
+                    displayName: String(profileResult?.PlayerProfile?.DisplayName || targetId).trim() || targetId,
+                    avatarUrl: String(profileResult?.PlayerProfile?.AvatarUrl || '').trim(),
+                    nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
+                    avatarBase: buildAvatarBaseFromReadOnly(readOnlyData),
+                    equipment,
+                    itemSource: buildPublicItemSource(equipment),
+                    equipmentList: buildPublicEquipmentList(equipment)
+                }
+            });
+        } catch (error) {
+            console.error('[get-player-public-profile] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: 'プレイヤー情報の取得に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 

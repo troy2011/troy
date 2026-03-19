@@ -14,6 +14,7 @@ import {
     getNationTreasuryRanking as fetchNationTreasuryRanking
 } from './playfabClient.js';
 import { getNationLabel } from './nationLabels.js';
+import { buildPlayerTriggerHtml } from './playerProfile.js';
 
 let myPlayerStats = {};
 const LOW_PS_THRESHOLD = 200;
@@ -206,6 +207,7 @@ function renderRankingRows(entries, options = {}) {
         const name = options.getName ? options.getName(entry, index) : (entry.displayName || '不明');
         const score = options.getScore ? options.getScore(entry, index) : 0;
         const meta = options.getMeta ? options.getMeta(entry, index) : '';
+        const playerId = options.getPlayerId ? options.getPlayerId(entry, index) : (entry.playFabId || entry.PlayFabId || '');
         const avatarUrl = options.getAvatar ? options.getAvatar(entry, index) : entry.avatarUrl;
         const avatarLabel = options.getAvatarLabel ? options.getAvatarLabel(entry, index) : name;
         const medal = getRankMedal(index);
@@ -219,7 +221,7 @@ function renderRankingRows(entries, options = {}) {
                 </div>
                 ${renderRankingAvatar({ avatarUrl, label: avatarLabel })}
                 <div class="ranking-row-main">
-                    <div class="ranking-row-name">${escapeHtml(name)}</div>
+                    <div class="ranking-row-name">${buildPlayerTriggerHtml(playerId, name, { className: 'player-link-inline' })}</div>
                     <div class="ranking-row-meta">${escapeHtml(meta || (isMyRank ? 'あなたの順位' : `${rank}位`))}</div>
                 </div>
                 <div class="ranking-row-score">
@@ -239,7 +241,8 @@ export async function getRanking() {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             getName: (entry) => entry.displayName || '冒険者',
             getScore: (entry) => `${formatNumber(entry.score)} Ps`,
-            getMeta: (entry, index) => (index < 3 ? '上位ランカー' : '総資産ランキング')
+            getMeta: (entry, index) => (index < 3 ? '上位ランカー' : '総資産ランキング'),
+            getPlayerId: (entry) => entry.playFabId || ''
         });
         return;
     }
@@ -255,7 +258,8 @@ export async function getBountyRanking() {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             getName: (entry) => entry.displayName || '冒険者',
             getScore: (entry) => `${formatNumber(entry.contribution ?? entry.score)} 貢献`,
-            getMeta: (entry, index) => (index < 3 ? '本日の上位貢献者' : '日次ランキング')
+            getMeta: (entry, index) => (index < 3 ? '本日の上位貢献者' : '日次ランキング'),
+            getPlayerId: (entry) => entry.playFabId || ''
         });
         return;
     }
@@ -280,6 +284,7 @@ export async function getNationTreasuryRanking() {
                 const nationKey = String(entry.nation || '').toLowerCase();
                 return (getNationLabel(nationKey) || entry.nation || '国').slice(0, 1);
             },
+            getPlayerId: () => '',
             isMyRank: () => false
         });
         return;

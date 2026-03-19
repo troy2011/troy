@@ -14,6 +14,7 @@ import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
+import { installPlayerProfileInteractions } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 
 import { getDatabase } from "firebase/database";
@@ -38,6 +39,8 @@ window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
 const TAROT_MODULE_VERSION = '20260303b';
+
+installPlayerProfileInteractions();
 
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },

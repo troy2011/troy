@@ -14,6 +14,7 @@ import {
     exileKing
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
+import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 
 let _isKing = false;
@@ -122,7 +123,7 @@ function _renderPendingTroyCheckouts(entries = []) {
             <div class="king-pending-checkout-card">
                 <div class="king-pending-checkout-head">
                     <div class="king-pending-checkout-main">
-                        <strong>${_escapeHtml(entry.displayName || entry.playFabId || 'Player')}</strong>
+                        <strong>${buildPlayerTriggerHtml(entry.playFabId, entry.displayName || entry.playFabId || 'Player', { className: 'player-link-inline' })}</strong>
                         <span>${_escapeHtml(meta || '未会計')}</span>
                         ${grantMeta ? `<span>${_escapeHtml(grantMeta)}</span>` : ''}
                     </div>
