@@ -784,6 +784,65 @@ body[data-sea-tone="night"] .home-hero-card {
     image-rendering: pixelated;
 }
 
+.inventory-avatar-stage {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 88px auto 88px;
+    align-items: center;
+    justify-items: center;
+}
+
+.inventory-avatar-stage-spacer {
+    width: 88px;
+    min-height: 1px;
+}
+
+.avatar-major-arcana-preview {
+    justify-self: end;
+    width: 78px;
+    padding: 8px 6px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(245, 158, 11, 0.26);
+    background:
+        radial-gradient(circle at top, rgba(96, 165, 250, 0.16), transparent 56%),
+        linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(8, 15, 28, 0.96));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 14px 28px -24px rgba(0, 0, 0, 0.95);
+}
+
+.avatar-major-arcana-preview.is-empty {
+    opacity: 0.8;
+}
+
+.avatar-major-arcana-preview-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: rgba(226, 232, 240, 0.86);
+}
+
+.avatar-major-arcana-preview-visual {
+    width: 54px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+        linear-gradient(180deg, rgba(148, 163, 184, 0.18), rgba(51, 65, 85, 0.32)),
+        rgba(15, 23, 42, 0.92);
+    box-shadow: 0 12px 20px -16px rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+    position: relative;
+    image-rendering: pixelated;
+}
+
 .avatar-layer {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -866,8 +925,16 @@ body[data-sea-tone="night"] .home-hero-card {
     transition: transform 0.3s ease;
 }
 
+.equip-slot-icon.is-mirrored {
+    transform: scaleX(-1);
+}
+
 .equip-slot:hover .equip-slot-icon {
     transform: scale(1.1) rotate(5deg);
+}
+
+.equip-slot:hover .equip-slot-icon.is-mirrored {
+    transform: scaleX(-1) scale(1.1) rotate(-5deg);
 }
 
 /* コンテンツエリア */
@@ -11233,16 +11300,45 @@ textarea {
     overflow: visible;
 }
 
+#tabContentInventory .inventory-avatar-stage {
+    grid-template-columns: 56px auto 56px;
+}
+
+#tabContentInventory .inventory-avatar-stage-spacer {
+    width: 56px;
+}
+
+#tabContentInventory .avatar-major-arcana-preview {
+    width: 52px;
+    padding: 5px 4px 6px;
+    gap: 4px;
+    border-radius: 12px;
+}
+
+#tabContentInventory .avatar-major-arcana-preview-label {
+    font-size: 8px;
+}
+
+#tabContentInventory .avatar-major-arcana-preview-visual {
+    width: 36px;
+    height: 60px;
+    border-radius: 7px;
+}
+
 #tabContentInventory .avatar-container {
     transform: scale(1.45);
-    margin: 14px auto 18px;
+    margin: 14px 0 18px;
 }
 
 #tabContentInventory #equipmentGrid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
     margin-top: 6px;
     padding: 0;
+}
+
+#tabContentInventory .major-arcana-slot {
+    display: none;
 }
 
 #tabContentInventory .equip-slot {

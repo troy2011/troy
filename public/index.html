@@ -291,7 +291,7 @@
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
                                 <ul class="troy-menu-items">
-                                    <li class="troy-menu-item-button" data-menu-id="favorite">いつもの</li>
+                                    <li class="troy-menu-item-button" data-menu-id="favorite">いつでも</li>
                                     <li class="troy-menu-item-button" data-menu-id="nonalcohol">ノンアル</li>
                                     <li class="troy-menu-item-button" data-menu-id="alcohol">アルコール</li>
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
@@ -679,15 +679,22 @@
                 </div>
                 <!-- 資源 & 装備スロット -->
                 <div class="content-area avatar-card inventory-section active" data-panel="loadout">
-                    <div class="avatar-container" id="avatar">
-                        <div id="avatar-layer-body" class="avatar-layer"></div>
-                        <div id="avatar-layer-head" class="avatar-layer"></div>
-                        <div id="avatar-layer-hair" class="avatar-layer"></div>
-                        <div id="avatar-layer-armor" class="avatar-layer"></div>
-                        <div id="avatar-layer-hand-right" class="avatar-layer"></div>
-                        <div id="avatar-layer-weapon-right" class="avatar-layer"></div>
-                        <div id="avatar-layer-hand-left" class="avatar-layer"></div>
-                        <div id="avatar-layer-shield-left" class="avatar-layer"></div>
+                    <div class="inventory-avatar-stage">
+                        <div id="avatarMajorArcanaPreview" class="avatar-major-arcana-preview is-empty" aria-label="体装備の大アルカナ">
+                            <div class="avatar-major-arcana-preview-label">体</div>
+                            <div id="avatarMajorArcanaPreviewVisual" class="avatar-major-arcana-preview-visual">🂠</div>
+                        </div>
+                        <div class="avatar-container" id="avatar">
+                            <div id="avatar-layer-body" class="avatar-layer"></div>
+                            <div id="avatar-layer-head" class="avatar-layer"></div>
+                            <div id="avatar-layer-hair" class="avatar-layer"></div>
+                            <div id="avatar-layer-armor" class="avatar-layer"></div>
+                            <div id="avatar-layer-hand-right" class="avatar-layer"></div>
+                            <div id="avatar-layer-weapon-right" class="avatar-layer"></div>
+                            <div id="avatar-layer-hand-left" class="avatar-layer"></div>
+                            <div id="avatar-layer-shield-left" class="avatar-layer"></div>
+                        </div>
+                        <div class="inventory-avatar-stage-spacer" aria-hidden="true"></div>
                     </div>
                     <div class="inventory-loadout-stats">
                         <div class="section-header inventory-stats-header">
@@ -738,7 +745,7 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                         <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="頭具現 / 小アルカナ" data-tarot-manifest="true">
-                            <div class="equip-slot-icon">👑</div>
+                            <div class="equip-slot-icon">💀</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">頭</label>
                                 <span id="equippedArmor" class="equip-slot-name">なし</span>
@@ -747,7 +754,7 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                         <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手具現 / 小アルカナ" data-tarot-manifest="true">
-                            <div class="equip-slot-icon">✦</div>
+                            <div class="equip-slot-icon">🦴</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">右手</label>
                                 <span id="equippedRightHand" class="equip-slot-name">なし</span>
@@ -756,7 +763,7 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                         <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手具現 / 小アルカナ" data-tarot-manifest="true">
-                            <div class="equip-slot-icon">✧</div>
+                            <div class="equip-slot-icon is-mirrored">🦴</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">左手</label>
                                 <span id="equippedLeftHand" class="equip-slot-name">なし</span>

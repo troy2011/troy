@@ -127,6 +127,23 @@ function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = 
     return [resolved, spritePath];
 }
 
+function getTarotLoadoutTargetSize(element, fallbackWidth = 72, fallbackHeight = 120) {
+    if (!element) {
+        return { width: fallbackWidth, height: fallbackHeight };
+    }
+    const rect = typeof element.getBoundingClientRect === 'function'
+        ? element.getBoundingClientRect()
+        : { width: 0, height: 0 };
+    const computed = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
+        ? window.getComputedStyle(element)
+        : null;
+    const computedWidth = Number.parseFloat(computed?.width || '') || 0;
+    const computedHeight = Number.parseFloat(computed?.height || '') || 0;
+    const width = Math.max(1, rect.width || element.clientWidth || computedWidth || fallbackWidth);
+    const height = Math.max(1, rect.height || element.clientHeight || computedHeight || fallbackHeight);
+    return { width, height };
+}
+
 function setTarotLoadoutSprite(element, sprite) {
     if (!element) return;
     if (!sprite?.path) {
@@ -147,8 +164,7 @@ function setTarotLoadoutSprite(element, sprite) {
     element.textContent = '';
     loadSpriteImage(sprite.path).then((img) => {
         if (!img || element.dataset.tarotSpriteKey !== spriteKey) return;
-        const targetWidth = element.clientWidth || 72;
-        const targetHeight = element.clientHeight || 120;
+        const { width: targetWidth, height: targetHeight } = getTarotLoadoutTargetSize(element, 72, 120);
         const scale = Math.min(targetWidth / width, targetHeight / height);
         const sheetColumns = Math.max(1, requestedCols || Math.floor(img.width / width) || 1);
         const col = index % sheetColumns;
@@ -160,6 +176,22 @@ function setTarotLoadoutSprite(element, sprite) {
         element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
         element.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
     });
+}
+
+function renderAvatarMajorArcanaPreview(item) {
+    const preview = document.getElementById('avatarMajorArcanaPreview');
+    const visual = document.getElementById('avatarMajorArcanaPreviewVisual');
+    if (!preview || !visual) return;
+    const entry = buildTarotLoadoutEntry(TAROT_MAJOR_SLOT, item);
+    preview.classList.toggle('is-empty', !!entry.isEmpty);
+    preview.dataset.suit = entry.suitKey || 'none';
+    preview.title = entry.isEmpty
+        ? '体の大アルカナは未装着です。'
+        : [entry.title, entry.detail].filter(Boolean).join(' / ');
+    preview.setAttribute('aria-label', entry.isEmpty
+        ? '体装備の大アルカナ未装着'
+        : `体装備の大アルカナ: ${entry.title}`);
+    setTarotLoadoutSprite(visual, entry.sprite);
 }
 
 function renderTarotLoadoutGrid(majorArcanaItem, manifestationItems) {
@@ -630,6 +662,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             document.querySelector('.accessory-slot'));
         updateEquipmentSlot('equippedMajorArcana', 'equippedMajorArcanaStats', majorArcanaItem, 'MajorArcana',
             document.querySelector('.major-arcana-slot'));
+        renderAvatarMajorArcanaPreview(majorArcanaItem);
         renderTarotLoadoutGrid(majorArcanaItem, [
             { slot: 'Armor', item: armorItem },
             { slot: 'RightHand', item: rightHandItem },

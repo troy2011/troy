@@ -90,19 +90,14 @@ const TROY_PRODUCT_MENUS = {
     }
 };
 
-const TROY_DAY_CAFE_DRINK_ITEMS = [
-    { concept: '船長のブレンド', content: 'ホットコーヒー', price: 500, image: 'https://loremflickr.com/640/420/coffee?lock=5121' },
-    { concept: '見張り台の一杯', content: 'アイスコーヒー', price: 500, image: 'https://loremflickr.com/640/420/iced,coffee?lock=5122' },
-    { concept: '王室の茶会', content: 'ストレートティー', price: 500, image: 'https://loremflickr.com/640/420/tea?lock=5123' },
-    { concept: '潮風ミルクティー', content: 'ロイヤルミルクティー', price: 500, image: 'https://loremflickr.com/640/420/milk,tea?lock=5124' },
-    { concept: '港町ラテ', content: 'カフェラテ', price: 500, image: 'https://loremflickr.com/640/420/latte?lock=5125' },
-    { concept: '宝箱ココア', content: 'ホットココア', price: 500, image: 'https://loremflickr.com/640/420/cocoa?lock=5126' }
-];
+const TROY_DAY_CAFE_DRINK_ITEMS = [];
 
 const TROY_NON_ALCOHOL_EXTRA_ITEMS = [
     { concept: 'ソフトコーラ', content: 'コーラ', price: 500, image: 'https://loremflickr.com/640/420/cola?lock=5137', emoji: '🥤' },
     { concept: '港のジンジャー', content: 'ジンジャーエール', price: 500, image: 'https://loremflickr.com/640/420/ginger,ale?lock=5138', emoji: '🥤' },
-    { concept: 'ノンアルコールビール', content: '瓶', price: 600, image: 'https://loremflickr.com/640/420/nonalcoholic,beer?lock=5140', emoji: '🍺' }
+    { concept: '陽だまりオレンジ', content: 'オレンジジュース', price: 500, image: 'https://loremflickr.com/640/420/orange,juice?lock=5136', emoji: '🧃' },
+    { concept: 'ノンアルコールビール', content: '瓶', price: 600, image: 'https://loremflickr.com/640/420/nonalcoholic,beer?lock=5140', emoji: '🍺' },
+    { concept: '船上ウーロン', content: 'ウーロン茶', price: 500, image: 'https://loremflickr.com/640/420/oolong,tea?lock=5135', emoji: '🫖' }
 ];
 
 const TROY_ALCOHOL_ITEMS = [
@@ -111,8 +106,8 @@ const TROY_ALCOHOL_ITEMS = [
     { concept: 'テキーラ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
     { concept: 'ジン', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
     { concept: 'リキュール', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🍸' },
-    { concept: 'ビール', content: 'ジョッキ', price: 800, image: 'https://loremflickr.com/640/420/beer?lock=5141', emoji: '🍺' },
-    { concept: 'ワインボトル', content: 'ボトル', price: 3000, image: 'https://loremflickr.com/640/420/wine,bottle?lock=5139', emoji: '🍷' }
+    { concept: 'ビール', content: '中瓶', price: 800, image: 'https://loremflickr.com/640/420/beer?lock=5141', emoji: '🍺' },
+    { concept: 'ワインボトル', content: '赤 / 白を選択', price: 3000, image: 'https://loremflickr.com/640/420/wine,bottle?lock=5139', mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
 ];
 
 function getNonAlcoholDrinkMenuData() {
@@ -129,9 +124,18 @@ function getAlcoholDrinkMenuData() {
     };
 }
 
-function isDrinkMenuId(menuId, item = null) {
+function isFavoritableMenuId(menuId, item = null) {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
-    return sourceMenuId === 'nonalcohol' || sourceMenuId === 'alcohol';
+    return sourceMenuId === 'nonalcohol' || sourceMenuId === 'alcohol' || sourceMenuId === 'food';
+}
+
+function getItemOptionChoices(item = null) {
+    return Array.isArray(item?.mixers) ? item.mixers : [];
+}
+
+function getItemOptionFieldLabel(item = null) {
+    const label = String(item?.optionLabelName || '').trim();
+    return label || '割り物';
 }
 
 function buildFavoriteDrinkId(menuId, item, optionLabel = '') {
@@ -146,7 +150,7 @@ function sanitizeFavoriteDrinkEntry(entry = {}) {
     const menuId = String(entry?.menuId || '').trim();
     const concept = String(entry?.concept || entry?.name || '').trim();
     const price = parseYenPrice(entry?.price);
-    if (!isDrinkMenuId(menuId) || !concept || !price) return null;
+    if (!isFavoritableMenuId(menuId) || !concept || !price) return null;
     const optionLabel = String(entry?.optionLabel || '').trim();
     return {
         favoriteId: String(entry?.favoriteId || buildFavoriteDrinkId(menuId, entry, optionLabel)).trim(),
@@ -158,6 +162,7 @@ function sanitizeFavoriteDrinkEntry(entry = {}) {
         emoji: String(entry?.emoji || '').trim(),
         iconImage: String(entry?.iconImage || '').trim(),
         optionLabel,
+        optionLabelName: String(entry?.optionLabelName || '').trim(),
         savedAtMs: Math.max(0, Math.floor(Number(entry?.savedAtMs) || Date.now()))
     };
 }
@@ -202,13 +207,14 @@ function buildFavoriteDrinkEntry(menuId, item, optionLabel = '') {
         menuId: sourceMenuId,
         concept: String(item?.concept || item?.name || '').trim(),
         content: normalizedOption
-            ? `割り物: ${normalizedOption}`
+            ? `${getItemOptionFieldLabel(item)}: ${normalizedOption}`
             : String(item?.content || '').trim(),
         price: parseYenPrice(item?.price),
         image: item?.image,
         emoji: item?.emoji || getMenuItemEmoji(item),
         iconImage: item?.iconImage || '',
         optionLabel: normalizedOption,
+        optionLabelName: getItemOptionFieldLabel(item),
         savedAtMs: Date.now()
     });
 }
@@ -219,7 +225,7 @@ function isFavoriteDrink(menuId, item, optionLabel = '') {
 }
 
 function toggleFavoriteDrink(menuId, item, optionLabel = '') {
-    if (!isDrinkMenuId(menuId, item)) return false;
+    if (!isFavoritableMenuId(menuId, item)) return false;
     const entry = buildFavoriteDrinkEntry(menuId, item, optionLabel);
     if (!entry?.favoriteId) return false;
     const existingIndex = _favoriteDrinkEntries.findIndex((row) => row.favoriteId === entry.favoriteId);
@@ -235,7 +241,7 @@ function toggleFavoriteDrink(menuId, item, optionLabel = '') {
 
 function getFavoriteDrinkMenuData() {
     return {
-        title: 'いつもの',
+        title: 'いつでも',
         items: _favoriteDrinkEntries.map((entry) => ({ ...entry }))
     };
 }
@@ -279,16 +285,18 @@ function getMenuItemKey(menuId, item, index) {
 }
 
 function getMenuItemOption(menuId, item, index) {
-    if (!Array.isArray(item?.mixers) || !item.mixers.length) return '';
+    const choices = getItemOptionChoices(item);
+    if (!choices.length) return '';
     const key = getMenuItemKey(menuId, item, index);
     const current = String(_menuOptionByKey.get(key) || '').trim();
-    return item.mixers.includes(current) ? current : item.mixers[0];
+    return choices.includes(current) ? current : choices[0];
 }
 
 function setMenuItemOption(menuId, item, index, value) {
-    if (!Array.isArray(item?.mixers) || !item.mixers.length) return '';
+    const choices = getItemOptionChoices(item);
+    if (!choices.length) return '';
     const key = getMenuItemKey(menuId, item, index);
-    const normalized = item.mixers.includes(String(value || '').trim()) ? String(value).trim() : item.mixers[0];
+    const normalized = choices.includes(String(value || '').trim()) ? String(value).trim() : choices[0];
     _menuOptionByKey.set(key, normalized);
     return normalized;
 }
@@ -401,11 +409,11 @@ function getMenuItemEmoji(item) {
 function getMenuSubnote(menuId) {
     switch (menuId) {
         case 'favorite':
-            return '★ お気に入り登録したドリンクだけを並べています。割り物を指定した注文は、その組み合わせのまま呼び出せます。';
+            return '★ お気に入り登録したドリンクとフードを並べています。割り物を指定した注文は、その組み合わせのまま呼び出せます。';
         case 'nonalcohol':
             return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。注文ごとにPSが付与され、支払いは最後にまとめます。';
         case 'alcohol':
-            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円です。注文ごとにPSが付与され、支払いは最後にまとめます。';
+            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円で赤 / 白を選べます。注文ごとにPSが付与され、支払いは最後にまとめます。';
         case 'food':
             return '🍴 フードはすべて500円。数量を選んでそのまま注文できます。PSは注文時に付与されます。';
         case 'points':
@@ -416,7 +424,13 @@ function getMenuSubnote(menuId) {
 }
 
 function getOrderItemName(item, optionLabel = '') {
-    if (optionLabel) return `${item?.concept || item?.name || '商品'} × ${optionLabel}`;
+    if (optionLabel) {
+        const concept = item?.concept || item?.name || '商品';
+        const optionFieldLabel = getItemOptionFieldLabel(item);
+        return optionFieldLabel === '割り物'
+            ? `${concept} × ${optionLabel}`
+            : `${concept} (${optionLabel})`;
+    }
     return item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
 }
 
@@ -758,7 +772,7 @@ function openMenuModal(menuId) {
         const empty = document.createElement('div');
         empty.className = 'troy-menu-modal-empty';
         empty.textContent = menuId === 'favorite'
-            ? 'お気に入り登録したドリンクがここに表示されます。'
+            ? 'お気に入り登録したドリンクとフードがここに表示されます。'
             : '表示できる商品がありません。';
         list.appendChild(empty);
         modal.style.display = 'flex';
@@ -786,17 +800,18 @@ function openMenuModal(menuId) {
 
         let optionLabel = menuId === 'favorite' ? String(item?.optionLabel || '').trim() : '';
         let optionRow = null;
-        if (Array.isArray(item.mixers) && item.mixers.length) {
+        const optionChoices = getItemOptionChoices(item);
+        if (optionChoices.length) {
             optionRow = document.createElement('div');
             optionRow.className = 'troy-menu-modal-option-row';
 
             const optionLabelEl = document.createElement('label');
             optionLabelEl.className = 'troy-menu-modal-option-label';
-            optionLabelEl.textContent = '割り物';
+            optionLabelEl.textContent = getItemOptionFieldLabel(item);
 
             const optionSelect = document.createElement('select');
             optionSelect.className = 'troy-menu-mix-select';
-            item.mixers.forEach((option) => {
+            optionChoices.forEach((option) => {
                 const optionEl = document.createElement('option');
                 optionEl.value = option;
                 optionEl.textContent = option;
@@ -844,10 +859,10 @@ function openMenuModal(menuId) {
             if (!favoriteBtn) return;
             const active = isFavoriteDrink(menuId, item, optionLabel);
             favoriteBtn.classList.toggle('is-active', active);
-            favoriteBtn.textContent = active ? '★ いつもの' : '☆ いつもの';
+            favoriteBtn.textContent = active ? '★ お気に入り' : 'お気に入り';
         };
 
-        if (isDrinkMenuId(menuId, item)) {
+        if (isFavoritableMenuId(menuId, item)) {
             favoriteBtn = document.createElement('button');
             favoriteBtn.type = 'button';
             favoriteBtn.className = 'troy-menu-favorite-btn';
@@ -858,7 +873,7 @@ function openMenuModal(menuId) {
                     openMenuModal('favorite');
                 }
                 if (typeof window.showRpgMessage === 'function') {
-                    window.showRpgMessage(active ? '「いつもの」に追加しました。' : '「いつもの」から外しました。');
+                    window.showRpgMessage(active ? 'お気に入りに追加しました。' : 'お気に入りから外しました。');
                 }
             });
         }
