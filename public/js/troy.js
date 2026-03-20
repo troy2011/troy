@@ -40,7 +40,7 @@ const TROY_GROUP_BY_NATION = {
     water: 'nation_water_island'
 };
 
-const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ'];
+const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ', 'オレンジＪ'];
 
 function buildTroyItemSpritePath(fileName) {
     const normalized = String(fileName || '').trim();
@@ -396,15 +396,6 @@ function getMenuItemEmoji(item) {
     if (text.includes('ライス')) return '🍚';
     if (text.includes('カレー')) return '🍛';
     return '🍽️';
-}
-
-function getMenuItemHeroImage(item) {
-    return String(item?.iconImage || '').trim();
-}
-
-function setTroyMenuHeroLoaded(hero, loaded) {
-    if (!hero) return;
-    hero.classList.toggle('has-image', loaded === true);
 }
 
 function getMenuSubnote(menuId) {
@@ -779,31 +770,8 @@ function openMenuModal(menuId) {
 
         const hero = document.createElement('div');
         hero.className = 'troy-menu-modal-emoji';
+        hero.textContent = item.emoji || getMenuItemEmoji(item);
         hero.setAttribute('aria-hidden', 'true');
-        const heroFallback = document.createElement('span');
-        heroFallback.className = 'troy-menu-modal-hero-fallback';
-        heroFallback.textContent = item.emoji || getMenuItemEmoji(item);
-        hero.appendChild(heroFallback);
-        const heroImage = getMenuItemHeroImage(item);
-        if (heroImage) {
-            const heroImg = document.createElement('img');
-            heroImg.className = 'troy-menu-modal-hero-image';
-            heroImg.alt = '';
-            heroImg.loading = 'eager';
-            heroImg.decoding = 'async';
-            heroImg.addEventListener('load', () => {
-                setTroyMenuHeroLoaded(hero, true);
-            });
-            heroImg.addEventListener('error', () => {
-                setTroyMenuHeroLoaded(hero, false);
-                heroImg.remove();
-            }, { once: true });
-            heroImg.src = heroImage;
-            hero.appendChild(heroImg);
-            if (heroImg.complete && heroImg.naturalWidth > 0) {
-                setTroyMenuHeroLoaded(hero, true);
-            }
-        }
 
         const body = document.createElement('div');
         body.className = 'troy-menu-modal-item-body';
