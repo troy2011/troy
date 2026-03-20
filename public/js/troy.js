@@ -42,6 +42,12 @@ const TROY_GROUP_BY_NATION = {
 
 const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ'];
 
+function buildTroyItemSpritePath(fileName) {
+    const normalized = String(fileName || '').trim();
+    if (!normalized) return '';
+    return `./Sprites/items/${encodeURIComponent(normalized)}`;
+}
+
 const TROY_PRODUCT_MENUS = {
     drinks: {
         title: 'ドリンク',
@@ -54,20 +60,20 @@ const TROY_PRODUCT_MENUS = {
     dryfood: {
         title: '略奪品 (乾きもの)',
         items: [
-            { concept: '船室のチョコ片', content: 'チョコ', price: 500, image: 'https://loremflickr.com/640/420/chocolate?lock=5147', emoji: '🍫' },
-            { concept: '航海士のミックスナッツ', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/mixed,nuts?lock=5148', emoji: '🥜' }
+            { concept: '船室のチョコ片', content: 'チョコ', price: 500, image: 'https://loremflickr.com/640/420/chocolate?lock=5147', emoji: '🍫', iconImage: buildTroyItemSpritePath('Dark Chocolate Bar.png') },
+            { concept: '航海士のミックスナッツ', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/mixed,nuts?lock=5148', emoji: '🥜', iconImage: buildTroyItemSpritePath('Cashew.png') }
         ]
     },
     hotfood: {
         title: '船上の宴 (温かい料理)',
         items: [
-            { concept: '黄金ポテト', content: 'フライドポテト', price: 500, image: 'https://loremflickr.com/640/420/french,fries?lock=5106', emoji: '🍟' },
-            { concept: '海賊肉ナゲット', content: 'チキンナゲット', price: 500, image: 'https://loremflickr.com/640/420/chicken,nuggets?lock=5142', emoji: '🍗' },
-            { concept: '甲板のピザパン', content: 'ピザトースト', price: 500, image: 'https://loremflickr.com/640/420/pizza,toast?lock=5143', emoji: '🍞' },
-            { concept: 'クラーケンの足', content: 'フランクフルト', price: 500, image: 'https://loremflickr.com/640/420/frankfurt,sausage?lock=5144', emoji: '🌭' },
-            { concept: '人魚のワッフル', content: 'ワッフル', price: 500, image: 'https://loremflickr.com/640/420/waffle?lock=5145', emoji: '🧇' },
-            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨' },
-            { concept: '夜更けの甲板ヌードル', content: 'カップラーメン', price: 500, image: 'https://loremflickr.com/640/420/cup,noodle?lock=5149', emoji: '🍜' }
+            { concept: '黄金ポテト', content: 'フライドポテト', price: 500, image: 'https://loremflickr.com/640/420/french,fries?lock=5106', emoji: '🍟', iconImage: buildTroyItemSpritePath('Fries.png') },
+            { concept: '海賊肉ナゲット', content: 'チキンナゲット', price: 500, image: 'https://loremflickr.com/640/420/chicken,nuggets?lock=5142', emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
+            { concept: '甲板のピザパン', content: 'ピザトースト', price: 500, image: 'https://loremflickr.com/640/420/pizza,toast?lock=5143', emoji: '🍞', iconImage: buildTroyItemSpritePath('Pizza Cracker.png') },
+            { concept: 'クラーケンの足', content: 'フランクフルト', price: 500, image: 'https://loremflickr.com/640/420/frankfurt,sausage?lock=5144', emoji: '🐙', iconImage: buildTroyItemSpritePath('Cooked Sausage.png') },
+            { concept: '人魚のワッフル', content: 'ワッフル', price: 500, image: 'https://loremflickr.com/640/420/waffle?lock=5145', emoji: '🧇', iconImage: buildTroyItemSpritePath('Waffle.png') },
+            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨', iconImage: buildTroyItemSpritePath('Churro.png') },
+            { concept: '夜更けの甲板ヌードル', content: 'カップラーメン', price: 500, image: 'https://loremflickr.com/640/420/cup,noodle?lock=5149', emoji: '🍜', iconImage: buildTroyItemSpritePath('Take Out.png') }
         ]
     },
     main: {
@@ -150,6 +156,7 @@ function sanitizeFavoriteDrinkEntry(entry = {}) {
         price,
         image: String(entry?.image || '').trim(),
         emoji: String(entry?.emoji || '').trim(),
+        iconImage: String(entry?.iconImage || '').trim(),
         optionLabel,
         savedAtMs: Math.max(0, Math.floor(Number(entry?.savedAtMs) || Date.now()))
     };
@@ -200,6 +207,7 @@ function buildFavoriteDrinkEntry(menuId, item, optionLabel = '') {
         price: parseYenPrice(item?.price),
         image: item?.image,
         emoji: item?.emoji || getMenuItemEmoji(item),
+        iconImage: item?.iconImage || '',
         optionLabel: normalizedOption,
         savedAtMs: Date.now()
     });
@@ -388,6 +396,10 @@ function getMenuItemEmoji(item) {
     if (text.includes('ライス')) return '🍚';
     if (text.includes('カレー')) return '🍛';
     return '🍽️';
+}
+
+function getMenuItemHeroImage(item) {
+    return String(item?.iconImage || '').trim();
 }
 
 function getMenuSubnote(menuId) {
@@ -762,8 +774,30 @@ function openMenuModal(menuId) {
 
         const hero = document.createElement('div');
         hero.className = 'troy-menu-modal-emoji';
-        hero.textContent = item.emoji || getMenuItemEmoji(item);
         hero.setAttribute('aria-hidden', 'true');
+        const heroFallback = document.createElement('span');
+        heroFallback.className = 'troy-menu-modal-hero-fallback';
+        heroFallback.textContent = item.emoji || getMenuItemEmoji(item);
+        hero.appendChild(heroFallback);
+        const heroImage = getMenuItemHeroImage(item);
+        if (heroImage) {
+            const heroImg = document.createElement('img');
+            heroImg.className = 'troy-menu-modal-hero-image';
+            heroImg.alt = '';
+            heroImg.loading = 'lazy';
+            heroImg.decoding = 'async';
+            heroImg.addEventListener('load', () => {
+                hero.classList.add('has-image');
+                heroFallback.hidden = true;
+            });
+            heroImg.addEventListener('error', () => {
+                hero.classList.remove('has-image');
+                heroFallback.hidden = false;
+                heroImg.remove();
+            }, { once: true });
+            heroImg.src = heroImage;
+            hero.appendChild(heroImg);
+        }
 
         const body = document.createElement('div');
         body.className = 'troy-menu-modal-item-body';
