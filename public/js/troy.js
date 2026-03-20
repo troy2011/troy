@@ -45,7 +45,7 @@ const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー
 function buildTroyItemSpritePath(fileName) {
     const normalized = String(fileName || '').trim();
     if (!normalized) return '';
-    return `./Sprites/items/${encodeURIComponent(normalized)}`;
+    return `./Sprites/items/Food/${encodeURIComponent(normalized)}`;
 }
 
 const TROY_PRODUCT_MENUS = {
@@ -400,6 +400,11 @@ function getMenuItemEmoji(item) {
 
 function getMenuItemHeroImage(item) {
     return String(item?.iconImage || '').trim();
+}
+
+function setTroyMenuHeroLoaded(hero, loaded) {
+    if (!hero) return;
+    hero.classList.toggle('has-image', loaded === true);
 }
 
 function getMenuSubnote(menuId) {
@@ -784,19 +789,20 @@ function openMenuModal(menuId) {
             const heroImg = document.createElement('img');
             heroImg.className = 'troy-menu-modal-hero-image';
             heroImg.alt = '';
-            heroImg.loading = 'lazy';
+            heroImg.loading = 'eager';
             heroImg.decoding = 'async';
             heroImg.addEventListener('load', () => {
-                hero.classList.add('has-image');
-                heroFallback.hidden = true;
+                setTroyMenuHeroLoaded(hero, true);
             });
             heroImg.addEventListener('error', () => {
-                hero.classList.remove('has-image');
-                heroFallback.hidden = false;
+                setTroyMenuHeroLoaded(hero, false);
                 heroImg.remove();
             }, { once: true });
             heroImg.src = heroImage;
             hero.appendChild(heroImg);
+            if (heroImg.complete && heroImg.naturalWidth > 0) {
+                setTroyMenuHeroLoaded(hero, true);
+            }
         }
 
         const body = document.createElement('div');
