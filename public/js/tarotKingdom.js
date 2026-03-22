@@ -2572,6 +2572,20 @@ function getTarotKingdomRoomId() {
   return room.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
 }
 
+function getTarotKingdomDebugMode() {
+  if (typeof window === 'undefined') return '';
+  const params = new URLSearchParams(window.location.search || '');
+  return String(params.get('tkdebug') || '').trim().toLowerCase();
+}
+
+function getTarotKingdomDebugWinnerIndex() {
+  if (typeof window === 'undefined') return 0;
+  const params = new URLSearchParams(window.location.search || '');
+  const parsed = Number(params.get('tkwinner'));
+  if (!Number.isInteger(parsed)) return 0;
+  return Math.max(0, Math.min(PLAYERS.length - 1, parsed));
+}
+
 function generateTarotKingdomRoomId() {
   const t = Date.now().toString(36);
   const r = Math.random().toString(36).slice(2, 8);
@@ -3612,6 +3626,125 @@ function resetMatch() {
   } else {
     applyPresenceToPlayers();
   }
+}
+
+function buildTarotKingdomDebugMatchDoneState(options = {}) {
+  const st = initState();
+  const winnerIndex = Math.max(0, Math.min(PLAYERS.length - 1, Number(options.winnerIndex) || 0));
+  const humanName = String(
+    options.humanName
+    || window.myPlayFabDisplayName
+    || window.myLineProfile?.displayName
+    || 'あなた'
+  ).trim() || 'あなた';
+  const baseChips = [96, 88, 74, 102];
+  const finalChips = baseChips.slice(0, PLAYERS.length);
+  finalChips[winnerIndex] = 140;
+  st.players = PLAYERS.map((player, index) => ({
+    ...player,
+    name: index === 0 ? humanName : (player.name || `NPC${index}`),
+    playFabId: index === 0 ? String(window.myPlayFabId || '').trim() : '',
+    chips: Math.max(0, Number(finalChips[index]) || START_CHIPS),
+    hand: [],
+    discard: [],
+    bet: 0,
+    stars: 0
+  }));
+  st.phase = 'done';
+  st.roundActive = false;
+  st.awaitRoundConfirm = false;
+  st.handNo = TOTAL_HANDS;
+  st.turn = winnerIndex;
+  st.champion = winnerIndex;
+  st.pot = 0;
+  st.pass = [false, false, false, false];
+  st.trick = null;
+  st.callOnly = false;
+  st.lock = null;
+  st.graveOpen = false;
+  st.openOracleCard = mkMajor()[19] || null;
+  st.openOracle = openOracleRank(st.openOracleCard);
+  st.openOracleRevealed = true;
+  st.hiddenOracleCard = mkMajor()[9] || null;
+  st.hiddenOracleRevealed = true;
+
+  const totalGain = 40;
+  const winnerName = st.players[winnerIndex]?.name || `P${winnerIndex + 1}`;
+  const winnerFinalChips = Math.max(0, Number(st.players[winnerIndex]?.chips) || 0);
+  const winnerStartChips = Math.max(0, winnerFinalChips - totalGain);
+  const rows = st.players
+    .map((player, index) => ({ player, index }))
+    .filter(({ index }) => index !== winnerIndex)
+    .map(({ player, index }, rowIndex) => {
+      const pay = rowIndex === 0 ? 18 : (rowIndex === 1 ? 12 : 10);
+      const payerFinalChips = Math.max(0, Number(player.chips) || 0);
+      return {
+        payerIndex: index,
+        payerName: player.name,
+        pay,
+        payerStartChips: payerFinalChips + pay,
+        payerFinalChips,
+        displayPayerChips: payerFinalChips
+      };
+    });
+  st.roundSettlement = {
+    winnerIndex,
+    winnerName,
+    totalGain,
+    displayTotalGain: totalGain,
+    winnerStartChips,
+    winnerFinalChips,
+    displayWinnerChips: winnerFinalChips,
+    starBonus: 0,
+    oracleHits: 0,
+    rows,
+    potAward: 0,
+    coinEvents: [],
+    coinFxDispatched: true
+  };
+  st.logs = [
+    'デバッグ終局状態を読み込みました。',
+    `${winnerName} が優勝。再戦ボタンの表示確認用 state です。`
+  ];
+  st.message = `デバッグ終局: ${winnerName} が優勝。ヘッダー右側の再戦ボタンを確認してください。`;
+  return st;
+}
+
+function injectTarotKingdomDebugMatchDone(options = {}) {
+  activateKingdomOfflineMode({
+    renderNow: false,
+    message: 'デバッグ終局状態を準備しています...'
+  });
+  clearSettlementGainFx();
+  clearPendingTurnAdvanceAfterTrick();
+  clearOracleFlipTimers();
+  clearCallCinematicTimer();
+  clearRoundStartCinematicTimer();
+  clearRoundOutCinematicTimer();
+  clearOpeningDealTimers();
+  clearDrawHandFlipTimers();
+  clearYourTurnBadge();
+  s = buildTarotKingdomDebugMatchDoneState(options);
+  trickRenderKey = '';
+  trickRenderIdentityKey = '';
+  trickRenderToken += 1;
+  kingdomLocalInfoMessage = '';
+  kingdomLocalPriorityMessage = '';
+  lastHumanTurnActive = false;
+  applyPresenceToPlayers();
+  render();
+  return s;
+}
+
+function exposeTarotKingdomDebugTools() {
+  if (typeof window === 'undefined') return;
+  window.TarotKingdomDebug = {
+    matchDone: (options = {}) => injectTarotKingdomDebugMatchDone(options),
+    reset: (message = 'オンラインかオフラインを選択してください。') => {
+      returnToKingdomModeChoice(message);
+      return s;
+    }
+  };
 }
 
 function resolveReversePersistSuspend() {
@@ -5615,7 +5748,90 @@ function cardNode(card, opt = {}) {
 function isKingdomMatchDoneState(state = s) {
   if (!state) return false;
   if (String(state.phase || '') === 'done') return true;
-  return state.champion != null && !state.roundActive && !state.awaitRoundConfirm && !!state.roundSettlement;
+  if (state.champion != null) return true;
+  return Number(state.handNo || 0) >= TOTAL_HANDS;
+}
+
+function normalizeKingdomTerminalState(state = s) {
+  if (!state) return false;
+  const hasTerminalMarker =
+    String(state.phase || '') === 'done' ||
+    state.champion != null ||
+    Number(state.handNo || 0) >= TOTAL_HANDS;
+  if (!hasTerminalMarker) return false;
+
+  let changed = false;
+  if (String(state.phase || '') !== 'done') {
+    state.phase = 'done';
+    changed = true;
+  }
+  if (state.roundActive) {
+    state.roundActive = false;
+    changed = true;
+  }
+  if (state.awaitRoundConfirm) {
+    state.awaitRoundConfirm = false;
+    changed = true;
+  }
+  if (state.pendingDraw != null) {
+    state.pendingDraw = null;
+    changed = true;
+  }
+  if (state.pendingJudgment != null) {
+    state.pendingJudgment = null;
+    changed = true;
+  }
+  if (state.selected?.size) {
+    state.selected.clear();
+    changed = true;
+  }
+  if (state.champion == null && Array.isArray(state.players) && state.players.length > 0) {
+    let top = 0;
+    state.players.forEach((player, index) => {
+      if ((Number(player?.chips) || 0) > (Number(state.players[top]?.chips) || 0)) top = index;
+    });
+    state.champion = top;
+    changed = true;
+  }
+  if (!String(state.message || '').trim() && state.champion != null && state.players?.[state.champion]) {
+    const championName = String(state.players[state.champion].name || `NPC${Number(state.champion) + 1}`);
+    const championChips = Math.max(0, Number(state.players[state.champion].chips) || 0);
+    state.message = `ゲーム終了！ 優勝: ${championName} (${championChips}チップ)`;
+    changed = true;
+  }
+  return changed;
+}
+
+function getKingdomSettlementActionState(state = s) {
+  if (!state) return null;
+  const isMatchDone = isKingdomMatchDoneState(state);
+  if (isMatchDone) {
+    let disabled = false;
+    let label = 'もう一度ゲームを始める';
+    if (kingdomStartMode === 'online') {
+      if (!isNetModeActive()) {
+        label = 'オンライン接続をやり直す';
+      } else if (!tkNet.isHost) {
+        label = 'ホストの再開を待機中';
+        disabled = true;
+      } else {
+        label = '同じメンバーでもう一度ゲームを始める';
+      }
+    }
+    return {
+      kind: 'restart',
+      label,
+      disabled
+    };
+  }
+
+  const canConfirm = !!state.awaitRoundConfirm && !state.roundActive && Number(state.handNo || 0) < TOTAL_HANDS;
+  if (!canConfirm) return null;
+  return {
+    kind: 'confirm',
+    label: '確認して次の局へ',
+    disabled: false
+  };
 }
 
 function renderPlayers() {
@@ -6391,7 +6607,8 @@ function dispatchSettlementCoinFxIfNeeded(data) {
 function renderSettlement() {
   const confirmButton = ui.settlementConfirmButton;
   const data = s.roundSettlement;
-  const isMatchDone = isKingdomMatchDoneState(s);
+  const actionState = getKingdomSettlementActionState(s);
+  const isMatchDone = actionState?.kind === 'restart';
   const show = !!data || isMatchDone;
   ui.root?.classList.remove('is-settlement-open');
   if (!show) {
@@ -6405,27 +6622,9 @@ function renderSettlement() {
   if (data) dispatchSettlementCoinFxIfNeeded(data);
 
   if (confirmButton) {
-    const canConfirm = !!s.awaitRoundConfirm && !s.roundActive && s.handNo < TOTAL_HANDS && !isMatchDone;
-    const canRestart = isMatchDone;
-    let restartDisabled = false;
-    let restartLabel = 'もう一度ゲームを始める';
-    if (kingdomStartMode === 'online') {
-      if (!isNetModeActive()) {
-        restartLabel = 'オンライン接続をやり直す';
-      } else if (!tkNet.isHost) {
-        restartLabel = 'ホストの再開を待機中';
-        restartDisabled = true;
-      } else {
-        restartLabel = '同じメンバーでもう一度ゲームを始める';
-      }
-    }
-    confirmButton.hidden = !(canConfirm || canRestart);
-    confirmButton.disabled = canConfirm ? false : (canRestart ? restartDisabled : true);
-    if (canConfirm) {
-      confirmButton.textContent = '確認して次の局へ';
-    } else if (canRestart) {
-      confirmButton.textContent = restartLabel;
-    }
+    confirmButton.hidden = !actionState;
+    confirmButton.disabled = actionState ? !!actionState.disabled : true;
+    if (actionState) confirmButton.textContent = actionState.label;
   }
 }
 
@@ -6617,6 +6816,7 @@ function updateButtons() {
 
 function render() {
   if (!s) return;
+  normalizeKingdomTerminalState(s);
   queueSyncKingdomViewportHeight();
   syncLocalAutoFoldState();
   resolveReversePersistSuspend();
@@ -6722,7 +6922,7 @@ function canStartKingdomRoundFromLobby() {
   if (!s) return false;
   if (s.awaitRoundConfirm) return false;
   if (s.roundActive) return false;
-  if (s.phase === 'done') return false;
+  if (isKingdomMatchDoneState(s)) return false;
   return Number(s.handNo || 0) < TOTAL_HANDS;
 }
 
@@ -6842,7 +7042,7 @@ function handleKingdomOfflineStartClick() {
 }
 
 async function handleKingdomRestartClick() {
-  if (!s || String(s.phase || '') !== 'done') return;
+  if (!isKingdomMatchDoneState(s)) return;
   if (kingdomStartMode === 'online') {
     if (!isNetModeActive()) {
       await activateKingdomOnlineMode();
@@ -7016,6 +7216,7 @@ function bindUi() {
   ui.judgmentTitle = document.getElementById('tarotKingdomJudgmentTitle');
   ui.judgmentOptions = document.getElementById('tarotKingdomJudgmentOptions');
   ui.judgmentSkipButton = document.getElementById('tarotKingdomJudgmentSkipButton');
+  exposeTarotKingdomDebugTools();
   bindKingdomViewportWatch();
   queueSyncKingdomViewportHeight();
   ui.startOnlineButton?.addEventListener('click', () => {
@@ -7136,7 +7337,9 @@ function bindUi() {
     });
   });
   ui.settlementConfirmButton?.addEventListener('click', () => {
-    if (String(s?.phase || '') === 'done') {
+    const actionState = getKingdomSettlementActionState(s);
+    if (!actionState) return;
+    if (actionState.kind === 'restart') {
       handleKingdomRestartClick().catch((error) => {
         console.warn('[tarotKingdom] settlement restart failed:', error);
       });
@@ -7151,6 +7354,12 @@ function bindUi() {
 
 export async function loadTarotKingdomPage() {
   bindUi();
+  if (getTarotKingdomDebugMode() === 'done') {
+    injectTarotKingdomDebugMatchDone({
+      winnerIndex: getTarotKingdomDebugWinnerIndex()
+    });
+    return;
+  }
   if (kingdomStartMode === 'online') {
     await activateKingdomOnlineMode();
     return;
