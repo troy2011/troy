@@ -163,6 +163,49 @@
     letter-spacing: 0.16em;
 }
 
+.tarot-spin-root .spin-tarot-arcana-choice-box {
+    display: grid;
+    gap: 10px;
+}
+
+.tarot-spin-root .spin-tarot-arcana-choice-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.tarot-spin-root .spin-tarot-arcana-choice-btn {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid rgba(255, 223, 162, 0.2);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(24, 30, 48, 0.88), rgba(10, 12, 21, 0.96));
+    color: #f6efdb;
+    display: grid;
+    gap: 6px;
+    text-align: left;
+}
+
+.tarot-spin-root .spin-tarot-arcana-choice-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #ffcb6b;
+}
+
+.tarot-spin-root .spin-tarot-arcana-choice-title {
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #fff3c8;
+}
+
+.tarot-spin-root .spin-tarot-arcana-choice-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #d7d0bd;
+}
+
 .tarot-spin-root .spin-tarot-cutin {
     position: absolute;
     inset: 0;
@@ -412,6 +455,10 @@
         height: 136px;
     }
 
+    .tarot-spin-root .spin-tarot-arcana-choice-row {
+        grid-template-columns: 1fr;
+    }
+
     .tarot-spin-root .spin-tarot-card {
         min-height: 106px;
         padding: 8px 6px;
@@ -541,6 +588,10 @@
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 5px;
+}
+
+.tarot-spin-root .spin-tarot-progress-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tarot-spin-root .spin-tarot-mini-chip {
@@ -747,6 +798,13 @@
     line-height: 1.35;
 }
 
+.tarot-spin-root .spin-tarot-log-entry {
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(13, 18, 31, 0.48);
+}
+
 .tarot-spin-root .spin-tarot-cutin {
     grid-template-columns: 56px minmax(0, 1fr);
     gap: 8px;
@@ -797,6 +855,10 @@
         gap: 4px;
     }
 
+    .tarot-spin-root .spin-tarot-progress-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .tarot-spin-root .spin-tarot-mini-chip {
         min-height: 32px;
         padding: 4px 5px;
@@ -834,6 +896,256 @@
 
 .tarot-spin-root .spin-tarot-shell {
     gap: 10px;
+}
+
+.tarot-spin-root .spin-tarot-monitor {
+    --monitor-glow: rgba(255, 205, 92, 0.2);
+    --monitor-line: rgba(255, 224, 163, 0.2);
+    --monitor-screen-top: rgba(18, 30, 52, 0.96);
+    --monitor-screen-bottom: rgba(5, 9, 18, 0.98);
+    --monitor-head: #fff4c8;
+    --monitor-sub: #d8dff0;
+    --monitor-chip: #9cc6ff;
+    position: relative;
+}
+
+.tarot-spin-root .spin-tarot-monitor--danger {
+    --monitor-glow: rgba(248, 113, 113, 0.24);
+    --monitor-line: rgba(252, 165, 165, 0.22);
+    --monitor-screen-top: rgba(54, 15, 19, 0.96);
+    --monitor-screen-bottom: rgba(18, 7, 10, 0.99);
+    --monitor-head: #ffe1e1;
+    --monitor-sub: #fecaca;
+    --monitor-chip: #fca5a5;
+}
+
+.tarot-spin-root .spin-tarot-monitor--reward,
+.tarot-spin-root .spin-tarot-monitor--treasure {
+    --monitor-glow: rgba(52, 211, 153, 0.2);
+    --monitor-line: rgba(167, 243, 208, 0.24);
+    --monitor-screen-top: rgba(8, 44, 40, 0.96);
+    --monitor-screen-bottom: rgba(4, 15, 15, 0.99);
+    --monitor-head: #d1fae5;
+    --monitor-sub: #a7f3d0;
+    --monitor-chip: #6ee7b7;
+}
+
+.tarot-spin-root .spin-tarot-monitor--omen,
+.tarot-spin-root .spin-tarot-monitor--arcana,
+.tarot-spin-root .spin-tarot-monitor--rush {
+    --monitor-glow: rgba(168, 85, 247, 0.22);
+    --monitor-line: rgba(221, 214, 254, 0.18);
+    --monitor-screen-top: rgba(32, 18, 54, 0.96);
+    --monitor-screen-bottom: rgba(11, 9, 27, 0.99);
+    --monitor-head: #f3e8ff;
+    --monitor-sub: #ddd6fe;
+    --monitor-chip: #c4b5fd;
+}
+
+.tarot-spin-root .spin-tarot-monitor--spin,
+.tarot-spin-root .spin-tarot-monitor--hold,
+.tarot-spin-root .spin-tarot-monitor--cz {
+    --monitor-glow: rgba(96, 165, 250, 0.22);
+    --monitor-line: rgba(147, 197, 253, 0.2);
+    --monitor-screen-top: rgba(15, 35, 60, 0.96);
+    --monitor-screen-bottom: rgba(6, 13, 26, 0.99);
+    --monitor-head: #e0f2fe;
+    --monitor-sub: #bfdbfe;
+    --monitor-chip: #93c5fd;
+}
+
+.tarot-spin-root .spin-tarot-monitor--impact {
+    --monitor-glow: rgba(251, 191, 36, 0.28);
+    --monitor-line: rgba(254, 240, 138, 0.22);
+    --monitor-screen-top: rgba(62, 34, 12, 0.96);
+    --monitor-screen-bottom: rgba(15, 10, 6, 0.99);
+    --monitor-head: #fff3c8;
+    --monitor-sub: #fde68a;
+    --monitor-chip: #fcd34d;
+}
+
+.tarot-spin-root .spin-tarot-monitor-bezel {
+    position: relative;
+    padding: 8px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 223, 162, 0.18);
+    background:
+        linear-gradient(180deg, rgba(58, 39, 24, 0.98), rgba(15, 12, 18, 0.98));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 10px 26px rgba(0, 0, 0, 0.24),
+        0 0 24px var(--monitor-glow);
+}
+
+.tarot-spin-root .spin-tarot-monitor-screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid var(--monitor-line);
+    background:
+        radial-gradient(circle at 50% 0%, var(--monitor-glow), transparent 48%),
+        linear-gradient(180deg, var(--monitor-screen-top), var(--monitor-screen-bottom));
+    min-height: 148px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-screen::before,
+.tarot-spin-root .spin-tarot-monitor-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.tarot-spin-root .spin-tarot-monitor-screen::before {
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 100% 4px;
+    opacity: 0.42;
+}
+
+.tarot-spin-root .spin-tarot-monitor-screen::after {
+    background:
+        radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.1), transparent 20%),
+        linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 18%, transparent 36%);
+    opacity: 0.36;
+}
+
+.tarot-spin-root .spin-tarot-monitor-screen-inner {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px 12px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-leds {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    z-index: 2;
+    display: flex;
+    gap: 5px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-leds span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.08);
+}
+
+.tarot-spin-root .spin-tarot-monitor-leds span:nth-child(1) {
+    background: #34d399;
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+}
+
+.tarot-spin-root .spin-tarot-monitor-leds span:nth-child(2) {
+    background: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.42);
+}
+
+.tarot-spin-root .spin-tarot-monitor-leds span:nth-child(3) {
+    background: #fb7185;
+    box-shadow: 0 0 10px rgba(251, 113, 133, 0.4);
+}
+
+.tarot-spin-root .spin-tarot-monitor-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: var(--monitor-chip);
+    text-transform: uppercase;
+}
+
+.tarot-spin-root .spin-tarot-monitor-mode,
+.tarot-spin-root .spin-tarot-monitor-zone {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarot-spin-root .spin-tarot-monitor-zone {
+    text-align: right;
+}
+
+.tarot-spin-root .spin-tarot-monitor-headline {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1.02;
+    color: var(--monitor-head);
+    text-shadow:
+        0 0 18px var(--monitor-glow),
+        0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+.tarot-spin-root .spin-tarot-monitor-subline {
+    min-height: 18px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--monitor-sub);
+}
+
+.tarot-spin-root .spin-tarot-monitor-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-metric {
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(6, 10, 19, 0.44);
+}
+
+.tarot-spin-root .spin-tarot-monitor-metric-label {
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: var(--monitor-chip);
+}
+
+.tarot-spin-root .spin-tarot-monitor-metric-value {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--monitor-head);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarot-spin-root .spin-tarot-monitor-marquee-wrap {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(5, 8, 16, 0.56);
+}
+
+.tarot-spin-root .spin-tarot-monitor-marquee {
+    display: flex;
+    width: max-content;
+    min-width: 200%;
+    animation: spinTarotMonitorTicker 24s linear infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-marquee span {
+    flex: 0 0 auto;
+    padding: 7px 18px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--monitor-sub);
+    white-space: nowrap;
 }
 
 .tarot-spin-root .spin-tarot-main-stage {
@@ -985,10 +1297,47 @@
     margin-bottom: 8px;
 }
 
+.tarot-spin-root .spin-tarot-board-stack {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
 .tarot-spin-root .spin-tarot-board,
 .tarot-spin-root .spin-tarot-hold-row {
     grid-template-columns: repeat(5, var(--spin-tarot-board-card-w));
     gap: var(--spin-tarot-board-gap);
+}
+
+.tarot-spin-root .spin-tarot-board {
+    transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.tarot-spin-root .spin-tarot-board-phaser {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.tarot-spin-root .spin-tarot-board-phaser canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+.tarot-spin-root.spin-tarot-phaser-active .spin-tarot-board {
+    opacity: 0.06;
+    filter: saturate(0.35) brightness(0.6);
+}
+
+.tarot-spin-root.spin-tarot-phaser-active .spin-tarot-board .tarot-card {
+    box-shadow: none;
 }
 
 .tarot-spin-root .spin-tarot-board .tarot-card {
@@ -1190,11 +1539,23 @@
     }
 }
 
+@keyframes spinTarotMonitorTicker {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
 @media (max-width: 720px) {
     .tarot-spin-root.spin-tarot-mounted {
         --spin-tarot-board-card-w: 48px;
         --spin-tarot-board-card-h: 76px;
         --spin-tarot-board-gap: 5px;
+        height: calc(100svh - 148px);
+        max-height: calc(100svh - 148px);
+        overflow: hidden;
     }
 
     .tarot-spin-root .spin-tarot-board-title {
@@ -1202,13 +1563,57 @@
     }
 
     .tarot-spin-root .spin-tarot-shell {
-        max-height: none;
-        overflow: visible;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        padding: 6px 6px calc(88px + env(safe-area-inset-bottom, 0px));
+        gap: 6px;
+    }
+
+    .tarot-spin-root .spin-tarot-viewport {
+        min-height: 0;
+        height: 100%;
+        grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+        align-content: start;
     }
 
     .tarot-spin-root .spin-tarot-main-stage {
         gap: 6px;
         padding: 7px;
+        min-height: 0;
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-screen {
+        min-height: 118px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-screen-inner {
+        gap: 7px;
+        padding: 10px 12px 9px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-headline {
+        font-size: 21px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-subline {
+        min-height: 0;
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-metric {
+        padding: 6px 7px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-metric-value {
+        font-size: 11px;
     }
 
     .tarot-spin-root .spin-tarot-result-main {
@@ -1224,32 +1629,45 @@
     }
 
     .tarot-spin-root .spin-tarot-hud-chip {
-        min-height: 20px;
-        padding: 3px 7px;
-        font-size: 10px;
+        min-height: 18px;
+        padding: 3px 6px;
+        font-size: 9px;
     }
 
-    .tarot-spin-root .spin-tarot-board-head {
-        gap: 4px;
-        margin-bottom: 6px;
+    .tarot-spin-root .spin-tarot-hud-chip:nth-child(3),
+    .tarot-spin-root .spin-tarot-hud-chip:nth-child(5) {
+        display: none;
     }
 
-    .tarot-spin-root .spin-tarot-stage-pills {
-        gap: 4px;
+    .tarot-spin-root .spin-tarot-arcana-art,
+    .tarot-spin-root .spin-tarot-quick-grid,
+    .tarot-spin-root .spin-tarot-board-head,
+    .tarot-spin-root .spin-tarot-main-stage .spin-tarot-battle-strip,
+    .tarot-spin-root .spin-tarot-main-stage .spin-tarot-result-strip,
+    .tarot-spin-root .spin-tarot-foot {
+        display: none;
     }
 
-    .tarot-spin-root .spin-tarot-stage-pills span {
-        padding: 4px 7px;
-        font-size: 10px;
+    .tarot-spin-root .spin-tarot-arcana-panel {
+        display: none;
     }
 
-    .tarot-spin-root .spin-tarot-battle-strip,
-    .tarot-spin-root .spin-tarot-result-strip {
-        padding: 7px 9px;
+    .tarot-spin-root .spin-tarot-board-wrap {
+        min-height: 0;
+        display: grid;
+        align-content: center;
+        padding: 7px;
+    }
+
+    .tarot-spin-root .spin-tarot-slot-panel {
+        min-height: 0;
     }
 
     .tarot-spin-root .spin-tarot-controls {
-        gap: 5px;
+        position: static;
+        gap: 4px;
+        padding: 0;
+        background: none;
     }
 
     .tarot-spin-root .spin-tarot-bet-row {
@@ -1264,14 +1682,40 @@
     }
 
     .tarot-spin-root .spin-tarot-action-row {
-        position: sticky;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
-        z-index: 3;
-        padding: 6px;
+        position: fixed;
+        left: 50%;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+        transform: translateX(-50%);
+        width: min(480px, calc(100vw - 16px));
+        z-index: 30;
+        padding: 8px;
         border-radius: 14px;
         border: 1px solid rgba(255, 214, 102, 0.16);
         background: linear-gradient(180deg, rgba(7, 10, 18, 0.94), rgba(16, 20, 33, 0.98));
-        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
+        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.28);
+        grid-template-columns: 74px minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .tarot-spin-root .spin-tarot-ghost-btn {
+        min-height: 44px;
+    }
+
+    .tarot-spin-root .spin-tarot-spin-btn {
+        min-height: 52px;
+        font-size: 21px;
+        letter-spacing: 0.1em;
+    }
+
+    .tarot-spin-root .spin-tarot-arcana-choice-box {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+        z-index: 26;
+        max-height: 44svh;
+        overflow: auto;
+        box-shadow: 0 20px 30px rgba(0, 0, 0, 0.3);
     }
 }
 
@@ -1280,30 +1724,51 @@
         --spin-tarot-board-card-w: 44px;
         --spin-tarot-board-card-h: 70px;
         --spin-tarot-board-gap: 4px;
+        height: calc(100svh - 138px);
+        max-height: calc(100svh - 138px);
     }
 
     .tarot-spin-root .spin-tarot-board-wrap {
-        padding: 8px;
+        padding: 6px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-bezel {
+        padding: 7px;
+        border-radius: 15px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-screen {
+        min-height: 126px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-headline {
+        font-size: 18px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-topline,
+    .tarot-spin-root .spin-tarot-monitor-marquee span {
+        font-size: 10px;
     }
 
     .tarot-spin-root .spin-tarot-stage-pills span,
     .tarot-spin-root .spin-tarot-hud-chip {
-        font-size: 10px;
+        font-size: 9px;
     }
 
     .tarot-spin-root .spin-tarot-action-row {
-        grid-template-columns: 76px minmax(0, 1fr);
+        width: calc(100vw - 12px);
+        grid-template-columns: 68px minmax(0, 1fr);
         gap: 6px;
-        padding: 5px;
+        padding: 6px;
     }
 
     .tarot-spin-root .spin-tarot-ghost-btn {
-        min-height: 34px;
+        min-height: 40px;
     }
 
     .tarot-spin-root .spin-tarot-spin-btn {
-        min-height: 38px;
-        font-size: 16px;
+        min-height: 48px;
+        font-size: 18px;
     }
 
     .tarot-spin-root .spin-tarot-board .tarot-card-number {
@@ -1315,6 +1780,7 @@
     .tarot-spin-root .spin-tarot-cutin,
     .tarot-spin-root .spin-tarot-board .tarot-card,
     .tarot-spin-root .spin-tarot-board .tarot-card.is-hit,
+    .tarot-spin-root .spin-tarot-monitor-marquee,
     .tarot-spin-root .spin-tarot-spin-btn,
     .tarot-spin-root .spin-tarot-spin-btn::after {
         animation: none !important;

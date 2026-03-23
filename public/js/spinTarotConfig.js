@@ -85,8 +85,8 @@ export const SPIN_TAROT_CONFIG = {
         13: 1
     },
     payoutTable: {
-        OnePair: { multiplier: 0, label: 'ワンペア' },
-        TwoPair: { multiplier: 1, label: 'ツーペア' },
+        OnePair: { multiplier: 1, label: 'リプレイ' },
+        TwoPair: { multiplier: 2, label: 'ツーペア' },
         ThreeKind: { multiplier: 3, label: 'スリーカード' },
         Straight: { multiplier: 5, label: 'ストレート' },
         Flush: { multiplier: 7, label: 'フラッシュ' },
@@ -123,10 +123,10 @@ export const SPIN_TAROT_CONFIG = {
         payoutToDamageRatio: 0.18,
         minimumBattleDamage: 8,
         maxCarryShield: 0.45,
-        battleRewardMultiplier: 1.6,
+        battleRewardMultiplier: 1.1,
         enemyMissDamageBase: 18,
-        treasureChestMin: 12,
-        treasureChestMax: 48
+        treasureChestMin: 8,
+        treasureChestMax: 22
     },
     minorArcana: {
         mysteryWild: {
@@ -150,9 +150,9 @@ export const SPIN_TAROT_CONFIG = {
         }
     },
     zones: {
-        heaven: { label: '天国', probability: 0.12, minSpins: 30, maxSpins: 30 },
-        normal: { label: '通常', probability: 0.7, minSpins: 80, maxSpins: 120 },
-        ceiling: { label: '天井', probability: 0.18, minSpins: 250, maxSpins: 250 }
+        heaven: { label: '天国', probability: 0.18, minSpins: 6, maxSpins: 8 },
+        normal: { label: '通常', probability: 0.64, minSpins: 12, maxSpins: 18 },
+        ceiling: { label: '深追い', probability: 0.18, minSpins: 24, maxSpins: 36 }
     },
     enemyNations: {
         Sword: {
@@ -198,7 +198,7 @@ export const SPIN_TAROT_CONFIG = {
     },
     premiumEvents: {
         bossRaid: {
-            probability: 0.018,
+            probability: 0.022,
             label: '超強敵乱入',
             enemy: {
                 label: 'ドラゴン乱入',
@@ -211,13 +211,13 @@ export const SPIN_TAROT_CONFIG = {
             }
         },
         treasureIsland: {
-            probability: 0.024,
+            probability: 0.032,
             label: '宝島エピソード',
             minSpins: 5,
             maxSpins: 7
         },
         freeze: {
-            probability: 0.0015,
+            probability: 0.0018,
             label: 'ロングフリーズ',
             jackpotMultiplier: 60
         },
@@ -245,8 +245,33 @@ export const SPIN_TAROT_CONFIG = {
     },
     progression: {
         guaranteedBattleRewardCoins: 32,
+        battleRewardPerRank: 4,
+        bossBattleRewardBonus: 48,
         lossRefundRatio: 0.2,
-        logLimit: 14
+        logLimit: 14,
+        treasureCooldownSpins: 18,
+        omenGaugeMax: 100,
+        hintThreshold: 36,
+        highThreshold: 82,
+        czThreshold: 112,
+        missOmenGain: 7,
+        replayOmenGain: 8,
+        twoPairOmenGain: 12,
+        strongOmenGain: 18,
+        premiumOmenGain: 24,
+        missQueenGain: 1,
+        missKingGain: 0,
+        replayQueenGain: 2,
+        strongKingGain: 2,
+        queenModeThreshold: 72,
+        kingModeThreshold: 96,
+        queenModeSpins: 4,
+        kingModeSpins: 3,
+        czSpins: 3,
+        czTarget: 120,
+        czMissGain: 10,
+        czReplayGain: 20,
+        czStrongGain: 36
     },
     ui: {
         spinBounceMs: 360,
@@ -255,6 +280,7 @@ export const SPIN_TAROT_CONFIG = {
         resultPulseMs: 720
     },
     adapters: {
-        enablePersistence: false
+        enablePersistence: true,
+        storageKey: 'spinTarotState.v2'
     }
 };

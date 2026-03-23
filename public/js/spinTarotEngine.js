@@ -78,15 +78,94 @@ export function getCardText(card) {
     return `${getSuitMeta(card.suit)?.icon || '🃏'} ${getCardFace(card)}`;
 }
 
+export function getSpinTarotStatusView(state, config = SPIN_TAROT_CONFIG) {
+    const progression = config.progression || {};
+    const queenGaugeMax = Math.max(1, Number(progression.queenModeThreshold || 48));
+    const kingGaugeMax = Math.max(1, Number(progression.kingModeThreshold || 48));
+    const omenGaugeMax = Math.max(1, Number(progression.omenGaugeMax || 100));
+    const czThreshold = Math.max(1, Number(progression.czThreshold || omenGaugeMax));
+    const omenGauge = clamp(Number(state?.omenGauge) || 0, 0, omenGaugeMax);
+    const queenGauge = clamp(Number(state?.queenGauge) || 0, 0, queenGaugeMax);
+    const kingGauge = clamp(Number(state?.kingGauge) || 0, 0, kingGaugeMax);
+    const arcanaCycle = Math.max(1, Number(config?.majorArcana?.changeEverySpins) || 5);
+    const spinsUntilArcanaShift = Math.max(1, arcanaCycle - (Math.max(0, Number(state?.spinCount) || 0) % arcanaCycle));
+    let modeKey = String(state?.mode || 'normal');
+    let modeLabel = '通常';
+    let modeIcon = '🌊';
+    let modeTurns = 0;
+
+    if (state?.gameOver) {
+        modeKey = 'gameover';
+        modeLabel = '城壁崩壊';
+        modeIcon = '💀';
+    } else if (state?.battle) {
+        modeKey = state.battle.isBoss ? 'boss' : 'battle';
+        modeLabel = state.battle.isBoss ? '超強敵防衛戦' : '防衛戦';
+        modeIcon = '⚔️';
+    } else if (state?.premium?.type === 'treasure') {
+        modeKey = 'treasure';
+        modeLabel = state.premium.label || '宝島';
+        modeIcon = '🎁';
+        modeTurns = Math.max(0, Number(state.premium.spinsRemaining) || 0);
+    } else if (modeKey === 'cz') {
+        modeLabel = '防衛準備CZ';
+        modeIcon = '🎯';
+        modeTurns = Math.max(0, Number(state.modeSpinsRemaining) || 0);
+    } else if (modeKey === 'high') {
+        modeLabel = '高確';
+        modeIcon = '⚡';
+    } else if (modeKey === 'hint') {
+        modeLabel = '前兆';
+        modeIcon = '🔮';
+    } else if (state?.queenModeSpins > 0 && state?.kingModeSpins > 0) {
+        modeKey = 'dual-rush';
+        modeLabel = '双冠加護';
+        modeIcon = '👑';
+    } else if (state?.queenModeSpins > 0) {
+        modeKey = 'queen-rush';
+        modeLabel = '星告の加護';
+        modeIcon = '👑';
+    } else if (state?.kingModeSpins > 0) {
+        modeKey = 'king-rush';
+        modeLabel = '王権ラッシュ';
+        modeIcon = '🦁';
+    }
+
+    return {
+        modeKey,
+        modeLabel,
+        modeIcon,
+        modeTurns,
+        omenGauge,
+        omenGaugeMax,
+        nextCzIn: modeKey === 'cz' ? 0 : Math.max(0, czThreshold - omenGauge),
+        queenGauge,
+        queenGaugeMax,
+        nextQueenIn: Math.max(0, queenGaugeMax - queenGauge),
+        kingGauge,
+        kingGaugeMax,
+        nextKingIn: Math.max(0, kingGaugeMax - kingGauge),
+        queenModeSpins: Math.max(0, Number(state?.queenModeSpins) || 0),
+        kingModeSpins: Math.max(0, Number(state?.kingModeSpins) || 0),
+        missStreak: Math.max(0, Number(state?.missStreak) || 0),
+        treasureCooldownSpins: Math.max(0, Number(state?.treasureCooldownSpins) || 0),
+        czPower: Math.max(0, Number(state?.czPower) || 0),
+        czTarget: Math.max(1, Number(progression.czTarget) || 100),
+        spinsUntilArcanaShift
+    };
+}
+
 export function createInitialState(config = SPIN_TAROT_CONFIG) {
     const zone = pickZone(config);
     const currentArcana = rollMajorArcana(config, 'normal', config.kingdomRank.minRank);
     return {
-        version: 1,
+        version: 2,
         board: createBlankBoard(config),
         holdMask: Array(config.board.reels).fill(false),
         lockedHolds: Array(config.board.reels).fill(false),
         phase: 'deal',
+        mode: 'normal',
+        modeSpinsRemaining: 0,
         deck: [],
         coins: config.startingResources.coins,
         totalPayout: 0,
@@ -109,6 +188,13 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         battle: null,
         premium: null,
         currentArcana,
+        pendingArcanaChoices: null,
+        treasureCooldownSpins: 0,
+        omenGauge: 0,
+        czPower: 0,
+        missStreak: 0,
+        queenModeSpins: 0,
+        kingModeSpins: 0,
         pendingGuaranteeRole: null,
         pendingSuitFilter: null,
         confuseTurns: 0,
@@ -144,6 +230,8 @@ export function cloneState(state) {
         battle: state.battle ? { ...state.battle } : null,
         premium: state.premium ? { ...state.premium } : null,
         currentArcana: state.currentArcana ? { ...state.currentArcana } : null,
+        pendingArcanaChoices: Array.isArray(state.pendingArcanaChoices) ? state.pendingArcanaChoices.map((arcana) => ({ ...arcana })) : null,
+        treasureCooldownSpins: Math.max(0, Number(state.treasureCooldownSpins) || 0),
         lineResults: Array.isArray(state.lineResults) ? state.lineResults.map((item) => ({ ...item, coords: item.coords?.map((coord) => ({ ...coord })) || [] })) : [],
         lineSummaries: Array.isArray(state.lineSummaries) ? state.lineSummaries.slice() : [],
         lastCutin: state.lastCutin ? { ...state.lastCutin } : null,
@@ -198,6 +286,19 @@ export function startNewRun(config = SPIN_TAROT_CONFIG) {
     return createInitialState(config);
 }
 
+export function chooseArcana(state, choiceIndex, config = SPIN_TAROT_CONFIG) {
+    const next = cloneState(state);
+    if (!Array.isArray(next.pendingArcanaChoices) || !next.pendingArcanaChoices.length) return next;
+    const picked = next.pendingArcanaChoices[clamp(Number(choiceIndex) || 0, 0, next.pendingArcanaChoices.length - 1)];
+    if (!picked) return next;
+    next.currentArcana = { ...picked };
+    next.pendingArcanaChoices = null;
+    next.lastCutin = buildCutin(picked.number, `${picked.label} を継承`);
+    next.lastEffects = [`ARCANA SHIFT: ${picked.label}`];
+    pushLog(next, `${picked.label} を選択。`, config);
+    return next;
+}
+
 export function getBetInfo(state, config = SPIN_TAROT_CONFIG) {
     return config.betLevels[state.betIndex] || config.betLevels[0];
 }
@@ -209,6 +310,7 @@ export function getDealCost(state, config = SPIN_TAROT_CONFIG) {
 
 export function canSpin(state, config = SPIN_TAROT_CONFIG) {
     if (state.gameOver) return false;
+    if (Array.isArray(state.pendingArcanaChoices) && state.pendingArcanaChoices.length) return false;
     if (state.phase === 'hold') return true;
     return state.coins >= getDealCost(state, config);
 }
@@ -218,6 +320,9 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     const betInfo = getBetInfo(state, config);
     if (state.gameOver) {
         return { ok: false, state, reason: 'game-over' };
+    }
+    if (Array.isArray(state.pendingArcanaChoices) && state.pendingArcanaChoices.length) {
+        return { ok: false, state, reason: 'arcana-choice-pending' };
     }
     const events = {
         preAlert: false,
@@ -368,15 +473,21 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
 
     applyCourtGrowth(state, evaluation, config, betInfo);
     resolveArcanaOnWin(state, evaluation, config, betInfo);
+    resolveRushModeBonuses(state, evaluation, config, betInfo);
     resolveBattleAndProgress(state, evaluation, config, betInfo, events);
 
     if (!state.battle && !state.premium && !events.notes.includes('battle-ended')) {
         advanceZone(state, config, events);
     }
 
+    applySpinFlowProgress(state, evaluation, config, events);
+
     if (!state.battle && !state.premium && state.spinCount % config.majorArcana.changeEverySpins === 0) {
-        state.currentArcana = rollMajorArcana(config, 'normal', state.nationRank);
-        events.cutin = buildCutin(state.currentArcana.number, `${state.currentArcana.label} が点灯`);
+        state.pendingArcanaChoices = buildArcanaChoices(state, config);
+        pushLog(state, '次の大アルカナを選択。', config);
+        if (!events.cutin) {
+            events.cutin = buildCutin(state.currentArcana.number, '次の大アルカナを選択');
+        }
     }
 
     state.phase = 'deal';
@@ -640,6 +751,20 @@ function rollMajorArcana(config, mode, nationRank) {
         summary: meta.summary,
         ...meta
     };
+}
+
+function buildArcanaChoices(state, config) {
+    const currentNumber = Number(state.currentArcana?.number || 1);
+    const keepArcana = state.currentArcana ? { ...state.currentArcana } : rollMajorArcana(config, 'normal', state.nationRank);
+    let challenger = rollMajorArcana(config, 'normal', state.nationRank);
+    let guard = 0;
+    while (challenger.number === currentNumber && guard < 8) {
+        challenger = rollMajorArcana(config, 'normal', state.nationRank);
+        guard += 1;
+    }
+    const choices = [keepArcana, challenger].map((arcana) => ({ ...arcana }));
+    if (chance(0.5)) choices.reverse();
+    return choices;
 }
 
 function getRankTier(config, nationRank) {
@@ -1058,6 +1183,207 @@ function getArcanaStrength(evaluation, betInfo) {
     return Math.max(1, multiplier);
 }
 
+function getOmenGainByResult(evaluation, config = SPIN_TAROT_CONFIG) {
+    const progression = config.progression || {};
+    if (!evaluation?.hasRole) return Number(progression.missOmenGain || 0);
+    if (evaluation.bestStrength >= HAND_STRENGTH.FullHouse) return Number(progression.premiumOmenGain || 0);
+    if (evaluation.bestStrength >= HAND_STRENGTH.ThreeKind) return Number(progression.strongOmenGain || 0);
+    if (evaluation.bestStrength >= HAND_STRENGTH.TwoPair) return Number(progression.twoPairOmenGain || 0);
+    return Number(progression.replayOmenGain || 0);
+}
+
+function getCzPowerGainByResult(evaluation, config = SPIN_TAROT_CONFIG) {
+    const progression = config.progression || {};
+    if (!evaluation?.hasRole) return Number(progression.czMissGain || 0);
+    if (evaluation.bestStrength >= HAND_STRENGTH.ThreeKind) return Number(progression.czStrongGain || 0);
+    return Number(progression.czReplayGain || 0);
+}
+
+function calculateBattleReward(state, config, battle, damageHint = 0) {
+    const progression = config.progression || {};
+    const baseReward = Number(progression.guaranteedBattleRewardCoins || 0);
+    const rankReward = Math.max(0, Number(state.nationRank || 0)) * Number(progression.battleRewardPerRank || 0);
+    const bossBonus = battle?.isBoss ? Number(progression.bossBattleRewardBonus || 0) : 0;
+    const damageBonus = Math.min(18, Math.max(0, Math.floor(Number(damageHint || 0) * 0.08)));
+    return Math.max(
+        1,
+        Math.floor((baseReward + rankReward + bossBonus + damageBonus) * Number(config.combat.battleRewardMultiplier || 1))
+    );
+}
+
+function setBaseModeByOmenGauge(state, config = SPIN_TAROT_CONFIG, previousMode = 'normal') {
+    const progression = config.progression || {};
+    const nextMode = Number(state.omenGauge || 0) >= Number(progression.highThreshold || 65)
+        ? 'high'
+        : Number(state.omenGauge || 0) >= Number(progression.hintThreshold || 30)
+            ? 'hint'
+            : 'normal';
+    if (nextMode !== previousMode) {
+        if (nextMode === 'high') {
+            pushLog(state, '気配が強まり、高確へ移行。', config);
+            state.lastEffects.push('高確へ移行');
+        } else if (nextMode === 'hint') {
+            pushLog(state, '前兆が走る。', config);
+            state.lastEffects.push('前兆へ移行');
+        } else if (previousMode === 'cz') {
+            pushLog(state, '防衛準備CZが終了。', config);
+        }
+    }
+    state.mode = nextMode;
+    state.modeSpinsRemaining = 0;
+}
+
+function launchBattleFromSuit(state, config, events, suitKey, sourceLabel = '') {
+    const pickedSuit = suitKey && SUIT_KEYS.includes(suitKey) ? suitKey : rollPreviewSuit();
+    const nation = config.enemyNations[pickedSuit];
+    if (!nation) return false;
+    state.battle = {
+        suitKey: pickedSuit,
+        label: nation.label,
+        emoji: nation.emoji,
+        hp: nation.hp + Math.floor(state.nationRank * 4),
+        maxHp: nation.hp + Math.floor(state.nationRank * 4),
+        attack: nation.attack + Math.floor(state.nationRank * 0.8),
+        healRatio: nation.healRatio,
+        fortifyRatio: nation.fortifyRatio,
+        holdLockChance: nation.holdLockChance,
+        isBoss: false
+    };
+    state.currentArcana = rollMajorArcana(config, 'battle', state.nationRank);
+    state.previewSuit = pickedSuit;
+    state.mode = 'normal';
+    state.modeSpinsRemaining = 0;
+    state.czPower = 0;
+    state.omenGauge = 0;
+    pushLog(
+        state,
+        sourceLabel
+            ? `${sourceLabel}成功。${nation.label} が襲来。${nation.summary}。`
+            : `${nation.label} が襲来。${nation.summary}。`,
+        config
+    );
+    if (!events.cutin) events.cutin = buildCutin(state.currentArcana.number, `${nation.label} 防衛戦`);
+    return true;
+}
+
+function resolveRushModeBonuses(state, evaluation, config, betInfo) {
+    if (!evaluation?.hasRole) return;
+    const statMultiplier = Number(betInfo?.statMultiplier || 1);
+    if (state.queenModeSpins > 0) {
+        const heal = Math.max(2, 4 * statMultiplier);
+        state.castleHp = Math.min(state.castleMaxHp, state.castleHp + heal);
+        state.lastEffects.push(`星告の加護 +${heal}回復`);
+    }
+    if (state.kingModeSpins > 0) {
+        state.attackMultiplier *= 1.2;
+        const bonus = Math.max(1, Math.floor(Number(state.totalPayout || 0) * 0.2));
+        state.totalPayout += bonus;
+        state.coins += bonus;
+        state.lastEffects.push(`王権ラッシュ +${bonus}枚`);
+    }
+}
+
+function tickRushModes(state, config) {
+    if (state.queenModeSpins > 0) {
+        state.queenModeSpins = Math.max(0, Number(state.queenModeSpins || 0) - 1);
+        if (state.queenModeSpins === 0) pushLog(state, '星告の加護が終了。', config);
+    }
+    if (state.kingModeSpins > 0) {
+        state.kingModeSpins = Math.max(0, Number(state.kingModeSpins || 0) - 1);
+        if (state.kingModeSpins === 0) pushLog(state, '王権ラッシュが終了。', config);
+    }
+}
+
+function maybeUnlockRushModes(state, config) {
+    const progression = config.progression || {};
+    const queenThreshold = Math.max(1, Number(progression.queenModeThreshold || 48));
+    const kingThreshold = Math.max(1, Number(progression.kingModeThreshold || 48));
+    const queenSpins = Math.max(1, Number(progression.queenModeSpins || 8));
+    const kingSpins = Math.max(1, Number(progression.kingModeSpins || 8));
+    while (Number(state.queenGauge || 0) >= queenThreshold) {
+        state.queenGauge -= queenThreshold;
+        state.queenModeSpins = Math.max(Number(state.queenModeSpins || 0), queenSpins);
+        state.lastEffects.push('星告の加護突入');
+        pushLog(state, `星告の加護へ突入。${queenSpins}G継続。`, config);
+    }
+    while (Number(state.kingGauge || 0) >= kingThreshold) {
+        state.kingGauge -= kingThreshold;
+        state.kingModeSpins = Math.max(Number(state.kingModeSpins || 0), kingSpins);
+        state.lastEffects.push('王権ラッシュ突入');
+        pushLog(state, `王権ラッシュへ突入。${kingSpins}G継続。`, config);
+    }
+}
+
+function applySpinFlowProgress(state, evaluation, config, events) {
+    const progression = config.progression || {};
+    const previousMode = String(state.mode || 'normal');
+    const previousModeSpins = Math.max(0, Number(state.modeSpinsRemaining) || 0);
+    state.treasureCooldownSpins = Math.max(0, Number(state.treasureCooldownSpins || 0) - 1);
+
+    if (!evaluation?.hasRole) {
+        state.missStreak = Math.max(0, Number(state.missStreak || 0)) + 1;
+        state.queenGauge += Number(progression.missQueenGain || 0);
+        state.kingGauge += Number(progression.missKingGain || 0);
+    } else {
+        state.missStreak = 0;
+        if (evaluation.bestStrength >= HAND_STRENGTH.OnePair) {
+            state.queenGauge += Number(progression.replayQueenGain || 0);
+        }
+        if (evaluation.bestStrength >= HAND_STRENGTH.ThreeKind) {
+            state.kingGauge += Number(progression.strongKingGain || 0);
+        }
+    }
+
+    tickRushModes(state, config);
+    maybeUnlockRushModes(state, config);
+
+    if (state.battle || state.premium || state.gameOver) return;
+
+    const omenMax = Math.max(1, Number(progression.omenGaugeMax || 100));
+    let omenGain = getOmenGainByResult(evaluation, config);
+    if (state.queenModeSpins > 0) omenGain += 4;
+    if (!evaluation?.hasRole) omenGain += Math.min(8, Math.max(0, Number(state.missStreak || 0) - 2));
+    state.omenGauge = clamp((Number(state.omenGauge) || 0) + omenGain, 0, omenMax);
+
+    if (previousMode === 'cz') {
+        state.mode = 'cz';
+        state.modeSpinsRemaining = Math.max(0, previousModeSpins - 1);
+        state.czPower = clamp(
+            (Number(state.czPower) || 0) + getCzPowerGainByResult(evaluation, config),
+            0,
+            Math.max(1, Number(progression.czTarget || 100))
+        );
+        if (
+            Number(state.czPower || 0) >= Number(progression.czTarget || 100)
+            || evaluation.bestStrength >= HAND_STRENGTH.ThreeKind
+        ) {
+            state.lastEffects.push('防衛準備CZ突破');
+            launchBattleFromSuit(state, config, events, state.previewSuit, '防衛準備CZ');
+            return;
+        }
+        if (state.modeSpinsRemaining <= 0) {
+            pushLog(state, '防衛準備CZ失敗。', config);
+            state.czPower = 0;
+            setBaseModeByOmenGauge(state, config, previousMode);
+            return;
+        }
+        return;
+    }
+
+    if (Number(state.omenGauge || 0) >= Number(progression.czThreshold || 100)) {
+        state.mode = 'cz';
+        state.modeSpinsRemaining = Math.max(1, Number(progression.czSpins || 3));
+        state.czPower = getCzPowerGainByResult(evaluation, config);
+        state.omenGauge = 0;
+        state.lastEffects.push('防衛準備CZ突入');
+        pushLog(state, `防衛準備CZへ突入。${state.modeSpinsRemaining}G以内に敵襲を引き寄せろ。`, config);
+        if (!events.cutin) events.cutin = buildCutin(11, '防衛準備CZ');
+        return;
+    }
+
+    setBaseModeByOmenGauge(state, config, previousMode);
+}
+
 function resolveArcanaOnWin(state, evaluation, config, betInfo) {
     if (!evaluation.hasRole) return;
     const arcana = getMajorArcana(state.currentArcana?.number);
@@ -1124,6 +1450,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         state.premium.spinsRemaining -= 1;
         if (state.premium.spinsRemaining <= 0) {
             state.premium = null;
+            state.treasureCooldownSpins = Math.max(0, Number(config.progression?.treasureCooldownSpins || 0));
             pushLog(state, '宝島ゾーン終了。', config);
         }
     }
@@ -1149,7 +1476,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
     }
 
     if (state.battle.hp <= 0) {
-        const reward = Math.floor((state.lastAttackDamage + config.progression.guaranteedBattleRewardCoins) * config.combat.battleRewardMultiplier);
+        const reward = calculateBattleReward(state, config, state.battle, state.lastAttackDamage);
         state.coins += reward;
         pushLog(state, `${state.battle.label} を撃破。報酬 ${reward} 枚。`, config);
         if (state.battle.isBoss) {
@@ -1196,7 +1523,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
     }
 
     if (state.battle && state.battle.hp <= 0) {
-        const reward = Math.floor((config.progression.guaranteedBattleRewardCoins + config.combat.minimumBattleDamage) * config.combat.battleRewardMultiplier);
+        const reward = calculateBattleReward(state, config, state.battle, config.combat.minimumBattleDamage);
         state.coins += reward;
         pushLog(state, `${state.battle.label} が崩れ落ちた。報酬 ${reward} 枚。`, config);
         state.battle = null;
@@ -1275,7 +1602,15 @@ function computePlayerDamage(state, evaluation, config, betInfo) {
 
 function maybeStartPremium(state, config, events) {
     if (state.battle || state.premium) return;
-    if (chance(config.premiumEvents.bossRaid.probability)) {
+    if (String(state.mode || '') === 'cz') return;
+    const baseMode = String(state.mode || 'normal');
+    const bossProbability = Number(config.premiumEvents.bossRaid.probability || 0)
+        * (baseMode === 'high' ? 1.4 : baseMode === 'hint' ? 1.15 : 1)
+        * (state.kingModeSpins > 0 ? 1.45 : 1);
+    const treasureProbability = Number(config.premiumEvents.treasureIsland.probability || 0)
+        * (baseMode === 'high' ? 1.3 : baseMode === 'hint' ? 1.1 : 1)
+        * (state.queenModeSpins > 0 ? 1.6 : 1);
+    if (chance(bossProbability)) {
         const boss = config.premiumEvents.bossRaid.enemy;
         state.battle = {
             suitKey: 'Boss',
@@ -1291,25 +1626,41 @@ function maybeStartPremium(state, config, events) {
         };
         state.currentArcana = rollMajorArcana(config, 'battle', state.nationRank);
         state.previewSuit = 'Boss';
+        state.mode = 'normal';
+        state.modeSpinsRemaining = 0;
+        state.czPower = 0;
+        state.omenGauge = 0;
         state.lastEffects.push(config.premiumEvents.bossRaid.label);
         events.cutin = buildCutin(16, '超強敵ドラゴン乱入');
         return;
     }
-    if (chance(config.premiumEvents.treasureIsland.probability)) {
+    if (Number(state.treasureCooldownSpins || 0) <= 0 && chance(treasureProbability)) {
         state.premium = {
             type: 'treasure',
             label: config.premiumEvents.treasureIsland.label,
             spinsRemaining: randomInt(config.premiumEvents.treasureIsland.minSpins, config.premiumEvents.treasureIsland.maxSpins)
         };
+        state.mode = 'normal';
+        state.modeSpinsRemaining = 0;
+        state.czPower = 0;
+        state.omenGauge = Math.max(0, Number(state.omenGauge || 0) - 28);
         state.lastEffects.push(config.premiumEvents.treasureIsland.label);
         events.cutin = buildCutin(17, '宝島エピソードボーナス');
     }
 }
 
 function triggerFreezeIfNeeded(state, config, betInfo, events) {
-    if (!chance(config.premiumEvents.freeze.probability)) return false;
+    const baseMode = String(state.mode || 'normal');
+    const freezeProbability = Number(config.premiumEvents.freeze.probability || 0)
+        * (baseMode === 'high' ? 1.35 : baseMode === 'hint' ? 1.1 : 1)
+        * (state.kingModeSpins > 0 || state.queenModeSpins > 0 ? 1.25 : 1);
+    if (!chance(freezeProbability)) return false;
     const frozenArcana = rollMajorArcana(config, 'freeze', state.nationRank);
     state.currentArcana = frozenArcana;
+    state.mode = 'normal';
+    state.modeSpinsRemaining = 0;
+    state.czPower = 0;
+    state.omenGauge = 0;
     state.lastCutin = buildCutin(frozenArcana.number, `${frozenArcana.label} ロングフリーズ`);
     events.cutin = state.lastCutin;
 
@@ -1354,27 +1705,31 @@ function advanceZone(state, config, events) {
         state.zone = pickZone(config);
         return;
     }
+    if (String(state.mode || '') === 'cz') return;
     state.zone.spinsRemaining = Math.max(0, state.zone.spinsRemaining - 1);
     if (state.zone.spinsRemaining > 0) return;
 
+    const progression = config.progression || {};
+    const highThreshold = Number(progression.highThreshold || 65);
+    const czTarget = Math.max(1, Number(progression.czTarget || 100));
+    const shouldRouteToCz = (
+        Number(state.omenGauge || 0) >= highThreshold
+        || String(state.mode || '') === 'high'
+        || state.queenModeSpins > 0
+        || state.kingModeSpins > 0
+    );
+    if (shouldRouteToCz) {
+        state.mode = 'cz';
+        state.modeSpinsRemaining = Math.max(1, Number(progression.czSpins || 3));
+        state.czPower = Math.max(Number(state.czPower || 0), Math.floor(czTarget * 0.35));
+        state.lastEffects.push('防衛準備CZ突入');
+        pushLog(state, `ゾーン終端で防衛準備CZへ。${state.modeSpinsRemaining}Gの間に敵襲を引き寄せろ。`, config);
+        if (!events.cutin) events.cutin = buildCutin(11, '防衛準備CZ');
+        return;
+    }
+
     const suitKey = state.previewSuit && SUIT_KEYS.includes(state.previewSuit) ? state.previewSuit : rollPreviewSuit();
-    const nation = config.enemyNations[suitKey];
-    state.battle = {
-        suitKey,
-        label: nation.label,
-        emoji: nation.emoji,
-        hp: nation.hp + Math.floor(state.nationRank * 4),
-        maxHp: nation.hp + Math.floor(state.nationRank * 4),
-        attack: nation.attack + Math.floor(state.nationRank * 0.8),
-        healRatio: nation.healRatio,
-        fortifyRatio: nation.fortifyRatio,
-        holdLockChance: nation.holdLockChance,
-        isBoss: false
-    };
-    state.currentArcana = rollMajorArcana(config, 'battle', state.nationRank);
-    state.previewSuit = suitKey;
-    pushLog(state, `${nation.label} が襲来。${nation.summary}。`, config);
-    events.cutin = buildCutin(state.currentArcana.number, `${nation.label} 防衛戦`);
+    launchBattleFromSuit(state, config, events, suitKey);
     state.zone = null;
 }
 
