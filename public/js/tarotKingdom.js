@@ -1543,7 +1543,12 @@ function playKingdomCoinEffect(playerIndex, coinCount = 4, symbol = '🪙', opti
   for (let i = 0; i < total; i += 1) {
     const coin = document.createElement('span');
     coin.className = `tarot-coin-fx ${ownerClass}`;
-    if (options.className) coin.classList.add(options.className);
+    if (options.className) {
+      String(options.className)
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((className) => coin.classList.add(className));
+    }
     coin.textContent = symbol;
     coin.style.left = `${from.x}px`;
     coin.style.top = `${from.y}px`;
@@ -3700,7 +3705,8 @@ function buildTarotKingdomDebugMatchDoneState(options = {}) {
     rows,
     potAward: 0,
     coinEvents: [],
-    coinFxDispatched: true
+    coinFxDispatched: true,
+    matchDone: true
   };
   st.logs = [
     'デバッグ終局状態を読み込みました。',
@@ -4585,7 +4591,8 @@ function finishRound(winnerIndex) {
     bonusCoinFx: null,
     potAward: 0,
     totalGain: 0,
-    displayTotalGain: 0
+    displayTotalGain: 0,
+    matchDone: false
   };
   log(`${winner.name}がアウト！ 清算開始`);
   s.players.forEach((loser, i) => {
@@ -4671,6 +4678,7 @@ function finishRound(winnerIndex) {
     .map((p, i) => ({ i, name: p.name, chips: Number(p.chips) || 0 }))
     .filter((p) => p.chips <= GAMEOVER_CHIPS_THRESHOLD);
   if (bankruptPlayers.length > 0) {
+    settlement.matchDone = true;
     let top = 0;
     s.players.forEach((_, i) => {
       if ((Number(s.players[i].chips) || 0) > (Number(s.players[top].chips) || 0)) top = i;
@@ -4694,6 +4702,7 @@ function finishRound(winnerIndex) {
   }
   s.handNo += 1;
   if (s.handNo >= TOTAL_HANDS) {
+    settlement.matchDone = true;
     let top = 0; s.players.forEach((p, i) => { if (s.players[i].chips > s.players[top].chips) top = i; });
     s.champion = top;
     s.phase = 'done';
@@ -5747,6 +5756,17 @@ function cardNode(card, opt = {}) {
 
 function isKingdomMatchDoneState(state = s) {
   if (!state) return false;
+  const terminalSettlement = state.roundSettlement;
+  if (terminalSettlement?.matchDone) return true;
+  if (
+    terminalSettlement
+    && !state.awaitRoundConfirm
+    && !state.roundActive
+    && String(state.phase || '') === 'roundEnd'
+    && Number(state.handNo || 0) >= TOTAL_HANDS - 1
+  ) {
+    return true;
+  }
   if (String(state.phase || '') === 'done') return true;
   if (state.champion != null) return true;
   return Number(state.handNo || 0) >= TOTAL_HANDS;
@@ -5755,6 +5775,14 @@ function isKingdomMatchDoneState(state = s) {
 function normalizeKingdomTerminalState(state = s) {
   if (!state) return false;
   const hasTerminalMarker =
+    !!state.roundSettlement?.matchDone ||
+    (
+      !!state.roundSettlement
+      && !state.awaitRoundConfirm
+      && !state.roundActive
+      && String(state.phase || '') === 'roundEnd'
+      && Number(state.handNo || 0) >= TOTAL_HANDS - 1
+    ) ||
     String(state.phase || '') === 'done' ||
     state.champion != null ||
     Number(state.handNo || 0) >= TOTAL_HANDS;

@@ -79,6 +79,16 @@ export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
     return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
 }
 
+export function transferPoints(fromId, toId, amount, options = {}) {
+    return callApiWithLoader('/api/transfer-points', {
+        fromId,
+        toId,
+        amount,
+        fromEntityKey: window.myPlayFabLoginInfo?.entityKey || null,
+        requestId: options?.requestId || null
+    }, options);
+}
+
 export function equipItem(playFabId, itemId, slot, options) {
     return callApiWithLoader('/api/equip-item', { playFabId, itemId, slot }, options);
 }

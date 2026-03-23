@@ -14,7 +14,7 @@ import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
-import { installPlayerProfileInteractions } from './js/playerProfile.js';
+import { installPlayerProfileInteractions, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 
 import { getDatabase } from "firebase/database";
@@ -860,6 +860,7 @@ async function initializeAppFeatures() {
     } catch (e) {
         console.warn('[initializeAppFeatures] One or more initialization tasks failed:', e);
     }
+    refreshFavoritePlayersList();
     await refreshLineFriendPromo();
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {

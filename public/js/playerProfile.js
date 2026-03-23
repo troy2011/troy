@@ -1,9 +1,15 @@
 import { renderAvatar } from './avatar.js';
 import { getNationLabel } from './nationLabels.js';
-import { getPublicPlayerProfile } from './playfabClient.js';
+import { transferPoints, getPublicPlayerProfile } from './playfabClient.js';
+import { createRequestId } from './api.js';
+import { showRpgMessage } from './rpgMessages.js';
+
+const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
+const MAX_FAVORITE_PLAYERS = 24;
 
 let playerProfileInstalled = false;
 let activeProfileRequestToken = 0;
+let activeProfile = null;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -15,6 +21,10 @@ function escapeHtml(value) {
     })[match]);
 }
 
+function getCurrentUserPlayFabId() {
+    return String(window.myPlayFabId || '').trim();
+}
+
 function getPlayerProfileModalElements() {
     return {
         modal: document.getElementById('playerProfileModal'),
@@ -22,8 +32,145 @@ function getPlayerProfileModalElements() {
         nation: document.getElementById('playerProfileNation'),
         meta: document.getElementById('playerProfileMeta'),
         equipment: document.getElementById('playerProfileEquipment'),
-        close: document.getElementById('btnClosePlayerProfile')
+        close: document.getElementById('btnClosePlayerProfile'),
+        transferButton: document.getElementById('btnPlayerProfileTransfer'),
+        favoriteButton: document.getElementById('btnPlayerProfileFavorite'),
+        copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
+        transferPanel: document.getElementById('playerProfileTransferPanel'),
+        transferAmount: document.getElementById('playerProfileTransferAmount'),
+        transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
+        transferCancel: document.getElementById('btnPlayerProfileTransferCancel')
     };
+}
+
+function getFavoritePlayersElements() {
+    return {
+        section: document.getElementById('favoritePlayersSection'),
+        list: document.getElementById('favoritePlayersList'),
+        empty: document.getElementById('favoritePlayersEmpty')
+    };
+}
+
+function getFavoritePlayersStorageKey(playFabId) {
+    const ownerId = String(playFabId || '').trim();
+    return ownerId ? `${FAVORITE_PLAYERS_STORAGE_PREFIX}${ownerId}` : '';
+}
+
+function normalizeFavoritePlayerEntry(entry = {}) {
+    const playFabId = String(entry.playFabId || '').trim();
+    if (!playFabId) return null;
+    return {
+        playFabId,
+        displayName: String(entry.displayName || playFabId).trim() || playFabId,
+        nation: String(entry.nation || '').trim().toLowerCase(),
+        updatedAt: Number(entry.updatedAt || Date.now()) || Date.now()
+    };
+}
+
+function loadFavoritePlayers(playFabId = getCurrentUserPlayFabId()) {
+    const storageKey = getFavoritePlayersStorageKey(playFabId);
+    if (!storageKey || typeof window === 'undefined' || !window.localStorage) return [];
+    try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return (Array.isArray(parsed) ? parsed : [])
+            .map((entry) => normalizeFavoritePlayerEntry(entry))
+            .filter(Boolean)
+            .slice(0, MAX_FAVORITE_PLAYERS);
+    } catch (error) {
+        console.warn('[playerProfile] Failed to read favorite players:', error);
+        return [];
+    }
+}
+
+function saveFavoritePlayers(entries, playFabId = getCurrentUserPlayFabId()) {
+    const storageKey = getFavoritePlayersStorageKey(playFabId);
+    if (!storageKey || typeof window === 'undefined' || !window.localStorage) return;
+    const normalized = (Array.isArray(entries) ? entries : [])
+        .map((entry) => normalizeFavoritePlayerEntry(entry))
+        .filter(Boolean)
+        .slice(0, MAX_FAVORITE_PLAYERS);
+    try {
+        window.localStorage.setItem(storageKey, JSON.stringify(normalized));
+    } catch (error) {
+        console.warn('[playerProfile] Failed to save favorite players:', error);
+    }
+}
+
+function isFavoritePlayer(targetPlayFabId, playFabId = getCurrentUserPlayFabId()) {
+    const targetId = String(targetPlayFabId || '').trim();
+    return !!targetId && loadFavoritePlayers(playFabId).some((entry) => entry.playFabId === targetId);
+}
+
+function addFavoritePlayer(profile, playFabId = getCurrentUserPlayFabId()) {
+    const nextEntry = normalizeFavoritePlayerEntry({
+        playFabId: profile?.playFabId,
+        displayName: profile?.displayName,
+        nation: profile?.nation,
+        updatedAt: Date.now()
+    });
+    if (!nextEntry) return false;
+    const nextEntries = loadFavoritePlayers(playFabId).filter((entry) => entry.playFabId !== nextEntry.playFabId);
+    nextEntries.unshift(nextEntry);
+    saveFavoritePlayers(nextEntries, playFabId);
+    return true;
+}
+
+function removeFavoritePlayer(targetPlayFabId, playFabId = getCurrentUserPlayFabId()) {
+    const targetId = String(targetPlayFabId || '').trim();
+    if (!targetId) return false;
+    const prevEntries = loadFavoritePlayers(playFabId);
+    const nextEntries = prevEntries.filter((entry) => entry.playFabId !== targetId);
+    if (nextEntries.length === prevEntries.length) return false;
+    saveFavoritePlayers(nextEntries, playFabId);
+    return true;
+}
+
+function syncFavoriteSnapshot(profile, playFabId = getCurrentUserPlayFabId()) {
+    const targetId = String(profile?.playFabId || '').trim();
+    if (!targetId) return false;
+    const nextEntries = loadFavoritePlayers(playFabId);
+    const index = nextEntries.findIndex((entry) => entry.playFabId === targetId);
+    if (index < 0) return false;
+    nextEntries[index] = {
+        ...nextEntries[index],
+        displayName: String(profile?.displayName || nextEntries[index].displayName || targetId).trim() || targetId,
+        nation: String(profile?.nation || nextEntries[index].nation || '').trim().toLowerCase(),
+        updatedAt: Date.now()
+    };
+    saveFavoritePlayers(nextEntries, playFabId);
+    return true;
+}
+
+function getFavoritePlayerMetaText(entry) {
+    const nationKey = String(entry?.nation || '').trim().toLowerCase();
+    return nationKey ? `${getNationLabel(nationKey) || nationKey}の国` : '所属国未設定';
+}
+
+export function refreshFavoritePlayersList() {
+    const { section, list, empty } = getFavoritePlayersElements();
+    if (!section || !list || !empty) return;
+    const playFabId = getCurrentUserPlayFabId();
+    if (!playFabId) {
+        section.hidden = true;
+        list.innerHTML = '';
+        empty.hidden = true;
+        return;
+    }
+    const entries = loadFavoritePlayers(playFabId);
+    section.hidden = false;
+    if (!entries.length) {
+        list.innerHTML = '';
+        empty.hidden = false;
+        return;
+    }
+    empty.hidden = true;
+    list.innerHTML = entries.map((entry) => `
+        <button type="button" class="favorite-player-card" data-player-playfab-id="${escapeHtml(entry.playFabId)}" title="プレイヤー情報を見る">
+            <span class="favorite-player-card-name">${escapeHtml(entry.displayName || entry.playFabId)}</span>
+            <span class="favorite-player-card-meta">${escapeHtml(getFavoritePlayerMetaText(entry))}</span>
+        </button>
+    `).join('');
 }
 
 function syncModalLockState() {
@@ -42,15 +189,142 @@ function showModal(modal) {
     syncModalLockState();
 }
 
+function setTransferPanelOpen(open) {
+    const { transferPanel, transferAmount } = getPlayerProfileModalElements();
+    if (!transferPanel) return;
+    transferPanel.hidden = !open;
+    if (!open && transferAmount) transferAmount.value = '0';
+}
+
+function updateProfileActionState() {
+    const {
+        transferButton,
+        favoriteButton,
+        copyIdButton
+    } = getPlayerProfileModalElements();
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    const loaded = !!(targetPlayFabId && activeProfile?.loaded);
+    const isSelf = !!(loaded && myPlayFabId && targetPlayFabId === myPlayFabId);
+    const favoriteActive = !!(loaded && !isSelf && isFavoritePlayer(targetPlayFabId, myPlayFabId));
+
+    if (transferButton) {
+        transferButton.disabled = !loaded || isSelf;
+        transferButton.textContent = isSelf ? '自分には送れない' : 'PS送金';
+    }
+    if (favoriteButton) {
+        favoriteButton.disabled = !loaded || isSelf;
+        favoriteButton.classList.toggle('is-active', favoriteActive);
+        favoriteButton.textContent = favoriteActive ? '★ お気に入り済み' : 'お気に入り';
+    }
+    if (copyIdButton) {
+        copyIdButton.disabled = !targetPlayFabId;
+    }
+    if (isSelf || !loaded) {
+        setTransferPanelOpen(false);
+    }
+}
+
 export function closePlayerProfileModal() {
     const { modal } = getPlayerProfileModalElements();
     if (!modal) return;
+    setTransferPanelOpen(false);
     modal.style.display = 'none';
     syncModalLockState();
 }
 
+async function copyText(text) {
+    const value = String(text || '').trim();
+    if (!value) return false;
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+}
+
+async function handleCopyProfileId() {
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    if (!targetPlayFabId) return;
+    try {
+        await copyText(targetPlayFabId);
+        showRpgMessage('PlayFab ID をコピーしました。', 2200);
+    } catch (error) {
+        showRpgMessage(`IDコピーに失敗しました: ${error?.message || error}`, 2600);
+    }
+}
+
+function handleFavoriteToggle() {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    if (!myPlayFabId || !targetPlayFabId || !activeProfile?.loaded || myPlayFabId === targetPlayFabId) return;
+    const exists = isFavoritePlayer(targetPlayFabId, myPlayFabId);
+    const changed = exists
+        ? removeFavoritePlayer(targetPlayFabId, myPlayFabId)
+        : addFavoritePlayer(activeProfile, myPlayFabId);
+    if (!changed) return;
+    updateProfileActionState();
+    refreshFavoritePlayersList();
+    showRpgMessage(exists ? 'お気に入りから外しました。' : 'お気に入りに追加しました。', 2200);
+}
+
+async function executeProfileTransfer(amount) {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    const targetName = String(activeProfile?.displayName || targetPlayFabId).trim() || targetPlayFabId;
+    const requestId = createRequestId('profile-transfer');
+    const data = await transferPoints(myPlayFabId, targetPlayFabId, amount, { requestId, throwOnError: true });
+    setTransferPanelOpen(false);
+    const bountyNote = data?.bountyShortage
+        ? ' 賞金は不足分を除いて移動しました。'
+        : '';
+    showRpgMessage(`${targetName} に ${amount}Ps 送りました。${bountyNote}`.trim(), 2600);
+    const Player = await import('./player.js');
+    await Player.getPoints(myPlayFabId);
+    await Player.getRanking();
+}
+
+async function handleProfileTransferSubmit() {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    const amountValue = Number.parseInt(String(getPlayerProfileModalElements().transferAmount?.value || '0'), 10);
+    if (!myPlayFabId || !targetPlayFabId || !activeProfile?.loaded) return;
+    if (targetPlayFabId === myPlayFabId) {
+        showRpgMessage('自分自身には送金できません。', 2200);
+        return;
+    }
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+        showRpgMessage('送金額を入力してください。', 2200);
+        return;
+    }
+    const targetName = String(activeProfile?.displayName || targetPlayFabId).trim() || targetPlayFabId;
+    const { showConfirmationModal } = await import('./ui.js');
+    showConfirmationModal(amountValue, targetPlayFabId, targetName, () => {
+        void executeProfileTransfer(amountValue).catch((error) => {
+            showRpgMessage(error?.message || '送金に失敗しました。', 2600);
+        });
+    });
+}
+
 function bindModalEvents() {
-    const { modal, close } = getPlayerProfileModalElements();
+    const {
+        modal,
+        close,
+        transferButton,
+        favoriteButton,
+        copyIdButton,
+        transferCancel,
+        transferSubmit
+    } = getPlayerProfileModalElements();
     if (close && !close.dataset.profileBound) {
         close.dataset.profileBound = 'true';
         close.addEventListener('click', () => closePlayerProfileModal());
@@ -59,6 +333,45 @@ function bindModalEvents() {
         modal.dataset.profileBound = 'true';
         modal.addEventListener('click', (event) => {
             if (event.target === modal) closePlayerProfileModal();
+        });
+    }
+    if (transferButton && !transferButton.dataset.profileBound) {
+        transferButton.dataset.profileBound = 'true';
+        transferButton.addEventListener('click', () => {
+            if (transferButton.disabled) return;
+            const panel = getPlayerProfileModalElements().transferPanel;
+            setTransferPanelOpen(!!panel?.hidden);
+        });
+    }
+    if (favoriteButton && !favoriteButton.dataset.profileBound) {
+        favoriteButton.dataset.profileBound = 'true';
+        favoriteButton.addEventListener('click', () => handleFavoriteToggle());
+    }
+    if (copyIdButton && !copyIdButton.dataset.profileBound) {
+        copyIdButton.dataset.profileBound = 'true';
+        copyIdButton.addEventListener('click', () => {
+            void handleCopyProfileId();
+        });
+    }
+    if (transferCancel && !transferCancel.dataset.profileBound) {
+        transferCancel.dataset.profileBound = 'true';
+        transferCancel.addEventListener('click', () => setTransferPanelOpen(false));
+    }
+    if (transferSubmit && !transferSubmit.dataset.profileBound) {
+        transferSubmit.dataset.profileBound = 'true';
+        transferSubmit.addEventListener('click', () => {
+            void handleProfileTransferSubmit();
+        });
+    }
+    if (modal && !modal.dataset.profileTransferQuickBound) {
+        modal.dataset.profileTransferQuickBound = 'true';
+        modal.addEventListener('click', (event) => {
+            const button = event.target?.closest?.('[data-profile-transfer-amount]');
+            if (!button) return;
+            const amount = Number.parseInt(String(button.dataset.profileTransferAmount || '0'), 10) || 0;
+            const { transferAmount } = getPlayerProfileModalElements();
+            if (!transferAmount) return;
+            transferAmount.value = String(Math.max(0, amount));
         });
     }
 }
@@ -80,13 +393,20 @@ function renderEquipmentRows(rows = []) {
 
 function renderProfile(profile = {}) {
     const { name, nation, meta } = getPlayerProfileModalElements();
-    if (name) name.textContent = String(profile.displayName || profile.playFabId || 'Player');
+    activeProfile = {
+        playFabId: String(profile.playFabId || '').trim(),
+        displayName: String(profile.displayName || profile.playFabId || 'Player'),
+        nation: String(profile.nation || '').trim().toLowerCase(),
+        loaded: true
+    };
+    if (name) name.textContent = activeProfile.displayName;
     if (nation) {
-        const nationKey = String(profile.nation || '').trim().toLowerCase();
-        nation.textContent = nationKey ? `所属: ${getNationLabel(nationKey) || nationKey}` : '所属: 不明';
+        nation.textContent = activeProfile.nation
+            ? `所属国: ${getNationLabel(activeProfile.nation) || activeProfile.nation}`
+            : '所属国: 未設定';
     }
     if (meta) {
-        meta.textContent = `ID: ${String(profile.playFabId || '').trim() || '-'}`;
+        meta.textContent = `ID: ${activeProfile.playFabId || '-'}`;
     }
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderAvatar(
@@ -96,16 +416,28 @@ function renderProfile(profile = {}) {
         profile.itemSource || {},
         false
     );
+    if (syncFavoriteSnapshot(activeProfile)) {
+        refreshFavoritePlayersList();
+    }
+    updateProfileActionState();
 }
 
 function renderLoadingState(targetPlayFabId = '') {
     const { name, nation, meta, equipment } = getPlayerProfileModalElements();
-    if (name) name.textContent = '読込中...';
+    activeProfile = {
+        playFabId: String(targetPlayFabId || '').trim(),
+        displayName: '',
+        nation: '',
+        loaded: false
+    };
+    if (name) name.textContent = '読み込み中...';
     if (nation) nation.textContent = '';
     if (meta) meta.textContent = targetPlayFabId ? `ID: ${targetPlayFabId}` : '';
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
+    setTransferPanelOpen(false);
+    updateProfileActionState();
 }
 
 function renderErrorState(message) {
@@ -114,6 +446,7 @@ function renderErrorState(message) {
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }
+    updateProfileActionState();
 }
 
 export async function openPlayerProfile(targetPlayFabId, options = {}) {
@@ -175,6 +508,7 @@ export function installPlayerProfileInteractions() {
     if (playerProfileInstalled || typeof document === 'undefined') return;
     playerProfileInstalled = true;
     bindModalEvents();
+    refreshFavoritePlayersList();
     document.addEventListener('click', (event) => {
         const trigger = event.target?.closest?.('[data-player-playfab-id]');
         if (!trigger) return;
@@ -193,4 +527,5 @@ export function installPlayerProfileInteractions() {
 if (typeof window !== 'undefined') {
     window.openPlayerProfile = openPlayerProfile;
     window.decoratePlayerTriggerElement = decoratePlayerTriggerElement;
+    window.refreshFavoritePlayersList = refreshFavoritePlayersList;
 }

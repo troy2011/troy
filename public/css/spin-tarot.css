@@ -1553,9 +1553,12 @@
         --spin-tarot-board-card-w: 48px;
         --spin-tarot-board-card-h: 76px;
         --spin-tarot-board-gap: 5px;
-        height: calc(100svh - 148px);
-        max-height: calc(100svh - 148px);
-        overflow: hidden;
+        --spin-tarot-mobile-action-offset: calc(env(safe-area-inset-bottom, 0px) + 8px);
+        --spin-tarot-mobile-action-space: calc(88px + env(safe-area-inset-bottom, 0px));
+        min-height: calc(100svh - 148px);
+        height: auto;
+        max-height: none;
+        overflow: visible;
     }
 
     .tarot-spin-root .spin-tarot-board-title {
@@ -1563,17 +1566,17 @@
     }
 
     .tarot-spin-root .spin-tarot-shell {
-        height: 100%;
-        max-height: 100%;
-        overflow: hidden;
-        padding: 6px 6px calc(88px + env(safe-area-inset-bottom, 0px));
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        padding: 6px 6px var(--spin-tarot-mobile-action-space);
         gap: 6px;
     }
 
     .tarot-spin-root .spin-tarot-viewport {
         min-height: 0;
-        height: 100%;
-        grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+        height: auto;
+        grid-template-rows: auto auto auto auto auto auto;
         align-content: start;
     }
 
@@ -1581,7 +1584,7 @@
         gap: 6px;
         padding: 7px;
         min-height: 0;
-        grid-template-rows: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
     }
 
     .tarot-spin-root .spin-tarot-monitor-screen {
@@ -1684,7 +1687,7 @@
     .tarot-spin-root .spin-tarot-action-row {
         position: fixed;
         left: 50%;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+        bottom: var(--spin-tarot-mobile-action-offset);
         transform: translateX(-50%);
         width: min(480px, calc(100vw - 16px));
         z-index: 30;
@@ -1711,7 +1714,7 @@
         position: fixed;
         left: 8px;
         right: 8px;
-        bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(var(--spin-tarot-mobile-action-offset) + 68px);
         z-index: 26;
         max-height: 44svh;
         overflow: auto;
@@ -1724,8 +1727,9 @@
         --spin-tarot-board-card-w: 44px;
         --spin-tarot-board-card-h: 70px;
         --spin-tarot-board-gap: 4px;
-        height: calc(100svh - 138px);
-        max-height: calc(100svh - 138px);
+        min-height: calc(100svh - 138px);
+        height: auto;
+        max-height: none;
     }
 
     .tarot-spin-root .spin-tarot-board-wrap {

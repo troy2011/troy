@@ -150,6 +150,14 @@
                         </div>
                         <button id="btnLineFriendPromoAction" class="line-friend-promo-btn" type="button">確認</button>
                     </div>
+                    <div id="favoritePlayersSection" class="favorite-players-section" hidden>
+                        <div class="favorite-players-head">
+                            <div class="favorite-players-title">お気に入りプレイヤー</div>
+                            <div class="favorite-players-sub">タップでプロフィールを開けます</div>
+                        </div>
+                        <div id="favoritePlayersList" class="favorite-players-list"></div>
+                        <div id="favoritePlayersEmpty" class="favorite-players-empty">お気に入りしたプレイヤーがここに表示されます。</div>
+                    </div>
                     <p class="home-card-note">交流、順位、招待はホームから開けます。</p>
                 </div>
             </div>
@@ -1146,6 +1154,28 @@
                     <h3 id="playerProfileName">プレイヤー</h3>
                     <p id="playerProfileNation"></p>
                     <p id="playerProfileMeta"></p>
+                </div>
+            </div>
+            <div class="player-profile-actions">
+                <button id="btnPlayerProfileTransfer" type="button" class="player-profile-action-btn">PS送金</button>
+                <button id="btnPlayerProfileFavorite" type="button" class="player-profile-action-btn">お気に入り</button>
+                <button id="btnPlayerProfileCopyId" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">IDコピー</button>
+            </div>
+            <div id="playerProfileTransferPanel" class="player-profile-transfer-panel" hidden>
+                <div class="player-profile-transfer-title">このプレイヤーに PS を送る</div>
+                <div class="player-profile-transfer-quick-row">
+                    <button type="button" class="player-profile-transfer-quick-btn" data-profile-transfer-amount="100">100</button>
+                    <button type="button" class="player-profile-transfer-quick-btn" data-profile-transfer-amount="500">500</button>
+                    <button type="button" class="player-profile-transfer-quick-btn" data-profile-transfer-amount="1000">1000</button>
+                    <button type="button" class="player-profile-transfer-quick-btn reset" data-profile-transfer-amount="0">0</button>
+                </div>
+                <div class="player-profile-transfer-input-row">
+                    <input id="playerProfileTransferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="手入力" value="0" />
+                    <span>PS</span>
+                </div>
+                <div class="player-profile-transfer-actions">
+                    <button id="btnPlayerProfileTransferSubmit" type="button" class="player-profile-transfer-submit">送金する</button>
+                    <button id="btnPlayerProfileTransferCancel" type="button" class="player-profile-transfer-cancel">閉じる</button>
                 </div>
             </div>
             <div id="playerProfileEquipment" class="player-profile-equipment"></div>

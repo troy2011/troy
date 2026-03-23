@@ -108,7 +108,7 @@ async function ensureStylesheet() {
     const link = document.createElement('link');
     link.id = STYLE_ID;
     link.rel = 'stylesheet';
-    link.href = './css/spin-tarot.css?v=20260323b';
+    link.href = './css/spin-tarot.css?v=20260323c';
     document.head.appendChild(link);
     await new Promise((resolve) => {
         link.addEventListener('load', resolve, { once: true });

@@ -573,6 +573,80 @@ body[data-sea-tone="night"] .home-hero-card {
     opacity: 0.62;
 }
 
+.favorite-players-section {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(180deg, rgba(10, 17, 31, 0.88), rgba(15, 23, 42, 0.94));
+}
+
+.favorite-players-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin-bottom: 10px;
+}
+
+.favorite-players-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: #f8fafc;
+}
+
+.favorite-players-sub {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.favorite-players-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.favorite-player-card {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    min-height: 72px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.98));
+    color: #f8fafc;
+    text-align: left;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.favorite-player-card:hover {
+    border-color: rgba(245, 158, 11, 0.34);
+}
+
+.favorite-player-card-name {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.favorite-player-card-meta {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.favorite-players-empty {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px dashed rgba(148, 163, 184, 0.2);
+    background: rgba(8, 15, 29, 0.34);
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
 .home-shortcut-main {
     font-size: 14px;
     font-weight: 800;
@@ -9597,6 +9671,128 @@ textarea {
     word-break: break-all;
 }
 
+.player-profile-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.player-profile-action-btn {
+    min-height: 42px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    background: linear-gradient(180deg, rgba(180, 83, 9, 0.92), rgba(120, 53, 15, 0.98));
+    color: #fff7ed;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.player-profile-action-btn.player-profile-action-btn-secondary {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.98));
+    color: #e2e8f0;
+}
+
+.player-profile-action-btn.is-active {
+    border-color: rgba(250, 204, 21, 0.5);
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.14), 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.player-profile-action-btn[disabled] {
+    opacity: 0.56;
+}
+
+.player-profile-transfer-panel {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(8, 15, 29, 0.62);
+}
+
+.player-profile-transfer-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.player-profile-transfer-quick-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.player-profile-transfer-quick-btn {
+    min-height: 34px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.78);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.player-profile-transfer-quick-btn.reset {
+    color: #94a3b8;
+}
+
+.player-profile-transfer-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.player-profile-transfer-input-row input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: #f8fafc;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.player-profile-transfer-input-row span {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.player-profile-transfer-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.player-profile-transfer-submit,
+.player-profile-transfer-cancel {
+    min-height: 40px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.player-profile-transfer-submit {
+    border: 1px solid rgba(125, 211, 252, 0.34);
+    background: linear-gradient(180deg, rgba(14, 165, 233, 0.92), rgba(2, 132, 199, 0.96));
+    color: #eff6ff;
+}
+
+.player-profile-transfer-cancel {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.82);
+    color: #cbd5e1;
+}
+
 .player-profile-equipment {
     display: grid;
     gap: 10px;
@@ -10692,6 +10888,11 @@ textarea {
     --tarot-mobile-shell-bg:
         linear-gradient(180deg, rgba(9, 14, 24, 0.98), rgba(17, 24, 39, 1)),
         radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.12), transparent 42%);
+}
+
+#tabContentTarot #tarotSpinRoot.tarot-spin-root {
+    --spin-tarot-mobile-action-offset: calc(var(--nav-height) + var(--safe-bottom) + 8px);
+    --spin-tarot-mobile-action-space: calc(var(--nav-height) + var(--safe-bottom) + 88px);
 }
 
 #tabContentTarot .content-area {
@@ -11863,6 +12064,10 @@ textarea {
 }
 
 @media (max-width: 640px) {
+    .favorite-players-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .player-profile-head {
         grid-template-columns: minmax(0, 1fr);
         justify-items: center;
@@ -11872,6 +12077,18 @@ textarea {
     .player-profile-avatar-shell {
         width: 100%;
         max-width: 200px;
+    }
+
+    .player-profile-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #btnPlayerProfileCopyId {
+        grid-column: 1 / -1;
+    }
+
+    .player-profile-transfer-actions {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .player-profile-equip-row {
