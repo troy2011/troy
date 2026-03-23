@@ -68,6 +68,21 @@ async function verifyLineAccessToken(lineAccessToken) {
     };
 }
 
+async function verifyLineFriendshipStatus(lineAccessToken) {
+    const accessToken = String(lineAccessToken || '').trim();
+    if (!accessToken) {
+        throw new Error('LineAccessTokenRequired');
+    }
+    const status = await requestJson('https://api.line.me/friendship/v1/status', {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    });
+    return {
+        friendFlag: status?.friendFlag === true
+    };
+}
+
 function buildAuthHelpers({ admin }) {
     async function verifyFirebaseIdToken(req) {
         const idToken = readAuthorizationBearerToken(req);
@@ -113,6 +128,7 @@ function buildAuthHelpers({ admin }) {
     return {
         normalizePlayFabId,
         verifyLineAccessToken,
+        verifyLineFriendshipStatus,
         verifyFirebaseIdToken,
         requireAuthenticatedPlayFabId
     };
@@ -121,5 +137,6 @@ function buildAuthHelpers({ admin }) {
 module.exports = {
     normalizePlayFabId,
     verifyLineAccessToken,
+    verifyLineFriendshipStatus,
     buildAuthHelpers
 };

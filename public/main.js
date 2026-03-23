@@ -38,6 +38,9 @@ let lastTransferNoticeId = null;
 window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
+let pendingAppInviteToken = '';
+let pendingAppInviteInfo = null;
+let lineFriendPromoState = null;
 const TAROT_MODULE_VERSION = '20260323a';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',
@@ -52,6 +55,13 @@ const LIFF_CALLBACK_PARAM_KEYS = [
     'id_token'
 ];
 const LIFF_AUTH_RETRY_SESSION_KEY = 'troy:liff-auth-code-retry';
+const NATION_LABEL_BY_KEY = {
+    fire: '火',
+    water: '水',
+    wind: '風',
+    earth: '地'
+};
+const LINE_FRIEND_BONUS_STORAGE_KEY = 'troy:line-friend-bonus-claimed';
 
 installPlayerProfileInteractions();
 
@@ -184,6 +194,261 @@ function getAvatarColorForNation(nation) {
     return AVATAR_COLOR_BY_NATION[key] || null;
 }
 
+function getNationLabel(nation) {
+    const key = String(nation || '').toLowerCase();
+    return NATION_LABEL_BY_KEY[key] || key || '不明';
+}
+
+function normalizeInviteToken(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
+}
+
+function removeInviteTokenFromUrl() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('invite')) return;
+    url.searchParams.delete('invite');
+    window.history.replaceState({}, document.title, url.href);
+}
+
+function syncPendingAppInviteTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search || '');
+    pendingAppInviteToken = normalizeInviteToken(params.get('invite'));
+    window.__pendingAppInviteToken = pendingAppInviteToken;
+    if (!pendingAppInviteToken) {
+        pendingAppInviteInfo = null;
+    }
+    return pendingAppInviteToken;
+}
+
+function clearPendingAppInviteState({ removeFromUrl = false } = {}) {
+    pendingAppInviteToken = '';
+    pendingAppInviteInfo = null;
+    window.__pendingAppInviteToken = '';
+    if (removeFromUrl) {
+        removeInviteTokenFromUrl();
+    }
+}
+
+async function getPendingAppInviteInfo(force = false) {
+    const token = pendingAppInviteToken || syncPendingAppInviteTokenFromUrl();
+    if (!token) return null;
+    if (!force && pendingAppInviteInfo?.token === token) {
+        return pendingAppInviteInfo.valid ? pendingAppInviteInfo : null;
+    }
+    const info = await callApiWithLoader('/api/get-app-invite-info', {
+        inviteToken: token
+    }, { isSilent: true });
+    if (!info?.valid) {
+        pendingAppInviteInfo = { token, valid: false };
+        return null;
+    }
+    pendingAppInviteInfo = {
+        token,
+        valid: true,
+        inviterDisplayName: info.inviterDisplayName || '招待プレイヤー',
+        inviterPlayFabId: info.inviterPlayFabId || '',
+        nation: String(info.nation || '').toLowerCase(),
+        expiresAtMs: Number(info.expiresAtMs || 0) || 0
+    };
+    return pendingAppInviteInfo;
+}
+
+async function updateRaceInviteMessage() {
+    const inviteEl = document.getElementById('raceInviteMessage');
+    if (!inviteEl) return;
+    const inviteInfo = await getPendingAppInviteInfo();
+    if (!inviteInfo?.valid) {
+        inviteEl.style.display = 'none';
+        inviteEl.innerText = '';
+        return;
+    }
+    const inviterName = inviteInfo.inviterDisplayName || '招待プレイヤー';
+    inviteEl.innerText = `${inviterName} の招待により、所属国は「${getNationLabel(inviteInfo.nation)}の国」に固定されます。種族だけ選んでください。`;
+    inviteEl.style.display = 'block';
+}
+
+async function copyTextToClipboard(text) {
+    const value = String(text || '');
+    if (!value) throw new Error('コピーする内容がありません');
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+}
+
+async function createAndCopyInviteLink() {
+    if (!myPlayFabId) throw new Error('PlayFabId が未初期化です');
+    const data = await callApiWithLoader('/api/create-app-invite', {
+        playFabId: myPlayFabId
+    }, { throwOnError: true });
+    const inviteUrl = String(data?.inviteUrl || '').trim();
+    if (!inviteUrl) throw new Error('招待URLの生成に失敗しました');
+    await copyTextToClipboard(inviteUrl);
+    showRpgMessage(`招待URLをコピーしました。相手は ${getNationLabel(data?.nation)}の国 で開始します。`, 2600);
+}
+
+function getStoredLineFriendClaimMarker() {
+    try {
+        return String(window.localStorage.getItem(LINE_FRIEND_BONUS_STORAGE_KEY) || '').trim();
+    } catch (_) {
+        return '';
+    }
+}
+
+function setStoredLineFriendClaimMarker(value) {
+    try {
+        if (!value) {
+            window.localStorage.removeItem(LINE_FRIEND_BONUS_STORAGE_KEY);
+            return;
+        }
+        window.localStorage.setItem(LINE_FRIEND_BONUS_STORAGE_KEY, String(value));
+    } catch (_) {
+    }
+}
+
+async function fetchLineFriendBonusStatus() {
+    if (!myPlayFabId) return null;
+    return callApiWithLoader('/api/get-line-friend-bonus-status', {
+        playFabId: myPlayFabId
+    }, { isSilent: true });
+}
+
+async function getLiffFriendshipFlag() {
+    if (typeof liff === 'undefined' || typeof liff.getFriendship !== 'function') {
+        return null;
+    }
+    try {
+        const friendship = await liff.getFriendship();
+        return friendship?.friendFlag === true;
+    } catch (error) {
+        console.warn('[line-friend] Failed to get LIFF friendship:', error);
+        return null;
+    }
+}
+
+function renderLineFriendPromo(state) {
+    lineFriendPromoState = state || null;
+    const card = document.getElementById('lineFriendPromo');
+    const title = document.getElementById('lineFriendPromoTitle');
+    const text = document.getElementById('lineFriendPromoText');
+    const button = document.getElementById('btnLineFriendPromoAction');
+    if (!card || !title || !text || !button) return;
+
+    if (!state || !state.eligible) {
+        card.hidden = true;
+        button.disabled = false;
+        button.dataset.action = '';
+        return;
+    }
+
+    card.hidden = false;
+    button.disabled = false;
+    if (state.claimed) {
+        title.textContent = 'LINE公式アカウント';
+        text.textContent = `友だち追加特典は受け取り済みです。${state.claimedAmount || state.rewardAmount || 0} Ps を受け取りました。`;
+        button.textContent = '受け取り済み';
+        button.disabled = true;
+        button.dataset.action = 'claimed';
+        return;
+    }
+
+    if (state.friendFlag === true) {
+        title.textContent = 'LINE公式アカウント';
+        text.textContent = `友だち追加を確認しました。${state.rewardAmount || 0} Ps の特典を受け取れます。`;
+        button.textContent = '特典を受け取る';
+        button.disabled = false;
+        button.dataset.action = 'claim';
+        return;
+    }
+
+    title.textContent = 'LINE公式アカウント';
+    if (state.addFriendUrl) {
+        text.textContent = `${state.rewardAmount || 0} Ps の特典があります。友だち追加後にここで受け取れます。`;
+        button.textContent = '友だち追加';
+        button.disabled = false;
+        button.dataset.action = 'friend';
+        return;
+    }
+    text.textContent = `${state.rewardAmount || 0} Ps の特典があります。現在は友だち追加URLが未設定です。`;
+    button.textContent = '準備中';
+    button.disabled = true;
+    button.dataset.action = 'friend-pending';
+}
+
+async function refreshLineFriendPromo() {
+    const status = await fetchLineFriendBonusStatus();
+    if (!status?.eligible) {
+        renderLineFriendPromo(null);
+        return;
+    }
+    const friendFlag = await getLiffFriendshipFlag();
+    const claimedMarker = getStoredLineFriendClaimMarker();
+    const nextState = {
+        ...status,
+        friendFlag,
+        claimed: !!status.claimed || (!!claimedMarker && claimedMarker === String(status.claimedAt || claimedMarker))
+    };
+    nextState.claimedAmount = status.claimedAmount || status.rewardAmount || 0;
+    renderLineFriendPromo(nextState);
+}
+
+async function claimLineFriendBonus() {
+    const accessToken = typeof liff?.getAccessToken === 'function' ? String(liff.getAccessToken() || '').trim() : '';
+    if (!accessToken) {
+        throw new Error('LINEアクセストークンを取得できませんでした');
+    }
+    const result = await callApiWithLoader('/api/claim-line-friend-bonus', {
+        playFabId: myPlayFabId,
+        lineAccessToken: accessToken
+    }, { throwOnError: true });
+    if (result?.claimedAt) {
+        setStoredLineFriendClaimMarker(result.claimedAt);
+    }
+    if (Number.isFinite(result?.newBalance)) {
+        Player.syncPointsDisplay(result.newBalance);
+    } else {
+        await Player.getPoints(myPlayFabId);
+    }
+    await refreshLineFriendPromo();
+    showRpgMessage(`${result?.rewardAmount || 0} Ps を受け取りました。`, 2600);
+}
+
+function openLineFriendUrl() {
+    const url = String(lineFriendPromoState?.addFriendUrl || '').trim();
+    if (!url) {
+        throw new Error('友だち追加URLが未設定です');
+    }
+    if (typeof liff !== 'undefined' && typeof liff.openWindow === 'function') {
+        liff.openWindow({ url, external: true });
+        return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function handleLineFriendPromoAction() {
+    const action = String(document.getElementById('btnLineFriendPromoAction')?.dataset.action || '');
+    if (!action || action === 'claimed') return;
+    if (action === 'friend') {
+        openLineFriendUrl();
+        showRpgMessage('友だち追加後、もう一度このボタンを押してください。', 2600);
+        return;
+    }
+    if (action === 'claim') {
+        await claimLineFriendBonus();
+    }
+}
+
 function buildCleanLiffUrl() {
     const url = new URL(window.location.href);
     let changed = false;
@@ -248,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     updateSeaToneByTime();
     initPwaShell();
+    syncPendingAppInviteTokenFromUrl();
     setInterval(updateSeaToneByTime, 15 * 60 * 1000);
     initializeLiff();
 });
@@ -352,6 +618,7 @@ async function initializeLiff() {
                     document.getElementById('appWrapper').style.display = 'block';
                     showRaceModal();
                 } else {
+                    clearPendingAppInviteState({ removeFromUrl: true });
                     await initializeAppFeatures();
                     __perfLog('initializeAppFeatures done');
                     document.getElementById('appWrapper').style.display = 'block';
@@ -400,7 +667,11 @@ async function initializeLiff() {
             });
         } else {
             console.warn("Firebase token not provided. Running in limited mode.");
-            if (loginData.needsRaceSelection) showRaceModal();
+            if (loginData.needsRaceSelection) {
+                showRaceModal();
+            } else {
+                clearPendingAppInviteState({ removeFromUrl: true });
+            }
             document.getElementById('appWrapper').style.display = 'block';
         }
 
@@ -437,6 +708,22 @@ async function initializeAppFeatures() {
         if (result?.message) showRpgMessage(result.message, 2200);
     });
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
+    document.getElementById('btnCopyInviteLink').addEventListener('click', async () => {
+        try {
+            await createAndCopyInviteLink();
+        } catch (error) {
+            console.error('[invite] Failed to create invite link:', error);
+            showRpgMessage(`招待URLを作れませんでした: ${error?.message || error}`, 2600);
+        }
+    });
+    document.getElementById('btnLineFriendPromoAction').addEventListener('click', async () => {
+        try {
+            await handleLineFriendPromoAction();
+        } catch (error) {
+            console.error('[line-friend] Promo action failed:', error);
+            showRpgMessage(`LINE特典を処理できませんでした: ${error?.message || error}`, 2600);
+        }
+    });
     document.querySelectorAll('.transfer-quick-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             const amount = Number(btn.dataset.amount || 0);
@@ -573,6 +860,12 @@ async function initializeAppFeatures() {
     } catch (e) {
         console.warn('[initializeAppFeatures] One or more initialization tasks failed:', e);
     }
+    await refreshLineFriendPromo();
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            void refreshLineFriendPromo();
+        }
+    });
 
     if (typeof window !== 'undefined' && typeof window.initializeBattleSystem === 'function') {
         window.initializeBattleSystem({
@@ -669,16 +962,21 @@ function showRaceModal() {
     if (nameInput) {
         nameInput.value = window.myLineProfile?.displayName || '';
     }
+    void updateRaceInviteMessage();
 
     const handleRaceSelection = async (event) => {
         if (event.target.tagName !== 'BUTTON') return;
-        const raceButtonsContainer = document.getElementById('raceModal').querySelector('div[style*="grid"]');
+        const raceButtonsContainer = document.getElementById('raceButtons');
         raceButtonsContainer.removeEventListener('click', handleRaceSelection);
 
         const raceName = event.target.dataset.race;
         const raceMessageEl = document.getElementById('raceMessage');
-        if (raceMessageEl) raceMessageEl.innerText = '（国グループを準備中...）';
-        const groupInfo = await ensureNationGroupForRace(raceName);
+        const inviteInfo = await getPendingAppInviteInfo();
+        let groupInfo = { created: false };
+        if (raceMessageEl) raceMessageEl.innerText = inviteInfo?.valid ? '（招待された国へ所属を設定中...）' : '（国グループを準備中...）';
+        if (!inviteInfo?.valid) {
+            groupInfo = await ensureNationGroupForRace(raceName);
+        }
         if (raceMessageEl) raceMessageEl.innerText = '（初期ステータスを設定中...）';
         const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
         if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
@@ -689,11 +987,13 @@ function showRaceModal() {
             isKing: !!groupInfo.created,
             entityKey,
             entityToken: window.myEntityToken,
-            displayName: displayName || window.myLineProfile?.displayName || ''
+            displayName: displayName || window.myLineProfile?.displayName || '',
+            inviteToken: inviteInfo?.valid ? pendingAppInviteToken : ''
         });
         if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
         if (data !== null) {
             document.getElementById('raceModal').style.display = 'none';
+            clearPendingAppInviteState({ removeFromUrl: true });
             if (displayName) {
                 document.getElementById('globalPlayerName').innerText = displayName;
             }
@@ -761,7 +1061,7 @@ function showRaceModal() {
         }
     };
 
-    const raceButtonsContainer = document.getElementById('raceModal').querySelector('div[style*="grid"]');
+    const raceButtonsContainer = document.getElementById('raceButtons');
     if (!raceSelectionBound) {
         raceSelectionBound = true;
         raceButtonsContainer.addEventListener('click', async (event) => {

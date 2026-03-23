@@ -138,8 +138,19 @@
                             <span class="home-shortcut-main">順位を見る</span>
                             <span class="home-shortcut-sub">PS / 貢献 / 国庫</span>
                         </button>
+                        <button id="btnCopyInviteLink" class="home-shortcut-btn home-shortcut-btn-secondary" type="button">
+                            <span class="home-shortcut-main">招待URLをコピー</span>
+                            <span class="home-shortcut-sub">招待相手はあなたと同じ国で開始</span>
+                        </button>
                     </div>
-                    <p class="home-card-note">交流と順位はホームから開けます。</p>
+                    <div id="lineFriendPromo" class="line-friend-promo" hidden>
+                        <div class="line-friend-promo-copy">
+                            <div id="lineFriendPromoTitle" class="line-friend-promo-title">LINE公式アカウント</div>
+                            <div id="lineFriendPromoText" class="line-friend-promo-text">友だち追加で特典があります。</div>
+                        </div>
+                        <button id="btnLineFriendPromoAction" class="line-friend-promo-btn" type="button">確認</button>
+                    </div>
+                    <p class="home-card-note">交流、順位、招待はホームから開けます。</p>
                 </div>
             </div>
 
@@ -1258,6 +1269,7 @@
         <div class="modal-content">
             <h2>種族選択</h2>
             <p style="font-size:12px; color:var(--text-sub);">一度選ぶと変更できません</p>
+            <p id="raceInviteMessage" style="display:none; margin-top:10px; padding:10px 12px; border-radius:10px; background:rgba(14,165,233,0.12); border:1px solid rgba(14,165,233,0.3); color:#bfdbfe; font-size:12px; line-height:1.5;"></p>
             <div style="margin-top:16px;">
                 <label style="display:block; font-size:12px; color:var(--text-sub); margin-bottom:6px;">名前</label>
                 <input type="text" id="raceDisplayNameInput" placeholder="名前を入力" maxlength="30" style="width:100%; padding:10px; border-radius:6px; border:1px solid var(--border-color); background:#374151; color:#fff; font-size:14px;">
@@ -1406,6 +1418,6 @@
 
     <!-- Scripts -->
     <script src="battle-client.js"></script>
-    <script type="module" src="main.js?v=20260323b"></script>
+    <script type="module" src="main.js?v=20260323d"></script>
 </body>
 </html>

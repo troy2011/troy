@@ -5,6 +5,7 @@ const express = require('express');
 const app = express();
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
@@ -44,6 +45,8 @@ const shipRoutes = require('./server/routes/shipRoutes');
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
+const LINE_FRIEND_BONUS_PS = Math.max(0, Math.floor(Number(process.env.LINE_FRIEND_BONUS_PS || 100) || 0));
+const LINE_OFFICIAL_ADD_FRIEND_URL = String(process.env.LINE_OFFICIAL_ADD_FRIEND_URL || '').trim();
 const LEADERBOARD_NAME = economy.LEADERBOARD_NAME;
 const BATTLE_REWARD_POINTS = Number(process.env.BATTLE_REWARD_POINTS || 10);
 const GACHA_CATALOG_VERSION = inventory.GACHA_CATALOG_VERSION;
@@ -55,6 +58,8 @@ const NATION_EMOJI_BY_NATION = {
     neutral: '🏴'
 };
 const NATION_KING_LINE_USER_IDS_KEY = 'NationKingLineUserIds';
+const APP_INVITE_COLLECTION = 'app_invites';
+const APP_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Firebase Admin SDK 初期化
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -75,6 +80,7 @@ const firestore = admin.firestore();
 const authHelpers = buildAuthHelpers({ admin });
 const {
     verifyLineAccessToken,
+    verifyLineFriendshipStatus,
     requireAuthenticatedPlayFabId
 } = authHelpers;
 
@@ -129,6 +135,78 @@ async function getPlayerDisplayName(playFabId) {
 
 function getTroyRoomDoc(groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
+}
+
+function normalizeInviteToken(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
+}
+
+function getAppInviteDoc(inviteToken) {
+    return firestore.collection(APP_INVITE_COLLECTION).doc(inviteToken);
+}
+
+async function readAppInviteRecord(inviteToken) {
+    const token = normalizeInviteToken(inviteToken);
+    if (!token) return null;
+    const snap = await getAppInviteDoc(token).get();
+    if (!snap.exists) return null;
+    const data = snap.data() || {};
+    return {
+        token,
+        ref: snap.ref,
+        inviterPlayFabId: String(data.inviterPlayFabId || '').trim(),
+        inviterNation: String(data.inviterNation || '').trim().toLowerCase(),
+        inviterDisplayName: String(data.inviterDisplayName || '').trim(),
+        createdAtMs: Number(data.createdAtMs || 0) || 0,
+        expiresAtMs: Number(data.expiresAtMs || 0) || 0,
+        useCount: Number(data.useCount || 0) || 0,
+        revoked: data.revoked === true
+    };
+}
+
+function isAppInviteActive(record, nowMs = Date.now()) {
+    if (!record || record.revoked) return false;
+    if (!record.inviterPlayFabId) return false;
+    if (record.expiresAtMs && record.expiresAtMs < nowMs) return false;
+    return true;
+}
+
+async function resolveAppInviteAssignment(inviteToken) {
+    const record = await readAppInviteRecord(inviteToken);
+    if (!isAppInviteActive(record)) return null;
+
+    let inviterNation = record.inviterNation || '';
+    if (record.inviterPlayFabId) {
+        try {
+            const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: record.inviterPlayFabId,
+                Keys: ['Nation']
+            });
+            inviterNation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase() || inviterNation;
+        } catch (error) {
+            console.warn('[app-invite] Failed to refresh inviter nation:', error?.errorMessage || error?.message || error);
+        }
+    }
+
+    const mapping = nation.getNationMappingByNation(inviterNation);
+    if (!mapping) return null;
+
+    let inviterDisplayName = record.inviterDisplayName || '';
+    if (!inviterDisplayName && record.inviterPlayFabId) {
+        inviterDisplayName = await getPlayerDisplayName(record.inviterPlayFabId);
+    }
+
+    return {
+        token: record.token,
+        recordRef: record.ref,
+        inviterPlayFabId: record.inviterPlayFabId,
+        inviterDisplayName,
+        nation: mapping.island,
+        mapping,
+        expiresAtMs: record.expiresAtMs
+    };
 }
 
 // LINE Webhook (Message)
@@ -1271,9 +1349,173 @@ app.post('/api/login-playfab', async (req, res) => {
     }
 });
 
+app.post('/api/get-app-invite-info', async (req, res) => {
+    const inviteToken = normalizeInviteToken(req.body?.inviteToken);
+    if (!inviteToken) return res.status(400).json({ error: 'inviteToken is required', valid: false });
+
+    try {
+        const invite = await resolveAppInviteAssignment(inviteToken);
+        if (!invite) {
+            return res.status(404).json({ error: 'InviteNotFound', valid: false });
+        }
+        return res.json({
+            valid: true,
+            inviterDisplayName: invite.inviterDisplayName || '招待プレイヤー',
+            inviterPlayFabId: invite.inviterPlayFabId,
+            nation: invite.nation,
+            expiresAtMs: invite.expiresAtMs
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[get-app-invite-info] Error:', message);
+        return res.status(500).json({ error: 'Failed to resolve invite', details: message, valid: false });
+    }
+});
+
+app.post('/api/get-line-friend-bonus-status', async (req, res) => {
+    const { playFabId } = req.body || {};
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+    if (!authenticatedPlayFabId) return;
+
+    try {
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Keys: ['LineFriendBonusClaimedAt', 'LineFriendBonusAmount', 'lineUserId']
+        });
+        const claimedAt = String(readOnly?.Data?.LineFriendBonusClaimedAt?.Value || '').trim();
+        const claimedAmount = Math.max(0, Math.floor(Number(readOnly?.Data?.LineFriendBonusAmount?.Value || 0) || 0));
+        const linkedLineUserId = String(readOnly?.Data?.lineUserId?.Value || '').trim();
+        return res.json({
+            eligible: !!linkedLineUserId && LINE_FRIEND_BONUS_PS > 0,
+            linkedLineUserId: !!linkedLineUserId,
+            rewardAmount: LINE_FRIEND_BONUS_PS,
+            claimed: !!claimedAt,
+            claimedAt: claimedAt || '',
+            claimedAmount,
+            addFriendUrl: LINE_OFFICIAL_ADD_FRIEND_URL
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[get-line-friend-bonus-status] Error:', message);
+        return res.status(500).json({ error: 'Failed to get line friend bonus status', details: message });
+    }
+});
+
+app.post('/api/claim-line-friend-bonus', async (req, res) => {
+    const { playFabId, lineAccessToken } = req.body || {};
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+    if (!authenticatedPlayFabId) return;
+    if (!LINE_FRIEND_BONUS_PS) {
+        return res.status(400).json({ error: 'LineFriendBonusDisabled' });
+    }
+
+    try {
+        const lineProfile = await verifyLineAccessToken(lineAccessToken);
+        const friendship = await verifyLineFriendshipStatus(lineAccessToken);
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Keys: ['lineUserId', 'LineFriendBonusClaimedAt', 'LineFriendBonusAmount']
+        });
+        const linkedLineUserId = String(readOnly?.Data?.lineUserId?.Value || '').trim();
+        if (!linkedLineUserId || linkedLineUserId !== lineProfile.userId) {
+            return res.status(403).json({ error: 'LineUserMismatch' });
+        }
+        const alreadyClaimedAt = String(readOnly?.Data?.LineFriendBonusClaimedAt?.Value || '').trim();
+        const alreadyClaimedAmount = Math.max(0, Math.floor(Number(readOnly?.Data?.LineFriendBonusAmount?.Value || 0) || 0));
+        if (alreadyClaimedAt) {
+            return res.json({
+                claimed: true,
+                alreadyClaimed: true,
+                rewardAmount: alreadyClaimedAmount || LINE_FRIEND_BONUS_PS,
+                claimedAt: alreadyClaimedAt
+            });
+        }
+        if (!friendship.friendFlag) {
+            return res.status(409).json({ error: 'LineFriendshipRequired' });
+        }
+
+        const grantDeps = createDependencies();
+        await grantDeps.addEconomyItem(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, LINE_FRIEND_BONUS_PS, {
+            idempotencyId: `line-friend-bonus:${authenticatedPlayFabId}`
+        });
+        const claimedAt = String(Date.now());
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Data: {
+                LineFriendBonusClaimedAt: claimedAt,
+                LineFriendBonusAmount: String(LINE_FRIEND_BONUS_PS)
+            }
+        });
+        const newBalance = await economy.getCurrencyBalance(authenticatedPlayFabId, VIRTUAL_CURRENCY_CODE, {
+            promisifyPlayFab,
+            PlayFabEconomy,
+            getEntityKeyFromPlayFabId,
+            catalogCache,
+            catalogCurrencyMap
+        });
+        return res.json({
+            claimed: true,
+            rewardAmount: LINE_FRIEND_BONUS_PS,
+            claimedAt,
+            newBalance
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[claim-line-friend-bonus] Error:', message);
+        return res.status(500).json({ error: 'Failed to claim line friend bonus', details: message });
+    }
+});
+
+app.post('/api/create-app-invite', async (req, res) => {
+    const { playFabId } = req.body || {};
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+    if (!authenticatedPlayFabId) return;
+
+    try {
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Keys: ['Nation']
+        });
+        const inviterNation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        const mapping = nation.getNationMappingByNation(inviterNation);
+        if (!mapping) {
+            return res.status(400).json({ error: 'NationNotSet', details: '所属国が未設定のため招待できません。' });
+        }
+
+        const inviterDisplayName = await getPlayerDisplayName(authenticatedPlayFabId);
+        const inviteToken = String(typeof randomUUID === 'function' ? randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`).replace(/-/g, '');
+        const nowMs = Date.now();
+        const expiresAtMs = nowMs + APP_INVITE_TTL_MS;
+        await getAppInviteDoc(inviteToken).set({
+            inviterPlayFabId: authenticatedPlayFabId,
+            inviterNation,
+            inviterDisplayName,
+            createdAtMs: nowMs,
+            expiresAtMs,
+            useCount: 0,
+            revoked: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: false });
+
+        const baseUrl = getPublicBaseUrl(req);
+        const inviteUrl = `${baseUrl || ''}/?invite=${encodeURIComponent(inviteToken)}`;
+        return res.json({
+            inviteToken,
+            inviteUrl,
+            nation: inviterNation,
+            inviterDisplayName,
+            expiresAtMs
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[create-app-invite] Error:', message);
+        return res.status(500).json({ error: 'Failed to create invite', details: message });
+    }
+});
+
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
-        const { playFabId, raceName, displayName } = req.body || {};
+        const { playFabId, raceName, displayName, inviteToken } = req.body || {};
         const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
@@ -1313,8 +1555,10 @@ app.post('/api/set-race', async (req, res) => {
 
     let setRaceStep = 'init';
     try {
+        setRaceStep = 'resolve-invite';
+        const inviteAssignment = await resolveAppInviteAssignment(inviteToken);
         setRaceStep = 'resolve-mapping';
-        const mapping = nation.NATION_GROUP_BY_RACE[raceName];
+        const mapping = inviteAssignment?.mapping || nation.NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const deps = createDependencies();
         setRaceStep = 'ensure-nation-group';
@@ -1335,7 +1579,7 @@ app.post('/api/set-race', async (req, res) => {
 
         let assignedGroupId = groupInfo.groupId;
         let assignedGroupName = groupInfo.groupName;
-        const assignedNation = mapping.island;
+        const assignedNation = inviteAssignment?.nation || mapping.island;
         let isKing = !!groupInfo.created;
 
         try {
@@ -1460,9 +1704,15 @@ app.post('/api/set-race', async (req, res) => {
             FaceIndex: avatarData.FaceIndex,
             HairStyleIndex: avatarData.HairStyleIndex,
             NationGroupId: nationData.NationGroupId,
-            NationGroupName: nationData.NationGroupName
+            NationGroupName: nationData.NationGroupName,
+            InvitedByPlayFabId: inviteAssignment?.inviterPlayFabId || null,
+            InvitedByDisplayName: inviteAssignment?.inviterDisplayName || null,
+            InviteAcceptedAt: inviteAssignment ? String(Date.now()) : null
         });
-        const coreKeysToRemove = isKing ? [] : ['NationKingId'];
+        const coreKeysToRemove = [
+            ...(isKing ? [] : ['NationKingId']),
+            ...(inviteAssignment ? [] : ['InvitedByPlayFabId', 'InvitedByDisplayName', 'InviteAcceptedAt'])
+        ];
         const writeReadOnlyData = async (dataMap, keysToRemove = []) => {
             if ((!dataMap || Object.keys(dataMap).length === 0) && (!Array.isArray(keysToRemove) || !keysToRemove.length)) {
                 return;
@@ -1542,6 +1792,19 @@ app.post('/api/set-race', async (req, res) => {
             });
         } catch (e) {
             console.warn('[starterShip] Failed to ensure starter ship:', e?.errorMessage || e?.message || e);
+        }
+
+        if (inviteAssignment?.recordRef) {
+            try {
+                await inviteAssignment.recordRef.set({
+                    inviterNation: assignedNation,
+                    useCount: admin.firestore.FieldValue.increment(1),
+                    lastAcceptedPlayFabId: playFabId,
+                    lastAcceptedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('[app-invite] Failed to update invite usage:', e?.errorMessage || e?.message || e);
+            }
         }
 
         if (createdStarterIsland) {
