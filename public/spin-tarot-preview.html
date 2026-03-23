@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Spin Tarot Preview</title>
+    <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background:
+                radial-gradient(circle at top, rgba(214, 186, 120, 0.2), transparent 42%),
+                linear-gradient(180deg, #09121d 0%, #05090f 100%);
+            color: #f7ead1;
+            font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        #tarotSpinRoot {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="tarotSpinRoot" class="content-area tarot-spin-root"></div>
+    <script type="importmap">
+        {
+            "imports": {
+                "phaser": "./js/vendor/phaser.esm.js"
+            }
+        }
+    </script>
+    <script type="module">
+        import { loadSpinTarotPage, destroySpinTarotPage } from './js/spinTarot.js?v=20260323a';
+
+        window.SpinTarotPreview = {
+            load: () => loadSpinTarotPage(),
+            destroy: () => destroySpinTarotPage()
+        };
+
+        loadSpinTarotPage().catch((error) => {
+            console.error('[spin-tarot-preview] failed to load:', error);
+        });
+    </script>
+</body>
+</html>

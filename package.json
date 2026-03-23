@@ -10,7 +10,11 @@
     "setup:hooks": "git config core.hooksPath .githooks",
     "catalog:sync": "node scripts/sync-catalog-v2.js",
     "catalog:sync:publish": "node scripts/sync-catalog-v2.js --publish",
-    "catalog:get": "node scripts/get-catalog-item.js"
+    "catalog:get": "node scripts/get-catalog-item.js",
+    "spin:shot": "node scripts/spin-tarot-shot.js",
+    "spin:shot:mobile": "node scripts/spin-tarot-shot.js --mobile",
+    "kingdom:shot": "node scripts/tarot-kingdom-shot.js",
+    "kingdom:shot:mobile": "node scripts/tarot-kingdom-shot.js --mobile"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +31,7 @@
     "playfab-sdk": "^2.184.251024"
   },
   "devDependencies": {
+    "playwright": "^1.53.2",
     "typescript": "^5.9.3"
   }
 }
