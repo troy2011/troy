@@ -966,7 +966,7 @@
 
 .tarot-spin-root .spin-tarot-monitor-bezel {
     position: relative;
-    padding: 8px;
+    padding: 7px;
     border-radius: 18px;
     border: 1px solid rgba(255, 223, 162, 0.18);
     background:
@@ -985,7 +985,7 @@
     background:
         radial-gradient(circle at 50% 0%, var(--monitor-glow), transparent 48%),
         linear-gradient(180deg, var(--monitor-screen-top), var(--monitor-screen-bottom));
-    min-height: 148px;
+    min-height: 112px;
 }
 
 .tarot-spin-root .spin-tarot-monitor-screen::before,
@@ -1014,8 +1014,8 @@
     position: relative;
     z-index: 1;
     display: grid;
-    gap: 10px;
-    padding: 14px 16px 12px;
+    gap: 6px;
+    padding: 8px 10px 8px;
 }
 
 .tarot-spin-root .spin-tarot-monitor-leds {
@@ -1055,11 +1055,343 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     letter-spacing: 0.12em;
     color: var(--monitor-chip);
     text-transform: uppercase;
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane {
+    position: relative;
+    min-height: 64px;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+        radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.08), transparent 18%),
+        linear-gradient(180deg, rgba(28, 46, 76, 0.88) 0%, rgba(14, 24, 44, 0.9) 46%, rgba(32, 38, 22, 0.96) 47%, rgba(10, 17, 11, 0.98) 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 8px 14px rgba(0, 0, 0, 0.14);
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane::before {
+    content: '';
+    position: absolute;
+    left: 68px;
+    right: 10px;
+    bottom: 11px;
+    height: 14px;
+    border-radius: 999px;
+    background:
+        linear-gradient(180deg, rgba(128, 97, 63, 0.95), rgba(88, 63, 37, 0.98));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane::after {
+    content: '';
+    position: absolute;
+    left: 80px;
+    right: 16px;
+    bottom: 17px;
+    height: 0;
+    border-top: 2px dashed rgba(255, 230, 174, 0.2);
+    opacity: 0.8;
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane-title {
+    position: absolute;
+    left: 10px;
+    top: 6px;
+    z-index: 4;
+    max-width: calc(100% - 20px);
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(6, 10, 18, 0.48);
+    color: var(--monitor-head);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0 10px var(--monitor-glow);
+}
+
+.tarot-spin-root .spin-tarot-monitor-sky {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 30px;
+    pointer-events: none;
+}
+
+.tarot-spin-root .spin-tarot-monitor-sky-icon {
+    position: absolute;
+    font-size: 13px;
+    opacity: 0.78;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.12));
+    animation: spinTarotMonitorSkyFloat 3.2s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-castle-wrap {
+    position: absolute;
+    left: 9px;
+    bottom: 8px;
+    z-index: 3;
+    width: 50px;
+    height: 40px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-castle {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    font-size: 31px;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px rgba(255, 208, 117, 0.2));
+    animation: spinTarotMonitorCastleIdle 2.4s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-castle-guard {
+    position: absolute;
+    right: 1px;
+    bottom: 3px;
+    font-size: 17px;
+    line-height: 1;
+    animation: spinTarotMonitorGuardPulse 1.9s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-castle-wrap.is-alert .spin-tarot-monitor-castle,
+.tarot-spin-root .spin-tarot-monitor-castle-wrap.is-danger .spin-tarot-monitor-castle {
+    filter: drop-shadow(0 0 14px rgba(248, 113, 113, 0.34));
+}
+
+.tarot-spin-root .spin-tarot-monitor-castle-wrap.is-reward .spin-tarot-monitor-castle,
+.tarot-spin-root .spin-tarot-monitor-castle-wrap.is-rush .spin-tarot-monitor-castle,
+.tarot-spin-root .spin-tarot-monitor-castle-wrap.is-arcana .spin-tarot-monitor-castle {
+    filter: drop-shadow(0 0 14px rgba(255, 215, 102, 0.34));
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor-layer,
+.tarot-spin-root .spin-tarot-monitor-effect-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor,
+.tarot-spin-root .spin-tarot-monitor-effect {
+    position: absolute;
+    line-height: 1;
+    transform-origin: center bottom;
+    will-change: transform, opacity;
+    user-select: none;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor {
+    z-index: 3;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
+}
+
+.tarot-spin-root .spin-tarot-monitor-effect {
+    z-index: 4;
+    opacity: 0.92;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.16));
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-march {
+    animation: spinTarotMonitorMarch 1.7s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-rush {
+    animation: spinTarotMonitorRush 1s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-boss {
+    animation: spinTarotMonitorBoss 1.2s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-hover,
+.tarot-spin-root .spin-tarot-monitor-actor.is-support {
+    animation: spinTarotMonitorHover 2.2s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-arcana {
+    animation: spinTarotMonitorArcanaPulse 1.8s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-spin,
+.tarot-spin-root .spin-tarot-monitor-actor.is-card {
+    animation: spinTarotMonitorCardSpin 1.05s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-treasure,
+.tarot-spin-root .spin-tarot-monitor-actor.is-reward {
+    animation: spinTarotMonitorRewardBounce 1.35s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-guard {
+    animation: spinTarotMonitorGuardPulse 1.9s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-actor.is-clash {
+    animation: spinTarotMonitorClash 0.9s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-effect.is-spark {
+    animation: spinTarotMonitorSparkle 1.4s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-effect.is-burst {
+    animation: spinTarotMonitorBurst 1.1s ease-in-out infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-effect.is-blink {
+    animation: spinTarotMonitorBlink 0.9s steps(2, end) infinite;
+}
+
+.tarot-spin-root .spin-tarot-monitor-readout {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tarot-spin-root .spin-tarot-monitor-subline {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    font-size: 10px;
+    line-height: 1.25;
+    color: var(--monitor-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarot-spin-root .spin-tarot-monitor-badges {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tarot-spin-root .spin-tarot-monitor-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 104px;
+    min-height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(6, 10, 19, 0.44);
+    color: var(--monitor-head);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tarot-spin-root .spin-tarot-monitor-badge.is-danger {
+    border-color: rgba(248, 113, 113, 0.24);
+    color: #fee2e2;
+}
+
+.tarot-spin-root .spin-tarot-monitor-badge.is-reward,
+.tarot-spin-root .spin-tarot-monitor-badge.is-rush {
+    border-color: rgba(255, 215, 102, 0.24);
+    color: #fff3c8;
+}
+
+.tarot-spin-root .spin-tarot-monitor-badge-icon {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.tarot-spin-root .spin-tarot-monitor-badge-text {
+    min-width: 0;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes spinTarotMonitorSkyFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.72; }
+    50% { transform: translateY(-4px) scale(1.06); opacity: 1; }
+}
+
+@keyframes spinTarotMonitorCastleIdle {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-1px) scale(1.02); }
+}
+
+@keyframes spinTarotMonitorMarch {
+    0%, 100% { transform: translateX(0) translateY(0) scale(1); }
+    50% { transform: translateX(calc(var(--actor-travel, 18px) * -1)) translateY(-2px) scale(1.03); }
+}
+
+@keyframes spinTarotMonitorRush {
+    0%, 100% { transform: translateX(0) scale(1); }
+    50% { transform: translateX(calc(var(--actor-travel, 32px) * -1)) scale(1.08); }
+}
+
+@keyframes spinTarotMonitorBoss {
+    0%, 100% { transform: translateX(0) scale(1); }
+    35% { transform: translateX(calc(var(--actor-travel, 28px) * -0.6)) scale(1.1); }
+    65% { transform: translateX(calc(var(--actor-travel, 28px) * -1)) scale(1.05); }
+}
+
+@keyframes spinTarotMonitorHover {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-4px) scale(1.04); }
+}
+
+@keyframes spinTarotMonitorArcanaPulse {
+    0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 4px 10px rgba(0,0,0,0.28)); }
+    50% { transform: translateY(-3px) scale(1.12); filter: drop-shadow(0 0 16px rgba(255,255,255,0.26)); }
+}
+
+@keyframes spinTarotMonitorCardSpin {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+    50% { transform: translateY(-6px) rotate(-14deg) scale(1.06); }
+}
+
+@keyframes spinTarotMonitorRewardBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    40% { transform: translateY(-8px) scale(1.08); }
+    70% { transform: translateY(-3px) scale(1.02); }
+}
+
+@keyframes spinTarotMonitorGuardPulse {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.07); }
+}
+
+@keyframes spinTarotMonitorClash {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+    50% { transform: translateY(-2px) rotate(-12deg) scale(1.08); }
+}
+
+@keyframes spinTarotMonitorSparkle {
+    0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.38; }
+    50% { transform: translateY(-6px) scale(1.15); opacity: 1; }
+}
+
+@keyframes spinTarotMonitorBurst {
+    0%, 100% { transform: scale(0.78); opacity: 0.28; }
+    50% { transform: scale(1.18); opacity: 1; }
+}
+
+@keyframes spinTarotMonitorBlink {
+    0%, 49% { opacity: 0.18; transform: scale(0.92); }
+    50%, 100% { opacity: 1; transform: scale(1.04); }
 }
 
 .tarot-spin-root .spin-tarot-monitor-mode,
@@ -1588,35 +1920,86 @@
     }
 
     .tarot-spin-root .spin-tarot-monitor-screen {
-        min-height: 118px;
+        min-height: 104px;
     }
 
     .tarot-spin-root .spin-tarot-monitor-screen-inner {
-        gap: 7px;
-        padding: 10px 12px 9px;
+        gap: 5px;
+        padding: 8px 9px 7px;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-headline {
-        font-size: 21px;
+    .tarot-spin-root .spin-tarot-monitor-topline {
+        font-size: 9px;
+        gap: 8px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane {
+        min-height: 58px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane::before {
+        left: 62px;
+        bottom: 10px;
+        height: 13px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane::after {
+        left: 74px;
+        bottom: 16px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane-title {
+        top: 5px;
+        left: 8px;
+        max-width: calc(100% - 16px);
+        padding: 2px 7px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-sky {
+        height: 26px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-sky-icon {
+        font-size: 12px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle-wrap {
+        left: 8px;
+        bottom: 7px;
+        width: 44px;
+        height: 36px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle {
+        font-size: 27px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle-guard {
+        font-size: 15px;
     }
 
     .tarot-spin-root .spin-tarot-monitor-subline {
         min-height: 0;
-        font-size: 10px;
-        line-height: 1.3;
+        font-size: 9px;
+        line-height: 1.25;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 5px;
+    .tarot-spin-root .spin-tarot-monitor-badges {
+        gap: 3px;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-metric {
-        padding: 6px 7px;
+    .tarot-spin-root .spin-tarot-monitor-badge {
+        max-width: 88px;
+        min-height: 20px;
+        padding: 0 6px;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-metric-value {
+    .tarot-spin-root .spin-tarot-monitor-badge-icon {
         font-size: 11px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-badge-text {
+        font-size: 8px;
     }
 
     .tarot-spin-root .spin-tarot-result-main {
@@ -1742,16 +2125,75 @@
     }
 
     .tarot-spin-root .spin-tarot-monitor-screen {
-        min-height: 126px;
+        min-height: 98px;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-headline {
-        font-size: 18px;
+    .tarot-spin-root .spin-tarot-monitor-screen-inner {
+        padding: 7px 8px 6px;
+        gap: 4px;
     }
 
-    .tarot-spin-root .spin-tarot-monitor-topline,
-    .tarot-spin-root .spin-tarot-monitor-marquee span {
+    .tarot-spin-root .spin-tarot-monitor-topline {
+        font-size: 8px;
+        gap: 6px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane {
+        min-height: 54px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane::before {
+        left: 58px;
+        bottom: 9px;
+        height: 12px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane::after {
+        left: 68px;
+        bottom: 15px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-lane-title {
+        font-size: 8px;
+        top: 4px;
+        padding: 2px 6px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-sky-icon {
+        font-size: 11px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle-wrap {
+        width: 40px;
+        height: 32px;
+        left: 7px;
+        bottom: 7px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle {
+        font-size: 24px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-castle-guard {
+        font-size: 14px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-subline {
+        font-size: 8px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-badge {
+        max-width: 72px;
+        min-height: 18px;
+        padding: 0 5px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-badge-icon {
         font-size: 10px;
+    }
+
+    .tarot-spin-root .spin-tarot-monitor-badge-text {
+        font-size: 7px;
     }
 
     .tarot-spin-root .spin-tarot-stage-pills span,
@@ -1777,6 +2219,18 @@
 
     .tarot-spin-root .spin-tarot-board .tarot-card-number {
         font-size: 15px;
+    }
+}
+
+@media (max-width: 360px) {
+    .tarot-spin-root.spin-tarot-mounted {
+        --spin-tarot-board-card-w: 38px;
+        --spin-tarot-board-card-h: 60px;
+        --spin-tarot-board-gap: 3px;
+    }
+
+    .tarot-spin-root .spin-tarot-board-wrap {
+        padding: 5px;
     }
 }
 

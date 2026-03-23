@@ -108,7 +108,7 @@ async function ensureStylesheet() {
     const link = document.createElement('link');
     link.id = STYLE_ID;
     link.rel = 'stylesheet';
-    link.href = './css/spin-tarot.css?v=20260323c';
+    link.href = './css/spin-tarot.css?v=20260323d';
     document.head.appendChild(link);
     await new Promise((resolve) => {
         link.addEventListener('load', resolve, { once: true });
@@ -254,15 +254,26 @@ function render() {
                                     <span class="spin-tarot-monitor-mode">${escapeHtml(monitorView.mode)}</span>
                                     <span class="spin-tarot-monitor-zone">${escapeHtml(monitorView.zone)}</span>
                                 </div>
-                                <div class="spin-tarot-monitor-headline">${escapeHtml(monitorView.headline)}</div>
-                                <div class="spin-tarot-monitor-subline">${escapeHtml(monitorView.subline)}</div>
-                                <div class="spin-tarot-monitor-metrics">
-                                    ${monitorView.metrics.map((metric) => renderMonitorMetric(metric.label, metric.value)).join('')}
+                                <div class="spin-tarot-monitor-lane spin-tarot-monitor-lane--${escapeHtml(monitorView.theme)}">
+                                    <div class="spin-tarot-monitor-lane-title">${escapeHtml(monitorView.title)}</div>
+                                    <div class="spin-tarot-monitor-sky">
+                                        ${monitorView.skyIcons.map((icon, index) => renderMonitorSkyIcon(icon, index)).join('')}
+                                    </div>
+                                    <div class="spin-tarot-monitor-castle-wrap ${escapeHtml(monitorView.castleTone || '')}">
+                                        <span class="spin-tarot-monitor-castle">🏰</span>
+                                        <span class="spin-tarot-monitor-castle-guard">🛡️</span>
+                                    </div>
+                                    <div class="spin-tarot-monitor-actor-layer">
+                                        ${monitorView.actors.map((actor, index) => renderMonitorActor(actor, index)).join('')}
+                                    </div>
+                                    <div class="spin-tarot-monitor-effect-layer">
+                                        ${monitorView.effects.map((effect, index) => renderMonitorEffect(effect, index)).join('')}
+                                    </div>
                                 </div>
-                                <div class="spin-tarot-monitor-marquee-wrap">
-                                    <div class="spin-tarot-monitor-marquee">
-                                        <span>${escapeHtml(monitorView.ticker)}</span>
-                                        <span>${escapeHtml(monitorView.ticker)}</span>
+                                <div class="spin-tarot-monitor-readout">
+                                    <div class="spin-tarot-monitor-subline">${escapeHtml(monitorView.caption)}</div>
+                                    <div class="spin-tarot-monitor-badges">
+                                        ${monitorView.badges.map((badge) => renderMonitorBadge(badge)).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -675,104 +686,381 @@ function renderMiniChip(key, value) {
     `;
 }
 
-function renderMonitorMetric(label, value) {
+function renderMonitorBadge(badge = {}) {
+    const toneClass = badge.tone ? `is-${String(badge.tone).trim()}` : '';
     return `
-        <div class="spin-tarot-monitor-metric">
-            <div class="spin-tarot-monitor-metric-label">${escapeHtml(label)}</div>
-            <div class="spin-tarot-monitor-metric-value">${escapeHtml(value)}</div>
+        <div class="spin-tarot-monitor-badge ${escapeHtml(toneClass)}">
+            <span class="spin-tarot-monitor-badge-icon">${escapeHtml(badge.icon || '✨')}</span>
+            <span class="spin-tarot-monitor-badge-text">${escapeHtml(badge.text || '')}</span>
         </div>
     `;
 }
 
-function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, premiumText, latestLog, boardSubtitle }) {
-    const metrics = buildMonitorMetrics(statusView, premiumText);
-    const resultInfo = getBoardResultInfo();
-    let theme = 'normal';
-    let headline = 'SPIN TAROT';
-    let subline = boardSubtitle || latestLog || '';
+function renderMonitorSkyIcon(icon, index) {
+    const left = 120 + (index * 56);
+    const top = 6 + ((index % 2) * 8);
+    return `
+        <span class="spin-tarot-monitor-sky-icon" style="left:${left}px; top:${top}px; animation-delay:${index * 180}ms;">
+            ${escapeHtml(icon)}
+        </span>
+    `;
+}
 
+function renderMonitorActor(actor = {}, index = 0) {
+    const size = Math.max(18, Number(actor.size) || 28);
+    const bottom = Number(actor.bottom);
+    const slot = Number.isFinite(Number(actor.slot)) ? Number(actor.slot) : index;
+    const side = actor.side === 'left' ? 'left' : 'right';
+    const horizontal = side === 'left'
+        ? `left:${82 + (slot * 36)}px;`
+        : `right:${18 + (slot * 52)}px;`;
+    const vertical = `bottom:${Number.isFinite(bottom) ? bottom : 12}px;`;
+    const delay = `animation-delay:${Math.max(0, Number(actor.delayMs) || (index * 120))}ms;`;
+    const travel = `--actor-travel:${Math.max(8, Number(actor.travel) || (actor.motion === 'rush' ? 42 : 18))}px;`;
+    const classes = [
+        'spin-tarot-monitor-actor',
+        side === 'left' ? 'is-ally' : 'is-foe',
+        actor.motion ? `is-${String(actor.motion).trim()}` : '',
+        actor.role ? `is-${String(actor.role).trim()}` : ''
+    ].filter(Boolean).join(' ');
+    return `
+        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}${travel}">
+            ${escapeHtml(actor.emoji || '✨')}
+        </span>
+    `;
+}
+
+function renderMonitorEffect(effect = {}, index = 0) {
+    const size = Math.max(14, Number(effect.size) || 22);
+    const slot = Number.isFinite(Number(effect.slot)) ? Number(effect.slot) : index;
+    const side = effect.side === 'left' ? 'left' : (effect.side === 'center' ? 'center' : 'right');
+    let horizontal = '';
+    if (side === 'left') {
+        horizontal = `left:${92 + (slot * 28)}px;`;
+    } else if (side === 'center') {
+        horizontal = `left:calc(50% + ${(slot - 1) * 28}px);`;
+    } else {
+        horizontal = `right:${28 + (slot * 30)}px;`;
+    }
+    const vertical = `top:${Number.isFinite(Number(effect.top)) ? Number(effect.top) : 10 + ((index % 2) * 18)}px;`;
+    const delay = `animation-delay:${Math.max(0, Number(effect.delayMs) || (index * 140))}ms;`;
+    const classes = [
+        'spin-tarot-monitor-effect',
+        effect.motion ? `is-${String(effect.motion).trim()}` : ''
+    ].filter(Boolean).join(' ');
+    return `
+        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}">
+            ${escapeHtml(effect.emoji || '✨')}
+        </span>
+    `;
+}
+
+function compactMonitorText(value, fallback = '', maxLength = 52) {
+    const text = String(value || fallback || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return `${text.slice(0, Math.max(8, maxLength - 1))}…`;
+}
+
+function getSuitIconOnly(suitKey) {
+    const suit = CONFIG.suits.find((entry) => entry.key === suitKey);
+    return suit?.icon || '🔮';
+}
+
+function getPreviewNation(suitKey) {
+    const key = String(suitKey || '').trim();
+    if (!key) return null;
+    return CONFIG.enemyNations?.[key] || null;
+}
+
+function buildMonitorRushChip(statusView, premiumText) {
+    const parts = [];
+    if (statusView.queenModeSpins > 0) parts.push(`Q${statusView.queenModeSpins}G`);
+    if (statusView.kingModeSpins > 0) parts.push(`K${statusView.kingModeSpins}G`);
+    if (statusView.modeKey === 'cz') parts.push(`CZ ${statusView.czPower}`);
+    if (!parts.length && state?.premium?.spinsRemaining > 0) {
+        parts.push(`${state.premium.spinsRemaining}G`);
+    }
+    if (!parts.length && premiumText && premiumText !== '通常抽選') {
+        parts.push(compactMonitorText(premiumText, '', 12));
+    }
+    if (!parts.length) parts.push('IDLE');
+    return parts.join(' / ');
+}
+
+function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, premiumText, latestLog, boardSubtitle }) {
+    const resultInfo = getBoardResultInfo();
+    const previewNation = getPreviewNation(state?.previewSuit);
+    const previewSuitIcon = getSuitIconOnly(state?.previewSuit);
+    const rushChip = buildMonitorRushChip(statusView, premiumText);
+    const baseCaption = compactMonitorText(boardSubtitle || latestLog || activeArcana.summary || '');
+    const view = {
+        theme: 'normal',
+        mode: modeChipText,
+        zone: zoneText,
+        title: state?.currentArcana?.label || 'SPIN TAROT',
+        caption: baseCaption,
+        castleTone: 'is-ready',
+        skyIcons: [activeArcana.icon || '✨', previewSuitIcon],
+        actors: [
+            { emoji: activeArcana.icon || '✨', side: 'left', slot: 0, motion: 'hover', role: 'arcana', size: 24, bottom: 28 },
+            { emoji: previewNation?.emoji || previewSuitIcon, slot: 1, motion: 'march', role: 'enemy', size: 30 }
+        ],
+        effects: [
+            { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 }
+        ],
+        badges: [
+            { icon: '🪙', text: String(state?.coins || 0), tone: 'reward' },
+            { icon: previewNation?.emoji || previewSuitIcon, text: statusView.modeKey === 'cz' ? `CZ ${statusView.czPower}/${statusView.czTarget}` : `CZ ${statusView.nextCzIn}G` },
+            { icon: '👑', text: rushChip, tone: statusView.queenModeSpins > 0 || statusView.kingModeSpins > 0 ? 'rush' : '' }
+        ]
+    };
     if (cutin?.label) {
-        theme = 'impact';
-        headline = cutin.label;
-        subline = cutin.text || subline;
+        view.theme = 'impact';
+        view.title = cutin.label;
+        view.caption = compactMonitorText(cutin.text, baseCaption);
+        view.castleTone = 'is-arcana';
+        view.skyIcons = ['⚡', activeArcana.icon || '✨', '🌠'];
+        view.actors = [
+            { emoji: activeArcana.icon || '🎴', side: 'left', slot: 1, motion: 'arcana', role: 'arcana', size: 42, bottom: 12, travel: 12 },
+            { emoji: '⚡', slot: 0, motion: 'rush', role: 'enemy', size: 24, bottom: 30, travel: 24 },
+            { emoji: '✨', slot: 2, motion: 'hover', role: 'support', size: 22, bottom: 24 }
+        ];
+        view.effects = [
+            { emoji: '💥', side: 'center', slot: 1, motion: 'burst', size: 24 },
+            { emoji: '✨', side: 'right', slot: 0, motion: 'spark', size: 18 }
+        ];
+        view.badges = [
+            { icon: '🎴', text: compactMonitorText(state?.currentArcana?.label || 'ARCANA', '', 14), tone: 'rush' },
+            { icon: '⚡', text: 'CUT-IN', tone: 'danger' },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else if (Array.isArray(state?.pendingArcanaChoices) && state.pendingArcanaChoices.length) {
-        theme = 'arcana';
-        headline = 'CHOOSE NEXT ARCANA';
-        subline = 'Keep the current flow or switch into a new major arcana.';
+        const choices = state.pendingArcanaChoices.slice(0, 3);
+        view.theme = 'arcana';
+        view.title = '大アルカナ選択';
+        view.caption = '今の流れを維持するか、新しい運命へ乗り換える。';
+        view.castleTone = 'is-arcana';
+        view.skyIcons = choices.map((arcana) => arcana.icon || '🎴');
+        view.actors = choices.map((arcana, index) => ({
+            emoji: arcana.icon || '🎴',
+            slot: index,
+            motion: index === 1 ? 'arcana' : 'hover',
+            role: 'arcana',
+            size: index === 1 ? 40 : 30,
+            bottom: index === 1 ? 10 : 18,
+            travel: 10
+        }));
+        view.effects = [
+            { emoji: '🔀', side: 'center', slot: 1, motion: 'burst', size: 22 }
+        ];
+        view.badges = [
+            { icon: '🎴', text: `${choices.length}択`, tone: 'rush' },
+            { icon: '🌀', text: `${statusView.spinsUntilArcanaShift}G` },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else if (spinning) {
-        theme = 'spin';
-        headline = 'REEL DRIVE';
-        subline = 'Watch the omen and wait for the stop.';
+        view.theme = 'spin';
+        view.title = 'リール回転';
+        view.caption = compactMonitorText(`右から運命が流れ込む / ${previewNation?.label || getSuitBadge(state.previewSuit)}`, baseCaption);
+        view.castleTone = 'is-alert';
+        view.skyIcons = [previewSuitIcon, '✨', '🎴'];
+        view.actors = [
+            { emoji: '🎴', slot: 0, motion: 'spin', role: 'card', size: 28, bottom: 24, travel: 16 },
+            { emoji: '🎴', slot: 1, motion: 'spin', role: 'card', size: 30, bottom: 14, delayMs: 90, travel: 18 },
+            { emoji: previewNation?.emoji || previewSuitIcon, slot: 2, motion: 'march', role: 'enemy', size: 28, bottom: 12, delayMs: 180, travel: 22 }
+        ];
+        view.effects = [
+            { emoji: '🌀', side: 'center', slot: 1, motion: 'spark', size: 18 },
+            { emoji: previewSuitIcon, side: 'right', slot: 0, motion: 'blink', size: 18 }
+        ];
+        view.badges = [
+            { icon: '🪙', text: String(state?.coins || 0), tone: 'reward' },
+            { icon: '🎴', text: `${state?.activeLineCount || 0} LINE` },
+            { icon: previewSuitIcon, text: `CZ ${statusView.nextCzIn}G` }
+        ];
     } else if (state?.battle) {
-        theme = 'danger';
-        headline = `${state.battle.emoji || '⚔️'} ${state.battle.label || 'DEFENSE BATTLE'}`;
-        subline = `Enemy HP ${state.battle.hp}/${state.battle.maxHp}  ATK ${state.battle.attack}`;
+        view.theme = 'danger';
+        view.title = `${state.battle.label || '防衛戦'} 襲来`;
+        view.caption = `城HP ${state.castleHp}/${state.castleMaxHp} / 敵HP ${state.battle.hp}/${state.battle.maxHp} / ATK ${state.battle.attack}`;
+        view.castleTone = 'is-danger';
+        view.skyIcons = ['🌩️', previewSuitIcon, '🔥'];
+        view.actors = [
+            { emoji: '🛡️', side: 'left', slot: 0, motion: 'guard', role: 'guard', size: 22, bottom: 10, travel: 10 },
+            { emoji: state.battle.emoji || '👹', slot: state.battle.isBoss ? 0 : 1, motion: state.battle.isBoss ? 'boss' : 'rush', role: 'enemy', size: state.battle.isBoss ? 40 : 34, bottom: 10, travel: state.battle.isBoss ? 30 : 42 },
+            { emoji: '⚔️', side: 'center', slot: 1, motion: 'clash', role: 'support', size: 22, bottom: 18, delayMs: 100, travel: 14 }
+        ];
+        view.effects = [
+            { emoji: '💥', side: 'center', slot: 1, motion: 'burst', size: 24 },
+            { emoji: '🔥', side: 'left', slot: 0, motion: 'blink', size: 18, top: 22 }
+        ];
+        view.badges = [
+            { icon: '🛡️', text: `${state.castleHp}/${state.castleMaxHp}`, tone: 'reward' },
+            { icon: state.battle.emoji || '👹', text: `${state.battle.hp}/${state.battle.maxHp}`, tone: 'danger' },
+            { icon: '⚔️', text: String(state.battle.attack), tone: 'danger' }
+        ];
     } else if (resultInfo.text) {
-        theme = resultInfo.tone === 'danger'
+        view.theme = resultInfo.tone === 'danger'
             ? 'danger'
             : resultInfo.tone === 'treasure'
                 ? 'treasure'
                 : 'reward';
-        headline = resultInfo.text;
-        subline = state?.lineSummaries?.[0] || boardSubtitle || latestLog || '';
+        view.title = resultInfo.text;
+        view.caption = compactMonitorText(state?.lineSummaries?.[0], baseCaption);
+        view.castleTone = resultInfo.tone === 'danger' ? 'is-danger' : 'is-reward';
+        if (Number(state?.lastTreasureCoins || 0) > 0) {
+            view.skyIcons = ['✨', '🪙', '🏝️'];
+            view.actors = [
+                { emoji: '📦', slot: 1, motion: 'treasure', role: 'reward', size: 34, bottom: 12, travel: 18 },
+                { emoji: '🪙', slot: 0, motion: 'reward', role: 'reward', size: 28, bottom: 22, delayMs: 80, travel: 14 },
+                { emoji: '⛵', slot: 2, motion: 'march', role: 'support', size: 24, bottom: 20, delayMs: 120, travel: 12 }
+            ];
+            view.effects = [
+                { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 20 },
+                { emoji: '💰', side: 'right', slot: 0, motion: 'burst', size: 20 }
+            ];
+            view.badges = [
+                { icon: '📦', text: `+${state.lastTreasureCoins}`, tone: 'reward' },
+                { icon: '🏝️', text: `${state?.premium?.spinsRemaining || 0}G` },
+                { icon: '👑', text: rushChip, tone: 'rush' }
+            ];
+        } else if (Number(state?.lastEnemyDamage || 0) > 0) {
+            view.skyIcons = ['🌩️', '🔥', previewSuitIcon];
+            view.actors = [
+                { emoji: previewNation?.emoji || '👹', slot: 1, motion: 'rush', role: 'enemy', size: 34, bottom: 12, travel: 38 },
+                { emoji: '💥', side: 'center', slot: 1, motion: 'burst', role: 'support', size: 22, bottom: 20, delayMs: 60, travel: 10 }
+            ];
+            view.effects = [
+                { emoji: '🔥', side: 'left', slot: 0, motion: 'blink', size: 18, top: 24 },
+                { emoji: '⚠️', side: 'center', slot: 1, motion: 'spark', size: 18 }
+            ];
+            view.badges = [
+                { icon: '🛡️', text: `${state.castleHp}/${state.castleMaxHp}` },
+                { icon: '💥', text: `-${state.lastEnemyDamage}`, tone: 'danger' },
+                { icon: previewNation?.emoji || previewSuitIcon, text: previewNation?.label || getSuitBadge(state.previewSuit), tone: 'danger' }
+            ];
+        } else {
+            view.skyIcons = ['✨', '🪙', activeArcana.icon || '🎴'];
+            view.actors = [
+                { emoji: '🪙', slot: 0, motion: 'reward', role: 'reward', size: 28, bottom: 20, travel: 14 },
+                { emoji: activeArcana.icon || '✨', side: 'left', slot: 0, motion: 'hover', role: 'arcana', size: 24, bottom: 28, travel: 10 },
+                { emoji: '⚔️', slot: 2, motion: 'clash', role: 'support', size: 22, bottom: 14, delayMs: 90, travel: 16 }
+            ];
+            view.effects = [
+                { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 20 },
+                { emoji: '💰', side: 'right', slot: 0, motion: 'burst', size: 18 }
+            ];
+            view.badges = [
+                { icon: '🪙', text: `+${state.totalPayout || 0}`, tone: 'reward' },
+                { icon: '⚔️', text: state.lastAttackDamage ? `ATK ${state.lastAttackDamage}` : compactMonitorText(state?.lineSummaries?.[0], '', 12) },
+                { icon: '👑', text: rushChip, tone: 'rush' }
+            ];
+        }
     } else if (state?.phase === 'hold') {
-        theme = 'hold';
-        headline = 'HOLD & DRAW';
-        subline = 'Lock the center line you want to carry into the draw.';
+        view.theme = 'hold';
+        view.title = 'HOLD & DRAW';
+        view.caption = '中央ラインを選んで KEEP。決めたら DRAW / SPIN。';
+        view.castleTone = 'is-ready';
+        view.skyIcons = ['🎴', activeArcana.icon || '✨', previewSuitIcon];
+        view.actors = [
+            { emoji: '🖐️', side: 'left', slot: 0, motion: 'guard', role: 'support', size: 22, bottom: 8, travel: 10 },
+            { emoji: '🎯', side: 'center', slot: 1, motion: 'spark', role: 'support', size: 20, bottom: 22, delayMs: 120, travel: 10 },
+            { emoji: '🎴', slot: 1, motion: 'hover', role: 'card', size: 30, bottom: 14, delayMs: 80, travel: 12 }
+        ];
+        view.effects = [
+            { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 }
+        ];
+        view.badges = [
+            { icon: '🎯', text: `${state?.activeLineCount || 0} LINE` },
+            { icon: '🖐️', text: 'CENTER HOLD' },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else if (statusView?.modeKey === 'cz') {
-        theme = 'cz';
-        headline = 'DEFENSE CHANCE ZONE';
-        subline = `CZ POWER ${statusView.czPower}/${statusView.czTarget}`;
+        view.theme = 'cz';
+        view.title = '防衛準備CZ';
+        view.caption = `右から敵影が近づく / CZ POWER ${statusView.czPower}/${statusView.czTarget}`;
+        view.castleTone = 'is-alert';
+        view.skyIcons = ['🌀', previewSuitIcon, '⚠️'];
+        view.actors = [
+            { emoji: previewNation?.emoji || '👤', slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: 24 },
+            { emoji: '🛡️', side: 'left', slot: 0, motion: 'guard', role: 'guard', size: 22, bottom: 8, travel: 10 },
+            { emoji: '🌀', side: 'center', slot: 1, motion: 'hover', role: 'support', size: 22, bottom: 22, delayMs: 80, travel: 12 }
+        ];
+        view.effects = [
+            { emoji: '⚠️', side: 'right', slot: 0, motion: 'blink', size: 18 },
+            { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 16 }
+        ];
+        view.badges = [
+            { icon: '🌀', text: `${statusView.czPower}/${statusView.czTarget}`, tone: 'danger' },
+            { icon: previewSuitIcon, text: getSuitBadge(state.previewSuit) },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else if (statusView?.modeKey === 'queen-rush' || statusView?.modeKey === 'king-rush' || statusView?.modeKey === 'dual-rush') {
-        theme = 'rush';
-        headline = `${statusView.modeIcon} ${statusView.modeLabel}`;
-        subline = premiumText !== '通常抽選' ? premiumText : (state?.lastEffects?.[0] || activeArcana.summary || '');
+        view.theme = 'rush';
+        view.title = statusView.modeLabel;
+        view.caption = compactMonitorText(premiumText !== '通常抽選' ? premiumText : (state?.lastEffects?.[0] || activeArcana.summary || ''), baseCaption);
+        view.castleTone = 'is-rush';
+        view.skyIcons = ['👑', '✨', '⚡'];
+        view.actors = [
+            { emoji: '👑', side: 'left', slot: 1, motion: 'arcana', role: 'reward', size: 32, bottom: 20, travel: 10 },
+            { emoji: '⚔️', slot: 1, motion: 'clash', role: 'support', size: 22, bottom: 18, delayMs: 100, travel: 16 },
+            { emoji: previewNation?.emoji || previewSuitIcon, slot: 2, motion: 'march', role: 'enemy', size: 26, bottom: 10, delayMs: 180, travel: 18 }
+        ];
+        view.effects = [
+            { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 },
+            { emoji: '💫', side: 'right', slot: 0, motion: 'burst', size: 18 }
+        ];
+        view.badges = [
+            { icon: '👑', text: rushChip, tone: 'rush' },
+            { icon: '🌀', text: `${statusView.nextCzIn}G` },
+            { icon: previewSuitIcon, text: getSuitBadge(state.previewSuit) }
+        ];
     } else if (statusView?.modeKey === 'high' || statusView?.modeKey === 'hint') {
-        theme = 'omen';
-        headline = `${statusView.modeIcon} ${statusView.modeLabel}`;
-        subline = `Approaching ${getSuitBadge(state.previewSuit)} / CZ in ${statusView.nextCzIn}`;
+        view.theme = 'omen';
+        view.title = `${previewNation?.label || getSuitBadge(state.previewSuit)} 接近`;
+        view.caption = `右から敵影 / CZまで ${statusView.nextCzIn}G`;
+        view.castleTone = 'is-alert';
+        view.skyIcons = ['⚠️', previewSuitIcon, '🌫️'];
+        view.actors = [
+            { emoji: previewNation?.emoji || '👤', slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: statusView.modeKey === 'high' ? 28 : 18 },
+            { emoji: previewSuitIcon, slot: 0, motion: 'hover', role: 'support', size: 22, bottom: 28, delayMs: 80, travel: 12 }
+        ];
+        view.effects = [
+            { emoji: '⚠️', side: 'right', slot: 0, motion: 'blink', size: 18 },
+            { emoji: '…', side: 'center', slot: 1, motion: 'spark', size: 18 }
+        ];
+        view.badges = [
+            { icon: previewSuitIcon, text: getSuitBadge(state.previewSuit) },
+            { icon: '🌀', text: `${statusView.nextCzIn}G` },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else if (statusView?.modeKey === 'treasure') {
-        theme = 'treasure';
-        headline = premiumText.toUpperCase();
-        subline = 'Bonus spins with coin chests and calm seas.';
+        view.theme = 'treasure';
+        view.title = state?.premium?.label || premiumText || '宝島';
+        view.caption = '右から宝箱とボーナス船が流れ込む。';
+        view.castleTone = 'is-reward';
+        view.skyIcons = ['🏝️', '✨', '🪙'];
+        view.actors = [
+            { emoji: '📦', slot: 0, motion: 'treasure', role: 'reward', size: 34, bottom: 12, travel: 16 },
+            { emoji: '⛵', slot: 2, motion: 'march', role: 'support', size: 24, bottom: 18, delayMs: 120, travel: 12 },
+            { emoji: '🪙', slot: 1, motion: 'reward', role: 'reward', size: 24, bottom: 28, delayMs: 60, travel: 10 }
+        ];
+        view.effects = [
+            { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 },
+            { emoji: '💰', side: 'right', slot: 0, motion: 'burst', size: 18 }
+        ];
+        view.badges = [
+            { icon: '🏝️', text: `${state?.premium?.spinsRemaining || 0}G`, tone: 'reward' },
+            { icon: '📦', text: `CD ${statusView.treasureCooldownSpins || 0}` },
+            { icon: '👑', text: rushChip, tone: 'rush' }
+        ];
     } else {
-        theme = 'normal';
-        headline = `${activeArcana.icon} ${state?.currentArcana?.label || '1. 魔術師'}`;
-        subline = activeArcana.summary || boardSubtitle || latestLog || '';
+        view.theme = 'normal';
+        view.title = state?.currentArcana?.label || 'SPIN TAROT';
+        view.caption = compactMonitorText(activeArcana.summary || boardSubtitle || latestLog || '', baseCaption);
     }
 
-    return {
-        theme,
-        mode: modeChipText,
-        zone: zoneText,
-        headline,
-        subline,
-        metrics,
-        ticker: buildMonitorTicker(latestLog, metrics)
-    };
-}
-
-function buildMonitorMetrics(statusView, premiumText) {
-    const metrics = [
-        { label: 'OMEN', value: `${statusView.omenGauge}/${statusView.omenGaugeMax}` },
-        { label: state?.battle ? 'TARGET' : 'SUIT', value: state?.battle ? `${state.battle.hp}/${state.battle.maxHp}` : getSuitBadge(state.previewSuit) },
-        { label: statusView.modeKey === 'cz' ? 'CZ' : 'NEXT CZ', value: statusView.modeKey === 'cz' ? `${statusView.czPower}/${statusView.czTarget}` : String(statusView.nextCzIn) },
-        { label: 'RUSH', value: buildRushSummary(statusView, premiumText) }
-    ];
-    if (Number(state?.totalPayout || 0) > 0) {
-        metrics[0] = { label: 'PAYOUT', value: `+${state.totalPayout}` };
-    } else if (Number(state?.lastTreasureCoins || 0) > 0) {
-        metrics[0] = { label: 'TREASURE', value: `+${state.lastTreasureCoins}` };
-    } else if (Number(state?.lastEnemyDamage || 0) > 0) {
-        metrics[0] = { label: 'DAMAGE', value: `-${state.lastEnemyDamage}` };
-    }
-    return metrics;
-}
-
-function buildMonitorTicker(latestLog, metrics) {
-    const metricText = metrics.map((metric) => `${metric.label} ${metric.value}`).join('  //  ');
-    const lead = latestLog || 'No events yet.';
-    return `${lead}  //  ${metricText}  //  ${lead}`;
+    return view;
 }
 
 function renderArcanaChoices(choices) {
