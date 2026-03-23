@@ -20,11 +20,14 @@ function parseArgs(argv) {
     const options = {
         mobile: false,
         spins: 0,
+        until: '',
+        autoArcanaChoice: 0,
         output: path.resolve(process.cwd(), 'tmp', 'spin-tarot-shot.png'),
         selector: '#tarotSpinRoot',
         width: 1440,
         height: 1200,
-        waitMs: 600
+        waitMs: 600,
+        settleMs: 0
     };
 
     for (let index = 0; index < argv.length; index += 1) {
@@ -37,6 +40,14 @@ function parseArgs(argv) {
                 break;
             case '--spins':
                 options.spins = Math.max(0, Number.parseInt(argv[index + 1] || '0', 10) || 0);
+                index += 1;
+                break;
+            case '--until':
+                options.until = String(argv[index + 1] || '').trim().toLowerCase();
+                index += 1;
+                break;
+            case '--arcana-choice':
+                options.autoArcanaChoice = Math.max(0, Number.parseInt(argv[index + 1] || '0', 10) || 0);
                 index += 1;
                 break;
             case '--output':
@@ -57,6 +68,10 @@ function parseArgs(argv) {
                 break;
             case '--wait':
                 options.waitMs = Math.max(0, Number.parseInt(argv[index + 1] || String(options.waitMs), 10) || options.waitMs);
+                index += 1;
+                break;
+            case '--settle':
+                options.settleMs = Math.max(0, Number.parseInt(argv[index + 1] || String(options.settleMs), 10) || 0);
                 index += 1;
                 break;
             default:
@@ -105,9 +120,47 @@ function createStaticServer(rootDir) {
 async function waitForSpinToSettle(page) {
     await page.waitForFunction(() => {
         const root = document.getElementById('tarotSpinRoot');
-        const button = document.getElementById('spinTarotSpinButton');
-        return !!root && !!button && !root.classList.contains('is-spinning') && !button.disabled;
+        return !!root && !root.classList.contains('is-spinning');
     }, { timeout: 15000 });
+}
+
+async function captureSpinState(page) {
+    return page.evaluate(() => {
+        const root = document.getElementById('tarotSpinRoot');
+        const raw = localStorage.getItem('spinTarotState.v2');
+        const state = raw ? JSON.parse(raw) : null;
+        const pendingArcanaChoices = Array.isArray(state?.pendingArcanaChoices) ? state.pendingArcanaChoices.length : 0;
+        return {
+            spinCount: Number(state?.spinCount || 0),
+            phase: String(state?.phase || ''),
+            battle: !!state?.battle,
+            pendingArcanaChoices,
+            phaserPrimary: !!root?.classList.contains('spin-tarot-phaser-active')
+        };
+    });
+}
+
+function isTargetReached(snapshot, until) {
+    switch (until) {
+        case 'hold':
+            return snapshot.phase === 'hold';
+        case 'arcana':
+        case 'arcana-choice':
+            return snapshot.pendingArcanaChoices > 0;
+        case 'battle':
+            return snapshot.battle;
+        default:
+            return false;
+    }
+}
+
+async function autoResolveArcanaChoice(page, choiceIndex) {
+    const selector = `[data-arcana-choice="${choiceIndex}"]`;
+    const count = await page.locator(selector).count();
+    if (!count) return false;
+    await page.click(selector);
+    await waitForSpinToSettle(page);
+    return true;
 }
 
 async function main() {
@@ -142,12 +195,46 @@ async function main() {
         await page.waitForSelector('#spinTarotSpinButton', { state: 'visible', timeout: 15000 });
         await waitForSpinToSettle(page);
 
-        for (let spin = 0; spin < options.spins; spin += 1) {
-            await page.click('#spinTarotSpinButton');
-            await waitForSpinToSettle(page);
-            if (options.waitMs > 0) {
-                await page.waitForTimeout(options.waitMs);
+        if (options.until) {
+            let reached = false;
+            for (let spin = 0; spin < 180; spin += 1) {
+                const spinButton = page.locator('#spinTarotSpinButton');
+                if (await spinButton.isDisabled()) {
+                    const resolved = await autoResolveArcanaChoice(page, options.autoArcanaChoice);
+                    if (!resolved) {
+                        throw new Error(`Spin button disabled before reaching target state: ${options.until}`);
+                    }
+                } else {
+                    await spinButton.click();
+                    await waitForSpinToSettle(page);
+                }
+                if (options.waitMs > 0) {
+                    await page.waitForTimeout(options.waitMs);
+                }
+                const snapshot = await captureSpinState(page);
+                if (isTargetReached(snapshot, options.until)) {
+                    reached = true;
+                    break;
+                }
+                if (snapshot.pendingArcanaChoices > 0) {
+                    await autoResolveArcanaChoice(page, options.autoArcanaChoice);
+                }
             }
+            if (!reached) {
+                throw new Error(`Target state not reached: ${options.until}`);
+            }
+        } else {
+            for (let spin = 0; spin < options.spins; spin += 1) {
+                await page.click('#spinTarotSpinButton');
+                await waitForSpinToSettle(page);
+                if (options.waitMs > 0) {
+                    await page.waitForTimeout(options.waitMs);
+                }
+            }
+        }
+
+        if (options.settleMs > 0) {
+            await page.waitForTimeout(options.settleMs);
         }
 
         ensureParentDir(options.output);
@@ -159,7 +246,9 @@ async function main() {
             path: options.output
         });
 
+        const snapshot = await captureSpinState(page);
         console.log(options.output);
+        console.log(JSON.stringify(snapshot));
         await context.close();
     } finally {
         if (browser) {

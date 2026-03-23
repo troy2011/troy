@@ -2,10 +2,10 @@ import * as Phaser from 'phaser';
 import { SPIN_TAROT_SPRITE_CONFIG } from './spinTarotConfig.js';
 
 const BOARD_SCENE_KEY = 'spin-tarot-board-scene';
+const BOARD_TEXTURE_KEY = 'spin-tarot-sheet-frames';
 const BOARD_REELS = 5;
 const BOARD_ROWS = 3;
 const CARD_RATIO = SPIN_TAROT_SPRITE_CONFIG.tileHeight / SPIN_TAROT_SPRITE_CONFIG.tileWidth;
-const SPRITE_COLUMNS = Math.max(1, Math.floor(SPIN_TAROT_SPRITE_CONFIG.sheetWidth / SPIN_TAROT_SPRITE_CONFIG.tileWidth));
 const CARD_COLORS = {
     Wand: 0xf6ad55,
     Sword: 0xf87171,
@@ -17,16 +17,6 @@ const CARD_COLORS = {
     hit: 0xfbbf24,
     flash: 0xfef08a
 };
-
-function getSpriteCrop(index) {
-    const safeIndex = Math.max(0, Number(index) || 0);
-    return {
-        x: (safeIndex % SPRITE_COLUMNS) * SPIN_TAROT_SPRITE_CONFIG.tileWidth,
-        y: Math.floor(safeIndex / SPRITE_COLUMNS) * SPIN_TAROT_SPRITE_CONFIG.tileHeight,
-        width: SPIN_TAROT_SPRITE_CONFIG.tileWidth,
-        height: SPIN_TAROT_SPRITE_CONFIG.tileHeight
-    };
-}
 
 class SpinTarotBoardScene extends Phaser.Scene {
     constructor() {
@@ -55,8 +45,13 @@ class SpinTarotBoardScene extends Phaser.Scene {
     }
 
     preload() {
-        if (!this.textures.exists('spin-tarot-sheet')) {
-            this.load.image('spin-tarot-sheet', SPIN_TAROT_SPRITE_CONFIG.src);
+        if (!this.textures.exists(BOARD_TEXTURE_KEY)) {
+            this.load.spritesheet(BOARD_TEXTURE_KEY, SPIN_TAROT_SPRITE_CONFIG.src, {
+                frameWidth: SPIN_TAROT_SPRITE_CONFIG.tileWidth,
+                frameHeight: SPIN_TAROT_SPRITE_CONFIG.tileHeight,
+                margin: 0,
+                spacing: 0
+            });
         }
     }
 
@@ -104,7 +99,7 @@ class SpinTarotBoardScene extends Phaser.Scene {
                 const base = this.add.rectangle(0, 0, 10, 10, 0x182033, 1).setOrigin(0.5);
                 const glow = this.add.rectangle(0, 0, 10, 10, 0xfbbf24, 0).setOrigin(0.5);
                 const holdRing = this.add.rectangle(0, 0, 10, 10, 0x000000, 0).setOrigin(0.5);
-                const art = this.add.image(0, 0, 'spin-tarot-sheet').setOrigin(0.5);
+                const art = this.add.image(0, 0, BOARD_TEXTURE_KEY, SPIN_TAROT_SPRITE_CONFIG.backIndex).setOrigin(0.5);
                 const title = this.add.text(0, 0, '', {
                     fontFamily: '"BIZ UDGothic","MS Gothic",monospace',
                     fontStyle: '700',
@@ -274,9 +269,8 @@ class SpinTarotBoardScene extends Phaser.Scene {
             ? CARD_COLORS.arcana
             : CARD_COLORS[card?.suit] || CARD_COLORS.blank;
         const frameColor = isFlash ? CARD_COLORS.flash : isHit ? CARD_COLORS.hit : isHeld ? CARD_COLORS.held : accent;
-        const crop = getSpriteCrop(Number(card?.spriteIndex) || SPIN_TAROT_SPRITE_CONFIG.backIndex);
-
-        node.art.setCrop(crop.x, crop.y, crop.width, crop.height);
+        const frameIndex = Math.max(0, Number(card?.spriteIndex) || SPIN_TAROT_SPRITE_CONFIG.backIndex);
+        node.art.setFrame(frameIndex);
         node.base.setFillStyle(isBlank ? 0x101827 : 0x162033, isBlank ? 0.88 : 0.98);
         node.base.setStrokeStyle(2, frameColor, isBlank ? 0.34 : 0.82);
         node.glow.setFillStyle(frameColor, isFlash ? 0.22 : isHit ? 0.16 : isHeld ? 0.12 : 0);

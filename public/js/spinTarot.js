@@ -454,8 +454,8 @@ function syncBoardRenderer(hitCells = getHitCellSet()) {
                 container,
                 onReady: () => {
                     if (!root) return;
-                    root.classList.add('spin-tarot-phaser-active');
                     boardRenderer?.update(buildBoardRenderState(getHitCellSet()));
+                    syncBoardRendererVisibility();
                 }
             });
         } catch (error) {
@@ -466,7 +466,16 @@ function syncBoardRenderer(hitCells = getHitCellSet()) {
     }
     boardRenderer.attach(container);
     boardRenderer.update(buildBoardRenderState(hitCells));
-    root.classList.toggle('spin-tarot-phaser-active', !!boardRenderer?.isReady());
+    syncBoardRendererVisibility();
+}
+
+function syncBoardRendererVisibility() {
+    if (!root) return;
+    const rendererReady = !!boardRenderer?.isReady();
+    // Keep Phaser in front only during the actual spin and the short win showcase.
+    // Static hold / battle screens read better with the DOM cards as the primary board.
+    const showPhaserPrimary = rendererReady && (spinning || !!lastWinCoords);
+    root.classList.toggle('spin-tarot-phaser-active', showPhaserPrimary);
 }
 
 function applyArcanaChoice(choiceIndex) {
