@@ -38,7 +38,7 @@ let lastTransferNoticeId = null;
 window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
-const TAROT_MODULE_VERSION = '20260303b';
+const TAROT_MODULE_VERSION = '20260323a';
 
 installPlayerProfileInteractions();
 

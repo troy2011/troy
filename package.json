@@ -13,6 +13,8 @@
     "catalog:get": "node scripts/get-catalog-item.js",
     "spin:shot": "node scripts/spin-tarot-shot.js",
     "spin:shot:mobile": "node scripts/spin-tarot-shot.js --mobile",
+    "poker:shot": "node scripts/tarot-poker-shot.js",
+    "poker:shot:mobile": "node scripts/tarot-poker-shot.js --mobile",
     "kingdom:shot": "node scripts/tarot-kingdom-shot.js",
     "kingdom:shot:mobile": "node scripts/tarot-kingdom-shot.js --mobile"
   },

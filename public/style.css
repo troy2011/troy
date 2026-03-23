@@ -5482,12 +5482,52 @@ body.modal-lock .modal-overlay {
 
 .tarot-poker-controls {
     display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 10px;
 }
 
 .tarot-poker-controls button {
     flex: 1;
+}
+
+.tarot-poker-mode-toggle {
+    flex: 0 0 auto;
+    min-width: 240px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tarot-poker-mode-btn {
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.98));
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: transform 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.tarot-poker-mode-btn.is-active {
+    color: #fff3c4;
+    border-color: rgba(251, 191, 36, 0.52);
+    background:
+        radial-gradient(140% 120% at 50% 0%, rgba(245, 158, 11, 0.2), rgba(255, 255, 255, 0) 52%),
+        linear-gradient(180deg, rgba(71, 85, 105, 0.94), rgba(17, 24, 39, 0.98));
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.18),
+        0 10px 18px rgba(2, 6, 23, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tarot-poker-mode-btn:disabled {
+    opacity: 0.58;
 }
 
 .tarot-draw-guide {
@@ -5990,6 +6030,23 @@ body.modal-lock .modal-overlay {
     cursor: default;
 }
 
+.tarot-fate-card-empty {
+    width: 100%;
+    min-height: var(--tarot-card-h, 100px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--tarot-card-radius, 10px);
+    border: 1px dashed rgba(148, 163, 184, 0.32);
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88)),
+        radial-gradient(120% 120% at 50% 0%, rgba(148, 163, 184, 0.08), transparent 56%);
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+}
+
 .tarot-board-main {
     flex: 1 1 auto;
     min-width: 0;
@@ -6012,6 +6069,44 @@ body.modal-lock .modal-overlay {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.tarot-poker-root.is-no-major-arcana .tarot-fate-label {
+    color: #94a3b8;
+}
+
+.tarot-poker-root .tarot-bet-popup {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    margin: 0 0 10px;
+    padding: 12px;
+}
+
+.tarot-poker-root .tarot-betting-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    justify-content: stretch;
+    overflow: visible;
+}
+
+.tarot-poker-root .tarot-betting-actions button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    height: 66px;
+    min-height: 66px;
+    padding: 8px 6px;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    white-space: normal;
+    line-height: 1.12;
+    font-size: 12px;
 }
 
 .tarot-fate-preview-token {
@@ -8733,6 +8828,18 @@ body.modal-lock .modal-overlay {
         font-size: 12px;
     }
 
+    #tabContentTarot .tarot-poker-mode-toggle {
+        min-width: 0;
+        width: 100%;
+        gap: 6px;
+    }
+
+    #tabContentTarot .tarot-poker-mode-btn {
+        min-height: 36px;
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+
     #tabContentTarot .tarot-betting-info {
         margin-bottom: 8px;
         padding: 6px;
@@ -10752,6 +10859,40 @@ textarea {
     scroll-snap-align: start;
 }
 
+#tabContentTarot #tarotPokerRoot .tarot-bet-popup {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--nav-height) + var(--safe-bottom) + 8px);
+    width: auto;
+    max-width: none;
+    transform: none;
+    margin: 0;
+    padding: 26px 10px 10px;
+}
+
+#tabContentTarot #tarotPokerRoot .tarot-betting-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+}
+
+#tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
+    flex: 0 0 var(--tarot-card-w, 58px);
+    width: var(--tarot-card-w, 58px);
+    min-width: var(--tarot-card-w, 58px);
+    height: var(--tarot-card-h, 96px);
+    min-height: var(--tarot-card-h, 96px);
+    padding: 5px 2px;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    white-space: pre-line;
+    font-size: 12px;
+    line-height: 1.08;
+}
+
 #tabContentTarot #tarotKingdomRoot .tarot-kingdom-hand-title,
 #tabContentTarot #tarotKingdomRoot .tarot-kingdom-trick-title {
     flex-wrap: wrap;
@@ -10790,12 +10931,52 @@ textarea {
         padding: 12px 10px;
     }
 
+    #tabContentTarot #tarotPokerRoot .tarot-poker-mode-toggle {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
         padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 98px);
     }
 
     #tabContentTarot .tarot-log {
         max-height: 22dvh;
+    }
+}
+
+@media (min-width: 641px) {
+    #tabContentTarot #tarotPokerRoot .tarot-bet-popup {
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        max-width: none;
+        transform: none;
+        margin: 0 0 10px;
+        padding: 12px;
+    }
+
+    #tabContentTarot #tarotPokerRoot .tarot-betting-actions {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+        justify-content: stretch;
+        overflow: visible;
+    }
+
+    #tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        height: 66px;
+        min-height: 66px;
+        padding: 8px 6px;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        white-space: normal;
+        line-height: 1.12;
+        font-size: 12px;
     }
 }
 
@@ -11073,6 +11254,30 @@ textarea {
         line-height: 1.12;
         font-size: 10px;
         letter-spacing: -0.01em;
+    }
+
+    #tabContentTarot #tarotPokerRoot .tarot-bet-popup {
+        padding: 24px 8px 8px;
+    }
+
+    #tabContentTarot #tarotPokerRoot .tarot-betting-actions {
+        overflow: visible;
+        justify-content: space-between;
+        gap: 4px;
+    }
+
+    #tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        height: 50px;
+        min-height: 50px;
+        padding: 4px 1px;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        white-space: normal;
+        font-size: 10px;
+        line-height: 1.12;
     }
 
     #tabContentTarot #tarotKingdomPassButton {

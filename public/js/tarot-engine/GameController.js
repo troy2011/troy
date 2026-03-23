@@ -28,7 +28,7 @@ function randomPick(list, rng) {
     return list[index];
 }
 function cloneCard(card) {
-    return { ...card };
+    return card ? { ...card } : null;
 }
 function createMinorDeck() {
     const deck = [];
@@ -126,6 +126,7 @@ export class GameController {
     constructor(options = {}) {
         this.rng = options.rng || Math.random;
         this.evaluator = new HandEvaluator();
+        this.enableFateCard = options.enableFateCard !== false;
         this.forcedFateCard = options.forcedFateCard ? cloneCard(options.forcedFateCard) : null;
         this.forcedDeck = Array.isArray(options.forcedDeck) ? options.forcedDeck.map(cloneCard) : null;
         this.wheelMutationPool = (options.wheelMutationPool && options.wheelMutationPool.length > 0)
@@ -149,20 +150,13 @@ export class GameController {
                 revealHandIndex: null
             };
         }
-        const dummyFate = {
-            id: 'arcana_dummy',
-            number: 0,
-            suit: 'None',
-            isArcana: true,
-            effectType: 'Fool'
-        };
         return {
             phase: 'idle',
             players,
             playerOrder,
             deck: [],
-            fateCard: dummyFate,
-            activeFateCard: dummyFate,
+            fateCard: null,
+            activeFateCard: null,
             boardVisible: [],
             boardHiddenRiver: null,
             previewRiverCard: null,
@@ -251,7 +245,9 @@ export class GameController {
     startRound() {
         const baseDeck = this.forcedDeck ? this.forcedDeck.map(cloneCard) : shuffleCards(createMinorDeck(), this.rng);
         const majorDeck = createMajorDeck();
-        const fateCard = this.forcedFateCard ? cloneCard(this.forcedFateCard) : cloneCard(randomPick(majorDeck, this.rng));
+        const fateCard = this.enableFateCard
+            ? (this.forcedFateCard ? cloneCard(this.forcedFateCard) : cloneCard(randomPick(majorDeck, this.rng)))
+            : null;
         this.state = this.createEmptyState(this.state.playerOrder);
         this.state.deck = baseDeck;
         this.state.fateCard = fateCard;
@@ -260,7 +256,11 @@ export class GameController {
         this.state.canUseJudgmentSwap = false;
         this.state.pendingFateActionSource = null;
         this.dealInitialHands();
-        this.log(`運命カード ${fateCard.number}`);
+        if (fateCard) {
+            this.log(`運命カード ${fateCard.number}`);
+        } else {
+            this.log('大アルカナなしモード');
+        }
         return this.getState();
     }
     registerPlayerAction(playerId, action) {
@@ -516,7 +516,7 @@ export class GameController {
             const input = {
                 hand: player.hand.map(cloneCard),
                 board,
-                fateCard: cloneCard(this.state.activeFateCard)
+                fateCard: this.state.activeFateCard ? cloneCard(this.state.activeFateCard) : undefined
             };
             const evaluation = this.evaluator.evaluateHand(input);
             evaluations[id] = evaluation;

@@ -143,6 +143,7 @@ const BET_ACTION_TEMPO_MS = 900;
 const BET_ACTION_GAP_MS = 260;
 const ROUND_CUTIN_TEMPO_MS = 980;
 const SHOWDOWN_RESULT_CUTIN_TEMPO_MS = 1700;
+const TAROT_POKER_RULESET_STORAGE_KEY = 'tarotPoker.rules.v1';
 const CUTIN_STYLE_CLASSES = ['is-player', 'is-cpu', 'is-showdown-win', 'is-showdown-lose', 'is-showdown-draw'];
 const BET_ACTION_LABEL = {
     check: 'チェック',
@@ -192,6 +193,8 @@ const ui = {
     root: null,
     pokerRoot: null,
     startButton: null,
+    modeWithArcanaButton: null,
+    modeWithoutArcanaButton: null,
     stateText: null,
     participantList: null,
     drawGuide: null,
@@ -568,11 +571,45 @@ function buildDeck() {
     return deck;
 }
 
-function resetState() {
+function loadTarotPokerRules() {
+    const defaults = {
+        useMajorArcana: true
+    };
+    try {
+        const raw = window?.localStorage?.getItem(TAROT_POKER_RULESET_STORAGE_KEY);
+        if (!raw) return defaults;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.useMajorArcana === 'boolean') {
+            return { useMajorArcana: parsed.useMajorArcana };
+        }
+    } catch (error) {
+        console.warn('[tarotPoker] failed to load ruleset:', error);
+    }
+    return defaults;
+}
+
+function saveTarotPokerRules(rules) {
+    try {
+        window?.localStorage?.setItem(TAROT_POKER_RULESET_STORAGE_KEY, JSON.stringify({
+            useMajorArcana: rules?.useMajorArcana !== false
+        }));
+    } catch (error) {
+        console.warn('[tarotPoker] failed to save ruleset:', error);
+    }
+}
+
+function resetState(options = {}) {
     stopPotRollAnimation();
     potDisplayValue = null;
+    const savedRules = loadTarotPokerRules();
+    const useMajorArcana = typeof options.useMajorArcana === 'boolean'
+        ? options.useMajorArcana
+        : savedRules.useMajorArcana;
     state = {
         phase: 'idle',
+        rules: {
+            useMajorArcana
+        },
         drawRound: 0,
         isResolvingPlayerDiscard: false,
         selectedDiscardIndex: null,
@@ -1542,6 +1579,10 @@ function getFateRuleNumber(card) {
 
 function getActiveFateRuleNumber() {
     return getFateRuleNumber(state?.activeFateCard || state?.fateCard || null);
+}
+
+function isMajorArcanaModeEnabled() {
+    return state?.rules?.useMajorArcana !== false;
 }
 
 function escapeHtmlText(value) {
@@ -3328,8 +3369,9 @@ async function startNewGame() {
     const keepNpc3Tp = Number.isFinite(Number(state?.players?.npc3?.testPoints))
         ? Math.max(0, Math.floor(Number(state.players.npc3.testPoints)))
         : TEST_POINT_START;
+    const keepUseMajorArcana = state?.rules?.useMajorArcana !== false;
 
-    resetState();
+    resetState({ useMajorArcana: keepUseMajorArcana });
 
     const activeOrder = getActivePlayerOrder();
     const rotationSize = activeOrder.length > 0 ? activeOrder.length : previousOrder.length;
@@ -3347,13 +3389,22 @@ async function startNewGame() {
     state.displayNpcKey = getNpcKeys()[0] || 'cpu';
     clearBetActionLabels();
 
-    tarotGameController = new TarotGameController({ playerIds: PLAYER_ORDER.slice() });
+    tarotGameController = new TarotGameController({
+        playerIds: PLAYER_ORDER.slice(),
+        enableFateCard: keepUseMajorArcana
+    });
     tarotControllerLogCursor = 0;
     const controllerState = tarotGameController.startRound();
     syncStateFromController(controllerState);
 
-    state.phase = 'fate-reveal';
-    await revealFateCardPresentation();
+    if (keepUseMajorArcana) {
+        state.phase = 'fate-reveal';
+        await revealFateCardPresentation();
+    } else {
+        state.fateRevealed = true;
+        pushLog('大アルカナなしモードで開始');
+        render();
+    }
 
     state.phase = 'dealing';
     state.initialDealAnimating = true;
@@ -4155,14 +4206,23 @@ function renderFateCardInfo() {
     if (ui.fateCard) {
         ui.fateCard.innerHTML = '';
         const fate = state?.activeFateCard || null;
-        const hiddenFate = !!fate && !state?.fateRevealed;
-        const fateCardEl = fate
-            ? createCardElement(fate, { hidden: hiddenFate, clickable: false })
-            : createCardElement(createBackCardData(), { hidden: true, clickable: false });
-        ui.fateCard.appendChild(fateCardEl);
+        if (!fate && !isMajorArcanaModeEnabled()) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'tarot-fate-card-empty';
+            placeholder.textContent = 'OFF';
+            ui.fateCard.appendChild(placeholder);
+        } else {
+            const hiddenFate = !!fate && !state?.fateRevealed;
+            const fateCardEl = fate
+                ? createCardElement(fate, { hidden: hiddenFate, clickable: false })
+                : createCardElement(createBackCardData(), { hidden: true, clickable: false });
+            ui.fateCard.appendChild(fateCardEl);
+        }
     }
     if (ui.fateEffectText) {
-        if (state?.activeFateCard && !state?.fateRevealed) {
+        if (!isMajorArcanaModeEnabled()) {
+            ui.fateEffectText.textContent = '大アルカナなしモード';
+        } else if (state?.activeFateCard && !state?.fateRevealed) {
             ui.fateEffectText.textContent = '公開待ち';
         } else {
             ui.fateEffectText.innerHTML = getFateEffectSummaryHtml(state?.activeFateCard || null);
@@ -4309,6 +4369,20 @@ function renderButtons() {
     btn.textContent = '進行待ち...';
 }
 
+function renderRuleModeButtons() {
+    const withArcana = ui.modeWithArcanaButton;
+    const withoutArcana = ui.modeWithoutArcanaButton;
+    if (!withArcana || !withoutArcana || !state) return;
+    const useMajorArcana = isMajorArcanaModeEnabled();
+    const canChange = state.phase === 'idle' || state.phase === 'showdown';
+    withArcana.classList.toggle('is-active', useMajorArcana);
+    withoutArcana.classList.toggle('is-active', !useMajorArcana);
+    withArcana.setAttribute('aria-pressed', useMajorArcana ? 'true' : 'false');
+    withoutArcana.setAttribute('aria-pressed', !useMajorArcana ? 'true' : 'false');
+    withArcana.disabled = !canChange;
+    withoutArcana.disabled = !canChange;
+}
+
 function renderLog() {
     if (!ui.log || !state) return;
     ui.log.innerHTML = '';
@@ -4451,6 +4525,7 @@ function render() {
     if (ui.pokerRoot) {
         ui.pokerRoot.classList.toggle('is-showdown', isShowdown);
         ui.pokerRoot.classList.toggle('is-dealing', isDealing);
+        ui.pokerRoot.classList.toggle('is-no-major-arcana', !isMajorArcanaModeEnabled());
     }
     const playerCardsForView = isShowdown
         ? getRoleCardsForDisplay(state.result.playerBest, {
@@ -4563,6 +4638,7 @@ function render() {
     });
     renderJudgmentPanel();
     renderButtons();
+    renderRuleModeButtons();
     renderBettingInfo();
     renderParticipantList();
     renderDrawGuide();
@@ -4907,6 +4983,8 @@ function bindElements() {
     ui.root = document.getElementById('tabContentTarot');
     ui.pokerRoot = ui.root?.querySelector('.tarot-poker-root') || null;
     ui.startButton = document.getElementById('tarotStartButton');
+    ui.modeWithArcanaButton = document.getElementById('tarotModeWithArcana');
+    ui.modeWithoutArcanaButton = document.getElementById('tarotModeWithoutArcana');
     ui.stateText = document.getElementById('tarotStateText');
     ui.participantList = document.getElementById('tarotParticipantList');
     ui.drawGuide = document.getElementById('tarotDrawGuide');
@@ -4976,6 +5054,18 @@ function bindEvents() {
     if (isBound) return;
     isBound = true;
     ui.startButton?.addEventListener('click', handlePrimaryButtonClick);
+    ui.modeWithArcanaButton?.addEventListener('click', () => {
+        if (!state || (state.phase !== 'idle' && state.phase !== 'showdown')) return;
+        state.rules.useMajorArcana = true;
+        saveTarotPokerRules(state.rules);
+        render();
+    });
+    ui.modeWithoutArcanaButton?.addEventListener('click', () => {
+        if (!state || (state.phase !== 'idle' && state.phase !== 'showdown')) return;
+        state.rules.useMajorArcana = false;
+        saveTarotPokerRules(state.rules);
+        render();
+    });
     ui.betCheckButton?.addEventListener('click', () => onPlayerBetAction('check'));
     ui.betCallButton?.addEventListener('click', () => onPlayerBetAction('call'));
     ui.betBetButton?.addEventListener('click', () => onPlayerBetAction('bet'));
