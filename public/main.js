@@ -39,6 +39,19 @@ window.myPlayFabDisplayName = null;
 let buildingMetaPromise = null;
 let shipCatalogPromise = null;
 const TAROT_MODULE_VERSION = '20260323a';
+const LIFF_CALLBACK_PARAM_KEYS = [
+    'code',
+    'state',
+    'liffClientId',
+    'redirectUri',
+    'liffRedirectUri',
+    'friendship_status_changed',
+    'error',
+    'error_description',
+    'access_token',
+    'id_token'
+];
+const LIFF_AUTH_RETRY_SESSION_KEY = 'troy:liff-auth-code-retry';
 
 installPlayerProfileInteractions();
 
@@ -171,6 +184,50 @@ function getAvatarColorForNation(nation) {
     return AVATAR_COLOR_BY_NATION[key] || null;
 }
 
+function buildCleanLiffUrl() {
+    const url = new URL(window.location.href);
+    let changed = false;
+    for (const key of LIFF_CALLBACK_PARAM_KEYS) {
+        if (url.searchParams.has(key)) {
+            url.searchParams.delete(key);
+            changed = true;
+        }
+    }
+    return {
+        href: url.href,
+        changed
+    };
+}
+
+function clearLiffRetryMarker() {
+    try {
+        window.sessionStorage.removeItem(LIFF_AUTH_RETRY_SESSION_KEY);
+    } catch (_) {
+    }
+}
+
+function canRetryLiffAuthCodeRecovery() {
+    try {
+        return window.sessionStorage.getItem(LIFF_AUTH_RETRY_SESSION_KEY) !== '1';
+    } catch (_) {
+        return true;
+    }
+}
+
+function markLiffAuthCodeRecoveryAttempt() {
+    try {
+        window.sessionStorage.setItem(LIFF_AUTH_RETRY_SESSION_KEY, '1');
+    } catch (_) {
+    }
+}
+
+function stripLiffCallbackParamsFromHistory() {
+    const cleanUrl = buildCleanLiffUrl();
+    if (!cleanUrl.changed) return cleanUrl;
+    window.history.replaceState({}, document.title, cleanUrl.href);
+    return cleanUrl;
+}
+
 // main.js は export しないため、RACE_COLORS を window に登録
 window.RACE_COLORS = RACE_COLORS;
 
@@ -211,7 +268,12 @@ async function initializeLiff() {
         __perfLog('initializeLiff start');
         await liff.init({ liffId: "2008427313-jg0DYMVb" });
         __perfLog('liff.init done');
-        if (!liff.isLoggedIn()) { liff.login(); return; }
+        clearLiffRetryMarker();
+        stripLiffCallbackParamsFromHistory();
+        if (!liff.isLoggedIn()) {
+            liff.login({ redirectUri: buildCleanLiffUrl().href });
+            return;
+        }
 
         const profile = await liff.getProfile();
         __perfLog('liff.getProfile done');
@@ -343,6 +405,16 @@ async function initializeLiff() {
         }
 
     } catch (error) {
+        const errorMessage = String(error?.message || error || '');
+        if (/invalid authorization code/i.test(errorMessage)) {
+            const cleanUrl = buildCleanLiffUrl();
+            if (cleanUrl.changed && canRetryLiffAuthCodeRecovery()) {
+                markLiffAuthCodeRecoveryAttempt();
+                console.warn('[liff] Detected stale authorization code. Reloading with a clean callback URL.');
+                window.location.replace(cleanUrl.href);
+                return;
+            }
+        }
         console.error('Error:', error);
         document.getElementById('appWrapper').style.display = 'block';
         document.getElementById('globalPlayerName').innerText = '初期化エラー';
