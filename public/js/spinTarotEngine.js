@@ -202,6 +202,7 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         attackMultiplier: 1,
         lineResults: [],
         lineSummaries: [],
+        lastDefenseActions: [],
         lastCutin: null,
         lastOutcome: null,
         lastEffects: [],
@@ -234,6 +235,7 @@ export function cloneState(state) {
         treasureCooldownSpins: Math.max(0, Number(state.treasureCooldownSpins) || 0),
         lineResults: Array.isArray(state.lineResults) ? state.lineResults.map((item) => ({ ...item, coords: item.coords?.map((coord) => ({ ...coord })) || [] })) : [],
         lineSummaries: Array.isArray(state.lineSummaries) ? state.lineSummaries.slice() : [],
+        lastDefenseActions: Array.isArray(state.lastDefenseActions) ? state.lastDefenseActions.map((item) => ({ ...item })) : [],
         lastCutin: state.lastCutin ? { ...state.lastCutin } : null,
         lastEffects: Array.isArray(state.lastEffects) ? state.lastEffects.slice() : [],
         logs: Array.isArray(state.logs) ? state.logs.slice() : []
@@ -345,6 +347,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         state.attackMultiplier = 1;
         state.lineResults = [];
         state.lineSummaries = [];
+        state.lastDefenseActions = [];
         state.lastEffects = [];
         state.lastCutin = null;
         state.omenBreak = false;
@@ -373,6 +376,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     state.attackMultiplier = 1;
     state.lineResults = [];
     state.lineSummaries = [];
+    state.lastDefenseActions = [];
     state.lastEffects = [];
     state.lastCutin = null;
     state.omenBreak = false;
@@ -1446,6 +1450,19 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         const treasureGain = randomInt(config.combat.treasureChestMin, config.combat.treasureChestMax) * Number(betInfo.cost || 1);
         state.coins += treasureGain;
         state.lastTreasureCoins = treasureGain;
+        state.lastDefenseActions = [
+            createDefenseAction({
+                code: 'treasure-chest',
+                icon: '📦',
+                label: 'TREASURE CHEST',
+                short: 'TREASURE',
+                detail: `Treasure recovered: +${treasureGain} coin.`,
+                role: 'reward',
+                motion: 'treasure',
+                tone: 'reward',
+                damage: treasureGain
+            })
+        ];
         pushLog(state, `宝島の宝箱から ${treasureGain} 枚獲得。`, config);
         state.premium.spinsRemaining -= 1;
         if (state.premium.spinsRemaining <= 0) {
@@ -1496,6 +1513,19 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
             const reflect = Math.max(config.combat.minimumBattleDamage, Math.floor(state.battle.attack * 0.8));
             state.battle.hp = Math.max(0, state.battle.hp - reflect);
             state.confuseTurns = Math.max(0, state.confuseTurns - 1);
+            state.lastDefenseActions = [
+                createDefenseAction({
+                    code: 'confuse-reflect',
+                    icon: '🌀',
+                    label: 'CONFUSE REFLECT',
+                    short: 'REFLECT',
+                    detail: `${state.battle.label} hurts itself for ${reflect} damage.`,
+                    role: 'support',
+                    motion: 'clash',
+                    tone: 'reward',
+                    damage: reflect
+                })
+            ];
             pushLog(state, `${state.battle.label} が幻惑で自滅 ${reflect} ダメージ。`, config);
         } else {
             let damage = Math.max(1, state.battle.attack + config.combat.enemyMissDamageBase);
@@ -1503,6 +1533,19 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
             damage = Math.max(1, Math.floor(damage * (1 - shieldRatio)));
             state.castleHp = Math.max(0, state.castleHp - damage);
             state.lastEnemyDamage = damage;
+            state.lastDefenseActions = [
+                createDefenseAction({
+                    code: 'enemy-push',
+                    icon: state.battle.emoji || '👾',
+                    label: 'ENEMY PUSH',
+                    short: 'PUSH',
+                    detail: `${state.battle.label} breaks through for ${damage} damage.`,
+                    role: 'enemy',
+                    motion: state.battle.isBoss ? 'boss' : 'rush',
+                    tone: 'danger',
+                    damage
+                })
+            ];
             pushLog(state, `${state.battle.label} の攻撃で城壁 -${damage}。`, config);
             if (state.battle.healRatio > 0) {
                 const heal = Math.max(1, Math.floor(state.battle.maxHp * state.battle.healRatio));
@@ -1540,63 +1583,356 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         state.gameOver = true;
         const refund = Math.floor(state.coins * config.progression.lossRefundRatio);
         state.coins = refund;
+        state.lastDefenseActions = [
+            createDefenseAction({
+                code: 'castle-fall',
+                icon: '🏚️',
+                label: 'CASTLE FALL',
+                short: 'FALL',
+                detail: `The castle falls. Coins reset to ${refund}.`,
+                role: 'enemy',
+                motion: 'boss',
+                tone: 'danger',
+                damage: 0
+            })
+        ];
         state.lastCutin = buildCutin(13, '城壁崩壊');
         pushLog(state, `敗北。残コインは ${refund} 枚に圧縮。`, config);
     }
 }
 
-function computePlayerDamage(state, evaluation, config, betInfo) {
-    const winLines = evaluation.lineResults.filter((line) => line.kind !== 'Miss');
-    if (winLines.length === 0) return 0;
-    const strength = evaluation.totalMultiplier || 1;
-    let damage = winLines.reduce((sum, line) => {
-        return sum + config.combat.lineAttackBase + Math.floor(line.multiplier * config.combat.payoutToDamageRatio * 10);
-    }, 0);
-    damage += Math.floor(state.knights * config.combat.knightPower * 0.2);
-    damage += Math.floor(state.mages * config.combat.magePower * 0.15);
+function createDefenseAction(action = {}) {
+    return {
+        code: String(action.code || '').trim(),
+        icon: String(action.icon || '⚔️'),
+        label: String(action.label || 'ATTACK'),
+        short: String(action.short || action.label || 'ATTACK'),
+        detail: String(action.detail || action.label || 'Attack').trim(),
+        role: String(action.role || 'support'),
+        motion: String(action.motion || 'rush'),
+        tone: String(action.tone || ''),
+        damage: Math.max(0, Math.floor(Number(action.damage) || 0)),
+        handKind: String(action.handKind || '').trim(),
+        lineId: String(action.lineId || '').trim()
+    };
+}
 
-    const arcana = getMajorArcana(state.currentArcana?.number);
+function buildLineDefenseAction(line, state, config, betInfo) {
+    const lineMultiplier = Math.max(1, Number(line?.multiplier || 0));
+    const statMultiplier = Math.max(1, Number(betInfo?.statMultiplier || 1));
+    const population = Math.max(0, Number(state?.population || 0));
+    const knights = Math.max(0, Number(state?.knights || 0));
+    const bishops = Math.max(0, Number(state?.bishops || 0));
+    const mages = Math.max(0, Number(state?.mages || 0));
+    const base = Math.max(1, Number(config?.combat?.lineAttackBase || 0));
+    const knightPower = Math.max(1, Number(config?.combat?.knightPower || 1));
+    const bishopPower = Math.max(1, Number(config?.combat?.bishopPower || 1));
+    const magePower = Math.max(1, Number(config?.combat?.magePower || 1));
+    const kind = String(line?.kind || 'Miss');
+    const shared = {
+        handKind: kind,
+        lineId: String(line?.id || '')
+    };
+
+    switch (kind) {
+        case 'OnePair':
+            return createDefenseAction({
+                ...shared,
+                code: 'pawn-guard',
+                icon: '♙',
+                label: 'PAWN GUARD',
+                short: 'PAWN GUARD',
+                detail: 'Militia brace the gate and chip the front line.',
+                role: 'guard',
+                motion: 'march',
+                tone: 'reward',
+                damage: (base + Math.floor(population * 0.08) + (lineMultiplier * 2)) * statMultiplier
+            });
+        case 'TwoPair':
+            return createDefenseAction({
+                ...shared,
+                code: 'knight-charge',
+                icon: '♘',
+                label: 'KNIGHT CHARGE',
+                short: 'KNIGHT',
+                detail: 'Twin signals send the knights charging forward.',
+                role: 'guard',
+                motion: 'rush',
+                tone: 'reward',
+                damage: (base + Math.floor(knights * knightPower * 0.35) + (lineMultiplier * 4)) * statMultiplier
+            });
+        case 'ThreeKind':
+            return createDefenseAction({
+                ...shared,
+                code: 'bishop-shot',
+                icon: '♗',
+                label: 'BISHOP SHOT',
+                short: 'BISHOP',
+                detail: 'A focused bishop volley pierces the enemy file.',
+                role: 'support',
+                motion: 'clash',
+                tone: 'reward',
+                damage: (base + Math.floor((bishopPower * 1.4) + (bishops * 3)) + (lineMultiplier * 5)) * statMultiplier
+            });
+        case 'Straight':
+            return createDefenseAction({
+                ...shared,
+                code: 'formation-push',
+                icon: '♘',
+                label: 'FORMATION PUSH',
+                short: 'PUSH',
+                detail: 'The whole formation surges down the lane.',
+                role: 'guard',
+                motion: 'rush',
+                tone: 'reward',
+                damage: (base * 2 + Math.floor(knights * knightPower * 0.5) + (lineMultiplier * 6)) * statMultiplier
+            });
+        case 'Flush':
+            return createDefenseAction({
+                ...shared,
+                code: 'mage-barrage',
+                icon: '🪄',
+                label: 'MAGE BARRAGE',
+                short: 'MAGE',
+                detail: 'Aligned suits become a single magical bombardment.',
+                role: 'support',
+                motion: 'hover',
+                tone: 'reward',
+                damage: (base * 2 + Math.floor(mages * magePower * 0.6) + (lineMultiplier * 7)) * statMultiplier
+            });
+        case 'FullHouse':
+            return createDefenseAction({
+                ...shared,
+                code: 'mixed-assault',
+                icon: '♘♗',
+                label: 'MIXED ASSAULT',
+                short: 'MIXED',
+                detail: 'Knights and bishops strike in one combined push.',
+                role: 'guard',
+                motion: 'rush',
+                tone: 'reward',
+                damage: (base * 3 + Math.floor(knights * knightPower * 0.3) + Math.floor(bishops * bishopPower * 0.25) + (lineMultiplier * 8)) * statMultiplier
+            });
+        case 'FourKindLow':
+            return createDefenseAction({
+                ...shared,
+                code: 'arcana-blast',
+                icon: '🎴',
+                label: 'ARCANA BLAST',
+                short: 'ARCANA',
+                detail: 'The major arcana fires directly into the siege line.',
+                role: 'arcana',
+                motion: 'arcana',
+                tone: 'reward',
+                damage: (base * 4 + Math.floor(mages * magePower * 0.35) + (lineMultiplier * 12) + 20) * statMultiplier
+            });
+        case 'FourKindHigh':
+            return createDefenseAction({
+                ...shared,
+                code: 'royal-judgement',
+                icon: '👑',
+                label: 'ROYAL JUDGEMENT',
+                short: 'ROYAL',
+                detail: 'A royal decree crashes down on the front line.',
+                role: 'arcana',
+                motion: 'arcana',
+                tone: 'reward',
+                damage: (base * 5 + Math.floor(bishops * bishopPower * 0.4) + (lineMultiplier * 14) + 28) * statMultiplier
+            });
+        case 'StraightFlush':
+            return createDefenseAction({
+                ...shared,
+                code: 'kingdom-rush',
+                icon: '♕',
+                label: 'KINGDOM RUSH',
+                short: 'KINGDOM',
+                detail: 'The kingdom army floods the lane in one wave.',
+                role: 'arcana',
+                motion: 'arcana',
+                tone: 'reward',
+                damage: (base * 6 + Math.floor(knights * knightPower * 0.45) + Math.floor(mages * magePower * 0.45) + (lineMultiplier * 18) + 36) * statMultiplier
+            });
+        case 'RoyalStraightFlush':
+            return createDefenseAction({
+                ...shared,
+                code: 'world-break',
+                icon: '🌍',
+                label: 'WORLD BREAK',
+                short: 'WORLD',
+                detail: 'Reality itself bends and crushes the enemy advance.',
+                role: 'arcana',
+                motion: 'arcana',
+                tone: 'reward',
+                damage: (base * 10 + (lineMultiplier * 32) + 80) * statMultiplier
+            });
+        default:
+            return createDefenseAction({
+                ...shared,
+                code: 'enemy-push',
+                icon: '👾',
+                label: 'ENEMY PUSH',
+                short: 'PUSH',
+                detail: 'No formation. The enemy marches closer.',
+                role: 'enemy',
+                motion: 'rush',
+                tone: 'danger',
+                damage: 0
+            });
+    }
+}
+
+function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, strength) {
+    const actions = [];
     const horizontalHits = winLines.filter((line) => HORIZONTAL_LINE_IDS.has(line.id)).length;
     const diagonalHits = winLines.filter((line) => !HORIZONTAL_LINE_IDS.has(line.id)).length;
+    const statMultiplier = Math.max(1, Number(betInfo?.statMultiplier || 1));
 
     if (horizontalHits > 0 && arcana.horizontalKnightBurst) {
-        const knightAmmo = Math.min(state.knights, horizontalHits);
-        damage += Math.floor(knightAmmo * config.combat.knightPower * arcana.horizontalKnightBurst * strength * Number(betInfo.statMultiplier || 1));
-        state.knights = Math.max(0, state.knights - knightAmmo);
+        actions.push(createDefenseAction({
+            code: 'arcana-knight-burst',
+            icon: arcana.icon || '🎴',
+            label: 'ARCANA CAVALRY',
+            short: 'CAVALRY',
+            detail: 'Horizontal lines ignite a cavalry burst.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.floor(horizontalHits * Number(config.combat.knightPower || 1) * arcana.horizontalKnightBurst * strength * statMultiplier)
+        }));
     }
     if (horizontalHits > 0 && arcana.horizontalJusticeBurst) {
-        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalJusticeBurst * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-justice-burst',
+            icon: arcana.icon || '⚖️',
+            label: 'JUSTICE VOLLEY',
+            short: 'JUSTICE',
+            detail: 'The arcana punishes every horizontal hit.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.floor(horizontalHits * Number(config.combat.bishopPower || 1) * arcana.horizontalJusticeBurst * strength)
+        }));
     }
     if (horizontalHits > 0 && arcana.horizontalTowerBurst) {
-        damage += Math.floor(horizontalHits * config.combat.bishopPower * arcana.horizontalTowerBurst * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-tower-burst',
+            icon: arcana.icon || '🗼',
+            label: 'TOWER COLLAPSE',
+            short: 'TOWER',
+            detail: 'The lane erupts in a tower-scale blast.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.floor(horizontalHits * Number(config.combat.bishopPower || 1) * arcana.horizontalTowerBurst * strength)
+        }));
     }
     if (diagonalHits > 0 && arcana.diagonalBishopBurst) {
-        const bishopAmmo = Math.min(state.bishops, diagonalHits);
-        damage += Math.floor(Math.max(1, bishopAmmo) * config.combat.bishopPower * arcana.diagonalBishopBurst * strength);
-        state.bishops = Math.max(0, state.bishops - bishopAmmo);
+        actions.push(createDefenseAction({
+            code: 'arcana-bishop-burst',
+            icon: arcana.icon || '♗',
+            label: 'DIAGONAL PIERCE',
+            short: 'PIERCE',
+            detail: 'Diagonal lines trigger a piercing bishop spell.',
+            role: 'arcana',
+            motion: 'clash',
+            tone: 'reward',
+            damage: Math.floor(diagonalHits * Number(config.combat.bishopPower || 1) * arcana.diagonalBishopBurst * strength)
+        }));
     }
     if (diagonalHits > 0 && arcana.diagonalDevilBurst) {
-        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalDevilBurst * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-devil-burst',
+            icon: arcana.icon || '😈',
+            label: 'DEVIL SLASH',
+            short: 'DEVIL',
+            detail: 'A cursed diagonal slash tears through the siege.',
+            role: 'arcana',
+            motion: 'clash',
+            tone: 'reward',
+            damage: Math.floor(diagonalHits * Number(config.combat.bishopPower || 1) * arcana.diagonalDevilBurst * strength)
+        }));
     }
     if (diagonalHits > 0 && arcana.diagonalJudgementBurst) {
-        damage += Math.floor(diagonalHits * config.combat.bishopPower * arcana.diagonalJudgementBurst * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-judgement-burst',
+            icon: arcana.icon || '⚖️',
+            label: 'JUDGEMENT STRIKE',
+            short: 'JUDGE',
+            detail: 'Judgement chains across the diagonal lane.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.floor(diagonalHits * Number(config.combat.bishopPower || 1) * arcana.diagonalJudgementBurst * strength)
+        }));
     }
     if (arcana.magicNova) {
-        damage += Math.floor(Math.max(1, state.mages) * config.combat.magePower * arcana.magicNova * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-magic-nova',
+            icon: arcana.icon || '🪄',
+            label: 'MAGIC NOVA',
+            short: 'NOVA',
+            detail: 'Stored mana detonates into a wide nova.',
+            role: 'arcana',
+            motion: 'hover',
+            tone: 'reward',
+            damage: Math.floor(Math.max(1, Number(state.mages || 0)) * Number(config.combat.magePower || 1) * arcana.magicNova * strength)
+        }));
     }
     if (arcana.deathCounter) {
         const shiftedCourts = state.board.flat().filter((card) => isRoyalGrowthRank(card?.rank)).length;
-        damage += Math.floor(shiftedCourts * arcana.deathCounter * 6 * strength);
+        actions.push(createDefenseAction({
+            code: 'arcana-death-counter',
+            icon: arcana.icon || '☠️',
+            label: 'DEATH COUNTER',
+            short: 'COUNTER',
+            detail: 'Court cards turn into a deathly counterattack.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.floor(shiftedCourts * arcana.deathCounter * 6 * strength)
+        }));
     }
     if (arcana.worldJackpot && state.battle) {
-        damage += state.battle.hp;
+        actions.push(createDefenseAction({
+            code: 'arcana-world-break',
+            icon: arcana.icon || '🌍',
+            label: 'WORLD BREAK',
+            short: 'WORLD',
+            detail: 'The arcana ends the siege in one impossible strike.',
+            role: 'arcana',
+            motion: 'arcana',
+            tone: 'reward',
+            damage: Math.max(0, Number(state.battle.hp || 0))
+        }));
     }
+    return actions.filter((action) => action.damage > 0);
+}
+
+function computePlayerDamage(state, evaluation, config, betInfo) {
+    const winLines = evaluation.lineResults.filter((line) => line.kind !== 'Miss');
+    if (winLines.length === 0) {
+        state.lastDefenseActions = [];
+        return 0;
+    }
+    const strength = evaluation.totalMultiplier || 1;
+    const arcana = getMajorArcana(state.currentArcana?.number);
+    const actions = [
+        ...winLines.map((line) => buildLineDefenseAction(line, state, config, betInfo)),
+        ...buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, strength)
+    ];
+    let damage = actions.reduce((sum, action) => sum + Math.max(0, Number(action.damage || 0)), 0);
 
     damage *= Number(betInfo.statMultiplier || 1);
     damage = Math.floor(damage * Number(state.attackMultiplier || 1));
     if (state.omenBreak) {
         damage = Math.floor(damage * 1.25);
     }
+    state.lastDefenseActions = actions
+        .map((action) => ({
+            ...action,
+            damage: Math.max(0, Math.floor(Number(action.damage || 0)))
+        }))
+        .sort((left, right) => Number(right.damage || 0) - Number(left.damage || 0));
     return Math.max(config.combat.minimumBattleDamage, damage);
 }
 
