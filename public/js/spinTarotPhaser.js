@@ -4,7 +4,7 @@ import { SPIN_TAROT_SPRITE_CONFIG } from './spinTarotConfig.js';
 const BOARD_SCENE_KEY = 'spin-tarot-board-scene';
 const BOARD_TEXTURE_KEY = 'spin-tarot-sheet-frames';
 const BOARD_REELS = 5;
-const BOARD_ROWS = 3;
+const BOARD_ROWS = 1;
 const CARD_RATIO = SPIN_TAROT_SPRITE_CONFIG.tileHeight / SPIN_TAROT_SPRITE_CONFIG.tileWidth;
 const CARD_COLORS = {
     Wand: 0xf6ad55,

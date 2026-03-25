@@ -39,18 +39,10 @@ export const SPIN_TAROT_MAJOR_ARCANA = {
 
 export const SPIN_TAROT_CONFIG = {
     board: {
-        rows: 3,
+        rows: 1,
         reels: 5,
         paylines: [
-            { id: 'mid', label: 'MID', rows: [1, 1, 1, 1, 1] },
-            { id: 'top', label: 'TOP', rows: [0, 0, 0, 0, 0] },
-            { id: 'bot', label: 'BOT', rows: [2, 2, 2, 2, 2] },
-            { id: 'diag-fall', label: '＼', rows: [0, 0, 1, 2, 2] },
-            { id: 'diag-rise', label: '／', rows: [2, 2, 1, 0, 0] },
-            { id: 'v-up', label: 'V', rows: [0, 1, 2, 1, 0] },
-            { id: 'v-down', label: 'Λ', rows: [2, 1, 0, 1, 2] },
-            { id: 'zig-right', label: 'Z1', rows: [1, 0, 1, 2, 1] },
-            { id: 'zig-left', label: 'Z2', rows: [1, 2, 1, 0, 1] }
+            { id: 'mid', label: 'HAND', rows: [0, 0, 0, 0, 0] }
         ]
     },
     deck: {
@@ -58,10 +50,10 @@ export const SPIN_TAROT_CONFIG = {
         ranks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
     },
     lineSelection: {
-        defaultActiveLines: 9,
+        defaultActiveLines: 1,
         minActiveLines: 1,
-        maxActiveLines: 9,
-        allowedCounts: [1, 3, 5, 9]
+        maxActiveLines: 1,
+        allowedCounts: [1]
     },
     suits: [
         { key: 'Wand', label: 'ワンド', icon: '🪄', enemyEmoji: '🧙', weight: 1 },
@@ -156,44 +148,64 @@ export const SPIN_TAROT_CONFIG = {
     },
     enemyNations: {
         Sword: {
-            label: 'ソード国',
+            label: '鬼族先遣隊',
             emoji: '👹',
-            summary: '超攻撃力で短期決戦型',
+            waveIcons: ['👹', '👺', '💀', '🦴'],
+            summary: '荒々しく城門へ突撃する鬼族の群れ',
             hp: 150,
             attack: 34,
             healRatio: 0,
             holdLockChance: 0,
-            fortifyRatio: 0
+            fortifyRatio: 0,
+            weaknessType: 'holy',
+            weaknessIcon: '♗',
+            weaknessLabel: 'HOLY WEAK',
+            weaknessMultiplier: 1.35
         },
         Cup: {
-            label: 'カップ国',
-            emoji: '🧝',
-            summary: '毎ターン再生する回復型',
+            label: '亡霊群',
+            emoji: '👻',
+            waveIcons: ['👻', '🦇', '💀', '🕸️'],
+            summary: '不気味に再生を繰り返す亡霊の群れ',
             hp: 140,
             attack: 19,
             healRatio: 0.14,
             holdLockChance: 0,
-            fortifyRatio: 0
+            fortifyRatio: 0,
+            weaknessType: 'physical',
+            weaknessIcon: '♘',
+            weaknessLabel: 'PHYSICAL WEAK',
+            weaknessMultiplier: 1.3
         },
         Wand: {
-            label: 'ワンド国',
+            label: '魔導魔物団',
             emoji: '🧙',
-            summary: 'ホールド妨害の術を使う',
+            waveIcons: ['🧙', '😈', '🔮', '🪄'],
+            summary: '呪詛と妨害術を操る魔導系モンスター',
             hp: 145,
             attack: 24,
             healRatio: 0,
             holdLockChance: 0.34,
-            fortifyRatio: 0
+            fortifyRatio: 0,
+            weaknessType: 'arcana',
+            weaknessIcon: '🎴',
+            weaknessLabel: 'ARCANA WEAK',
+            weaknessMultiplier: 1.35
         },
         Pentacle: {
-            label: 'ペンタクル国',
-            emoji: '🏰',
-            summary: '高HPの要塞型',
+            label: 'ゴーレム兵団',
+            emoji: '🧌',
+            waveIcons: ['🧌', '🗿', '⛓️', '🪨'],
+            summary: '重装甲で押し込んでくる要塞型モンスター',
             hp: 240,
             attack: 16,
             healRatio: 0,
             holdLockChance: 0,
-            fortifyRatio: 0.18
+            fortifyRatio: 0.18,
+            weaknessType: 'magic',
+            weaknessIcon: '🪄',
+            weaknessLabel: 'MAGIC WEAK',
+            weaknessMultiplier: 1.55
         }
     },
     premiumEvents: {
@@ -201,13 +213,18 @@ export const SPIN_TAROT_CONFIG = {
             probability: 0.022,
             label: '超強敵乱入',
             enemy: {
-                label: 'ドラゴン乱入',
+                label: '古竜襲来',
                 emoji: '🐉',
+                waveIcons: ['🐉', '🔥', '☠️', '🦴', '🔥'],
                 hp: 420,
                 attack: 32,
                 healRatio: 0.05,
                 holdLockChance: 0.2,
-                fortifyRatio: 0.12
+                fortifyRatio: 0.12,
+                weaknessType: 'arcana',
+                weaknessIcon: '🎴',
+                weaknessLabel: 'ARCANA WEAK',
+                weaknessMultiplier: 1.4
             }
         },
         treasureIsland: {

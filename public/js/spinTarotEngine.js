@@ -50,6 +50,22 @@ export function getSpriteStyle(index) {
     };
 }
 
+export function getScaledSpriteStyle(index, width, height) {
+    const safeWidth = Math.max(1, Number(width) || SPIN_TAROT_SPRITE_CONFIG.tileWidth);
+    const safeHeight = Math.max(1, Number(height) || SPIN_TAROT_SPRITE_CONFIG.tileHeight);
+    const safeIndex = Math.max(0, Number(index) || 0);
+    const cols = Math.floor(SPIN_TAROT_SPRITE_CONFIG.sheetWidth / SPIN_TAROT_SPRITE_CONFIG.tileWidth);
+    const x = (safeIndex % cols) * SPIN_TAROT_SPRITE_CONFIG.tileWidth;
+    const y = Math.floor(safeIndex / cols) * SPIN_TAROT_SPRITE_CONFIG.tileHeight;
+    const scaleX = safeWidth / SPIN_TAROT_SPRITE_CONFIG.tileWidth;
+    const scaleY = safeHeight / SPIN_TAROT_SPRITE_CONFIG.tileHeight;
+    return {
+        backgroundImage: `url('${SPIN_TAROT_SPRITE_CONFIG.src}')`,
+        backgroundSize: `${SPIN_TAROT_SPRITE_CONFIG.sheetWidth * scaleX}px ${SPIN_TAROT_SPRITE_CONFIG.sheetHeight * scaleY}px`,
+        backgroundPosition: `-${x * scaleX}px -${y * scaleY}px`
+    };
+}
+
 export function getCardSpriteIndex(card) {
     if (!card || card.kind === 'blank') return SPIN_TAROT_SPRITE_CONFIG.backIndex;
     if (card.kind === 'major') return SPIN_TAROT_SPRITE_CONFIG.majorArcanaOffset + Number(card.number || 0);
@@ -203,6 +219,7 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         lineResults: [],
         lineSummaries: [],
         lastDefenseActions: [],
+        lastBattleOutcome: null,
         lastCutin: null,
         lastOutcome: null,
         lastEffects: [],
@@ -214,7 +231,7 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         logs: [
             `新しい遠征開始。次の襲来は ${zone.label} ${zone.spinsRemaining}G。`,
             `${currentArcana.label} が中央に灯った。`,
-            'BET と有効ラインを決めて DEAL。'
+            'BET を決めて DEAL。'
         ],
         gameOver: false
     };
@@ -236,6 +253,10 @@ export function cloneState(state) {
         lineResults: Array.isArray(state.lineResults) ? state.lineResults.map((item) => ({ ...item, coords: item.coords?.map((coord) => ({ ...coord })) || [] })) : [],
         lineSummaries: Array.isArray(state.lineSummaries) ? state.lineSummaries.slice() : [],
         lastDefenseActions: Array.isArray(state.lastDefenseActions) ? state.lastDefenseActions.map((item) => ({ ...item })) : [],
+        lastBattleOutcome: state.lastBattleOutcome ? {
+            ...state.lastBattleOutcome,
+            waveIcons: Array.isArray(state.lastBattleOutcome.waveIcons) ? state.lastBattleOutcome.waveIcons.slice() : []
+        } : null,
         lastCutin: state.lastCutin ? { ...state.lastCutin } : null,
         lastEffects: Array.isArray(state.lastEffects) ? state.lastEffects.slice() : [],
         logs: Array.isArray(state.logs) ? state.logs.slice() : []
@@ -271,12 +292,20 @@ export function getLineChoices(config = SPIN_TAROT_CONFIG) {
     return getAllowedLineCounts(config);
 }
 
+function getPrimaryBoardRowIndex(config = SPIN_TAROT_CONFIG, board = null) {
+    const rowCount = Array.isArray(board) && board.length
+        ? board.length
+        : Math.max(1, Number(config?.board?.rows) || 1);
+    return Math.max(0, Math.floor((rowCount - 1) / 2));
+}
+
 export function toggleHold(state, column, config = SPIN_TAROT_CONFIG) {
     const next = cloneState(state);
     if (next.phase !== 'hold') return next;
     const reel = clamp(Number(column) || 0, 0, config.board.reels - 1);
     if (next.lockedHolds[reel]) return next;
-    const centerCard = next.board[1]?.[reel];
+    const focusRow = getPrimaryBoardRowIndex(config, next.board);
+    const centerCard = next.board[focusRow]?.[reel];
     if (!centerCard || centerCard.kind === 'blank') return next;
     next.holdMask[reel] = !next.holdMask[reel];
     syncHoldPreview(next, config);
@@ -348,6 +377,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         state.lineResults = [];
         state.lineSummaries = [];
         state.lastDefenseActions = [];
+        state.lastBattleOutcome = null;
         state.lastEffects = [];
         state.lastCutin = null;
         state.omenBreak = false;
@@ -358,11 +388,14 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         // fool arcana makes center tile wild immediately
         if (state.currentArcana?.foolWild) {
             const center = Math.floor((config.board.reels || 5) / 2);
-            state.board[1][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
+            const focusRow = getPrimaryBoardRowIndex(config, state.board);
+            if (state.board?.[focusRow]) {
+                state.board[focusRow][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
+            }
             pushLog(state, '愚者の力で中央がワイルドになった！', config);
         }
         state.phase = 'hold';
-        pushLog(state, `DEAL ${dealCost} 枚。中央ラインに配札。`, config);
+        pushLog(state, `DEAL ${dealCost} 枚。5枚手札に配札。`, config);
         events.notes.push('dealt');
         return { ok: true, state, events };
     }
@@ -377,6 +410,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     state.lineResults = [];
     state.lineSummaries = [];
     state.lastDefenseActions = [];
+    state.lastBattleOutcome = null;
     state.lastEffects = [];
     state.lastCutin = null;
     state.omenBreak = false;
@@ -536,8 +570,9 @@ function buildDrawOptions(state, config) {
 
 function createOpeningBoard(config, drawOptions = null) {
     const board = createBlankBoard(config);
+    const focusRow = getPrimaryBoardRowIndex(config, board);
     for (let reel = 0; reel < config.board.reels; reel += 1) {
-        board[1][reel] = drawCard(drawOptions || { config });
+        board[focusRow][reel] = drawCard(drawOptions || { config });
     }
     return board;
 }
@@ -554,8 +589,9 @@ function createShuffledDeck(config) {
 function dealOpeningBoard(state, config) {
     const board = createBlankBoard(config);
     const drawOptions = buildDrawOptions(state, config);
+    const focusRow = getPrimaryBoardRowIndex(config, board);
     for (let reel = 0; reel < config.board.reels; reel += 1) {
-        board[1][reel] = drawCard(drawOptions);
+        board[focusRow][reel] = drawCard(drawOptions);
     }
     state.board = board;
     syncHoldPreview(state, config);
@@ -567,12 +603,13 @@ function createBlankBoard(config) {
 }
 
 function buildRoyalStraightFlushBoard(config) {
-    // put a royal straight flush on the center row, suit chosen arbitrarily
+    // put a royal straight flush on the primary row, suit chosen arbitrarily
     const board = createBlankBoard(config);
+    const focusRow = getPrimaryBoardRowIndex(config, board);
     const suit = config.suits[0]?.key || 'Wand';
     const ranks = [10, 11, 12, 13, 1];
     for (let reel = 0; reel < config.board.reels; reel += 1) {
-        board[1][reel] = createMinorCard(suit, ranks[reel % ranks.length]);
+        board[focusRow][reel] = createMinorCard(suit, ranks[reel % ranks.length]);
     }
     return board;
 }
@@ -779,12 +816,13 @@ function getRankTier(config, nationRank) {
 
 function spinBoard(state, config, drawOptions) {
     const board = createBlankBoard(config);
+    const focusRow = getPrimaryBoardRowIndex(config, state.board);
     for (let reel = 0; reel < config.board.reels; reel += 1) {
         const held = state.holdMask[reel];
-        const center = state.board[1]?.[reel];
-        if (held && center && center.kind !== 'blank') {
+        const focusCard = state.board[focusRow]?.[reel];
+        if (held && focusCard && focusCard.kind !== 'blank') {
             for (let row = 0; row < config.board.rows; row += 1) {
-                board[row][reel] = createMinorCard(center.suit, center.rank, { isHeldSync: true });
+                board[row][reel] = createMinorCard(focusCard.suit, focusCard.rank, { isHeldSync: true });
             }
             continue;
         }
@@ -797,27 +835,33 @@ function spinBoard(state, config, drawOptions) {
 
 function syncHoldPreview(state, config) {
     if (state.phase !== 'hold') return;
+    const focusRow = getPrimaryBoardRowIndex(config, state.board);
+    const rowCount = Array.isArray(state.board) ? state.board.length : Math.max(1, Number(config.board.rows) || 1);
+    if (rowCount <= 1) return;
     for (let reel = 0; reel < config.board.reels; reel += 1) {
-        const center = state.board[1]?.[reel];
-        if (state.holdMask[reel] && center && center.kind !== 'blank') {
-            state.board[0][reel] = createMinorCard(center.suit, center.rank, { isHeldSync: true });
-            state.board[2][reel] = createMinorCard(center.suit, center.rank, { isHeldSync: true });
-        } else {
-            state.board[0][reel] = createBlankCard();
-            state.board[2][reel] = createBlankCard();
+        const focusCard = state.board[focusRow]?.[reel];
+        for (let row = 0; row < rowCount; row += 1) {
+            if (row === focusRow) continue;
+            if (state.holdMask[reel] && focusCard && focusCard.kind !== 'blank') {
+                state.board[row][reel] = createMinorCard(focusCard.suit, focusCard.rank, { isHeldSync: true });
+            } else {
+                state.board[row][reel] = createBlankCard();
+            }
         }
     }
 }
 
 function hasHeldRank(state, rank) {
-    return state.holdMask.some((held, reel) => held && Number(state.board[1]?.[reel]?.rank || 0) === Number(rank));
+    const focusRow = getPrimaryBoardRowIndex(SPIN_TAROT_CONFIG, state.board);
+    return state.holdMask.some((held, reel) => held && Number(state.board[focusRow]?.[reel]?.rank || 0) === Number(rank));
 }
 
 function applyMysteryWild(board, state) {
     const nextBoard = board.map((row) => row.map(cloneCard));
+    const focusRow = getPrimaryBoardRowIndex(SPIN_TAROT_CONFIG, state.board);
     for (let reel = 0; reel < state.holdMask.length; reel += 1) {
         if (!state.holdMask[reel]) continue;
-        if (Number(state.board[1]?.[reel]?.rank || 0) !== 2) continue;
+        if (Number(state.board[focusRow]?.[reel]?.rank || 0) !== 2) continue;
         for (let row = 0; row < nextBoard.length; row += 1) {
             nextBoard[row][reel] = {
                 ...nextBoard[row][reel],
@@ -831,6 +875,8 @@ function applyMysteryWild(board, state) {
 
 function applySkipNudge(board, state, config, drawOptions) {
     const nextBoard = board.map((row) => row.map(cloneCard));
+    const focusRow = getPrimaryBoardRowIndex(config, nextBoard);
+    const rowCount = Array.isArray(nextBoard) ? nextBoard.length : Math.max(1, Number(config.board.rows) || 1);
     const openReels = [];
     for (let reel = 0; reel < config.board.reels; reel += 1) {
         if (!state.holdMask[reel]) openReels.push(reel);
@@ -838,7 +884,19 @@ function applySkipNudge(board, state, config, drawOptions) {
     openReels.forEach((reel) => {
         const direction = chance(0.5) ? -1 : 1;
         const shift = randomInt(config.minorArcana.skipNudge.minShift, config.minorArcana.skipNudge.maxShift);
-        const column = [nextBoard[0][reel], nextBoard[1][reel], nextBoard[2][reel]];
+        if (rowCount <= 1) {
+            const strip = [
+                drawCard(drawOptions),
+                drawCard(drawOptions),
+                cloneCard(nextBoard[focusRow][reel]),
+                drawCard(drawOptions),
+                drawCard(drawOptions)
+            ];
+            const pickIndex = clamp(2 + (direction * shift), 0, strip.length - 1);
+            nextBoard[focusRow][reel] = cloneCard(strip[pickIndex]);
+            return;
+        }
+        const column = Array.from({ length: rowCount }, (_, row) => nextBoard[row][reel]);
         const strip = [
             drawCard(drawOptions),
             drawCard(drawOptions),
@@ -846,25 +904,25 @@ function applySkipNudge(board, state, config, drawOptions) {
             drawCard(drawOptions),
             drawCard(drawOptions)
         ];
-        const start = clamp(2 + (direction * shift), 0, strip.length - 3);
-        for (let row = 0; row < 3; row += 1) {
+        const start = clamp(2 + (direction * shift), 0, strip.length - rowCount);
+        for (let row = 0; row < rowCount; row += 1) {
             nextBoard[row][reel] = cloneCard(strip[start + row]);
         }
     });
 
     let evaluation = evaluateBoard(nextBoard, state, config, { level: 1, cost: 1 });
     if (!evaluation.hasRole) {
-        const midRanks = nextBoard[1].map((card) => Number(card.rank || 0)).filter(Boolean);
-        const targetRank = getMostCommonRank(midRanks) || pickRandomDeckRank(config);
+        const focusRanks = nextBoard[focusRow].map((card) => Number(card.rank || 0)).filter(Boolean);
+        const targetRank = getMostCommonRank(focusRanks) || pickRandomDeckRank(config);
         const targetReels = openReels.length >= 2 ? openReels.slice(0, 2) : openReels.slice(0, 1);
         if (targetReels.length >= 1) {
-            nextBoard[1][targetReels[0]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
+            nextBoard[focusRow][targetReels[0]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         }
         if (targetReels.length >= 2) {
-            nextBoard[1][targetReels[1]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
+            nextBoard[focusRow][targetReels[1]] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         } else if (targetReels.length === 1) {
             const buddyReel = targetReels[0] === 0 ? 1 : 0;
-            nextBoard[1][buddyReel] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
+            nextBoard[focusRow][buddyReel] = drawSpecificCard(drawOptions, { ranks: [targetRank] }) || drawCard(drawOptions);
         }
     }
 
@@ -907,13 +965,14 @@ function applyCascade(board, state, evaluation, config, drawOptions, betInfo) {
 
 function forceGuaranteedTwoPair(state, config, drawOptions) {
     const targetRanks = [pickRandomDeckRank(config, 6, 10), pickRandomHighDeckRank(config)];
+    const focusRow = getPrimaryBoardRowIndex(config, state.board);
     for (let reel = 0; reel < config.board.reels; reel += 1) {
         if (reel <= 1) {
-            state.board[1][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[0]] }) || drawCard(drawOptions);
+            state.board[focusRow][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[0]] }) || drawCard(drawOptions);
         } else if (reel <= 3) {
-            state.board[1][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[1]] }) || drawCard(drawOptions);
+            state.board[focusRow][reel] = drawSpecificCard(drawOptions, { ranks: [targetRanks[1]] }) || drawCard(drawOptions);
         } else {
-            state.board[1][reel] = drawCard(drawOptions);
+            state.board[focusRow][reel] = drawCard(drawOptions);
         }
     }
 }
@@ -1245,12 +1304,17 @@ function launchBattleFromSuit(state, config, events, suitKey, sourceLabel = '') 
         suitKey: pickedSuit,
         label: nation.label,
         emoji: nation.emoji,
+        waveIcons: Array.isArray(nation.waveIcons) ? nation.waveIcons.slice() : [],
         hp: nation.hp + Math.floor(state.nationRank * 4),
         maxHp: nation.hp + Math.floor(state.nationRank * 4),
         attack: nation.attack + Math.floor(state.nationRank * 0.8),
         healRatio: nation.healRatio,
         fortifyRatio: nation.fortifyRatio,
         holdLockChance: nation.holdLockChance,
+        weaknessType: String(nation.weaknessType || '').trim(),
+        weaknessIcon: String(nation.weaknessIcon || ''),
+        weaknessLabel: String(nation.weaknessLabel || ''),
+        weaknessMultiplier: Math.max(1, Number(nation.weaknessMultiplier || 1)),
         isBoss: false
     };
     state.currentArcana = rollMajorArcana(config, 'battle', state.nationRank);
@@ -1268,6 +1332,21 @@ function launchBattleFromSuit(state, config, events, suitKey, sourceLabel = '') 
     );
     if (!events.cutin) events.cutin = buildCutin(state.currentArcana.number, `${nation.label} 防衛戦`);
     return true;
+}
+
+function buildBattleOutcomeSnapshot(battle, reward, state) {
+    if (!battle) return null;
+    return {
+        type: 'victory',
+        label: String(battle.label || 'MONSTER DOWN'),
+        emoji: String(battle.emoji || '👾'),
+        waveIcons: Array.isArray(battle.waveIcons) ? battle.waveIcons.slice() : [],
+        isBoss: !!battle.isBoss,
+        reward: Math.max(0, Number(reward) || 0),
+        damage: Math.max(0, Number(state?.lastAttackDamage || 0)),
+        weaknessHit: Array.isArray(state?.lastDefenseActions) && state.lastDefenseActions.some((action) => action?.weaknessHit),
+        weaknessIcon: String(battle.weaknessIcon || '').trim()
+    };
 }
 
 function resolveRushModeBonuses(state, evaluation, config, betInfo) {
@@ -1485,6 +1564,12 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         );
         state.lastAttackDamage = reducedDamage;
         state.battle.hp = Math.max(0, state.battle.hp - reducedDamage);
+        if (state.lastDefenseActions.some((action) => action?.weaknessHit)) {
+            const weaknessAction = state.lastDefenseActions.find((action) => action?.weaknessHit);
+            const weaknessLabel = String(weaknessAction?.weaknessLabel || state.battle?.weaknessLabel || 'WEAK').trim();
+            state.lastEffects.push(`${weaknessLabel} HIT`);
+            pushLog(state, `${state.battle.label} の弱点を突いた。`, config);
+        }
         pushLog(state, `あなたの攻撃 ${reducedDamage} ダメージ。`, config);
         if (state.currentArcana?.lifestealRatio) {
             const heal = Math.max(1, Math.floor(reducedDamage * state.currentArcana.lifestealRatio));
@@ -1496,6 +1581,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         const reward = calculateBattleReward(state, config, state.battle, state.lastAttackDamage);
         state.coins += reward;
         pushLog(state, `${state.battle.label} を撃破。報酬 ${reward} 枚。`, config);
+        state.lastBattleOutcome = buildBattleOutcomeSnapshot(state.battle, reward, state);
         if (state.battle.isBoss) {
             events.cutin = buildCutin(21, 'ドラゴン討伐ボーナス');
         }
@@ -1569,6 +1655,7 @@ function resolveBattleAndProgress(state, evaluation, config, betInfo, events) {
         const reward = calculateBattleReward(state, config, state.battle, config.combat.minimumBattleDamage);
         state.coins += reward;
         pushLog(state, `${state.battle.label} が崩れ落ちた。報酬 ${reward} 枚。`, config);
+        state.lastBattleOutcome = buildBattleOutcomeSnapshot(state.battle, reward, state);
         state.battle = null;
         state.zone = pickZone(config);
         state.previewSuit = rollPreviewSuit();
@@ -1611,7 +1698,13 @@ function createDefenseAction(action = {}) {
         role: String(action.role || 'support'),
         motion: String(action.motion || 'rush'),
         tone: String(action.tone || ''),
+        attackType: String(action.attackType || '').trim(),
         damage: Math.max(0, Math.floor(Number(action.damage) || 0)),
+        baseDamage: Math.max(0, Math.floor(Number(action.baseDamage ?? action.damage) || 0)),
+        weaknessHit: !!action.weaknessHit,
+        weaknessLabel: String(action.weaknessLabel || '').trim(),
+        weaknessIcon: String(action.weaknessIcon || '').trim(),
+        weaknessMultiplier: Math.max(1, Number(action.weaknessMultiplier || 1)),
         handKind: String(action.handKind || '').trim(),
         lineId: String(action.lineId || '').trim()
     };
@@ -1643,6 +1736,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'PAWN GUARD',
                 short: 'PAWN GUARD',
                 detail: 'Militia brace the gate and chip the front line.',
+                attackType: 'physical',
                 role: 'guard',
                 motion: 'march',
                 tone: 'reward',
@@ -1656,6 +1750,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'KNIGHT CHARGE',
                 short: 'KNIGHT',
                 detail: 'Twin signals send the knights charging forward.',
+                attackType: 'physical',
                 role: 'guard',
                 motion: 'rush',
                 tone: 'reward',
@@ -1669,6 +1764,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'BISHOP SHOT',
                 short: 'BISHOP',
                 detail: 'A focused bishop volley pierces the enemy file.',
+                attackType: 'holy',
                 role: 'support',
                 motion: 'clash',
                 tone: 'reward',
@@ -1682,6 +1778,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'FORMATION PUSH',
                 short: 'PUSH',
                 detail: 'The whole formation surges down the lane.',
+                attackType: 'physical',
                 role: 'guard',
                 motion: 'rush',
                 tone: 'reward',
@@ -1695,6 +1792,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'MAGE BARRAGE',
                 short: 'MAGE',
                 detail: 'Aligned suits become a single magical bombardment.',
+                attackType: 'magic',
                 role: 'support',
                 motion: 'hover',
                 tone: 'reward',
@@ -1708,6 +1806,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'MIXED ASSAULT',
                 short: 'MIXED',
                 detail: 'Knights and bishops strike in one combined push.',
+                attackType: 'mixed',
                 role: 'guard',
                 motion: 'rush',
                 tone: 'reward',
@@ -1721,6 +1820,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'ARCANA BLAST',
                 short: 'ARCANA',
                 detail: 'The major arcana fires directly into the siege line.',
+                attackType: 'arcana',
                 role: 'arcana',
                 motion: 'arcana',
                 tone: 'reward',
@@ -1734,6 +1834,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'ROYAL JUDGEMENT',
                 short: 'ROYAL',
                 detail: 'A royal decree crashes down on the front line.',
+                attackType: 'arcana',
                 role: 'arcana',
                 motion: 'arcana',
                 tone: 'reward',
@@ -1747,6 +1848,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'KINGDOM RUSH',
                 short: 'KINGDOM',
                 detail: 'The kingdom army floods the lane in one wave.',
+                attackType: 'magic',
                 role: 'arcana',
                 motion: 'arcana',
                 tone: 'reward',
@@ -1760,6 +1862,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'WORLD BREAK',
                 short: 'WORLD',
                 detail: 'Reality itself bends and crushes the enemy advance.',
+                attackType: 'magic',
                 role: 'arcana',
                 motion: 'arcana',
                 tone: 'reward',
@@ -1773,6 +1876,7 @@ function buildLineDefenseAction(line, state, config, betInfo) {
                 label: 'ENEMY PUSH',
                 short: 'PUSH',
                 detail: 'No formation. The enemy marches closer.',
+                attackType: 'enemy',
                 role: 'enemy',
                 motion: 'rush',
                 tone: 'danger',
@@ -1794,6 +1898,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'ARCANA CAVALRY',
             short: 'CAVALRY',
             detail: 'Horizontal lines ignite a cavalry burst.',
+            attackType: 'physical',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1807,6 +1912,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'JUSTICE VOLLEY',
             short: 'JUSTICE',
             detail: 'The arcana punishes every horizontal hit.',
+            attackType: 'holy',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1820,6 +1926,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'TOWER COLLAPSE',
             short: 'TOWER',
             detail: 'The lane erupts in a tower-scale blast.',
+            attackType: 'physical',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1833,6 +1940,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'DIAGONAL PIERCE',
             short: 'PIERCE',
             detail: 'Diagonal lines trigger a piercing bishop spell.',
+            attackType: 'holy',
             role: 'arcana',
             motion: 'clash',
             tone: 'reward',
@@ -1846,6 +1954,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'DEVIL SLASH',
             short: 'DEVIL',
             detail: 'A cursed diagonal slash tears through the siege.',
+            attackType: 'arcana',
             role: 'arcana',
             motion: 'clash',
             tone: 'reward',
@@ -1859,6 +1968,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'JUDGEMENT STRIKE',
             short: 'JUDGE',
             detail: 'Judgement chains across the diagonal lane.',
+            attackType: 'holy',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1872,6 +1982,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'MAGIC NOVA',
             short: 'NOVA',
             detail: 'Stored mana detonates into a wide nova.',
+            attackType: 'magic',
             role: 'arcana',
             motion: 'hover',
             tone: 'reward',
@@ -1886,6 +1997,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'DEATH COUNTER',
             short: 'COUNTER',
             detail: 'Court cards turn into a deathly counterattack.',
+            attackType: 'arcana',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1899,6 +2011,7 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
             label: 'WORLD BREAK',
             short: 'WORLD',
             detail: 'The arcana ends the siege in one impossible strike.',
+            attackType: 'arcana',
             role: 'arcana',
             motion: 'arcana',
             tone: 'reward',
@@ -1906,6 +2019,34 @@ function buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, str
         }));
     }
     return actions.filter((action) => action.damage > 0);
+}
+
+function applyBattleWeaknessToActions(state, actions) {
+    const weaknessType = String(state?.battle?.weaknessType || '').trim();
+    const weaknessLabel = String(state?.battle?.weaknessLabel || '').trim();
+    const weaknessIcon = String(state?.battle?.weaknessIcon || '').trim();
+    const weaknessMultiplier = Math.max(1, Number(state?.battle?.weaknessMultiplier || 1));
+    if (!weaknessType || weaknessMultiplier <= 1 || !Array.isArray(actions) || !actions.length) {
+        return Array.isArray(actions) ? actions.map((action) => createDefenseAction(action)) : [];
+    }
+    return actions.map((action) => {
+        const attackType = String(action?.attackType || '').trim();
+        if (!attackType || (attackType !== weaknessType && attackType !== 'mixed')) {
+            return createDefenseAction(action);
+        }
+        const baseDamage = Math.max(0, Math.floor(Number(action.damage || 0)));
+        const boostedDamage = Math.max(baseDamage, Math.floor(baseDamage * weaknessMultiplier));
+        return createDefenseAction({
+            ...action,
+            damage: boostedDamage,
+            baseDamage,
+            weaknessHit: true,
+            weaknessLabel,
+            weaknessIcon,
+            weaknessMultiplier,
+            detail: `${String(action.detail || action.label || 'Attack').trim()} Weak hit x${weaknessMultiplier.toFixed(2)}.`
+        });
+    });
 }
 
 function computePlayerDamage(state, evaluation, config, betInfo) {
@@ -1916,10 +2057,10 @@ function computePlayerDamage(state, evaluation, config, betInfo) {
     }
     const strength = evaluation.totalMultiplier || 1;
     const arcana = getMajorArcana(state.currentArcana?.number);
-    const actions = [
+    const actions = applyBattleWeaknessToActions(state, [
         ...winLines.map((line) => buildLineDefenseAction(line, state, config, betInfo)),
         ...buildArcanaDefenseActions(state, winLines, arcana, config, betInfo, strength)
-    ];
+    ]);
     let damage = actions.reduce((sum, action) => sum + Math.max(0, Number(action.damage || 0)), 0);
 
     damage *= Number(betInfo.statMultiplier || 1);
@@ -1952,12 +2093,17 @@ function maybeStartPremium(state, config, events) {
             suitKey: 'Boss',
             label: boss.label,
             emoji: boss.emoji,
+            waveIcons: Array.isArray(boss.waveIcons) ? boss.waveIcons.slice() : [],
             hp: boss.hp,
             maxHp: boss.hp,
             attack: boss.attack,
             healRatio: boss.healRatio,
             fortifyRatio: boss.fortifyRatio,
             holdLockChance: boss.holdLockChance,
+            weaknessType: String(boss.weaknessType || '').trim(),
+            weaknessIcon: String(boss.weaknessIcon || ''),
+            weaknessLabel: String(boss.weaknessLabel || ''),
+            weaknessMultiplier: Math.max(1, Number(boss.weaknessMultiplier || 1)),
             isBoss: true
         };
         state.currentArcana = rollMajorArcana(config, 'battle', state.nationRank);
@@ -2008,8 +2154,9 @@ function triggerFreezeIfNeeded(state, config, betInfo, events) {
     // apply foolWild immediately if present
     if (frozenArcana.foolWild) {
         const center = Math.floor((config.board.reels || 5) / 2);
-        if (state.board && state.board[1]) {
-            state.board[1][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
+        const focusRow = getPrimaryBoardRowIndex(config, state.board);
+        if (state.board?.[focusRow]) {
+            state.board[focusRow][center] = { kind: 'minor', suit: 'Wand', rank: 0, isWild: true };
             pushLog(state, 'フリーズ中に愚者が現れ、中央がワイルドになった！', config);
         }
     }

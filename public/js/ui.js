@@ -32,7 +32,7 @@ const ensureTarotKingdomModule = async () => {
 };
 
 let spinTarotModule = null;
-const SPIN_TAROT_MODULE_VERSION = '20260324b';
+const SPIN_TAROT_MODULE_VERSION = '20260325a';
 const ensureSpinTarotModule = async () => {
     if (spinTarotModule) return spinTarotModule;
     spinTarotModule = await import(`./spinTarot.js?v=${SPIN_TAROT_MODULE_VERSION}`);

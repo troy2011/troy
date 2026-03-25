@@ -10,13 +10,14 @@ import {
     getMajorArcana,
     getSpinTarotConfig,
     getSpinTarotStatusView,
+    getScaledSpriteStyle,
     getSpriteStyle,
     performSpin,
     stepActiveLineCount,
     setBetIndex,
     toggleHold
 } from './spinTarotEngine.js';
-import { createSpinTarotBoardRenderer } from './spinTarotPhaser.js?v=20260323a';
+import { createSpinTarotBoardRenderer } from './spinTarotPhaser.js?v=20260325a';
 
 const CONFIG = getSpinTarotConfig();
 const STYLE_ID = 'spinTarotStylesheet';
@@ -150,6 +151,11 @@ const DEFENSE_ROLE_GUIDE = {
     }
 };
 
+function getPrimaryBoardRowIndex(board) {
+    const rowCount = Array.isArray(board) && board.length ? board.length : 1;
+    return Math.max(0, Math.floor((rowCount - 1) / 2));
+}
+
 
 export async function loadSpinTarotPage() {
     await ensureStylesheet();
@@ -224,7 +230,7 @@ async function ensureStylesheet() {
     const link = document.createElement('link');
     link.id = STYLE_ID;
     link.rel = 'stylesheet';
-    link.href = './css/spin-tarot.css?v=20260323d';
+    link.href = './css/spin-tarot.css?v=20260325a';
     document.head.appendChild(link);
     await new Promise((resolve) => {
         link.addEventListener('load', resolve, { once: true });
@@ -308,9 +314,11 @@ function render() {
         ? `${statusView.modeIcon} ${getCompactModeLabel(statusView.modeKey)} ${statusView.modeTurns}G`
         : `${statusView.modeIcon} ${getCompactModeLabel(statusView.modeKey)}`;
     const defenseView = buildDefenseView(activeArcana);
+    const primaryBoardRowIndex = getPrimaryBoardRowIndex(state.board);
+    const primaryBoardRow = Array.isArray(state.board?.[primaryBoardRowIndex]) ? state.board[primaryBoardRowIndex] : [];
     const leadRole = state.phase === 'hold'
-        ? '中央ラインで HOLD を選択'
-        : (state.lineSummaries[0] || '中央5枚を選んで HOLD');
+        ? '5枚の手札から HOLD を選択'
+        : (state.lineSummaries[0] || '5枚の手札を選んで HOLD');
     const leadEffect = state.lastEffects[0] || '演出なし';
     const isHoldPhase = state.phase === 'hold';
     const mainActionLabel = isHoldPhase ? 'DRAW/SPIN' : 'DEAL';
@@ -352,6 +360,7 @@ function render() {
     const currentLineIndex = Math.max(0, lineChoices.indexOf(state.activeLineCount));
     const canDecreaseLines = !isHoldPhase && currentLineIndex > 0;
     const canIncreaseLines = !isHoldPhase && currentLineIndex < lineChoices.length - 1;
+    const showLineControls = lineChoices.length > 1;
 
     root.classList.add('spin-tarot-mounted');
     root.classList.toggle('is-spinning', spinning);
@@ -364,7 +373,7 @@ function render() {
                         <div class="spin-tarot-hud-chip">🪙 ${state.coins}</div>
                         <div class="spin-tarot-hud-chip">🏰 ${Math.max(0, state.castleHp)}/${state.castleMaxHp}</div>
                         <div class="spin-tarot-hud-chip">🎚 ${zoneText}</div>
-                        <div class="spin-tarot-hud-chip">🎯 LINES ${state.activeLineCount}</div>
+                        <div class="spin-tarot-hud-chip">🎯 HAND ${state.activeLineCount}</div>
                         <div class="spin-tarot-hud-chip">${escapeHtml(modeHudText)}</div>
                     </div>
                 </section>
@@ -456,7 +465,7 @@ function render() {
                             <div id="spinTarotBoardPhaser" class="spin-tarot-board-phaser" aria-hidden="true"></div>
                         </div>
                         <div class="spin-tarot-hold-row">
-                            ${state.board[1].map((card, reel) => `
+                            ${primaryBoardRow.map((card, reel) => `
                                 <button class="spin-tarot-hold-btn ${state.holdMask[reel] ? 'is-held' : ''} ${state.lockedHolds[reel] ? 'is-locked' : ''}"
                                     data-hold-index="${reel}" ${(spinning || !isHoldPhase || state.lockedHolds[reel] || card.kind === 'blank') ? 'disabled' : ''}>
                                     ${state.lockedHolds[reel] ? 'LOCK' : state.holdMask[reel] ? 'HOLD' : 'KEEP'}
@@ -476,14 +485,16 @@ function render() {
                     ${showResultStrip ? renderResultStrip(statusView) : ''}
 
                     <div class="spin-tarot-controls">
-                        <div class="spin-tarot-line-controls">
-                            <button class="spin-tarot-step-btn" title="ライン減少 (↑/↓キーでも変更)" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
-                            <div class="spin-tarot-line-readout">
-                                <span>有効ライン</span>
-                                <strong>${state.activeLineCount}</strong>
+                        ${showLineControls ? `
+                            <div class="spin-tarot-line-controls">
+                                <button class="spin-tarot-step-btn" title="ライン減少 (↑/↓キーでも変更)" data-line-step="-1" ${canDecreaseLines ? '' : 'disabled'}>-</button>
+                                <div class="spin-tarot-line-readout">
+                                    <span>有効ライン</span>
+                                    <strong>${state.activeLineCount}</strong>
+                                </div>
+                                <button class="spin-tarot-step-btn" title="ライン増加 (↑/↓キーでも変更)" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
                             </div>
-                            <button class="spin-tarot-step-btn" title="ライン増加 (↑/↓キーでも変更)" data-line-step="1" ${canIncreaseLines ? '' : 'disabled'}>+</button>
-                        </div>
+                        ` : ''}
 
                         <div class="spin-tarot-bet-row">
                             ${CONFIG.betLevels.map((entry, index) => `
@@ -542,7 +553,13 @@ function render() {
     `;
 
     root.querySelectorAll('[data-sprite-index]').forEach((node) => {
-        const style = getSpriteStyle(Number(node.getAttribute('data-sprite-index') || 0));
+        const spriteIndex = Number(node.getAttribute('data-sprite-index') || 0);
+        const rect = node.getBoundingClientRect();
+        const scaledWidth = rect.width || node.clientWidth || parseFloat(window.getComputedStyle(node).width) || 0;
+        const scaledHeight = rect.height || node.clientHeight || parseFloat(window.getComputedStyle(node).height) || 0;
+        const style = node.classList.contains('spin-tarot-arcana-art') || node.classList.contains('spin-tarot-cutin-art')
+            ? getScaledSpriteStyle(spriteIndex, scaledWidth, scaledHeight)
+            : getSpriteStyle(spriteIndex);
         Object.assign(node.style, style);
     });
     bindEvents();
@@ -720,7 +737,7 @@ function getBoardStageHint() {
     const defenseView = buildDefenseView(getMajorArcana(state?.currentArcana?.number));
     if (spinning) return 'REELS SPINNING...';
     if (state?.battle) return describeEnemy(state.battle);
-    if (state?.phase === 'hold') return 'KEEP / HOLD the center line';
+    if (state?.phase === 'hold') return 'Choose cards to HOLD';
     if (defenseView?.hasRole) return defenseView.lead;
     if (state?.lineSummaries?.length) return state.lineSummaries[0];
     if (state?.lastEffects?.[0]) return state.lastEffects[0];
@@ -804,6 +821,9 @@ function buildDefenseView(activeArcana) {
         const primaryAction = actionQueue[0];
         const supportActions = actionQueue.slice(1, 3);
         const isEnemyPush = String(primaryAction?.role || '') === 'enemy';
+        const weaknessText = primaryAction?.weaknessHit
+            ? `${primaryAction.weaknessIcon || '🪄'} ${primaryAction.weaknessLabel || 'WEAK'} x${Number(primaryAction.weaknessMultiplier || 1).toFixed(2)}`
+            : '';
         const actors = actionQueue.slice(0, 3).map((action, index) => ({
             emoji: action.icon || '⚔️',
             side: isEnemyPush && index === 0 ? 'right' : 'left',
@@ -813,7 +833,9 @@ function buildDefenseView(activeArcana) {
             size: index === 0 ? 30 : 22,
             bottom: index === 0 ? 10 : (22 - (index * 4)),
             delayMs: index * 110,
-            travel: action.motion === 'rush' ? 34 : 16
+            travel: action.motion === 'rush' ? 34 : 16,
+            durationMs: index === 0 ? 760 : 620,
+            once: true
         }));
         if (activeArcana?.icon && !actors.some((actor) => actor.emoji === activeArcana.icon)) {
             actors.push({
@@ -825,13 +847,21 @@ function buildDefenseView(activeArcana) {
                 size: 22,
                 bottom: 28,
                 delayMs: 80,
-                travel: 10
+                travel: 10,
+                durationMs: 720,
+                once: true
             });
         }
         return {
             hasRole: !isEnemyPush,
             lead: `${primaryAction.icon || '⚔️'} ${primaryAction.label || primaryAction.short || 'ATTACK'}`,
-            detail: [primaryAction.detail, supportActions.length ? `Support ${supportActions.map((action) => action.icon || '✨').join(' ')}` : '', attackText || damageText, unitBadges].filter(Boolean).join(' / '),
+            detail: [
+                primaryAction.detail,
+                weaknessText,
+                supportActions.length ? `Support ${supportActions.map((action) => action.icon || '✨').join(' ')}` : '',
+                attackText || damageText,
+                unitBadges
+            ].filter(Boolean).join(' / '),
             short: primaryAction.short || primaryAction.label || 'ATTACK',
             primaryGuide: {
                 icon: primaryAction.icon || '⚔️',
@@ -851,6 +881,7 @@ function buildDefenseView(activeArcana) {
             })),
             badges: [
                 primaryAction.short || primaryAction.label || 'ATTACK',
+                weaknessText,
                 attackText || damageText,
                 unitBadges
             ].filter(Boolean),
@@ -861,7 +892,10 @@ function buildDefenseView(activeArcana) {
                     side: isEnemyPush ? 'left' : 'center',
                     slot: 1,
                     motion: isEnemyPush ? 'blink' : 'burst',
-                    size: 18
+                    size: 18,
+                    delayMs: isEnemyPush ? 120 : 180,
+                    durationMs: 520,
+                    once: true
                 }
             ]
         };
@@ -899,7 +933,9 @@ function buildDefenseView(activeArcana) {
             role: primaryGuide.role,
             size: primaryGuide.role === 'arcana' ? 34 : 30,
             bottom: primaryGuide.role === 'arcana' ? 18 : 10,
-            travel: primaryGuide.motion === 'rush' ? 38 : 18
+            travel: primaryGuide.motion === 'rush' ? 38 : 18,
+            durationMs: 760,
+            once: true
         }
     ];
 
@@ -913,7 +949,9 @@ function buildDefenseView(activeArcana) {
             size: 22,
             bottom: 22 - (index * 4),
             delayMs: 100 + (index * 120),
-            travel: guide.motion === 'rush' ? 28 : 14
+            travel: guide.motion === 'rush' ? 28 : 14,
+            durationMs: 620,
+            once: true
         });
     });
 
@@ -927,7 +965,9 @@ function buildDefenseView(activeArcana) {
             size: 22,
             bottom: 28,
             delayMs: 80,
-            travel: 10
+            travel: 10,
+            durationMs: 720,
+            once: true
         });
     }
 
@@ -937,7 +977,10 @@ function buildDefenseView(activeArcana) {
             side: primaryGuide.effect === 'burst' ? 'center' : 'right',
             slot: 1,
             motion: primaryGuide.effect,
-            size: 18
+            size: 18,
+            delayMs: 180,
+            durationMs: 520,
+            once: true
         }
     ];
 
@@ -1086,14 +1129,16 @@ function renderMonitorActor(actor = {}, index = 0) {
     const vertical = `bottom:${Number.isFinite(bottom) ? bottom : 12}px;`;
     const delay = `animation-delay:${Math.max(0, Number(actor.delayMs) || (index * 120))}ms;`;
     const travel = `--actor-travel:${Math.max(8, Number(actor.travel) || (actor.motion === 'rush' ? 42 : 18))}px;`;
+    const duration = Number(actor.durationMs) > 0 ? `animation-duration:${Math.max(120, Number(actor.durationMs))}ms;` : '';
     const classes = [
         'spin-tarot-monitor-actor',
         side === 'left' ? 'is-ally' : 'is-foe',
+        actor.once ? 'is-once' : '',
         actor.motion ? `is-${String(actor.motion).trim()}` : '',
         actor.role ? `is-${String(actor.role).trim()}` : ''
     ].filter(Boolean).join(' ');
     return `
-        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}${travel}">
+        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}${travel}${duration}">
             ${escapeHtml(actor.emoji || '✨')}
         </span>
     `;
@@ -1113,12 +1158,14 @@ function renderMonitorEffect(effect = {}, index = 0) {
     }
     const vertical = `top:${Number.isFinite(Number(effect.top)) ? Number(effect.top) : 10 + ((index % 2) * 18)}px;`;
     const delay = `animation-delay:${Math.max(0, Number(effect.delayMs) || (index * 140))}ms;`;
+    const duration = Number(effect.durationMs) > 0 ? `animation-duration:${Math.max(120, Number(effect.durationMs))}ms;` : '';
     const classes = [
         'spin-tarot-monitor-effect',
+        effect.once ? 'is-once' : '',
         effect.motion ? `is-${String(effect.motion).trim()}` : ''
     ].filter(Boolean).join(' ');
     return `
-        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}">
+        <span class="${escapeHtml(classes)}" style="${horizontal}${vertical}font-size:${size}px;${delay}${duration}">
             ${escapeHtml(effect.emoji || '✨')}
         </span>
     `;
@@ -1140,6 +1187,20 @@ function getPreviewNation(suitKey) {
     const key = String(suitKey || '').trim();
     if (!key) return null;
     return CONFIG.enemyNations?.[key] || null;
+}
+
+function getEnemyWaveIcons(enemy, fallback = '👾') {
+    const icons = Array.isArray(enemy?.waveIcons)
+        ? enemy.waveIcons.map((icon) => String(icon || '').trim()).filter(Boolean)
+        : [];
+    if (icons.length) return icons;
+    const main = String(enemy?.emoji || fallback).trim();
+    return [main || fallback];
+}
+
+function getEnemyDisplayEmoji(enemy, variant = 0, fallback = '👾') {
+    const icons = getEnemyWaveIcons(enemy, fallback);
+    return icons[Math.max(0, Number(variant) || 0) % icons.length] || fallback;
 }
 
 function getMonitorGarrisonActivity(defenseView = null) {
@@ -1245,16 +1306,27 @@ function buildMonitorEnemyWave(statusView, previewNation, previewSuitIcon) {
         }));
     }
     if (state?.battle) {
-        const baseIcon = state.battle.emoji || previewNation?.emoji || previewSuitIcon || '👾';
+        const baseIcons = getEnemyWaveIcons(state.battle, state.battle.emoji || previewNation?.emoji || previewSuitIcon || '👾');
         const count = state.battle.isBoss ? 5 : Math.max(2, Math.min(4, Math.ceil((Number(state.battle.hp || 0) / Math.max(1, Number(state.battle.maxHp || 1))) * 4)));
-        return Array.from({ length: count }, (_, index) => ({
-            icon: index === 0 && state.battle.isBoss ? '☠️' : baseIcon,
+        const wave = Array.from({ length: count }, (_, index) => ({
+            icon: state.battle.isBoss && index === 0
+                ? (baseIcons[0] || state.battle.emoji || '🐉')
+                : baseIcons[index % baseIcons.length],
             tone: 'danger',
             active: index < Math.max(1, count - 1),
-            size: index === 0 && state.battle.isBoss ? 14 : 13
+            size: state.battle.isBoss && index === 0 ? 14 : 13
         }));
+        if (wave.length > 1 && state.battle.weaknessType) {
+            wave[wave.length - 1] = {
+                icon: state.battle.weaknessIcon || '🎯',
+                tone: 'reward',
+                active: true,
+                size: 13
+            };
+        }
+        return wave;
     }
-    const previewIcon = previewNation?.emoji || previewSuitIcon || '👾';
+    const previewIcons = getEnemyWaveIcons(previewNation, previewSuitIcon || '👾');
     const count = statusView?.modeKey === 'cz'
         ? 5
         : statusView?.modeKey === 'high'
@@ -1263,7 +1335,7 @@ function buildMonitorEnemyWave(statusView, previewNation, previewSuitIcon) {
                 ? 3
                 : 2;
     return Array.from({ length: count }, (_, index) => ({
-        icon: previewIcon,
+        icon: previewIcons[index % previewIcons.length],
         tone: statusView?.modeKey === 'high' || statusView?.modeKey === 'cz' ? 'danger' : 'neutral',
         active: index === 0 || statusView?.modeKey === 'high' || statusView?.modeKey === 'cz',
         size: 12
@@ -1326,7 +1398,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         skyIcons: [activeArcana.icon || '✨', previewSuitIcon],
         actors: [
             { emoji: activeArcana.icon || '✨', side: 'left', slot: 0, motion: 'hover', role: 'arcana', size: 24, bottom: 28 },
-            { emoji: previewNation?.emoji || previewSuitIcon, slot: 1, motion: 'march', role: 'enemy', size: 30 }
+            { emoji: getEnemyDisplayEmoji(previewNation, 0, previewSuitIcon || '👾'), slot: 1, motion: 'march', role: 'enemy', size: 30 }
         ],
         effects: [
             { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 }
@@ -1390,7 +1462,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.actors = [
             { emoji: '🎴', slot: 0, motion: 'spin', role: 'card', size: 28, bottom: 24, travel: 16 },
             { emoji: '🎴', slot: 1, motion: 'spin', role: 'card', size: 30, bottom: 14, delayMs: 90, travel: 18 },
-            { emoji: previewNation?.emoji || previewSuitIcon, slot: 2, motion: 'march', role: 'enemy', size: 28, bottom: 12, delayMs: 180, travel: 22 }
+            { emoji: getEnemyDisplayEmoji(previewNation, 1, previewSuitIcon || '👾'), slot: 2, motion: 'march', role: 'enemy', size: 28, bottom: 12, delayMs: 180, travel: 22 }
         ];
         view.effects = [
             { emoji: '🌀', side: 'center', slot: 1, motion: 'spark', size: 18 },
@@ -1398,7 +1470,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         ];
         view.badges = [
             { icon: '🪙', text: String(state?.coins || 0), tone: 'reward' },
-            { icon: '🎴', text: `${state?.activeLineCount || 0} LINE` },
+            { icon: '🎴', text: `${state?.activeLineCount || 0} HAND` },
             { icon: previewSuitIcon, text: `CZ ${statusView.nextCzIn}G` }
         ];
     } else if (state?.battle) {
@@ -1409,12 +1481,12 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.skyIcons = ['🌩️', previewSuitIcon, '🔥'];
         view.actors = [
             { emoji: '🛡️', side: 'left', slot: 0, motion: 'guard', role: 'guard', size: 22, bottom: 10, travel: 10 },
-            { emoji: state.battle.emoji || '👹', slot: state.battle.isBoss ? 0 : 1, motion: state.battle.isBoss ? 'boss' : 'rush', role: 'enemy', size: state.battle.isBoss ? 40 : 34, bottom: 10, travel: state.battle.isBoss ? 30 : 42 },
-            { emoji: '⚔️', side: 'center', slot: 1, motion: 'clash', role: 'support', size: 22, bottom: 18, delayMs: 100, travel: 14 }
+            { emoji: getEnemyDisplayEmoji(state.battle, 0, state.battle.emoji || '👹'), slot: state.battle.isBoss ? 0 : 1, motion: state.battle.isBoss ? 'boss' : 'rush', role: 'enemy', size: state.battle.isBoss ? 40 : 34, bottom: 10, travel: state.battle.isBoss ? 30 : 42, durationMs: 900, once: true },
+            { emoji: '⚔️', side: 'center', slot: 1, motion: 'clash', role: 'support', size: 22, bottom: 18, delayMs: 100, travel: 14, durationMs: 560, once: true }
         ];
         view.effects = [
-            { emoji: '💥', side: 'center', slot: 1, motion: 'burst', size: 24 },
-            { emoji: '🔥', side: 'left', slot: 0, motion: 'blink', size: 18, top: 22 }
+            { emoji: '💥', side: 'center', slot: 1, motion: 'burst', size: 24, delayMs: 150, durationMs: 520, once: true },
+            { emoji: '🔥', side: 'left', slot: 0, motion: 'blink', size: 18, top: 22, durationMs: 520, once: true }
         ];
         view.badges = [
             { icon: '🛡️', text: `${state.castleHp}/${state.castleMaxHp}`, tone: 'reward' },
@@ -1449,7 +1521,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         } else if (Number(state?.lastEnemyDamage || 0) > 0) {
             view.skyIcons = ['🌩️', '🔥', previewSuitIcon];
             view.actors = [
-                { emoji: previewNation?.emoji || '👹', slot: 1, motion: 'rush', role: 'enemy', size: 34, bottom: 12, travel: 38 },
+                { emoji: getEnemyDisplayEmoji(previewNation, 0, '👹'), slot: 1, motion: 'rush', role: 'enemy', size: 34, bottom: 12, travel: 38 },
                 { emoji: '💥', side: 'center', slot: 1, motion: 'burst', role: 'support', size: 22, bottom: 20, delayMs: 60, travel: 10 }
             ];
             view.effects = [
@@ -1481,7 +1553,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
     } else if (state?.phase === 'hold') {
         view.theme = 'hold';
         view.title = 'HOLD & DRAW';
-        view.caption = '中央ラインを選んで KEEP。決めたら DRAW / SPIN。';
+        view.caption = '5枚から KEEP を選び、決めたら DRAW / SPIN。';
         view.castleTone = 'is-ready';
         view.skyIcons = ['🎴', activeArcana.icon || '✨', previewSuitIcon];
         view.actors = [
@@ -1493,8 +1565,8 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
             { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 }
         ];
         view.badges = [
-            { icon: '🎯', text: `${state?.activeLineCount || 0} LINE` },
-            { icon: '🖐️', text: 'CENTER HOLD' },
+            { icon: '🎯', text: `${state?.activeLineCount || 0} HAND` },
+            { icon: '🖐️', text: '5-CARD HOLD' },
             { icon: '👑', text: rushChip, tone: 'rush' }
         ];
     } else if (statusView?.modeKey === 'cz') {
@@ -1504,7 +1576,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.castleTone = 'is-alert';
         view.skyIcons = ['🌀', previewSuitIcon, '⚠️'];
         view.actors = [
-            { emoji: previewNation?.emoji || '👤', slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: 24 },
+            { emoji: getEnemyDisplayEmoji(previewNation, 0, '👾'), slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: 24 },
             { emoji: '🛡️', side: 'left', slot: 0, motion: 'guard', role: 'guard', size: 22, bottom: 8, travel: 10 },
             { emoji: '🌀', side: 'center', slot: 1, motion: 'hover', role: 'support', size: 22, bottom: 22, delayMs: 80, travel: 12 }
         ];
@@ -1526,7 +1598,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.actors = [
             { emoji: '👑', side: 'left', slot: 1, motion: 'arcana', role: 'reward', size: 32, bottom: 20, travel: 10 },
             { emoji: '⚔️', slot: 1, motion: 'clash', role: 'support', size: 22, bottom: 18, delayMs: 100, travel: 16 },
-            { emoji: previewNation?.emoji || previewSuitIcon, slot: 2, motion: 'march', role: 'enemy', size: 26, bottom: 10, delayMs: 180, travel: 18 }
+            { emoji: getEnemyDisplayEmoji(previewNation, 1, previewSuitIcon || '👾'), slot: 2, motion: 'march', role: 'enemy', size: 26, bottom: 10, delayMs: 180, travel: 18 }
         ];
         view.effects = [
             { emoji: '✨', side: 'center', slot: 1, motion: 'spark', size: 18 },
@@ -1544,7 +1616,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.castleTone = 'is-alert';
         view.skyIcons = ['⚠️', previewSuitIcon, '🌫️'];
         view.actors = [
-            { emoji: previewNation?.emoji || '👤', slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: statusView.modeKey === 'high' ? 28 : 18 },
+            { emoji: getEnemyDisplayEmoji(previewNation, 0, '👾'), slot: 1, motion: 'march', role: 'enemy', size: 30, bottom: 10, travel: statusView.modeKey === 'high' ? 28 : 18 },
             { emoji: previewSuitIcon, slot: 0, motion: 'hover', role: 'support', size: 22, bottom: 28, delayMs: 80, travel: 12 }
         ];
         view.effects = [
@@ -1589,23 +1661,72 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.actors = [
             ...defense.actors,
             {
-                emoji: state.battle.emoji || previewNation?.emoji || previewSuitIcon,
+                emoji: getEnemyDisplayEmoji(state.battle, 0, state.battle.emoji || previewNation?.emoji || previewSuitIcon || '👾'),
                 slot: state.battle.isBoss ? 0 : 1,
-                motion: state.battle.isBoss ? 'boss' : 'rush',
+                motion: Number(state?.lastAttackDamage || 0) > 0 ? 'stagger' : (state.battle.isBoss ? 'boss' : 'rush'),
                 role: 'enemy',
                 size: state.battle.isBoss ? 40 : 34,
                 bottom: 10,
-                travel: state.battle.isBoss ? 30 : 42
+                travel: Number(state?.lastAttackDamage || 0) > 0 ? (state.battle.isBoss ? 34 : 28) : (state.battle.isBoss ? 30 : 42),
+                delayMs: Number(state?.lastAttackDamage || 0) > 0 ? 180 : 0,
+                durationMs: Number(state?.lastAttackDamage || 0) > 0 ? 620 : 900,
+                once: true
             }
         ];
         view.effects = [
             ...defense.effects,
-            { emoji: Number(state?.lastAttackDamage || 0) > 0 ? '💥' : '⚡', side: 'center', slot: 1, motion: Number(state?.lastAttackDamage || 0) > 0 ? 'burst' : 'blink', size: 20 }
+            { emoji: Number(state?.lastAttackDamage || 0) > 0 ? '💥' : '⚡', side: 'center', slot: 1, motion: Number(state?.lastAttackDamage || 0) > 0 ? 'burst' : 'blink', size: 20, delayMs: Number(state?.lastAttackDamage || 0) > 0 ? 220 : 120, durationMs: 520, once: true }
         ];
+        if (Array.isArray(state?.lastDefenseActions) && state.lastDefenseActions.some((action) => action?.weaknessHit)) {
+            view.effects.push({
+                emoji: state.battle.weaknessIcon || '🎯',
+                side: 'right',
+                slot: 2,
+                motion: 'spark',
+                size: 18,
+                delayMs: 260,
+                durationMs: 480,
+                once: true
+            });
+        }
         view.badges = [
             { icon: defense.primaryGuide?.icon || '⚔️', text: defense.short, tone: 'reward' },
             { icon: state.battle.emoji || previewNation?.emoji || previewSuitIcon, text: `${state.battle.hp}/${state.battle.maxHp}`, tone: 'danger' },
             { icon: '⚔️', text: Number(state?.lastAttackDamage || 0) > 0 ? `ATK ${state.lastAttackDamage}` : 'ENGAGE', tone: Number(state?.lastAttackDamage || 0) > 0 ? 'reward' : 'danger' }
+        ];
+    } else if (state?.lastBattleOutcome?.type === 'victory') {
+        const defeated = state.lastBattleOutcome;
+        view.theme = 'reward';
+        view.title = `${defeated.label} 撃破`;
+        view.caption = compactMonitorText(`城を守り切った。敵を吹き飛ばし ${defeated.reward || 0} coin を獲得。`, baseCaption);
+        view.castleTone = 'is-reward';
+        view.skyIcons = ['✨', defeated.emoji || '👾', '🪙'];
+        view.actors = [
+            { emoji: '🛡️', side: 'left', slot: 0, motion: 'guard', role: 'guard', size: 22, bottom: 10, travel: 10, durationMs: 520, once: true },
+            { emoji: defense.primaryGuide?.icon || '⚔️', side: 'left', slot: 1, motion: 'clash', role: 'support', size: 24, bottom: 18, delayMs: 80, travel: 12, durationMs: 540, once: true },
+            { emoji: defeated.emoji || '👾', slot: defeated.isBoss ? 0 : 1, motion: 'defeat', role: 'enemy', size: defeated.isBoss ? 42 : 34, bottom: 10, travel: defeated.isBoss ? 56 : 46, delayMs: 140, durationMs: 880, once: true }
+        ];
+        view.effects = [
+            { emoji: '💥', side: 'center', slot: 1, motion: 'burst', size: 24, durationMs: 520, once: true },
+            { emoji: '✨', side: 'right', slot: 0, motion: 'spark', size: 18, delayMs: 120, durationMs: 480, once: true },
+            { emoji: '🪙', side: 'right', slot: 1, motion: 'burst', size: 18, delayMs: 180, durationMs: 520, once: true }
+        ];
+        if (defeated.weaknessHit) {
+            view.effects.push({
+                emoji: defeated.weaknessIcon || '🎯',
+                side: 'right',
+                slot: 2,
+                motion: 'spark',
+                size: 18,
+                delayMs: 200,
+                durationMs: 480,
+                once: true
+            });
+        }
+        view.badges = [
+            { icon: defeated.emoji || '👾', text: 'DEFEATED', tone: 'reward' },
+            { icon: '🪙', text: `+${defeated.reward || 0}`, tone: 'reward' },
+            { icon: defense.primaryGuide?.icon || '⚔️', text: defense.short, tone: 'reward' }
         ];
     } else if (defense.hasRole && resultInfo.text && !Number(state?.lastTreasureCoins || 0) && !Number(state?.lastEnemyDamage || 0)) {
         view.title = defense.lead;
@@ -1613,7 +1734,7 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.actors = [
             ...defense.actors,
             {
-                emoji: previewNation?.emoji || previewSuitIcon,
+                emoji: getEnemyDisplayEmoji(previewNation, 1, previewSuitIcon || '👾'),
                 slot: 2,
                 motion: 'march',
                 role: 'enemy',
@@ -1627,8 +1748,16 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.badges = [
             { icon: defense.primaryGuide?.icon || '🎴', text: defense.short, tone: 'reward' },
             { icon: '🪙', text: Number(state?.totalPayout || 0) > 0 ? `+${state.totalPayout}` : 'ROLE HIT', tone: 'reward' },
-            { icon: '⚔️', text: Number(state?.lastAttackDamage || 0) > 0 ? `ATK ${state.lastAttackDamage}` : `${(state?.lineResults || []).filter((line) => line.kind !== 'Miss').length} LINE`, tone: 'reward' }
+            { icon: '⚔️', text: Number(state?.lastAttackDamage || 0) > 0 ? `ATK ${state.lastAttackDamage}` : `${(state?.lineResults || []).filter((line) => line.kind !== 'Miss').length} HIT`, tone: 'reward' }
         ];
+    }
+
+    if (state?.battle?.weaknessType && Array.isArray(view.badges) && view.badges.length < 4) {
+        view.badges.push({
+            icon: state.battle.weaknessIcon || '🎯',
+            text: state.battle.weaknessLabel || `${String(state.battle.weaknessType).toUpperCase()} WEAK`,
+            tone: 'reward'
+        });
     }
 
     return view;
@@ -1664,7 +1793,7 @@ function renderResultStrip(statusView) {
         isHoldPhase ? 'is-hold' : ''
     ].filter(Boolean).join(' ');
     const leadText = isHoldPhase
-        ? 'Choose the center line, then DRAW.'
+        ? 'Choose cards to HOLD, then DRAW.'
         : hasPayout
             ? `${defenseView.hasRole ? defenseView.lead : (state.lineSummaries[0] || 'Role hit')} / payout ${state.totalPayout}`
             : hasTreasure
@@ -1673,7 +1802,7 @@ function renderResultStrip(statusView) {
                     ? `${defenseView.hasRole ? defenseView.lead : 'Attack'} ${state.lastAttackDamage} damage`
                     : hasDamage
                         ? `Castle -${state.lastEnemyDamage} damage`
-                        : (defenseView.hasRole ? defenseView.detail : (state.lineSummaries[0] || 'Pick a center line and HOLD'));
+                        : (defenseView.hasRole ? defenseView.detail : (state.lineSummaries[0] || 'Pick cards to HOLD'));
     const detailItems = [
         defenseView.hasRole ? defenseView.short : '',
         hasPayout ? `COIN ${state.totalPayout}` : '',
