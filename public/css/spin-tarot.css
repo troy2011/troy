@@ -75,6 +75,18 @@
     font-weight: 700;
 }
 
+.tarot-spin-root .spin-tarot-hud-chip--combo {
+    border-color: rgba(255, 140, 0, 0.55);
+    background: linear-gradient(135deg, rgba(80, 30, 0, 0.85), rgba(40, 16, 0, 0.90));
+    color: #ffcc44;
+    animation: spin-tarot-combo-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes spin-tarot-combo-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(255, 140, 0, 0.35); }
+    50% { box-shadow: 0 0 14px rgba(255, 140, 0, 0.75); }
+}
+
 .tarot-spin-root .spin-tarot-battle-box,
 .tarot-spin-root .spin-tarot-arcana-panel,
 .tarot-spin-root .spin-tarot-stat-card,
@@ -130,6 +142,7 @@
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, #ffd166, #ff7f50);
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tarot-spin-root .spin-tarot-arcana-panel {
@@ -1053,6 +1066,42 @@
     box-shadow: 0 0 10px rgba(251, 113, 133, 0.4);
 }
 
+/* LED reactivity: yellow blinks during spin, red pulses in danger */
+@keyframes spinTarotLedBlink {
+    0%, 49% { opacity: 0.35; }
+    50%, 100% { opacity: 1; }
+}
+
+.tarot-spin-root.is-spinning .spin-tarot-monitor-leds span:nth-child(2) {
+    animation: spinTarotLedBlink 0.36s steps(2, end) infinite;
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.72);
+}
+
+.tarot-spin-root .spin-tarot-monitor--danger .spin-tarot-monitor-leds span:nth-child(3) {
+    animation: spinTarotLedBlink 0.62s ease-in-out infinite;
+    box-shadow: 0 0 14px rgba(251, 113, 133, 0.68);
+}
+
+/* Lane border tints per theme */
+.tarot-spin-root .spin-tarot-monitor-lane--danger {
+    border-color: rgba(248, 113, 113, 0.18);
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane--reward,
+.tarot-spin-root .spin-tarot-monitor-lane--treasure {
+    border-color: rgba(52, 211, 153, 0.18);
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane--omen,
+.tarot-spin-root .spin-tarot-monitor-lane--arcana,
+.tarot-spin-root .spin-tarot-monitor-lane--rush {
+    border-color: rgba(168, 85, 247, 0.18);
+}
+
+.tarot-spin-root .spin-tarot-monitor-lane--impact {
+    border-color: rgba(251, 191, 36, 0.24);
+}
+
 .tarot-spin-root .spin-tarot-monitor-topline {
     display: flex;
     align-items: center;
@@ -1216,6 +1265,18 @@
     filter: drop-shadow(0 0 8px rgba(255, 214, 102, 0.22));
 }
 
+@keyframes spinTarotWaveHit {
+    0% { transform: translateX(0) scale(1) rotate(0deg); opacity: 0.86; }
+    22% { transform: translateX(12px) scale(0.84) rotate(12deg); opacity: 1; filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.7)); }
+    58% { transform: translateX(5px) scale(1.06) rotate(-6deg); opacity: 0.92; }
+    100% { transform: translateX(0) scale(1) rotate(0deg); opacity: 0.86; }
+}
+
+.tarot-spin-root .spin-tarot-monitor-wave-node.is-hit {
+    animation: spinTarotWaveHit 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+    filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.5));
+}
+
 .tarot-spin-root .spin-tarot-monitor-garrison {
     position: absolute;
     left: 58px;
@@ -1305,6 +1366,7 @@
     opacity: 0.54;
     background: linear-gradient(270deg, rgba(248, 113, 113, 0.75), rgba(251, 146, 60, 0.2));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tarot-spin-root .spin-tarot-monitor-threat-fill.is-reward {
@@ -1420,9 +1482,9 @@
 .tarot-spin-root .spin-tarot-monitor-subline {
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 0;
-    font-size: 10px;
-    line-height: 1.25;
+    min-height: 18px;
+    font-size: 12px;
+    line-height: 1.45;
     color: var(--monitor-sub);
     white-space: nowrap;
     overflow: hidden;
@@ -1578,80 +1640,6 @@
 
 .tarot-spin-root .spin-tarot-monitor-zone {
     text-align: right;
-}
-
-.tarot-spin-root .spin-tarot-monitor-headline {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    line-height: 1.02;
-    color: var(--monitor-head);
-    text-shadow:
-        0 0 18px var(--monitor-glow),
-        0 0 8px rgba(255, 255, 255, 0.1);
-}
-
-.tarot-spin-root .spin-tarot-monitor-subline {
-    min-height: 18px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--monitor-sub);
-}
-
-.tarot-spin-root .spin-tarot-monitor-metrics {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.tarot-spin-root .spin-tarot-monitor-metric {
-    min-width: 0;
-    padding: 8px 9px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(6, 10, 19, 0.44);
-}
-
-.tarot-spin-root .spin-tarot-monitor-metric-label {
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    color: var(--monitor-chip);
-}
-
-.tarot-spin-root .spin-tarot-monitor-metric-value {
-    margin-top: 4px;
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--monitor-head);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tarot-spin-root .spin-tarot-monitor-marquee-wrap {
-    position: relative;
-    overflow: hidden;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(5, 8, 16, 0.56);
-}
-
-.tarot-spin-root .spin-tarot-monitor-marquee {
-    display: flex;
-    width: max-content;
-    min-width: 200%;
-    animation: spinTarotMonitorTicker 24s linear infinite;
-}
-
-.tarot-spin-root .spin-tarot-monitor-marquee span {
-    flex: 0 0 auto;
-    padding: 7px 18px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--monitor-sub);
-    white-space: nowrap;
 }
 
 .tarot-spin-root .spin-tarot-main-stage {
@@ -2060,14 +2048,6 @@
     }
 }
 
-@keyframes spinTarotMonitorTicker {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-50%);
-    }
-}
 
 @media (max-width: 720px) {
     .tarot-spin-root.spin-tarot-mounted {
@@ -2504,10 +2484,16 @@
     .tarot-spin-root .spin-tarot-cutin,
     .tarot-spin-root .spin-tarot-board .tarot-card,
     .tarot-spin-root .spin-tarot-board .tarot-card.is-hit,
-    .tarot-spin-root .spin-tarot-monitor-marquee,
+    .tarot-spin-root .spin-tarot-monitor-wave-node.is-hit,
+    .tarot-spin-root .spin-tarot-monitor-leds span,
     .tarot-spin-root .spin-tarot-spin-btn,
     .tarot-spin-root .spin-tarot-spin-btn::after {
         animation: none !important;
+    }
+
+    .tarot-spin-root .spin-tarot-bar span,
+    .tarot-spin-root .spin-tarot-monitor-threat-fill {
+        transition: none !important;
     }
 
     .tarot-spin-root .spin-tarot-step-btn,

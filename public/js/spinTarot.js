@@ -203,7 +203,7 @@ function loadPersistedState() {
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return null;
-        if (Number(parsed.version) !== 2) return null;
+        if (Number(parsed.version) !== 3) return null;
         if (!Array.isArray(parsed.board) || !Array.isArray(parsed.holdMask) || !Array.isArray(parsed.lockedHolds)) return null;
         lastPersistedStateJson = raw;
         return parsed;
@@ -375,6 +375,7 @@ function render() {
                         <div class="spin-tarot-hud-chip">🎚 ${zoneText}</div>
                         <div class="spin-tarot-hud-chip">🎯 HAND ${state.activeLineCount}</div>
                         <div class="spin-tarot-hud-chip">${escapeHtml(modeHudText)}</div>
+                        ${statusView.winStreak >= 2 ? `<div class="spin-tarot-hud-chip spin-tarot-hud-chip--combo">${statusView.winStreak >= 5 ? '🔥🔥' : statusView.winStreak >= 3 ? '🔥' : '⚡'} COMBO ${statusView.winStreak}</div>` : ''}
                     </div>
                 </section>
 
@@ -530,6 +531,8 @@ function render() {
                                 ${renderMiniChip(statusView.queenModeSpins > 0 ? 'QUEEN G' : 'QUEEN NEXT', statusView.queenModeSpins > 0 ? `${statusView.queenModeSpins}G` : String(statusView.nextQueenIn))}
                                 ${renderMiniChip(statusView.kingModeSpins > 0 ? 'KING G' : 'KING NEXT', statusView.kingModeSpins > 0 ? `${statusView.kingModeSpins}G` : String(statusView.nextKingIn))}
                                 ${renderMiniChip('MISS', String(statusView.missStreak))}
+                                ${renderMiniChip('COMBO', String(statusView.winStreak))}
+                                ${renderMiniChip('BEST', String(statusView.bestStreak))}
                                 ${renderMiniChip('ARCANA', `${statusView.spinsUntilArcanaShift}G`)}
                                 ${renderMiniChip('TREASURE CD', String(statusView.treasureCooldownSpins || 0))}
                                 ${renderMiniChip('OMEN SUIT', getSuitBadge(state.previewSuit))}
@@ -726,6 +729,7 @@ function buildBoardRenderState(hitCells = getHitCellSet()) {
         stageHint: getBoardStageHint(),
         resultText: resultInfo.text,
         resultTone: resultInfo.tone,
+        resultStrength: resultInfo.strength || 0,
         resultPulseKey: resultInfo.pulseKey,
         winningLines,
         lineSweepKey,
@@ -748,10 +752,14 @@ function getBoardResultInfo() {
     if (state?.phase === 'hold') {
         return { text: 'HOLD & DRAW', tone: 'hold', pulseKey: '' };
     }
+    const bestStrength = (state?.lineResults || [])
+        .filter((line) => line.kind !== 'Miss')
+        .reduce((max, line) => Math.max(max, DEFENSE_ROLE_PRIORITY[line.kind] || 0), 0);
     if (Number(state?.totalPayout || 0) > 0) {
         return {
             text: `+${state.totalPayout} COIN`,
             tone: 'win',
+            strength: bestStrength,
             pulseKey: `coin:${state.spinCount}:${state.totalPayout}`
         };
     }
@@ -759,6 +767,7 @@ function getBoardResultInfo() {
         return {
             text: `TREASURE +${state.lastTreasureCoins}`,
             tone: 'treasure',
+            strength: 0,
             pulseKey: `treasure:${state.spinCount}:${state.lastTreasureCoins}`
         };
     }
@@ -766,6 +775,7 @@ function getBoardResultInfo() {
         return {
             text: `ATK ${state.lastAttackDamage}`,
             tone: 'win',
+            strength: bestStrength,
             pulseKey: `atk:${state.spinCount}:${state.lastAttackDamage}`
         };
     }
@@ -773,10 +783,11 @@ function getBoardResultInfo() {
         return {
             text: `CASTLE -${state.lastEnemyDamage}`,
             tone: 'danger',
+            strength: 0,
             pulseKey: `dmg:${state.spinCount}:${state.lastEnemyDamage}`
         };
     }
-    return { text: '', tone: 'idle', pulseKey: '' };
+    return { text: '', tone: 'idle', strength: 0, pulseKey: '' };
 }
 
 function getDefenseRoleGuide(kind) {
@@ -1098,7 +1109,8 @@ function renderMonitorWaveNode(node = {}, index = 0) {
     const classes = [
         'spin-tarot-monitor-wave-node',
         node.active ? 'is-active' : 'is-idle',
-        node.tone ? `is-${String(node.tone).trim()}` : ''
+        node.tone ? `is-${String(node.tone).trim()}` : '',
+        node.hit ? 'is-hit' : ''
     ].filter(Boolean).join(' ');
     const size = Math.max(10, Number(node.size) || 14);
     return `
@@ -1308,13 +1320,15 @@ function buildMonitorEnemyWave(statusView, previewNation, previewSuitIcon) {
     if (state?.battle) {
         const baseIcons = getEnemyWaveIcons(state.battle, state.battle.emoji || previewNation?.emoji || previewSuitIcon || '👾');
         const count = state.battle.isBoss ? 5 : Math.max(2, Math.min(4, Math.ceil((Number(state.battle.hp || 0) / Math.max(1, Number(state.battle.maxHp || 1))) * 4)));
+        const wasHit = Number(state?.lastAttackDamage || 0) > 0;
         const wave = Array.from({ length: count }, (_, index) => ({
             icon: state.battle.isBoss && index === 0
                 ? (baseIcons[0] || state.battle.emoji || '🐉')
                 : baseIcons[index % baseIcons.length],
             tone: 'danger',
             active: index < Math.max(1, count - 1),
-            size: state.battle.isBoss && index === 0 ? 14 : 13
+            size: state.battle.isBoss && index === 0 ? 14 : 13,
+            hit: wasHit && index === 0
         }));
         if (wave.length > 1 && state.battle.weaknessType) {
             wave[wave.length - 1] = {
@@ -1491,7 +1505,9 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
         view.badges = [
             { icon: '🛡️', text: `${state.castleHp}/${state.castleMaxHp}`, tone: 'reward' },
             { icon: state.battle.emoji || '👹', text: `${state.battle.hp}/${state.battle.maxHp}`, tone: 'danger' },
-            { icon: '⚔️', text: String(state.battle.attack), tone: 'danger' }
+            statusView.winStreak >= 3
+                ? { icon: '🔥', text: `COMBO ${statusView.winStreak}`, tone: 'rush' }
+                : { icon: '⚔️', text: String(state.battle.attack), tone: 'danger' }
         ];
     } else if (resultInfo.text) {
         view.theme = resultInfo.tone === 'danger'
@@ -1689,10 +1705,13 @@ function buildMonitorView({ statusView, activeArcana, modeChipText, zoneText, pr
                 once: true
             });
         }
+        const atkDmg = Number(state?.lastAttackDamage || 0);
         view.badges = [
             { icon: defense.primaryGuide?.icon || '⚔️', text: defense.short, tone: 'reward' },
-            { icon: state.battle.emoji || previewNation?.emoji || previewSuitIcon, text: `${state.battle.hp}/${state.battle.maxHp}`, tone: 'danger' },
-            { icon: '⚔️', text: Number(state?.lastAttackDamage || 0) > 0 ? `ATK ${state.lastAttackDamage}` : 'ENGAGE', tone: Number(state?.lastAttackDamage || 0) > 0 ? 'reward' : 'danger' }
+            { icon: state.battle.emoji || previewNation?.emoji || previewSuitIcon, text: atkDmg > 0 ? `HP${state.battle.hp} -${atkDmg}` : `${state.battle.hp}/${state.battle.maxHp}`, tone: 'danger' },
+            statusView.winStreak >= 3
+                ? { icon: '🔥', text: `COMBO ${statusView.winStreak}`, tone: 'rush' }
+                : { icon: '⚔️', text: atkDmg > 0 ? `ATK ${atkDmg}` : 'ENGAGE', tone: atkDmg > 0 ? 'reward' : 'danger' }
         ];
     } else if (state?.lastBattleOutcome?.type === 'victory') {
         const defeated = state.lastBattleOutcome;

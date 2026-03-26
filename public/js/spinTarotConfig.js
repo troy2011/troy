@@ -95,7 +95,7 @@ export const SPIN_TAROT_CONFIG = {
         { level: 10, cost: 10, statMultiplier: 10, label: 'MAX BET' }
     ],
     startingResources: {
-        coins: 240,
+        coins: 320,
         castleHp: 180,
         castleMaxHp: 180
     },
@@ -113,9 +113,12 @@ export const SPIN_TAROT_CONFIG = {
         bishopPower: 10,
         populationShieldRatio: 0.02,
         payoutToDamageRatio: 0.18,
-        minimumBattleDamage: 8,
+        minimumBattleDamage: 10,
         maxCarryShield: 0.45,
-        battleRewardMultiplier: 1.1,
+        battleRewardMultiplier: 1.15,
+        winStreakThreshold: 3,
+        winStreakDamageBonus: 0.12,
+        winStreakMaxBonus: 0.60,
         enemyMissDamageBase: 18,
         treasureChestMin: 8,
         treasureChestMax: 22
@@ -142,9 +145,9 @@ export const SPIN_TAROT_CONFIG = {
         }
     },
     zones: {
-        heaven: { label: '天国', probability: 0.18, minSpins: 6, maxSpins: 8 },
-        normal: { label: '通常', probability: 0.64, minSpins: 12, maxSpins: 18 },
-        ceiling: { label: '深追い', probability: 0.18, minSpins: 24, maxSpins: 36 }
+        heaven: { label: '天国', probability: 0.22, minSpins: 6, maxSpins: 8 },
+        normal: { label: '通常', probability: 0.58, minSpins: 12, maxSpins: 18 },
+        ceiling: { label: '深追い', probability: 0.20, minSpins: 24, maxSpins: 36 }
     },
     enemyNations: {
         Sword: {
@@ -264,7 +267,7 @@ export const SPIN_TAROT_CONFIG = {
         guaranteedBattleRewardCoins: 32,
         battleRewardPerRank: 4,
         bossBattleRewardBonus: 48,
-        lossRefundRatio: 0.2,
+        lossRefundRatio: 0.25,
         logLimit: 14,
         treasureCooldownSpins: 18,
         omenGaugeMax: 100,
@@ -298,6 +301,6 @@ export const SPIN_TAROT_CONFIG = {
     },
     adapters: {
         enablePersistence: true,
-        storageKey: 'spinTarotState.v2'
+        storageKey: 'spinTarotState.v3'
     }
 };

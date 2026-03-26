@@ -68,24 +68,24 @@ class SpinTarotBoardScene extends Phaser.Scene {
         this.modeBadgeBg = this.add.rectangle(0, 0, 10, 10, 0x111827, 0.92).setOrigin(0, 0).setDepth(6);
         this.modeBadgeText = this.add.text(0, 0, '', {
             fontFamily: '"BIZ UDGothic","MS Gothic",monospace',
-            fontStyle: '700',
+            fontStyle: 'bold',
             color: '#fff3c8'
         }).setOrigin(0, 0).setDepth(7);
         this.stageHintText = this.add.text(0, 0, '', {
             fontFamily: '"BIZ UDGothic","MS Gothic",monospace',
-            fontStyle: '700',
+            fontStyle: 'bold',
             color: '#dbeafe'
         }).setOrigin(1, 0).setDepth(7);
         this.resultBadgeBg = this.add.rectangle(0, 0, 10, 10, 0x111827, 0.8).setOrigin(0.5, 1).setDepth(6);
         this.resultBadgeText = this.add.text(0, 0, '', {
             fontFamily: '"BIZ UDGothic","MS Gothic",monospace',
-            fontStyle: '700',
+            fontStyle: 'bold',
             color: '#fff8cc',
             align: 'center'
         }).setOrigin(0.5, 1).setDepth(7);
         this.resultFloatText = this.add.text(0, 0, '', {
             fontFamily: '"BIZ UDGothic","MS Gothic",monospace',
-            fontStyle: '700',
+            fontStyle: 'bold',
             color: '#fff8cc',
             stroke: '#381407',
             strokeThickness: 6,
@@ -349,13 +349,13 @@ class SpinTarotBoardScene extends Phaser.Scene {
         const resultPulseKey = String(view?.resultPulseKey || '');
         if (resultPulseKey && resultPulseKey !== this.lastResultPulseKey) {
             this.lastResultPulseKey = resultPulseKey;
-            this.playResultPulse(resultText, view?.resultTone);
+            this.playResultPulse(resultText, view?.resultTone, Number(view?.resultStrength) || 0);
         } else if (!resultPulseKey) {
             this.lastResultPulseKey = '';
         }
     }
 
-    playResultPulse(text, tone = 'win') {
+    playResultPulse(text, tone = 'win', strength = 0) {
         if (!text) return;
         this.stopResultPulse();
         const color = tone === 'danger'
@@ -363,9 +363,10 @@ class SpinTarotBoardScene extends Phaser.Scene {
             : tone === 'treasure'
                 ? '#bbf7d0'
                 : '#fff8cc';
+        const fontSize = strength >= 9 ? 42 : strength >= 7 ? 36 : strength >= 5 ? 32 : 28;
         this.resultFloatText.setText(text);
         this.resultFloatText.setColor(color);
-        this.resultFloatText.setFontSize(28);
+        this.resultFloatText.setFontSize(fontSize);
         this.resultFloatText.setAlpha(0);
         this.resultFloatText.setScale(0.84);
         this.resultFloatText.setY(this.scale.height * 0.22);
@@ -450,7 +451,7 @@ class SpinTarotBoardScene extends Phaser.Scene {
         lines.forEach((line) => {
             const points = this.getLinePoints(line);
             if (points.length < 2) return;
-            this.lineOverlay.lineStyle(3, 0xfbbf24, 0.24 * alpha);
+            this.lineOverlay.lineStyle(4, 0xfbbf24, 0.55 * alpha);
             this.lineOverlay.beginPath();
             this.lineOverlay.moveTo(points[0].x, points[0].y);
             for (let i = 1; i < points.length; i += 1) {

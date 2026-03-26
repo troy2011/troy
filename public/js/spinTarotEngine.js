@@ -164,6 +164,8 @@ export function getSpinTarotStatusView(state, config = SPIN_TAROT_CONFIG) {
         queenModeSpins: Math.max(0, Number(state?.queenModeSpins) || 0),
         kingModeSpins: Math.max(0, Number(state?.kingModeSpins) || 0),
         missStreak: Math.max(0, Number(state?.missStreak) || 0),
+        winStreak: Math.max(0, Number(state?.winStreak) || 0),
+        bestStreak: Math.max(0, Number(state?.bestStreak) || 0),
         treasureCooldownSpins: Math.max(0, Number(state?.treasureCooldownSpins) || 0),
         czPower: Math.max(0, Number(state?.czPower) || 0),
         czTarget: Math.max(1, Number(progression.czTarget) || 100),
@@ -175,7 +177,7 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
     const zone = pickZone(config);
     const currentArcana = rollMajorArcana(config, 'normal', config.kingdomRank.minRank);
     return {
-        version: 2,
+        version: 3,
         board: createBlankBoard(config),
         holdMask: Array(config.board.reels).fill(false),
         lockedHolds: Array(config.board.reels).fill(false),
@@ -209,6 +211,8 @@ export function createInitialState(config = SPIN_TAROT_CONFIG) {
         omenGauge: 0,
         czPower: 0,
         missStreak: 0,
+        winStreak: 0,
+        bestStreak: 0,
         queenModeSpins: 0,
         kingModeSpins: 0,
         pendingGuaranteeRole: null,
@@ -454,8 +458,8 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         events.notes.push('wheel-redraw');
     }
 
-    if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.mysteryWild.holdRank)) {
-        state.board = applyMysteryWild(state.board, state);
+    if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.mysteryWild.holdRank, config)) {
+        state.board = applyMysteryWild(state.board, state, config);
         evaluation = evaluateBoard(state.board, state, config, betInfo);
         if (evaluation.hasRole) {
             state.lastEffects.push('2の逆転がワイルド化');
@@ -463,7 +467,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
         }
     }
 
-    if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.skipNudge.holdRank)) {
+    if (!evaluation.hasRole && hasHeldRank(state, config.minorArcana.skipNudge.holdRank, config)) {
         const nudgeResult = applySkipNudge(state.board, state, config, drawOptions);
         state.board = nudgeResult.board;
         evaluation = evaluateBoard(state.board, state, config, betInfo);
@@ -481,7 +485,7 @@ export function performSpin(currentState, config = SPIN_TAROT_CONFIG) {
     }
     state.pendingGuaranteeRole = null;
 
-    if (hasHeldRank(state, config.minorArcana.cascade.holdRank)) {
+    if (hasHeldRank(state, config.minorArcana.cascade.holdRank, config)) {
         const cascadeResult = applyCascade(state.board, state, evaluation, config, drawOptions, betInfo);
         state.board = cascadeResult.board;
         state.attackMultiplier = cascadeResult.multiplier;
@@ -677,7 +681,9 @@ function findDeckCardIndex(deck, options = {}) {
 }
 
 function weightedPick(entries) {
+    if (!entries || entries.length === 0) return null;
     const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+    if (total <= 0) return entries[entries.length - 1];
     const threshold = Math.random() * total;
     let cursor = 0;
     for (const entry of entries) {
@@ -797,10 +803,11 @@ function rollMajorArcana(config, mode, nationRank) {
 function buildArcanaChoices(state, config) {
     const currentNumber = Number(state.currentArcana?.number || 1);
     const keepArcana = state.currentArcana ? { ...state.currentArcana } : rollMajorArcana(config, 'normal', state.nationRank);
-    let challenger = rollMajorArcana(config, 'normal', state.nationRank);
+    const arcanaMode = state.battle ? 'battle' : 'normal';
+    let challenger = rollMajorArcana(config, arcanaMode, state.nationRank);
     let guard = 0;
     while (challenger.number === currentNumber && guard < 8) {
-        challenger = rollMajorArcana(config, 'normal', state.nationRank);
+        challenger = rollMajorArcana(config, arcanaMode, state.nationRank);
         guard += 1;
     }
     const choices = [keepArcana, challenger].map((arcana) => ({ ...arcana }));
@@ -851,14 +858,14 @@ function syncHoldPreview(state, config) {
     }
 }
 
-function hasHeldRank(state, rank) {
-    const focusRow = getPrimaryBoardRowIndex(SPIN_TAROT_CONFIG, state.board);
+function hasHeldRank(state, rank, config = SPIN_TAROT_CONFIG) {
+    const focusRow = getPrimaryBoardRowIndex(config, state.board);
     return state.holdMask.some((held, reel) => held && Number(state.board[focusRow]?.[reel]?.rank || 0) === Number(rank));
 }
 
-function applyMysteryWild(board, state) {
+function applyMysteryWild(board, state, config = SPIN_TAROT_CONFIG) {
     const nextBoard = board.map((row) => row.map(cloneCard));
-    const focusRow = getPrimaryBoardRowIndex(SPIN_TAROT_CONFIG, state.board);
+    const focusRow = getPrimaryBoardRowIndex(config, state.board);
     for (let reel = 0; reel < state.holdMask.length; reel += 1) {
         if (!state.holdMask[reel]) continue;
         if (Number(state.board[focusRow]?.[reel]?.rank || 0) !== 2) continue;
@@ -1058,11 +1065,11 @@ function evaluateHand(cards, options = {}) {
     }
 
     if (findTwoPair(rankCounts, wildCount)) {
-        return buildHandResult('TwoPair', '', 1);
+        return buildHandResult('TwoPair', '', 2);
     }
 
     if (findOnePair(rankCounts, wildCount)) {
-        return buildHandResult('OnePair', '', 0);
+        return buildHandResult('OnePair', '', 1);
     }
 
     return buildHandResult('Miss', '', 0);
@@ -1405,10 +1412,15 @@ function applySpinFlowProgress(state, evaluation, config, events) {
 
     if (!evaluation?.hasRole) {
         state.missStreak = Math.max(0, Number(state.missStreak || 0)) + 1;
+        state.winStreak = 0;
         state.queenGauge += Number(progression.missQueenGain || 0);
         state.kingGauge += Number(progression.missKingGain || 0);
     } else {
         state.missStreak = 0;
+        state.winStreak = Math.max(0, Number(state.winStreak || 0)) + 1;
+        if (state.winStreak > (Number(state.bestStreak) || 0)) {
+            state.bestStreak = state.winStreak;
+        }
         if (evaluation.bestStrength >= HAND_STRENGTH.OnePair) {
             state.queenGauge += Number(progression.replayQueenGain || 0);
         }
@@ -2068,6 +2080,16 @@ function computePlayerDamage(state, evaluation, config, betInfo) {
     if (state.omenBreak) {
         damage = Math.floor(damage * 1.25);
     }
+    const streakThreshold = Math.max(1, Number(config.combat?.winStreakThreshold || 3));
+    const streakLevel = Math.max(0, Number(state.winStreak || 0) - streakThreshold + 1);
+    if (streakLevel > 0) {
+        const streakBonus = Math.min(
+            Number(config.combat?.winStreakMaxBonus || 0.60),
+            streakLevel * Number(config.combat?.winStreakDamageBonus || 0.12)
+        );
+        damage = Math.floor(damage * (1 + streakBonus));
+        state.lastEffects.push(`連勝コンボ x${state.winStreak} ダメージ${Math.round(streakBonus * 100)}%UP`);
+    }
     state.lastDefenseActions = actions
         .map((action) => ({
             ...action,
@@ -2179,7 +2201,7 @@ function triggerFreezeIfNeeded(state, config, betInfo, events) {
 function shouldTriggerPreAlert(state, config) {
     if (state.battle?.isBoss) return true;
     if (state.pendingGuaranteeRole) return true;
-    if (hasHeldRank(state, 8) || hasHeldRank(state, 2)) return chance(config.premiumEvents.preAlertVibrateProbability * 1.4);
+    if (hasHeldRank(state, 8, config) || hasHeldRank(state, 2, config)) return chance(config.premiumEvents.preAlertVibrateProbability * 1.4);
     return chance(config.premiumEvents.preAlertVibrateProbability);
 }
 
