@@ -12714,3 +12714,626 @@ textarea {
 #tabContentMap .map-action-status-chip:empty {
     opacity: 0.34;
 }
+
+/* ── スキルトグルボタン ────────────────────────────── */
+#tabContentMap #shipSkillToggleButton {
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(167, 139, 250, 0.32), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #5b21b6, #1e1b4b);
+    border-color: rgba(167, 139, 250, 0.45);
+}
+#tabContentMap #shipSkillToggleButton[aria-expanded="true"] {
+    background:
+        radial-gradient(120% 90% at 50% -10%, rgba(251, 191, 36, 0.32), rgba(255, 255, 255, 0) 40%),
+        linear-gradient(180deg, #78350f, #1c1917);
+    border-color: rgba(251, 191, 36, 0.5);
+}
+#tabContentMap .map-action-status-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* ── 船スキルシート ────────────────────────────────── */
+.ship-skill-sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 4100;
+    max-height: 80vh;
+    overflow-y: auto;
+    background:
+        linear-gradient(180deg, rgba(7, 10, 20, 0.98), rgba(10, 14, 28, 0.98)),
+        radial-gradient(120% 80% at 50% 0%, rgba(139, 92, 246, 0.15), transparent 50%);
+    border-top: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 24px 24px 0 0;
+    padding: 0 16px 32px;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6);
+}
+.ship-skill-sheet.is-open {
+    transform: translateY(0);
+}
+.ship-skill-sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(148, 163, 184, 0.3);
+    margin: 12px auto 8px;
+}
+.ship-skill-sheet-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0 14px;
+}
+.ship-skill-sheet-title {
+    font-size: 14px;
+    font-weight: 900;
+    color: #e2e8f0;
+    letter-spacing: 0.02em;
+}
+.ship-skill-role-badge {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(251, 191, 36, 0.9);
+    letter-spacing: 0.04em;
+}
+.ship-skill-sheet-close {
+    background: transparent;
+    border: none;
+    color: rgba(148, 163, 184, 0.7);
+    font-size: 20px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+/* ── スキルグリッド ───────────────────────────────── */
+.ship-skill-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+/* ── スキルカード ─────────────────────────────────── */
+.ship-skill-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 10px 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.7);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+}
+.ship-skill-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0.15;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+.ship-skill-card:active {
+    transform: scale(0.96);
+}
+.ship-skill-card:disabled,
+.ship-skill-card[data-ct-remaining]:not([data-ct-remaining="0"]) {
+    cursor: not-allowed;
+}
+.ship-skill-card[data-ct-remaining]:not([data-ct-remaining="0"]) .ship-skill-card-name,
+.ship-skill-card[data-ct-remaining]:not([data-ct-remaining="0"]) .ship-skill-card-desc {
+    opacity: 0.5;
+}
+
+/* 属性別カラー */
+.ship-skill-card[data-element="fire"] {
+    border-color: rgba(251, 146, 60, 0.45);
+    background: linear-gradient(160deg, rgba(120, 53, 15, 0.6), rgba(15, 23, 42, 0.7));
+}
+.ship-skill-card[data-element="fire"]::before {
+    background: radial-gradient(80% 60% at 50% 0%, rgba(251, 146, 60, 1), transparent);
+}
+.ship-skill-card[data-element="wind"] {
+    border-color: rgba(99, 102, 241, 0.45);
+    background: linear-gradient(160deg, rgba(30, 27, 75, 0.7), rgba(15, 23, 42, 0.7));
+}
+.ship-skill-card[data-element="wind"]::before {
+    background: radial-gradient(80% 60% at 50% 0%, rgba(129, 140, 248, 1), transparent);
+}
+.ship-skill-card[data-element="water"] {
+    border-color: rgba(14, 165, 233, 0.45);
+    background: linear-gradient(160deg, rgba(8, 47, 73, 0.7), rgba(15, 23, 42, 0.7));
+}
+.ship-skill-card[data-element="water"]::before {
+    background: radial-gradient(80% 60% at 50% 0%, rgba(56, 189, 248, 1), transparent);
+}
+.ship-skill-card[data-element="earth"] {
+    border-color: rgba(34, 197, 94, 0.45);
+    background: linear-gradient(160deg, rgba(20, 83, 45, 0.6), rgba(15, 23, 42, 0.7));
+}
+.ship-skill-card[data-element="earth"]::before {
+    background: radial-gradient(80% 60% at 50% 0%, rgba(74, 222, 128, 1), transparent);
+}
+.ship-skill-card[data-element="none"] {
+    border-color: rgba(251, 191, 36, 0.45);
+    background: linear-gradient(160deg, rgba(69, 26, 3, 0.6), rgba(15, 23, 42, 0.7));
+}
+.ship-skill-card[data-element="none"]::before {
+    background: radial-gradient(80% 60% at 50% 0%, rgba(251, 191, 36, 0.8), rgba(167, 139, 250, 0.6), transparent);
+}
+
+/* CTリング */
+.ship-skill-ct-ring-wrap {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+}
+.ship-skill-ct-ring-wrap svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+.ship-skill-ct-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 3;
+}
+.ship-skill-ct-ring-fill {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s linear;
+}
+.ship-skill-card[data-element="fire"]    .ship-skill-ct-ring-fill { stroke: #fb923c; }
+.ship-skill-card[data-element="wind"]   .ship-skill-ct-ring-fill { stroke: #818cf8; }
+.ship-skill-card[data-element="water"]  .ship-skill-ct-ring-fill { stroke: #38bdf8; }
+.ship-skill-card[data-element="earth"]  .ship-skill-ct-ring-fill { stroke: #4ade80; }
+.ship-skill-card[data-element="none"]   .ship-skill-ct-ring-fill { stroke: #fbbf24; }
+
+.ship-skill-ct-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+}
+.ship-skill-ct-icon {
+    font-size: 18px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+.ship-skill-ct-sec {
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(226, 232, 240, 0.85);
+    letter-spacing: -0.02em;
+    min-height: 11px;
+}
+
+/* カード情報 */
+.ship-skill-card-name {
+    font-size: 13px;
+    font-weight: 900;
+    color: #f1f5f9;
+    text-align: center;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+}
+.ship-skill-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.ship-skill-card-range {
+    font-size: 9px;
+    color: rgba(148, 163, 184, 0.8);
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+.ship-skill-card-cast {
+    font-size: 9px;
+    color: rgba(148, 163, 184, 0.8);
+}
+.ship-skill-card-desc {
+    font-size: 9px;
+    color: rgba(148, 163, 184, 0.75);
+    text-align: center;
+    line-height: 1.4;
+    max-height: 2.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    transition: opacity 0.2s;
+}
+
+/* 自動発動バッジ */
+.ship-skill-auto-badge {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    font-size: 8px;
+    font-weight: 700;
+    color: rgba(251, 191, 36, 0.95);
+    background: rgba(69, 26, 3, 0.85);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    border-radius: 6px;
+    padding: 1px 5px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+}
+
+/* READY フラッシュ */
+@keyframes ship-skill-ready-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+.ship-skill-card.is-ready-flash {
+    animation: ship-skill-ready-flash 0.6s ease-out;
+}
+
+.ship-skill-empty-msg {
+    text-align: center;
+    color: rgba(148, 163, 184, 0.5);
+    font-size: 12px;
+    padding: 24px 0;
+}
+
+/* ── バトルルームシート ───────────────────────────────────── */
+.battle-room-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, #1e1a2e 0%, #0f0d1a 100%);
+    border-top: 2px solid rgba(255, 68, 68, 0.4);
+    border-radius: 16px 16px 0 0;
+    padding: 0 16px 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 120;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.battle-room-sheet.is-open {
+    transform: translateY(0);
+}
+.battle-room-sheet[aria-hidden="true"] { display: block; }
+
+.battle-room-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 8px;
+}
+.battle-room-sheet-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ff9999;
+    letter-spacing: 0.05em;
+}
+.battle-room-sheet-body {
+    padding-bottom: 8px;
+}
+.battle-room-active-info,
+.battle-room-no-active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+}
+.battle-room-active-label {
+    font-size: 12px;
+    color: #ffcc66;
+    text-align: center;
+}
+.battle-room-hint {
+    font-size: 12px;
+    color: rgba(148, 163, 184, 0.6);
+    text-align: center;
+}
+.battle-room-btn {
+    padding: 10px 28px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+}
+.battle-room-btn:active { opacity: 0.75; }
+.battle-room-btn--create {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    color: #fff;
+}
+.battle-room-btn--join {
+    background: linear-gradient(135deg, #2980b9, #3498db);
+    color: #fff;
+}
+.battle-room-msg {
+    font-size: 11px;
+    color: #aaaaaa;
+    text-align: center;
+    min-height: 16px;
+    margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   バトルタブ
+═══════════════════════════════════════════════════════ */
+.battle-tab-header {
+    padding: 16px 0 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 12px;
+}
+.battle-tab-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 4px;
+}
+.battle-tab-hint {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+}
+.battle-territory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.battle-territory-loading {
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+    padding: 24px 0;
+}
+.battle-territory-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1a2535;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 12px;
+    transition: border-color 0.15s;
+}
+.battle-territory-card:active {
+    border-color: rgba(255,255,255,0.2);
+}
+.battle-territory-card-left {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.battle-territory-symbol {
+    font-size: 22px;
+    line-height: 1;
+}
+.battle-territory-card-body {
+    flex: 1;
+    min-width: 0;
+}
+.battle-territory-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.battle-territory-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.battle-territory-arcana {
+    font-size: 10px;
+    color: #94a3b8;
+}
+.battle-territory-element {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    color: #cbd5e1;
+}
+.battle-element-fire   { color: #fb923c; background: rgba(251,146,60,0.15); }
+.battle-element-wind   { color: #67e8f9; background: rgba(103,232,249,0.12); }
+.battle-element-water  { color: #60a5fa; background: rgba(96,165,250,0.15); }
+.battle-element-earth  { color: #86efac; background: rgba(134,239,172,0.15); }
+.battle-territory-owner {
+    font-size: 11px;
+    color: #64748b;
+}
+.battle-territory-owner.is-occupied {
+    color: #f59e0b;
+}
+.battle-territory-card-right {
+    flex-shrink: 0;
+}
+.battle-territory-btn {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+.battle-territory-btn:active {
+    opacity: 0.75;
+}
+
+/* ── 週次争奪バナー ──────────────────────────────────────────── */
+.weekly-contest-banner {
+    background: #0f172a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    margin-bottom: 14px;
+}
+.weekly-contest-banner.is-open {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 1px rgba(245,158,11,0.25);
+}
+.weekly-contest-banner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.weekly-contest-banner-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f59e0b;
+    text-transform: uppercase;
+}
+.weekly-contest-banner-timer {
+    font-size: 11px;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+.weekly-contest-banner-territory {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 10px;
+}
+.weekly-contest-damage-label {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+.weekly-contest-damage-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.weekly-contest-damage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.weekly-contest-damage-nation {
+    font-size: 10px;
+    color: #94a3b8;
+    width: 50px;
+    flex-shrink: 0;
+}
+.weekly-contest-damage-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.weekly-contest-damage-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.weekly-contest-damage-fill.fire  { background: #fb923c; }
+.weekly-contest-damage-fill.water { background: #60a5fa; }
+.weekly-contest-damage-fill.wind  { background: #67e8f9; }
+.weekly-contest-damage-fill.earth { background: #86efac; }
+.weekly-contest-damage-val {
+    font-size: 10px;
+    color: #64748b;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.weekly-contest-banner-next {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+}
+.weekly-contest-banner-next strong {
+    color: #e2e8f0;
+}
+
+/* カードLvアップボタン */
+.inventory-item-quick-action.is-levelup {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    color: #fff;
+}
+.inventory-item-quick-action.is-levelup:active {
+    opacity: 0.75;
+}
+
+/* インベントリフィードバックバナー */
+.inventory-feedback {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #34d399;
+    background: rgba(52,211,153,0.1);
+    border: 1px solid rgba(52,211,153,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    animation: feedbackFadeIn 0.2s ease;
+}
+.inventory-feedback.is-error {
+    color: #f87171;
+    background: rgba(248,113,113,0.1);
+    border-color: rgba(248,113,113,0.25);
+}
+@keyframes feedbackFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 争奪中カードのハイライト */
+.battle-territory-card.is-contested {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 1px rgba(245,158,11,0.2);
+}
+.battle-territory-contest-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #f59e0b;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    vertical-align: middle;
+}

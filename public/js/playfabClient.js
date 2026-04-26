@@ -108,12 +108,16 @@ export function manifestTarotCard(playFabId, itemId, slot, options) {
     }, options);
 }
 
-export function studyTarotCard(playFabId, itemId, options) {
-    return callApiWithLoader('/api/study-tarot-card', { playFabId, itemId }, options);
+export function getTarotDecks(playFabId, options) {
+    return callApiWithLoader('/api/tarot-deck-get', { playFabId }, options);
 }
 
-export function awakenMajorArcana(playFabId, itemId, options) {
-    return callApiWithLoader('/api/awaken-major-arcana', { playFabId, itemId }, options);
+export function equipTarotCard(playFabId, cardItemId, deckType, options) {
+    return callApiWithLoader('/api/tarot-deck-equip', { playFabId, cardItemId, deckType }, options);
+}
+
+export function unequipTarotCard(playFabId, cardItemId, deckType, options) {
+    return callApiWithLoader('/api/tarot-deck-unequip', { playFabId, cardItemId, deckType }, options);
 }
 
 export function getCapitalWarState(playFabId, targetNation, options) {
@@ -314,6 +318,18 @@ export function consumeShipBroadside(playFabId, options) {
     return callApiWithLoader('/api/consume-ship-broadside', { playFabId }, options);
 }
 
+export function getShipSkillStatus(playFabId, options) {
+    return callApiWithLoader('/api/ship-skill-status', { playFabId }, options);
+}
+
+export function useShipSkill(playFabId, cardItemId, context = {}, options) {
+    return callApiWithLoader('/api/ship-skill-use', { playFabId, cardItemId, ...context }, options);
+}
+
+export function triggerShipSkill(playFabId, triggerCondition, context = {}, options) {
+    return callApiWithLoader('/api/ship-skill-trigger', { playFabId, triggerCondition, ...context }, options);
+}
+
 export function getShipResourceStorage(playFabId, options) {
     return callApiWithLoader('/api/get-ship-resource-storage', { playFabId }, options);
 }
@@ -464,4 +480,68 @@ export function rebuildIsland(playFabId, islandId, mapId) {
 
 export function getDemolishedIslands(playFabId) {
     return fetchJson('/api/get-demolished-islands', { method: 'POST', body: { playFabId } });
+}
+
+// ── バトルルーム ────────────────────────────────────────────
+
+export function createBattleRoom(playFabId, territoryId, options) {
+    return callApiWithLoader('/api/battle-room/create', { playFabId, territoryId }, options);
+}
+
+export function joinBattleRoom(playFabId, roomId, options) {
+    return callApiWithLoader('/api/battle-room/join', { playFabId, roomId }, options);
+}
+
+export function collectArcana(playFabId, roomId, buildingId, options) {
+    return callApiWithLoader('/api/battle-room/collect-arcana', { playFabId, roomId, buildingId }, options);
+}
+
+export function damageBuilding(playFabId, roomId, buildingId, damage, options) {
+    return callApiWithLoader('/api/battle-room/damage-building', { playFabId, roomId, buildingId, damage }, options);
+}
+
+export function strikeSymbol(playFabId, roomId, options) {
+    return callApiWithLoader('/api/battle-room/strike-symbol', { playFabId, roomId }, options);
+}
+
+export function reportKill(playFabId, roomId, killedPlayFabId, options) {
+    return callApiWithLoader('/api/battle-room/report-kill', { playFabId, roomId, killedPlayFabId }, options);
+}
+
+export function updateBattlePosition(playFabId, roomId, x, y, options) {
+    return callApiWithLoader('/api/battle-room/move', { playFabId, roomId, x, y }, options);
+}
+
+export function attackBattlePlayer(playFabId, roomId, targetPlayFabId, options) {
+    return callApiWithLoader('/api/battle-room/attack-player', { playFabId, roomId, targetPlayFabId }, options);
+}
+
+export function respawnBattle(playFabId, roomId, options) {
+    return callApiWithLoader('/api/battle-room/respawn', { playFabId, roomId }, options);
+}
+
+export function resolveBattleRoom(roomId, options) {
+    return callApiWithLoader('/api/battle-room/resolve', { roomId }, options);
+}
+
+export function getBattleRoom(roomId) {
+    return fetchJson(`/api/battle-room/${encodeURIComponent(roomId)}`);
+}
+
+export function getActiveBattleRoom(territoryId) {
+    return fetchJson(`/api/battle-room/active/${encodeURIComponent(territoryId)}`);
+}
+
+// ── NPC スナップショット ─────────────────────────────────────
+
+export function updateNpcSnapshot(playFabId, snapshotData, options) {
+    return callApiWithLoader('/api/npc-snapshot/update', { playFabId, ...snapshotData }, options);
+}
+
+export function getNpcSnapshot(targetPlayFabId) {
+    return fetchJson(`/api/npc-snapshot/${encodeURIComponent(targetPlayFabId)}`);
+}
+
+export function getNpcSnapshotsByNation(nation, limit = 10) {
+    return fetchJson(`/api/npc-snapshot/nation/${encodeURIComponent(nation)}?limit=${limit}`);
 }

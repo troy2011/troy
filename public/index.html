@@ -575,7 +575,21 @@
                 </div>
             </div>
 
-            <!-- 2. 地図タブ -->
+            <!-- 2. バトルタブ -->
+            <div id="tabContentBattle" class="tab-content" style="display: none;">
+                <div class="content-area">
+                    <div class="battle-tab-header">
+                        <h2 class="battle-tab-title">⚔ 領海バトル</h2>
+                        <p class="battle-tab-hint">領海を占領して国の覇権を示せ</p>
+                    </div>
+                    <div id="weeklyContestBanner" class="weekly-contest-banner" hidden></div>
+                    <div id="battleTerritoryList" class="battle-territory-list">
+                        <div class="battle-territory-loading">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.5. 地図タブ（非表示・内部利用のみ） -->
             <div id="tabContentMap" class="tab-content" style="display: none;">
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
                     <div id="mapLoadingWorld" class="map-loading-world">
@@ -619,12 +633,48 @@
                         <div id="shipActionPanel" class="map-action-slot">
                             <button id="shipActionButton" class="ship-action-button map-action-button">船アクション</button>
                         </div>
+                        <div id="shipSkillTogglePanel" class="map-action-slot">
+                            <button id="shipSkillToggleButton" class="ship-action-button ship-skill-toggle-button map-action-button" aria-expanded="false" aria-controls="shipSkillSheet">スキル</button>
+                        </div>
                     </div>
                     <div class="map-action-status-row">
                         <div id="shipSideCannonStatus" class="map-action-status-chip"></div>
                         <div id="shipActionStatus" class="map-action-status-chip"></div>
+                        <div id="shipSkillStatus" class="map-action-status-chip"></div>
                     </div>
                 </div>
+
+                <!-- 船スキルシート（下からスライドイン） -->
+                <div id="shipSkillSheet" class="ship-skill-sheet" aria-hidden="true">
+                    <div class="ship-skill-sheet-handle" aria-hidden="true"></div>
+                    <div class="ship-skill-sheet-header">
+                        <span class="ship-skill-sheet-title">船デッキスキル</span>
+                        <span id="shipSkillRoleLabel" class="ship-skill-role-badge"></span>
+                        <button id="shipSkillSheetClose" class="ship-skill-sheet-close" aria-label="閉じる">×</button>
+                    </div>
+                    <div id="shipSkillGrid" class="ship-skill-grid"></div>
+                    <p id="shipSkillEmptyMsg" class="ship-skill-empty-msg" hidden>船デッキにカードがありません</p>
+                </div>
+                <!-- バトルルームシート（下からスライドイン） -->
+                <div id="battleRoomSheet" class="battle-room-sheet" aria-hidden="true">
+                    <div class="ship-skill-sheet-handle" aria-hidden="true"></div>
+                    <div class="battle-room-sheet-header">
+                        <span class="battle-room-sheet-title">⚔ バトルルーム</span>
+                        <button id="battleRoomSheetClose" class="ship-skill-sheet-close" aria-label="閉じる">×</button>
+                    </div>
+                    <div id="battleRoomSheetBody" class="battle-room-sheet-body">
+                        <div id="battleRoomActiveInfo" class="battle-room-active-info" hidden>
+                            <p id="battleRoomActiveLabel" class="battle-room-active-label"></p>
+                            <button id="battleRoomJoinBtn" class="battle-room-btn battle-room-btn--join">参戦する</button>
+                        </div>
+                        <div id="battleRoomNoActive" class="battle-room-no-active">
+                            <p class="battle-room-hint">この領域にアクティブなバトルはありません</p>
+                            <button id="battleRoomCreateBtn" class="battle-room-btn battle-room-btn--create">出陣（ルーム作成）</button>
+                        </div>
+                        <p id="battleRoomMsg" class="battle-room-msg"></p>
+                    </div>
+                </div>
+
                 <div class="map-secondary-actions">
                     <button id="mapOwnedIslandsShortcut" class="map-secondary-action-btn" type="button" onclick="showTab('islands')">所有する島</button>
                 </div>
@@ -804,40 +854,40 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                     </div>
-                    <div class="tarot-equip-guide tarot-equip-guide--compact">
-                        <div class="tarot-equip-guide-inline"><strong>体</strong>は大アルカナ、<strong>小アルカナ</strong>は4部位へ具現化、<strong>具現化時</strong>はカードを1枚消費して現在装備を上書きします。</div>
+                    <div class="tarot-deck-panels">
+                        <div class="tarot-deck-panel" id="meleeDeckPanel">
+                            <div class="tarot-loadout-header">
+                                <div>
+                                    <h3>白兵戦デッキ</h3>
+                                    <p>正位置のカードをセット。5枚でポーカー役判定。</p>
+                                </div>
+                                <span class="tarot-loadout-badge">5枚役</span>
+                            </div>
+                            <div id="meleeDeckRole" class="tarot-loadout-role">
+                                <div class="tarot-loadout-role-label">現在の役</div>
+                                <div class="tarot-loadout-role-main">未成立</div>
+                                <div class="tarot-loadout-role-bonus">役ボーナスなし</div>
+                                <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
+                            </div>
+                            <div id="meleeDeckGrid" class="tarot-loadout-grid"></div>
+                        </div>
+                        <div class="tarot-deck-panel" id="shipDeckPanel">
+                            <div class="tarot-loadout-header">
+                                <div>
+                                    <h3>船デッキ</h3>
+                                    <p>逆位置のカードをセット。5枚でポーカー役判定。</p>
+                                </div>
+                                <span class="tarot-loadout-badge">5枚役</span>
+                            </div>
+                            <div id="shipDeckRole" class="tarot-loadout-role">
+                                <div class="tarot-loadout-role-label">現在の役</div>
+                                <div class="tarot-loadout-role-main">未成立</div>
+                                <div class="tarot-loadout-role-bonus">役ボーナスなし</div>
+                                <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
+                            </div>
+                            <div id="shipDeckGrid" class="tarot-loadout-grid"></div>
+                        </div>
                     </div>
-                    <div class="tarot-loadout-panel">
-                        <div class="tarot-loadout-header">
-                            <div>
-                                <h3>現在装着中のタロット</h3>
-                                <p>5枚役判定はここに並ぶ 体 + 4部位 のカードを使います。</p>
-                            </div>
-                            <span class="tarot-loadout-badge">5枚役</span>
-                        </div>
-                        <div id="tarotLoadoutRole" class="tarot-loadout-role">
-                            <div class="tarot-loadout-role-label">現在の役</div>
-                            <div class="tarot-loadout-role-main">未成立</div>
-                            <div class="tarot-loadout-role-bonus">役ボーナスなし</div>
-                            <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
-                        </div>
-                        <div id="tarotLoadoutGrid" class="tarot-loadout-grid"></div>
-                    </div>
-                    <details class="tarot-combat-disclosure">
-                        <summary>大アルカナ効果と習得済みの術を見る</summary>
-                        <div class="tarot-combat-grid">
-                            <div id="activeTarotAwakeningPanel" class="tarot-combat-card">
-                                <div class="tarot-combat-card-label">装備中の大アルカナ効果</div>
-                                <div class="tarot-combat-card-title">未装着</div>
-                                <div class="tarot-combat-card-body">体に大アルカナを装備すると、覚醒段階に応じた常在効果が反映されます。</div>
-                            </div>
-                            <div id="tarotSkillListPanel" class="tarot-combat-card">
-                                <div class="tarot-combat-card-label">習得済みの術</div>
-                                <div class="tarot-combat-card-title">未習得</div>
-                                <div class="tarot-combat-card-body">小アルカナから習得した術がここに並びます。現在の装備で使える術は強調表示されます。</div>
-                            </div>
-                        </div>
-                    </details>
                 </div>
 
                 <div class="content-area inventory-section" data-panel="items">
@@ -859,7 +909,7 @@
                         <button class="inventory-primary-tab-btn" data-group="Resource" type="button">資源</button>
                     </div>
                     <div id="inventoryTabs"></div>
-                    <div id="inventoryTabHint" class="inventory-tab-hint">大アルカナで体を切り替え、小アルカナで4部位を具現化します。</div>
+                    <div id="inventoryTabHint" class="inventory-tab-hint" hidden></div>
 
                     <div id="resourceSummary" class="resource-summary" style="display:none;">
                         <div class="resource-summary-title">資源</div>
@@ -1063,8 +1113,8 @@
         <button id="navTarot" class="nav-button" onclick="showTab('tarot')">
             <span class="nav-icon">🃏</span><span>ゲーム</span>
         </button>
-        <button id="navMap" class="nav-button" onclick="showTab('map')">
-            <span class="nav-icon">🗺️</span><span>地図</span>
+        <button id="navBattle" class="nav-button" onclick="showTab('battle')">
+            <span class="nav-icon">⚔️</span><span>バトル</span>
         </button>
         <button id="navIslands" class="nav-button" onclick="showTab('islands')" style="display:none;">
             <span class="nav-icon">🏝️</span><span>島</span>

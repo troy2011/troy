@@ -4748,7 +4748,7 @@ function renderDailyFortuneResultLegacy(result) {
     cardHost.innerHTML = '';
     cardHost.appendChild(cardEl);
 
-    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置' : '正位置';
+    const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置（船デッキ）' : '正位置（白兵戦デッキ）';
     titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
     textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;
 }
@@ -4757,7 +4757,12 @@ function getDailyFortuneRewardText(result) {
     const rewardType = String(result?.rewardType || '').trim().toLowerCase();
     if (rewardType === 'card') {
         const rewardItemName = String(result?.rewardItemName || result?.cardName || 'カード').trim();
-        return `「${rewardItemName}」を受け取った。`;
+        const deckType = String(result?.deckType || '').trim();
+        const skillName = String(result?.skillName || '').trim();
+        const deckLabel = deckType === 'melee' ? '白兵戦デッキ' : deckType === 'ship' ? '船デッキ' : '';
+        const skillPart = skillName ? ` スキル:「${skillName}」` : '';
+        const deckPart = deckLabel ? ` (${deckLabel}用)` : '';
+        return `「${rewardItemName}」を受け取った。${skillPart}${deckPart}`;
     }
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     return `+${reward}Ps`;
@@ -4774,7 +4779,7 @@ function renderDailyFortuneResult(result, options = {}) {
 
     const card = getCardDataFromFortuneResult(result);
     const isReversed = String(result?.orientation || '') === 'reversed';
-    const orientationLabel = isReversed ? '逆位置' : '正位置';
+    const orientationLabel = isReversed ? '逆位置（船デッキ）' : '正位置（白兵戦デッキ）';
     const finalizeReveal = () => {
         titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
         textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;

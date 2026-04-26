@@ -29,6 +29,7 @@
     "express": "^5.1.0",
     "firebase-admin": "^13.6.0",
     "geofire-common": "^6.0.0",
+    "node-cron": "^4.2.1",
     "phaser": "^3.90.0",
     "playfab-sdk": "^2.184.251024"
   },

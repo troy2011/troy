@@ -37,11 +37,20 @@ const shop = require('./server/shop');
 const mapModule = require('./server/map');
 const chat = require('./server/chat');
 const tarotFortune = require('./server/tarotFortune');
+const tarotDeck = require('./server/tarotDeck');
 
 // 既存ルート
 const battleRoutes = require('./server/routes/battleRoutes');
 const guildRoutes = require('./server/routes/guildRoutes');
 const shipRoutes = require('./server/routes/shipRoutes');
+const shipSkillRoutes = require('./server/routes/shipSkillRoutes');
+const battleRoomRoutes = require('./server/routes/battleRoomRoutes');
+const npcSnapshotRoutes = require('./server/routes/npcSnapshotRoutes');
+const territoryRoutes = require('./server/routes/territoryRoutes');
+const weeklyContestRoutes = require('./server/routes/weeklyContestRoutes');
+const { initializeCardRoutes } = require('./server/routes/cardRoutes');
+const { initializeProphecyScheduler } = require('./server/tarotProphecyScheduler');
+const { WeeklyContestScheduler } = require('./server/weeklyContestScheduler');
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
@@ -1869,6 +1878,9 @@ async function main() {
     // タロット運勢
     tarotFortune.initializeTarotFortuneRoutes(app, deps);
 
+    // タロットデッキ
+    tarotDeck.initializeTarotDeckRoutes(app, deps);
+
     // 島ルート
     island.initializeIslandRoutes(app, deps);
 
@@ -1926,6 +1938,70 @@ async function main() {
             requireAuthenticatedPlayFabId
         }
     );
+
+    // 船スキルルート
+    shipSkillRoutes.initializeShipSkillRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        PlayFabEconomy,
+        catalogCache,
+        { requireAuthenticatedPlayFabId }
+    );
+
+    // バトルルームルート
+    battleRoomRoutes.initializeBattleRoomRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        { requireAuthenticatedPlayFabId },
+        lineClient,
+        {
+            promisifyPlayFab,
+            PlayFabEconomy,
+            getEntityKeyFromPlayFabId,
+            resolveItemId: resolveCatalogItemId
+        }
+    );
+
+    // NPC スナップショットルート
+    npcSnapshotRoutes.initializeNpcSnapshotRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        { requireAuthenticatedPlayFabId }
+    );
+
+    // 領海ルート
+    territoryRoutes.initializeTerritoryRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        { requireAuthenticatedPlayFabId }
+    );
+
+    // 週次争奪ルート
+    weeklyContestRoutes.initializeWeeklyContestRoutes(
+        app,
+        promisifyPlayFab,
+        PlayFabServer,
+        { requireAuthenticatedPlayFabId }
+    );
+
+    // カードレベル育成ルート
+    initializeCardRoutes(app, {
+        promisifyPlayFab,
+        PlayFabEconomy,
+        getEntityKeyFromPlayFabId,
+        catalogCache,
+        requireAuthenticatedPlayFabId,
+    });
+
+    // タロット予言イベントスケジューラ
+    initializeProphecyScheduler();
+
+    // 週次争奪ウィンドウスケジューラ
+    new WeeklyContestScheduler().start();
 
     app.listen(PORT, () => {
         console.log(`サーバーがポート ${PORT} で起動しました。http://localhost:${PORT}`);

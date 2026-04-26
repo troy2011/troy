@@ -1071,7 +1071,7 @@ function showWorldMapModal(playerInfo) {
 
 let gameInstance = null;
 let launchGameFn = null;
-const tabLoaded = { home: false, troy: false, tarot: false, ships: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
+const tabLoaded = { home: false, troy: false, tarot: false, ships: false, battle: false, map: false, islands: false, qr: false, inventory: false, ranking: false, king: false };
 const audioAvailabilityCache = new Map();
 const audioAvailabilityInFlight = new Set();
 let bottomNavRevealed = false;
@@ -1373,6 +1373,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
                     await Guild.loadGuildInfo(playerInfo.playFabId);
+                    break;
+                case 'battle':
+                    window.dispatchEvent(new CustomEvent('tab:battle-visible', { detail: { playerInfo } }));
                     break;
                 case 'map': {
                     const triggerFirstMapMessages = () => {

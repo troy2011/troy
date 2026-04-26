@@ -1,4 +1,6 @@
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const { getCardSkillName } = require('./tarotSkillNames');
+const { getDeckType } = require('./tarotDeck');
 const {
     PLAYER_DAILY_CONTRIBUTION_STAT,
     ensureDailyContributionVersionForToday,
@@ -289,26 +291,8 @@ function pickRandom(list) {
     return list[idx] || null;
 }
 
-function getRewardPoints(card) {
-    if (!card) return 0;
-    if (card.isArcana && Number(card.number) === 21) return 100;
-    if (card.isArcana && Number(card.number) === 20) return 50;
-    if (!card.isArcana && Number(card.number) === 1) return 15;
-    return Math.max(0, Math.floor(Number(card.number) || 0));
-}
 
 function buildFortuneReward(card, orientation) {
-    const isReversed = String(orientation || '') === 'reversed';
-    if (isReversed) {
-        const rewardPs = getRewardPoints(card);
-        return {
-            rewardType: 'ps',
-            rewardPs,
-            rewardItemId: '',
-            rewardItemName: '',
-            rewardLabel: `+${rewardPs}Ps`
-        };
-    }
     const rewardItemName = getCardName(card);
     return {
         rewardType: 'card',
@@ -556,6 +540,8 @@ function initializeTarotFortuneRoutes(app, deps) {
             }
             const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
             const reward = buildFortuneReward(card, orientation);
+            const deckType = getDeckType(orientation);
+            const skillName = getCardSkillName(card, orientation);
             const result = {
                 dayKey: todayKey,
                 drawnAt: new Date().toISOString(),
@@ -565,6 +551,8 @@ function initializeTarotFortuneRoutes(app, deps) {
                 isArcana: !!card.isArcana,
                 effectType: card.effectType || 'None',
                 orientation,
+                deckType,
+                skillName,
                 cardName: getCardName(card),
                 fortune: getFortuneText(card, orientation),
                 rewardType: reward.rewardType,
@@ -574,10 +562,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                 rewardLabel: reward.rewardLabel
             };
 
-            if (reward.rewardType === 'ps' && reward.rewardPs > 0) {
-                const idempotencyId = `tarot-fortune-ps-${playFabId}-${todayKey}`;
-                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, reward.rewardPs, { idempotencyId });
-            } else if (reward.rewardType === 'card' && reward.rewardItemId) {
+            if (reward.rewardType === 'card' && reward.rewardItemId) {
                 const idempotencyId = `tarot-fortune-card-${playFabId}-${todayKey}-${reward.rewardItemId}`;
                 await addEconomyItem(playFabId, reward.rewardItemId, 1, { idempotencyId });
             }

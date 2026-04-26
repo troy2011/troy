@@ -1,7 +1,6 @@
 const {
     getCanonicalTarotCategory,
-    getMajorArcanaSuitInfo,
-    isTarotManifestationEntry
+    getMajorArcanaSuitInfo
 } = require('./tarotCards');
 
 const TAROT_ROLE_ORDER = [
@@ -335,64 +334,8 @@ function getTarotRoleBonus(role) {
     return finalizeBonus(bonus);
 }
 
-function buildTarotCardsFromEquipment(equipment, catalogCache) {
-    const majorData = resolveItemData(equipment?.MajorArcana, catalogCache);
-    const slots = ['Armor', 'RightHand', 'LeftHand', 'Accessory'];
-    const cards = [buildTarotRoleCard(majorData, 'TarotMajor')];
-    slots.forEach((slot) => {
-        const entry = equipment?.[slot];
-        if (!isTarotManifestationEntry(entry)) {
-            cards.push(null);
-            return;
-        }
-        cards.push(buildTarotRoleCard({
-            Category: 'TarotMinor',
-            ArcanaSuit: entry?.customData?.ArcanaSuit || entry?.customData?.Suit,
-            ArcanaRank: entry?.customData?.ArcanaRank || entry?.customData?.Rank || entry?.customData?.CardRank || entry?.customData?.CardNumber,
-            SourceCardName: entry?.customData?.SourceCardName || ''
-        }, 'TarotMinor'));
-    });
-    return cards;
-}
-
-function getTarotRoleSummaryFromEquipment(equipment, catalogCache) {
-    const cards = buildTarotCardsFromEquipment(equipment, catalogCache);
-    const filledCount = cards.filter(Boolean).length;
-    if (filledCount < 5) {
-        const bonus = getTarotRoleBonus(null);
-        return {
-            key: 'Incomplete',
-            label: '未成立',
-            strength: 0,
-            filledCount,
-            bonus
-        };
-    }
-    const role = evaluateTarotRole(cards);
-    if (!role) {
-        const bonus = getTarotRoleBonus(null);
-        return {
-            key: 'NoRole',
-            label: '役なし',
-            strength: 0,
-            filledCount,
-            bonus
-        };
-    }
-    return {
-        ...role,
-        filledCount,
-        bonus: getTarotRoleBonus(role)
-    };
-}
-
-function getTarotRoleBonusFromEquipment(equipment, catalogCache) {
-    return getTarotRoleSummaryFromEquipment(equipment, catalogCache).bonus;
-}
-
 module.exports = {
     evaluateTarotRole,
     getTarotRoleBonus,
-    getTarotRoleSummaryFromEquipment,
-    getTarotRoleBonusFromEquipment
+    buildTarotRoleCard
 };

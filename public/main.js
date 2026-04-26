@@ -13,6 +13,7 @@ import * as Ship from './js/ship.js';
 import * as Island from './js/island.js';
 import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
+import { enterBattleRoom } from './BattleRoomScene.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { installPlayerProfileInteractions, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
@@ -742,6 +743,176 @@ async function initializeAppFeatures() {
     initMapChat(myPlayFabId);
     initTroyChat(myPlayFabId);
 
+    // ── バトルルームシート ──────────────────────────────────
+    const battleRoomSheet     = document.getElementById('battleRoomSheet');
+    const battleRoomSheetClose = document.getElementById('battleRoomSheetClose');
+    const battleRoomCreateBtn  = document.getElementById('battleRoomCreateBtn');
+    const battleRoomJoinBtn    = document.getElementById('battleRoomJoinBtn');
+    const battleRoomMsg        = document.getElementById('battleRoomMsg');
+
+    function openBattleRoomSheet(territoryId) {
+        if (!battleRoomSheet) return;
+        battleRoomSheet.dataset.territoryId = territoryId || '';
+        battleRoomSheet.setAttribute('aria-hidden', 'false');
+        battleRoomSheet.classList.add('is-open');
+        if (battleRoomMsg) battleRoomMsg.textContent = '';
+    }
+    function closeBattleRoomSheet() {
+        if (!battleRoomSheet) return;
+        battleRoomSheet.setAttribute('aria-hidden', 'true');
+        battleRoomSheet.classList.remove('is-open');
+    }
+
+    battleRoomSheetClose?.addEventListener('click', closeBattleRoomSheet);
+
+    battleRoomCreateBtn?.addEventListener('click', async () => {
+        const territoryId = battleRoomSheet?.dataset.territoryId || '';
+        if (battleRoomMsg) battleRoomMsg.textContent = 'ルームを作成中...';
+        try {
+            const scene = window.worldMapScene;
+            await enterBattleRoom(scene, { playFabId: myPlayFabId, territoryId, nation: myAvatarBaseInfo?.Nation || null, mode: 'create' });
+            closeBattleRoomSheet();
+        } catch (err) {
+            if (battleRoomMsg) battleRoomMsg.textContent = err.message || '作成失敗';
+        }
+    });
+
+    battleRoomJoinBtn?.addEventListener('click', async () => {
+        const territoryId = battleRoomSheet?.dataset.territoryId || '';
+        if (battleRoomMsg) battleRoomMsg.textContent = '参戦中...';
+        try {
+            const scene = window.worldMapScene;
+            await enterBattleRoom(scene, { playFabId: myPlayFabId, territoryId, nation: myAvatarBaseInfo?.Nation || null, mode: 'join' });
+            closeBattleRoomSheet();
+        } catch (err) {
+            if (battleRoomMsg) battleRoomMsg.textContent = err.message || '参戦失敗';
+        }
+    });
+
+    window.openBattleRoomSheet = openBattleRoomSheet;
+    window.closeBattleRoomSheet = closeBattleRoomSheet;
+
+    // ── バトルタブ：領海カード描画 ──────────────────────────────
+    const ELEMENT_LABEL = { fire: '炎', wind: '風', water: '水', earth: '大地' };
+
+    async function loadBattleTab() {
+        const list   = document.getElementById('battleTerritoryList');
+        const banner = document.getElementById('weeklyContestBanner');
+        if (!list) return;
+        list.innerHTML = '<div class="battle-territory-loading">読み込み中...</div>';
+        try {
+            const [terrRes, contestRes] = await Promise.all([
+                fetch('/api/territory'),
+                fetch('/api/weekly-contest/status'),
+            ]);
+            const terrData    = await terrRes.json();
+            const contestData = contestRes.ok ? await contestRes.json() : null;
+
+            if (banner) renderContestBanner(banner, contestData);
+            renderTerritoryCards(list, terrData.territories || [], contestData);
+        } catch {
+            list.innerHTML = '<div class="battle-territory-loading">読み込みに失敗しました</div>';
+        }
+    }
+
+    const NATION_LABEL = { fire: '炎', water: '水', wind: '風', earth: '大地' };
+
+    function renderContestBanner(banner, contest) {
+        banner.removeAttribute('hidden');
+        banner.innerHTML = '';
+
+        if (!contest || contest.status !== 'open') {
+            banner.classList.remove('is-open');
+            const nextAt = contest?.nextWindowAt
+                ? new Date(contest.nextWindowAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                : '日曜 21:00 JST';
+            banner.innerHTML = `<div class="weekly-contest-banner-next">次の争奪ウィンドウ: <strong>${nextAt}</strong></div>`;
+            return;
+        }
+
+        banner.classList.add('is-open');
+        const c      = contest.contest;
+        const dmg    = c.damageByNation || {};
+        const total  = Math.max(1, Object.values(dmg).reduce((s, v) => s + v, 0));
+        const endMs  = c.windowEnd?._seconds ? c.windowEnd._seconds * 1000 : null;
+        const remain = endMs ? Math.max(0, Math.ceil((endMs - Date.now()) / 60000)) : null;
+        const timerText = remain !== null ? `残り ${remain} 分` : '';
+
+        const nations = ['fire', 'water', 'wind', 'earth'];
+        const barsHtml = nations.map((n) => {
+            const val = dmg[n] || 0;
+            const pct = Math.round((val / total) * 100);
+            return `
+                <div class="weekly-contest-damage-row">
+                    <span class="weekly-contest-damage-nation">${NATION_LABEL[n] || n}</span>
+                    <div class="weekly-contest-damage-track">
+                        <div class="weekly-contest-damage-fill ${n}" style="width:${pct}%"></div>
+                    </div>
+                    <span class="weekly-contest-damage-val">${val.toLocaleString()}</span>
+                </div>`;
+        }).join('');
+
+        banner.innerHTML = `
+            <div class="weekly-contest-banner-header">
+                <span class="weekly-contest-banner-title">週次争奪 — 開催中</span>
+                <span class="weekly-contest-banner-timer">${timerText}</span>
+            </div>
+            <div class="weekly-contest-banner-territory">${c.territoryName || c.territoryId}</div>
+            <div class="weekly-contest-damage-label">国家別ダメージ</div>
+            <div class="weekly-contest-damage-bars">${barsHtml}</div>
+        `;
+
+        // 1分ごとにタイマー更新
+        if (remain !== null) {
+            clearInterval(banner._timerInterval);
+            banner._timerInterval = setInterval(() => {
+                const r = Math.max(0, Math.ceil((endMs - Date.now()) / 60000));
+                const el = banner.querySelector('.weekly-contest-banner-timer');
+                if (el) el.textContent = `残り ${r} 分`;
+                if (r <= 0) clearInterval(banner._timerInterval);
+            }, 60000);
+        }
+    }
+
+    function renderTerritoryCards(container, territories, contest) {
+        container.innerHTML = '';
+        const contestedId = contest?.status === 'open' ? contest.contest?.territoryId : null;
+        territories.forEach((t) => {
+            const ownerText = t.ownerNation
+                ? `占領中: ${t.ownerDisplayName || t.ownerNation}`
+                : '無所属';
+            const elemLabel = ELEMENT_LABEL[t.element] || t.element || '';
+            const isContested = t.territoryId === contestedId;
+            const card = document.createElement('div');
+            card.className = 'battle-territory-card' + (isContested ? ' is-contested' : '');
+            card.innerHTML = `
+                <div class="battle-territory-card-left">
+                    <span class="battle-territory-symbol">${t.symbol || '⚔'}</span>
+                </div>
+                <div class="battle-territory-card-body">
+                    <div class="battle-territory-name">
+                        ${t.name}${isContested ? '<span class="battle-territory-contest-badge">争奪中</span>' : ''}
+                    </div>
+                    <div class="battle-territory-meta">
+                        <span class="battle-territory-arcana">${t.arcanaName}</span>
+                        <span class="battle-territory-element battle-element-${t.element}">${elemLabel}</span>
+                    </div>
+                    <div class="battle-territory-owner ${t.ownerNation ? 'is-occupied' : ''}">${ownerText}</div>
+                </div>
+                <div class="battle-territory-card-right">
+                    <button class="battle-territory-btn" type="button"
+                        data-territory-id="${t.territoryId}">侵攻する</button>
+                </div>
+            `;
+            card.querySelector('.battle-territory-btn').addEventListener('click', () => {
+                openBattleRoomSheet(t.territoryId);
+            });
+            container.appendChild(card);
+        });
+    }
+
+    window.addEventListener('tab:battle-visible', () => loadBattleTab());
+
     document.querySelectorAll('.inventory-primary-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.group));
     });
@@ -774,21 +945,14 @@ async function initializeAppFeatures() {
                     || inventoryItems.find((item) => item.itemId === currentEntry)
                     || null;
             const currentCategory = String(currentItem?.customData?.Category || '').trim();
-            const isCurrentManifest = !!(currentEntry && typeof currentEntry === 'object' && currentEntry.customData?.Manifested);
             let targetCategory = 'All';
 
             if (slotType === 'majorarcana') {
                 targetCategory = 'TarotMajor';
-            } else if (isCurrentManifest) {
-                targetCategory = 'TarotMinor';
             } else if (currentCategory === 'Weapon' || currentCategory === 'Shield' || currentCategory === 'Offhand' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
                 targetCategory = currentCategory;
             } else if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
                 targetCategory = 'TarotMajor';
-            } else if (currentCategory === 'TarotMinor' || currentCategory === 'MinorArcana' || currentCategory === 'TarotArcanaMinor') {
-                targetCategory = 'TarotMinor';
-            } else if (slot.dataset.tarotManifest === 'true') {
-                targetCategory = 'TarotMinor';
             } else if (slotType === 'rightHand') {
                 targetCategory = 'Weapon';
             } else if (slotType === 'leftHand') {
@@ -798,9 +962,6 @@ async function initializeAppFeatures() {
             } else if (slotType === 'accessory') {
                 targetCategory = 'Accessory';
             }
-
-            const nextManifestTargetSlot = slot.dataset.tarotManifest === 'true' ? currentSlotKey : null;
-            Inventory.setInventoryManifestTargetSlot(nextManifestTargetSlot);
 
             // インベントリタブに移動
             await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
@@ -1579,9 +1740,9 @@ async function startShipVoyageUI(shipId) {
 // HTMLのonclick属性から呼び出せるように、モジュールスコープ内の関数をwindowオブジェクトに登録します。
 window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
 window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, slot);
-window.manifestTarotCard = (itemId, slot) => Inventory.manifestTarotCard(myPlayFabId, itemId, slot);
-window.studyTarotCard = (itemId) => Inventory.studyTarotCard(myPlayFabId, itemId);
-window.awakenMajorArcana = (itemId) => Inventory.awakenMajorArcana(myPlayFabId, itemId);
+window.equipTarotCardToDeck = (itemId, deckType) => Inventory.equipTarotCardToDeck(myPlayFabId, itemId, deckType);
+window.unequipTarotCardFromDeck = (itemId, deckType) => Inventory.unequipTarotCardFromDeck(myPlayFabId, itemId, deckType);
+window.useShipSkillCard = (cardItemId, skillName) => window.worldMapScene?.useShipSkillCard(cardItemId, skillName);
 window.closeItemDetailModal = Inventory.closeItemDetailModal;
 window.refreshInventory = (options = {}) => Inventory.getInventory(myPlayFabId, options);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);

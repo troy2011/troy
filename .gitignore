@@ -15,3 +15,10 @@ sync-catalog-v2*.log
 tmp/
 
 config/
+
+# Local agent/tooling files and reference dumps
+.claude/
+CLAUDE.md
+design/
+docs/ccgs-docs/
+production/

@@ -102,6 +102,7 @@ function buildAuthHelpers({ admin }) {
     }
 
     async function requireAuthenticatedPlayFabId(req, res, expectedPlayFabId) {
+        const next = typeof expectedPlayFabId === 'function' ? expectedPlayFabId : null;
         let authInfo;
         try {
             authInfo = await verifyFirebaseIdToken(req);
@@ -111,7 +112,7 @@ function buildAuthHelpers({ admin }) {
             return null;
         }
 
-        const expectedId = normalizePlayFabId(expectedPlayFabId);
+        const expectedId = next ? '' : normalizePlayFabId(expectedPlayFabId);
         if (expectedId && authInfo.playFabId !== expectedId) {
             res.status(403).json({
                 error: 'Authenticated user does not match requested PlayFab ID',
@@ -122,6 +123,11 @@ function buildAuthHelpers({ admin }) {
 
         req.authPlayFabId = authInfo.playFabId;
         req.authToken = authInfo.decodedToken;
+        req.authenticatedPlayFabId = authInfo.playFabId;
+        if (next) {
+            next();
+            return authInfo.playFabId;
+        }
         return authInfo.playFabId;
     }
 

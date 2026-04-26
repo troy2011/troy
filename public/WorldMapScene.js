@@ -8,8 +8,20 @@ import {
     getShipResourceStorage as fetchShipResourceStorage,
     consumeVoyageMp as requestConsumeVoyageMp,
     getCapitalWarState as requestCapitalWarState,
-    performCapitalWarAction as requestCapitalWarAction
+    performCapitalWarAction as requestCapitalWarAction,
+    getShipSkillStatus as fetchShipSkillStatus,
+    useShipSkill as requestUseShipSkill,
+    triggerShipSkill as requestTriggerShipSkill
 } from './js/playfabClient.js';
+import {
+    getCachedSkillData,
+    setCachedSkillData,
+    setSkillCooldown,
+    isSkillReady,
+    getSkillRemainingSec,
+    mergeWithLocalCt,
+    isSelfOnlySkill
+} from './js/shipSkillClient.js';
 
 // ========================================
 // 定数定義
@@ -266,6 +278,11 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSideCannonChargeUntil = 0;
         this.shipSideCannonUiLastUpdate = 0;
         this.shipSideCannonChargeTimer = null;
+        // 船スキル
+        this.shipSkillPanelOpen = false;
+        this.shipSkillData = [];
+        this.shipSkillCooldowns = {};
+        this.shipSkillCtInterval = null;
         this.shipCombatResourceStorage = {
             activeShipId: null,
             cargoResources: {},
@@ -1160,6 +1177,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.createBoardingButton();
         this.setupShipActionUi();
         this.setupShipSideCannonUi();
+        this.setupShipSkillUi();
         this.setupCreateIslandUi();
         this.setupRideLeaveUi();
 
@@ -2815,6 +2833,281 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSideCannonStatus = status;
         button.addEventListener('click', () => this.triggerShipSideCannon());
         this.updateShipSideCannonUi(true);
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 船スキル UI
+    // ────────────────────────────────────────────────────────
+
+    setupShipSkillUi() {
+        if (typeof document === 'undefined') return;
+        const toggleBtn = document.getElementById('shipSkillToggleButton');
+        const sheet = document.getElementById('shipSkillSheet');
+        const closeBtn = document.getElementById('shipSkillSheetClose');
+        if (!toggleBtn || !sheet || !closeBtn) return;
+
+        toggleBtn.addEventListener('click', () => this.toggleShipSkillSheet());
+        closeBtn.addEventListener('click', () => this.closeShipSkillSheet());
+
+        // シート外タップで閉じる
+        sheet.addEventListener('click', (e) => {
+            if (e.target === sheet) this.closeShipSkillSheet();
+        });
+    }
+
+    toggleShipSkillSheet() {
+        if (this.shipSkillPanelOpen) {
+            this.closeShipSkillSheet();
+        } else {
+            this.openShipSkillSheet();
+        }
+    }
+
+    openShipSkillSheet() {
+        const sheet = document.getElementById('shipSkillSheet');
+        const toggleBtn = document.getElementById('shipSkillToggleButton');
+        if (!sheet) return;
+        this.shipSkillPanelOpen = true;
+        sheet.classList.add('is-open');
+        sheet.setAttribute('aria-hidden', 'false');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+        this.loadShipSkillStatus();
+    }
+
+    closeShipSkillSheet() {
+        const sheet = document.getElementById('shipSkillSheet');
+        const toggleBtn = document.getElementById('shipSkillToggleButton');
+        if (!sheet) return;
+        this.shipSkillPanelOpen = false;
+        sheet.classList.remove('is-open');
+        sheet.setAttribute('aria-hidden', 'true');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+        this.stopShipSkillCtTick();
+    }
+
+    loadShipSkillStatus() {
+        const playFabId = window.myPlayFabId;
+        if (!playFabId) return;
+
+        // キャッシュがあれば CT だけローカルで補完して即描画（サーバー不要）
+        const cached = getCachedSkillData();
+        if (cached?.skills) {
+            const skills = mergeWithLocalCt(cached.skills);
+            this.shipSkillData = skills;
+            this.renderShipSkillPanel(skills, cached.roleKey);
+            this.startShipSkillCtTick();
+            return;
+        }
+
+        // 初回のみサーバーからデッキ＋スキル情報を取得してキャッシュ
+        fetchShipSkillStatus(playFabId, { silent: true })
+            .then((data) => {
+                if (!data?.skills) return;
+                setCachedSkillData(data);
+                const skills = mergeWithLocalCt(data.skills);
+                this.shipSkillData = skills;
+                this.renderShipSkillPanel(skills, data.roleKey);
+                this.startShipSkillCtTick();
+            })
+            .catch((err) => {
+                console.warn('[ShipSkill] Failed to load status:', err);
+            });
+    }
+
+    renderShipSkillPanel(skills, roleKey) {
+        const grid = document.getElementById('shipSkillGrid');
+        const emptyMsg = document.getElementById('shipSkillEmptyMsg');
+        const roleLabel = document.getElementById('shipSkillRoleLabel');
+        if (!grid) return;
+
+        if (roleLabel) roleLabel.textContent = roleKey && roleKey !== 'Incomplete' ? `◆ ${roleKey}` : '';
+
+        const validSkills = (skills || []).filter((s) => !s.error);
+        if (validSkills.length === 0) {
+            grid.innerHTML = '';
+            if (emptyMsg) emptyMsg.hidden = false;
+            return;
+        }
+        if (emptyMsg) emptyMsg.hidden = true;
+
+        const ELEMENT_ICON = { fire: '🔥', wind: '🌀', water: '💧', earth: '🛡', none: '✨' };
+        const RANGE_LABEL = { self: '自', near: '近', medium: '中', far: '遠', global: '全' };
+        const CIRCUMFERENCE = 2 * Math.PI * 24; // r=24
+
+        grid.innerHTML = validSkills.map((skill) => {
+            const icon = ELEMENT_ICON[skill.element] || '⚡';
+            const rangeLabel = RANGE_LABEL[skill.range] || skill.range;
+            const castLabel = skill.castTime > 0 ? `詠唱${skill.castTime}s` : '即時';
+            const isTriggered = skill.activationType === 'triggered';
+            const remaining = skill.remainingSec || 0;
+            const total = skill.cooldownSec || 1;
+            const progress = remaining > 0 ? (remaining / total) : 0;
+            const dashOffset = CIRCUMFERENCE * (1 - progress);
+
+            return `<button
+                class="ship-skill-card${remaining === 0 ? ' is-ready' : ''}"
+                data-card-item-id="${skill.cardItemId}"
+                data-element="${skill.element}"
+                data-ct-remaining="${remaining}"
+                data-ct-total="${total}"
+                onclick="window.useShipSkillCard('${skill.cardItemId}', '${skill.skillName}')"
+                ${isTriggered ? 'disabled title="自動発動スキル"' : ''}
+            >
+                ${isTriggered ? '<span class="ship-skill-auto-badge">自動</span>' : ''}
+                <div class="ship-skill-ct-ring-wrap">
+                    <svg viewBox="0 0 56 56">
+                        <circle class="ship-skill-ct-ring-bg" cx="28" cy="28" r="24"/>
+                        <circle class="ship-skill-ct-ring-fill"
+                            cx="28" cy="28" r="24"
+                            stroke-dasharray="${CIRCUMFERENCE.toFixed(1)}"
+                            stroke-dashoffset="${(CIRCUMFERENCE * progress).toFixed(1)}"
+                            data-ct-ring
+                        />
+                    </svg>
+                    <div class="ship-skill-ct-inner">
+                        <span class="ship-skill-ct-icon">${icon}</span>
+                        <span class="ship-skill-ct-sec" data-ct-label>${remaining > 0 ? remaining + 's' : ''}</span>
+                    </div>
+                </div>
+                <span class="ship-skill-card-name">${skill.skillName}</span>
+                <div class="ship-skill-card-meta">
+                    <span class="ship-skill-card-range">${rangeLabel}</span>
+                    <span class="ship-skill-card-cast">${castLabel}</span>
+                </div>
+                <p class="ship-skill-card-desc">${skill.description || ''}</p>
+            </button>`;
+        }).join('');
+    }
+
+    startShipSkillCtTick() {
+        this.stopShipSkillCtTick();
+        this.shipSkillCtInterval = setInterval(() => this.tickShipSkillCt(), 1000);
+    }
+
+    stopShipSkillCtTick() {
+        if (this.shipSkillCtInterval) {
+            clearInterval(this.shipSkillCtInterval);
+            this.shipSkillCtInterval = null;
+        }
+    }
+
+    tickShipSkillCt() {
+        const grid = document.getElementById('shipSkillGrid');
+        if (!grid || !this.shipSkillPanelOpen) return;
+        const CIRCUMFERENCE = 2 * Math.PI * 24;
+
+        grid.querySelectorAll('.ship-skill-card').forEach((card) => {
+            const ctKey = card.dataset.cardItemId;
+            if (!ctKey) return;
+
+            // CT は localStorage から読む（サーバー参照なし）
+            const remaining = getSkillRemainingSec(ctKey);
+            const prev = Number(card.dataset.ctRemaining) || 0;
+            const total = Number(card.dataset.ctTotal) || 1;
+
+            card.dataset.ctRemaining = remaining;
+
+            const label = card.querySelector('[data-ct-label]');
+            if (label) label.textContent = remaining > 0 ? `${remaining}s` : '';
+
+            const ring = card.querySelector('[data-ct-ring]');
+            if (ring) {
+                const progress = remaining > 0 ? remaining / total : 0;
+                ring.setAttribute('stroke-dashoffset', (CIRCUMFERENCE * progress).toFixed(1));
+            }
+
+            if (prev > 0 && remaining === 0) {
+                card.classList.add('is-ready', 'is-ready-flash');
+                card.removeAttribute('disabled');
+                setTimeout(() => card.classList.remove('is-ready-flash'), 700);
+                const statusChip = document.getElementById('shipSkillStatus');
+                if (statusChip) {
+                    statusChip.textContent = 'スキル Ready';
+                    setTimeout(() => { statusChip.textContent = ''; }, 4000);
+                }
+            }
+        });
+    }
+
+    useShipSkillCard(cardItemId, skillName) {
+        const playFabId = window.myPlayFabId;
+        if (!playFabId) return;
+
+        // 1. CT チェック（localStorage、サーバー不要）
+        if (!isSkillReady(cardItemId)) {
+            const rem = getSkillRemainingSec(cardItemId);
+            this.showMessage(`⏳ CT中 残${rem}s`);
+            return;
+        }
+
+        // 2. スキル情報をキャッシュから取得
+        const skillInfo = (this.shipSkillData || []).find((s) => s.cardItemId === cardItemId);
+        if (!skillInfo) return;
+
+        // 3. CT を即座に localStorage に記録（楽観的更新）
+        const cooldownMs = (skillInfo.cooldownSec || 30) * 1000;
+        setSkillCooldown(cardItemId, Date.now() + cooldownMs);
+        this.updateCardCtDisplay(cardItemId, skillInfo.cooldownSec);
+
+        this.showMessage(`⚡ ${skillName} 発動！`);
+
+        // 4. 自己効果スキル → ローカルだけで完結（サーバー呼び出しなし）
+        if (isSelfOnlySkill(skillInfo)) {
+            this.applyLocalShipSkillEffect(skillInfo);
+            return;
+        }
+
+        // 5. 他プレイヤーへの効果 → fire-and-forget（await しない）
+        const context = {};
+        const nearestEnemy = this.getNearestEnemyShipId?.();
+        if (nearestEnemy) context.targetPlayFabId = nearestEnemy;
+        requestUseShipSkill(playFabId, cardItemId, context, { silent: true }).catch(() => {});
+    }
+
+    updateCardCtDisplay(cardItemId, cooldownSec) {
+        const card = document.querySelector(`.ship-skill-card[data-card-item-id="${cardItemId}"]`);
+        if (!card) return;
+        const total = cooldownSec || 30;
+        card.dataset.ctRemaining = total;
+        card.dataset.ctTotal = total;
+        card.classList.remove('is-ready');
+        const label = card.querySelector('[data-ct-label]');
+        if (label) label.textContent = `${total}s`;
+        const ring = card.querySelector('[data-ct-ring]');
+        if (ring) ring.setAttribute('stroke-dashoffset', '0');
+    }
+
+    applyLocalShipSkillEffect(skillInfo) {
+        const subtype = skillInfo?.effect?.subtype || skillInfo?.effectSubtype;
+        const value   = skillInfo?.effect?.value;
+        const dur     = (skillInfo?.effect?.duration || 0) * 1000;
+        const nowMs   = Date.now();
+
+        switch (subtype) {
+            case 'invincible-escape':
+                this.shipActionImmuneUntil = nowMs + (dur || 5000);
+                break;
+            case 'stealth':
+                this.setPlayerShipInvisible?.(true);
+                this.shipActionInvisibleUntil = nowMs + (dur || 45000);
+                break;
+            case 'charge':
+                this.shipActionSpeedBoostMultiplier = value?.speedMult || 3;
+                this.shipActionSpeedBoostUntil = nowMs + (dur || 10000);
+                break;
+            case 'berserker':
+                this.shipActionSpeedBoostMultiplier = 1;
+                this.shipActionSpeedBoostUntil = nowMs + (dur || 20000);
+                break;
+            case 'fortify':
+                this.shipActionMoveLockUntil = nowMs + (dur || 15000);
+                break;
+            case 'blink':
+                this.teleportPlayerShipRandom?.();
+                break;
+            default:
+                break;
+        }
     }
 
     isPlayerGuildShip() {

@@ -4,14 +4,9 @@ const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
 const {
-    TAROT_EQUIPMENT_SLOT_TO_KEY,
-    TAROT_MANIFESTATION_SLOT_TO_KEY,
-    parseStoredEquipmentValue,
-    isTarotManifestationEntry
+    TAROT_EQUIPMENT_SLOT_TO_KEY
 } = require('../tarotCards');
-const { getTarotRoleSummaryFromEquipment } = require('../tarotRoles');
-const { TAROT_AWAKENINGS_DATA_KEY } = require('../tarotSkills');
-const { getMajorArcanaAwakeningState } = require('../tarotAwakenings');
+const { MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole } = require('../tarotDeck');
 const {
     CAPITAL_CAPTURE_BREACH_WALLS,
     normalizeNationWarState
@@ -340,18 +335,15 @@ async function getPlayerFullProfile(playFabId) {
         throw new Error('battle.js is not initialized.');
     }
 
-    const TROY_SKILLS_DATA_KEY = 'troySkills';
-    const LEGACY_TROY_SKILLS_DATA_KEY = 'troyQuestSkills';
     const statsPromise = _promisifyPlayFab(_PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
     const equipmentPromise = _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
         // ★ v122: アバター情報も取得するようにキーを追加
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
             "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
-            TROY_SKILLS_DATA_KEY,
-            LEGACY_TROY_SKILLS_DATA_KEY,
-            TAROT_AWAKENINGS_DATA_KEY,
-            TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana
+            TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana,
+            MELEE_DECK_DATA_KEY,
+            SHIP_DECK_DATA_KEY
         ]
     });
     const profilePromise = _promisifyPlayFab(_PlayFabServer.GetPlayerProfile, {
@@ -386,15 +378,11 @@ async function getPlayerFullProfile(playFabId) {
     const equipment = {}; // ここには最終的に ItemId を格納する
     const avatar = {}; // ★ v122: アバター情報を格納するオブジェクト
     let lineUserId = null;
-    let skills = {};
-    let awakenings = {};
+    let meleeDeckIds = [];
+    let shipDeckIds = [];
     if (equipmentResult.Data) {
         const resolveEquippedValue = (rawValue) => {
-            const parsed = parseStoredEquipmentValue(rawValue);
-            if (isTarotManifestationEntry(parsed)) {
-                return parsed;
-            }
-            const value = parsed ? String(parsed).trim() : '';
+            const value = rawValue ? String(rawValue).trim() : '';
             if (!value) return null;
             return instanceIdToItemIdMap[value] || value;
         };
@@ -423,27 +411,16 @@ async function getPlayerFullProfile(playFabId) {
         if (equipmentResult.Data.SkinColorIndex) avatar.SkinColorIndex = equipmentResult.Data.SkinColorIndex.Value;
         if (equipmentResult.Data.FaceIndex) avatar.FaceIndex = equipmentResult.Data.FaceIndex.Value;
         if (equipmentResult.Data.HairStyleIndex) avatar.HairStyleIndex = equipmentResult.Data.HairStyleIndex.Value;
-        const rawSkills =
-            equipmentResult.Data[TROY_SKILLS_DATA_KEY]?.Value
-            || equipmentResult.Data[LEGACY_TROY_SKILLS_DATA_KEY]?.Value
-            || '';
-        if (rawSkills) {
-            try {
-                const parsed = JSON.parse(rawSkills);
-                if (parsed && typeof parsed === 'object') skills = parsed;
-            } catch (error) {
-                skills = {};
-            }
-        }
-        const rawAwakenings = equipmentResult.Data[TAROT_AWAKENINGS_DATA_KEY]?.Value || '';
-        if (rawAwakenings) {
-            try {
-                const parsed = JSON.parse(rawAwakenings);
-                if (parsed && typeof parsed === 'object') awakenings = parsed;
-            } catch (error) {
-                awakenings = {};
-            }
-        }
+
+        // タロットデッキ読み込み
+        try {
+            meleeDeckIds = JSON.parse(equipmentResult.Data[MELEE_DECK_DATA_KEY]?.Value || '[]');
+            if (!Array.isArray(meleeDeckIds)) meleeDeckIds = [];
+        } catch { meleeDeckIds = []; }
+        try {
+            shipDeckIds = JSON.parse(equipmentResult.Data[SHIP_DECK_DATA_KEY]?.Value || '[]');
+            if (!Array.isArray(shipDeckIds)) shipDeckIds = [];
+        } catch { shipDeckIds = []; }
     }
 
     const equipmentStats = {
@@ -489,36 +466,21 @@ async function getPlayerFullProfile(playFabId) {
     accumulateItemStats(equipment.Armor, { replaceDefense: true });
     accumulateItemStats(equipment.Accessory);
     accumulateItemStats(equipment.MajorArcana);
-    const majorAwakening = equipment.MajorArcana
-        ? getMajorArcanaAwakeningState({
-            itemId: typeof equipment.MajorArcana === 'string'
-                ? equipment.MajorArcana
-                : String(
-                    equipment.MajorArcana?.itemId
-                    || equipment.MajorArcana?.customData?.ItemId
-                    || equipment.MajorArcana?.customData?.FriendlyId
-                    || ''
-                ).trim(),
-            name: getBattleItemData(equipment.MajorArcana)?.DisplayName || '',
-            customData: getBattleItemData(equipment.MajorArcana) || {}
-        }, awakenings)
-        : null;
-    const tarotRole = getTarotRoleSummaryFromEquipment(equipment, _catalogCache);
-    equipmentStats.Power += Number(tarotRole?.bonus?.Power || 0) || 0;
-    equipmentStats.Defense += Number(tarotRole?.bonus?.Defense || 0) || 0;
-    equipmentStats.Agi += Number(tarotRole?.bonus?.Agi || 0) || 0;
-    equipmentStats.Int += Number(tarotRole?.bonus?.Int || 0) || 0;
-    equipmentStats.Power += Number(majorAwakening?.stats?.Power || 0) || 0;
-    equipmentStats.Defense += Number(majorAwakening?.stats?.Defense || 0) || 0;
-    equipmentStats.Agi += Number(majorAwakening?.stats?.Agi || 0) || 0;
-    equipmentStats.Int += Number(majorAwakening?.stats?.Int || 0) || 0;
-    equipmentStats.MagicPower += Number(majorAwakening?.stats?.MagicPower || 0) || 0;
-    equipmentStats.HealPower += Number(majorAwakening?.stats?.HealPower || 0) || 0;
-    equipmentStats.MpEfficiency += Number(majorAwakening?.stats?.MpEfficiency || 0) || 0;
-    equipmentStats.CastRate += Number(majorAwakening?.stats?.CastRate || 0) || 0;
-    equipmentStats.StatusRate += Number(majorAwakening?.stats?.StatusRate || 0) || 0;
+
+    // 白兵戦デッキのポーカーハンドボーナスを適用
+    const meleeDeckItemData = meleeDeckIds.map((id) => _catalogCache?.[id] || null);
+    const tarotMeleeRole = evaluateDeckRole(meleeDeckItemData);
+    equipmentStats.Power   += Number(tarotMeleeRole?.bonus?.Power   || 0) || 0;
+    equipmentStats.Defense += Number(tarotMeleeRole?.bonus?.Defense || 0) || 0;
+    equipmentStats.Agi     += Number(tarotMeleeRole?.bonus?.Agi     || 0) || 0;
+    equipmentStats.Int     += Number(tarotMeleeRole?.bonus?.Int     || 0) || 0;
+
     stats.すばやさ = (Number(stats.すばやさ || 0) || 0) + equipmentStats.Agi;
     stats.かしこさ = (Number(stats.かしこさ || 0) || 0) + equipmentStats.Int;
+
+    // 船デッキロール（戦闘では参照のみ）
+    const shipDeckItemData = shipDeckIds.map((id) => _catalogCache?.[id] || null);
+    const tarotShipRole = evaluateDeckRole(shipDeckItemData);
 
     return {
         id: playFabId,
@@ -526,11 +488,12 @@ async function getPlayerFullProfile(playFabId) {
         stats: stats,
         equipment: equipment,
         equipmentStats: equipmentStats,
-        tarotRole,
-        majorAwakening,
+        tarotMeleeRole,
+        tarotShipRole,
+        meleeDeckIds,
+        shipDeckIds,
         avatar: avatar,
-        level: stats.Level,
-        skills
+        level: stats.Level
     };
 }
 
