@@ -1,8 +1,19 @@
+const { addGlobalChatMessage } = require('./chat');
+
 const EVENT_COLLECTION = 'store_events';
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
-const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 100));
-const EVENT_TYPES = new Set(['billiards', 'darts', 'tournament', 'party', 'other']);
+const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
+const EVENT_TYPES = new Set(['darts', 'billiards', 'karaoke', 'tabletennis', 'poker', 'other']);
+const EVENT_TYPE_LABELS = {
+    darts: 'ダーツ',
+    billiards: 'ビリヤード',
+    karaoke: 'カラオケ',
+    tabletennis: '卓球',
+    poker: 'ポーカー',
+    other: 'その他'
+};
+const DEFAULT_SPONSOR_NOTE = '王国協賛あり';
 
 function normalizeString(value, maxLength = 200) {
     return String(value || '').trim().slice(0, maxLength);
@@ -22,6 +33,38 @@ function normalizePositiveInt(value, fallback = 0, max = 1_000_000) {
 function toMillis(value) {
     const raw = typeof value === 'number' ? value : Date.parse(String(value || ''));
     return Number.isFinite(raw) ? raw : 0;
+}
+
+function formatEventDate(ms) {
+    const value = Number(ms || 0);
+    if (!value) return '日時未定';
+    return new Intl.DateTimeFormat('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(new Date(value));
+}
+
+function getEventTypeLabel(data) {
+    return data.typeLabel || EVENT_TYPE_LABELS[data.type] || 'イベント';
+}
+
+function announceApprovedEvent(data) {
+    const title = normalizeString(data?.title, 80) || 'イベント';
+    const typeLabel = getEventTypeLabel(data || {});
+    const dateLabel = formatEventDate(data?.startsAtMs);
+    const entryFee = Math.max(0, Math.floor(Number(data?.entryFee) || 0));
+    const capacity = Math.max(0, Math.floor(Number(data?.capacity) || 0));
+    const sponsor = normalizeString(data?.sponsorNote, 120) || DEFAULT_SPONSOR_NOTE;
+    const parts = [
+        `【イベント告知】${dateLabel} ${typeLabel}「${title}」`,
+        entryFee > 0 ? `参加費 ${entryFee}G` : '参加費無料',
+        capacity > 0 ? `定員 ${capacity}名` : '',
+        sponsor
+    ].filter(Boolean);
+    addGlobalChatMessage(parts.join(' / '), 'イベント');
 }
 
 function eventDocToPayload(doc, viewerId = '', isKing = false) {
@@ -49,6 +92,8 @@ function eventDocToPayload(doc, viewerId = '', isKing = false) {
         entryFee: Number(data.entryFee || 0),
         prize: Number(data.prize || 0),
         collectedEntryFeePs: Number(data.collectedEntryFeePs || 0),
+        sponsorNote: data.sponsorNote || DEFAULT_SPONSOR_NOTE,
+        sponsorEnabled: true,
         capacity: Number(data.capacity || 0),
         participantCount,
         isParticipant,
@@ -161,6 +206,8 @@ function initializeEventRoutes(app, deps) {
                 entryFee,
                 prize,
                 collectedEntryFeePs: 0,
+                sponsorNote: normalizeString(req.body?.sponsorNote, 120) || DEFAULT_SPONSOR_NOTE,
+                sponsorEnabled: true,
                 capacity,
                 official: hostIsKing,
                 status: hostIsKing ? 'approved' : 'pending',
@@ -171,13 +218,21 @@ function initializeEventRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
             await ref.set(event);
+            if (hostIsKing) {
+                announceApprovedEvent(event);
+                await ref.update({
+                    announcedAtMs: Date.now(),
+                    updatedAtMs: Date.now(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
             const balance = typeof getCurrencyBalance === 'function'
                 ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE)
                 : null;
             res.json({ success: true, event: eventDocToPayload(await ref.get(), playFabId, hostIsKing), balance });
         } catch (error) {
             if (error?.apiErrorInfo?.apiError === 'InsufficientFunds') {
-                return res.status(400).json({ error: 'PSが不足しています。' });
+                return res.status(400).json({ error: 'ゴールドが不足しています。' });
             }
             console.error('[events/create] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: 'イベント作成に失敗しました。' });
@@ -262,7 +317,7 @@ function initializeEventRoutes(app, deps) {
             if (message === 'EventAlreadyStarted') return res.status(400).json({ error: '開始済みです。' });
             if (message === 'AlreadyJoined') return res.status(400).json({ error: '参加済みです。' });
             if (message === 'EventFull') return res.status(400).json({ error: '定員に達しています。' });
-            if (paymentFailed || error?.apiErrorInfo?.apiError === 'InsufficientFunds') return res.status(400).json({ error: 'PSが不足しています。' });
+            if (paymentFailed || error?.apiErrorInfo?.apiError === 'InsufficientFunds') return res.status(400).json({ error: 'ゴールドが不足しています。' });
             console.error('[events/join] failed:', error?.message || error);
             res.status(500).json({ error: '参加処理に失敗しました。' });
         }
@@ -279,13 +334,34 @@ function initializeEventRoutes(app, deps) {
             const viewerIsKing = await isKing(playFabId, deps);
             if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
             const ref = firestore.collection(EVENT_COLLECTION).doc(eventId);
-            await ref.update({
+            const before = await ref.get();
+            if (!before.exists) return res.status(404).json({ error: 'イベントが見つかりません。' });
+            const previous = before.data() || {};
+            const sponsorNote = normalizeString(req.body?.sponsorNote, 120) || previous.sponsorNote || DEFAULT_SPONSOR_NOTE;
+            const updatePayload = {
                 status: approve ? 'approved' : 'rejected',
                 reviewedBy: playFabId,
                 reviewedAtMs: Date.now(),
                 updatedAtMs: Date.now(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (approve) {
+                updatePayload.sponsorNote = sponsorNote;
+                updatePayload.sponsorEnabled = true;
+            }
+            await ref.update({
+                ...updatePayload
             });
+            const after = await ref.get();
+            const nextData = after.data() || {};
+            if (approve && previous.status !== 'approved' && !nextData.announcedAtMs) {
+                announceApprovedEvent(nextData);
+                await ref.update({
+                    announcedAtMs: Date.now(),
+                    updatedAtMs: Date.now(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
             res.json({ success: true, event: eventDocToPayload(await ref.get(), playFabId, true) });
         } catch (error) {
             console.error('[events/approve] failed:', error?.message || error);

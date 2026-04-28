@@ -2,6 +2,7 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
+const { getNationTreasuryRanking } = require('./nation');
 const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
@@ -27,6 +28,14 @@ const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const DAILY_NATION_SPECIALTY_REWARD_KEY = 'DailyNationSpecialtyRewardDay';
+const NATION_SPECIALTY_RESOURCE_BY_NATION = {
+    fire: { itemId: 'RR', label: '火薬系の特産品' },
+    earth: { itemId: 'RG', label: '石材系の特産品' },
+    wind: { itemId: 'RY', label: 'キノコ系の特産品' },
+    water: { itemId: 'RB', label: '水系の特産品' }
+};
+const DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK = [4, 3, 2, 1];
 const RESOURCE_RECOVERY_SETTINGS = {
     hp: {
         itemId: 'RY',
@@ -172,6 +181,16 @@ function parseBooleanFlag(value) {
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
 }
 
+function getJapanDayKey(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    return formatter.format(date);
+}
+
 function resolveIsKingFlag(readOnlyData) {
     if (!readOnlyData || typeof readOnlyData !== 'object') return false;
     return parseBooleanFlag(readOnlyData?.IsKing?.Value);
@@ -179,7 +198,7 @@ function resolveIsKingFlag(readOnlyData) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabEconomy, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
 
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
@@ -211,6 +230,58 @@ function initializeInventoryRoutes(app, deps) {
     async function getPlayerNation(playFabId) {
         const readOnly = await getPlayerReadOnlyData(playFabId, ['Nation']);
         return String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+    }
+
+    async function claimDailyNationSpecialtyReward(playFabId) {
+        const dayKey = getJapanDayKey();
+        const readOnly = await getPlayerReadOnlyData(playFabId, ['Nation', DAILY_NATION_SPECIALTY_REWARD_KEY]);
+        const nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        const specialty = NATION_SPECIALTY_RESOURCE_BY_NATION[nation];
+        if (!specialty) return null;
+        if (String(readOnly?.Data?.[DAILY_NATION_SPECIALTY_REWARD_KEY]?.Value || '') === dayKey) {
+            return null;
+        }
+
+        let rank = 4;
+        try {
+            if (firestore && PlayFabAdmin && PlayFabGroups && getAllInventoryItems && getVirtualCurrencyMap) {
+                const ranking = await getNationTreasuryRanking(firestore, {
+                    promisifyPlayFab,
+                    PlayFabServer,
+                    PlayFabAdmin,
+                    PlayFabGroups,
+                    admin,
+                    getAllInventoryItems,
+                    getVirtualCurrencyMap
+                });
+                const rankIndex = Array.isArray(ranking)
+                    ? ranking.findIndex((row) => String(row?.nation || '').toLowerCase() === nation)
+                    : -1;
+                if (rankIndex >= 0) rank = rankIndex + 1;
+            }
+        } catch (rankError) {
+            console.warn('[daily-nation-specialty] Ranking fallback:', rankError?.message || rankError);
+        }
+
+        const amount = DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK[Math.min(Math.max(rank, 1), DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK.length) - 1] || 1;
+        await addEconomyItem(playFabId, specialty.itemId, amount, {
+            idempotencyId: `daily-nation-specialty:${playFabId}:${dayKey}:${specialty.itemId}`
+        });
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Data: {
+                [DAILY_NATION_SPECIALTY_REWARD_KEY]: dayKey
+            }
+        });
+
+        return {
+            dayKey,
+            nation,
+            rank,
+            itemId: specialty.itemId,
+            label: specialty.label,
+            amount
+        };
     }
 
     function buildAvatarBaseFromReadOnly(readOnlyData = {}) {
@@ -839,9 +910,15 @@ function initializeInventoryRoutes(app, deps) {
         if (!playFabId) return;
         console.log(`[ステータス取得] ${playFabId} のステータスを取得します...`);
         try {
+            let dailyNationSpecialtyReward = null;
+            try {
+                dailyNationSpecialtyReward = await claimDailyNationSpecialtyReward(playFabId);
+            } catch (rewardError) {
+                console.warn('[daily-nation-specialty] Claim skipped:', rewardError?.errorMessage || rewardError?.message || rewardError);
+            }
             const stats = applyDerivedPlayerLevelToStats((await applyOfflineMpRecovery(playFabId)).currentStats).stats;
             console.log('[ステータス取得] 完了');
-            res.json({ stats: stats });
+            res.json({ stats: stats, dailyNationSpecialtyReward });
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });
@@ -1117,7 +1194,7 @@ function initializeInventoryRoutes(app, deps) {
 
             await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, sellPrice);
             const newBalance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-            console.log('[アイテム売却] PS を付与しました');
+            console.log('[アイテム売却] ゴールドを付与しました');
 
             await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                 PlayFabId: playFabId,
@@ -1127,7 +1204,7 @@ function initializeInventoryRoutes(app, deps) {
 
             res.json({
                 status: 'success',
-                message: `${itemData.DisplayName || itemId}を${sellPrice} PSで売却しました。`,
+                message: `${itemData.DisplayName || itemId}を${sellPrice}Gで売却しました。`,
                 newBalance: newBalance
             });
 
@@ -1179,7 +1256,7 @@ function initializeInventoryRoutes(app, deps) {
             }
         } catch (subtractError) {
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-                return res.status(400).json({ error: `ポイントが不足しています。必要: ${GACHA_COST} PS` });
+                return res.status(400).json({ error: `ゴールドが不足しています。必要: ${GACHA_COST}G` });
             }
             console.error('ガチャ課金失敗:', subtractError.errorMessage || subtractError.message || subtractError);
             res.status(500).json({ error: 'ガチャに失敗しました。', details: subtractError.errorMessage || subtractError.message });

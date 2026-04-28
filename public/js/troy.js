@@ -81,11 +81,11 @@ const TROY_PRODUCT_MENUS = {
         items: []
     },
     points: {
-        title: 'ポイント',
+        title: 'ゴールド',
         items: [
-            { concept: '600Ps', content: 'ポイント購入', price: 5000, image: 'https://loremflickr.com/640/420/coin?lock=5112' },
-            { concept: '350Ps', content: 'ポイント購入', price: 3000, image: 'https://loremflickr.com/640/420/coin?lock=5113' },
-            { concept: '100Ps', content: 'ポイント購入', price: 1000, image: 'https://loremflickr.com/640/420/coin?lock=5114' }
+            { concept: '600G', content: 'ゴールド購入', price: 5000, image: 'https://loremflickr.com/640/420/coin?lock=5112' },
+            { concept: '350G', content: 'ゴールド購入', price: 3000, image: 'https://loremflickr.com/640/420/coin?lock=5113' },
+            { concept: '100G', content: 'ゴールド購入', price: 1000, image: 'https://loremflickr.com/640/420/coin?lock=5114' }
         ]
     }
 };
@@ -395,7 +395,7 @@ function getMenuItemEmoji(item) {
     if (text.includes('ラム') || text.includes('ウォッカ') || text.includes('テキーラ') || text.includes('ジン')) return '🥃';
     if (text.includes('リキュール')) return '🍸';
     if (text.includes('ワインボトル')) return '🍷';
-    if (text.includes('ポイント購入') || text.includes('Ps')) return '🪙';
+    if (text.includes('ゴールド購入') || text.includes('ゴールド')) return '🪙';
     if (text.includes('コーヒー') || text.includes('ラテ') || text.includes('ココア')) return '☕';
     if (text.includes('ティー') || text.includes('紅茶')) return '🫖';
     if (text.includes('ワイン')) return '🍷';
@@ -423,15 +423,15 @@ function getMenuSubnote(menuId) {
         case 'favorite':
             return '★ お気に入り登録したドリンクとフードを並べています。割り物を指定した注文は、その組み合わせのまま呼び出せます。';
         case 'nonalcohol':
-            return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。注文ごとにPSが付与され、支払いは最後にまとめます。';
+            return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。注文ごとにゴールドが付与され、支払いは最後にまとめます。';
         case 'alcohol':
-            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円で赤 / 白を選べます。注文ごとにPSが付与され、支払いは最後にまとめます。';
+            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円で赤 / 白を選べます。注文ごとにゴールドが付与され、支払いは最後にまとめます。';
         case 'food':
-            return '🍴 フードはすべて500円。数量を選んでそのまま注文できます。PSは注文時に付与されます。';
+            return '🍴 フードはすべて500円。数量を選んでそのまま注文できます。ゴールドは注文時に付与されます。';
         case 'points':
-            return '🪙 ポイント購入も商品ごとに個別送信されます。PSは注文時に付与されます。';
+            return '🪙 ゴールド購入も商品ごとに個別送信されます。ゴールドは注文時に付与されます。';
         default:
-            return '🍴 数量を選んでそのまま注文できます。PSは注文時に付与、支払いは最後にまとめます。';
+            return '🍴 数量を選んでそのまま注文できます。ゴールドは注文時に付与、支払いは最後にまとめます。';
     }
 }
 
@@ -545,7 +545,7 @@ function renderOpenTabCard() {
     }
 
     const totalLabel = `${checkoutStatus === 'pending' ? '旧会計待ち' : '未会計'} ${session.totalItems}点 / ${formatYen(session.total)}`;
-    metaEl.textContent = session.grantTotal > 0 ? `${totalLabel} / 付与済み ${session.grantTotal} Ps` : totalLabel;
+    metaEl.textContent = session.grantTotal > 0 ? `${totalLabel} / 付与済み ${session.grantTotal}G` : totalLabel;
     listEl.innerHTML = '';
 
     const items = session.items.slice().reverse();
@@ -569,7 +569,7 @@ function renderOpenTabCard() {
         }
         detailParts.push(`${item.quantity}点`);
         if (item.grantedPs > 0) {
-            detailParts.push(`+${item.grantedPs} Ps`);
+            detailParts.push(`+${item.grantedPs}G`);
         }
         if (index === 0) {
             detailParts.push('最新');
@@ -618,9 +618,9 @@ function updateCheckoutStatus() {
         const totalItems = Math.max(0, Number(session?.totalItems) || items.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0));
         const grantTotal = Math.max(0, Number(session?.grantTotal) || 0);
         if (checkoutStatus === 'pending') {
-            status.textContent = `旧会計待ち: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal} Ps` : ''}`;
+            status.textContent = `旧会計待ち: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal}G` : ''}`;
         } else {
-            status.textContent = `未会計: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal} Ps` : ''}`;
+            status.textContent = `未会計: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal}G` : ''}`;
         }
         status.classList.add('is-pending');
         return;
@@ -635,7 +635,7 @@ function updateCheckoutStatus() {
         status.classList.remove('is-pending');
         return;
     }
-    status.textContent = '注文ごとにPSが即時付与されます。支払いは最後にまとめて行います。';
+    status.textContent = '注文ごとにゴールドが即時付与されます。支払いは最後にまとめて行います。';
     status.classList.remove('is-pending');
 }
 
@@ -706,8 +706,8 @@ async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) 
             if (typeof window.showRpgMessage === 'function') {
                 const grantValue = Math.max(0, Number(result?.grantAmount) || 0);
                 const grantLabel = result?.grantError
-                    ? 'PS付与失敗 / '
-                    : (grantValue > 0 ? `+${grantValue} Ps / ` : '');
+                    ? 'ゴールド付与失敗 / '
+                    : (grantValue > 0 ? `+${grantValue}G / ` : '');
                 const defaultMessage = `${orderName} を注文しました。${grantLabel}未会計 ${formatYen(Number(result?.checkout?.total || checkoutTotal))}`;
                 window.showRpgMessage(options.successMessage || defaultMessage);
             }
@@ -744,7 +744,7 @@ async function handleUndoLastOrder(playFabId) {
         console.warn('[TroyUndo] Failed:', error?.message || error);
         const message = (() => {
             const detail = String(error?.message || '').trim();
-            if (detail.includes('付与済みPSを消費しているため取り消せません')) return detail;
+            if (detail.includes('付与済みゴールドを消費しているため取り消せません')) return detail;
             if (detail.includes('CheckoutChanged')) return '注文内容が更新されたため、もう一度確認してください。';
             if (detail.includes('UndoExpired')) return '取り消し可能時間を過ぎました。';
             if (detail.includes('入店チャージは取り消せません')) return '入店チャージは取り消せません。';

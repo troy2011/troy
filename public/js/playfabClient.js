@@ -42,7 +42,7 @@ export function getPoints(playFabId, options) {
     return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options)
         .then((data) => {
             const points = Number(data?.virtualCurrency?.PS || 0);
-            return { points };
+            return { points, virtualCurrency: data?.virtualCurrency || {} };
         });
 }
 
@@ -121,8 +121,8 @@ export function joinEvent(playFabId, eventId, payload = {}, options) {
     return callApiWithLoader('/api/events/join', { playFabId, eventId, ...(payload || {}) }, options);
 }
 
-export function approveEvent(playFabId, eventId, approve = true, options) {
-    return callApiWithLoader('/api/events/approve', { playFabId, eventId, approve }, options);
+export function approveEvent(playFabId, eventId, approve = true, payload = {}, options) {
+    return callApiWithLoader('/api/events/approve', { playFabId, eventId, approve, ...(payload || {}) }, options);
 }
 
 export function getCapitalWarState(playFabId, targetNation, options) {
@@ -246,12 +246,13 @@ export function approveTroyCheckout(playFabId, receiverPlayFabId, amount, reques
     return grantPs(playFabId, receiverPlayFabId, amount, requestId, options);
 }
 
-export function settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, options) {
+export function settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, payload = {}, options) {
     return callApiWithLoader('/api/king-settle-troy-checkout', {
         playFabId,
         receiverPlayFabId,
         expectedTotal,
-        requestId
+        requestId,
+        ...(payload && typeof payload === 'object' ? payload : {})
     }, options);
 }
 

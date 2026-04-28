@@ -1892,7 +1892,11 @@ async function main() {
     inventory.initializeInventoryRoutes(app, {
         promisifyPlayFab,
         PlayFabServer,
+        PlayFabAdmin,
+        PlayFabGroups,
         PlayFabEconomy,
+        firestore,
+        admin,
         catalogCache,
         getEntityKeyForPlayFabId: deps.getEntityKeyForPlayFabId,
         getAllInventoryItems: deps.getAllInventoryItems,

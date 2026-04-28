@@ -13,11 +13,13 @@ import {
     getBountyRanking as fetchBountyRanking,
     getNationTreasuryRanking as fetchNationTreasuryRanking
 } from './playfabClient.js';
+import { formatCurrencyLabel } from './config.js';
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 
 let myPlayerStats = {};
-const LOW_PS_THRESHOLD = 200;
+const LOW_GOLD_THRESHOLD = 200;
+const SPECIALTY_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB'];
 const FALLBACK_AVATAR = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="48" fill="#1f2937"/><circle cx="48" cy="38" r="18" fill="#64748b"/><path d="M18 82c6-16 19-24 30-24s24 8 30 24" fill="#94a3b8"/></svg>'
 )}`;
@@ -31,6 +33,16 @@ export async function getPlayerStats(playFabId) {
     if (data?.stats) {
         myPlayerStats = data.stats;
         updatePlayerStatsDisplay();
+    }
+    if (data?.dailyNationSpecialtyReward) {
+        const reward = data.dailyNationSpecialtyReward;
+        const itemLabel = formatCurrencyLabel(reward.itemId);
+        const amount = Math.max(0, Math.floor(Number(reward.amount) || 0));
+        const rank = Math.max(1, Math.floor(Number(reward.rank) || 1));
+        const message = `本日の国特産品: ${itemLabel} +${amount}（国庫${rank}位）`;
+        if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(message);
+        }
     }
 }
 
@@ -94,7 +106,7 @@ export async function recoverDockedMp(playFabId) {
 export async function getPoints(playFabId) {
     const data = await fetchPoints(playFabId);
     if (data) {
-        updatePointsDisplays(data.points);
+        updatePointsDisplays(data.points, data.virtualCurrency);
     }
 }
 
@@ -102,12 +114,16 @@ export function syncPointsDisplay(points) {
     updatePointsDisplays(points);
 }
 
+export function syncSpecialtyDisplay(virtualCurrency) {
+    updateSpecialtyDisplays(virtualCurrency);
+}
+
 export async function addPoints(playFabId) {
     const data = await requestAddPoints(playFabId, 10);
     if (data) {
         updatePointsDisplays(data.newBalance);
         const pointMessageEl = document.getElementById('pointMessage');
-        if (pointMessageEl) pointMessageEl.innerText = '10 Ps 追加しました！';
+        if (pointMessageEl) pointMessageEl.innerText = '10G追加しました！';
         await getRanking();
     }
 }
@@ -117,12 +133,12 @@ export async function usePoints(playFabId) {
     if (data) {
         updatePointsDisplays(data.newBalance);
         const pointMessageEl = document.getElementById('pointMessage');
-        if (pointMessageEl) pointMessageEl.innerText = '5 Ps 使いました！';
+        if (pointMessageEl) pointMessageEl.innerText = '5G使いました！';
         await getRanking();
     }
 }
 
-function updatePointsDisplays(points) {
+function updatePointsDisplays(points, virtualCurrency = null) {
     const value = Number(points);
     if (!Number.isFinite(value)) return;
     const currentPointsEl = document.getElementById('currentPoints');
@@ -131,8 +147,18 @@ function updatePointsDisplays(points) {
     animatePoints(document.getElementById('globalPoints'), value);
     const psCard = document.querySelector('.home-ps-card');
     if (psCard) {
-        psCard.classList.toggle('is-low', value <= LOW_PS_THRESHOLD);
+        psCard.classList.toggle('is-low', value <= LOW_GOLD_THRESHOLD);
     }
+    if (virtualCurrency) updateSpecialtyDisplays(virtualCurrency);
+}
+
+function updateSpecialtyDisplays(virtualCurrency = {}) {
+    SPECIALTY_RESOURCE_IDS.forEach((itemId) => {
+        const el = document.getElementById(`homeSpecialty${itemId}`);
+        if (!el) return;
+        const value = Math.max(0, Math.floor(Number(virtualCurrency?.[itemId]) || 0));
+        el.innerText = value.toLocaleString('ja-JP');
+    });
 }
 
 function animatePoints(element, target) {
@@ -240,7 +266,7 @@ export async function getRanking() {
     if (data?.ranking) {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatNumber(entry.score)} Ps`,
+            getScore: (entry) => `${formatNumber(entry.score)}G`,
             getMeta: (entry, index) => (index < 3 ? '上位ランカー' : '総資産ランキング'),
             getPlayerId: (entry) => entry.playFabId || ''
         });
@@ -277,7 +303,7 @@ export async function getNationTreasuryRanking() {
                 const nationKey = String(entry.nation || '').toLowerCase();
                 return getNationLabel(nationKey) || entry.nation || '不明';
             },
-            getScore: (entry) => `${formatNumber(entry.treasuryPs)} Ps`,
+            getScore: (entry) => `${formatNumber(entry.treasuryPs)}G`,
             getMeta: (entry, index) => (index === 0 ? '最も潤う王国' : '国庫ランキング'),
             getAvatar: () => '',
             getAvatarLabel: (entry) => {

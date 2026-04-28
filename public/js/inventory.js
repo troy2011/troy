@@ -1120,6 +1120,7 @@ export async function getInventory(playFabId, options = {}) {
         myExperience = Number(contributionValue || 0);
         myIsKing = !!data.isKing;
         Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
+        Player.syncSpecialtyDisplay(myVirtualCurrency);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
@@ -1167,6 +1168,7 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         myExperience = Number(contributionValue || 0);
         myIsKing = !!data.isKing;
         Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
+        Player.syncSpecialtyDisplay(myVirtualCurrency);
         preloadAvatarBaseSprites(window.myAvatarBaseInfo);
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
         renderInventoryTabControls();

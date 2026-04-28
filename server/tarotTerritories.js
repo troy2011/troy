@@ -51,7 +51,7 @@ const LEVEL_BUILDINGS = {
     },
 };
 
-// レベルアップコスト（PS）— Lv(n) → Lv(n+1) のコスト
+// レベルアップコスト（ゴールド）— Lv(n) → Lv(n+1) のコスト
 const LEVEL_UP_COSTS = {
     1: 1000,
     2: 3000,
@@ -191,7 +191,7 @@ function getBuildingDefsForLevels(levels) {
 }
 
 /**
- * レベルアップコスト（PS）を返す
+ * レベルアップコスト（ゴールド）を返す
  * currentLevel → currentLevel+1
  */
 function getLevelUpCost(currentLevel) {

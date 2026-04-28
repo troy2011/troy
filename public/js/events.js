@@ -5,17 +5,25 @@ import {
     approveEvent as requestApproveEvent
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
+import { formatCurrencyLabel } from './config.js';
 
 const EVENT_TYPE_LABELS = {
-    billiards: 'ビリヤード',
     darts: 'ダーツ',
-    tournament: '大会',
-    party: '交流会',
+    billiards: 'ビリヤード',
+    karaoke: 'カラオケ',
+    tabletennis: '卓球',
+    poker: 'ポーカー',
     other: 'その他'
 };
 
-let cachedHostFee = 100;
+let cachedHostFee = 1000;
 let cachedIsKing = false;
+const GOLD_LABEL = formatCurrencyLabel('PS');
+const DEFAULT_SPONSOR_NOTE = '王国協賛あり';
+
+function formatGold(amount) {
+    return `${Number(amount || 0).toLocaleString('ja-JP')}${GOLD_LABEL}`;
+}
 
 function formatDateTime(ms) {
     const value = Number(ms || 0);
@@ -71,8 +79,8 @@ function renderEventCreateMeta() {
     const hostFeeEl = document.getElementById('eventHostFeeInfo');
     if (hostFeeEl) {
         hostFeeEl.textContent = cachedIsKing
-            ? '王側の公式イベントは主催費なしで即公開されます。'
-            : `主催費 ${cachedHostFee} PS。作成後、王の承認で公開されます。`;
+            ? '王側の公式イベントは主催費なしで即公開されます。王国協賛は常に付きます。'
+            : `主催費 ${cachedHostFee}${GOLD_LABEL}。承認後、イベント一覧と全体チャットに告知されます。王国協賛は常に付きます。`;
     }
 }
 
@@ -86,9 +94,9 @@ function eventStatusLabel(status) {
 function renderEventCard(event, playFabId) {
     const card = document.createElement('article');
     card.className = `event-card is-${event.status || 'unknown'}`;
-    const feeText = Number(event.entryFee || 0) > 0 ? `${event.entryFee} PS` : '無料';
-    const prizeText = Number(event.prize || 0) > 0 ? `${event.prize} PS` : 'なし';
-    const collectedText = Number(event.collectedEntryFeePs || 0) > 0 ? `${event.collectedEntryFeePs} PS` : '0 PS';
+    const feeText = Number(event.entryFee || 0) > 0 ? formatGold(event.entryFee) : '無料';
+    const prizeText = Number(event.prize || 0) > 0 ? formatGold(event.prize) : 'なし';
+    const collectedText = formatGold(event.collectedEntryFeePs);
     const status = eventStatusLabel(event.status);
     const participants = Array.isArray(event.participants) ? event.participants : [];
     const participantNames = participants.length
@@ -96,6 +104,7 @@ function renderEventCard(event, playFabId) {
         : '参加者なし';
     const hostName = event.hostDisplayName || event.hostPlayFabId || '-';
     const description = event.description || '説明はありません。';
+    const sponsorNote = event.sponsorNote || DEFAULT_SPONSOR_NOTE;
 
     card.innerHTML = `
         <div class="event-card-head">
@@ -113,6 +122,7 @@ function renderEventCard(event, playFabId) {
             <span>集金 ${escapeHtml(collectedText)}</span>
             <span>${event.participantCount || 0}/${event.capacity || 0}</span>
         </div>
+        <div class="event-sponsor-note">${escapeHtml(sponsorNote)}</div>
         <p class="event-card-desc">${escapeHtml(description)}</p>
         <div class="event-card-participants">${escapeHtml(participantNames)}</div>
         <div class="event-card-actions"></div>
@@ -123,7 +133,7 @@ function renderEventCard(event, playFabId) {
         const joinBtn = document.createElement('button');
         joinBtn.type = 'button';
         joinBtn.className = 'event-action-btn is-join';
-        joinBtn.textContent = Number(event.entryFee || 0) > 0 ? `${event.entryFee} PSで参加` : '参加する';
+        joinBtn.textContent = Number(event.entryFee || 0) > 0 ? `${formatGold(event.entryFee)}で参加` : '参加する';
         joinBtn.addEventListener('click', async () => {
             await joinEvent(playFabId, event.id);
         });
@@ -135,16 +145,23 @@ function renderEventCard(event, playFabId) {
         actions.appendChild(joined);
     }
     if (event.canApprove) {
+        const sponsorInput = document.createElement('input');
+        sponsorInput.type = 'text';
+        sponsorInput.className = 'event-sponsor-input';
+        sponsorInput.maxLength = 120;
+        sponsorInput.placeholder = DEFAULT_SPONSOR_NOTE;
+        sponsorInput.value = event.sponsorNote || DEFAULT_SPONSOR_NOTE;
+        actions.appendChild(sponsorInput);
         const approveBtn = document.createElement('button');
         approveBtn.type = 'button';
         approveBtn.className = 'event-action-btn is-approve';
         approveBtn.textContent = '承認';
-        approveBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, true));
+        approveBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, true, sponsorInput.value));
         const rejectBtn = document.createElement('button');
         rejectBtn.type = 'button';
         rejectBtn.className = 'event-action-btn is-reject';
         rejectBtn.textContent = '却下';
-        rejectBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, false));
+        rejectBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, false, sponsorInput.value));
         actions.append(approveBtn, rejectBtn);
     }
     if (!actions.childNodes.length) {
@@ -227,11 +244,11 @@ async function joinEvent(playFabId, eventId) {
     }
 }
 
-async function approveEvent(playFabId, eventId, approve) {
+async function approveEvent(playFabId, eventId, approve, sponsorNote = DEFAULT_SPONSOR_NOTE) {
     try {
-        const data = await requestApproveEvent(playFabId, eventId, approve, { throwOnError: true });
+        const data = await requestApproveEvent(playFabId, eventId, approve, { sponsorNote }, { throwOnError: true });
         if (data?.success) {
-            setMessage(approve ? 'イベントを承認しました。' : 'イベントを却下しました。');
+            setMessage(approve ? 'イベントを承認し、全体チャットへ告知しました。' : 'イベントを却下しました。');
             await loadEvents(playFabId);
         }
     } catch (error) {

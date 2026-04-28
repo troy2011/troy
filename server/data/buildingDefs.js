@@ -28,7 +28,7 @@ const buildingCategories = {
  * slotsRequired: 必要なスロット数（1=小施設、2=中施設、4=大施設、9=巨大施設）
  * buildTime: 建設時間（秒）
  * cost: 建設コスト（PlayFab仮想通貨コード）
- *   - PS: Ps（メイン通貨）
+ *   - PS: ゴールド（メイン通貨）
  * tileIndex: スプライトシート上のフレーム番号（buildings.png、32x32、32列）
  * sizeLogic: 占有サイズ（スロット単位）{ x, y }
  * sizeVisual: 見た目サイズ（スロット単位）{ x, y }

@@ -2550,7 +2550,7 @@ function initializeNationRoutes(app, deps) {
                 type: 'treasury_raid',
                 publicLevel: 'global',
                 summary: `${getNationLabel(context.nation)}が${getNationLabel(defenderNation)}の国庫を襲撃`,
-                details: `${raidAmount.toLocaleString()} PS を奪取。${rewardDetails}城壁は ${NATION_WAR_POST_RAID_WALLS}% まで復旧し、再襲撃は ${Math.floor(NATION_WAR_POST_RAID_COOLDOWN_MS / 60000)} 分後まで不可。`,
+                details: `${raidAmount.toLocaleString()}Gを奪取。${rewardDetails}城壁は ${NATION_WAR_POST_RAID_WALLS}% まで復旧し、再襲撃は ${Math.floor(NATION_WAR_POST_RAID_COOLDOWN_MS / 60000)} 分後まで不可。`,
                 participants: [context.nation, defenderNation],
                 attackerNation: context.nation,
                 defenderNation
@@ -2997,7 +2997,7 @@ function initializeNationRoutes(app, deps) {
                 `注文者: ${buyerName}`,
                 `内容: ${orderLine}`,
                 `金額: ${priceLabel}`,
-                `今回付与: ${grantAmount.toLocaleString('ja-JP')} Ps`,
+                `今回付与: ${grantAmount.toLocaleString('ja-JP')}G`,
                 `未会計合計: ¥${nextTotal.toLocaleString('ja-JP')}`
             ].join('\n');
 
@@ -3095,7 +3095,7 @@ function initializeNationRoutes(app, deps) {
                         subtractError?.apiErrorInfo?.apiError === 'InsufficientFunds'
                         || String(subtractMessage).includes('InsufficientFunds')
                     ) {
-                        return res.status(409).json({ error: 'GrantedPsAlreadyUsed', details: '付与済みPSを消費しているため取り消せません。' });
+                        return res.status(409).json({ error: 'GrantedPsAlreadyUsed', details: '付与済みゴールドを消費しているため取り消せません。' });
                     }
                     return res.status(500).json({ error: 'FailedToRevertPs', details: subtractMessage });
                 }
@@ -3214,7 +3214,7 @@ function initializeNationRoutes(app, deps) {
                             `注文者: ${buyerName}`,
                             `取消内容: ${orderLine}`,
                             `取消金額: ¥${lineTotal.toLocaleString('ja-JP')}`,
-                            lastItem.grantedPs > 0 ? `戻しPS: ${Math.max(0, Math.floor(Number(lastItem.grantedPs) || 0)).toLocaleString('ja-JP')} Ps` : null,
+                            lastItem.grantedPs > 0 ? `戻しゴールド: ${Math.max(0, Math.floor(Number(lastItem.grantedPs) || 0)).toLocaleString('ja-JP')}G` : null,
                             remainingTotal > 0
                                 ? `未会計合計: ¥${remainingTotal.toLocaleString('ja-JP')} (${remainingItems}点)`
                                 : '未会計合計: なし'
@@ -3388,7 +3388,7 @@ function initializeNationRoutes(app, deps) {
                             `入店者: ${name}`,
                             '内容: 入店チャージ',
                             '金額: ¥500',
-                            `今回付与: ${entryChargeGrantAmount.toLocaleString('ja-JP')} Ps`,
+                            `今回付与: ${entryChargeGrantAmount.toLocaleString('ja-JP')}G`,
                             `未会計合計: ¥${Math.max(0, Number(checkoutPayload?.total) || 500).toLocaleString('ja-JP')}`
                         ].join('\n');
                         await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
@@ -3558,7 +3558,7 @@ function initializeNationRoutes(app, deps) {
                 if (String(addMessage).includes('EntityKeyNotFound')) {
                     return res.status(400).json({ error: '受取人のアカウントが見つかりません。' });
                 }
-                return res.status(500).json({ error: 'Failed to add PS', details: addError?.errorMessage || addError?.message });
+                return res.status(500).json({ error: 'Failed to add gold', details: addError?.errorMessage || addError?.message });
             }
 
             let treasuryUpdated = true;
@@ -3653,7 +3653,7 @@ function initializeNationRoutes(app, deps) {
                 return res.status(403).json({ error: 'NotKing' });
             }
             console.error('[king-grant-ps] Error:', msg);
-            res.status(500).json({ error: 'Failed to grant PS', details: msg });
+            res.status(500).json({ error: 'Failed to grant gold', details: msg });
         }
     });
 
@@ -3693,10 +3693,12 @@ function initializeNationRoutes(app, deps) {
                     currentTotal: checkoutPayload.total
                 });
             }
+            const coinDepositAmount = Math.min(1000000, Math.max(0, Math.floor(Number(req.body?.coinDepositAmount) || 0)));
 
             const settleBaseId = requestId
                 || `troy-settle:${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
             const idempotencyFor = (suffix) => `${settleBaseId}:${suffix}`;
+            const checkoutStableId = `${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
 
             let grantAmount = 0;
             let cashbackRateBps = 0;
@@ -3725,6 +3727,26 @@ function initializeNationRoutes(app, deps) {
                     grantError = grantIssue?.errorMessage || grantIssue?.message || String(grantIssue);
                     console.warn('[king-settle-troy-checkout] Legacy grant failed:', grantError);
                     return res.status(500).json({ error: 'FailedToGrantPs', details: grantError });
+                }
+            }
+
+            let coinDepositApplied = false;
+            let coinDepositError = null;
+            if (coinDepositAmount > 0) {
+                try {
+                    await addEconomyItem(receiverId, 'PS', coinDepositAmount, { idempotencyId: `troy-coin-deposit:${checkoutStableId}:${coinDepositAmount}` });
+                    coinDepositApplied = true;
+                    if (getCurrencyBalance) {
+                        const receiverBalance = await getCurrencyBalance(receiverId, 'PS');
+                        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                            PlayFabId: receiverId,
+                            Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                        });
+                    }
+                } catch (coinIssue) {
+                    coinDepositError = coinIssue?.errorMessage || coinIssue?.message || String(coinIssue);
+                    console.warn('[king-settle-troy-checkout] Coin deposit failed:', coinDepositError);
+                    return res.status(500).json({ error: 'FailedToDepositCoin', details: coinDepositError });
                 }
             }
 
@@ -3771,7 +3793,7 @@ function initializeNationRoutes(app, deps) {
 
             pushDisplayEvent({
                 type: 'flare',
-                label: `会計済: ${checkoutPayload.displayName}`
+                label: `会計済: ${checkoutPayload.displayName}${coinDepositAmount > 0 ? ` / 預かり ${coinDepositAmount}G` : ''}`
             });
 
             res.json({
@@ -3786,6 +3808,9 @@ function initializeNationRoutes(app, deps) {
                 treasuryPs,
                 grantApplied,
                 grantError,
+                coinDepositAmount,
+                coinDepositApplied,
+                coinDepositError,
                 settledStatus: checkoutPayload.status,
                 troyTodaySales
             });

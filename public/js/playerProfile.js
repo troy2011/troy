@@ -210,7 +210,7 @@ function updateProfileActionState() {
 
     if (transferButton) {
         transferButton.disabled = !loaded || isSelf;
-        transferButton.textContent = isSelf ? '自分には送れない' : 'PS送金';
+        transferButton.textContent = isSelf ? '自分には送れない' : 'ゴールド送金';
     }
     if (favoriteButton) {
         favoriteButton.disabled = !loaded || isSelf;
@@ -287,7 +287,7 @@ async function executeProfileTransfer(amount) {
     const bountyNote = data?.bountyShortage
         ? ' 賞金は不足分を除いて移動しました。'
         : '';
-    showRpgMessage(`${targetName} に ${amount}Ps 送りました。${bountyNote}`.trim(), 2600);
+    showRpgMessage(`${targetName} に ${amount}G送りました。${bountyNote}`.trim(), 2600);
     const Player = await import('./player.js');
     await Player.getPoints(myPlayFabId);
     await Player.getRanking();

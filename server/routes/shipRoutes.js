@@ -158,7 +158,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         }
     };
     const RESOURCE_LABELS = {
-        [VIRTUAL_CURRENCY_CODE]: 'Ps',
+        [VIRTUAL_CURRENCY_CODE]: 'G',
         RR: '🧨',
         RG: '🪨',
         RY: '🍄',

@@ -16,6 +16,7 @@ import {
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
+import { formatCurrencyLabel } from './config.js';
 
 let _isKing = false;
 let _lastPageData = null;
@@ -48,7 +49,7 @@ function _escapeHtml(value) {
 function _formatTreasuryAmount(amount, currency, direction = 'in') {
     const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
     const sign = direction === 'out' ? '-' : '+';
-    return `${sign}${safeAmount.toLocaleString()} ${String(currency || 'PS').toUpperCase()}`;
+    return `${sign}${safeAmount.toLocaleString()} ${formatCurrencyLabel(currency || 'PS')}`;
 }
 
 function _formatRatePercentFromBps(rateBps) {
@@ -111,8 +112,8 @@ function _renderPendingTroyCheckouts(entries = []) {
             totalItems ? `${totalItems}点` : ''
         ].filter(Boolean).join(' / ');
         const grantMeta = grantTotal > 0
-            ? `PS即時付与済み ${grantTotal.toLocaleString('ja-JP')} Ps`
-            : (status === 'pending' ? 'PSは会計時に付与されます' : '');
+            ? `ゴールド即時付与済み ${grantTotal.toLocaleString('ja-JP')}G`
+            : (status === 'pending' ? 'ゴールドは会計時に付与されます' : '');
         const items = (Array.isArray(entry.items) ? entry.items : []).slice(0, 4).map((item) => `
             <div class="king-pending-checkout-item-row">
                 <span>${_escapeHtml(item.name || '')}${Number(item.quantity || 0) > 1 ? ` x${Math.max(1, Number(item.quantity) || 1)}` : ''}</span>
@@ -130,9 +131,15 @@ function _renderPendingTroyCheckouts(entries = []) {
                     <div class="king-pending-checkout-total">¥${total.toLocaleString('ja-JP')}</div>
                 </div>
                 <div class="king-pending-checkout-items">${items || `<div class="king-pending-checkout-item-row"><span>${_escapeHtml(entry.summary || '注文内容なし')}</span></div>`}</div>
+                <label class="king-coin-deposit-row">
+                    <span class="king-coin-deposit-label">預かりコイン</span>
+                    <input type="number" class="king-coin-deposit-input" min="0" step="1" inputmode="numeric" value="0" data-coin-deposit-input="true" aria-label="預かりコイン">
+                    <span class="king-coin-deposit-unit">G</span>
+                </label>
+                <div class="king-coin-deposit-help">店内コインを預かる場合だけ入力</div>
                 <div class="king-pending-checkout-actions">
                     <button type="button" class="btn-open" data-pending-settle="true" data-checkout-status="${_escapeHtml(status)}" data-receiver-id="${_escapeHtml(entry.playFabId)}" data-amount="${total}">
-                        会計済みにする
+                        会計 + ゴールド化
                     </button>
                 </div>
             </div>
@@ -251,7 +258,7 @@ function _renderNationWar(war = null) {
             <div class="king-war-enemy-card">
                 <div class="king-war-enemy-head">
                     <strong>${_escapeHtml(entry.label || '')}</strong>
-                    <span>国庫 ${Number(entry.treasuryPs || 0).toLocaleString()} PS</span>
+                    <span>国庫 ${Number(entry.treasuryPs || 0).toLocaleString()}G</span>
                 </div>
                 <div class="king-war-enemy-parts">
                     ${(Array.isArray(entry.capitalStatus) ? entry.capitalStatus : []).map((part) => `
@@ -259,7 +266,7 @@ function _renderNationWar(war = null) {
                     `).join('')}
                 </div>
                 <div class="king-war-enemy-foot">
-                    <span>${entry.raidEligible ? `襲撃可能 / 推定 ${Number(entry.raidExpectedPs || 0).toLocaleString()} PS` : `襲撃不可 / 推定 ${Number(entry.raidRatePercent || 0).toLocaleString()}%`} / ${entry.capitalCapture?.raidUnlocked ? '制圧完了' : (entry.capitalCapture?.raidCooldownActive ? `再襲撃防衛中 ${_formatDuration(entry.capitalCapture.raidCooldownRemainingMs)}` : (entry.capitalCapture?.status === 'capturing' ? `制圧中 ${entry.capitalCapture.queueCount || 0}/${entry.capitalCapture.slotLimit || 0}` : (entry.capitalCapture?.breached ? '上陸可' : '未突破')))}</span>
+                    <span>${entry.raidEligible ? `襲撃可能 / 推定 ${Number(entry.raidExpectedPs || 0).toLocaleString()}G` : `襲撃不可 / 推定 ${Number(entry.raidRatePercent || 0).toLocaleString()}%`} / ${entry.capitalCapture?.raidUnlocked ? '制圧完了' : (entry.capitalCapture?.raidCooldownActive ? `再襲撃防衛中 ${_formatDuration(entry.capitalCapture.raidCooldownRemainingMs)}` : (entry.capitalCapture?.status === 'capturing' ? `制圧中 ${entry.capitalCapture.queueCount || 0}/${entry.capitalCapture.slotLimit || 0}` : (entry.capitalCapture?.breached ? '上陸可' : '未突破')))}</span>
                     <button type="button" class="king-war-action-btn is-attack" data-war-action="raid" data-target-nation="${_escapeHtml(entry.nation)}" ${entry.raidEligible ? '' : 'disabled'}>国庫襲撃</button>
                 </div>
             </div>
@@ -286,13 +293,13 @@ function _renderNationWar(war = null) {
     if (deploySelectEl) {
         const rows = Array.isArray(war.deployWeapons) ? war.deployWeapons : [];
         deploySelectEl.innerHTML = rows.length ? rows.map((entry) => `
-            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()} PS${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
+            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()}G${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
         `).join('') : '<option value="">配備可能な兵器がありません</option>';
     }
     if (strikeWeaponEl) {
         const rows = Array.isArray(war.strikeWeapons) ? war.strikeWeapons : [];
         strikeWeaponEl.innerHTML = rows.length ? rows.map((entry) => `
-            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()} PS${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
+            <option value="${_escapeHtml(entry.id)}">${_escapeHtml(entry.label)} / ${Number(entry.costPs || 0).toLocaleString()}G${entry.cooldownRemainingMs > 0 ? ` / CT ${_escapeHtml(_formatDuration(entry.cooldownRemainingMs))}` : ''}</option>
         `).join('') : '<option value="">攻撃兵器がありません</option>';
     }
     if (strikeTargetNationEl) {
@@ -389,7 +396,7 @@ export async function loadKingPage(playFabId) {
 
     if (treasuryEl) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
-        treasuryEl.innerText = `国庫: ${treasuryPs} Ps`;
+        treasuryEl.innerText = `国庫: ${treasuryPs}G`;
     }
     if (cashbackRateEl) {
         const rank = Math.max(1, Number(data.treasuryRank) || 1);
@@ -411,7 +418,7 @@ export async function loadKingPage(playFabId) {
     if (previewEl && grantAmountEl) {
         const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
         previewEl.innerText = p.gross > 0
-            ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+            ? `受取人: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
             : '';
     }
     _renderNationWar(data.war);
@@ -484,7 +491,7 @@ function _wireHandlers(playFabId) {
                 : 0;
             const p = _grantPreview(grantAmountEl.value, rateBps);
             previewEl.innerText = p.gross > 0
-                ? `受取人: ${p.grant} Ps / 国庫: ${p.gross} Ps / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+                ? `受取人: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
                 : '';
         });
     }
@@ -518,7 +525,7 @@ function _wireHandlers(playFabId) {
                 _setMessage('付与総額は1以上を入力してください。', true);
                 return;
             }
-            if (!confirm(`¥${Math.floor(amount)} を受領し、受取人に PS を付与します。実行しますか？`)) return;
+            if (!confirm(`¥${Math.floor(amount)} を受領し、受取人にゴールドを付与します。実行しますか？`)) return;
 
             const nextAmount = Math.floor(amount);
             const previousLabel = grantBtn.innerText;
@@ -530,7 +537,7 @@ function _wireHandlers(playFabId) {
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount, requestId);
                 if (result) {
                     const rankLabel = Math.max(1, Number(result.treasuryRank) || 1);
-                    const baseMessage = `付与しました（受取: ${result.grantAmount} Ps / 国庫: ${result.receivedAmount} Ps / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
+                    const baseMessage = `付与しました（受取: ${result.grantAmount}G / 国庫: ${result.receivedAmount}G / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
                     if (result.treasuryUpdated === false) {
                         _setMessage(`${baseMessage} 国庫更新に失敗しました: ${result.treasuryError || 'Unknown error'}`, true);
                     } else {
@@ -560,35 +567,45 @@ function _wireHandlers(playFabId) {
             const receiverPlayFabId = String(button.getAttribute('data-receiver-id') || '').trim();
             const expectedTotal = Math.max(0, Math.floor(Number(button.getAttribute('data-amount')) || 0));
             const checkoutStatus = String(button.getAttribute('data-checkout-status') || 'open').trim().toLowerCase();
+            const card = button.closest('.king-pending-checkout-card');
+            const depositInput = card?.querySelector('[data-coin-deposit-input="true"]');
+            const coinDepositAmount = Math.max(0, Math.floor(Number(depositInput?.value) || 0));
             if (!receiverPlayFabId || expectedTotal <= 0) {
                 _setMessage('会計対象の情報が不正です。', true);
                 return;
             }
+            const depositNote = coinDepositAmount > 0
+                ? `\n預かりコイン ${coinDepositAmount.toLocaleString('ja-JP')}G をゴールド化します。`
+                : '';
             const confirmMessage = checkoutStatus === 'pending'
-                ? `¥${expectedTotal.toLocaleString('ja-JP')} の旧会計を確定して、PS付与と国庫反映を実行しますか？`
-                : `¥${expectedTotal.toLocaleString('ja-JP')} の会計を会計済みにして、国庫へ反映しますか？`;
+                ? `¥${expectedTotal.toLocaleString('ja-JP')} の旧会計を確定して、ゴールド付与と国庫反映を実行しますか？${depositNote}`
+                : `¥${expectedTotal.toLocaleString('ja-JP')} の会計を会計済みにして、国庫へ反映しますか？${depositNote}`;
             if (!confirm(confirmMessage)) return;
 
             const previous = button.innerText;
             button.setAttribute('disabled', 'disabled');
+            if (depositInput) depositInput.setAttribute('disabled', 'disabled');
             button.innerText = '反映中...';
             try {
                 const requestId = createRequestId('king-settle-troy-checkout');
-                const result = await settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId);
+                const result = await settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, { coinDepositAmount });
                 const rankLabel = Number.isFinite(Number(result?.treasuryRank)) ? Math.max(1, Number(result.treasuryRank)) : null;
                 const grantLabel = Math.max(0, Number(result?.grantAmount) || 0);
+                const coinDepositLabel = Math.max(0, Number(result?.coinDepositAmount) || coinDepositAmount);
                 const grantNote = grantLabel > 0
-                    ? ` / PS追加付与: ${grantLabel} Ps / 還元率: ${_formatRatePercentFromBps(result?.cashbackRateBps || 0)}`
+                    ? ` / ゴールド追加付与: ${grantLabel}G / 還元率: ${_formatRatePercentFromBps(result?.cashbackRateBps || 0)}`
                     : '';
+                const coinDepositNote = coinDepositLabel > 0 ? ` / 預かりコイン: ${coinDepositLabel.toLocaleString('ja-JP')}G` : '';
                 const rankNote = rankLabel ? ` / 国庫${rankLabel}位` : '';
                 const todaySalesTotal = Math.max(0, Number(result?.troyTodaySales?.total) || 0);
                 const todaySalesNote = todaySalesTotal > 0 ? ` / 本日売上: ¥${todaySalesTotal.toLocaleString('ja-JP')}` : '';
-                _setMessage(`会計済みにしました（国庫反映: ${result?.receivedAmount || expectedTotal} Ps${grantNote}${rankNote}${todaySalesNote}）。`);
+                _setMessage(`会計済みにしました（国庫反映: ${result?.receivedAmount || expectedTotal}G${grantNote}${coinDepositNote}${rankNote}${todaySalesNote}）。`);
                 await loadKingPage(playFabId);
             } catch (error) {
                 _setMessage(_extractErrorMessage(error, '会計処理に失敗しました。'), true);
             } finally {
                 button.removeAttribute('disabled');
+                if (depositInput) depositInput.removeAttribute('disabled');
                 button.innerText = previous;
             }
         });

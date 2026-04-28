@@ -53,7 +53,7 @@ function selectPaymentMethod(message = '支払い方法を選択してくださ�
         panel.innerHTML = `
             <div style="font-size:14px; margin-bottom:12px;">${message}</div>
             <div style="display:flex; gap:8px;">
-                <button id="payWithPsBtn" style="flex:1; padding:8px;">PSで支払う</button>
+                <button id="payWithPsBtn" style="flex:1; padding:8px;">ゴールドで支払う</button>
                 <button id="payWithResourceBtn" style="flex:1; padding:8px;">資源で支払う</button>
             </div>
             <div style="margin-top:10px; text-align:right;">
@@ -1024,7 +1024,7 @@ export function showBuildingMenu(island, playFabId) {
                 ${(hasBuilding && isOwnNation && allowHotSpring) ? `
                 <div class="building-actions">
                     <div class="resource-title">温泉</div>
-                    <div class="resource-row">入浴（${Number(island.hotSpringPrice || 200)} Ps）でHPを回復</div>
+                    <div class="resource-row">入浴（${Number(island.hotSpringPrice || 200)}G）でHPを回復</div>
                     ${isOwner ? `
                     <div class="resource-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                         <label>価格 <input id="hotSpringPriceInput" type="number" min="1" step="1" value="${Number(island.hotSpringPrice || 200)}" style="width:80px;"></label>
@@ -1596,7 +1596,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                         <div class="building-details">
                             <div class="building-name">${escapeHtml(item.name)}</div>
                             ${comparison}
-                            <div class="building-description">在庫: ${item.count} / 買い取り: ${price} Ps</div>
+                            <div class="building-description">在庫: ${item.count} / 買い取り: ${price}G</div>
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">
                             <button class="btn-build btn-sell-to-shop" data-instance-id="${instanceId}" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>売る</button>
@@ -1643,7 +1643,7 @@ async function loadShopPanels(sheet, island, shopConfig, playFabId) {
                             ${statLine}
                             ${descriptionLine}
                             ${comparison}
-                            <div class="building-description">在庫: ${item.count} / 価格: ${price} Ps</div>
+                            <div class="building-description">在庫: ${item.count} / 価格: ${price}G</div>
                         </div>
                         <div style="display:flex; gap:6px; align-items:center;">
                             <button class="btn-build btn-buy-from-shop" data-item-id="${item.itemId}" ${price > 0 ? '' : 'disabled'}>買う</button>

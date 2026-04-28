@@ -221,7 +221,7 @@ function initializeEconomyRoutes(app, deps) {
         }
     };
 
-    // ポイント取得
+    // ゴールド取得
     app.post('/api/get-points', async (req, res) => {
         const playFabId = req.body.playFabId;
         if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
@@ -240,13 +240,13 @@ function initializeEconomyRoutes(app, deps) {
             });
         } catch (error) {
             res.status(500).json({
-                error: 'ポイント取得に失敗しました。',
+                error: 'ゴールド取得に失敗しました。',
                 details: error.errorMessage || error.message
             });
         }
     });
 
-    // ポイント追加
+    // ゴールド追加
     app.post('/api/add-points', async (req, res) => {
         const { playFabId, amount } = req.body;
         if (!playFabId || !amount) {
@@ -263,15 +263,15 @@ function initializeEconomyRoutes(app, deps) {
             });
             res.json({ newBalance });
         } catch (error) {
-            console.error('ポイント追加失敗:', error.errorMessage || error.message || error);
+            console.error('ゴールド追加失敗:', error.errorMessage || error.message || error);
             res.status(500).json({
-                error: 'ポイント追加に失敗しました。',
+                error: 'ゴールド追加に失敗しました。',
                 details: error.errorMessage || error.message
             });
         }
     });
 
-    // ポイント消費
+    // ゴールド消費
     app.post('/api/use-points', async (req, res) => {
         const { playFabId, amount } = req.body;
         if (!playFabId || !amount) {
@@ -289,11 +289,11 @@ function initializeEconomyRoutes(app, deps) {
             res.json({ newBalance });
         } catch (error) {
             if (error.apiErrorInfo && error.apiErrorInfo.apiError === 'InsufficientFunds') {
-                return res.status(400).json({ error: 'ポイントが不足しています。' });
+                return res.status(400).json({ error: 'ゴールドが不足しています。' });
             }
-            console.error('ポイント消費失敗:', error.errorMessage || error.message || error);
+            console.error('ゴールド消費失敗:', error.errorMessage || error.message || error);
             res.status(500).json({
-                error: 'ポイント消費に失敗しました。',
+                error: 'ゴールド消費に失敗しました。',
                 details: error.errorMessage || error.message
             });
         }
@@ -374,7 +374,7 @@ function initializeEconomyRoutes(app, deps) {
         }
     });
 
-    // ポイント送金
+    // ゴールド送金
     app.post('/api/transfer-points', async (req, res) => {
         const normalizePlayFabId = (value) => {
             const raw = String(value || '').trim();
@@ -458,11 +458,11 @@ function initializeEconomyRoutes(app, deps) {
                         getDisplayName(toId),
                         getDisplayName(authenticatedPlayFabId)
                     ]);
-                    addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}PS勝ち取った！`, 'システム');
+                    addGlobalChatMessage(`「${toName}」は「${fromName}」から${amountInt}G勝ち取った！`, 'システム');
                     pushDisplayEvent({
                         type: 'boom',
                         topic: 'ps-transfer',
-                        label: `奪取: ${toName} ← ${fromName} ${amountInt}Ps`
+                        label: `奪取: ${toName} ← ${fromName} ${amountInt}G`
                     });
                 } catch (chatError) {
                     console.warn('[transfer-points] Failed to publish global chat:', chatError?.message || chatError);
@@ -501,7 +501,7 @@ function initializeEconomyRoutes(app, deps) {
                 return res.status(400).json({ error: hint });
             }
             if (subtractError.apiErrorInfo && subtractError.apiErrorInfo.apiError === 'InsufficientFunds') {
-                return res.status(400).json({ error: 'ポイントが不足しています。' });
+                return res.status(400).json({ error: 'ゴールドが不足しています。' });
             }
             console.error('送金に失敗:', subtractError.errorMessage || subtractError.message || subtractError);
             res.status(500).json({ error: '送金に失敗しました。', details: subtractError.errorMessage || subtractError.message });

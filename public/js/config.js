@@ -36,7 +36,7 @@ export const AVATAR_PART_OFFSETS = {
 };
 
 export const CURRENCY_EMOJI = {
-    PS: 'PS',
+    PS: 'G',
     RR: '🧨',
     RG: '🪨',
     RY: '🍄',

@@ -2772,7 +2772,7 @@ function applyBetAction(ownerKey, action) {
         if (toCall <= 0) return { ok: false, message: 'コール不要です。' };
         const controllerResult = registerControllerAction();
         if (!controllerResult.ok) return controllerResult;
-        if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: 'ポイント不足でコールできません。' };
+        if (!addBetToPot(ownerKey, toCall)) return { ok: false, message: 'ゴールド不足でコールできません。' };
         betting.checks[ownerKey] = false;
         pushLog(`${actorName} はコール (${formatTestPoint(toCall)})。`);
         if (isBettingRoundComplete()) {
@@ -2788,7 +2788,7 @@ function applyBetAction(ownerKey, action) {
         const controllerResult = registerControllerAction();
         if (!controllerResult.ok) return controllerResult;
         const amount = betting.minBet;
-        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ポイント不足でベットできません。' };
+        if (!addBetToPot(ownerKey, amount)) return { ok: false, message: 'ゴールド不足でベットできません。' };
         betting.currentBet = betting.contributions[ownerKey];
         Object.keys(betting.checks || {}).forEach((key) => {
             betting.checks[key] = false;
@@ -2803,7 +2803,7 @@ function applyBetAction(ownerKey, action) {
         if (raiseCost <= 0) return { ok: false, message: 'レイズ額を計算できません。' };
         const controllerResult = registerControllerAction();
         if (!controllerResult.ok) return controllerResult;
-        if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: 'ポイント不足でレイズできません。' };
+        if (!addBetToPot(ownerKey, raiseCost)) return { ok: false, message: 'ゴールド不足でレイズできません。' };
         betting.currentBet = betting.contributions[ownerKey];
         Object.keys(betting.checks || {}).forEach((key) => {
             betting.checks[key] = false;
@@ -4765,7 +4765,7 @@ function getDailyFortuneRewardText(result) {
         return `「${rewardItemName}」を受け取った。${skillPart}${deckPart}`;
     }
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
-    return `+${reward}Ps`;
+    return `+${reward}G`;
 }
 
 function renderDailyFortuneResult(result, options = {}) {

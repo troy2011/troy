@@ -627,7 +627,7 @@ export function selectPaymentMethod(message = '支払い方法を選択してく
         panel.innerHTML = `
             <div style="font-size:14px; margin-bottom:12px;">${message}</div>
             <div style="display:flex; gap:8px;">
-                <button id="payWithPsBtn" style="flex:1; padding:8px;">PSで支払う</button>
+                <button id="payWithPsBtn" style="flex:1; padding:8px;">ゴールドで支払う</button>
                 <button id="payWithResourceBtn" style="flex:1; padding:8px;">資源で支払う</button>
             </div>
             <div style="margin-top:10px; text-align:right;">

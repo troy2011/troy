@@ -16,7 +16,7 @@
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
-    <title>TROYポイントアプリ</title>
+    <title>TROYゴールドアプリ</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/island.css">
 </head>
@@ -31,7 +31,7 @@
                     <span id="globalPlayerName">Player</span>
                 </div>
                 <div class="currency-display">
-                    <b id="globalPoints">?</b> Ps
+                    <b id="globalPoints">?</b>G
                 </div>
             </div>
         </div>
@@ -45,7 +45,14 @@
                             <span class="home-ps-lamp" aria-hidden="true"></span>
                             <div class="home-ps-icon">💰</div>
                             <div class="home-ps-meta">
-                            <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">0</span></span><span class="home-ps-unit">PS</span></div>
+                                <div class="home-ps-value"><span class="home-ps-slit"><span id="currentPoints" class="home-ps-slit-value">0</span></span><span class="home-ps-unit">G</span></div>
+                                <div class="home-specialty-row" aria-label="特産品の所有数">
+                                    <span class="home-specialty-label">特産品</span>
+                                    <span class="home-specialty-chip" title="火薬系"><span>🧨</span><b id="homeSpecialtyRR">0</b></span>
+                                    <span class="home-specialty-chip" title="石材系"><span>🪨</span><b id="homeSpecialtyRG">0</b></span>
+                                    <span class="home-specialty-chip" title="キノコ系"><span>🍄</span><b id="homeSpecialtyRY">0</b></span>
+                                    <span class="home-specialty-chip" title="水系"><span>🫙</span><b id="homeSpecialtyRB">0</b></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -109,7 +116,7 @@
                 <div class="content-area home-transfer-card home-card">
                     <div class="home-card-header">
                         <span class="home-card-emoji">↗</span>
-                        <span class="home-card-title">PS 送金</span>
+                        <span class="home-card-title">ゴールド送金</span>
                     </div>
                     <div class="transfer-quick-row">
                         <button class="transfer-quick-btn" data-amount="100">100</button>
@@ -119,7 +126,7 @@
                     </div>
                     <div class="transfer-input-row">
                         <input type="number" id="transferAmount" placeholder="手入力" value="0" />
-                        <span>PS</span>
+                        <span>G</span>
                     </div>
                     <button id="btnScanPay" class="transfer-send-btn">渡す</button>
                     <p class="home-card-note">金額を決めて相手の QR を読み取ります。</p>
@@ -136,7 +143,7 @@
                         </button>
                         <button class="home-shortcut-btn home-shortcut-btn-secondary" type="button" onclick="showTab('ranking')">
                             <span class="home-shortcut-main">順位を見る</span>
-                            <span class="home-shortcut-sub">PS / 貢献 / 国庫</span>
+                            <span class="home-shortcut-sub">ゴールド / 貢献 / 国庫</span>
                         </button>
                         <button id="btnCopyInviteLink" class="home-shortcut-btn home-shortcut-btn-secondary" type="button">
                             <span class="home-shortcut-main">招待URLをコピー</span>
@@ -241,7 +248,7 @@
                                     <button id="btnKingReload" class="btn-muted">再読み込み</button>
                                 </div>
                             </div>
-                            <div class="troy-admin-help">現金支払いの一部がPSとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がPSで加算されます。</div>
+                            <div class="troy-admin-help">現金支払いの一部がゴールドとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がゴールドで加算されます。</div>
                             <div id="kingTreasuryInfo" class="king-help-text"></div>
                             <div id="kingTreasurySummary" class="king-treasury-summary"></div>
                             <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
@@ -304,8 +311,9 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">数量を選んでそのまま注文できます。PSは注文ごとに即時付与され、支払いは最後にまとめて行います。</div>
-                        <div id="troyOrderStatusInline" class="troy-order-inline-status">注文ごとにPSが即時付与されます。支払いは最後にまとめて行います。</div>
+                        <div class="troy-menu-note">数量を選んでそのまま注文できます。ゴールドは注文ごとに即時付与され、支払いは最後にまとめて行います。</div>
+                        <div id="troyOrderStatusInline" class="troy-order-inline-status">注文ごとにゴールドが即時付与されます。支払いは最後にまとめて行います。</div>
+                        <div class="troy-coin-note">店内コインを使った場合は、退店時に王へ預けてゴールド化してください。</div>
                         <div id="troyOpenTabCard" class="troy-open-tab-card">
                             <div class="troy-open-tab-head">
                                 <div class="troy-open-tab-head-main">
@@ -326,7 +334,7 @@
                                     <li class="troy-menu-item-button" data-menu-id="nonalcohol">ノンアル</li>
                                     <li class="troy-menu-item-button" data-menu-id="alcohol">アルコール</li>
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
-                                    <li class="troy-menu-item-button" data-menu-id="points">ポイント</li>
+                                    <li class="troy-menu-item-button" data-menu-id="points">ゴールド</li>
                                 </ul>
                             </li>
                         </ul>
@@ -618,18 +626,19 @@
                             <label>タイトル<input id="eventTitle" type="text" maxlength="80" placeholder="例: 金曜ダーツ大会"></label>
                             <label>種目
                                 <select id="eventType">
-                                    <option value="billiards">ビリヤード</option>
                                     <option value="darts">ダーツ</option>
-                                    <option value="tournament">大会</option>
-                                    <option value="party">交流会</option>
+                                    <option value="billiards">ビリヤード</option>
+                                    <option value="karaoke">カラオケ</option>
+                                    <option value="tabletennis">卓球</option>
+                                    <option value="poker">ポーカー</option>
                                     <option value="other">その他</option>
                                 </select>
                             </label>
                             <label>開催日時<input id="eventStartsAt" type="datetime-local"></label>
                             <div class="event-form-grid">
                                 <label>定員<input id="eventCapacity" type="number" min="1" max="64" value="8"></label>
-                                <label>参加費PS<input id="eventEntryFee" type="number" min="0" value="0"></label>
-                                <label>賞品PS<input id="eventPrize" type="number" min="0" value="0"></label>
+                                <label>参加費G<input id="eventEntryFee" type="number" min="0" value="0"></label>
+                                <label>賞品G<input id="eventPrize" type="number" min="0" value="0"></label>
                             </div>
                             <label>説明<textarea id="eventDescription" rows="4" maxlength="800" placeholder="ルール、集合時間、賞品など"></textarea></label>
                             <button id="btnCreateEvent" class="event-create-btn" type="button">作成する</button>
@@ -1024,7 +1033,7 @@
                                 <div class="guild-stat">
                                     <span style="color: var(--text-sub);">資金:</span>
                                     <span id="guildTreasury" style="color: var(--hp-color); font-weight: bold;">0</span>
-                                    <span style="color: var(--text-sub);"> Ps</span>
+                                    <span style="color: var(--text-sub);">G</span>
                                 </div>
                                 <div id="guildPendingApplicationsDiv" class="guild-stat" style="display: none;">
                                     <span style="color: var(--text-sub);">申請:</span>
@@ -1074,7 +1083,7 @@
                         </div>
                     </div>
                     <div id="rankingToggleButtons">
-                        <button id="btnShowPsRanking" class="ranking-toggle-btn active">Ps順</button>
+                        <button id="btnShowPsRanking" class="ranking-toggle-btn active">ゴールド順</button>
                         <button id="btnShowBountyRanking" class="ranking-toggle-btn">日次貢献度順</button>
                         <button id="btnShowTreasuryRanking" class="ranking-toggle-btn">国庫順</button>
                     </div>
@@ -1232,12 +1241,12 @@
                 </div>
             </div>
             <div class="player-profile-actions">
-                <button id="btnPlayerProfileTransfer" type="button" class="player-profile-action-btn">PS送金</button>
+                <button id="btnPlayerProfileTransfer" type="button" class="player-profile-action-btn">ゴールド送金</button>
                 <button id="btnPlayerProfileFavorite" type="button" class="player-profile-action-btn">お気に入り</button>
                 <button id="btnPlayerProfileCopyId" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">IDコピー</button>
             </div>
             <div id="playerProfileTransferPanel" class="player-profile-transfer-panel" hidden>
-                <div class="player-profile-transfer-title">このプレイヤーに PS を送る</div>
+                <div class="player-profile-transfer-title">このプレイヤーにゴールドを送る</div>
                 <div class="player-profile-transfer-quick-row">
                     <button type="button" class="player-profile-transfer-quick-btn" data-profile-transfer-amount="100">100</button>
                     <button type="button" class="player-profile-transfer-quick-btn" data-profile-transfer-amount="500">500</button>
@@ -1246,7 +1255,7 @@
                 </div>
                 <div class="player-profile-transfer-input-row">
                     <input id="playerProfileTransferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="手入力" value="0" />
-                    <span>PS</span>
+                    <span>G</span>
                 </div>
                 <div class="player-profile-transfer-actions">
                     <button id="btnPlayerProfileTransferSubmit" type="button" class="player-profile-transfer-submit">送金する</button>
@@ -1329,7 +1338,7 @@
         <div class="modal-content">
             <div style="font-size:40px;">💰</div>
             <h3>送金確認</h3>
-            <div id="modalAmount" style="font-size:24px; color:var(--accent-color); margin:10px 0;">? Ps</div>
+            <div id="modalAmount" style="font-size:24px; color:var(--accent-color); margin:10px 0;">?G</div>
             <p>宛先: <span id="modalReceiverId">...</span></p>
             <div class="modal-buttons">
                 <button id="btnConfirmTransfer" style="background:var(--hp-color);">送る</button>
@@ -1362,7 +1371,7 @@
         <div class="modal-content">
             <h3>売却確認</h3>
             <p><strong id="sellItemName" style="color:#fff;">...</strong></p>
-            <p>売却額: <span id="sellItemPrice" style="color:var(--accent-color); font-size:20px; font-weight:bold;">?</span> Ps</p>
+            <p>売却額: <span id="sellItemPrice" style="color:var(--accent-color); font-size:20px; font-weight:bold;">?</span>G</p>
             <div class="modal-buttons">
                 <button id="btnConfirmSell" style="background:var(--danger-color);">売る</button>
                 <button id="btnCancelSell">やめる</button>
@@ -1438,7 +1447,7 @@
             <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin: 12px 0;">
                 <span style="color: var(--text-sub);">ギルド資金:</span>
                 <span id="warehouseTreasury" style="color: var(--hp-color); font-weight: bold; font-size: 18px;">0</span>
-                <span style="color: var(--text-sub);"> Ps</span>
+                <span style="color: var(--text-sub);">G</span>
             </div>
             <div id="guildWarehouseList" style="margin: 20px 0;">
                 <!-- 倉庫アイテムがここに動的に表示される -->
@@ -1493,9 +1502,9 @@
             <div style="margin: 20px 0;">
                 <label style="display: block; margin-bottom: 8px; color: var(--text-sub);">船種を選択:</label>
                 <select id="shipTypeSelect" style="width: 100%; padding: 10px; border-radius: 4px; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color);">
-                    <option value="Sloop">スループ (小型・高速) - 1000 Ps</option>
-                    <option value="Brigantine">ブリガンティン (中型・バランス) - 3000 Ps</option>
-                    <option value="Galleon">ガレオン (大型・大容量) - 10000 Ps</option>
+                    <option value="Sloop">スループ (小型・高速) - 1000G</option>
+                    <option value="Brigantine">ブリガンティン (中型・バランス) - 3000G</option>
+                    <option value="Galleon">ガレオン (大型・大容量) - 10000G</option>
                 </select>
             </div>
             <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; margin-bottom: 16px;">
