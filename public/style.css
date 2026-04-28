@@ -612,6 +612,10 @@ body[data-sea-tone="night"] .home-hero-card {
     background: linear-gradient(180deg, rgba(36, 31, 59, 0.92), rgba(17, 24, 39, 0.96));
 }
 
+#btnCopyInviteLink {
+    grid-column: 1 / -1;
+}
+
 .line-friend-promo {
     display: flex;
     align-items: center;

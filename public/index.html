@@ -111,7 +111,6 @@
                     <div id="myQrArea" class="home-qr-area">
                         <canvas id="myQrCanvas"></canvas>
                     </div>
-                    <p class="home-card-note">受け取りやスキャン支払いに使います。</p>
                 </div>
                 <div class="content-area home-transfer-card home-card">
                     <div class="home-card-header">
@@ -132,25 +131,16 @@
                         <button id="btnScanPay" class="transfer-send-btn">渡す</button>
                         <button id="btnCoinConvert" class="transfer-coin-btn" type="button">コイン化</button>
                     </div>
-                    <p class="home-card-note">金額を決めて送金、または店内コインに交換します。</p>
                 </div>
                 <div class="content-area home-social-card home-card">
                     <div class="home-card-header">
                         <span class="home-card-emoji">◎</span>
-                        <span class="home-card-title">交流</span>
+                        <span class="home-card-title">招待</span>
                     </div>
                     <div class="home-shortcut-grid">
-                        <button class="home-shortcut-btn" type="button" onclick="showTab('qr')">
-                            <span class="home-shortcut-main">交流を開く</span>
-                            <span class="home-shortcut-sub">QRバトルとギルド</span>
-                        </button>
-                        <button class="home-shortcut-btn home-shortcut-btn-secondary" type="button" onclick="showTab('ranking')">
-                            <span class="home-shortcut-main">順位を見る</span>
-                            <span class="home-shortcut-sub">ゴールド / 貢献 / 国庫</span>
-                        </button>
                         <button id="btnCopyInviteLink" class="home-shortcut-btn home-shortcut-btn-secondary" type="button">
                             <span class="home-shortcut-main">招待URLをコピー</span>
-                            <span class="home-shortcut-sub">招待相手はあなたと同じ国で開始</span>
+                            <span class="home-shortcut-sub">同じ国で開始</span>
                         </button>
                     </div>
                     <div id="lineFriendPromo" class="line-friend-promo" hidden>
@@ -163,12 +153,11 @@
                     <div id="favoritePlayersSection" class="favorite-players-section" hidden>
                         <div class="favorite-players-head">
                             <div class="favorite-players-title">お気に入りプレイヤー</div>
-                            <div class="favorite-players-sub">タップでプロフィールを開けます</div>
+                            <div class="favorite-players-sub">タップで表示</div>
                         </div>
                         <div id="favoritePlayersList" class="favorite-players-list"></div>
                         <div id="favoritePlayersEmpty" class="favorite-players-empty">お気に入りしたプレイヤーがここに表示されます。</div>
                     </div>
-                    <p class="home-card-note">交流、順位、招待はホームから開けます。</p>
                 </div>
             </div>
 
@@ -314,8 +303,7 @@
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
-                        <div class="troy-menu-note">数量を選んでそのまま注文できます。ゴールドは注文ごとに即時付与され、支払いは最後にまとめて行います。</div>
-                        <div id="troyOrderStatusInline" class="troy-order-inline-status">注文ごとにゴールドが即時付与されます。支払いは最後にまとめて行います。</div>
+                        <div id="troyOrderStatusInline" class="troy-order-inline-status">入店すると注文できます。</div>
                         <div class="troy-coin-note">店内コインを使った場合は、退店時に王へ預けてゴールド化してください。</div>
                         <div id="troyOpenTabCard" class="troy-open-tab-card">
                             <div class="troy-open-tab-head">
@@ -326,7 +314,7 @@
                                 <button id="btnTroyUndoLastOrder" class="troy-open-tab-undo" type="button" disabled>最後の1件を取り消す</button>
                             </div>
                             <div id="troyOpenTabList" class="troy-open-tab-list">
-                                <div class="troy-open-tab-empty">注文するとここに明細が表示されます。会計後は自動で退店します。</div>
+                                <div class="troy-open-tab-empty">注文はありません。</div>
                             </div>
                         </div>
                         <ul class="troy-menu-list">
@@ -1174,10 +1162,10 @@
         <button id="navEvents" class="nav-button" onclick="showTab('events')">
             <span class="nav-icon">📅</span><span>イベント</span>
         </button>
-        <button id="navTarot" class="nav-button" onclick="showTab('tarot')">
+        <button id="navTarot" class="nav-button" onclick="showTab('tarot')" style="display:none;">
             <span class="nav-icon">🃏</span><span>ゲーム</span>
         </button>
-        <button id="navBattle" class="nav-button" onclick="showTab('battle')">
+        <button id="navBattle" class="nav-button" onclick="showTab('battle')" style="display:none;">
             <span class="nav-icon">⚔️</span><span>バトル</span>
         </button>
         <button id="navIslands" class="nav-button" onclick="showTab('islands')" style="display:none;">

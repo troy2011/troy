@@ -421,17 +421,17 @@ function getMenuItemEmoji(item) {
 function getMenuSubnote(menuId) {
     switch (menuId) {
         case 'favorite':
-            return '★ お気に入り登録したドリンクとフードを並べています。割り物を指定した注文は、その組み合わせのまま呼び出せます。';
+            return '★ お気に入り';
         case 'nonalcohol':
-            return '🥤 ノンアルは500円中心。ノンアルコールビールは600円です。注文ごとにゴールドが付与され、支払いは最後にまとめます。';
+            return '🥤 ノンアル';
         case 'alcohol':
-            return '🍸 ベース酒は500円。ビール800円、ワインボトル3000円で赤 / 白を選べます。注文ごとにゴールドが付与され、支払いは最後にまとめます。';
+            return '🍸 アルコール';
         case 'food':
-            return '🍴 フードはすべて500円。数量を選んでそのまま注文できます。ゴールドは注文時に付与されます。';
+            return '🍴 フード';
         case 'points':
-            return '🪙 ゴールド購入も商品ごとに個別送信されます。ゴールドは注文時に付与されます。';
+            return '🪙 ゴールド';
         default:
-            return '🍴 数量を選んでそのまま注文できます。ゴールドは注文時に付与、支払いは最後にまとめます。';
+            return '';
     }
 }
 
@@ -538,7 +538,7 @@ function renderOpenTabCard() {
 
     if (!hasOpenTab) {
         metaEl.textContent = '未会計の注文はありません。';
-        listEl.innerHTML = '<div class="troy-open-tab-empty">注文するとここに明細が表示されます。会計後は自動で退店します。</div>';
+        listEl.innerHTML = '<div class="troy-open-tab-empty">注文はありません。</div>';
         undoBtn.disabled = true;
         undoBtn.textContent = '最後の1件を取り消す';
         return;
@@ -626,16 +626,16 @@ function updateCheckoutStatus() {
         return;
     }
     if (!_lastStatus?.isOpen) {
-        status.textContent = 'TROYはCLOSE中です。OPENになると入店できます。';
+        status.textContent = 'TROYはCLOSE中です。';
         status.classList.remove('is-pending');
         return;
     }
     if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
-        status.textContent = '入店するとメニューから注文できます。入店チャージは自動で伝票に入ります。';
+        status.textContent = '入店すると注文できます。';
         status.classList.remove('is-pending');
         return;
     }
-    status.textContent = '注文ごとにゴールドが即時付与されます。支払いは最後にまとめて行います。';
+    status.textContent = '注文できます。';
     status.classList.remove('is-pending');
 }
 
