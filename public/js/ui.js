@@ -15,6 +15,13 @@ const ensureTroyModule = async () => {
     return troyModule;
 };
 
+let eventModule = null;
+const ensureEventModule = async () => {
+    if (eventModule) return eventModule;
+    eventModule = await import('./events.js');
+    return eventModule;
+};
+
 let tarotModule = null;
 const TAROT_MODULE_VERSION = '20260323a';
 const ensureTarotModule = async () => {
@@ -1337,6 +1344,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         await Troy.loadTroyPage(playerInfo.playFabId);
                     }
                     break;
+                case 'events':
+                    {
+                        const Events = await ensureEventModule();
+                        await Events.loadEventPage(playerInfo.playFabId);
+                    }
+                    break;
                 case 'tarot':
                     {
                         await prepareTarotTab();
@@ -1477,6 +1490,12 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 }
             }
             tabLoaded[tabId] = true;
+        } else if (tabId === 'troy') {
+            const Troy = await ensureTroyModule();
+            await Troy.loadTroyPage(playerInfo.playFabId);
+        } else if (tabId === 'events') {
+            const Events = await ensureEventModule();
+            await Events.loadEventPage(playerInfo.playFabId);
         }
 
         if (tabId === 'home') {

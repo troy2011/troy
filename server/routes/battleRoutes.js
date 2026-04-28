@@ -3,10 +3,13 @@ require('dotenv').config();
 const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
+const { MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, readDecks } = require('../tarotDeck');
 const {
-    TAROT_EQUIPMENT_SLOT_TO_KEY
+    getCanonicalTarotCategory,
+    getMajorArcanaSuitInfo,
+    getMajorArcanaTitle,
+    getTarotRankLabel
 } = require('../tarotCards');
-const { MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole } = require('../tarotDeck');
 const {
     CAPITAL_CAPTURE_BREACH_WALLS,
     normalizeNationWarState
@@ -341,7 +344,6 @@ async function getPlayerFullProfile(playFabId) {
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
             "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
-            TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana,
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY
         ]
@@ -398,10 +400,6 @@ async function getPlayerFullProfile(playFabId) {
 
         const accessoryInstanceId = equipmentResult.Data.Equipped_Accessory ? equipmentResult.Data.Equipped_Accessory.Value : null;
         if (accessoryInstanceId) equipment.Accessory = resolveEquippedValue(accessoryInstanceId);
-
-        const majorValue = equipmentResult.Data[TAROT_EQUIPMENT_SLOT_TO_KEY.MajorArcana]?.Value || null;
-        const resolvedMajor = resolveEquippedValue(majorValue);
-        if (resolvedMajor) equipment.MajorArcana = resolvedMajor;
 
         if (equipmentResult.Data.lineUserId) lineUserId = equipmentResult.Data.lineUserId.Value;
 
@@ -465,7 +463,6 @@ async function getPlayerFullProfile(playFabId) {
     accumulateItemStats(equipment.LeftHand);
     accumulateItemStats(equipment.Armor, { replaceDefense: true });
     accumulateItemStats(equipment.Accessory);
-    accumulateItemStats(equipment.MajorArcana);
 
     // 白兵戦デッキのポーカーハンドボーナスを適用
     const meleeDeckItemData = meleeDeckIds.map((id) => _catalogCache?.[id] || null);
@@ -531,6 +528,72 @@ async function runBattle(playerA, playerB) {
     const getSkillLabel = (entry, fallback) => getBattleSkillLabel(entry, fallback);
     const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
     const rollChance = (chance) => Math.random() < clampValue(chance, 0, 1);
+    const normalizeTarotSuitKey = (value) => {
+        const key = String(value || '').trim().toLowerCase();
+        if (!key) return '';
+        if (['wand', 'wands', 'fire', '杖', '棒'].includes(key)) return 'wand';
+        if (['sword', 'swords', 'wind', '剣'].includes(key)) return 'sword';
+        if (['cup', 'cups', 'water', '聖杯', '杯'].includes(key)) return 'cup';
+        if (['pentacle', 'pentacles', 'coin', 'coins', 'earth', '金貨', '硬貨'].includes(key)) return 'pentacle';
+        return key;
+    };
+    const getTarotCaptainRankValue = (itemData) => {
+        const raw = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim().toUpperCase();
+        if (raw === 'A' || raw === 'ACE') return 1;
+        const value = Number(raw);
+        return Number.isFinite(value) && value >= 1 && value <= 10 ? Math.floor(value) : 0;
+    };
+    const applyTarotCaptainSkillEffects = (player) => {
+        const cards = Array.isArray(player?.tarotCaptainSkillCards) ? player.tarotCaptainSkillCards : [];
+        if (!cards.length) return null;
+        const summary = { wand: 0, sword: 0, cup: 0, pentacle: 0, count: 0 };
+        cards.forEach((card) => {
+            const itemData = card?.itemData || {};
+            const rankValue = getTarotCaptainRankValue(itemData);
+            if (!rankValue) return;
+            const suit = normalizeTarotSuitKey(itemData?.ArcanaSuit || itemData?.Suit || itemData?.Element);
+            if (!['wand', 'sword', 'cup', 'pentacle'].includes(suit)) return;
+            summary[suit] += rankValue;
+            summary.count += 1;
+        });
+        if (!summary.count) return null;
+
+        player.equipmentStats = player.equipmentStats || {};
+        player.stats = player.stats || {};
+        const addStat = (key, amount) => {
+            player.stats[key] = (Number(player.stats[key] || 0) || 0) + amount;
+        };
+        if (summary.wand > 0) {
+            player.equipmentStats.Power = (Number(player.equipmentStats.Power || 0) || 0) + summary.wand;
+            addStat('こうげき', summary.wand);
+            addStat('Power', summary.wand);
+        }
+        if (summary.sword > 0) {
+            addStat('すばやさ', summary.sword);
+            addStat('Agi', summary.sword);
+        }
+        if (summary.cup > 0) {
+            const hpBonus = summary.cup * 4;
+            addStat('MaxHP', hpBonus);
+            addStat('HP', hpBonus);
+            addStat('CurrentHP', hpBonus);
+        }
+        if (summary.pentacle > 0) {
+            player.equipmentStats.Defense = (Number(player.equipmentStats.Defense || 0) || 0) + summary.pentacle;
+            addStat('みのまもり', summary.pentacle);
+            addStat('Defense', summary.pentacle);
+        }
+        return summary;
+    };
+    const describeTarotCaptainSkill = (summary) => {
+        if (!summary?.count) return '';
+        const parts = [];
+        if (summary.wand) parts.push(`杖 攻撃+${summary.wand}`);
+        if (summary.sword) parts.push(`剣 速さ+${summary.sword}`);
+        if (summary.cup) parts.push(`杯 HP+${summary.cup * 4}`);
+        if (summary.pentacle) parts.push(`金貨 守備+${summary.pentacle}`);
+        return parts.join(' / ');
+    };
     const getSkillForWeapon = (skills, weapon, type, allowGeneric = false) => {
         if (!Array.isArray(skills) || !skills.length) return null;
         const target = normalizeBattleSkillWeapon(weapon);
@@ -684,6 +747,9 @@ async function runBattle(playerA, playerB) {
             })[0] || null;
     };
 
+    const tarotCaptainA = applyTarotCaptainSkillEffects(playerA);
+    const tarotCaptainB = applyTarotCaptainSkillEffects(playerB);
+
     // ★★★ 改良案: 逃走判定 ★★★
     // すばやさが高い方が、その差に応じて逃げやすくなる
     const agilityA = playerA.stats.すばやさ || 1;
@@ -718,6 +784,15 @@ async function runBattle(playerA, playerB) {
         */
         console.log(`[バトルログ] ${messageText}`); // サーバーコンソールにはログを残す
     };
+
+    const tarotCaptainALog = describeTarotCaptainSkill(tarotCaptainA);
+    const tarotCaptainBLog = describeTarotCaptainSkill(tarotCaptainB);
+    if (tarotCaptainALog) {
+        await sendLogToBoth(`${playerA.stats.DisplayName} のタロット船長スキル: ${tarotCaptainALog}`);
+    }
+    if (tarotCaptainBLog) {
+        await sendLogToBoth(`${playerB.stats.DisplayName} のタロット船長スキル: ${tarotCaptainBLog}`);
+    }
 
     let attacker, defender;
     if (playerA.stats.すばやさ >= playerB.stats.すばやさ) {
@@ -1112,6 +1187,22 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const key = normalizeShipClass(shipClass);
         return SHIP_CLASS_LABELS[key] || '対象船';
     };
+    const resolveShipCrewCapacity = (asset, itemId) => {
+        const catalogItem = itemId ? _catalogCache?.[itemId] : null;
+        const candidates = [
+            asset?.Stats?.CrewCapacity,
+            asset?.BaseStats?.CrewCapacity,
+            asset?.CrewCapacity,
+            catalogItem?.CrewCapacity,
+            catalogItem?.Stats?.CrewCapacity,
+            catalogItem?.CustomData?.CrewCapacity
+        ];
+        for (const value of candidates) {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed) && parsed > 0) return Math.floor(parsed);
+        }
+        return 1;
+    };
     const resolvePlayerActiveShipMeta = async (playFabId) => {
         if (!playFabId) return null;
         try {
@@ -1124,7 +1215,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 return {
                     shipId: null,
                     itemId: 'ship_common_boat',
-                    shipClass: 'common'
+                    shipClass: 'common',
+                    crewCapacity: resolveShipCrewCapacity(null, 'ship_common_boat')
                 };
             }
             const shipResult = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
@@ -1136,7 +1228,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 return {
                     shipId: activeShipId,
                     itemId: null,
-                    shipClass: ''
+                    shipClass: '',
+                    crewCapacity: 1
                 };
             }
             const asset = JSON.parse(raw);
@@ -1145,7 +1238,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             const classFromCatalog = normalizeShipClass(_catalogCache?.[itemId]?.class || _catalogCache?.[itemId]?.Class);
             const classFromItemId = resolveShipClassFromItemId(itemId);
             const shipClass = classFromAsset || classFromCatalog || classFromItemId || '';
-            return { shipId: activeShipId, itemId, shipClass };
+            const crewCapacity = resolveShipCrewCapacity(asset, itemId);
+            return { shipId: activeShipId, itemId, shipClass, crewCapacity };
         } catch (error) {
             console.warn('[BattleRule] Failed to resolve active ship meta:', error?.errorMessage || error?.message || error);
             return null;
@@ -1184,31 +1278,169 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const defenderClass = normalizeShipClass(defenderMeta?.shipClass);
         return BOARDING_PROTECTED_TARGET_CLASSES.has(defenderClass);
     };
-    const getRidePartyIds = async (hostId) => {
-        const ids = [];
-        if (!hostId) return ids;
-        ids.push(hostId);
+    const normalizePartyEntry = (entry) => {
+        if (entry && typeof entry === 'object') return entry;
+        const id = String(entry || '').trim();
+        return id ? { type: 'player', id } : null;
+    };
+    const isVirtualFighter = (entryOrPlayer) => {
+        return !!(entryOrPlayer?.type === 'tarotCrew' || entryOrPlayer?.isVirtualFighter);
+    };
+    const getEffectiveFighterId = (entryOrPlayer) => {
+        if (!entryOrPlayer) return '';
+        if (isVirtualFighter(entryOrPlayer)) {
+            return String(entryOrPlayer.ownerId || '').trim();
+        }
+        return String(entryOrPlayer.id || '').trim();
+    };
+    const getPartyEntryId = (entry) => String(normalizePartyEntry(entry)?.id || '').trim();
+    const isTarotCourtCard = (itemData) => {
+        const rank = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim().toUpperCase();
+        return ['PAGE', 'KNIGHT', 'QUEEN', 'KING'].includes(rank);
+    };
+    const isTarotCaptainSkillCard = (itemData) => {
+        if (getCanonicalTarotCategory(itemData?.Category) !== 'TarotMinor') return false;
+        const raw = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim().toUpperCase();
+        if (raw === 'A' || raw === 'ACE') return true;
+        const number = Number(raw);
+        return Number.isFinite(number) && number >= 1 && number <= 10;
+    };
+    const isTarotCrewCard = (itemData) => {
+        const category = getCanonicalTarotCategory(itemData?.Category);
+        return category === 'TarotMajor' || (category === 'TarotMinor' && isTarotCourtCard(itemData));
+    };
+    const getTarotCrewWeapon = (itemData) => {
+        const category = getCanonicalTarotCategory(itemData?.Category);
+        if (category === 'TarotMajor') return 'staff';
+        const rank = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim().toUpperCase();
+        if (rank === 'PAGE' || rank === 'QUEEN') return 'staff';
+        if (rank === 'KNIGHT') return 'polearm';
+        if (rank === 'KING') return 'sword';
+        return 'sword';
+    };
+    const getTarotCrewDisplayName = (itemId, itemData) => {
+        const category = getCanonicalTarotCategory(itemData?.Category);
+        if (category === 'TarotMajor') return getMajorArcanaTitle(itemData, itemData?.DisplayName || itemId);
+        return String(itemData?.DisplayName || [itemData?.ArcanaSuit, getTarotRankLabel(itemData)].filter(Boolean).join(' ') || itemId).trim();
+    };
+    const buildTarotCrewSkills = (itemData, isMajor, rank, weapon) => {
+        const rankKey = String(rank || '').trim().toUpperCase();
+        const level = isMajor ? 3 : rankKey === 'KING' ? 3 : rankKey === 'KNIGHT' ? 2 : 1;
+        const procChance = isMajor ? 0.28 : rankKey === 'KING' ? 0.24 : rankKey === 'KNIGHT' ? 0.22 : rankKey === 'QUEEN' ? 0.2 : 0.18;
+        const powerMultiplier = isMajor ? 1.28 : rankKey === 'KING' ? 1.24 : rankKey === 'KNIGHT' ? 1.2 : rankKey === 'QUEEN' ? 1.16 : 1.12;
+        const skillName = isMajor ? '大アルカナの一撃' : `${getTarotRankLabel(itemData) || 'タロット'}の一撃`;
+        return [
+            {
+                id: `tarot-crew-weapon-${weapon}`,
+                type: 'weapon',
+                weapon,
+                name: skillName,
+                procChance,
+                powerMultiplier
+            },
+            {
+                id: `tarot-crew-passive-${weapon}`,
+                type: 'passive',
+                weapon,
+                name: isMajor ? '大アルカナの加護' : 'コートカードの加護',
+                level
+            }
+        ];
+    };
+    const buildTarotCrewProfile = (ownerProfile, cardId, itemData, index) => {
+        const category = getCanonicalTarotCategory(itemData?.Category);
+        const isMajor = category === 'TarotMajor';
+        const suitInfo = isMajor ? getMajorArcanaSuitInfo(itemData) : null;
+        const rank = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || '').trim().toUpperCase();
+        const suitKey = String(itemData?.ArcanaSuit || itemData?.Suit || suitInfo?.key || '').trim().toLowerCase();
+        const baseLevel = Math.max(1, Number(ownerProfile?.level || ownerProfile?.stats?.Level || 1) || 1);
+        const power = Number(itemData?.Power || itemData?.Atk || 0) || 0;
+        const defense = Number(itemData?.Defense || itemData?.Def || 0) || 0;
+        const intValue = Number(itemData?.Int || itemData?.Intelligence || itemData?.MagicPower || 0) || 0;
+        const agiValue = Number(itemData?.Agi || itemData?.Speed || 0) || 0;
+        const rankPower = rank === 'KING' ? 10 : rank === 'KNIGHT' ? 8 : rank === 'QUEEN' ? 6 : rank === 'PAGE' ? 4 : 0;
+        const majorPower = isMajor ? 14 : 0;
+        const maxHp = Math.max(28, Math.floor((Number(ownerProfile?.stats?.MaxHP || 80) || 80) * (isMajor ? 0.55 : 0.38)) + defense * 2 + majorPower);
+        const attackStat = Math.max(6, Math.floor((Number(ownerProfile?.stats?.こうげき || ownerProfile?.stats?.Power || 20) || 20) * (isMajor ? 0.42 : 0.3)) + power + rankPower);
+        const defenseStat = Math.max(3, Math.floor((Number(ownerProfile?.stats?.みのまもり || ownerProfile?.stats?.Defense || 12) || 12) * (isMajor ? 0.38 : 0.28)) + defense);
+        const speedStat = Math.max(4, Math.floor((Number(ownerProfile?.stats?.すばやさ || 12) || 12) * (isMajor ? 0.38 : 0.32)) + agiValue);
+        const intStat = Math.max(3, Math.floor((Number(ownerProfile?.stats?.かしこさ || 10) || 10) * (isMajor ? 0.38 : 0.3)) + intValue);
+        const displayName = getTarotCrewDisplayName(cardId, itemData);
+        const weapon = getTarotCrewWeapon(itemData);
+        return {
+            id: `tarotCrew:${ownerProfile.id}:${cardId}:${index}`,
+            ownerId: ownerProfile.id,
+            isVirtualFighter: true,
+            type: 'tarotCrew',
+            level: Math.max(1, Math.floor(baseLevel * (isMajor ? 0.75 : 0.55))),
+            lineUserId: null,
+            avatar: {
+                ...(ownerProfile.avatar || {}),
+                tarotCrew: true,
+                cardId,
+                suit: suitKey || suitInfo?.key || 'none'
+            },
+            equipment: {
+                RightHand: { customData: { Category: 'Weapon', ManifestWeaponType: weapon } },
+                LeftHand: null,
+                Armor: null,
+                Accessory: null
+            },
+            skills: buildTarotCrewSkills(itemData, isMajor, rank, weapon),
+            tarotAwakeningBattle: null,
+            stats: {
+                DisplayName: isMajor ? `大アルカナ ${displayName}` : `船員 ${displayName}`,
+                Level: baseLevel,
+                HP: maxHp,
+                MaxHP: maxHp,
+                CurrentHP: maxHp,
+                MP: isMajor || weapon === 'staff' ? Math.max(8, Math.floor(maxHp * 0.35)) : 0,
+                MaxMP: isMajor || weapon === 'staff' ? Math.max(8, Math.floor(maxHp * 0.35)) : 0,
+                CurrentMP: isMajor || weapon === 'staff' ? Math.max(8, Math.floor(maxHp * 0.35)) : 0,
+                こうげき: attackStat,
+                みのまもり: defenseStat,
+                すばやさ: speedStat,
+                かしこさ: intStat,
+                Power: attackStat,
+                Defense: defenseStat,
+                Agi: speedStat,
+                Int: intStat
+            }
+        };
+    };
+    const buildMeleeParty = async (hostId) => {
+        if (!hostId) return [];
+        const hostProfile = await getPlayerFullProfile(hostId);
+        const entries = [];
+        const captainSkillCards = [];
         try {
-            const snap = await firestore.collection('ships').where('ridingOwnerId', '==', hostId).get();
-            const passengers = [];
-            snap.forEach((docSnap) => {
-                const data = docSnap.data() || {};
-                const passengerId = docSnap.id;
-                if (!passengerId || passengerId === hostId) return;
-                passengers.push({
-                    id: passengerId,
-                    since: Number(data.ridingSince || 0)
+            const activeShipMeta = await resolvePlayerActiveShipMeta(hostId);
+            const maxCrewCards = Math.max(0, Math.min(5, Number(activeShipMeta?.crewCapacity) || 1));
+            const decks = await readDecks(hostId, _promisifyPlayFab, _PlayFabServer);
+            const meleeDeck = Array.isArray(decks?.meleeDeck) ? decks.meleeDeck : [];
+            meleeDeck.forEach((cardId, index) => {
+                const itemData = _catalogCache?.[cardId];
+                if (isTarotCaptainSkillCard(itemData)) {
+                    captainSkillCards.push({ cardId, index, itemData });
+                    return;
+                }
+                if (entries.length >= maxCrewCards) return;
+                if (!isTarotCrewCard(itemData)) return;
+                entries.push({
+                    type: 'tarotCrew',
+                    id: `tarotCrew:${hostId}:${cardId}:${index}`,
+                    ownerId: hostId,
+                    ownerProfile: hostProfile,
+                    cardId,
+                    index,
+                    itemData
                 });
             });
-            passengers.sort((a, b) => {
-                if (a.since !== b.since) return a.since - b.since;
-                return String(a.id).localeCompare(String(b.id));
-            });
-            passengers.forEach((entry) => ids.push(entry.id));
         } catch (error) {
-            console.warn('[RideBattle] Failed to load passengers:', error?.message || error);
+            console.warn('[TarotCrewBattle] Failed to load melee deck:', error?.errorMessage || error?.message || error);
         }
-        return ids;
+        entries.push({ type: 'player', id: hostId, profile: hostProfile, captainSkillCards });
+        return entries;
     };
     const getPlayerNation = async (playFabId) => {
         if (!playFabId) return '';
@@ -1401,6 +1633,8 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         let currentBIndex = 0;
         let lastWinnerId = null;
         let lastLoserId = null;
+        let lastWinnerOwnerId = null;
+        let lastLoserOwnerId = null;
         let timeCursor = Date.now();
         const appendLog = (line) => {
             logEntries[timeCursor++] = line;
@@ -1411,7 +1645,9 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 name: player.stats.DisplayName,
                 hp: Math.max(0, Number(player.stats.CurrentHP || 0)),
                 maxHp: player.stats.MaxHP,
-                online: true,
+                online: !isVirtualFighter(player),
+                virtual: isVirtualFighter(player),
+                ownerId: player.ownerId || null,
                 level: player.level,
                 stats: { すばやさ: player.stats.すばやさ },
                 avatar: player.avatar,
@@ -1435,7 +1671,13 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
         const respawnParty = async (partyIds) => {
             const respawnShip = app?.locals?.respawnShip;
             if (!respawnShip || !Array.isArray(partyIds) || partyIds.length === 0) return;
-            for (const playerId of partyIds) {
+            const ownerIds = Array.from(new Set(partyIds
+                .map((entry) => {
+                    const normalized = normalizePartyEntry(entry);
+                    return normalized?.type === 'player' ? normalized.id : normalized?.ownerId;
+                })
+                .filter(Boolean)));
+            for (const playerId of ownerIds) {
                 const shipId = await getActiveShipIdForPlayer(playerId);
                 if (!shipId) continue;
                 try {
@@ -1445,12 +1687,39 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 }
             }
         };
+        const resolvePartyFighter = async (entry) => {
+            const normalized = normalizePartyEntry(entry);
+            if (!normalized) return null;
+            if (normalized.type === 'tarotCrew') {
+                const ownerProfile = normalized.ownerProfile || await getPlayerFullProfile(normalized.ownerId);
+                return buildTarotCrewProfile(ownerProfile, normalized.cardId, normalized.itemData || _catalogCache?.[normalized.cardId], normalized.index || 0);
+            }
+            const sourceProfile = normalized.profile || await getPlayerFullProfile(normalized.id);
+            const profile = sourceProfile ? JSON.parse(JSON.stringify(sourceProfile)) : null;
+            if (profile && normalized.captainSkillCards?.length) {
+                profile.tarotCaptainSkillCards = normalized.captainSkillCards;
+            }
+            return profile;
+        };
+
+        [...partyA, ...partyB].forEach((entry) => {
+            const normalized = normalizePartyEntry(entry);
+            if (normalized?.type === 'player' && normalized.profile) {
+                rememberPlayer(normalized.profile);
+            }
+        });
 
         while (currentAIndex < partyA.length && currentBIndex < partyB.length) {
-            const fighterAId = partyA[currentAIndex];
-            const fighterBId = partyB[currentBIndex];
-            const playerA = await getPlayerFullProfile(fighterAId);
-            const playerB = await getPlayerFullProfile(fighterBId);
+            const fighterAEntry = normalizePartyEntry(partyA[currentAIndex]);
+            const fighterBEntry = normalizePartyEntry(partyB[currentBIndex]);
+            const fighterAId = getPartyEntryId(fighterAEntry);
+            const fighterBId = getPartyEntryId(fighterBEntry);
+            const playerA = await resolvePartyFighter(fighterAEntry);
+            const playerB = await resolvePartyFighter(fighterBEntry);
+            if (!playerA || !playerB) {
+                appendLog('戦闘メンバーを解決できなかった...');
+                break;
+            }
             rememberPlayer(playerA);
             rememberPlayer(playerB);
 
@@ -1465,26 +1734,35 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
             const winnerId = battleResult.winner.id;
             const loserId = battleResult.loser.id;
+            const winnerOwnerId = getEffectiveFighterId(battleResult.winner) || winnerId;
+            const loserOwnerId = getEffectiveFighterId(battleResult.loser) || loserId;
             lastWinnerId = winnerId;
             lastLoserId = loserId;
+            lastWinnerOwnerId = winnerOwnerId;
+            lastLoserOwnerId = loserOwnerId;
             roundResults.push({
                 round,
                 attackerId: fighterAId,
                 defenderId: fighterBId,
                 winnerId,
-                loserId
+                loserId,
+                winnerOwnerId,
+                loserOwnerId
             });
 
-            await Promise.all([
-                savePlayerHpMp(battleResult.winner),
-                savePlayerHpMp(battleResult.loser)
-            ]);
-            try {
-                await handleBattleRewards(battleId, winnerId, loserId, `round_${round}`);
-            } catch (rewardError) {
-                console.error(`[勝敗処理エラー] battleId: ${battleId}`, rewardError);
+            await Promise.all([battleResult.winner, battleResult.loser]
+                .filter((player) => !isVirtualFighter(player))
+                .map((player) => savePlayerHpMp(player)));
+            if (!isVirtualFighter(battleResult.winner) && !isVirtualFighter(battleResult.loser)) {
+                try {
+                    await handleBattleRewards(battleId, winnerId, loserId, `round_${round}`);
+                } catch (rewardError) {
+                    console.error(`[勝敗処理エラー] battleId: ${battleId}`, rewardError);
+                }
             }
-            recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
+            if (!isVirtualFighter(battleResult.winner) && !isVirtualFighter(battleResult.loser)) {
+                recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
+            }
 
             if (winnerId === fighterAId) {
                 currentBIndex += 1;
@@ -1507,7 +1785,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         const finalBattleState = {
             status: 'finished',
-            winner: lastWinnerId || null,
+            winner: lastWinnerOwnerId || lastWinnerId || null,
             lastActionPlayer: null,
             players: playersPayload,
             log: logEntries,
@@ -1545,11 +1823,13 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
             for (const roundInfo of roundResults) {
                 const winnerId = roundInfo.winnerId || null;
                 const loserId = roundInfo.loserId || null;
-                if (winnerId) {
-                    await notify(winnerId, { result: 'win', opponentId: loserId, round: roundInfo.round });
+                const winnerNotifyId = roundInfo.winnerOwnerId || winnerId;
+                const loserNotifyId = roundInfo.loserOwnerId || loserId;
+                if (winnerNotifyId && loserNotifyId && winnerNotifyId !== loserNotifyId) {
+                    await notify(winnerNotifyId, { result: 'win', opponentId: loserNotifyId, round: roundInfo.round });
                 }
-                if (loserId) {
-                    await notify(loserId, { result: 'lose', opponentId: winnerId, round: roundInfo.round });
+                if (loserNotifyId && winnerNotifyId && loserNotifyId !== winnerNotifyId) {
+                    await notify(loserNotifyId, { result: 'lose', opponentId: winnerNotifyId, round: roundInfo.round });
                 }
             }
         } catch (notifyError) {
@@ -1602,187 +1882,14 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
 
         console.log(`[バトル開始] ${attackerId} vs ${defenderId}`);
         try {
-            // --- 1. 連戦パーティを取得 ---
-            const partyA = await getRidePartyIds(attackerId);
-            const partyB = await getRidePartyIds(defenderId);
-
-            // --- 2. Firebase Realtime Databaseに「バトル結果」を作成 ---
-            const battleRef = db.ref('battles').push();
-            const battleId = battleRef.key;
-
-            const playersPayload = {};
-            const logEntries = {};
-            const roundResults = [];
-            let round = 1;
-            let currentAIndex = 0;
-            let currentBIndex = 0;
-            let lastWinnerId = null;
-            let lastLoserId = null;
-            let timeCursor = Date.now();
-            const appendLog = (line) => {
-                logEntries[timeCursor++] = line;
-            };
-            const rememberPlayer = (player) => {
-                if (!player?.id || playersPayload[player.id]) return;
-                playersPayload[player.id] = {
-                    name: player.stats.DisplayName,
-                    hp: Math.max(0, Number(player.stats.CurrentHP || 0)),
-                    maxHp: player.stats.MaxHP,
-                    online: true,
-                    level: player.level,
-                    stats: { すばやさ: player.stats.すばやさ },
-                    avatar: player.avatar,
-                    equipment: player.equipment
-                };
-            };
-            const getActiveShipIdForPlayer = async (playFabId) => {
-                if (!playFabId) return null;
-                try {
-                    const readOnly = await _promisifyPlayFab(_PlayFabServer.GetUserReadOnlyData, {
-                        PlayFabId: playFabId,
-                        Keys: ['ActiveShipId']
-                    });
-                    const value = readOnly?.Data?.ActiveShipId?.Value;
-                    return value ? String(value) : null;
-                } catch (error) {
-                    console.warn('[RideBattle] Failed to resolve ActiveShipId:', error?.errorMessage || error?.message || error);
-                    return null;
-                }
-            };
-            const respawnParty = async (partyIds) => {
-                const respawnShip = app?.locals?.respawnShip;
-                if (!respawnShip || !Array.isArray(partyIds) || partyIds.length === 0) return;
-                for (const playerId of partyIds) {
-                    const shipId = await getActiveShipIdForPlayer(playerId);
-                    if (!shipId) continue;
-                    try {
-                        await respawnShip(playerId, shipId, 'party_defeat');
-                    } catch (error) {
-                        console.warn('[RideBattle] Failed to respawn party ship:', error?.message || error);
-                    }
-                }
-            };
-
-            while (currentAIndex < partyA.length && currentBIndex < partyB.length) {
-                const fighterAId = partyA[currentAIndex];
-                const fighterBId = partyB[currentBIndex];
-                const playerA = await getPlayerFullProfile(fighterAId);
-                const playerB = await getPlayerFullProfile(fighterBId);
-                rememberPlayer(playerA);
-                rememberPlayer(playerB);
-
-                appendLog(`【連戦 ${round}】${playerA.stats.DisplayName} vs ${playerB.stats.DisplayName}`);
-                const battleResult = await runBattle(playerA, playerB);
-                (battleResult.logs || []).forEach((line) => appendLog(line));
-
-                if (!battleResult?.winner || !battleResult?.loser) {
-                    appendLog('決着がつかなかった...');
-                    break;
-                }
-
-                const winnerId = battleResult.winner.id;
-                const loserId = battleResult.loser.id;
-                lastWinnerId = winnerId;
-                lastLoserId = loserId;
-                roundResults.push({
-                    round,
-                    attackerId: fighterAId,
-                    defenderId: fighterBId,
-                    winnerId,
-                    loserId
-                });
-
-                await Promise.all([
-                    savePlayerHpMp(battleResult.winner),
-                    savePlayerHpMp(battleResult.loser)
-                ]);
-                try {
-                    await handleBattleRewards(battleId, winnerId, loserId, `round_${round}`);
-                } catch (rewardError) {
-                    console.error(`[報酬処理エラー] battleId: ${battleId}`, rewardError);
-                }
-                recentBattlePairs.set(getPairKey(winnerId, loserId), Date.now() + battlePairCooldownMs);
-
-                if (winnerId === fighterAId) {
-                    currentBIndex += 1;
-                } else {
-                    currentAIndex += 1;
-                }
-                round += 1;
-            }
-
-            let defeatedParty = null;
-            if (currentAIndex >= partyA.length && currentBIndex < partyB.length) {
-                defeatedParty = partyA;
-            } else if (currentBIndex >= partyB.length && currentAIndex < partyA.length) {
-                defeatedParty = partyB;
-            }
-            if (defeatedParty && defeatedParty.length > 0) {
-                appendLog('敗北側が全滅したため船が復活した。');
-                await respawnParty(defeatedParty);
-            }
-
-            const finalBattleState = {
-                status: 'finished',
-                winner: lastWinnerId || null,
-                lastActionPlayer: null,
-                players: playersPayload,
-                log: logEntries,
-                rounds: roundResults
-            };
-
-            await battleRef.set(finalBattleState);
-            console.log(`[自動戦闘] バトル結果を保存しました: ${battleId}`);
-            recentBattlePairs.set(pairKey, Date.now() + battlePairCooldownMs);
-
-            // --- 4. 招待通知 (オンラインなら即モーダル表示) ---
-            const invitationRef = db.ref('invitations').push();
-            const invitationId = invitationRef.key;
-            const attackerName = playersPayload[attackerId]?.name || attackerId;
-            const defenderName = playersPayload[defenderId]?.name || defenderId;
-            await invitationRef.set({
-                status: 'started',
-                battleId,
-                from: { id: attackerId, name: attackerName },
-                to: { id: defenderId, name: defenderName },
-                createdAt: require('firebase-admin').database.ServerValue.TIMESTAMP
-            });
-
-            // --- 5. 通知 (オフライン向け) ---
-            try {
-                const admin = require('firebase-admin');
-                const firestore = admin.firestore();
-                const notify = async (targetId, payload) => {
-                    await firestore
-                        .collection('notifications')
-                        .doc(targetId)
-                        .collection('items')
-                        .add({
-                            type: 'battle_result',
-                            battleId,
-                            ...payload,
-                            createdAt: admin.firestore.FieldValue.serverTimestamp()
-                        });
-                };
-                for (const roundInfo of roundResults) {
-                    const winnerId = roundInfo.winnerId || null;
-                    const loserId = roundInfo.loserId || null;
-                    if (winnerId) {
-                        await notify(winnerId, { result: 'win', opponentId: loserId, round: roundInfo.round });
-                    }
-                    if (loserId) {
-                        await notify(loserId, { result: 'lose', opponentId: winnerId, round: roundInfo.round });
-                    }
-                }
-            } catch (notifyError) {
-                console.warn('[start-battle] Notification write failed:', notifyError?.message || notifyError);
-            }
-
-            // --- 6. クライアントへ即時返却 ---
+            const partyA = await buildMeleeParty(attackerId);
+            const partyB = await buildMeleeParty(defenderId);
+            const result = await runSequentialRideBattle({ attackerId, defenderId, partyA, partyB });
+            console.log(`[自動戦闘] バトル結果を保存しました: ${result.battleId}`);
             res.json({
                 status: "Battle Finished",
-                battleId,
-                invitationId
+                battleId: result.battleId,
+                invitationId: result.invitationId
             });
         } catch (error) {
             console.error('[バトル作成エラー]', error.errorMessage || error.message || error);
@@ -1843,7 +1950,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 return res.status(429).json({ error: 'BattleCooldownActive' });
             }
 
-            const partyA = await getRidePartyIds(attackerId);
+            const partyA = await buildMeleeParty(attackerId);
             const partyB = captureQueue.map((entry) => entry.playFabId).filter(Boolean);
             if (partyA.length === 0 || partyB.length === 0) {
                 return res.status(409).json({ error: 'CaptureBattlePartyMissing' });
@@ -1945,7 +2052,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
                 return res.status(429).json({ error: 'BattleCooldownActive' });
             }
 
-            const partyA = await getRidePartyIds(attackerId);
+            const partyA = await buildMeleeParty(attackerId);
             const partyB = captureQueue.map((entry) => entry.playFabId).filter(Boolean);
             if (partyA.length === 0 || partyB.length === 0) {
                 return res.status(409).json({ error: 'CapitalCaptureBattlePartyMissing' });

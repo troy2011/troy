@@ -344,6 +344,18 @@ function updateOrderAvailability() {
     updateCheckoutStatus();
 }
 
+function canUseTroyMenu(playFabId = window.myPlayFabId) {
+    return !!_lastStatus?.isOpen && isTroyMember(_lastStatus, playFabId);
+}
+
+function setMenuButtonsEnabled(enabled) {
+    const menuButtons = Array.from(document.querySelectorAll('.troy-menu-item-button[data-menu-id]'));
+    menuButtons.forEach((button) => {
+        button.classList.toggle('is-disabled', !enabled);
+        button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    });
+}
+
 function updateTroyRoleUI() {
     const kingControls = document.getElementById('troyKingControls');
     const menuSection = document.getElementById('troyMenuSection');
@@ -595,6 +607,8 @@ function updateCheckoutStatus() {
     const session = sanitizeCheckoutSession(_checkoutSession);
     _checkoutSession = session;
     renderOpenTabCard();
+    const menuEnabled = canUseTroyMenu();
+    setMenuButtonsEnabled(menuEnabled);
     if (!status) return;
     const checkoutStatus = String(session?.status || '').trim().toLowerCase();
     const hasOpenTab = checkoutStatus === 'open' || checkoutStatus === 'pending';
@@ -609,6 +623,16 @@ function updateCheckoutStatus() {
             status.textContent = `未会計: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal} Ps` : ''}`;
         }
         status.classList.add('is-pending');
+        return;
+    }
+    if (!_lastStatus?.isOpen) {
+        status.textContent = 'TROYはCLOSE中です。OPENになると入店できます。';
+        status.classList.remove('is-pending');
+        return;
+    }
+    if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
+        status.textContent = '入店するとメニューから注文できます。入店チャージは自動で伝票に入ります。';
+        status.classList.remove('is-pending');
         return;
     }
     status.textContent = '注文ごとにPSが即時付与されます。支払いは最後にまとめて行います。';
@@ -735,6 +759,12 @@ async function handleUndoLastOrder(playFabId) {
 }
 
 function openMenuModal(menuId) {
+    if (!canUseTroyMenu()) {
+        if (typeof window.showRpgMessage === 'function') {
+            window.showRpgMessage(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
+        }
+        return;
+    }
     const data = getMenuDataById(menuId);
     if (!data) return;
     _menuActiveId = menuId;
@@ -853,6 +883,7 @@ function openMenuModal(menuId) {
         quickBtn.type = 'button';
         quickBtn.className = 'troy-menu-quick-btn';
         quickBtn.textContent = '注文する';
+        quickBtn.disabled = !canUseTroyMenu();
 
         let favoriteBtn = null;
         const syncFavoriteButton = () => {
@@ -1131,20 +1162,31 @@ function wireHandlers(playFabId) {
     const undoBtn = document.getElementById('btnTroyUndoLastOrder');
     if (joinBtn) {
         joinBtn.addEventListener('click', async () => {
+            if (joinBtn.disabled) return;
             const name = getDisplayName();
             const wasMember = isTroyMember(_lastStatus, playFabId);
-            const result = await joinTroy(playFabId, name);
-            if (result) {
-                await refreshStatus(playFabId, { isSilent: true });
-                attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());
-                const isMember = isTroyMember(_lastStatus, playFabId);
-                if (!wasMember && isMember) {
-                    await submitQuickCheckout(playFabId, { concept: '入店チャージ', price: 500 }, 1, {
-                        closeMenu: false,
-                        successMessage: '入店しました。入店チャージを注文しました。',
-                        failureMessage: '入店チャージの送信に失敗しました。'
-                    });
+            const previousText = joinBtn.textContent;
+            joinBtn.disabled = true;
+            joinBtn.textContent = '入店中...';
+            try {
+                const result = await joinTroy(playFabId, name);
+                if (result) {
+                    if (result.checkout) {
+                        _checkoutSession = result.checkout;
+                        updateCheckoutStatus();
+                    }
+                    await refreshStatus(playFabId, { isSilent: true });
+                    attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());
+                    const isMember = isTroyMember(_lastStatus, playFabId);
+                    if (!wasMember && isMember && typeof window.showRpgMessage === 'function') {
+                        window.showRpgMessage(result.entryChargeCreated
+                            ? '入店しました。入店チャージを伝票に追加しました。'
+                            : '入店しました。');
+                    }
                 }
+            } finally {
+                joinBtn.disabled = false;
+                joinBtn.textContent = previousText || '入店';
             }
         });
     }

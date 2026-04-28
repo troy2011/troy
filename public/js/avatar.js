@@ -1,8 +1,7 @@
 // c:/Users/ikeda/my-liff-app/public/js/avatar.js
 
 import { AVATAR_PART_OFFSETS } from './config.js';
-import { TAROT_MAJOR_SLOT, buildTarotCardMeta, buildTarotLoadoutEntry } from './tarotCards.js';
-import { summarizeTarotLoadoutRole } from './tarotRoles.js';
+import { buildTarotCardMeta } from './tarotCards.js';
 
 const spritePromiseCache = new Map();
 const ITEM_SPRITE_PRESETS = Object.freeze([
@@ -125,127 +124,6 @@ function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = 
     const resolved = resolveSpritePathByAvatarColor(spritePath, itemCategory, avatarColor);
     if (!resolved || resolved === spritePath) return [spritePath];
     return [resolved, spritePath];
-}
-
-function getTarotLoadoutTargetSize(element, fallbackWidth = 72, fallbackHeight = 120) {
-    if (!element) {
-        return { width: fallbackWidth, height: fallbackHeight };
-    }
-    const rect = typeof element.getBoundingClientRect === 'function'
-        ? element.getBoundingClientRect()
-        : { width: 0, height: 0 };
-    const computed = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
-        ? window.getComputedStyle(element)
-        : null;
-    const computedWidth = Number.parseFloat(computed?.width || '') || 0;
-    const computedHeight = Number.parseFloat(computed?.height || '') || 0;
-    const width = Math.max(1, rect.width || element.clientWidth || computedWidth || fallbackWidth);
-    const height = Math.max(1, rect.height || element.clientHeight || computedHeight || fallbackHeight);
-    return { width, height };
-}
-
-function setTarotLoadoutSprite(element, sprite) {
-    if (!element) return;
-    if (!sprite?.path) {
-        delete element.dataset.tarotSpriteKey;
-        element.style.backgroundImage = 'none';
-        element.style.backgroundSize = '';
-        element.style.backgroundPosition = '';
-        element.style.backgroundRepeat = '';
-        element.textContent = '🂠';
-        return;
-    }
-    const width = Number(sprite.width || 48) || 48;
-    const height = Number(sprite.height || 80) || 80;
-    const index = Math.max(0, Number(sprite.index || 0) || 0);
-    const requestedCols = Math.max(1, Number(sprite.cols || 10) || 10);
-    const spriteKey = [sprite.path, index, width, height, requestedCols].join('|');
-    element.dataset.tarotSpriteKey = spriteKey;
-    element.textContent = '';
-    loadSpriteImage(sprite.path).then((img) => {
-        if (!img || element.dataset.tarotSpriteKey !== spriteKey) return;
-        const { width: targetWidth, height: targetHeight } = getTarotLoadoutTargetSize(element, 72, 120);
-        const scale = Math.min(targetWidth / width, targetHeight / height);
-        const sheetColumns = Math.max(1, requestedCols || Math.floor(img.width / width) || 1);
-        const col = index % sheetColumns;
-        const row = Math.floor(index / sheetColumns);
-        const offsetX = ((targetWidth - (width * scale)) / 2) - (col * width * scale);
-        const offsetY = ((targetHeight - (height * scale)) / 2) - (row * height * scale);
-        element.style.backgroundImage = `url('${sprite.path}')`;
-        element.style.backgroundRepeat = 'no-repeat';
-        element.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
-        element.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
-    });
-}
-
-function renderAvatarMajorArcanaPreview(item) {
-    const preview = document.getElementById('avatarMajorArcanaPreview');
-    const visual = document.getElementById('avatarMajorArcanaPreviewVisual');
-    if (!preview || !visual) return;
-    const entry = buildTarotLoadoutEntry(TAROT_MAJOR_SLOT, item);
-    preview.classList.toggle('is-empty', !!entry.isEmpty);
-    preview.dataset.suit = entry.suitKey || 'none';
-    preview.title = entry.isEmpty
-        ? '体の大アルカナは未装着です。'
-        : [entry.title, entry.detail].filter(Boolean).join(' / ');
-    preview.setAttribute('aria-label', entry.isEmpty
-        ? '体装備の大アルカナ未装着'
-        : `体装備の大アルカナ: ${entry.title}`);
-    setTarotLoadoutSprite(visual, entry.sprite);
-}
-
-function renderTarotLoadoutGrid(majorArcanaItem, manifestationItems) {
-    const grid = document.getElementById('tarotLoadoutGrid');
-    const summary = document.getElementById('tarotLoadoutRole');
-    if (!grid) return;
-    const entries = [
-        buildTarotLoadoutEntry(TAROT_MAJOR_SLOT, majorArcanaItem),
-        ...manifestationItems.map(({ slot, item }) => buildTarotLoadoutEntry(slot, item))
-    ];
-    const role = summarizeTarotLoadoutRole(entries);
-    if (summary) {
-        summary.className = `tarot-loadout-role${role?.strength > 0 ? ' is-active' : ''}`;
-        summary.innerHTML = `
-            <div class="tarot-loadout-role-label">現在の役</div>
-            <div class="tarot-loadout-role-main">${role?.label || '未成立'}</div>
-            <div class="tarot-loadout-role-bonus">${role?.bonusText || '役ボーナスなし'}</div>
-            <div class="tarot-loadout-role-hint">${role?.hint || '5枚の札が揃うと役判定されます。'}</div>
-        `;
-    }
-    grid.innerHTML = '';
-    entries.forEach((entry) => {
-        const card = document.createElement('div');
-        card.className = `tarot-loadout-card${entry.isEmpty ? ' is-empty' : ''}${entry.isArcana ? ' is-arcana' : ''}`;
-        card.dataset.suit = entry.suitKey || 'none';
-
-        const slotEl = document.createElement('div');
-        slotEl.className = 'tarot-loadout-slot';
-        slotEl.textContent = entry.slotLabel;
-
-        const suitEl = document.createElement('div');
-        suitEl.className = 'tarot-loadout-suit';
-        suitEl.textContent = entry.suitLabel || '無属性';
-
-        const visualEl = document.createElement('div');
-        visualEl.className = 'tarot-loadout-visual';
-        setTarotLoadoutSprite(visualEl, entry.sprite);
-
-        const numberEl = document.createElement('div');
-        numberEl.className = 'tarot-loadout-number';
-        numberEl.textContent = entry.numberLabel || '';
-        visualEl.appendChild(numberEl);
-
-        const titleEl = document.createElement('div');
-        titleEl.className = 'tarot-loadout-title';
-        titleEl.textContent = entry.title;
-
-        const detailEl = document.createElement('div');
-        detailEl.className = 'tarot-loadout-detail';
-        detailEl.textContent = entry.detail;
-
-        card.append(slotEl, suitEl, visualEl, titleEl, detailEl);
-        grid.appendChild(card);
-    });
 }
 
 /**
@@ -544,7 +422,6 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const leftHandItem = isTwoHanded ? null : getItemDetails(equipment.LeftHand);
     const armorItem = getItemDetails(equipment.Armor);
     const accessoryItem = getItemDetails(equipment.Accessory);
-    const majorArcanaItem = getItemDetails(equipment.MajorArcana);
 
     // 相手の場合は左右のアイテムを入れ替えて表示
     const finalRightHandItem = isOpponent ? leftHandItem : rightHandItem;
@@ -624,9 +501,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
                     }
                     if (stats.length === 0) {
                         const tarotMeta = buildTarotCardMeta(cd);
-                        const fallbackLine = slot === 'MajorArcana'
-                            ? (tarotMeta[1] || tarotMeta[0])
-                            : (cd?.SourceCardName ? `札: ${cd.SourceCardName}` : tarotMeta[0]);
+                        const fallbackLine = tarotMeta[0];
                         if (fallbackLine) {
                             stats.push(`<span>${fallbackLine}</span>`);
                         }
@@ -660,16 +535,6 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             document.querySelector('.armor-slot'));
         updateEquipmentSlot('equippedAccessory', 'equippedAccessoryStats', accessoryItem, 'Accessory',
             document.querySelector('.accessory-slot'));
-        updateEquipmentSlot('equippedMajorArcana', 'equippedMajorArcanaStats', majorArcanaItem, 'MajorArcana',
-            document.querySelector('.major-arcana-slot'));
-        renderAvatarMajorArcanaPreview(majorArcanaItem);
-        renderTarotLoadoutGrid(majorArcanaItem, [
-            { slot: 'Armor', item: armorItem },
-            { slot: 'RightHand', item: rightHandItem },
-            { slot: 'LeftHand', item: leftHandItem },
-            { slot: 'Accessory', item: accessoryItem }
-        ]);
-
         // 両手持ち武器の場合、左手スロットをクリア
         if (isTwoHanded) {
             const leftHandEl = document.getElementById('equippedLeftHand');

@@ -16,14 +16,13 @@ const TAROT_MANIFESTATION_SLOT_TO_KEY = {
     Accessory: 'Equipped_Accessory'
 };
 const TAROT_EQUIPMENT_SLOT_TO_KEY = {
-    MajorArcana: 'Equipped_MajorArcana',
     MinorArcana1: 'Equipped_MinorArcana1',
     MinorArcana2: 'Equipped_MinorArcana2',
     MinorArcana3: 'Equipped_MinorArcana3',
     MinorArcana4: 'Equipped_MinorArcana4'
 };
 const TAROT_SLOT_LABELS = {
-    MajorArcana: '体',
+    MajorArcana: '大アルカナ',
     Armor: '頭',
     RightHand: '右手',
     LeftHand: '左手',
@@ -369,7 +368,7 @@ function getTarotSlotLabel(slot) {
 function canEquipTarotItemToSlot(itemData, slot) {
     const category = getCanonicalTarotCategory(itemData?.Category);
     const normalizedSlot = String(slot || '').trim();
-    if (normalizedSlot === TAROT_MAJOR_SLOT) return category === 'TarotMajor';
+    if (normalizedSlot === TAROT_MAJOR_SLOT) return false;
     if (TAROT_MINOR_SLOTS.includes(normalizedSlot)) return category === 'TarotMinor';
     return false;
 }

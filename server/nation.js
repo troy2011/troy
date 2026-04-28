@@ -2926,6 +2926,8 @@ function initializeNationRoutes(app, deps) {
             let grantApplied = false;
             let grantError = null;
             let receiverBalance = null;
+            const orderedAtMs = Date.now();
+            const orderId = `troy:${memberId}:${orderedAtMs}:${Math.random().toString(36).slice(2, 8)}`;
 
             try {
                 const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
@@ -2933,7 +2935,7 @@ function initializeNationRoutes(app, deps) {
                 treasuryRank = cashbackInfo.rank;
                 grantAmount = Math.floor(orderAmount * (cashbackRateBps / 10000));
                 if (grantAmount > 0) {
-                    await addEconomyItem(requesterPlayFabId, 'PS', grantAmount);
+                    await addEconomyItem(requesterPlayFabId, 'PS', grantAmount, { idempotencyId: `${orderId}:ps-grant` });
                     grantApplied = true;
                     if (getCurrencyBalance) {
                         receiverBalance = await getCurrencyBalance(requesterPlayFabId, 'PS');
@@ -2957,13 +2959,12 @@ function initializeNationRoutes(app, deps) {
             }
 
             const existingItems = checkoutStatus === 'open' && Array.isArray(checkoutData.items) ? checkoutData.items : [];
-            const orderedAtMs = Date.now();
-            const orderId = `troy:${memberId}:${orderedAtMs}:${Math.random().toString(36).slice(2, 8)}`;
+            const storedGrantAmount = grantApplied ? grantAmount : 0;
             const nextItem = buildStoredTroyCheckoutItem({
                 name: String(itemName || '').trim(),
                 price: priceValue,
                 quantity: safeQty,
-                grantedPs: grantAmount,
+                grantedPs: storedGrantAmount,
                 cashbackRateBps,
                 orderId,
                 orderedAtMs,
@@ -2973,7 +2974,7 @@ function initializeNationRoutes(app, deps) {
             const nextNormalizedItems = normalizeTroyCheckoutItems(nextItems);
             const nextTotal = nextNormalizedItems.reduce((sum, item) => sum + item.lineTotal, 0);
             const nextTotalItems = nextNormalizedItems.reduce((sum, item) => sum + item.quantity, 0);
-            const nextGrantTotal = Math.max(0, Math.floor(Number(checkoutData.grantTotal) || 0)) + grantAmount;
+            const nextGrantTotal = Math.max(0, Math.floor(Number(checkoutData.grantTotal) || 0)) + storedGrantAmount;
             const nowTs = admin.firestore.FieldValue.serverTimestamp();
             const updatePayload = {
                 playFabId: memberId,
@@ -3249,6 +3250,7 @@ function initializeNationRoutes(app, deps) {
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
         try {
+            const { lineClient } = deps;
             const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
@@ -3262,6 +3264,113 @@ function initializeNationRoutes(app, deps) {
 
             const memberId = normalizePlayFabId(requesterPlayFabId);
             const name = String(displayName || '').trim().slice(0, 40) || memberId;
+            const memberRef = roomRef.collection('members').doc(memberId);
+            const existingMemberSnap = await memberRef.get();
+            const checkoutRef = roomRef.collection('checkouts').doc(memberId);
+            const checkoutSnap = await checkoutRef.get();
+            const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
+            const checkoutStatus = String(checkoutData.status || '').trim().toLowerCase();
+            let entryChargeCreated = false;
+            let entryChargeGrantAmount = 0;
+            let entryChargeGrantError = null;
+            let checkoutPayload = checkoutSnap.exists ? buildTroyCheckoutPayload(checkoutSnap) : null;
+
+            if (!existingMemberSnap.exists && checkoutStatus && checkoutStatus !== 'open') {
+                return res.status(409).json({ error: 'CheckoutPending' });
+            }
+
+            if (!existingMemberSnap.exists) {
+                const existingItems = checkoutStatus === 'open' && Array.isArray(checkoutData.items) ? checkoutData.items : [];
+                const hasEntryCharge = normalizeTroyCheckoutItems(existingItems).some((item) => isTroyUndoProtectedItem(item));
+                if (!hasEntryCharge) {
+                    const orderedAtMs = Date.now();
+                    const orderId = `troy-entry:${memberId}:${orderedAtMs}`;
+                    const entryItem = buildStoredTroyCheckoutItem({
+                        name: '入店チャージ',
+                        price: 500,
+                        quantity: 1,
+                        grantedPs: 0,
+                        cashbackRateBps: 0,
+                        orderId,
+                        orderedAtMs,
+                        undoUntilMs: 0
+                    });
+                    const nextStoredItems = existingItems.concat(entryItem ? [entryItem] : []);
+                    const nextItems = normalizeTroyCheckoutItems(nextStoredItems);
+                    const nextTotal = nextItems.reduce((sum, item) => sum + item.lineTotal, 0);
+                    const nextTotalItems = nextItems.reduce((sum, item) => sum + item.quantity, 0);
+                    const nextGrantTotal = nextItems.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+                    const nowTs = admin.firestore.FieldValue.serverTimestamp();
+                    const checkoutUpdate = {
+                        playFabId: memberId,
+                        displayName: name,
+                        status: 'open',
+                        items: nextStoredItems,
+                        total: nextTotal,
+                        totalItems: nextTotalItems,
+                        grantTotal: nextGrantTotal,
+                        updatedAt: nowTs,
+                        lastOrderedAt: admin.firestore.Timestamp.fromMillis(orderedAtMs)
+                    };
+                    if (!(checkoutSnap.exists && checkoutStatus === 'open')) {
+                        checkoutUpdate.createdAt = nowTs;
+                    }
+                    await checkoutRef.set(checkoutUpdate, { merge: true });
+                    entryChargeCreated = true;
+                    checkoutPayload = {
+                        status: 'open',
+                        total: nextTotal,
+                        totalItems: nextTotalItems,
+                        grantTotal: nextGrantTotal,
+                        items: nextItems
+                    };
+
+                    try {
+                        const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
+                        const cashbackRateBps = Math.max(0, Math.floor(Number(cashbackInfo?.rateBps) || 0));
+                        const grantAmount = Math.floor(500 * (cashbackRateBps / 10000));
+                        if (grantAmount > 0) {
+                            await addEconomyItem(memberId, 'PS', grantAmount, { idempotencyId: `${orderId}:ps-grant` });
+                            entryChargeGrantAmount = grantAmount;
+                            if (getCurrencyBalance) {
+                                const receiverBalance = await getCurrencyBalance(memberId, 'PS');
+                                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                                    PlayFabId: memberId,
+                                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                                });
+                            }
+
+                            const grantedStoredItems = nextStoredItems.map((item) => (
+                                String(item?.orderId || '') === orderId
+                                    ? { ...item, grantedPs: grantAmount, cashbackRateBps }
+                                    : item
+                            ));
+                            const grantedItems = normalizeTroyCheckoutItems(grantedStoredItems);
+                            const grantedTotal = grantedItems.reduce((sum, item) => sum + item.lineTotal, 0);
+                            const grantedTotalItems = grantedItems.reduce((sum, item) => sum + item.quantity, 0);
+                            const grantedGrantTotal = grantedItems.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+                            await checkoutRef.set({
+                                items: grantedStoredItems,
+                                total: grantedTotal,
+                                totalItems: grantedTotalItems,
+                                grantTotal: grantedGrantTotal,
+                                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                            }, { merge: true });
+                            checkoutPayload = {
+                                status: 'open',
+                                total: grantedTotal,
+                                totalItems: grantedTotalItems,
+                                grantTotal: grantedGrantTotal,
+                                items: grantedItems
+                            };
+                        }
+                    } catch (grantError) {
+                        entryChargeGrantError = grantError?.errorMessage || grantError?.message || String(grantError);
+                        console.warn('[troy-join] Entry charge grant failed:', entryChargeGrantError);
+                    }
+                }
+            }
+
             await roomRef.collection('members').doc(memberId).set({
                 playFabId: memberId,
                 displayName: name,
@@ -3269,11 +3378,37 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            const kingPlayFabId = String(roomData.updatedBy || '').trim();
+            if (entryChargeCreated && lineClient && kingPlayFabId) {
+                try {
+                    const kingLineUserId = await getLineUserId(kingPlayFabId, { promisifyPlayFab, PlayFabServer });
+                    if (kingLineUserId) {
+                        const message = [
+                            '【TROY入店】',
+                            `入店者: ${name}`,
+                            '内容: 入店チャージ',
+                            '金額: ¥500',
+                            `今回付与: ${entryChargeGrantAmount.toLocaleString('ja-JP')} Ps`,
+                            `未会計合計: ¥${Math.max(0, Number(checkoutPayload?.total) || 500).toLocaleString('ja-JP')}`
+                        ].join('\n');
+                        await lineClient.pushMessage(kingLineUserId, { type: 'text', text: message });
+                    }
+                } catch (lineError) {
+                    console.warn('[troy-join] Line notify failed:', lineError?.message || lineError);
+                }
+            }
+
             pushDisplayEvent({
                 type: 'flare',
                 label: `入店: ${name}`
             });
-            res.json({ success: true });
+            res.json({
+                success: true,
+                entryChargeCreated,
+                entryChargeGrantAmount,
+                entryChargeGrantError,
+                checkout: checkoutPayload
+            });
         } catch (error) {
             console.error('[troy-join] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to join troy' });

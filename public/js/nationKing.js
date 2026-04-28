@@ -155,6 +155,7 @@ function _formatDuration(ms) {
 
 function _renderNationWar(war = null) {
     const sectionEl = document.getElementById('kingWarSection');
+    const detailsEl = document.getElementById('kingWarDetails');
     const capitalEl = document.getElementById('kingWarCapital');
     const activeEl = document.getElementById('kingWarActiveSystems');
     const incomingEl = document.getElementById('kingWarIncoming');
@@ -169,9 +170,11 @@ function _renderNationWar(war = null) {
     if (!sectionEl) return;
     if (!war) {
         sectionEl.style.display = 'none';
+        if (detailsEl) detailsEl.style.display = 'none';
         return;
     }
     sectionEl.style.display = '';
+    if (detailsEl) detailsEl.style.display = '';
     if (summaryEl) {
         const capture = war.capitalCapture || null;
         const captureText = capture?.raidUnlocked
@@ -374,6 +377,7 @@ export async function loadKingPage(playFabId) {
     const grantAmountEl = document.getElementById('kingGrantAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const grantCardEl = document.getElementById('kingGrantCard');
+    const manualGrantDetailsEl = document.getElementById('kingManualGrantDetails');
 
     if (currentEl) currentEl.innerText = (data.announcement && data.announcement.message) ? data.announcement.message : '(未設定)';
     if (metaEl) {
@@ -402,6 +406,7 @@ export async function loadKingPage(playFabId) {
         const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
         if (grantCardEl) grantCardEl.style.display = isOpen ? '' : 'none';
+        if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = isOpen ? '' : 'none';
     }
     if (previewEl && grantAmountEl) {
         const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
@@ -430,6 +435,7 @@ function _wireHandlers(playFabId) {
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const grantCardEl = document.getElementById('kingGrantCard');
+    const manualGrantDetailsEl = document.getElementById('kingManualGrantDetails');
     const pendingCheckoutEl = document.getElementById('kingPendingCheckoutList');
     const scanReceiverBtn = document.getElementById('btnKingScanReceiver');
     const clearReceiverBtn = document.getElementById('btnKingClearReceiver');
@@ -594,6 +600,7 @@ function _wireHandlers(playFabId) {
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
                 if (grantCardEl) grantCardEl.style.display = '';
+                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = '';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをOPENにしました。');
             }
@@ -606,6 +613,7 @@ function _wireHandlers(playFabId) {
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
                 if (grantCardEl) grantCardEl.style.display = 'none';
+                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
             }

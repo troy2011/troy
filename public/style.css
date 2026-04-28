@@ -918,52 +918,6 @@ body[data-sea-tone="night"] .home-hero-card {
     min-height: 1px;
 }
 
-.avatar-major-arcana-preview {
-    justify-self: end;
-    width: 78px;
-    padding: 8px 6px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    border-radius: 14px;
-    border: 1px solid rgba(245, 158, 11, 0.26);
-    background:
-        radial-gradient(circle at top, rgba(96, 165, 250, 0.16), transparent 56%),
-        linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(8, 15, 28, 0.96));
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        0 14px 28px -24px rgba(0, 0, 0, 0.95);
-}
-
-.avatar-major-arcana-preview.is-empty {
-    opacity: 0.8;
-}
-
-.avatar-major-arcana-preview-label {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: rgba(226, 232, 240, 0.86);
-}
-
-.avatar-major-arcana-preview-visual {
-    width: 54px;
-    height: 90px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background:
-        linear-gradient(180deg, rgba(148, 163, 184, 0.18), rgba(51, 65, 85, 0.32)),
-        rgba(15, 23, 42, 0.92);
-    box-shadow: 0 12px 20px -16px rgba(0, 0, 0, 0.9);
-    overflow: hidden;
-    position: relative;
-    image-rendering: pixelated;
-}
-
 .avatar-layer {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -1092,7 +1046,6 @@ body[data-sea-tone="night"] .home-hero-card {
     color: var(--accent-color);
 }
 
-.major-arcana-slot .equip-slot-name,
 .weapon-slot .equip-slot-name,
 .shield-slot .equip-slot-name,
 .armor-slot .equip-slot-name,
@@ -1169,10 +1122,6 @@ body[data-sea-tone="night"] .home-hero-card {
 
 .armor-slot .equip-slot-icon {
     filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
-}
-
-.major-arcana-slot .equip-slot-icon {
-    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.55));
 }
 
 .minor-arcana-slot .equip-slot-icon {
@@ -1440,6 +1389,14 @@ body[data-sea-tone="night"] .home-hero-card {
     pointer-events: none;
 }
 
+.tarot-loadout-art {
+    position: relative;
+    z-index: 1;
+    color: var(--text-sub);
+    font-size: 28px;
+    line-height: 1;
+}
+
 .tarot-loadout-card.is-empty .tarot-loadout-visual {
     display: flex;
     align-items: center;
@@ -1666,6 +1623,63 @@ body[data-sea-tone="night"] .home-hero-card {
     text-align: center;
 }
 
+.tarot-loadout-cell-actions {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 32px 32px minmax(0, 1fr);
+    gap: 5px;
+    width: 100%;
+}
+
+.tarot-loadout-cell-move,
+.tarot-loadout-cell-remove {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    min-height: 28px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.tarot-loadout-cell-move {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.5);
+    color: #e2e8f0;
+}
+
+.tarot-loadout-cell-move:hover:not(:disabled) {
+    background: rgba(51, 65, 85, 0.72);
+    border-color: rgba(226, 232, 240, 0.36);
+}
+
+.tarot-loadout-cell-move:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+
+.tarot-loadout-cell-remove {
+    border: 1px solid rgba(248, 113, 113, 0.24);
+    background: rgba(127, 29, 29, 0.28);
+    color: #fecaca;
+}
+
+.tarot-loadout-cell-remove:hover {
+    background: rgba(185, 28, 28, 0.42);
+    border-color: rgba(252, 165, 165, 0.42);
+}
+
+.tarot-loadout-cell-empty {
+    min-height: 92px;
+    display: grid;
+    place-items: center;
+    color: var(--text-sub);
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .inventory-tab-hint {
     margin: 8px 0 12px;
     padding: 10px 12px;
@@ -1695,7 +1709,6 @@ body[data-sea-tone="night"] .home-hero-card {
     box-sizing: border-box;
 }
 
-.major-arcana-slot .equip-slot-stats,
 .weapon-slot .equip-slot-stats,
 .shield-slot .equip-slot-stats,
 .armor-slot .equip-slot-stats,
@@ -1819,7 +1832,6 @@ body[data-sea-tone="night"] .home-hero-card {
         font-size: 10px;
     }
 
-    .major-arcana-slot .equip-slot-name,
     .weapon-slot .equip-slot-name,
     .shield-slot .equip-slot-name,
     .armor-slot .equip-slot-name,
@@ -3490,6 +3502,19 @@ body.modal-lock .modal-overlay {
     border-color: rgba(250, 204, 21, 0.55);
     background: rgba(30, 41, 59, 0.9);
     transform: translateY(-1px);
+}
+
+.troy-menu-item-button.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.troy-menu-item-button.is-disabled:hover {
+    color: #e5e7eb;
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.75);
+    transform: none;
 }
 
 .troy-menu-item-button.is-active {
@@ -9439,13 +9464,11 @@ textarea {
 }
 
 #itemDetailModal,
-#tarotManifestPreviewModal,
 #playerProfileModal {
     align-items: flex-end;
 }
 
 #itemDetailModal .item-detail-sheet,
-#tarotManifestPreviewModal .item-detail-sheet,
 #playerProfileModal .item-detail-sheet {
     width: 100%;
     max-width: none;
@@ -9527,95 +9550,6 @@ textarea {
     margin: 0 0 18px;
     font-weight: 700;
     line-height: 1.7;
-}
-
-#tarotManifestPreviewIcon {
-    width: 64px;
-    height: 96px;
-    background-repeat: no-repeat;
-    image-rendering: pixelated;
-    flex: 0 0 auto;
-}
-
-#tarotManifestPreviewName {
-    margin: 0;
-    color: var(--accent-color);
-    font-size: 18px;
-    line-height: 1.25;
-}
-
-#tarotManifestPreviewSubline {
-    margin: 0;
-    font-size: 12px;
-    color: var(--text-sub);
-}
-
-#tarotManifestPreviewDescription {
-    margin: 0 0 14px;
-    padding: 12px 14px;
-    border-radius: 14px;
-    background: rgba(0, 0, 0, 0.22);
-    font-size: 14px;
-    line-height: 1.65;
-}
-
-#tarotManifestPreviewStats {
-    margin: 0 0 18px;
-    padding: 12px 14px;
-    border-radius: 14px;
-    background: rgba(8, 15, 29, 0.64);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    font-weight: 700;
-    line-height: 1.7;
-}
-
-.tarot-manifest-preview-namebox {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.tarot-manifest-preview-namebox label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #e2e8f0;
-}
-
-#tarotManifestPreviewNameInput {
-    width: 100%;
-    min-height: 46px;
-    padding: 12px 14px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(15, 23, 42, 0.82);
-    color: #f8fafc;
-    font-size: 16px;
-}
-
-#tarotManifestPreviewNameInput::placeholder {
-    color: rgba(226, 232, 240, 0.42);
-}
-
-.tarot-manifest-preview-hint {
-    font-size: 12px;
-    line-height: 1.5;
-    color: #cbd5e1;
-}
-
-.tarot-manifest-preview-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    margin-top: 0;
-}
-
-.tarot-manifest-preview-actions button {
-    width: 100%;
-}
-
-.tarot-manifest-preview-actions .item-detail-close {
-    margin-top: 0;
 }
 
 .player-profile-sheet {
@@ -11246,6 +11180,59 @@ textarea {
     border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.troy-king-priority-card {
+    background: rgba(15, 23, 42, 0.94);
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28);
+}
+
+.troy-admin-details {
+    margin-top: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.5);
+    overflow: hidden;
+}
+
+.troy-admin-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 800;
+    list-style: none;
+}
+
+.troy-admin-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.troy-admin-details summary::after {
+    content: '+';
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.troy-admin-details[open] summary::after {
+    content: '-';
+}
+
+.troy-admin-details > .troy-admin-card {
+    margin: 0;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    background: rgba(0, 0, 0, 0.18);
+}
+
 .king-card-label,
 .king-field-label,
 .troy-admin-label,
@@ -11762,28 +11749,7 @@ textarea {
 }
 
 #tabContentInventory .inventory-avatar-stage {
-    grid-template-columns: 56px auto 56px;
-}
-
-#tabContentInventory .inventory-avatar-stage-spacer {
-    width: 56px;
-}
-
-#tabContentInventory .avatar-major-arcana-preview {
-    width: 52px;
-    padding: 5px 4px 6px;
-    gap: 4px;
-    border-radius: 12px;
-}
-
-#tabContentInventory .avatar-major-arcana-preview-label {
-    font-size: 8px;
-}
-
-#tabContentInventory .avatar-major-arcana-preview-visual {
-    width: 36px;
-    height: 60px;
-    border-radius: 7px;
+    grid-template-columns: 1fr;
 }
 
 #tabContentInventory .avatar-container {
@@ -11796,10 +11762,6 @@ textarea {
     gap: 6px;
     margin-top: 6px;
     padding: 0;
-}
-
-#tabContentInventory .major-arcana-slot {
-    display: none;
 }
 
 #tabContentInventory .equip-slot {
@@ -11833,7 +11795,6 @@ textarea {
     text-overflow: ellipsis;
 }
 
-#tabContentInventory .major-arcana-slot .equip-slot-name,
 #tabContentInventory .weapon-slot .equip-slot-name,
 #tabContentInventory .shield-slot .equip-slot-name,
 #tabContentInventory .armor-slot .equip-slot-name,
@@ -11995,6 +11956,23 @@ textarea {
     display: none;
 }
 
+#tabContentInventory .tarot-loadout-cell-actions {
+    grid-template-columns: 20px 20px minmax(0, 1fr);
+    gap: 3px;
+}
+
+#tabContentInventory .tarot-loadout-cell-move,
+#tabContentInventory .tarot-loadout-cell-remove {
+    min-height: 24px;
+    border-radius: 7px;
+    font-size: 9px;
+}
+
+#tabContentInventory .tarot-loadout-cell-empty {
+    min-height: 70px;
+    font-size: 9px;
+}
+
 #tabContentInventory #inventoryTabs {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -12057,7 +12035,6 @@ textarea {
 }
 
 #itemDetailModal .item-detail-sheet,
-#tarotManifestPreviewModal .item-detail-sheet,
 #playerProfileModal .item-detail-sheet {
     display: flex;
     flex-direction: column;
@@ -12300,17 +12277,10 @@ textarea {
     box-shadow: none;
 }
 
-#tabContentInventory .inventory-item-quick-action.is-equip,
-#tabContentInventory .inventory-item-quick-action.is-manifest {
+#tabContentInventory .inventory-item-quick-action.is-equip {
     background: rgba(14, 116, 144, 0.28);
     border-color: rgba(56, 189, 248, 0.28);
     color: #bae6fd;
-}
-
-#tabContentInventory .inventory-item-quick-action.is-study {
-    background: rgba(37, 99, 235, 0.22);
-    border-color: rgba(96, 165, 250, 0.28);
-    color: #bfdbfe;
 }
 
 #tabContentInventory .inventory-item-quick-action.is-awaken {
@@ -13336,4 +13306,268 @@ textarea {
     padding: 1px 5px;
     margin-left: 4px;
     vertical-align: middle;
+}
+
+/* 店舗イベント */
+.event-page {
+    padding: 16px;
+}
+.event-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.event-page-header h2 {
+    margin: 0 0 4px;
+    color: #f8fafc;
+    font-size: 22px;
+}
+.event-page-header p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
+}
+.event-page-message {
+    min-height: 20px;
+    color: #34d399;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.event-page-message.is-error {
+    color: #f87171;
+}
+.event-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.82fr) minmax(320px, 1.18fr);
+    gap: 14px;
+}
+.event-create-panel,
+.event-list-panel {
+    background: #111827;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    padding: 14px;
+}
+.event-create-panel h3,
+.event-list-panel h3 {
+    margin: 0 0 12px;
+    color: #e5e7eb;
+    font-size: 16px;
+}
+.event-host-fee {
+    margin: -2px 0 12px;
+    color: #fbbf24;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+.event-list-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.event-list-head h3 {
+    margin: 0;
+}
+.event-list-head span {
+    color: #94a3b8;
+    font-size: 12px;
+}
+.event-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.event-create-panel label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 700;
+}
+.event-create-panel label.is-wide {
+    grid-column: 1 / -1;
+}
+.event-create-panel input,
+.event-create-panel select,
+.event-create-panel textarea {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 7px;
+    background: #0b1220;
+    color: #f8fafc;
+    padding: 9px 10px;
+    font-size: 14px;
+}
+.event-create-panel textarea {
+    min-height: 94px;
+    resize: vertical;
+}
+.event-create-note {
+    margin: 10px 0 12px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.event-create-btn,
+.event-refresh-btn,
+.event-action-btn {
+    border: 0;
+    border-radius: 7px;
+    color: #fff;
+    background: #2563eb;
+    font-weight: 700;
+    cursor: pointer;
+}
+.event-create-btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+}
+.event-refresh-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    background: #334155;
+}
+.event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.event-card {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 8px;
+    background: #0b1220;
+    padding: 12px;
+}
+.event-card.is-pending {
+    border-color: rgba(245, 158, 11, 0.45);
+}
+.event-card.is-rejected {
+    opacity: 0.68;
+}
+.event-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+.event-card-type {
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+.event-card h3 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 16px;
+    line-height: 1.3;
+}
+.event-status {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: rgba(52, 211, 153, 0.14);
+    color: #6ee7b7;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.event-card.is-pending .event-status {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
+}
+.event-card.is-rejected .event-status {
+    background: rgba(248, 113, 113, 0.14);
+    color: #fca5a5;
+}
+.event-card-time {
+    margin-top: 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 700;
+}
+.event-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.event-card-meta span {
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #cbd5e1;
+    padding: 4px 7px;
+    font-size: 12px;
+}
+.event-card-desc {
+    margin: 10px 0 8px;
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+.event-card-participants {
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.event-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.event-action-btn {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+}
+.event-action-btn.is-join {
+    background: #059669;
+}
+.event-action-btn.is-approve {
+    background: #2563eb;
+}
+.event-action-btn.is-reject {
+    background: #b91c1c;
+}
+.event-action-note {
+    color: #6ee7b7;
+    font-size: 13px;
+    font-weight: 700;
+}
+.event-empty {
+    color: #94a3b8;
+    text-align: center;
+    padding: 28px 8px;
+}
+
+@media (max-width: 720px) {
+    .event-page {
+        padding: 12px;
+    }
+    .event-page-header {
+        align-items: flex-start;
+    }
+    .event-layout,
+    .event-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .event-list-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .event-card-head {
+        flex-direction: column;
+        gap: 8px;
+    }
 }

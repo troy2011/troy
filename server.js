@@ -38,6 +38,7 @@ const mapModule = require('./server/map');
 const chat = require('./server/chat');
 const tarotFortune = require('./server/tarotFortune');
 const tarotDeck = require('./server/tarotDeck');
+const events = require('./server/events');
 
 // 既存ルート
 const battleRoutes = require('./server/routes/battleRoutes');
@@ -1880,6 +1881,9 @@ async function main() {
 
     // タロットデッキ
     tarotDeck.initializeTarotDeckRoutes(app, deps);
+
+    // 店舗イベント
+    events.initializeEventRoutes(app, deps);
 
     // 島ルート
     island.initializeIslandRoutes(app, deps);

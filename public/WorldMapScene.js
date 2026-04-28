@@ -27,6 +27,8 @@ import {
 // 定数定義
 // ========================================
 
+const RIDE_SYSTEM_ENABLED = false;
+
 const GAME_CONFIG = {
     GRID_SIZE: 32,
     MAP_TILE_SIZE: 100,
@@ -278,6 +280,11 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSideCannonChargeUntil = 0;
         this.shipSideCannonUiLastUpdate = 0;
         this.shipSideCannonChargeTimer = null;
+        this.shipNormalAttackPanel = null;
+        this.shipNormalAttackButton = null;
+        this.shipNormalAttackStatus = null;
+        this.shipNormalAttackLockUntil = 0;
+        this.shipNormalAttackUiLastUpdate = 0;
         // 船スキル
         this.shipSkillPanelOpen = false;
         this.shipSkillData = [];
@@ -1177,6 +1184,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.createBoardingButton();
         this.setupShipActionUi();
         this.setupShipSideCannonUi();
+        this.setupShipNormalAttackUi();
         this.setupShipSkillUi();
         this.setupCreateIslandUi();
         this.setupRideLeaveUi();
@@ -1319,8 +1327,8 @@ export default class WorldMapScene extends Phaser.Scene {
 
         // 11. Firestore 初期化（ships同期など）
         await this.initializeFirestore();
-        await this.subscribeToRideRequests();
-        if (this.time) {
+        if (RIDE_SYSTEM_ENABLED) await this.subscribeToRideRequests();
+        if (RIDE_SYSTEM_ENABLED && this.time) {
             this.rideSyncTimer = this.time.addEvent({
                 delay: 250,
                 loop: true,
@@ -2719,6 +2727,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipCombatResourceHud();
         this.updateShipActionUi(true);
         this.updateShipSideCannonUi(true);
+        this.updateShipNormalAttackUi(true);
     }
 
     applyShipCombatResourceDelta(resourceMap = null, multiplier = 1) {
@@ -2833,6 +2842,20 @@ export default class WorldMapScene extends Phaser.Scene {
         this.shipSideCannonStatus = status;
         button.addEventListener('click', () => this.triggerShipSideCannon());
         this.updateShipSideCannonUi(true);
+    }
+
+    setupShipNormalAttackUi() {
+        if (typeof document === 'undefined') return;
+        const panel = document.getElementById('shipNormalAttackPanel');
+        const button = document.getElementById('shipNormalAttackButton');
+        const status = document.getElementById('shipNormalAttackStatus');
+        if (!panel || !button || !status) return;
+
+        this.shipNormalAttackPanel = panel;
+        this.shipNormalAttackButton = button;
+        this.shipNormalAttackStatus = status;
+        button.addEventListener('click', () => this.triggerShipNormalAttack());
+        this.updateShipNormalAttackUi(true);
     }
 
     // ────────────────────────────────────────────────────────
@@ -3143,6 +3166,131 @@ export default class WorldMapScene extends Phaser.Scene {
             hitStopMs: 80,
             cooldownMs: 60_000
         };
+    }
+
+    getShipNormalAttackInfo() {
+        const shipClass = this.isPlayerGuildShip()
+            ? 'guild'
+            : String(this.playerShipClass || this.playerShipAssetData?.Class || this.playerShipAssetData?.class || '').toLowerCase();
+        const base = {
+            type: 'normal_cannon',
+            label: '通常砲撃',
+            emoji: ['💥'],
+            effect: 'normal_cannon',
+            rangeTiles: 3.5,
+            angle: 38,
+            damage: 45,
+            broadside: false
+        };
+        if (shipClass === 'fighter') {
+            return { ...base, label: '直射砲', rangeTiles: 5.5, angle: 28, damage: 95, effect: 'cannon_shot', emoji: ['💣'] };
+        }
+        if (shipClass === 'defender') {
+            return { ...base, type: 'normal_broadside', label: '舷側射撃', rangeTiles: 4, angle: 55, damage: 70, effect: 'broadside', broadside: true, emoji: ['💥'] };
+        }
+        if (shipClass === 'merchant') {
+            return { ...base, label: '牽制射撃', rangeTiles: 3.5, angle: 70, damage: 62, effect: 'normal_scatter', emoji: ['✨'] };
+        }
+        if (shipClass === 'explorer') {
+            return { ...base, label: '速射', rangeTiles: 6, angle: 20, damage: 50, effect: 'cannon_shot', emoji: ['💨'] };
+        }
+        if (shipClass === 'guild') {
+            return { ...base, type: 'normal_broadside', label: '艦隊射撃', rangeTiles: 5, angle: 60, damage: 85, effect: 'broadside', broadside: true, emoji: ['💣', '💥'] };
+        }
+        return base;
+    }
+
+    updateShipNormalAttackUi(force = false) {
+        if (!this.shipNormalAttackButton || !this.shipNormalAttackStatus) return;
+        const now = Date.now();
+        if (!force && now - this.shipNormalAttackUiLastUpdate < 160) return;
+        this.shipNormalAttackUiLastUpdate = now;
+
+        const info = this.getShipNormalAttackInfo();
+        const jamRemaining = Math.max(0, this.shipActionJammedUntil - now);
+        const lockRemaining = Math.max(0, this.shipNormalAttackLockUntil - now);
+        const hasShip = !!this.playerShip && (!!this.playerShipClass || !!this.playerShipItemId || this.isPlayerGuildShip());
+        const inBattle = this.isShipInBattle(this.playerInfo?.playFabId);
+        const canUse = hasShip && !inBattle && jamRemaining <= 0 && lockRemaining <= 0;
+
+        if (this.shipNormalAttackPanel) {
+            this.shipNormalAttackPanel.style.display = 'flex';
+        }
+        this.shipNormalAttackButton.disabled = !canUse;
+        this.shipNormalAttackButton.textContent = '通常攻撃';
+
+        if (!hasShip) {
+            this.shipNormalAttackStatus.textContent = '船が必要';
+            return;
+        }
+        if (inBattle) {
+            this.shipNormalAttackStatus.textContent = '戦闘中不可';
+            return;
+        }
+        if (jamRemaining > 0) {
+            this.shipNormalAttackStatus.textContent = `妨害中 (${Math.ceil(jamRemaining / 1000)}s)`;
+            return;
+        }
+        this.shipNormalAttackStatus.textContent = `${info.label} 威力${info.damage}`;
+    }
+
+    triggerShipNormalAttack() {
+        if (!this.playerShip || !this.playerInfo?.playFabId) {
+            this.showMessage('通常攻撃を使用できません。');
+            return;
+        }
+        if (this.isShipInBattle(this.playerInfo.playFabId)) {
+            this.showMessage('戦闘中は通常攻撃を使用できません。');
+            return;
+        }
+        const now = Date.now();
+        if (now < this.shipActionJammedUntil) {
+            this.showMessage(`妨害中 (${Math.ceil((this.shipActionJammedUntil - now) / 1000)}s)`);
+            return;
+        }
+        if (now < this.shipNormalAttackLockUntil) {
+            return;
+        }
+
+        const actionInfo = this.getShipNormalAttackInfo();
+        this.shipNormalAttackLockUntil = now + 220;
+        this.updateShipNormalAttackUi(true);
+        this.emitShipActionEvent(actionInfo, this.playerShip.x, this.playerShip.y);
+        if (Array.isArray(actionInfo.emoji) && actionInfo.emoji.length > 0) {
+            this.playEmojiBurst(actionInfo.emoji, this.playerShip.x, this.playerShip.y - 16, { fontSize: 16, rise: 16, duration: 520 });
+        }
+        this.applyShipNormalAttack(actionInfo);
+        this.time.delayedCall(230, () => this.updateShipNormalAttackUi(true));
+    }
+
+    applyShipNormalAttack(actionInfo = {}) {
+        if (!this.playerShip) return;
+        const tile = this.TILE_SIZE;
+        const range = tile * Math.max(1, Number(actionInfo.rangeTiles) || 3);
+        const angle = Number(actionInfo.angle) || 38;
+        const damage = Number(actionInfo.damage) || 40;
+        const effectColor = this.getActionEffectColor(actionInfo.effect, 0xffd166);
+        if (actionInfo.broadside) {
+            const broadsideBundle = this.getDefenderBroadsideBundle(actionInfo);
+            if (!broadsideBundle?.targets?.length) {
+                this.showMessage('対象がいません');
+                this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
+                return;
+            }
+            this.applyDefenderBroadsideAction(actionInfo, broadsideBundle);
+            return;
+        }
+
+        const heading = this.getFacingAngleRad();
+        const targets = this.getTargetsInCone(range, angle);
+        this.playActionConeEffectAt(this.playerShip.x, this.playerShip.y, range, angle, heading, effectColor);
+        this.playCannonShot(this.playerShip.x, this.playerShip.y, range, heading, {
+            glyph: actionInfo.effect === 'normal_scatter' ? '✨' : '💥',
+            durationMs: 150,
+            impactGlyph: '💥',
+            impactTint: 0xffef9f
+        });
+        this.applyShipActionDamage(targets, damage);
     }
 
     updateShipSideCannonUi(force = false) {
@@ -4818,7 +4966,7 @@ export default class WorldMapScene extends Phaser.Scene {
         if (myNation && targetNation && myNation === targetNation) {
             this.boardingTargetId = targetPlayFabId;
             title.textContent = displayName ? `船: ${displayName}` : '船';
-            actionBtn.textContent = '同乗申請';
+            actionBtn.textContent = '同乗廃止';
             actionBtn.className = 'island-command-btn info';
             attackBtn.style.display = 'none';
             const newActionBtn = actionBtn.cloneNode(true);
@@ -4826,7 +4974,7 @@ export default class WorldMapScene extends Phaser.Scene {
             const newCloseBtn = closeBtn.cloneNode(true);
             closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
             newActionBtn.addEventListener('click', () => {
-                void this.requestRide(targetPlayFabId, displayName);
+                this.showMessage('他プレイヤーの同乗は廃止されました。');
             });
             newCloseBtn.addEventListener('click', () => {
                 this.hideShipCommandMenu();
@@ -4916,6 +5064,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     setupRideLeaveUi() {
+        if (!RIDE_SYSTEM_ENABLED) return;
         if (typeof document === 'undefined' || this.rideLeaveButton) return;
         const label = document.createElement('div');
         label.id = 'rideStatusLabel';
@@ -4957,11 +5106,17 @@ export default class WorldMapScene extends Phaser.Scene {
 
     updateRideLeaveUi() {
         if (!this.rideLeaveButton) return;
+        if (!RIDE_SYSTEM_ENABLED) {
+            this.rideLeaveButton.style.display = 'none';
+            this.updateRideStatusUi();
+            return;
+        }
         this.rideLeaveButton.style.display = this.ridingShipId ? 'block' : 'none';
         this.updateRideStatusUi();
     }
 
     getRideStatusText() {
+        if (!RIDE_SYSTEM_ENABLED) return '';
         const passengerCount = Math.max(0, Array.from(this.otherShips.values())
             .filter((entry) => entry?.data?.ridingOwnerId === this.playerInfo?.playFabId)
             .length);
@@ -4986,6 +5141,10 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     async requestRide(targetPlayFabId, displayName = '') {
+        if (!RIDE_SYSTEM_ENABLED) {
+            this.showMessage('他プレイヤーの同乗は廃止されました。');
+            return;
+        }
         if (!this.firestore || !this.playerInfo?.playFabId || !targetPlayFabId) return;
         if (this.ridingShipId) {
             this.showMessage('すでに同乗中です。下船してから申請してください。');
@@ -5025,6 +5184,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     async subscribeToRideRequests() {
+        if (!RIDE_SYSTEM_ENABLED) return;
         if (!this.firestore || !this.playerInfo?.playFabId) return;
         const { collection, query, where, onSnapshot, doc } = await import('firebase/firestore');
         if (this.rideRequestUnsubscribe) {
@@ -5104,6 +5264,18 @@ export default class WorldMapScene extends Phaser.Scene {
         this.rideSelfUnsubscribe = onSnapshot(selfRef, (snap) => {
             if (!snap.exists()) return;
             const data = snap.data() || {};
+            if (!RIDE_SYSTEM_ENABLED) {
+                const changed = !!this.ridingShipId || !!this.ridingOwnerId;
+                this.ridingShipId = null;
+                this.ridingOwnerId = null;
+                this.ridingSince = null;
+                this.canMove = true;
+                if (changed) {
+                    this.updateRideLeaveUi();
+                    this.updateRideCameraFollow();
+                }
+                return;
+            }
             const ridingShipId = String(data?.ridingShipId || '').trim();
             const ridingOwnerId = String(data?.ridingOwnerId || '').trim();
             const changed = this.ridingShipId !== ridingShipId || this.ridingOwnerId !== ridingOwnerId;
@@ -5120,6 +5292,10 @@ export default class WorldMapScene extends Phaser.Scene {
 
     async promptRideRequest(request) {
         if (!request || !request.requesterId || !request.targetId) return;
+        if (!RIDE_SYSTEM_ENABLED) {
+            await this.respondRideRequest(request, false);
+            return;
+        }
         if (this.ridingShipId) {
             await this.respondRideRequest(request, false);
             return;
@@ -5239,7 +5415,7 @@ export default class WorldMapScene extends Phaser.Scene {
 
     updateRideCameraFollow() {
         if (!this.cameras?.main) return;
-        if (this.ridingShipId && this.ridingOwnerId) {
+        if (RIDE_SYSTEM_ENABLED && this.ridingShipId && this.ridingOwnerId) {
             const targetShip = this.otherShips.get(this.ridingOwnerId);
             const targetSprite = targetShip?.sprite;
             if (targetSprite) {
@@ -5260,6 +5436,7 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     syncRidePosition() {
+        if (!RIDE_SYSTEM_ENABLED) return;
         if (!this.ridingShipId || !this.ridingOwnerId || !this.playerShip) return;
         const targetShip = this.otherShips.get(this.ridingOwnerId);
         const targetSprite = targetShip?.sprite;
@@ -7851,6 +8028,7 @@ export default class WorldMapScene extends Phaser.Scene {
         this.updateShipActionEffects();
         this.updateShipActionUi();
         this.updateShipSideCannonUi();
+        this.updateShipNormalAttackUi();
         this.updateCreateIslandUi();
         this.updateGhostShip(this.game?.loop?.delta || 0);
     }
@@ -8330,9 +8508,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 guildId: this.getMyGuildId(),
                 lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
                 crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
-                ridingShipId: this.ridingShipId || null,
-                ridingOwnerId: this.ridingOwnerId || null,
-                ridingSince: this.ridingSince || null,
+                ridingShipId: RIDE_SYSTEM_ENABLED ? (this.ridingShipId || null) : null,
+                ridingOwnerId: RIDE_SYSTEM_ENABLED ? (this.ridingOwnerId || null) : null,
+                ridingSince: RIDE_SYSTEM_ENABLED ? (this.ridingSince || null) : null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: targetX,
@@ -8387,9 +8565,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 guildId: this.getMyGuildId(),
                 lastAnimKey: this.playerShip?.lastAnimKey || 'ship_down',
                 crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
-                ridingShipId: this.ridingShipId || null,
-                ridingOwnerId: this.ridingOwnerId || null,
-                ridingSince: this.ridingSince || null,
+                ridingShipId: RIDE_SYSTEM_ENABLED ? (this.ridingShipId || null) : null,
+                ridingOwnerId: RIDE_SYSTEM_ENABLED ? (this.ridingOwnerId || null) : null,
+                ridingSince: RIDE_SYSTEM_ENABLED ? (this.ridingSince || null) : null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: currentX,
@@ -8431,11 +8609,11 @@ export default class WorldMapScene extends Phaser.Scene {
                     this.shipVisionRange = storedVision;
                     this.baseShipVisionRange = storedVision;
                 }
-                const ridingShipId = String(data?.ridingShipId || '').trim();
-                const ridingOwnerId = String(data?.ridingOwnerId || '').trim();
+                const ridingShipId = RIDE_SYSTEM_ENABLED ? String(data?.ridingShipId || '').trim() : '';
+                const ridingOwnerId = RIDE_SYSTEM_ENABLED ? String(data?.ridingOwnerId || '').trim() : '';
                 this.ridingShipId = ridingShipId || null;
                 this.ridingOwnerId = ridingOwnerId || null;
-                this.ridingSince = data?.ridingSince || null;
+                this.ridingSince = RIDE_SYSTEM_ENABLED ? (data?.ridingSince || null) : null;
                 this.canMove = !this.ridingShipId;
                 this.updateRideLeaveUi();
                 this.shipRepairUntil = Number(data?.repairUntil) || 0;
@@ -8611,9 +8789,9 @@ export default class WorldMapScene extends Phaser.Scene {
                 mapId: this.mapId || null,
                 guildId: this.getMyGuildId(),
                 crewCapacity: Number(this.playerShipAssetData?.Stats?.CrewCapacity) || null,
-                ridingShipId: this.ridingShipId || null,
-                ridingOwnerId: this.ridingOwnerId || null,
-                ridingSince: this.ridingSince || null,
+                ridingShipId: RIDE_SYSTEM_ENABLED ? (this.ridingShipId || null) : null,
+                ridingOwnerId: RIDE_SYSTEM_ENABLED ? (this.ridingOwnerId || null) : null,
+                ridingSince: RIDE_SYSTEM_ENABLED ? (this.ridingSince || null) : null,
                 currentX: currentX,
                 currentY: currentY,
                 targetX: currentX,
@@ -8640,7 +8818,7 @@ export default class WorldMapScene extends Phaser.Scene {
     async updateOtherShip(playFabId, shipData) {
         let shipObject = this.otherShips.get(playFabId);
         const now = Date.now();
-        const isPassenger = !!shipData?.ridingOwnerId;
+        const isPassenger = RIDE_SYSTEM_ENABLED && !!shipData?.ridingOwnerId;
 
         const shipId = shipData.shipId;
         const isGuildShip = !!shipData?.isGuildShip || !!shipData?.guildShip;

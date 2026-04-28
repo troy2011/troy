@@ -82,6 +82,23 @@ function unequipCardFromDeck(deck, cardItemId) {
     return { ok: true, deck: deck.filter((id) => id !== cardItemId) };
 }
 
+function moveCardInDeck(deck, cardItemId, direction) {
+    const list = Array.isArray(deck) ? [...deck] : [];
+    const index = list.findIndex((id) => id === cardItemId);
+    if (index < 0) {
+        return { ok: false, error: 'CardNotInDeck', deck: list };
+    }
+    const delta = direction === 'left' || direction === 'up' || Number(direction) < 0 ? -1 : 1;
+    const nextIndex = index + delta;
+    if (nextIndex < 0 || nextIndex >= list.length) {
+        return { ok: true, deck: list, unchanged: true };
+    }
+    const tmp = list[index];
+    list[index] = list[nextIndex];
+    list[nextIndex] = tmp;
+    return { ok: true, deck: list };
+}
+
 // カタログデータの配列からポーカーハンド評価用カードを組み立てる
 function buildDeckRoleCards(deckItemDataList) {
     const SUIT_MAP = { wand: 'Wand', sword: 'Sword', cup: 'Cup', pentacle: 'Pentacle', all: 'All', none: 'None' };
@@ -168,6 +185,17 @@ function initializeTarotDeckRoutes(app, deps) {
         return { ok: true };
     }
 
+    function buildDeckResponse(decks) {
+        const meleeDeck = Array.isArray(decks?.meleeDeck) ? decks.meleeDeck : [];
+        const shipDeck = Array.isArray(decks?.shipDeck) ? decks.shipDeck : [];
+        return {
+            meleeDeck,
+            shipDeck,
+            meleeRole: evaluateDeckRole(meleeDeck.map((itemId) => catalogCache?.[itemId] || null)),
+            shipRole: evaluateDeckRole(shipDeck.map((itemId) => catalogCache?.[itemId] || null))
+        };
+    }
+
     // デッキ取得
     app.post('/api/tarot-deck-get', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
@@ -176,7 +204,7 @@ function initializeTarotDeckRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            return res.json({ ok: true, ...decks });
+            return res.json({ ok: true, ...buildDeckResponse(decks) });
         } catch (error) {
             console.error('[tarot-deck-get] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToGetTarotDecks' });
@@ -206,7 +234,7 @@ function initializeTarotDeckRoutes(app, deps) {
                 ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
                 : { meleeDeck: result.deck,     shipDeck: decks.shipDeck };
             await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
-            return res.json({ ok: true, ...updated });
+            return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-equip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToEquipTarotCard' });
@@ -233,10 +261,43 @@ function initializeTarotDeckRoutes(app, deps) {
                 ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
                 : { meleeDeck: result.deck,     shipDeck: decks.shipDeck };
             await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
-            return res.json({ ok: true, ...updated });
+            return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-unequip] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToUnequipTarotCard' });
+        }
+    });
+
+    app.post('/api/tarot-deck-move', async (req, res) => {
+        const requestedPlayFabId = String(req.body?.playFabId || '').trim();
+        const cardItemId = String(req.body?.cardItemId || '').trim();
+        const deckType = String(req.body?.deckType || '').trim();
+        const direction = String(req.body?.direction || '').trim();
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
+        if (deckType !== 'melee' && deckType !== 'ship') {
+            return res.status(400).json({ error: 'deckType must be melee or ship' });
+        }
+        if (!['left', 'right', 'up', 'down', '-1', '1'].includes(direction)) {
+            return res.status(400).json({ error: 'direction must be left or right' });
+        }
+        const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
+            const current = deckType === 'ship' ? decks.shipDeck : decks.meleeDeck;
+            const result = moveCardInDeck(current, cardItemId, direction);
+            if (!result.ok) return res.status(400).json({ error: result.error });
+            const updated = deckType === 'ship'
+                ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
+                : { meleeDeck: result.deck, shipDeck: decks.shipDeck };
+            if (!result.unchanged) {
+                await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
+            }
+            return res.json({ ok: true, ...buildDeckResponse(updated) });
+        } catch (error) {
+            console.error('[tarot-deck-move] Error:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToMoveTarotCard' });
         }
     });
 }
@@ -250,6 +311,7 @@ module.exports = {
     writeDecks,
     equipCardToDeck,
     unequipCardFromDeck,
+    moveCardInDeck,
     buildDeckRoleCards,
     evaluateDeckRole,
     initializeTarotDeckRoutes

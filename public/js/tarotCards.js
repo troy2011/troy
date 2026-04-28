@@ -15,7 +15,7 @@ const TAROT_MINOR_SLOT_ALIASES = {
     MinorArcana4: 'Accessory'
 };
 export const TAROT_SLOT_LABELS = {
-    MajorArcana: '体',
+    MajorArcana: '大アルカナ',
     Armor: '頭',
     RightHand: '右手',
     LeftHand: '左手',
@@ -76,32 +76,6 @@ const TAROT_MAJOR_SPECIAL_SUIT = {
     19: 'wand'
 };
 const TAROT_MAJOR_ALL_SUIT_NUMBERS = new Set([1]);
-const TAROT_MANIFEST_BASES = {
-    Armor: {
-        wand: '術帽',
-        sword: '戦冠',
-        cup: '月冠',
-        pentacle: '金冠'
-    },
-    RightHand: {
-        wand: '杖',
-        sword: '剣',
-        cup: '聖杯杖',
-        pentacle: '印具'
-    },
-    LeftHand: {
-        wand: '導器',
-        sword: '副剣',
-        cup: '守杯',
-        pentacle: '護符板'
-    },
-    Accessory: {
-        wand: '魔印',
-        sword: '勲章',
-        cup: '首飾り',
-        pentacle: '護符'
-    }
-};
 const TAROT_MINOR_SPRITE_BASE = {
     wand: 0,
     pentacle: 20,
@@ -125,7 +99,7 @@ export function isTarotMinorCategory(category) {
 }
 
 export function isTarotManifestationData(itemData) {
-    return !!(itemData && typeof itemData === 'object' && itemData.Manifested);
+    return false;
 }
 
 export function matchesInventoryCategory(category, filterCategory) {
@@ -186,24 +160,7 @@ export function getTarotSlotLabel(slot) {
     return TAROT_SLOT_LABELS[normalized] || TAROT_SLOT_LABELS[String(slot || '').trim()] || String(slot || '').trim();
 }
 
-function isCustomNamedManifestation(itemData) {
-    if (!isTarotManifestationData(itemData)) return false;
-    const customName = String(itemData?.CustomName || '').trim();
-    const nameMode = String(itemData?.NameMode || '').trim().toLowerCase();
-    return !!customName || nameMode === 'custom';
-}
-
 export function buildTarotCardMeta(itemData) {
-    if (isTarotManifestationData(itemData)) {
-        const lines = [];
-        if (itemData.ManifestStyleLabel) lines.push(`型: ${itemData.ManifestStyleLabel}`);
-        if (itemData.MajorArcanaName) lines.push(`体: ${itemData.MajorArcanaName}`);
-        if (itemData.ManifestedItemName && !isCustomNamedManifestation(itemData)) lines.push(`具現先: ${itemData.ManifestedItemName}`);
-        if (itemData.ArcanaSuitLabel) lines.push(`宿り: ${itemData.ArcanaSuitLabel}`);
-        if (itemData.SourceCardName) lines.push(`札: ${itemData.SourceCardName}`);
-        if (itemData.ManifestedBy) lines.push(`具現者: ${itemData.ManifestedBy}`);
-        return lines;
-    }
     const category = getCanonicalTarotCategory(itemData?.Category);
     if (category !== 'TarotMajor' && category !== 'TarotMinor') return [];
     const lines = [];
@@ -346,7 +303,7 @@ function buildTarotRoleCard(itemData, categoryOverride = '') {
             kind: 'minor',
             number,
             suit: toEvaluatorSuitValue(suitKey),
-            name: String(itemData?.SourceCardName || itemData?.DisplayName || '').trim()
+            name: String(itemData?.DisplayName || '').trim()
         };
     }
     return null;
@@ -370,17 +327,6 @@ export function getTarotSpriteFrame(item) {
             cols: Number(itemData?.sprite_cols ?? TAROT_CARD_SPRITE.cols) || TAROT_CARD_SPRITE.cols
         };
     }
-    if (isTarotManifestationData(itemData)) {
-        const spriteIndex = Number(itemData?.SourceCardSpriteIndex ?? getMinorSpriteIndex(itemData));
-        if (!Number.isFinite(spriteIndex)) return null;
-        return {
-            path: String(itemData?.SourceCardSpritePath || TAROT_CARD_SPRITE.path).trim() || TAROT_CARD_SPRITE.path,
-            index: spriteIndex,
-            width: Number(itemData?.SourceCardSpriteW ?? TAROT_CARD_SPRITE.width) || TAROT_CARD_SPRITE.width,
-            height: Number(itemData?.SourceCardSpriteH ?? TAROT_CARD_SPRITE.height) || TAROT_CARD_SPRITE.height,
-            cols: Number(itemData?.SourceCardSpriteCols ?? TAROT_CARD_SPRITE.cols) || TAROT_CARD_SPRITE.cols
-        };
-    }
     return null;
 }
 
@@ -394,7 +340,7 @@ export function buildTarotLoadoutEntry(slot, item) {
                 slot: normalizedSlot,
                 slotLabel,
                 title: '未装着',
-                detail: '体の大アルカナを選んでください。',
+                detail: '大アルカナカードを選んでください。',
                 sprite: null,
                 isEmpty: true,
                 suitKey: 'none',
@@ -419,33 +365,6 @@ export function buildTarotLoadoutEntry(slot, item) {
             roleCard: buildTarotRoleCard(itemData, 'TarotMajor')
         };
     }
-    if (isTarotManifestationData(itemData)) {
-        const isCustomNamed = isCustomNamedManifestation(itemData);
-        const cardTitle = String(item?.name || itemData?.DisplayName || itemData?.CustomName || itemData?.SourceCardName || [getTarotSuitLabel(itemData), getTarotRankLabel(itemData)].filter(Boolean).join(' ')).trim() || '小アルカナ';
-        const detailParts = [];
-        if (itemData?.SourceCardName) detailParts.push(`札: ${itemData.SourceCardName}`);
-        if (itemData?.ManifestedItemName && !isCustomNamed) detailParts.push(`具現: ${itemData.ManifestedItemName}`);
-        if (itemData?.ManifestStyleLabel) detailParts.push(`型: ${itemData.ManifestStyleLabel}`);
-        const suitKey = getSuitKey(itemData) || 'none';
-        return {
-            slot: normalizedSlot,
-            slotLabel,
-            title: cardTitle,
-            detail: detailParts.join(' / ') || '具現化済み',
-            sprite: getTarotSpriteFrame(itemData),
-            isEmpty: false,
-            suitKey,
-            suitLabel: getTarotSuitLabel(itemData),
-            numberLabel: getTarotNumberBadge(itemData),
-            isArcana: false,
-            roleCard: buildTarotRoleCard({
-                Category: 'TarotMinor',
-                ArcanaSuit: itemData?.ArcanaSuit || itemData?.Suit,
-                ArcanaRank: itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber,
-                SourceCardName: itemData?.SourceCardName || ''
-            }, 'TarotMinor')
-        };
-    }
     if (item) {
         return {
             slot: normalizedSlot,
@@ -465,7 +384,7 @@ export function buildTarotLoadoutEntry(slot, item) {
         slot: normalizedSlot,
         slotLabel,
         title: '札なし',
-        detail: 'この部位は具現化されていません。',
+        detail: 'カードが設定されていません。',
         sprite: null,
         isEmpty: true,
         suitKey: 'none',
@@ -474,31 +393,4 @@ export function buildTarotLoadoutEntry(slot, item) {
         isArcana: false,
         roleCard: null
     };
-}
-
-export function buildTarotManifestation(slot, majorItem, minorItem) {
-    const normalizedSlot = TAROT_MINOR_SLOT_ALIASES[String(slot || '').trim()] || String(slot || '').trim();
-    if (normalizedSlot === TAROT_MAJOR_SLOT) {
-        const title = getMajorArcanaTitle(majorItem);
-        return {
-            title,
-            detail: title ? `大アルカナ: ${title}` : ''
-        };
-    }
-    const minorData = minorItem?.customData || minorItem || {};
-    if (!minorData || !isTarotMinorCategory(minorData.Category)) {
-        return {
-            title: '',
-            detail: ''
-        };
-    }
-    const suitKey = getSuitKey(minorData);
-    const baseName = TAROT_MANIFEST_BASES[normalizedSlot]?.[suitKey] || getTarotSlotLabel(normalizedSlot);
-    const majorTitle = getMajorArcanaTitle(majorItem);
-    const rankLabel = getTarotRankLabel(minorData);
-    const titleCore = `${baseName}${rankLabel ? ` ${rankLabel}` : ''}`;
-    const title = majorTitle ? `${majorTitle}の${titleCore}` : titleCore;
-    const suitLabel = getTarotSuitLabel(minorData);
-    const detail = [minorItem?.name || '', [suitLabel, rankLabel].filter(Boolean).join(' ')].filter(Boolean).join(' / ');
-    return { title, detail };
 }

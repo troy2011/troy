@@ -181,7 +181,7 @@
                     </div>
                 </div>
                 <div id="troyKingControls" class="content-area" style="display: none;">
-                    <div class="troy-admin-card">
+                    <div class="troy-admin-card troy-king-priority-card">
                         <div class="troy-admin-label">TROY 営業状態</div>
                         <div class="troy-admin-actions">
                             <div id="kingTroyStatus">CLOSE</div>
@@ -189,62 +189,73 @@
                             <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
                         </div>
                     </div>
-                    <div id="kingGrantCard" class="troy-admin-card">
+                    <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
                         <div class="troy-admin-label">未会計客一覧</div>
                         <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
-                        <div class="troy-admin-help">注文時のPS付与は即時反映されます。ここでは未会計の客ごとに、現金受領後の国庫反映だけを行います。手動受領は下の入力欄から行います。</div>
-                        <div class="troy-admin-field-label">手動受領（QRコード）</div>
-                        <div class="troy-admin-grid">
-                            <div>
-                                <div class="troy-admin-field-label">受取人 PlayFabId</div>
-                                <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
-                                <div class="troy-admin-actions">
-                                    <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
-                                    <button id="btnKingClearReceiver" class="btn-muted">クリア</button>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="troy-admin-field-label">受領金額（¥）</div>
-                                <div class="transfer-quick-row">
-                                    <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
-                                    <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
-                                    <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
-                                    <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
-                                </div>
-                                <div class="transfer-input-row">
-                                    <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
-                                    <span>¥</span>
-                                </div>
-                                <div class="troy-admin-actions">
-                                    <button id="btnKingGrantPs" class="btn-open">付与する</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="kingGrantPreview" class="king-help-text"></div>
+                        <div class="troy-admin-help">未会計客ごとに、現金受領後の国庫反映だけを行います。</div>
                     </div>
-                    <div class="troy-admin-card">
-                        <div class="troy-admin-actions troy-admin-actions-wide">
-                            <div>
-                                <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
-                                <div id="kingCashbackRateInfo">-</div>
-                                <div id="kingTroyTodaySales" class="king-help-text"></div>
+                    <details id="kingManualGrantDetails" class="troy-admin-details">
+                        <summary>手動受領</summary>
+                        <div class="troy-admin-card">
+                            <div class="troy-admin-help">QRコードや手入力で個別に現金受領を処理します。通常会計は上の未会計客一覧から行います。</div>
+                            <div class="troy-admin-field-label">手動受領（QRコード）</div>
+                            <div class="troy-admin-grid">
+                                <div>
+                                    <div class="troy-admin-field-label">受取人 PlayFabId</div>
+                                    <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
+                                    <div class="troy-admin-actions">
+                                        <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
+                                        <button id="btnKingClearReceiver" class="btn-muted">クリア</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="troy-admin-field-label">受領金額（¥）</div>
+                                    <div class="transfer-quick-row">
+                                        <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
+                                        <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
+                                        <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
+                                        <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
+                                    </div>
+                                    <div class="transfer-input-row">
+                                        <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
+                                        <span>¥</span>
+                                    </div>
+                                    <div class="troy-admin-actions">
+                                        <button id="btnKingGrantPs" class="btn-open">付与する</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="troy-admin-actions">
-                                <button id="btnKingReload" class="btn-muted">再読み込み</button>
-                            </div>
+                            <div id="kingGrantPreview" class="king-help-text"></div>
                         </div>
-                        <div class="troy-admin-help">現金支払いの一部がPSとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がPSで加算されます。</div>
-                        <div id="kingTreasuryInfo" class="king-help-text"></div>
-                        <div id="kingTreasurySummary" class="king-treasury-summary"></div>
-                        <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
-                    </div>
-                    <div id="kingWarSection" class="troy-admin-card king-war-card">
-                        <div class="troy-admin-actions troy-admin-actions-wide">
-                            <div>
-                                <div class="troy-admin-field-label">戦争</div>
-                                <div id="kingWarSummary">-</div>
+                    </details>
+                    <details class="troy-admin-details">
+                        <summary>国庫・還元率</summary>
+                        <div class="troy-admin-card">
+                            <div class="troy-admin-actions troy-admin-actions-wide">
+                                <div>
+                                    <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
+                                    <div id="kingCashbackRateInfo">-</div>
+                                    <div id="kingTroyTodaySales" class="king-help-text"></div>
+                                </div>
+                                <div class="troy-admin-actions">
+                                    <button id="btnKingReload" class="btn-muted">再読み込み</button>
+                                </div>
                             </div>
+                            <div class="troy-admin-help">現金支払いの一部がPSとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がPSで加算されます。</div>
+                            <div id="kingTreasuryInfo" class="king-help-text"></div>
+                            <div id="kingTreasurySummary" class="king-treasury-summary"></div>
+                            <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
                         </div>
+                    </details>
+                    <details id="kingWarDetails" class="troy-admin-details">
+                        <summary>戦争</summary>
+                        <div id="kingWarSection" class="troy-admin-card king-war-card">
+                            <div class="troy-admin-actions troy-admin-actions-wide">
+                                <div>
+                                    <div class="troy-admin-field-label">戦争</div>
+                                    <div id="kingWarSummary">-</div>
+                                </div>
+                            </div>
                         <div id="kingWarCapital" class="king-war-capital-grid"></div>
                         <div class="king-war-forms">
                             <div class="king-war-form-card">
@@ -287,7 +298,8 @@
                                 <div id="kingWarNationLogs" class="king-war-log-list"></div>
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    </details>
                 </div>
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
@@ -589,6 +601,51 @@
                 </div>
             </div>
 
+            <div id="tabContentEvents" class="tab-content" style="display: none;">
+                <div class="content-area event-page">
+                    <div class="event-page-header">
+                        <div>
+                            <h2>イベント</h2>
+                            <p>店舗大会の予定確認、参加、主催ができます。</p>
+                        </div>
+                        <button id="btnReloadEvents" class="btn-muted" type="button">更新</button>
+                    </div>
+                    <div id="eventPageMessage" class="event-page-message"></div>
+                    <div class="event-layout">
+                        <section class="event-create-panel">
+                            <h3>大会を主催</h3>
+                            <div id="eventHostFeeInfo" class="event-host-fee">主催費を確認中...</div>
+                            <label>タイトル<input id="eventTitle" type="text" maxlength="80" placeholder="例: 金曜ダーツ大会"></label>
+                            <label>種目
+                                <select id="eventType">
+                                    <option value="billiards">ビリヤード</option>
+                                    <option value="darts">ダーツ</option>
+                                    <option value="tournament">大会</option>
+                                    <option value="party">交流会</option>
+                                    <option value="other">その他</option>
+                                </select>
+                            </label>
+                            <label>開催日時<input id="eventStartsAt" type="datetime-local"></label>
+                            <div class="event-form-grid">
+                                <label>定員<input id="eventCapacity" type="number" min="1" max="64" value="8"></label>
+                                <label>参加費PS<input id="eventEntryFee" type="number" min="0" value="0"></label>
+                                <label>賞品PS<input id="eventPrize" type="number" min="0" value="0"></label>
+                            </div>
+                            <label>説明<textarea id="eventDescription" rows="4" maxlength="800" placeholder="ルール、集合時間、賞品など"></textarea></label>
+                            <button id="btnCreateEvent" class="event-create-btn" type="button">作成する</button>
+                        </section>
+                        <section class="event-list-panel">
+                            <div class="event-list-head">
+                                <h3>予定</h3>
+                                <span>承認済みと自分の申請が表示されます</span>
+                            </div>
+                            <div id="eventList" class="event-list"></div>
+                            <div id="eventListEmpty" class="event-empty">予定されているイベントはありません。</div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
             <!-- 2.5. 地図タブ（非表示・内部利用のみ） -->
             <div id="tabContentMap" class="tab-content" style="display: none;">
                 <div id="mapLoadingOverlay" class="map-loading-overlay">
@@ -630,6 +687,9 @@
                         <div id="shipSideCannonPanel" class="map-action-slot">
                             <button id="shipSideCannonButton" class="ship-action-button ship-side-cannon-button map-action-button">舷側砲</button>
                         </div>
+                        <div id="shipNormalAttackPanel" class="map-action-slot">
+                            <button id="shipNormalAttackButton" class="ship-action-button ship-normal-attack-button map-action-button">通常攻撃</button>
+                        </div>
                         <div id="shipActionPanel" class="map-action-slot">
                             <button id="shipActionButton" class="ship-action-button map-action-button">船アクション</button>
                         </div>
@@ -639,6 +699,7 @@
                     </div>
                     <div class="map-action-status-row">
                         <div id="shipSideCannonStatus" class="map-action-status-chip"></div>
+                        <div id="shipNormalAttackStatus" class="map-action-status-chip"></div>
                         <div id="shipActionStatus" class="map-action-status-chip"></div>
                         <div id="shipSkillStatus" class="map-action-status-chip"></div>
                     </div>
@@ -748,15 +809,12 @@
             <div id="tabContentInventory" class="tab-content" style="display: none;">
                 <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
                     <button class="inventory-panel-btn active" data-panel="loadout" type="button">装備</button>
+                    <button class="inventory-panel-btn" data-panel="tarot" type="button">タロット</button>
                     <button class="inventory-panel-btn" data-panel="items" type="button">持ち物</button>
                 </div>
-                <!-- 資源 & 装備スロット -->
+                <!-- 装備スロット -->
                 <div class="content-area avatar-card inventory-section active" data-panel="loadout">
                     <div class="inventory-avatar-stage">
-                        <div id="avatarMajorArcanaPreview" class="avatar-major-arcana-preview is-empty" aria-label="体装備の大アルカナ">
-                            <div class="avatar-major-arcana-preview-label">体</div>
-                            <div id="avatarMajorArcanaPreviewVisual" class="avatar-major-arcana-preview-visual">🂠</div>
-                        </div>
                         <div class="avatar-container" id="avatar">
                             <div id="avatar-layer-body" class="avatar-layer"></div>
                             <div id="avatar-layer-head" class="avatar-layer"></div>
@@ -767,7 +825,6 @@
                             <div id="avatar-layer-hand-left" class="avatar-layer"></div>
                             <div id="avatar-layer-shield-left" class="avatar-layer"></div>
                         </div>
-                        <div class="inventory-avatar-stage-spacer" aria-hidden="true"></div>
                     </div>
                     <div class="inventory-loadout-stats">
                         <div class="section-header inventory-stats-header">
@@ -808,16 +865,7 @@
 
                     <!-- 装備スロット -->
                     <div id="equipmentGrid">
-                        <div class="equip-slot major-arcana-slot" data-slot="majorarcana" data-tooltip="体 / 大アルカナ">
-                            <div class="equip-slot-icon">🃏</div>
-                            <div class="equip-slot-content">
-                                <label class="equip-slot-label">体</label>
-                                <span id="equippedMajorArcana" class="equip-slot-name">なし</span>
-                                <div id="equippedMajorArcanaStats" class="equip-slot-stats"></div>
-                            </div>
-                            <div class="equip-slot-glow"></div>
-                        </div>
-                        <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="頭具現 / 小アルカナ" data-tarot-manifest="true">
+                        <div class="equip-slot armor-slot" data-slot="armor" data-tooltip="頭装備">
                             <div class="equip-slot-icon">💀</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">頭</label>
@@ -826,7 +874,7 @@
                             </div>
                             <div class="equip-slot-glow"></div>
                         </div>
-                        <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手具現 / 小アルカナ" data-tarot-manifest="true">
+                        <div class="equip-slot weapon-slot" data-slot="rightHand" data-tooltip="右手装備">
                             <div class="equip-slot-icon">🦴</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">右手</label>
@@ -835,7 +883,7 @@
                             </div>
                             <div class="equip-slot-glow"></div>
                         </div>
-                        <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手具現 / 小アルカナ" data-tarot-manifest="true">
+                        <div class="equip-slot shield-slot" data-slot="leftHand" data-tooltip="左手装備">
                             <div class="equip-slot-icon is-mirrored">🦴</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">左手</label>
@@ -844,7 +892,7 @@
                             </div>
                             <div class="equip-slot-glow"></div>
                         </div>
-                        <div class="equip-slot accessory-slot" data-slot="accessory" data-tooltip="アクセサリー具現 / 小アルカナ" data-tarot-manifest="true">
+                        <div class="equip-slot accessory-slot" data-slot="accessory" data-tooltip="アクセサリー装備">
                             <div class="equip-slot-icon">❂</div>
                             <div class="equip-slot-content">
                                 <label class="equip-slot-label">アクセサリー</label>
@@ -854,14 +902,21 @@
                             <div class="equip-slot-glow"></div>
                         </div>
                     </div>
+                </div>
+
+                <div class="content-area inventory-section inventory-tarot-section" data-panel="tarot">
+                    <div class="section-header">
+                        <h2>タロット管理</h2>
+                        <button class="btn-muted inventory-card-list-btn" data-inventory-group-jump="Tarot" type="button">カード一覧</button>
+                    </div>
                     <div class="tarot-deck-panels">
                         <div class="tarot-deck-panel" id="meleeDeckPanel">
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>白兵戦デッキ</h3>
-                                    <p>正位置のカードをセット。5枚でポーカー役判定。</p>
+                                    <p>正位置のカードをセット。左から順に隊列へ出ます。</p>
                                 </div>
-                                <span class="tarot-loadout-badge">5枚役</span>
+                                <span class="tarot-loadout-badge">隊列順</span>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
                                 <div class="tarot-loadout-role-label">現在の役</div>
@@ -875,9 +930,9 @@
                             <div class="tarot-loadout-header">
                                 <div>
                                     <h3>船デッキ</h3>
-                                    <p>逆位置のカードをセット。5枚でポーカー役判定。</p>
+                                    <p>逆位置のカードをセット。船バトル用スキルに使います。</p>
                                 </div>
-                                <span class="tarot-loadout-badge">5枚役</span>
+                                <span class="tarot-loadout-badge">船スキル</span>
                             </div>
                             <div id="shipDeckRole" class="tarot-loadout-role">
                                 <div class="tarot-loadout-role-label">現在の役</div>
@@ -906,15 +961,9 @@
                         <button class="inventory-primary-tab-btn" data-group="Equipment" type="button">装備</button>
                         <button class="inventory-primary-tab-btn" data-group="Tarot" type="button">タロット</button>
                         <button class="inventory-primary-tab-btn" data-group="Consumable" type="button">消耗品</button>
-                        <button class="inventory-primary-tab-btn" data-group="Resource" type="button">資源</button>
                     </div>
                     <div id="inventoryTabs"></div>
                     <div id="inventoryTabHint" class="inventory-tab-hint" hidden></div>
-
-                    <div id="resourceSummary" class="resource-summary" style="display:none;">
-                        <div class="resource-summary-title">資源</div>
-                        <div class="resource-summary-row" id="resourceSummaryRows"></div>
-                    </div>
                     <div id="inventoryGrid"></div>
                     <!-- 旧リスト表示用（非表示） -->
                     <ul id="inventoryList" style="display:none;"></ul>
@@ -1110,6 +1159,9 @@
         <button id="navTroy" class="nav-button" onclick="showTab('troy')">
             <span class="nav-icon">🏴‍☠️</span><span>TROY</span>
         </button>
+        <button id="navEvents" class="nav-button" onclick="showTab('events')">
+            <span class="nav-icon">📅</span><span>イベント</span>
+        </button>
         <button id="navTarot" class="nav-button" onclick="showTab('tarot')">
             <span class="nav-icon">🃏</span><span>ゲーム</span>
         </button>
@@ -1154,33 +1206,6 @@
                 <!-- アクションボタン -->
             </div>
             <button class="item-detail-close" onclick="window.closeItemDetailModal && window.closeItemDetailModal()">閉じる</button>
-        </div>
-    </div>
-
-    <div id="tarotManifestPreviewModal" class="modal-overlay">
-        <div class="modal-content item-detail-sheet tarot-manifest-preview-sheet">
-            <div class="sheet-handle" aria-hidden="true"></div>
-            <div class="item-detail-head">
-                <div class="item-detail-icon-frame">
-                    <div id="tarotManifestPreviewIcon"></div>
-                </div>
-                <div class="item-detail-copy">
-                    <h3 id="tarotManifestPreviewName">具現化候補</h3>
-                    <p id="tarotManifestPreviewSubline"></p>
-                </div>
-            </div>
-            <p id="tarotManifestPreviewDescription"></p>
-            <div id="tarotManifestPreviewStats"></div>
-            <div class="tarot-manifest-preview-namebox">
-                <label for="tarotManifestPreviewNameInput">命名</label>
-                <input id="tarotManifestPreviewNameInput" type="text" maxlength="16" placeholder="名前を入力" autocomplete="off" />
-                <div id="tarotManifestPreviewHint" class="tarot-manifest-preview-hint"></div>
-            </div>
-            <div class="modal-buttons tarot-manifest-preview-actions">
-                <button id="btnTarotManifestConfirmName">命名して確定</button>
-                <button id="btnTarotManifestUseTemplate">名前は付けない</button>
-                <button id="btnTarotManifestCancel" class="item-detail-close">やめる</button>
-            </div>
         </div>
     </div>
 
