@@ -206,6 +206,25 @@ function normalizeInviteToken(value) {
     return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
 }
 
+function getTroyEntryRequestFromUrl() {
+    const params = new URLSearchParams(window.location.search || '');
+    const action = String(params.get('action') || params.get('entry') || '').trim().toLowerCase();
+    const troyFlag = String(params.get('troy') || '').trim().toLowerCase();
+    const isEntry = action === 'troy-entry' || action === 'troy' || troyFlag === 'entry';
+    if (!isEntry) return null;
+    const nation = String(params.get('nation') || params.get('troyNation') || 'fire').trim().toLowerCase();
+    return {
+        action: 'troy-entry',
+        nation: ['fire', 'water', 'wind', 'earth'].includes(nation) ? nation : 'fire'
+    };
+}
+
+function clearTroyEntryParamsFromUrl() {
+    const url = new URL(window.location.href);
+    ['action', 'entry', 'troy', 'nation', 'troyNation'].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, document.title, url.href);
+}
+
 function removeInviteTokenFromUrl() {
     const url = new URL(window.location.href);
     if (!url.searchParams.has('invite')) return;
@@ -552,7 +571,14 @@ async function initializeLiff() {
             lineAccessToken: typeof liff.getAccessToken === 'function' ? liff.getAccessToken() : '',
             lineUserId: myLineProfile.userId,
             displayName: myLineProfile.displayName,
-            pictureUrl: myLineProfile.pictureUrl
+            pictureUrl: myLineProfile.pictureUrl,
+            ...(getTroyEntryRequestFromUrl()
+                ? {
+                    action: 'troy-entry',
+                    troyEntry: true,
+                    troyNation: getTroyEntryRequestFromUrl().nation
+                }
+                : {})
         });
         __perfLog('login-playfab API done');
 
@@ -636,6 +662,7 @@ async function initializeLiff() {
 
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
+                    await handleTroyEntryRequestAfterLogin();
                     try {
                         const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
                         if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
@@ -709,6 +736,9 @@ async function initializeAppFeatures() {
         if (result?.message) showRpgMessage(result.message, 2200);
     });
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
+    document.getElementById('btnCoinConvert').addEventListener('click', openCoinConvertModal);
+    document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
+    document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
     document.getElementById('btnCopyInviteLink').addEventListener('click', async () => {
         try {
             await createAndCopyInviteLink();
@@ -1312,6 +1342,41 @@ async function updateAvatarBaseInfo() {
 // --- 機能別ロジック ---
 
 // 5. その他（ステータス、送金）
+async function handleTroyEntryRequestAfterLogin() {
+    const entryRequest = getTroyEntryRequestFromUrl();
+    if (!entryRequest || !myPlayFabId) return;
+    window.__troyEntryNation = entryRequest.nation;
+    try {
+        const result = await callApiWithLoader('/api/troy-join', {
+            playFabId: myPlayFabId,
+            displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || '',
+            troyNation: entryRequest.nation
+        }, { throwOnError: true });
+        await showTab('troy', {
+            playFabId: myPlayFabId,
+            race: myAvatarBaseInfo.Race || 'human',
+            nation: entryRequest.nation
+        });
+        const message = result?.entryChargeCreated
+            ? 'TROYに入店しました。チャージを追加しました。'
+            : 'TROYに入店済みです。';
+        showRpgMessage(message, 2600);
+    } catch (error) {
+        const detail = String(error?.message || error || '');
+        const message = detail.includes('TroyClosed')
+            ? '現在TROYはCLOSE中です。'
+            : '入店処理に失敗しました。店員にお声がけください。';
+        showRpgMessage(message, 3200);
+    } finally {
+        clearTroyEntryParamsFromUrl();
+    }
+}
+
+function getTransferAmountValue() {
+    const amount = Math.max(0, Math.floor(Number(document.getElementById('transferAmount')?.value) || 0));
+    return Number.isFinite(amount) ? amount : 0;
+}
+
 async function startScanAndPay() {
     if (!liff.isInClient()) {
         document.getElementById('pointMessage').innerText = 'QRスキャンはLINEアプリ内でのみ利用できます。';
@@ -1320,7 +1385,11 @@ async function startScanAndPay() {
     try {
         const result = await liff.scanCodeV2();
         if (result && result.value) {
-            const amount = parseInt(document.getElementById('transferAmount').value, 10);
+            const amount = getTransferAmountValue();
+            if (amount <= 0) {
+                document.getElementById('pointMessage').innerText = '金額を入力してください。';
+                return;
+            }
             let receiverName = '';
             try {
                 const profile = await callApiWithLoader('/api/get-player-display-name', { playFabId: result.value }, { isSilent: true });
@@ -1342,7 +1411,7 @@ async function startScanAndPay() {
                     const bountyNote = data.bountyShortage
                         ? '（相手の懸賞金が不足していたため、BTの移動は一部だけ）'
                         : '';
-                    document.getElementById('pointMessage').innerText = `${amount}Ps 送りました！${bountyNote}`;
+                    document.getElementById('pointMessage').innerText = `${amount}G送りました！${bountyNote}`;
                     const amountInput = document.getElementById('transferAmount');
                     if (amountInput) amountInput.value = '0';
                     const transferCard = document.querySelector('.home-transfer-card');
@@ -1358,6 +1427,67 @@ async function startScanAndPay() {
         }
     } catch (e) {
         document.getElementById('pointMessage').innerText = "スキャン失敗: " + e.message;
+    }
+}
+
+function openCoinConvertModal() {
+    const amount = getTransferAmountValue();
+    const pointMessageEl = document.getElementById('pointMessage');
+    if (amount <= 0) {
+        if (pointMessageEl) pointMessageEl.innerText = 'コイン化する金額を入力してください。';
+        return;
+    }
+    const amountEl = document.getElementById('coinConvertAmount');
+    const resultEl = document.getElementById('coinConvertResult');
+    const confirmBtn = document.getElementById('btnConfirmCoinConvert');
+    if (amountEl) amountEl.innerText = `${amount.toLocaleString('ja-JP')}G`;
+    if (resultEl) resultEl.innerText = '';
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = '確認してコイン化';
+    }
+    const modal = document.getElementById('coinConvertModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeCoinConvertModal() {
+    const modal = document.getElementById('coinConvertModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function confirmCoinConvert() {
+    const amount = getTransferAmountValue();
+    const resultEl = document.getElementById('coinConvertResult');
+    const confirmBtn = document.getElementById('btnConfirmCoinConvert');
+    if (amount <= 0) {
+        if (resultEl) resultEl.innerText = '金額を入力してください。';
+        return;
+    }
+    const previousLabel = confirmBtn?.innerText || '';
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = '処理中...';
+    }
+    try {
+        const data = await callApiWithLoader('/api/use-points', {
+            playFabId: myPlayFabId,
+            amount
+        });
+        if (!data) throw new Error('コイン化に失敗しました。');
+        if (resultEl) resultEl.innerText = `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
+        document.getElementById('pointMessage').innerText = `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
+        const amountInput = document.getElementById('transferAmount');
+        if (amountInput) amountInput.value = '0';
+        await Player.getPoints(myPlayFabId);
+        await Player.getRanking();
+        setTimeout(closeCoinConvertModal, 1200);
+    } catch (error) {
+        const message = error?.message || error?.error || 'コイン化に失敗しました。';
+        if (resultEl) resultEl.innerText = message;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = previousLabel || '確認してコイン化';
+        }
     }
 }
 

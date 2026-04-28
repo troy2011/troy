@@ -256,8 +256,8 @@ export function settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, 
     }, options);
 }
 
-export function getTroyStatus(playFabId, options) {
-    return callApiWithLoader('/api/get-troy-status', { playFabId }, options);
+export function getTroyStatus(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/get-troy-status', { playFabId, ...(payload || {}) }, options);
 }
 
 export function sendTroyCheckout(playFabId, payload, options) {
@@ -268,20 +268,20 @@ export function sendTroyOrder(playFabId, order, options) {
     return callApiWithLoader('/api/troy-order', { playFabId, ...order }, options);
 }
 
-export function undoTroyLastOrder(playFabId, options) {
-    return callApiWithLoader('/api/troy-undo-last-order', { playFabId }, options);
+export function undoTroyLastOrder(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-undo-last-order', { playFabId, ...(payload || {}) }, options);
 }
 
 export function setTroyOpen(playFabId, isOpen, options) {
     return callApiWithLoader('/api/king-set-troy-open', { playFabId, isOpen }, options);
 }
 
-export function joinTroy(playFabId, displayName, options) {
-    return callApiWithLoader('/api/troy-join', { playFabId, displayName }, options);
+export function joinTroy(playFabId, displayName, payload = {}, options) {
+    return callApiWithLoader('/api/troy-join', { playFabId, displayName, ...(payload || {}) }, options);
 }
 
-export function leaveTroy(playFabId, options) {
-    return callApiWithLoader('/api/troy-leave', { playFabId }, options);
+export function leaveTroy(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-leave', { playFabId, ...(payload || {}) }, options);
 }
 
 export function transferKing(playFabId, newKingPlayFabId, options) {

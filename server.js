@@ -67,6 +67,7 @@ const NATION_EMOJI_BY_NATION = {
     earth: '🌱',
     neutral: '🏴'
 };
+const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
 const NATION_KING_LINE_USER_IDS_KEY = 'NationKingLineUserIds';
 const APP_INVITE_COLLECTION = 'app_invites';
 const APP_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -122,6 +123,11 @@ async function resolvePlayFabIdFromLineUser(lineUserId) {
         console.warn('[LINE] Failed to read line_user_links:', error?.message || error);
         return '';
     }
+}
+
+function normalizeTroyEntryNation(value) {
+    const key = String(value || TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
+    return nation.getNationMappingByNation(key) ? key : 'fire';
 }
 
 function formatPoints(value) {
@@ -1325,8 +1331,56 @@ app.post('/api/login-playfab', async (req, res) => {
             PlayFabId: playFabId,
             Keys: ['Race', 'NationGroupId', 'Nation', 'BaseDisplayName']
         });
-        const needsRaceSelection = !(readOnly?.Data?.Race?.Value);
-        const nationValue = String(readOnly?.Data?.Nation?.Value || '').toLowerCase();
+        const troyEntryRequested = String(req.body?.action || '').trim().toLowerCase() === 'troy-entry'
+            || req.body?.troyEntry === true;
+        let needsRaceSelection = !(readOnly?.Data?.Race?.Value);
+        let nationValue = String(readOnly?.Data?.Nation?.Value || '').toLowerCase();
+        if (troyEntryRequested && (needsRaceSelection || !nationValue)) {
+            const guestNation = normalizeTroyEntryNation(req.body?.troyNation || req.body?.entryNation);
+            const guestMapping = nation.getNationMappingByNation(guestNation);
+            try {
+                await nation.ensureNationGroupExists(firestore, guestMapping, createDependencies());
+            } catch (groupError) {
+                console.warn('[login-playfab] Guest nation group ensure failed:', groupError?.errorMessage || groupError?.message || groupError);
+            }
+            const baseName = String(displayName || '').trim().slice(0, 30) || `Guest-${String(playFabId).slice(-4)}`;
+            try {
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: playFabId,
+                    Statistics: [
+                        { StatisticName: 'Level', Value: 1 },
+                        { StatisticName: 'HP', Value: 5 },
+                        { StatisticName: 'MaxHP', Value: 5 },
+                        { StatisticName: 'MP', Value: 15 },
+                        { StatisticName: 'MaxMP', Value: 15 },
+                        { StatisticName: 'ちから', Value: 2 },
+                        { StatisticName: 'みのまもり', Value: 5 },
+                        { StatisticName: 'すばやさ', Value: 10 },
+                        { StatisticName: 'かしこさ', Value: 15 },
+                        { StatisticName: 'きようさ', Value: 10 }
+                    ]
+                });
+            } catch (statsError) {
+                console.warn('[login-playfab] Guest stats setup failed:', statsError?.errorMessage || statsError?.message || statsError);
+            }
+            try {
+                await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Data: {
+                        Race: readOnly?.Data?.Race?.Value || 'Human',
+                        Nation: guestNation,
+                        NationGroupId: guestMapping?.groupName || '',
+                        BaseDisplayName: baseName,
+                        IsGuest: 'true',
+                        GuestEntryCreatedAt: new Date().toISOString()
+                    }
+                });
+                needsRaceSelection = false;
+                nationValue = guestNation;
+            } catch (guestError) {
+                console.warn('[login-playfab] Guest profile setup failed:', guestError?.errorMessage || guestError?.message || guestError);
+            }
+        }
         const storedBaseName = readOnly?.Data?.BaseDisplayName?.Value || '';
         if (nationValue) {
             const result = await ensureNationDisplayName(playFabId, nationValue, storedBaseName || displayName);

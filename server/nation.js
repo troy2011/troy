@@ -203,6 +203,18 @@ async function getNationForPlayer(playFabId, deps) {
     return nation ? String(nation).toLowerCase() : null;
 }
 
+async function resolveTroyNationForRequest(req, playFabId, deps) {
+    const requestedNation = String(
+        req.body?.troyNation
+        || req.body?.entryNation
+        || ''
+    ).trim().toLowerCase();
+    if (requestedNation && getNationMappingByNation(requestedNation)) {
+        return requestedNation;
+    }
+    return getNationForPlayer(playFabId, deps);
+}
+
 function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
@@ -2720,7 +2732,7 @@ function initializeNationRoutes(app, deps) {
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.json({ isOpen: false, members: [], notInNation: true });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.json({ isOpen: false, members: [], notInNation: true });
@@ -2779,7 +2791,7 @@ function initializeNationRoutes(app, deps) {
         const { lineClient } = deps;
         if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
         try {
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -2883,7 +2895,7 @@ function initializeNationRoutes(app, deps) {
         const { lineClient } = deps;
         if (!lineClient) return res.status(500).json({ error: 'LineClientNotConfigured' });
         try {
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -3043,7 +3055,7 @@ function initializeNationRoutes(app, deps) {
 
         try {
             const { lineClient } = deps;
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
@@ -3251,14 +3263,15 @@ function initializeNationRoutes(app, deps) {
         if (!requesterPlayFabId) return;
         try {
             const { lineClient } = deps;
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.status(400).json({ error: 'NationNotSet' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
 
             const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
             const roomSnap = await roomRef.get();
-            if (!roomSnap.exists || !roomSnap.data()?.isOpen) {
+            const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+            if (!roomSnap.exists || !roomData.isOpen) {
                 return res.status(403).json({ error: 'TroyClosed' });
             }
 
@@ -3422,7 +3435,7 @@ function initializeNationRoutes(app, deps) {
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
         try {
-            const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
             if (!nation) return res.json({ success: true });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.json({ success: true });

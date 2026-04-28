@@ -694,7 +694,8 @@ async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) 
             price: normalizedPrice,
             quantity: normalizedQuantity,
             total: checkoutTotal,
-            displayName: getDisplayName()
+            displayName: getDisplayName(),
+            troyNation: resolveTroyNationKey()
         });
         if (result?.checkout) {
             _checkoutSession = result.checkout;
@@ -731,7 +732,7 @@ async function handleUndoLastOrder(playFabId) {
         return;
     }
     try {
-        const result = await undoTroyLastOrder(playFabId, { isSilent: true, throwOnError: true });
+        const result = await undoTroyLastOrder(playFabId, { troyNation: resolveTroyNationKey() }, { isSilent: true, throwOnError: true });
         _checkoutSession = result?.checkout || null;
         updateCheckoutStatus();
         const undoneName = String(result?.undoneItem?.name || lastItem.name || '注文').trim();
@@ -1002,6 +1003,7 @@ function normalizePlayFabId(value) {
 function resolveTroyNationKey() {
     return String(
         _lastStatus?.nation
+        || window.__troyEntryNation
         || window.myAvatarBaseInfo?.Nation
         || window.myAvatarBaseInfo?.nation
         || ''
@@ -1150,7 +1152,7 @@ function renderStatus(data) {
 
 async function refreshStatus(playFabId, options = {}) {
     if (!playFabId) return;
-    const data = await getTroyStatus(playFabId, options);
+    const data = await getTroyStatus(playFabId, { troyNation: resolveTroyNationKey() }, options);
     if (data) renderStatus(data);
 }
 
@@ -1169,7 +1171,7 @@ function wireHandlers(playFabId) {
             joinBtn.disabled = true;
             joinBtn.textContent = '入店中...';
             try {
-                const result = await joinTroy(playFabId, name);
+                const result = await joinTroy(playFabId, name, { troyNation: resolveTroyNationKey() });
                 if (result) {
                     if (result.checkout) {
                         _checkoutSession = result.checkout;
