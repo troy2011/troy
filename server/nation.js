@@ -60,6 +60,7 @@ const KING_STARTER_CROWN_BY_NATION = {
     water: 'metal_black_12'
 };
 
+
 const MAX_TREASURY_RECENT_ENTRIES = 20;
 const TREASURY_SOURCE_LABELS = {
     troy_order: 'TROY会計',
@@ -1602,7 +1603,14 @@ async function requireKingContext(playFabId, firestore, deps) {
     const kingId = normalizePlayFabId(playFabId);
     if (!kingId) throw new Error('InvalidPlayFabId');
 
-    const nation = await getNationForPlayer(kingId, { promisifyPlayFab, PlayFabServer });
+    const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: kingId,
+        Keys: ['IsKing', 'Nation']
+    });
+    const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
+    if (!isKing) throw new Error('NotKing');
+
+    const nation = String(kingRo?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
     if (!nation) throw new Error('KingNationNotSet');
     const mapping = getNationMappingByNation(nation);
     if (!mapping) throw new Error('InvalidKingNation');
@@ -1613,12 +1621,6 @@ async function requireKingContext(playFabId, firestore, deps) {
     const groupDocRef = getNationGroupDoc(firestore, mapping.groupName);
     const groupSnap = await groupDocRef.get();
     const storedKingId = groupSnap.exists ? normalizePlayFabId(groupSnap.data()?.kingPlayFabId || '') : '';
-    const kingRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: kingId,
-        Keys: ['IsKing']
-    });
-    const isKing = String(kingRo?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
-    if (!isKing) throw new Error('NotKing');
 
     if (storedKingId !== kingId) {
         await groupDocRef.set({
@@ -1880,19 +1882,16 @@ function initializeNationRoutes(app, deps) {
         try {
             const ro = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: requesterPlayFabId,
-                Keys: ['NationGroupId', 'IsKing']
+                Keys: ['IsKing', 'Nation']
             });
-            if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) {
+            const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
+            if (!isKingFlag) {
                 return res.json({ notInNation: true });
             }
 
             const selfId = normalizePlayFabId(requesterPlayFabId);
-            const isKingFlag = String(ro?.Data?.IsKing?.Value || '').toLowerCase() === 'true';
-            if (!isKingFlag) {
-                return res.status(403).json({ error: 'Only the king can view this page' });
-            }
             try {
-                const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+                const nation = String(ro?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
                 const mapping = getNationMappingByNation(nation);
                 if (mapping) {
                     const docRef = getNationGroupDoc(firestore, mapping.groupName);
