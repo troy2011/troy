@@ -947,7 +947,13 @@ async function initializeAppFeatures() {
         btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.group));
     });
     document.querySelectorAll('.inventory-panel-btn').forEach(btn => {
-        btn.addEventListener('click', () => Inventory.switchInventoryPanel(btn.dataset.panel));
+        btn.addEventListener('click', () => {
+            if (btn.dataset.inventoryGroupSwitch) {
+                Inventory.switchInventoryGroup(btn.dataset.inventoryGroupSwitch);
+                return;
+            }
+            Inventory.switchInventoryPanel(btn.dataset.panel);
+        });
     });
     document.querySelectorAll('[data-inventory-group-jump]').forEach(btn => {
         btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.inventoryGroupJump));

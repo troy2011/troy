@@ -12399,9 +12399,17 @@ textarea {
     color: #fde68a;
 }
 
+#tabContentInventory .inventory-item-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
 #tabContentInventory .inventory-item-quick-action {
     flex: 0 0 auto;
-    min-width: 72px;
+    min-width: 58px;
     min-height: 32px;
     padding: 6px 10px;
     border-radius: 999px;
@@ -12412,6 +12420,12 @@ textarea {
     font-weight: 800;
     line-height: 1.1;
     box-shadow: none;
+}
+
+#tabContentInventory .inventory-item-quick-action:disabled,
+#tabContentInventory .inventory-item-quick-action.is-disabled {
+    opacity: 0.48;
+    color: #94a3b8;
 }
 
 #tabContentInventory .inventory-item-quick-action.is-equip {
@@ -12446,6 +12460,75 @@ textarea {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
+}
+
+#tabContentInventory .inventory-equipment-compare {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 2px;
+    padding: 7px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(2, 6, 23, 0.28);
+}
+
+#tabContentInventory .inventory-equipment-compare-rows {
+    display: grid;
+    gap: 3px;
+}
+
+#tabContentInventory .inventory-equipment-compare-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+}
+
+#tabContentInventory .inventory-equipment-compare-row span {
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-equipment-compare-row strong {
+    min-width: 0;
+    color: #cbd5e1;
+    font-size: 10px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tabContentInventory .inventory-equipment-compare-row.is-next strong {
+    color: #f8fafc;
+}
+
+#tabContentInventory .inventory-equipment-compare-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+#tabContentInventory .inventory-equipment-compare-stats span {
+    min-height: 18px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.82);
+    color: #cbd5e1;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+#tabContentInventory .inventory-equipment-compare-stats span.is-up {
+    color: #86efac;
+}
+
+#tabContentInventory .inventory-equipment-compare-stats span.is-down {
+    color: #fda4af;
 }
 
 #tabContentInventory .inventory-item-cell--tarot {
@@ -12533,6 +12616,152 @@ textarea {
 
 #tabContentInventory .inventory-item-cell.is-down {
     border-color: rgba(251, 113, 133, 0.28);
+}
+
+#tabContentInventory .inventory-focus-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(9, 14, 24, 0.98)),
+        radial-gradient(120% 120% at 50% 0%, rgba(56, 189, 248, 0.08), transparent 48%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#tabContentInventory .inventory-focus-panel[hidden] {
+    display: none;
+}
+
+#tabContentInventory .inventory-focus-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#tabContentInventory .inventory-focus-title {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-focus-meta {
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+}
+
+#tabContentInventory .inventory-focus-slot-grid,
+#tabContentInventory .inventory-focus-deck-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+#tabContentInventory .inventory-focus-slot,
+#tabContentInventory .inventory-focus-deck {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    min-height: 72px;
+    padding: 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(30, 41, 59, 0.72);
+    box-shadow: none;
+    color: #e5edf7;
+    text-align: left;
+    cursor: pointer;
+}
+
+#tabContentInventory .inventory-focus-slot.is-filled,
+#tabContentInventory .inventory-focus-deck {
+    background:
+        linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.94)),
+        radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.08), transparent 48%);
+}
+
+#tabContentInventory .inventory-focus-slot-label,
+#tabContentInventory .inventory-focus-deck span {
+    color: #93c5fd;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-focus-slot strong,
+#tabContentInventory .inventory-focus-deck strong {
+    width: 100%;
+    color: #f8fafc;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tabContentInventory .inventory-focus-slot-stats,
+#tabContentInventory .inventory-focus-deck em,
+#tabContentInventory .inventory-focus-deck small {
+    width: 100%;
+    color: #9fb0c6;
+    font-size: 10px;
+    font-style: normal;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tabContentInventory .inventory-focus-slot-remove {
+    align-self: flex-end;
+    min-height: 28px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(252, 165, 165, 0.28);
+    background: rgba(127, 29, 29, 0.22);
+    box-shadow: none;
+    color: #fecaca;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-focus-actions {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+}
+
+#tabContentInventory .inventory-focus-actions::-webkit-scrollbar {
+    display: none;
+}
+
+#tabContentInventory .inventory-focus-chip {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(30, 41, 59, 0.82);
+    box-shadow: none;
+    color: #dbe4f2;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+#tabContentInventory .inventory-focus-chip.active {
+    background: rgba(14, 116, 144, 0.3);
+    border-color: rgba(56, 189, 248, 0.3);
+    color: #bae6fd;
 }
 
 #tabContentInventory .inventory-item-badge.is-weapon {

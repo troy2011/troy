@@ -808,12 +808,12 @@
             <!-- 5. インベントリタブ -->
             <div id="tabContentInventory" class="tab-content" style="display: none;">
                 <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
-                    <button class="inventory-panel-btn active" data-panel="loadout" type="button">装備</button>
-                    <button class="inventory-panel-btn" data-panel="tarot" type="button">タロット</button>
-                    <button class="inventory-panel-btn" data-panel="items" type="button">持ち物</button>
+                    <button class="inventory-panel-btn active" data-panel="items" data-inventory-group-switch="Equipment" type="button">装備</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Tarot" type="button">タロット</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="All" type="button">全部</button>
                 </div>
                 <!-- 装備スロット -->
-                <div class="content-area avatar-card inventory-section active" data-panel="loadout">
+                <div class="content-area avatar-card inventory-section" data-panel="loadout">
                     <div class="inventory-avatar-stage">
                         <div class="avatar-container" id="avatar">
                             <div id="avatar-layer-body" class="avatar-layer"></div>
@@ -945,7 +945,7 @@
                     </div>
                 </div>
 
-                <div class="content-area inventory-section" data-panel="items">
+                <div class="content-area inventory-section active" data-panel="items">
                     <div class="section-header">
                         <h2>アイテム</h2>
                         <select id="inventorySort" class="sort-select">
@@ -962,6 +962,7 @@
                         <button class="inventory-primary-tab-btn" data-group="Tarot" type="button">タロット</button>
                         <button class="inventory-primary-tab-btn" data-group="Consumable" type="button">消耗品</button>
                     </div>
+                    <div id="inventoryFocusPanel" class="inventory-focus-panel" hidden></div>
                     <div id="inventoryTabs"></div>
                     <div id="inventoryTabHint" class="inventory-tab-hint" hidden></div>
                     <div id="inventoryGrid"></div>
