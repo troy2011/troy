@@ -223,6 +223,14 @@ function getTroyRoomDoc(firestore, groupName) {
     return firestore.collection('troy_rooms').doc(groupName);
 }
 
+async function findOpenTroyNation(firestore) {
+    const snap = await firestore.collection('troy_rooms').where('isOpen', '==', true).limit(1).get();
+    if (snap.empty) return null;
+    const groupName = snap.docs[0].id;
+    const entry = Object.entries(NATION_GROUP_BY_NATION).find(([, v]) => v.groupName === groupName);
+    return entry ? entry[0] : null;
+}
+
 async function deleteCollectionDocs(collectionRef, batchSize = 400) {
     let snapshot = await collectionRef.limit(batchSize).get();
     while (!snapshot.empty) {
@@ -3263,8 +3271,11 @@ function initializeNationRoutes(app, deps) {
         if (!requesterPlayFabId) return;
         try {
             const { lineClient } = deps;
-            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
-            if (!nation) return res.status(400).json({ error: 'NationNotSet' });
+            const requestedNation = String(req.body?.troyNation || req.body?.entryNation || '').trim().toLowerCase();
+            const nation = requestedNation && getNationMappingByNation(requestedNation)
+                ? requestedNation
+                : await findOpenTroyNation(firestore);
+            if (!nation) return res.status(403).json({ error: 'TroyClosed' });
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.status(400).json({ error: 'InvalidNation' });
 
