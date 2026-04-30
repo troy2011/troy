@@ -737,6 +737,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnCoinConvert').addEventListener('click', openCoinConvertModal);
     document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
     document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
+    document.getElementById('btnScanEquipmentGacha')?.addEventListener('click', startScanEquipmentGacha);
     document.getElementById('btnCopyInviteLink').addEventListener('click', async () => {
         try {
             await createAndCopyInviteLink();
@@ -1432,6 +1433,126 @@ async function startScanAndPay() {
         }
     } catch (e) {
         document.getElementById('pointMessage').innerText = "スキャン失敗: " + e.message;
+    }
+}
+
+function getEquipmentGachaElements() {
+    return {
+        button: document.getElementById('btnScanEquipmentGacha'),
+        chest: document.getElementById('equipmentGachaChest'),
+        result: document.getElementById('equipmentGachaResult')
+    };
+}
+
+function setEquipmentGachaChestState(state) {
+    const chest = getEquipmentGachaElements().chest;
+    if (!chest) return;
+    chest.classList.remove('is-idle', 'is-opening', 'is-open');
+    chest.classList.add(`is-${state || 'idle'}`);
+}
+
+function normalizeEquipmentGachaQrValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+        const parsed = JSON.parse(raw);
+        const type = String(parsed?.type || parsed?.kind || parsed?.action || '').trim().toLowerCase();
+        if (type) return type;
+    } catch {
+        // non-JSON QR payload
+    }
+    try {
+        const url = new URL(raw);
+        return String(
+            url.searchParams.get('gacha')
+            || url.searchParams.get('type')
+            || url.searchParams.get('action')
+            || url.hash.replace(/^#/, '')
+            || url.pathname.split('/').filter(Boolean).pop()
+            || ''
+        ).trim().toLowerCase();
+    } catch {
+        return raw.toLowerCase();
+    }
+}
+
+function isEquipmentGachaQrValue(value) {
+    const normalized = normalizeEquipmentGachaQrValue(value);
+    return [
+        'equipment-gacha',
+        'equip-gacha',
+        'equipment',
+        'gacha',
+        'treasure',
+        'treasure-chest',
+        'troy:equipment-gacha',
+        'troy:gacha:equipment',
+        'gacha:equipment'
+    ].includes(normalized) || normalized.startsWith('equipment-gacha:');
+}
+
+async function scanQrValue() {
+    if (typeof liff.scanCodeV2 === 'function') {
+        const result = await liff.scanCodeV2();
+        return result && result.value ? String(result.value).trim() : '';
+    }
+    if (typeof liff.scanCode === 'function') {
+        const result = await liff.scanCode();
+        return result && result.value ? String(result.value).trim() : '';
+    }
+    throw new Error('この環境では QR 読み取りが利用できません。');
+}
+
+async function startScanEquipmentGacha() {
+    const { button, result } = getEquipmentGachaElements();
+    if (!liff.isInClient()) {
+        if (result) result.innerText = 'QRスキャンはLINEアプリ内でのみ利用できます。';
+        return;
+    }
+    if (!myPlayFabId) {
+        if (result) result.innerText = 'ログイン後に利用できます。';
+        return;
+    }
+
+    const previousLabel = button?.innerText || '';
+    if (button) {
+        button.disabled = true;
+        button.innerText = 'QRを読み取り中...';
+    }
+    if (result) result.innerText = '';
+    setEquipmentGachaChestState('idle');
+
+    try {
+        const qrValue = await scanQrValue();
+        if (!isEquipmentGachaQrValue(qrValue)) {
+            if (result) result.innerText = '装備品ガチャ用のQRコードではありません。';
+            return;
+        }
+
+        if (button) button.innerText = '宝箱を開封中...';
+        setEquipmentGachaChestState('opening');
+        await new Promise((resolve) => setTimeout(resolve, 720));
+
+        const data = await callApiWithLoader('/api/pull-gacha', { playFabId: myPlayFabId }, { throwOnError: true });
+        const grantedItem = Array.isArray(data?.grantedItems) ? data.grantedItems[0] : null;
+        const itemId = grantedItem?.ItemId || grantedItem?.Item?.Id || '';
+        const itemName = String(grantedItem?.DisplayName || grantedItem?.Name || itemId || '装備品').trim();
+
+        setEquipmentGachaChestState('open');
+        if (result) result.innerText = `${itemName} を手に入れました。`;
+        showRpgMessage(`${itemName} を手に入れた。`, 2600);
+        await Inventory.getInventory(myPlayFabId, { force: true });
+        await Player.getPoints(myPlayFabId);
+        await Inventory.refreshResourceSummary(myPlayFabId);
+    } catch (error) {
+        console.error('[equipment-gacha] failed:', error);
+        setEquipmentGachaChestState('idle');
+        if (result) result.innerText = error?.message || '装備品ガチャに失敗しました。';
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerText = previousLabel || 'QRを読み込んで開ける';
+        }
     }
 }
 

@@ -10352,6 +10352,100 @@ textarea {
     color: #cbd5e1;
 }
 
+.equipment-gacha-entry {
+    display: grid;
+    grid-template-columns: minmax(96px, 132px) 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.94)),
+        radial-gradient(circle at 18% 0%, rgba(250, 204, 21, 0.2), transparent 58%);
+    border: 1px solid rgba(250, 204, 21, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.equipment-gacha-chest-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.34);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+}
+
+.equipment-gacha-chest {
+    width: min(104px, 80%);
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    background-repeat: no-repeat;
+    background-size: 800% 100%;
+    background-position: 0 0;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.equipment-gacha-chest.is-idle {
+    background-image: url("./Sprites/items/Chest/chest1_idle_strip8.png");
+    animation: equipment-gacha-idle 900ms steps(8) infinite;
+}
+
+.equipment-gacha-chest.is-opening {
+    background-image: url("./Sprites/items/Chest/chest1_open_strip8.png");
+    animation: equipment-gacha-open 720ms steps(8) 1 forwards;
+}
+
+.equipment-gacha-chest.is-open {
+    background-image: url("./Sprites/items/Chest/chest1_open_strip8.png");
+    background-position: 100% 0;
+}
+
+.equipment-gacha-btn {
+    min-height: 54px;
+    align-self: end;
+    border-radius: 12px;
+    color: #111827;
+    background: linear-gradient(180deg, #facc15, #d97706);
+    border-color: rgba(253, 224, 71, 0.5);
+    font-weight: 800;
+}
+
+.equipment-gacha-btn:disabled {
+    opacity: 0.72;
+}
+
+.equipment-gacha-result {
+    grid-column: 2;
+    min-height: 20px;
+    margin: -4px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #fde68a;
+}
+
+@keyframes equipment-gacha-idle {
+    from { background-position: 0 0; }
+    to { background-position: 100% 0; }
+}
+
+@keyframes equipment-gacha-open {
+    from { background-position: 0 0; transform: scale(1); }
+    55% { transform: scale(1.08); }
+    to { background-position: 100% 0; transform: scale(1); }
+}
+
+@media (max-width: 520px) {
+    .equipment-gacha-entry {
+        grid-template-columns: 96px 1fr;
+    }
+
+    .equipment-gacha-result {
+        grid-column: 1 / -1;
+    }
+}
+
 .guild-empty-state,
 .guild-joined-panel {
     position: relative;

@@ -1242,9 +1242,11 @@ function initializeInventoryRoutes(app, deps) {
                 const grantedItemId = evalResult.ResultItemId;
                 if (!grantedItemId) throw new Error('ガチャ結果が空でした。');
                 await addEconomyItem(playFabId, grantedItemId, 1);
+                const catalogData = normalizeCatalogDisplayData(grantedItemId, catalogCache[grantedItemId] || {});
+                const grantedItemName = catalogData.DisplayName || catalogData.Title || grantedItemId;
                 res.json({
                     newBalance: newBalance,
-                    grantedItems: [{ ItemId: grantedItemId }]
+                    grantedItems: [{ ItemId: grantedItemId, DisplayName: grantedItemName }]
                 });
             } catch (grantError) {
                 console.error('ガチャ付与失敗:', grantError.errorMessage || grantError.message || grantError);
