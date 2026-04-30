@@ -212,11 +212,9 @@ function getTroyEntryRequestFromUrl() {
     const troyFlag = String(params.get('troy') || '').trim().toLowerCase();
     const isEntry = action === 'troy-entry' || action === 'troy' || troyFlag === 'entry';
     if (!isEntry) return null;
-    const nation = String(params.get('nation') || params.get('troyNation') || 'fire').trim().toLowerCase();
-    return {
-        action: 'troy-entry',
-        nation: ['fire', 'water', 'wind', 'earth'].includes(nation) ? nation : 'fire'
-    };
+    const nationRaw = String(params.get('nation') || params.get('troyNation') || '').trim().toLowerCase();
+    const nation = ['fire', 'water', 'wind', 'earth'].includes(nationRaw) ? nationRaw : null;
+    return { action: 'troy-entry', nation };
 }
 
 function clearTroyEntryParamsFromUrl() {
@@ -576,7 +574,7 @@ async function initializeLiff() {
                 ? {
                     action: 'troy-entry',
                     troyEntry: true,
-                    troyNation: getTroyEntryRequestFromUrl().nation
+                    ...(getTroyEntryRequestFromUrl().nation ? { troyNation: getTroyEntryRequestFromUrl().nation } : {})
                 }
                 : {})
         });
@@ -1351,17 +1349,18 @@ async function updateAvatarBaseInfo() {
 async function handleTroyEntryRequestAfterLogin() {
     const entryRequest = getTroyEntryRequestFromUrl();
     if (!entryRequest || !myPlayFabId) return;
-    window.__troyEntryNation = entryRequest.nation;
     try {
-        const result = await callApiWithLoader('/api/troy-join', {
+        const joinBody = {
             playFabId: myPlayFabId,
-            displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || '',
-            troyNation: entryRequest.nation
-        }, { throwOnError: true });
+            displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
+        };
+        if (entryRequest.nation) joinBody.troyNation = entryRequest.nation;
+        const result = await callApiWithLoader('/api/troy-join', joinBody, { throwOnError: true });
+        window.__troyEntryNation = result.nation || entryRequest.nation || null;
         await showTab('troy', {
             playFabId: myPlayFabId,
             race: myAvatarBaseInfo.Race || 'human',
-            nation: entryRequest.nation
+            nation: result.nation || entryRequest.nation
         });
         const message = result?.entryChargeCreated
             ? 'TROYに入店しました。チャージを追加しました。'

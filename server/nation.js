@@ -3417,6 +3417,7 @@ function initializeNationRoutes(app, deps) {
             });
             res.json({
                 success: true,
+                nation,
                 entryChargeCreated,
                 entryChargeGrantAmount,
                 entryChargeGrantError,
