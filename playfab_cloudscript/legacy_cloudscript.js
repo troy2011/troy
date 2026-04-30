@@ -84,10 +84,22 @@ function _getNationMappingByNation(nation) {
 
 function _findNationGroupByName(groupName) {
     if (!groupName) return null;
-    var search = groups.SearchGroups({ SearchTerm: groupName });
-    if (!search || !search.Groups) return null;
-    for (var i = 0; i < search.Groups.length; i++) {
-        if (search.Groups[i].GroupName === groupName) return search.Groups[i].Group;
+    try {
+        var titleData = server.GetTitleData({ Keys: ['NationGroupIds'] });
+        var raw = titleData && titleData.Data ? titleData.Data.NationGroupIds : '';
+        var map = raw ? JSON.parse(raw) : {};
+        var groupId = map && map[groupName] ? String(map[groupName]).trim() : '';
+        if (groupId) return { Id: groupId, Type: 'group' };
+    } catch (e) {
+        // fall through to API lookup
+    }
+    try {
+        if (typeof groups.GetGroup === 'function') {
+            var group = groups.GetGroup({ GroupName: groupName });
+            if (group && group.Group && group.Group.Id) return group.Group;
+        }
+    } catch (e2) {
+        // no group found
     }
     return null;
 }
