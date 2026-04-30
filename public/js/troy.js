@@ -356,6 +356,26 @@ function setMenuButtonsEnabled(enabled) {
     });
 }
 
+function showTroyNotice(message) {
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(message);
+        return;
+    }
+    alert(message);
+}
+
+function scrollTroyEntryIntoView() {
+    const entrySection = document.getElementById('troyEntrySection');
+    const primaryCard = document.getElementById('troyPrimaryActionCard');
+    (entrySection || primaryCard)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function clickTroyJoinButton() {
+    const joinBtn = document.getElementById('btnTroyJoin');
+    if (!joinBtn || joinBtn.disabled) return;
+    joinBtn.click();
+}
+
 function updateTroyRoleUI() {
     const kingControls = document.getElementById('troyKingControls');
     const menuSection = document.getElementById('troyMenuSection');
@@ -529,6 +549,7 @@ function renderOpenTabCard() {
     const metaEl = document.getElementById('troyOpenTabMeta');
     const listEl = document.getElementById('troyOpenTabList');
     const undoBtn = document.getElementById('btnTroyUndoLastOrder');
+    const guideEl = document.getElementById('troyCheckoutGuide');
     if (!metaEl || !listEl || !undoBtn) return;
 
     clearUndoCountdownTimer();
@@ -541,11 +562,18 @@ function renderOpenTabCard() {
         listEl.innerHTML = '<div class="troy-open-tab-empty">注文はありません。</div>';
         undoBtn.disabled = true;
         undoBtn.textContent = '最後の1件を取り消す';
+        if (guideEl) guideEl.hidden = true;
         return;
     }
 
     const totalLabel = `${checkoutStatus === 'pending' ? '旧会計待ち' : '未会計'} ${session.totalItems}点 / ${formatYen(session.total)}`;
     metaEl.textContent = session.grantTotal > 0 ? `${totalLabel} / 付与済み ${session.grantTotal}G` : totalLabel;
+    if (guideEl) {
+        guideEl.hidden = false;
+        guideEl.textContent = checkoutStatus === 'pending'
+            ? '王の会計確認待ちです。'
+            : '会計は王に声をかけてください。';
+    }
     listEl.innerHTML = '';
 
     const items = session.items.slice().reverse();
@@ -609,6 +637,7 @@ function updateCheckoutStatus() {
     renderOpenTabCard();
     const menuEnabled = canUseTroyMenu();
     setMenuButtonsEnabled(menuEnabled);
+    updateTroyPrimaryAction();
     if (!status) return;
     const checkoutStatus = String(session?.status || '').trim().toLowerCase();
     const hasOpenTab = checkoutStatus === 'open' || checkoutStatus === 'pending';
@@ -637,6 +666,46 @@ function updateCheckoutStatus() {
     }
     status.textContent = '注文できます。';
     status.classList.remove('is-pending');
+}
+
+function updateTroyPrimaryAction() {
+    const card = document.getElementById('troyPrimaryActionCard');
+    const title = document.getElementById('troyPrimaryActionTitle');
+    const meta = document.getElementById('troyPrimaryActionMeta');
+    const button = document.getElementById('btnTroyPrimaryAction');
+    if (!card || !title || !meta || !button) return;
+
+    const isOpen = !!_lastStatus?.isOpen;
+    const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
+    const session = sanitizeCheckoutSession(_checkoutSession);
+    const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
+
+    card.classList.toggle('is-open', isOpen);
+    card.classList.toggle('is-member', isMember);
+    button.disabled = false;
+
+    if (!isOpen) {
+        title.textContent = 'TROYはCLOSE中';
+        meta.textContent = 'OPENになると入店できます。';
+        button.textContent = 'CLOSE';
+        button.disabled = true;
+        return;
+    }
+    if (!isMember) {
+        title.textContent = '入店して注文';
+        meta.textContent = 'まず入店するとメニューから注文できます。';
+        button.textContent = '入店';
+        return;
+    }
+    if (hasOpenTab) {
+        title.textContent = '伝票を確認';
+        meta.textContent = `${session.totalItems}点 / ${formatYen(session.total)}`;
+        button.textContent = '伝票';
+        return;
+    }
+    title.textContent = '注文できます';
+    meta.textContent = 'カテゴリを選んで注文してください。';
+    button.textContent = 'メニュー';
 }
 
 function applyCheckoutFromStatus(data) {
@@ -971,6 +1040,12 @@ function wireMenuPopups() {
         button.addEventListener('click', () => {
             const targetMenuId = button.dataset.menuId;
             if (!targetMenuId) return;
+            if (!canUseTroyMenu()) {
+                const message = _lastStatus?.isOpen ? '入店すると注文できます。' : 'TROYはCLOSE中です。';
+                showTroyNotice(message);
+                if (_lastStatus?.isOpen) scrollTroyEntryIntoView();
+                return;
+            }
             _menuActiveId = targetMenuId;
             setTopMenuCategoryState(targetMenuId);
             openMenuModal(targetMenuId);
@@ -1147,6 +1222,7 @@ function renderStatus(data) {
     }
     applyCheckoutFromStatus(data);
     updateOrderAvailability();
+    updateTroyPrimaryAction();
     updateTroyRoleUI();
 }
 
@@ -1190,6 +1266,20 @@ function wireHandlers(playFabId) {
                 joinBtn.disabled = false;
                 joinBtn.textContent = previousText || '入店';
             }
+        });
+    }
+    const primaryBtn = document.getElementById('btnTroyPrimaryAction');
+    if (primaryBtn) {
+        primaryBtn.addEventListener('click', () => {
+            if (!_lastStatus?.isOpen) return;
+            if (!isTroyMember(_lastStatus, playFabId)) {
+                clickTroyJoinButton();
+                return;
+            }
+            const session = sanitizeCheckoutSession(_checkoutSession);
+            const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
+            const target = hasOpenTab ? document.getElementById('troyOpenTabCard') : document.querySelector('.troy-menu-list');
+            target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
         });
     }
     if (undoBtn) {

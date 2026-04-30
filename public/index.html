@@ -181,11 +181,25 @@
                 </div>
                 <div id="troyKingControls" class="content-area" style="display: none;">
                     <div class="troy-admin-card troy-king-priority-card">
-                        <div class="troy-admin-label">TROY 営業状態</div>
-                        <div class="troy-admin-actions">
-                            <div id="kingTroyStatus">CLOSE</div>
-                            <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
-                            <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
+                        <div class="king-troy-ops-head">
+                            <div>
+                                <div class="troy-admin-label">TROY 営業</div>
+                                <div id="kingTroyStatus" class="king-troy-status">CLOSE</div>
+                            </div>
+                            <div class="troy-admin-actions">
+                                <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
+                                <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
+                            </div>
+                        </div>
+                        <div class="king-troy-ops-summary">
+                            <div>
+                                <span>未会計</span>
+                                <strong id="kingTroyPendingCount">0件</strong>
+                            </div>
+                            <div>
+                                <span>本日売上</span>
+                                <strong id="kingTroySalesSummary">¥0</strong>
+                            </div>
                         </div>
                     </div>
                     <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
@@ -246,65 +260,22 @@
                             <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
                         </div>
                     </details>
-                    <details id="kingWarDetails" class="troy-admin-details">
-                        <summary>戦争</summary>
-                        <div id="kingWarSection" class="troy-admin-card king-war-card">
-                            <div class="troy-admin-actions troy-admin-actions-wide">
-                                <div>
-                                    <div class="troy-admin-field-label">戦争</div>
-                                    <div id="kingWarSummary">-</div>
-                                </div>
-                            </div>
-                        <div id="kingWarCapital" class="king-war-capital-grid"></div>
-                        <div class="king-war-forms">
-                            <div class="king-war-form-card">
-                                <div class="troy-admin-field-label">配備</div>
-                                <select id="kingWarDeployWeapon" class="king-war-select"></select>
-                                <button id="btnKingWarDeploy" class="king-war-action-btn" type="button">配備する</button>
-                            </div>
-                            <div class="king-war-form-card">
-                                <div class="troy-admin-field-label">攻撃準備</div>
-                                <select id="kingWarStrikeWeapon" class="king-war-select"></select>
-                                <select id="kingWarTargetNation" class="king-war-select"></select>
-                                <select id="kingWarTargetPart" class="king-war-select">
-                                    <option value="airDefense">防空</option>
-                                    <option value="walls" selected>城壁</option>
-                                    <option value="vault">金庫</option>
-                                    <option value="command">指揮</option>
-                                </select>
-                                <button id="btnKingWarStrike" class="king-war-action-btn is-attack" type="button">攻撃準備を開始</button>
-                            </div>
-                        </div>
-                        <div class="king-war-block">
-                            <div class="troy-admin-field-label">配備中兵器</div>
-                            <div id="kingWarActiveSystems" class="king-war-system-list"></div>
-                        </div>
-                        <div class="king-war-block">
-                            <div class="troy-admin-field-label">飛来警報</div>
-                            <div id="kingWarIncoming" class="king-war-incoming-list"></div>
-                        </div>
-                        <div class="king-war-block">
-                            <div class="troy-admin-field-label">敵国首都と国庫</div>
-                            <div id="kingWarEnemies" class="king-war-enemy-list"></div>
-                        </div>
-                        <div class="king-war-log-grid">
-                            <div class="king-war-block">
-                                <div class="troy-admin-field-label">全体戦況</div>
-                                <div id="kingWarGlobalLogs" class="king-war-log-list"></div>
-                            </div>
-                            <div class="king-war-block">
-                                <div class="troy-admin-field-label">自国戦況</div>
-                                <div id="kingWarNationLogs" class="king-war-log-list"></div>
-                            </div>
-                        </div>
-                        </div>
-                    </details>
                 </div>
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
+                        <div id="troyPrimaryActionCard" class="troy-primary-action-card">
+                            <div>
+                                <div id="troyPrimaryActionTitle" class="troy-primary-action-title">入店して注文</div>
+                                <div id="troyPrimaryActionMeta" class="troy-primary-action-meta">OPEN中は入店するとメニューから注文できます。</div>
+                            </div>
+                            <button id="btnTroyPrimaryAction" class="troy-primary-action-btn" type="button">入店</button>
+                        </div>
                         <div id="troyOrderStatusInline" class="troy-order-inline-status">入店すると注文できます。</div>
-                        <div class="troy-coin-note">店内コインを使った場合は、退店時に王へ預けてゴールド化してください。</div>
+                        <details id="troyCoinNoteDetails" class="troy-coin-note-details">
+                            <summary>店内コインを使った場合</summary>
+                            <div class="troy-coin-note">退店時に王へ預けてゴールド化してください。</div>
+                        </details>
                         <div id="troyOpenTabCard" class="troy-open-tab-card">
                             <div class="troy-open-tab-head">
                                 <div class="troy-open-tab-head-main">
@@ -316,6 +287,7 @@
                             <div id="troyOpenTabList" class="troy-open-tab-list">
                                 <div class="troy-open-tab-empty">注文はありません。</div>
                             </div>
+                            <div id="troyCheckoutGuide" class="troy-checkout-guide">会計は王に声をかけてください。</div>
                         </div>
                         <ul class="troy-menu-list">
                             <li class="troy-menu-group">
@@ -344,9 +316,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="content-area">
+                <details id="troyChatDetails" class="content-area troy-chat-details">
+                    <summary>チャット</summary>
                     <div id="troyChatArea" class="map-chat-area">
-                        <h2>チャット</h2>
                         <div class="map-chat-tabs">
                             <button class="map-chat-tab" data-chat="global">全体</button>
                             <button class="map-chat-tab" data-chat="guild">ギルド</button>
@@ -358,7 +330,7 @@
                             <button id="btnSendTroyChat">送信</button>
                         </form>
                     </div>
-                </div>
+                </details>
             </div>
 
             <!-- 1.7 タロットポーカータブ -->
