@@ -7,6 +7,13 @@ var RACE_TO_NATION = {
     Elf: { island: 'wind', groupName: 'nation_wind_island' }
 };
 
+var NATION_TO_GROUP = {
+    fire: { island: 'fire', groupName: 'nation_fire_island' },
+    water: { island: 'water', groupName: 'nation_water_island' },
+    earth: { island: 'earth', groupName: 'nation_earth_island' },
+    wind: { island: 'wind', groupName: 'nation_wind_island' }
+};
+
 var NATION_VC_CODE = 'PS';
 
 function _stringifyError(e) {
@@ -70,18 +77,41 @@ function _setNationTaxRateBps(groupId, bps) {
     return bps;
 }
 
-function _getNationGroupIdForCurrentPlayer() {
+function _getNationMappingByNation(nation) {
+    var key = nation ? String(nation).trim().toLowerCase() : '';
+    return key ? (NATION_TO_GROUP[key] || null) : null;
+}
+
+function _findNationGroupByName(groupName) {
+    if (!groupName) return null;
+    var search = groups.SearchGroups({ SearchTerm: groupName });
+    if (!search || !search.Groups) return null;
+    for (var i = 0; i < search.Groups.length; i++) {
+        if (search.Groups[i].GroupName === groupName) return search.Groups[i].Group;
+    }
+    return null;
+}
+
+function _getNationGroupForPlayFabId(playFabId) {
     var ro = server.GetUserReadOnlyData({
-        PlayFabId: currentPlayerId,
-        Keys: ['Nation', 'NationGroupId', 'NationGroupName']
+        PlayFabId: playFabId,
+        Keys: ['Nation']
     });
 
-    if (!ro || !ro.Data || !ro.Data.NationGroupId || !ro.Data.NationGroupId.Value) return null;
+    var nationIsland = ro && ro.Data && ro.Data.Nation ? ro.Data.Nation.Value : null;
+    var mapping = _getNationMappingByNation(nationIsland);
+    if (!mapping) return null;
+    var groupKey = _findNationGroupByName(mapping.groupName);
+    if (!groupKey || !groupKey.Id) return null;
     return {
-        nationIsland: ro.Data.Nation ? ro.Data.Nation.Value : null,
-        nationGroupId: ro.Data.NationGroupId.Value,
-        nationGroupName: ro.Data.NationGroupName ? ro.Data.NationGroupName.Value : null
+        nationIsland: mapping.island,
+        groupId: groupKey.Id,
+        groupName: mapping.groupName
     };
+}
+
+function _getNationGroupForCurrentPlayer() {
+    return _getNationGroupForPlayFabId(currentPlayerId);
 }
 
 function _getEntityKeyForPlayFabId(playFabId) {
@@ -148,21 +178,24 @@ handlers.AssignNationGroupByRace = function (args, context) {
 
     var ro = server.GetUserReadOnlyData({
         PlayFabId: currentPlayerId,
-        Keys: ['Nation', 'NationGroupId', 'NationGroupName']
+        Keys: ['Nation']
     });
 
     if (ro && ro.Data) {
         var existingIsland = ro.Data.Nation && ro.Data.Nation.Value;
-        var existingGroupId = ro.Data.NationGroupId && ro.Data.NationGroupId.Value;
-        if (existingIsland === nationIsland && existingGroupId) {
-            var existingKing = _getNationKing(existingGroupId);
-            return {
-                alreadyAssigned: true,
-                nationIsland: existingIsland,
-                nationGroupId: existingGroupId,
-                nationGroupName: (ro.Data.NationGroupName && ro.Data.NationGroupName.Value) || groupName,
-                isKing: existingKing && existingKing.playFabId === currentPlayerId
-            };
+        if (existingIsland === nationIsland) {
+            var existingGroupKey = _findNationGroupByName(groupName);
+            var existingGroupId = existingGroupKey && existingGroupKey.Id;
+            if (existingGroupId) {
+                var existingKing = _getNationKing(existingGroupId);
+                return {
+                    alreadyAssigned: true,
+                    nationIsland: existingIsland,
+                    groupId: existingGroupId,
+                    groupName: groupName,
+                    isKing: existingKing && existingKing.playFabId === currentPlayerId
+                };
+            }
         }
     }
 
@@ -226,9 +259,7 @@ handlers.AssignNationGroupByRace = function (args, context) {
     server.UpdateUserReadOnlyData({
         PlayFabId: currentPlayerId,
         Data: {
-            Nation: nationIsland,
-            NationGroupId: groupKey.Id,
-            NationGroupName: groupName
+            Nation: nationIsland
         }
     });
     if (typeof log !== 'undefined' && log && typeof log.info === 'function') {
@@ -252,8 +283,8 @@ handlers.AssignNationGroupByRace = function (args, context) {
     return {
         assigned: true,
         nationIsland: nationIsland,
-        nationGroupId: groupKey.Id,
-        nationGroupName: groupName,
+        groupId: groupKey.Id,
+        groupName: groupName,
         isKing: kingObj && kingObj.playFabId === currentPlayerId
     };
     } catch (ex) {
@@ -272,16 +303,16 @@ handlers.AssignNationGroupByRace = function (args, context) {
 };
 
 handlers.GetNationKingPageData = function (args, context) {
-    var nation = _getNationGroupIdForCurrentPlayer();
-    if (!nation || !nation.nationGroupId) throw 'NationGroupNotSet';
+    var nation = _getNationGroupForCurrentPlayer();
+    if (!nation || !nation.groupId) throw 'NationGroupNotSet';
 
-    _requireNationKing(nation.nationGroupId);
+    _requireNationKing(nation.groupId);
 
-    var groupEntity = { Id: nation.nationGroupId, Type: 'group' };
+    var groupEntity = { Id: nation.groupId, Type: 'group' };
     var objects = entity.GetObjects({ Entity: groupEntity, EscapeObject: false });
     var announcement = _getGroupObject(objects, 'NationAnnouncement') || { message: '', updatedAt: null };
-    var taxRateBps = _getNationTaxRateBps(nation.nationGroupId);
-    var treasuryPs = _getNationTreasuryPs(nation.nationGroupId);
+    var taxRateBps = _getNationTaxRateBps(nation.groupId);
+    var treasuryPs = _getNationTreasuryPs(nation.groupId);
 
     var memberCount = null;
     try {
@@ -293,8 +324,8 @@ handlers.GetNationKingPageData = function (args, context) {
 
     return {
         nationIsland: nation.nationIsland,
-        nationGroupId: nation.nationGroupId,
-        nationGroupName: nation.nationGroupName,
+        groupId: nation.groupId,
+        groupName: nation.groupName,
         memberCount: memberCount,
         taxRateBps: taxRateBps,
         treasuryPs: treasuryPs,
@@ -309,12 +340,12 @@ handlers.SetNationAnnouncement = function (args, context) {
     var message = args && args.message != null ? String(args.message) : '';
     if (message.length > 200) message = message.slice(0, 200);
 
-    var nation = _getNationGroupIdForCurrentPlayer();
-    if (!nation || !nation.nationGroupId) throw 'NationGroupNotSet';
+    var nation = _getNationGroupForCurrentPlayer();
+    if (!nation || !nation.groupId) throw 'NationGroupNotSet';
 
-    _requireNationKing(nation.nationGroupId);
+    _requireNationKing(nation.groupId);
 
-    var groupEntity = { Id: nation.nationGroupId, Type: 'group' };
+    var groupEntity = { Id: nation.groupId, Type: 'group' };
     var payload = { message: message, updatedAt: Date.now() };
 
     entity.SetObjects({
@@ -326,9 +357,9 @@ handlers.SetNationAnnouncement = function (args, context) {
 };
 
 handlers.SetNationTaxRate = function (args, context) {
-    var nation = _getNationGroupIdForCurrentPlayer();
-    if (!nation || !nation.nationGroupId) throw 'NationGroupNotSet';
-    _requireNationKing(nation.nationGroupId);
+    var nation = _getNationGroupForCurrentPlayer();
+    if (!nation || !nation.groupId) throw 'NationGroupNotSet';
+    _requireNationKing(nation.groupId);
 
     var percent = 0;
     try {
@@ -342,7 +373,7 @@ handlers.SetNationTaxRate = function (args, context) {
     if (percent > 50) percent = 50;
 
     var bps = Math.round(percent * 100);
-    var saved = _setNationTaxRateBps(nation.nationGroupId, bps);
+    var saved = _setNationTaxRateBps(nation.groupId, bps);
     return { success: true, taxRateBps: saved };
 };
 
@@ -360,17 +391,14 @@ handlers.KingGrantPsWithTax = function (args, context) {
     amount = Math.floor(amount);
     if (amount <= 0) throw 'amount must be positive';
 
-    var nation = _getNationGroupIdForCurrentPlayer();
-    if (!nation || !nation.nationGroupId) throw 'NationGroupNotSet';
+    var nation = _getNationGroupForCurrentPlayer();
+    if (!nation || !nation.groupId) throw 'NationGroupNotSet';
 
-    _requireNationKing(nation.nationGroupId);
+    _requireNationKing(nation.groupId);
 
     // 受取人の所属国に応じて課税する（所属なしなら税なし）
-    var receiverNation = server.GetUserReadOnlyData({
-        PlayFabId: receiverPlayFabId,
-        Keys: ['NationGroupId']
-    });
-    var receiverGroupId = receiverNation && receiverNation.Data && receiverNation.Data.NationGroupId ? receiverNation.Data.NationGroupId.Value : null;
+    var receiverNation = _getNationGroupForPlayFabId(receiverPlayFabId);
+    var receiverGroupId = receiverNation ? receiverNation.groupId : null;
 
     var taxRateBps = receiverGroupId ? _getNationTaxRateBps(receiverGroupId) : 0;
     var tax = Math.floor((amount * taxRateBps) / 10000);
@@ -409,7 +437,7 @@ handlers.KingGrantPsWithTax = function (args, context) {
         taxAmount: tax,
         netAmount: net,
         receiverPlayFabId: receiverPlayFabId,
-        receiverNationGroupId: receiverGroupId,
+        receiverGroupId: receiverGroupId,
         treasuryPs: receiverGroupId ? _getNationTreasuryPs(receiverGroupId) : null
     };
 };
@@ -418,18 +446,15 @@ handlers.TransferNationKing = function (args, context) {
     var newKingPlayFabId = args && args.newKingPlayFabId ? String(args.newKingPlayFabId).trim() : '';
     if (!newKingPlayFabId) throw 'newKingPlayFabId is required';
 
-    var nation = _getNationGroupIdForCurrentPlayer();
-    if (!nation || !nation.nationGroupId) throw 'NationGroupNotSet';
-    _requireNationKing(nation.nationGroupId);
+    var nation = _getNationGroupForCurrentPlayer();
+    if (!nation || !nation.groupId) throw 'NationGroupNotSet';
+    _requireNationKing(nation.groupId);
 
-    var targetNation = server.GetUserReadOnlyData({
-        PlayFabId: newKingPlayFabId,
-        Keys: ['NationGroupId']
-    });
-    var targetGroupId = targetNation && targetNation.Data && targetNation.Data.NationGroupId ? targetNation.Data.NationGroupId.Value : null;
-    if (!targetGroupId || targetGroupId !== nation.nationGroupId) throw 'TargetNotInSameNation';
+    var targetNation = _getNationGroupForPlayFabId(newKingPlayFabId);
+    var targetGroupId = targetNation ? targetNation.groupId : null;
+    if (!targetGroupId || targetGroupId !== nation.groupId) throw 'TargetNotInSameNation';
 
-    _setNationKing(nation.nationGroupId, newKingPlayFabId);
+    _setNationKing(nation.groupId, newKingPlayFabId);
     return { success: true, newKingPlayFabId: newKingPlayFabId };
 };
 

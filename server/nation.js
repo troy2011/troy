@@ -1890,8 +1890,8 @@ function initializeNationRoutes(app, deps) {
             }
 
             const selfId = normalizePlayFabId(requesterPlayFabId);
+            const nation = String(ro?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
             try {
-                const nation = String(ro?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
                 const mapping = getNationMappingByNation(nation);
                 if (mapping) {
                     const docRef = getNationGroupDoc(firestore, mapping.groupName);
@@ -3886,7 +3886,6 @@ function initializeNationRoutes(app, deps) {
             const groupInfo = await ensureNationGroupExists(firestore, nationMapping, nationDeps);
             const kingNationGroupId = groupInfo.groupId;
             const targetNationIsland = nationMapping.island;
-            const targetNationGroupName = nationMapping.groupName;
 
             const targetRo = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: targetPlayFabId,
@@ -3928,8 +3927,6 @@ function initializeNationRoutes(app, deps) {
                 PlayFabId: targetPlayFabId,
                 Data: {
                     Nation: targetNationIsland || kingNation || null,
-                    NationGroupId: kingNationGroupId,
-                    NationGroupName: targetNationGroupName,
                     AvatarColor: avatarColor || 'brown',
                     NationChangedAt: String(Date.now())
                 }
@@ -3964,7 +3961,6 @@ function initializeNationRoutes(app, deps) {
 
             return res.json({
                 success: true,
-                nationGroupId: kingNationGroupId,
                 nationIsland: targetNationIsland || kingNation || null,
                 transferredIslands: transferResult.transferred,
                 starterIsland

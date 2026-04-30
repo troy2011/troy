@@ -1329,7 +1329,7 @@ app.post('/api/login-playfab', async (req, res) => {
 
         const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Race', 'NationGroupId', 'Nation', 'BaseDisplayName']
+            Keys: ['Race', 'Nation', 'BaseDisplayName']
         });
         const troyEntryRequested = String(req.body?.action || '').trim().toLowerCase() === 'troy-entry'
             || req.body?.troyEntry === true;
@@ -1369,7 +1369,6 @@ app.post('/api/login-playfab', async (req, res) => {
                     Data: {
                         Race: readOnly?.Data?.Race?.Value || 'Human',
                         Nation: guestNation,
-                        NationGroupId: guestMapping?.groupName || '',
                         BaseDisplayName: baseName,
                         IsGuest: 'true',
                         GuestEntryCreatedAt: new Date().toISOString()
@@ -1731,9 +1730,7 @@ app.post('/api/set-race', async (req, res) => {
         const displayResult = await ensureNationDisplayName(playFabId, assignedNation, displayName || '');
 
         const nationData = {
-            Nation: assignedNation,
-            NationGroupId: assignedGroupId,
-            NationGroupName: assignedGroupName
+            Nation: assignedNation
         };
 
         setRaceStep = 'update-player-statistics';
@@ -1767,13 +1764,13 @@ app.post('/api/set-race', async (req, res) => {
             SkinColorIndex: avatarData.SkinColorIndex,
             FaceIndex: avatarData.FaceIndex,
             HairStyleIndex: avatarData.HairStyleIndex,
-            NationGroupId: nationData.NationGroupId,
-            NationGroupName: nationData.NationGroupName,
             InvitedByPlayFabId: inviteAssignment?.inviterPlayFabId || null,
             InvitedByDisplayName: inviteAssignment?.inviterDisplayName || null,
             InviteAcceptedAt: inviteAssignment ? String(Date.now()) : null
         });
         const coreKeysToRemove = [
+            'NationGroupId',
+            'NationGroupName',
             ...(isKing ? [] : ['NationKingId']),
             ...(inviteAssignment ? [] : ['InvitedByPlayFabId', 'InvitedByDisplayName', 'InviteAcceptedAt'])
         ];
