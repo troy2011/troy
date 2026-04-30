@@ -721,10 +721,11 @@ function applyCheckoutFromStatus(data) {
         return;
     }
 
+    const troyIsOpen = !!data?.isOpen;
     if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && !stillMember) {
         clearPendingAutoLeaveNotice();
         closeMenuModal();
-        if (typeof window.showRpgMessage === 'function') {
+        if (troyIsOpen && typeof window.showRpgMessage === 'function') {
             window.showRpgMessage('会計が完了しました。退店しました。');
         }
     } else if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && stillMember) {
@@ -732,7 +733,7 @@ function applyCheckoutFromStatus(data) {
     } else if (!checkout && !stillMember && _pendingAutoLeaveNotice) {
         clearPendingAutoLeaveNotice();
         closeMenuModal();
-        if (typeof window.showRpgMessage === 'function') {
+        if (troyIsOpen && typeof window.showRpgMessage === 'function') {
             window.showRpgMessage('会計が完了しました。退店しました。');
         }
     } else if (stillMember) {
@@ -1254,7 +1255,10 @@ function wireHandlers(playFabId) {
                         updateCheckoutStatus();
                     }
                     await refreshStatus(playFabId, { isSilent: true });
-                    attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());
+                    const joinedNation = _lastStatus?.nation || resolveTroyNationKey();
+                    if (joinedNation !== _statusSnapshotState?.nation) {
+                        attachStatusSubscription(playFabId, joinedNation);
+                    }
                     const isMember = isTroyMember(_lastStatus, playFabId);
                     if (!wasMember && isMember && typeof window.showRpgMessage === 'function') {
                         window.showRpgMessage(result.entryChargeCreated

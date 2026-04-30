@@ -2704,13 +2704,13 @@ function initializeNationRoutes(app, deps) {
             const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
             const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
             if (!nextOpen) {
-                await deleteCollectionDocs(roomRef.collection('members'));
-                await deleteCollectionDocs(roomRef.collection('checkouts'));
                 await roomRef.set({
                     isOpen: false,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedBy: null
                 }, { merge: true });
+                await deleteCollectionDocs(roomRef.collection('members'));
+                await deleteCollectionDocs(roomRef.collection('checkouts'));
             } else {
                 await roomRef.set({
                     isOpen: true,
