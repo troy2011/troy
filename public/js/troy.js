@@ -1126,6 +1126,7 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
     const membersQuery = query(collection(roomRef, 'members'), orderBy('joinedAt', 'asc'), limit(50));
     const checkoutRef = doc(roomRef, 'checkouts', memberId);
 
+    _checkoutSession = null;
     _statusSnapshotState = {
         nation: nationKey,
         isOpen: false,
