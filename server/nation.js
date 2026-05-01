@@ -1969,7 +1969,10 @@ function initializeNationRoutes(app, deps) {
                 }
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
-                    payload.troyOpen = !!roomSnap.data()?.isOpen;
+                    const roomData = roomSnap.data() || {};
+                    payload.troyOpen = !!roomData.isOpen;
+                    payload.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
+                    payload.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
                     const membersSnap = await getTroyRoomDoc(firestore, mapping.groupName)
                         .collection('members')
                         .orderBy('joinedAt', 'asc')
@@ -2753,6 +2756,61 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    // メニュー管理（品切れ・本日のおすすめ）
+    app.post('/api/king-update-menu', async (req, res) => {
+        const { playFabId, action, concept, name, price, emoji, id } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
+            const roomSnap = await roomRef.get();
+            const roomData = roomSnap.data() || {};
+
+            if (action === 'toggleDisabled') {
+                const safeConcept = String(concept || '').trim();
+                if (!safeConcept) return res.status(400).json({ error: 'concept is required' });
+                const current = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
+                const next = current.includes(safeConcept)
+                    ? current.filter((c) => c !== safeConcept)
+                    : [...current, safeConcept];
+                await roomRef.set({ menuDisabled: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                return res.json({ success: true, menuDisabled: next });
+            }
+
+            if (action === 'addSpecial') {
+                const safeName = String(name || '').trim();
+                const safePrice = Math.max(1, Math.floor(Number(price) || 0));
+                const safeEmoji = String(emoji || '').trim() || '⭐';
+                if (!safeName || !safePrice) return res.status(400).json({ error: 'name and price are required' });
+                const current = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
+                if (current.length >= 10) return res.status(400).json({ error: 'おすすめは最大10件まです。' });
+                const newSpecial = { id: `special-${Date.now()}`, name: safeName, price: safePrice, emoji: safeEmoji };
+                const next = [...current, newSpecial];
+                await roomRef.set({ menuSpecials: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                return res.json({ success: true, menuSpecials: next });
+            }
+
+            if (action === 'removeSpecial') {
+                const safeId = String(id || '').trim();
+                if (!safeId) return res.status(400).json({ error: 'id is required' });
+                const current = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
+                const next = current.filter((s) => s.id !== safeId);
+                await roomRef.set({ menuSpecials: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                return res.json({ success: true, menuSpecials: next });
+            }
+
+            return res.status(400).json({ error: 'Unknown action' });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) return res.status(403).json({ error: 'NotKing' });
+            console.error('[king-update-menu] Error:', msg);
+            res.status(500).json({ error: 'Failed to update menu', details: String(msg) });
+        }
+    });
+
     // TROY状態取得
     app.post('/api/get-troy-status', async (req, res) => {
         const { playFabId } = req.body || {};
@@ -2803,7 +2861,15 @@ function initializeNationRoutes(app, deps) {
                 }
             }
 
-            res.json({ isOpen, members, nation, checkout });
+            const roomDataFull = roomSnap.data() || {};
+            res.json({
+                isOpen,
+                members,
+                nation,
+                checkout,
+                menuDisabled: Array.isArray(roomDataFull.menuDisabled) ? roomDataFull.menuDisabled : [],
+                menuSpecials: Array.isArray(roomDataFull.menuSpecials) ? roomDataFull.menuSpecials : []
+            });
         } catch (error) {
             console.error('[get-troy-status] Error:', error?.message || error);
             res.status(500).json({ error: 'Failed to get troy status' });

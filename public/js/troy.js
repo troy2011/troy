@@ -20,6 +20,8 @@ let _undoCountdownTimerId = 0;
 let _favoriteDrinkEntries = [];
 let _pendingAutoLeaveNotice = false;
 let _pendingAutoLeaveTimerId = 0;
+let _menuDisabled = [];
+let _menuSpecials = [];
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
 let _statusCheckoutUnsubscribe = null;
@@ -27,7 +29,9 @@ let _statusSnapshotState = {
     nation: null,
     isOpen: false,
     members: [],
-    checkout: null
+    checkout: null,
+    menuDisabled: [],
+    menuSpecials: []
 };
 
 const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'food', 'points'];
@@ -240,7 +244,7 @@ function toggleFavoriteDrink(menuId, item, optionLabel = '') {
 
 function getFavoriteDrinkMenuData() {
     return {
-        title: 'いつでも',
+        title: 'いつもの',
         items: _favoriteDrinkEntries.map((entry) => ({ ...entry }))
     };
 }
@@ -267,13 +271,18 @@ function getMenuDataById(menuId) {
             return getAlcoholDrinkMenuData();
         case 'food':
             return getFoodMenuData();
+        case 'specials':
+            return _menuSpecials.length > 0
+                ? { title: 'おすすめ', items: _menuSpecials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
+                : null;
         default:
             return TROY_PRODUCT_MENUS[menuId];
     }
 }
 
 function getMenuCategoryList() {
-    return TROY_MENU_IDS
+    const ids = _menuSpecials.length > 0 ? ['specials', ...TROY_MENU_IDS] : TROY_MENU_IDS;
+    return ids
         .map((id) => ({ id, data: getMenuDataById(id) }))
         .filter((entry) => !!entry.data)
         .map((entry) => ({ id: entry.id, title: entry.data.title }));
@@ -875,6 +884,7 @@ function openMenuModal(menuId) {
     data.items.forEach((item, index) => {
         const cardEl = document.createElement('article');
         cardEl.className = 'troy-menu-modal-item';
+        const isSoldOut = _menuDisabled.includes(item.concept);
 
         const hero = document.createElement('div');
         hero.className = 'troy-menu-modal-emoji';
@@ -947,7 +957,12 @@ function openMenuModal(menuId) {
         quickBtn.type = 'button';
         quickBtn.className = 'troy-menu-quick-btn';
         quickBtn.textContent = '注文する';
-        quickBtn.disabled = !canUseTroyMenu();
+        quickBtn.disabled = !canUseTroyMenu() || isSoldOut;
+        if (isSoldOut) {
+            cardEl.classList.add('is-sold-out');
+            minusBtn.disabled = true;
+            plusBtn.disabled = true;
+        }
 
         let favoriteBtn = null;
         const syncFavoriteButton = () => {
@@ -1105,8 +1120,15 @@ function publishSnapshotStatus() {
         nation: _statusSnapshotState.nation,
         isOpen: !!_statusSnapshotState.isOpen,
         members: Array.isArray(_statusSnapshotState.members) ? _statusSnapshotState.members : [],
-        checkout: _statusSnapshotState.checkout || null
+        checkout: _statusSnapshotState.checkout || null,
+        menuDisabled: Array.isArray(_statusSnapshotState.menuDisabled) ? _statusSnapshotState.menuDisabled : [],
+        menuSpecials: Array.isArray(_statusSnapshotState.menuSpecials) ? _statusSnapshotState.menuSpecials : []
     });
+}
+
+function applyMenuState(menuDisabled, menuSpecials) {
+    if (Array.isArray(menuDisabled)) _menuDisabled = menuDisabled;
+    if (Array.isArray(menuSpecials)) _menuSpecials = menuSpecials;
 }
 
 function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey()) {
@@ -1124,7 +1146,9 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
         nation: nationKey,
         isOpen: false,
         members: [],
-        checkout: null
+        checkout: null,
+        menuDisabled: [],
+        menuSpecials: []
     };
 
     const handleSnapshotError = (label, error) => {
@@ -1133,7 +1157,10 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
     };
 
     _statusRoomUnsubscribe = onSnapshot(roomRef, (snapshot) => {
-        _statusSnapshotState.isOpen = !!snapshot.data()?.isOpen;
+        const roomData = snapshot.data() || {};
+        _statusSnapshotState.isOpen = !!roomData.isOpen;
+        _statusSnapshotState.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
+        _statusSnapshotState.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
         publishSnapshotStatus();
     }, (error) => handleSnapshotError('room', error));
 
@@ -1208,6 +1235,7 @@ function renderStatus(data) {
         renderEntryList(data?.members);
     }
     applyCheckoutFromStatus(data);
+    applyMenuState(data?.menuDisabled, data?.menuSpecials);
     updateOrderAvailability();
     updateTroyPrimaryAction();
     updateTroyRoleUI();

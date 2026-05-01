@@ -9,7 +9,8 @@ import {
     setNationAnnouncement,
     grantPs,
     settleTroyCheckout,
-    setTroyOpen
+    setTroyOpen,
+    kingUpdateMenu
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
@@ -168,6 +169,61 @@ function _renderTroyMembers(members = []) {
             </div>
         `;
     }).join('');
+}
+
+const _KING_MENU_ITEM_GROUPS = [
+    {
+        category: 'アルコール 🍸',
+        items: ['ラム', 'ウォッカ', 'テキーラ', 'ジン', 'リキュール', 'ビール', 'ワインボトル']
+    },
+    {
+        category: 'ノンアルコール 🥤',
+        items: ['ソフトコーラ', '港のジンジャー', '陽だまりオレンジ', 'ノンアルコールビール', '船上ウーロン']
+    },
+    {
+        category: '温かい料理 🍟',
+        items: ['黄金ポテト', '海賊肉ナゲット', '甲板のピザパン', 'クラーケンの足', '人魚のワッフル', '港のチュロス', '夜更けの甲板ヌードル']
+    },
+    {
+        category: '乾きもの 🥜',
+        items: ['船室のチョコ片', '航海士のミックスナッツ']
+    }
+];
+
+function _renderMenuManagement(data) {
+    const disableListEl = document.getElementById('kingMenuDisableList');
+    const specialsListEl = document.getElementById('kingMenuSpecialsList');
+    const disabled = Array.isArray(data?.menuDisabled) ? data.menuDisabled : [];
+    const specials = Array.isArray(data?.menuSpecials) ? data.menuSpecials : [];
+
+    if (disableListEl) {
+        disableListEl.innerHTML = _KING_MENU_ITEM_GROUPS.map((group) => `
+            <div class="king-menu-group">
+                <div class="king-menu-group-label">${_escapeHtml(group.category)}</div>
+                <div class="king-menu-toggle-row">
+                    ${group.items.map((concept) => {
+                        const isSoldOut = disabled.includes(concept);
+                        return `<button type="button" class="king-menu-toggle-btn${isSoldOut ? ' is-sold-out' : ''}" data-menu-toggle="${_escapeHtml(concept)}">${_escapeHtml(concept)}</button>`;
+                    }).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    if (specialsListEl) {
+        if (!specials.length) {
+            specialsListEl.innerHTML = '<div class="king-menu-specials-empty">おすすめは未設定です。</div>';
+        } else {
+            specialsListEl.innerHTML = specials.map((s) => `
+                <div class="king-menu-special-row">
+                    <span class="king-menu-special-emoji">${_escapeHtml(s.emoji || '⭐')}</span>
+                    <span class="king-menu-special-name">${_escapeHtml(s.name)}</span>
+                    <span class="king-menu-special-price">¥${Math.max(0, Number(s.price) || 0).toLocaleString('ja-JP')}</span>
+                    <button type="button" class="btn-muted king-menu-special-remove" data-special-remove="${_escapeHtml(s.id)}">削除</button>
+                </div>
+            `).join('');
+        }
+    }
 }
 
 function _formatDuration(ms) {
@@ -467,6 +523,7 @@ export async function loadKingPage(playFabId, options = {}) {
     _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
     _renderTroyMembers(data.troyMembers);
     _renderPendingTroyCheckouts(data.troyPendingCheckouts);
+    _renderMenuManagement(data);
     if (troyStatusEl || grantCardEl) {
         const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
@@ -693,6 +750,77 @@ function _wireHandlers(playFabId) {
                 if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
+            }
+        });
+    }
+
+    const menuDisableListEl = document.getElementById('kingMenuDisableList');
+    if (menuDisableListEl) {
+        menuDisableListEl.addEventListener('click', async (event) => {
+            const btn = event.target instanceof Element ? event.target.closest('[data-menu-toggle]') : null;
+            if (!btn) return;
+            const concept = String(btn.getAttribute('data-menu-toggle') || '').trim();
+            if (!concept) return;
+            const previous = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '処理中...';
+            try {
+                await kingUpdateMenu(playFabId, { action: 'toggleDisabled', concept }, { isSilent: true });
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'メニューの更新に失敗しました。'), true);
+                btn.disabled = false;
+                btn.textContent = previous;
+            }
+        });
+    }
+
+    const menuSpecialsListEl = document.getElementById('kingMenuSpecialsList');
+    if (menuSpecialsListEl) {
+        menuSpecialsListEl.addEventListener('click', async (event) => {
+            const btn = event.target instanceof Element ? event.target.closest('[data-special-remove]') : null;
+            if (!btn) return;
+            const id = String(btn.getAttribute('data-special-remove') || '').trim();
+            if (!id) return;
+            btn.disabled = true;
+            btn.textContent = '処理中...';
+            try {
+                await kingUpdateMenu(playFabId, { action: 'removeSpecial', id }, { isSilent: true });
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'おすすめの削除に失敗しました。'), true);
+                btn.disabled = false;
+                btn.textContent = '削除';
+            }
+        });
+    }
+
+    const addSpecialBtn = document.getElementById('btnKingMenuAddSpecial');
+    if (addSpecialBtn) {
+        addSpecialBtn.addEventListener('click', async () => {
+            const nameEl = document.getElementById('kingMenuSpecialName');
+            const priceEl = document.getElementById('kingMenuSpecialPrice');
+            const emojiEl = document.getElementById('kingMenuSpecialEmoji');
+            const name = String(nameEl?.value || '').trim();
+            const price = Math.max(0, Math.floor(Number(priceEl?.value) || 0));
+            const emoji = String(emojiEl?.value || '').trim() || '⭐';
+            if (!name) { _setMessage('商品名を入力してください。', true); return; }
+            if (!price) { _setMessage('金額を入力してください。', true); return; }
+            const previous = addSpecialBtn.textContent;
+            addSpecialBtn.disabled = true;
+            addSpecialBtn.textContent = '追加中...';
+            try {
+                await kingUpdateMenu(playFabId, { action: 'addSpecial', name, price, emoji }, { isSilent: true });
+                if (nameEl) nameEl.value = '';
+                if (priceEl) priceEl.value = '';
+                if (emojiEl) emojiEl.value = '';
+                await loadKingPage(playFabId);
+                _setMessage('おすすめを追加しました。');
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'おすすめの追加に失敗しました。'), true);
+            } finally {
+                addSpecialBtn.disabled = false;
+                addSpecialBtn.textContent = previous;
             }
         });
     }

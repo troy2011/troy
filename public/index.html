@@ -211,7 +211,7 @@
                             <li class="troy-menu-group">
                                 <div class="troy-menu-label">カテゴリ</div>
                                 <ul class="troy-menu-items">
-                                    <li class="troy-menu-item-button" data-menu-id="favorite">いつでも</li>
+                                    <li class="troy-menu-item-button" data-menu-id="favorite">いつもの</li>
                                     <li class="troy-menu-item-button" data-menu-id="nonalcohol">ノンアル</li>
                                     <li class="troy-menu-item-button" data-menu-id="alcohol">アルコール</li>
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
@@ -1042,6 +1042,37 @@
                             <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
                             <div class="troy-admin-help">お客様の現金を受け取ったら、ここからお会計してください。</div>
                         </div>
+                        <details id="kingMenuDetails" class="troy-admin-details">
+                            <summary>メニュー管理</summary>
+                            <div class="troy-admin-card">
+                                <div class="troy-admin-label">品切れ管理</div>
+                                <div class="troy-admin-help">品切れにしたい商品をタップしてください。お客様のメニューから注文できなくなります。</div>
+                                <div id="kingMenuDisableList" class="king-menu-disable-list"></div>
+                            </div>
+                            <div class="troy-admin-card">
+                                <div class="troy-admin-label">本日のおすすめ</div>
+                                <div class="troy-admin-help">お客様のメニューに「おすすめ」として表示されます。</div>
+                                <div id="kingMenuSpecialsList" class="king-menu-specials-list"></div>
+                                <div class="troy-admin-field-label">おすすめを追加</div>
+                                <div class="troy-admin-grid">
+                                    <div>
+                                        <div class="troy-admin-field-label">商品名（30文字まで）</div>
+                                        <input id="kingMenuSpecialName" type="text" placeholder="例: 本日のカクテル" class="admin-input" maxlength="30" />
+                                    </div>
+                                    <div>
+                                        <div class="troy-admin-field-label">金額（¥）</div>
+                                        <input id="kingMenuSpecialPrice" type="number" min="1" step="1" placeholder="500" class="admin-input" />
+                                    </div>
+                                    <div>
+                                        <div class="troy-admin-field-label">絵文字</div>
+                                        <input id="kingMenuSpecialEmoji" type="text" placeholder="🍹" class="admin-input" maxlength="4" />
+                                    </div>
+                                </div>
+                                <div class="troy-admin-actions">
+                                    <button id="btnKingMenuAddSpecial" class="btn-open">追加する</button>
+                                </div>
+                            </div>
+                        </details>
                         <details id="kingManualGrantDetails" class="troy-admin-details">
                             <summary>直接お会計</summary>
                             <div class="troy-admin-card">

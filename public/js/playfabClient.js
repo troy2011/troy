@@ -276,6 +276,10 @@ export function setTroyOpen(playFabId, isOpen, options) {
     return callApiWithLoader('/api/king-set-troy-open', { playFabId, isOpen }, options);
 }
 
+export function kingUpdateMenu(playFabId, payload, options) {
+    return callApiWithLoader('/api/king-update-menu', { playFabId, ...payload }, options);
+}
+
 export function joinTroy(playFabId, displayName, payload = {}, options) {
     return callApiWithLoader('/api/troy-join', { playFabId, displayName, ...(payload || {}) }, options);
 }
