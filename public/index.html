@@ -179,88 +179,6 @@
                         <div id="troyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
                     </div>
                 </div>
-                <div id="troyKingControls" class="content-area" style="display: none;">
-                    <div class="troy-admin-card troy-king-priority-card">
-                        <div class="king-troy-ops-head">
-                            <div>
-                                <div class="troy-admin-label">TROY 営業</div>
-                                <div id="kingTroyStatus" class="king-troy-status">CLOSE</div>
-                            </div>
-                            <div class="troy-admin-actions">
-                                <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
-                                <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
-                            </div>
-                        </div>
-                        <div class="king-troy-ops-summary">
-                            <div>
-                                <span>未会計</span>
-                                <strong id="kingTroyPendingCount">0件</strong>
-                            </div>
-                            <div>
-                                <span>本日売上</span>
-                                <strong id="kingTroySalesSummary">¥0</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
-                        <div class="troy-admin-label">未会計客一覧</div>
-                        <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
-                        <div class="troy-admin-help">未会計客ごとに、現金受領後の国庫反映だけを行います。</div>
-                    </div>
-                    <details id="kingManualGrantDetails" class="troy-admin-details">
-                        <summary>手動受領</summary>
-                        <div class="troy-admin-card">
-                            <div class="troy-admin-help">QRコードや手入力で個別に現金受領を処理します。通常会計は上の未会計客一覧から行います。</div>
-                            <div class="troy-admin-field-label">手動受領（QRコード）</div>
-                            <div class="troy-admin-grid">
-                                <div>
-                                    <div class="troy-admin-field-label">受取人 PlayFabId</div>
-                                    <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
-                                    <div class="troy-admin-actions">
-                                        <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
-                                        <button id="btnKingClearReceiver" class="btn-muted">クリア</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="troy-admin-field-label">受領金額（¥）</div>
-                                    <div class="transfer-quick-row">
-                                        <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
-                                        <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
-                                        <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
-                                        <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
-                                    </div>
-                                    <div class="transfer-input-row">
-                                        <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
-                                        <span>¥</span>
-                                    </div>
-                                    <div class="troy-admin-actions">
-                                        <button id="btnKingGrantPs" class="btn-open">付与する</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="kingGrantPreview" class="king-help-text"></div>
-                        </div>
-                    </details>
-                    <details class="troy-admin-details">
-                        <summary>国庫・還元率</summary>
-                        <div class="troy-admin-card">
-                            <div class="troy-admin-actions troy-admin-actions-wide">
-                                <div>
-                                    <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
-                                    <div id="kingCashbackRateInfo">-</div>
-                                    <div id="kingTroyTodaySales" class="king-help-text"></div>
-                                </div>
-                                <div class="troy-admin-actions">
-                                    <button id="btnKingReload" class="btn-muted">再読み込み</button>
-                                </div>
-                            </div>
-                            <div class="troy-admin-help">現金支払いの一部がゴールドとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がゴールドで加算されます。</div>
-                            <div id="kingTreasuryInfo" class="king-help-text"></div>
-                            <div id="kingTreasurySummary" class="king-treasury-summary"></div>
-                            <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
-                        </div>
-                    </details>
-                </div>
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
@@ -1091,30 +1009,92 @@
                     <h2>王のページ</h2>
                     <p class="king-page-note">このページは各国（島）グループの王だけが閲覧できます。</p>
 
-                    <div class="king-card">
-                        <div class="king-card-label">王の譲渡（QRコード）</div>
-                        <div>
-                            <div class="king-field-label">次の王（PlayFabId）</div>
-                            <input id="kingTransferTargetId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
-                            <div class="king-inline-actions">
-                                <button id="btnKingScanTransferTarget" class="btn-scan">QRで読み取り</button>
-                                <button id="btnKingTransfer" class="btn-danger">王を譲渡</button>
+                    <div id="troyKingControls" style="display: none;">
+                        <div class="troy-admin-card troy-king-priority-card">
+                            <div class="king-troy-ops-head">
+                                <div>
+                                    <div class="troy-admin-label">TROY 営業</div>
+                                    <div id="kingTroyStatus" class="king-troy-status">CLOSE</div>
+                                </div>
+                                <div class="troy-admin-actions">
+                                    <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
+                                    <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
+                                </div>
                             </div>
-                            <div class="king-help-text">譲渡後はこのページにアクセスできなくなります。</div>
-                        </div>
-                    </div>
-
-                    <div class="king-card">
-                        <div class="king-card-label">亡命の受け入れ（QRコード）</div>
-                        <div>
-                            <div class="king-field-label">亡命希望者（PlayFabId）</div>
-                            <input id="kingExileTargetId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
-                            <div class="king-inline-actions">
-                                <button id="btnKingScanExileTarget" class="btn-scan">QRで読み取り</button>
-                                <button id="btnKingExile">亡命させる</button>
+                            <div class="king-troy-ops-summary">
+                                <div>
+                                    <span>未会計</span>
+                                    <strong id="kingTroyPendingCount">0件</strong>
+                                </div>
+                                <div>
+                                    <span>本日売上</span>
+                                    <strong id="kingTroySalesSummary">¥0</strong>
+                                </div>
                             </div>
-                            <div class="king-help-text">島は全て手放し、亡命先の国付近に再配置されます。</div>
                         </div>
+                        <div class="troy-admin-card troy-king-priority-card">
+                            <div class="troy-admin-label">店内リスト</div>
+                            <div id="kingTroyEntryList" class="troy-entry-list"></div>
+                            <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
+                        </div>
+                        <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
+                            <div class="troy-admin-label">未会計客一覧</div>
+                            <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
+                            <div class="troy-admin-help">未会計客ごとに、現金受領後の国庫反映だけを行います。</div>
+                        </div>
+                        <details id="kingManualGrantDetails" class="troy-admin-details">
+                            <summary>手動受領</summary>
+                            <div class="troy-admin-card">
+                                <div class="troy-admin-help">QRコードや手入力で個別に現金受領を処理します。通常会計は上の未会計客一覧から行います。</div>
+                                <div class="troy-admin-field-label">手動受領（QRコード）</div>
+                                <div class="troy-admin-grid">
+                                    <div>
+                                        <div class="troy-admin-field-label">受取人 PlayFabId</div>
+                                        <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
+                                        <div class="troy-admin-actions">
+                                            <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
+                                            <button id="btnKingClearReceiver" class="btn-muted">クリア</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="troy-admin-field-label">受領金額（¥）</div>
+                                        <div class="transfer-quick-row">
+                                            <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
+                                            <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
+                                            <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
+                                            <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
+                                        </div>
+                                        <div class="transfer-input-row">
+                                            <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
+                                            <span>¥</span>
+                                        </div>
+                                        <div class="troy-admin-actions">
+                                            <button id="btnKingGrantPs" class="btn-open">付与する</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="kingGrantPreview" class="king-help-text"></div>
+                            </div>
+                        </details>
+                        <details class="troy-admin-details">
+                            <summary>国庫・還元率</summary>
+                            <div class="troy-admin-card">
+                                <div class="troy-admin-actions troy-admin-actions-wide">
+                                    <div>
+                                        <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
+                                        <div id="kingCashbackRateInfo">-</div>
+                                        <div id="kingTroyTodaySales" class="king-help-text"></div>
+                                    </div>
+                                    <div class="troy-admin-actions">
+                                        <button id="btnKingReload" class="btn-muted">再読み込み</button>
+                                    </div>
+                                </div>
+                                <div class="troy-admin-help">現金支払いの一部がゴールドとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がゴールドで加算されます。</div>
+                                <div id="kingTreasuryInfo" class="king-help-text"></div>
+                                <div id="kingTreasurySummary" class="king-treasury-summary"></div>
+                                <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
+                            </div>
+                        </details>
                     </div>
 
                     <div class="king-card">

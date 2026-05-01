@@ -1257,8 +1257,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
             console.warn('[showTab] king tab requires playFabId');
             return;
         }
-        const allowed = await NationKing.refreshKingNav(playerInfo.playFabId);
-        if (!allowed) {
+        if (!NationKing.isKing()) {
             console.warn('[showTab] king tab is not allowed for this user');
             await showTab('home', playerInfo, { skipMapSelect: true });
             return;
@@ -1380,7 +1379,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Player.getRanking();
                     break;
                 case 'king':
-                    await NationKing.loadKingPage(playerInfo.playFabId);
+                    await NationKing.loadKingPage(playerInfo.playFabId, { useCache: true });
                     break;
                 case 'qr':
                     await Player.getPoints(playerInfo.playFabId);

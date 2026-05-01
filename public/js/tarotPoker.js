@@ -4733,6 +4733,17 @@ function openDailyFortuneOverlay() {
     overlay.style.display = 'flex';
 }
 
+function showDailyFortuneRpgMessage(message, durationMs = 3200) {
+    const text = String(message || '').trim();
+    if (!text) return;
+    if (typeof window !== 'undefined' && typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(text, durationMs);
+        return;
+    }
+    const pointMessage = document.getElementById('pointMessage');
+    if (pointMessage) pointMessage.textContent = text;
+}
+
 function renderDailyFortuneResultLegacy(result) {
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
@@ -4750,7 +4761,8 @@ function renderDailyFortuneResultLegacy(result) {
 
     const orientationLabel = String(result?.orientation || '') === 'reversed' ? '逆位置（船デッキ）' : '正位置（白兵戦デッキ）';
     titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
-    textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;
+    textEl.textContent = String(result?.fortune || '');
+    showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
 }
 
 function getDailyFortuneRewardText(result) {
@@ -4765,7 +4777,7 @@ function getDailyFortuneRewardText(result) {
         return `「${rewardItemName}」を受け取った。${skillPart}${deckPart}`;
     }
     const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
-    return `+${reward}G`;
+    return reward > 0 ? `+${reward}G` : '';
 }
 
 function renderDailyFortuneResult(result, options = {}) {
@@ -4782,11 +4794,12 @@ function renderDailyFortuneResult(result, options = {}) {
     const orientationLabel = isReversed ? '逆位置（船デッキ）' : '正位置（白兵戦デッキ）';
     const finalizeReveal = () => {
         titleEl.textContent = `本日の運勢: ${String(result?.cardName || '')}（${orientationLabel}）`;
-        textEl.textContent = `${String(result?.fortune || '')}  ${getDailyFortuneRewardText(result)}`;
+        textEl.textContent = String(result?.fortune || '');
     };
 
     const handleReveal = async () => {
         finalizeReveal();
+        showDailyFortuneRpgMessage(getDailyFortuneRewardText(result));
         if (onRevealComplete) {
             await onRevealComplete(result);
         }
@@ -4833,66 +4846,18 @@ function normalizeDailyBountyReward(rawReward) {
 async function playDailyBountyRewardPresentation(rawReward) {
     const reward = normalizeDailyBountyReward(rawReward);
     if (!reward.awarded || reward.alreadyClaimed) return;
-    const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
-    const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
-    const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
-    if (!cardHost || !textEl || !titleEl) return;
 
     const rankLabel = reward.rank ? `第${reward.rank}位` : '受賞';
-    titleEl.textContent = '前日貢献度ランキング報酬';
     const rewardDayLabel = reward.rewardDayKey ? `${reward.rewardDayKey}集計 ` : '';
-    textEl.textContent = `${rewardDayLabel}${rankLabel}報酬: ガチャ演出中...`;
+    showDailyFortuneRpgMessage(`${rewardDayLabel}${rankLabel}報酬を受け取りました。`);
+    await wait(360);
 
-    const wrap = document.createElement('div');
-    wrap.style.display = 'grid';
-    wrap.style.gap = '8px';
-    wrap.style.padding = '6px';
-
-    const reel = document.createElement('div');
-    reel.textContent = '🎰';
-    reel.style.fontSize = '42px';
-    reel.style.lineHeight = '1';
-    reel.style.filter = 'drop-shadow(0 0 10px rgba(255, 215, 120, 0.55))';
-    reel.style.animation = 'tarotKingdomPulseGlow 620ms ease-in-out infinite alternate';
-    wrap.appendChild(reel);
-
-    const list = document.createElement('div');
-    list.style.display = 'grid';
-    list.style.gap = '6px';
-    const rows = reward.items.map((item, index) => {
-        const row = document.createElement('div');
-        row.textContent = `抽選 ${index + 1}: ???`;
-        row.style.fontSize = '13px';
-        row.style.padding = '6px 8px';
-        row.style.borderRadius = '8px';
-        row.style.border = '1px solid rgba(255, 215, 122, 0.35)';
-        row.style.background = 'rgba(14, 22, 36, 0.72)';
-        row.style.opacity = '0.65';
-        row.style.transform = 'translateY(4px)';
-        row.style.transition = 'transform 200ms ease, opacity 200ms ease, border-color 200ms ease';
-        list.appendChild(row);
-        return row;
-    });
-    wrap.appendChild(list);
-
-    cardHost.innerHTML = '';
-    cardHost.appendChild(wrap);
-    await wait(420);
-
-    for (let i = 0; i < reward.items.length; i += 1) {
-        const item = reward.items[i];
-        const row = rows[i];
-        if (!row) continue;
-        row.textContent = `🎁 ${item.itemId} x${item.amount}`;
-        row.style.opacity = '1';
-        row.style.transform = 'translateY(0)';
-        row.style.borderColor = 'rgba(144, 238, 144, 0.68)';
+    for (const item of reward.items) {
+        const amount = Number(item.amount || 1);
+        const amountText = amount > 1 ? ` x${amount}` : '';
+        showDailyFortuneRpgMessage(`${item.itemId}${amountText} を手に入れた。`, 2600);
         await wait(360);
     }
-
-    reel.style.animation = '';
-    reel.textContent = '✨';
-    textEl.textContent = `${rankLabel}報酬を受け取りました（${reward.items.length}件）`;
 }
 
 async function requestDailyFortuneStatus(playFabId) {
@@ -4928,12 +4893,6 @@ async function handleDailyFortuneDraw(playFabId) {
         }
         if (textEl && !data?.result?.fortune) {
             textEl.textContent = '本日の占い結果を取得しました。';
-        }
-        const pointMessage = document.getElementById('pointMessage');
-        if (pointMessage && data?.result) {
-            const name = String(data.result.cardName || 'カード');
-            const rewardText = getDailyFortuneRewardText(data.result);
-            pointMessage.textContent = `本日の運勢「${name}」: ${rewardText}`;
         }
         const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
         const shouldRefreshInventory = String(data?.result?.rewardType || '').trim().toLowerCase() === 'card'

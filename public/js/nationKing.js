@@ -9,17 +9,15 @@ import {
     setNationAnnouncement,
     grantPs,
     settleTroyCheckout,
-    setTroyOpen,
-    transferKing,
-    exileKing
+    setTroyOpen
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
-import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { formatCurrencyLabel } from './config.js';
 
 let _isKing = false;
 let _lastPageData = null;
+let _hasKingCheck = false;
 
 function _setMessage(text, isError = false) {
     const el = document.getElementById('kingPageMessage');
@@ -145,6 +143,28 @@ function _renderPendingTroyCheckouts(entries = []) {
                         現金受領済みにする
                     </button>
                 </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function _renderTroyMembers(members = []) {
+    const listEl = document.getElementById('kingTroyEntryList');
+    const emptyEl = document.getElementById('kingTroyEntryEmpty');
+    if (!listEl || !emptyEl) return;
+    const rows = Array.isArray(members) ? members : [];
+    listEl.innerHTML = '';
+    if (!rows.length) {
+        emptyEl.style.display = 'block';
+        return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = rows.map((member) => {
+        const joinedAt = _formatEpochMs(member.joinedAtMs || member.joinedAt);
+        return `
+            <div class="troy-entry-item">
+                <b>${buildPlayerTriggerHtml(member.playFabId, member.displayName || member.playFabId || 'Player', { className: 'player-link-inline' })}</b>
+                <span>${_escapeHtml(joinedAt)}</span>
             </div>
         `;
     }).join('');
@@ -350,6 +370,14 @@ export function isKing() {
     return _isKing;
 }
 
+export function hasKingCheck() {
+    return _hasKingCheck;
+}
+
+export function getLastPageData() {
+    return _lastPageData;
+}
+
 export async function refreshKingNav(playFabId) {
     const nav = document.getElementById('navKing');
     if (!nav) return false;
@@ -357,29 +385,43 @@ export async function refreshKingNav(playFabId) {
     try {
         const data = await getNationKingPage(playFabId, { isSilent: true });
         _isKing = !!(data && !data.notInNation);
+        _lastPageData = _isKing ? data : null;
     } catch (error) {
         _isKing = false;
+        _lastPageData = null;
     }
+    _hasKingCheck = true;
     nav.style.display = _isKing ? '' : 'none';
     return _isKing;
 }
 
-export async function loadKingPage(playFabId) {
+export async function loadKingPage(playFabId, options = {}) {
     _setMessage('');
 
-    const data = await getNationKingPage(playFabId);
+    const data = options?.useCache
+        ? _lastPageData
+        : await getNationKingPage(playFabId);
     if (!data || data.notInNation) {
+        if (options?.useCache && _isKing) {
+            _setMessage('王ページデータをまだ取得できていません。再ログイン後にもう一度開いてください。', true);
+            _wireHandlers(playFabId);
+            return;
+        }
         _isKing = false;
+        _hasKingCheck = true;
+        _lastPageData = null;
         const nav = document.getElementById('navKing');
         if (nav) nav.style.display = 'none';
         return;
     }
     _isKing = true;
+    _hasKingCheck = true;
     _lastPageData = data;
 
     const currentEl = document.getElementById('kingAnnouncementCurrent');
     const metaEl = document.getElementById('kingAnnouncementMeta');
     const inputEl = document.getElementById('kingAnnouncementInput');
+    const troyControlsEl = document.getElementById('troyKingControls');
     const treasuryEl = document.getElementById('kingTreasuryInfo');
     const cashbackRateEl = document.getElementById('kingCashbackRateInfo');
     const todaySalesEl = document.getElementById('kingTroyTodaySales');
@@ -398,6 +440,7 @@ export async function loadKingPage(playFabId) {
         metaEl.innerText = updatedAt ? `更新: ${updatedAt}${memberCount}` : (memberCount ? memberCount.trim() : '');
     }
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
+    if (troyControlsEl) troyControlsEl.style.display = 'block';
 
     if (treasuryEl) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
@@ -422,6 +465,7 @@ export async function loadKingPage(playFabId) {
         pendingCountEl.classList.toggle('has-pending', pendingCount > 0);
     }
     _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
+    _renderTroyMembers(data.troyMembers);
     _renderPendingTroyCheckouts(data.troyPendingCheckouts);
     if (troyStatusEl || grantCardEl) {
         const isOpen = !!data.troyOpen;
@@ -461,12 +505,6 @@ function _wireHandlers(playFabId) {
     const pendingCheckoutEl = document.getElementById('kingPendingCheckoutList');
     const scanReceiverBtn = document.getElementById('btnKingScanReceiver');
     const clearReceiverBtn = document.getElementById('btnKingClearReceiver');
-    const transferTargetEl = document.getElementById('kingTransferTargetId');
-    const scanTransferBtn = document.getElementById('btnKingScanTransferTarget');
-    const transferBtn = document.getElementById('btnKingTransfer');
-    const exileTargetEl = document.getElementById('kingExileTargetId');
-    const scanExileBtn = document.getElementById('btnKingScanExileTarget');
-    const exileBtn = document.getElementById('btnKingExile');
     const previewEl = document.getElementById('kingGrantPreview');
     const warSectionEl = document.getElementById('kingWarSection');
     const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
@@ -655,65 +693,6 @@ function _wireHandlers(playFabId) {
                 if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
-            }
-        });
-    }
-
-    if (scanTransferBtn && transferTargetEl) {
-        scanTransferBtn.addEventListener('click', async () => {
-            try {
-                const value = await _scanQrValue();
-                if (value) transferTargetEl.value = value;
-            } catch (e) {
-                _setMessage(e.message || String(e), true);
-            }
-        });
-    }
-
-    if (transferBtn) {
-        transferBtn.addEventListener('click', async () => {
-            const newKingPlayFabId = transferTargetEl ? String(transferTargetEl.value || '').trim() : '';
-            if (!newKingPlayFabId) {
-                _setMessage('次の王のPlayFabIdが空です。', true);
-                return;
-            }
-            if (!confirm(`本当に王を ${newKingPlayFabId} に譲渡しますか？（取り消し不可）`)) return;
-
-            const result = await transferKing(playFabId, newKingPlayFabId);
-            if (result) {
-                _setMessage('王を譲渡しました。');
-                _isKing = false;
-                const nav = document.getElementById('navKing');
-                if (nav) nav.style.display = 'none';
-            }
-        });
-    }
-
-    if (scanExileBtn && exileTargetEl) {
-        scanExileBtn.addEventListener('click', async () => {
-            try {
-                const value = await _scanQrValue();
-                if (value) exileTargetEl.value = value;
-            } catch (e) {
-                _setMessage(e.message || String(e), true);
-            }
-        });
-    }
-
-    if (exileBtn) {
-        exileBtn.addEventListener('click', async () => {
-            const targetPlayFabId = exileTargetEl ? String(exileTargetEl.value || '').trim() : '';
-            if (!targetPlayFabId) {
-                _setMessage('Target PlayFabId is required.', true);
-                return;
-            }
-            if (!confirm(`Proceed exile?\nTarget: ${targetPlayFabId}\nOwned islands will be removed.`)) return;
-
-            const result = await exileKing(playFabId, targetPlayFabId);
-            if (result) {
-                const transferred = typeof result.transferredIslands === 'number' ? ` / islands: ${result.transferredIslands}` : '';
-                _setMessage(`Exile completed.${transferred}`);
-                showRpgMessage(rpgSay.exileDone());
             }
         });
     }

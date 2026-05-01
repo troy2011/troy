@@ -1726,6 +1726,21 @@ function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
         .sort((a, b) => (a.createdAtMs - b.createdAtMs) || String(a.playFabId || '').localeCompare(String(b.playFabId || '')));
 }
 
+function buildTroyMemberPayload(memberDocs = []) {
+    return (Array.isArray(memberDocs) ? memberDocs : [])
+        .map((doc) => {
+            const data = typeof doc?.data === 'function' ? (doc.data() || {}) : {};
+            const joinedAtMs = data.joinedAt?.toMillis ? data.joinedAt.toMillis() : Number(data.joinedAt) || 0;
+            return {
+                playFabId: normalizePlayFabId(doc?.id || data.playFabId || ''),
+                displayName: String(data.displayName || doc?.id || 'Player').trim(),
+                joinedAtMs
+            };
+        })
+        .filter((entry) => entry.playFabId)
+        .sort((a, b) => (a.joinedAtMs - b.joinedAtMs) || String(a.playFabId || '').localeCompare(String(b.playFabId || '')));
+}
+
 async function ensureKingStarterCrown(playFabId, nation, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
     const kingId = normalizePlayFabId(playFabId);
@@ -1955,10 +1970,16 @@ function initializeNationRoutes(app, deps) {
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
                     payload.troyOpen = !!roomSnap.data()?.isOpen;
+                    const membersSnap = await getTroyRoomDoc(firestore, mapping.groupName)
+                        .collection('members')
+                        .orderBy('joinedAt', 'asc')
+                        .limit(50)
+                        .get();
                     const checkoutSnap = await getTroyRoomDoc(firestore, mapping.groupName)
                         .collection('checkouts')
                         .limit(30)
                         .get();
+                    payload.troyMembers = buildTroyMemberPayload(membersSnap.docs);
                     payload.troyPendingCheckouts = buildTroyPendingCheckoutPayload(checkoutSnap.docs);
                 }
                 let warState = await resolveNationWarIncoming(nation, await loadNationWarState(nation, firestore, admin, nationDeps), firestore, admin);
