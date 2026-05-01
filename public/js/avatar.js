@@ -145,6 +145,8 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 
     if (!imageUrl || spriteIndex < 0) {
         layer.style.backgroundImage = 'none';
+        layer.style.left = '';
+        layer.style.top = '';
         layer.dataset.spriteWidth = '';
         layer.dataset.spriteHeight = '';
         layer.dataset.sheetColumns = '';
@@ -165,6 +167,8 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
                     return;
                 }
                 layer.style.backgroundImage = 'none';
+                layer.style.left = '';
+                layer.style.top = '';
                 layer.dataset.loadState = 'error';
                 if (typeof onReady === 'function') onReady();
                 return;
@@ -177,19 +181,20 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             layer.style.width = `${spriteWidth * scale}px`;
             layer.style.height = `${spriteHeight * scale}px`;
 
-            // 縦長スプライトは部位ごとに少し上へ逃がすが、全量を持ち上げると
-            // 下端が切れやすいので、補正量は控えめにして見切れを防ぐ。
-            const overflowHeight = Math.max(0, spriteHeight - 32) * scale;
+            // 装備スプライトは32x32を基準枠として扱う。
+            // 高さ違いは下面合わせ、16px幅の副手アイコンは枠内中央に寄せる。
+            const isEquipmentLayer = layerId.includes('layer-armor')
+                || layerId.includes('weapon-right')
+                || layerId.includes('shield-left');
             let topOffset = 0;
-            if (overflowHeight > 0) {
-                if (layerId.includes('weapon-right') || layerId.includes('shield-left')) {
-                    topOffset = -Math.round(overflowHeight * 0.55);
-                } else if (layerId.includes('layer-armor')) {
-                    topOffset = -Math.round(overflowHeight * 0.4);
-                } else {
-                    topOffset = -Math.round(overflowHeight * 0.5);
+            let leftOffset = 0;
+            if (isEquipmentLayer) {
+                topOffset = Math.round((32 - spriteHeight) * scale);
+                if (spriteWidth < 32) {
+                    leftOffset = Math.round(((32 - spriteWidth) * scale) / 2);
                 }
             }
+            layer.style.left = `${leftOffset}px`;
             layer.style.top = `${topOffset}px`;
 
             // パーツごとの位置オフセットを適用

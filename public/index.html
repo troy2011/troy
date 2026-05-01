@@ -501,6 +501,14 @@
                     </div>
                     <div id="eventPageMessage" class="event-page-message"></div>
                     <div class="event-layout">
+                        <section class="event-list-panel">
+                            <div class="event-list-head">
+                                <h3>予定</h3>
+                                <span>承認済みと自分の申請が表示されます</span>
+                            </div>
+                            <div id="eventList" class="event-list"></div>
+                            <div id="eventListEmpty" class="event-empty">予定されているイベントはありません。</div>
+                        </section>
                         <section class="event-create-panel">
                             <h3>大会を主催</h3>
                             <div id="eventHostFeeInfo" class="event-host-fee">主催費を確認中...</div>
@@ -523,14 +531,6 @@
                             </div>
                             <label>説明<textarea id="eventDescription" rows="4" maxlength="800" placeholder="ルール、集合時間、賞品など"></textarea></label>
                             <button id="btnCreateEvent" class="event-create-btn" type="button">作成する</button>
-                        </section>
-                        <section class="event-list-panel">
-                            <div class="event-list-head">
-                                <h3>予定</h3>
-                                <span>承認済みと自分の申請が表示されます</span>
-                            </div>
-                            <div id="eventList" class="event-list"></div>
-                            <div id="eventListEmpty" class="event-empty">予定されているイベントはありません。</div>
                         </section>
                     </div>
                 </div>
