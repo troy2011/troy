@@ -7,7 +7,6 @@ import {
     undoTroyLastOrder
 } from './playfabClient.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { isKing, refreshKingNav, loadKingPage } from './nationKing.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 let _wired = false;
@@ -377,13 +376,7 @@ function clickTroyJoinButton() {
 }
 
 function updateTroyRoleUI() {
-    const kingControls = document.getElementById('troyKingControls');
     const menuSection = document.getElementById('troyMenuSection');
-    const isKingUser = isKing();
-
-    if (kingControls) {
-        kingControls.style.display = isKingUser ? 'block' : 'none';
-    }
     if (menuSection) {
         menuSection.style.display = 'block';
     }
@@ -1189,18 +1182,10 @@ function renderEntryList(members) {
         return;
     }
     empty.style.display = 'none';
-    entries.forEach((member) => {
-        const row = document.createElement('div');
-        row.className = 'troy-entry-item';
-        const name = document.createElement('b');
-        name.textContent = member.displayName || member.playFabId || 'Player';
-        decoratePlayerTriggerElement(name, member.playFabId, { className: 'player-link-inline' });
-        const meta = document.createElement('span');
-        meta.textContent = member.joinedAt ? new Date(member.joinedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '';
-        row.appendChild(name);
-        row.appendChild(meta);
-        list.appendChild(row);
-    });
+    const count = document.createElement('div');
+    count.className = 'troy-entry-count';
+    count.textContent = `現在 ${entries.length} 名入店中`;
+    list.appendChild(count);
 }
 
 function renderStatus(data) {
@@ -1299,10 +1284,7 @@ export async function loadTroyPage(playFabId) {
     loadFavoriteDrinkEntries(playFabId);
     wireHandlers(playFabId);
     wireMenuPopups();
-    const isKingUser = await refreshKingNav(playFabId);
-    if (isKingUser) {
-        await loadKingPage(playFabId);
-    }
+    updateTroyRoleUI();
     await refreshStatus(playFabId);
     updateTroyRoleUI();
     attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());

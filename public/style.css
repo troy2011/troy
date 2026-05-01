@@ -3344,6 +3344,13 @@ body.modal-lock .modal-overlay {
     color: var(--text-sub);
 }
 
+.troy-entry-count {
+    margin-top: 4px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-sub);
+}
+
 .troy-menu {
     display: grid;
     gap: 12px;
