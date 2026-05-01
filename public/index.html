@@ -197,8 +197,8 @@
                         <div id="troyOpenTabCard" class="troy-open-tab-card">
                             <div class="troy-open-tab-head">
                                 <div class="troy-open-tab-head-main">
-                                    <div class="troy-open-tab-title">現在の未会計伝票</div>
-                                    <div id="troyOpenTabMeta" class="troy-open-tab-meta">未会計の注文はありません。</div>
+                                    <div class="troy-open-tab-title">現在のご注文</div>
+                                    <div id="troyOpenTabMeta" class="troy-open-tab-meta">注文はまだありません。</div>
                                 </div>
                                 <button id="btnTroyUndoLastOrder" class="troy-open-tab-undo" type="button" disabled>最後の1件を取り消す</button>
                             </div>
@@ -1023,7 +1023,7 @@
                             </div>
                             <div class="king-troy-ops-summary">
                                 <div>
-                                    <span>未会計</span>
+                                    <span>お会計待ち</span>
                                     <strong id="kingTroyPendingCount">0件</strong>
                                 </div>
                                 <div>
@@ -1038,18 +1038,18 @@
                             <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
                         </div>
                         <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
-                            <div class="troy-admin-label">未会計客一覧</div>
+                            <div class="troy-admin-label">お会計待ち</div>
                             <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
-                            <div class="troy-admin-help">未会計客ごとに、現金受領後の国庫反映だけを行います。</div>
+                            <div class="troy-admin-help">お客様の現金を受け取ったら、ここからお会計してください。</div>
                         </div>
                         <details id="kingManualGrantDetails" class="troy-admin-details">
-                            <summary>手動受領</summary>
+                            <summary>直接お会計</summary>
                             <div class="troy-admin-card">
-                                <div class="troy-admin-help">QRコードや手入力で個別に現金受領を処理します。通常会計は上の未会計客一覧から行います。</div>
-                                <div class="troy-admin-field-label">手動受領（QRコード）</div>
+                                <div class="troy-admin-help">QRコードや手入力でお会計します。通常はお会計待ち一覧からどうぞ。</div>
+                                <div class="troy-admin-field-label">お客様を選ぶ</div>
                                 <div class="troy-admin-grid">
                                     <div>
-                                        <div class="troy-admin-field-label">受取人 PlayFabId</div>
+                                        <div class="troy-admin-field-label">お客様のID</div>
                                         <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
                                         <div class="troy-admin-actions">
                                             <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
@@ -1057,7 +1057,7 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="troy-admin-field-label">受領金額（¥）</div>
+                                        <div class="troy-admin-field-label">受け取った金額（¥）</div>
                                         <div class="transfer-quick-row">
                                             <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
                                             <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
@@ -1069,7 +1069,7 @@
                                             <span>¥</span>
                                         </div>
                                         <div class="troy-admin-actions">
-                                            <button id="btnKingGrantPs" class="btn-open">付与する</button>
+                                            <button id="btnKingGrantPs" class="btn-open">ゴールドを渡す</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1077,11 +1077,11 @@
                             </div>
                         </details>
                         <details class="troy-admin-details">
-                            <summary>国庫・還元率</summary>
+                            <summary>国庫と還元率</summary>
                             <div class="troy-admin-card">
                                 <div class="troy-admin-actions troy-admin-actions-wide">
                                     <div>
-                                        <div class="troy-admin-field-label">TROY還元率（国庫順位で自動決定）</div>
+                                        <div class="troy-admin-field-label">ゴールド還元率（国庫順位で自動変動）</div>
                                         <div id="kingCashbackRateInfo">-</div>
                                         <div id="kingTroyTodaySales" class="king-help-text"></div>
                                     </div>
@@ -1089,7 +1089,7 @@
                                         <button id="btnKingReload" class="btn-muted">再読み込み</button>
                                     </div>
                                 </div>
-                                <div class="troy-admin-help">現金支払いの一部がゴールドとして還元されます。還元率は国庫順位で自動変動し、国庫には受領額がゴールドで加算されます。</div>
+                                <div class="troy-admin-help">現金の一部がゴールドとしてお客様に還元されます。還元率は国庫の順位で自動的に変わります。</div>
                                 <div id="kingTreasuryInfo" class="king-help-text"></div>
                                 <div id="kingTreasurySummary" class="king-treasury-summary"></div>
                                 <div id="kingTreasuryEntries" class="king-treasury-entries"></div>

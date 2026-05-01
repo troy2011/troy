@@ -96,7 +96,7 @@ function _renderPendingTroyCheckouts(entries = []) {
     if (!listEl) return;
     const rows = Array.isArray(entries) ? entries : [];
     if (!rows.length) {
-        listEl.innerHTML = '<div class="king-pending-checkout-empty">未会計の客はいません。</div>';
+        listEl.innerHTML = '<div class="king-pending-checkout-empty">お会計待ちのお客様はいません。</div>';
         return;
     }
     listEl.innerHTML = rows.map((entry) => {
@@ -105,13 +105,13 @@ function _renderPendingTroyCheckouts(entries = []) {
         const grantTotal = Math.max(0, Number(entry.grantTotal) || 0);
         const status = String(entry.status || 'open').trim().toLowerCase();
         const meta = [
-            status === 'pending' ? '旧会計待ち' : '未会計',
+            status === 'pending' ? '確認待ち' : 'お会計前',
             _formatEpochMs(entry.lastOrderedAtMs || entry.createdAtMs),
             totalItems ? `${totalItems}点` : ''
         ].filter(Boolean).join(' / ');
         const grantMeta = grantTotal > 0
-            ? `ゴールド即時付与済み ${grantTotal.toLocaleString('ja-JP')}G`
-            : (status === 'pending' ? 'ゴールドは会計時に付与されます' : '');
+            ? `ゴールド渡し済み ${grantTotal.toLocaleString('ja-JP')}G`
+            : (status === 'pending' ? 'ゴールドはお会計時に渡されます' : '');
         const items = (Array.isArray(entry.items) ? entry.items : []).slice(0, 4).map((item) => `
             <div class="king-pending-checkout-item-row">
                 <span>${_escapeHtml(item.name || '')}${Number(item.quantity || 0) > 1 ? ` x${Math.max(1, Number(item.quantity) || 1)}` : ''}</span>
@@ -140,7 +140,7 @@ function _renderPendingTroyCheckouts(entries = []) {
                 </details>
                 <div class="king-pending-checkout-actions">
                     <button type="button" class="btn-open" data-pending-settle="true" data-checkout-status="${_escapeHtml(status)}" data-receiver-id="${_escapeHtml(entry.playFabId)}" data-amount="${total}">
-                        現金受領済みにする
+                        お会計する
                     </button>
                 </div>
             </div>
@@ -347,7 +347,7 @@ function _grantPreview(amount, rateBps) {
     return { gross, grant, rateBps: safeRateBps };
 }
 
-function _extractErrorMessage(error, fallback = '付与に失敗しました。') {
+function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗しました。') {
     if (!error) return fallback;
     if (typeof error === 'string') return error;
     return error.message || error.errorMessage || fallback;
@@ -477,7 +477,7 @@ export async function loadKingPage(playFabId, options = {}) {
     if (previewEl && grantAmountEl) {
         const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
         previewEl.innerText = p.gross > 0
-            ? `受取人: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+            ? `お客様: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
             : '';
     }
     _renderNationWar(data.war);
@@ -544,7 +544,7 @@ function _wireHandlers(playFabId) {
                 : 0;
             const p = _grantPreview(grantAmountEl.value, rateBps);
             previewEl.innerText = p.gross > 0
-                ? `受取人: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
+                ? `お客様: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
                 : '';
         });
     }
@@ -571,14 +571,14 @@ function _wireHandlers(playFabId) {
             const receiverPlayFabId = grantReceiverEl ? String(grantReceiverEl.value || '').trim() : '';
             const amount = grantAmountEl ? Number(grantAmountEl.value) : 0;
             if (!receiverPlayFabId) {
-                _setMessage('受取人PlayFabIdが空です。', true);
+                _setMessage('お客様のIDが入力されていません。', true);
                 return;
             }
             if (!amount || amount <= 0) {
-                _setMessage('付与総額は1以上を入力してください。', true);
+                _setMessage('金額は1以上を入力してください。', true);
                 return;
             }
-            if (!confirm(`¥${Math.floor(amount)} を受領し、受取人にゴールドを付与します。実行しますか？`)) return;
+            if (!confirm(`¥${Math.floor(amount)} を受け取り、お客様にゴールドを渡します。よろしいですか？`)) return;
 
             const nextAmount = Math.floor(amount);
             const previousLabel = grantBtn.innerText;
@@ -590,7 +590,7 @@ function _wireHandlers(playFabId) {
                 const result = await grantPs(playFabId, receiverPlayFabId, nextAmount, requestId);
                 if (result) {
                     const rankLabel = Math.max(1, Number(result.treasuryRank) || 1);
-                    const baseMessage = `付与しました（受取: ${result.grantAmount}G / 国庫: ${result.receivedAmount}G / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
+                    const baseMessage = `ゴールドを渡しました（お客様: ${result.grantAmount}G / 国庫: ${result.receivedAmount}G / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
                     if (result.treasuryUpdated === false) {
                         _setMessage(`${baseMessage} 国庫更新に失敗しました: ${result.treasuryError || 'Unknown error'}`, true);
                     } else {
@@ -631,14 +631,14 @@ function _wireHandlers(playFabId) {
                 ? `\n預かりコイン ${coinDepositAmount.toLocaleString('ja-JP')}G をゴールド化します。`
                 : '';
             const confirmMessage = checkoutStatus === 'pending'
-                ? `¥${expectedTotal.toLocaleString('ja-JP')} の旧会計を確定して、ゴールド付与と国庫反映を実行しますか？${depositNote}`
-                : `現金 ¥${expectedTotal.toLocaleString('ja-JP')} を受領済みにして、国庫へ反映しますか？${depositNote}`;
+                ? `¥${expectedTotal.toLocaleString('ja-JP')} の会計を確定してゴールドを渡しますか？${depositNote}`
+                : `現金 ¥${expectedTotal.toLocaleString('ja-JP')} を受け取り済みにしますか？${depositNote}`;
             if (!confirm(confirmMessage)) return;
 
             const previous = button.innerText;
             button.setAttribute('disabled', 'disabled');
             if (depositInput) depositInput.setAttribute('disabled', 'disabled');
-            button.innerText = '反映中...';
+            button.innerText = '処理中...';
             try {
                 const requestId = createRequestId('king-settle-troy-checkout');
                 const result = await settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, { coinDepositAmount });
@@ -652,10 +652,10 @@ function _wireHandlers(playFabId) {
                 const rankNote = rankLabel ? ` / 国庫${rankLabel}位` : '';
                 const todaySalesTotal = Math.max(0, Number(result?.troyTodaySales?.total) || 0);
                 const todaySalesNote = todaySalesTotal > 0 ? ` / 本日売上: ¥${todaySalesTotal.toLocaleString('ja-JP')}` : '';
-                _setMessage(`会計済みにしました（国庫反映: ${result?.receivedAmount || expectedTotal}G${grantNote}${coinDepositNote}${rankNote}${todaySalesNote}）。`);
+                _setMessage(`お会計しました（国庫: ${result?.receivedAmount || expectedTotal}G${grantNote}${coinDepositNote}${rankNote}${todaySalesNote}）。`);
                 await loadKingPage(playFabId);
             } catch (error) {
-                _setMessage(_extractErrorMessage(error, '会計処理に失敗しました。'), true);
+                _setMessage(_extractErrorMessage(error, 'お会計に失敗しました。'), true);
             } finally {
                 button.removeAttribute('disabled');
                 if (depositInput) depositInput.removeAttribute('disabled');
@@ -682,7 +682,7 @@ function _wireHandlers(playFabId) {
         troyCloseBtn.addEventListener('click', async () => {
             const pendingCount = Array.isArray(_lastPageData?.troyPendingCheckouts) ? _lastPageData.troyPendingCheckouts.length : 0;
             if (pendingCount > 0) {
-                const ok = confirm(`未会計が ${pendingCount}件 残っています。TROYをCLOSEしますか？`);
+                const ok = confirm(`お会計待ちが ${pendingCount}件 います。TROYをCLOSEしますか？`);
                 if (!ok) return;
             }
             const result = await setTroyOpen(playFabId, false);
