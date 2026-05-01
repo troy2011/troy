@@ -102,6 +102,13 @@
                             </div>
                         </div>
                     </div>
+                    <div id="guestAvatarPrompt" class="home-guest-avatar-prompt" hidden>
+                        <div>
+                            <div class="home-guest-avatar-title">ゲスト入店中</div>
+                            <div class="home-guest-avatar-text">アバターを作成すると正式登録できます。</div>
+                        </div>
+                        <button id="btnCreateGuestAvatar" type="button">アバター作成</button>
+                    </div>
                 </div>
                 <div class="content-area home-qr-card home-card">
                     <div class="home-card-header">
@@ -508,6 +515,34 @@
                             </div>
                             <div id="eventList" class="event-list"></div>
                             <div id="eventListEmpty" class="event-empty">予定されているイベントはありません。</div>
+                        </section>
+                        <section class="event-list-panel">
+                            <div class="event-list-head">
+                                <h3>店舗予約</h3>
+                                <span>予約は王の承認後に確定します</span>
+                            </div>
+                            <div id="reservationList" class="event-list"></div>
+                            <div id="reservationListEmpty" class="event-empty">予約はありません。</div>
+                        </section>
+                        <section class="event-create-panel">
+                            <h3>店舗予約を申請</h3>
+                            <label>予約日時<input id="reservationStartsAt" type="datetime-local"></label>
+                            <div class="event-form-grid">
+                                <label>人数<input id="reservationPartySize" type="number" min="1" max="20" value="2"></label>
+                                <label>用途
+                                    <select id="reservationPurpose">
+                                        <option value="visit">通常来店</option>
+                                        <option value="darts">ダーツ</option>
+                                        <option value="billiards">ビリヤード</option>
+                                        <option value="consultation">相談</option>
+                                        <option value="private">貸切</option>
+                                        <option value="other">その他</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div id="reservationPrivateHelp" class="event-host-fee" style="display: none;">貸切予約は10名以上から申請できます。</div>
+                            <label>メモ<textarea id="reservationNote" rows="3" maxlength="500" placeholder="希望内容、到着予定、連絡事項など"></textarea></label>
+                            <button id="btnCreateReservation" class="event-create-btn" type="button">予約申請する</button>
                         </section>
                         <section class="event-create-panel">
                             <h3>大会を主催</h3>
@@ -1383,8 +1418,8 @@
 
     <div id="raceModal" class="modal-overlay">
         <div class="modal-content">
-            <h2>種族選択</h2>
-            <p style="font-size:12px; color:var(--text-sub);">一度選ぶと変更できません</p>
+            <h2 id="raceModalTitle">種族選択</h2>
+            <p id="raceModalDescription" style="font-size:12px; color:var(--text-sub);">一度選ぶと変更できません</p>
             <p id="raceInviteMessage" style="display:none; margin-top:10px; padding:10px 12px; border-radius:10px; background:rgba(14,165,233,0.12); border:1px solid rgba(14,165,233,0.3); color:#bfdbfe; font-size:12px; line-height:1.5;"></p>
             <div style="margin-top:16px;">
                 <label style="display:block; font-size:12px; color:var(--text-sub); margin-bottom:6px;">名前</label>

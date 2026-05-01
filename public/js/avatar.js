@@ -181,15 +181,18 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             layer.style.width = `${spriteWidth * scale}px`;
             layer.style.height = `${spriteHeight * scale}px`;
 
-            // 装備スプライトは32x32を基準枠として扱う。
-            // 高さ違いは下面合わせ、16px幅の副手アイコンは枠内中央に寄せる。
-            const isEquipmentLayer = layerId.includes('layer-armor')
+            // 兜/防具はサイズ違いでも下面合わせにする。
+            // 武器はフレーム内の透明余白に手元位置が含まれるため、高さ補正しない。
+            const isArmorLayer = layerId.includes('layer-armor');
+            const isEquipmentLayer = isArmorLayer
                 || layerId.includes('weapon-right')
                 || layerId.includes('shield-left');
             let topOffset = 0;
             let leftOffset = 0;
-            if (isEquipmentLayer) {
+            if (isArmorLayer) {
                 topOffset = Math.round((32 - spriteHeight) * scale);
+            }
+            if (isEquipmentLayer) {
                 if (spriteWidth < 32) {
                     leftOffset = Math.round(((32 - spriteWidth) * scale) / 2);
                 }

@@ -339,6 +339,45 @@ body[data-sea-tone="night"] .home-hero-card {
     height: 9px;
 }
 
+.home-guest-avatar-prompt {
+    width: min(320px, 100%);
+    margin: 0 auto 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(56, 189, 248, 0.32);
+}
+
+.home-guest-avatar-prompt[hidden] {
+    display: none;
+}
+
+.home-guest-avatar-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e0f2fe;
+}
+
+.home-guest-avatar-text {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-sub);
+}
+
+.home-guest-avatar-prompt button {
+    flex: 0 0 auto;
+    min-width: 112px;
+    min-height: 34px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
 .home-vital-values {
     display: inline-flex;
     align-items: baseline;
@@ -14091,7 +14130,7 @@ textarea {
 }
 .event-layout {
     display: grid;
-    grid-template-columns: minmax(260px, 0.82fr) minmax(320px, 1.18fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
 }
 .event-create-panel,

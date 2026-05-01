@@ -22,7 +22,7 @@ import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
 window.myLineProfile = null;
 window.myPlayFabId = null;
-window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire' };
+window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire', IsGuest: false };
 window.myEntityToken = null;
 window.myPlayFabLoginInfo = null;
 let playFabLoginInProgress = false;
@@ -583,6 +583,7 @@ async function initializeLiff() {
         if (!loginData) throw new Error('PlayFabログインAPIエラー');
         myPlayFabId = loginData.playFabId;
         window.myPlayFabId = loginData.playFabId; // グローバルスコープにも設定
+        window.__resolvedTroyEntryNation = loginData.troyEntryNation || null;
 
         // --- PlayFab & Firebase Login ---
         authUnsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -738,6 +739,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
     document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
     document.getElementById('btnScanEquipmentGacha')?.addEventListener('click', startScanEquipmentGacha);
+    document.getElementById('btnCreateGuestAvatar')?.addEventListener('click', () => showRaceModal({ completeGuestRegistration: true }));
     document.getElementById('btnCopyInviteLink').addEventListener('click', async () => {
         try {
             await createAndCopyInviteLink();
@@ -1156,13 +1158,41 @@ async function ensureNationGroupForRace(raceName) {
     throw new Error('Failed to ensure nation group');
 }
 
-function showRaceModal() {
+function isGuestUser() {
+    return window.myAvatarBaseInfo?.IsGuest === true
+        || String(window.myAvatarBaseInfo?.IsGuest || '').toLowerCase() === 'true';
+}
+
+function updateGuestAvatarPrompt() {
+    const prompt = document.getElementById('guestAvatarPrompt');
+    if (!prompt) return;
+    prompt.hidden = !isGuestUser();
+}
+
+function showRaceModal(options = {}) {
+    const completeGuestRegistration = !!options.completeGuestRegistration;
     document.getElementById('raceModal').style.display = 'flex';
+    const titleEl = document.getElementById('raceModalTitle');
+    const descriptionEl = document.getElementById('raceModalDescription');
+    if (titleEl) titleEl.innerText = completeGuestRegistration ? 'アバター作成' : '種族選択';
+    if (descriptionEl) {
+        descriptionEl.innerText = completeGuestRegistration
+            ? '所属国は入店時の国を引き継ぎます'
+            : '一度選ぶと変更できません';
+    }
     const nameInput = document.getElementById('raceDisplayNameInput');
     if (nameInput) {
         nameInput.value = window.myLineProfile?.displayName || '';
     }
-    void updateRaceInviteMessage();
+    if (completeGuestRegistration) {
+        const inviteMessageEl = document.getElementById('raceInviteMessage');
+        if (inviteMessageEl) {
+            inviteMessageEl.style.display = 'none';
+            inviteMessageEl.innerText = '';
+        }
+    } else {
+        void updateRaceInviteMessage();
+    }
 
     const handleRaceSelection = async (event) => {
         if (event.target.tagName !== 'BUTTON') return;
@@ -1171,10 +1201,14 @@ function showRaceModal() {
 
         const raceName = event.target.dataset.race;
         const raceMessageEl = document.getElementById('raceMessage');
-        const inviteInfo = await getPendingAppInviteInfo();
+        const inviteInfo = completeGuestRegistration ? null : await getPendingAppInviteInfo();
         let groupInfo = { created: false };
-        if (raceMessageEl) raceMessageEl.innerText = inviteInfo?.valid ? '（招待された国へ所属を設定中...）' : '（国グループを準備中...）';
-        if (!inviteInfo?.valid) {
+        if (raceMessageEl) {
+            raceMessageEl.innerText = completeGuestRegistration
+                ? '（アバターを作成中...）'
+                : (inviteInfo?.valid ? '（招待された国へ所属を設定中...）' : '（国グループを準備中...）');
+        }
+        if (!completeGuestRegistration && !inviteInfo?.valid) {
             groupInfo = await ensureNationGroupForRace(raceName);
         }
         if (raceMessageEl) raceMessageEl.innerText = '（初期ステータスを設定中...）';
@@ -1188,17 +1222,32 @@ function showRaceModal() {
             entityKey,
             entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || '',
-            inviteToken: inviteInfo?.valid ? pendingAppInviteToken : ''
+            inviteToken: inviteInfo?.valid ? pendingAppInviteToken : '',
+            completeGuestRegistration
         });
         if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
         if (data !== null) {
             document.getElementById('raceModal').style.display = 'none';
-            clearPendingAppInviteState({ removeFromUrl: true });
+            if (!completeGuestRegistration) {
+                clearPendingAppInviteState({ removeFromUrl: true });
+            }
             if (displayName) {
                 document.getElementById('globalPlayerName').innerText = displayName;
             }
             await initializeAppFeatures();
             await NationKing.refreshKingNav(myPlayFabId);
+            if (completeGuestRegistration) {
+                await updateAvatarBaseInfo();
+                updateGuestAvatarPrompt();
+                showRpgMessage('アバターを作成しました。', 2400);
+                const playerInfo = {
+                    playFabId: myPlayFabId,
+                    race: String(raceName || '').toLowerCase(),
+                    nation: myAvatarBaseInfo.Nation || data?.nation?.Nation || null
+                };
+                await showTab('home', playerInfo);
+                return;
+            }
             const nation = data?.nation?.Nation || null;
             if (nation) {
                 const avatarColor = getAvatarColorForNation(nation);
@@ -1206,11 +1255,13 @@ function showRaceModal() {
                     myAvatarBaseInfo = {
                         ...myAvatarBaseInfo,
                         Nation: String(nation).toLowerCase(),
-                        AvatarColor: avatarColor
+                        AvatarColor: avatarColor,
+                        IsGuest: false
                     };
                     window.myAvatarBaseInfo = myAvatarBaseInfo;
                 }
             }
+            updateGuestAvatarPrompt();
             const nameForLine = displayName || window.myLineProfile?.displayName || '旅人';
             if (!window.__pendingFirstMapMessages) window.__pendingFirstMapMessages = [];
             window.__pendingFirstMapMessages.push(rpgSay.kingGreeting(nameForLine));
@@ -1316,7 +1367,7 @@ async function updateAvatarBaseInfo() {
     console.log('[updateAvatarBaseInfo] Fetching user data from PlayFab...');
     const result = await callApiWithLoader(PlayFab.ClientApi.GetUserReadOnlyData, {
         PlayFabId: myPlayFabId,
-        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
+        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex", "IsGuest"]
     }, { isSilent: true });
 
         if (result && result.Data) {
@@ -1330,9 +1381,11 @@ async function updateAvatarBaseInfo() {
                 SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
                 FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
                 HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
+                IsGuest: String(result.Data.IsGuest?.Value || '').toLowerCase() === 'true'
             };
             window.myAvatarBaseInfo = myAvatarBaseInfo;
             preloadAvatarBaseSprites(myAvatarBaseInfo);
+            updateGuestAvatarPrompt();
 
             if (nationChangedAt) {
             const seenAt = String(localStorage.getItem('nationChangedAtSeen') || '');
@@ -1355,13 +1408,14 @@ async function handleTroyEntryRequestAfterLogin() {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
         };
-        if (entryRequest.nation) joinBody.troyNation = entryRequest.nation;
+        const resolvedEntryNation = window.__resolvedTroyEntryNation || entryRequest.nation || null;
+        if (resolvedEntryNation) joinBody.troyNation = resolvedEntryNation;
         const result = await callApiWithLoader('/api/troy-join', joinBody, { throwOnError: true });
-        window.__troyEntryNation = result.nation || entryRequest.nation || null;
+        window.__troyEntryNation = result.nation || resolvedEntryNation || null;
         await showTab('troy', {
             playFabId: myPlayFabId,
             race: myAvatarBaseInfo.Race || 'human',
-            nation: result.nation || entryRequest.nation
+            nation: result.nation || resolvedEntryNation
         });
         const message = result?.entryChargeCreated
             ? 'TROYに入店しました。チャージを追加しました。'

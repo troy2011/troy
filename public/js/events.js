@@ -2,7 +2,11 @@ import {
     getEvents as requestEvents,
     createEvent as requestCreateEvent,
     joinEvent as requestJoinEvent,
-    approveEvent as requestApproveEvent
+    approveEvent as requestApproveEvent,
+    getReservations as requestReservations,
+    createReservation as requestCreateReservation,
+    reviewReservation as requestReviewReservation,
+    cancelReservation as requestCancelReservation
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { formatCurrencyLabel } from './config.js';
@@ -20,6 +24,14 @@ let cachedHostFee = 1000;
 let cachedIsKing = false;
 const GOLD_LABEL = formatCurrencyLabel('PS');
 const DEFAULT_SPONSOR_NOTE = '王国協賛あり';
+const RESERVATION_PURPOSE_LABELS = {
+    visit: '通常来店',
+    darts: 'ダーツ',
+    billiards: 'ビリヤード',
+    consultation: '相談',
+    private: '貸切',
+    other: 'その他'
+};
 
 function formatGold(amount) {
     return `${Number(amount || 0).toLocaleString('ja-JP')}${GOLD_LABEL}`;
@@ -75,6 +87,14 @@ function setDefaultDateTime() {
     input.value = toLocalDateTimeValue(date);
 }
 
+function setDefaultReservationDateTime() {
+    const input = document.getElementById('reservationStartsAt');
+    if (!input || input.value) return;
+    const date = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    date.setMinutes(0, 0, 0);
+    input.value = toLocalDateTimeValue(date);
+}
+
 function renderEventCreateMeta() {
     const hostFeeEl = document.getElementById('eventHostFeeInfo');
     if (hostFeeEl) {
@@ -89,6 +109,18 @@ function eventStatusLabel(status) {
     if (status === 'pending') return '承認待ち';
     if (status === 'rejected') return '却下';
     return status || '-';
+}
+
+function reservationStatusLabel(status) {
+    if (status === 'approved') return '確定';
+    if (status === 'pending') return '承認待ち';
+    if (status === 'rejected') return '却下';
+    if (status === 'cancelled') return 'キャンセル';
+    return status || '-';
+}
+
+function getReservationPurposeLabel(reservation) {
+    return reservation?.purposeLabel || RESERVATION_PURPOSE_LABELS[reservation?.purpose] || '予約';
 }
 
 function renderEventCard(event, playFabId) {
@@ -170,6 +202,53 @@ function renderEventCard(event, playFabId) {
     return card;
 }
 
+function renderReservationCard(reservation, playFabId) {
+    const card = document.createElement('article');
+    card.className = `event-card is-${reservation.status || 'unknown'}`;
+    const status = reservationStatusLabel(reservation.status);
+    const name = reservation.displayName || (reservation.isOwner ? 'あなた' : '予約あり');
+    const note = reservation.note || '';
+    card.innerHTML = `
+        <div class="event-card-head">
+            <div>
+                <div class="event-card-type">${escapeHtml(getReservationPurposeLabel(reservation))}</div>
+                <h3>${escapeHtml(formatDateTime(reservation.startsAtMs))}</h3>
+            </div>
+            <span class="event-status">${escapeHtml(status)}</span>
+        </div>
+        <div class="event-card-meta">
+            <span>${Number(reservation.partySize || 0)}名</span>
+            <span>${escapeHtml(name)}</span>
+        </div>
+        ${note ? `<p class="event-card-desc">${escapeHtml(note)}</p>` : ''}
+        <div class="event-card-actions"></div>
+    `;
+    const actions = card.querySelector('.event-card-actions');
+    if (reservation.canReview) {
+        const approveBtn = document.createElement('button');
+        approveBtn.type = 'button';
+        approveBtn.className = 'event-action-btn is-approve';
+        approveBtn.textContent = '承認';
+        approveBtn.addEventListener('click', async () => reviewReservation(playFabId, reservation.id, true));
+        const rejectBtn = document.createElement('button');
+        rejectBtn.type = 'button';
+        rejectBtn.className = 'event-action-btn is-reject';
+        rejectBtn.textContent = '却下';
+        rejectBtn.addEventListener('click', async () => reviewReservation(playFabId, reservation.id, false));
+        actions.append(approveBtn, rejectBtn);
+    }
+    if (reservation.canCancel) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'event-action-btn is-reject';
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.addEventListener('click', async () => cancelReservation(playFabId, reservation.id));
+        actions.appendChild(cancelBtn);
+    }
+    if (!actions.childNodes.length) actions.remove();
+    return card;
+}
+
 function renderEvents(data, playFabId) {
     cachedHostFee = Number(data?.hostFee || cachedHostFee || 0);
     cachedIsKing = !!data?.isKing;
@@ -186,13 +265,32 @@ function renderEvents(data, playFabId) {
     });
 }
 
+function renderReservations(data, playFabId) {
+    const listEl = document.getElementById('reservationList');
+    const emptyEl = document.getElementById('reservationListEmpty');
+    if (!listEl || !emptyEl) return;
+    const reservations = Array.isArray(data?.reservations) ? data.reservations : [];
+    listEl.innerHTML = '';
+    emptyEl.hidden = reservations.length > 0;
+    reservations.forEach((reservation) => {
+        listEl.appendChild(renderReservationCard(reservation, playFabId));
+    });
+}
+
 async function loadEvents(playFabId) {
     if (!playFabId) return;
     setDefaultDateTime();
+    setDefaultReservationDateTime();
     setMessage('');
-    const data = await requestEvents(playFabId, { isSilent: true });
+    const [data, reservationData] = await Promise.all([
+        requestEvents(playFabId, { isSilent: true }),
+        requestReservations(playFabId, { isSilent: true })
+    ]);
     if (data?.success) {
         renderEvents(data, playFabId);
+    }
+    if (reservationData?.success) {
+        renderReservations(reservationData, playFabId);
     }
 }
 
@@ -256,6 +354,57 @@ async function approveEvent(playFabId, eventId, approve, sponsorNote = DEFAULT_S
     }
 }
 
+async function createReservation(playFabId) {
+    const startsAt = document.getElementById('reservationStartsAt')?.value || '';
+    const partySize = document.getElementById('reservationPartySize')?.value || 1;
+    const purpose = document.getElementById('reservationPurpose')?.value || 'visit';
+    const note = document.getElementById('reservationNote')?.value || '';
+    try {
+        const data = await requestCreateReservation(playFabId, {
+            startsAt,
+            startsAtMs: Date.parse(startsAt),
+            partySize,
+            purpose,
+            note,
+            nation: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || '',
+            displayName: window.myPlayFabDisplayName || '',
+            requestId: createRequestId('reservation-create')
+        }, { throwOnError: true });
+        if (data?.success) {
+            setMessage('予約申請を送信しました。王の承認後に確定します。');
+            const noteEl = document.getElementById('reservationNote');
+            if (noteEl) noteEl.value = '';
+            await loadEvents(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || '予約申請に失敗しました。', true);
+    }
+}
+
+async function reviewReservation(playFabId, reservationId, approve) {
+    try {
+        const data = await requestReviewReservation(playFabId, reservationId, approve, { throwOnError: true });
+        if (data?.success) {
+            setMessage(approve ? '予約を承認しました。' : '予約を却下しました。');
+            await loadEvents(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || '予約の承認処理に失敗しました。', true);
+    }
+}
+
+async function cancelReservation(playFabId, reservationId) {
+    try {
+        const data = await requestCancelReservation(playFabId, reservationId, { throwOnError: true });
+        if (data?.success) {
+            setMessage('予約をキャンセルしました。');
+            await loadEvents(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || '予約キャンセルに失敗しました。', true);
+    }
+}
+
 let bound = false;
 
 function bindEvents(playFabId) {
@@ -268,6 +417,22 @@ function bindEvents(playFabId) {
     if (reloadBtn) {
         reloadBtn.addEventListener('click', () => loadEvents(window.myPlayFabId || playFabId));
     }
+    const reservationBtn = document.getElementById('btnCreateReservation');
+    if (reservationBtn) {
+        reservationBtn.addEventListener('click', () => createReservation(window.myPlayFabId || playFabId));
+    }
+    const reservationPurpose = document.getElementById('reservationPurpose');
+    const reservationPartySize = document.getElementById('reservationPartySize');
+    const updateReservationHelp = () => {
+        const help = document.getElementById('reservationPrivateHelp');
+        if (!help) return;
+        help.style.display = reservationPurpose?.value === 'private' ? '' : 'none';
+        if (reservationPurpose?.value === 'private' && reservationPartySize && Number(reservationPartySize.value || 0) < 10) {
+            reservationPartySize.value = '10';
+        }
+    };
+    if (reservationPurpose) reservationPurpose.addEventListener('change', updateReservationHelp);
+    updateReservationHelp();
     bound = true;
 }
 

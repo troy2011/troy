@@ -125,6 +125,22 @@ export function approveEvent(playFabId, eventId, approve = true, payload = {}, o
     return callApiWithLoader('/api/events/approve', { playFabId, eventId, approve, ...(payload || {}) }, options);
 }
 
+export function getReservations(playFabId, options) {
+    return callApiWithLoader('/api/reservations/list', { playFabId }, options);
+}
+
+export function createReservation(playFabId, payload, options) {
+    return callApiWithLoader('/api/reservations/create', { playFabId, ...(payload || {}) }, options);
+}
+
+export function reviewReservation(playFabId, reservationId, approve = true, options) {
+    return callApiWithLoader('/api/reservations/review', { playFabId, reservationId, approve }, options);
+}
+
+export function cancelReservation(playFabId, reservationId, options) {
+    return callApiWithLoader('/api/reservations/cancel', { playFabId, reservationId }, options);
+}
+
 export function getCapitalWarState(playFabId, targetNation, options) {
     return callApiWithLoader('/api/get-capital-war-state', { playFabId, targetNation }, options);
 }
