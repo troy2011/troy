@@ -642,7 +642,7 @@ async function initializeLiff() {
 
                 if (loginData.needsRaceSelection) {
                     document.getElementById('appWrapper').style.display = 'block';
-                    showRaceModal();
+                    autoAssignRace();
                 } else {
                     clearPendingAppInviteState({ removeFromUrl: true });
                     await initializeAppFeatures();
@@ -695,7 +695,7 @@ async function initializeLiff() {
         } else {
             console.warn("Firebase token not provided. Running in limited mode.");
             if (loginData.needsRaceSelection) {
-                showRaceModal();
+                autoAssignRace();
             } else {
                 clearPendingAppInviteState({ removeFromUrl: true });
             }
@@ -1167,6 +1167,71 @@ function updateGuestAvatarPrompt() {
     const prompt = document.getElementById('guestAvatarPrompt');
     if (!prompt) return;
     prompt.hidden = !isGuestUser();
+}
+
+const _RACE_BY_NATION = { fire: 'Human', water: 'Goblin', earth: 'Orc', wind: 'Elf' };
+
+async function autoAssignRace() {
+    const ALL_RACES = Object.keys(NATION_GROUP_BY_RACE);
+    const inviteInfo = await getPendingAppInviteInfo();
+    let raceName, groupInfo = { created: false };
+
+    if (inviteInfo?.valid && inviteInfo.nation) {
+        raceName = _RACE_BY_NATION[inviteInfo.nation] || ALL_RACES[Math.floor(Math.random() * ALL_RACES.length)];
+    } else {
+        raceName = ALL_RACES[Math.floor(Math.random() * ALL_RACES.length)];
+        groupInfo = await ensureNationGroupForRace(raceName);
+    }
+
+    const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
+    if (!entityKey || !entityKey.Id || !entityKey.Type) throw new Error('Entity key not available');
+    const displayName = window.myLineProfile?.displayName || '';
+    const data = await callApiWithLoader('/api/set-race', {
+        playFabId: myPlayFabId,
+        raceName,
+        isKing: !!groupInfo.created,
+        entityKey,
+        entityToken: window.myEntityToken,
+        displayName,
+        inviteToken: inviteInfo?.valid ? pendingAppInviteToken : '',
+        completeGuestRegistration: false
+    });
+
+    if (data !== null) {
+        clearPendingAppInviteState({ removeFromUrl: true });
+        if (displayName) {
+            document.getElementById('globalPlayerName').innerText = displayName;
+        }
+        const nation = data?.nation?.Nation || null;
+        if (nation) {
+            const avatarColor = getAvatarColorForNation(nation);
+            if (avatarColor) {
+                myAvatarBaseInfo = { ...myAvatarBaseInfo, Nation: String(nation).toLowerCase(), AvatarColor: avatarColor, IsGuest: false };
+                window.myAvatarBaseInfo = myAvatarBaseInfo;
+            }
+        }
+        await initializeAppFeatures();
+        await NationKing.refreshKingNav(myPlayFabId);
+        updateGuestAvatarPrompt();
+        const nameForLine = displayName || '旅人';
+        if (!window.__pendingFirstMapMessages) window.__pendingFirstMapMessages = [];
+        window.__pendingFirstMapMessages.push(rpgSay.kingGreeting(nameForLine));
+        if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
+            window.__pendingFirstMapMessages.push(rpgSay.shipGained());
+        }
+        await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
+        try {
+            const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
+            if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
+                await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
+            }
+        } catch (fortuneError) {
+            console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
+        }
+    } else {
+        console.error('[autoAssignRace] set-race returned null, falling back to manual modal');
+        showRaceModal();
+    }
 }
 
 function showRaceModal(options = {}) {
