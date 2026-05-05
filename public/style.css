@@ -387,6 +387,13 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 10px;
 }
 
+.troy-order-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
 .home-vital-row {
     min-height: 24px;
 }
@@ -14379,5 +14386,511 @@ textarea {
     .event-card-head {
         flex-direction: column;
         gap: 8px;
+    }
+}
+
+.troy-orders-body {
+    min-height: 100vh;
+    margin: 0;
+    background: #0b1020;
+    color: #f8fafc;
+    overflow-x: hidden;
+}
+
+.troy-orders-shell {
+    width: min(1180px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 32px;
+}
+
+.troy-orders-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.troy-orders-kicker {
+    font-size: 12px;
+    font-weight: 800;
+    color: #38bdf8;
+}
+
+.troy-orders-header h1 {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.15;
+}
+
+.troy-orders-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.troy-orders-auth-name {
+    max-width: 220px;
+    color: #cbd5e1;
+    font-size: 13px;
+    text-align: right;
+}
+
+.troy-orders-refresh,
+.troy-orders-settle button {
+    border: 0;
+    border-radius: 8px;
+    background: #f59e0b;
+    color: #111827;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.troy-orders-refresh {
+    min-height: 42px;
+    padding: 0 18px;
+}
+
+.troy-orders-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.troy-orders-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.troy-orders-toolbar label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.troy-orders-toolbar select {
+    min-height: 34px;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 7px;
+    background: #111827;
+    color: #f8fafc;
+    padding: 0 10px;
+}
+
+.troy-orders-serve-summary {
+    color: #fbbf24;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.troy-orders-summary-item {
+    min-height: 72px;
+    padding: 13px 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.88);
+}
+
+.troy-orders-summary-item span {
+    display: block;
+    margin-bottom: 6px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.troy-orders-summary-item strong {
+    font-size: 22px;
+}
+
+.troy-orders-summary-item .is-open {
+    color: #4ade80;
+}
+
+.troy-orders-summary-item .is-close {
+    color: #f87171;
+}
+
+.troy-orders-message {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(34, 197, 94, 0.24);
+    border-radius: 8px;
+    background: rgba(20, 83, 45, 0.24);
+    color: #bbf7d0;
+}
+
+.troy-orders-message:empty,
+.troy-orders-message[hidden] {
+    display: none;
+}
+
+.troy-orders-message.is-error {
+    border-color: rgba(248, 113, 113, 0.32);
+    background: rgba(127, 29, 29, 0.28);
+    color: #fecaca;
+}
+
+.troy-orders-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 14px;
+}
+
+.troy-orders-card {
+    display: flex;
+    min-height: 310px;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.96);
+}
+
+.troy-orders-card.is-busy {
+    opacity: 0.72;
+    pointer-events: none;
+}
+
+.troy-orders-card-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+}
+
+.troy-orders-card h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+}
+
+.troy-orders-card p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.troy-orders-total {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fbbf24;
+}
+
+.troy-orders-total-wrap {
+    text-align: right;
+}
+
+.troy-orders-total-wrap span {
+    display: inline-flex;
+    margin-top: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.troy-orders-total-wrap .is-pending-serve {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fecaca;
+}
+
+.troy-orders-total-wrap .is-served-all {
+    background: rgba(34, 197, 94, 0.18);
+    color: #bbf7d0;
+}
+
+.troy-orders-items {
+    margin: 14px 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.troy-orders-item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 46px 86px 92px;
+    gap: 10px;
+    align-items: center;
+    min-height: 44px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    font-size: 15px;
+}
+
+.troy-orders-item-row.is-served {
+    color: #94a3b8;
+}
+
+.troy-orders-item-row.is-served span {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+}
+
+.troy-orders-item-row em {
+    color: #cbd5e1;
+    font-style: normal;
+    text-align: right;
+}
+
+.troy-orders-item-row strong {
+    text-align: right;
+}
+
+.troy-orders-item-row button {
+    min-height: 30px;
+    border: 1px solid rgba(248, 113, 113, 0.34);
+    border-radius: 7px;
+    background: rgba(127, 29, 29, 0.28);
+    color: #fecaca;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.troy-orders-item-row.is-served button {
+    border-color: rgba(34, 197, 94, 0.34);
+    background: rgba(20, 83, 45, 0.28);
+    color: #bbf7d0;
+}
+
+.troy-orders-settle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 142px;
+    gap: 10px;
+    align-items: end;
+}
+
+.troy-orders-settle label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 46px;
+    padding: 0 10px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.55);
+}
+
+.troy-orders-settle label span {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.troy-orders-settle input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: #f8fafc;
+    font-size: 20px;
+    text-align: right;
+    outline: none;
+}
+
+.troy-orders-settle button {
+    min-height: 46px;
+    padding: 0 12px;
+    font-size: 15px;
+}
+
+.troy-orders-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    border: 1px dashed rgba(148, 163, 184, 0.22);
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 18px;
+}
+
+.troy-orders-empty[hidden] {
+    display: none;
+}
+
+.troy-orders-confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.78);
+}
+
+.troy-orders-confirm[hidden] {
+    display: none;
+}
+
+.troy-orders-confirm-panel {
+    width: min(620px, calc(100vw - 28px));
+    max-height: 88vh;
+    overflow: auto;
+    padding: 22px;
+    border: 1px solid rgba(251, 191, 36, 0.32);
+    border-radius: 8px;
+    background: #0f172a;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.troy-orders-confirm-kicker {
+    color: #fbbf24;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.troy-orders-confirm-panel h2 {
+    margin: 8px 0 0;
+    font-size: 30px;
+}
+
+.troy-orders-confirm-total {
+    margin: 16px 0;
+    padding: 18px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf24;
+    font-size: 48px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.troy-orders-confirm-items {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.troy-orders-confirm-items div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 30px;
+    color: #cbd5e1;
+    font-size: 14px;
+}
+
+.troy-orders-confirm-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    margin: 12px 0 16px;
+    padding: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.5);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.troy-orders-confirm-check input {
+    width: 22px;
+    height: 22px;
+}
+
+.troy-orders-confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 10px;
+}
+
+.troy-orders-confirm-actions button {
+    min-height: 54px;
+    border: 0;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.troy-orders-confirm-actions .is-cancel {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.troy-orders-confirm-actions button:not(.is-cancel) {
+    background: #f59e0b;
+    color: #111827;
+}
+
+.troy-orders-confirm-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.44;
+}
+
+body.is-new-order-flash::before {
+    content: '新規注文';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245, 158, 11, 0.28);
+    color: #fff7ed;
+    font-size: clamp(42px, 8vw, 96px);
+    font-weight: 900;
+    pointer-events: none;
+    animation: troyOrderFlash 1.8s ease-out both;
+}
+
+@keyframes troyOrderFlash {
+    0%, 35%, 70% { opacity: 1; }
+    18%, 52%, 100% { opacity: 0; }
+}
+
+@media (max-width: 720px) {
+    .troy-orders-shell {
+        width: min(100vw - 20px, 1180px);
+    }
+
+    .troy-orders-header,
+    .troy-orders-header-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .troy-orders-auth-name {
+        max-width: none;
+        text-align: left;
+    }
+
+    .troy-orders-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .troy-orders-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .troy-orders-list {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-item-row {
+        grid-template-columns: minmax(0, 1fr) 42px 78px;
+    }
+
+    .troy-orders-item-row button {
+        grid-column: 1 / -1;
+    }
+
+    .troy-orders-settle {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-confirm-actions {
+        grid-template-columns: 1fr;
     }
 }

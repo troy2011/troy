@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#111827">
+    <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/style.css">
+    <title>TROY 注文リスト</title>
+</head>
+<body class="troy-orders-body">
+    <main class="troy-orders-shell">
+        <header class="troy-orders-header">
+            <div>
+                <div class="troy-orders-kicker">TROY STAFF</div>
+                <h1>注文リスト</h1>
+            </div>
+            <div class="troy-orders-header-actions">
+                <div id="troyOrdersAuthName" class="troy-orders-auth-name">認証中...</div>
+                <button id="troyOrdersRefresh" type="button" class="troy-orders-refresh">更新</button>
+            </div>
+        </header>
+
+        <section class="troy-orders-summary">
+            <div class="troy-orders-summary-item">
+                <span>営業状態</span>
+                <strong id="troyOrdersOpenState">-</strong>
+            </div>
+            <div class="troy-orders-summary-item">
+                <span>未会計</span>
+                <strong id="troyOrdersPendingCount">0件</strong>
+            </div>
+            <div class="troy-orders-summary-item">
+                <span>本日売上</span>
+                <strong id="troyOrdersTodaySales">¥0</strong>
+            </div>
+            <div class="troy-orders-summary-item">
+                <span>最終更新</span>
+                <strong id="troyOrdersUpdatedAt">-</strong>
+            </div>
+        </section>
+
+        <section class="troy-orders-toolbar">
+            <label>
+                <span>並び順</span>
+                <select id="troyOrdersSort">
+                    <option value="oldest">注文時刻順</option>
+                    <option value="newest">新しい順</option>
+                    <option value="name">席/名前順</option>
+                </select>
+            </label>
+            <div id="troyOrdersServeSummary" class="troy-orders-serve-summary">未提供 0件</div>
+        </section>
+
+        <section id="troyOrdersMessage" class="troy-orders-message"></section>
+        <section id="troyOrdersList" class="troy-orders-list"></section>
+        <section id="troyOrdersEmpty" class="troy-orders-empty" hidden>未会計の注文はありません。</section>
+    </main>
+
+    <div id="troyOrdersConfirmModal" class="troy-orders-confirm" hidden>
+        <div class="troy-orders-confirm-panel">
+            <div class="troy-orders-confirm-kicker">会計確認</div>
+            <h2 id="troyOrdersConfirmName">-</h2>
+            <div id="troyOrdersConfirmTotal" class="troy-orders-confirm-total">¥0</div>
+            <div id="troyOrdersConfirmItems" class="troy-orders-confirm-items"></div>
+            <label class="troy-orders-confirm-check">
+                <input id="troyOrdersConfirmCheck" type="checkbox">
+                <span>現金の受け取りを確認しました</span>
+            </label>
+            <div class="troy-orders-confirm-actions">
+                <button id="troyOrdersConfirmCancel" type="button" class="is-cancel">戻る</button>
+                <button id="troyOrdersConfirmSubmit" type="button" disabled>会計を確定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingSpinner" class="loading-spinner" style="display:none;"></div>
+    <div id="pointMessage" hidden></div>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "api": "./js/api.js"
+      }
+    }
+    </script>
+    <script type="module" src="/js/troyOrders.js"></script>
+</body>
+</html>
