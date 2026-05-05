@@ -47,6 +47,12 @@ function setMessage(text, isError = false) {
     el.hidden = !text;
 }
 
+function hasNationParam() {
+    const params = new URLSearchParams(window.location.search);
+    const nation = String(params.get('troyNation') || params.get('nation') || '').trim().toLowerCase();
+    return ['fire', 'water', 'wind', 'earth'].includes(nation);
+}
+
 function setSummary(data = {}) {
     const open = !!data.troyOpen;
     $('troyOrdersOpenState').textContent = open ? 'OPEN' : 'CLOSE';
@@ -55,6 +61,36 @@ function setSummary(data = {}) {
     $('troyOrdersPendingCount').textContent = `${entries.length}件`;
     $('troyOrdersTodaySales').textContent = formatYen(data.troyTodaySales?.total || 0);
     $('troyOrdersUpdatedAt').textContent = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+    const openBtn = $('troyOrdersOpenBtn');
+    const closeBtn = $('troyOrdersCloseBtn');
+    if (openBtn) openBtn.hidden = open || !hasNationParam();
+    if (closeBtn) closeBtn.hidden = !open;
+}
+
+async function setTroyOpen(nextOpen) {
+    if (busy) return;
+    if (!nextOpen) {
+        const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
+        if (entries.length > 0 && !confirm(`お会計待ちが ${entries.length}件 います。TROYをCLOSEしますか？`)) return;
+    }
+    busy = true;
+    const btn = nextOpen ? $('troyOrdersOpenBtn') : $('troyOrdersCloseBtn');
+    const prev = btn?.textContent;
+    if (btn) { btn.disabled = true; btn.textContent = '処理中...'; }
+    try {
+        await callApiWithLoader('/api/troy-orders/set-open', {
+            ...getRequestedNationPayload(),
+            isOpen: nextOpen
+        }, { isSilent: true, throwOnError: true });
+        setMessage(nextOpen ? 'TROYをOPENにしました。' : 'TROYをCLOSEにしました。');
+        await refreshOrders({ silent: true });
+    } catch (error) {
+        setMessage(`営業状態を変更できませんでした: ${error?.message || error}`, true);
+    } finally {
+        busy = false;
+        if (btn) { btn.disabled = false; btn.textContent = prev; }
+    }
 }
 
 function getSortMode() {
@@ -315,6 +351,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     $('troyOrdersRefresh')?.addEventListener('click', () => refreshOrders({ silent: false }));
+    $('troyOrdersOpenBtn')?.addEventListener('click', () => setTroyOpen(true));
+    $('troyOrdersCloseBtn')?.addEventListener('click', () => setTroyOpen(false));
     $('troyOrdersList')?.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         const servedButton = target?.closest('[data-toggle-served]');

@@ -14436,6 +14436,36 @@ textarea {
     text-align: right;
 }
 
+.troy-orders-open-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.troy-orders-open-btn {
+    border: 0;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    min-height: 38px;
+    padding: 0 16px;
+    cursor: pointer;
+}
+
+.troy-orders-open-btn.is-open {
+    background: #22c55e;
+    color: #fff;
+}
+
+.troy-orders-open-btn.is-close {
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+}
+
+.troy-orders-open-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .troy-orders-refresh,
 .troy-orders-settle button {
     border: 0;

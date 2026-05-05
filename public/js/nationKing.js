@@ -497,6 +497,10 @@ export async function loadKingPage(playFabId, options = {}) {
     }
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
     if (troyControlsEl) troyControlsEl.style.display = 'block';
+    const ordersLink = document.querySelector('.troy-order-page-link');
+    if (ordersLink && data.nation) {
+        ordersLink.href = `/troy-orders.html?nation=${encodeURIComponent(data.nation)}`;
+    }
 
     if (treasuryEl) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;

@@ -3956,6 +3956,32 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-orders/set-open', async (req, res) => {
+        try {
+            const nextOpen = !!req.body?.isOpen;
+            if (nextOpen) {
+                const nationKey = String(req.body?.troyNation || '').trim().toLowerCase();
+                const mapping = getNationMappingByNation(nationKey);
+                if (!mapping) return res.status(400).json({ error: 'troyNation is required to open TROY' });
+                const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+                await roomRef.set({ isOpen: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                pushDisplayEvent({ type: 'flare', label: 'TROY OPEN' });
+                return res.json({ success: true, isOpen: true, nation: nationKey });
+            } else {
+                const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+                if (!context) return res.json({ success: true, isOpen: false, alreadyClosed: true });
+                await context.roomRef.set({ isOpen: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                await deleteCollectionDocs(context.roomRef.collection('members'));
+                await deleteCollectionDocs(context.roomRef.collection('checkouts'));
+                pushDisplayEvent({ type: 'splash', label: 'TROY CLOSE' });
+                return res.json({ success: true, isOpen: false, nation: context.nation });
+            }
+        } catch (error) {
+            console.error('[troy-orders-set-open] Error:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToSetTroyOpen' });
+        }
+    });
+
     app.post('/api/king-settle-troy-checkout', async (req, res) => {
         const { playFabId, receiverPlayFabId, expectedTotal } = req.body || {};
         const requestId = String(req.body?.requestId || '').trim();
