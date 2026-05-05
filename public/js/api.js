@@ -95,7 +95,8 @@ export async function callApiWithLoader(apiFunctionOrEndpoint, body, options = {
             el.innerText = `エラー: ${errorMessage}`;
             el.style.color = 'red';
         } else {
-            document.getElementById('pointMessage').innerText = `通信エラー: ${errorMessage}`;
+            const _msgEl = document.getElementById('pointMessage');
+            if (_msgEl) _msgEl.innerText = `通信エラー: ${errorMessage}`;
         }
 
         return null;
@@ -122,8 +123,10 @@ export function createRequestId(prefix = 'req') {
 // サーバーAPIを呼び出す内部関数
 async function callPointApi(endpoint, body) {
     // エラーメッセージをクリア
-    document.getElementById('pointMessage').innerText = '';
-    document.getElementById('battleResult').innerText = '';
+    const _pointMsg = document.getElementById('pointMessage');
+    if (_pointMsg) _pointMsg.innerText = '';
+    const _battleMsg = document.getElementById('battleResult');
+    if (_battleMsg) _battleMsg.innerText = '';
 
     const response = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
