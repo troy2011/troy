@@ -64,8 +64,10 @@ function setSummary(data = {}) {
 
     const openBtn = $('troyOrdersOpenBtn');
     const closeBtn = $('troyOrdersCloseBtn');
-    if (openBtn) openBtn.hidden = open || !hasNationParam();
+    const nationSelect = $('troyOrdersNationSelect');
+    if (openBtn) openBtn.hidden = open;
     if (closeBtn) closeBtn.hidden = !open;
+    if (nationSelect) nationSelect.hidden = open || hasNationParam();
 }
 
 async function setTroyOpen(nextOpen) {
@@ -74,13 +76,18 @@ async function setTroyOpen(nextOpen) {
         const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
         if (entries.length > 0 && !confirm(`お会計待ちが ${entries.length}件 います。TROYをCLOSEしますか？`)) return;
     }
+    const nationPayload = getRequestedNationPayload();
+    if (nextOpen && !nationPayload.troyNation) {
+        const selected = $('troyOrdersNationSelect')?.value || '';
+        if (selected) nationPayload.troyNation = selected;
+    }
     busy = true;
     const btn = nextOpen ? $('troyOrdersOpenBtn') : $('troyOrdersCloseBtn');
     const prev = btn?.textContent;
     if (btn) { btn.disabled = true; btn.textContent = '処理中...'; }
     try {
         await callApiWithLoader('/api/troy-orders/set-open', {
-            ...getRequestedNationPayload(),
+            ...nationPayload,
             isOpen: nextOpen
         }, { isSilent: true, throwOnError: true });
         setMessage(nextOpen ? 'TROYをOPENにしました。' : 'TROYをCLOSEにしました。');
