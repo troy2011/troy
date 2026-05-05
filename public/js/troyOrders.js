@@ -1,9 +1,11 @@
 import { callApiWithLoader, createRequestId } from 'api';
 
-const REFRESH_MS = 5000;
+const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
 
 let refreshTimer = null;
+let sseSource = null;
+let sseFallbackTimer = null;
 let lastData = null;
 let busy = false;
 let seenOrderIds = new Set();
@@ -336,13 +338,65 @@ function closeConfirmModal() {
     if (modal) modal.hidden = true;
 }
 
+function buildStreamUrl() {
+    const params = getRequestedNationPayload();
+    const url = new URL('/api/troy-orders/stream', window.location.origin);
+    if (params.troyNation) url.searchParams.set('troyNation', params.troyNation);
+    return url.toString();
+}
+
+function stopSSEStream() {
+    if (sseFallbackTimer) { clearTimeout(sseFallbackTimer); sseFallbackTimer = null; }
+    if (sseSource) { sseSource.close(); sseSource = null; }
+}
+
 function startAutoRefresh() {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
         if (document.visibilityState === 'visible') {
             void refreshOrders({ silent: true });
         }
-    }, REFRESH_MS);
+    }, FALLBACK_REFRESH_MS);
+}
+
+function startSSEStream() {
+    stopSSEStream();
+    stopAutoRefresh();
+    if (typeof EventSource === 'undefined') {
+        startAutoRefresh();
+        return;
+    }
+    sseSource = new EventSource(buildStreamUrl());
+
+    sseFallbackTimer = setTimeout(() => {
+        if (sseSource && sseSource.readyState !== EventSource.OPEN) {
+            console.warn('[troy-orders-sse] connection timeout, falling back to polling');
+            stopSSEStream();
+            startAutoRefresh();
+        }
+    }, 10000);
+
+    sseSource.onmessage = (event) => {
+        if (sseFallbackTimer) { clearTimeout(sseFallbackTimer); sseFallbackTimer = null; }
+        try {
+            const data = JSON.parse(event.data);
+            setMessage('');
+            render(data);
+        } catch (e) {
+            console.warn('[troy-orders-sse] parse error:', e);
+        }
+    };
+
+    sseSource.onerror = () => {
+        if (sseSource?.readyState === EventSource.CLOSED) {
+            sseSource = null;
+            startAutoRefresh();
+        }
+    };
+}
+
+function stopAutoRefresh() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -385,7 +439,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         $('troyOrdersAuthName').textContent = 'ログイン不要';
         await refreshOrders({ silent: false });
-        startAutoRefresh();
+        startSSEStream();
     } catch (error) {
         console.error('[troy-orders] init failed:', error);
         setMessage(`初期化できませんでした: ${error?.message || error}`, true);

@@ -3982,6 +3982,88 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.get('/api/troy-orders/stream', async (req, res) => {
+        const requestedNation = String(req.query.troyNation || req.query.nation || '').trim().toLowerCase();
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders();
+
+        let closed = false;
+        let unsubCheckouts = null;
+        let unsubRoom = null;
+        let keepAliveTimer = null;
+
+        function send(payload) {
+            if (closed || res.writableEnded) return;
+            try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch (_) {}
+        }
+
+        function cleanup() {
+            if (closed) return;
+            closed = true;
+            if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
+            if (unsubCheckouts) { try { unsubCheckouts(); } catch (_) {} unsubCheckouts = null; }
+            if (unsubRoom) { try { unsubRoom(); } catch (_) {} unsubRoom = null; }
+            if (!res.writableEnded) try { res.end(); } catch (_) {}
+        }
+
+        req.on('close', cleanup);
+
+        keepAliveTimer = setInterval(() => {
+            if (closed || res.writableEnded) { cleanup(); return; }
+            try { res.write(': keepalive\n\n'); } catch (_) { cleanup(); }
+        }, 25000);
+
+        try {
+            const context = await resolveOpenTroyOrdersContext(requestedNation);
+            if (!context) {
+                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [] });
+                if (!res.writableEnded) res.write('retry: 15000\n\n');
+                cleanup();
+                return;
+            }
+
+            send(await buildTroyOrdersPagePayload(context));
+
+            unsubCheckouts = context.roomRef.collection('checkouts').onSnapshot(async (snap) => {
+                if (closed) return;
+                try {
+                    const groupSnap = await getNationGroupDoc(firestore, context.mapping.groupName).get();
+                    send({
+                        troyOpen: true,
+                        nation: context.nation,
+                        troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}),
+                        troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs)
+                    });
+                } catch (e) {
+                    console.warn('[troy-orders-stream] checkout snapshot error:', e?.message || e);
+                }
+            }, (err) => {
+                console.warn('[troy-orders-stream] checkout listener error:', err?.message || err);
+            });
+
+            unsubRoom = context.roomRef.onSnapshot((roomSnap) => {
+                if (closed) return;
+                const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+                if (!roomData.isOpen) {
+                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [] });
+                    if (!res.writableEnded) try { res.write('retry: 15000\n\n'); } catch (_) {}
+                    cleanup();
+                }
+            }, (err) => {
+                console.warn('[troy-orders-stream] room listener error:', err?.message || err);
+            });
+
+        } catch (e) {
+            console.error('[troy-orders-stream] error:', e?.message || e);
+            try { res.write(`event: error\ndata: ${JSON.stringify({ error: 'StreamError' })}\n\n`); } catch (_) {}
+            cleanup();
+        }
+    });
+
     app.post('/api/king-settle-troy-checkout', async (req, res) => {
         const { playFabId, receiverPlayFabId, expectedTotal } = req.body || {};
         const requestId = String(req.body?.requestId || '').trim();
