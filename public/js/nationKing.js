@@ -187,6 +187,14 @@ const _KING_MENU_ITEM_GROUPS = [
     {
         category: '乾きもの 🥜',
         items: ['ポテチ', 'チョコ', 'ミックスナッツ']
+    },
+    {
+        category: 'ボトルキープ 🍶',
+        items: ['キンミヤ焼酎（720ml）']
+    },
+    {
+        category: 'ボトル用セット 🧊',
+        items: ['水割りセット', 'ソーダ / お茶割り用', 'カットレモン']
     }
 ];
 

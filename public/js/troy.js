@@ -34,7 +34,7 @@ let _statusSnapshotState = {
     menuSpecials: []
 };
 
-const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'food', 'points'];
+const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'bottle', 'bottleset', 'food', 'points'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GROUP_BY_NATION = {
     fire: 'nation_fire_island',
@@ -45,6 +45,16 @@ const TROY_GROUP_BY_NATION = {
 
 const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ', 'オレンジＪ'];
 const TROY_SHOCHU_MIXER_OPTIONS = ['水割り', 'ソーダ割り', 'お湯割り', 'ロック', 'ストレート'];
+
+const TROY_BOTTLE_ITEMS = [
+    { concept: 'キンミヤ焼酎（720ml）', content: 'ボトルキープ', price: 2800, emoji: '🍶' }
+];
+
+const TROY_BOTTLE_SET_ITEMS = [
+    { concept: '水割りセット', content: '氷・水', price: 500, emoji: '🧊' },
+    { concept: 'ソーダ / お茶割り用', content: '', price: 600, emoji: '🫙' },
+    { concept: 'カットレモン', content: '', price: 100, emoji: '🍋' }
+];
 
 function buildTroyItemSpritePath(fileName) {
     const normalized = String(fileName || '').trim();
@@ -277,6 +287,10 @@ function getMenuDataById(menuId) {
             return getAlcoholDrinkMenuData();
         case 'food':
             return getFoodMenuData();
+        case 'bottle':
+            return { title: 'ボトルキープ', items: TROY_BOTTLE_ITEMS };
+        case 'bottleset':
+            return { title: 'ボトル用セット', items: TROY_BOTTLE_SET_ITEMS };
         case 'specials':
             return _menuSpecials.length > 0
                 ? { title: 'おすすめ', items: _menuSpecials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
@@ -454,6 +468,10 @@ function getMenuSubnote(menuId) {
             return '🥤 ノンアル';
         case 'alcohol':
             return '🍸 アルコール';
+        case 'bottle':
+            return '🍶 ボトルキープ';
+        case 'bottleset':
+            return '🧊 ボトル用セット';
         case 'food':
             return '🍴 フード';
         case 'points':
