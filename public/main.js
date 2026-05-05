@@ -1268,27 +1268,6 @@ function showRaceModal(options = {}) {
             if (data?.starterAssets?.granted?.includes('ship_common_boat')) {
                 window.__pendingFirstMapMessages.push(rpgSay.shipGained());
             }
-            if (data?.starterIsland?.created) {
-                const islandName = data?.starterIsland?.name || 'あなたの島';
-                window.__pendingFirstMapMessages.push(rpgSay.islandGained(islandName));
-                const starterIslandId = data?.starterIsland?.islandId || null;
-                const starterMapId = data?.starterIsland?.mapId || null;
-                const tutorialDone = typeof localStorage !== 'undefined'
-                    && localStorage.getItem('tutorialFirstIslandDone') === 'true';
-                if (starterIslandId && starterMapId && !tutorialDone) {
-                    window.__pendingFirstMapMessages.push(rpgSay.tutorialNav());
-                    window.__pendingFirstMapNav = {
-                        islandId: starterIslandId,
-                        mapId: starterMapId,
-                        label: islandName
-                    };
-                    window.__tutorialFirstIsland = {
-                        islandId: starterIslandId,
-                        mapId: starterMapId,
-                        stage: 'nav'
-                    };
-                }
-            }
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
             try {
@@ -1298,13 +1277,6 @@ function showRaceModal(options = {}) {
                 }
             } catch (fortuneError) {
                 console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
-            }
-            if (window.__pendingFirstMapNav?.islandId && window.__pendingFirstMapNav?.mapId) {
-                await showTab('map', playerInfo, {
-                    skipMapSelect: true,
-                    mapId: window.__pendingFirstMapNav.mapId,
-                    mapLabel: window.__pendingFirstMapNav.mapId
-                });
             }
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';

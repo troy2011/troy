@@ -1908,31 +1908,7 @@ app.post('/api/set-race', async (req, res) => {
             }
         }
 
-        let starterIsland = null;
-        let createdStarterIsland = false;
-        try {
-            const collections = await firestore.listCollections();
-            const mapCollections = collections.filter((col) => String(col.id || '').startsWith('world_map'));
-            let hasExisting = false;
-            for (const col of mapCollections) {
-                const snapshot = await col.where('ownerId', '==', playFabId).limit(1).get();
-                if (!snapshot.empty) {
-                    hasExisting = true;
-                    break;
-                }
-            }
-            if (!hasExisting) {
-                starterIsland = await createStarterIsland({
-                    playFabId,
-                    raceName,
-                    nationIsland: nationData.Nation,
-                    displayName: displayName || null
-                });
-                createdStarterIsland = !!starterIsland?.created;
-            }
-        } catch (e) {
-            console.warn('[starterIsland] Failed to create starter island:', e?.errorMessage || e?.message || e);
-        }
+        const starterIsland = null;
 
         const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
         try {
@@ -1961,13 +1937,6 @@ app.post('/api/set-race', async (req, res) => {
             } catch (e) {
                 console.warn('[app-invite] Failed to update invite usage:', e?.errorMessage || e?.message || e);
             }
-        }
-
-        if (createdStarterIsland) {
-            const nationLabelMap = { fire: '火', water: '水', earth: '地', wind: '風' };
-            const nationLabel = nationLabelMap[assignedNation] || assignedNation || '不明';
-            const nameLabel = displayName || playFabId;
-            chat.addGlobalChatMessage(`${nationLabel}の国に「${nameLabel}」が生まれた！`, 'システム');
         }
 
         res.json({
