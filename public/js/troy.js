@@ -44,6 +44,7 @@ const TROY_GROUP_BY_NATION = {
 };
 
 const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ', 'オレンジＪ'];
+const TROY_SHOCHU_MIXER_OPTIONS = ['水割り', 'ソーダ割り', 'お湯割り', 'ロック', 'ストレート'];
 
 function buildTroyItemSpritePath(fileName) {
     const normalized = String(fileName || '').trim();
@@ -57,38 +58,41 @@ const TROY_PRODUCT_MENUS = {
         items: []
     },
     appetizer: {
-        title: '貯蔵品 (軽いおつまみ)',
+        title: 'おつまみ',
         items: []
     },
     dryfood: {
-        title: '略奪品 (乾きもの)',
+        title: '乾きもの',
         items: [
-            { concept: '船室のチョコ片', content: 'チョコ', price: 500, image: 'https://loremflickr.com/640/420/chocolate?lock=5147', emoji: '🍫', iconImage: buildTroyItemSpritePath('Dark Chocolate Bar.png') },
-            { concept: '航海士のミックスナッツ', content: 'ミックスナッツ', price: 500, image: 'https://loremflickr.com/640/420/mixed,nuts?lock=5148', emoji: '🥜', iconImage: buildTroyItemSpritePath('Cashew.png') }
+            { concept: 'ポテチ', content: '', price: 400, emoji: '🥔' },
+            { concept: 'チョコ', content: '', price: 500, emoji: '🍫', iconImage: buildTroyItemSpritePath('Dark Chocolate Bar.png') },
+            { concept: 'ミックスナッツ', content: '', price: 500, emoji: '🥜', iconImage: buildTroyItemSpritePath('Cashew.png') }
         ]
     },
     hotfood: {
-        title: '船上の宴 (温かい料理)',
+        title: '温かい料理',
         items: [
-            { concept: '黄金ポテト', content: 'フライドポテト', price: 500, image: 'https://loremflickr.com/640/420/french,fries?lock=5106', emoji: '🍟', iconImage: buildTroyItemSpritePath('Fries.png') },
-            { concept: '海賊肉ナゲット', content: 'チキンナゲット', price: 500, image: 'https://loremflickr.com/640/420/chicken,nuggets?lock=5142', emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
-            { concept: '甲板のピザパン', content: 'ピザトースト', price: 500, image: 'https://loremflickr.com/640/420/pizza,toast?lock=5143', emoji: '🍞', iconImage: buildTroyItemSpritePath('Pizza Cracker.png') },
-            { concept: 'クラーケンの足', content: 'フランクフルト', price: 500, image: 'https://loremflickr.com/640/420/frankfurt,sausage?lock=5144', emoji: '🐙', iconImage: buildTroyItemSpritePath('Cooked Sausage.png') },
-            { concept: '人魚のワッフル', content: 'ワッフル', price: 500, image: 'https://loremflickr.com/640/420/waffle?lock=5145', emoji: '🧇', iconImage: buildTroyItemSpritePath('Waffle.png') },
-            { concept: '港のチュロス', content: 'チュロス', price: 500, image: 'https://loremflickr.com/640/420/churros?lock=5146', emoji: '🥨', iconImage: buildTroyItemSpritePath('Churro.png') },
-            { concept: '夜更けの甲板ヌードル', content: 'カップラーメン', price: 500, image: 'https://loremflickr.com/640/420/cup,noodle?lock=5149', emoji: '🍜', iconImage: buildTroyItemSpritePath('Take Out.png') }
+            { concept: 'フライドポテト', content: '', price: 500, emoji: '🍟', iconImage: buildTroyItemSpritePath('Fries.png') },
+            { concept: 'チキンナゲット', content: '', price: 500, emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
+            { concept: 'ピザトースト', content: '', price: 500, emoji: '🍕', iconImage: buildTroyItemSpritePath('Pizza Cracker.png') },
+            { concept: 'フランクフルト', content: '', price: 500, emoji: '🌭', iconImage: buildTroyItemSpritePath('Cooked Sausage.png') },
+            { concept: 'ワッフル', content: '', price: 500, emoji: '🧇', iconImage: buildTroyItemSpritePath('Waffle.png') },
+            { concept: 'チュロス', content: '', price: 500, emoji: '🥨', iconImage: buildTroyItemSpritePath('Churro.png') },
+            { concept: 'カップラーメン', content: '', price: 500, emoji: '🍜', iconImage: buildTroyItemSpritePath('Take Out.png') }
         ]
     },
     main: {
-        title: '腹の糧 (主食)',
+        title: '主食',
         items: []
     },
     points: {
         title: 'ゴールド',
         items: [
-            { concept: '600G', content: 'ゴールド購入', price: 5000, image: 'https://loremflickr.com/640/420/coin?lock=5112' },
-            { concept: '350G', content: 'ゴールド購入', price: 3000, image: 'https://loremflickr.com/640/420/coin?lock=5113' },
-            { concept: '100G', content: 'ゴールド購入', price: 1000, image: 'https://loremflickr.com/640/420/coin?lock=5114' }
+            { concept: '5000G', content: 'ゴールド購入', price: 5000, emoji: '🪙' },
+            { concept: '3000G', content: 'ゴールド購入', price: 3000, emoji: '🪙' },
+            { concept: '2000G', content: 'ゴールド購入', price: 2000, emoji: '🪙' },
+            { concept: '1000G', content: 'ゴールド購入', price: 1000, emoji: '🪙' },
+            { concept: '500G', content: 'ゴールド購入', price: 500, emoji: '🪙' }
         ]
     }
 };
@@ -96,11 +100,11 @@ const TROY_PRODUCT_MENUS = {
 const TROY_DAY_CAFE_DRINK_ITEMS = [];
 
 const TROY_NON_ALCOHOL_EXTRA_ITEMS = [
-    { concept: 'ソフトコーラ', content: 'コーラ', price: 500, image: 'https://loremflickr.com/640/420/cola?lock=5137', emoji: '🥤' },
-    { concept: '港のジンジャー', content: 'ジンジャーエール', price: 500, image: 'https://loremflickr.com/640/420/ginger,ale?lock=5138', emoji: '🥤' },
-    { concept: '陽だまりオレンジ', content: 'オレンジジュース', price: 500, image: 'https://loremflickr.com/640/420/orange,juice?lock=5136', emoji: '🧃' },
-    { concept: 'ノンアルコールビール', content: '瓶', price: 600, image: 'https://loremflickr.com/640/420/nonalcoholic,beer?lock=5140', emoji: '🍺' },
-    { concept: '船上ウーロン', content: 'ウーロン茶', price: 500, image: 'https://loremflickr.com/640/420/oolong,tea?lock=5135', emoji: '🫖' }
+    { concept: 'コーラ', content: '', price: 400, emoji: '🥤' },
+    { concept: 'ジンジャーエール', content: '', price: 400, emoji: '🥤' },
+    { concept: 'オレンジジュース', content: '', price: 400, emoji: '🧃' },
+    { concept: 'ウーロン茶', content: '', price: 400, emoji: '🫖' },
+    { concept: 'ノンアルコールビール（ハイネケン）', content: '小瓶', price: 500, emoji: '🍺' }
 ];
 
 const TROY_ALCOHOL_ITEMS = [
@@ -109,8 +113,10 @@ const TROY_ALCOHOL_ITEMS = [
     { concept: 'テキーラ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
     { concept: 'ジン', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
     { concept: 'リキュール', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🍸' },
-    { concept: 'ビール', content: '中瓶', price: 800, image: 'https://loremflickr.com/640/420/beer?lock=5141', emoji: '🍺' },
-    { concept: 'ワインボトル', content: '赤 / 白を選択', price: 3000, image: 'https://loremflickr.com/640/420/wine,bottle?lock=5139', mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
+    { concept: '焼酎（キンミヤ）', content: '割り方を選択', price: 500, mixers: TROY_SHOCHU_MIXER_OPTIONS, optionLabelName: '割り方', emoji: '🍶' },
+    { concept: 'ビール（ハートランド）', content: '小瓶', price: 600, emoji: '🍺' },
+    { concept: 'グラスワイン', content: '赤 / 白を選択', price: 500, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' },
+    { concept: 'ワインボトル', content: '赤 / 白を選択', price: 3000, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
 ];
 
 function getNonAlcoholDrinkMenuData() {
