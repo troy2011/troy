@@ -2,6 +2,15 @@ import { callApiWithLoader, createRequestId } from 'api';
 
 const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
+const SOUND_STORAGE_KEY = 'troy-orders-sound-enabled';
+const ORDER_SOUND_SOURCES = {
+    default: '/audio/troy-order-default.mp3',
+    premium: '/audio/troy-order-premium.mp3',
+    drink: '/audio/troy-order-drink.mp3',
+    food: '/audio/troy-order-food.mp3',
+    entry: '/audio/troy-order-entry.mp3'
+};
+const ORDER_SOUND_PRIORITY = ['premium', 'entry', 'drink', 'food', 'default'];
 
 let refreshTimer = null;
 let sseSource = null;
@@ -11,6 +20,7 @@ let busy = false;
 let seenOrderIds = new Set();
 let hasRenderedOnce = false;
 let pendingSettleCard = null;
+let soundEnabled = false;
 
 function $(id) {
     return document.getElementById(id);
@@ -130,26 +140,81 @@ function sortEntries(entries = []) {
     return rows;
 }
 
-function collectOrderIds(entries = []) {
-    const ids = new Set();
+function getStoredSoundEnabled() {
+    try {
+        return localStorage.getItem(SOUND_STORAGE_KEY) === 'true';
+    } catch (_) {
+        return false;
+    }
+}
+
+function setStoredSoundEnabled(enabled) {
+    try {
+        localStorage.setItem(SOUND_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch (_) {
+    }
+}
+
+function updateSoundToggle() {
+    const btn = $('troyOrdersSoundToggle');
+    if (!btn) return;
+    btn.textContent = soundEnabled ? 'Sound ON' : 'Sound OFF';
+    btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
+    btn.classList.toggle('is-enabled', soundEnabled);
+}
+
+function getOrderSoundKey(item = {}) {
+    const name = String(item.name || '').trim();
+    const orderId = String(item.orderId || '').trim();
+    const price = Math.max(0, Number(item.lineTotal) || (Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1));
+    if (orderId.startsWith('troy-entry:') || /入店|チャージ/.test(name)) return 'entry';
+    if (price >= 2800 || /ボトル|キンミヤ|ゴールド購入|5000G|3000G|2000G/.test(name)) return 'premium';
+    if (/ポテ|チョコ|ナッツ|フライ|ナゲット|ピザ|フランク|ワッフル|チュロス|ラーメン/.test(name)) return 'food';
+    if (/ラム|ウォッカ|テキーラ|ジン|リキュール|焼酎|ビール|ワイン|コーラ|ジンジャー|オレンジ|ウーロン|ノンアル|水割り|ソーダ|お茶|レモン|トニック/.test(name)) return 'drink';
+    return 'default';
+}
+
+function pickOrderSoundKey(items = []) {
+    const keys = new Set(items.map(getOrderSoundKey));
+    return ORDER_SOUND_PRIORITY.find((key) => keys.has(key)) || 'default';
+}
+
+function playOrderSound(key = 'default') {
+    if (!soundEnabled || typeof Audio === 'undefined') return;
+    const src = ORDER_SOUND_SOURCES[key] || ORDER_SOUND_SOURCES.default;
+    try {
+        const audio = new Audio(src);
+        audio.volume = 0.9;
+        const result = audio.play();
+        if (result?.catch) result.catch((error) => console.warn('[troy-orders-sound] play blocked:', error));
+    } catch (error) {
+        console.warn('[troy-orders-sound] play failed:', error);
+    }
+}
+
+function collectOrderItems(entries = []) {
+    const rows = [];
     entries.forEach((entry) => {
         (Array.isArray(entry.items) ? entry.items : []).forEach((item) => {
-            const id = String(item.orderId || '').trim();
-            if (id) ids.add(id);
+            const rawId = String(item.orderId || '').trim();
+            const id = rawId || `${entry.playFabId || ''}:${item.name || ''}:${item.orderedAtMs || ''}:${item.lineTotal || ''}`;
+            if (id) rows.push({ id, item });
         });
     });
-    return ids;
+    return rows;
 }
 
 function flashForNewOrders(entries = []) {
-    const nextIds = collectOrderIds(entries);
+    const nextItems = collectOrderItems(entries);
+    const nextIds = new Set(nextItems.map((row) => row.id));
     if (hasRenderedOnce) {
-        const hasNew = [...nextIds].some((id) => !seenOrderIds.has(id));
-        if (hasNew) {
+        const newItems = nextItems.filter((row) => !seenOrderIds.has(row.id)).map((row) => row.item);
+        if (newItems.length > 0) {
             document.body.classList.remove('is-new-order-flash');
             void document.body.offsetWidth;
             document.body.classList.add('is-new-order-flash');
             setTimeout(() => document.body.classList.remove('is-new-order-flash'), 1800);
+            playOrderSound(pickOrderSoundKey(newItems));
         }
     }
     seenOrderIds = nextIds;
@@ -400,6 +465,15 @@ function stopAutoRefresh() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    soundEnabled = getStoredSoundEnabled();
+    updateSoundToggle();
+    $('troyOrdersSoundToggle')?.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        setStoredSoundEnabled(soundEnabled);
+        updateSoundToggle();
+        if (soundEnabled) playOrderSound('default');
+    });
+
     const sortEl = $('troyOrdersSort');
     if (sortEl) {
         sortEl.value = getStoredSortMode();

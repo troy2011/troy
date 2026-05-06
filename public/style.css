@@ -14479,6 +14479,7 @@ textarea {
 }
 
 .troy-orders-refresh,
+.troy-orders-sound-toggle,
 .troy-orders-settle button {
     border: 0;
     border-radius: 8px;
@@ -14488,9 +14489,20 @@ textarea {
     cursor: pointer;
 }
 
-.troy-orders-refresh {
+.troy-orders-refresh,
+.troy-orders-sound-toggle {
     min-height: 42px;
     padding: 0 18px;
+}
+
+.troy-orders-sound-toggle {
+    background: rgba(148, 163, 184, 0.18);
+    color: #e2e8f0;
+}
+
+.troy-orders-sound-toggle.is-enabled {
+    background: #22c55e;
+    color: #06210f;
 }
 
 .troy-orders-summary {
