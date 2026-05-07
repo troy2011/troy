@@ -1661,7 +1661,7 @@ app.post('/api/create-app-invite', async (req, res) => {
 
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
-    const { playFabId, raceName, displayName, inviteToken } = req.body || {};
+    const { playFabId, raceName, displayName, inviteToken, inviteNation } = req.body || {};
     const completeGuestRegistrationRequest = req.body?.completeGuestRegistration === true;
     const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
@@ -1713,7 +1713,19 @@ app.post('/api/set-race', async (req, res) => {
         const completeGuestRegistration = completeGuestRegistrationRequest && isGuest && !!nation.getNationMappingByNation(prevNation);
 
         setRaceStep = 'resolve-invite';
-        const inviteAssignment = completeGuestRegistration ? null : await resolveAppInviteAssignment(inviteToken);
+        const fixedInviteNation = String(inviteNation || '').trim().toLowerCase();
+        const fixedInviteMapping = fixedInviteNation ? nation.getNationMappingByNation(fixedInviteNation) : null;
+        if (fixedInviteNation && !fixedInviteMapping) {
+            return res.status(400).json({ error: 'InvalidInviteNation' });
+        }
+        const tokenInviteAssignment = completeGuestRegistration ? null : await resolveAppInviteAssignment(inviteToken);
+        const fixedInviteAssignment = (!completeGuestRegistration && fixedInviteMapping) ? {
+            mapping: fixedInviteMapping,
+            nation: fixedInviteNation,
+            inviterPlayFabId: '',
+            inviterDisplayName: ''
+        } : null;
+        const inviteAssignment = fixedInviteAssignment || tokenInviteAssignment;
         setRaceStep = 'resolve-mapping';
         const mapping = completeGuestRegistration
             ? nation.getNationMappingByNation(prevNation)

@@ -41,6 +41,7 @@ let buildingMetaPromise = null;
 let shipCatalogPromise = null;
 let pendingAppInviteToken = '';
 let pendingAppInviteInfo = null;
+let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 const TAROT_MODULE_VERSION = '20260323a';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -62,6 +63,7 @@ const NATION_LABEL_BY_KEY = {
     wind: '風',
     earth: '地'
 };
+const VALID_NATION_KEYS = Object.freeze(Object.keys(NATION_LABEL_BY_KEY));
 const LINE_FRIEND_BONUS_STORAGE_KEY = 'troy:line-friend-bonus-claimed';
 
 installPlayerProfileInteractions();
@@ -206,6 +208,11 @@ function normalizeInviteToken(value) {
     return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
 }
 
+function normalizeNationKey(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return VALID_NATION_KEYS.includes(key) ? key : '';
+}
+
 function getTroyEntryRequestFromUrl() {
     const params = new URLSearchParams(window.location.search || '');
     const action = String(params.get('action') || params.get('entry') || '').trim().toLowerCase();
@@ -225,32 +232,55 @@ function clearTroyEntryParamsFromUrl() {
 
 function removeInviteTokenFromUrl() {
     const url = new URL(window.location.href);
-    if (!url.searchParams.has('invite')) return;
+    if (!url.searchParams.has('invite') && !url.searchParams.has('inviteNation')) return;
     url.searchParams.delete('invite');
+    url.searchParams.delete('inviteNation');
     window.history.replaceState({}, document.title, url.href);
 }
 
 function syncPendingAppInviteTokenFromUrl() {
     const params = new URLSearchParams(window.location.search || '');
     pendingAppInviteToken = normalizeInviteToken(params.get('invite'));
+    pendingFixedInviteNation = normalizeNationKey(params.get('inviteNation'));
     window.__pendingAppInviteToken = pendingAppInviteToken;
-    if (!pendingAppInviteToken) {
+    window.__pendingFixedInviteNation = pendingFixedInviteNation;
+    if (!pendingAppInviteToken && !pendingFixedInviteNation) {
         pendingAppInviteInfo = null;
     }
-    return pendingAppInviteToken;
+    return pendingAppInviteToken || pendingFixedInviteNation;
 }
 
 function clearPendingAppInviteState({ removeFromUrl = false } = {}) {
     pendingAppInviteToken = '';
+    pendingFixedInviteNation = '';
     pendingAppInviteInfo = null;
     window.__pendingAppInviteToken = '';
+    window.__pendingFixedInviteNation = '';
     if (removeFromUrl) {
         removeInviteTokenFromUrl();
     }
 }
 
 async function getPendingAppInviteInfo(force = false) {
-    const token = pendingAppInviteToken || syncPendingAppInviteTokenFromUrl();
+    syncPendingAppInviteTokenFromUrl();
+    const token = pendingAppInviteToken;
+    const fixedNation = pendingFixedInviteNation;
+    if (fixedNation) {
+        const key = `fixed:${fixedNation}`;
+        if (!force && pendingAppInviteInfo?.token === key) {
+            return pendingAppInviteInfo.valid ? pendingAppInviteInfo : null;
+        }
+        pendingAppInviteInfo = {
+            token: key,
+            valid: true,
+            fixedNation: true,
+            inviterDisplayName: 'TROY',
+            inviterPlayFabId: '',
+            nation: fixedNation,
+            expiresAtMs: 0
+        };
+        return pendingAppInviteInfo;
+    }
     if (!token) return null;
     if (!force && pendingAppInviteInfo?.token === token) {
         return pendingAppInviteInfo.valid ? pendingAppInviteInfo : null;
@@ -306,14 +336,15 @@ async function copyTextToClipboard(text) {
 }
 
 async function createAndCopyInviteLink() {
-    if (!myPlayFabId) throw new Error('PlayFabId が未初期化です');
-    const data = await callApiWithLoader('/api/create-app-invite', {
-        playFabId: myPlayFabId
-    }, { throwOnError: true });
-    const inviteUrl = String(data?.inviteUrl || '').trim();
-    if (!inviteUrl) throw new Error('招待URLの生成に失敗しました');
+    const nation = normalizeNationKey(window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation);
+    if (!nation) throw new Error('所属国が未設定のため招待URLを作れません');
+    const url = new URL(window.location.origin || window.location.href);
+    url.pathname = '/';
+    url.search = '';
+    url.searchParams.set('inviteNation', nation);
+    const inviteUrl = url.href;
     await copyTextToClipboard(inviteUrl);
-    showRpgMessage(`招待URLをコピーしました。相手は ${getNationLabel(data?.nation)}の国 で開始します。`, 2600);
+    showRpgMessage(`招待URLをコピーしました。相手は ${getNationLabel(nation)}の国 で開始します。`, 2600);
 }
 
 function getStoredLineFriendClaimMarker() {
@@ -1193,7 +1224,8 @@ async function autoAssignRace() {
         entityKey,
         entityToken: window.myEntityToken,
         displayName,
-        inviteToken: inviteInfo?.valid ? pendingAppInviteToken : '',
+        inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
+        inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : '',
         completeGuestRegistration: false
     });
 
@@ -1287,7 +1319,8 @@ function showRaceModal(options = {}) {
             entityKey,
             entityToken: window.myEntityToken,
             displayName: displayName || window.myLineProfile?.displayName || '',
-            inviteToken: inviteInfo?.valid ? pendingAppInviteToken : '',
+            inviteToken: inviteInfo?.valid && !inviteInfo.fixedNation ? pendingAppInviteToken : '',
+            inviteNation: inviteInfo?.valid && inviteInfo.fixedNation ? inviteInfo.nation : '',
             completeGuestRegistration
         });
         if (raceMessageEl) raceMessageEl.innerText = '（島と船を準備中...）';
