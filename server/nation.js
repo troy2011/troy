@@ -1733,6 +1733,14 @@ function isTroyUndoProtectedItem(item = {}) {
     return name === '入店チャージ';
 }
 
+function isDeprecatedTroyCoinPurchaseItem(item = {}) {
+    const name = String(item?.name || item?.itemName || '').trim();
+    const content = String(item?.content || '').trim();
+    return content.includes('ゴールド購入')
+        || name.includes('ゴールド購入')
+        || /^[1-9]\d{2,5}G$/i.test(name);
+}
+
 function buildStoredTroyCheckoutItem(item = {}) {
     const normalized = normalizeTroyCheckoutItems([item])[0];
     if (!normalized) return null;
@@ -2978,6 +2986,9 @@ function initializeNationRoutes(app, deps) {
             if (!normalizedItems.length) {
                 return res.status(400).json({ error: 'NoItems' });
             }
+            if (normalizedItems.some((item) => isDeprecatedTroyCoinPurchaseItem(item))) {
+                return res.status(400).json({ error: 'TroyCoinPurchaseDisabled' });
+            }
 
             const total = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             if (!Number.isFinite(total) || total <= 0) {
@@ -3050,6 +3061,9 @@ function initializeNationRoutes(app, deps) {
             const orderAmount = Math.max(0, priceValue * safeQty);
             if (!orderAmount) {
                 return res.status(400).json({ error: 'InvalidOrderAmount' });
+            }
+            if (isDeprecatedTroyCoinPurchaseItem({ name: itemName })) {
+                return res.status(400).json({ error: 'TroyCoinPurchaseDisabled' });
             }
             const orderLine = `${String(itemName)}${safeQty > 1 ? ` x${safeQty}` : ''}`;
 

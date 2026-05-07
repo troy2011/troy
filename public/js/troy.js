@@ -34,7 +34,7 @@ let _statusSnapshotState = {
     menuSpecials: []
 };
 
-const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'bottle', 'bottleset', 'food', 'points'];
+const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'bottle', 'bottleset', 'food'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GROUP_BY_NATION = {
     fire: 'nation_fire_island',
@@ -94,16 +94,6 @@ const TROY_PRODUCT_MENUS = {
     main: {
         title: '主食',
         items: []
-    },
-    points: {
-        title: 'ゴールド',
-        items: [
-            { concept: '5000G', content: 'ゴールド購入', price: 5000, emoji: '🪙' },
-            { concept: '3000G', content: 'ゴールド購入', price: 3000, emoji: '🪙' },
-            { concept: '2000G', content: 'ゴールド購入', price: 2000, emoji: '🪙' },
-            { concept: '1000G', content: 'ゴールド購入', price: 1000, emoji: '🪙' },
-            { concept: '500G', content: 'ゴールド購入', price: 500, emoji: '🪙' }
-        ]
     }
 };
 
@@ -474,8 +464,6 @@ function getMenuSubnote(menuId) {
             return '🧊 ボトル用セット';
         case 'food':
             return '🍴 フード';
-        case 'points':
-            return '🪙 ゴールド';
         default:
             return '';
     }
