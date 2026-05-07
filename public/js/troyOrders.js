@@ -4,13 +4,13 @@ const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
 const SOUND_STORAGE_KEY = 'troy-orders-sound-enabled';
 const ORDER_SOUND_SOURCES = {
-    default: '/audio/troy-order-default.mp3',
-    premium: '/audio/troy-order-premium.mp3',
-    drink: '/audio/troy-order-drink.mp3',
-    food: '/audio/troy-order-food.mp3',
-    entry: '/audio/troy-order-entry.mp3'
+    default: '/audio/order-count-1-missile.mp3',
+    drink: '/audio/order-count-2-cannon.mp3',
+    food: '/audio/order-count-3-sniper.mp3',
+    premium: '/audio/order-count-4-rocket-launcher.mp3',
+    entry: '/audio/order-count-5-plus-battlefield.mp3'
 };
-const ORDER_SOUND_PRIORITY = ['premium', 'entry', 'drink', 'food', 'default'];
+const ORDER_SOUND_BY_COUNT_TIER = ['default', 'drink', 'food', 'premium', 'entry'];
 
 let refreshTimer = null;
 let sseSource = null;
@@ -163,9 +163,17 @@ function updateSoundToggle() {
     btn.classList.toggle('is-enabled', soundEnabled);
 }
 
+function getOrderSoundKeyByCount(orderCountToday = 0) {
+    const count = Math.max(1, Math.floor(Number(orderCountToday) || 1));
+    if (count >= 5) return ORDER_SOUND_BY_COUNT_TIER[4];
+    return ORDER_SOUND_BY_COUNT_TIER[count - 1] || 'default';
+}
+
 function getOrderSoundKey(item = {}) {
     const name = String(item.name || '').trim();
     const orderId = String(item.orderId || '').trim();
+    const orderCountToday = Math.max(0, Math.floor(Number(item.orderCountToday) || 0));
+    if (orderCountToday > 0) return getOrderSoundKeyByCount(orderCountToday);
     const price = Math.max(0, Number(item.lineTotal) || (Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1));
     if (orderId.startsWith('troy-entry:') || /入店|チャージ/.test(name)) return 'entry';
     if (price >= 2800 || /ボトル|キンミヤ|ゴールド購入|5000G|3000G|2000G/.test(name)) return 'premium';
@@ -175,8 +183,14 @@ function getOrderSoundKey(item = {}) {
 }
 
 function pickOrderSoundKey(items = []) {
-    const keys = new Set(items.map(getOrderSoundKey));
-    return ORDER_SOUND_PRIORITY.find((key) => keys.has(key)) || 'default';
+    const ranked = items
+        .map(getOrderSoundKey)
+        .map((key) => ORDER_SOUND_BY_COUNT_TIER.indexOf(key))
+        .filter((index) => index >= 0);
+    if (ranked.length > 0) {
+        return ORDER_SOUND_BY_COUNT_TIER[Math.max(...ranked)] || 'default';
+    }
+    return 'default';
 }
 
 function playOrderSound(key = 'default') {

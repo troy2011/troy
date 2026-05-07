@@ -1518,6 +1518,127 @@ app.post('/api/get-app-invite-info', async (req, res) => {
     }
 });
 
+app.post('/api/apply-app-invite', async (req, res) => {
+    const { playFabId, inviteToken, inviteNation, displayName } = req.body || {};
+    const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+    if (!authenticatedPlayFabId) return;
+
+    try {
+        const fixedInviteNation = String(inviteNation || '').trim().toLowerCase();
+        const fixedInviteMapping = fixedInviteNation ? nation.getNationMappingByNation(fixedInviteNation) : null;
+        if (fixedInviteNation && !fixedInviteMapping) {
+            return res.status(400).json({ error: 'InvalidInviteNation' });
+        }
+        const tokenInviteAssignment = fixedInviteMapping ? null : await resolveAppInviteAssignment(inviteToken);
+        const inviteAssignment = fixedInviteMapping ? {
+            mapping: fixedInviteMapping,
+            nation: fixedInviteNation,
+            inviterPlayFabId: '',
+            inviterDisplayName: ''
+        } : tokenInviteAssignment;
+        if (!inviteAssignment?.mapping || !inviteAssignment?.nation) {
+            return res.status(400).json({ error: 'InviteRequired' });
+        }
+
+        const targetNation = String(inviteAssignment.nation || '').trim().toLowerCase();
+        const targetMapping = nation.getNationMappingByNation(targetNation);
+        if (!targetMapping) return res.status(400).json({ error: 'InvalidInviteNation' });
+
+        const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Keys: ['Nation', 'BaseDisplayName', 'IsKing']
+        });
+        const prevNation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+        const isKing = String(readOnly?.Data?.IsKing?.Value || '').trim().toLowerCase() === 'true';
+        if (isKing) {
+            return res.json({
+                success: true,
+                skipped: true,
+                reason: 'IsKing',
+                changed: false,
+                previousNation: prevNation || null,
+                nation: prevNation || null
+            });
+        }
+        const baseDisplayName = String(readOnly?.Data?.BaseDisplayName?.Value || displayName || '').trim();
+        const changed = prevNation !== targetNation;
+        const deps = createDependencies();
+        const targetGroup = await nation.ensureNationGroupExists(firestore, targetMapping, deps);
+        const playerEntity = await getEntityKeyFromPlayFabId(authenticatedPlayFabId);
+        if (!playerEntity?.Id || !playerEntity?.Type) {
+            return res.status(400).json({ error: 'Failed to resolve player entity' });
+        }
+
+        await ensureTitleEntityToken();
+        if (changed && prevNation) {
+            const prevMapping = nation.getNationMappingByNation(prevNation);
+            if (prevMapping) {
+                try {
+                    const prevGroup = await nation.ensureNationGroupExists(firestore, prevMapping, deps);
+                    await promisifyPlayFab(PlayFabGroups.RemoveMembers, {
+                        Group: { Id: prevGroup.groupId, Type: 'group' },
+                        Members: [playerEntity]
+                    });
+                } catch (error) {
+                    console.warn('[apply-app-invite] RemoveMembers failed:', error?.errorMessage || error?.message || error);
+                }
+            }
+        }
+
+        try {
+            await promisifyPlayFab(PlayFabGroups.AddMembers, {
+                Group: { Id: targetGroup.groupId, Type: 'group' },
+                Members: [playerEntity]
+            });
+        } catch (error) {
+            const msg = String(error?.errorMessage || error?.message || error);
+            if (!msg.includes('EntityIsAlreadyMember')) throw error;
+        }
+
+        const displayResult = await ensureNationDisplayName(authenticatedPlayFabId, targetNation, baseDisplayName || displayName || '');
+        const avatarColor = nation.getAvatarColorForNation(targetNation) || 'brown';
+        await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+            PlayFabId: authenticatedPlayFabId,
+            Data: {
+                Nation: targetNation,
+                BaseDisplayName: displayResult.baseName || baseDisplayName || displayName || '',
+                AvatarColor: avatarColor,
+                IsKing: 'false',
+                InvitedByPlayFabId: inviteAssignment.inviterPlayFabId || '',
+                InvitedByDisplayName: inviteAssignment.inviterDisplayName || '',
+                InviteAcceptedAt: String(Date.now()),
+                ...(changed ? { NationChangedAt: String(Date.now()) } : {})
+            },
+            KeysToRemove: ['NationGroupId', 'NationGroupName', 'NationKingId']
+        });
+
+        if (inviteAssignment?.recordRef) {
+            try {
+                await inviteAssignment.recordRef.set({
+                    inviterNation: targetNation,
+                    useCount: admin.firestore.FieldValue.increment(1),
+                    lastAcceptedPlayFabId: authenticatedPlayFabId,
+                    lastAcceptedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.warn('[apply-app-invite] Failed to update invite usage:', error?.errorMessage || error?.message || error);
+            }
+        }
+
+        return res.json({
+            success: true,
+            changed,
+            previousNation: prevNation || null,
+            nation: targetNation,
+            avatarColor
+        });
+    } catch (error) {
+        const message = error?.errorMessage || error?.message || String(error);
+        console.error('[apply-app-invite] Error:', message);
+        return res.status(500).json({ error: 'Failed to apply invite', details: message });
+    }
+});
+
 app.post('/api/get-line-friend-bonus-status', async (req, res) => {
     const { playFabId } = req.body || {};
     const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);

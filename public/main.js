@@ -347,6 +347,36 @@ async function createAndCopyInviteLink() {
     showRpgMessage(`招待URLをコピーしました。相手は ${getNationLabel(nation)}の国 で開始します。`, 2600);
 }
 
+async function applyPendingAppInviteForExistingAccount() {
+    const inviteInfo = await getPendingAppInviteInfo();
+    if (!inviteInfo?.valid || !inviteInfo.nation || !myPlayFabId) return null;
+    const result = await callApiWithLoader('/api/apply-app-invite', {
+        playFabId: myPlayFabId,
+        inviteToken: inviteInfo.fixedNation ? '' : pendingAppInviteToken,
+        inviteNation: inviteInfo.fixedNation ? inviteInfo.nation : '',
+        displayName: window.myLineProfile?.displayName || ''
+    }, { isSilent: true, throwOnError: true });
+    if (result?.skipped && result?.reason === 'IsKing') {
+        showRpgMessage('王アカウントのため、招待URLによる所属国変更は行いません。', 2600);
+        return result;
+    }
+    const nation = normalizeNationKey(result?.nation);
+    if (nation) {
+        const avatarColor = getAvatarColorForNation(nation);
+        myAvatarBaseInfo = {
+            ...myAvatarBaseInfo,
+            Nation: nation,
+            AvatarColor: avatarColor || myAvatarBaseInfo.AvatarColor || 'brown',
+            IsGuest: false
+        };
+        window.myAvatarBaseInfo = myAvatarBaseInfo;
+    }
+    if (result?.changed) {
+        showRpgMessage(`${getNationLabel(nation)}の国へ所属を変更しました。`, 2600);
+    }
+    return result;
+}
+
 function getStoredLineFriendClaimMarker() {
     try {
         return String(window.localStorage.getItem(LINE_FRIEND_BONUS_STORAGE_KEY) || '').trim();
@@ -675,6 +705,7 @@ async function initializeLiff() {
                     document.getElementById('appWrapper').style.display = 'block';
                     autoAssignRace();
                 } else {
+                    await applyPendingAppInviteForExistingAccount();
                     clearPendingAppInviteState({ removeFromUrl: true });
                     await initializeAppFeatures();
                     __perfLog('initializeAppFeatures done');

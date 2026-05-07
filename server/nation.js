@@ -632,6 +632,59 @@ async function addTroyDailySales(nation, amount, firestore, admin) {
     return { dayKey, total: nextTotal, count: nextCount };
 }
 
+async function incrementTroyDailyOrderCount(nation, playFabId, firestore, admin) {
+    const mapping = getNationMappingByNation(nation);
+    const memberId = normalizePlayFabId(playFabId);
+    if (!mapping || !memberId || !firestore || !admin) return 1;
+    const dayKey = getJapanDayKey();
+    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+    let nextCount = 1;
+    await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const data = snap.data() || {};
+        const currentDayKey = String(data.troyTodayOrderCountsDayKey || '').trim();
+        const currentCounts = currentDayKey === dayKey && data.troyTodayOrderCounts && typeof data.troyTodayOrderCounts === 'object'
+            ? data.troyTodayOrderCounts
+            : {};
+        const nextCounts = { ...currentCounts };
+        nextCount = Math.max(0, Math.floor(Number(nextCounts[memberId]) || 0)) + 1;
+        nextCounts[memberId] = nextCount;
+        tx.set(docRef, {
+            troyTodayOrderCountsDayKey: dayKey,
+            troyTodayOrderCounts: nextCounts,
+            troyTodayOrderCountsUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    });
+    return nextCount;
+}
+
+async function decrementTroyDailyOrderCount(nation, playFabId, firestore, admin) {
+    const mapping = getNationMappingByNation(nation);
+    const memberId = normalizePlayFabId(playFabId);
+    if (!mapping || !memberId || !firestore || !admin) return null;
+    const dayKey = getJapanDayKey();
+    const docRef = getNationGroupDoc(firestore, mapping.groupName);
+    let nextCount = 0;
+    await firestore.runTransaction(async (tx) => {
+        const snap = await tx.get(docRef);
+        const data = snap.data() || {};
+        const currentDayKey = String(data.troyTodayOrderCountsDayKey || '').trim();
+        if (currentDayKey !== dayKey) return;
+        const currentCounts = data.troyTodayOrderCounts && typeof data.troyTodayOrderCounts === 'object'
+            ? data.troyTodayOrderCounts
+            : {};
+        const nextCounts = { ...currentCounts };
+        nextCount = Math.max(0, Math.floor(Number(nextCounts[memberId]) || 0) - 1);
+        if (nextCount > 0) nextCounts[memberId] = nextCount;
+        else delete nextCounts[memberId];
+        tx.set(docRef, {
+            troyTodayOrderCounts: nextCounts,
+            troyTodayOrderCountsUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    });
+    return nextCount;
+}
+
 function buildTroyTodaySalesSnapshot(groupData = {}) {
     const todayDayKey = getJapanDayKey();
     const storedDayKey = String(groupData?.troyTodaySalesDayKey || '').trim();
@@ -1653,6 +1706,7 @@ function normalizeTroyCheckoutItems(items = []) {
             const orderedAtMs = Math.max(0, Math.floor(Number(item?.orderedAtMs) || 0));
             const undoUntilMs = Math.max(0, Math.floor(Number(item?.undoUntilMs) || 0));
             const servedAtMs = Math.max(0, Math.floor(Number(item?.servedAtMs) || 0));
+            const orderCountToday = Math.max(0, Math.floor(Number(item?.orderCountToday) || 0));
             const itemStatus = servedAtMs > 0 || String(item?.status || '').trim().toLowerCase() === 'served'
                 ? 'served'
                 : 'pending';
@@ -1666,6 +1720,7 @@ function normalizeTroyCheckoutItems(items = []) {
                 orderedAtMs,
                 undoUntilMs,
                 servedAtMs,
+                orderCountToday,
                 status: itemStatus,
                 lineTotal: price * quantity
             };
@@ -1692,6 +1747,7 @@ function buildStoredTroyCheckoutItem(item = {}) {
     if (normalized.orderedAtMs > 0) stored.orderedAtMs = normalized.orderedAtMs;
     if (normalized.undoUntilMs > 0) stored.undoUntilMs = normalized.undoUntilMs;
     if (normalized.servedAtMs > 0) stored.servedAtMs = normalized.servedAtMs;
+    if (normalized.orderCountToday > 0) stored.orderCountToday = normalized.orderCountToday;
     if (normalized.status === 'served') stored.status = 'served';
     return stored;
 }
@@ -3037,6 +3093,12 @@ function initializeNationRoutes(app, deps) {
 
             const existingItems = checkoutStatus === 'open' && Array.isArray(checkoutData.items) ? checkoutData.items : [];
             const storedGrantAmount = grantApplied ? grantAmount : 0;
+            let orderCountToday = 1;
+            try {
+                orderCountToday = await incrementTroyDailyOrderCount(nation, memberId, firestore, admin);
+            } catch (countError) {
+                console.warn('[troy-order] Daily order count update failed:', countError?.message || countError);
+            }
             const nextItem = buildStoredTroyCheckoutItem({
                 name: String(itemName || '').trim(),
                 price: priceValue,
@@ -3045,6 +3107,7 @@ function initializeNationRoutes(app, deps) {
                 cashbackRateBps,
                 orderId,
                 orderedAtMs,
+                orderCountToday,
                 undoUntilMs: orderedAtMs + TROY_LAST_ORDER_UNDO_WINDOW_MS
             });
             const nextItems = existingItems.concat(nextItem ? [nextItem] : []);
@@ -3245,6 +3308,14 @@ function initializeNationRoutes(app, deps) {
                     return res.status(409).json({ error: 'CheckoutChanged' });
                 }
                 throw transactionError;
+            }
+
+            if (Math.max(0, Number(lastItem.orderCountToday) || 0) > 0) {
+                try {
+                    await decrementTroyDailyOrderCount(nation, memberId, firestore, admin);
+                } catch (countError) {
+                    console.warn('[troy-undo-last-order] Daily order count decrement failed:', countError?.message || countError);
+                }
             }
 
             let receiverBalance = null;
