@@ -1500,10 +1500,61 @@ async function updateAvatarBaseInfo() {
 // --- 機能別ロジック ---
 
 // 5. その他（ステータス、送金）
+function promptCoinConvertBeforeEntry(goldBalance) {
+    return new Promise((resolve) => {
+        const maxConvert = Math.floor(goldBalance / 100) * 100;
+        const options = [];
+        for (let v = maxConvert; v >= 100; v -= 100) {
+            options.push(`<option value="${v}">${v.toLocaleString('ja-JP')} G</option>`);
+        }
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = `
+            <div style="background:#1e293b;border-radius:18px;padding:28px 20px 20px;width:100%;max-width:320px;color:#f1f5f9;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;">TROY COIN</div>
+                <div style="font-size:17px;font-weight:700;margin-bottom:6px;">Gをコインに変換しますか？</div>
+                <div style="color:#94a3b8;font-size:13px;margin-bottom:18px;">所持: <strong style="color:#fbbf24;">${goldBalance.toLocaleString('ja-JP')} G</strong></div>
+                <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:18px;appearance:auto;">
+                    ${options.join('')}
+                </select>
+                <div style="display:flex;gap:10px;">
+                    <button id="__troyEntryCoinSkip" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">このまま入店</button>
+                    <button id="__troyEntryCoinOk" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer;">変換して入店</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#__troyEntryCoinSkip').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(0);
+        });
+        overlay.querySelector('#__troyEntryCoinOk').addEventListener('click', () => {
+            const sel = overlay.querySelector('#__troyEntryCoinSel');
+            const amount = Math.floor(Number(sel?.value || 0) / 100) * 100;
+            document.body.removeChild(overlay);
+            resolve(amount >= 100 ? amount : 0);
+        });
+    });
+}
+
 async function handleTroyEntryRequestAfterLogin() {
     const entryRequest = getTroyEntryRequestFromUrl();
     if (!entryRequest || !myPlayFabId) return;
     try {
+        const { points: goldBalance } = await Player.getPoints(myPlayFabId, { isSilent: true }) || {};
+        if ((goldBalance || 0) >= 100) {
+            const convertAmount = await promptCoinConvertBeforeEntry(goldBalance);
+            if (convertAmount >= 100) {
+                try {
+                    await callApiWithLoader('/api/use-points', { playFabId: myPlayFabId, amount: convertAmount }, { isSilent: true, throwOnError: true });
+                } catch (_) {
+                    showRpgMessage('コイン変換に失敗しました。そのまま入店します。', 2200);
+                }
+            }
+        }
+
         const joinBody = {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
