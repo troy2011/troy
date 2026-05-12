@@ -186,6 +186,17 @@
                         <div id="troyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
                     </div>
                 </div>
+                <div id="troyBusinessCalendarSection" class="content-area troy-calendar-section">
+                    <div class="troy-calendar-head">
+                        <div>
+                            <div class="troy-menu-title">営業カレンダー</div>
+                            <div id="troyBusinessCalendarMeta" class="troy-calendar-meta">今後の営業予定</div>
+                        </div>
+                    </div>
+                    <div id="troyBusinessCalendarList" class="troy-calendar-list">
+                        <div class="troy-calendar-empty">営業予定を読み込み中です。</div>
+                    </div>
+                </div>
                 <div id="troyMenuSection" class="content-area">
                     <div class="troy-menu">
                         <div class="troy-menu-title">メニュー</div>
@@ -219,9 +230,16 @@
                                 <div class="troy-menu-label">カテゴリ</div>
                                 <ul class="troy-menu-items">
                                     <li class="troy-menu-item-button" data-menu-id="favorite">いつもの</li>
-                                    <li class="troy-menu-item-button" data-menu-id="nonalcohol">ノンアル</li>
-                                    <li class="troy-menu-item-button" data-menu-id="alcohol">アルコール</li>
+                                    <li class="troy-menu-item-button" data-menu-id="beer">ビール</li>
+                                    <li class="troy-menu-item-button" data-menu-id="gin">ジン</li>
+                                    <li class="troy-menu-item-button" data-menu-id="vodka">ウォッカ</li>
+                                    <li class="troy-menu-item-button" data-menu-id="rum">ラム</li>
+                                    <li class="troy-menu-item-button" data-menu-id="tequila">テキーラ</li>
+                                    <li class="troy-menu-item-button" data-menu-id="liqueur">リキュール</li>
+                                    <li class="troy-menu-item-button" data-menu-id="whisky">ウイスキー</li>
+                                    <li class="troy-menu-item-button" data-menu-id="soft">ソフト</li>
                                     <li class="troy-menu-item-button" data-menu-id="food">フード</li>
+                                    <li class="troy-menu-item-button" data-menu-id="bottle">ボトル</li>
                                 </ul>
                             </li>
                         </ul>
@@ -1066,6 +1084,9 @@
                                     <strong id="kingTroySalesSummary">¥0</strong>
                                 </div>
                             </div>
+                        </div>
+                        <div class="troy-admin-card troy-king-priority-card">
+                            <div id="kingTroyCalendarMount"></div>
                         </div>
                         <div class="troy-admin-card troy-king-priority-card">
                             <div class="troy-admin-label">店内リスト</div>

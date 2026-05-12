@@ -141,6 +141,18 @@ export function cancelReservation(playFabId, reservationId, options) {
     return callApiWithLoader('/api/reservations/cancel', { playFabId, reservationId }, options);
 }
 
+export function getTroyCalendar(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-calendar/list', { playFabId, ...(payload || {}) }, options);
+}
+
+export function saveTroyCalendarEntry(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-calendar/save', { playFabId, ...(payload || {}) }, options);
+}
+
+export function deleteTroyCalendarEntry(playFabId, calendarId, options) {
+    return callApiWithLoader('/api/troy-calendar/delete', { playFabId, calendarId }, options);
+}
+
 export function getCapitalWarState(playFabId, targetNation, options) {
     return callApiWithLoader('/api/get-capital-war-state', { playFabId, targetNation }, options);
 }

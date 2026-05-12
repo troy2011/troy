@@ -2,6 +2,7 @@ const { addGlobalChatMessage } = require('./chat');
 
 const EVENT_COLLECTION = 'store_events';
 const RESERVATION_COLLECTION = 'store_reservations';
+const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
 const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
@@ -27,6 +28,7 @@ const RESERVATION_PURPOSE_LABELS = {
     consultation: '相談',
     other: 'その他'
 };
+const TROY_CALENDAR_STATUSES = new Set(['open', 'closed', 'private', 'tentative']);
 const NATION_GROUP_BY_NATION = {
     fire: { groupName: 'nation_fire_island' },
     earth: { groupName: 'nation_earth_island' },
@@ -53,6 +55,36 @@ function normalizePositiveInt(value, fallback = 0, max = 1_000_000) {
     const num = Math.floor(Number(value) || 0);
     if (!Number.isFinite(num) || num < 0) return fallback;
     return Math.min(num, max);
+}
+
+function normalizeNationKey(value) {
+    const key = normalizeString(value, 20).toLowerCase();
+    return NATION_GROUP_BY_NATION[key] ? key : '';
+}
+
+function normalizeTroyCalendarStatus(value) {
+    const key = normalizeString(value, 20).toLowerCase();
+    return TROY_CALENDAR_STATUSES.has(key) ? key : 'open';
+}
+
+function normalizeTimeText(value, fallback = '19:00') {
+    const raw = normalizeString(value, 5);
+    if (!/^\d{2}:\d{2}$/.test(raw)) return fallback;
+    const [hh, mm] = raw.split(':').map((part) => Number(part));
+    if (!Number.isInteger(hh) || !Number.isInteger(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return fallback;
+    return raw;
+}
+
+function normalizeDateText(value) {
+    const raw = normalizeString(value, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function troyCalendarStartsAtMs(date, openTime) {
+    const safeDate = normalizeDateText(date);
+    if (!safeDate) return 0;
+    const safeTime = normalizeTimeText(openTime);
+    return toMillis(`${safeDate}T${safeTime}:00+09:00`);
 }
 
 function toMillis(value) {
@@ -160,6 +192,23 @@ function reservationDocToPayload(doc, viewerId = '', isKing = false) {
     };
 }
 
+function troyCalendarDocToPayload(doc) {
+    const data = doc.data() || {};
+    return {
+        id: doc.id,
+        nation: data.nation || '',
+        date: data.date || '',
+        openTime: data.openTime || '',
+        closeTime: data.closeTime || '',
+        status: data.status || 'open',
+        title: data.title || '',
+        note: data.note || '',
+        startsAtMs: Number(data.startsAtMs || 0),
+        updatedAtMs: Number(data.updatedAtMs || 0),
+        updatedBy: data.updatedBy || ''
+    };
+}
+
 async function getDisplayName(playFabId, deps) {
     if (!playFabId) return '';
     try {
@@ -257,6 +306,118 @@ function initializeEventRoutes(app, deps) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') return playFabId;
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
+
+    app.post('/api/troy-calendar/list', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        const playFabId = requestedPlayFabId ? await requireAuthed(req, res, requestedPlayFabId) : '';
+        if (requestedPlayFabId && !playFabId) return;
+        try {
+            const requestedNation = normalizeNationKey(req.body?.nation || req.body?.troyNation);
+            const playerNation = playFabId ? normalizeNationKey(await getNationForPlayer(playFabId, deps)) : '';
+            const targetNation = requestedNation || playerNation;
+            if (!targetNation) return res.json({ success: true, nation: '', calendar: [] });
+
+            const now = Date.now();
+            const snap = await firestore
+                .collection(TROY_CALENDAR_COLLECTION)
+                .where('nation', '==', targetNation)
+                .limit(200)
+                .get();
+            const calendar = snap.docs
+                .map(troyCalendarDocToPayload)
+                .filter((entry) => Number(entry.startsAtMs || 0) >= now - (24 * 60 * 60 * 1000))
+                .sort((a, b) => Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0))
+                .slice(0, 80);
+            res.json({
+                success: true,
+                nation: targetNation,
+                calendar
+            });
+        } catch (error) {
+            console.error('[troy-calendar/list] failed:', error?.message || error);
+            res.status(500).json({ error: 'FailedToLoadTroyCalendar' });
+        }
+    });
+
+    app.post('/api/troy-calendar/save', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const playFabId = await requireAuthed(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            const viewerIsKing = await isKing(playFabId, deps);
+            if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
+            const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
+            if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
+
+            const date = normalizeDateText(req.body?.date);
+            const openTime = normalizeTimeText(req.body?.openTime, '19:00');
+            const closeTime = normalizeTimeText(req.body?.closeTime, '23:59');
+            const startsAtMs = troyCalendarStartsAtMs(date, openTime);
+            if (!date || !startsAtMs) return res.status(400).json({ error: '営業日を入力してください。' });
+
+            const calendarId = normalizeString(req.body?.calendarId || req.body?.id, 100);
+            const ref = calendarId
+                ? firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId)
+                : firestore.collection(TROY_CALENDAR_COLLECTION).doc();
+            if (calendarId) {
+                const before = await ref.get();
+                if (!before.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
+                if (normalizeNationKey(before.data()?.nation) !== kingNation) {
+                    return res.status(403).json({ error: 'OtherNationCalendarEntry' });
+                }
+            }
+
+            const payload = {
+                nation: kingNation,
+                date,
+                openTime,
+                closeTime,
+                status: normalizeTroyCalendarStatus(req.body?.status),
+                title: normalizeString(req.body?.title, 80) || 'TROY営業',
+                note: normalizeString(req.body?.note, 300),
+                startsAtMs,
+                updatedBy: playFabId,
+                updatedAtMs: Date.now(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (!calendarId) {
+                payload.createdBy = playFabId;
+                payload.createdAtMs = Date.now();
+                payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await ref.set(payload, { merge: true });
+            res.json({ success: true, nation: kingNation, entry: troyCalendarDocToPayload(await ref.get()) });
+        } catch (error) {
+            console.error('[troy-calendar/save] failed:', error?.message || error);
+            res.status(500).json({ error: 'FailedToSaveTroyCalendar' });
+        }
+    });
+
+    app.post('/api/troy-calendar/delete', async (req, res) => {
+        const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
+        const calendarId = normalizeString(req.body?.calendarId || req.body?.id, 100);
+        if (!requestedPlayFabId || !calendarId) return res.status(400).json({ error: 'playFabId and calendarId are required' });
+        const playFabId = await requireAuthed(req, res, requestedPlayFabId);
+        if (!playFabId) return;
+        try {
+            const viewerIsKing = await isKing(playFabId, deps);
+            if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
+            const kingNation = normalizeNationKey(await getNationForPlayer(playFabId, deps));
+            if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
+            const ref = firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId);
+            const snap = await ref.get();
+            if (!snap.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
+            if (normalizeNationKey(snap.data()?.nation) !== kingNation) {
+                return res.status(403).json({ error: 'OtherNationCalendarEntry' });
+            }
+            await ref.delete();
+            res.json({ success: true, deleted: true, calendarId });
+        } catch (error) {
+            console.error('[troy-calendar/delete] failed:', error?.message || error);
+            res.status(500).json({ error: 'FailedToDeleteTroyCalendar' });
+        }
+    });
 
     app.post('/api/events/list', async (req, res) => {
         const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);

@@ -4,7 +4,8 @@ import {
     getTroyStatus,
     joinTroy,
     sendTroyOrder,
-    undoTroyLastOrder
+    undoTroyLastOrder,
+    getTroyCalendar
 } from './playfabClient.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
@@ -13,15 +14,17 @@ let _wired = false;
 let _menuWired = false;
 let _lastStatus = null;
 let _checkoutSession = null;
-let _menuActiveId = 'nonalcohol';
+let _menuActiveId = 'beer';
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
+const _menuSizeByKey = new Map();
 let _undoCountdownTimerId = 0;
 let _favoriteDrinkEntries = [];
 let _pendingAutoLeaveNotice = false;
 let _pendingAutoLeaveTimerId = 0;
 let _menuDisabled = [];
 let _menuSpecials = [];
+let _businessCalendar = [];
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
 let _statusCheckoutUnsubscribe = null;
@@ -34,7 +37,9 @@ let _statusSnapshotState = {
     menuSpecials: []
 };
 
-const TROY_MENU_IDS = ['favorite', 'nonalcohol', 'alcohol', 'bottle', 'bottleset', 'food'];
+const TROY_ORDER_ENTRY_ENABLED = false;
+const TROY_CHECKOUT_ENABLED = false;
+const TROY_MENU_IDS = ['favorite', 'beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GROUP_BY_NATION = {
     fire: 'nation_fire_island',
@@ -43,18 +48,24 @@ const TROY_GROUP_BY_NATION = {
     water: 'nation_water_island'
 };
 
-const TROY_SPIRIT_MIXER_OPTIONS = ['コーラ', 'トニック', 'ジンジャー', 'ソーダ', 'オレンジＪ'];
-const TROY_SHOCHU_MIXER_OPTIONS = ['水割り', 'ソーダ割り', 'お湯割り', 'ロック', 'ストレート'];
-
 const TROY_BOTTLE_ITEMS = [
-    { concept: 'キンミヤ焼酎（720ml）', content: 'ボトルキープ', price: 2800, emoji: '🍶' }
+    { concept: 'キンミヤボトル', content: '割物はスタッフまで', price: 2500, emoji: '🍶' },
+    { concept: '黒霧島ボトル', content: '割物はスタッフまで', price: 4500, emoji: '🍾' },
+    { concept: 'ワイン各種', content: '赤・白・シャンパン / ASK', price: 0, emoji: '🍷', disabled: true }
 ];
 
-const TROY_BOTTLE_SET_ITEMS = [
-    { concept: '水割りセット', content: '氷・水', price: 500, emoji: '🧊' },
-    { concept: 'ソーダ / お茶割り用', content: '', price: 600, emoji: '🫙' },
-    { concept: 'カットレモン', content: '', price: 100, emoji: '🍋' }
+const TROY_ALCOHOL_SIZE_OPTIONS = [
+    { label: 'S', price: 500 },
+    { label: 'M', price: 700 }
 ];
+
+function withAlcoholSizes(items = []) {
+    return items.map((item) => ({ ...item, sizeOptions: TROY_ALCOHOL_SIZE_OPTIONS }));
+}
+
+function withAlcoholSize(item = {}) {
+    return { ...item, sizeOptions: TROY_ALCOHOL_SIZE_OPTIONS };
+}
 
 function buildTroyItemSpritePath(fileName) {
     const normalized = String(fileName || '').trim();
@@ -63,79 +74,89 @@ function buildTroyItemSpritePath(fileName) {
 }
 
 const TROY_PRODUCT_MENUS = {
-    drinks: {
-        title: 'ドリンク',
-        items: []
-    },
-    appetizer: {
-        title: 'おつまみ',
-        items: []
-    },
-    dryfood: {
-        title: '乾きもの',
+    beer: {
+        title: 'ビール・ハイボール',
         items: [
-            { concept: 'ポテチ', content: '', price: 400, emoji: '🥔' },
-            { concept: 'チョコ', content: '', price: 500, emoji: '🍫', iconImage: buildTroyItemSpritePath('Dark Chocolate Bar.png') },
-            { concept: 'ミックスナッツ', content: '', price: 500, emoji: '🥜', iconImage: buildTroyItemSpritePath('Cashew.png') }
+            { concept: '瓶ビール', content: 'ハートランド', price: 500, emoji: '🍺' },
+            withAlcoholSize({ concept: 'ハイボール', content: '角', price: 500, emoji: '🥃' }),
+            withAlcoholSize({ concept: 'シャンディガフ', content: 'ビール + ジンジャーエール', price: 500, emoji: '🍺' }),
+            { concept: 'ノンアルコール瓶ビール', content: 'ハイネケン', price: 500, emoji: '🍺' }
         ]
     },
-    hotfood: {
-        title: '温かい料理',
+    gin: {
+        title: 'ジンベース',
+        items: withAlcoholSizes([
+            { concept: 'ジントニック', content: 'トニック', price: 500, emoji: '🍸' },
+            { concept: 'ジンバック', content: 'ジンジャーエール', price: 500, emoji: '🍸' },
+            { concept: 'ジンリッキー', content: 'ソーダ', price: 500, emoji: '🍸' }
+        ])
+    },
+    vodka: {
+        title: 'ウォッカベース',
+        items: withAlcoholSizes([
+            { concept: 'モスコミュール', content: 'ジンジャーエール', price: 500, emoji: '🍹' },
+            { concept: 'スクリュードライバー', content: 'オレンジ', price: 500, emoji: '🍹' },
+            { concept: 'ウォッカトニック', content: 'トニック', price: 500, emoji: '🍹' },
+            { concept: 'ブルドッグ', content: 'グレープフルーツ', price: 500, emoji: '🍹' }
+        ])
+    },
+    rum: {
+        title: 'ラムベース',
+        items: withAlcoholSizes([
+            { concept: 'キューバリブレ', content: 'コーラ', price: 500, emoji: '🥃' },
+            { concept: 'ラムバック', content: 'ジンジャーエール', price: 500, emoji: '🥃' }
+        ])
+    },
+    tequila: {
+        title: 'テキーラベース',
+        items: withAlcoholSizes([
+            { concept: 'テキーラサンライズ', content: 'オレンジ', price: 500, emoji: '🍹' },
+            { concept: 'メキシコーラ', content: 'コーラ', price: 500, emoji: '🥃' }
+        ])
+    },
+    liqueur: {
+        title: 'リキュール・その他',
+        items: withAlcoholSizes([
+            { concept: 'カシス', content: '割り物を選択', price: 500, mixers: ['オレンジ', 'ソーダ', 'ウーロン'], emoji: '🍷' },
+            { concept: 'ファジーネーブル', content: 'ピーチ + オレンジ', price: 500, emoji: '🍑' },
+            { concept: 'スプモーニ', content: 'カンパリ + グレープフルーツ + トニック', price: 500, emoji: '🍊' },
+            { concept: 'レモンサワー', content: '', price: 500, emoji: '🍋' },
+            { concept: 'グレープフルーツサワー', content: '', price: 500, emoji: '🍊' }
+        ])
+    },
+    whisky: {
+        title: 'ウイスキー・焼酎・ワイン',
         items: [
-            { concept: 'フライドポテト', content: '', price: 500, emoji: '🍟', iconImage: buildTroyItemSpritePath('Fries.png') },
-            { concept: 'チキンナゲット', content: '', price: 500, emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
-            { concept: 'ピザトースト', content: '', price: 500, emoji: '🍕', iconImage: buildTroyItemSpritePath('Pizza Cracker.png') },
-            { concept: 'フランクフルト', content: '', price: 500, emoji: '🌭', iconImage: buildTroyItemSpritePath('Cooked Sausage.png') },
-            { concept: 'ワッフル', content: '', price: 500, emoji: '🧇', iconImage: buildTroyItemSpritePath('Waffle.png') },
-            { concept: 'チュロス', content: '', price: 500, emoji: '🥨', iconImage: buildTroyItemSpritePath('Churro.png') },
-            { concept: 'カップラーメン', content: '', price: 500, emoji: '🍜', iconImage: buildTroyItemSpritePath('Take Out.png') }
+            { concept: 'ウイスキー', content: '飲み方を選択', price: 500, mixers: ['ロック', '水割り'], optionLabelName: '飲み方', emoji: '🥃' },
+            { concept: '焼酎', content: '種類を選択', price: 500, mixers: ['サトウキビ', '芋', '麦'], optionLabelName: '種類', emoji: '🍶' },
+            { concept: 'グラスワイン', content: '赤 / 白を選択', price: 500, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
         ]
     },
-    main: {
-        title: '主食',
-        items: []
+    soft: {
+        title: 'ソフトドリンク',
+        items: [
+            { concept: 'ウーロン茶', content: '', price: 500, emoji: '🫖' },
+            { concept: 'オレンジジュース', content: '', price: 500, emoji: '🧃' },
+            { concept: 'グレープフルーツジュース', content: '', price: 500, emoji: '🧃' },
+            { concept: 'コーラ', content: '', price: 500, emoji: '🥤' },
+            { concept: 'ジンジャーエール', content: '', price: 500, emoji: '🥤' }
+        ]
+    },
+    food: {
+        title: '酒場のフード',
+        items: [
+            { concept: '漬けチーズ', content: '', price: 500, emoji: '🧀' },
+            { concept: 'うずらの味玉', content: '', price: 500, emoji: '🥚' },
+            { concept: 'ナゲット', content: '', price: 500, emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
+            { concept: '韓国のり', content: '', price: 500, emoji: '◼️' },
+            { concept: '梅水晶', content: '', price: 500, emoji: '🥢' }
+        ]
     }
 };
 
-const TROY_DAY_CAFE_DRINK_ITEMS = [];
-
-const TROY_NON_ALCOHOL_EXTRA_ITEMS = [
-    { concept: 'コーラ', content: '', price: 400, emoji: '🥤' },
-    { concept: 'ジンジャーエール', content: '', price: 400, emoji: '🥤' },
-    { concept: 'オレンジジュース', content: '', price: 400, emoji: '🧃' },
-    { concept: 'ウーロン茶', content: '', price: 400, emoji: '🫖' },
-    { concept: 'ノンアルコールビール（ハイネケン）', content: '小瓶', price: 500, emoji: '🍺' }
-];
-
-const TROY_ALCOHOL_ITEMS = [
-    { concept: 'ラム', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
-    { concept: 'ウォッカ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
-    { concept: 'テキーラ', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
-    { concept: 'ジン', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🥃' },
-    { concept: 'リキュール', content: '割り物を選択', price: 500, mixers: TROY_SPIRIT_MIXER_OPTIONS, emoji: '🍸' },
-    { concept: '焼酎（キンミヤ）', content: '割り方を選択', price: 500, mixers: TROY_SHOCHU_MIXER_OPTIONS, optionLabelName: '割り方', emoji: '🍶' },
-    { concept: 'ビール（ハートランド）', content: '小瓶', price: 600, emoji: '🍺' },
-    { concept: 'グラスワイン', content: '赤 / 白を選択', price: 500, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' },
-    { concept: 'ワインボトル', content: '赤 / 白を選択', price: 3000, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
-];
-
-function getNonAlcoholDrinkMenuData() {
-    return {
-        title: 'ノンアル',
-        items: [...TROY_DAY_CAFE_DRINK_ITEMS, ...TROY_NON_ALCOHOL_EXTRA_ITEMS]
-    };
-}
-
-function getAlcoholDrinkMenuData() {
-    return {
-        title: 'アルコール',
-        items: TROY_ALCOHOL_ITEMS
-    };
-}
-
 function isFavoritableMenuId(menuId, item = null) {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
-    return sourceMenuId === 'nonalcohol' || sourceMenuId === 'alcohol' || sourceMenuId === 'food';
+    return TROY_MENU_IDS.includes(sourceMenuId) && sourceMenuId !== 'favorite' && sourceMenuId !== 'bottle';
 }
 
 function getItemOptionChoices(item = null) {
@@ -147,12 +168,31 @@ function getItemOptionFieldLabel(item = null) {
     return label || '割り物';
 }
 
-function buildFavoriteDrinkId(menuId, item, optionLabel = '') {
+function getItemSizeChoices(item = null) {
+    return Array.isArray(item?.sizeOptions) ? item.sizeOptions : [];
+}
+
+function normalizeSizeLabel(item = null, value = '') {
+    const choices = getItemSizeChoices(item);
+    if (!choices.length) return '';
+    const raw = String(value || '').trim();
+    return choices.some((choice) => String(choice.label) === raw) ? raw : String(choices[0].label);
+}
+
+function getItemEffectivePrice(item = null, sizeLabel = '') {
+    const choices = getItemSizeChoices(item);
+    const normalizedSize = normalizeSizeLabel(item, sizeLabel || item?.sizeLabel || '');
+    const selected = choices.find((choice) => String(choice.label) === normalizedSize);
+    return parseYenPrice(selected?.price || item?.price);
+}
+
+function buildFavoriteDrinkId(menuId, item, optionLabel = '', sizeLabel = '') {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
     const concept = String(item?.concept || item?.name || '').trim().toLowerCase();
-    const price = parseYenPrice(item?.price);
+    const size = normalizeSizeLabel(item, sizeLabel || item?.sizeLabel || '').toLowerCase();
+    const price = getItemEffectivePrice(item, sizeLabel || item?.sizeLabel || '');
     const option = String(optionLabel || item?.optionLabel || '').trim().toLowerCase();
-    return `${sourceMenuId}:${concept}:${price}:${option}`;
+    return `${sourceMenuId}:${concept}:${price}:${option}:${size}`;
 }
 
 function sanitizeFavoriteDrinkEntry(entry = {}) {
@@ -171,6 +211,8 @@ function sanitizeFavoriteDrinkEntry(entry = {}) {
         emoji: String(entry?.emoji || '').trim(),
         iconImage: String(entry?.iconImage || '').trim(),
         optionLabel,
+        sizeLabel: String(entry?.sizeLabel || '').trim(),
+        sizeOptions: Array.isArray(entry?.sizeOptions) ? entry.sizeOptions : [],
         optionLabelName: String(entry?.optionLabelName || '').trim(),
         savedAtMs: Math.max(0, Math.floor(Number(entry?.savedAtMs) || Date.now()))
     };
@@ -208,34 +250,39 @@ function loadFavoriteDrinkEntries(playFabId = window.myPlayFabId) {
     }
 }
 
-function buildFavoriteDrinkEntry(menuId, item, optionLabel = '') {
+function buildFavoriteDrinkEntry(menuId, item, optionLabel = '', sizeLabel = '') {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
     const normalizedOption = String(optionLabel || item?.optionLabel || '').trim();
+    const normalizedSize = normalizeSizeLabel(item, sizeLabel || item?.sizeLabel || '');
+    const detailParts = [];
+    if (normalizedOption) detailParts.push(`${getItemOptionFieldLabel(item)}: ${normalizedOption}`);
+    else if (item?.content) detailParts.push(String(item.content).trim());
+    if (normalizedSize) detailParts.push(`サイズ: ${normalizedSize}`);
     return sanitizeFavoriteDrinkEntry({
-        favoriteId: buildFavoriteDrinkId(sourceMenuId, item, normalizedOption),
+        favoriteId: buildFavoriteDrinkId(sourceMenuId, item, normalizedOption, normalizedSize),
         menuId: sourceMenuId,
         concept: String(item?.concept || item?.name || '').trim(),
-        content: normalizedOption
-            ? `${getItemOptionFieldLabel(item)}: ${normalizedOption}`
-            : String(item?.content || '').trim(),
-        price: parseYenPrice(item?.price),
+        content: detailParts.filter(Boolean).join(' / '),
+        price: getItemEffectivePrice(item, normalizedSize),
         image: item?.image,
         emoji: item?.emoji || getMenuItemEmoji(item),
         iconImage: item?.iconImage || '',
         optionLabel: normalizedOption,
+        sizeLabel: normalizedSize,
+        sizeOptions: getItemSizeChoices(item),
         optionLabelName: getItemOptionFieldLabel(item),
         savedAtMs: Date.now()
     });
 }
 
-function isFavoriteDrink(menuId, item, optionLabel = '') {
-    const favoriteId = buildFavoriteDrinkId(menuId, item, optionLabel);
+function isFavoriteDrink(menuId, item, optionLabel = '', sizeLabel = '') {
+    const favoriteId = buildFavoriteDrinkId(menuId, item, optionLabel, sizeLabel);
     return !!favoriteId && _favoriteDrinkEntries.some((entry) => entry.favoriteId === favoriteId);
 }
 
-function toggleFavoriteDrink(menuId, item, optionLabel = '') {
+function toggleFavoriteDrink(menuId, item, optionLabel = '', sizeLabel = '') {
     if (!isFavoritableMenuId(menuId, item)) return false;
-    const entry = buildFavoriteDrinkEntry(menuId, item, optionLabel);
+    const entry = buildFavoriteDrinkEntry(menuId, item, optionLabel, sizeLabel);
     if (!entry?.favoriteId) return false;
     const existingIndex = _favoriteDrinkEntries.findIndex((row) => row.favoriteId === entry.favoriteId);
     if (existingIndex >= 0) {
@@ -256,31 +303,17 @@ function getFavoriteDrinkMenuData() {
 }
 
 function getFoodMenuData() {
-    return {
-        title: 'フード',
-        items: [
-            ...TROY_PRODUCT_MENUS.appetizer.items,
-            ...TROY_PRODUCT_MENUS.dryfood.items,
-            ...TROY_PRODUCT_MENUS.hotfood.items,
-            ...TROY_PRODUCT_MENUS.main.items
-        ]
-    };
+    return TROY_PRODUCT_MENUS.food;
 }
 
 function getMenuDataById(menuId) {
     switch (menuId) {
         case 'favorite':
             return getFavoriteDrinkMenuData();
-        case 'nonalcohol':
-            return getNonAlcoholDrinkMenuData();
-        case 'alcohol':
-            return getAlcoholDrinkMenuData();
         case 'food':
             return getFoodMenuData();
         case 'bottle':
-            return { title: 'ボトルキープ', items: TROY_BOTTLE_ITEMS };
-        case 'bottleset':
-            return { title: 'ボトル用セット', items: TROY_BOTTLE_SET_ITEMS };
+            return { title: 'BOTTLE MENU', items: TROY_BOTTLE_ITEMS };
         case 'specials':
             return _menuSpecials.length > 0
                 ? { title: 'おすすめ', items: _menuSpecials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
@@ -316,6 +349,22 @@ function setMenuItemOption(menuId, item, index, value) {
     const key = getMenuItemKey(menuId, item, index);
     const normalized = choices.includes(String(value || '').trim()) ? String(value).trim() : choices[0];
     _menuOptionByKey.set(key, normalized);
+    return normalized;
+}
+
+function getMenuItemSize(menuId, item, index) {
+    const choices = getItemSizeChoices(item);
+    if (!choices.length) return '';
+    const key = getMenuItemKey(menuId, item, index);
+    return normalizeSizeLabel(item, _menuSizeByKey.get(key));
+}
+
+function setMenuItemSize(menuId, item, index, value) {
+    const choices = getItemSizeChoices(item);
+    if (!choices.length) return '';
+    const key = getMenuItemKey(menuId, item, index);
+    const normalized = normalizeSizeLabel(item, value);
+    _menuSizeByKey.set(key, normalized);
     return normalized;
 }
 
@@ -363,7 +412,7 @@ function updateOrderAvailability() {
 }
 
 function canUseTroyMenu(playFabId = window.myPlayFabId) {
-    return !!_lastStatus?.isOpen && isTroyMember(_lastStatus, playFabId);
+    return TROY_ORDER_ENTRY_ENABLED && !!_lastStatus?.isOpen && isTroyMember(_lastStatus, playFabId);
 }
 
 function setMenuButtonsEnabled(enabled) {
@@ -399,11 +448,121 @@ function updateTroyRoleUI() {
     if (menuSection) {
         menuSection.style.display = 'block';
     }
+    const menuList = document.querySelector('#troyMenuSection .troy-menu-list');
+    if (menuList) {
+        menuList.hidden = !TROY_ORDER_ENTRY_ENABLED;
+    }
+    const openTabCard = document.getElementById('troyOpenTabCard');
+    if (openTabCard) openTabCard.hidden = !TROY_CHECKOUT_ENABLED;
+    const orderStatus = document.getElementById('troyOrderStatusInline');
+    if (orderStatus) orderStatus.hidden = !TROY_CHECKOUT_ENABLED;
+    const coinNote = document.getElementById('troyCoinNoteDetails');
+    if (coinNote) coinNote.hidden = !TROY_CHECKOUT_ENABLED;
+    applyOrderEntryClosedPrimaryState();
+}
+
+function applyOrderEntryClosedPrimaryState() {
+    if (TROY_ORDER_ENTRY_ENABLED) return;
+    const title = document.getElementById('troyPrimaryActionTitle');
+    const meta = document.getElementById('troyPrimaryActionMeta');
+    const button = document.getElementById('btnTroyPrimaryAction');
+    if (!title || !meta || !button || !_lastStatus?.isOpen) return;
+
+    const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
+    const session = sanitizeCheckoutSession(_checkoutSession);
+    const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
+    if (!isMember) {
+        title.textContent = '入店できます';
+        meta.textContent = '注文は現在停止中です。';
+        button.textContent = '入店';
+        button.disabled = false;
+        return;
+    }
+    if (hasOpenTab) return;
+    title.textContent = '注文は停止中';
+    meta.textContent = '現在は注文を受け付けていません。';
+    button.textContent = '停止中';
+    button.disabled = true;
 }
 
 function formatYen(value) {
     const amount = Number(value) || 0;
     return `¥${amount.toLocaleString('ja-JP')}`;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatTroyCalendarDate(ms) {
+    const value = Number(ms || 0);
+    if (!value) return '';
+    return new Intl.DateTimeFormat('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short'
+    }).format(new Date(value));
+}
+
+function getTroyCalendarStatusLabel(status) {
+    switch (String(status || '').toLowerCase()) {
+        case 'closed': return '休業';
+        case 'private': return '貸切';
+        case 'tentative': return '仮予定';
+        default: return '営業';
+    }
+}
+
+function renderTroyBusinessCalendar(entries = _businessCalendar) {
+    const listEl = document.getElementById('troyBusinessCalendarList');
+    const metaEl = document.getElementById('troyBusinessCalendarMeta');
+    if (!listEl) return;
+    const rows = Array.isArray(entries) ? entries : [];
+    if (metaEl) {
+        metaEl.textContent = rows.length ? `今後の営業予定 ${rows.length}件` : '今後の営業予定';
+    }
+    if (!rows.length) {
+        listEl.innerHTML = '<div class="troy-calendar-empty">営業予定はまだありません。</div>';
+        return;
+    }
+    listEl.innerHTML = rows.slice(0, 8).map((entry) => {
+        const status = String(entry?.status || 'open').toLowerCase();
+        const time = status === 'closed'
+            ? '休業'
+            : `${entry.openTime || '--:--'}-${entry.closeTime || '--:--'}`;
+        const note = entry.note ? `<div class="troy-calendar-note">${escapeHtml(entry.note)}</div>` : '';
+        return `
+            <div class="troy-calendar-item is-${escapeHtml(status)}">
+                <div class="troy-calendar-date">${escapeHtml(formatTroyCalendarDate(entry.startsAtMs))}</div>
+                <div class="troy-calendar-main">
+                    <div class="troy-calendar-title-row">
+                        <strong>${escapeHtml(entry.title || 'TROY営業')}</strong>
+                        <span class="troy-calendar-status">${escapeHtml(getTroyCalendarStatusLabel(status))}</span>
+                    </div>
+                    <div class="troy-calendar-time">${escapeHtml(time)}</div>
+                    ${note}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadTroyBusinessCalendar(playFabId) {
+    renderTroyBusinessCalendar([]);
+    try {
+        const result = await getTroyCalendar(playFabId, { nation: resolveTroyNationKey() }, { isSilent: true });
+        _businessCalendar = Array.isArray(result?.calendar) ? result.calendar : [];
+        renderTroyBusinessCalendar(_businessCalendar);
+    } catch (error) {
+        console.warn('[TroyCalendar] Failed:', error?.message || error);
+        const listEl = document.getElementById('troyBusinessCalendarList');
+        if (listEl) listEl.innerHTML = '<div class="troy-calendar-empty">営業予定を読み込めませんでした。</div>';
+    }
 }
 
 function updatePointsDisplays(points) {
@@ -454,30 +613,43 @@ function getMenuSubnote(menuId) {
     switch (menuId) {
         case 'favorite':
             return '★ お気に入り';
-        case 'nonalcohol':
-            return '🥤 ノンアル';
-        case 'alcohol':
-            return '🍸 アルコール';
+        case 'beer':
+            return '⚓ ビール・ハイボール';
+        case 'gin':
+            return '⚔ ジンベース';
+        case 'vodka':
+            return '☠ ウォッカベース';
+        case 'rum':
+            return '🌴 ラムベース';
+        case 'tequila':
+            return '🔥 テキーラベース';
+        case 'liqueur':
+            return '🍷 リキュール・その他';
+        case 'whisky':
+            return '🥃 ウイスキー・焼酎・ワイン';
+        case 'soft':
+            return '🥤 ソフトドリンク';
         case 'bottle':
-            return '🍶 ボトルキープ';
-        case 'bottleset':
-            return '🧊 ボトル用セット';
+            return '🍾 BOTTLE MENU';
         case 'food':
-            return '🍴 フード';
+            return '🍴 酒場のフード';
         default:
             return '';
     }
 }
 
-function getOrderItemName(item, optionLabel = '') {
+function getOrderItemName(item, optionLabel = '', sizeLabel = '') {
+    const concept = item?.concept || item?.name || '商品';
+    const parts = [];
     if (optionLabel) {
-        const concept = item?.concept || item?.name || '商品';
         const optionFieldLabel = getItemOptionFieldLabel(item);
-        return optionFieldLabel === '割り物'
-            ? `${concept} × ${optionLabel}`
-            : `${concept} (${optionLabel})`;
+        parts.push(optionFieldLabel === '割り物' ? `× ${optionLabel}` : optionLabel);
+    } else if (item?.content) {
+        parts.push(item.content);
     }
-    return item?.content ? `${item.concept} (${item.content})` : (item?.concept || item?.name || '商品');
+    const normalizedSize = normalizeSizeLabel(item, sizeLabel || item?.sizeLabel || '');
+    if (normalizedSize) parts.push(normalizedSize);
+    return parts.length ? `${concept} (${parts.join(' / ')})` : concept;
 }
 
 function normalizeCheckoutItems(items = []) {
@@ -560,6 +732,7 @@ function getUndoEligibleLastOrder(checkout = _checkoutSession, nowMs = Date.now(
 }
 
 function renderOpenTabCard() {
+    if (!TROY_CHECKOUT_ENABLED) return;
     const metaEl = document.getElementById('troyOpenTabMeta');
     const listEl = document.getElementById('troyOpenTabList');
     const undoBtn = document.getElementById('btnTroyUndoLastOrder');
@@ -652,7 +825,15 @@ function updateCheckoutStatus() {
     const menuEnabled = canUseTroyMenu();
     setMenuButtonsEnabled(menuEnabled);
     updateTroyPrimaryAction();
+    applyOrderEntryClosedPrimaryState();
     if (!status) return;
+    if (!TROY_CHECKOUT_ENABLED) {
+        status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
+            ? '注文・会計は現在停止中です。'
+            : '入店できます。注文・会計は現在停止中です。';
+        status.classList.remove('is-pending');
+        return;
+    }
     const checkoutStatus = String(session?.status || '').trim().toLowerCase();
     const hasOpenTab = checkoutStatus === 'open' || checkoutStatus === 'pending';
     if (hasOpenTab) {
@@ -670,6 +851,13 @@ function updateCheckoutStatus() {
     }
     if (!_lastStatus?.isOpen) {
         status.textContent = 'TROYはCLOSE中です。';
+        status.classList.remove('is-pending');
+        return;
+    }
+    if (!TROY_ORDER_ENTRY_ENABLED) {
+        status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
+            ? '注文は現在停止中です。'
+            : '入店できます。注文は現在停止中です。';
         status.classList.remove('is-pending');
         return;
     }
@@ -705,6 +893,12 @@ function updateTroyPrimaryAction() {
         button.disabled = true;
         return;
     }
+    if (!TROY_ORDER_ENTRY_ENABLED && !isMember) {
+        title.textContent = '入店できます';
+        meta.textContent = '注文は現在停止中です。';
+        button.textContent = '入店';
+        return;
+    }
     if (!isMember) {
         title.textContent = '入店して注文';
         meta.textContent = 'まず入店するとメニューから注文できます。';
@@ -723,6 +917,11 @@ function updateTroyPrimaryAction() {
 }
 
 function applyCheckoutFromStatus(data) {
+    if (!TROY_CHECKOUT_ENABLED) {
+        _checkoutSession = null;
+        updateCheckoutStatus();
+        return;
+    }
     const checkout = sanitizeCheckoutSession(data?.checkout || null);
     const previousStatus = String(_checkoutSession?.status || '').trim().toLowerCase();
     const nextStatus = String(checkout?.status || '').trim().toLowerCase();
@@ -759,6 +958,10 @@ function applyCheckoutFromStatus(data) {
 }
 
 async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) {
+    if (!TROY_ORDER_ENTRY_ENABLED) {
+        showTroyNotice('注文は現在停止中です。');
+        return;
+    }
     if (!isTroyMember(_lastStatus, playFabId)) {
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage('入店してから注文できます。');
@@ -767,8 +970,8 @@ async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) 
         }
         return;
     }
-    const orderName = getOrderItemName(item, item.optionLabel);
-    const normalizedPrice = parseYenPrice(item?.price);
+    const orderName = getOrderItemName(item, item.optionLabel, item.sizeLabel);
+    const normalizedPrice = getItemEffectivePrice(item, item.sizeLabel);
     const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
     if (!normalizedPrice) return;
     try {
@@ -844,6 +1047,10 @@ async function handleUndoLastOrder(playFabId) {
 }
 
 function openMenuModal(menuId) {
+    if (!TROY_ORDER_ENTRY_ENABLED) {
+        showTroyNotice('注文は現在停止中です。');
+        return;
+    }
     if (!canUseTroyMenu()) {
         if (typeof window.showRpgMessage === 'function') {
             window.showRpgMessage(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
@@ -915,6 +1122,7 @@ function openMenuModal(menuId) {
         content.textContent = item.content || '';
 
         let optionLabel = menuId === 'favorite' ? String(item?.optionLabel || '').trim() : '';
+        let sizeLabel = normalizeSizeLabel(item, menuId === 'favorite' ? String(item?.sizeLabel || '').trim() : '');
         let optionRow = null;
         const optionChoices = getItemOptionChoices(item);
         if (optionChoices.length) {
@@ -942,12 +1150,40 @@ function openMenuModal(menuId) {
             optionRow.append(optionLabelEl, optionSelect);
         }
 
+        let sizeRow = null;
+        const sizeChoices = getItemSizeChoices(item);
+        if (sizeChoices.length) {
+            sizeRow = document.createElement('div');
+            sizeRow.className = 'troy-menu-modal-option-row';
+
+            const sizeLabelEl = document.createElement('label');
+            sizeLabelEl.className = 'troy-menu-modal-option-label';
+            sizeLabelEl.textContent = 'サイズ';
+
+            const sizeSelect = document.createElement('select');
+            sizeSelect.className = 'troy-menu-mix-select';
+            sizeChoices.forEach((choice) => {
+                const optionEl = document.createElement('option');
+                optionEl.value = choice.label;
+                optionEl.textContent = `${choice.label} / ${formatYen(choice.price)}`;
+                sizeSelect.appendChild(optionEl);
+            });
+            sizeSelect.value = getMenuItemSize(menuId, item, index);
+            sizeLabel = sizeSelect.value;
+            sizeSelect.addEventListener('change', () => {
+                sizeLabel = setMenuItemSize(menuId, item, index, sizeSelect.value);
+                price.textContent = formatYen(getItemEffectivePrice(item, sizeLabel));
+                syncFavoriteButton();
+            });
+            sizeRow.append(sizeLabelEl, sizeSelect);
+        }
+
         const meta = document.createElement('div');
         meta.className = 'troy-menu-modal-item-meta';
 
         const price = document.createElement('span');
         price.className = 'troy-menu-modal-price';
-        price.textContent = formatYen(item.price);
+        price.textContent = item.disabled && !item.price ? 'ASK' : formatYen(getItemEffectivePrice(item, sizeLabel));
 
         const actions = document.createElement('div');
         actions.className = 'troy-menu-modal-item-actions';
@@ -968,10 +1204,15 @@ function openMenuModal(menuId) {
         const quickBtn = document.createElement('button');
         quickBtn.type = 'button';
         quickBtn.className = 'troy-menu-quick-btn';
-        quickBtn.textContent = '注文する';
-        quickBtn.disabled = !canUseTroyMenu() || isSoldOut;
+        const isUnavailable = !!item.disabled || !item.price;
+        quickBtn.textContent = isUnavailable ? 'スタッフまで' : '注文する';
+        quickBtn.disabled = !canUseTroyMenu() || isSoldOut || isUnavailable;
         if (isSoldOut) {
             cardEl.classList.add('is-sold-out');
+            minusBtn.disabled = true;
+            plusBtn.disabled = true;
+        }
+        if (isUnavailable) {
             minusBtn.disabled = true;
             plusBtn.disabled = true;
         }
@@ -979,7 +1220,7 @@ function openMenuModal(menuId) {
         let favoriteBtn = null;
         const syncFavoriteButton = () => {
             if (!favoriteBtn) return;
-            const active = isFavoriteDrink(menuId, item, optionLabel);
+            const active = isFavoriteDrink(menuId, item, optionLabel, sizeLabel);
             favoriteBtn.classList.toggle('is-active', active);
             favoriteBtn.textContent = active ? '★ お気に入り' : 'お気に入り';
         };
@@ -989,7 +1230,7 @@ function openMenuModal(menuId) {
             favoriteBtn.type = 'button';
             favoriteBtn.className = 'troy-menu-favorite-btn';
             favoriteBtn.addEventListener('click', () => {
-                const active = toggleFavoriteDrink(menuId, item, optionLabel);
+                const active = toggleFavoriteDrink(menuId, item, optionLabel, sizeLabel);
                 syncFavoriteButton();
                 if (_menuActiveId === 'favorite') {
                     openMenuModal('favorite');
@@ -1003,7 +1244,8 @@ function openMenuModal(menuId) {
         const syncQty = () => {
             const qty = getMenuItemQty(menuId, item, index);
             qtyDisplay.textContent = `${qty}`;
-            minusBtn.disabled = qty <= 1;
+            minusBtn.disabled = isUnavailable || qty <= 1;
+            plusBtn.disabled = isUnavailable;
         };
 
         minusBtn.addEventListener('click', () => {
@@ -1020,7 +1262,7 @@ function openMenuModal(menuId) {
 
         quickBtn.addEventListener('click', async () => {
             const qty = getMenuItemQty(menuId, item, index);
-            await submitQuickCheckout(window.myPlayFabId, { ...item, optionLabel }, qty);
+            await submitQuickCheckout(window.myPlayFabId, { ...item, optionLabel, sizeLabel }, qty);
         });
 
         syncQty();
@@ -1031,6 +1273,7 @@ function openMenuModal(menuId) {
         body.append(concept);
         if (item.content) body.append(content);
         if (optionRow) body.append(optionRow);
+        if (sizeRow) body.append(sizeRow);
         body.append(meta);
         cardEl.append(hero, body);
         list.appendChild(cardEl);
@@ -1061,6 +1304,10 @@ function wireMenuPopups() {
         button.addEventListener('click', () => {
             const targetMenuId = button.dataset.menuId;
             if (!targetMenuId) return;
+            if (!TROY_ORDER_ENTRY_ENABLED) {
+                showTroyNotice('注文は現在停止中です。');
+                return;
+            }
             if (!canUseTroyMenu()) {
                 const message = _lastStatus?.isOpen ? '入店すると注文できます。' : 'TROYはCLOSE中です。';
                 showTroyNotice(message);
@@ -1151,7 +1398,6 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
     const db = getFirestore();
     const roomRef = doc(db, 'troy_rooms', groupName);
     const membersQuery = query(collection(roomRef, 'members'), orderBy('joinedAt', 'asc'), limit(50));
-    const checkoutRef = doc(roomRef, 'checkouts', memberId);
 
     _checkoutSession = null;
     _statusSnapshotState = {
@@ -1188,6 +1434,12 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
         publishSnapshotStatus();
     }, (error) => handleSnapshotError('members', error));
 
+    if (!TROY_CHECKOUT_ENABLED) {
+        publishSnapshotStatus();
+        return true;
+    }
+
+    const checkoutRef = doc(roomRef, 'checkouts', memberId);
     _statusCheckoutUnsubscribe = onSnapshot(checkoutRef, (snapshot) => {
         if (!snapshot.exists()) {
             _statusSnapshotState.checkout = null;
@@ -1276,7 +1528,7 @@ function wireHandlers(playFabId) {
             try {
                 const result = await joinTroy(playFabId, name, { troyNation: resolveTroyNationKey() });
                 if (result) {
-                    if (result.checkout) {
+                    if (TROY_CHECKOUT_ENABLED && result.checkout) {
                         _checkoutSession = result.checkout;
                         updateCheckoutStatus();
                     }
@@ -1287,7 +1539,7 @@ function wireHandlers(playFabId) {
                     }
                     const isMember = isTroyMember(_lastStatus, playFabId);
                     if (!wasMember && isMember && typeof window.showRpgMessage === 'function') {
-                        window.showRpgMessage(result.entryChargeCreated
+                        window.showRpgMessage(TROY_CHECKOUT_ENABLED && result.entryChargeCreated
                             ? '入店しました。入店チャージを伝票に追加しました。'
                             : '入店しました。');
                     }
@@ -1308,6 +1560,7 @@ function wireHandlers(playFabId) {
             }
             const session = sanitizeCheckoutSession(_checkoutSession);
             const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
+            if (!TROY_ORDER_ENTRY_ENABLED && !hasOpenTab) return;
             const target = hasOpenTab ? document.getElementById('troyOpenTabCard') : document.querySelector('.troy-menu-list');
             target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
         });
@@ -1325,6 +1578,7 @@ export async function loadTroyPage(playFabId) {
     wireHandlers(playFabId);
     wireMenuPopups();
     updateTroyRoleUI();
+    await loadTroyBusinessCalendar(playFabId);
     await refreshStatus(playFabId);
     updateTroyRoleUI();
     attachStatusSubscription(playFabId, _lastStatus?.nation || resolveTroyNationKey());

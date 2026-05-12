@@ -3408,6 +3408,80 @@ body.modal-lock .modal-overlay {
     letter-spacing: 0.08em;
 }
 
+.troy-calendar-section {
+    margin-top: 12px;
+}
+
+.troy-calendar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.troy-calendar-meta,
+.troy-calendar-empty,
+.troy-calendar-note,
+.troy-calendar-time {
+    color: var(--text-sub);
+    font-size: 0.86rem;
+}
+
+.troy-calendar-list {
+    display: grid;
+    gap: 8px;
+}
+
+.troy-calendar-item {
+    display: grid;
+    grid-template-columns: minmax(58px, 72px) 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 10px;
+    border: 1px solid rgba(160, 132, 79, 0.35);
+    border-radius: 8px;
+    background: rgba(23, 18, 13, 0.48);
+}
+
+.troy-calendar-item.is-closed {
+    opacity: 0.72;
+}
+
+.troy-calendar-date {
+    font-weight: 800;
+    color: var(--accent-color);
+    white-space: nowrap;
+}
+
+.troy-calendar-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.troy-calendar-status {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(160, 132, 79, 0.45);
+    color: var(--accent-color);
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.troy-calendar-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.troy-calendar-actions button {
+    min-height: 30px;
+    padding: 4px 10px;
+}
+
 .troy-primary-action-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

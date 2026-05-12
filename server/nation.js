@@ -77,6 +77,7 @@ const TREASURY_CASHBACK_RATE_BPS_BY_RANK = [1300, 1100, 900, 700];
 const NATION_WAR_EVENT_LIMIT = 40;
 const NATION_WAR_STATE_COLLECTION = 'nation_wars';
 const NATION_WAR_EVENT_COLLECTION = 'nation_war_events';
+const TROY_CHECKOUT_ENABLED = false;
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
 const NATION_WAR_RECON_COST_PS = 200;
@@ -1791,6 +1792,7 @@ function buildTroyCheckoutPayload(docOrData = null) {
 }
 
 function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
+    if (!TROY_CHECKOUT_ENABLED) return [];
     return (Array.isArray(checkoutDocs) ? checkoutDocs : [])
         .map((doc) => buildTroyCheckoutPayload(doc))
         .filter((entry) => entry && (entry.status === 'open' || entry.status === 'pending'))
@@ -2914,7 +2916,7 @@ function initializeNationRoutes(app, deps) {
             });
             const memberId = normalizePlayFabId(requesterPlayFabId);
             let checkout = null;
-            if (memberId) {
+            if (TROY_CHECKOUT_ENABLED && memberId) {
                 const checkoutSnap = await roomRef.collection('checkouts').doc(memberId).get();
                 if (checkoutSnap.exists) {
                     const checkoutPayload = buildTroyCheckoutPayload(checkoutSnap);
@@ -2950,6 +2952,7 @@ function initializeNationRoutes(app, deps) {
 
     // TROY会計（セッション確定）
     app.post('/api/troy-checkout', async (req, res) => {
+        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         const { playFabId, items, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
@@ -3031,6 +3034,7 @@ function initializeNationRoutes(app, deps) {
 
     // TROY注文登録
     app.post('/api/troy-order', async (req, res) => {
+        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         const { playFabId, itemName, price, quantity, displayName } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!itemName) return res.status(400).json({ error: 'itemName is required' });
@@ -3174,6 +3178,7 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/troy-undo-last-order', async (req, res) => {
+        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         const { playFabId } = req.body || {};
         const requestId = String(req.body?.requestId || '').trim();
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
@@ -3390,6 +3395,28 @@ function initializeNationRoutes(app, deps) {
             const name = String(displayName || '').trim().slice(0, 40) || memberId;
             const memberRef = roomRef.collection('members').doc(memberId);
             const existingMemberSnap = await memberRef.get();
+            if (!TROY_CHECKOUT_ENABLED) {
+                await memberRef.set({
+                    playFabId: memberId,
+                    displayName: name,
+                    joinedAt: existingMemberSnap.exists ? (existingMemberSnap.data()?.joinedAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                pushDisplayEvent({
+                    type: 'flare',
+                    label: `蜈･蠎・ ${name}`
+                });
+                return res.json({
+                    success: true,
+                    nation,
+                    entryChargeCreated: false,
+                    entryChargeGrantAmount: 0,
+                    entryChargeGrantError: null,
+                    checkout: null,
+                    checkoutDisabled: true
+                });
+            }
             const checkoutRef = roomRef.collection('checkouts').doc(memberId);
             const checkoutSnap = await checkoutRef.get();
             const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
@@ -3778,6 +3805,15 @@ function initializeNationRoutes(app, deps) {
     }
 
     async function buildTroyOrdersPagePayload(context) {
+        if (!TROY_CHECKOUT_ENABLED) {
+            return {
+                troyOpen: true,
+                nation: context.nation,
+                troyTodaySales: { total: 0, count: 0 },
+                troyPendingCheckouts: [],
+                checkoutDisabled: true
+            };
+        }
         const checkoutSnap = await context.roomRef.collection('checkouts').limit(50).get();
         const groupSnap = await getNationGroupDoc(firestore, context.mapping.groupName).get();
         const groupData = groupSnap.data() || {};
@@ -3790,6 +3826,11 @@ function initializeNationRoutes(app, deps) {
     }
 
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
+        if (!TROY_CHECKOUT_ENABLED) {
+            const error = new Error('TroyCheckoutDisabled');
+            error.statusCode = 503;
+            throw error;
+        }
         const receiverId = normalizePlayFabId(payload.receiverPlayFabId);
         if (!receiverId) {
             const error = new Error('InvalidReceiver');
@@ -3975,6 +4016,7 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/troy-orders/item-status', async (req, res) => {
+        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         try {
             const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
             if (!context) return res.status(403).json({ error: 'TroyClosed' });
@@ -4113,6 +4155,12 @@ function initializeNationRoutes(app, deps) {
 
             send(await buildTroyOrdersPagePayload(context));
 
+            if (!TROY_CHECKOUT_ENABLED) {
+                if (!res.writableEnded) res.write('retry: 15000\n\n');
+                cleanup();
+                return;
+            }
+
             unsubCheckouts = context.roomRef.collection('checkouts').onSnapshot(async (snap) => {
                 if (closed) return;
                 try {
@@ -4150,6 +4198,7 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/king-settle-troy-checkout', async (req, res) => {
+        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         const { playFabId, receiverPlayFabId, expectedTotal } = req.body || {};
         const requestId = String(req.body?.requestId || '').trim();
         if (!playFabId || !receiverPlayFabId) {

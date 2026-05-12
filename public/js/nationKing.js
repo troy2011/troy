@@ -10,7 +10,10 @@ import {
     grantPs,
     settleTroyCheckout,
     setTroyOpen,
-    kingUpdateMenu
+    kingUpdateMenu,
+    getTroyCalendar,
+    saveTroyCalendarEntry,
+    deleteTroyCalendarEntry
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
@@ -19,6 +22,7 @@ import { formatCurrencyLabel } from './config.js';
 let _isKing = false;
 let _lastPageData = null;
 let _hasKingCheck = false;
+const TROY_CHECKOUT_ENABLED = false;
 
 function _setMessage(text, isError = false) {
     const el = document.getElementById('kingPageMessage');
@@ -169,6 +173,126 @@ function _renderTroyMembers(members = []) {
             </div>
         `;
     }).join('');
+}
+
+function _formatCalendarDate(ms) {
+    const value = Number(ms || 0);
+    if (!value) return '';
+    return new Intl.DateTimeFormat('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short'
+    }).format(new Date(value));
+}
+
+function _calendarStatusLabel(status) {
+    switch (String(status || '').toLowerCase()) {
+        case 'closed': return '休業';
+        case 'private': return '貸切';
+        case 'tentative': return '仮予定';
+        default: return '営業';
+    }
+}
+
+function _renderKingTroyCalendar(entries = []) {
+    const mount = document.getElementById('kingTroyCalendarMount');
+    if (!mount) return;
+    const rows = Array.isArray(entries) ? entries : [];
+    mount.innerHTML = `
+        <div class="troy-admin-label">営業カレンダー</div>
+        <div id="kingTroyCalendarList" class="troy-calendar-list">
+            ${rows.length ? rows.map((entry) => {
+                const status = String(entry?.status || 'open').toLowerCase();
+                const time = status === 'closed' ? '休業' : `${entry.openTime || '--:--'}-${entry.closeTime || '--:--'}`;
+                return `
+                    <div class="troy-calendar-item is-${_escapeHtml(status)}">
+                        <div class="troy-calendar-date">${_escapeHtml(_formatCalendarDate(entry.startsAtMs))}</div>
+                        <div class="troy-calendar-main">
+                            <div class="troy-calendar-title-row">
+                                <strong>${_escapeHtml(entry.title || 'TROY営業')}</strong>
+                                <span class="troy-calendar-status">${_escapeHtml(_calendarStatusLabel(status))}</span>
+                            </div>
+                            <div class="troy-calendar-time">${_escapeHtml(time)}</div>
+                            ${entry.note ? `<div class="troy-calendar-note">${_escapeHtml(entry.note)}</div>` : ''}
+                            <div class="troy-calendar-actions">
+                                <button type="button" class="btn-muted" data-calendar-edit="${_escapeHtml(entry.id)}">編集</button>
+                                <button type="button" class="btn-muted" data-calendar-delete="${_escapeHtml(entry.id)}">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<div class="troy-calendar-empty">営業予定はまだありません。</div>'}
+        </div>
+        <div class="troy-admin-field-label">営業予定を追加・編集</div>
+        <input id="kingTroyCalendarId" type="hidden" />
+        <div class="troy-admin-grid troy-calendar-form-grid">
+            <div>
+                <div class="troy-admin-field-label">日付</div>
+                <input id="kingTroyCalendarDate" type="date" class="admin-input" />
+            </div>
+            <div>
+                <div class="troy-admin-field-label">OPEN</div>
+                <input id="kingTroyCalendarOpenTime" type="time" class="admin-input" value="19:00" />
+            </div>
+            <div>
+                <div class="troy-admin-field-label">CLOSE</div>
+                <input id="kingTroyCalendarCloseTime" type="time" class="admin-input" value="23:59" />
+            </div>
+            <div>
+                <div class="troy-admin-field-label">状態</div>
+                <select id="kingTroyCalendarStatus" class="admin-input">
+                    <option value="open">営業</option>
+                    <option value="tentative">仮予定</option>
+                    <option value="private">貸切</option>
+                    <option value="closed">休業</option>
+                </select>
+            </div>
+        </div>
+        <div class="troy-admin-grid">
+            <div>
+                <div class="troy-admin-field-label">タイトル</div>
+                <input id="kingTroyCalendarTitle" type="text" class="admin-input" maxlength="80" placeholder="例: 通常営業" />
+            </div>
+            <div>
+                <div class="troy-admin-field-label">メモ</div>
+                <input id="kingTroyCalendarNote" type="text" class="admin-input" maxlength="300" placeholder="例: 21時から混雑予定" />
+            </div>
+        </div>
+        <div class="troy-admin-actions">
+            <button id="btnKingTroyCalendarSave" class="btn-open">保存</button>
+            <button id="btnKingTroyCalendarClear" class="btn-muted">クリア</button>
+        </div>
+    `;
+}
+
+async function _loadKingTroyCalendar(playFabId, nation) {
+    try {
+        const result = await getTroyCalendar(playFabId, { nation }, { isSilent: true });
+        const calendar = result?.calendar || [];
+        if (_lastPageData) _lastPageData.troyCalendar = calendar;
+        _renderKingTroyCalendar(calendar);
+    } catch (error) {
+        const mount = document.getElementById('kingTroyCalendarMount');
+        if (mount) mount.innerHTML = '<div class="troy-calendar-empty">営業予定を読み込めませんでした。</div>';
+        console.warn('[KingTroyCalendar] load failed:', error?.message || error);
+    }
+}
+
+function _clearCalendarForm() {
+    const idEl = document.getElementById('kingTroyCalendarId');
+    const dateEl = document.getElementById('kingTroyCalendarDate');
+    const openEl = document.getElementById('kingTroyCalendarOpenTime');
+    const closeEl = document.getElementById('kingTroyCalendarCloseTime');
+    const statusEl = document.getElementById('kingTroyCalendarStatus');
+    const titleEl = document.getElementById('kingTroyCalendarTitle');
+    const noteEl = document.getElementById('kingTroyCalendarNote');
+    if (idEl) idEl.value = '';
+    if (dateEl) dateEl.value = '';
+    if (openEl) openEl.value = '19:00';
+    if (closeEl) closeEl.value = '23:59';
+    if (statusEl) statusEl.value = 'open';
+    if (titleEl) titleEl.value = '';
+    if (noteEl) noteEl.value = '';
 }
 
 const _KING_MENU_ITEM_GROUPS = [
@@ -508,6 +632,7 @@ export async function loadKingPage(playFabId, options = {}) {
     const ordersLink = document.querySelector('.troy-order-page-link');
     if (ordersLink && data.nation) {
         ordersLink.href = `/troy-orders.html?nation=${encodeURIComponent(data.nation)}`;
+        ordersLink.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
     }
 
     if (treasuryEl) {
@@ -528,20 +653,21 @@ export async function loadKingPage(playFabId, options = {}) {
         salesSummaryEl.innerText = `¥${salesTotal.toLocaleString('ja-JP')}`;
     }
     if (pendingCountEl) {
-        const pendingCount = Array.isArray(data?.troyPendingCheckouts) ? data.troyPendingCheckouts.length : 0;
+        const pendingCount = TROY_CHECKOUT_ENABLED && Array.isArray(data?.troyPendingCheckouts) ? data.troyPendingCheckouts.length : 0;
         pendingCountEl.innerText = `${pendingCount}件`;
         pendingCountEl.classList.toggle('has-pending', pendingCount > 0);
     }
     _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
     _renderTroyMembers(data.troyMembers);
-    _renderPendingTroyCheckouts(data.troyPendingCheckouts);
+    _renderPendingTroyCheckouts(TROY_CHECKOUT_ENABLED ? data.troyPendingCheckouts : []);
     _renderMenuManagement(data);
+    await _loadKingTroyCalendar(playFabId, data.nation);
     if (troyStatusEl || grantCardEl) {
         const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
         if (troyStatusEl) troyStatusEl.classList.toggle('is-open', isOpen);
-        if (grantCardEl) grantCardEl.style.display = isOpen ? '' : 'none';
-        if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = isOpen ? '' : 'none';
+        if (grantCardEl) grantCardEl.style.display = isOpen && TROY_CHECKOUT_ENABLED ? '' : 'none';
+        if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = isOpen && TROY_CHECKOUT_ENABLED ? '' : 'none';
     }
     if (previewEl && grantAmountEl) {
         const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
@@ -582,6 +708,7 @@ function _wireHandlers(playFabId) {
     const warTargetPartEl = document.getElementById('kingWarTargetPart');
     const warDeployBtn = document.getElementById('btnKingWarDeploy');
     const warStrikeBtn = document.getElementById('btnKingWarStrike');
+    const calendarMountEl = document.getElementById('kingTroyCalendarMount');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
@@ -739,8 +866,8 @@ function _wireHandlers(playFabId) {
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
                 if (troyStatusEl) troyStatusEl.classList.add('is-open');
-                if (grantCardEl) grantCardEl.style.display = '';
-                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = '';
+                if (grantCardEl) grantCardEl.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
+                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをOPENにしました。');
             }
@@ -762,6 +889,89 @@ function _wireHandlers(playFabId) {
                 if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
+            }
+        });
+    }
+
+    if (calendarMountEl) {
+        calendarMountEl.addEventListener('click', async (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            const editBtn = target.closest('[data-calendar-edit]');
+            if (editBtn) {
+                const id = String(editBtn.getAttribute('data-calendar-edit') || '');
+                const entry = (_lastPageData?.troyCalendar || []).find((row) => String(row.id) === id);
+                if (!entry) return;
+                const idEl = document.getElementById('kingTroyCalendarId');
+                const dateEl = document.getElementById('kingTroyCalendarDate');
+                const openEl = document.getElementById('kingTroyCalendarOpenTime');
+                const closeEl = document.getElementById('kingTroyCalendarCloseTime');
+                const statusEl = document.getElementById('kingTroyCalendarStatus');
+                const titleEl = document.getElementById('kingTroyCalendarTitle');
+                const noteEl = document.getElementById('kingTroyCalendarNote');
+                if (idEl) idEl.value = entry.id || '';
+                if (dateEl) dateEl.value = entry.date || '';
+                if (openEl) openEl.value = entry.openTime || '19:00';
+                if (closeEl) closeEl.value = entry.closeTime || '23:59';
+                if (statusEl) statusEl.value = entry.status || 'open';
+                if (titleEl) titleEl.value = entry.title || '';
+                if (noteEl) noteEl.value = entry.note || '';
+                return;
+            }
+
+            const deleteBtn = target.closest('[data-calendar-delete]');
+            if (deleteBtn) {
+                const id = String(deleteBtn.getAttribute('data-calendar-delete') || '');
+                if (!id || !confirm('この営業予定を削除しますか？')) return;
+                const previous = deleteBtn.textContent;
+                deleteBtn.setAttribute('disabled', 'disabled');
+                deleteBtn.textContent = '削除中...';
+                try {
+                    await deleteTroyCalendarEntry(playFabId, id, { isSilent: true });
+                    await loadKingPage(playFabId);
+                    _setMessage('営業予定を削除しました。');
+                } catch (error) {
+                    _setMessage(_extractErrorMessage(error, '営業予定の削除に失敗しました。'), true);
+                    deleteBtn.removeAttribute('disabled');
+                    deleteBtn.textContent = previous;
+                }
+                return;
+            }
+
+            if (target.closest('#btnKingTroyCalendarClear')) {
+                _clearCalendarForm();
+                return;
+            }
+
+            const saveCalendarBtn = target.closest('#btnKingTroyCalendarSave');
+            if (saveCalendarBtn) {
+                const payload = {
+                    calendarId: String(document.getElementById('kingTroyCalendarId')?.value || '').trim(),
+                    date: String(document.getElementById('kingTroyCalendarDate')?.value || '').trim(),
+                    openTime: String(document.getElementById('kingTroyCalendarOpenTime')?.value || '19:00').trim(),
+                    closeTime: String(document.getElementById('kingTroyCalendarCloseTime')?.value || '23:59').trim(),
+                    status: String(document.getElementById('kingTroyCalendarStatus')?.value || 'open').trim(),
+                    title: String(document.getElementById('kingTroyCalendarTitle')?.value || '').trim(),
+                    note: String(document.getElementById('kingTroyCalendarNote')?.value || '').trim()
+                };
+                if (!payload.date) {
+                    _setMessage('営業日を入力してください。', true);
+                    return;
+                }
+                const previous = saveCalendarBtn.textContent;
+                saveCalendarBtn.setAttribute('disabled', 'disabled');
+                saveCalendarBtn.textContent = '保存中...';
+                try {
+                    await saveTroyCalendarEntry(playFabId, payload, { isSilent: true });
+                    _clearCalendarForm();
+                    await loadKingPage(playFabId);
+                    _setMessage('営業予定を保存しました。');
+                } catch (error) {
+                    _setMessage(_extractErrorMessage(error, '営業予定の保存に失敗しました。'), true);
+                    saveCalendarBtn.removeAttribute('disabled');
+                    saveCalendarBtn.textContent = previous;
+                }
             }
         });
     }
