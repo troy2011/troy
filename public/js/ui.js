@@ -1333,9 +1333,11 @@ export async function showTab(tabId, playerInfo, options = {}) {
             console.log(`Loading data for tab: ${tabId}`);
             switch (tabId) {
                 case 'home':
-                    await Player.getPlayerStats(playerInfo.playFabId);
-                    await Player.getPoints(playerInfo.playFabId);
-                    await Inventory.refreshResourceSummary(playerInfo.playFabId);
+                    await Promise.allSettled([
+                        Player.getPoints(playerInfo.playFabId),
+                        Player.getPlayerStats(playerInfo.playFabId),
+                        Inventory.refreshResourceSummary(playerInfo.playFabId)
+                    ]);
                     break;
                 case 'troy':
                     {

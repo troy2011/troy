@@ -699,7 +699,7 @@ async function initializeLiff() {
                     playFabLoginDone = false;
                     throw error;
                 }
-                await refreshPlayFabDisplayName(myPlayFabId);
+                void refreshPlayFabDisplayName(myPlayFabId);
 
                 if (loginData.needsRaceSelection) {
                     document.getElementById('appWrapper').style.display = 'block';
@@ -710,7 +710,7 @@ async function initializeLiff() {
                     await initializeAppFeatures();
                     __perfLog('initializeAppFeatures done');
                     document.getElementById('appWrapper').style.display = 'block';
-                    await NationKing.refreshKingNav(myPlayFabId);
+                    void NationKing.refreshKingNav(myPlayFabId);
 
                     // Check for help request URL parameters
                     const urlParams = new URLSearchParams(window.location.search);
@@ -1114,7 +1114,6 @@ async function initializeAppFeatures() {
     const initPromises = [
         (async () => {
             await updateAvatarBaseInfo();
-            await Inventory.getEquipment(myPlayFabId);
         })()
     ];
 
@@ -1124,7 +1123,7 @@ async function initializeAppFeatures() {
         console.warn('[initializeAppFeatures] One or more initialization tasks failed:', e);
     }
     refreshFavoritePlayersList();
-    await refreshLineFriendPromo();
+    void refreshLineFriendPromo();
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             void refreshLineFriendPromo();
