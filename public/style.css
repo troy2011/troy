@@ -14844,32 +14844,82 @@ textarea {
     display: none;
 }
 
-.troy-orders-pos {
+.troy-orders-pos-panel {
     margin: 0 0 14px;
     border: 1px solid rgba(148, 163, 184, 0.15);
     border-radius: 10px;
     overflow: hidden;
+    background: rgba(15, 23, 42, 0.4);
 }
 
-.troy-orders-pos summary {
-    list-style: none;
-    padding: 9px 14px;
-    font-size: 12px;
+.troy-orders-customer-selector {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    min-height: 44px;
+}
+
+.troy-orders-selector-label {
+    font-size: 11px;
     font-weight: 700;
     color: #94a3b8;
     letter-spacing: 0.06em;
+    flex-shrink: 0;
+    padding-top: 5px;
+}
+
+.troy-orders-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.troy-orders-customer-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(30, 41, 59, 0.6);
+    color: #cbd5e1;
+    font-size: 13px;
     cursor: pointer;
-    background: rgba(15, 23, 42, 0.6);
-    user-select: none;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
 }
 
-.troy-orders-pos summary::before {
-    content: '＋ ';
-    color: #f59e0b;
+.troy-orders-customer-chip.is-selected {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
+    color: #fbbf24;
+    font-weight: 700;
 }
 
-.troy-orders-pos[open] summary::before {
-    content: '✕ ';
+.troy-orders-no-customers {
+    font-size: 12px;
+    color: #64748b;
+    padding: 4px 0;
+}
+
+.troy-orders-pos-menu[hidden] {
+    display: none;
+}
+
+.troy-orders-pos-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.5);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.troy-orders-pos-menu-header strong {
+    color: #e2e8f0;
+    font-weight: 700;
 }
 
 .troy-orders-pos-category {

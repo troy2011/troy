@@ -60,6 +60,7 @@ let seenOrderIds = new Set();
 let hasRenderedOnce = false;
 let pendingSettleCard = null;
 let soundEnabled = false;
+let selectedCustomerId = null;
 
 function $(id) {
     return document.getElementById(id);
@@ -287,12 +288,11 @@ function updateServeSummary(entries = []) {
     if (el) el.textContent = `未提供 ${pending}件 / 提供済み ${served}件`;
 }
 
-function renderPosPanel(receiverId) {
-    const categories = STAFF_MENU.map((cat) => {
+function buildPosCategoryHtml() {
+    return STAFF_MENU.map((cat) => {
         const btns = cat.items.map((item) => `
             <button type="button" class="troy-orders-pos-btn"
                 data-add-item
-                data-receiver-id="${escapeHtml(receiverId)}"
                 data-item-name="${escapeHtml(item.name)}"
                 data-item-price="${item.price}">
                 ${escapeHtml(item.name)}<span>${formatYen(item.price)}</span>
@@ -303,7 +303,73 @@ function renderPosPanel(receiverId) {
                 <div class="troy-orders-pos-items">${btns}</div>
             </details>`;
     }).join('');
-    return `<details class="troy-orders-pos"><summary>注文を追加</summary>${categories}</details>`;
+}
+
+function rebuildPosMenu() {
+    const el = $('troyOrdersPosMenu');
+    if (!el) return;
+    if (!selectedCustomerId) {
+        el.hidden = true;
+        el.innerHTML = '';
+        return;
+    }
+    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
+    const selected = entries.find((e) => e.playFabId === selectedCustomerId);
+    if (!selected) {
+        el.hidden = true;
+        el.innerHTML = '';
+        return;
+    }
+    const total = Math.max(0, Number(selected.total) || 0);
+    const name = escapeHtml(selected.displayName || selected.playFabId || 'Player');
+    el.innerHTML = `
+        <div id="troyOrdersPosMenuHeader" class="troy-orders-pos-menu-header">
+            <span>選択中: <strong>${name}</strong></span>
+            <span>合計 <strong>${formatYen(total)}</strong></span>
+        </div>
+        ${buildPosCategoryHtml()}
+    `;
+    el.hidden = false;
+}
+
+function updatePosMenuHeader() {
+    const header = $('troyOrdersPosMenuHeader');
+    if (!header || !selectedCustomerId) return;
+    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
+    const selected = entries.find((e) => e.playFabId === selectedCustomerId);
+    if (!selected) {
+        selectedCustomerId = null;
+        rebuildPosMenu();
+        return;
+    }
+    const total = Math.max(0, Number(selected.total) || 0);
+    const name = escapeHtml(selected.displayName || selected.playFabId || 'Player');
+    header.innerHTML = `<span>選択中: <strong>${name}</strong></span><span>合計 <strong>${formatYen(total)}</strong></span>`;
+}
+
+function updateCustomerSelector(entries) {
+    const el = $('troyOrdersCustomerSelector');
+    if (!el) return;
+    if (!entries.length) {
+        el.innerHTML = '<span class="troy-orders-no-customers">お客様なし</span>';
+        return;
+    }
+    const label = '<span class="troy-orders-selector-label">客を選択:</span>';
+    const chips = entries.map((entry) => {
+        const isSelected = entry.playFabId === selectedCustomerId;
+        const total = Math.max(0, Number(entry.total) || 0);
+        const name = escapeHtml(entry.displayName || entry.playFabId || 'Player');
+        const chip = total > 0 ? `${name} ▸ ${formatYen(total)}` : name;
+        return `<button type="button" class="troy-orders-customer-chip${isSelected ? ' is-selected' : ''}" data-customer-chip data-customer-id="${escapeHtml(entry.playFabId)}">${chip}</button>`;
+    }).join('');
+    el.innerHTML = `${label}<div class="troy-orders-chips">${chips}</div>`;
+}
+
+function selectCustomer(customerId) {
+    selectedCustomerId = customerId || null;
+    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
+    updateCustomerSelector(entries);
+    rebuildPosMenu();
 }
 
 function renderCheckoutCard(entry) {
@@ -346,7 +412,6 @@ function renderCheckoutCard(entry) {
                     <span class="${pendingServeCount > 0 ? 'is-pending-serve' : 'is-served-all'}">${pendingServeCount > 0 ? `未提供 ${pendingServeCount}` : '全て提供済み'}</span>
                 </div>
             </div>
-            ${renderPosPanel(entry.playFabId)}
             <div class="troy-orders-items">${itemRows || '<div class="troy-orders-item-row"><span>注文内容なし</span></div>'}</div>
             <div class="troy-orders-settle">
                 <label>
@@ -368,6 +433,8 @@ function render(data = {}) {
     const entries = Array.isArray(data.troyPendingCheckouts) ? data.troyPendingCheckouts : [];
     flashForNewOrders(entries);
     updateServeSummary(entries);
+    updateCustomerSelector(entries);
+    updatePosMenuHeader();
     if (!entries.length) {
         list.innerHTML = '';
         empty.hidden = false;
@@ -424,16 +491,15 @@ async function settleFromCard(card) {
 }
 
 async function addItemToCheckout(button) {
-    if (!button) return;
-    const receiverId = String(button.dataset.receiverId || '').trim();
+    if (!button || !selectedCustomerId) return;
     const name = String(button.dataset.itemName || '').trim();
     const price = Math.max(0, Math.floor(Number(button.dataset.itemPrice) || 0));
-    if (!receiverId || !name) return;
+    if (!name) return;
     button.disabled = true;
     try {
         await callApiWithLoader('/api/troy-orders/add-item', {
             ...getRequestedNationPayload(),
-            receiverPlayFabId: receiverId,
+            receiverPlayFabId: selectedCustomerId,
             name,
             price,
             quantity: 1
@@ -583,13 +649,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('troyOrdersRefresh')?.addEventListener('click', () => refreshOrders({ silent: false }));
     $('troyOrdersOpenBtn')?.addEventListener('click', () => setTroyOpen(true));
     $('troyOrdersCloseBtn')?.addEventListener('click', () => setTroyOpen(false));
+    $('troyOrdersCustomerSelector')?.addEventListener('click', (event) => {
+        const chip = event.target instanceof Element ? event.target.closest('[data-customer-chip]') : null;
+        if (!chip) return;
+        selectCustomer(chip.dataset.customerId || '');
+    });
+    $('troyOrdersPosMenu')?.addEventListener('click', (event) => {
+        const addItemButton = event.target instanceof Element ? event.target.closest('[data-add-item]') : null;
+        if (!addItemButton) return;
+        void addItemToCheckout(addItemButton);
+    });
     $('troyOrdersList')?.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
-        const addItemButton = target?.closest('[data-add-item]');
-        if (addItemButton) {
-            void addItemToCheckout(addItemButton);
-            return;
-        }
         const servedButton = target?.closest('[data-toggle-served]');
         if (servedButton) {
             void toggleServedFromButton(servedButton);
