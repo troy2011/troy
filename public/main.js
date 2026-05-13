@@ -1543,18 +1543,6 @@ async function handleTroyEntryRequestAfterLogin() {
     const entryRequest = getTroyEntryRequestFromUrl();
     if (!entryRequest || !myPlayFabId) return;
     try {
-        const { points: goldBalance } = await Player.getPoints(myPlayFabId, { isSilent: true }) || {};
-        if ((goldBalance || 0) >= 100) {
-            const convertAmount = await promptCoinConvertBeforeEntry(goldBalance);
-            if (convertAmount >= 100) {
-                try {
-                    await callApiWithLoader('/api/use-points', { playFabId: myPlayFabId, amount: convertAmount }, { isSilent: true, throwOnError: true });
-                } catch (_) {
-                    showRpgMessage('コイン変換に失敗しました。そのまま入店します。', 2200);
-                }
-            }
-        }
-
         const joinBody = {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
@@ -1563,15 +1551,34 @@ async function handleTroyEntryRequestAfterLogin() {
         if (resolvedEntryNation) joinBody.troyNation = resolvedEntryNation;
         const result = await callApiWithLoader('/api/troy-join', joinBody, { throwOnError: true });
         window.__troyEntryNation = result.nation || resolvedEntryNation || null;
+
+        // Get fresh balance (includes entry bonus if granted)
+        const { points: goldBalance } = await Player.getPoints(myPlayFabId, { isSilent: true }) || {};
+        let convertedAmount = 0;
+        if ((goldBalance || 0) >= 100) {
+            const convertAmount = await promptCoinConvertBeforeEntry(goldBalance);
+            if (convertAmount >= 100) {
+                try {
+                    await callApiWithLoader('/api/use-points', { playFabId: myPlayFabId, amount: convertAmount }, { isSilent: true, throwOnError: true });
+                    convertedAmount = convertAmount;
+                } catch (_) {
+                    showRpgMessage('コイン変換に失敗しました。', 2200);
+                }
+            }
+        }
+
         await showTab('troy', {
             playFabId: myPlayFabId,
             race: myAvatarBaseInfo.Race || 'human',
             nation: result.nation || resolvedEntryNation
         });
-        const message = result?.entryChargeCreated
-            ? 'TROYに入店しました。チャージを追加しました。'
-            : 'TROYに入店済みです。';
-        showRpgMessage(message, 2600);
+
+        const parts = [];
+        if (result?.entryChargeCreated) parts.push('TROYに入店しました');
+        else parts.push('TROYに入店済みです');
+        if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
+        if (convertedAmount > 0) parts.push(`${convertedAmount.toLocaleString('ja-JP')}G をコインに変換`);
+        showRpgMessage(parts.join(' / '), 2800);
     } catch (error) {
         const detail = String(error?.message || error || '');
         const message = detail.includes('TroyClosed')

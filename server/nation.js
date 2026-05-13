@@ -3424,6 +3424,7 @@ function initializeNationRoutes(app, deps) {
             let entryChargeCreated = false;
             let entryChargeGrantAmount = 0;
             let entryChargeGrantError = null;
+            let entryBonusGranted = 0;
             let checkoutPayload = checkoutSnap.exists ? buildTroyCheckoutPayload(checkoutSnap) : null;
 
             if (!existingMemberSnap.exists && checkoutStatus && checkoutStatus !== 'open') {
@@ -3475,6 +3476,13 @@ function initializeNationRoutes(app, deps) {
                         grantTotal: nextGrantTotal,
                         items: nextItems
                     };
+
+                    try {
+                        await addEconomyItem(memberId, 'PS', 500, { idempotencyId: `${orderId}:entry-bonus` });
+                        entryBonusGranted = 500;
+                    } catch (bonusError) {
+                        console.warn('[troy-join] Entry bonus grant failed:', bonusError?.errorMessage || bonusError?.message || bonusError);
+                    }
 
                     try {
                         const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
@@ -3537,6 +3545,7 @@ function initializeNationRoutes(app, deps) {
                 success: true,
                 nation,
                 entryChargeCreated,
+                entryBonusGranted,
                 entryChargeGrantAmount,
                 entryChargeGrantError,
                 checkout: checkoutPayload
