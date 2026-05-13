@@ -548,13 +548,8 @@ async function getGroupTreasuryBalance(groupId, deps) {
     return Math.max(0, Math.floor(Number(totals?.PS) || 0));
 }
 
-async function getNationTaxRateBps(nation, firestore, deps) {
-    const { getGroupDataValue } = deps;
-    const groupId = await getNationGroupIdByNation(nation, firestore, deps);
-    if (!groupId) return 0;
-    const raw = await getGroupDataValue(groupId, 'taxRateBps');
-    const bps = Math.max(0, Math.min(5000, Math.floor(Number(raw) || 0)));
-    return bps;
+async function getNationTaxRateBps(_nation, _firestore, _deps) {
+    return 0;
 }
 
 function buildTreasuryRecentEntry(entry = {}) {
