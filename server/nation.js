@@ -4113,6 +4113,46 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-orders/add-item', async (req, res) => {
+        try {
+            const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+            if (!context) return res.status(403).json({ error: 'TroyClosed' });
+
+            const receiverId = normalizePlayFabId(req.body?.receiverPlayFabId);
+            const name = String(req.body?.name || '').trim().slice(0, 60);
+            const price = Math.max(0, Math.floor(Number(req.body?.price) || 0));
+            const quantity = Math.max(1, Math.min(99, Math.floor(Number(req.body?.quantity) || 1)));
+            if (!receiverId || !name) return res.status(400).json({ error: 'receiverPlayFabId and name are required' });
+
+            const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
+            const checkoutSnap = await checkoutRef.get();
+            if (!checkoutSnap.exists) return res.status(404).json({ error: 'CheckoutNotFound' });
+
+            const checkoutData = checkoutSnap.data() || {};
+            const existingItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
+            const orderedAtMs = Date.now();
+            const orderId = `staff:${receiverId}:${orderedAtMs}`;
+            const newItem = buildStoredTroyCheckoutItem({ name, price, quantity, grantedPs: 0, cashbackRateBps: 0, orderId, orderedAtMs, undoUntilMs: orderedAtMs + 60000 });
+            const nextItems = existingItems.concat(newItem ? [newItem] : []);
+            const normalized = normalizeTroyCheckoutItems(nextItems);
+            const nextTotal = normalized.reduce((sum, i) => sum + i.lineTotal, 0);
+            const nextTotalItems = normalized.reduce((sum, i) => sum + i.quantity, 0);
+            const nextGrantTotal = normalized.reduce((sum, i) => sum + Math.max(0, Number(i.grantedPs) || 0), 0);
+            await checkoutRef.set({
+                items: nextItems,
+                total: nextTotal,
+                totalItems: nextTotalItems,
+                grantTotal: nextGrantTotal,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastOrderedAt: admin.firestore.Timestamp.fromMillis(orderedAtMs)
+            }, { merge: true });
+            return res.json({ success: true });
+        } catch (error) {
+            console.error('[troy-orders-add-item] Error:', error?.message || error);
+            return res.status(500).json({ error: 'FailedToAddItem' });
+        }
+    });
+
     app.get('/api/troy-orders/stream', async (req, res) => {
         const requestedNation = String(req.query.troyNation || req.query.nation || '').trim().toLowerCase();
 

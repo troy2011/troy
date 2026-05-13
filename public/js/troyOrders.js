@@ -1,5 +1,44 @@
 import { callApiWithLoader, createRequestId } from 'api';
 
+const STAFF_MENU = [
+    { category: 'アルコール', items: [
+        { name: 'ラム', price: 500 },
+        { name: 'ウォッカ', price: 500 },
+        { name: 'テキーラ', price: 500 },
+        { name: 'ジン', price: 500 },
+        { name: 'リキュール', price: 500 },
+        { name: '焼酎（キンミヤ）', price: 500 },
+        { name: 'ビール（ハートランド）', price: 600 },
+        { name: 'グラスワイン', price: 500 },
+        { name: 'ワインボトル', price: 3000 },
+    ]},
+    { category: 'ノンアル', items: [
+        { name: 'コーラ', price: 400 },
+        { name: 'ジンジャーエール', price: 400 },
+        { name: 'オレンジジュース', price: 400 },
+        { name: 'ウーロン茶', price: 400 },
+        { name: 'ノンアルビール（ハイネケン）', price: 500 },
+    ]},
+    { category: '料理', items: [
+        { name: 'ポテチ', price: 400 },
+        { name: 'チョコ', price: 500 },
+        { name: 'ミックスナッツ', price: 500 },
+        { name: 'フライドポテト', price: 500 },
+        { name: 'チキンナゲット', price: 500 },
+        { name: 'ピザトースト', price: 500 },
+        { name: 'フランクフルト', price: 500 },
+        { name: 'ワッフル', price: 500 },
+        { name: 'チュロス', price: 500 },
+        { name: 'カップラーメン', price: 500 },
+    ]},
+    { category: 'ボトル', items: [
+        { name: 'キンミヤ（720ml）', price: 2800 },
+        { name: '水割りセット', price: 500 },
+        { name: 'ソーダ / お茶割り用', price: 600 },
+        { name: 'カットレモン', price: 100 },
+    ]},
+];
+
 const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
 const SOUND_STORAGE_KEY = 'troy-orders-sound-enabled';
@@ -248,6 +287,25 @@ function updateServeSummary(entries = []) {
     if (el) el.textContent = `未提供 ${pending}件 / 提供済み ${served}件`;
 }
 
+function renderPosPanel(receiverId) {
+    const categories = STAFF_MENU.map((cat) => {
+        const btns = cat.items.map((item) => `
+            <button type="button" class="troy-orders-pos-btn"
+                data-add-item
+                data-receiver-id="${escapeHtml(receiverId)}"
+                data-item-name="${escapeHtml(item.name)}"
+                data-item-price="${item.price}">
+                ${escapeHtml(item.name)}<span>${formatYen(item.price)}</span>
+            </button>`).join('');
+        return `
+            <details class="troy-orders-pos-category">
+                <summary>${escapeHtml(cat.category)}</summary>
+                <div class="troy-orders-pos-items">${btns}</div>
+            </details>`;
+    }).join('');
+    return `<details class="troy-orders-pos"><summary>注文を追加</summary>${categories}</details>`;
+}
+
 function renderCheckoutCard(entry) {
     const total = Math.max(0, Number(entry.total) || 0);
     const totalItems = Math.max(0, Number(entry.totalItems) || 0);
@@ -288,6 +346,7 @@ function renderCheckoutCard(entry) {
                     <span class="${pendingServeCount > 0 ? 'is-pending-serve' : 'is-served-all'}">${pendingServeCount > 0 ? `未提供 ${pendingServeCount}` : '全て提供済み'}</span>
                 </div>
             </div>
+            ${renderPosPanel(entry.playFabId)}
             <div class="troy-orders-items">${itemRows || '<div class="troy-orders-item-row"><span>注文内容なし</span></div>'}</div>
             <div class="troy-orders-settle">
                 <label>
@@ -361,6 +420,28 @@ async function settleFromCard(card) {
     } finally {
         busy = false;
         card.classList.remove('is-busy');
+    }
+}
+
+async function addItemToCheckout(button) {
+    if (!button) return;
+    const receiverId = String(button.dataset.receiverId || '').trim();
+    const name = String(button.dataset.itemName || '').trim();
+    const price = Math.max(0, Math.floor(Number(button.dataset.itemPrice) || 0));
+    if (!receiverId || !name) return;
+    button.disabled = true;
+    try {
+        await callApiWithLoader('/api/troy-orders/add-item', {
+            ...getRequestedNationPayload(),
+            receiverPlayFabId: receiverId,
+            name,
+            price,
+            quantity: 1
+        }, { isSilent: true, throwOnError: true });
+    } catch (error) {
+        setMessage(`注文を追加できませんでした: ${error?.message || error}`, true);
+    } finally {
+        button.disabled = false;
     }
 }
 
@@ -504,6 +585,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('troyOrdersCloseBtn')?.addEventListener('click', () => setTroyOpen(false));
     $('troyOrdersList')?.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
+        const addItemButton = target?.closest('[data-add-item]');
+        if (addItemButton) {
+            void addItemToCheckout(addItemButton);
+            return;
+        }
         const servedButton = target?.closest('[data-toggle-served]');
         if (servedButton) {
             void toggleServedFromButton(servedButton);
