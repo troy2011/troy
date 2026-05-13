@@ -1539,10 +1539,47 @@ function promptCoinConvertBeforeEntry(goldBalance) {
     });
 }
 
+async function handleKingTroyToggle(entryRequest) {
+    const nationPayload = entryRequest.nation ? { troyNation: entryRequest.nation } : {};
+    const status = await callApiWithLoader('/api/troy-orders/list', nationPayload, { isSilent: true });
+    const isCurrentlyOpen = !!status?.troyOpen;
+
+    const confirmed = await new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
+        const actionLabel = isCurrentlyOpen ? 'CLOSE' : 'OPEN';
+        const btnColor = isCurrentlyOpen ? '#ef4444' : '#22c55e';
+        overlay.innerHTML = `
+            <div style="background:#1e293b;border-radius:18px;padding:28px 20px 20px;width:100%;max-width:300px;color:#f1f5f9;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;">TROY 王</div>
+                <div style="font-size:17px;font-weight:700;margin-bottom:20px;">TROYを${actionLabel}にしますか？</div>
+                <div style="display:flex;gap:10px;">
+                    <button id="__troyKingCancel" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">キャンセル</button>
+                    <button id="__troyKingOk" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:${btnColor};color:#fff;font-size:14px;font-weight:700;cursor:pointer;">${actionLabel}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#__troyKingCancel').addEventListener('click', () => { document.body.removeChild(overlay); resolve(false); });
+        overlay.querySelector('#__troyKingOk').addEventListener('click', () => { document.body.removeChild(overlay); resolve(true); });
+    });
+
+    if (!confirmed) return;
+    const payload = { isOpen: !isCurrentlyOpen };
+    if (!isCurrentlyOpen && entryRequest.nation) payload.troyNation = entryRequest.nation;
+    await callApiWithLoader('/api/troy-orders/set-open', payload, { isSilent: true, throwOnError: true });
+    showRpgMessage(isCurrentlyOpen ? 'TROYをCLOSEにしました。' : 'TROYをOPENにしました。', 2400);
+    await NationKing.refreshKingNav(myPlayFabId);
+}
+
 async function handleTroyEntryRequestAfterLogin() {
     const entryRequest = getTroyEntryRequestFromUrl();
     if (!entryRequest || !myPlayFabId) return;
     try {
+        if (NationKing.isKing()) {
+            await handleKingTroyToggle(entryRequest);
+            return;
+        }
         const joinBody = {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
