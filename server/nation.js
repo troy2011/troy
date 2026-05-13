@@ -3,7 +3,7 @@
 
 const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
-const { addPlayerNationContribution } = require('./playerLevel');
+const { addPlayerNationContribution, calculateLevelFromContribution, buildStatsMapFromStatistics, PLAYER_CONTRIBUTION_STAT } = require('./playerLevel');
 const {
     CAPITAL_CAPTURE_BASE_DURATION_MS,
     CAPITAL_CAPTURE_BREACH_WALLS,
@@ -3532,9 +3532,18 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            let entryLevel = 1;
+            try {
+                const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberId });
+                const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics);
+                entryLevel = calculateLevelFromContribution(statsMap[PLAYER_CONTRIBUTION_STAT] || 0).level;
+            } catch (_) {}
+
             pushDisplayEvent({
                 type: 'flare',
-                label: `入店: ${name}`
+                topic: 'troy-entry',
+                label: `入店: ${name}`,
+                level: entryLevel
             });
             res.json({
                 success: true,

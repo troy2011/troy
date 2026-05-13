@@ -4,6 +4,41 @@
   const rankingSub = document.getElementById('rankingSub');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
 
+  const ENTRY_SOUNDS = [
+    '/audio/order-count-1-missile.mp3',
+    '/audio/order-count-2-cannon.mp3',
+    '/audio/order-count-3-sniper.mp3',
+    '/audio/order-count-4-rocket-launcher.mp3',
+    '/audio/order-count-5-plus-battlefield.mp3',
+  ];
+
+  let audioUnlocked = false;
+
+  const unlockAudio = () => {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    const gate = document.getElementById('audioGate');
+    if (gate) gate.style.display = 'none';
+  };
+
+  document.getElementById('audioGate')?.addEventListener('click', unlockAudio);
+  document.getElementById('audioGate')?.addEventListener('touchstart', unlockAudio);
+
+  const playSound = (src) => {
+    if (!audioUnlocked || !src) return;
+    try {
+      const audio = new Audio(src);
+      audio.volume = 0.85;
+      const result = audio.play();
+      if (result?.catch) result.catch(() => {});
+    } catch (_) {}
+  };
+
+  const getEntrySoundSrc = (level) => {
+    const rank = Math.floor(Math.max(1, Math.floor(Number(level) || 1)) / 10);
+    return ENTRY_SOUNDS[Math.min(rank, ENTRY_SOUNDS.length - 1)];
+  };
+
   let reconnectTimer = null;
   let stream = null;
   let rankingRefreshTimer = null;
@@ -123,18 +158,18 @@
       let shouldRefreshRanking = false;
       payload.events.forEach((event) => {
         spawnEffect(event);
-        if (String(event?.topic || '').toLowerCase() === 'ps-transfer') {
-          shouldRefreshRanking = true;
-        }
+        const topic = String(event?.topic || '').toLowerCase();
+        if (topic === 'ps-transfer') shouldRefreshRanking = true;
+        if (topic === 'troy-entry') playSound(getEntrySoundSrc(event.level));
       });
       if (shouldRefreshRanking) scheduleRankingRefresh(120);
       return;
     }
 
     spawnEffect(payload);
-    if (String(payload.topic || '').toLowerCase() === 'ps-transfer') {
-      scheduleRankingRefresh(120);
-    }
+    const topic = String(payload.topic || '').toLowerCase();
+    if (topic === 'troy-entry') playSound(getEntrySoundSrc(payload.level));
+    if (topic === 'ps-transfer') scheduleRankingRefresh(120);
   };
 
   const connectStream = () => {

@@ -39,6 +39,30 @@ body {
   pointer-events: none;
 }
 
+#audioGate {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+#audioGateLabel {
+  color: #e9f6ff;
+  font-size: 26px;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 28px 40px;
+  border: 1px solid rgba(180, 220, 255, 0.3);
+  border-radius: 16px;
+  background: rgba(5, 10, 16, 0.7);
+  backdrop-filter: blur(6px);
+}
+
 #rankingPanel {
   position: absolute;
   top: 16px;
@@ -46,12 +70,13 @@ body {
   width: min(320px, 42vw);
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(5, 10, 16, 0.62);
+  background: rgba(3, 7, 14, 0.84);
   border: 1px solid rgba(180, 220, 255, 0.22);
   color: #e9f6ff;
   font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
 #rankingTitle {
@@ -143,12 +168,18 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: #eef9ff;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
-  opacity: 0.95;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 1),
+    0 0 14px rgba(0, 0, 0, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  opacity: 0.97;
   pointer-events: none;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
 }
 
 @keyframes ripple {
