@@ -351,7 +351,7 @@ function initializeEventRoutes(app, deps) {
             if (!kingNation) return res.status(400).json({ error: 'NationNotSet' });
 
             const date = normalizeDateText(req.body?.date);
-            const openTime = normalizeTimeText(req.body?.openTime, '19:00');
+            const openTime = normalizeTimeText(req.body?.openTime, '21:00');
             const closeTime = normalizeTimeText(req.body?.closeTime, '23:59');
             const startsAtMs = troyCalendarStartsAtMs(date, openTime);
             if (!date || !startsAtMs) return res.status(400).json({ error: '営業日を入力してください。' });

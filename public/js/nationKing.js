@@ -232,7 +232,7 @@ function _renderKingTroyCalendar(entries = []) {
             </div>
             <div>
                 <div class="troy-admin-field-label">OPEN</div>
-                <input id="kingTroyCalendarOpenTime" type="time" class="admin-input" value="19:00" />
+                <input id="kingTroyCalendarOpenTime" type="time" class="admin-input" value="21:00" />
             </div>
             <div>
                 <div class="troy-admin-field-label">CLOSE</div>
@@ -912,7 +912,7 @@ function _wireHandlers(playFabId) {
                 const noteEl = document.getElementById('kingTroyCalendarNote');
                 if (idEl) idEl.value = entry.id || '';
                 if (dateEl) dateEl.value = entry.date || '';
-                if (openEl) openEl.value = entry.openTime || '19:00';
+                if (openEl) openEl.value = entry.openTime || '21:00';
                 if (closeEl) closeEl.value = entry.closeTime || '23:59';
                 if (statusEl) statusEl.value = entry.status || 'open';
                 if (titleEl) titleEl.value = entry.title || '';
@@ -949,7 +949,7 @@ function _wireHandlers(playFabId) {
                 const payload = {
                     calendarId: String(document.getElementById('kingTroyCalendarId')?.value || '').trim(),
                     date: String(document.getElementById('kingTroyCalendarDate')?.value || '').trim(),
-                    openTime: String(document.getElementById('kingTroyCalendarOpenTime')?.value || '19:00').trim(),
+                    openTime: String(document.getElementById('kingTroyCalendarOpenTime')?.value || '21:00').trim(),
                     closeTime: String(document.getElementById('kingTroyCalendarCloseTime')?.value || '23:59').trim(),
                     status: String(document.getElementById('kingTroyCalendarStatus')?.value || 'open').trim(),
                     title: String(document.getElementById('kingTroyCalendarTitle')?.value || '').trim(),

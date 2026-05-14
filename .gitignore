@@ -13,6 +13,8 @@ uploader.js
 uploaderShips.js
 sync-catalog-v2*.log
 tmp/
+playwright-report/
+test-results/
 
 config/
 

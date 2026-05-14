@@ -1485,7 +1485,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
                         : playerInfo;
                     gameInstance = launchGameFn('phaser-container', infoWithMap);
                     if (gameInstance) {
-                        Object.defineProperty(window, 'gameInstance', { get: () => gameInstance });
+                        Object.defineProperty(window, 'gameInstance', {
+                            configurable: true,
+                            get: () => gameInstance
+                        });
                     }
                     break;
                 }
