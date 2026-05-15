@@ -844,8 +844,7 @@ function _wireHandlers(playFabId) {
             try {
                 const requestId = createRequestId('king-direct-grant');
                 const result = await directGrantPs(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true });
-                const levelNote = result?.contribution?.level ? ` / Lv.${result.contribution.level}` : '';
-                _setMessage(`${Math.max(0, Number(result?.grantAmount) || amount).toLocaleString('ja-JP')}Gを付与しました。経験値も加算済みです${levelNote}。`);
+                _setMessage(`${Math.max(0, Number(result?.grantAmount) || amount).toLocaleString('ja-JP')}Gを財源なしで付与しました。経験値は加算されません。`);
                 await loadKingPage(playFabId);
             } catch (error) {
                 _setMessage(_extractErrorMessage(error, 'G付与に失敗しました。'), true);

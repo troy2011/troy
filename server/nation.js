@@ -94,6 +94,7 @@ const NATION_WAR_POST_RAID_WALLS = 65;
 const NATION_WAR_POST_RAID_COOLDOWN_MS = 30 * 60 * 1000;
 const NATION_WAR_CARD_REWARD_MAJOR_CHANCE = 0.2;
 const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
+const TROY_COIN_CONVERSION_MAX_AMOUNT = 1000000;
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -103,6 +104,12 @@ function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function normalizeTroyCoinConversionAmount(value) {
+    const amount = Math.floor(Number(value) || 0);
+    if (!Number.isFinite(amount)) return 0;
+    return Math.min(TROY_COIN_CONVERSION_MAX_AMOUNT, Math.max(0, amount));
 }
 
 function pickRandomNationWarTarotCardId() {
@@ -3667,6 +3674,204 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    async function resolveOpenTroyMemberContext(playFabId) {
+        const nation = await findOpenTroyNation(firestore);
+        if (!nation) {
+            const error = new Error('TroyClosed');
+            error.statusCode = 403;
+            throw error;
+        }
+        const mapping = getNationMappingByNation(nation);
+        if (!mapping) {
+            const error = new Error('InvalidNation');
+            error.statusCode = 400;
+            throw error;
+        }
+        const memberId = normalizePlayFabId(playFabId);
+        if (!memberId) {
+            const error = new Error('InvalidPlayFabId');
+            error.statusCode = 400;
+            throw error;
+        }
+        const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+        const roomSnap = await roomRef.get();
+        const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+        if (!roomSnap.exists || !roomData.isOpen) {
+            const error = new Error('TroyClosed');
+            error.statusCode = 403;
+            throw error;
+        }
+        const memberRef = roomRef.collection('members').doc(memberId);
+        const memberSnap = await memberRef.get();
+        if (!memberSnap.exists) {
+            const error = new Error('NotInTroy');
+            error.statusCode = 403;
+            throw error;
+        }
+        return { nation, mapping, roomRef, roomData, memberId, memberRef, memberData: memberSnap.data() || {} };
+    }
+
+    async function recordTroyCoinConversion(memberRef, requestId, direction, amount) {
+        const safeRequestId = String(requestId || '').trim().slice(0, 120);
+        const conversionRef = safeRequestId
+            ? memberRef.collection('coinConversions').doc(safeRequestId)
+            : null;
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        return firestore.runTransaction(async (transaction) => {
+            const memberSnap = await transaction.get(memberRef);
+            if (!memberSnap.exists) {
+                const error = new Error('NotInTroy');
+                error.statusCode = 403;
+                throw error;
+            }
+            if (conversionRef) {
+                const conversionSnap = await transaction.get(conversionRef);
+                if (conversionSnap.exists) {
+                    const conversionData = conversionSnap.data() || {};
+                    return {
+                        duplicate: true,
+                        direction: conversionData.direction || direction,
+                        amount: Math.max(0, Math.floor(Number(conversionData.amount) || 0)),
+                        coinConvertedTotal: Math.max(0, Math.floor(Number(conversionData.coinConvertedTotal) || 0)),
+                        goldConvertedTotal: Math.max(0, Math.floor(Number(conversionData.goldConvertedTotal) || 0)),
+                        contributionAmount: 0,
+                        contributionAppliedTotal: Math.max(0, Math.floor(Number(conversionData.contributionAppliedTotal) || 0))
+                    };
+                }
+            }
+
+            const data = memberSnap.data() || {};
+            const coinConvertedTotal = Math.max(0, Math.floor(Number(data.coinConvertedTotal) || 0));
+            const goldConvertedTotal = Math.max(0, Math.floor(Number(data.goldConvertedTotal) || 0));
+            const contributionAppliedTotal = Math.max(0, Math.floor(Number(data.coinGoldContributionTotal) || 0));
+            let nextCoinConvertedTotal = coinConvertedTotal;
+            let nextGoldConvertedTotal = goldConvertedTotal;
+            let nextContributionAppliedTotal = contributionAppliedTotal;
+            let contributionAmount = 0;
+
+            if (direction === 'gold_to_coin') {
+                nextCoinConvertedTotal += amount;
+            } else if (direction === 'coin_to_gold') {
+                nextGoldConvertedTotal += amount;
+                const eligibleContributionTotal = Math.max(0, nextGoldConvertedTotal - nextCoinConvertedTotal);
+                contributionAmount = Math.max(0, eligibleContributionTotal - contributionAppliedTotal);
+                nextContributionAppliedTotal += contributionAmount;
+            } else {
+                const error = new Error('InvalidConversionDirection');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            const update = {
+                coinConvertedTotal: nextCoinConvertedTotal,
+                goldConvertedTotal: nextGoldConvertedTotal,
+                coinGoldContributionTotal: nextContributionAppliedTotal,
+                updatedAt: now
+            };
+            if (direction === 'gold_to_coin') update.lastCoinConvertedAt = now;
+            if (direction === 'coin_to_gold') update.lastGoldConvertedAt = now;
+            transaction.set(memberRef, update, { merge: true });
+
+            const result = {
+                duplicate: false,
+                direction,
+                amount,
+                coinConvertedTotal: nextCoinConvertedTotal,
+                goldConvertedTotal: nextGoldConvertedTotal,
+                contributionAmount,
+                contributionAppliedTotal: nextContributionAppliedTotal
+            };
+            if (conversionRef) {
+                transaction.set(conversionRef, {
+                    ...result,
+                    createdAt: now
+                });
+            }
+            return result;
+        });
+    }
+
+    app.post('/api/troy-convert-gold-to-coin', async (req, res) => {
+        const { playFabId } = req.body || {};
+        const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
+        const requestId = String(req.body?.requestId || '').trim();
+        if (!playFabId || amount <= 0) {
+            return res.status(400).json({ error: 'playFabId and positive amount are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await resolveOpenTroyMemberContext(requesterPlayFabId);
+            const idempotencyId = requestId ? `${requestId}:gold-to-coin` : null;
+            await subtractEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
+            const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'gold_to_coin', amount);
+            const newBalance = getCurrencyBalance ? await getCurrencyBalance(context.memberId, 'PS') : null;
+            if (Number.isFinite(newBalance)) {
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: context.memberId,
+                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
+                });
+            }
+            res.json({
+                success: true,
+                amount,
+                newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
+                ...conversion
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            const statusCode = error?.statusCode || (String(msg).includes('InsufficientFunds') ? 400 : 500);
+            console.error('[troy-convert-gold-to-coin] Error:', msg);
+            res.status(statusCode).json({ error: String(msg).includes('InsufficientFunds') ? 'ゴールドが不足しています。' : msg });
+        }
+    });
+
+    app.post('/api/troy-convert-coin-to-gold', async (req, res) => {
+        const { playFabId } = req.body || {};
+        const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
+        const requestId = String(req.body?.requestId || '').trim();
+        if (!playFabId || amount <= 0) {
+            return res.status(400).json({ error: 'playFabId and positive amount are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await resolveOpenTroyMemberContext(requesterPlayFabId);
+            const idempotencyId = requestId ? `${requestId}:coin-to-gold` : null;
+            await addEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
+            const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'coin_to_gold', amount);
+
+            let contribution = null;
+            if (!conversion.duplicate && conversion.contributionAmount > 0) {
+                try {
+                    contribution = await addPlayerNationContribution(context.memberId, conversion.contributionAmount, nationDeps);
+                } catch (contributionError) {
+                    console.warn('[troy-convert-coin-to-gold] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
+                }
+            }
+
+            const newBalance = getCurrencyBalance ? await getCurrencyBalance(context.memberId, 'PS') : null;
+            if (Number.isFinite(newBalance)) {
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: context.memberId,
+                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
+                });
+            }
+            res.json({
+                success: true,
+                amount,
+                newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
+                contribution,
+                ...conversion
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            const statusCode = error?.statusCode || 500;
+            console.error('[troy-convert-coin-to-gold] Error:', msg);
+            res.status(statusCode).json({ error: msg });
+        }
+    });
+
     app.post('/api/king-grant-ps', async (req, res) => {
         const { playFabId, receiverPlayFabId, amount } = req.body || {};
         const requestId = String(req.body?.requestId || '').trim();
@@ -3844,13 +4049,6 @@ function initializeNationRoutes(app, deps) {
                 return res.status(500).json({ error: 'Failed to add gold', details: addError?.errorMessage || addError?.message });
             }
 
-            let contribution = null;
-            try {
-                contribution = await addPlayerNationContribution(receiverId, value, nationDeps);
-            } catch (contributionError) {
-                console.warn('[king-direct-grant-ps] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
-            }
-
             if (firestore && admin) {
                 try {
                     await firestore
@@ -3882,8 +4080,7 @@ function initializeNationRoutes(app, deps) {
                 success: true,
                 grantAmount: value,
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
-                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
-                contribution
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;

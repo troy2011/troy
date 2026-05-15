@@ -137,6 +137,7 @@
                     <div class="transfer-action-row">
                         <button id="btnScanPay" class="transfer-send-btn">渡す</button>
                         <button id="btnCoinConvert" class="transfer-coin-btn" type="button">コイン化</button>
+                        <button id="btnCoinGoldConvert" class="transfer-gold-btn" type="button">ゴールド化</button>
                     </div>
                 </div>
                 <div class="content-area home-social-card home-card">
@@ -1333,9 +1334,9 @@
     <div id="coinConvertModal" class="modal-overlay">
         <div class="modal-content coin-convert-modal-content">
             <div class="coin-convert-icon">🪙</div>
-            <h3>コイン化</h3>
+            <h3 id="coinConvertTitle">コイン化</h3>
             <div id="coinConvertAmount" class="coin-convert-amount">0G</div>
-            <p class="coin-convert-text">店内コインに交換します。店員にこの画面を見せてください。</p>
+            <p id="coinConvertText" class="coin-convert-text">店内コインに交換します。</p>
             <div class="modal-buttons">
                 <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してコイン化</button>
                 <button id="btnCancelCoinConvert" style="background:#4b5563;">キャンセル</button>

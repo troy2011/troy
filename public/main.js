@@ -797,7 +797,8 @@ async function initializeAppFeatures() {
         if (result?.message) showRpgMessage(result.message, 2200);
     });
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
-    document.getElementById('btnCoinConvert').addEventListener('click', openCoinConvertModal);
+    document.getElementById('btnCoinConvert').addEventListener('click', () => openCoinConvertModal('gold_to_coin'));
+    document.getElementById('btnCoinGoldConvert')?.addEventListener('click', () => openCoinConvertModal('coin_to_gold'));
     document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
     document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
     document.getElementById('btnScanEquipmentGacha')?.addEventListener('click', startScanEquipmentGacha);
@@ -1596,7 +1597,11 @@ async function handleTroyEntryRequestAfterLogin() {
             const convertAmount = await promptCoinConvertBeforeEntry(goldBalance);
             if (convertAmount >= 100) {
                 try {
-                    await callApiWithLoader('/api/use-points', { playFabId: myPlayFabId, amount: convertAmount }, { isSilent: true, throwOnError: true });
+                    await callApiWithLoader('/api/troy-convert-gold-to-coin', {
+                        playFabId: myPlayFabId,
+                        amount: convertAmount,
+                        requestId: createRequestId('troy-gold-to-coin')
+                    }, { isSilent: true, throwOnError: true });
                     convertedAmount = convertAmount;
                 } catch (_) {
                     showRpgMessage('コイン変換に失敗しました。', 2200);
@@ -1805,21 +1810,33 @@ async function startScanEquipmentGacha() {
     }
 }
 
-function openCoinConvertModal() {
+let coinConvertMode = 'gold_to_coin';
+
+function openCoinConvertModal(mode = 'gold_to_coin') {
+    coinConvertMode = mode === 'coin_to_gold' ? 'coin_to_gold' : 'gold_to_coin';
     const amount = getTransferAmountValue();
     const pointMessageEl = document.getElementById('pointMessage');
     if (amount <= 0) {
-        if (pointMessageEl) pointMessageEl.innerText = 'コイン化する金額を入力してください。';
+        if (pointMessageEl) pointMessageEl.innerText = coinConvertMode === 'coin_to_gold'
+            ? 'ゴールド化する金額を入力してください。'
+            : 'コイン化する金額を入力してください。';
         return;
     }
+    const titleEl = document.getElementById('coinConvertTitle');
     const amountEl = document.getElementById('coinConvertAmount');
+    const textEl = document.getElementById('coinConvertText');
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
+    const isGoldize = coinConvertMode === 'coin_to_gold';
+    if (titleEl) titleEl.innerText = isGoldize ? 'ゴールド化' : 'コイン化';
     if (amountEl) amountEl.innerText = `${amount.toLocaleString('ja-JP')}G`;
+    if (textEl) textEl.innerText = isGoldize
+        ? '店内コインをゴールドに戻します。入店後にコイン化した合計を超えた分だけ経験値が増えます。'
+        : '店内コインに交換します。';
     if (resultEl) resultEl.innerText = '';
     if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.innerText = '確認してコイン化';
+        confirmBtn.innerText = isGoldize ? '確認してゴールド化' : '確認してコイン化';
     }
     const modal = document.getElementById('coinConvertModal');
     if (modal) modal.style.display = 'flex';
@@ -1834,6 +1851,7 @@ async function confirmCoinConvert() {
     const amount = getTransferAmountValue();
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
+    const isGoldize = coinConvertMode === 'coin_to_gold';
     if (amount <= 0) {
         if (resultEl) resultEl.innerText = '金額を入力してください。';
         return;
@@ -1844,24 +1862,33 @@ async function confirmCoinConvert() {
         confirmBtn.innerText = '処理中...';
     }
     try {
-        const data = await callApiWithLoader('/api/use-points', {
+        const endpoint = isGoldize ? '/api/troy-convert-coin-to-gold' : '/api/troy-convert-gold-to-coin';
+        const data = await callApiWithLoader(endpoint, {
             playFabId: myPlayFabId,
-            amount
+            amount,
+            requestId: createRequestId(isGoldize ? 'troy-coin-to-gold' : 'troy-gold-to-coin')
         });
-        if (!data) throw new Error('コイン化に失敗しました。');
-        if (resultEl) resultEl.innerText = `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
-        document.getElementById('pointMessage').innerText = `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
+        if (!data) throw new Error(isGoldize ? 'ゴールド化に失敗しました。' : 'コイン化に失敗しました。');
+        const contributionAmount = Math.max(0, Math.floor(Number(data.contributionAmount) || 0));
+        const contributionNote = isGoldize && contributionAmount > 0
+            ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}`
+            : '';
+        const message = isGoldize
+            ? `${amount.toLocaleString('ja-JP')}Gをゴールド化しました。${contributionNote}`
+            : `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
+        if (resultEl) resultEl.innerText = message;
+        document.getElementById('pointMessage').innerText = message;
         const amountInput = document.getElementById('transferAmount');
         if (amountInput) amountInput.value = '0';
         await Player.getPoints(myPlayFabId);
         await Player.getRanking();
         setTimeout(closeCoinConvertModal, 1200);
     } catch (error) {
-        const message = error?.message || error?.error || 'コイン化に失敗しました。';
+        const message = error?.message || error?.error || (isGoldize ? 'ゴールド化に失敗しました。' : 'コイン化に失敗しました。');
         if (resultEl) resultEl.innerText = message;
         if (confirmBtn) {
             confirmBtn.disabled = false;
-            confirmBtn.innerText = previousLabel || '確認してコイン化';
+            confirmBtn.innerText = previousLabel || (isGoldize ? '確認してゴールド化' : '確認してコイン化');
         }
     }
 }
