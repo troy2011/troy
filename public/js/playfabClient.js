@@ -270,6 +270,10 @@ export function grantPs(playFabId, receiverPlayFabId, amount, requestId, options
     return callApiWithLoader('/api/king-grant-ps', { playFabId, receiverPlayFabId, amount, requestId }, options);
 }
 
+export function directGrantPs(playFabId, receiverPlayFabId, amount, requestId, options) {
+    return callApiWithLoader('/api/king-direct-grant-ps', { playFabId, receiverPlayFabId, amount, requestId }, options);
+}
+
 export function approveTroyCheckout(playFabId, receiverPlayFabId, amount, requestId, options) {
     return grantPs(playFabId, receiverPlayFabId, amount, requestId, options);
 }

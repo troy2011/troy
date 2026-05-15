@@ -3372,6 +3372,7 @@ body.modal-lock .modal-overlay {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     padding: 8px 10px;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.03);
@@ -3379,8 +3380,36 @@ body.modal-lock .modal-overlay {
     font-size: 13px;
 }
 
+.troy-entry-main {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
 .troy-entry-item b {
     color: var(--accent-color);
+}
+
+.king-direct-grant-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.king-direct-grant-input {
+    width: 86px;
+    min-height: 32px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+    color: var(--text-main);
+}
+
+.king-direct-grant-btn {
+    min-height: 32px;
+    padding: 6px 10px;
 }
 
 .troy-entry-empty {

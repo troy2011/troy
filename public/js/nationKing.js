@@ -8,6 +8,7 @@ import {
     raidNationTreasury,
     setNationAnnouncement,
     grantPs,
+    directGrantPs,
     settleTroyCheckout,
     setTroyOpen,
     kingUpdateMenu,
@@ -166,10 +167,17 @@ function _renderTroyMembers(members = []) {
     emptyEl.style.display = 'none';
     listEl.innerHTML = rows.map((member) => {
         const joinedAt = _formatEpochMs(member.joinedAtMs || member.joinedAt);
+        const playFabId = String(member.playFabId || member.id || '').trim();
         return `
             <div class="troy-entry-item">
-                <b>${buildPlayerTriggerHtml(member.playFabId, member.displayName || member.playFabId || 'Player', { className: 'player-link-inline' })}</b>
-                <span>${_escapeHtml(joinedAt)}</span>
+                <div class="troy-entry-main">
+                    <b>${buildPlayerTriggerHtml(playFabId, member.displayName || playFabId || 'Player', { className: 'player-link-inline' })}</b>
+                    <span>${_escapeHtml(joinedAt)}</span>
+                </div>
+                <div class="king-direct-grant-controls">
+                    <input type="number" class="king-direct-grant-input" min="100" step="100" inputmode="numeric" value="100" data-direct-grant-amount="${_escapeHtml(playFabId)}" aria-label="付与G" />
+                    <button type="button" class="btn-muted king-direct-grant-btn" data-direct-grant="${_escapeHtml(playFabId)}">付与</button>
+                </div>
             </div>
         `;
     }).join('');
@@ -288,7 +296,7 @@ function _clearCalendarForm() {
     const noteEl = document.getElementById('kingTroyCalendarNote');
     if (idEl) idEl.value = '';
     if (dateEl) dateEl.value = '';
-    if (openEl) openEl.value = '19:00';
+    if (openEl) openEl.value = '21:00';
     if (closeEl) closeEl.value = '23:59';
     if (statusEl) statusEl.value = 'open';
     if (titleEl) titleEl.value = '';
@@ -709,6 +717,7 @@ function _wireHandlers(playFabId) {
     const warDeployBtn = document.getElementById('btnKingWarDeploy');
     const warStrikeBtn = document.getElementById('btnKingWarStrike');
     const calendarMountEl = document.getElementById('kingTroyCalendarMount');
+    const troyEntryListEl = document.getElementById('kingTroyEntryList');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
@@ -805,6 +814,44 @@ function _wireHandlers(playFabId) {
             } finally {
                 grantBtn.disabled = false;
                 grantBtn.innerText = previousLabel;
+            }
+        });
+    }
+
+    if (troyEntryListEl) {
+        troyEntryListEl.addEventListener('click', async (event) => {
+            const button = event.target instanceof Element ? event.target.closest('[data-direct-grant]') : null;
+            if (!button) return;
+            const receiverPlayFabId = String(button.getAttribute('data-direct-grant') || '').trim();
+            const input = receiverPlayFabId
+                ? troyEntryListEl.querySelector(`[data-direct-grant-amount="${CSS.escape(receiverPlayFabId)}"]`)
+                : null;
+            const amount = Math.floor(Number(input?.value) || 0);
+            if (!receiverPlayFabId) {
+                _setMessage('付与対象が不正です。', true);
+                return;
+            }
+            if (amount <= 0 || amount % 100 !== 0) {
+                _setMessage('付与額は100刻みで入力してください。', true);
+                return;
+            }
+            if (!confirm(`${amount.toLocaleString('ja-JP')}Gを財源なしで付与します。よろしいですか？`)) return;
+
+            const previous = button.textContent;
+            button.setAttribute('disabled', 'disabled');
+            if (input) input.setAttribute('disabled', 'disabled');
+            button.textContent = '処理中...';
+            try {
+                const requestId = createRequestId('king-direct-grant');
+                const result = await directGrantPs(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true });
+                const levelNote = result?.contribution?.level ? ` / Lv.${result.contribution.level}` : '';
+                _setMessage(`${Math.max(0, Number(result?.grantAmount) || amount).toLocaleString('ja-JP')}Gを付与しました。経験値も加算済みです${levelNote}。`);
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'G付与に失敗しました。'), true);
+                button.removeAttribute('disabled');
+                if (input) input.removeAttribute('disabled');
+                button.textContent = previous;
             }
         });
     }

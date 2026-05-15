@@ -78,6 +78,8 @@ const NATION_WAR_EVENT_LIMIT = 40;
 const NATION_WAR_STATE_COLLECTION = 'nation_wars';
 const NATION_WAR_EVENT_COLLECTION = 'nation_war_events';
 const TROY_CHECKOUT_ENABLED = false;
+const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
+const TROY_GLOBAL_ROOM_ID = 'global';
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
 const NATION_WAR_RECON_COST_PS = 200;
@@ -221,16 +223,15 @@ function getNationGroupDoc(firestore, groupName) {
     return firestore.collection('nation_groups').doc(groupName);
 }
 
-function getTroyRoomDoc(firestore, groupName) {
-    return firestore.collection('troy_rooms').doc(groupName);
+function getTroyRoomDoc(firestore, _groupName = null) {
+    return firestore.collection('troy_rooms').doc(TROY_GLOBAL_ROOM_ID);
 }
 
 async function findOpenTroyNation(firestore) {
-    const snap = await firestore.collection('troy_rooms').where('isOpen', '==', true).limit(1).get();
-    if (snap.empty) return null;
-    const groupName = snap.docs[0].id;
-    const entry = Object.entries(NATION_GROUP_BY_NATION).find(([, v]) => v.groupName === groupName);
-    return entry ? entry[0] : null;
+    const snap = await getTroyRoomDoc(firestore).get();
+    if (!snap.exists || !snap.data()?.isOpen) return null;
+    const nation = String(snap.data()?.nation || TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
+    return getNationMappingByNation(nation) ? nation : 'fire';
 }
 
 async function deleteCollectionDocs(collectionRef, batchSize = 400) {
@@ -2806,6 +2807,7 @@ function initializeNationRoutes(app, deps) {
             } else {
                 await roomRef.set({
                     isOpen: true,
+                    nation: context.nation,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedBy: context.kingId
                 }, { merge: true });
@@ -2887,8 +2889,10 @@ function initializeNationRoutes(app, deps) {
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
         try {
-            const nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
-            if (!nation) return res.json({ isOpen: false, members: [], notInNation: true });
+            let nation = await resolveTroyNationForRequest(req, requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+            if (!nation) {
+                nation = await findOpenTroyNation(firestore) || TROY_ENTRY_DEFAULT_NATION;
+            }
             const mapping = getNationMappingByNation(nation);
             if (!mapping) return res.json({ isOpen: false, members: [], notInNation: true });
 
@@ -3802,6 +3806,95 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/king-direct-grant-ps', async (req, res) => {
+        const { playFabId, receiverPlayFabId, amount } = req.body || {};
+        const requestId = String(req.body?.requestId || '').trim();
+        if (!playFabId || !receiverPlayFabId) {
+            return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
+        }
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        const value = Math.floor(Number(amount) || 0);
+        if (!Number.isFinite(value) || value <= 0 || value % 100 !== 0) {
+            return res.status(400).json({ error: 'Amount must be a positive multiple of 100' });
+        }
+        if (normalizePlayFabId(playFabId) === normalizePlayFabId(receiverPlayFabId)) {
+            return res.status(400).json({ error: 'Cannot grant to self' });
+        }
+
+        try {
+            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const receiverId = normalizePlayFabId(receiverPlayFabId);
+            if (!receiverId) return res.status(400).json({ error: 'Invalid receiver PlayFab ID' });
+
+            const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
+            const memberSnap = await roomRef.collection('members').doc(receiverId).get();
+            if (!memberSnap.exists) {
+                return res.status(400).json({ error: 'Receiver is not in the TROY entry list' });
+            }
+
+            const idempotencyFor = (suffix) => requestId ? `${requestId}:${suffix}` : null;
+            try {
+                await addEconomyItem(receiverId, 'PS', value, { idempotencyId: idempotencyFor('ps-direct-grant') });
+            } catch (addError) {
+                const addMessage = addError?.errorMessage || addError?.message || '';
+                if (String(addMessage).includes('EntityKeyNotFound')) {
+                    return res.status(400).json({ error: 'Receiver account was not found' });
+                }
+                return res.status(500).json({ error: 'Failed to add gold', details: addError?.errorMessage || addError?.message });
+            }
+
+            let contribution = null;
+            try {
+                contribution = await addPlayerNationContribution(receiverId, value, nationDeps);
+            } catch (contributionError) {
+                console.warn('[king-direct-grant-ps] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
+            }
+
+            if (firestore && admin) {
+                try {
+                    await firestore
+                        .collection('notifications')
+                        .doc(receiverId)
+                        .collection('items')
+                        .add({
+                            type: 'king_direct_grant',
+                            fromId: context.kingId,
+                            amount: value,
+                            currency: 'PS',
+                            createdAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                } catch (notifyError) {
+                    console.warn('[king-direct-grant-ps] Notification write failed:', notifyError?.message || notifyError);
+                }
+            }
+
+            let receiverBalance = null;
+            if (getCurrencyBalance) {
+                receiverBalance = await getCurrencyBalance(receiverId, 'PS');
+                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                    PlayFabId: receiverId,
+                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                });
+            }
+
+            res.json({
+                success: true,
+                grantAmount: value,
+                receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
+                contribution
+            });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) {
+                return res.status(403).json({ error: 'NotKing' });
+            }
+            console.error('[king-direct-grant-ps] Error:', msg);
+            res.status(500).json({ error: 'Failed to direct grant gold', details: msg });
+        }
+    });
+
     async function resolveOpenTroyOrdersContext(requestedNationRaw) {
         const requestedNation = String(requestedNationRaw || '').trim().toLowerCase();
         const nation = requestedNation && getNationMappingByNation(requestedNation)
@@ -4100,11 +4193,12 @@ function initializeNationRoutes(app, deps) {
         try {
             const nextOpen = !!req.body?.isOpen;
             if (nextOpen) {
-                const nationKey = String(req.body?.troyNation || '').trim().toLowerCase();
+                const currentSnap = await getTroyRoomDoc(firestore).get();
+                const nationKey = String(req.body?.troyNation || currentSnap.data()?.nation || TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
                 const mapping = getNationMappingByNation(nationKey);
-                if (!mapping) return res.status(400).json({ error: 'troyNation is required to open TROY' });
+                if (!mapping) return res.status(400).json({ error: 'Invalid TROY nation' });
                 const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
-                await roomRef.set({ isOpen: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                await roomRef.set({ isOpen: true, nation: nationKey, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
                 pushDisplayEvent({ type: 'flare', label: 'TROY OPEN' });
                 return res.json({ success: true, isOpen: true, nation: nationKey });
             } else {
