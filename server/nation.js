@@ -4049,6 +4049,13 @@ function initializeNationRoutes(app, deps) {
                 return res.status(500).json({ error: 'Failed to add gold', details: addError?.errorMessage || addError?.message });
             }
 
+            let contribution = null;
+            try {
+                contribution = await addPlayerNationContribution(receiverId, value, nationDeps);
+            } catch (contributionError) {
+                console.warn('[king-direct-grant-ps] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
+            }
+
             if (firestore && admin) {
                 try {
                     await firestore
@@ -4080,7 +4087,8 @@ function initializeNationRoutes(app, deps) {
                 success: true,
                 grantAmount: value,
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
-                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined
+                receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
+                contribution
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
