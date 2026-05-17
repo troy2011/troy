@@ -224,6 +224,22 @@ function getTroyEntryRequestFromUrl() {
     return { action: 'troy-entry', nation };
 }
 
+function shouldSkipDailyFortuneOnLogin() {
+    return !!getTroyEntryRequestFromUrl();
+}
+
+async function showDailyFortunePromptAfterLogin() {
+    if (shouldSkipDailyFortuneOnLogin()) return;
+    try {
+        const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
+        if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
+            await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
+        }
+    } catch (fortuneError) {
+        console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
+    }
+}
+
 function clearTroyEntryParamsFromUrl() {
     const url = new URL(window.location.href);
     ['action', 'entry', 'troy', 'nation', 'troyNation'].forEach((key) => url.searchParams.delete(key));
@@ -724,14 +740,7 @@ async function initializeLiff() {
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
                     await handleTroyEntryRequestAfterLogin();
-                    try {
-                        const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
-                        if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
-                            await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
-                        }
-                    } catch (fortuneError) {
-                        console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
-                    }
+                    await showDailyFortunePromptAfterLogin();
                     scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
                         ensureBuildingMetaLoaded();
@@ -1283,14 +1292,7 @@ async function autoAssignRace() {
             window.__pendingFirstMapMessages.push(rpgSay.shipGained());
         }
         await showTab('home', { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation });
-        try {
-            const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
-            if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
-                await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
-            }
-        } catch (fortuneError) {
-            console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
-        }
+        await showDailyFortunePromptAfterLogin();
     } else {
         console.error('[autoAssignRace] set-race returned null, falling back to manual modal');
         showRaceModal();
@@ -1399,14 +1401,7 @@ function showRaceModal(options = {}) {
             }
             const playerInfo = { playFabId: myPlayFabId, race: raceName.toLowerCase(), nation };
             await showTab('home', playerInfo);
-            try {
-                const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
-                if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
-                    await Tarot.showDailyFortunePromptOnLogin(myPlayFabId);
-                }
-            } catch (fortuneError) {
-                console.warn('[dailyFortune] Failed to show login prompt:', fortuneError);
-            }
+            await showDailyFortunePromptAfterLogin();
         } else {
             document.getElementById('raceMessage').innerText = 'エラーが発生しました。';
             raceButtonsContainer.addEventListener('click', handleRaceSelection);
