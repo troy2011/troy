@@ -168,10 +168,18 @@ function _renderTroyMembers(members = []) {
     listEl.innerHTML = rows.map((member) => {
         const joinedAt = _formatEpochMs(member.joinedAtMs || member.joinedAt);
         const playFabId = String(member.playFabId || member.id || '').trim();
+        const level = Math.max(1, Math.floor(Number(member.level) || 1));
+        const rankName = String(member.rankName || '見習い').trim();
+        const rankBenefits = Array.isArray(member.rankBenefits)
+            ? member.rankBenefits.map((entry) => String(entry || '').trim()).filter(Boolean)
+            : [];
+        const benefitText = rankBenefits.length ? rankBenefits.join(' / ') : '通常サービス';
         return `
             <div class="troy-entry-item">
                 <div class="troy-entry-main">
                     <b>${buildPlayerTriggerHtml(playFabId, member.displayName || playFabId || 'Player', { className: 'player-link-inline' })}</b>
+                    <span class="troy-entry-rank">Lv.${level} ${_escapeHtml(rankName)}</span>
+                    <span class="troy-entry-benefit">${_escapeHtml(benefitText)}</span>
                     <span>${_escapeHtml(joinedAt)}</span>
                 </div>
                 <div class="king-direct-grant-controls">

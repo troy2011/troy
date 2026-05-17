@@ -28,6 +28,24 @@ export function getMyPlayerStats() {
     return myPlayerStats;
 }
 
+function getPlayerRankName(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return '海賊王';
+    if (value >= 31) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
+}
+
+function getPlayerRankBenefits(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return ['ドリンクサイズアップ回数制限なし', '店内ゲーム遊び放題'];
+    if (value >= 31) return ['ドリンクサイズアップ回数制限なし'];
+    if (value >= 21) return ['ドリンクサイズアップ1回', '専用ジョッキ（店内専用）'];
+    if (value >= 11) return ['ドリンクサイズアップ1回', '入店時に階級表示'];
+    return ['通常サービス', '入店表示のみ'];
+}
+
 export async function getPlayerStats(playFabId) {
     const data = await fetchPlayerStats(playFabId);
     if (data?.stats) {
@@ -48,6 +66,7 @@ export async function getPlayerStats(playFabId) {
 
 function updatePlayerStatsDisplay() {
     const { HP = 0, MaxHP = 1, MP = 0, MaxMP = 1, Level = 1, ちから = 0, みのまもり = 0, すばやさ = 0, かしこさ = 0 } = myPlayerStats;
+    const rankName = getPlayerRankName(Level);
     document.getElementById('globalCurrentHP').innerText = HP;
     document.getElementById('globalMaxHP').innerText = MaxHP;
     document.getElementById('globalCurrentMP').innerText = MP;
@@ -55,6 +74,10 @@ function updatePlayerStatsDisplay() {
     document.getElementById('globalHpBar').style.width = `${(HP / MaxHP) * 100}%`;
     document.getElementById('globalMpBar').style.width = `${(MP / MaxMP) * 100}%`;
     document.getElementById('globalLevel').innerText = Level;
+    const rankBadgeEl = document.getElementById('globalRankBadge');
+    if (rankBadgeEl) rankBadgeEl.innerText = rankName;
+    const benefitEl = document.getElementById('homeRankBenefit');
+    if (benefitEl) benefitEl.innerText = getPlayerRankBenefits(Level).join(' / ');
     document.getElementById('currentStr').innerText = ちから;
     document.getElementById('currentDef').innerText = みのまもり;
     document.getElementById('currentAgi').innerText = すばやさ;

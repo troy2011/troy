@@ -7,16 +7,27 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <title>TROY Display</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TROY Display" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="stylesheet" href="/display.css" />
   </head>
   <body>
     <div id="audioGate">
-      <div id="audioGateLabel">🔊 タップして音を有効化</div>
+      <div id="audioGatePanel">
+        <div id="audioGateLabel">🔊 タップして音を有効化</div>
+        <div id="audioGateHelp">iPadは最初のタップ後に音が出ます</div>
+      </div>
     </div>
     <div id="sea">
       <video id="seaVideo" autoplay muted loop playsinline preload="auto">
         <source src="/shipvideo.mp4" type="video/mp4" />
       </video>
+      <div id="displayControls">
+        <button id="btnUnlockAudio" type="button">音ON</button>
+        <button id="btnTestSound" type="button">テスト音</button>
+        <button id="btnFullscreen" type="button">全画面</button>
+      </div>
       <div id="effects" aria-live="polite"></div>
       <div id="rankingPanel" aria-live="polite">
         <div id="rankingTitle">日次貢献度ランキング</div>

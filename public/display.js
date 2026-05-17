@@ -2,6 +2,12 @@
   const effectsLayer = document.getElementById('effects');
   const rankingList = document.getElementById('rankingList');
   const rankingSub = document.getElementById('rankingSub');
+  const sea = document.getElementById('sea');
+  const seaVideo = document.getElementById('seaVideo');
+  const audioGate = document.getElementById('audioGate');
+  const unlockAudioBtn = document.getElementById('btnUnlockAudio');
+  const testSoundBtn = document.getElementById('btnTestSound');
+  const fullscreenBtn = document.getElementById('btnFullscreen');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
 
   const ENTRY_SOUNDS = [
@@ -13,30 +19,105 @@
   ];
 
   let audioUnlocked = false;
+  const soundPlayers = new Map(ENTRY_SOUNDS.map((src) => {
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.volume = 0.9;
+    return [src, audio];
+  }));
 
-  const unlockAudio = () => {
-    if (audioUnlocked) return;
+  const unlockAudio = async () => {
+    if (audioUnlocked) {
+      if (audioGate) audioGate.style.display = 'none';
+      return true;
+    }
+    const warmupSrc = ENTRY_SOUNDS[0];
+    const warmup = soundPlayers.get(warmupSrc);
+    if (!warmup) return false;
+    const previousVolume = warmup.volume;
+    warmup.volume = 0.01;
+    warmup.currentTime = 0;
+    try {
+      await warmup.play();
+      warmup.pause();
+      warmup.currentTime = 0;
+    } catch (_) {
+      warmup.volume = previousVolume;
+      return false;
+    }
+    warmup.volume = previousVolume;
+    if (seaVideo) {
+      seaVideo.muted = false;
+      seaVideo.volume = 0.28;
+      try {
+        const videoPlayResult = seaVideo.play();
+        if (videoPlayResult?.catch) videoPlayResult.catch(() => {});
+      } catch (_) {}
+    }
     audioUnlocked = true;
-    const gate = document.getElementById('audioGate');
-    if (gate) gate.style.display = 'none';
+    if (audioGate) audioGate.style.display = 'none';
+    return true;
   };
 
-  document.getElementById('audioGate')?.addEventListener('click', unlockAudio);
-  document.getElementById('audioGate')?.addEventListener('touchstart', unlockAudio);
+  const handleAudioUnlockGesture = () => {
+    unlockAudio().then((ok) => {
+      if (!ok && audioGate) audioGate.classList.add('needs-audio-tap');
+    });
+  };
+
+  audioGate?.addEventListener('click', handleAudioUnlockGesture);
+  audioGate?.addEventListener('touchend', handleAudioUnlockGesture);
+  unlockAudioBtn?.addEventListener('click', handleAudioUnlockGesture);
+  unlockAudioBtn?.addEventListener('touchend', handleAudioUnlockGesture);
 
   const playSound = (src) => {
     if (!audioUnlocked || !src) return;
     try {
-      const audio = new Audio(src);
+      const audio = soundPlayers.get(src) || new Audio(src);
       audio.volume = 0.85;
+      audio.currentTime = 0;
       const result = audio.play();
-      if (result?.catch) result.catch(() => {});
+      if (result?.catch) result.catch(() => {
+        audioUnlocked = false;
+        if (audioGate) audioGate.style.display = 'flex';
+      });
     } catch (_) {}
   };
+
+  testSoundBtn?.addEventListener('click', async () => {
+    if (!audioUnlocked) await unlockAudio();
+    playSound(ENTRY_SOUNDS[0]);
+  });
+
+  const enterFullscreen = async () => {
+    const target = sea || document.documentElement;
+    try {
+      if (target?.requestFullscreen) {
+        await target.requestFullscreen();
+      } else if (target?.webkitRequestFullscreen) {
+        await target.webkitRequestFullscreen();
+      }
+    } catch (_) {}
+    document.body.classList.add('display-kiosk');
+    window.scrollTo(0, 1);
+  };
+
+  fullscreenBtn?.addEventListener('click', enterFullscreen);
 
   const getEntrySoundSrc = (level) => {
     const rank = Math.floor(Math.max(1, Math.floor(Number(level) || 1)) / 10);
     return ENTRY_SOUNDS[Math.min(rank, ENTRY_SOUNDS.length - 1)];
+  };
+
+  const getRankName = (level, fallback = '') => {
+    const rawFallback = String(fallback || '').trim();
+    if (rawFallback) return rawFallback;
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return '海賊王';
+    if (value >= 31) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
   };
 
   let reconnectTimer = null;
@@ -48,17 +129,19 @@
 
   const spawnEffect = (payload = {}) => {
     if (!effectsLayer) return;
+    const topic = String(payload.topic || '').toLowerCase();
+    const isFeaturedEntry = topic === 'troy-entry';
     const rawType = String(payload.type || payload.effectType || '').toLowerCase();
     const effectType = effectTypes.includes(rawType)
       ? rawType
       : effectTypes[Math.floor(Math.random() * effectTypes.length)];
     const xRaw = Number(payload.x);
     const yRaw = Number(payload.y);
-    const x = Number.isFinite(xRaw) ? clamp(xRaw, 5, 95) : 15 + Math.random() * 70;
-    const y = Number.isFinite(yRaw) ? clamp(yRaw, 5, 95) : 15 + Math.random() * 70;
+    const x = isFeaturedEntry ? 50 : (Number.isFinite(xRaw) ? clamp(xRaw, 5, 95) : 15 + Math.random() * 70);
+    const y = isFeaturedEntry ? 50 : (Number.isFinite(yRaw) ? clamp(yRaw, 5, 95) : 15 + Math.random() * 70);
 
     const effect = document.createElement('div');
-    effect.className = `effect ${effectType}`;
+    effect.className = `effect ${effectType}${isFeaturedEntry ? ' entry-feature' : ''}`;
     effect.style.left = `${x}%`;
     effect.style.top = `${y}%`;
     effectsLayer.appendChild(effect);
@@ -69,6 +152,24 @@
       text.className = 'effect-label';
       text.textContent = label;
       effect.appendChild(text);
+    }
+
+    const level = Math.max(1, Math.floor(Number(payload.level) || 0));
+    if (level > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'effect-rank-badge';
+      badge.textContent = `Lv.${level} ${getRankName(level, payload.rankName)}`;
+      effect.appendChild(badge);
+
+      const benefits = Array.isArray(payload.rankBenefits)
+        ? payload.rankBenefits.map((entry) => String(entry || '').trim()).filter(Boolean)
+        : [];
+      if (benefits.length > 0) {
+        const benefit = document.createElement('div');
+        benefit.className = 'effect-benefit';
+        benefit.textContent = benefits.join(' / ');
+        effect.appendChild(benefit);
+      }
     }
 
     window.setTimeout(() => {

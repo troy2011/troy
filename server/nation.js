@@ -112,6 +112,25 @@ function normalizeTroyCoinConversionAmount(value) {
     return Math.min(TROY_COIN_CONVERSION_MAX_AMOUNT, Math.max(0, amount));
 }
 
+function getPlayerRankNameByLevel(level, options = {}) {
+    if (options.isKing) return '王';
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return '海賊王';
+    if (value >= 31) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
+}
+
+function getPlayerRankServiceBenefitsByLevel(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return ['ドリンクサイズアップ回数制限なし', '店内ゲーム遊び放題'];
+    if (value >= 31) return ['ドリンクサイズアップ回数制限なし'];
+    if (value >= 21) return ['ドリンクサイズアップ1回', '専用ジョッキ（店内専用）'];
+    if (value >= 11) return ['ドリンクサイズアップ1回', '入店時に階級表示'];
+    return ['通常サービス', '入店表示のみ'];
+}
+
 function pickRandomNationWarTarotCardId() {
     if (Math.random() < NATION_WAR_CARD_REWARD_MAJOR_CHANCE) {
         return `arcana-${Math.floor(Math.random() * 22)}`;
@@ -1811,7 +1830,12 @@ function buildTroyMemberPayload(memberDocs = []) {
             return {
                 playFabId: normalizePlayFabId(doc?.id || data.playFabId || ''),
                 displayName: String(data.displayName || doc?.id || 'Player').trim(),
-                joinedAtMs
+                joinedAtMs,
+                level: Math.max(1, Math.floor(Number(data.level) || 1)),
+                rankName: String(data.rankName || getPlayerRankNameByLevel(data.level)).trim(),
+                rankBenefits: Array.isArray(data.rankBenefits)
+                    ? data.rankBenefits.map((entry) => String(entry || '').trim()).filter(Boolean)
+                    : getPlayerRankServiceBenefitsByLevel(data.level)
             };
         })
         .filter((entry) => entry.playFabId)
@@ -3401,17 +3425,32 @@ function initializeNationRoutes(app, deps) {
             const name = String(displayName || '').trim().slice(0, 40) || memberId;
             const memberRef = roomRef.collection('members').doc(memberId);
             const existingMemberSnap = await memberRef.get();
+            let entryLevel = 1;
+            try {
+                const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberId });
+                const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics);
+                entryLevel = calculateLevelFromContribution(statsMap[PLAYER_CONTRIBUTION_STAT] || 0).level;
+            } catch (_) {}
+            const entryRankName = getPlayerRankNameByLevel(entryLevel);
+            const entryRankBenefits = getPlayerRankServiceBenefitsByLevel(entryLevel);
             if (!TROY_CHECKOUT_ENABLED) {
                 await memberRef.set({
                     playFabId: memberId,
                     displayName: name,
+                    level: entryLevel,
+                    rankName: entryRankName,
+                    rankBenefits: entryRankBenefits,
                     joinedAt: existingMemberSnap.exists ? (existingMemberSnap.data()?.joinedAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
                 pushDisplayEvent({
                     type: 'flare',
-                    label: `蜈･蠎・ ${name}`
+                    topic: 'troy-entry',
+                    label: `入店: ${name}`,
+                    level: entryLevel,
+                    rankName: entryRankName,
+                    rankBenefits: entryRankBenefits
                 });
                 return res.json({
                     success: true,
@@ -3539,22 +3578,20 @@ function initializeNationRoutes(app, deps) {
             await roomRef.collection('members').doc(memberId).set({
                 playFabId: memberId,
                 displayName: name,
+                level: entryLevel,
+                rankName: entryRankName,
+                rankBenefits: entryRankBenefits,
                 joinedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-
-            let entryLevel = 1;
-            try {
-                const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberId });
-                const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics);
-                entryLevel = calculateLevelFromContribution(statsMap[PLAYER_CONTRIBUTION_STAT] || 0).level;
-            } catch (_) {}
 
             pushDisplayEvent({
                 type: 'flare',
                 topic: 'troy-entry',
                 label: `入店: ${name}`,
-                level: entryLevel
+                level: entryLevel,
+                rankName: entryRankName,
+                rankBenefits: entryRankBenefits
             });
             res.json({
                 success: true,
@@ -3791,6 +3828,21 @@ function initializeNationRoutes(app, deps) {
         });
     }
 
+    async function updateTroyMemberRankSnapshot(memberRef, contribution) {
+        const level = Math.max(1, Math.floor(Number(contribution?.level) || 0));
+        if (!memberRef || level <= 0) return;
+        try {
+            await memberRef.set({
+                level,
+                rankName: getPlayerRankNameByLevel(level),
+                rankBenefits: getPlayerRankServiceBenefitsByLevel(level),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } catch (rankError) {
+            console.warn('[troy-member-rank] Failed to update rank snapshot:', rankError?.message || rankError);
+        }
+    }
+
     app.post('/api/troy-convert-gold-to-coin', async (req, res) => {
         const { playFabId } = req.body || {};
         const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
@@ -3845,6 +3897,7 @@ function initializeNationRoutes(app, deps) {
             if (!conversion.duplicate && conversion.contributionAmount > 0) {
                 try {
                     contribution = await addPlayerNationContribution(context.memberId, conversion.contributionAmount, nationDeps);
+                    await updateTroyMemberRankSnapshot(context.memberRef, contribution);
                 } catch (contributionError) {
                     console.warn('[troy-convert-coin-to-gold] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
                 }
@@ -4052,6 +4105,7 @@ function initializeNationRoutes(app, deps) {
             let contribution = null;
             try {
                 contribution = await addPlayerNationContribution(receiverId, value, nationDeps);
+                await updateTroyMemberRankSnapshot(roomRef.collection('members').doc(receiverId), contribution);
             } catch (contributionError) {
                 console.warn('[king-direct-grant-ps] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
             }

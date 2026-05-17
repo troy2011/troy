@@ -125,6 +125,18 @@ button:disabled {
     font-size: 1.1rem;
 }
 
+.global-rank-badge {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.34);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
 .currency-display {
     background: rgba(0, 0, 0, 0.3);
     padding: 2px 8px;
@@ -314,6 +326,14 @@ body[data-sea-tone="night"] .home-hero-card {
     font-size: 12px;
     color: var(--text-sub);
     text-align: center;
+}
+
+.home-rank-benefit {
+    margin-top: 6px;
+    color: #fef3c7;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
 }
 
 .home-vitals {
@@ -3399,6 +3419,23 @@ body.modal-lock .modal-overlay {
 
 .troy-entry-item b {
     color: var(--accent-color);
+}
+
+.troy-entry-rank {
+    width: fit-content;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    background: rgba(245, 158, 11, 0.1);
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.troy-entry-benefit {
+    color: var(--text-sub);
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .king-direct-grant-controls {
@@ -9826,6 +9863,13 @@ body::before {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 15px;
+}
+
+.global-rank-badge {
+    max-width: 24vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .currency-display {
