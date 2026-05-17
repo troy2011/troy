@@ -120,6 +120,15 @@
     return '見習い';
   };
 
+  const getEntryRankTier = (level) => {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return 'pirateking';
+    if (value >= 31) return 'admiral';
+    if (value >= 21) return 'captain';
+    if (value >= 11) return 'navigator';
+    return 'rookie';
+  };
+
   let reconnectTimer = null;
   let stream = null;
   let rankingRefreshTimer = null;
@@ -140,11 +149,35 @@
     const x = isFeaturedEntry ? 50 : (Number.isFinite(xRaw) ? clamp(xRaw, 5, 95) : 15 + Math.random() * 70);
     const y = isFeaturedEntry ? 50 : (Number.isFinite(yRaw) ? clamp(yRaw, 5, 95) : 15 + Math.random() * 70);
 
+    const level = Math.max(1, Math.floor(Number(payload.level) || 0));
+    const tier = getEntryRankTier(level);
     const effect = document.createElement('div');
-    effect.className = `effect ${effectType}${isFeaturedEntry ? ' entry-feature' : ''}`;
+    effect.className = `effect ${effectType}${isFeaturedEntry ? ` entry-feature rank-${tier}` : ''}`;
     effect.style.left = `${x}%`;
     effect.style.top = `${y}%`;
     effectsLayer.appendChild(effect);
+
+    if (isFeaturedEntry) {
+      const particleCountByTier = {
+        rookie: 10,
+        navigator: 16,
+        captain: 24,
+        admiral: 34,
+        pirateking: 48
+      };
+      const particleCount = particleCountByTier[tier] || 12;
+      for (let i = 0; i < particleCount; i += 1) {
+        const particle = document.createElement('i');
+        particle.className = 'entry-confetti';
+        const angle = (Math.PI * 2 * i) / particleCount;
+        const distance = 130 + Math.random() * 170;
+        particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+        particle.style.setProperty('--rot', `${Math.floor(Math.random() * 720) - 360}deg`);
+        particle.style.animationDelay = `${Math.random() * 0.28}s`;
+        effect.appendChild(particle);
+      }
+    }
 
     const label = String(payload.label || '').trim();
     if (label) {
@@ -154,7 +187,6 @@
       effect.appendChild(text);
     }
 
-    const level = Math.max(1, Math.floor(Number(payload.level) || 0));
     if (level > 0) {
       const badge = document.createElement('div');
       badge.className = 'effect-rank-badge';
@@ -172,9 +204,16 @@
       }
     }
 
+    const durationByTier = {
+      rookie: 3200,
+      navigator: 3800,
+      captain: 4600,
+      admiral: 5400,
+      pirateking: 6800
+    };
     window.setTimeout(() => {
       effect.remove();
-    }, 3200);
+    }, isFeaturedEntry ? (durationByTier[tier] || 4200) : 3200);
   };
 
   const formatNumber = (value) => {

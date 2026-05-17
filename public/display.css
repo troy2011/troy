@@ -184,16 +184,86 @@ body.display-kiosk #sea {
 }
 
 .effect.entry-feature {
+  --entry-bg-a: rgba(255, 235, 170, 0.22);
+  --entry-bg-b: rgba(45, 212, 191, 0.1);
+  --entry-border: rgba(255, 232, 160, 0.78);
+  --entry-glow-a: rgba(255, 232, 160, 0.42);
+  --entry-glow-b: rgba(56, 189, 248, 0.24);
+  --entry-badge: #ffe58a;
+  --entry-confetti-a: #ffe58a;
+  --entry-confetti-b: #67e8f9;
   width: min(520px, 72vw);
   height: min(520px, 72vw);
   border-width: 3px;
-  border-color: rgba(255, 232, 160, 0.78);
+  border-color: var(--entry-border);
   background:
-    radial-gradient(circle, rgba(255, 235, 170, 0.22), rgba(45, 212, 191, 0.1) 42%, transparent 70%);
+    radial-gradient(circle, var(--entry-bg-a), var(--entry-bg-b) 42%, transparent 70%);
   box-shadow:
-    0 0 70px rgba(255, 232, 160, 0.42),
-    0 0 120px rgba(56, 189, 248, 0.24);
+    0 0 70px var(--entry-glow-a),
+    0 0 120px var(--entry-glow-b);
   animation: entryFeature 4.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.effect.entry-feature.rank-rookie {
+  --entry-bg-a: rgba(226, 232, 240, 0.2);
+  --entry-bg-b: rgba(148, 163, 184, 0.12);
+  --entry-border: rgba(226, 232, 240, 0.55);
+  --entry-glow-a: rgba(226, 232, 240, 0.28);
+  --entry-glow-b: rgba(148, 163, 184, 0.18);
+  --entry-badge: #e2e8f0;
+  --entry-confetti-a: #e2e8f0;
+  --entry-confetti-b: #94a3b8;
+  animation-duration: 3.2s;
+}
+
+.effect.entry-feature.rank-navigator {
+  --entry-bg-a: rgba(45, 212, 191, 0.24);
+  --entry-bg-b: rgba(14, 165, 233, 0.12);
+  --entry-border: rgba(94, 234, 212, 0.72);
+  --entry-glow-a: rgba(45, 212, 191, 0.42);
+  --entry-glow-b: rgba(56, 189, 248, 0.3);
+  --entry-badge: #99f6e4;
+  --entry-confetti-a: #5eead4;
+  --entry-confetti-b: #38bdf8;
+  animation-duration: 3.8s;
+}
+
+.effect.entry-feature.rank-captain {
+  --entry-bg-a: rgba(251, 191, 36, 0.26);
+  --entry-bg-b: rgba(239, 68, 68, 0.12);
+  --entry-border: rgba(251, 191, 36, 0.82);
+  --entry-glow-a: rgba(251, 191, 36, 0.52);
+  --entry-glow-b: rgba(248, 113, 113, 0.28);
+  --entry-badge: #fde68a;
+  --entry-confetti-a: #facc15;
+  --entry-confetti-b: #fb7185;
+  animation-duration: 4.6s;
+}
+
+.effect.entry-feature.rank-admiral {
+  --entry-bg-a: rgba(129, 140, 248, 0.3);
+  --entry-bg-b: rgba(56, 189, 248, 0.14);
+  --entry-border: rgba(165, 180, 252, 0.88);
+  --entry-glow-a: rgba(129, 140, 248, 0.62);
+  --entry-glow-b: rgba(56, 189, 248, 0.36);
+  --entry-badge: #c4b5fd;
+  --entry-confetti-a: #a5b4fc;
+  --entry-confetti-b: #7dd3fc;
+  animation-duration: 5.4s;
+}
+
+.effect.entry-feature.rank-pirateking {
+  --entry-bg-a: rgba(250, 204, 21, 0.34);
+  --entry-bg-b: rgba(236, 72, 153, 0.18);
+  --entry-border: rgba(250, 204, 21, 0.96);
+  --entry-glow-a: rgba(250, 204, 21, 0.8);
+  --entry-glow-b: rgba(236, 72, 153, 0.46);
+  --entry-badge: #fef08a;
+  --entry-confetti-a: #fef08a;
+  --entry-confetti-b: #f0abfc;
+  width: min(620px, 82vw);
+  height: min(620px, 82vw);
+  animation-duration: 6.8s;
 }
 
 .effect.boom {
@@ -248,7 +318,9 @@ body.display-kiosk #sea {
   font-size: clamp(32px, 6vw, 72px);
   font-weight: 1000;
   letter-spacing: 0.05em;
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.52);
+  box-shadow:
+    0 20px 70px rgba(0, 0, 0, 0.52),
+    0 0 34px var(--entry-glow-a);
 }
 
 .effect-rank-badge {
@@ -277,6 +349,8 @@ body.display-kiosk #sea {
   padding: 8px 18px;
   font-size: clamp(20px, 2.6vw, 34px);
   background: rgba(8, 13, 22, 0.84);
+  color: var(--entry-badge);
+  border-color: var(--entry-border);
 }
 
 .effect-benefit {
@@ -307,6 +381,51 @@ body.display-kiosk #sea {
   padding: 9px 18px;
   font-size: clamp(16px, 2vw, 26px);
   background: rgba(3, 7, 14, 0.78);
+  border: 1px solid rgba(255, 232, 160, 0.28);
+}
+
+.entry-confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 16px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--entry-confetti-a), var(--entry-confetti-b));
+  box-shadow: 0 0 12px var(--entry-glow-a);
+  transform: translate(-50%, -50%) rotate(0deg);
+  opacity: 0;
+  animation: entryConfetti 1.9s ease-out forwards;
+}
+
+.rank-rookie .entry-confetti {
+  width: 5px;
+  height: 10px;
+  animation-duration: 1.25s;
+}
+
+.rank-navigator .entry-confetti {
+  width: 7px;
+  height: 13px;
+  animation-duration: 1.55s;
+}
+
+.rank-captain .entry-confetti {
+  width: 8px;
+  height: 16px;
+  animation-duration: 1.9s;
+}
+
+.rank-admiral .entry-confetti {
+  width: 9px;
+  height: 18px;
+  animation-duration: 2.25s;
+}
+
+.rank-pirateking .entry-confetti {
+  width: 10px;
+  height: 22px;
+  animation-duration: 2.8s;
 }
 
 @keyframes ripple {
@@ -337,6 +456,20 @@ body.display-kiosk #sea {
   }
   100% {
     transform: translate(-50%, -50%) scale(1.08);
+    opacity: 0;
+  }
+}
+
+@keyframes entryConfetti {
+  0% {
+    transform: translate(-50%, -50%) scale(0.45) rotate(0deg);
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1) rotate(var(--rot));
     opacity: 0;
   }
 }
