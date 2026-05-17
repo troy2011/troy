@@ -99,12 +99,6 @@ function setMessage(text, isError = false) {
     el.hidden = !text;
 }
 
-function hasNationParam() {
-    const params = new URLSearchParams(window.location.search);
-    const nation = String(params.get('troyNation') || params.get('nation') || '').trim().toLowerCase();
-    return ['fire', 'water', 'wind', 'earth'].includes(nation);
-}
-
 function setSummary(data = {}) {
     const open = !!data.troyOpen;
     $('troyOrdersOpenState').textContent = open ? 'OPEN' : 'CLOSE';
@@ -116,10 +110,8 @@ function setSummary(data = {}) {
 
     const openBtn = $('troyOrdersOpenBtn');
     const closeBtn = $('troyOrdersCloseBtn');
-    const nationSelect = $('troyOrdersNationSelect');
     if (openBtn) openBtn.hidden = open;
     if (closeBtn) closeBtn.hidden = !open;
-    if (nationSelect) nationSelect.hidden = open || hasNationParam();
 }
 
 async function setTroyOpen(nextOpen) {
@@ -129,10 +121,6 @@ async function setTroyOpen(nextOpen) {
         if (entries.length > 0 && !confirm(`お会計待ちが ${entries.length}件 います。TROYをCLOSEしますか？`)) return;
     }
     const nationPayload = getRequestedNationPayload();
-    if (nextOpen && !nationPayload.troyNation) {
-        const selected = $('troyOrdersNationSelect')?.value || '';
-        if (selected) nationPayload.troyNation = selected;
-    }
     busy = true;
     const btn = nextOpen ? $('troyOrdersOpenBtn') : $('troyOrdersCloseBtn');
     const prev = btn?.textContent;

@@ -1910,6 +1910,38 @@ function initializeNationRoutes(app, deps) {
         }
     };
 
+    async function setGlobalTroyOpenState(context, nextOpen) {
+        const roomRef = getTroyRoomDoc(firestore);
+        const update = {
+            isOpen: !!nextOpen,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedBy: null
+        };
+        if (nextOpen) update.nation = context.nation;
+        await roomRef.set(update, { merge: true });
+        if (!nextOpen) {
+            await deleteCollectionDocs(roomRef.collection('members'));
+            await deleteCollectionDocs(roomRef.collection('checkouts'));
+        }
+        pushDisplayEvent(nextOpen
+            ? { type: 'flare', label: 'TROY OPEN' }
+            : { type: 'splash', label: 'TROY CLOSE' }
+        );
+        return { success: true, isOpen: !!nextOpen, nation: context.nation };
+    }
+
+    async function resolveTroyOpenStateContext(req, nextOpen) {
+        const currentSnap = await getTroyRoomDoc(firestore).get();
+        const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
+        const requestedNation = String(req.body?.troyNation || req.body?.entryNation || '').trim().toLowerCase();
+        let nation = requestedNation && getNationMappingByNation(requestedNation) ? requestedNation : null;
+        if (!nation && !nextOpen) nation = await findOpenTroyNation(firestore);
+        if (!nation) nation = currentNation || TROY_ENTRY_DEFAULT_NATION || 'fire';
+        const mapping = getNationMappingByNation(nation);
+        if (!mapping) return null;
+        return { nation, mapping };
+    }
+
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
             return playFabId;
@@ -2819,40 +2851,22 @@ function initializeNationRoutes(app, deps) {
     // TROY営業状態の変更
     app.post('/api/king-set-troy-open', async (req, res) => {
         const { playFabId, isOpen } = req.body || {};
-        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
-        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
-        if (!requesterPlayFabId) return;
+        const requesterPlayFabId = String(playFabId || '').trim();
         const nextOpen = !!isOpen;
 
         try {
-            const context = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
-            const roomRef = getTroyRoomDoc(firestore, context.mapping.groupName);
-            if (!nextOpen) {
-                await roomRef.set({
-                    isOpen: false,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedBy: null
-                }, { merge: true });
-                await deleteCollectionDocs(roomRef.collection('members'));
-                await deleteCollectionDocs(roomRef.collection('checkouts'));
-            } else {
-                await roomRef.set({
-                    isOpen: true,
-                    nation: context.nation,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedBy: context.kingId
-                }, { merge: true });
+            const context = await resolveTroyOpenStateContext(req, nextOpen);
+            if (!context) return res.status(400).json({ error: 'Invalid TROY nation' });
+            const result = await setGlobalTroyOpenState(context, nextOpen);
+            let label = 'TROY';
+            if (requesterPlayFabId) {
+                label = await getPlayerDisplayName(requesterPlayFabId, { promisifyPlayFab, PlayFabServer }) || label;
             }
-            const kingName = await getPlayerDisplayName(context.kingId, { promisifyPlayFab, PlayFabServer });
-            const label = kingName || '王';
             const message = nextOpen ? 'TROYをOPEN！' : 'TROYをCLOSE。';
             addGlobalChatMessage(message, label);
-            res.json({ success: true, isOpen: nextOpen });
+            res.json(result);
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
-            if (String(msg).includes('NotKing')) {
-                return res.status(403).json({ error: 'NotKing' });
-            }
             console.error('[king-set-troy-open] Error:', msg);
             res.status(500).json({ error: 'Failed to update troy status' });
         }
@@ -4451,24 +4465,10 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/troy-orders/set-open', async (req, res) => {
         try {
             const nextOpen = !!req.body?.isOpen;
-            if (nextOpen) {
-                const currentSnap = await getTroyRoomDoc(firestore).get();
-                const nationKey = String(req.body?.troyNation || currentSnap.data()?.nation || TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
-                const mapping = getNationMappingByNation(nationKey);
-                if (!mapping) return res.status(400).json({ error: 'Invalid TROY nation' });
-                const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
-                await roomRef.set({ isOpen: true, nation: nationKey, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                pushDisplayEvent({ type: 'flare', label: 'TROY OPEN' });
-                return res.json({ success: true, isOpen: true, nation: nationKey });
-            } else {
-                const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
-                if (!context) return res.json({ success: true, isOpen: false, alreadyClosed: true });
-                await context.roomRef.set({ isOpen: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                await deleteCollectionDocs(context.roomRef.collection('members'));
-                await deleteCollectionDocs(context.roomRef.collection('checkouts'));
-                pushDisplayEvent({ type: 'splash', label: 'TROY CLOSE' });
-                return res.json({ success: true, isOpen: false, nation: context.nation });
-            }
+            const context = await resolveTroyOpenStateContext(req, nextOpen);
+            if (!context) return res.status(400).json({ error: 'Invalid TROY nation' });
+            const result = await setGlobalTroyOpenState(context, nextOpen);
+            return res.json(result);
         } catch (error) {
             console.error('[troy-orders-set-open] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToSetTroyOpen' });
