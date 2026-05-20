@@ -7,9 +7,7 @@ import {
     respondNationWarIntercept,
     raidNationTreasury,
     setNationAnnouncement,
-    grantPs,
     directGrantPs,
-    settleTroyCheckout,
     setTroyOpen,
     kingUpdateMenu,
     getTroyCalendar,
@@ -23,7 +21,6 @@ import { formatCurrencyLabel } from './config.js';
 let _isKing = false;
 let _lastPageData = null;
 let _hasKingCheck = false;
-const TROY_CHECKOUT_ENABLED = false;
 
 function _setMessage(text, isError = false) {
     const el = document.getElementById('kingPageMessage');
@@ -95,63 +92,6 @@ function _renderTreasuryOverview(summary = [], entries = []) {
             entriesEl.innerHTML = '';
         }
     }
-}
-
-function _renderPendingTroyCheckouts(entries = []) {
-    const listEl = document.getElementById('kingPendingCheckoutList');
-    if (!listEl) return;
-    const rows = Array.isArray(entries) ? entries : [];
-    if (!rows.length) {
-        listEl.innerHTML = '<div class="king-pending-checkout-empty">お会計待ちのお客様はいません。</div>';
-        return;
-    }
-    listEl.innerHTML = rows.map((entry) => {
-        const total = Math.max(0, Number(entry.total) || 0);
-        const totalItems = Math.max(0, Number(entry.totalItems) || 0);
-        const grantTotal = Math.max(0, Number(entry.grantTotal) || 0);
-        const status = String(entry.status || 'open').trim().toLowerCase();
-        const meta = [
-            status === 'pending' ? '確認待ち' : 'お会計前',
-            _formatEpochMs(entry.lastOrderedAtMs || entry.createdAtMs),
-            totalItems ? `${totalItems}点` : ''
-        ].filter(Boolean).join(' / ');
-        const grantMeta = grantTotal > 0
-            ? `ゴールド渡し済み ${grantTotal.toLocaleString('ja-JP')}G`
-            : (status === 'pending' ? 'ゴールドはお会計時に渡されます' : '');
-        const items = (Array.isArray(entry.items) ? entry.items : []).slice(0, 4).map((item) => `
-            <div class="king-pending-checkout-item-row">
-                <span>${_escapeHtml(item.name || '')}${Number(item.quantity || 0) > 1 ? ` x${Math.max(1, Number(item.quantity) || 1)}` : ''}</span>
-                <strong>¥${Math.max(0, Number(item.lineTotal) || 0).toLocaleString('ja-JP')}</strong>
-            </div>
-        `).join('');
-        return `
-            <div class="king-pending-checkout-card">
-                <div class="king-pending-checkout-head">
-                    <div class="king-pending-checkout-main">
-                        <strong>${buildPlayerTriggerHtml(entry.playFabId, entry.displayName || entry.playFabId || 'Player', { className: 'player-link-inline' })}</strong>
-                        <span>${_escapeHtml(meta || '未会計')}</span>
-                        ${grantMeta ? `<span>${_escapeHtml(grantMeta)}</span>` : ''}
-                    </div>
-                    <div class="king-pending-checkout-total">¥${total.toLocaleString('ja-JP')}</div>
-                </div>
-                <div class="king-pending-checkout-items">${items || `<div class="king-pending-checkout-item-row"><span>${_escapeHtml(entry.summary || '注文内容なし')}</span></div>`}</div>
-                <details class="king-coin-deposit-details">
-                    <summary>預かりコインあり</summary>
-                    <label class="king-coin-deposit-row">
-                        <span class="king-coin-deposit-label">預かり額</span>
-                        <input type="number" class="king-coin-deposit-input" min="0" step="1" inputmode="numeric" value="0" data-coin-deposit-input="true" aria-label="預かりコイン">
-                        <span class="king-coin-deposit-unit">G</span>
-                    </label>
-                    <div class="king-coin-deposit-help">店内コインを返却する時だけ入力</div>
-                </details>
-                <div class="king-pending-checkout-actions">
-                    <button type="button" class="btn-open" data-pending-settle="true" data-checkout-status="${_escapeHtml(status)}" data-receiver-id="${_escapeHtml(entry.playFabId)}" data-amount="${total}">
-                        お会計する
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 function _renderTroyMembers(members = []) {
@@ -544,30 +484,10 @@ function _renderNationWar(war = null) {
     }
 }
 
-function _grantPreview(amount, rateBps) {
-    const gross = Math.max(0, Math.floor(Number(amount) || 0));
-    const safeRateBps = Math.max(0, Math.floor(Number(rateBps) || 0));
-    const grant = Math.floor(gross * (safeRateBps / 10000));
-    return { gross, grant, rateBps: safeRateBps };
-}
-
 function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗しました。') {
     if (!error) return fallback;
     if (typeof error === 'string') return error;
     return error.message || error.errorMessage || fallback;
-}
-
-async function _scanQrValue() {
-    if (!window.liff) throw new Error('LIFF が初期化されていません。');
-    if (typeof window.liff.scanCodeV2 === 'function') {
-        const r = await window.liff.scanCodeV2();
-        return r && r.value ? String(r.value).trim() : '';
-    }
-    if (typeof window.liff.scanCode === 'function') {
-        const r = await window.liff.scanCode();
-        return r && r.value ? String(r.value).trim() : '';
-    }
-    throw new Error('この環境では QR 読み取り（scanCode）が利用できません。');
 }
 
 export function isKing() {
@@ -628,14 +548,7 @@ export async function loadKingPage(playFabId, options = {}) {
     const troyControlsEl = document.getElementById('troyKingControls');
     const treasuryEl = document.getElementById('kingTreasuryInfo');
     const cashbackRateEl = document.getElementById('kingCashbackRateInfo');
-    const todaySalesEl = document.getElementById('kingTroyTodaySales');
-    const salesSummaryEl = document.getElementById('kingTroySalesSummary');
-    const pendingCountEl = document.getElementById('kingTroyPendingCount');
-    const previewEl = document.getElementById('kingGrantPreview');
-    const grantAmountEl = document.getElementById('kingGrantAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
-    const grantCardEl = document.getElementById('kingGrantCard');
-    const manualGrantDetailsEl = document.getElementById('kingManualGrantDetails');
 
     if (currentEl) currentEl.innerText = (data.announcement && data.announcement.message) ? data.announcement.message : '(未設定)';
     if (metaEl) {
@@ -645,11 +558,6 @@ export async function loadKingPage(playFabId, options = {}) {
     }
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
     if (troyControlsEl) troyControlsEl.style.display = 'block';
-    const ordersLink = document.querySelector('.troy-order-page-link');
-    if (ordersLink && data.nation) {
-        ordersLink.href = `/troy-orders.html?nation=${encodeURIComponent(data.nation)}`;
-        ordersLink.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
-    }
 
     if (treasuryEl) {
         const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
@@ -659,37 +567,14 @@ export async function loadKingPage(playFabId, options = {}) {
         const rank = Math.max(1, Number(data.treasuryRank) || 1);
         cashbackRateEl.innerText = `${_formatRatePercentFromBps(data.troyCashbackRateBps)} / 国庫${rank}位`;
     }
-    if (todaySalesEl) {
-        const salesTotal = Math.max(0, Number(data?.troyTodaySales?.total) || 0);
-        const salesCount = Math.max(0, Number(data?.troyTodaySales?.count) || 0);
-        todaySalesEl.innerText = `本日の売上: ¥${salesTotal.toLocaleString('ja-JP')}${salesCount > 0 ? ` / ${salesCount}会計` : ''}`;
-    }
-    if (salesSummaryEl) {
-        const salesTotal = Math.max(0, Number(data?.troyTodaySales?.total) || 0);
-        salesSummaryEl.innerText = `¥${salesTotal.toLocaleString('ja-JP')}`;
-    }
-    if (pendingCountEl) {
-        const pendingCount = TROY_CHECKOUT_ENABLED && Array.isArray(data?.troyPendingCheckouts) ? data.troyPendingCheckouts.length : 0;
-        pendingCountEl.innerText = `${pendingCount}件`;
-        pendingCountEl.classList.toggle('has-pending', pendingCount > 0);
-    }
     _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
     _renderTroyMembers(data.troyMembers);
-    _renderPendingTroyCheckouts(TROY_CHECKOUT_ENABLED ? data.troyPendingCheckouts : []);
     _renderMenuManagement(data);
     await _loadKingTroyCalendar(playFabId, data.nation);
-    if (troyStatusEl || grantCardEl) {
+    if (troyStatusEl) {
         const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
         if (troyStatusEl) troyStatusEl.classList.toggle('is-open', isOpen);
-        if (grantCardEl) grantCardEl.style.display = isOpen && TROY_CHECKOUT_ENABLED ? '' : 'none';
-        if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = isOpen && TROY_CHECKOUT_ENABLED ? '' : 'none';
-    }
-    if (previewEl && grantAmountEl) {
-        const p = _grantPreview(grantAmountEl.value, data.troyCashbackRateBps);
-        previewEl.innerText = p.gross > 0
-            ? `お客様: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
-            : '';
     }
     _renderNationWar(data.war);
 
@@ -705,18 +590,9 @@ function _wireHandlers(playFabId) {
     const reloadBtn = document.getElementById('btnKingReload');
     const reloadBtn2 = document.getElementById('btnKingReload2');
     const inputEl = document.getElementById('kingAnnouncementInput');
-    const grantReceiverEl = document.getElementById('kingGrantReceiverId');
-    const grantAmountEl = document.getElementById('kingGrantAmount');
-    const grantBtn = document.getElementById('btnKingGrantPs');
     const troyOpenBtn = document.getElementById('btnKingTroyOpen');
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
     const troyStatusEl = document.getElementById('kingTroyStatus');
-    const grantCardEl = document.getElementById('kingGrantCard');
-    const manualGrantDetailsEl = document.getElementById('kingManualGrantDetails');
-    const pendingCheckoutEl = document.getElementById('kingPendingCheckoutList');
-    const scanReceiverBtn = document.getElementById('btnKingScanReceiver');
-    const clearReceiverBtn = document.getElementById('btnKingClearReceiver');
-    const previewEl = document.getElementById('kingGrantPreview');
     const warSectionEl = document.getElementById('kingWarSection');
     const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
     const warStrikeWeaponEl = document.getElementById('kingWarStrikeWeapon');
@@ -747,82 +623,6 @@ function _wireHandlers(playFabId) {
     if (reloadBtn2) {
         reloadBtn2.addEventListener('click', async () => {
             await loadKingPage(playFabId);
-        });
-    }
-
-    if (grantAmountEl && previewEl) {
-        grantAmountEl.addEventListener('input', () => {
-            const rateBps = _lastPageData && Number.isFinite(Number(_lastPageData.troyCashbackRateBps))
-                ? Number(_lastPageData.troyCashbackRateBps)
-                : 0;
-            const p = _grantPreview(grantAmountEl.value, rateBps);
-            previewEl.innerText = p.gross > 0
-                ? `お客様: ${p.grant}G / 国庫: ${p.gross}G / 還元率: ${_formatRatePercentFromBps(p.rateBps)}`
-                : '';
-        });
-    }
-
-    if (scanReceiverBtn && grantReceiverEl) {
-        scanReceiverBtn.addEventListener('click', async () => {
-            try {
-                const value = await _scanQrValue();
-                if (value) grantReceiverEl.value = value;
-            } catch (e) {
-                _setMessage(e.message || String(e), true);
-            }
-        });
-    }
-
-    if (clearReceiverBtn && grantReceiverEl) {
-        clearReceiverBtn.addEventListener('click', () => {
-            grantReceiverEl.value = '';
-        });
-    }
-
-    if (grantBtn) {
-        grantBtn.addEventListener('click', async () => {
-            const receiverPlayFabId = grantReceiverEl ? String(grantReceiverEl.value || '').trim() : '';
-            const amount = grantAmountEl ? Number(grantAmountEl.value) : 0;
-            if (!receiverPlayFabId) {
-                _setMessage('お客様のIDが入力されていません。', true);
-                return;
-            }
-            if (!amount || amount <= 0) {
-                _setMessage('金額は1以上を入力してください。', true);
-                return;
-            }
-            if (!confirm(`¥${Math.floor(amount)} を受け取り、お客様にゴールドを渡します。よろしいですか？`)) return;
-
-            const nextAmount = Math.floor(amount);
-            const previousLabel = grantBtn.innerText;
-            grantBtn.disabled = true;
-            grantBtn.innerText = '処理中...';
-            _setMessage('');
-            try {
-                const requestId = createRequestId('king-grant');
-                const result = await grantPs(playFabId, receiverPlayFabId, nextAmount, requestId);
-                if (result) {
-                    const rankLabel = Math.max(1, Number(result.treasuryRank) || 1);
-                    const baseMessage = `ゴールドを渡しました（お客様: ${result.grantAmount}G / 国庫: ${result.receivedAmount}G / 還元率: ${_formatRatePercentFromBps(result.cashbackRateBps)} / 国庫${rankLabel}位）。`;
-                    if (result.treasuryUpdated === false) {
-                        _setMessage(`${baseMessage} 国庫更新に失敗しました: ${result.treasuryError || 'Unknown error'}`, true);
-                    } else {
-                        _setMessage(baseMessage);
-                    }
-                    if (grantAmountEl) {
-                        grantAmountEl.value = '0';
-                    }
-                    if (previewEl) {
-                        previewEl.innerText = '';
-                    }
-                    await loadKingPage(playFabId);
-                }
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error), true);
-            } finally {
-                grantBtn.disabled = false;
-                grantBtn.innerText = previousLabel;
-            }
         });
     }
 
@@ -864,65 +664,12 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (pendingCheckoutEl) {
-        pendingCheckoutEl.addEventListener('click', async (event) => {
-            const button = event.target instanceof Element ? event.target.closest('[data-pending-settle="true"]') : null;
-            if (!button) return;
-            const receiverPlayFabId = String(button.getAttribute('data-receiver-id') || '').trim();
-            const expectedTotal = Math.max(0, Math.floor(Number(button.getAttribute('data-amount')) || 0));
-            const checkoutStatus = String(button.getAttribute('data-checkout-status') || 'open').trim().toLowerCase();
-            const card = button.closest('.king-pending-checkout-card');
-            const depositInput = card?.querySelector('[data-coin-deposit-input="true"]');
-            const coinDepositAmount = Math.max(0, Math.floor(Number(depositInput?.value) || 0));
-            if (!receiverPlayFabId || expectedTotal <= 0) {
-                _setMessage('会計対象の情報が不正です。', true);
-                return;
-            }
-            const depositNote = coinDepositAmount > 0
-                ? `\n預かりコイン ${coinDepositAmount.toLocaleString('ja-JP')}G を返却します。`
-                : '';
-            const confirmMessage = checkoutStatus === 'pending'
-                ? `¥${expectedTotal.toLocaleString('ja-JP')} の会計を確定してゴールドを渡しますか？${depositNote}`
-                : `現金 ¥${expectedTotal.toLocaleString('ja-JP')} を受け取り済みにしますか？${depositNote}`;
-            if (!confirm(confirmMessage)) return;
-
-            const previous = button.innerText;
-            button.setAttribute('disabled', 'disabled');
-            if (depositInput) depositInput.setAttribute('disabled', 'disabled');
-            button.innerText = '処理中...';
-            try {
-                const requestId = createRequestId('king-settle-troy-checkout');
-                const result = await settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, { coinDepositAmount });
-                const rankLabel = Number.isFinite(Number(result?.treasuryRank)) ? Math.max(1, Number(result.treasuryRank)) : null;
-                const grantLabel = Math.max(0, Number(result?.grantAmount) || 0);
-                const coinDepositLabel = Math.max(0, Number(result?.coinDepositAmount) || coinDepositAmount);
-                const grantNote = grantLabel > 0
-                    ? ` / ゴールド追加付与: ${grantLabel}G / 還元率: ${_formatRatePercentFromBps(result?.cashbackRateBps || 0)}`
-                    : '';
-                const coinDepositNote = coinDepositLabel > 0 ? ` / 預かりコイン: ${coinDepositLabel.toLocaleString('ja-JP')}G` : '';
-                const rankNote = rankLabel ? ` / 国庫${rankLabel}位` : '';
-                const todaySalesTotal = Math.max(0, Number(result?.troyTodaySales?.total) || 0);
-                const todaySalesNote = todaySalesTotal > 0 ? ` / 本日売上: ¥${todaySalesTotal.toLocaleString('ja-JP')}` : '';
-                _setMessage(`お会計しました（国庫: ${result?.receivedAmount || expectedTotal}G${grantNote}${coinDepositNote}${rankNote}${todaySalesNote}）。`);
-                await loadKingPage(playFabId);
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'お会計に失敗しました。'), true);
-            } finally {
-                button.removeAttribute('disabled');
-                if (depositInput) depositInput.removeAttribute('disabled');
-                button.innerText = previous;
-            }
-        });
-    }
-
     if (troyOpenBtn) {
         troyOpenBtn.addEventListener('click', async () => {
             const result = await setTroyOpen(playFabId, true);
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
                 if (troyStatusEl) troyStatusEl.classList.add('is-open');
-                if (grantCardEl) grantCardEl.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
-                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = TROY_CHECKOUT_ENABLED ? '' : 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをOPENにしました。');
             }
@@ -931,17 +678,10 @@ function _wireHandlers(playFabId) {
 
     if (troyCloseBtn) {
         troyCloseBtn.addEventListener('click', async () => {
-            const pendingCount = Array.isArray(_lastPageData?.troyPendingCheckouts) ? _lastPageData.troyPendingCheckouts.length : 0;
-            if (pendingCount > 0) {
-                const ok = confirm(`お会計待ちが ${pendingCount}件 います。TROYをCLOSEしますか？`);
-                if (!ok) return;
-            }
             const result = await setTroyOpen(playFabId, false);
             if (result) {
                 if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
                 if (troyStatusEl) troyStatusEl.classList.remove('is-open');
-                if (grantCardEl) grantCardEl.style.display = 'none';
-                if (manualGrantDetailsEl) manualGrantDetailsEl.style.display = 'none';
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
             }

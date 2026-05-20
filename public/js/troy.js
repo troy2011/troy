@@ -3,8 +3,6 @@
 import {
     getTroyStatus,
     joinTroy,
-    sendTroyOrder,
-    undoTroyLastOrder,
     getTroyCalendar
 } from './playfabClient.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
@@ -13,7 +11,6 @@ import { decoratePlayerTriggerElement } from './playerProfile.js';
 let _wired = false;
 let _menuWired = false;
 let _lastStatus = null;
-let _checkoutSession = null;
 let _menuActiveId = 'beer';
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
@@ -27,18 +24,15 @@ let _menuSpecials = [];
 let _businessCalendar = [];
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
-let _statusCheckoutUnsubscribe = null;
 let _statusSnapshotState = {
     nation: null,
     isOpen: false,
     members: [],
-    checkout: null,
     menuDisabled: [],
     menuSpecials: []
 };
 
 const TROY_ORDER_ENTRY_ENABLED = false;
-const TROY_CHECKOUT_ENABLED = false;
 const TROY_MENU_IDS = ['favorite', 'beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GROUP_BY_NATION = {
@@ -408,7 +402,10 @@ function isTroyMember(status, playFabId) {
 }
 
 function updateOrderAvailability() {
-    updateCheckoutStatus();
+    updateTroyStatusInline();
+    setMenuButtonsEnabled(canUseTroyMenu());
+    updateTroyPrimaryAction();
+    applyOrderEntryClosedPrimaryState();
 }
 
 function canUseTroyMenu(playFabId = window.myPlayFabId) {
@@ -453,11 +450,11 @@ function updateTroyRoleUI() {
         menuList.hidden = !TROY_ORDER_ENTRY_ENABLED;
     }
     const openTabCard = document.getElementById('troyOpenTabCard');
-    if (openTabCard) openTabCard.hidden = !TROY_CHECKOUT_ENABLED;
+    if (openTabCard) openTabCard.hidden = true;
     const orderStatus = document.getElementById('troyOrderStatusInline');
-    if (orderStatus) orderStatus.hidden = !TROY_CHECKOUT_ENABLED;
+    if (orderStatus) orderStatus.hidden = false;
     const coinNote = document.getElementById('troyCoinNoteDetails');
-    if (coinNote) coinNote.hidden = !TROY_CHECKOUT_ENABLED;
+    if (coinNote) coinNote.hidden = true;
     applyOrderEntryClosedPrimaryState();
 }
 
@@ -469,8 +466,6 @@ function applyOrderEntryClosedPrimaryState() {
     if (!title || !meta || !button || !_lastStatus?.isOpen) return;
 
     const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
-    const session = sanitizeCheckoutSession(_checkoutSession);
-    const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
     if (!isMember) {
         title.textContent = '入店できます';
         meta.textContent = '注文は現在停止中です。';
@@ -478,7 +473,6 @@ function applyOrderEntryClosedPrimaryState() {
         button.disabled = false;
         return;
     }
-    if (hasOpenTab) return;
     title.textContent = '注文は停止中';
     meta.textContent = '現在は注文を受け付けていません。';
     button.textContent = '停止中';
@@ -652,44 +646,6 @@ function getOrderItemName(item, optionLabel = '', sizeLabel = '') {
     return parts.length ? `${concept} (${parts.join(' / ')})` : concept;
 }
 
-function normalizeCheckoutItems(items = []) {
-    return (Array.isArray(items) ? items : [])
-        .map((item) => {
-            const name = String(item?.name || item?.itemName || '').trim();
-            const quantity = Math.max(1, Math.floor(Number(item?.quantity) || 1));
-            const price = Math.max(0, Math.floor(Number(item?.price) || 0));
-            if (!name || !price) return null;
-            return {
-                name,
-                quantity,
-                price,
-                grantedPs: Math.max(0, Math.floor(Number(item?.grantedPs) || 0)),
-                cashbackRateBps: Math.max(0, Math.floor(Number(item?.cashbackRateBps) || 0)),
-                orderId: String(item?.orderId || '').trim(),
-                orderedAtMs: Math.max(0, Math.floor(Number(item?.orderedAtMs) || 0)),
-                undoUntilMs: Math.max(0, Math.floor(Number(item?.undoUntilMs) || 0)),
-                lineTotal: Math.max(0, Math.floor(Number(item?.lineTotal) || (price * quantity)))
-            };
-        })
-        .filter(Boolean);
-}
-
-function sanitizeCheckoutSession(checkout = null) {
-    if (!checkout || typeof checkout !== 'object') return null;
-    const items = normalizeCheckoutItems(checkout.items);
-    const status = String(checkout.status || '').trim().toLowerCase();
-    return {
-        status,
-        total: Math.max(0, Math.floor(Number(checkout.total) || items.reduce((sum, item) => sum + item.lineTotal, 0))),
-        totalItems: Math.max(0, Math.floor(Number(checkout.totalItems) || items.reduce((sum, item) => sum + item.quantity, 0))),
-        grantTotal: Math.max(0, Math.floor(Number(checkout.grantTotal) || items.reduce((sum, item) => sum + item.grantedPs, 0))),
-        items,
-        createdAt: toMillis(checkout.createdAt),
-        updatedAt: toMillis(checkout.updatedAt),
-        lastOrderedAt: toMillis(checkout.lastOrderedAt)
-    };
-}
-
 function clearUndoCountdownTimer() {
     if (_undoCountdownTimerId) {
         clearTimeout(_undoCountdownTimerId);
@@ -705,168 +661,17 @@ function clearPendingAutoLeaveNotice() {
     }
 }
 
-function schedulePendingAutoLeaveNotice() {
-    clearPendingAutoLeaveNotice();
-    _pendingAutoLeaveNotice = true;
-    _pendingAutoLeaveTimerId = window.setTimeout(() => {
-        _pendingAutoLeaveNotice = false;
-        _pendingAutoLeaveTimerId = 0;
-    }, 1500);
-}
-
-function formatUndoCountdown(ms) {
-    const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = `${totalSeconds % 60}`.padStart(2, '0');
-    return `${minutes}:${seconds}`;
-}
-
-function getUndoEligibleLastOrder(checkout = _checkoutSession, nowMs = Date.now()) {
-    const session = sanitizeCheckoutSession(checkout);
-    if (String(session?.status || '') !== 'open') return null;
-    const lastItem = Array.isArray(session?.items) ? session.items[session.items.length - 1] : null;
-    if (!lastItem) return null;
-    if (!lastItem.orderId || !lastItem.undoUntilMs || nowMs > lastItem.undoUntilMs) return null;
-    if (String(lastItem.name || '').trim() === '入店チャージ') return null;
-    return lastItem;
-}
-
-function renderOpenTabCard() {
-    if (!TROY_CHECKOUT_ENABLED) return;
-    const metaEl = document.getElementById('troyOpenTabMeta');
-    const listEl = document.getElementById('troyOpenTabList');
-    const undoBtn = document.getElementById('btnTroyUndoLastOrder');
-    const guideEl = document.getElementById('troyCheckoutGuide');
-    if (!metaEl || !listEl || !undoBtn) return;
-
-    clearUndoCountdownTimer();
-    const session = sanitizeCheckoutSession(_checkoutSession);
-    const checkoutStatus = String(session?.status || '').trim().toLowerCase();
-    const hasOpenTab = (checkoutStatus === 'open' || checkoutStatus === 'pending') && Array.isArray(session?.items) && session.items.length > 0;
-
-    if (!hasOpenTab) {
-        metaEl.textContent = '未会計の注文はありません。';
-        listEl.innerHTML = '<div class="troy-open-tab-empty">注文はありません。</div>';
-        undoBtn.disabled = true;
-        undoBtn.textContent = '最後の1件を取り消す';
-        if (guideEl) guideEl.hidden = true;
-        return;
-    }
-
-    const totalLabel = `${checkoutStatus === 'pending' ? '旧会計待ち' : '未会計'} ${session.totalItems}点 / ${formatYen(session.total)}`;
-    metaEl.textContent = session.grantTotal > 0 ? `${totalLabel} / 付与済み ${session.grantTotal}G` : totalLabel;
-    if (guideEl) {
-        guideEl.hidden = false;
-        guideEl.textContent = checkoutStatus === 'pending'
-            ? '王の会計確認待ちです。'
-            : '会計は王に声をかけてください。';
-    }
-    listEl.innerHTML = '';
-
-    const items = session.items.slice().reverse();
-    items.forEach((item, index) => {
-        const row = document.createElement('div');
-        row.className = 'troy-open-tab-item';
-        if (index === 0) row.classList.add('is-latest');
-
-        const main = document.createElement('div');
-        main.className = 'troy-open-tab-item-main';
-
-        const name = document.createElement('div');
-        name.className = 'troy-open-tab-item-name';
-        name.textContent = item.name;
-
-        const detail = document.createElement('div');
-        detail.className = 'troy-open-tab-item-meta';
-        const detailParts = [];
-        if (item.orderedAtMs > 0) {
-            detailParts.push(new Date(item.orderedAtMs).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
-        }
-        detailParts.push(`${item.quantity}点`);
-        if (item.grantedPs > 0) {
-            detailParts.push(`+${item.grantedPs}G`);
-        }
-        if (index === 0) {
-            detailParts.push('最新');
-        }
-        detail.textContent = detailParts.join(' / ');
-
-        const total = document.createElement('div');
-        total.className = 'troy-open-tab-item-total';
-        total.textContent = formatYen(item.lineTotal);
-
-        main.append(name, detail);
-        row.append(main, total);
-        listEl.appendChild(row);
-    });
-
-    const undoItem = getUndoEligibleLastOrder(session);
-    if (undoItem) {
-        undoBtn.disabled = false;
-        undoBtn.textContent = `最後の1件を取り消す (${formatUndoCountdown(undoItem.undoUntilMs - Date.now())})`;
-        _undoCountdownTimerId = window.setTimeout(() => {
-            _undoCountdownTimerId = 0;
-            renderOpenTabCard();
-        }, 1000);
-        return;
-    }
-
-    undoBtn.disabled = true;
-    undoBtn.textContent = checkoutStatus === 'pending'
-        ? '最後の1件を取り消す'
-        : '最後の1件を取り消せません';
-}
-
-function updateCheckoutStatus() {
+function updateTroyStatusInline() {
     const status = document.getElementById('troyOrderStatusInline');
-    const session = sanitizeCheckoutSession(_checkoutSession);
-    _checkoutSession = session;
-    renderOpenTabCard();
-    const menuEnabled = canUseTroyMenu();
-    setMenuButtonsEnabled(menuEnabled);
-    updateTroyPrimaryAction();
-    applyOrderEntryClosedPrimaryState();
     if (!status) return;
-    if (!TROY_CHECKOUT_ENABLED) {
-        status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
-            ? '注文・会計は現在停止中です。'
-            : '入店できます。注文・会計は現在停止中です。';
-        status.classList.remove('is-pending');
-        return;
-    }
-    const checkoutStatus = String(session?.status || '').trim().toLowerCase();
-    const hasOpenTab = checkoutStatus === 'open' || checkoutStatus === 'pending';
-    if (hasOpenTab) {
-        const items = Array.isArray(session?.items) ? session.items : [];
-        const total = Number(session?.total || 0);
-        const totalItems = Math.max(0, Number(session?.totalItems) || items.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity) || 1), 0));
-        const grantTotal = Math.max(0, Number(session?.grantTotal) || 0);
-        if (checkoutStatus === 'pending') {
-            status.textContent = `旧会計待ち: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal}G` : ''}`;
-        } else {
-            status.textContent = `未会計: ${totalItems}点 / ${formatYen(total)}${grantTotal > 0 ? ` / 付与済み ${grantTotal}G` : ''}`;
-        }
-        status.classList.add('is-pending');
-        return;
-    }
     if (!_lastStatus?.isOpen) {
         status.textContent = 'TROYはCLOSE中です。';
         status.classList.remove('is-pending');
         return;
     }
-    if (!TROY_ORDER_ENTRY_ENABLED) {
-        status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
-            ? '注文は現在停止中です。'
-            : '入店できます。注文は現在停止中です。';
-        status.classList.remove('is-pending');
-        return;
-    }
-    if (!isTroyMember(_lastStatus, window.myPlayFabId)) {
-        status.textContent = '入店すると注文できます。';
-        status.classList.remove('is-pending');
-        return;
-    }
-    status.textContent = '注文できます。';
+    status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
+        ? '注文は現在停止中です。'
+        : '入店できます。注文は現在停止中です。';
     status.classList.remove('is-pending');
 }
 
@@ -879,8 +684,6 @@ function updateTroyPrimaryAction() {
 
     const isOpen = !!_lastStatus?.isOpen;
     const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
-    const session = sanitizeCheckoutSession(_checkoutSession);
-    const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
 
     card.classList.toggle('is-open', isOpen);
     card.classList.toggle('is-member', isMember);
@@ -893,159 +696,21 @@ function updateTroyPrimaryAction() {
         button.disabled = true;
         return;
     }
-    if (!TROY_ORDER_ENTRY_ENABLED && !isMember) {
+    if (!isMember) {
         title.textContent = '入店できます';
         meta.textContent = '注文は現在停止中です。';
         button.textContent = '入店';
         return;
     }
-    if (!isMember) {
-        title.textContent = '入店して注文';
-        meta.textContent = 'まず入店するとメニューから注文できます。';
-        button.textContent = '入店';
-        return;
-    }
-    if (hasOpenTab) {
-        title.textContent = '伝票を確認';
-        meta.textContent = `${session.totalItems}点 / ${formatYen(session.total)}`;
-        button.textContent = '伝票';
-        return;
-    }
-    title.textContent = '注文できます';
-    meta.textContent = 'カテゴリを選んで注文してください。';
-    button.textContent = 'メニュー';
+    title.textContent = '注文は停止中';
+    meta.textContent = '現在は注文を受け付けていません。';
+    button.textContent = '停止中';
+    button.disabled = true;
 }
 
-function applyCheckoutFromStatus(data) {
-    if (!TROY_CHECKOUT_ENABLED) {
-        _checkoutSession = null;
-        updateCheckoutStatus();
-        return;
-    }
-    const checkout = sanitizeCheckoutSession(data?.checkout || null);
-    const previousStatus = String(_checkoutSession?.status || '').trim().toLowerCase();
-    const nextStatus = String(checkout?.status || '').trim().toLowerCase();
-    const stillMember = isTroyMember(data, window.myPlayFabId);
-
-    if (checkout && (nextStatus === 'open' || nextStatus === 'pending')) {
-        clearPendingAutoLeaveNotice();
-        _checkoutSession = checkout;
-        updateCheckoutStatus();
-        return;
-    }
-
-    const troyIsOpen = !!data?.isOpen;
-    if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && !stillMember) {
-        clearPendingAutoLeaveNotice();
-        closeMenuModal();
-        if (troyIsOpen && typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('会計が完了しました。退店しました。');
-        }
-    } else if ((previousStatus === 'open' || previousStatus === 'pending') && !checkout && stillMember) {
-        schedulePendingAutoLeaveNotice();
-    } else if (!checkout && !stillMember && _pendingAutoLeaveNotice) {
-        clearPendingAutoLeaveNotice();
-        closeMenuModal();
-        if (troyIsOpen && typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('会計が完了しました。退店しました。');
-        }
-    } else if (stillMember) {
-        clearPendingAutoLeaveNotice();
-    }
-
-    _checkoutSession = null;
-    updateCheckoutStatus();
+async function submitQuickCheckout() {
+    showTroyNotice('注文は現在停止中です。');
 }
-
-async function submitQuickCheckout(playFabId, item, quantity = 1, options = {}) {
-    if (!TROY_ORDER_ENTRY_ENABLED) {
-        showTroyNotice('注文は現在停止中です。');
-        return;
-    }
-    if (!isTroyMember(_lastStatus, playFabId)) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('入店してから注文できます。');
-        } else {
-            alert('入店してから注文できます。');
-        }
-        return;
-    }
-    const orderName = getOrderItemName(item, item.optionLabel, item.sizeLabel);
-    const normalizedPrice = getItemEffectivePrice(item, item.sizeLabel);
-    const normalizedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
-    if (!normalizedPrice) return;
-    try {
-        const checkoutTotal = normalizedPrice * normalizedQuantity;
-        const result = await sendTroyOrder(playFabId, {
-            itemName: orderName,
-            price: normalizedPrice,
-            quantity: normalizedQuantity,
-            total: checkoutTotal,
-            displayName: getDisplayName(),
-            troyNation: resolveTroyNationKey()
-        });
-        if (result?.checkout) {
-            _checkoutSession = result.checkout;
-            updateCheckoutStatus();
-            updateOrderAvailability();
-            if (options.closeMenu !== false) {
-                closeMenuModal();
-            }
-            if (typeof window.showRpgMessage === 'function') {
-                const grantValue = Math.max(0, Number(result?.grantAmount) || 0);
-                const grantLabel = result?.grantError
-                    ? 'ゴールド付与失敗 / '
-                    : (grantValue > 0 ? `+${grantValue}G / ` : '');
-                const defaultMessage = `${orderName} を注文しました。${grantLabel}未会計 ${formatYen(Number(result?.checkout?.total || checkoutTotal))}`;
-                window.showRpgMessage(options.successMessage || defaultMessage);
-            }
-        }
-    } catch (error) {
-        console.warn('[TroyOrder] Failed:', error?.message || error);
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage(options.failureMessage || '注文の送信に失敗しました。');
-        } else {
-            alert(options.failureMessage || '注文の送信に失敗しました。');
-        }
-    }
-}
-
-async function handleUndoLastOrder(playFabId) {
-    const lastItem = getUndoEligibleLastOrder(_checkoutSession);
-    if (!lastItem) {
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage('取り消せる注文がありません。');
-        }
-        return;
-    }
-    try {
-        const result = await undoTroyLastOrder(playFabId, { troyNation: resolveTroyNationKey() }, { isSilent: true, throwOnError: true });
-        _checkoutSession = result?.checkout || null;
-        updateCheckoutStatus();
-        const undoneName = String(result?.undoneItem?.name || lastItem.name || '注文').trim();
-        if (typeof window.showRpgMessage === 'function') {
-            const total = Number(result?.checkout?.total || 0);
-            const label = total > 0 ? `未会計 ${formatYen(total)}` : '伝票を空にしました。';
-            window.showRpgMessage(`${undoneName} を取り消しました。${label}`);
-        }
-    } catch (error) {
-        console.warn('[TroyUndo] Failed:', error?.message || error);
-        const message = (() => {
-            const detail = String(error?.message || '').trim();
-            if (detail.includes('付与済みゴールドを消費しているため取り消せません')) return detail;
-            if (detail.includes('CheckoutChanged')) return '注文内容が更新されたため、もう一度確認してください。';
-            if (detail.includes('UndoExpired')) return '取り消し可能時間を過ぎました。';
-            if (detail.includes('入店チャージは取り消せません')) return '入店チャージは取り消せません。';
-            return '最後の1件の取り消しに失敗しました。';
-        })();
-        if (typeof window.showRpgMessage === 'function') {
-            window.showRpgMessage(message);
-        } else {
-            alert(message);
-        }
-    }
-}
-
 function openMenuModal(menuId) {
     if (!TROY_ORDER_ENTRY_ENABLED) {
         showTroyNotice('注文は現在停止中です。');
@@ -1320,7 +985,7 @@ function wireMenuPopups() {
         });
     });
     setTopMenuCategoryState(_menuActiveId);
-    updateCheckoutStatus();
+    updateOrderAvailability();
 }
 
 function getTroyElements() {
@@ -1368,10 +1033,6 @@ function stopStatusSubscription() {
         _statusMembersUnsubscribe();
         _statusMembersUnsubscribe = null;
     }
-    if (_statusCheckoutUnsubscribe) {
-        _statusCheckoutUnsubscribe();
-        _statusCheckoutUnsubscribe = null;
-    }
 }
 
 function publishSnapshotStatus() {
@@ -1379,7 +1040,6 @@ function publishSnapshotStatus() {
         nation: _statusSnapshotState.nation,
         isOpen: !!_statusSnapshotState.isOpen,
         members: Array.isArray(_statusSnapshotState.members) ? _statusSnapshotState.members : [],
-        checkout: _statusSnapshotState.checkout || null,
         menuDisabled: Array.isArray(_statusSnapshotState.menuDisabled) ? _statusSnapshotState.menuDisabled : [],
         menuSpecials: Array.isArray(_statusSnapshotState.menuSpecials) ? _statusSnapshotState.menuSpecials : []
     });
@@ -1399,12 +1059,10 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
     const roomRef = doc(db, 'troy_rooms', groupName);
     const membersQuery = query(collection(roomRef, 'members'), orderBy('joinedAt', 'asc'), limit(50));
 
-    _checkoutSession = null;
     _statusSnapshotState = {
         nation: nationKey,
         isOpen: false,
         members: [],
-        checkout: null,
         menuDisabled: [],
         menuSpecials: []
     };
@@ -1434,32 +1092,7 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
         publishSnapshotStatus();
     }, (error) => handleSnapshotError('members', error));
 
-    if (!TROY_CHECKOUT_ENABLED) {
-        publishSnapshotStatus();
-        return true;
-    }
-
-    const checkoutRef = doc(roomRef, 'checkouts', memberId);
-    _statusCheckoutUnsubscribe = onSnapshot(checkoutRef, (snapshot) => {
-        if (!snapshot.exists()) {
-            _statusSnapshotState.checkout = null;
-            publishSnapshotStatus();
-            return;
-        }
-        const data = snapshot.data() || {};
-        _statusSnapshotState.checkout = {
-            status: data.status || 'open',
-            total: Number(data.total || 0),
-            totalItems: Math.max(0, Number(data.totalItems) || 0),
-            grantTotal: Math.max(0, Number(data.grantTotal) || 0),
-            items: Array.isArray(data.items) ? data.items : [],
-            createdAt: toMillis(data.createdAt),
-            updatedAt: toMillis(data.updatedAt),
-            lastOrderedAt: toMillis(data.lastOrderedAt)
-        };
-        publishSnapshotStatus();
-    }, (error) => handleSnapshotError('checkout', error));
-
+    publishSnapshotStatus();
     return true;
 }
 
@@ -1498,7 +1131,6 @@ function renderStatus(data) {
     } else {
         renderEntryList(data?.members);
     }
-    applyCheckoutFromStatus(data);
     applyMenuState(data?.menuDisabled, data?.menuSpecials);
     updateOrderAvailability();
     updateTroyPrimaryAction();
@@ -1516,7 +1148,6 @@ function wireHandlers(playFabId) {
     _wired = true;
 
     const { joinBtn } = getTroyElements();
-    const undoBtn = document.getElementById('btnTroyUndoLastOrder');
     if (joinBtn) {
         joinBtn.addEventListener('click', async () => {
             if (joinBtn.disabled) return;
@@ -1528,10 +1159,6 @@ function wireHandlers(playFabId) {
             try {
                 const result = await joinTroy(playFabId, name, { troyNation: resolveTroyNationKey() });
                 if (result) {
-                    if (TROY_CHECKOUT_ENABLED && result.checkout) {
-                        _checkoutSession = result.checkout;
-                        updateCheckoutStatus();
-                    }
                     await refreshStatus(playFabId, { isSilent: true });
                     const joinedNation = _lastStatus?.nation || resolveTroyNationKey();
                     if (joinedNation !== _statusSnapshotState?.nation) {
@@ -1539,9 +1166,7 @@ function wireHandlers(playFabId) {
                     }
                     const isMember = isTroyMember(_lastStatus, playFabId);
                     if (!wasMember && isMember && typeof window.showRpgMessage === 'function') {
-                        window.showRpgMessage(TROY_CHECKOUT_ENABLED && result.entryChargeCreated
-                            ? '入店しました。入店チャージを伝票に追加しました。'
-                            : '入店しました。');
+                        window.showRpgMessage('入店しました。');
                     }
                 }
             } finally {
@@ -1550,29 +1175,17 @@ function wireHandlers(playFabId) {
             }
         });
     }
+
     const primaryBtn = document.getElementById('btnTroyPrimaryAction');
     if (primaryBtn) {
         primaryBtn.addEventListener('click', () => {
             if (!_lastStatus?.isOpen) return;
             if (!isTroyMember(_lastStatus, playFabId)) {
                 clickTroyJoinButton();
-                return;
             }
-            const session = sanitizeCheckoutSession(_checkoutSession);
-            const hasOpenTab = (session?.status === 'open' || session?.status === 'pending') && session.items.length > 0;
-            if (!TROY_ORDER_ENTRY_ENABLED && !hasOpenTab) return;
-            const target = hasOpenTab ? document.getElementById('troyOpenTabCard') : document.querySelector('.troy-menu-list');
-            target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        });
-    }
-    if (undoBtn) {
-        undoBtn.addEventListener('click', async () => {
-            if (undoBtn.disabled) return;
-            await handleUndoLastOrder(playFabId);
         });
     }
 }
-
 export async function loadTroyPage(playFabId) {
     loadFavoriteDrinkEntries(playFabId);
     wireHandlers(playFabId);

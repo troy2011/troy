@@ -1001,7 +1001,6 @@
                                 <div class="troy-admin-actions">
                                     <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
                                     <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
-                                    <a href="/troy-orders.html" target="_blank" rel="noopener" class="btn-open troy-order-page-link">注文リスト</a>
                                     <a href="/troy-coin-return.html" target="_blank" rel="noopener" class="btn-muted troy-order-page-link">返却QR</a>
                                 </div>
                             </div>
@@ -1012,16 +1011,6 @@
                                 </div>
                                 <canvas id="kingCoinReturnQrCanvas" class="king-coin-return-qr-canvas" width="132" height="132"></canvas>
                             </div>
-                            <div class="king-troy-ops-summary">
-                                <div>
-                                    <span>お会計待ち</span>
-                                    <strong id="kingTroyPendingCount">0件</strong>
-                                </div>
-                                <div>
-                                    <span>本日売上</span>
-                                    <strong id="kingTroySalesSummary">¥0</strong>
-                                </div>
-                            </div>
                         </div>
                         <div class="troy-admin-card troy-king-priority-card">
                             <div id="kingTroyCalendarMount"></div>
@@ -1030,11 +1019,6 @@
                             <div class="troy-admin-label">店内リスト</div>
                             <div id="kingTroyEntryList" class="troy-entry-list"></div>
                             <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
-                        </div>
-                        <div id="kingGrantCard" class="troy-admin-card troy-king-priority-card">
-                            <div class="troy-admin-label">お会計待ち</div>
-                            <div id="kingPendingCheckoutList" class="king-pending-checkout-list"></div>
-                            <div class="troy-admin-help">お客様の現金を受け取ったら、ここからお会計してください。</div>
                         </div>
                         <details id="kingMenuDetails" class="troy-admin-details">
                             <summary>メニュー管理</summary>
@@ -1067,40 +1051,6 @@
                                 </div>
                             </div>
                         </details>
-                        <details id="kingManualGrantDetails" class="troy-admin-details">
-                            <summary>直接お会計</summary>
-                            <div class="troy-admin-card">
-                                <div class="troy-admin-help">QRコードや手入力でお会計します。通常はお会計待ち一覧からどうぞ。</div>
-                                <div class="troy-admin-field-label">お客様を選ぶ</div>
-                                <div class="troy-admin-grid">
-                                    <div>
-                                        <div class="troy-admin-field-label">お客様のID</div>
-                                        <input id="kingGrantReceiverId" type="text" placeholder="QRで読み取り or 手入力" class="admin-input" />
-                                        <div class="troy-admin-actions">
-                                            <button id="btnKingScanReceiver" class="btn-scan">QRで読み取り</button>
-                                            <button id="btnKingClearReceiver" class="btn-muted">クリア</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="troy-admin-field-label">受け取った金額（¥）</div>
-                                        <div class="transfer-quick-row">
-                                            <button class="transfer-quick-btn" data-amount="100" data-target="kingGrantAmount">100</button>
-                                            <button class="transfer-quick-btn" data-amount="500" data-target="kingGrantAmount">500</button>
-                                            <button class="transfer-quick-btn" data-amount="1000" data-target="kingGrantAmount">1000</button>
-                                            <button class="transfer-quick-btn reset" data-amount="0" data-target="kingGrantAmount">0</button>
-                                        </div>
-                                        <div class="transfer-input-row">
-                                            <input id="kingGrantAmount" type="number" min="1" step="1" placeholder="手入力" value="0" />
-                                            <span>¥</span>
-                                        </div>
-                                        <div class="troy-admin-actions">
-                                            <button id="btnKingGrantPs" class="btn-open">ゴールドを渡す</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="kingGrantPreview" class="king-help-text"></div>
-                            </div>
-                        </details>
                         <details class="troy-admin-details">
                             <summary>国庫と還元率</summary>
                             <div class="troy-admin-card">
@@ -1108,7 +1058,6 @@
                                     <div>
                                         <div class="troy-admin-field-label">ゴールド還元率（国庫順位で自動変動）</div>
                                         <div id="kingCashbackRateInfo">-</div>
-                                        <div id="kingTroyTodaySales" class="king-help-text"></div>
                                     </div>
                                     <div class="troy-admin-actions">
                                         <button id="btnKingReload" class="btn-muted">再読み込み</button>

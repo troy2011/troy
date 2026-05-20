@@ -274,34 +274,8 @@ export function directGrantPs(playFabId, receiverPlayFabId, amount, requestId, o
     return callApiWithLoader('/api/king-direct-grant-ps', { playFabId, receiverPlayFabId, amount, requestId }, options);
 }
 
-export function approveTroyCheckout(playFabId, receiverPlayFabId, amount, requestId, options) {
-    return grantPs(playFabId, receiverPlayFabId, amount, requestId, options);
-}
-
-export function settleTroyCheckout(playFabId, receiverPlayFabId, expectedTotal, requestId, payload = {}, options) {
-    return callApiWithLoader('/api/king-settle-troy-checkout', {
-        playFabId,
-        receiverPlayFabId,
-        expectedTotal,
-        requestId,
-        ...(payload && typeof payload === 'object' ? payload : {})
-    }, options);
-}
-
 export function getTroyStatus(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/get-troy-status', { playFabId, ...(payload || {}) }, options);
-}
-
-export function sendTroyCheckout(playFabId, payload, options) {
-    return callApiWithLoader('/api/troy-checkout', { playFabId, ...payload }, options);
-}
-
-export function sendTroyOrder(playFabId, order, options) {
-    return callApiWithLoader('/api/troy-order', { playFabId, ...order }, options);
-}
-
-export function undoTroyLastOrder(playFabId, payload = {}, options) {
-    return callApiWithLoader('/api/troy-undo-last-order', { playFabId, ...(payload || {}) }, options);
 }
 
 export function setTroyOpen(playFabId, isOpen, options) {
