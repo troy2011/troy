@@ -2121,6 +2121,7 @@ function initializeNationRoutes(app, deps) {
                     payload.troyOpen = !!roomData.isOpen;
                     payload.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
                     payload.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
+                    payload.menuCustomItems = Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : [];
                     const membersSnap = await getTroyRoomDoc(firestore, mapping.groupName)
                         .collection('members')
                         .orderBy('joinedAt', 'asc')
@@ -2889,7 +2890,7 @@ function initializeNationRoutes(app, deps) {
 
     // メニュー管理（品切れ・本日のおすすめ）
     app.post('/api/king-update-menu', async (req, res) => {
-        const { playFabId, action, concept, name, price, emoji, id } = req.body || {};
+        const { playFabId, action, concept, name, content, price, emoji, id, menuId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -2931,6 +2932,39 @@ function initializeNationRoutes(app, deps) {
                 const next = current.filter((s) => s.id !== safeId);
                 await roomRef.set({ menuSpecials: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
                 return res.json({ success: true, menuSpecials: next });
+            }
+
+            if (action === 'addCustom') {
+                const safeMenuId = String(menuId || '').trim().toLowerCase();
+                const allowedMenuIds = new Set(['beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle']);
+                if (!allowedMenuIds.has(safeMenuId)) return res.status(400).json({ error: 'Invalid menuId' });
+                const safeName = String(name || '').trim().slice(0, 40);
+                const safeContent = String(content || '').trim().slice(0, 80);
+                const safePrice = Math.max(1, Math.floor(Number(price) || 0));
+                const safeEmoji = String(emoji || '').trim().slice(0, 8) || '🍽';
+                if (!safeName || !safePrice) return res.status(400).json({ error: 'name and price are required' });
+                const current = Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : [];
+                if (current.length >= 80) return res.status(400).json({ error: '通常メニューは最大80件までです。' });
+                const newItem = {
+                    id: `custom-${Date.now()}`,
+                    menuId: safeMenuId,
+                    concept: safeName,
+                    content: safeContent,
+                    price: safePrice,
+                    emoji: safeEmoji
+                };
+                const next = [...current, newItem];
+                await roomRef.set({ menuCustomItems: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                return res.json({ success: true, menuCustomItems: next });
+            }
+
+            if (action === 'removeCustom') {
+                const safeId = String(id || '').trim();
+                if (!safeId) return res.status(400).json({ error: 'id is required' });
+                const current = Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : [];
+                const next = current.filter((item) => String(item?.id || '') !== safeId);
+                await roomRef.set({ menuCustomItems: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                return res.json({ success: true, menuCustomItems: next });
             }
 
             return res.status(400).json({ error: 'Unknown action' });
@@ -2979,7 +3013,8 @@ function initializeNationRoutes(app, deps) {
                 members,
                 nation,
                 menuDisabled: Array.isArray(roomDataFull.menuDisabled) ? roomDataFull.menuDisabled : [],
-                menuSpecials: Array.isArray(roomDataFull.menuSpecials) ? roomDataFull.menuSpecials : []
+                menuSpecials: Array.isArray(roomDataFull.menuSpecials) ? roomDataFull.menuSpecials : [],
+                menuCustomItems: Array.isArray(roomDataFull.menuCustomItems) ? roomDataFull.menuCustomItems : []
             });
         } catch (error) {
             console.error('[get-troy-status] Error:', error?.message || error);

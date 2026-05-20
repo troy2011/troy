@@ -21,6 +21,7 @@ let _pendingAutoLeaveNotice = false;
 let _pendingAutoLeaveTimerId = 0;
 let _menuDisabled = [];
 let _menuSpecials = [];
+let _menuCustomItems = [];
 let _businessCalendar = [];
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
@@ -29,7 +30,8 @@ let _statusSnapshotState = {
     isOpen: false,
     members: [],
     menuDisabled: [],
-    menuSpecials: []
+    menuSpecials: [],
+    menuCustomItems: []
 };
 
 const TROY_ORDER_ENTRY_ENABLED = false;
@@ -300,20 +302,40 @@ function getFoodMenuData() {
     return TROY_PRODUCT_MENUS.food;
 }
 
+function getCustomMenuItems(menuId) {
+    const targetMenuId = String(menuId || '').trim();
+    return (Array.isArray(_menuCustomItems) ? _menuCustomItems : [])
+        .filter((item) => String(item?.menuId || '').trim() === targetMenuId)
+        .map((item) => ({
+            concept: String(item?.concept || item?.name || '').trim(),
+            content: String(item?.content || '').trim(),
+            price: Math.max(0, Math.floor(Number(item?.price) || 0)),
+            emoji: String(item?.emoji || '').trim()
+        }))
+        .filter((item) => item.concept && item.price > 0);
+}
+
 function getMenuDataById(menuId) {
+    const withCustomItems = (data) => {
+        if (!data) return null;
+        return {
+            ...data,
+            items: [...(Array.isArray(data.items) ? data.items : []), ...getCustomMenuItems(menuId)]
+        };
+    };
     switch (menuId) {
         case 'favorite':
             return getFavoriteDrinkMenuData();
         case 'food':
-            return getFoodMenuData();
+            return withCustomItems(getFoodMenuData());
         case 'bottle':
-            return { title: 'BOTTLE MENU', items: TROY_BOTTLE_ITEMS };
+            return withCustomItems({ title: 'BOTTLE MENU', items: TROY_BOTTLE_ITEMS });
         case 'specials':
             return _menuSpecials.length > 0
                 ? { title: 'おすすめ', items: _menuSpecials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
                 : null;
         default:
-            return TROY_PRODUCT_MENUS[menuId];
+            return withCustomItems(TROY_PRODUCT_MENUS[menuId]);
     }
 }
 
@@ -1041,13 +1063,15 @@ function publishSnapshotStatus() {
         isOpen: !!_statusSnapshotState.isOpen,
         members: Array.isArray(_statusSnapshotState.members) ? _statusSnapshotState.members : [],
         menuDisabled: Array.isArray(_statusSnapshotState.menuDisabled) ? _statusSnapshotState.menuDisabled : [],
-        menuSpecials: Array.isArray(_statusSnapshotState.menuSpecials) ? _statusSnapshotState.menuSpecials : []
+        menuSpecials: Array.isArray(_statusSnapshotState.menuSpecials) ? _statusSnapshotState.menuSpecials : [],
+        menuCustomItems: Array.isArray(_statusSnapshotState.menuCustomItems) ? _statusSnapshotState.menuCustomItems : []
     });
 }
 
-function applyMenuState(menuDisabled, menuSpecials) {
+function applyMenuState(menuDisabled, menuSpecials, menuCustomItems) {
     if (Array.isArray(menuDisabled)) _menuDisabled = menuDisabled;
     if (Array.isArray(menuSpecials)) _menuSpecials = menuSpecials;
+    if (Array.isArray(menuCustomItems)) _menuCustomItems = menuCustomItems;
 }
 
 function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey()) {
@@ -1064,7 +1088,8 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
         isOpen: false,
         members: [],
         menuDisabled: [],
-        menuSpecials: []
+        menuSpecials: [],
+        menuCustomItems: []
     };
 
     const handleSnapshotError = (label, error) => {
@@ -1077,6 +1102,7 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
         _statusSnapshotState.isOpen = !!roomData.isOpen;
         _statusSnapshotState.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
         _statusSnapshotState.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
+        _statusSnapshotState.menuCustomItems = Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : [];
         publishSnapshotStatus();
     }, (error) => handleSnapshotError('room', error));
 
@@ -1131,7 +1157,7 @@ function renderStatus(data) {
     } else {
         renderEntryList(data?.members);
     }
-    applyMenuState(data?.menuDisabled, data?.menuSpecials);
+    applyMenuState(data?.menuDisabled, data?.menuSpecials, data?.menuCustomItems);
     updateOrderAvailability();
     updateTroyPrimaryAction();
     updateTroyRoleUI();

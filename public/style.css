@@ -3793,6 +3793,16 @@ body.modal-lock .modal-overlay {
     white-space: nowrap;
 }
 
+.king-menu-special-name small {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-sub);
+    font-size: 10px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .king-menu-special-price {
     font-size: 12px;
     font-weight: 700;

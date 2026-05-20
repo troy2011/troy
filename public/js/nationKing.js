@@ -278,11 +278,34 @@ const _KING_MENU_ITEM_GROUPS = [
     }
 ];
 
+const _KING_MENU_CATEGORY_OPTIONS = [
+    { id: 'beer', label: 'ビール・ハイボール' },
+    { id: 'gin', label: 'ジン' },
+    { id: 'vodka', label: 'ウォッカ' },
+    { id: 'rum', label: 'ラム' },
+    { id: 'tequila', label: 'テキーラ' },
+    { id: 'liqueur', label: 'リキュール' },
+    { id: 'whisky', label: 'ウイスキー・焼酎・ワイン' },
+    { id: 'soft', label: 'ソフトドリンク' },
+    { id: 'food', label: 'フード' },
+    { id: 'bottle', label: 'ボトル' }
+];
+
 function _renderMenuManagement(data) {
     const disableListEl = document.getElementById('kingMenuDisableList');
     const specialsListEl = document.getElementById('kingMenuSpecialsList');
+    const customListEl = document.getElementById('kingMenuCustomList');
+    const customCategoryEl = document.getElementById('kingMenuCustomCategory');
     const disabled = Array.isArray(data?.menuDisabled) ? data.menuDisabled : [];
     const specials = Array.isArray(data?.menuSpecials) ? data.menuSpecials : [];
+    const customItems = Array.isArray(data?.menuCustomItems) ? data.menuCustomItems : [];
+
+    if (customCategoryEl && !customCategoryEl.dataset.initialized) {
+        customCategoryEl.innerHTML = _KING_MENU_CATEGORY_OPTIONS
+            .map((option) => `<option value="${_escapeHtml(option.id)}">${_escapeHtml(option.label)}</option>`)
+            .join('');
+        customCategoryEl.dataset.initialized = 'true';
+    }
 
     if (disableListEl) {
         disableListEl.innerHTML = _KING_MENU_ITEM_GROUPS.map((group) => `
@@ -310,6 +333,25 @@ function _renderMenuManagement(data) {
                     <button type="button" class="btn-muted king-menu-special-remove" data-special-remove="${_escapeHtml(s.id)}">削除</button>
                 </div>
             `).join('');
+        }
+    }
+
+    if (customListEl) {
+        if (!customItems.length) {
+            customListEl.innerHTML = '<div class="king-menu-specials-empty">追加した通常メニューはありません。</div>';
+        } else {
+            customListEl.innerHTML = customItems.map((item) => {
+                const menuId = String(item?.menuId || '').trim();
+                const category = _KING_MENU_CATEGORY_OPTIONS.find((option) => option.id === menuId)?.label || menuId;
+                return `
+                    <div class="king-menu-special-row">
+                        <span class="king-menu-special-emoji">${_escapeHtml(item.emoji || '🍽')}</span>
+                        <span class="king-menu-special-name">${_escapeHtml(item.concept || item.name || '')}<small>${_escapeHtml(category)}</small></span>
+                        <span class="king-menu-special-price">¥${Math.max(0, Number(item.price) || 0).toLocaleString('ja-JP')}</span>
+                        <button type="button" class="btn-muted king-menu-special-remove" data-custom-remove="${_escapeHtml(item.id)}">削除</button>
+                    </div>
+                `;
+            }).join('');
         }
     }
 }
@@ -808,6 +850,62 @@ function _wireHandlers(playFabId) {
                 _setMessage(_extractErrorMessage(error, 'おすすめの削除に失敗しました。'), true);
                 btn.disabled = false;
                 btn.textContent = '削除';
+            }
+        });
+    }
+
+    const menuCustomListEl = document.getElementById('kingMenuCustomList');
+    if (menuCustomListEl) {
+        menuCustomListEl.addEventListener('click', async (event) => {
+            const btn = event.target instanceof Element ? event.target.closest('[data-custom-remove]') : null;
+            if (!btn) return;
+            const id = String(btn.getAttribute('data-custom-remove') || '').trim();
+            if (!id) return;
+            btn.disabled = true;
+            btn.textContent = '処理中...';
+            try {
+                await kingUpdateMenu(playFabId, { action: 'removeCustom', id }, { isSilent: true });
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '通常メニューの削除に失敗しました。'), true);
+                btn.disabled = false;
+                btn.textContent = '削除';
+            }
+        });
+    }
+
+    const addCustomBtn = document.getElementById('btnKingMenuAddCustom');
+    if (addCustomBtn) {
+        addCustomBtn.addEventListener('click', async () => {
+            const categoryEl = document.getElementById('kingMenuCustomCategory');
+            const nameEl = document.getElementById('kingMenuCustomName');
+            const contentEl = document.getElementById('kingMenuCustomContent');
+            const priceEl = document.getElementById('kingMenuCustomPrice');
+            const emojiEl = document.getElementById('kingMenuCustomEmoji');
+            const menuId = String(categoryEl?.value || '').trim();
+            const name = String(nameEl?.value || '').trim();
+            const content = String(contentEl?.value || '').trim();
+            const price = Math.max(0, Math.floor(Number(priceEl?.value) || 0));
+            const emoji = String(emojiEl?.value || '').trim() || '🍽';
+            if (!menuId) { _setMessage('カテゴリを選択してください。', true); return; }
+            if (!name) { _setMessage('商品名を入力してください。', true); return; }
+            if (!price) { _setMessage('金額を入力してください。', true); return; }
+            const previous = addCustomBtn.textContent;
+            addCustomBtn.disabled = true;
+            addCustomBtn.textContent = '追加中...';
+            try {
+                await kingUpdateMenu(playFabId, { action: 'addCustom', menuId, name, content, price, emoji }, { isSilent: true });
+                if (nameEl) nameEl.value = '';
+                if (contentEl) contentEl.value = '';
+                if (priceEl) priceEl.value = '';
+                if (emojiEl) emojiEl.value = '';
+                await loadKingPage(playFabId);
+                _setMessage('通常メニューを追加しました。');
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '通常メニューの追加に失敗しました。'), true);
+            } finally {
+                addCustomBtn.disabled = false;
+                addCustomBtn.textContent = previous;
             }
         });
     }
