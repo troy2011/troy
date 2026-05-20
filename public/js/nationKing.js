@@ -8,6 +8,7 @@ import {
     raidNationTreasury,
     setNationAnnouncement,
     directGrantPs,
+    kingReturnTroyCoin,
     setTroyOpen,
     kingUpdateMenu,
     getTroyCalendar,
@@ -223,7 +224,7 @@ function _renderKingTroyCalendar(entries = []) {
 
 async function _loadKingTroyCalendar(playFabId, nation) {
     try {
-        const result = await getTroyCalendar(playFabId, { nation }, { isSilent: true });
+        const result = await getTroyCalendar(playFabId, {}, { isSilent: true });
         const calendar = result?.calendar || [];
         if (_lastPageData) _lastPageData.troyCalendar = calendar;
         _renderKingTroyCalendar(calendar);
@@ -532,6 +533,19 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     return error.message || error.errorMessage || fallback;
 }
 
+async function _scanQrValue() {
+    if (!window.liff) throw new Error('LIFF が初期化されていません。');
+    if (typeof window.liff.scanCodeV2 === 'function') {
+        const r = await window.liff.scanCodeV2();
+        return r && r.value ? String(r.value).trim() : '';
+    }
+    if (typeof window.liff.scanCode === 'function') {
+        const r = await window.liff.scanCode();
+        return r && r.value ? String(r.value).trim() : '';
+    }
+    throw new Error('この環境では QR 読み取りが利用できません。');
+}
+
 export function isKing() {
     return _isKing;
 }
@@ -634,6 +648,8 @@ function _wireHandlers(playFabId) {
     const inputEl = document.getElementById('kingAnnouncementInput');
     const troyOpenBtn = document.getElementById('btnKingTroyOpen');
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
+    const coinReturnBtn = document.getElementById('btnKingCoinReturn');
+    const coinReturnAmountEl = document.getElementById('kingCoinReturnAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const warSectionEl = document.getElementById('kingWarSection');
     const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
@@ -726,6 +742,42 @@ function _wireHandlers(playFabId) {
                 if (troyStatusEl) troyStatusEl.classList.remove('is-open');
                 await loadKingPage(playFabId);
                 _setMessage('TROYをCLOSEにしました。');
+            }
+        });
+    }
+
+    if (coinReturnBtn) {
+        coinReturnBtn.addEventListener('click', async () => {
+            const amount = Math.floor(Number(coinReturnAmountEl?.value) || 0);
+            if (!amount || amount <= 0 || amount % 100 !== 0) {
+                _setMessage('返却コイン総額は100G刻みで入力してください。', true);
+                return;
+            }
+            if (!window.liff?.isInClient?.()) {
+                _setMessage('MY QRの読み取りはLINEアプリ内で利用してください。', true);
+                return;
+            }
+            const previous = coinReturnBtn.textContent;
+            coinReturnBtn.disabled = true;
+            coinReturnBtn.textContent = 'MY QR読取中...';
+            _setMessage('');
+            try {
+                const receiverPlayFabId = await _scanQrValue();
+                if (!receiverPlayFabId) throw new Error('MY QRを読み取れませんでした。');
+                if (!confirm(`${amount.toLocaleString('ja-JP')}Gをゴールド化して付与します。よろしいですか？`)) return;
+                coinReturnBtn.textContent = '処理中...';
+                const requestId = createRequestId('king-troy-return-coin');
+                const result = await kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
+                const contributionAmount = Math.max(0, Math.floor(Number(result?.contributionAmount) || 0));
+                const contributionNote = contributionAmount > 0 ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}` : '';
+                _setMessage(`${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`);
+                if (coinReturnAmountEl) coinReturnAmountEl.value = '0';
+                await loadKingPage(playFabId);
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'コイン返却に失敗しました。'), true);
+            } finally {
+                coinReturnBtn.disabled = false;
+                coinReturnBtn.textContent = previous;
             }
         });
     }

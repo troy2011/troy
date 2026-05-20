@@ -3,6 +3,7 @@ const { addGlobalChatMessage } = require('./chat');
 const EVENT_COLLECTION = 'store_events';
 const RESERVATION_COLLECTION = 'store_reservations';
 const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
+const TROY_CALENDAR_GLOBAL_NATION = 'global';
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
 const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
@@ -60,6 +61,11 @@ function normalizePositiveInt(value, fallback = 0, max = 1_000_000) {
 function normalizeNationKey(value) {
     const key = normalizeString(value, 20).toLowerCase();
     return NATION_GROUP_BY_NATION[key] ? key : '';
+}
+
+function isEditableTroyCalendarNation(value, kingNation) {
+    const raw = normalizeString(value, 20).toLowerCase();
+    return raw === TROY_CALENDAR_GLOBAL_NATION || (!!kingNation && raw === kingNation);
 }
 
 function normalizeTroyCalendarStatus(value) {
@@ -312,15 +318,9 @@ function initializeEventRoutes(app, deps) {
         const playFabId = requestedPlayFabId ? await requireAuthed(req, res, requestedPlayFabId) : '';
         if (requestedPlayFabId && !playFabId) return;
         try {
-            const requestedNation = normalizeNationKey(req.body?.nation || req.body?.troyNation);
-            const playerNation = playFabId ? normalizeNationKey(await getNationForPlayer(playFabId, deps)) : '';
-            const targetNation = requestedNation || playerNation;
-            if (!targetNation) return res.json({ success: true, nation: '', calendar: [] });
-
             const now = Date.now();
             const snap = await firestore
                 .collection(TROY_CALENDAR_COLLECTION)
-                .where('nation', '==', targetNation)
                 .limit(200)
                 .get();
             const calendar = snap.docs
@@ -330,7 +330,7 @@ function initializeEventRoutes(app, deps) {
                 .slice(0, 80);
             res.json({
                 success: true,
-                nation: targetNation,
+                nation: TROY_CALENDAR_GLOBAL_NATION,
                 calendar
             });
         } catch (error) {
@@ -363,13 +363,13 @@ function initializeEventRoutes(app, deps) {
             if (calendarId) {
                 const before = await ref.get();
                 if (!before.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
-                if (normalizeNationKey(before.data()?.nation) !== kingNation) {
+                if (!isEditableTroyCalendarNation(before.data()?.nation, kingNation)) {
                     return res.status(403).json({ error: 'OtherNationCalendarEntry' });
                 }
             }
 
             const payload = {
-                nation: kingNation,
+                nation: TROY_CALENDAR_GLOBAL_NATION,
                 date,
                 openTime,
                 closeTime,
@@ -387,7 +387,7 @@ function initializeEventRoutes(app, deps) {
                 payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
             }
             await ref.set(payload, { merge: true });
-            res.json({ success: true, nation: kingNation, entry: troyCalendarDocToPayload(await ref.get()) });
+            res.json({ success: true, nation: TROY_CALENDAR_GLOBAL_NATION, entry: troyCalendarDocToPayload(await ref.get()) });
         } catch (error) {
             console.error('[troy-calendar/save] failed:', error?.message || error);
             res.status(500).json({ error: 'FailedToSaveTroyCalendar' });
@@ -408,7 +408,7 @@ function initializeEventRoutes(app, deps) {
             const ref = firestore.collection(TROY_CALENDAR_COLLECTION).doc(calendarId);
             const snap = await ref.get();
             if (!snap.exists) return res.status(404).json({ error: 'CalendarEntryNotFound' });
-            if (normalizeNationKey(snap.data()?.nation) !== kingNation) {
+            if (!isEditableTroyCalendarNation(snap.data()?.nation, kingNation)) {
                 return res.status(403).json({ error: 'OtherNationCalendarEntry' });
             }
             await ref.delete();

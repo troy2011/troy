@@ -1001,15 +1001,18 @@
                                 <div class="troy-admin-actions">
                                     <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
                                     <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
-                                    <a href="/troy-coin-return.html" target="_blank" rel="noopener" class="btn-muted troy-order-page-link">返却QR</a>
+                                    <button id="btnKingCoinReturn" class="btn-muted" type="button">コイン返却</button>
                                 </div>
                             </div>
                             <div class="king-coin-return-qr-row">
                                 <div class="king-coin-return-qr-copy">
-                                    <div class="troy-admin-label">コイン返却QR</div>
-                                    <div class="troy-admin-help">お客様がコイン返却を行う時に読み取ります。</div>
+                                    <div class="troy-admin-label">コイン返却</div>
+                                    <div class="troy-admin-help">返却されたコイン総額を入力し、お客様のMY QRを読み込んでゴールド化します。</div>
                                 </div>
-                                <canvas id="kingCoinReturnQrCanvas" class="king-coin-return-qr-canvas" width="132" height="132"></canvas>
+                                <div class="transfer-input-row king-coin-return-input-row">
+                                    <input id="kingCoinReturnAmount" type="number" min="100" step="100" placeholder="返却G" value="0" />
+                                    <span>G</span>
+                                </div>
                             </div>
                         </div>
                         <div class="troy-admin-card troy-king-priority-card">

@@ -571,7 +571,7 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
 async function loadTroyBusinessCalendar(playFabId) {
     renderTroyBusinessCalendar([]);
     try {
-        const result = await getTroyCalendar(playFabId, { nation: resolveTroyNationKey() }, { isSilent: true });
+        const result = await getTroyCalendar(playFabId, {}, { isSilent: true });
         _businessCalendar = Array.isArray(result?.calendar) ? result.calendar : [];
         renderTroyBusinessCalendar(_businessCalendar);
     } catch (error) {

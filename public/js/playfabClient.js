@@ -274,6 +274,10 @@ export function directGrantPs(playFabId, receiverPlayFabId, amount, requestId, o
     return callApiWithLoader('/api/king-direct-grant-ps', { playFabId, receiverPlayFabId, amount, requestId }, options);
 }
 
+export function kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, options) {
+    return callApiWithLoader('/api/king-troy-return-coin', { playFabId, receiverPlayFabId, amount, requestId }, options);
+}
+
 export function getTroyStatus(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/get-troy-status', { playFabId, ...(payload || {}) }, options);
 }

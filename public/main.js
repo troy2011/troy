@@ -836,7 +836,9 @@ async function initializeAppFeatures() {
     });
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
     document.getElementById('btnCoinConvert').addEventListener('click', () => openCoinConvertModal('gold_to_coin'));
-    document.getElementById('btnCoinGoldConvert')?.addEventListener('click', () => openCoinConvertModal('coin_to_gold'));
+    document.getElementById('btnCoinGoldConvert')?.addEventListener('click', () => {
+        showRpgMessage('コイン返却は王が操作します。MY QRを提示してください。', 2600);
+    });
     document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
     document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
     document.getElementById('btnScanEquipmentGacha')?.addEventListener('click', startScanEquipmentGacha);
@@ -1146,10 +1148,6 @@ async function initializeAppFeatures() {
 
     // QRコード生成
     new QRious({ element: document.getElementById('myQrCanvas'), value: myPlayFabId, size: 150 });
-    const kingCoinReturnQrCanvas = document.getElementById('kingCoinReturnQrCanvas');
-    if (kingCoinReturnQrCanvas) {
-        new QRious({ element: kingCoinReturnQrCanvas, value: TROY_COIN_RETURN_QR_VALUE, size: 132, level: 'H' });
-    }
 
     // --- 初期データ取得 ---
     const initPromises = [
@@ -1534,6 +1532,7 @@ function promptCoinConvertBeforeEntry(goldBalance) {
         for (let v = maxConvert; v >= 100; v -= 100) {
             options.push(`<option value="${v}">${v.toLocaleString('ja-JP')} G</option>`);
         }
+        const canConvert = options.length > 0;
 
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
@@ -1542,12 +1541,14 @@ function promptCoinConvertBeforeEntry(goldBalance) {
                 <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;">TROY COIN</div>
                 <div style="font-size:17px;font-weight:700;margin-bottom:6px;">Gをコインに変換しますか？</div>
                 <div style="color:#94a3b8;font-size:13px;margin-bottom:18px;">所持: <strong style="color:#fbbf24;">${goldBalance.toLocaleString('ja-JP')} G</strong></div>
-                <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:18px;appearance:auto;">
-                    ${options.join('')}
-                </select>
+                ${canConvert ? `
+                    <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:18px;appearance:auto;">
+                        ${options.join('')}
+                    </select>
+                ` : '<div style="color:#fca5a5;font-size:13px;margin-bottom:18px;">コイン化できるGがありません。</div>'}
                 <div style="display:flex;gap:10px;">
                     <button id="__troyEntryCoinSkip" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">このまま入店</button>
-                    <button id="__troyEntryCoinOk" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer;">変換して入店</button>
+                    <button id="__troyEntryCoinOk" type="button" ${canConvert ? '' : 'disabled'} style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer:${canConvert ? 'pointer' : 'not-allowed'};opacity:${canConvert ? '1' : '0.55'};">変換して入店</button>
                 </div>
             </div>
         `;
@@ -1566,47 +1567,10 @@ function promptCoinConvertBeforeEntry(goldBalance) {
     });
 }
 
-async function handleKingTroyToggle(entryRequest) {
-    const nationPayload = entryRequest.nation ? { troyNation: entryRequest.nation } : {};
-    const status = await callApiWithLoader('/api/troy-orders/list', nationPayload, { isSilent: true });
-    const isCurrentlyOpen = !!status?.troyOpen;
-
-    const confirmed = await new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
-        const actionLabel = isCurrentlyOpen ? 'CLOSE' : 'OPEN';
-        const btnColor = isCurrentlyOpen ? '#ef4444' : '#22c55e';
-        overlay.innerHTML = `
-            <div style="background:#1e293b;border-radius:18px;padding:28px 20px 20px;width:100%;max-width:300px;color:#f1f5f9;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
-                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;">TROY 王</div>
-                <div style="font-size:17px;font-weight:700;margin-bottom:20px;">TROYを${actionLabel}にしますか？</div>
-                <div style="display:flex;gap:10px;">
-                    <button id="__troyKingCancel" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">キャンセル</button>
-                    <button id="__troyKingOk" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:${btnColor};color:#fff;font-size:14px;font-weight:700;cursor:pointer;">${actionLabel}</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        overlay.querySelector('#__troyKingCancel').addEventListener('click', () => { document.body.removeChild(overlay); resolve(false); });
-        overlay.querySelector('#__troyKingOk').addEventListener('click', () => { document.body.removeChild(overlay); resolve(true); });
-    });
-
-    if (!confirmed) return;
-    const payload = { isOpen: !isCurrentlyOpen };
-    if (!isCurrentlyOpen && entryRequest.nation) payload.troyNation = entryRequest.nation;
-    await callApiWithLoader('/api/troy-orders/set-open', payload, { isSilent: true, throwOnError: true });
-    showRpgMessage(isCurrentlyOpen ? 'TROYをCLOSEにしました。' : 'TROYをOPENにしました。', 2400);
-    await NationKing.refreshKingNav(myPlayFabId);
-}
-
 async function handleTroyEntryRequestAfterLogin() {
     const entryRequest = getTroyEntryRequestFromUrl();
     if (!entryRequest || !myPlayFabId) return;
     try {
-        if (NationKing.isKing()) {
-            await handleKingTroyToggle(entryRequest);
-            return;
-        }
         const joinBody = {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
@@ -1619,19 +1583,17 @@ async function handleTroyEntryRequestAfterLogin() {
         // Get fresh balance (includes entry bonus if granted)
         const { points: goldBalance } = await Player.getPoints(myPlayFabId, { isSilent: true }) || {};
         let convertedAmount = 0;
-        if ((goldBalance || 0) >= 100) {
-            const convertAmount = await promptCoinConvertBeforeEntry(goldBalance);
-            if (convertAmount >= 100) {
-                try {
-                    await callApiWithLoader('/api/troy-convert-gold-to-coin', {
-                        playFabId: myPlayFabId,
-                        amount: convertAmount,
-                        requestId: createRequestId('troy-gold-to-coin')
-                    }, { isSilent: true, throwOnError: true });
-                    convertedAmount = convertAmount;
-                } catch (_) {
-                    showRpgMessage('コイン変換に失敗しました。', 2200);
-                }
+        const convertAmount = await promptCoinConvertBeforeEntry(goldBalance || 0);
+        if (convertAmount >= 100) {
+            try {
+                await callApiWithLoader('/api/troy-convert-gold-to-coin', {
+                    playFabId: myPlayFabId,
+                    amount: convertAmount,
+                    requestId: createRequestId('troy-gold-to-coin')
+                }, { isSilent: true, throwOnError: true });
+                convertedAmount = convertAmount;
+            } catch (_) {
+                showRpgMessage('コイン変換に失敗しました。', 2200);
             }
         }
 
