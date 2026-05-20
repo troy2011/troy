@@ -394,7 +394,9 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         pendingLayers += 1;
         setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady, layerAvatarColor);
     };
-    const avatarColor = avatarBase?.AvatarColor || window.myAvatarBaseInfo?.AvatarColor || null;
+    const avatarColor = avatarBase
+        ? (avatarBase.AvatarColor || 'brown')
+        : (window.myAvatarBaseInfo?.AvatarColor || null);
 
     // 1. 素体の描画
     if (avatarBase) {

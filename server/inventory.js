@@ -2,7 +2,7 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
-const { getNationTreasuryRanking } = require('./nation');
+const { getAvatarColorForNation, getNationTreasuryRanking } = require('./nation');
 const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
@@ -285,15 +285,20 @@ function initializeInventoryRoutes(app, deps) {
         };
     }
 
-    function buildAvatarBaseFromReadOnly(readOnlyData = {}) {
+    function buildAvatarBaseFromReadOnly(readOnlyData = {}, stats = {}) {
+        const nation = String(readOnlyData?.Nation?.Value || '').trim().toLowerCase();
+        const avatarColor = getAvatarColorForNation(nation)
+            || String(readOnlyData?.AvatarColor?.Value || '').trim()
+            || 'brown';
         return {
             Race: String(readOnlyData?.Race?.Value || 'human').trim() || 'human',
-            Nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
-            AvatarColor: String(readOnlyData?.AvatarColor?.Value || '').trim() || 'brown',
+            Nation: nation || null,
+            AvatarColor: avatarColor,
             SkinColorIndex: Math.max(1, Number(readOnlyData?.SkinColorIndex?.Value || 1) || 1),
             FaceIndex: Math.max(1, Number(readOnlyData?.FaceIndex?.Value || 1) || 1),
             HairStyleIndex: Math.max(1, Number(readOnlyData?.HairStyleIndex?.Value || 1) || 1),
-            HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1)
+            HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1),
+            level: Math.max(1, Number(stats?.Level || stats?.level || 1) || 1)
         };
     }
 
@@ -790,14 +795,17 @@ function initializeInventoryRoutes(app, deps) {
                 'Equipped_Armor',
                 'Equipped_Accessory'
             ];
-            const [profileResult, readOnlyResult] = await Promise.all([
+            const [profileResult, readOnlyResult, statsResult] = await Promise.all([
                 promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                     PlayFabId: targetId,
                     ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
                 }),
-                getPlayerReadOnlyData(targetId, readOnlyKeys)
+                getPlayerReadOnlyData(targetId, readOnlyKeys),
+                promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: targetId })
             ]);
             const readOnlyData = readOnlyResult?.Data || {};
+            const stats = buildStatsMapFromStatistics(statsResult?.Statistics || []);
+            Object.assign(stats, applyDerivedPlayerLevelToStats(stats).stats);
             const equipment = {};
             const assignEquipmentValue = (slotName, rawValue) => {
                 const parsed = parseStoredEquipmentValue(rawValue);
@@ -816,7 +824,7 @@ function initializeInventoryRoutes(app, deps) {
                     displayName: String(profileResult?.PlayerProfile?.DisplayName || targetId).trim() || targetId,
                     avatarUrl: String(profileResult?.PlayerProfile?.AvatarUrl || '').trim(),
                     nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
-                    avatarBase: buildAvatarBaseFromReadOnly(readOnlyData),
+                    avatarBase: buildAvatarBaseFromReadOnly(readOnlyData, stats),
                     equipment,
                     itemSource: buildPublicItemSource(equipment),
                     equipmentList: buildPublicEquipmentList(equipment)

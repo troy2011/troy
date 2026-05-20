@@ -14,6 +14,7 @@ const {
     CAPITAL_CAPTURE_BREACH_WALLS,
     normalizeNationWarState
 } = require('../nationWarWeapons');
+const { getAvatarColorForNation } = require('../nation');
 
 // ----------------------------------------------------
 // ★ v42: モジュールレベル変数の定義
@@ -343,7 +344,7 @@ async function getPlayerFullProfile(playFabId) {
         // ★ v122: アバター情報も取得するようにキーを追加
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
-            "Race", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
+            "Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY
         ]
@@ -404,11 +405,16 @@ async function getPlayerFullProfile(playFabId) {
         if (equipmentResult.Data.lineUserId) lineUserId = equipmentResult.Data.lineUserId.Value;
 
         // ★ v122: アバター情報を取得
-        if (equipmentResult.Data.Race) avatar.Race = equipmentResult.Data.Race.Value;
-        if (equipmentResult.Data.AvatarColor) avatar.AvatarColor = equipmentResult.Data.AvatarColor.Value;
-        if (equipmentResult.Data.SkinColorIndex) avatar.SkinColorIndex = equipmentResult.Data.SkinColorIndex.Value;
-        if (equipmentResult.Data.FaceIndex) avatar.FaceIndex = equipmentResult.Data.FaceIndex.Value;
-        if (equipmentResult.Data.HairStyleIndex) avatar.HairStyleIndex = equipmentResult.Data.HairStyleIndex.Value;
+        const nation = String(equipmentResult.Data.Nation?.Value || '').trim().toLowerCase();
+        avatar.Race = String(equipmentResult.Data.Race?.Value || 'human').trim() || 'human';
+        avatar.Nation = nation || null;
+        avatar.AvatarColor = getAvatarColorForNation(nation)
+            || String(equipmentResult.Data.AvatarColor?.Value || '').trim()
+            || 'brown';
+        avatar.SkinColorIndex = Number(equipmentResult.Data.SkinColorIndex?.Value || 1) || 1;
+        avatar.FaceIndex = Number(equipmentResult.Data.FaceIndex?.Value || 1) || 1;
+        avatar.HairStyleIndex = Number(equipmentResult.Data.HairStyleIndex?.Value || 1) || 1;
+        avatar.level = Number(stats.Level || 1) || 1;
 
         // タロットデッキ読み込み
         try {
