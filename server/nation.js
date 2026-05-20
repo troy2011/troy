@@ -95,6 +95,7 @@ const NATION_WAR_POST_RAID_COOLDOWN_MS = 30 * 60 * 1000;
 const NATION_WAR_CARD_REWARD_MAJOR_CHANCE = 0.2;
 const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
 const TROY_COIN_CONVERSION_MAX_AMOUNT = 1000000;
+const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -110,6 +111,20 @@ function normalizeTroyCoinConversionAmount(value) {
     const amount = Math.floor(Number(value) || 0);
     if (!Number.isFinite(amount)) return 0;
     return Math.min(TROY_COIN_CONVERSION_MAX_AMOUNT, Math.max(0, amount));
+}
+
+function isValidTroyCoinReturnQrToken(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return false;
+    const lower = raw.toLowerCase();
+    if (lower === TROY_COIN_RETURN_QR_VALUE) return true;
+    try {
+        const url = new URL(raw, 'https://troy.local');
+        const action = String(url.searchParams.get('action') || url.searchParams.get('troy') || '').trim().toLowerCase();
+        return url.pathname.endsWith('/troy-coin-return.html') || action === 'coin-return' || action === 'troy-coin-return';
+    } catch (_) {
+        return false;
+    }
 }
 
 function getPlayerRankNameByLevel(level, options = {}) {
@@ -3896,8 +3911,12 @@ function initializeNationRoutes(app, deps) {
         const { playFabId } = req.body || {};
         const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
         const requestId = String(req.body?.requestId || '').trim();
+        const coinReturnQrToken = req.body?.coinReturnQrToken;
         if (!playFabId || amount <= 0) {
             return res.status(400).json({ error: 'playFabId and positive amount are required' });
+        }
+        if (!isValidTroyCoinReturnQrToken(coinReturnQrToken)) {
+            return res.status(403).json({ error: 'コイン返却用QRコードを読み取ってください。' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;

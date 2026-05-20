@@ -15,6 +15,7 @@ const {
     isTarotEquipmentSlot,
     canEquipTarotItemToSlot,
     getStarterMajorArcanaItemId,
+    getTarotSlotLabel,
     parseStoredEquipmentValue,
     isTarotMajorCategory
 } = require('./tarotCards');

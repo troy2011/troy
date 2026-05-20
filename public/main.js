@@ -192,6 +192,35 @@ async function refreshPlayFabDisplayName(playFabId) {
     }
 }
 
+function normalizeDisplayNameInput(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 25);
+}
+
+async function promptChangeDisplayName() {
+    if (!myPlayFabId) return;
+    const current = normalizeDisplayNameInput(window.myPlayFabDisplayName || document.getElementById('globalPlayerName')?.innerText || '');
+    const next = normalizeDisplayNameInput(prompt('新しい名前を入力してください（3〜25文字）', current) || '');
+    if (!next || next === current) return;
+    if (next.length < 3) {
+        showRpgMessage('名前は3文字以上で入力してください。', 2400);
+        return;
+    }
+    try {
+        const result = await callApiWithLoader('/api/update-player-display-name', {
+            playFabId: myPlayFabId,
+            displayName: next
+        }, { throwOnError: true });
+        const displayName = String(result?.displayName || next).trim();
+        window.myPlayFabDisplayName = displayName;
+        if (window.myLineProfile) window.myLineProfile.displayName = displayName;
+        const nameEl = document.getElementById('globalPlayerName');
+        if (nameEl) nameEl.innerText = displayName;
+        showRpgMessage('名前を変更しました。', 2200);
+    } catch (error) {
+        showRpgMessage(error?.message || '名前変更に失敗しました。', 2600);
+    }
+}
+
 function getAvatarColorForNation(nation) {
     const key = String(nation || '').toLowerCase();
     return AVATAR_COLOR_BY_NATION[key] || null;
@@ -1086,10 +1115,8 @@ async function initializeAppFeatures() {
         });
     });
     document.getElementById('btnGetRanking').addEventListener('click', Player.getRanking);
-    document.getElementById('btnShowPsRanking').addEventListener('click', () => Player.showRanking('ps'));
-    document.getElementById('btnShowBountyRanking').addEventListener('click', () => Player.showRanking('bounty'));
-    document.getElementById('btnShowTreasuryRanking').addEventListener('click', () => Player.showRanking('treasury'));
-    document.getElementById('btnGetTreasuryRanking').addEventListener('click', Player.getNationTreasuryRanking);
+    document.getElementById('btnShowPsRanking')?.addEventListener('click', () => Player.showRanking('ps'));
+    document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {
         const guildName = document.getElementById('guildNameInput').value;
@@ -1119,6 +1146,10 @@ async function initializeAppFeatures() {
 
     // QRコード生成
     new QRious({ element: document.getElementById('myQrCanvas'), value: myPlayFabId, size: 150 });
+    const kingCoinReturnQrCanvas = document.getElementById('kingCoinReturnQrCanvas');
+    if (kingCoinReturnQrCanvas) {
+        new QRious({ element: kingCoinReturnQrCanvas, value: TROY_COIN_RETURN_QR_VALUE, size: 132, level: 'H' });
+    }
 
     // --- 初期データ取得 ---
     const initPromises = [
@@ -1806,6 +1837,20 @@ async function startScanEquipmentGacha() {
 }
 
 let coinConvertMode = 'gold_to_coin';
+const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
+
+function isTroyCoinReturnQrValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return false;
+    if (raw.toLowerCase() === TROY_COIN_RETURN_QR_VALUE) return true;
+    try {
+        const url = new URL(raw, window.location.origin);
+        const action = String(url.searchParams.get('action') || url.searchParams.get('troy') || '').trim().toLowerCase();
+        return url.pathname.endsWith('/troy-coin-return.html') || action === 'coin-return' || action === 'troy-coin-return';
+    } catch (_) {
+        return false;
+    }
+}
 
 function openCoinConvertModal(mode = 'gold_to_coin') {
     coinConvertMode = mode === 'coin_to_gold' ? 'coin_to_gold' : 'gold_to_coin';
@@ -1813,7 +1858,7 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     const pointMessageEl = document.getElementById('pointMessage');
     if (amount <= 0) {
         if (pointMessageEl) pointMessageEl.innerText = coinConvertMode === 'coin_to_gold'
-            ? 'ゴールド化する金額を入力してください。'
+            ? '返却するコイン金額を入力してください。'
             : 'コイン化する金額を入力してください。';
         return;
     }
@@ -1823,15 +1868,15 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
     const isGoldize = coinConvertMode === 'coin_to_gold';
-    if (titleEl) titleEl.innerText = isGoldize ? 'ゴールド化' : 'コイン化';
+    if (titleEl) titleEl.innerText = isGoldize ? 'コイン返却' : 'コイン化';
     if (amountEl) amountEl.innerText = `${amount.toLocaleString('ja-JP')}G`;
     if (textEl) textEl.innerText = isGoldize
-        ? '店内コインをゴールドに戻します。入店後にコイン化した合計を超えた分だけ経験値が増えます。'
+        ? '店員の返却用QRコードを読み取り、店内コインをゴールドに戻します。入店後にコイン化した合計を超えた分だけ経験値が増えます。'
         : '店内コインに交換します。';
     if (resultEl) resultEl.innerText = '';
     if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.innerText = isGoldize ? '確認してゴールド化' : '確認してコイン化';
+        confirmBtn.innerText = isGoldize ? '返却用QRを読み取る' : '確認してコイン化';
     }
     const modal = document.getElementById('coinConvertModal');
     if (modal) modal.style.display = 'flex';
@@ -1858,18 +1903,29 @@ async function confirmCoinConvert() {
     }
     try {
         const endpoint = isGoldize ? '/api/troy-convert-coin-to-gold' : '/api/troy-convert-gold-to-coin';
+        let coinReturnQrToken = '';
+        if (isGoldize) {
+            if (!liff.isInClient()) throw new Error('コイン返却QRの読み取りはLINEアプリ内でのみ利用できます。');
+            if (resultEl) resultEl.innerText = '店員の返却用QRコードを読み取ってください。';
+            if (confirmBtn) confirmBtn.innerText = 'QRを読み取り中...';
+            coinReturnQrToken = await scanQrValue();
+            if (!isTroyCoinReturnQrValue(coinReturnQrToken)) {
+                throw new Error('コイン返却用QRコードではありません。');
+            }
+        }
         const data = await callApiWithLoader(endpoint, {
             playFabId: myPlayFabId,
             amount,
+            coinReturnQrToken,
             requestId: createRequestId(isGoldize ? 'troy-coin-to-gold' : 'troy-gold-to-coin')
         });
-        if (!data) throw new Error(isGoldize ? 'ゴールド化に失敗しました。' : 'コイン化に失敗しました。');
+        if (!data) throw new Error(isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
         const contributionAmount = Math.max(0, Math.floor(Number(data.contributionAmount) || 0));
         const contributionNote = isGoldize && contributionAmount > 0
             ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}`
             : '';
         const message = isGoldize
-            ? `${amount.toLocaleString('ja-JP')}Gをゴールド化しました。${contributionNote}`
+            ? `${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`
             : `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
         if (resultEl) resultEl.innerText = message;
         document.getElementById('pointMessage').innerText = message;
@@ -1879,11 +1935,11 @@ async function confirmCoinConvert() {
         await Player.getRanking();
         setTimeout(closeCoinConvertModal, 1200);
     } catch (error) {
-        const message = error?.message || error?.error || (isGoldize ? 'ゴールド化に失敗しました。' : 'コイン化に失敗しました。');
+        const message = error?.message || error?.error || (isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
         if (resultEl) resultEl.innerText = message;
         if (confirmBtn) {
             confirmBtn.disabled = false;
-            confirmBtn.innerText = previousLabel || (isGoldize ? '確認してゴールド化' : '確認してコイン化');
+            confirmBtn.innerText = previousLabel || (isGoldize ? '返却用QRを読み取る' : '確認してコイン化');
         }
     }
 }

@@ -21,6 +21,31 @@ const ECONOMY_CURRENCY_IDS = new Set([
 ]);
 const BOUNTY_RESET_DATE_KEY = 'BountyResetDate';
 const EXPERIENCE_KEY = 'Experience';
+const NATION_EMOJI_BY_NATION = {
+    fire: '🔥',
+    water: '💧',
+    wind: '🌪️',
+    earth: '🌱'
+};
+
+function stripNationEmoji(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^(🔥|💧|🌪️|🌱|🏴)\s*/, '').trim();
+}
+
+function normalizePlayerDisplayName(value) {
+    return stripNationEmoji(value)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 25);
+}
+
+function buildNationDisplayName(baseName, nation) {
+    const base = normalizePlayerDisplayName(baseName);
+    const emoji = NATION_EMOJI_BY_NATION[String(nation || '').trim().toLowerCase()] || '';
+    return (emoji && base ? `${emoji} ${base}` : base).slice(0, 25);
+}
 
 function getJstDateKey(nowMs = Date.now()) {
     const jstMs = nowMs + (9 * 60 * 60 * 1000);
@@ -524,6 +549,36 @@ function initializeEconomyRoutes(app, deps) {
                 error: 'Failed to get display name',
                 details: error.errorMessage || error.message
             });
+        }
+    });
+
+    app.post('/api/update-player-display-name', async (req, res) => {
+        const { playFabId } = req.body || {};
+        const displayName = normalizePlayerDisplayName(req.body?.displayName);
+        if (!playFabId || !displayName) return res.status(400).json({ error: 'playFabId and displayName are required' });
+        if (displayName.length < 3) return res.status(400).json({ error: '名前は3文字以上で入力してください。' });
+        const requesterPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+                PlayFabId: requesterPlayFabId,
+                Keys: ['Nation']
+            });
+            const nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+            const nextDisplayName = buildNationDisplayName(displayName, nation);
+            await promisifyPlayFab(PlayFabAdmin.UpdateUserTitleDisplayName, {
+                PlayFabId: requesterPlayFabId,
+                DisplayName: nextDisplayName
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: requesterPlayFabId,
+                Data: { BaseDisplayName: displayName }
+            });
+            res.json({ success: true, displayName: nextDisplayName, baseDisplayName: displayName });
+        } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            console.error('[update-player-display-name] Error:', msg);
+            res.status(500).json({ error: '名前変更に失敗しました。', details: msg });
         }
     });
 }

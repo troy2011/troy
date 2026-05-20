@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#111827">
+    <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
+    <link rel="stylesheet" href="/style.css">
+    <title>TROY コイン返却QR</title>
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            background: #111827;
+            color: #f9fafb;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        .coin-return-shell {
+            width: min(92vw, 420px);
+            text-align: center;
+            padding: 24px;
+        }
+        .coin-return-kicker {
+            color: #facc15;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .08em;
+        }
+        h1 {
+            margin: 8px 0 18px;
+            font-size: 28px;
+            letter-spacing: 0;
+        }
+        .coin-return-qr {
+            display: inline-grid;
+            place-items: center;
+            padding: 18px;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .coin-return-help {
+            margin: 18px 0 0;
+            color: #d1d5db;
+            line-height: 1.7;
+            font-size: 15px;
+        }
+        .coin-return-token {
+            margin-top: 14px;
+            color: #9ca3af;
+            font-size: 12px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <main class="coin-return-shell">
+        <div class="coin-return-kicker">TROY STAFF</div>
+        <h1>コイン返却QR</h1>
+        <div class="coin-return-qr">
+            <canvas id="coinReturnQrCanvas" width="260" height="260"></canvas>
+        </div>
+        <p class="coin-return-help">お客様がコイン返却を行う時に、このQRコードを読み取ります。</p>
+        <div class="coin-return-token">troy:coin-return</div>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script>
+        new QRious({
+            element: document.getElementById('coinReturnQrCanvas'),
+            value: 'troy:coin-return',
+            size: 260,
+            level: 'H'
+        });
+    </script>
+</body>
+</html>

@@ -28,7 +28,7 @@
             <div id="globalPlayerInfoTop">
                 <div id="globalPlayerInfo">
                     <span style="color: var(--accent-color); font-size: 12px;">Lv.<b id="globalLevel">?</b></span>
-                    <span id="globalPlayerName">Player</span>
+                    <button id="globalPlayerName" type="button" title="名前を変更">Player</button>
                     <span id="globalRankBadge" class="global-rank-badge">見習い</span>
                 </div>
                 <div class="currency-display">
@@ -139,7 +139,7 @@
                     <div class="transfer-action-row">
                         <button id="btnScanPay" class="transfer-send-btn">渡す</button>
                         <button id="btnCoinConvert" class="transfer-coin-btn" type="button">コイン化</button>
-                        <button id="btnCoinGoldConvert" class="transfer-gold-btn" type="button">ゴールド化</button>
+                        <button id="btnCoinGoldConvert" class="transfer-gold-btn" type="button">コイン返却</button>
                     </div>
                 </div>
                 <div class="content-area home-social-card home-card">
@@ -973,8 +973,6 @@
                     </div>
                     <div id="rankingToggleButtons">
                         <button id="btnShowPsRanking" class="ranking-toggle-btn active">ゴールド順</button>
-                        <button id="btnShowBountyRanking" class="ranking-toggle-btn">日次貢献度順</button>
-                        <button id="btnShowTreasuryRanking" class="ranking-toggle-btn">国庫順</button>
                     </div>
 
                     <div id="psRankingArea">
@@ -984,16 +982,6 @@
                         <ol id="rankingList" class="ranking-list"></ol>
                     </div>
 
-                    <div id="bountyRankingArea" style="display: none;">
-                        <ol id="bountyRankingList" class="ranking-list"></ol>
-                    </div>
-
-                    <div id="treasuryRankingArea" style="display: none;">
-                        <div class="ranking-refresh-row">
-                            <button id="btnGetTreasuryRanking" class="ranking-refresh-btn">更新</button>
-                        </div>
-                        <ol id="treasuryRankingList" class="ranking-list"></ol>
-                    </div>
                 </div>
             </div>
 
@@ -1014,7 +1002,15 @@
                                     <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
                                     <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
                                     <a href="/troy-orders.html" target="_blank" rel="noopener" class="btn-open troy-order-page-link">注文リスト</a>
+                                    <a href="/troy-coin-return.html" target="_blank" rel="noopener" class="btn-muted troy-order-page-link">返却QR</a>
                                 </div>
+                            </div>
+                            <div class="king-coin-return-qr-row">
+                                <div class="king-coin-return-qr-copy">
+                                    <div class="troy-admin-label">コイン返却QR</div>
+                                    <div class="troy-admin-help">お客様がコイン返却を行う時に読み取ります。</div>
+                                </div>
+                                <canvas id="kingCoinReturnQrCanvas" class="king-coin-return-qr-canvas" width="132" height="132"></canvas>
                             </div>
                             <div class="king-troy-ops-summary">
                                 <div>

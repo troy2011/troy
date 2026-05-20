@@ -350,27 +350,27 @@ export function showRanking(type) {
     const btnTreasury = document.getElementById('btnShowTreasuryRanking');
 
     if (type === 'ps') {
-        psRankingArea.style.display = 'block';
-        bountyRankingArea.style.display = 'none';
+        if (psRankingArea) psRankingArea.style.display = 'block';
+        if (bountyRankingArea) bountyRankingArea.style.display = 'none';
         if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
-        btnPs.classList.add('active');
-        btnBounty.classList.remove('active');
+        if (btnPs) btnPs.classList.add('active');
+        if (btnBounty) btnBounty.classList.remove('active');
         if (btnTreasury) btnTreasury.classList.remove('active');
         getRanking();
     } else if (type === 'bounty') {
-        psRankingArea.style.display = 'none';
-        bountyRankingArea.style.display = 'block';
+        if (psRankingArea) psRankingArea.style.display = 'none';
+        if (bountyRankingArea) bountyRankingArea.style.display = 'block';
         if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
-        btnPs.classList.remove('active');
-        btnBounty.classList.add('active');
+        if (btnPs) btnPs.classList.remove('active');
+        if (btnBounty) btnBounty.classList.add('active');
         if (btnTreasury) btnTreasury.classList.remove('active');
         getBountyRanking();
     } else { // treasury
-        psRankingArea.style.display = 'none';
-        bountyRankingArea.style.display = 'none';
+        if (psRankingArea) psRankingArea.style.display = 'none';
+        if (bountyRankingArea) bountyRankingArea.style.display = 'none';
         if (treasuryRankingArea) treasuryRankingArea.style.display = 'block';
-        btnPs.classList.remove('active');
-        btnBounty.classList.remove('active');
+        if (btnPs) btnPs.classList.remove('active');
+        if (btnBounty) btnBounty.classList.remove('active');
         if (btnTreasury) btnTreasury.classList.add('active');
         getNationTreasuryRanking();
     }

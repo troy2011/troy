@@ -142,7 +142,7 @@ function _renderPendingTroyCheckouts(entries = []) {
                         <input type="number" class="king-coin-deposit-input" min="0" step="1" inputmode="numeric" value="0" data-coin-deposit-input="true" aria-label="預かりコイン">
                         <span class="king-coin-deposit-unit">G</span>
                     </label>
-                    <div class="king-coin-deposit-help">店内コインをゴールド化する時だけ入力</div>
+                    <div class="king-coin-deposit-help">店内コインを返却する時だけ入力</div>
                 </details>
                 <div class="king-pending-checkout-actions">
                     <button type="button" class="btn-open" data-pending-settle="true" data-checkout-status="${_escapeHtml(status)}" data-receiver-id="${_escapeHtml(entry.playFabId)}" data-amount="${total}">
@@ -879,7 +879,7 @@ function _wireHandlers(playFabId) {
                 return;
             }
             const depositNote = coinDepositAmount > 0
-                ? `\n預かりコイン ${coinDepositAmount.toLocaleString('ja-JP')}G をゴールド化します。`
+                ? `\n預かりコイン ${coinDepositAmount.toLocaleString('ja-JP')}G を返却します。`
                 : '';
             const confirmMessage = checkoutStatus === 'pending'
                 ? `¥${expectedTotal.toLocaleString('ja-JP')} の会計を確定してゴールドを渡しますか？${depositNote}`
