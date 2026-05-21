@@ -3609,6 +3609,34 @@ body.modal-lock .modal-overlay {
     min-height: 40px;
 }
 
+.home-qr-actions {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    margin-top: 12px;
+}
+
+.home-qr-scan-btn {
+    min-height: 42px;
+    width: min(100%, 220px);
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.14);
+    color: #f8fafc;
+    font-weight: 800;
+}
+
+.home-qr-scan-btn:disabled {
+    opacity: 0.6;
+}
+
+.home-qr-help {
+    color: var(--text-sub);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
 .troy-primary-action-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

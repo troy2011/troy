@@ -15,7 +15,7 @@ import * as NationKing from './js/nationKing.js';
 import { initMapChat, initTroyChat } from './js/mapChat.js';
 import { enterBattleRoom } from './BattleRoomScene.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
-import { installPlayerProfileInteractions, refreshFavoritePlayersList } from './js/playerProfile.js';
+import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
 
 import { getDatabase } from "firebase/database";
@@ -251,6 +251,67 @@ function getTroyEntryRequestFromUrl() {
     const nationRaw = String(params.get('nation') || params.get('troyNation') || '').trim().toLowerCase();
     const nation = ['fire', 'water', 'wind', 'earth'].includes(nationRaw) ? nationRaw : null;
     return { action: 'troy-entry', nation };
+}
+
+function getTroyEntryRequestFromQrValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        const action = String(parsed?.action || parsed?.type || parsed?.kind || '').trim().toLowerCase();
+        const isEntry = action === 'troy-entry' || action === 'troy' || parsed?.troyEntry === true;
+        if (!isEntry) return null;
+        const nation = normalizeNationKey(parsed?.nation || parsed?.troyNation);
+        return { action: 'troy-entry', nation: nation || null };
+    } catch {
+        // non-JSON QR payload
+    }
+    try {
+        const url = new URL(raw);
+        const params = url.searchParams;
+        const action = String(params.get('action') || params.get('entry') || '').trim().toLowerCase();
+        const troyFlag = String(params.get('troy') || '').trim().toLowerCase();
+        const pathToken = String(url.pathname.split('/').filter(Boolean).pop() || '').trim().toLowerCase();
+        const isEntry = action === 'troy-entry'
+            || action === 'troy'
+            || troyFlag === 'entry'
+            || pathToken === 'troy-entry';
+        if (!isEntry) return null;
+        const nation = normalizeNationKey(params.get('nation') || params.get('troyNation'));
+        return { action: 'troy-entry', nation: nation || null };
+    } catch {
+        const normalized = raw.toLowerCase();
+        if (normalized === 'troy-entry' || normalized.startsWith('troy-entry:')) {
+            const [, nationRaw = ''] = raw.split(':');
+            const nation = normalizeNationKey(nationRaw);
+            return { action: 'troy-entry', nation: nation || null };
+        }
+    }
+    return null;
+}
+
+function normalizePlayFabIdFromQrValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    let candidate = raw.replace(/^playfab:/i, '').trim();
+    try {
+        const parsed = JSON.parse(raw);
+        candidate = String(parsed?.playFabId || parsed?.playerId || parsed?.id || '').replace(/^playfab:/i, '').trim();
+    } catch {
+        try {
+            const url = new URL(raw);
+            candidate = String(
+                url.searchParams.get('playFabId')
+                || url.searchParams.get('playerId')
+                || url.searchParams.get('id')
+                || ''
+            ).replace(/^playfab:/i, '').trim();
+        } catch {
+            // plain QR payload
+        }
+    }
+    const normalized = candidate.toUpperCase();
+    return /^[A-F0-9]{16,32}$/.test(normalized) ? normalized : '';
 }
 
 function shouldSkipDailyFortuneOnLogin() {
@@ -1122,6 +1183,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnShowKaraokeRanking')?.addEventListener('click', () => Player.showRanking('karaoke'));
     document.getElementById('btnGetDartsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('darts_countup'));
     document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
+    document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {
@@ -1571,8 +1633,7 @@ function promptCoinConvertBeforeEntry(goldBalance) {
     });
 }
 
-async function handleTroyEntryRequestAfterLogin() {
-    const entryRequest = getTroyEntryRequestFromUrl();
+async function handleTroyEntryRequest(entryRequest, options = {}) {
     if (!entryRequest || !myPlayFabId) return;
     try {
         const joinBody = {
@@ -1620,8 +1681,13 @@ async function handleTroyEntryRequestAfterLogin() {
             : '入店処理に失敗しました。店員にお声がけください。';
         showRpgMessage(message, 3200);
     } finally {
-        clearTroyEntryParamsFromUrl();
+        if (options.clearUrl) clearTroyEntryParamsFromUrl();
     }
+}
+
+async function handleTroyEntryRequestAfterLogin() {
+    const entryRequest = getTroyEntryRequestFromUrl();
+    await handleTroyEntryRequest(entryRequest, { clearUrl: true });
 }
 
 function getTransferAmountValue() {
@@ -1747,6 +1813,56 @@ async function scanQrValue() {
         return result && result.value ? String(result.value).trim() : '';
     }
     throw new Error('この環境では QR 読み取りが利用できません。');
+}
+
+async function startHomeQrScan() {
+    const button = document.getElementById('btnHomeScanQr');
+    if (!liff.isInClient()) {
+        showRpgMessage('QRスキャンはLINEアプリ内でのみ利用できます。', 2600);
+        return;
+    }
+    if (!myPlayFabId) {
+        showRpgMessage('ログイン後に利用できます。', 2400);
+        return;
+    }
+    const previousLabel = button?.innerText || '';
+    if (button) {
+        button.disabled = true;
+        button.innerText = '読み取り中...';
+    }
+    try {
+        const qrValue = await scanQrValue();
+        if (!qrValue) {
+            showRpgMessage('QRを読み取れませんでした。', 2400);
+            return;
+        }
+
+        const entryRequest = getTroyEntryRequestFromQrValue(qrValue);
+        if (entryRequest) {
+            await handleTroyEntryRequest(entryRequest);
+            return;
+        }
+
+        if (isEquipmentGachaQrValue(qrValue)) {
+            showRpgMessage('装備品ガチャQRは、持ち物タブの宝箱から読み込んでください。', 3200);
+            return;
+        }
+
+        const targetPlayFabId = normalizePlayFabIdFromQrValue(qrValue);
+        if (targetPlayFabId) {
+            await openPlayerProfile(targetPlayFabId);
+            return;
+        }
+
+        showRpgMessage('このQRはアプリで処理できません。', 2600);
+    } catch (error) {
+        showRpgMessage(`QR読み取りに失敗しました: ${error?.message || error}`, 3000);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerText = previousLabel || 'QRを読み込む';
+        }
+    }
 }
 
 async function startScanEquipmentGacha() {
