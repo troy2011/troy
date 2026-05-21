@@ -4,7 +4,6 @@ import {
     joinEvent as requestJoinEvent,
     approveEvent as requestApproveEvent,
     getReservations as requestReservations,
-    createReservation as requestCreateReservation,
     reviewReservation as requestReviewReservation,
     cancelReservation as requestCancelReservation
 } from './playfabClient.js';
@@ -83,14 +82,6 @@ function setDefaultDateTime() {
     const input = document.getElementById('eventStartsAt');
     if (!input || input.value) return;
     const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    date.setMinutes(0, 0, 0);
-    input.value = toLocalDateTimeValue(date);
-}
-
-function setDefaultReservationDateTime() {
-    const input = document.getElementById('reservationStartsAt');
-    if (!input || input.value) return;
-    const date = new Date(Date.now() + 2 * 60 * 60 * 1000);
     date.setMinutes(0, 0, 0);
     input.value = toLocalDateTimeValue(date);
 }
@@ -280,7 +271,6 @@ function renderReservations(data, playFabId) {
 async function loadEvents(playFabId) {
     if (!playFabId) return;
     setDefaultDateTime();
-    setDefaultReservationDateTime();
     setMessage('');
     const [data, reservationData] = await Promise.all([
         requestEvents(playFabId, { isSilent: true }),
@@ -354,33 +344,6 @@ async function approveEvent(playFabId, eventId, approve, sponsorNote = DEFAULT_S
     }
 }
 
-async function createReservation(playFabId) {
-    const startsAt = document.getElementById('reservationStartsAt')?.value || '';
-    const partySize = document.getElementById('reservationPartySize')?.value || 1;
-    const purpose = document.getElementById('reservationPurpose')?.value || 'visit';
-    const note = document.getElementById('reservationNote')?.value || '';
-    try {
-        const data = await requestCreateReservation(playFabId, {
-            startsAt,
-            startsAtMs: Date.parse(startsAt),
-            partySize,
-            purpose,
-            note,
-            nation: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || '',
-            displayName: window.myPlayFabDisplayName || '',
-            requestId: createRequestId('reservation-create')
-        }, { throwOnError: true });
-        if (data?.success) {
-            setMessage('予約申請を送信しました。王の承認後に確定します。');
-            const noteEl = document.getElementById('reservationNote');
-            if (noteEl) noteEl.value = '';
-            await loadEvents(playFabId);
-        }
-    } catch (error) {
-        setMessage(error?.message || '予約申請に失敗しました。', true);
-    }
-}
-
 async function reviewReservation(playFabId, reservationId, approve) {
     try {
         const data = await requestReviewReservation(playFabId, reservationId, approve, { throwOnError: true });
@@ -417,22 +380,6 @@ function bindEvents(playFabId) {
     if (reloadBtn) {
         reloadBtn.addEventListener('click', () => loadEvents(window.myPlayFabId || playFabId));
     }
-    const reservationBtn = document.getElementById('btnCreateReservation');
-    if (reservationBtn) {
-        reservationBtn.addEventListener('click', () => createReservation(window.myPlayFabId || playFabId));
-    }
-    const reservationPurpose = document.getElementById('reservationPurpose');
-    const reservationPartySize = document.getElementById('reservationPartySize');
-    const updateReservationHelp = () => {
-        const help = document.getElementById('reservationPrivateHelp');
-        if (!help) return;
-        help.style.display = reservationPurpose?.value === 'private' ? '' : 'none';
-        if (reservationPurpose?.value === 'private' && reservationPartySize && Number(reservationPartySize.value || 0) < 10) {
-            reservationPartySize.value = '10';
-        }
-    };
-    if (reservationPurpose) reservationPurpose.addEventListener('change', updateReservationHelp);
-    updateReservationHelp();
     bound = true;
 }
 

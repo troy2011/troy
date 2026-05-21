@@ -3540,6 +3540,19 @@ body.modal-lock .modal-overlay {
     opacity: 0.72;
 }
 
+.troy-calendar-item.is-reservable {
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.troy-calendar-item.is-reservable:hover,
+.troy-calendar-item.is-reservable:focus-visible {
+    border-color: rgba(251, 191, 36, 0.78);
+    background: rgba(38, 28, 16, 0.72);
+    outline: none;
+    transform: translateY(-1px);
+}
+
 .troy-calendar-date {
     font-weight: 800;
     color: var(--accent-color);
@@ -3572,6 +3585,28 @@ body.modal-lock .modal-overlay {
 .troy-calendar-actions button {
     min-height: 30px;
     padding: 4px 10px;
+}
+
+.troy-calendar-reserve-hint {
+    margin-top: 6px;
+    color: var(--accent-color);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.troy-reservation-panel {
+    margin-top: 12px;
+}
+
+.troy-reservation-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.troy-reservation-actions button {
+    min-height: 40px;
 }
 
 .troy-primary-action-card {
@@ -10971,86 +11006,8 @@ textarea {
 
 #kingAnnouncementMeta,
 #kingPageMessage,
-#kingGrantPreview,
-#kingTreasuryInfo {
+#kingGrantPreview {
     line-height: 1.6;
-}
-
-.king-treasury-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.king-treasury-summary:empty,
-.king-treasury-entries:empty {
-    display: none;
-}
-
-.king-treasury-summary-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 10px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.82);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    font-size: 11px;
-    color: #e2e8f0;
-}
-
-.king-treasury-summary-chip.is-in {
-    border-color: rgba(34, 197, 94, 0.26);
-    color: #dcfce7;
-}
-
-.king-treasury-summary-chip.is-out {
-    border-color: rgba(248, 113, 113, 0.26);
-    color: #fee2e2;
-}
-
-.king-treasury-entries {
-    display: grid;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.king-treasury-entry {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px 10px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.72);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.king-treasury-entry-main {
-    font-size: 13px;
-    font-weight: 700;
-    color: #f8fafc;
-}
-
-.king-treasury-entry-amount {
-    font-size: 13px;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-.king-treasury-entry-amount.is-in {
-    color: #86efac;
-}
-
-.king-treasury-entry-amount.is-out {
-    color: #fca5a5;
-}
-
-.king-treasury-entry-meta {
-    grid-column: 1 / -1;
-    font-size: 11px;
-    color: #94a3b8;
-    line-height: 1.5;
 }
 
 .king-war-card {
@@ -11807,8 +11764,7 @@ textarea {
 
 /* Admin status text */
 #kingTroyStatus,
-#kingWarSummary,
-#kingCashbackRateInfo {
+#kingWarSummary {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-main);

@@ -1118,6 +1118,10 @@ async function initializeAppFeatures() {
     });
     document.getElementById('btnGetRanking').addEventListener('click', Player.getRanking);
     document.getElementById('btnShowPsRanking')?.addEventListener('click', () => Player.showRanking('ps'));
+    document.getElementById('btnShowDartsRanking')?.addEventListener('click', () => Player.showRanking('darts'));
+    document.getElementById('btnShowKaraokeRanking')?.addEventListener('click', () => Player.showRanking('karaoke'));
+    document.getElementById('btnGetDartsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('darts_countup'));
+    document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {

@@ -199,6 +199,30 @@
                     <div id="troyBusinessCalendarList" class="troy-calendar-list">
                         <div class="troy-calendar-empty">営業予定を読み込み中です。</div>
                     </div>
+                    <div id="troyReservationPanel" class="troy-reservation-panel event-create-panel" hidden>
+                        <h3>店舗予約を申請</h3>
+                        <div id="troyReservationSelectedDate" class="troy-calendar-meta">営業日を選択してください</div>
+                        <label>予約日時<input id="reservationStartsAt" type="datetime-local"></label>
+                        <div class="event-form-grid">
+                            <label>人数<input id="reservationPartySize" type="number" min="1" max="20" value="2"></label>
+                            <label>用途
+                                <select id="reservationPurpose">
+                                    <option value="visit">通常来店</option>
+                                    <option value="darts">ダーツ</option>
+                                    <option value="billiards">ビリヤード</option>
+                                    <option value="consultation">相談</option>
+                                    <option value="private">貸切</option>
+                                    <option value="other">その他</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div id="reservationPrivateHelp" class="event-host-fee" style="display: none;">貸切予約は10名以上から申請できます。</div>
+                        <label>メモ<textarea id="reservationNote" rows="3" maxlength="500" placeholder="希望内容、到着予定、連絡事項など"></textarea></label>
+                        <div class="troy-reservation-actions">
+                            <button id="btnCreateReservation" class="event-create-btn" type="button">予約申請する</button>
+                            <button id="btnCancelTroyReservation" class="btn-muted" type="button">閉じる</button>
+                        </div>
+                    </div>
                 </div>
                 <details id="troyChatDetails" class="content-area troy-chat-details">
                     <summary>チャット</summary>
@@ -482,26 +506,6 @@
                             </div>
                             <div id="reservationList" class="event-list"></div>
                             <div id="reservationListEmpty" class="event-empty">予約はありません。</div>
-                        </section>
-                        <section class="event-create-panel">
-                            <h3>店舗予約を申請</h3>
-                            <label>予約日時<input id="reservationStartsAt" type="datetime-local"></label>
-                            <div class="event-form-grid">
-                                <label>人数<input id="reservationPartySize" type="number" min="1" max="20" value="2"></label>
-                                <label>用途
-                                    <select id="reservationPurpose">
-                                        <option value="visit">通常来店</option>
-                                        <option value="darts">ダーツ</option>
-                                        <option value="billiards">ビリヤード</option>
-                                        <option value="consultation">相談</option>
-                                        <option value="private">貸切</option>
-                                        <option value="other">その他</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div id="reservationPrivateHelp" class="event-host-fee" style="display: none;">貸切予約は10名以上から申請できます。</div>
-                            <label>メモ<textarea id="reservationNote" rows="3" maxlength="500" placeholder="希望内容、到着予定、連絡事項など"></textarea></label>
-                            <button id="btnCreateReservation" class="event-create-btn" type="button">予約申請する</button>
                         </section>
                         <section class="event-create-panel">
                             <h3>大会を主催</h3>
@@ -973,6 +977,8 @@
                     </div>
                     <div id="rankingToggleButtons">
                         <button id="btnShowPsRanking" class="ranking-toggle-btn active">ゴールド順</button>
+                        <button id="btnShowDartsRanking" class="ranking-toggle-btn">ダーツ</button>
+                        <button id="btnShowKaraokeRanking" class="ranking-toggle-btn">カラオケ</button>
                     </div>
 
                     <div id="psRankingArea">
@@ -980,6 +986,20 @@
                             <button id="btnGetRanking" class="ranking-refresh-btn">更新</button>
                         </div>
                         <ol id="rankingList" class="ranking-list"></ol>
+                    </div>
+
+                    <div id="dartsRankingArea" style="display: none;">
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetDartsRanking" class="ranking-refresh-btn">更新</button>
+                        </div>
+                        <ol id="dartsRankingList" class="ranking-list"></ol>
+                    </div>
+
+                    <div id="karaokeRankingArea" style="display: none;">
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetKaraokeRanking" class="ranking-refresh-btn">更新</button>
+                        </div>
+                        <ol id="karaokeRankingList" class="ranking-list"></ol>
                     </div>
 
                 </div>
@@ -1023,6 +1043,34 @@
                             <div id="kingTroyEntryList" class="troy-entry-list"></div>
                             <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
                         </div>
+                        <details class="troy-admin-details">
+                            <summary>店内ゲーム採点</summary>
+                            <div class="troy-admin-card">
+                                <div class="troy-admin-label">ランキング点数を更新</div>
+                                <div class="troy-admin-help">実際の画面に表示された点数を確認し、対象プレイヤーのMY QRまたはPlayFab IDと一緒に入力してください。</div>
+                                <div class="troy-admin-grid">
+                                    <div>
+                                        <div class="troy-admin-field-label">種目</div>
+                                        <select id="kingStoreGameType" class="admin-input">
+                                            <option value="darts_countup">ダーツカウントアップ</option>
+                                            <option value="karaoke">カラオケ採点</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <div class="troy-admin-field-label">点数</div>
+                                        <input id="kingStoreGameScore" type="number" min="1" step="1" placeholder="例: 701" class="admin-input" />
+                                    </div>
+                                    <div>
+                                        <div class="troy-admin-field-label">プレイヤーID</div>
+                                        <input id="kingStoreGamePlayerId" type="text" placeholder="MY QR読取またはID入力" class="admin-input" />
+                                    </div>
+                                </div>
+                                <div class="troy-admin-actions">
+                                    <button id="btnKingScanStoreGamePlayer" class="btn-muted" type="button">MY QR読取</button>
+                                    <button id="btnKingSaveStoreGameScore" class="btn-open" type="button">点数を保存</button>
+                                </div>
+                            </div>
+                        </details>
                         <details id="kingMenuDetails" class="troy-admin-details">
                             <summary>メニュー管理</summary>
                             <div class="troy-admin-card">
@@ -1082,24 +1130,6 @@
                                 <div class="troy-admin-actions">
                                     <button id="btnKingMenuAddSpecial" class="btn-open">追加する</button>
                                 </div>
-                            </div>
-                        </details>
-                        <details class="troy-admin-details">
-                            <summary>国庫と還元率</summary>
-                            <div class="troy-admin-card">
-                                <div class="troy-admin-actions troy-admin-actions-wide">
-                                    <div>
-                                        <div class="troy-admin-field-label">ゴールド還元率（国庫順位で自動変動）</div>
-                                        <div id="kingCashbackRateInfo">-</div>
-                                    </div>
-                                    <div class="troy-admin-actions">
-                                        <button id="btnKingReload" class="btn-muted">再読み込み</button>
-                                    </div>
-                                </div>
-                                <div class="troy-admin-help">現金の一部がゴールドとしてお客様に還元されます。還元率は国庫の順位で自動的に変わります。</div>
-                                <div id="kingTreasuryInfo" class="king-help-text"></div>
-                                <div id="kingTreasurySummary" class="king-treasury-summary"></div>
-                                <div id="kingTreasuryEntries" class="king-treasury-entries"></div>
                             </div>
                         </details>
                     </div>

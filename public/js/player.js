@@ -11,7 +11,8 @@ import {
     usePoints as requestUsePoints,
     getRanking as fetchRanking,
     getBountyRanking as fetchBountyRanking,
-    getNationTreasuryRanking as fetchNationTreasuryRanking
+    getNationTreasuryRanking as fetchNationTreasuryRanking,
+    getStoreGameRanking as fetchStoreGameRanking
 } from './playfabClient.js';
 import { formatCurrencyLabel } from './config.js';
 import { getNationLabel } from './nationLabels.js';
@@ -341,37 +342,69 @@ export async function getNationTreasuryRanking() {
     rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
+export async function getStoreGameRanking(gameType = 'darts_countup') {
+    const safeType = gameType === 'karaoke' ? 'karaoke' : 'darts_countup';
+    const rankingListEl = document.getElementById(safeType === 'karaoke' ? 'karaokeRankingList' : 'dartsRankingList');
+    if (!rankingListEl) return;
+    const loadingLabel = safeType === 'karaoke' ? 'カラオケ採点' : 'ダーツカウントアップ';
+    rankingListEl.innerHTML = renderRankingState(`（${loadingLabel}ランキングを読み込んでいます...）`);
+    const data = await fetchStoreGameRanking(safeType);
+    if (data?.ranking) {
+        rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+            emptyMessage: '（まだ記録がありません）',
+            getName: (entry) => entry.displayName || '冒険者',
+            getScore: (entry) => `${formatNumber(entry.score)}点`,
+            getMeta: (entry, index) => (index < 3 ? `${loadingLabel} 上位記録` : `${loadingLabel}ランキング`),
+            getPlayerId: (entry) => entry.playFabId || ''
+        });
+        return;
+    }
+    rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
+}
+
 export function showRanking(type) {
     const psRankingArea = document.getElementById('psRankingArea');
     const bountyRankingArea = document.getElementById('bountyRankingArea');
     const treasuryRankingArea = document.getElementById('treasuryRankingArea');
+    const dartsRankingArea = document.getElementById('dartsRankingArea');
+    const karaokeRankingArea = document.getElementById('karaokeRankingArea');
     const btnPs = document.getElementById('btnShowPsRanking');
     const btnBounty = document.getElementById('btnShowBountyRanking');
     const btnTreasury = document.getElementById('btnShowTreasuryRanking');
+    const btnDarts = document.getElementById('btnShowDartsRanking');
+    const btnKaraoke = document.getElementById('btnShowKaraokeRanking');
+
+    const setActive = (activeBtn) => {
+        [btnPs, btnBounty, btnTreasury, btnDarts, btnKaraoke].forEach((btn) => {
+            if (btn) btn.classList.toggle('active', btn === activeBtn);
+        });
+    };
+
+    const showArea = (activeArea) => {
+        [psRankingArea, bountyRankingArea, treasuryRankingArea, dartsRankingArea, karaokeRankingArea].forEach((area) => {
+            if (area) area.style.display = area === activeArea ? 'block' : 'none';
+        });
+    };
 
     if (type === 'ps') {
-        if (psRankingArea) psRankingArea.style.display = 'block';
-        if (bountyRankingArea) bountyRankingArea.style.display = 'none';
-        if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
-        if (btnPs) btnPs.classList.add('active');
-        if (btnBounty) btnBounty.classList.remove('active');
-        if (btnTreasury) btnTreasury.classList.remove('active');
+        showArea(psRankingArea);
+        setActive(btnPs);
         getRanking();
     } else if (type === 'bounty') {
-        if (psRankingArea) psRankingArea.style.display = 'none';
-        if (bountyRankingArea) bountyRankingArea.style.display = 'block';
-        if (treasuryRankingArea) treasuryRankingArea.style.display = 'none';
-        if (btnPs) btnPs.classList.remove('active');
-        if (btnBounty) btnBounty.classList.add('active');
-        if (btnTreasury) btnTreasury.classList.remove('active');
+        showArea(bountyRankingArea);
+        setActive(btnBounty);
         getBountyRanking();
+    } else if (type === 'darts') {
+        showArea(dartsRankingArea);
+        setActive(btnDarts);
+        getStoreGameRanking('darts_countup');
+    } else if (type === 'karaoke') {
+        showArea(karaokeRankingArea);
+        setActive(btnKaraoke);
+        getStoreGameRanking('karaoke');
     } else { // treasury
-        if (psRankingArea) psRankingArea.style.display = 'none';
-        if (bountyRankingArea) bountyRankingArea.style.display = 'none';
-        if (treasuryRankingArea) treasuryRankingArea.style.display = 'block';
-        if (btnPs) btnPs.classList.remove('active');
-        if (btnBounty) btnBounty.classList.remove('active');
-        if (btnTreasury) btnTreasury.classList.add('active');
+        showArea(treasuryRankingArea);
+        setActive(btnTreasury);
         getNationTreasuryRanking();
     }
 }

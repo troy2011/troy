@@ -3,8 +3,10 @@
 import {
     getTroyStatus,
     joinTroy,
-    getTroyCalendar
+    getTroyCalendar,
+    createReservation as requestCreateReservation
 } from './playfabClient.js';
+import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 
@@ -23,6 +25,7 @@ let _menuDisabled = [];
 let _menuSpecials = [];
 let _menuCustomItems = [];
 let _businessCalendar = [];
+let _selectedReservationCalendarEntry = null;
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
 let _statusSnapshotState = {
@@ -525,6 +528,19 @@ function formatTroyCalendarDate(ms) {
     }).format(new Date(value));
 }
 
+function toTroyReservationDateTimeValue(entry) {
+    const date = String(entry?.date || '').trim();
+    const openTime = String(entry?.openTime || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(openTime)) {
+        return `${date}T${openTime}`;
+    }
+    const value = Number(entry?.startsAtMs || 0);
+    if (!value) return '';
+    const d = new Date(value);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function getTroyCalendarStatusLabel(status) {
     switch (String(status || '').toLowerCase()) {
         case 'closed': return '休業';
@@ -548,12 +564,13 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
     }
     listEl.innerHTML = rows.slice(0, 8).map((entry) => {
         const status = String(entry?.status || 'open').toLowerCase();
+        const canReserve = status === 'open';
         const time = status === 'closed'
             ? '休業'
             : `${entry.openTime || '--:--'}-${entry.closeTime || '--:--'}`;
         const note = entry.note ? `<div class="troy-calendar-note">${escapeHtml(entry.note)}</div>` : '';
         return `
-            <div class="troy-calendar-item is-${escapeHtml(status)}">
+            <div class="troy-calendar-item is-${escapeHtml(status)}${canReserve ? ' is-reservable' : ''}" ${canReserve ? `data-troy-calendar-reserve="${escapeHtml(entry.id || '')}" role="button" tabindex="0"` : ''}>
                 <div class="troy-calendar-date">${escapeHtml(formatTroyCalendarDate(entry.startsAtMs))}</div>
                 <div class="troy-calendar-main">
                     <div class="troy-calendar-title-row">
@@ -562,6 +579,7 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
                     </div>
                     <div class="troy-calendar-time">${escapeHtml(time)}</div>
                     ${note}
+                    ${canReserve ? '<div class="troy-calendar-reserve-hint">クリックして予約申請</div>' : ''}
                 </div>
             </div>
         `;
@@ -578,6 +596,71 @@ async function loadTroyBusinessCalendar(playFabId) {
         console.warn('[TroyCalendar] Failed:', error?.message || error);
         const listEl = document.getElementById('troyBusinessCalendarList');
         if (listEl) listEl.innerHTML = '<div class="troy-calendar-empty">営業予定を読み込めませんでした。</div>';
+    }
+}
+
+function updateTroyReservationPurposeHelp() {
+    const purposeEl = document.getElementById('reservationPurpose');
+    const partySizeEl = document.getElementById('reservationPartySize');
+    const helpEl = document.getElementById('reservationPrivateHelp');
+    if (!helpEl) return;
+    const isPrivate = purposeEl?.value === 'private';
+    helpEl.style.display = isPrivate ? '' : 'none';
+    if (isPrivate && partySizeEl && Number(partySizeEl.value || 0) < 10) {
+        partySizeEl.value = '10';
+    }
+}
+
+function openTroyReservationForm(entry) {
+    if (!entry || String(entry.status || 'open').toLowerCase() !== 'open') return;
+    _selectedReservationCalendarEntry = entry;
+    const panel = document.getElementById('troyReservationPanel');
+    const selectedEl = document.getElementById('troyReservationSelectedDate');
+    const startsAtEl = document.getElementById('reservationStartsAt');
+    if (selectedEl) {
+        selectedEl.textContent = `${formatTroyCalendarDate(entry.startsAtMs)} ${entry.openTime || '--:--'}-${entry.closeTime || '--:--'} の予約`;
+    }
+    if (startsAtEl) {
+        startsAtEl.value = toTroyReservationDateTimeValue(entry);
+    }
+    updateTroyReservationPurposeHelp();
+    if (panel) {
+        panel.hidden = false;
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+async function submitTroyReservation(playFabId) {
+    const startsAt = document.getElementById('reservationStartsAt')?.value || '';
+    const partySize = document.getElementById('reservationPartySize')?.value || 1;
+    const purpose = document.getElementById('reservationPurpose')?.value || 'visit';
+    const note = document.getElementById('reservationNote')?.value || '';
+    const selectedDate = String(_selectedReservationCalendarEntry?.date || '').trim();
+    if (selectedDate && !String(startsAt || '').startsWith(`${selectedDate}T`)) {
+        showTroyNotice('選択した営業日の時間で予約してください。');
+        return;
+    }
+    try {
+        const data = await requestCreateReservation(playFabId, {
+            startsAt,
+            startsAtMs: Date.parse(startsAt),
+            partySize,
+            purpose,
+            note,
+            nation: window.myAvatarBaseInfo?.Nation || window.myAvatarBaseInfo?.nation || '',
+            displayName: window.myPlayFabDisplayName || '',
+            requestId: createRequestId('troy-reservation-create')
+        }, { throwOnError: true });
+        if (data?.success) {
+            const noteEl = document.getElementById('reservationNote');
+            const panel = document.getElementById('troyReservationPanel');
+            if (noteEl) noteEl.value = '';
+            if (panel) panel.hidden = true;
+            _selectedReservationCalendarEntry = null;
+            showTroyNotice('予約申請を送信しました。王の承認後に確定します。');
+        }
+    } catch (error) {
+        showTroyNotice(error?.message || '予約申請に失敗しました。');
     }
 }
 
@@ -1211,6 +1294,40 @@ function wireHandlers(playFabId) {
             }
         });
     }
+
+    const calendarList = document.getElementById('troyBusinessCalendarList');
+    if (calendarList) {
+        const openFromTarget = (target) => {
+            const card = target?.closest?.('[data-troy-calendar-reserve]');
+            if (!card) return;
+            const id = String(card.getAttribute('data-troy-calendar-reserve') || '');
+            const entry = _businessCalendar.find((item) => String(item?.id || '') === id);
+            if (entry) openTroyReservationForm(entry);
+        };
+        calendarList.addEventListener('click', (event) => openFromTarget(event.target));
+        calendarList.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const card = event.target?.closest?.('[data-troy-calendar-reserve]');
+            if (!card) return;
+            openFromTarget(card);
+            event.preventDefault();
+        });
+    }
+
+    const reservationBtn = document.getElementById('btnCreateReservation');
+    if (reservationBtn) {
+        reservationBtn.addEventListener('click', () => submitTroyReservation(window.myPlayFabId || playFabId));
+    }
+    const cancelReservationBtn = document.getElementById('btnCancelTroyReservation');
+    if (cancelReservationBtn) {
+        cancelReservationBtn.addEventListener('click', () => {
+            const panel = document.getElementById('troyReservationPanel');
+            if (panel) panel.hidden = true;
+            _selectedReservationCalendarEntry = null;
+        });
+    }
+    const reservationPurpose = document.getElementById('reservationPurpose');
+    if (reservationPurpose) reservationPurpose.addEventListener('change', updateTroyReservationPurposeHelp);
 }
 export async function loadTroyPage(playFabId) {
     loadFavoriteDrinkEntries(playFabId);

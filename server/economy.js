@@ -21,6 +21,18 @@ const ECONOMY_CURRENCY_IDS = new Set([
 ]);
 const BOUNTY_RESET_DATE_KEY = 'BountyResetDate';
 const EXPERIENCE_KEY = 'Experience';
+const STORE_GAME_RANKING_STATS = {
+    darts_countup: {
+        statisticName: 'troy_darts_countup_score',
+        label: 'ダーツカウントアップ',
+        maxScore: 9999
+    },
+    karaoke: {
+        statisticName: 'troy_karaoke_score',
+        label: 'カラオケ採点',
+        maxScore: 1000
+    }
+};
 const NATION_EMOJI_BY_NATION = {
     fire: '🔥',
     water: '💧',
@@ -39,6 +51,31 @@ function normalizePlayerDisplayName(value) {
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 25);
+}
+
+function normalizeStoreGameType(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return STORE_GAME_RANKING_STATS[key] ? key : '';
+}
+
+function normalizeStoreGameScore(value, maxScore = 9999) {
+    const score = Math.floor(Number(value) || 0);
+    if (!Number.isFinite(score) || score < 0) return 0;
+    return Math.min(score, Math.max(0, Math.floor(Number(maxScore) || 9999)));
+}
+
+async function isKingPlayer(playFabId, deps) {
+    if (!playFabId) return false;
+    try {
+        const readOnly = await deps.promisifyPlayFab(deps.PlayFabServer.GetUserReadOnlyData, {
+            PlayFabId: playFabId,
+            Keys: ['IsKing']
+        });
+        const raw = String(readOnly?.Data?.IsKing?.Value || '').trim().toLowerCase();
+        return raw === 'true' || raw === '1' || raw === 'yes';
+    } catch {
+        return false;
+    }
 }
 
 function buildNationDisplayName(baseName, nation) {
@@ -395,6 +432,79 @@ function initializeEconomyRoutes(app, deps) {
             return res.status(500).json({
                 error: '貢献度ランキング取得に失敗しました。',
                 details: error.errorMessage || error.message
+            });
+        }
+    });
+
+    app.post('/api/get-store-game-ranking', async (req, res) => {
+        try {
+            const gameType = normalizeStoreGameType(req.body?.gameType || req.body?.type);
+            const game = STORE_GAME_RANKING_STATS[gameType];
+            if (!game) return res.status(400).json({ error: 'InvalidGameType' });
+
+            const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
+                StatisticName: game.statisticName,
+                StartPosition: 0,
+                MaxResultsCount: 20,
+                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
+            });
+            const ranking = Array.isArray(result?.Leaderboard)
+                ? result.Leaderboard
+                    .filter((entry) => Number(entry?.StatValue || 0) > 0)
+                    .map((entry) => ({
+                        position: entry.Position,
+                        playFabId: entry.PlayFabId || null,
+                        displayName: entry.DisplayName || entry.Profile?.DisplayName || '名無し',
+                        score: Number(entry.StatValue || 0),
+                        avatarUrl: entry.Profile?.AvatarUrl || null
+                    }))
+                : [];
+            res.json({ success: true, gameType, label: game.label, ranking });
+        } catch (error) {
+            console.error('[get-store-game-ranking] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: 'ランキング取得に失敗しました。',
+                details: error?.errorMessage || error?.message
+            });
+        }
+    });
+
+    app.post('/api/king-update-store-game-score', async (req, res) => {
+        const playFabId = String(req.body?.playFabId || '').trim();
+        const targetPlayFabId = String(req.body?.targetPlayFabId || req.body?.targetId || '').trim();
+        if (!playFabId || !targetPlayFabId) {
+            return res.status(400).json({ error: 'playFabId and targetPlayFabId are required' });
+        }
+        const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, playFabId);
+        if (!authenticatedPlayFabId) return;
+        try {
+            const viewerIsKing = await isKingPlayer(authenticatedPlayFabId, { promisifyPlayFab, PlayFabServer });
+            if (!viewerIsKing) return res.status(403).json({ error: '王のみ操作できます。' });
+
+            const gameType = normalizeStoreGameType(req.body?.gameType || req.body?.type);
+            const game = STORE_GAME_RANKING_STATS[gameType];
+            if (!game) return res.status(400).json({ error: 'InvalidGameType' });
+            const score = normalizeStoreGameScore(req.body?.score, game.maxScore);
+            if (score <= 0) return res.status(400).json({ error: '点数を入力してください。' });
+
+            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                PlayFabId: targetPlayFabId,
+                Statistics: [{ StatisticName: game.statisticName, Value: score }]
+            });
+            let displayName = targetPlayFabId;
+            try {
+                const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                    PlayFabId: targetPlayFabId,
+                    ProfileConstraints: { ShowDisplayName: true }
+                });
+                displayName = String(profile?.PlayerProfile?.DisplayName || targetPlayFabId).trim() || targetPlayFabId;
+            } catch {}
+            res.json({ success: true, gameType, label: game.label, targetPlayFabId, displayName, score });
+        } catch (error) {
+            console.error('[king-update-store-game-score] failed:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: '店内ゲームの点数更新に失敗しました。',
+                details: error?.errorMessage || error?.message
             });
         }
     });

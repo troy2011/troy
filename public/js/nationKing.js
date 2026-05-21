@@ -9,6 +9,7 @@ import {
     setNationAnnouncement,
     directGrantPs,
     kingReturnTroyCoin,
+    kingUpdateStoreGameScore,
     setTroyOpen,
     kingUpdateMenu,
     getTroyCalendar,
@@ -17,7 +18,6 @@ import {
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
-import { formatCurrencyLabel } from './config.js';
 
 let _isKing = false;
 let _lastPageData = null;
@@ -46,53 +46,6 @@ function _escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
-
-function _formatTreasuryAmount(amount, currency, direction = 'in') {
-    const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
-    const sign = direction === 'out' ? '-' : '+';
-    return `${sign}${safeAmount.toLocaleString()} ${formatCurrencyLabel(currency || 'PS')}`;
-}
-
-function _formatRatePercentFromBps(rateBps) {
-    const safeBps = Math.max(0, Math.floor(Number(rateBps) || 0));
-    return `${(safeBps / 100).toFixed(safeBps % 100 === 0 ? 0 : 2)}%`;
-}
-
-function _renderTreasuryOverview(summary = [], entries = []) {
-    const summaryEl = document.getElementById('kingTreasurySummary');
-    const entriesEl = document.getElementById('kingTreasuryEntries');
-    if (summaryEl) {
-        if (Array.isArray(summary) && summary.length) {
-            summaryEl.innerHTML = summary.map((row) => `
-                <div class="king-treasury-summary-chip is-${row.direction === 'out' ? 'out' : 'in'}">
-                    <span>${_escapeHtml(row.label || '国庫更新')}</span>
-                    <strong>${_escapeHtml(_formatTreasuryAmount(row.totalAmount, row.currency, row.direction))}</strong>
-                    <span>${Math.max(1, Number(row.count) || 1)}件</span>
-                </div>
-            `).join('');
-        } else {
-            summaryEl.innerHTML = '';
-        }
-    }
-    if (entriesEl) {
-        if (Array.isArray(entries) && entries.length) {
-            entriesEl.innerHTML = entries.map((entry) => {
-                const meta = [_formatEpochMs(entry.timestampMs), entry.actorName || entry.actorId || '', entry.note || '']
-                    .filter(Boolean)
-                    .join(' / ');
-                return `
-                    <div class="king-treasury-entry">
-                        <div class="king-treasury-entry-main">${_escapeHtml(entry.label || '国庫更新')}</div>
-                        <div class="king-treasury-entry-amount is-${entry.direction === 'out' ? 'out' : 'in'}">${_escapeHtml(_formatTreasuryAmount(entry.amount, entry.currency, entry.direction))}</div>
-                        <div class="king-treasury-entry-meta">${_escapeHtml(meta || '履歴情報なし')}</div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            entriesEl.innerHTML = '';
-        }
-    }
 }
 
 function _renderTroyMembers(members = []) {
@@ -602,8 +555,6 @@ export async function loadKingPage(playFabId, options = {}) {
     const metaEl = document.getElementById('kingAnnouncementMeta');
     const inputEl = document.getElementById('kingAnnouncementInput');
     const troyControlsEl = document.getElementById('troyKingControls');
-    const treasuryEl = document.getElementById('kingTreasuryInfo');
-    const cashbackRateEl = document.getElementById('kingCashbackRateInfo');
     const troyStatusEl = document.getElementById('kingTroyStatus');
 
     if (currentEl) currentEl.innerText = (data.announcement && data.announcement.message) ? data.announcement.message : '(未設定)';
@@ -615,15 +566,6 @@ export async function loadKingPage(playFabId, options = {}) {
     if (inputEl) inputEl.value = (data.announcement && data.announcement.message) ? data.announcement.message : '';
     if (troyControlsEl) troyControlsEl.style.display = 'block';
 
-    if (treasuryEl) {
-        const treasuryPs = (typeof data.treasuryPs === 'number') ? data.treasuryPs : 0;
-        treasuryEl.innerText = `国庫: ${treasuryPs}G`;
-    }
-    if (cashbackRateEl) {
-        const rank = Math.max(1, Number(data.treasuryRank) || 1);
-        cashbackRateEl.innerText = `${_formatRatePercentFromBps(data.troyCashbackRateBps)} / 国庫${rank}位`;
-    }
-    _renderTreasuryOverview(data.treasurySummary, data.treasuryRecentEntries);
     _renderTroyMembers(data.troyMembers);
     _renderMenuManagement(data);
     await _loadKingTroyCalendar(playFabId, data.nation);
@@ -643,13 +585,17 @@ function _wireHandlers(playFabId) {
     _wired = true;
 
     const saveBtn = document.getElementById('btnKingSaveAnnouncement');
-    const reloadBtn = document.getElementById('btnKingReload');
     const reloadBtn2 = document.getElementById('btnKingReload2');
     const inputEl = document.getElementById('kingAnnouncementInput');
     const troyOpenBtn = document.getElementById('btnKingTroyOpen');
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
     const coinReturnBtn = document.getElementById('btnKingCoinReturn');
     const coinReturnAmountEl = document.getElementById('kingCoinReturnAmount');
+    const storeGameTypeEl = document.getElementById('kingStoreGameType');
+    const storeGameScoreEl = document.getElementById('kingStoreGameScore');
+    const storeGamePlayerIdEl = document.getElementById('kingStoreGamePlayerId');
+    const scanStoreGamePlayerBtn = document.getElementById('btnKingScanStoreGamePlayer');
+    const saveStoreGameScoreBtn = document.getElementById('btnKingSaveStoreGameScore');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const warSectionEl = document.getElementById('kingWarSection');
     const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
@@ -669,12 +615,6 @@ function _wireHandlers(playFabId) {
                 _setMessage('告知を更新しました。');
                 await loadKingPage(playFabId);
             }
-        });
-    }
-
-    if (reloadBtn) {
-        reloadBtn.addEventListener('click', async () => {
-            await loadKingPage(playFabId);
         });
     }
 
@@ -778,6 +718,60 @@ function _wireHandlers(playFabId) {
             } finally {
                 coinReturnBtn.disabled = false;
                 coinReturnBtn.textContent = previous;
+            }
+        });
+    }
+
+    if (scanStoreGamePlayerBtn) {
+        scanStoreGamePlayerBtn.addEventListener('click', async () => {
+            if (!window.liff?.isInClient?.()) {
+                _setMessage('MY QRの読み取りはLINEアプリ内で利用してください。', true);
+                return;
+            }
+            const previous = scanStoreGamePlayerBtn.textContent;
+            scanStoreGamePlayerBtn.disabled = true;
+            scanStoreGamePlayerBtn.textContent = '読取中...';
+            try {
+                const value = await _scanQrValue();
+                if (!value) throw new Error('MY QRを読み取れませんでした。');
+                if (storeGamePlayerIdEl) storeGamePlayerIdEl.value = value;
+                _setMessage('プレイヤーIDを読み取りました。');
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'MY QRの読み取りに失敗しました。'), true);
+            } finally {
+                scanStoreGamePlayerBtn.disabled = false;
+                scanStoreGamePlayerBtn.textContent = previous;
+            }
+        });
+    }
+
+    if (saveStoreGameScoreBtn) {
+        saveStoreGameScoreBtn.addEventListener('click', async () => {
+            const gameType = String(storeGameTypeEl?.value || 'darts_countup');
+            const score = Math.floor(Number(storeGameScoreEl?.value) || 0);
+            const targetPlayFabId = String(storeGamePlayerIdEl?.value || '').trim();
+            if (!targetPlayFabId) {
+                _setMessage('プレイヤーIDを入力、またはMY QRを読み取ってください。', true);
+                return;
+            }
+            if (!score || score <= 0) {
+                _setMessage('点数を入力してください。', true);
+                return;
+            }
+            const previous = saveStoreGameScoreBtn.textContent;
+            saveStoreGameScoreBtn.disabled = true;
+            saveStoreGameScoreBtn.textContent = '保存中...';
+            try {
+                const result = await kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, { isSilent: true, throwOnError: true });
+                const label = result?.label || (gameType === 'karaoke' ? 'カラオケ採点' : 'ダーツカウントアップ');
+                const name = result?.displayName || targetPlayFabId;
+                _setMessage(`${label}: ${name} の記録を ${Number(result?.score || score).toLocaleString('ja-JP')}点で保存しました。`);
+                if (storeGameScoreEl) storeGameScoreEl.value = '';
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, '店内ゲームの点数更新に失敗しました。'), true);
+            } finally {
+                saveStoreGameScoreBtn.disabled = false;
+                saveStoreGameScoreBtn.textContent = previous;
             }
         });
     }

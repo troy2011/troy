@@ -66,6 +66,14 @@ export function getNationTreasuryRanking(options) {
     return callApiWithLoader('/api/get-nation-treasury-ranking', {}, options);
 }
 
+export function getStoreGameRanking(gameType, options) {
+    return callApiWithLoader('/api/get-store-game-ranking', { gameType }, options);
+}
+
+export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, options) {
+    return callApiWithLoader('/api/king-update-store-game-score', { playFabId, targetPlayFabId, gameType, score }, options);
+}
+
 export function getInventory(playFabId, options) {
     const entityKey = window.myPlayFabLoginInfo?.entityKey || null;
     return callApiWithLoader('/api/get-inventory', { playFabId, entityKey }, options);
