@@ -226,6 +226,18 @@ function formatNumber(value) {
     return Number(value || 0).toLocaleString('ja-JP');
 }
 
+function formatStoreGameScore(entry, gameType) {
+    const storedScore = Number(entry?.score || 0);
+    const scoreScale = Math.max(1, Math.floor(Number(entry?.scoreScale) || (gameType === 'karaoke' ? 1000 : 1)));
+    if (gameType === 'karaoke') {
+        return (storedScore / scoreScale).toLocaleString('ja-JP', {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+        });
+    }
+    return formatNumber(storedScore);
+}
+
 function getRankMedal(index) {
     if (index === 0) return '🥇';
     if (index === 1) return '🥈';
@@ -353,7 +365,7 @@ export async function getStoreGameRanking(gameType = 'darts_countup') {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             emptyMessage: '（まだ記録がありません）',
             getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatNumber(entry.score)}点`,
+            getScore: (entry) => `${formatStoreGameScore(entry, safeType)}点`,
             getMeta: (entry, index) => (index < 3 ? `${loadingLabel} 上位記録` : `${loadingLabel}ランキング`),
             getPlayerId: (entry) => entry.playFabId || ''
         });

@@ -486,6 +486,22 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     return error.message || error.errorMessage || fallback;
 }
 
+function _formatStoreGameScore(score, gameType) {
+    const value = Number(score || 0);
+    if (gameType === 'karaoke') {
+        return value.toLocaleString('ja-JP', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    }
+    return Math.floor(value).toLocaleString('ja-JP');
+}
+
+function _syncStoreGameScoreInput(typeEl, scoreEl) {
+    if (!scoreEl) return;
+    const isKaraoke = String(typeEl?.value || '') === 'karaoke';
+    scoreEl.step = isKaraoke ? '0.001' : '1';
+    scoreEl.min = isKaraoke ? '0.001' : '1';
+    scoreEl.placeholder = isKaraoke ? '例: 90.568' : '例: 701';
+}
+
 async function _scanQrValue() {
     if (!window.liff) throw new Error('LIFF が初期化されていません。');
     if (typeof window.liff.scanCodeV2 === 'function') {
@@ -748,7 +764,7 @@ function _wireHandlers(playFabId) {
     if (saveStoreGameScoreBtn) {
         saveStoreGameScoreBtn.addEventListener('click', async () => {
             const gameType = String(storeGameTypeEl?.value || 'darts_countup');
-            const score = Math.floor(Number(storeGameScoreEl?.value) || 0);
+            const score = Number(storeGameScoreEl?.value) || 0;
             const targetPlayFabId = String(storeGamePlayerIdEl?.value || '').trim();
             if (!targetPlayFabId) {
                 _setMessage('プレイヤーIDを入力、またはMY QRを読み取ってください。', true);
@@ -765,7 +781,7 @@ function _wireHandlers(playFabId) {
                 const result = await kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, { isSilent: true, throwOnError: true });
                 const label = result?.label || (gameType === 'karaoke' ? 'カラオケ採点' : 'ダーツカウントアップ');
                 const name = result?.displayName || targetPlayFabId;
-                _setMessage(`${label}: ${name} の記録を ${Number(result?.score || score).toLocaleString('ja-JP')}点で保存しました。`);
+                _setMessage(`${label}: ${name} の記録を ${_formatStoreGameScore(result?.score || score, gameType)}点で保存しました。`);
                 if (storeGameScoreEl) storeGameScoreEl.value = '';
             } catch (error) {
                 _setMessage(_extractErrorMessage(error, '店内ゲームの点数更新に失敗しました。'), true);
@@ -775,6 +791,10 @@ function _wireHandlers(playFabId) {
             }
         });
     }
+    if (storeGameTypeEl) {
+        storeGameTypeEl.addEventListener('change', () => _syncStoreGameScoreInput(storeGameTypeEl, storeGameScoreEl));
+    }
+    _syncStoreGameScoreInput(storeGameTypeEl, storeGameScoreEl);
 
     if (calendarMountEl) {
         calendarMountEl.addEventListener('click', async (event) => {

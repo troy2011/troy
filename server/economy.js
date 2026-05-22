@@ -25,12 +25,14 @@ const STORE_GAME_RANKING_STATS = {
     darts_countup: {
         statisticName: 'troy_darts_countup_score',
         label: 'ダーツカウントアップ',
-        maxScore: 9999
+        maxScore: 9999,
+        scoreScale: 1
     },
     karaoke: {
         statisticName: 'troy_karaoke_score',
         label: 'カラオケ採点',
-        maxScore: 1000
+        maxScore: 100,
+        scoreScale: 1000
     }
 };
 const NATION_EMOJI_BY_NATION = {
@@ -58,10 +60,15 @@ function normalizeStoreGameType(value) {
     return STORE_GAME_RANKING_STATS[key] ? key : '';
 }
 
-function normalizeStoreGameScore(value, maxScore = 9999) {
-    const score = Math.floor(Number(value) || 0);
-    if (!Number.isFinite(score) || score < 0) return 0;
-    return Math.min(score, Math.max(0, Math.floor(Number(maxScore) || 9999)));
+function normalizeStoreGameScore(value, game) {
+    const rawScore = Number(value);
+    if (!Number.isFinite(rawScore) || rawScore < 0) return { score: 0, storedScore: 0 };
+    const maxScore = Math.max(0, Number(game?.maxScore) || 9999);
+    const scoreScale = Math.max(1, Math.floor(Number(game?.scoreScale) || 1));
+    const clampedScore = Math.min(rawScore, maxScore);
+    const storedScore = Math.round(clampedScore * scoreScale);
+    const score = storedScore / scoreScale;
+    return { score, storedScore };
 }
 
 async function isKingPlayer(playFabId, deps) {
@@ -456,6 +463,7 @@ function initializeEconomyRoutes(app, deps) {
                         playFabId: entry.PlayFabId || null,
                         displayName: entry.DisplayName || entry.Profile?.DisplayName || '名無し',
                         score: Number(entry.StatValue || 0),
+                        scoreScale: Math.max(1, Math.floor(Number(game.scoreScale) || 1)),
                         avatarUrl: entry.Profile?.AvatarUrl || null
                     }))
                 : [];
@@ -484,12 +492,12 @@ function initializeEconomyRoutes(app, deps) {
             const gameType = normalizeStoreGameType(req.body?.gameType || req.body?.type);
             const game = STORE_GAME_RANKING_STATS[gameType];
             if (!game) return res.status(400).json({ error: 'InvalidGameType' });
-            const score = normalizeStoreGameScore(req.body?.score, game.maxScore);
-            if (score <= 0) return res.status(400).json({ error: '点数を入力してください。' });
+            const scoreInfo = normalizeStoreGameScore(req.body?.score, game);
+            if (scoreInfo.storedScore <= 0) return res.status(400).json({ error: '点数を入力してください。' });
 
             await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                 PlayFabId: targetPlayFabId,
-                Statistics: [{ StatisticName: game.statisticName, Value: score }]
+                Statistics: [{ StatisticName: game.statisticName, Value: scoreInfo.storedScore }]
             });
             let displayName = targetPlayFabId;
             try {
@@ -499,7 +507,16 @@ function initializeEconomyRoutes(app, deps) {
                 });
                 displayName = String(profile?.PlayerProfile?.DisplayName || targetPlayFabId).trim() || targetPlayFabId;
             } catch {}
-            res.json({ success: true, gameType, label: game.label, targetPlayFabId, displayName, score });
+            res.json({
+                success: true,
+                gameType,
+                label: game.label,
+                targetPlayFabId,
+                displayName,
+                score: scoreInfo.score,
+                storedScore: scoreInfo.storedScore,
+                scoreScale: Math.max(1, Math.floor(Number(game.scoreScale) || 1))
+            });
         } catch (error) {
             console.error('[king-update-store-game-score] failed:', error?.errorMessage || error?.message || error);
             return res.status(500).json({
