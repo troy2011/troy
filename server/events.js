@@ -1,9 +1,13 @@
 const { addGlobalChatMessage } = require('./chat');
 
+const cron = require('node-cron');
+
 const EVENT_COLLECTION = 'store_events';
 const RESERVATION_COLLECTION = 'store_reservations';
 const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
 const TROY_CALENDAR_GLOBAL_NATION = 'global';
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const STORE_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const VIRTUAL_CURRENCY_CODE = process.env.VIRTUAL_CURRENCY_CODE || 'PS';
 const configuredHostFee = Number(process.env.EVENT_HOST_FEE_PS);
 const DEFAULT_HOST_FEE = Math.max(0, Math.floor(Number.isFinite(configuredHostFee) ? configuredHostFee : 1000));
@@ -37,9 +41,15 @@ const NATION_GROUP_BY_NATION = {
     water: { groupName: 'nation_water_island' }
 };
 const DEFAULT_SPONSOR_NOTE = '王国協賛あり';
+let storeScheduleCleanupStarted = false;
 
 function normalizeString(value, maxLength = 200) {
     return String(value || '').trim().slice(0, maxLength);
+}
+
+function getJstStartOfTodayMs(nowMs = Date.now()) {
+    const jst = new Date(Number(nowMs || Date.now()) + JST_OFFSET_MS);
+    return Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()) - JST_OFFSET_MS;
 }
 
 function normalizeEventType(value) {
@@ -301,12 +311,56 @@ async function notifyReservationRequestToKing(reservation, deps) {
     }
 }
 
+async function deleteExpiredStoreScheduleDocs(firestore, collectionName, cutoffMs, label) {
+    let deleted = 0;
+    for (let i = 0; i < 5; i += 1) {
+        const snap = await firestore
+            .collection(collectionName)
+            .where('startsAtMs', '<', cutoffMs)
+            .limit(200)
+            .get();
+        if (snap.empty) break;
+        const batch = firestore.batch();
+        snap.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        deleted += snap.size;
+        if (snap.size < 200) break;
+    }
+    if (deleted > 0) {
+        console.log(`[store-schedule-cleanup] Deleted ${deleted} ${label} docs older than ${new Date(cutoffMs).toISOString()}`);
+    }
+    return deleted;
+}
+
+async function cleanupExpiredStoreSchedules(firestore) {
+    if (!firestore) return { calendars: 0, reservations: 0 };
+    const cutoffMs = Date.now() - STORE_SCHEDULE_RETENTION_MS;
+    const [calendars, reservations] = await Promise.all([
+        deleteExpiredStoreScheduleDocs(firestore, TROY_CALENDAR_COLLECTION, cutoffMs, 'calendar'),
+        deleteExpiredStoreScheduleDocs(firestore, RESERVATION_COLLECTION, cutoffMs, 'reservation')
+    ]);
+    return { calendars, reservations };
+}
+
+function startStoreScheduleCleanupJob(firestore) {
+    if (storeScheduleCleanupStarted || !firestore) return;
+    storeScheduleCleanupStarted = true;
+    const run = () => {
+        cleanupExpiredStoreSchedules(firestore).catch((error) => {
+            console.warn('[store-schedule-cleanup] failed:', error?.message || error);
+        });
+    };
+    cron.schedule('17 5 * * *', run, { timezone: 'Asia/Tokyo' });
+    setTimeout(run, 30_000).unref?.();
+}
+
 function initializeEventRoutes(app, deps) {
     const { firestore, admin, requireAuthenticatedPlayFabId, subtractEconomyItem, getCurrencyBalance } = deps;
     if (!firestore || !admin) {
         console.warn('[events] Firestore deps missing. Event routes disabled.');
         return;
     }
+    startStoreScheduleCleanupJob(firestore);
 
     async function requireAuthed(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') return playFabId;
@@ -318,14 +372,14 @@ function initializeEventRoutes(app, deps) {
         const playFabId = requestedPlayFabId ? await requireAuthed(req, res, requestedPlayFabId) : '';
         if (requestedPlayFabId && !playFabId) return;
         try {
-            const now = Date.now();
+            const displayFromMs = getJstStartOfTodayMs();
             const snap = await firestore
                 .collection(TROY_CALENDAR_COLLECTION)
                 .limit(200)
                 .get();
             const calendar = snap.docs
                 .map(troyCalendarDocToPayload)
-                .filter((entry) => Number(entry.startsAtMs || 0) >= now - (24 * 60 * 60 * 1000))
+                .filter((entry) => Number(entry.startsAtMs || 0) >= displayFromMs)
                 .sort((a, b) => Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0))
                 .slice(0, 80);
             res.json({
@@ -648,10 +702,10 @@ function initializeEventRoutes(app, deps) {
         if (requestedPlayFabId && !playFabId) return;
         try {
             const viewerIsKing = await isKing(playFabId, deps);
-            const now = Date.now();
+            const displayFromMs = getJstStartOfTodayMs();
             const snap = await firestore
                 .collection(RESERVATION_COLLECTION)
-                .where('startsAtMs', '>=', now - (24 * 60 * 60 * 1000))
+                .where('startsAtMs', '>=', displayFromMs)
                 .orderBy('startsAtMs', 'asc')
                 .limit(80)
                 .get();

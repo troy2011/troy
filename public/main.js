@@ -17,6 +17,8 @@ import { enterBattleRoom } from './BattleRoomScene.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
+import { updateAvatarStyle as requestUpdateAvatarStyle } from './js/playfabClient.js';
+import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 
 import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
@@ -1211,6 +1213,15 @@ async function initializeAppFeatures() {
     }
     document.getElementById('btnConfirmCreateShip').addEventListener('click', () => confirmCreateShip(myPlayFabId));
     document.getElementById('shipTypeSelect').addEventListener('change', updateShipTypeDetails);
+    document.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
+        button.addEventListener('click', () => randomizeAvatarStyle(String(button.getAttribute('data-avatar-style-action') || '')));
+    });
+    window.addEventListener('player:stats-updated', (event) => {
+        const level = normalizeLevel(event?.detail?.stats?.Level || 1);
+        window.myAvatarBaseInfo = { ...window.myAvatarBaseInfo, level };
+        myAvatarBaseInfo = window.myAvatarBaseInfo;
+        renderAvatarStylePanel();
+    });
 
     // QRコード生成
     new QRious({ element: document.getElementById('myQrCanvas'), value: myPlayFabId, size: 150 });
@@ -1219,6 +1230,7 @@ async function initializeAppFeatures() {
     const initPromises = [
         (async () => {
             await updateAvatarBaseInfo();
+            renderAvatarStylePanel();
         })()
     ];
 
@@ -1572,6 +1584,8 @@ async function updateAvatarBaseInfo() {
                 SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
                 FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
                 HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
+                HairColorIndex: parseInt(result.Data.HairColorIndex?.Value, 10) || 1,
+                level: getCurrentPlayerLevel(),
                 IsGuest: String(result.Data.IsGuest?.Value || '').toLowerCase() === 'true'
             };
             window.myAvatarBaseInfo = myAvatarBaseInfo;
@@ -2024,9 +2038,13 @@ async function confirmCoinConvert() {
         const contributionNote = isGoldize && contributionAmount > 0
             ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}`
             : '';
-        const message = isGoldize
+        const unlockNote = isGoldize ? formatUnlockedFeatures(data.contribution?.unlockedFeatures) : '';
+        const levelNote = isGoldize && data.contribution?.leveledUp
+            ? `\nLv.${data.contribution.previousLevel} → Lv.${data.contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
+            : '';
+        const message = (isGoldize
             ? `${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`
-            : `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`;
+            : `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`) + levelNote;
         if (resultEl) resultEl.innerText = message;
         document.getElementById('pointMessage').innerText = message;
         const amountInput = document.getElementById('transferAmount');
@@ -2055,6 +2073,74 @@ async function confirmCoinConvert() {
 let shipCreateInFlight = false;
 let shipCreateContext = null;
 let shipCreateBalances = null;
+let avatarStyleSaveInFlight = false;
+
+function getCurrentPlayerLevel() {
+    return normalizeLevel(Player.getMyPlayerStats?.()?.Level || window.myAvatarBaseInfo?.level || 1);
+}
+
+function renderAvatarStylePanel() {
+    const panel = document.getElementById('avatarStylePanel');
+    if (!panel) return;
+    const level = getCurrentPlayerLevel();
+    const hairUnlocked = isFeatureUnlocked('haircut', level);
+    const faceUnlocked = isFeatureUnlocked('faceChange', level);
+    const skinUnlocked = isFeatureUnlocked('skinChange', level);
+    const actionState = { haircut: hairUnlocked, face: faceUnlocked, skin: skinUnlocked };
+    panel.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
+        const action = String(button.getAttribute('data-avatar-style-action') || '');
+        button.disabled = avatarStyleSaveInFlight || !actionState[action];
+    });
+
+    const summaryEl = document.getElementById('avatarStyleUnlockSummary');
+    if (summaryEl) summaryEl.textContent = `Lv.${level}`;
+    const noticeEl = document.getElementById('avatarStyleNotice');
+    if (noticeEl) {
+        const notes = [
+            level >= FEATURE_UNLOCK_LEVELS.hairVisible ? '髪型表示: 開放済み' : `髪型表示: Lv.${FEATURE_UNLOCK_LEVELS.hairVisible}`,
+            hairUnlocked ? '散髪: 開放済み' : `散髪: Lv.${FEATURE_UNLOCK_LEVELS.haircut}`,
+            skinUnlocked ? '美容: 開放済み' : `美容: Lv.${FEATURE_UNLOCK_LEVELS.skinChange}`,
+            faceUnlocked ? '整形: 開放済み' : `整形: Lv.${FEATURE_UNLOCK_LEVELS.faceChange}`
+        ];
+        noticeEl.textContent = notes.join(' / ');
+    }
+}
+
+async function randomizeAvatarStyle(action) {
+    if (avatarStyleSaveInFlight || !window.myPlayFabId) return;
+    const level = getCurrentPlayerLevel();
+    const featureByAction = { haircut: 'haircut', skin: 'skinChange', face: 'faceChange' };
+    const labelByAction = { haircut: '散髪', skin: '美容', face: '整形' };
+    const feature = featureByAction[action];
+    if (!feature || !isFeatureUnlocked(feature, level)) {
+        showRpgMessage(`${labelByAction[action] || '美容室'}はLv.${FEATURE_UNLOCK_LEVELS[feature] || FEATURE_UNLOCK_LEVELS.haircut}から利用できます。`);
+        return;
+    }
+    const cost = action === 'face' ? 1000 : 500;
+    const confirmed = window.confirm(`${labelByAction[action]}を行いますか？\n${cost}Gを消費して、現在とは違う見た目にランダム変更します。`);
+    if (!confirmed) return;
+    avatarStyleSaveInFlight = true;
+    renderAvatarStylePanel();
+    try {
+        const result = await requestUpdateAvatarStyle(window.myPlayFabId, {
+            action,
+            requestId: createRequestId(`avatar-${action}`)
+        }, { throwOnError: true });
+        if (result?.success) {
+            window.myAvatarBaseInfo = { ...window.myAvatarBaseInfo, ...result.avatarStyle, level };
+            myAvatarBaseInfo = window.myAvatarBaseInfo;
+            preloadAvatarBaseSprites(myAvatarBaseInfo);
+            renderAvatar('avatar', myAvatarBaseInfo, Inventory.getMyCurrentEquipment?.() || {}, Inventory.getMyInventory?.() || {}, false);
+            renderAvatar('home-avatar', myAvatarBaseInfo, Inventory.getMyCurrentEquipment?.() || {}, Inventory.getMyInventory?.() || {}, false);
+            showRpgMessage(`${labelByAction[action]}で見た目を変更しました。-${result.cost || cost}G`);
+        }
+    } catch (error) {
+        showRpgMessage(error?.message || '見た目の変更に失敗しました。');
+    } finally {
+        avatarStyleSaveInFlight = false;
+        renderAvatarStylePanel();
+    }
+}
 
 function blockMapClicksForModal(modalEl) {
     if (!modalEl || modalEl.dataset?.blockMapClicks === 'true') return;
@@ -2073,6 +2159,11 @@ function blockMapClicksForModal(modalEl) {
 }
 
 async function showCreateShipModal(context) {
+    const level = getCurrentPlayerLevel();
+    if (!isFeatureUnlocked('shipPurchase', level)) {
+        showRpgMessage(`船の建造はLv.${FEATURE_UNLOCK_LEVELS.shipPurchase}から利用できます。`);
+        return;
+    }
     shipCreateContext = context || null;
     shipCreateBalances = await Ship.getShipResourceBalances(window.myPlayFabId);
     const selectEl = document.getElementById('shipTypeSelect');

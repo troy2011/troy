@@ -4,6 +4,7 @@ const {
     ensureDailyContributionVersionForToday,
     getJstDateKey
 } = require('./contributionStats');
+const { getUnlockedFeaturesBetween } = require('./featureUnlocks');
 
 const PLAYER_LEVEL_STAT = 'Level';
 const BASE_CONTRIBUTION_PER_LEVEL = 3000;
@@ -109,6 +110,7 @@ async function addPlayerNationContribution(playFabId, amount, deps, options = {}
         previousDailyContributionTotal: currentDailyTotal,
         previousLevel: currentLevel,
         leveledUp: nextProgress.level > currentLevel,
+        unlockedFeatures: getUnlockedFeaturesBetween(currentLevel, nextProgress.level),
         ...nextProgress
     };
 }

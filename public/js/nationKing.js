@@ -18,6 +18,7 @@ import {
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
+import { formatUnlockedFeatures } from './featureUnlocks.js';
 
 let _isKing = false;
 let _lastPageData = null;
@@ -669,7 +670,11 @@ function _wireHandlers(playFabId) {
                 if (!result?.success) {
                     throw new Error('G付与の完了を確認できませんでした。');
                 }
-                const levelNote = result?.contribution?.level ? ` / Lv.${result.contribution.level}` : '';
+                const contribution = result?.contribution || {};
+                const unlockNote = formatUnlockedFeatures(contribution.unlockedFeatures);
+                const levelNote = contribution.leveledUp
+                    ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
+                    : (contribution.level ? ` / Lv.${contribution.level}` : '');
                 _setMessage(`${Math.max(0, Number(result?.grantAmount) || amount).toLocaleString('ja-JP')}Gを財源なしで付与しました。経験値も加算済みです${levelNote}。`);
                 await loadKingPage(playFabId);
             } catch (error) {
@@ -729,7 +734,12 @@ function _wireHandlers(playFabId) {
                 const result = await kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
                 const contributionAmount = Math.max(0, Math.floor(Number(result?.contributionAmount) || 0));
                 const contributionNote = contributionAmount > 0 ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}` : '';
-                _setMessage(`${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`);
+                const contribution = result?.contribution || {};
+                const unlockNote = formatUnlockedFeatures(contribution.unlockedFeatures);
+                const levelNote = contribution.leveledUp
+                    ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
+                    : '';
+                _setMessage(`${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}${levelNote}`);
                 if (coinReturnAmountEl) coinReturnAmountEl.value = '0';
                 await loadKingPage(playFabId);
             } catch (error) {

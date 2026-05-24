@@ -3,6 +3,8 @@
 const admin = require('firebase-admin');
 const { geohashForLocation, geohashQueryBounds, distanceBetween } = require('geofire-common');
 const { getEffectsAtPosition } = require('../islandEffects');
+const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('../featureUnlocks');
+const { applyDerivedPlayerLevelToStats, buildStatsMapFromStatistics } = require('../playerLevel');
 
 // WorldMapScene.js と同じ座標系（ピクセル）→緯度経度の近似変換（geofire-common用）
 const GEO_CONFIG = {
@@ -260,6 +262,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         }
         const items = await getAllInventoryItems(entityKey, { promisifyPlayFab, PlayFabEconomy });
         return getVirtualCurrencyMap(items, { catalogCache, catalogCurrencyMap });
+    };
+
+    const getPlayerLevel = async (playFabId) => {
+        const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
+        const stats = applyDerivedPlayerLevelToStats(buildStatsMapFromStatistics(statsResult?.Statistics || [])).stats;
+        return Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
     };
 
     const buildCostShortages = (costEntries, balances) => {
@@ -983,6 +991,14 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         }
 
         try {
+            const playerLevel = await getPlayerLevel(playFabId);
+            if (!isFeatureUnlocked('shipPurchase', playerLevel)) {
+                return res.status(403).json({
+                    error: `船の建造はLv.${FEATURE_UNLOCK_LEVELS.shipPurchase}から利用できます。`,
+                    requiredLevel: FEATURE_UNLOCK_LEVELS.shipPurchase,
+                    level: playerLevel
+                });
+            }
             const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
                 PlayFabId: playFabId,
                 Keys: ['Race', 'Nation']

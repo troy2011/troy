@@ -2,6 +2,7 @@
 
 import { AVATAR_PART_OFFSETS } from './config.js';
 import { buildTarotCardMeta } from './tarotCards.js';
+import { FEATURE_UNLOCK_LEVELS } from './featureUnlocks.js';
 
 const spritePromiseCache = new Map();
 const ITEM_SPRITE_PRESETS = Object.freeze([
@@ -262,7 +263,7 @@ export function preloadAvatarBaseSprites(avatarBase) {
     const color = AvatarColor || 'brown';
     const skinIndex = SkinColorIndex || 1;
     const faceIdx = (FaceIndex || 1) - 1;
-    const hairIdx = (level > 1 && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
+    const hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
     const bodyUrl = `./Sprites/Characters/body/body_${color}.png`;
     const headUrl = `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`;
     const hairUrl = hairIdx >= 0 ? `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png` : null;
@@ -405,7 +406,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         const color = AvatarColor || 'brown';
         const skinIndex = SkinColorIndex || 1;
         const faceIdx = (FaceIndex || 1) - 1;
-        let hairIdx = (level > 1 && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
+        let hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
 
         drawLayer(`${prefix}-layer-body`, `./Sprites/Characters/body/body_${color}.png`, 0, 32, 32);
         drawLayer(`${prefix}-layer-head`, `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`, faceIdx, 32, 32);

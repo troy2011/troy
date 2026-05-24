@@ -24,6 +24,7 @@ const {
     MAJOR_AWAKEN_MAX_LEVEL,
     parseJsonValue
 } = require('./tarotSkills');
+const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
 const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
@@ -37,6 +38,21 @@ const NATION_SPECIALTY_RESOURCE_BY_NATION = {
     water: { itemId: 'RB', label: '水系の特産品' }
 };
 const DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK = [4, 3, 2, 1];
+const AVATAR_CUSTOMIZE_LIMITS = {
+    SkinColorIndex: { min: 1, max: 8, feature: 'skinChange', label: '美容', cost: 500 },
+    FaceIndex: { min: 1, max: 40, feature: 'faceChange', label: '整形', cost: 1000 },
+    HairStyleIndex: { min: 1, max: 30, feature: 'haircut', label: '散髪', cost: 500 }
+};
+const AVATAR_CUSTOMIZE_ACTIONS = {
+    skin: 'SkinColorIndex',
+    skinChange: 'SkinColorIndex',
+    beauty: 'SkinColorIndex',
+    face: 'FaceIndex',
+    faceChange: 'FaceIndex',
+    surgery: 'FaceIndex',
+    hair: 'HairStyleIndex',
+    haircut: 'HairStyleIndex'
+};
 const RESOURCE_RECOVERY_SETTINGS = {
     hp: {
         itemId: 'RY',
@@ -423,6 +439,16 @@ function initializeInventoryRoutes(app, deps) {
         });
         const currentStats = buildStatsMapFromStatistics(result?.Statistics);
         return applyDerivedPlayerLevelToStats(currentStats).stats;
+    }
+
+    function pickRandomAvatarStyleValue(currentValue, config) {
+        const candidates = [];
+        const current = Math.max(config.min, Math.floor(Number(currentValue) || config.min));
+        for (let value = config.min; value <= config.max; value += 1) {
+            if (value !== current) candidates.push(value);
+        }
+        if (!candidates.length) return current;
+        return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
     async function applyOfflineMpRecovery(playFabId) {
@@ -933,6 +959,70 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });
+        }
+    });
+
+    app.post('/api/update-avatar-style', async (req, res) => {
+        let { playFabId } = req.body || {};
+        const requestedAction = String(req.body?.style?.action || req.body?.action || '').trim();
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const styleKey = AVATAR_CUSTOMIZE_ACTIONS[requestedAction];
+            const config = AVATAR_CUSTOMIZE_LIMITS[styleKey];
+            if (!styleKey || !config) {
+                return res.status(400).json({ error: '変更メニューが正しくありません。' });
+            }
+            const stats = await getPlayerStatsMap(playFabId);
+            const level = Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
+            if (!isFeatureUnlocked(config.feature, level)) {
+                return res.status(403).json({
+                    error: `${config.label}はLv.${FEATURE_UNLOCK_LEVELS[config.feature]}から利用できます。`,
+                    feature: config.feature,
+                    requiredLevel: FEATURE_UNLOCK_LEVELS[config.feature],
+                    level
+                });
+            }
+            const balance = typeof getCurrencyBalance === 'function'
+                ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE)
+                : null;
+            if (Number.isFinite(balance) && balance < config.cost) {
+                return res.status(402).json({
+                    error: `${config.label}には${config.cost}G必要です。`,
+                    cost: config.cost,
+                    balance
+                });
+            }
+            const readOnly = await getPlayerReadOnlyData(playFabId, Object.keys(AVATAR_CUSTOMIZE_LIMITS));
+            const currentValue = Number(readOnly?.Data?.[styleKey]?.Value || config.min);
+            const nextValue = pickRandomAvatarStyleValue(currentValue, config);
+            const nextData = { [styleKey]: String(nextValue) };
+            await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, config.cost, {
+                idempotencyId: req.body?.requestId ? `avatar-style-${req.body.requestId}` : undefined
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: nextData
+            });
+            const newBalance = typeof getCurrencyBalance === 'function'
+                ? await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE).catch(() => null)
+                : null;
+            res.json({
+                success: true,
+                level,
+                unlocks: FEATURE_UNLOCK_LEVELS,
+                action: requestedAction,
+                changedKey: styleKey,
+                previousValue: currentValue,
+                nextValue,
+                cost: config.cost,
+                balance: Number.isFinite(newBalance) ? newBalance : undefined,
+                avatarStyle: Object.fromEntries(Object.entries(nextData).map(([key, value]) => [key, Number(value)]))
+            });
+        } catch (error) {
+            console.error('[update-avatar-style] Error:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: 'アバター変更に失敗しました。', details: error?.errorMessage || error?.message || String(error) });
         }
     });
 

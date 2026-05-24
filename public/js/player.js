@@ -79,6 +79,9 @@ function updatePlayerStatsDisplay() {
     if (rankBadgeEl) rankBadgeEl.innerText = rankName;
     const benefitEl = document.getElementById('homeRankBenefit');
     if (benefitEl) benefitEl.innerText = getPlayerRankBenefits(Level).join(' / ');
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('player:stats-updated', { detail: { stats: { ...myPlayerStats } } }));
+    }
     document.getElementById('currentStr').innerText = ちから;
     document.getElementById('currentDef').innerText = みのまもり;
     document.getElementById('currentAgi').innerText = すばやさ;
