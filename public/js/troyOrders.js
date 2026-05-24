@@ -79,6 +79,10 @@ function formatYen(value) {
     return `¥${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}`;
 }
 
+function formatGold(value) {
+    return `${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}G`;
+}
+
 function formatTime(ms) {
     const value = Number(ms) || 0;
     if (!value) return '';
@@ -112,6 +116,23 @@ function setSummary(data = {}) {
     const closeBtn = $('troyOrdersCloseBtn');
     if (openBtn) openBtn.hidden = open;
     if (closeBtn) closeBtn.hidden = !open;
+}
+
+function renderCoinConversionLogs(logs = []) {
+    const el = $('troyOrdersCoinLog');
+    if (!el) return;
+    const rows = Array.isArray(logs) ? logs : [];
+    if (!rows.length) {
+        el.innerHTML = '<div class="troy-orders-coin-log-empty">コイン化ログはまだありません。</div>';
+        return;
+    }
+    el.innerHTML = rows.slice(0, 12).map((entry) => `
+        <div class="troy-orders-coin-log-row">
+            <div class="troy-orders-coin-log-name">${escapeHtml(entry.displayName || entry.playFabId || 'お客様')}</div>
+            <div class="troy-orders-coin-log-time">${escapeHtml(formatTime(entry.timestampMs) || '-')}</div>
+            <div class="troy-orders-coin-log-amount">${escapeHtml(formatGold(entry.amount))}</div>
+        </div>
+    `).join('');
 }
 
 async function setTroyOpen(nextOpen) {
@@ -416,6 +437,7 @@ function renderCheckoutCard(entry) {
 function render(data = {}) {
     lastData = data;
     setSummary(data);
+    renderCoinConversionLogs(data.troyCoinConversionLogs);
     const list = $('troyOrdersList');
     const empty = $('troyOrdersEmpty');
     const entries = Array.isArray(data.troyPendingCheckouts) ? data.troyPendingCheckouts : [];

@@ -49,7 +49,7 @@ const NATION_EMOJI_BY_NATION = {
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
-    wind: 'purple',
+    wind: 'yellow',
     water: 'blue'
 };
 
@@ -3340,6 +3340,41 @@ function initializeNationRoutes(app, deps) {
         }
     }
 
+    async function appendTroyCoinConversionLog(roomRef, entry = {}) {
+        if (!roomRef || !admin) return;
+        const now = Date.now();
+        const logEntry = {
+            id: String(entry.id || `coin-${now}-${Math.random().toString(36).slice(2, 8)}`).slice(0, 80),
+            playFabId: String(entry.playFabId || '').trim(),
+            displayName: String(entry.displayName || entry.playFabId || 'お客様').trim().slice(0, 40),
+            amount: Math.max(0, Math.floor(Number(entry.amount) || 0)),
+            timestampMs: now
+        };
+        if (!logEntry.playFabId || logEntry.amount <= 0) return;
+        await firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(roomRef);
+            const current = Array.isArray(snap.data()?.coinConversionLogs) ? snap.data().coinConversionLogs : [];
+            tx.set(roomRef, {
+                coinConversionLogs: [logEntry, ...current].slice(0, 20),
+                coinConversionLogsUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        });
+    }
+
+    function buildTroyCoinConversionLogsPayload(roomData = {}) {
+        const rows = Array.isArray(roomData?.coinConversionLogs) ? roomData.coinConversionLogs : [];
+        return rows
+            .map((entry) => ({
+                id: String(entry?.id || '').trim(),
+                playFabId: String(entry?.playFabId || '').trim(),
+                displayName: String(entry?.displayName || entry?.playFabId || 'お客様').trim(),
+                amount: Math.max(0, Math.floor(Number(entry?.amount) || 0)),
+                timestampMs: Math.max(0, Math.floor(Number(entry?.timestampMs) || 0))
+            }))
+            .filter((entry) => entry.playFabId && entry.amount > 0)
+            .slice(0, 20);
+    }
+
     app.post('/api/troy-convert-gold-to-coin', async (req, res) => {
         const { playFabId } = req.body || {};
         const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
@@ -3354,6 +3389,12 @@ function initializeNationRoutes(app, deps) {
             const idempotencyId = requestId ? `${requestId}:gold-to-coin` : null;
             await subtractEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
             const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'gold_to_coin', amount);
+            await appendTroyCoinConversionLog(context.roomRef, {
+                id: requestId || undefined,
+                playFabId: context.memberId,
+                displayName: context.memberData?.displayName || context.memberId,
+                amount
+            });
             const newBalance = getCurrencyBalance ? await getCurrencyBalance(context.memberId, 'PS') : null;
             if (Number.isFinite(newBalance)) {
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
@@ -3655,12 +3696,18 @@ function initializeNationRoutes(app, deps) {
             }
 
             let receiverBalance = null;
+            let balanceSyncError = null;
             if (getCurrencyBalance) {
-                receiverBalance = await getCurrencyBalance(receiverId, 'PS');
-                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: receiverId,
-                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
-                });
+                try {
+                    receiverBalance = await getCurrencyBalance(receiverId, 'PS');
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: receiverId,
+                        Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                    });
+                } catch (syncError) {
+                    balanceSyncError = syncError?.errorMessage || syncError?.message || String(syncError);
+                    console.warn('[king-direct-grant-ps] Balance/stat sync failed after grant:', balanceSyncError);
+                }
             }
 
             res.json({
@@ -3668,6 +3715,7 @@ function initializeNationRoutes(app, deps) {
                 grantAmount: value,
                 receiverNation: await getNationForPlayer(receiverId, { promisifyPlayFab, PlayFabServer }),
                 receiverBalance: Number.isFinite(receiverBalance) ? receiverBalance : undefined,
+                balanceSyncError: balanceSyncError || undefined,
                 contribution
             });
         } catch (error) {
@@ -3702,6 +3750,7 @@ function initializeNationRoutes(app, deps) {
                 nation: context.nation,
                 troyTodaySales: { total: 0, count: 0 },
                 troyPendingCheckouts: [],
+                troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
                 checkoutDisabled: true
             };
         }
@@ -3712,7 +3761,8 @@ function initializeNationRoutes(app, deps) {
             troyOpen: true,
             nation: context.nation,
             troyTodaySales: buildTroyTodaySalesSnapshot(groupData),
-            troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs)
+            troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
+            troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData)
         };
     }
 
@@ -3896,7 +3946,8 @@ function initializeNationRoutes(app, deps) {
                     troyOpen: false,
                     nation: null,
                     troyTodaySales: { total: 0, count: 0 },
-                    troyPendingCheckouts: []
+                    troyPendingCheckouts: [],
+                    troyCoinConversionLogs: []
                 });
             }
             return res.json(await buildTroyOrdersPagePayload(context));
@@ -4040,9 +4091,13 @@ function initializeNationRoutes(app, deps) {
         let unsubCheckouts = null;
         let unsubRoom = null;
         let keepAliveTimer = null;
+        let lastPayload = null;
 
         function send(payload) {
             if (closed || res.writableEnded) return;
+            if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'troyOpen')) {
+                lastPayload = payload;
+            }
             try { res.write(`data: ${JSON.stringify(payload)}\n\n`); } catch (_) {}
         }
 
@@ -4065,7 +4120,7 @@ function initializeNationRoutes(app, deps) {
         try {
             const context = await resolveOpenTroyOrdersContext(requestedNation);
             if (!context) {
-                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [] });
+                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyCoinConversionLogs: [] });
                 if (!res.writableEnded) res.write('retry: 15000\n\n');
                 cleanup();
                 return;
@@ -4083,11 +4138,13 @@ function initializeNationRoutes(app, deps) {
                 if (closed) return;
                 try {
                     const groupSnap = await getNationGroupDoc(firestore, context.mapping.groupName).get();
+                    const roomSnap = await context.roomRef.get();
                     send({
                         troyOpen: true,
                         nation: context.nation,
                         troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}),
-                        troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs)
+                        troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs),
+                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomSnap.data() || {})
                     });
                 } catch (e) {
                     console.warn('[troy-orders-stream] checkout snapshot error:', e?.message || e);
@@ -4100,9 +4157,17 @@ function initializeNationRoutes(app, deps) {
                 if (closed) return;
                 const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
                 if (!roomData.isOpen) {
-                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [] });
+                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyCoinConversionLogs: [] });
                     if (!res.writableEnded) try { res.write('retry: 15000\n\n'); } catch (_) {}
                     cleanup();
+                } else {
+                    send({
+                        troyOpen: true,
+                        nation: context.nation,
+                        troyTodaySales: lastPayload?.troyTodaySales || { total: 0, count: 0 },
+                        troyPendingCheckouts: lastPayload?.troyPendingCheckouts || [],
+                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData)
+                    });
                 }
             }, (err) => {
                 console.warn('[troy-orders-stream] room listener error:', err?.message || err);

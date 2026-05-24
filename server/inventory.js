@@ -817,6 +817,7 @@ function initializeInventoryRoutes(app, deps) {
             assignEquipmentValue('Armor', readOnlyData?.Equipped_Armor?.Value || null);
             assignEquipmentValue('Accessory', readOnlyData?.Equipped_Accessory?.Value || null);
 
+            const avatarBase = buildAvatarBaseFromReadOnly(readOnlyData, stats);
             return res.json({
                 success: true,
                 profile: {
@@ -824,7 +825,8 @@ function initializeInventoryRoutes(app, deps) {
                     displayName: String(profileResult?.PlayerProfile?.DisplayName || targetId).trim() || targetId,
                     avatarUrl: String(profileResult?.PlayerProfile?.AvatarUrl || '').trim(),
                     nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
-                    avatarBase: buildAvatarBaseFromReadOnly(readOnlyData, stats),
+                    level: avatarBase.level,
+                    avatarBase,
                     equipment,
                     itemSource: buildPublicItemSource(equipment),
                     equipmentList: buildPublicEquipmentList(equipment)

@@ -1969,11 +1969,29 @@ function closeCoinConvertModal() {
     if (modal) modal.style.display = 'none';
 }
 
+function showCoinConvertReceipt(amount) {
+    const mainEl = document.getElementById('coinConvertMain');
+    const receiptEl = document.getElementById('coinConvertReceipt');
+    const staffAmountEl = document.getElementById('coinConvertReceiptAmountStaff');
+    const receivedBtn = document.getElementById('btnCoinConvertReceived');
+    if (mainEl) mainEl.hidden = true;
+    if (receiptEl) receiptEl.hidden = false;
+    if (staffAmountEl) staffAmountEl.innerText = `${Math.max(0, Math.floor(Number(amount) || 0)).toLocaleString('ja-JP')}G`;
+    if (receivedBtn && !receivedBtn.dataset.bound) {
+        receivedBtn.dataset.bound = 'true';
+        receivedBtn.addEventListener('click', closeCoinConvertModal);
+    }
+}
+
 async function confirmCoinConvert() {
     const amount = getTransferAmountValue();
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
+    const mainEl = document.getElementById('coinConvertMain');
+    const receiptEl = document.getElementById('coinConvertReceipt');
     const isGoldize = coinConvertMode === 'coin_to_gold';
+    if (mainEl) mainEl.hidden = false;
+    if (receiptEl) receiptEl.hidden = true;
     if (amount <= 0) {
         if (resultEl) resultEl.innerText = '金額を入力してください。';
         return;
@@ -2015,7 +2033,11 @@ async function confirmCoinConvert() {
         if (amountInput) amountInput.value = '0';
         await Player.getPoints(myPlayFabId);
         await Player.getRanking();
-        setTimeout(closeCoinConvertModal, 1200);
+        if (isGoldize) {
+            setTimeout(closeCoinConvertModal, 1200);
+        } else {
+            showCoinConvertReceipt(amount);
+        }
     } catch (error) {
         const message = error?.message || error?.error || (isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
         if (resultEl) resultEl.innerText = message;

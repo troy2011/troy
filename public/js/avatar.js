@@ -105,7 +105,7 @@ function normalizeAvatarColor(value) {
     const aliasMap = {
         fire: 'red',
         water: 'blue',
-        wind: 'green',
+        wind: 'yellow',
         earth: 'yellow'
     };
     return aliasMap[raw] || raw;

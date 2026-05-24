@@ -665,7 +665,10 @@ function _wireHandlers(playFabId) {
             button.textContent = '処理中...';
             try {
                 const requestId = createRequestId('king-direct-grant');
-                const result = await directGrantPs(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true });
+                const result = await directGrantPs(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
+                if (!result?.success) {
+                    throw new Error('G付与の完了を確認できませんでした。');
+                }
                 const levelNote = result?.contribution?.level ? ` / Lv.${result.contribution.level}` : '';
                 _setMessage(`${Math.max(0, Number(result?.grantAmount) || amount).toLocaleString('ja-JP')}Gを財源なしで付与しました。経験値も加算済みです${levelNote}。`);
                 await loadKingPage(playFabId);

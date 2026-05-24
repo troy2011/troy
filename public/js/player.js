@@ -127,11 +127,12 @@ export async function recoverDockedMp(playFabId) {
     return data;
 }
 
-export async function getPoints(playFabId) {
-    const data = await fetchPoints(playFabId);
+export async function getPoints(playFabId, options) {
+    const data = await fetchPoints(playFabId, options);
     if (data) {
         updatePointsDisplays(data.points, data.virtualCurrency);
     }
+    return data;
 }
 
 export function syncPointsDisplay(points) {

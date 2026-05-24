@@ -406,7 +406,8 @@ function renderProfile(profile = {}) {
             : '所属国: 未設定';
     }
     if (meta) {
-        meta.textContent = `ID: ${activeProfile.playFabId || '-'}`;
+        const level = Math.max(1, Math.floor(Number(profile.level || profile.avatarBase?.level || 1) || 1));
+        meta.textContent = `ID: ${activeProfile.playFabId || '-'} / Lv.${level}`;
     }
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderAvatar(

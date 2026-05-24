@@ -677,6 +677,51 @@ body[data-sea-tone="night"] .home-hero-card {
     font-weight: 800;
 }
 
+.coin-convert-receipt {
+    display: grid;
+    gap: 18px;
+}
+
+.coin-convert-staff-view {
+    min-height: 230px;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    padding: 22px 14px;
+    border-radius: 16px;
+    border: 2px solid rgba(251, 191, 36, 0.58);
+    background: radial-gradient(circle at center, rgba(251, 191, 36, 0.22), rgba(15, 23, 42, 0.96));
+    transform: rotate(180deg);
+}
+
+.coin-convert-staff-kicker,
+.coin-convert-staff-note {
+    color: #fde68a;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.coin-convert-staff-amount {
+    color: #fff7ed;
+    font-size: clamp(48px, 17vw, 86px);
+    font-weight: 1000;
+    line-height: 1;
+    text-shadow: 0 6px 24px rgba(251, 191, 36, 0.45);
+}
+
+.coin-convert-received-btn {
+    min-height: 72px;
+    width: 100%;
+    border: 0;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: #111827;
+    font-size: 20px;
+    font-weight: 1000;
+    box-shadow: 0 16px 32px -18px rgba(251, 191, 36, 0.9);
+}
+
 .home-shortcut-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -14470,6 +14515,74 @@ textarea {
     border-color: rgba(248, 113, 113, 0.32);
     background: rgba(127, 29, 29, 0.28);
     color: #fecaca;
+}
+
+.troy-orders-coin-log-panel {
+    margin-bottom: 14px;
+    background: #111827;
+    border: 1px solid rgba(251, 191, 36, 0.22);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.troy-orders-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.troy-orders-section-title {
+    color: #f8fafc;
+    font-weight: 900;
+}
+
+.troy-orders-section-sub {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.troy-orders-coin-log {
+    display: grid;
+    gap: 8px;
+}
+
+.troy-orders-coin-log-empty {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.troy-orders-coin-log-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.troy-orders-coin-log-name {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.troy-orders-coin-log-time {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.troy-orders-coin-log-amount {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    color: #fbbf24;
+    font-size: 20px;
+    font-weight: 1000;
+    white-space: nowrap;
 }
 
 .troy-orders-list {

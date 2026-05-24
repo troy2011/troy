@@ -1347,15 +1347,25 @@
 
     <div id="coinConvertModal" class="modal-overlay">
         <div class="modal-content coin-convert-modal-content">
-            <div class="coin-convert-icon">🪙</div>
-            <h3 id="coinConvertTitle">コイン化</h3>
-            <div id="coinConvertAmount" class="coin-convert-amount">0G</div>
-            <p id="coinConvertText" class="coin-convert-text">店内コインに交換します。</p>
-            <div class="modal-buttons">
-                <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してコイン化</button>
-                <button id="btnCancelCoinConvert" style="background:#4b5563;">キャンセル</button>
+            <div id="coinConvertMain">
+                <div class="coin-convert-icon">🪙</div>
+                <h3 id="coinConvertTitle">コイン化</h3>
+                <div id="coinConvertAmount" class="coin-convert-amount">0G</div>
+                <p id="coinConvertText" class="coin-convert-text">店内コインに交換します。</p>
+                <div class="modal-buttons">
+                    <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してコイン化</button>
+                    <button id="btnCancelCoinConvert" style="background:#4b5563;">キャンセル</button>
+                </div>
+                <p id="coinConvertResult" class="coin-convert-result"></p>
             </div>
-            <p id="coinConvertResult" class="coin-convert-result"></p>
+            <div id="coinConvertReceipt" class="coin-convert-receipt" hidden>
+                <div class="coin-convert-staff-view">
+                    <div class="coin-convert-staff-kicker">コインを渡してください</div>
+                    <div id="coinConvertReceiptAmountStaff" class="coin-convert-staff-amount">0G</div>
+                    <div class="coin-convert-staff-note">この画面をスタッフに見せてください</div>
+                </div>
+                <button id="btnCoinConvertReceived" type="button" class="coin-convert-received-btn">コインを受け取った</button>
+            </div>
         </div>
     </div>
 
