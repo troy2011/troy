@@ -1,6 +1,7 @@
 const { VIRTUAL_CURRENCY_CODE } = require('./economy');
 const { getCardSkillName } = require('./tarotSkillNames');
 const { getDeckType } = require('./tarotDeck');
+const { drawLocalGachaItem } = require('./gacha');
 const {
     PLAYER_DAILY_CONTRIBUTION_STAT,
     ensureDailyContributionVersionForToday,
@@ -11,8 +12,6 @@ const FORTUNE_DATA_KEY = 'DailyTarotFortune';
 const DAILY_BOUNTY_GACHA_DATA_KEY = 'DailyBountyGachaReward';
 const DAILY_BOUNTY_STAT_NAME = PLAYER_DAILY_CONTRIBUTION_STAT;
 const DAILY_BOUNTY_TOP_COUNT = Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_TOP_COUNT || 3)));
-const DAILY_BOUNTY_GACHA_TABLE_ID = String(process.env.DAILY_BOUNTY_GACHA_TABLE_ID || process.env.GACHA_DROP_TABLE_ID || 'gacha_table');
-const DAILY_BOUNTY_GACHA_CATALOG_VERSION = String(process.env.DAILY_BOUNTY_GACHA_CATALOG_VERSION || process.env.GACHA_CATALOG_VERSION || 'main');
 const DAILY_BOUNTY_PULLS_BY_POSITION = {
     1: Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_PULLS_1 || 3))),
     2: Math.max(1, Math.floor(Number(process.env.DAILY_BOUNTY_PULLS_2 || 2))),
@@ -459,11 +458,8 @@ async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
     const pulls = getDailyBountyPullCount(rank);
     const grantedItemIds = [];
     for (let i = 0; i < pulls; i += 1) {
-        const randomResult = await promisifyPlayFab(PlayFabServer.EvaluateRandomResultTable, {
-            TableId: DAILY_BOUNTY_GACHA_TABLE_ID,
-            CatalogVersion: DAILY_BOUNTY_GACHA_CATALOG_VERSION
-        });
-        const itemId = String(randomResult?.ResultItemId || '').trim();
+        const gachaResult = drawLocalGachaItem(deps.catalogCache);
+        const itemId = String(gachaResult?.itemId || '').trim();
         if (!itemId) continue;
         const idempotencyId = `daily-bounty-gacha-${normalizePlayFabId(playFabId)}-${todayKey}-r${rank}-p${i + 1}-${itemId}`;
         await addEconomyItem(playFabId, itemId, 1, { idempotencyId });

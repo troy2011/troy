@@ -9454,7 +9454,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 100
+                "Amount": 1000
               }
             ]
           }
@@ -9500,7 +9500,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 800
+                "Amount": 4500
               }
             ]
           }
@@ -9546,7 +9546,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1000
+                "Amount": 16500
               }
             ]
           }
@@ -9592,7 +9592,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1000
+                "Amount": 10000
               }
             ]
           }
@@ -9638,7 +9638,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 800
+                "Amount": 14000
               }
             ]
           }
@@ -9684,7 +9684,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 900
+                "Amount": 5000
               }
             ]
           }
@@ -9730,7 +9730,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1500
+                "Amount": 13000
               }
             ]
           }
@@ -9776,7 +9776,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1200
+                "Amount": 18000
               }
             ]
           }
@@ -9822,7 +9822,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1200
+                "Amount": 9000
               }
             ]
           }
@@ -9868,7 +9868,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1100
+                "Amount": 3500
               }
             ]
           }
@@ -9914,7 +9914,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1400
+                "Amount": 11500
               }
             ]
           }
@@ -9960,7 +9960,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1300
+                "Amount": 17000
               }
             ]
           }
@@ -10006,7 +10006,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 1100
+                "Amount": 13000
               }
             ]
           }
@@ -10052,7 +10052,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 500
+                "Amount": 3000
               }
             ]
           }
@@ -10098,7 +10098,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 500
+                "Amount": 14000
               }
             ]
           }
@@ -10144,7 +10144,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 600
+                "Amount": 14000
               }
             ]
           }
@@ -10190,7 +10190,7 @@
             "Amounts": [
               {
                 "ItemId": "PS",
-                "Amount": 500
+                "Amount": 14000
               }
             ]
           }

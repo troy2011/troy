@@ -514,6 +514,26 @@ export function getDemolishedIslands(playFabId) {
     return fetchJson('/api/get-demolished-islands', { method: 'POST', body: { playFabId } });
 }
 
+export function getExplorationStatus(playFabId, options) {
+    return callApiWithLoader('/api/exploration/status', { playFabId }, options);
+}
+
+export function startExploration(playFabId, destinationId, requestId, options) {
+    return callApiWithLoader('/api/exploration/start', { playFabId, destinationId, requestId }, options);
+}
+
+export function claimExploration(playFabId, options) {
+    return callApiWithLoader('/api/exploration/claim', { playFabId }, options);
+}
+
+export function getPlayerShipStatus(playFabId, options) {
+    return callApiWithLoader('/api/player-ship/status', { playFabId }, options);
+}
+
+export function upgradePlayerShip(playFabId, targetForm, requestId, options) {
+    return callApiWithLoader('/api/player-ship/upgrade', { playFabId, targetForm, requestId }, options);
+}
+
 // ── バトルルーム ────────────────────────────────────────────
 
 export function createBattleRoom(playFabId, territoryId, options) {

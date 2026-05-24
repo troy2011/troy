@@ -1336,7 +1336,9 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Promise.allSettled([
                         Player.getPoints(playerInfo.playFabId),
                         Player.getPlayerStats(playerInfo.playFabId),
-                        Inventory.refreshResourceSummary(playerInfo.playFabId)
+                        Inventory.refreshResourceSummary(playerInfo.playFabId),
+                        Ship.loadPlayerShipProfile(playerInfo.playFabId),
+                        Ship.loadExplorationPanel(playerInfo.playFabId)
                     ]);
                     break;
                 case 'troy':

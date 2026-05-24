@@ -2,13 +2,14 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
+const { drawLocalGachaItem } = require('./gacha');
+const resourceStorage = require('./resourceStorage');
 const { getAvatarColorForNation, getNationTreasuryRanking } = require('./nation');
 const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
     getPlayerContributionTotal
 } = require('./playerLevel');
-const resourceStorage = require('./resourceStorage');
 const {
     TAROT_MAJOR_SLOT,
     TAROT_EQUIPMENT_SLOT_TO_KEY,
@@ -26,7 +27,6 @@ const {
 } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const GACHA_CATALOG_VERSION = process.env.GACHA_CATALOG_VERSION || 'main_catalog';
-const GACHA_DROP_TABLE_ID = process.env.GACHA_DROP_TABLE_ID || 'gacha_table';
 const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
@@ -844,6 +844,7 @@ function initializeInventoryRoutes(app, deps) {
             assignEquipmentValue('Accessory', readOnlyData?.Equipped_Accessory?.Value || null);
 
             const avatarBase = buildAvatarBaseFromReadOnly(readOnlyData, stats);
+            const playerShip = await resourceStorage.getPlayerShipProfile(targetId, { promisifyPlayFab, PlayFabServer }, { persist: false }).catch(() => null);
             return res.json({
                 success: true,
                 profile: {
@@ -853,6 +854,7 @@ function initializeInventoryRoutes(app, deps) {
                     nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
                     level: avatarBase.level,
                     avatarBase,
+                    playerShip,
                     equipment,
                     itemSource: buildPublicItemSource(equipment),
                     equipmentList: buildPublicEquipmentList(equipment)
@@ -1336,11 +1338,8 @@ function initializeInventoryRoutes(app, deps) {
                     PlayFabId: playFabId,
                     Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
                 });
-                const evalResult = await promisifyPlayFab(PlayFabServer.EvaluateRandomResultTable, {
-                    TableId: GACHA_DROP_TABLE_ID,
-                    CatalogVersion: GACHA_CATALOG_VERSION
-                });
-                const grantedItemId = evalResult.ResultItemId;
+                const gachaResult = drawLocalGachaItem(catalogCache);
+                const grantedItemId = gachaResult.itemId;
                 if (!grantedItemId) throw new Error('ガチャ結果が空でした。');
                 await addEconomyItem(playFabId, grantedItemId, 1);
                 const catalogData = normalizeCatalogDisplayData(grantedItemId, catalogCache[grantedItemId] || {});
@@ -1369,7 +1368,6 @@ function initializeInventoryRoutes(app, deps) {
 
 module.exports = {
     GACHA_CATALOG_VERSION,
-    GACHA_DROP_TABLE_ID,
     GACHA_COST,
     initializeInventoryRoutes
 };

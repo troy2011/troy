@@ -391,6 +391,30 @@ function renderEquipmentRows(rows = []) {
     `).join('');
 }
 
+const PROFILE_SHIP_LABELS = {
+    boat: 'ボート',
+    explorer: 'エクスプローラー',
+    defender: 'ディフェンダー',
+    fighter: 'ファイター',
+    merchant: 'マーチャント'
+};
+
+function renderProfileShip(ship) {
+    const el = document.getElementById('playerProfileShip');
+    if (!el) return;
+    if (!ship) {
+        el.innerHTML = '';
+        return;
+    }
+    const form = String(ship.form || 'boat').toLowerCase();
+    const label = PROFILE_SHIP_LABELS[form] || 'ボート';
+    el.innerHTML = `
+        <div class="player-profile-ship-icon is-${escapeHtml(form)}" aria-hidden="true"></div>
+        <div class="player-profile-ship-name">${escapeHtml(label)}</div>
+        <div class="player-profile-ship-meta">段階 ${Number(ship.stage || 1)}</div>
+    `;
+}
+
 function renderProfile(profile = {}) {
     const { name, nation, meta } = getPlayerProfileModalElements();
     activeProfile = {
@@ -410,6 +434,7 @@ function renderProfile(profile = {}) {
         meta.textContent = `ID: ${activeProfile.playFabId || '-'} / Lv.${level}`;
     }
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
+    renderProfileShip(profile.playerShip || null);
     renderAvatar(
         'playerProfileAvatar',
         profile.avatarBase || {},

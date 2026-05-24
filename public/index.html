@@ -70,6 +70,9 @@
                                 <div id="home-avatar-layer-hand-left" class="avatar-layer"></div>
                                 <div id="home-avatar-layer-shield-left" class="avatar-layer"></div>
                             </div>
+                            <div id="homePlayerShipFrame" class="home-player-ship-frame">
+                                <div class="home-player-ship-empty">船情報を読み込み中</div>
+                            </div>
                         </div>
                         <div class="home-exp-card">
                             <div class="home-exp-header">
@@ -102,7 +105,11 @@
                                     <button id="btnRecoverMP" class="home-vital-action home-vital-action-mp" type="button" disabled>🫙回復</button>
                                 </div>
                             </div>
+                            <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
                         </div>
+                    </div>
+                    <div id="shipExplorationPanel" class="ship-exploration-panel" hidden>
+                        <div class="ship-exploration-empty">探索情報を読み込み中です。</div>
                     </div>
                     <div id="guestAvatarPrompt" class="home-guest-avatar-prompt" hidden>
                         <div>
@@ -1244,6 +1251,7 @@
                         <div id="playerProfileAvatar-layer-shield-left" class="avatar-layer"></div>
                     </div>
                 </div>
+                <div id="playerProfileShip" class="player-profile-ship"></div>
                 <div class="item-detail-copy">
                     <h3 id="playerProfileName">プレイヤー</h3>
                     <p id="playerProfileNation"></p>

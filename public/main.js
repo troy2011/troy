@@ -1186,6 +1186,11 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetDartsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('darts_countup'));
     document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
     document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
+    document.getElementById('btnHomeExploration')?.addEventListener('click', () => {
+        const panel = document.getElementById('shipExplorationPanel');
+        if (!panel) return;
+        panel.hidden = !panel.hidden;
+    });
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {

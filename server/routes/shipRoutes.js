@@ -944,6 +944,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         }
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
+        return res.status(410).json({
+            error: 'ShipConstructionDeprecated',
+            message: '船は一人一艘の育成方式へ移行しました。ホームの船枠から進化してください。'
+        });
         if (!mapId || !islandId) {
             return res.status(400).json({ error: 'Capital island is required' });
         }
