@@ -16408,3 +16408,1826 @@ body.is-new-order-flash::before {
         grid-template-columns: 1fr;
     }
 }
+
+/* --- Pirate tavern visual pass --- */
+:root {
+    --bg-color: #090806;
+    --card-bg: #18100a;
+    --accent-color: #d9a441;
+    --accent-hover: #9f621d;
+    --text-main: #f7e8c1;
+    --text-sub: #b9a27c;
+    --border-color: rgba(220, 169, 82, 0.42);
+    --nav-height: 86px;
+}
+
+body {
+    background:
+        linear-gradient(180deg, rgba(4, 5, 7, 0.78), rgba(9, 8, 6, 0.96)),
+        radial-gradient(ellipse at 16% 14%, rgba(25, 70, 92, 0.36), transparent 42%),
+        radial-gradient(ellipse at 84% 16%, rgba(115, 67, 18, 0.34), transparent 40%),
+        repeating-linear-gradient(90deg, #190f08 0 34px, #0f0905 34px 68px);
+    color: var(--text-main);
+}
+
+#appWrapper {
+    max-width: 1040px;
+    margin: 0 auto;
+    background:
+        linear-gradient(180deg, rgba(7, 10, 13, 0.2), rgba(8, 6, 5, 0.76)),
+        linear-gradient(90deg, rgba(220, 169, 82, 0.05), transparent 16%, transparent 84%, rgba(220, 169, 82, 0.05));
+}
+
+#globalStatusBar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 14px 8px;
+    background:
+        linear-gradient(180deg, rgba(7, 8, 10, 0.96), rgba(18, 12, 7, 0.92)),
+        repeating-linear-gradient(90deg, rgba(90, 47, 20, 0.28) 0 28px, rgba(34, 20, 11, 0.28) 28px 56px);
+    border-bottom: 1px solid rgba(220, 169, 82, 0.38);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.48);
+    backdrop-filter: blur(8px);
+}
+
+.app-title-plaque {
+    justify-self: center;
+    width: min(560px, 70vw);
+    min-height: 66px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 20px;
+    border: 1px solid rgba(235, 194, 116, 0.5);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(84, 45, 19, 0.96), rgba(39, 22, 12, 0.98)),
+        repeating-linear-gradient(0deg, rgba(255, 238, 194, 0.06) 0 2px, transparent 2px 7px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 239, 192, 0.22),
+        inset 0 -8px 16px rgba(0, 0, 0, 0.22),
+        0 8px 20px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.app-title-plaque strong {
+    display: block;
+    color: #ffe7a6;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(24px, 4.2vw, 38px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+    text-shadow: 0 2px 0 #3c210d, 0 0 12px rgba(255, 207, 103, 0.28);
+}
+
+.app-title-plaque span {
+    margin-top: 4px;
+    color: #f2cf8a;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(11px, 1.8vw, 16px);
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+#globalPlayerInfoTop {
+    width: min(100%, 980px);
+    justify-self: center;
+    min-height: 50px;
+    padding: 8px 10px;
+    border: 1px solid rgba(220, 169, 82, 0.36);
+    border-radius: 8px;
+    background: rgba(7, 10, 14, 0.78);
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.07);
+}
+
+#globalPlayerInfo {
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+#globalPlayerName {
+    max-width: min(52vw, 440px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #f9e4b5;
+    font-size: clamp(16px, 2.5vw, 24px);
+    text-shadow: 0 1px 0 #000;
+}
+
+.global-rank-badge {
+    border-color: rgba(235, 194, 116, 0.56);
+    background: linear-gradient(180deg, rgba(70, 45, 24, 0.88), rgba(20, 14, 10, 0.9));
+    color: #ffe2a0;
+}
+
+.currency-display {
+    min-width: 108px;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(235, 194, 116, 0.62);
+    background: linear-gradient(180deg, rgba(32, 27, 22, 0.96), rgba(8, 10, 13, 0.98));
+    color: #ffe188;
+    font-size: 20px;
+    font-weight: 900;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.18), 0 3px 10px rgba(0, 0, 0, 0.36);
+}
+
+.currency-display::before {
+    content: "$";
+    width: 30px;
+    height: 30px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 28%, #fff0a8, #d79b31 58%, #805018);
+    color: #5c3510;
+    font-weight: 900;
+    box-shadow: 0 0 0 2px rgba(94, 57, 18, 0.75);
+}
+
+.content-area {
+    border: 1px solid rgba(220, 169, 82, 0.38);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(32, 20, 12, 0.95), rgba(12, 9, 8, 0.96)),
+        repeating-linear-gradient(90deg, rgba(103, 57, 24, 0.18) 0 24px, rgba(24, 15, 9, 0.18) 24px 48px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 239, 192, 0.08),
+        0 12px 26px rgba(0, 0, 0, 0.38);
+}
+
+.home-hero-card,
+body[data-sea-tone] .home-hero-card {
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(6, 10, 14, 0.38) 0%, rgba(10, 32, 42, 0.46) 38%, rgba(28, 14, 7, 0.92) 78%),
+        radial-gradient(ellipse at 72% 22%, rgba(227, 171, 78, 0.22), transparent 34%),
+        radial-gradient(ellipse at 22% 48%, rgba(19, 79, 102, 0.42), transparent 48%),
+        linear-gradient(90deg, #15100d, #06131a 44%, #1c1109);
+}
+
+.home-hero-card::after {
+    background:
+        linear-gradient(90deg, transparent 0 5%, rgba(247, 208, 132, 0.12) 5% 5.4%, transparent 5.4% 100%),
+        linear-gradient(180deg, transparent 0 62%, rgba(0, 0, 0, 0.28) 62% 100%);
+    opacity: 0.8;
+}
+
+.home-ps-card {
+    border: 1px solid rgba(98, 54, 23, 0.5);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(243, 214, 151, 0.96), rgba(188, 141, 73, 0.94)),
+        repeating-linear-gradient(0deg, rgba(87, 49, 23, 0.12) 0 1px, transparent 1px 8px);
+    color: #201107;
+    box-shadow: inset 0 0 0 3px rgba(74, 38, 17, 0.14), 0 10px 22px rgba(0, 0, 0, 0.34);
+}
+
+.home-ps-value {
+    color: #ffe27a;
+    font-size: clamp(42px, 9vw, 76px);
+    text-shadow: 0 2px 0 #42230d, 0 0 12px rgba(255, 215, 101, 0.42);
+}
+
+.home-specialty-chip {
+    border-color: rgba(97, 54, 25, 0.36);
+    background: rgba(55, 29, 13, 0.16);
+    color: #211209;
+}
+
+.home-ship-stage {
+    border-radius: 8px;
+}
+
+.home-ship-bob {
+    min-height: 340px;
+}
+
+.home-player-ship-frame {
+    border: 1px solid rgba(220, 169, 82, 0.56);
+    border-radius: 6px;
+    background: linear-gradient(180deg, rgba(10, 17, 24, 0.94), rgba(13, 14, 18, 0.96));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 239, 192, 0.12),
+        0 10px 18px rgba(0, 0, 0, 0.36);
+}
+
+.home-player-ship-frame::before {
+    background: rgba(220, 169, 82, 0.56);
+}
+
+.home-player-ship-title,
+.home-player-ship-name {
+    color: #f7d68d;
+    text-shadow: 0 1px 0 #000;
+}
+
+.home-exp-card {
+    border: 1px solid rgba(220, 169, 82, 0.36);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(22, 15, 10, 0.98), rgba(10, 8, 7, 0.98)),
+        repeating-linear-gradient(90deg, rgba(92, 50, 21, 0.18) 0 32px, rgba(20, 12, 7, 0.18) 32px 64px);
+}
+
+.home-exp-rank {
+    border-color: rgba(220, 169, 82, 0.42);
+    background: linear-gradient(180deg, rgba(30, 24, 18, 0.96), rgba(7, 8, 10, 0.98));
+}
+
+.home-exp-rank span {
+    color: #ffe188;
+}
+
+.home-exploration-btn {
+    min-height: 72px;
+    border: 1px solid rgba(255, 230, 156, 0.68);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, #f5cc66, #b97823 58%, #7a4518),
+        linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    color: #211208;
+    font-size: clamp(28px, 6vw, 46px);
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 236, 179, 0.58);
+    box-shadow: inset 0 2px 0 rgba(255, 247, 214, 0.36), 0 10px 22px rgba(0, 0, 0, 0.42);
+}
+
+.home-exploration-btn::before {
+    content: "⏱";
+    margin-right: 10px;
+}
+
+.home-vital-action,
+.ranking-refresh-btn {
+    border-radius: 8px;
+    border-color: rgba(220, 169, 82, 0.34);
+    background: linear-gradient(180deg, rgba(42, 31, 24, 0.95), rgba(15, 12, 10, 0.96));
+    color: #f7e8c1;
+}
+
+.ship-exploration-panel,
+.ship-exploration-destination,
+.ship-exploration-report,
+.ship-exploration-reward {
+    border-color: rgba(220, 169, 82, 0.36);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(21, 15, 10, 0.96), rgba(8, 8, 9, 0.96));
+}
+
+#inventoryMobileSwitch,
+#inventoryPrimaryTabs,
+#tabContentInventory #inventoryTabs,
+#rankingToggleButtons {
+    border: 1px solid rgba(220, 169, 82, 0.34);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(14, 17, 20, 0.92), rgba(8, 9, 11, 0.94));
+    padding: 6px;
+}
+
+.inventory-mobile-switch-btn,
+.inventory-primary-tab-btn,
+#tabContentInventory .inventory-tab-btn,
+.ranking-toggle-btn {
+    border-radius: 8px;
+    border-color: rgba(220, 169, 82, 0.28);
+    background: linear-gradient(180deg, rgba(32, 26, 21, 0.96), rgba(10, 11, 13, 0.96));
+    color: #d9c5a1;
+}
+
+.inventory-mobile-switch-btn.active,
+.inventory-primary-tab-btn.active,
+#tabContentInventory .inventory-tab-btn.active,
+.ranking-toggle-btn.active {
+    border-color: rgba(255, 221, 142, 0.62);
+    background:
+        linear-gradient(180deg, rgba(26, 87, 113, 0.95), rgba(9, 43, 65, 0.98)),
+        linear-gradient(180deg, rgba(245, 204, 102, 0.22), transparent);
+    color: #ffe6a9;
+    box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.16), 0 8px 18px rgba(0, 0, 0, 0.32);
+}
+
+#tabContentInventory .content-area.avatar-card,
+#tabContentInventory .inventory-section,
+.inventory-grid,
+.equipment-slot-card,
+.inventory-item-card,
+.item-card {
+    border-color: rgba(220, 169, 82, 0.34);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(244, 220, 165, 0.94), rgba(170, 122, 63, 0.92)),
+        repeating-linear-gradient(0deg, rgba(75, 44, 22, 0.1) 0 1px, transparent 1px 8px);
+    color: #211208;
+}
+
+.equipment-slot-card,
+.inventory-item-card,
+.item-card {
+    background: linear-gradient(180deg, rgba(18, 24, 31, 0.95), rgba(10, 11, 13, 0.98));
+    color: #f7e8c1;
+}
+
+.ranking-content-area {
+    background:
+        linear-gradient(180deg, rgba(4, 5, 7, 0.72), rgba(5, 6, 8, 0.98)),
+        radial-gradient(ellipse at 18% 12%, rgba(233, 181, 77, 0.22), transparent 30%),
+        radial-gradient(ellipse at 84% 18%, rgba(16, 74, 99, 0.26), transparent 34%);
+}
+
+.ranking-header {
+    border-radius: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.28);
+    background: linear-gradient(180deg, rgba(9, 10, 12, 0.34), rgba(9, 10, 12, 0.78));
+}
+
+.ranking-header-title {
+    color: #ffe188;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(36px, 8vw, 64px);
+    letter-spacing: 0;
+    text-shadow: 0 2px 0 #2a1708, 0 0 14px rgba(255, 207, 103, 0.36);
+}
+
+.ranking-row {
+    border-radius: 8px;
+    border-color: rgba(220, 169, 82, 0.32);
+    background:
+        linear-gradient(180deg, rgba(13, 16, 20, 0.94), rgba(5, 7, 10, 0.98)),
+        radial-gradient(ellipse at 24% 0%, rgba(219, 160, 63, 0.16), transparent 50%);
+}
+
+.ranking-row.myRank,
+.ranking-row-top-1 {
+    border-color: rgba(255, 221, 142, 0.72);
+    box-shadow: 0 0 18px rgba(217, 164, 65, 0.22), inset 0 1px 0 rgba(255, 247, 214, 0.14);
+}
+
+.ranking-row-score-value,
+.ranking-row-name {
+    color: #ffe2a0;
+}
+
+#bottomNav {
+    height: var(--nav-height);
+    padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+    gap: 8px;
+    border-top: 1px solid rgba(220, 169, 82, 0.42);
+    background:
+        linear-gradient(180deg, rgba(29, 17, 9, 0.96), rgba(8, 6, 5, 0.98)),
+        repeating-linear-gradient(90deg, rgba(93, 50, 21, 0.2) 0 28px, rgba(24, 14, 8, 0.2) 28px 56px);
+    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.nav-button {
+    min-width: 82px;
+    height: 68px;
+    border: 1px solid rgba(220, 169, 82, 0.38);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(69, 39, 19, 0.94), rgba(24, 15, 9, 0.98)),
+        repeating-linear-gradient(0deg, rgba(255, 238, 194, 0.05) 0 1px, transparent 1px 7px);
+    color: #f0d7a4;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.12);
+}
+
+.nav-button .nav-icon {
+    font-size: 26px;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.58));
+}
+
+.nav-button.active {
+    border-color: rgba(255, 229, 149, 0.78);
+    background:
+        linear-gradient(180deg, rgba(165, 106, 35, 0.98), rgba(85, 49, 18, 0.98)),
+        linear-gradient(90deg, transparent, rgba(255, 245, 202, 0.18), transparent);
+    color: #fff1bd;
+    box-shadow: 0 0 18px rgba(217, 164, 65, 0.28), inset 0 1px 0 rgba(255, 247, 214, 0.26);
+}
+
+@media (max-width: 640px) {
+    #globalStatusBar {
+        padding: 8px 8px 6px;
+        gap: 6px;
+    }
+
+    .app-title-plaque {
+        width: min(70vw, 360px);
+        min-height: 52px;
+        padding: 6px 12px;
+    }
+
+    #globalPlayerInfoTop {
+        min-height: 42px;
+        padding: 6px 8px;
+    }
+
+    .currency-display {
+        min-width: 88px;
+        min-height: 36px;
+        font-size: 17px;
+        padding: 4px 8px;
+    }
+
+    .currency-display::before {
+        width: 24px;
+        height: 24px;
+    }
+
+    .home-ship-bob {
+        min-height: 280px;
+    }
+
+    #bottomNav {
+        height: 78px;
+        gap: 6px;
+    }
+
+    .nav-button {
+        min-width: 72px;
+        height: 60px;
+    }
+}
+
+/* --- Pirate UI sheet assets --- */
+.app-title-plaque {
+    background:
+        linear-gradient(180deg, rgba(58, 33, 16, 0.1), rgba(22, 13, 8, 0.34)),
+        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+}
+
+#globalPlayerInfoTop,
+.currency-display,
+.global-rank-badge,
+.home-player-ship-frame,
+.home-exp-card,
+.ship-exploration-panel,
+.ship-exploration-destination,
+.ship-exploration-report,
+.ship-exploration-reward,
+.ranking-row,
+.equipment-slot-card,
+.inventory-item-card,
+.item-card {
+    background:
+        linear-gradient(180deg, rgba(3, 5, 7, 0.08), rgba(0, 0, 0, 0.34)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+}
+
+.content-area {
+    background:
+        linear-gradient(180deg, rgba(26, 14, 7, 0.24), rgba(4, 4, 5, 0.44)),
+        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+}
+
+.home-hero-card,
+body[data-sea-tone] .home-hero-card {
+    background:
+        linear-gradient(180deg, rgba(3, 5, 8, 0.08), rgba(9, 6, 4, 0.9) 72%),
+        url("./assets/ui/bg-tavern.png") center top / cover no-repeat,
+        linear-gradient(180deg, #070809, #120b07);
+}
+
+.home-ps-card,
+#tabContentInventory .content-area.avatar-card,
+#tabContentInventory .inventory-section {
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
+        url("./assets/ui/panel-parchment.png") center / 100% 100% no-repeat;
+}
+
+.home-exp-rank,
+#inventoryMobileSwitch,
+#inventoryPrimaryTabs,
+#tabContentInventory #inventoryTabs,
+#rankingToggleButtons,
+.exploration-treasure-dialog {
+    background:
+        linear-gradient(180deg, rgba(3, 5, 7, 0.1), rgba(0, 0, 0, 0.34)),
+        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+}
+
+.home-exploration-btn {
+    background:
+        linear-gradient(180deg, rgba(255, 242, 183, 0.18), rgba(87, 43, 6, 0.2)),
+        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+}
+
+.inventory-mobile-switch-btn.active,
+.inventory-primary-tab-btn.active,
+#tabContentInventory .inventory-tab-btn.active,
+.ranking-toggle-btn.active {
+    background:
+        linear-gradient(180deg, rgba(76, 196, 255, 0.12), rgba(0, 0, 0, 0.18)),
+        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+}
+
+.inventory-mobile-switch-btn:not(.active),
+.inventory-primary-tab-btn:not(.active),
+#tabContentInventory .inventory-tab-btn:not(.active),
+.ranking-toggle-btn:not(.active),
+.home-vital-action,
+.ranking-refresh-btn {
+    background:
+        linear-gradient(180deg, rgba(22, 15, 10, 0.28), rgba(0, 0, 0, 0.32)),
+        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+}
+
+.ranking-content-area {
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(3, 4, 6, 0.9) 68%),
+        url("./assets/ui/bg-map.png") center top / cover no-repeat,
+        linear-gradient(180deg, #050608, #020303);
+}
+
+.ranking-header {
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.48)),
+        url("./assets/ui/bg-tavern.png") center / cover no-repeat;
+}
+
+.exploration-sequence-dialog {
+    border-color: rgba(220, 169, 82, 0.48);
+}
+
+.exploration-sequence-scene,
+.exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene,
+.exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene,
+.exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
+    background:
+        linear-gradient(180deg, rgba(5, 10, 16, 0.06), rgba(5, 12, 18, 0.58) 78%),
+        url("./assets/ui/bg-sea.png") center / cover no-repeat;
+}
+
+#bottomNav {
+    background:
+        linear-gradient(180deg, rgba(12, 8, 5, 0.34), rgba(3, 3, 4, 0.78)),
+        url("./assets/ui/plank-wide.png") center / cover repeat-x;
+}
+
+.nav-button {
+    background:
+        linear-gradient(180deg, rgba(63, 34, 14, 0.08), rgba(0, 0, 0, 0.32)),
+        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+}
+
+.nav-button.active {
+    background:
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
+        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+}
+
+.global-menu-button {
+    position: absolute;
+    left: 12px;
+    top: 16px;
+    z-index: 1;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid rgba(235, 194, 116, 0.46);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(5, 6, 8, 0.08), rgba(0, 0, 0, 0.36)),
+        url("./assets/ui/icons/dark-small-button.png") center / 100% 100% no-repeat;
+    color: #f8e6bc;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 0 #000;
+}
+
+.currency-display::before {
+    content: "";
+    background: url("./assets/ui/icons/coin.png") center / contain no-repeat;
+    box-shadow: none;
+}
+
+.currency-display::after {
+    content: "+";
+    width: 30px;
+    height: 30px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 229, 149, 0.64);
+    background:
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
+        url("./assets/ui/icons/gold-small-button.png") center / 100% 100% no-repeat;
+    color: #fff1bd;
+    font-size: 22px;
+    line-height: 1;
+    text-shadow: 0 1px 0 #000;
+}
+
+.home-ps-icon {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+    background: url("./assets/ui/icons/money-bag.png") center / contain no-repeat;
+    color: transparent;
+    font-size: 0;
+}
+
+.home-specialty-chip span {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+    color: transparent;
+    font-size: 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.home-specialty-chip[title="火薬系"] span {
+    background-image: url("./assets/ui/icons/special-chili.png");
+}
+
+.home-specialty-chip[title="石材系"] span {
+    background-image: url("./assets/ui/icons/special-rock.png");
+}
+
+.home-specialty-chip[title="キノコ系"] span {
+    background-image: url("./assets/ui/icons/special-mushroom.png");
+}
+
+.home-specialty-chip[title="水系"] span {
+    background-image: url("./assets/ui/icons/special-vial.png");
+}
+
+.nav-button .nav-icon {
+    width: 42px;
+    height: 42px;
+    display: block;
+    margin-bottom: 2px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    color: transparent;
+    font-size: 0;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
+}
+
+#navHome .nav-icon {
+    background-image: url("./assets/ui/icons/nav-home.png");
+}
+
+#navTroy .nav-icon {
+    background-image: url("./assets/ui/icons/nav-troy.png");
+}
+
+#navEvents .nav-icon {
+    background-image: url("./assets/ui/icons/nav-events.png");
+}
+
+#navInventory .nav-icon {
+    background-image: url("./assets/ui/icons/nav-inventory.png");
+}
+
+#navRanking .nav-icon {
+    background-image: url("./assets/ui/icons/trophy-gold.png");
+}
+
+#navKing .nav-icon {
+    background-image: url("./assets/ui/icons/nav-king.png");
+}
+
+#navTarot .nav-icon {
+    background-image: url("./assets/ui/icons/chest.png");
+}
+
+#navBattle .nav-icon,
+#navQr .nav-icon {
+    background-image: url("./assets/ui/icons/anchor.png");
+}
+
+/* Keep the bottom tabs fully visible across the screen. */
+#bottomNav {
+    justify-content: stretch;
+    overflow: hidden;
+}
+
+.nav-button {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+}
+
+.nav-button span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    #bottomNav {
+        gap: 4px;
+        padding-left: max(4px, env(safe-area-inset-left));
+        padding-right: max(4px, env(safe-area-inset-right));
+    }
+
+    .nav-button {
+        min-width: 0;
+        height: 60px;
+        padding: 4px 2px;
+        font-size: 10px;
+    }
+
+    .nav-button .nav-icon {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+/* --- Ranking tab reference style --- */
+.ranking-content-area {
+    min-height: calc(100vh - var(--nav-height) - 132px);
+    padding: 16px 14px 96px;
+    border-color: rgba(220, 169, 82, 0.42);
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(3, 4, 6, 0.88) 36%, rgba(2, 3, 5, 0.96)),
+        url("./assets/ui/bg-tavern.png") center top / cover no-repeat,
+        linear-gradient(180deg, #050608, #020303);
+}
+
+.ranking-header {
+    min-height: 160px;
+    margin: 0 -4px 12px;
+    padding: 20px 16px;
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    border: 0;
+    border-radius: 0;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.56)),
+        url("./assets/ui/bg-tavern.png") center / cover no-repeat;
+    box-shadow: inset 0 -1px 0 rgba(220, 169, 82, 0.24);
+}
+
+.ranking-header-icon {
+    width: 86px;
+    height: 86px;
+    display: block;
+    background: url("./assets/ui/icons/trophy-gold.png") center / contain no-repeat;
+    color: transparent;
+    font-size: 0;
+    filter: drop-shadow(0 0 18px rgba(255, 207, 103, 0.7));
+}
+
+.ranking-header-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(38px, 11vw, 64px);
+    line-height: 1;
+    color: #ffe188;
+    letter-spacing: 0;
+    text-shadow: 0 3px 0 #241204, 0 0 16px rgba(255, 207, 103, 0.42);
+}
+
+.ranking-header-sub {
+    margin-top: 12px;
+    color: #d0b98c;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+#rankingToggleButtons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0 0 14px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.36);
+    background: linear-gradient(180deg, rgba(8, 11, 14, 0.94), rgba(2, 4, 7, 0.98));
+}
+
+.ranking-toggle-btn {
+    min-width: 0;
+    min-height: 58px;
+    padding: 8px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-right: 1px solid rgba(220, 169, 82, 0.22);
+    border-radius: 0;
+    color: #c9b48a;
+    font-size: 14px;
+    font-weight: 900;
+    background:
+        linear-gradient(180deg, rgba(17, 21, 25, 0.9), rgba(4, 6, 9, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    box-shadow: none;
+}
+
+.ranking-toggle-btn:last-child {
+    border-right: 0;
+}
+
+.ranking-toggle-btn::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.58));
+}
+
+#btnShowPsRanking::before {
+    background-image: url("./assets/ui/icons/coin.png");
+}
+
+#btnShowDartsRanking::before {
+    content: "◉";
+    color: #d8c29b;
+    font-size: 24px;
+    line-height: 28px;
+    text-align: center;
+}
+
+#btnShowKaraokeRanking::before {
+    content: "♪";
+    color: #d8c29b;
+    font-size: 27px;
+    line-height: 28px;
+    text-align: center;
+}
+
+.ranking-toggle-btn.active {
+    color: #2a1605;
+    border-color: rgba(255, 229, 149, 0.74);
+    background:
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18)),
+        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.28);
+}
+
+.ranking-refresh-row {
+    margin: 0 0 14px;
+}
+
+.ranking-refresh-btn {
+    min-width: 96px;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 14px;
+}
+
+.ranking-refresh-btn::before {
+    content: "↻";
+    margin-right: 6px;
+}
+
+.ranking-list {
+    gap: 12px;
+}
+
+.ranking-row {
+    min-height: 94px;
+    grid-template-columns: 68px 58px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    border-color: rgba(150, 135, 109, 0.36);
+    background:
+        linear-gradient(180deg, rgba(8, 11, 15, 0.9), rgba(3, 5, 8, 0.96)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+
+.ranking-row-top-1 {
+    border-color: rgba(255, 221, 142, 0.84);
+    background:
+        linear-gradient(180deg, rgba(54, 34, 8, 0.36), rgba(5, 4, 3, 0.68)),
+        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+    box-shadow: 0 0 18px rgba(217, 164, 65, 0.28), inset 0 1px 0 rgba(255, 247, 214, 0.18);
+}
+
+.ranking-row-top-2 {
+    border-color: rgba(200, 205, 212, 0.56);
+    background:
+        linear-gradient(180deg, rgba(42, 45, 50, 0.34), rgba(4, 5, 7, 0.72)),
+        url("./assets/ui/panel-dark-silver.png") center / 100% 100% no-repeat;
+}
+
+.ranking-row-top-3 {
+    border-color: rgba(193, 104, 42, 0.58);
+    background:
+        linear-gradient(180deg, rgba(71, 32, 10, 0.26), rgba(5, 4, 3, 0.7)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+}
+
+.ranking-rank-badge {
+    width: 62px;
+    height: 62px;
+    border: 0;
+    border-radius: 50%;
+    position: relative;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(30, 20, 10, 0.96) 0 36%, transparent 38%),
+        url("./assets/ui/icons/rank-crown-gold.png") center / contain no-repeat;
+}
+
+.ranking-row-top-2 .ranking-rank-badge {
+    filter: grayscale(0.86) brightness(1.18);
+}
+
+.ranking-row-top-3 .ranking-rank-badge {
+    filter: sepia(0.72) saturate(1.45) hue-rotate(338deg) brightness(0.9);
+}
+
+.ranking-rank-medal {
+    display: none;
+}
+
+.ranking-rank-number {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #ffe7a6;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 28px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 #201004;
+}
+
+.ranking-avatar {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 2px solid rgba(242, 219, 168, 0.72);
+    background: #f2ead8;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.38);
+}
+
+.ranking-row-name {
+    color: #ffe2a0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    letter-spacing: 0;
+}
+
+.ranking-row-meta {
+    margin-top: 6px;
+    color: #a99777;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.ranking-row-score {
+    min-width: 92px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.ranking-row-score::before {
+    content: "";
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    background: url("./assets/ui/icons/chest.png") center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.42));
+}
+
+.ranking-row-score-value {
+    display: inline-block;
+    color: #ffe188;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 24px;
+    line-height: 1;
+    text-shadow: 0 2px 0 #201004;
+}
+
+@media (max-width: 420px) {
+    .ranking-content-area {
+        padding-inline: 10px;
+    }
+
+    .ranking-header {
+        min-height: 136px;
+        grid-template-columns: 78px minmax(0, 1fr);
+        padding: 16px 12px;
+    }
+
+    .ranking-header-icon {
+        width: 72px;
+        height: 72px;
+    }
+
+    .ranking-toggle-btn {
+        min-height: 54px;
+        gap: 4px;
+        font-size: 13px;
+    }
+
+    .ranking-row {
+        grid-template-columns: 56px 46px minmax(0, 1fr) auto;
+        min-height: 82px;
+        gap: 7px;
+        padding: 10px 8px;
+    }
+
+    .ranking-rank-badge {
+        width: 52px;
+        height: 52px;
+    }
+
+    .ranking-rank-number {
+        font-size: 24px;
+    }
+
+    .ranking-avatar {
+        width: 46px;
+        height: 46px;
+    }
+
+    .ranking-row-name {
+        font-size: 19px;
+    }
+
+    .ranking-row-score {
+        min-width: 68px;
+    }
+
+    .ranking-row-score::before {
+        display: none;
+    }
+
+    .ranking-row-score-value {
+        font-size: 20px;
+    }
+}
+
+/* --- Home dedicated background sheet --- */
+.home-hero-card,
+body[data-sea-tone] .home-hero-card {
+    min-height: 720px;
+    padding: 16px 14px 22px;
+    border-color: rgba(220, 169, 82, 0.5);
+    background:
+        linear-gradient(180deg, rgba(2, 4, 7, 0.04) 0%, rgba(3, 4, 5, 0.12) 42%, rgba(4, 3, 2, 0.04) 43%, rgba(5, 3, 2, 0.16) 100%),
+        url("./home-ui-sheet.png") center top / cover no-repeat;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.44);
+}
+
+.home-hero-card::after {
+    display: none;
+}
+
+.home-hero-top,
+.home-ship-stage,
+#shipExplorationPanel,
+#guestAvatarPrompt {
+    position: relative;
+    z-index: 1;
+}
+
+.home-ps-card {
+    width: min(320px, 78vw);
+    margin-top: 2px;
+    margin-left: 2px;
+}
+
+.home-ship-stage {
+    width: 100%;
+    min-height: 448px;
+    margin: 14px auto 0;
+    justify-content: flex-start;
+}
+
+.home-ship-bob {
+    width: min(390px, 100%);
+    min-height: 228px;
+    margin: 0 auto;
+}
+
+.home-ship-image {
+    width: min(310px, 78vw);
+    filter: drop-shadow(0 20px 18px rgba(0, 0, 0, 0.48));
+}
+
+.home-hero-card .home-ship-image {
+    display: none;
+}
+
+/* --- Inventory tab reference style --- */
+#tabContentInventory {
+    padding-bottom: calc(var(--nav-height) + 22px);
+}
+
+#tabContentInventory .inventory-mobile-switch {
+    position: sticky;
+    top: calc(134px + var(--safe-top));
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 10px var(--app-gutter) 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.42);
+    background:
+        linear-gradient(180deg, rgba(10, 13, 17, 0.94), rgba(3, 5, 8, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.3);
+    backdrop-filter: none;
+}
+
+#tabContentInventory .inventory-panel-btn {
+    min-width: 0;
+    min-height: 64px;
+    padding: 7px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-right: 1px solid rgba(220, 169, 82, 0.22);
+    border-radius: 0;
+    color: #bda984;
+    font-size: 18px;
+    font-weight: 900;
+    text-shadow: 0 1px 0 #000;
+    background: transparent;
+    box-shadow: none;
+}
+
+#tabContentInventory .inventory-panel-btn:last-child {
+    border-right: 0;
+}
+
+#tabContentInventory .inventory-panel-btn::before {
+    content: "";
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
+}
+
+#tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Equipment"]::before {
+    background-image: url("./assets/ui/icons/tab-equipment.png");
+}
+
+#tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Tarot"]::before {
+    background-image: url("./assets/ui/icons/tab-tarot.png");
+}
+
+#tabContentInventory .inventory-panel-btn[data-inventory-group-switch="All"]::before {
+    background-image: url("./assets/ui/icons/tab-all.png");
+}
+
+#tabContentInventory .inventory-panel-btn.active {
+    color: #ffe188;
+    background:
+        linear-gradient(180deg, rgba(64, 160, 210, 0.16), rgba(0, 0, 0, 0.18)),
+        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+    border-color: rgba(255, 229, 149, 0.42);
+}
+
+#tabContentInventory .avatar-card.inventory-section {
+    display: block;
+    margin: 0 var(--app-gutter) 10px;
+    padding: 12px;
+}
+
+#tabContentInventory .avatar-card.inventory-section:not(.active) {
+    display: block;
+}
+
+#tabContentInventory .inventory-avatar-stage,
+#tabContentInventory .avatar-style-panel,
+#tabContentInventory .inventory-loadout-stats {
+    display: none;
+}
+
+#tabContentInventory .avatar-card.inventory-section::before {
+    content: "現在の装備";
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: max-content;
+    align-items: center;
+    min-height: 34px;
+    margin: -2px 0 12px;
+    padding: 0 14px;
+    border-radius: 6px;
+    color: #f2cf8a;
+    font-size: 18px;
+    font-weight: 900;
+    text-shadow: 0 1px 0 #000;
+    background:
+        linear-gradient(180deg, rgba(75, 38, 14, 0.62), rgba(20, 12, 8, 0.88)),
+        url("./assets/ui/icons/hamburger-panel.png") center / 100% 100% no-repeat;
+}
+
+#tabContentInventory #equipmentGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.34);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(7, 10, 14, 0.86), rgba(2, 4, 7, 0.94)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+}
+
+#tabContentInventory .equip-slot {
+    min-height: 94px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.28);
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
+        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+
+#tabContentInventory .equip-slot-icon {
+    width: 46px;
+    height: 46px;
+    margin: 0;
+    display: block;
+    border-radius: 50%;
+    color: transparent;
+    font-size: 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.48));
+}
+
+#tabContentInventory .weapon-slot .equip-slot-icon {
+    background-image: url("./assets/ui/icons/slot-weapon.png");
+}
+
+#tabContentInventory .shield-slot .equip-slot-icon {
+    background-image: url("./assets/ui/icons/slot-shield.png");
+}
+
+#tabContentInventory .armor-slot .equip-slot-icon {
+    background-image: url("./assets/ui/icons/slot-armor.png");
+}
+
+#tabContentInventory .accessory-slot .equip-slot-icon {
+    background-image: url("./assets/ui/icons/slot-accessory.png");
+}
+
+#tabContentInventory .equip-slot-content {
+    min-width: 0;
+    gap: 3px;
+    text-align: left;
+}
+
+#tabContentInventory .equip-slot-label {
+    color: #d1ad72;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+#tabContentInventory .equip-slot-name {
+    color: #f7e8c1;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+#tabContentInventory .equip-slot-stats {
+    justify-content: flex-start;
+}
+
+#tabContentInventory .inventory-section.active[data-panel="items"] {
+    margin: 0 var(--app-gutter);
+    padding: 14px;
+}
+
+#tabContentInventory .inventory-section[data-panel="items"] > .section-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#tabContentInventory .inventory-section[data-panel="items"] > .section-header::before {
+    content: "";
+    width: 48px;
+    height: 48px;
+    grid-row: 1 / span 2;
+    align-self: center;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 46%, rgba(16, 12, 9, 0.84) 0 52%, transparent 54%),
+        url("./assets/ui/icons/anchor.png") center / 82% 82% no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.48));
+}
+
+#tabContentInventory .inventory-section[data-panel="items"] .section-header h2 {
+    grid-column: 1;
+    color: #201208;
+    font-size: clamp(30px, 9vw, 44px);
+    line-height: 1;
+    letter-spacing: 0;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5);
+}
+
+#tabContentInventory .sort-select {
+    min-height: 44px;
+    border-radius: 999px;
+    border-color: rgba(76, 45, 20, 0.44);
+    background:
+        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    color: #f2d394;
+    font-weight: 900;
+}
+
+#inventoryPrimaryTabs,
+#tabContentInventory #inventoryTabs {
+    position: static;
+    display: grid;
+    gap: 7px;
+    margin: 0 0 10px;
+    padding: 6px;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(8, 10, 12, 0.88), rgba(2, 3, 5, 0.94)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+}
+
+#inventoryPrimaryTabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#tabContentInventory #inventoryTabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+#tabContentInventory .inventory-primary-tab-btn,
+#tabContentInventory .inventory-tab-btn {
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    color: #d9c5a1;
+    font-size: 13px;
+    font-weight: 900;
+    background:
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
+        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+}
+
+#tabContentInventory .inventory-primary-tab-btn.active,
+#tabContentInventory .inventory-tab-btn.active {
+    color: #ffe8aa;
+    background:
+        linear-gradient(180deg, rgba(38, 150, 205, 0.14), rgba(2, 12, 18, 0.28)),
+        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"],
+#tabContentInventory #inventoryGrid[data-layout="consumable"],
+#tabContentInventory #inventoryGrid[data-layout="mixed"],
+#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+}
+
+#tabContentInventory .inventory-item-cell {
+    min-height: 118px;
+    padding: 10px;
+    border-radius: 8px;
+    border-color: rgba(220, 169, 82, 0.28);
+    background:
+        linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+}
+
+#tabContentInventory .inventory-item-icon-frame {
+    border-radius: 8px;
+    border-color: rgba(220, 169, 82, 0.28);
+    background:
+        radial-gradient(circle at 45% 38%, rgba(231, 171, 70, 0.18), transparent 48%),
+        rgba(7, 9, 12, 0.84);
+}
+
+#tabContentInventory .inventory-item-name {
+    color: #f7d68d;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-item-primary-action,
+#tabContentInventory .inventory-item-secondary-action,
+#tabContentInventory .inventory-item-action {
+    border-radius: 8px;
+}
+
+@media (max-width: 420px) {
+    #tabContentInventory .inventory-panel-btn {
+        min-height: 58px;
+        gap: 5px;
+        font-size: 17px;
+    }
+
+    #tabContentInventory .inventory-panel-btn::before {
+        width: 30px;
+        height: 30px;
+        flex-basis: 30px;
+    }
+
+    #tabContentInventory .avatar-card.inventory-section,
+    #tabContentInventory .inventory-section.active[data-panel="items"] {
+        margin-left: 8px;
+        margin-right: 8px;
+    }
+
+    #tabContentInventory #equipmentGrid {
+        gap: 6px;
+        padding: 7px;
+    }
+
+    #tabContentInventory .equip-slot {
+        min-height: 82px;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 7px;
+        padding: 8px;
+    }
+
+    #tabContentInventory .equip-slot-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    #tabContentInventory .equip-slot-label {
+        font-size: 11px;
+    }
+
+    #tabContentInventory .equip-slot-name {
+        font-size: 14px;
+    }
+
+    #inventoryPrimaryTabs,
+    #tabContentInventory #inventoryTabs {
+        gap: 5px;
+        padding: 5px;
+    }
+
+    #tabContentInventory .inventory-primary-tab-btn,
+    #tabContentInventory .inventory-tab-btn {
+        font-size: 11px;
+    }
+}
+
+/* --- Remaining tabs pirate tavern pass --- */
+#tabContentTroy,
+#tabContentEvents,
+#tabContentQr,
+#tabContentBattle,
+#tabContentTarot,
+#tabContentKing {
+    padding-bottom: calc(var(--nav-height) + 22px);
+}
+
+#tabContentTroy .content-area,
+#tabContentEvents .content-area,
+#tabContentQr .content-area,
+#tabContentBattle .content-area,
+#tabContentTarot .content-area,
+#tabContentKing .content-area {
+    border-color: rgba(220, 169, 82, 0.42);
+    background:
+        linear-gradient(180deg, rgba(9, 7, 5, 0.18), rgba(4, 4, 5, 0.54)),
+        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+}
+
+#tabContentTroy .troy-status-row,
+#tabContentEvents .event-page-header,
+#tabContentBattle .content-area > h2:first-child,
+#tabContentKing .content-area > h2:first-child,
+#tabContentQr .content-area > h2:first-child,
+#tabContentTarot .tarot-game-switch-wrap {
+    min-height: 128px;
+    margin: 0 0 12px;
+    padding: 18px 16px;
+    display: grid;
+    align-items: center;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 169, 82, 0.28);
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.58)),
+        url("./assets/ui/bg-tavern.png") center / cover no-repeat;
+    box-shadow: inset 0 -1px 0 rgba(220, 169, 82, 0.24);
+}
+
+#tabContentTroy .troy-status-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#tabContentTroy .troy-title,
+#tabContentEvents .event-page-header h2,
+#tabContentBattle .content-area > h2:first-child,
+#tabContentKing .content-area > h2:first-child,
+#tabContentQr .content-area > h2:first-child {
+    color: #ffe188;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(34px, 10vw, 58px);
+    line-height: 1;
+    letter-spacing: 0;
+    text-shadow: 0 3px 0 #241204, 0 0 16px rgba(255, 207, 103, 0.42);
+}
+
+#tabContentTroy .troy-title::before {
+    content: "";
+    width: 56px;
+    height: 56px;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+    background: url("./assets/ui/icons/nav-troy.png") center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
+}
+
+#tabContentEvents .event-page-header h2::before {
+    content: "";
+    width: 54px;
+    height: 54px;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+    background: url("./assets/ui/icons/nav-events.png") center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
+}
+
+#tabContentEvents .event-page-header p,
+#tabContentKing .king-page-note,
+#tabContentTroy .troy-calendar-meta,
+#tabContentTroy .troy-entry-empty,
+#tabContentEvents .event-empty,
+#tabContentQr .content-area p {
+    color: #d0b98c;
+    font-weight: 800;
+}
+
+#tabContentTroy .troy-state-badge,
+#tabContentEvents .event-host-fee,
+#tabContentEvents .event-status,
+#tabContentKing .king-troy-status {
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(220, 169, 82, 0.4);
+    background:
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    color: #f2d394;
+    font-weight: 900;
+}
+
+#tabContentTroy .troy-state-badge.open,
+#tabContentKing .king-troy-status.is-open {
+    border-color: rgba(52, 211, 153, 0.48);
+    color: #86efac;
+}
+
+#tabContentTroy .troy-entry-section,
+#tabContentTroy .troy-calendar-section,
+#tabContentTroy .troy-chat-details,
+#tabContentEvents .event-list-panel,
+#tabContentEvents .event-create-panel,
+#tabContentKing .king-card,
+#tabContentKing .king-editor-card,
+#tabContentKing .troy-admin-card,
+#tabContentKing .troy-admin-details,
+#tabContentQr .qr-battle-card,
+#tabContentQr .equipment-gacha-card,
+#tabContentQr .guild-card,
+#tabContentBattle .content-area,
+#tabContentTarot .tarot-poker-root,
+#tabContentTarot .tarot-kingdom-root {
+    border: 1px solid rgba(220, 169, 82, 0.34);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+
+#tabContentTroy .troy-menu-title,
+#tabContentTroy .troy-entry-title,
+#tabContentEvents .event-list-head h3,
+#tabContentEvents .event-create-panel h3,
+#tabContentKing .king-card-label,
+#tabContentKing .troy-admin-label,
+#tabContentQr .content-area h2,
+#tabContentTarot .tarot-poker-header h2,
+#tabContentTarot .tarot-kingdom-header h2 {
+    color: #f7d68d;
+    font-size: 20px;
+    font-weight: 900;
+    text-shadow: 0 1px 0 #000;
+}
+
+#tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-entry-item,
+#tabContentEvents .event-card,
+#tabContentKing .king-announcement-current,
+#tabContentKing .king-menu-specials-list,
+#tabContentKing .king-menu-disable-list,
+#tabContentTarot .tarot-poker-column,
+#tabContentTarot .tarot-kingdom-panel,
+#tabContentTarot .tarot-log,
+#tabContentQr .guild-entry-grid > *,
+#tabContentQr .battle-entry-card,
+#tabContentQr .equipment-gacha-entry {
+    border: 1px solid rgba(220, 169, 82, 0.28);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
+        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+}
+
+#tabContentEvents .event-create-panel,
+#tabContentTroy .troy-reservation-panel,
+#tabContentKing .king-editor-card {
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
+        url("./assets/ui/panel-parchment.png") center / 100% 100% no-repeat;
+    color: #241306;
+}
+
+#tabContentEvents .event-create-panel h3,
+#tabContentEvents .event-create-panel label,
+#tabContentTroy .troy-reservation-panel h3,
+#tabContentKing .king-editor-card,
+#tabContentKing .king-editor-card .king-field-label {
+    color: #241306;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.44);
+}
+
+#tabContentEvents input,
+#tabContentEvents select,
+#tabContentEvents textarea,
+#tabContentTroy input,
+#tabContentTroy select,
+#tabContentTroy textarea,
+#tabContentKing input,
+#tabContentKing select,
+#tabContentKing textarea {
+    border-radius: 8px;
+    border: 1px solid rgba(76, 45, 20, 0.36);
+    background:
+        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
+        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+    color: #f7e8c1;
+}
+
+#tabContentEvents .event-create-btn,
+#tabContentEvents .event-refresh-btn,
+#tabContentEvents .event-action-btn,
+#tabContentTroy .troy-entry-btn,
+#tabContentTroy .troy-reservation-actions button,
+#tabContentKing .king-inline-actions button,
+#tabContentKing .troy-admin-actions button,
+#tabContentQr .battle-entry-btn,
+#tabContentQr .equipment-gacha-btn,
+#tabContentQr .guild-action-btn,
+#tabContentBattle button,
+#tabContentTarot button {
+    border-radius: 8px;
+    border-color: rgba(255, 229, 149, 0.56);
+    background:
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2)),
+        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+    color: #241306;
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.45);
+}
+
+#tabContentTroy .troy-entry-btn.alt,
+#tabContentEvents .event-action-btn:not(.is-join):not(.is-approve),
+#tabContentKing .troy-admin-actions .btn-muted,
+#tabContentTarot button.btn-muted {
+    background:
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
+        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+    color: #f2d394;
+}
+
+#tabContentEvents .event-layout {
+    gap: 12px;
+}
+
+#tabContentEvents .event-card h3,
+#tabContentTroy .troy-calendar-date,
+#tabContentTroy .troy-entry-item b {
+    color: #ffe2a0;
+}
+
+#tabContentEvents .event-card-type,
+#tabContentTroy .troy-calendar-status {
+    border-color: rgba(220, 169, 82, 0.34);
+    background: rgba(220, 169, 82, 0.12);
+    color: #f2d394;
+}
+
+#tabContentTarot .tarot-game-switch-wrap {
+    min-height: auto;
+    padding: 14px;
+}
+
+#tabContentTarot .tarot-game-switch-wrap button,
+#tabContentTarot .tarot-poker-mode-toggle button {
+    min-height: 48px;
+}
+
+@media (max-width: 640px) {
+    #tabContentTroy .troy-status-row,
+    #tabContentEvents .event-page-header,
+    #tabContentBattle .content-area > h2:first-child,
+    #tabContentKing .content-area > h2:first-child,
+    #tabContentQr .content-area > h2:first-child {
+        min-height: 112px;
+        padding: 14px 12px;
+    }
+
+    #tabContentTroy .troy-title,
+    #tabContentEvents .event-page-header h2,
+    #tabContentBattle .content-area > h2:first-child,
+    #tabContentKing .content-area > h2:first-child,
+    #tabContentQr .content-area > h2:first-child {
+        font-size: clamp(30px, 9vw, 46px);
+    }
+}
+
+.home-player-ship-frame {
+    right: 14px;
+    top: -8px;
+}
+
+.home-exp-card {
+    width: min(310px, calc(100% - 72px));
+    margin-top: 2px;
+}
+
+.home-exploration-btn {
+    width: min(300px, 100%);
+    margin: 14px auto 0;
+}
+
+@media (max-width: 640px) {
+    .home-hero-card,
+    body[data-sea-tone] .home-hero-card {
+        min-height: 704px;
+        background-position: center top;
+    }
+
+    .home-ship-stage {
+        min-height: 448px;
+        margin-top: 14px;
+    }
+}
+
+@media (max-width: 380px) {
+    .home-hero-card,
+    body[data-sea-tone] .home-hero-card {
+        min-height: 680px;
+        padding-inline: 10px;
+    }
+
+    .home-ship-stage {
+        margin-top: 8px;
+    }
+}
