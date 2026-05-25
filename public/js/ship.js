@@ -1199,10 +1199,10 @@ async function upgradePlayerShipProfile(targetForm) {
 function renderExplorationReport(report) {
     const lines = String(report?.reportText || '').split('\n').map(escapeHtml).join('<br>');
     return `
-        <div class="ship-exploration-report">
-            <strong>${escapeHtml(report?.destinationName || '探索レポート')}</strong>
-            <div>${lines || '探索レポートを確認しました。'}</div>
-        </div>
+        <details class="ship-exploration-report">
+            <summary>${escapeHtml(report?.destinationName || '探索レポート')}</summary>
+            <div class="ship-exploration-report-body">${lines || '探索レポートを確認しました。'}</div>
+        </details>
     `;
 }
 
@@ -1233,7 +1233,7 @@ function getRewardItemsForReveal(data) {
 }
 
 function openTreasureButton(button, item) {
-    if (!button || button.classList.contains('is-open')) return;
+    if (!button || button.classList.contains('is-open') || button.classList.contains('is-opening')) return;
     const rarity = normalizeRewardRarity(item?.rarity || item?.Rarity);
     const name = String(item?.displayName || item?.DisplayName || item?.itemId || item?.ItemId || 'お宝');
     button.classList.add('is-opening');
@@ -1416,7 +1416,7 @@ async function recoverConflictedExploration(playFabId, destinationId) {
     const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
     const recoveredStartData = buildRecoveredExplorationStartData(claimData, destinationId);
     await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, claimData);
-    handleExplorationClaimResult(claimData, playFabId, { autoOpenTreasure: true });
+    handleExplorationClaimResult(claimData, playFabId);
     await loadExplorationPanel(playFabId);
 }
 
@@ -1578,7 +1578,7 @@ async function startExploration(playFabId, destinationId) {
         renderExplorationPanel(startData, playFabId);
         const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
         await showExplorationAutoSequence(startData, destinationId, claimData);
-        handleExplorationClaimResult(claimData, playFabId, { autoOpenTreasure: true });
+        handleExplorationClaimResult(claimData, playFabId);
     } catch (error) {
         if (isExplorationStartConflict(error)) {
             try {

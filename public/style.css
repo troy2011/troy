@@ -10999,6 +10999,17 @@ textarea {
     color: #f8fafc;
 }
 
+.ship-exploration-report summary {
+    color: #f8fafc;
+    font-weight: 800;
+    cursor: pointer;
+    list-style-position: inside;
+}
+
+.ship-exploration-report-body {
+    margin-top: 8px;
+}
+
 .ship-exploration-actions {
     display: flex;
     gap: 8px;
@@ -11024,7 +11035,7 @@ textarea {
 .exploration-treasure-overlay {
     position: fixed;
     inset: 0;
-    z-index: 10030;
+    z-index: 10038;
     display: grid;
     place-items: center;
     padding: 18px;
@@ -11084,6 +11095,12 @@ textarea {
     border-radius: 8px;
     background: rgba(2, 6, 23, 0.52);
     color: #e5e7eb;
+    cursor: pointer;
+}
+
+.exploration-treasure-box.is-opening,
+.exploration-treasure-box.is-open {
+    cursor: default;
 }
 
 .exploration-treasure-chest {
