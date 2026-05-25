@@ -7,7 +7,7 @@ const PLAYER_SHIP_FORMS = {
         stage: 1,
         shipClass: 'common',
         itemId: 'ship_common_boat',
-        name: '手漕ぎボート'
+        name: 'ボート'
     },
     explorer: {
         form: 'explorer',
@@ -37,6 +37,14 @@ const PLAYER_SHIP_FORMS = {
         itemId: 'ship_human_merchant',
         name: 'マーチャント'
     }
+};
+
+const LEGACY_PLAYER_SHIP_NAMES = {
+    boat: new Set(['', 'Common Boat', '手漕ぎボート', '手漕ぎボート(Common)', 'ボート']),
+    explorer: new Set(['Explorer', '帆付きボート(Explorer)', '探索船', 'エクスプローラー']),
+    defender: new Set(['Defender', '帆船(Defender)', '守備船', 'ディフェンダー']),
+    fighter: new Set(['Fighter', '海賊船(Fighter)', '戦闘船', 'ファイター']),
+    merchant: new Set(['Merchant', '水上馬車(Merchant)', '商船', 'マーチャント'])
 };
 
 const PLAYER_SHIP_UPGRADE_OPTIONS = {
@@ -85,12 +93,13 @@ function normalizePlayerShipProfile(input = {}) {
     const form = PLAYER_SHIP_FORMS[input.form] ? input.form : formFromShipClass(input.shipClass);
     const spec = PLAYER_SHIP_FORMS[form] || PLAYER_SHIP_FORMS.boat;
     const rawName = String(input.name || spec.name).trim();
+    const name = LEGACY_PLAYER_SHIP_NAMES[form]?.has(rawName) ? spec.name : rawName;
     return {
         form: spec.form,
         stage: spec.stage,
         shipClass: spec.shipClass,
         itemId: String(input.itemId || spec.itemId),
-        name: rawName.slice(0, 16) || spec.name,
+        name: name.slice(0, 16) || spec.name,
         level: Math.max(1, Math.floor(Number(input.level || 1) || 1)),
         updatedAtMs: Number(input.updatedAtMs || Date.now()) || Date.now()
     };
@@ -154,9 +163,11 @@ async function upgradePlayerShipProfile(playFabId, targetForm, deps) {
         error.allowed = allowed;
         throw error;
     }
+    const currentDefaultNames = LEGACY_PLAYER_SHIP_NAMES[current.form] || new Set();
+    const shouldCarryName = current.name && !currentDefaultNames.has(String(current.name).trim());
     const next = normalizePlayerShipProfile({
         ...PLAYER_SHIP_FORMS[target],
-        name: current.name,
+        name: shouldCarryName ? current.name : PLAYER_SHIP_FORMS[target].name,
         level: current.level + 1,
         updatedAtMs: Date.now()
     });

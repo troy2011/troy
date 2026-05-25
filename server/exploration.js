@@ -4,6 +4,7 @@ const battleRoutes = require('./routes/battleRoutes');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
+const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const HOUR_MS = 60 * 60 * 1000;
 // 通貨未減算の早期 pending スタブをこの時間で回収する
 const PENDING_STALE_MS = 5 * 60 * 1000;
@@ -316,6 +317,18 @@ function resolveRewardCount(bossResult, shipClass) {
         base = 0;
     }
     return shipClass === 'merchant' ? base + 1 : base;
+}
+
+async function refreshGoldBalanceAndRanking(playFabId, deps) {
+    if (!playFabId || typeof deps.getCurrencyBalance !== 'function') return null;
+    const balance = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+    if (Number.isFinite(balance) && deps.promisifyPlayFab && deps.PlayFabServer) {
+        await deps.promisifyPlayFab(deps.PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: balance }]
+        });
+    }
+    return Number.isFinite(balance) ? balance : null;
 }
 
 function createBossEquipmentRef(weaponType, category = 'Weapon') {
@@ -754,6 +767,11 @@ function initializeExplorationRoutes(app, deps) {
                 await activeRef.delete().catch(() => {});
                 throw currencyError;
             }
+            const goldBalance = await refreshGoldBalanceAndRanking(playFabId, {
+                getCurrencyBalance,
+                promisifyPlayFab,
+                PlayFabServer
+            });
 
             // active に昇格。失敗しても pending にフルデータが残るため claim から自動復旧可能
             try {
@@ -763,7 +781,7 @@ function initializeExplorationRoutes(app, deps) {
                 throw firestoreError;
             }
 
-            res.json({ ...(await buildExplorationStatus(playFabId)), started: true });
+            res.json({ ...(await buildExplorationStatus(playFabId)), started: true, balance: goldBalance });
         } catch (error) {
             console.error('[exploration/start] failed:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: '探索の開始に失敗しました。', details: error?.errorMessage || error?.message || String(error) });

@@ -29,6 +29,7 @@ import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { createRequestId } from './api.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatCurrencyLabel } from './config.js';
+import * as Player from './player.js';
 
 class LRUCache {
     constructor(maxSize = 100) {
@@ -1541,6 +1542,13 @@ async function startExploration(playFabId, destinationId) {
     explorationAutoRunning = true;
     try {
         const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), { throwOnError: true });
+        if (Number.isFinite(Number(startData?.balance))) {
+            Player.syncPointsDisplay(Number(startData.balance));
+            await Player.getRanking();
+        } else {
+            await Player.getPoints(playFabId, { isSilent: true });
+            await Player.getRanking();
+        }
         renderExplorationPanel(startData, playFabId);
         const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
         await showExplorationAutoSequence(startData, destinationId, claimData);
@@ -1581,7 +1589,7 @@ export function renderShipCard(ship) {
         if (catalogItem?.DisplayName) return catalogItem.DisplayName;
         if (assetData?.DisplayName) return assetData.DisplayName;
         const raw = assetData?.ShipType;
-        if (raw === 'Common Boat') return '手漕ぎボート(Common)';
+        if (raw === 'Common Boat') return 'ボート';
         return raw || '不明';
     })();
 
