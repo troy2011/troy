@@ -933,6 +933,14 @@ const PLAYER_SHIP_LABELS = {
     merchant: 'マーチャント'
 };
 
+const HOME_PLAYER_SHIP_LABELS = {
+    boat: 'ボート',
+    explorer: '探索船',
+    defender: '守備船',
+    fighter: '戦闘船',
+    merchant: '商船'
+};
+
 const EXPLORATION_BOSS_EMOJIS = {
     near_sea: ['🏴‍☠️', '🦀', '🦈', '🐙'],
     old_lighthouse: ['👻', '💀', '🧟', '🕯️'],
@@ -999,38 +1007,92 @@ function formatShipUpgradeCost(costs) {
     }).join(' / ');
 }
 
+function renderShipEvolutionChoiceOptions(upgrades, upgradeCosts) {
+    return upgrades.map((target) => {
+        const targetForm = normalizePlayerShipForm(target);
+        const label = PLAYER_SHIP_LABELS[targetForm] || targetForm;
+        const costLabel = formatShipUpgradeCost(upgradeCosts[targetForm] || upgradeCosts[target]);
+        return `
+            <button type="button" data-player-ship-choice="${escapeHtml(targetForm)}">
+                <strong>${escapeHtml(label)}</strong>
+                ${costLabel ? `<span>${escapeHtml(costLabel)}</span>` : ''}
+            </button>
+        `;
+    }).join('');
+}
+
+function showShipEvolutionChoice(upgrades, upgradeCosts) {
+    const choices = (Array.isArray(upgrades) ? upgrades : []).map(normalizePlayerShipForm).filter(Boolean);
+    if (!choices.length) return;
+    if (choices.length === 1) {
+        upgradePlayerShipProfile(choices[0]);
+        return;
+    }
+
+    const existing = document.querySelector('.ship-evolution-choice-overlay');
+    existing?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ship-evolution-choice-overlay';
+    overlay.innerHTML = `
+        <div class="ship-evolution-choice-dialog" role="dialog" aria-modal="true" aria-label="進化先を選択">
+            <div class="ship-evolution-choice-head">
+                <strong>進化先</strong>
+                <button type="button" class="ship-evolution-choice-close" aria-label="閉じる">×</button>
+            </div>
+            <div class="ship-evolution-choice-list">
+                ${renderShipEvolutionChoiceOptions(choices, upgradeCosts || {})}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const hadModalLock = document.body.classList.contains('modal-lock');
+    document.body.classList.add('modal-lock');
+
+    const close = () => {
+        overlay.remove();
+        if (!hadModalLock) document.body.classList.remove('modal-lock');
+    };
+    overlay.querySelector('.ship-evolution-choice-close')?.addEventListener('click', close);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) close();
+    });
+    overlay.querySelectorAll('[data-player-ship-choice]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const target = String(button.getAttribute('data-player-ship-choice') || '');
+            close();
+            upgradePlayerShipProfile(target);
+        });
+    });
+}
+
 function renderPlayerShipWidget(ship) {
     const container = document.getElementById('homePlayerShipFrame');
     if (!container) return;
     currentPlayerShipProfile = ship || null;
     const form = normalizePlayerShipForm(ship?.form);
     const label = PLAYER_SHIP_LABELS[form] || 'ボート';
+    const homeLabel = HOME_PLAYER_SHIP_LABELS[form] || label;
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
     container.innerHTML = `
         <div class="home-player-ship-head">
-            <span>相棒の船</span>
-            <strong>${escapeHtml(label)}</strong>
+            <span>船</span>
+            <strong>${escapeHtml(homeLabel)}</strong>
         </div>
         <div class="home-player-ship-body">
             <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
             <div class="home-player-ship-meta">
-                <div>段階 ${Number(ship?.stage || 1)}</div>
-                <div>${escapeHtml(String(ship?.shipClass || 'common'))}</div>
+                <div>段${Number(ship?.stage || 1)}</div>
             </div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
-                ${upgrades.map((target) => {
-                    const costLabel = formatShipUpgradeCost(upgradeCosts[target]);
-                    return `<button type="button" data-player-ship-upgrade="${escapeHtml(target)}">${escapeHtml(PLAYER_SHIP_LABELS[target] || target)}へ${costLabel ? `<span>${escapeHtml(costLabel)}</span>` : ''}</button>`;
-                }).join('')}
+                <button type="button" data-player-ship-evolve>進化</button>
             </div>
-        ` : '<div class="home-player-ship-final">最終形態</div>'}
+        ` : '<div class="home-player-ship-final">完成</div>'}
     `;
-    container.querySelectorAll('[data-player-ship-upgrade]').forEach((button) => {
-        button.addEventListener('click', () => upgradePlayerShipProfile(String(button.getAttribute('data-player-ship-upgrade') || '')));
-    });
+    container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
 }
 
 function showShipEvolutionReveal(beforeShip, afterShip) {
