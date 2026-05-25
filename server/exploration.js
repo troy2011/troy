@@ -564,7 +564,7 @@ function initializeExplorationRoutes(app, deps) {
                 shipClass: ship.shipClass,
                 cost: destination.cost,
                 startedAtMs: now,
-                completesAtMs: now + destination.durationMs,
+                completesAtMs: now,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
@@ -669,10 +669,6 @@ function initializeExplorationRoutes(app, deps) {
                 }
                 if (effectiveStatus !== 'active') {
                     claimError = { code: 400, message: '帰還確認できる探索がありません。' };
-                    return;
-                }
-                if (Number(data.completesAtMs || 0) > now) {
-                    claimError = { code: 400, message: '探索はまだ完了していません。', completesAtMs: Number(data.completesAtMs) };
                     return;
                 }
                 activeData = data;

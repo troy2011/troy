@@ -564,6 +564,284 @@ body[data-sea-tone="night"] .home-hero-card {
     opacity: 0.8;
 }
 
+.home-player-ship-frame.is-exploring {
+    border-color: rgba(103, 232, 249, 0.58);
+    box-shadow: 0 0 22px rgba(14, 165, 233, 0.28), 0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+.home-player-ship-icon.is-exploring-sail {
+    animation: homePlayerShipSail 620ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-up {
+    animation: homePlayerShipLookUp 780ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-left {
+    animation: homePlayerShipLookLeft 760ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-battle {
+    animation: homePlayerShipBattle 160ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-treasure {
+    animation: homePlayerShipTreasure 680ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10035;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(2, 6, 23, 0.62);
+}
+
+.exploration-sequence-dialog {
+    width: min(560px, 100%);
+    padding: 14px;
+    border: 1px solid rgba(56, 189, 248, 0.34);
+    border-radius: 8px;
+    background: #082f49;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48);
+}
+
+.exploration-sequence-scene {
+    position: relative;
+    height: 260px;
+    overflow: hidden;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(125, 211, 252, 0.44) 0%, rgba(14, 165, 233, 0.26) 44%, rgba(8, 145, 178, 0.5) 45%, rgba(3, 105, 161, 0.72) 100%);
+}
+
+.exploration-sequence-sky {
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.0) 0 36px, rgba(255, 255, 255, 0.16) 36px 54px, rgba(255, 255, 255, 0.0) 54px 120px),
+        repeating-linear-gradient(0deg, rgba(186, 230, 253, 0.0) 0 24px, rgba(186, 230, 253, 0.14) 24px 28px, rgba(186, 230, 253, 0.0) 28px 58px);
+    animation: explorationSequenceSea 1100ms linear infinite;
+}
+
+.exploration-sequence-island {
+    position: absolute;
+    right: 36px;
+    bottom: 54px;
+    width: 132px;
+    height: 104px;
+    display: grid;
+    place-items: center;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 82px;
+    line-height: 1;
+    opacity: 0.52;
+    transform: translateX(26px) scale(0.86);
+    text-shadow: 0 16px 18px rgba(0, 0, 0, 0.38);
+    transition: opacity 260ms ease, transform 520ms ease;
+}
+
+.exploration-sequence-boss {
+    position: absolute;
+    right: 72px;
+    bottom: 88px;
+    display: grid;
+    place-items: center;
+    gap: 0;
+    width: 72px;
+    height: 72px;
+    border: 2px solid rgba(254, 202, 202, 0.86);
+    border-radius: 50%;
+    background: rgba(127, 29, 29, 0.86);
+    color: #fee2e2;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 42px;
+    font-weight: 900;
+    opacity: 0;
+    transform: scale(0.55);
+    box-shadow: 0 0 22px rgba(248, 113, 113, 0.42);
+}
+
+.exploration-sequence-boss span {
+    display: block;
+    line-height: 1;
+}
+
+.exploration-sequence-boss small {
+    display: block;
+    margin-top: -6px;
+    color: #fecaca;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+.exploration-sequence-ship {
+    position: absolute;
+    left: 42px;
+    bottom: 58px;
+    width: 84px;
+    height: 84px;
+    background: url("./Sprites/Ships/ships.png") 0 0 / 256px 32px no-repeat;
+    image-rendering: pixelated;
+    transform: scale(1.8);
+    filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.34));
+}
+
+.exploration-sequence-ship.is-boat { background-position: 0 0; }
+.exploration-sequence-ship.is-explorer { background-position: -32px 0; }
+.exploration-sequence-ship.is-defender { background-position: -64px 0; }
+.exploration-sequence-ship.is-fighter { background-position: -96px 0; }
+.exploration-sequence-ship.is-merchant { background-position: -128px 0; }
+
+.exploration-sequence-chest {
+    position: absolute;
+    right: 86px;
+    bottom: 80px;
+    width: 72px;
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    background: url("./Sprites/items/Chest/chest2_idle_strip8.png") 0 0 / 800% 100% no-repeat;
+    opacity: 0;
+    transform: scale(0.4);
+    filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.62));
+}
+
+.exploration-sequence-overlay.is-sail .exploration-sequence-ship {
+    animation: explorationSequenceSail 900ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-up .exploration-sequence-ship {
+    animation: explorationSequenceUp 850ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-up .exploration-sequence-island,
+.exploration-sequence-overlay.is-left .exploration-sequence-island,
+.exploration-sequence-overlay.is-battle .exploration-sequence-island,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-island {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+
+.exploration-sequence-overlay.is-left .exploration-sequence-ship {
+    animation: explorationSequenceLeft 850ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship {
+    left: 214px;
+    bottom: 72px;
+    animation: explorationSequenceBattle 150ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle .exploration-sequence-boss {
+    opacity: 1;
+    transform: scale(1);
+    animation: explorationSequenceBoss 300ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship {
+    left: 232px;
+    bottom: 58px;
+    animation: explorationSequenceTreasureShip 700ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-treasure .exploration-sequence-boss {
+    opacity: 0;
+}
+
+.exploration-sequence-overlay.is-treasure .exploration-sequence-chest {
+    opacity: 1;
+    transform: scale(1.15);
+    animation: explorationSequenceChest 850ms steps(8) infinite;
+}
+
+.exploration-sequence-copy {
+    display: grid;
+    gap: 4px;
+    margin-top: 12px;
+    color: #bae6fd;
+    text-align: center;
+}
+
+.exploration-sequence-copy strong {
+    color: #fef3c7;
+    font-size: 17px;
+}
+
+.exploration-sequence-copy span {
+    min-height: 20px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+@keyframes homePlayerShipSail {
+    0%, 100% { transform: translate(0, 0) scale(1.25) rotate(-4deg); }
+    50% { transform: translate(2px, -4px) scale(1.25) rotate(4deg); }
+}
+
+@keyframes homePlayerShipLookUp {
+    0%, 100% { transform: translateY(-4px) scale(1.25) rotate(-10deg); }
+    50% { transform: translateY(-8px) scale(1.25) rotate(0); }
+}
+
+@keyframes homePlayerShipLookLeft {
+    0%, 100% { transform: translateX(-4px) scaleX(-1.25) scaleY(1.25) rotate(-4deg); }
+    50% { transform: translateX(-9px) scaleX(-1.25) scaleY(1.25) rotate(4deg); }
+}
+
+@keyframes homePlayerShipBattle {
+    0%, 100% { transform: translate(0, 0) scale(1.25) rotate(-7deg); }
+    50% { transform: translate(3px, -2px) scale(1.25) rotate(7deg); }
+}
+
+@keyframes homePlayerShipTreasure {
+    0%, 100% { transform: translateY(0) scale(1.25); filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
+    50% { transform: translateY(-5px) scale(1.3); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.75)); }
+}
+
+@keyframes explorationSequenceSea {
+    from { transform: translateX(0); }
+    to { transform: translateX(-120px); }
+}
+
+@keyframes explorationSequenceSail {
+    0%, 100% { left: 42px; bottom: 58px; transform: scale(1.8) rotate(-4deg); }
+    50% { left: 132px; bottom: 70px; transform: scale(1.8) rotate(5deg); }
+}
+
+@keyframes explorationSequenceUp {
+    0%, 100% { left: 132px; bottom: 76px; transform: scale(1.8) rotate(-12deg); }
+    50% { left: 182px; bottom: 104px; transform: scale(1.8) rotate(0); }
+}
+
+@keyframes explorationSequenceLeft {
+    0%, 100% { left: 230px; bottom: 92px; transform: scaleX(-1.8) scaleY(1.8) rotate(-5deg); }
+    50% { left: 196px; bottom: 78px; transform: scaleX(-1.8) scaleY(1.8) rotate(5deg); }
+}
+
+@keyframes explorationSequenceBattle {
+    0%, 100% { transform: scale(1.8) rotate(-8deg); }
+    50% { transform: scale(1.86) rotate(8deg); }
+}
+
+@keyframes explorationSequenceBoss {
+    0%, 100% { transform: scale(1) rotate(-3deg); }
+    50% { transform: scale(1.08) rotate(3deg); }
+}
+
+@keyframes explorationSequenceTreasureShip {
+    0%, 100% { transform: scale(1.8); }
+    50% { transform: scale(1.9) translateY(-5px); }
+}
+
+@keyframes explorationSequenceChest {
+    from { background-position: 0 0; }
+    to { background-position: 100% 0; }
+}
+
 .ship-evolution-overlay {
     position: fixed;
     inset: 0;

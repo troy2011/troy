@@ -921,6 +921,10 @@ function formatExplorationDuration(ms) {
     return `${minutes}分`;
 }
 
+function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 const PLAYER_SHIP_LABELS = {
     boat: 'ボート',
     explorer: 'エクスプローラー',
@@ -929,11 +933,26 @@ const PLAYER_SHIP_LABELS = {
     merchant: 'マーチャント'
 };
 
+const EXPLORATION_BOSS_EMOJIS = {
+    near_sea: ['🦀', '🦈', '🐙', '🐍'],
+    coral_reef: ['🐡', '🪼', '🐙', '🦑'],
+    storm_ocean: ['🐉', '👹', '🦈', '⚡'],
+    ancient_ruins: ['🗿', '👻', '💀', '🐲'],
+    default: ['👾', '👹', '🐉', '💀', '🦑', '🐲']
+};
+
 let currentPlayerShipProfile = null;
+let explorationAutoRunning = false;
 
 function normalizePlayerShipForm(form) {
     const key = String(form || 'boat').toLowerCase();
     return PLAYER_SHIP_LABELS[key] ? key : 'boat';
+}
+
+function pickExplorationBossEmoji(destinationId) {
+    const key = String(destinationId || '').trim();
+    const list = EXPLORATION_BOSS_EMOJIS[key] || EXPLORATION_BOSS_EMOJIS.default;
+    return list[Math.floor(Math.random() * list.length)] || '👾';
 }
 
 function getPlayerShipClassName(form) {
@@ -1072,6 +1091,12 @@ function renderExplorationReport(report) {
     `;
 }
 
+function normalizeBossResult(value) {
+    const result = String(value || 'none').toLowerCase();
+    if (result === 'victory' || result === 'defeat') return result;
+    return 'none';
+}
+
 function normalizeRewardRarity(value) {
     const rarity = String(value || 'common').trim().toLowerCase();
     return ['common', 'uncommon', 'rare', 'epic', 'legendary'].includes(rarity) ? rarity : 'common';
@@ -1092,7 +1117,26 @@ function getRewardItemsForReveal(data) {
     return [];
 }
 
-function showExplorationTreasureReveal(rewards) {
+function openTreasureButton(button, item) {
+    if (!button || button.classList.contains('is-open')) return;
+    const rarity = normalizeRewardRarity(item?.rarity || item?.Rarity);
+    const name = String(item?.displayName || item?.DisplayName || item?.itemId || item?.ItemId || 'お宝');
+    button.classList.add('is-opening');
+    window.setTimeout(() => {
+        button.classList.remove('is-opening');
+        button.classList.add('is-open');
+        const nameEl = button.querySelector('.exploration-treasure-name');
+        if (nameEl) nameEl.textContent = name;
+        button.setAttribute('aria-label', `${name} ${rarity}`);
+        const overlay = button.closest('.exploration-treasure-overlay');
+        if (overlay?.querySelectorAll('.exploration-treasure-box:not(.is-open)').length === 0) {
+            const foot = overlay.querySelector('.exploration-treasure-foot');
+            if (foot) foot.textContent = 'すべてのお宝を入手しました。';
+        }
+    }, 720);
+}
+
+function showExplorationTreasureReveal(rewards, options = {}) {
     const items = (Array.isArray(rewards) ? rewards : []).filter(Boolean);
     if (!items.length) return;
     const existing = document.querySelector('.exploration-treasure-overlay');
@@ -1117,7 +1161,7 @@ function showExplorationTreasureReveal(rewards) {
                     `;
                 }).join('')}
             </div>
-            <div class="exploration-treasure-foot">宝箱を選んで開けてください。</div>
+            <div class="exploration-treasure-foot">${options.autoOpen ? '宝箱を回収中です。' : '宝箱を選んで開けてください。'}</div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -1129,24 +1173,74 @@ function showExplorationTreasureReveal(rewards) {
     });
     overlay.querySelectorAll('[data-treasure-index]').forEach((button) => {
         button.addEventListener('click', () => {
-            if (button.classList.contains('is-open')) return;
             const index = Number(button.getAttribute('data-treasure-index') || 0);
-            const item = items[index] || {};
-            const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
-            const name = String(item.displayName || item.DisplayName || item.itemId || item.ItemId || 'お宝');
-            button.classList.add('is-opening');
-            window.setTimeout(() => {
-                button.classList.remove('is-opening');
-                button.classList.add('is-open');
-                button.querySelector('.exploration-treasure-name').textContent = name;
-                button.setAttribute('aria-label', `${name} ${rarity}`);
-                if (overlay.querySelectorAll('.exploration-treasure-box:not(.is-open)').length === 0) {
-                    const foot = overlay.querySelector('.exploration-treasure-foot');
-                    if (foot) foot.textContent = 'すべてのお宝を開封しました。';
-                }
-            }, 720);
+            openTreasureButton(button, items[index] || {});
         });
     });
+    if (options.autoOpen) {
+        overlay.querySelectorAll('[data-treasure-index]').forEach((button, index) => {
+            window.setTimeout(() => openTreasureButton(button, items[index] || {}), 420 + (index * 260));
+        });
+    }
+}
+
+async function showExplorationAutoSequence(startData, destinationId) {
+    const ship = startData?.ship || currentPlayerShipProfile || {};
+    const active = startData?.active || {};
+    const form = normalizePlayerShipForm(ship.form);
+    const destinationName = active.destinationName || destinationId || '探索先';
+    const bossEmoji = pickExplorationBossEmoji(active.destinationId || destinationId);
+    const homeFrame = document.getElementById('homePlayerShipFrame');
+    const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
+    const existing = document.querySelector('.exploration-sequence-overlay');
+    existing?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = `exploration-sequence-overlay is-${form}`;
+    overlay.innerHTML = `
+        <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="探索">
+            <div class="exploration-sequence-scene">
+                <div class="exploration-sequence-sky"></div>
+                <div class="exploration-sequence-island" aria-hidden="true">🏝️</div>
+                <div class="exploration-sequence-boss" aria-hidden="true">
+                    <span>${escapeHtml(bossEmoji)}</span>
+                    <small>BOSS</small>
+                </div>
+                <div class="exploration-sequence-ship is-${form}" aria-hidden="true"></div>
+                <div class="exploration-sequence-chest" aria-hidden="true"></div>
+            </div>
+            <div class="exploration-sequence-copy">
+                <strong>${escapeHtml(destinationName)}</strong>
+                <span data-exploration-sequence-label>探索へ出発</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    homeFrame?.classList.add('is-exploring');
+    homeIcon?.classList.add('is-exploring-sail');
+
+    const label = overlay.querySelector('[data-exploration-sequence-label]');
+    const setPhase = (phase, text) => {
+        overlay.className = `exploration-sequence-overlay is-${form} is-${phase}`;
+        if (label) label.textContent = text;
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle');
+        homeIcon?.classList.add(`is-exploring-${phase}`);
+    };
+
+    setPhase('sail', '波を越えて進行中');
+    await wait(900);
+    setPhase('up', '島影を発見');
+    await wait(850);
+    setPhase('left', '上陸地点へ回り込み');
+    await wait(850);
+    setPhase('battle', 'BOSSと遭遇');
+    await wait(1050);
+    setPhase('treasure', '宝箱を発見');
+    await wait(900);
+
+    overlay.remove();
+    homeFrame?.classList.remove('is-exploring');
+    homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
 }
 
 function renderExplorationPanel(data, playFabId) {
@@ -1166,15 +1260,14 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     if (active) {
-        const done = Date.now() >= Number(active.completesAtMs || 0);
         panel.innerHTML = `
             ${head}
             <div class="ship-exploration-destination">
                 <strong>${escapeHtml(active.destinationName || '探索中')}</strong>
                 <div class="ship-exploration-meta">出航船: ${escapeHtml(active.shipName || '')}</div>
-                <div class="ship-exploration-meta">${done ? '帰還済み' : `帰還予定: ${formatETA(Number(active.completesAtMs || 0))}`}</div>
+                <div class="ship-exploration-meta">演出完了後に結果を確認できます。</div>
                 <div class="ship-exploration-actions">
-                    <button type="button" data-exploration-claim ${done ? '' : 'disabled'}>結果を見る</button>
+                    <button type="button" data-exploration-claim>結果を見る</button>
                 </div>
             </div>
             ${reports.length ? `<div class="ship-exploration-reports">${reports.map(renderExplorationReport).join('')}</div>` : ''}
@@ -1188,7 +1281,7 @@ function renderExplorationPanel(data, playFabId) {
             <div class="ship-exploration-destination">
                 <strong>${escapeHtml(destination.name)}</strong>
                 <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
-                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / ${formatExplorationDuration(destination.durationMs)} / BOSS: ${escapeHtml(destination.bossName || 'あり')}</div>
+                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / 演出後すぐ完了 / BOSS: ${escapeHtml(destination.bossName || 'あり')}</div>
                 <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
             </div>
         `).join('')
@@ -1217,24 +1310,27 @@ export async function loadExplorationPanel(playFabId) {
 
 async function startExploration(playFabId, destinationId) {
     if (!destinationId) return;
-    const ok = window.confirm('探索を開始します。出発後は帰還まで次の探索に出られません。');
-    if (!ok) return;
+    if (explorationAutoRunning) return;
+    explorationAutoRunning = true;
     try {
         const data = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), { throwOnError: true });
         renderExplorationPanel(data, playFabId);
-        showRpgMessage('探索に出発しました。帰還後に結果レポートを確認できます。');
+        await showExplorationAutoSequence(data, destinationId);
+        await claimExploration(playFabId, { autoOpenTreasure: true });
     } catch (error) {
         showRpgMessage(error?.message || '探索を開始できませんでした。');
+    } finally {
+        explorationAutoRunning = false;
     }
 }
 
-async function claimExploration(playFabId) {
+async function claimExploration(playFabId, options = {}) {
     try {
         const data = await requestClaimExploration(playFabId, { throwOnError: true });
         renderExplorationPanel(data, playFabId);
-        showExplorationTreasureReveal(getRewardItemsForReveal(data));
+        showExplorationTreasureReveal(getRewardItemsForReveal(data), { autoOpen: !!options.autoOpenTreasure });
         const report = data?.report;
-        const bossResult = report?.bossResult;
+        const bossResult = normalizeBossResult(report?.bossResult);
         const rewardName = report?.rewardItemName || data?.reward?.DisplayName || 'お宝';
         const rewardCount = report?.rewardCount ?? (data?.reward ? 1 : 0);
         const rewardSuffix = rewardCount > 0 ? `${rewardName}×${rewardCount}個を入手。` : '報酬は得られませんでした。';
