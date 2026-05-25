@@ -84,12 +84,13 @@ function formFromShipClass(shipClass) {
 function normalizePlayerShipProfile(input = {}) {
     const form = PLAYER_SHIP_FORMS[input.form] ? input.form : formFromShipClass(input.shipClass);
     const spec = PLAYER_SHIP_FORMS[form] || PLAYER_SHIP_FORMS.boat;
+    const rawName = String(input.name || spec.name).trim();
     return {
         form: spec.form,
         stage: spec.stage,
         shipClass: spec.shipClass,
         itemId: String(input.itemId || spec.itemId),
-        name: String(input.name || spec.name),
+        name: rawName.slice(0, 16) || spec.name,
         level: Math.max(1, Math.floor(Number(input.level || 1) || 1)),
         updatedAtMs: Number(input.updatedAtMs || Date.now()) || Date.now()
     };
@@ -155,10 +156,31 @@ async function upgradePlayerShipProfile(playFabId, targetForm, deps) {
     }
     const next = normalizePlayerShipProfile({
         ...PLAYER_SHIP_FORMS[target],
+        name: current.name,
         level: current.level + 1,
         updatedAtMs: Date.now()
     });
     return savePlayerShipProfile(playFabId, next, deps);
+}
+
+async function renamePlayerShipProfile(playFabId, name, deps) {
+    const current = await getPlayerShipProfile(playFabId, deps);
+    const trimmed = String(name || '').trim();
+    if (!trimmed) {
+        const error = new Error('InvalidShipName');
+        error.reason = 'empty';
+        throw error;
+    }
+    if (trimmed.length > 16) {
+        const error = new Error('InvalidShipName');
+        error.reason = 'tooLong';
+        throw error;
+    }
+    return savePlayerShipProfile(playFabId, {
+        ...current,
+        name: trimmed,
+        updatedAtMs: Date.now()
+    }, deps);
 }
 
 function normalizePresetPayload(input) {
@@ -262,5 +284,6 @@ module.exports = {
     getPlayerShipProfile,
     savePlayerShipProfile,
     upgradePlayerShipProfile,
+    renamePlayerShipProfile,
     normalizePlayerShipProfile
 };

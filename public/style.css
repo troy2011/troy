@@ -493,18 +493,35 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 .home-player-ship-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 4px;
-    align-items: baseline;
+    display: grid;
+    place-items: center;
+    gap: 2px;
     color: var(--text-sub);
     font-size: 9px;
+    text-align: center;
 }
 
 .home-player-ship-head strong {
     color: #fde68a;
     font-size: 10px;
+    line-height: 1.15;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.home-player-ship-title {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-sub);
+    font: inherit;
+    line-height: 1.15;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    cursor: pointer;
 }
 
 .home-player-ship-body {

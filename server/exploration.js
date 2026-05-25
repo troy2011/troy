@@ -654,6 +654,26 @@ function initializeExplorationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/player-ship/name', async (req, res) => {
+        let { playFabId, name } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        playFabId = await requireAuthed(req, res, playFabId);
+        if (!playFabId) return;
+        try {
+            const ship = await resourceStorage.renamePlayerShipProfile(playFabId, name, { promisifyPlayFab, PlayFabServer });
+            res.json({
+                success: true,
+                ship: attachUpgradeCosts(ship, catalogCache)
+            });
+        } catch (error) {
+            if (error?.message === 'InvalidShipName') {
+                return res.status(400).json({ error: '船の名前は1〜16文字で入力してください。' });
+            }
+            console.error('[player-ship/name] failed:', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '船の名前を変更できませんでした。' });
+        }
+    });
+
     app.post('/api/exploration/start', async (req, res) => {
         let { playFabId } = req.body || {};
         const destinationId = normalizeDestinationId(req.body?.destinationId);

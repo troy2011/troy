@@ -534,6 +534,10 @@ export function upgradePlayerShip(playFabId, targetForm, requestId, options) {
     return callApiWithLoader('/api/player-ship/upgrade', { playFabId, targetForm, requestId }, options);
 }
 
+export function renamePlayerShip(playFabId, name, options) {
+    return callApiWithLoader('/api/player-ship/name', { playFabId, name }, options);
+}
+
 // ── バトルルーム ────────────────────────────────────────────
 
 export function createBattleRoom(playFabId, territoryId, options) {

@@ -18,6 +18,7 @@ import {
     claimExploration as requestClaimExploration,
     getPlayerShipStatus as requestPlayerShipStatus,
     upgradePlayerShip as requestUpgradePlayerShip,
+    renamePlayerShip as requestRenamePlayerShip,
     getInventory as fetchInventory,
     getPlayerShips as fetchPlayerShips,
     getShipsInView as fetchShipsInView,
@@ -1072,19 +1073,16 @@ function renderPlayerShipWidget(ship) {
     currentPlayerShipProfile = ship || null;
     const form = normalizePlayerShipForm(ship?.form);
     const label = PLAYER_SHIP_LABELS[form] || 'ボート';
-    const homeLabel = HOME_PLAYER_SHIP_LABELS[form] || label;
+    const shipName = String(ship?.name || label).trim() || label;
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
     container.innerHTML = `
         <div class="home-player-ship-head">
-            <span>船</span>
-            <strong>${escapeHtml(homeLabel)}</strong>
+            <button type="button" class="home-player-ship-title" data-player-ship-rename>相棒の船</button>
+            <strong>${escapeHtml(shipName)}</strong>
         </div>
         <div class="home-player-ship-body">
             <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
-            <div class="home-player-ship-meta">
-                <div>段${Number(ship?.stage || 1)}</div>
-            </div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
@@ -1093,6 +1091,31 @@ function renderPlayerShipWidget(ship) {
         ` : '<div class="home-player-ship-final">完成</div>'}
     `;
     container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
+    container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
+}
+
+async function renamePlayerShipProfile() {
+    const playFabId = window.myPlayFabId;
+    if (!playFabId || !currentPlayerShipProfile) return;
+    const currentName = String(currentPlayerShipProfile.name || '').trim();
+    const input = window.prompt('船の名前を入力してください（16文字まで）', currentName);
+    if (input === null) return;
+    const name = String(input || '').trim();
+    if (!name) {
+        showRpgMessage('船の名前を入力してください。');
+        return;
+    }
+    if (name.length > 16) {
+        showRpgMessage('船の名前は16文字までです。');
+        return;
+    }
+    try {
+        const data = await requestRenamePlayerShip(playFabId, name, { throwOnError: true });
+        renderPlayerShipWidget(data?.ship || null);
+        showRpgMessage(`船の名前を「${name}」にしました。`);
+    } catch (error) {
+        showRpgMessage(error?.message || '船の名前を変更できませんでした。');
+    }
 }
 
 function showShipEvolutionReveal(beforeShip, afterShip) {
