@@ -934,11 +934,27 @@ const PLAYER_SHIP_LABELS = {
 };
 
 const EXPLORATION_BOSS_EMOJIS = {
-    near_sea: ['🦀', '🦈', '🐙', '🐍'],
-    coral_reef: ['🐡', '🪼', '🐙', '🦑'],
-    storm_ocean: ['🐉', '👹', '🦈', '⚡'],
-    ancient_ruins: ['🗿', '👻', '💀', '🐲'],
+    near_sea: ['🏴‍☠️', '🦀', '🦈', '🐙'],
+    old_lighthouse: ['👻', '💀', '🧟', '🕯️'],
+    sunken_trader: ['🦑', '🐙', '🐲', '👾'],
+    pirate_cove: ['👹', '🏴‍☠️', '🐉', '💀'],
     default: ['👾', '👹', '🐉', '💀', '🦑', '🐲']
+};
+
+const EXPLORATION_DESTINATION_VISUALS = {
+    near_sea: { island: '🏝️', sky: 'day', label: '穏やかな近海' },
+    old_lighthouse: { island: '🗼', sky: 'mist', label: '霧の灯台跡' },
+    sunken_trader: { island: '🚢', sky: 'deep', label: '沈没商船' },
+    pirate_cove: { island: '⛰️', sky: 'storm', label: '海賊の隠れ家' },
+    default: { island: '🏝️', sky: 'day', label: '未知の海域' }
+};
+
+const EXPLORATION_SHIP_TRAITS = {
+    boat: { label: '慎重に接近', className: 'is-boat-run' },
+    explorer: { label: '追い風で高速接近', className: 'is-explorer-run' },
+    defender: { label: '防壁を展開', className: 'is-defender-run' },
+    fighter: { label: '砲撃態勢', className: 'is-fighter-run' },
+    merchant: { label: '大きな積荷で回収', className: 'is-merchant-run' }
 };
 
 let currentPlayerShipProfile = null;
@@ -953,6 +969,19 @@ function pickExplorationBossEmoji(destinationId) {
     const key = String(destinationId || '').trim();
     const list = EXPLORATION_BOSS_EMOJIS[key] || EXPLORATION_BOSS_EMOJIS.default;
     return list[Math.floor(Math.random() * list.length)] || '👾';
+}
+
+function resolveExplorationBossEmoji(destinationId, bossName) {
+    const key = String(destinationId || '').trim();
+    const list = EXPLORATION_BOSS_EMOJIS[key] || EXPLORATION_BOSS_EMOJIS.default;
+    const source = String(bossName || key || 'boss');
+    const index = Array.from(source).reduce((sum, char) => sum + char.codePointAt(0), 0) % list.length;
+    return list[index] || pickExplorationBossEmoji(key);
+}
+
+function getExplorationDestinationVisual(destinationId) {
+    const key = String(destinationId || '').trim();
+    return EXPLORATION_DESTINATION_VISUALS[key] || EXPLORATION_DESTINATION_VISUALS.default;
 }
 
 function getPlayerShipClassName(form) {
@@ -1093,7 +1122,7 @@ function renderExplorationReport(report) {
 
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
-    if (result === 'victory' || result === 'defeat') return result;
+    if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
     return 'none';
 }
 
@@ -1184,34 +1213,139 @@ function showExplorationTreasureReveal(rewards, options = {}) {
     }
 }
 
-async function showExplorationAutoSequence(startData, destinationId) {
+function renderExplorationRewardChests(count) {
+    const total = Math.max(0, Math.min(6, Number(count || 0)));
+    if (!total) return '<span class="exploration-sequence-no-chest">なし</span>';
+    return Array.from({ length: total }, (_, index) => '<span class="exploration-sequence-mini-chest" style="--i:' + index + ';"></span>').join('');
+}
+
+function getExplorationBattleLogLines(report) {
+    return String(report?.bossLog || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .filter((line) => !line.includes('戦闘開始'))
+        .slice(0, 4);
+}
+
+function showExplorationResultSummary(data, options = {}) {
+    const report = data?.report || {};
+    const bossResult = normalizeBossResult(report.bossResult);
+    const rewards = getRewardItemsForReveal(data);
+    const rewardHtml = rewards.length
+        ? rewards.map((item) => `
+            <li>
+                <strong>${escapeHtml(item.displayName || item.DisplayName || item.itemId || item.ItemId || 'お宝')}</strong>
+                <span>${escapeHtml(normalizeRewardRarity(item.rarity || item.Rarity))}</span>
+            </li>
+        `).join('')
+        : '<li><strong>報酬なし</strong><span>none</span></li>';
+    const existing = document.querySelector('.exploration-result-overlay');
+    existing?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = `exploration-result-overlay is-${bossResult}`;
+    overlay.innerHTML = `
+        <div class="exploration-result-dialog" role="dialog" aria-modal="true" aria-label="探索結果">
+            <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
+            <div class="exploration-result-head">
+                <span>${bossResult === 'victory' ? '勝利' : bossResult === 'defeat' ? '撤退' : bossResult === 'escaped' || bossResult === 'draw' ? '離脱' : '発見'}</span>
+                <strong>${escapeHtml(report.destinationName || '探索結果')}</strong>
+            </div>
+            <div class="exploration-result-body">
+                <div>
+                    <b>BOSS</b>
+                    <span>${escapeHtml(report.bossName || '遭遇なし')}</span>
+                </div>
+                <div>
+                    <b>結果</b>
+                    <span>${bossResult === 'victory' ? '撃破成功、HP全回復' : bossResult === 'defeat' ? '敗北、HP全回復' : bossResult === 'escaped' || bossResult === 'draw' ? '決着なし、HP全回復' : '戦闘なし、HP全回復'}</span>
+                </div>
+                <div>
+                    <b>お宝</b>
+                    <span>${Number(report.rewardCount || rewards.length || 0).toLocaleString('ja-JP')}個</span>
+                </div>
+            </div>
+            <ul class="exploration-result-rewards">${rewardHtml}</ul>
+            <div class="exploration-result-actions">
+                <button type="button" data-exploration-result-close>閉じる</button>
+                ${options.playFabId ? '<button type="button" data-exploration-result-next>次の探索</button>' : ''}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('.exploration-result-close')?.addEventListener('click', close);
+    overlay.querySelector('[data-exploration-result-close]')?.addEventListener('click', close);
+    overlay.querySelector('[data-exploration-result-next]')?.addEventListener('click', () => {
+        close();
+        loadExplorationPanel(options.playFabId);
+    });
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) close();
+    });
+}
+
+function handleExplorationClaimResult(data, playFabId, options = {}) {
+    renderExplorationPanel(data, playFabId);
+    const rewards = getRewardItemsForReveal(data);
+    showExplorationTreasureReveal(rewards, { autoOpen: !!options.autoOpenTreasure });
+    showExplorationResultSummary(data, { playFabId });
+    const report = data?.report || {};
+    const bossResult = normalizeBossResult(report.bossResult);
+    const rewardName = report.rewardItemName || data?.reward?.DisplayName || 'お宝';
+    const rewardCount = report.rewardCount ?? (data?.reward ? 1 : 0);
+    const rewardSuffix = rewardCount > 0 ? `${rewardName}×${rewardCount}個を入手。` : '報酬は得られませんでした。';
+    if (bossResult === 'defeat') {
+        showRpgMessage(`BOSS「${report.bossName}」に敗北。探索後にHPは全回復しました。${rewardSuffix}`, 3500);
+    } else if (bossResult === 'victory') {
+        showRpgMessage(`BOSS「${report.bossName}」を撃破！探索後にHPは全回復しました。${rewardSuffix}`, 3500);
+    } else if (bossResult === 'escaped' || bossResult === 'draw') {
+        showRpgMessage(`BOSS「${report.bossName}」との戦闘は決着せず終了。HPは全回復しました。${rewardSuffix}`, 3500);
+    } else {
+        showRpgMessage(`探索レポートを確認しました。HPは全回復しました。${rewardSuffix}`);
+    }
+}
+
+async function showExplorationAutoSequence(startData, destinationId, claimData = null) {
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
     const form = normalizePlayerShipForm(ship.form);
-    const destinationName = active.destinationName || destinationId || '探索先';
-    const bossEmoji = pickExplorationBossEmoji(active.destinationId || destinationId);
+    const report = claimData?.report || {};
+    const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
+    const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
+    const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
+    const bossResult = normalizeBossResult(report.bossResult);
+    const bossEmoji = resolveExplorationBossEmoji(resolvedDestinationId, report.bossName);
+    const rewards = getRewardItemsForReveal(claimData);
+    const rewardCount = Number(report.rewardCount || rewards.length || 0);
+    const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
+    const battleLogLines = getExplorationBattleLogLines(report);
     const homeFrame = document.getElementById('homePlayerShipFrame');
     const homeIcon = homeFrame?.querySelector('.home-player-ship-icon');
     const existing = document.querySelector('.exploration-sequence-overlay');
     existing?.remove();
 
     const overlay = document.createElement('div');
-    overlay.className = `exploration-sequence-overlay is-${form}`;
+    overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky}`;
     overlay.innerHTML = `
         <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="探索">
             <div class="exploration-sequence-scene">
                 <div class="exploration-sequence-sky"></div>
-                <div class="exploration-sequence-island" aria-hidden="true">🏝️</div>
+                <div class="exploration-sequence-island" aria-hidden="true">${escapeHtml(destinationVisual.island)}</div>
                 <div class="exploration-sequence-boss" aria-hidden="true">
                     <span>${escapeHtml(bossEmoji)}</span>
                     <small>BOSS</small>
                 </div>
+                <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
                 <div class="exploration-sequence-ship is-${form}" aria-hidden="true"></div>
-                <div class="exploration-sequence-chest" aria-hidden="true"></div>
+                <div class="exploration-sequence-chests" aria-hidden="true">${renderExplorationRewardChests(rewardCount)}</div>
+                <div class="exploration-sequence-log" aria-live="polite"></div>
             </div>
             <div class="exploration-sequence-copy">
                 <strong>${escapeHtml(destinationName)}</strong>
-                <span data-exploration-sequence-label>探索へ出発</span>
+                <span data-exploration-sequence-label>${escapeHtml(shipTrait.label)}</span>
             </div>
         </div>
     `;
@@ -1220,22 +1354,30 @@ async function showExplorationAutoSequence(startData, destinationId) {
     homeIcon?.classList.add('is-exploring-sail');
 
     const label = overlay.querySelector('[data-exploration-sequence-label]');
+    const logBox = overlay.querySelector('.exploration-sequence-log');
     const setPhase = (phase, text) => {
-        overlay.className = `exploration-sequence-overlay is-${form} is-${phase}`;
+        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
-        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle');
+        homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
         homeIcon?.classList.add(`is-exploring-${phase}`);
     };
+    const setBattleLog = (count) => {
+        if (!logBox) return;
+        logBox.innerHTML = battleLogLines.slice(0, count).map((line) => `<div>${escapeHtml(line)}</div>`).join('');
+    };
 
-    setPhase('sail', '波を越えて進行中');
+    setPhase('sail', shipTrait.label);
     await wait(900);
-    setPhase('up', '島影を発見');
+    setPhase('up', `${destinationVisual.label}を発見`);
     await wait(850);
     setPhase('left', '上陸地点へ回り込み');
     await wait(850);
-    setPhase('battle', 'BOSSと遭遇');
+    setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `BOSS「${report.bossName || '???'}」と交戦`);
+    setBattleLog(2);
+    await wait(520);
+    setBattleLog(4);
     await wait(1050);
-    setPhase('treasure', '宝箱を発見');
+    setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');
     await wait(900);
 
     overlay.remove();
@@ -1313,10 +1455,11 @@ async function startExploration(playFabId, destinationId) {
     if (explorationAutoRunning) return;
     explorationAutoRunning = true;
     try {
-        const data = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), { throwOnError: true });
-        renderExplorationPanel(data, playFabId);
-        await showExplorationAutoSequence(data, destinationId);
-        await claimExploration(playFabId, { autoOpenTreasure: true });
+        const startData = await requestStartExploration(playFabId, destinationId, createRequestId('exploration-start'), { throwOnError: true });
+        renderExplorationPanel(startData, playFabId);
+        const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
+        await showExplorationAutoSequence(startData, destinationId, claimData);
+        handleExplorationClaimResult(claimData, playFabId, { autoOpenTreasure: true });
     } catch (error) {
         showRpgMessage(error?.message || '探索を開始できませんでした。');
     } finally {
@@ -1327,20 +1470,7 @@ async function startExploration(playFabId, destinationId) {
 async function claimExploration(playFabId, options = {}) {
     try {
         const data = await requestClaimExploration(playFabId, { throwOnError: true });
-        renderExplorationPanel(data, playFabId);
-        showExplorationTreasureReveal(getRewardItemsForReveal(data), { autoOpen: !!options.autoOpenTreasure });
-        const report = data?.report;
-        const bossResult = normalizeBossResult(report?.bossResult);
-        const rewardName = report?.rewardItemName || data?.reward?.DisplayName || 'お宝';
-        const rewardCount = report?.rewardCount ?? (data?.reward ? 1 : 0);
-        const rewardSuffix = rewardCount > 0 ? `${rewardName}×${rewardCount}個を入手。` : '報酬は得られませんでした。';
-        if (bossResult === 'defeat') {
-            showRpgMessage(`BOSS「${report.bossName}」に敗北…HPを消費しました。${rewardSuffix}`, 3500);
-        } else if (bossResult === 'victory') {
-            showRpgMessage(`BOSS「${report.bossName}」を撃破！ ${rewardSuffix}`, 3500);
-        } else {
-            showRpgMessage(`探索レポートを確認しました。${rewardSuffix}`);
-        }
+        handleExplorationClaimResult(data, playFabId, options);
     } catch (error) {
         showRpgMessage(error?.message || '探索結果を確認できませんでした。');
     }

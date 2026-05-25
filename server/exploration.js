@@ -1,5 +1,6 @@
 const resourceStorage = require('./resourceStorage');
 const { drawLocalGachaItem } = require('./gacha');
+const battleRoutes = require('./routes/battleRoutes');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
@@ -157,18 +158,61 @@ async function resolveActiveShip(playFabId, deps) {
 }
 
 const BOSS_STATS = {
-    near_sea:       { hp: 50,  attack: 8,  defense: 2  },
-    old_lighthouse: { hp: 120, attack: 20, defense: 8  },
-    sunken_trader:  { hp: 150, attack: 25, defense: 12 },
-    pirate_cove:    { hp: 250, attack: 45, defense: 20 }
-};
-
-const SHIP_COMBAT_MODS = {
-    fighter:  { attackMul: 1.5, defenseMul: 1.0 },
-    defender: { attackMul: 1.0, defenseMul: 1.6 },
-    merchant: { attackMul: 0.8, defenseMul: 1.0 },
-    explorer: { attackMul: 1.0, defenseMul: 1.0 },
-    common:   { attackMul: 0.7, defenseMul: 0.8 }
+    near_sea: {
+        hp: 45,
+        attack: 8,
+        defense: 2,
+        strength: 8,
+        guard: 2,
+        agility: 8,
+        weapon: 'sword',
+        skills: [
+            { type: 'weapon', weapon: 'sword', name: '小太刀の連撃', procChance: 0.16, powerMultiplier: 1.16 },
+            { type: 'passive', weapon: 'sword', name: '小型海賊の身軽さ', level: 1 }
+        ]
+    },
+    old_lighthouse: {
+        hp: 110,
+        attack: 15,
+        defense: 7,
+        strength: 14,
+        guard: 8,
+        agility: 14,
+        mp: 22,
+        weapon: 'staff',
+        magicPower: 14,
+        skills: [
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '灯火の呪い', mpCost: 6, minRange: 1, maxRange: 2, powerMultiplier: 1.16 },
+            { type: 'weapon', weapon: 'staff', name: '霊気集中', procChance: 0.16, powerMultiplier: 1.16 },
+            { type: 'passive', weapon: 'staff', name: '亡霊の集中', level: 2 }
+        ]
+    },
+    sunken_trader: {
+        hp: 135,
+        attack: 18,
+        defense: 10,
+        strength: 16,
+        guard: 12,
+        agility: 10,
+        weapon: 'shield',
+        skills: [
+            { type: 'passive', weapon: 'shield', name: '沈没船の守り', level: 3 },
+            { type: 'weapon', weapon: 'blunt', name: '錆びた錨撃ち', procChance: 0.14, powerMultiplier: 1.18 }
+        ]
+    },
+    pirate_cove: {
+        hp: 220,
+        attack: 32,
+        defense: 14,
+        strength: 24,
+        guard: 16,
+        agility: 20,
+        weapon: 'axe',
+        skills: [
+            { type: 'weapon', weapon: 'axe', name: '荒くれ強撃', procChance: 0.2, powerMultiplier: 1.25 },
+            { type: 'passive', weapon: 'axe', name: '海賊頭の威圧', level: 3 }
+        ]
+    }
 };
 
 const DEFAULT_EXPLORATION_GACHA_PROFILES = {
@@ -259,124 +303,204 @@ function attachUpgradeCosts(ship, catalogCache) {
     };
 }
 
-// BOSS出現なし:1個 / BOSS勝利:2個 / BOSS敗北:0個、merchant は+1
+// BOSS出現なし:1個 / BOSS勝利:2個 / 逃走・決着なし:1個 / BOSS敗北:0個、merchant は+1
 function resolveRewardCount(bossResult, shipClass) {
     let base;
     if (!bossResult || !bossResult.bossAppeared) {
         base = 1;
     } else if (bossResult.playerWon) {
         base = 2;
+    } else if (bossResult.escaped || bossResult.draw) {
+        base = 1;
     } else {
         base = 0;
     }
     return shipClass === 'merchant' ? base + 1 : base;
 }
 
-// HP更新は行わない。呼び出し元が Firestore 保存後に applyHpCost で適用する
+function createBossEquipmentRef(weaponType, category = 'Weapon') {
+    const normalized = String(weaponType || 'blunt').trim().toLowerCase();
+    return {
+        customData: {
+            Category: category,
+            ManifestWeaponType: normalized,
+            Power: 0,
+            Defense: 0
+        }
+    };
+}
+
+function buildExplorationBossProfile(destination, bossBase) {
+    const weapon = String(bossBase.weapon || 'blunt').trim().toLowerCase();
+    const equipment = {};
+    if (weapon === 'shield') {
+        equipment.RightHand = createBossEquipmentRef('blunt');
+        equipment.LeftHand = createBossEquipmentRef('shield', 'Shield');
+    } else {
+        equipment.RightHand = createBossEquipmentRef(weapon);
+    }
+    return {
+        id: `boss-${destination.id}`,
+        stats: {
+            DisplayName: destination.bossName,
+            Level: Math.max(1, Number(bossBase.level || 1)),
+            HP: bossBase.hp,
+            MaxHP: bossBase.hp,
+            CurrentHP: bossBase.hp,
+            MP: Number(bossBase.mp || 0) || 0,
+            MaxMP: Number(bossBase.mp || 0) || 0,
+            CurrentMP: Number(bossBase.mp || 0) || 0,
+            ちから: Number(bossBase.strength || 1) || 1,
+            みのまもり: Number(bossBase.guard || 0) || 0,
+            すばやさ: Number(bossBase.agility || 1) || 1,
+            かしこさ: Number(bossBase.intelligence || 0) || 0
+        },
+        equipmentStats: {
+            Power: bossBase.attack,
+            Defense: bossBase.defense,
+            Agi: 0,
+            Int: 0,
+            MagicPower: Number(bossBase.magicPower || 0) || 0,
+            HealPower: 0,
+            MpEfficiency: 0,
+            CastRate: 0,
+            StatusRate: 0
+        },
+        equipment,
+        skills: Array.isArray(bossBase.skills) ? bossBase.skills : []
+    };
+}
+
+async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, PlayFabServer }) {
+    if (typeof battleRoutes.getPlayerFullProfile === 'function') {
+        try {
+            return await battleRoutes.getPlayerFullProfile(playFabId);
+        } catch (error) {
+            console.warn('[exploration/boss] 白兵戦プロフィール取得失敗。統計のみで代替します:', error?.message || error);
+        }
+    }
+
+    const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
+    const st = {};
+    (result?.Statistics || []).forEach((s) => { st[s.StatisticName] = s.Value; });
+    const hp = Math.max(10, Number(st.HP || 30));
+    const maxHp = Math.max(hp, Number(st.MaxHP || hp));
+    return {
+        id: playFabId,
+        stats: {
+            ...st,
+            Level: Math.max(1, Number(st.Level || 1)),
+            CurrentHP: hp,
+            HP: hp,
+            MaxHP: maxHp
+        },
+        equipmentStats: {
+            Power: 0,
+            Defense: 0,
+            Agi: 0,
+            Int: 0,
+            MagicPower: 0,
+            HealPower: 0,
+            MpEfficiency: 0,
+            CastRate: 0,
+            StatusRate: 0
+        },
+        equipment: {}
+    };
+}
+
+// BOSS戦では一時的にHPを使うが、探索後に全回復する
 async function resolveBossBattle(playFabId, destination, shipClass, { promisifyPlayFab, PlayFabServer }) {
     const bossBase = BOSS_STATS[destination.id] || BOSS_STATS.near_sea;
-    const mod = SHIP_COMBAT_MODS[shipClass] || SHIP_COMBAT_MODS.common;
-
-    let playerHp, playerAtk, playerDef;
+    let player;
     try {
-        const result = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
-        const st = {};
-        (result?.Statistics || []).forEach((s) => { st[s.StatisticName] = s.Value; });
-        const level = Math.max(1, Number(st.Level || 1));
-        const strength = Number(st.ちから || 0);
-        const defense = Number(st.みのまもり || 0);
-        playerHp = Math.max(10, Number(st.HP || 30));
-        playerAtk = Math.max(1, Math.floor((strength * level / 128) + 2) * mod.attackMul);
-        playerDef = Math.floor(defense * mod.defenseMul);
-    } catch {
-        playerHp = 30; playerAtk = Math.max(1, 3 * mod.attackMul); playerDef = 0;
+        player = await getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, PlayFabServer });
+    } catch (error) {
+        console.warn('[exploration/boss] プレイヤープロフィール取得に失敗。最低値で代替します:', error?.message || error);
+        player = {
+            id: playFabId,
+            stats: { Level: 1, HP: 30, MaxHP: 30, CurrentHP: 30, ちから: 1, みのまもり: 0 },
+            equipmentStats: { Power: 0, Defense: 0 },
+            equipment: {}
+        };
     }
 
-    let bossHp = bossBase.hp;
-    const bossAtk = bossBase.attack;
-    const bossDef = bossBase.defense;
-    const log = [];
-    const MAX_ROUNDS = 15;
+    const boss = buildExplorationBossProfile(destination, bossBase);
+    player.stats = player.stats || {};
+    player.equipmentStats = player.equipmentStats || {};
+    player.stats.CurrentHP = Math.max(1, Number(player.stats.CurrentHP || player.stats.HP || 30));
+    boss.stats.CurrentHP = boss.stats.MaxHP;
 
-    for (let round = 1; round <= MAX_ROUNDS && playerHp > 0 && bossHp > 0; round++) {
-        const playerDmg = Math.max(1, Math.floor(playerAtk - bossDef));
-        const bossDmg = Math.max(0, Math.floor(bossAtk - playerDef));
-        bossHp -= playerDmg;
-        log.push(`ラウンド${round}: プレイヤー→${playerDmg}ダメージ`);
-        if (bossHp <= 0) break;
-        playerHp -= bossDmg;
-        log.push(`${destination.bossName}の反撃: ${bossDmg}ダメージ (残HP: ${Math.max(0, playerHp)})`);
-    }
-
-    const playerWon = bossHp <= 0;
-    const hpCost = playerWon ? Math.max(0, bossBase.hp - Math.max(0, playerHp)) : Math.floor(bossBase.hp * 0.6);
-
+    const battleResult = await battleRoutes.runBattle(player, boss);
+    const playerWon = battleResult?.winner?.id === player.id;
+    const escaped = !!battleResult?.escaped;
+    const draw = !escaped && !battleResult?.winner;
     return {
         bossAppeared: true,
         playerWon,
-        hpCost,
+        escaped,
+        draw,
+        hpCost: 0,
         battleLog: [
             `${destination.bossName}と戦闘！`,
-            ...log,
-            playerWon ? `撃破！ (HPコスト: ${hpCost})` : `敗北…HPを${hpCost}失った。`
+            ...(Array.isArray(battleResult?.logs) ? battleResult.logs : []),
+            escaped
+                ? '戦闘は決着せず終了した。探索後にHPは全回復した。'
+                : draw
+                    ? '決着はつかなかった。探索後にHPは全回復した。'
+                : (playerWon ? '撃破！探索後にHPは全回復した。' : '敗北したが、探索後にHPは全回復した。')
         ].join('\n')
     };
 }
 
-// Firestore保存後に呼び出す。失敗はログのみ（ベストエフォート）
-async function applyHpCost(playFabId, hpCost, { promisifyPlayFab, PlayFabServer }) {
-    if (!hpCost || hpCost <= 0) return true;
+async function restoreHpToFull(playFabId, { promisifyPlayFab, PlayFabServer }) {
     try {
         const statResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId });
         const currentSt = {};
         (statResult?.Statistics || []).forEach((s) => { currentSt[s.StatisticName] = s.Value; });
-        const currentHp = Number(currentSt.HP || 1);
+        const maxHp = Math.max(1, Number(currentSt.MaxHP || currentSt.HP || 30));
         await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
             PlayFabId: playFabId,
-            Statistics: [{ StatisticName: 'HP', Value: Math.max(1, currentHp - hpCost) }]
+            Statistics: [{ StatisticName: 'HP', Value: maxHp }]
         });
         return true;
     } catch (err) {
-        console.warn('[exploration/boss] HP更新失敗:', err?.message || err);
+        console.warn('[exploration/boss] HP全回復失敗:', err?.message || err);
         return false;
     }
 }
 
-async function applyHpCostOnce(activeRef, playFabId, bossResult, deps) {
-    const hpCost = Number(bossResult?.hpCost || 0);
-    if (hpCost <= 0) return;
-
+async function restoreHpToFullOnce(activeRef, playFabId, deps) {
     let shouldApply = false;
     await activeRef.firestore.runTransaction(async (tx) => {
         const snap = await tx.get(activeRef);
         if (!snap.exists) return;
         const data = snap.data() || {};
-        if (data.hpApplied || data.hpApplyReserved) return;
+        if (data.hpRestored || data.hpRestoreReserved) return;
         shouldApply = true;
         tx.update(activeRef, {
-            hpApplyReserved: true,
-            hpApplyReservedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
-            hpCostReserved: hpCost,
+            hpRestoreReserved: true,
+            hpRestoreReservedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
         });
     });
 
     if (!shouldApply) return;
 
-    const applied = await applyHpCost(playFabId, hpCost, deps);
+    const applied = await restoreHpToFull(playFabId, deps);
     const update = applied
         ? {
-            hpApplied: true,
-            hpAppliedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
+            hpRestored: true,
+            hpRestoredAt: deps.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
         }
         : {
-            hpApplyFailed: true,
-            hpApplyFailedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
+            hpRestoreFailed: true,
+            hpRestoreFailedAt: deps.admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: deps.admin.firestore.FieldValue.serverTimestamp()
         };
     await activeRef.update(update).catch((err) => {
-        console.warn('[exploration/boss] HP適用済みフラグ更新失敗:', err?.message || err);
+        console.warn('[exploration/boss] HP全回復フラグ更新失敗:', err?.message || err);
     });
 }
 
@@ -387,9 +511,11 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     if (!bossResult || !bossResult.bossAppeared) {
         lines.push('大きな戦闘を避けながら、海域を丁寧に調査しました。');
     } else if (bossResult.playerWon) {
-        lines.push(`BOSS「${destination.bossName}」と激闘の末、勝利しました！ (HP消費: ${bossResult.hpCost})`);
+        lines.push(`BOSS「${destination.bossName}」と激闘の末、勝利しました！探索後にHPは全回復しました。`);
+    } else if (bossResult.escaped || bossResult.draw) {
+        lines.push(`BOSS「${destination.bossName}」との戦闘は決着せず、持ち帰れるお宝だけを回収しました。探索後にHPは全回復しました。`);
     } else {
-        lines.push(`BOSS「${destination.bossName}」に敗北しました。(HP消費: ${bossResult.hpCost})`);
+        lines.push(`BOSS「${destination.bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
     }
     if (ship.shipClass === 'merchant') lines.push('積荷スペースが広く、お宝を多く持ち帰った。');
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
@@ -691,15 +817,15 @@ function initializeExplorationRoutes(app, deps) {
             let rolledRewards = [];
 
             if (isRetry) {
-                // Firestore 保存済みデータを再利用（再抽選・HP再減算なし）
+                // Firestore 保存済みデータを再利用（再抽選なし）
                 bossResult = activeData.bossResultData || null;
                 rolledRewards = Array.isArray(activeData.rolledRewards) ? activeData.rolledRewards : [];
                 rolledItemIds = rolledRewards.length
                     ? rolledRewards.map((entry) => String(entry.itemId || '')).filter(Boolean)
                     : (activeData.rolledRewardIds || []);
-                await applyHpCostOnce(activeRef, playFabId, bossResult, { admin, promisifyPlayFab, PlayFabServer });
+                await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
             } else {
-                // 初回: BOSS戦闘 → 抽選 → Firestore保存 → HP適用
+                // 初回: BOSS戦闘 → 抽選 → Firestore保存 → HP全回復
                 const bossEncountered = Math.random() < 0.35;
                 if (bossEncountered) {
                     bossResult = await resolveBossBattle(playFabId, destination, ship.shipClass, { promisifyPlayFab, PlayFabServer });
@@ -725,12 +851,12 @@ function initializeExplorationRoutes(app, deps) {
                     rolledRewardIds: rolledItemIds,
                     rolledRewards,
                     bossResultData: bossResult,
-                    hpApplied: false,
+                    hpRestored: false,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
 
-                // HP は Firestore で適用予約を取れた1リクエストだけが反映する
-                await applyHpCostOnce(activeRef, playFabId, bossResult, { admin, promisifyPlayFab, PlayFabServer });
+                // HP全回復は Firestore で予約を取れた1リクエストだけが反映する
+                await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
             }
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
@@ -764,7 +890,9 @@ function initializeExplorationRoutes(app, deps) {
                 shipClass: ship.shipClass,
                 bossName: destination.bossName,
                 bossAppeared: bossResult?.bossAppeared || false,
-                bossResult: bossResult ? (bossResult.playerWon ? 'victory' : 'defeat') : 'none',
+                bossResult: bossResult
+                    ? (bossResult.playerWon ? 'victory' : (bossResult.escaped || bossResult.draw ? 'escaped' : 'defeat'))
+                    : 'none',
                 bossLog: bossResult?.battleLog || '',
                 rewardItemId: rewardItemId || '',
                 rewardItemName: rewardDisplayName,

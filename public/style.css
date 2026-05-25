@@ -480,8 +480,9 @@ body[data-sea-tone="night"] .home-hero-card {
 
 .home-player-ship-frame {
     position: absolute;
-    right: 8px;
-    bottom: 8px;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 112px;
     min-height: 126px;
     padding: 8px;
@@ -513,21 +514,20 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 .home-player-ship-icon {
-    width: 54px;
-    height: 54px;
+    width: 64px;
+    height: 64px;
     border-radius: 8px;
     background:
         linear-gradient(135deg, rgba(15, 23, 42, 0.2), rgba(255, 255, 255, 0.08)),
-        url("./Sprites/Ships/ships.png") 0 0 / 256px 32px no-repeat;
+        url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) 0 / 2048px 1024px no-repeat;
     image-rendering: pixelated;
-    transform: scale(1.25);
 }
 
-.home-player-ship-icon.is-boat { background-position: 0 0; }
-.home-player-ship-icon.is-explorer { background-position: -32px 0; }
-.home-player-ship-icon.is-defender { background-position: -64px 0; }
-.home-player-ship-icon.is-fighter { background-position: -96px 0; }
-.home-player-ship-icon.is-merchant { background-position: -128px 0; }
+.home-player-ship-icon.is-boat { --player-ship-sprite-x: -64px; }
+.home-player-ship-icon.is-explorer { --player-ship-sprite-x: -448px; }
+.home-player-ship-icon.is-defender { --player-ship-sprite-x: -832px; }
+.home-player-ship-icon.is-fighter { --player-ship-sprite-x: -1216px; }
+.home-player-ship-icon.is-merchant { --player-ship-sprite-x: -1600px; }
 
 .home-player-ship-meta,
 .home-player-ship-empty,
@@ -617,6 +617,21 @@ body[data-sea-tone="night"] .home-hero-card {
         linear-gradient(180deg, rgba(125, 211, 252, 0.44) 0%, rgba(14, 165, 233, 0.26) 44%, rgba(8, 145, 178, 0.5) 45%, rgba(3, 105, 161, 0.72) 100%);
 }
 
+.exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene {
+    background:
+        linear-gradient(180deg, rgba(203, 213, 225, 0.58) 0%, rgba(100, 116, 139, 0.34) 44%, rgba(14, 116, 144, 0.46) 45%, rgba(15, 23, 42, 0.72) 100%);
+}
+
+.exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene {
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.26) 0%, rgba(12, 74, 110, 0.42) 44%, rgba(3, 105, 161, 0.68) 45%, rgba(8, 47, 73, 0.88) 100%);
+}
+
+.exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
+    background:
+        linear-gradient(180deg, rgba(71, 85, 105, 0.72) 0%, rgba(30, 41, 59, 0.56) 44%, rgba(8, 47, 73, 0.82) 45%, rgba(15, 23, 42, 0.94) 100%);
+}
+
 .exploration-sequence-sky {
     position: absolute;
     inset: 0;
@@ -679,35 +694,93 @@ body[data-sea-tone="night"] .home-hero-card {
     line-height: 1;
 }
 
+.exploration-sequence-ship-effect {
+    position: absolute;
+    left: 226px;
+    bottom: 86px;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .exploration-sequence-ship {
     position: absolute;
     left: 42px;
     bottom: 58px;
-    width: 84px;
-    height: 84px;
-    background: url("./Sprites/Ships/ships.png") 0 0 / 256px 32px no-repeat;
+    width: 64px;
+    height: 64px;
+    background: url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) 0 / 2048px 1024px no-repeat;
     image-rendering: pixelated;
     transform: scale(1.8);
     filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.34));
 }
 
-.exploration-sequence-ship.is-boat { background-position: 0 0; }
-.exploration-sequence-ship.is-explorer { background-position: -32px 0; }
-.exploration-sequence-ship.is-defender { background-position: -64px 0; }
-.exploration-sequence-ship.is-fighter { background-position: -96px 0; }
-.exploration-sequence-ship.is-merchant { background-position: -128px 0; }
+.exploration-sequence-ship.is-boat { --player-ship-sprite-x: -64px; }
+.exploration-sequence-ship.is-explorer { --player-ship-sprite-x: -448px; }
+.exploration-sequence-ship.is-defender { --player-ship-sprite-x: -832px; }
+.exploration-sequence-ship.is-fighter { --player-ship-sprite-x: -1216px; }
+.exploration-sequence-ship.is-merchant { --player-ship-sprite-x: -1600px; }
 
-.exploration-sequence-chest {
+.exploration-sequence-chests {
     position: absolute;
     right: 86px;
     bottom: 80px;
-    width: 72px;
+    min-width: 72px;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    opacity: 0;
+    transform: scale(0.4);
+}
+
+.exploration-sequence-log {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    display: grid;
+    gap: 3px;
+    pointer-events: none;
+}
+
+.exploration-sequence-log div {
+    padding: 4px 7px;
+    border: 1px solid rgba(226, 232, 240, 0.14);
+    border-radius: 5px;
+    background: rgba(2, 6, 23, 0.72);
+    color: #e0f2fe;
+    font-size: 11px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exploration-sequence-mini-chest {
+    width: 42px;
     aspect-ratio: 1 / 1;
     image-rendering: pixelated;
     background: url("./Sprites/items/Chest/chest2_idle_strip8.png") 0 0 / 800% 100% no-repeat;
-    opacity: 0;
-    transform: scale(0.4);
     filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.62));
+    animation-delay: calc(var(--i) * 90ms);
+}
+
+.exploration-sequence-no-chest {
+    display: grid;
+    place-items: center;
+    min-width: 74px;
+    min-height: 40px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.78);
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .exploration-sequence-overlay.is-sail .exploration-sequence-ship {
@@ -742,6 +815,49 @@ body[data-sea-tone="night"] .home-hero-card {
     animation: explorationSequenceBoss 300ms ease-in-out infinite;
 }
 
+.exploration-sequence-overlay.is-battle.is-result-none .exploration-sequence-boss {
+    opacity: 0.24;
+    animation: none;
+}
+
+.exploration-sequence-overlay.is-battle.is-result-victory .exploration-sequence-boss {
+    animation: explorationSequenceBossHit 420ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle.is-result-defeat .exploration-sequence-ship {
+    animation: explorationSequenceShipDefeat 320ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle.is-result-escaped .exploration-sequence-ship,
+.exploration-sequence-overlay.is-battle.is-result-draw .exploration-sequence-ship {
+    animation: explorationSequenceLeft 620ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle.is-defender-run .exploration-sequence-ship-effect {
+    opacity: 1;
+    border: 3px solid rgba(147, 197, 253, 0.72);
+    box-shadow: 0 0 24px rgba(147, 197, 253, 0.52), inset 0 0 22px rgba(147, 197, 253, 0.28);
+    animation: explorationSequenceShield 720ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle.is-fighter-run .exploration-sequence-ship-effect {
+    opacity: 1;
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(248, 113, 113, 0.0), rgba(248, 113, 113, 0.78));
+    clip-path: polygon(0 44%, 100% 26%, 100% 74%, 0 56%);
+    animation: explorationSequenceBlast 360ms ease-out infinite;
+}
+
+.exploration-sequence-overlay.is-battle.is-merchant-run .exploration-sequence-ship-effect {
+    opacity: 1;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.76) 0 18%, transparent 20% 100%);
+    animation: explorationSequenceCoin 660ms ease-in-out infinite;
+}
+
+.exploration-sequence-overlay.is-sail.is-explorer-run .exploration-sequence-ship {
+    animation-duration: 540ms;
+}
+
 .exploration-sequence-overlay.is-treasure .exploration-sequence-ship {
     left: 232px;
     bottom: 58px;
@@ -752,9 +868,12 @@ body[data-sea-tone="night"] .home-hero-card {
     opacity: 0;
 }
 
-.exploration-sequence-overlay.is-treasure .exploration-sequence-chest {
+.exploration-sequence-overlay.is-treasure .exploration-sequence-chests {
     opacity: 1;
     transform: scale(1.15);
+}
+
+.exploration-sequence-overlay.is-treasure .exploration-sequence-mini-chest {
     animation: explorationSequenceChest 850ms steps(8) infinite;
 }
 
@@ -778,28 +897,28 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 @keyframes homePlayerShipSail {
-    0%, 100% { transform: translate(0, 0) scale(1.25) rotate(-4deg); }
-    50% { transform: translate(2px, -4px) scale(1.25) rotate(4deg); }
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(4px); }
 }
 
 @keyframes homePlayerShipLookUp {
-    0%, 100% { transform: translateY(-4px) scale(1.25) rotate(-10deg); }
-    50% { transform: translateY(-8px) scale(1.25) rotate(0); }
+    0%, 100% { transform: translateY(-2px); }
+    50% { transform: translateY(-5px); }
 }
 
 @keyframes homePlayerShipLookLeft {
-    0%, 100% { transform: translateX(-4px) scaleX(-1.25) scaleY(1.25) rotate(-4deg); }
-    50% { transform: translateX(-9px) scaleX(-1.25) scaleY(1.25) rotate(4deg); }
+    0%, 100% { transform: translateX(-4px) scaleX(-1); }
+    50% { transform: translateX(-9px) scaleX(-1); }
 }
 
 @keyframes homePlayerShipBattle {
-    0%, 100% { transform: translate(0, 0) scale(1.25) rotate(-7deg); }
-    50% { transform: translate(3px, -2px) scale(1.25) rotate(7deg); }
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
 }
 
 @keyframes homePlayerShipTreasure {
-    0%, 100% { transform: translateY(0) scale(1.25); filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
-    50% { transform: translateY(-5px) scale(1.3); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.75)); }
+    0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
+    50% { transform: translateY(-2px); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.75)); }
 }
 
 @keyframes explorationSequenceSea {
@@ -808,23 +927,23 @@ body[data-sea-tone="night"] .home-hero-card {
 }
 
 @keyframes explorationSequenceSail {
-    0%, 100% { left: 42px; bottom: 58px; transform: scale(1.8) rotate(-4deg); }
-    50% { left: 132px; bottom: 70px; transform: scale(1.8) rotate(5deg); }
+    0%, 100% { left: 42px; bottom: 58px; transform: scale(1.8); }
+    50% { left: 132px; bottom: 60px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceUp {
-    0%, 100% { left: 132px; bottom: 76px; transform: scale(1.8) rotate(-12deg); }
-    50% { left: 182px; bottom: 104px; transform: scale(1.8) rotate(0); }
+    0%, 100% { left: 132px; bottom: 76px; transform: scale(1.8); }
+    50% { left: 182px; bottom: 98px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceLeft {
-    0%, 100% { left: 230px; bottom: 92px; transform: scaleX(-1.8) scaleY(1.8) rotate(-5deg); }
-    50% { left: 196px; bottom: 78px; transform: scaleX(-1.8) scaleY(1.8) rotate(5deg); }
+    0%, 100% { left: 230px; bottom: 92px; transform: scaleX(-1.8) scaleY(1.8); }
+    50% { left: 196px; bottom: 88px; transform: scaleX(-1.8) scaleY(1.8); }
 }
 
 @keyframes explorationSequenceBattle {
-    0%, 100% { transform: scale(1.8) rotate(-8deg); }
-    50% { transform: scale(1.86) rotate(8deg); }
+    0%, 100% { transform: translateX(0) scale(1.8); }
+    50% { transform: translateX(4px) scale(1.8); }
 }
 
 @keyframes explorationSequenceBoss {
@@ -832,14 +951,186 @@ body[data-sea-tone="night"] .home-hero-card {
     50% { transform: scale(1.08) rotate(3deg); }
 }
 
+@keyframes explorationSequenceBossHit {
+    0%, 100% { transform: scale(1) rotate(-5deg); filter: brightness(1); }
+    50% { transform: scale(0.9) rotate(8deg); filter: brightness(1.8); }
+}
+
+@keyframes explorationSequenceShipDefeat {
+    0%, 100% { transform: translateX(0) scale(1.8); filter: grayscale(0.2); }
+    50% { transform: translateX(-4px) scale(1.8); filter: grayscale(0.65); }
+}
+
+@keyframes explorationSequenceShield {
+    0%, 100% { transform: scale(0.85); opacity: 0.62; }
+    50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes explorationSequenceBlast {
+    0% { transform: translateX(-16px) scaleX(0.6); opacity: 0; }
+    35% { opacity: 1; }
+    100% { transform: translateX(72px) scaleX(1.12); opacity: 0; }
+}
+
+@keyframes explorationSequenceCoin {
+    0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.46; }
+    50% { transform: translateY(-18px) scale(1.08); opacity: 1; }
+}
+
 @keyframes explorationSequenceTreasureShip {
     0%, 100% { transform: scale(1.8); }
-    50% { transform: scale(1.9) translateY(-5px); }
+    50% { transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceChest {
     from { background-position: 0 0; }
     to { background-position: 100% 0; }
+}
+
+.exploration-result-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10036;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(2, 6, 23, 0.68);
+}
+
+.exploration-result-dialog {
+    position: relative;
+    width: min(520px, 100%);
+    padding: 16px;
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    border-radius: 8px;
+    background: #0f172a;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48);
+}
+
+.exploration-result-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.92);
+    color: #e5e7eb;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.exploration-result-head {
+    display: grid;
+    gap: 4px;
+    padding-right: 42px;
+}
+
+.exploration-result-head span {
+    color: #facc15;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.exploration-result-head strong {
+    color: #f8fafc;
+    font-size: 20px;
+}
+
+.exploration-result-body {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.exploration-result-body div {
+    min-height: 62px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    background: rgba(2, 6, 23, 0.46);
+}
+
+.exploration-result-body b {
+    color: var(--text-sub);
+    font-size: 11px;
+}
+
+.exploration-result-body span {
+    color: #e5e7eb;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.exploration-result-rewards {
+    display: grid;
+    gap: 6px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.exploration-result-rewards li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.62);
+}
+
+.exploration-result-rewards strong {
+    color: #f8fafc;
+    font-size: 13px;
+}
+
+.exploration-result-rewards span {
+    color: #fde68a;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.exploration-result-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.exploration-result-actions button {
+    min-height: 36px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #facc15;
+    color: #111827;
+    font-weight: 900;
+}
+
+.exploration-result-actions button:first-child {
+    background: rgba(148, 163, 184, 0.24);
+    color: #e5e7eb;
+}
+
+.exploration-result-overlay.is-defeat .exploration-result-head span {
+    color: #fb7185;
+}
+
+.exploration-result-overlay.is-escaped .exploration-result-head span,
+.exploration-result-overlay.is-draw .exploration-result-head span {
+    color: #67e8f9;
+}
+
+@media (max-width: 520px) {
+    .exploration-result-body {
+        grid-template-columns: 1fr;
+    }
 }
 
 .ship-evolution-overlay {
@@ -919,19 +1210,19 @@ body[data-sea-tone="night"] .home-hero-card {
 
 .ship-evolution-ship {
     position: absolute;
-    width: 84px;
-    height: 84px;
-    background: url("./Sprites/Ships/ships.png") 0 0 / 256px 32px no-repeat;
+    width: 64px;
+    height: 64px;
+    background: url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) 0 / 2048px 1024px no-repeat;
     image-rendering: pixelated;
     transform: scale(2.2);
     filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.42));
 }
 
-.ship-evolution-ship.is-boat { background-position: 0 0; }
-.ship-evolution-ship.is-explorer { background-position: -32px 0; }
-.ship-evolution-ship.is-defender { background-position: -64px 0; }
-.ship-evolution-ship.is-fighter { background-position: -96px 0; }
-.ship-evolution-ship.is-merchant { background-position: -128px 0; }
+.ship-evolution-ship.is-boat { --player-ship-sprite-x: -64px; }
+.ship-evolution-ship.is-explorer { --player-ship-sprite-x: -448px; }
+.ship-evolution-ship.is-defender { --player-ship-sprite-x: -832px; }
+.ship-evolution-ship.is-fighter { --player-ship-sprite-x: -1216px; }
+.ship-evolution-ship.is-merchant { --player-ship-sprite-x: -1600px; }
 
 .ship-evolution-ship.is-before {
     animation: shipEvolutionBefore 1850ms cubic-bezier(0.2, 0.82, 0.24, 1) forwards;
@@ -3326,7 +3617,7 @@ body.modal-lock .modal-overlay {
 
 .home-ship-stage {
     position: relative;
-    width: 260px;
+    width: min(392px, 100%);
     margin: 0 auto 12px;
     display: flex;
     flex-direction: column;
@@ -3357,7 +3648,7 @@ body.modal-lock .modal-overlay {
 
 .home-ship-avatar {
     position: absolute;
-    left: 50%;
+    left: calc(50% - 56px);
     top: 50%;
     transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
     transform-origin: center center;
@@ -3375,6 +3666,17 @@ body.modal-lock .modal-overlay {
 .home-ship-avatar[data-sea-tone="night"] {
     background: radial-gradient(circle at 40% 30%, rgba(30, 41, 59, 0.85), rgba(2, 6, 23, 0.9) 70%);
     box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
+}
+
+@media (max-width: 380px) {
+    .home-player-ship-frame {
+        right: 6px;
+        width: 108px;
+    }
+
+    .home-ship-avatar {
+        left: calc(50% - 62px);
+    }
 }
 
 @keyframes homeShipBob {
@@ -10930,18 +11232,17 @@ textarea {
 }
 
 .player-profile-ship-icon {
-    width: 50px;
-    height: 50px;
-    background: url("./Sprites/Ships/ships.png") 0 0 / 256px 32px no-repeat;
+    width: 64px;
+    height: 64px;
+    background: url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) 0 / 2048px 1024px no-repeat;
     image-rendering: pixelated;
-    transform: scale(1.2);
 }
 
-.player-profile-ship-icon.is-boat { background-position: 0 0; }
-.player-profile-ship-icon.is-explorer { background-position: -32px 0; }
-.player-profile-ship-icon.is-defender { background-position: -64px 0; }
-.player-profile-ship-icon.is-fighter { background-position: -96px 0; }
-.player-profile-ship-icon.is-merchant { background-position: -128px 0; }
+.player-profile-ship-icon.is-boat { --player-ship-sprite-x: -64px; }
+.player-profile-ship-icon.is-explorer { --player-ship-sprite-x: -448px; }
+.player-profile-ship-icon.is-defender { --player-ship-sprite-x: -832px; }
+.player-profile-ship-icon.is-fighter { --player-ship-sprite-x: -1216px; }
+.player-profile-ship-icon.is-merchant { --player-ship-sprite-x: -1600px; }
 
 .player-profile-ship-name {
     color: #fde68a;
