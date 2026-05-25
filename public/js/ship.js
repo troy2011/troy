@@ -1394,6 +1394,32 @@ function handleExplorationClaimResult(data, playFabId, options = {}) {
     }
 }
 
+function isExplorationStartConflict(error) {
+    const message = String(error?.message || '');
+    return message.includes('HTTP 409') || message.includes('探索中です');
+}
+
+function buildRecoveredExplorationStartData(claimData, destinationId) {
+    const report = claimData?.report || {};
+    const destinationVisual = getExplorationDestinationVisual(report.destinationId || destinationId);
+    return {
+        ship: claimData?.ship || currentPlayerShipProfile || {},
+        active: {
+            destinationId: report.destinationId || destinationId,
+            destinationName: report.destinationName || destinationVisual.label || '探索先'
+        }
+    };
+}
+
+async function recoverConflictedExploration(playFabId, destinationId) {
+    showRpgMessage('前回の探索結果を回収しています。');
+    const claimData = await requestClaimExploration(playFabId, { throwOnError: true });
+    const recoveredStartData = buildRecoveredExplorationStartData(claimData, destinationId);
+    await showExplorationAutoSequence(recoveredStartData, recoveredStartData.active.destinationId || destinationId, claimData);
+    handleExplorationClaimResult(claimData, playFabId, { autoOpenTreasure: true });
+    await loadExplorationPanel(playFabId);
+}
+
 async function showExplorationAutoSequence(startData, destinationId, claimData = null) {
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
@@ -1509,7 +1535,7 @@ function renderExplorationPanel(data, playFabId) {
             <div class="ship-exploration-destination">
                 <strong>${escapeHtml(destination.name)}</strong>
                 <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
-                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / 演出後すぐ完了 / BOSS: ${escapeHtml(destination.bossName || 'あり')}</div>
+                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / BOSS: ${escapeHtml(destination.bossName || 'あり')}</div>
                 <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
             </div>
         `).join('')
@@ -1554,7 +1580,15 @@ async function startExploration(playFabId, destinationId) {
         await showExplorationAutoSequence(startData, destinationId, claimData);
         handleExplorationClaimResult(claimData, playFabId, { autoOpenTreasure: true });
     } catch (error) {
-        showRpgMessage(error?.message || '探索を開始できませんでした。');
+        if (isExplorationStartConflict(error)) {
+            try {
+                await recoverConflictedExploration(playFabId, destinationId);
+            } catch (recoverError) {
+                showRpgMessage(recoverError?.message || '前回の探索結果を回収できませんでした。');
+            }
+        } else {
+            showRpgMessage(error?.message || '探索を開始できませんでした。');
+        }
     } finally {
         explorationAutoRunning = false;
     }
