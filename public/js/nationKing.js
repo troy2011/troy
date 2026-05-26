@@ -483,8 +483,21 @@ function _renderNationWar(war = null) {
 
 function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗しました。') {
     if (!error) return fallback;
-    if (typeof error === 'string') return error;
-    return error.message || error.errorMessage || fallback;
+    const raw = typeof error === 'string'
+        ? error
+        : (error.message || error.errorMessage || error.error || '');
+    const message = String(raw || '')
+        .replace(/^通信エラー:\s*/, '')
+        .replace(/\s*\(HTTP\s+\d+\)\s*$/i, '')
+        .trim();
+    if (!message) return fallback;
+    if (message.includes('requestId is required')) return '処理IDの発行に失敗しました。画面を再読み込みしてもう一度お試しください。';
+    if (message.includes('100G単位')) return message;
+    if (message.includes('NotInTroy')) return '入店リストにいないプレイヤーです。入店状態を確認してください。';
+    if (message.includes('NotKing')) return '王のみ操作できます。';
+    if (message.includes('Authentication required')) return 'ログイン状態を確認できません。再ログインしてください。';
+    if (message.includes('EntityKeyNotFound')) return '受取人のアカウントが見つかりません。';
+    return message;
 }
 
 function _formatStoreGameScore(score, gameType) {

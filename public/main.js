@@ -1676,8 +1676,8 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
                     requestId: createRequestId('troy-gold-to-coin')
                 }, { isSilent: true, throwOnError: true });
                 convertedAmount = convertAmount;
-            } catch (_) {
-                showRpgMessage('コイン変換に失敗しました。', 2200);
+            } catch (error) {
+                showRpgMessage(formatCoinActionError(error, 'コイン変換に失敗しました。'), 3200);
             }
         }
 
@@ -1953,6 +1953,37 @@ function isTroyCoinReturnQrValue(value) {
     }
 }
 
+function formatCoinActionError(error, fallback = 'コイン処理に失敗しました。') {
+    const raw = String(error?.message || error?.errorMessage || error?.error || error || '').trim();
+    const message = raw
+        .replace(/^通信エラー:\s*/, '')
+        .replace(/\s*\(HTTP\s+\d+\)\s*$/i, '')
+        .trim();
+    if (!message) return fallback;
+    if (message.includes('ゴールドが不足') || message.includes('InsufficientFunds')) {
+        return 'ゴールドが不足しています。';
+    }
+    if (message.includes('100G単位')) {
+        return message;
+    }
+    if (message.includes('requestId is required')) {
+        return '処理IDの発行に失敗しました。画面を再読み込みしてもう一度お試しください。';
+    }
+    if (message.includes('TroyClosed')) {
+        return '現在TROYはCLOSE中です。';
+    }
+    if (message.includes('NotInTroy')) {
+        return '入店状態を確認できません。もう一度入店してください。';
+    }
+    if (message.includes('Authentication required')) {
+        return 'ログイン状態を確認できません。再ログインしてください。';
+    }
+    if (message.includes('コイン返却は王')) {
+        return 'コイン返却は王の操作画面から行ってください。';
+    }
+    return message;
+}
+
 function openCoinConvertModal(mode = 'gold_to_coin') {
     coinConvertMode = mode === 'coin_to_gold' ? 'coin_to_gold' : 'gold_to_coin';
     const amount = getTransferAmountValue();
@@ -1961,6 +1992,10 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
         if (pointMessageEl) pointMessageEl.innerText = coinConvertMode === 'coin_to_gold'
             ? '返却するコイン金額を入力してください。'
             : 'コイン化する金額を入力してください。';
+        return;
+    }
+    if (amount % 100 !== 0) {
+        if (pointMessageEl) pointMessageEl.innerText = 'コイン化は100G単位で入力してください。';
         return;
     }
     const titleEl = document.getElementById('coinConvertTitle');
@@ -2015,6 +2050,10 @@ async function confirmCoinConvert() {
         if (resultEl) resultEl.innerText = '金額を入力してください。';
         return;
     }
+    if (amount % 100 !== 0) {
+        if (resultEl) resultEl.innerText = 'コイン化は100G単位で入力してください。';
+        return;
+    }
     const previousLabel = confirmBtn?.innerText || '';
     if (confirmBtn) {
         confirmBtn.disabled = true;
@@ -2037,7 +2076,7 @@ async function confirmCoinConvert() {
             amount,
             coinReturnQrToken,
             requestId: createRequestId(isGoldize ? 'troy-coin-to-gold' : 'troy-gold-to-coin')
-        });
+        }, { throwOnError: true });
         if (!data) throw new Error(isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
         const contributionAmount = Math.max(0, Math.floor(Number(data.contributionAmount) || 0));
         const contributionNote = isGoldize && contributionAmount > 0
@@ -2062,8 +2101,10 @@ async function confirmCoinConvert() {
             showCoinConvertReceipt(amount);
         }
     } catch (error) {
-        const message = error?.message || error?.error || (isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
+        const message = formatCoinActionError(error, isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
         if (resultEl) resultEl.innerText = message;
+        const pointMessageEl = document.getElementById('pointMessage');
+        if (pointMessageEl) pointMessageEl.innerText = message;
         if (confirmBtn) {
             confirmBtn.disabled = false;
             confirmBtn.innerText = previousLabel || (isGoldize ? '返却用QRを読み取る' : '確認してコイン化');

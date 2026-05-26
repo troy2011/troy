@@ -1827,11 +1827,12 @@ app.post('/api/set-race', async (req, res) => {
         setRaceStep = 'read-player-readonly';
         const currentReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Nation', 'lineUserId', 'IsGuest']
+            Keys: ['Nation', 'lineUserId', 'IsGuest', 'StarterGoldGranted']
         });
         const prevNation = String(currentReadOnly?.Data?.Nation?.Value || '').toLowerCase();
         const lineUserId = String(currentReadOnly?.Data?.lineUserId?.Value || '').trim();
         const isGuest = String(currentReadOnly?.Data?.IsGuest?.Value || '').toLowerCase() === 'true';
+        const starterGoldGranted = String(currentReadOnly?.Data?.StarterGoldGranted?.Value || '').toLowerCase() === 'true';
         const completeGuestRegistration = completeGuestRegistrationRequest && isGuest && !!nation.getNationMappingByNation(prevNation);
 
         setRaceStep = 'resolve-invite';
@@ -2045,10 +2046,36 @@ app.post('/api/set-race', async (req, res) => {
         const starterIsland = null;
 
         const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
-        try {
-            await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, playerEntity);
-        } catch (e) {
-            console.warn('[starterGrant] Failed to grant starter PS:', e?.errorMessage || e?.message || e);
+        const shouldGrantStarterGold = !starterGoldGranted && !prevNation && !completeGuestRegistration;
+        if (shouldGrantStarterGold) {
+            try {
+                await deps.addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, {
+                    entityKeyOverride: playerEntity,
+                    idempotencyId: `starter-gold:${playFabId}`
+                });
+                try {
+                    const newBalance = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: playFabId,
+                        Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
+                    });
+                } catch (syncError) {
+                    console.warn('[starterGrant] Failed to sync starter PS ranking:', syncError?.errorMessage || syncError?.message || syncError);
+                }
+                try {
+                    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                        PlayFabId: playFabId,
+                        Data: {
+                            StarterGoldGranted: 'true',
+                            StarterGoldGrantedAt: new Date().toISOString()
+                        }
+                    });
+                } catch (flagError) {
+                    console.warn('[starterGrant] Failed to persist starter grant flag:', flagError?.errorMessage || flagError?.message || flagError);
+                }
+            } catch (e) {
+                console.warn('[starterGrant] Failed to grant starter PS:', e?.errorMessage || e?.message || e);
+            }
         }
 
         try {

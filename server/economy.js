@@ -9,6 +9,7 @@ const {
 } = require('./contributionStats');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
+const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
 
 const ECONOMY_CURRENCY_IDS = new Set([
     VIRTUAL_CURRENCY_CODE,
@@ -317,6 +318,9 @@ function initializeEconomyRoutes(app, deps) {
 
     // ゴールド追加
     app.post('/api/add-points', async (req, res) => {
+        if (!ENABLE_LEGACY_POINT_ROUTES) {
+            return res.status(410).json({ error: 'Legacy point grant route is disabled.' });
+        }
         const { playFabId, amount } = req.body;
         if (!playFabId || !amount) {
             return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
@@ -342,6 +346,9 @@ function initializeEconomyRoutes(app, deps) {
 
     // ゴールド消費
     app.post('/api/use-points', async (req, res) => {
+        if (!ENABLE_LEGACY_POINT_ROUTES) {
+            return res.status(410).json({ error: 'Legacy point spend route is disabled.' });
+        }
         const { playFabId, amount } = req.body;
         if (!playFabId || !amount) {
             return res.status(400).json({ error: 'PlayFab ID と amount が必要です。' });
@@ -548,6 +555,9 @@ function initializeEconomyRoutes(app, deps) {
         if (fromId === toId) {
             return res.status(400).json({ error: '同じアカウントには送金できません。' });
         }
+        if (!requestId) {
+            return res.status(400).json({ error: 'requestId is required' });
+        }
         const authenticatedPlayFabId = await requireAuthenticatedPlayFabId(req, res, fromId);
         if (!authenticatedPlayFabId) return;
         try {
@@ -641,10 +651,13 @@ function initializeEconomyRoutes(app, deps) {
             } catch (addError) {
                 console.error('送金後の処理失敗:', addError.errorMessage || addError.message || addError);
                 const addMessage = addError?.errorMessage || addError?.message || '';
-                if (String(addMessage).includes('EntityKeyNotFound')) {
-                    return res.status(400).json({ error: '送金先のアカウントが見つかりません。' });
-                }
-                res.status(500).json({ error: '送金後の処理に失敗しました。' });
+                res.json({
+                    newBalance: payerNewBalance,
+                    bountyAdded: false,
+                    bountyShortage: false,
+                    bountyTransferred: 0,
+                    postTransferSyncError: String(addMessage || '送金後の同期に失敗しました。')
+                });
             }
         } catch (subtractError) {
             const subtractMessage = subtractError?.errorMessage || subtractError?.message || '';

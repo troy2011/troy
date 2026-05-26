@@ -108,9 +108,17 @@ function normalizePlayFabId(value) {
 }
 
 function normalizeTroyCoinConversionAmount(value) {
-    const amount = Math.floor(Number(value) || 0);
-    if (!Number.isFinite(amount)) return 0;
-    return Math.min(TROY_COIN_CONVERSION_MAX_AMOUNT, Math.max(0, amount));
+    const raw = Number(value);
+    if (!Number.isFinite(raw)) return 0;
+    const amount = Math.floor(raw);
+    if (amount !== raw) return 0;
+    if (amount <= 0 || amount > TROY_COIN_CONVERSION_MAX_AMOUNT) return 0;
+    if (amount % 100 !== 0) return 0;
+    return amount;
+}
+
+function normalizeRequiredRequestId(value) {
+    return String(value || '').trim().slice(0, 120);
 }
 
 function isValidTroyCoinReturnQrToken(value) {
@@ -1930,7 +1938,7 @@ function initializeNationRoutes(app, deps) {
         const update = {
             isOpen: !!nextOpen,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedBy: null
+            updatedBy: context?.kingId || null
         };
         if (nextOpen) update.nation = context.nation;
         await roomRef.set(update, { merge: true });
@@ -2869,10 +2877,18 @@ function initializeNationRoutes(app, deps) {
         const { playFabId, isOpen } = req.body || {};
         const requesterPlayFabId = String(playFabId || '').trim();
         const nextOpen = !!isOpen;
+        if (!requesterPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const authenticatedPlayFabId = await requireAuthedPlayFabId(req, res, requesterPlayFabId);
+        if (!authenticatedPlayFabId) return;
 
         try {
-            const context = await resolveTroyOpenStateContext(req, nextOpen);
-            if (!context) return res.status(400).json({ error: 'Invalid TROY nation' });
+            const kingContext = await requireKingContext(authenticatedPlayFabId, firestore, nationDeps);
+            const currentSnap = await getTroyRoomDoc(firestore).get();
+            const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
+            if (!nextOpen && currentSnap.data()?.isOpen && currentNation && currentNation !== kingContext.nation) {
+                return res.status(403).json({ error: 'NotKingForOpenTroy' });
+            }
+            const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             let label = 'TROY';
             if (requesterPlayFabId) {
@@ -2883,6 +2899,7 @@ function initializeNationRoutes(app, deps) {
             res.json(result);
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) return res.status(403).json({ error: 'NotKing' });
             console.error('[king-set-troy-open] Error:', msg);
             res.status(500).json({ error: 'Failed to update troy status' });
         }
@@ -3060,14 +3077,28 @@ function initializeNationRoutes(app, deps) {
             let entryBonusError = null;
             if (isNewEntry) {
                 try {
-                    await addEconomyItem(memberId, 'PS', 500, { idempotencyId: `troy-entry-bonus:${memberId}:${nation}` });
-                    entryBonusGranted = 500;
-                    if (getCurrencyBalance) {
-                        const receiverBalance = await getCurrencyBalance(memberId, 'PS');
-                        await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                            PlayFabId: memberId,
-                            Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
-                        });
+                    const entryBonusRef = firestore.collection('troy_entry_bonus_grants').doc(memberId);
+                    const entryBonusSnap = await entryBonusRef.get();
+                    if (!entryBonusSnap.exists) {
+                        await addEconomyItem(memberId, 'PS', 500, { idempotencyId: `troy-entry-bonus:${memberId}:${nation}` });
+                        await entryBonusRef.set({
+                            playFabId: memberId,
+                            nation,
+                            amount: 500,
+                            grantedAt: admin.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                        entryBonusGranted = 500;
+                        if (getCurrencyBalance) {
+                            try {
+                                const receiverBalance = await getCurrencyBalance(memberId, 'PS');
+                                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                                    PlayFabId: memberId,
+                                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
+                                });
+                            } catch (syncError) {
+                                console.warn('[troy-join] Entry bonus balance/stat sync failed:', syncError?.errorMessage || syncError?.message || syncError);
+                            }
+                        }
                     }
                 } catch (bonusError) {
                     entryBonusError = bonusError?.errorMessage || bonusError?.message || String(bonusError);
@@ -3378,34 +3409,51 @@ function initializeNationRoutes(app, deps) {
     app.post('/api/troy-convert-gold-to-coin', async (req, res) => {
         const { playFabId } = req.body || {};
         const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
-        const requestId = String(req.body?.requestId || '').trim();
+        const requestId = normalizeRequiredRequestId(req.body?.requestId);
         if (!playFabId || amount <= 0) {
-            return res.status(400).json({ error: 'playFabId and positive amount are required' });
+            return res.status(400).json({ error: 'playFabId and 100G単位の正しい金額が必要です。' });
+        }
+        if (!requestId) {
+            return res.status(400).json({ error: 'requestId is required' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
         try {
             const context = await resolveOpenTroyMemberContext(requesterPlayFabId);
-            const idempotencyId = requestId ? `${requestId}:gold-to-coin` : null;
+            const idempotencyId = `${requestId}:gold-to-coin`;
             await subtractEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
             const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'gold_to_coin', amount);
-            await appendTroyCoinConversionLog(context.roomRef, {
-                id: requestId || undefined,
-                playFabId: context.memberId,
-                displayName: context.memberData?.displayName || context.memberId,
-                amount
-            });
-            const newBalance = getCurrencyBalance ? await getCurrencyBalance(context.memberId, 'PS') : null;
-            if (Number.isFinite(newBalance)) {
-                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: context.memberId,
-                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
-                });
+            if (!conversion.duplicate) {
+                try {
+                    await appendTroyCoinConversionLog(context.roomRef, {
+                        id: requestId,
+                        playFabId: context.memberId,
+                        displayName: context.memberData?.displayName || context.memberId,
+                        amount
+                    });
+                } catch (logError) {
+                    console.warn('[troy-convert-gold-to-coin] Failed to append coin conversion log:', logError?.message || logError);
+                }
+            }
+            let newBalance = null;
+            let balanceSyncError = null;
+            if (getCurrencyBalance) {
+                try {
+                    newBalance = await getCurrencyBalance(context.memberId, 'PS');
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: context.memberId,
+                        Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
+                    });
+                } catch (syncError) {
+                    balanceSyncError = syncError?.errorMessage || syncError?.message || String(syncError);
+                    console.warn('[troy-convert-gold-to-coin] Balance/stat sync failed:', balanceSyncError);
+                }
             }
             res.json({
                 success: true,
                 amount,
                 newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
+                balanceSyncError: balanceSyncError || undefined,
                 ...conversion
             });
         } catch (error) {
@@ -3417,62 +3465,18 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/troy-convert-coin-to-gold', async (req, res) => {
-        const { playFabId } = req.body || {};
-        const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
-        const requestId = String(req.body?.requestId || '').trim();
-        const coinReturnQrToken = req.body?.coinReturnQrToken;
-        if (!playFabId || amount <= 0) {
-            return res.status(400).json({ error: 'playFabId and positive amount are required' });
-        }
-        if (!isValidTroyCoinReturnQrToken(coinReturnQrToken)) {
-            return res.status(403).json({ error: 'コイン返却用QRコードを読み取ってください。' });
-        }
-        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
-        if (!requesterPlayFabId) return;
-        try {
-            const context = await resolveOpenTroyMemberContext(requesterPlayFabId);
-            const idempotencyId = requestId ? `${requestId}:coin-to-gold` : null;
-            await addEconomyItem(context.memberId, 'PS', amount, { idempotencyId });
-            const conversion = await recordTroyCoinConversion(context.memberRef, requestId, 'coin_to_gold', amount);
-
-            let contribution = null;
-            if (!conversion.duplicate && conversion.contributionAmount > 0) {
-                try {
-                    contribution = await addPlayerNationContribution(context.memberId, conversion.contributionAmount, nationDeps);
-                    await updateTroyMemberRankSnapshot(context.memberRef, contribution);
-                } catch (contributionError) {
-                    console.warn('[troy-convert-coin-to-gold] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
-                }
-            }
-
-            const newBalance = getCurrencyBalance ? await getCurrencyBalance(context.memberId, 'PS') : null;
-            if (Number.isFinite(newBalance)) {
-                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: context.memberId,
-                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
-                });
-            }
-            res.json({
-                success: true,
-                amount,
-                newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
-                contribution,
-                ...conversion
-            });
-        } catch (error) {
-            const msg = error?.errorMessage || error?.message || error;
-            const statusCode = error?.statusCode || 500;
-            console.error('[troy-convert-coin-to-gold] Error:', msg);
-            res.status(statusCode).json({ error: msg });
-        }
+        return res.status(410).json({ error: 'コイン返却は王の操作画面から行ってください。' });
     });
 
     app.post('/api/king-troy-return-coin', async (req, res) => {
         const { playFabId, receiverPlayFabId } = req.body || {};
         const amount = normalizeTroyCoinConversionAmount(req.body?.amount);
-        const requestId = String(req.body?.requestId || '').trim();
+        const requestId = normalizeRequiredRequestId(req.body?.requestId);
         if (!playFabId || !receiverPlayFabId || amount <= 0) {
-            return res.status(400).json({ error: 'playFabId, receiverPlayFabId and positive amount are required' });
+            return res.status(400).json({ error: 'playFabId, receiverPlayFabId and 100G単位の正しい金額が必要です。' });
+        }
+        if (!requestId) {
+            return res.status(400).json({ error: 'requestId is required' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -3486,7 +3490,7 @@ function initializeNationRoutes(app, deps) {
             const memberSnap = await memberRef.get();
             if (!memberSnap.exists) return res.status(403).json({ error: 'NotInTroy' });
 
-            const idempotencyId = requestId ? `${requestId}:king-coin-return` : null;
+            const idempotencyId = `${requestId}:king-coin-return`;
             await addEconomyItem(receiverId, 'PS', amount, { idempotencyId });
             const conversion = await recordTroyCoinConversion(memberRef, requestId, 'coin_to_gold', amount);
 
@@ -3500,18 +3504,26 @@ function initializeNationRoutes(app, deps) {
                 }
             }
 
-            const newBalance = getCurrencyBalance ? await getCurrencyBalance(receiverId, 'PS') : null;
-            if (Number.isFinite(newBalance)) {
-                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: receiverId,
-                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
-                });
+            let newBalance = null;
+            let balanceSyncError = null;
+            if (getCurrencyBalance) {
+                try {
+                    newBalance = await getCurrencyBalance(receiverId, 'PS');
+                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: receiverId,
+                        Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: newBalance }]
+                    });
+                } catch (syncError) {
+                    balanceSyncError = syncError?.errorMessage || syncError?.message || String(syncError);
+                    console.warn('[king-troy-return-coin] Balance/stat sync failed:', balanceSyncError);
+                }
             }
             res.json({
                 success: true,
                 amount,
                 receiverPlayFabId: receiverId,
                 newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
+                balanceSyncError: balanceSyncError || undefined,
                 contribution,
                 ...conversion
             });
@@ -3525,9 +3537,12 @@ function initializeNationRoutes(app, deps) {
 
     app.post('/api/king-grant-ps', async (req, res) => {
         const { playFabId, receiverPlayFabId, amount } = req.body || {};
-        const requestId = String(req.body?.requestId || '').trim();
+        const requestId = normalizeRequiredRequestId(req.body?.requestId);
         if (!playFabId || !receiverPlayFabId) {
             return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
+        }
+        if (!requestId) {
+            return res.status(400).json({ error: 'requestId is required' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -3633,9 +3648,12 @@ function initializeNationRoutes(app, deps) {
 
     app.post('/api/king-direct-grant-ps', async (req, res) => {
         const { playFabId, receiverPlayFabId, amount } = req.body || {};
-        const requestId = String(req.body?.requestId || '').trim();
+        const requestId = normalizeRequiredRequestId(req.body?.requestId);
         if (!playFabId || !receiverPlayFabId) {
             return res.status(400).json({ error: 'playFabId and receiverPlayFabId are required' });
+        }
+        if (!requestId) {
+            return res.status(400).json({ error: 'requestId is required' });
         }
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -4026,13 +4044,24 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/troy-orders/set-open', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
         try {
             const nextOpen = !!req.body?.isOpen;
-            const context = await resolveTroyOpenStateContext(req, nextOpen);
-            if (!context) return res.status(400).json({ error: 'Invalid TROY nation' });
+            const kingContext = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
+            const currentSnap = await getTroyRoomDoc(firestore).get();
+            const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
+            if (!nextOpen && currentSnap.data()?.isOpen && currentNation && currentNation !== kingContext.nation) {
+                return res.status(403).json({ error: 'NotKingForOpenTroy' });
+            }
+            const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             return res.json(result);
         } catch (error) {
+            const msg = error?.errorMessage || error?.message || error;
+            if (String(msg).includes('NotKing')) return res.status(403).json({ error: 'NotKing' });
             console.error('[troy-orders-set-open] Error:', error?.message || error);
             return res.status(500).json({ error: 'FailedToSetTroyOpen' });
         }
