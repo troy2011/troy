@@ -924,12 +924,8 @@ function renderInventoryFocusPanel() {
     const panel = document.getElementById('inventoryFocusPanel');
     if (!panel) return;
     panel.innerHTML = '';
-    panel.hidden = activeInventoryGroup !== 'Equipment' && activeInventoryGroup !== 'Tarot';
+    panel.hidden = activeInventoryGroup !== 'Tarot';
     if (panel.hidden) return;
-    if (activeInventoryGroup === 'Equipment') {
-        renderEquipmentFocusPanel(panel);
-        return;
-    }
     renderTarotFocusPanel(panel);
 }
 
