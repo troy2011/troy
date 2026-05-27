@@ -18887,36 +18887,6 @@ body[data-sea-tone] .home-hero-card {
     min-height: 132px;
 }
 
-.home-ranking-btn {
-    position: absolute;
-    left: 34px;
-    top: 176px;
-    z-index: 5;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 156px;
-    min-height: 44px;
-    padding: 7px 16px;
-    border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-wood.png") 34 fill / 10px / 0 stretch;
-    background:
-        linear-gradient(180deg, rgba(49, 27, 13, 0.52), rgba(7, 6, 5, 0.48)),
-        repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.16) 0 1px, transparent 1px 12px);
-    color: #f4dfb6;
-    font-size: 15px;
-    font-weight: 900;
-    line-height: 1;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.36);
-}
-
-.home-ranking-btn span {
-    font-size: 18px;
-    line-height: 1;
-}
-
 .home-ps-card {
     margin-top: 0;
     margin-left: 0;
@@ -19173,15 +19143,6 @@ body[data-sea-tone] .home-hero-card {
         min-height: 138px;
     }
 
-    .home-ranking-btn {
-        left: 28px;
-        top: 166px;
-        min-width: 148px;
-        min-height: 42px;
-        padding-inline: 13px;
-        font-size: 14px;
-    }
-
     .home-hero-card .home-player-ship-frame {
         top: -122px;
         right: 5px;
@@ -19248,6 +19209,126 @@ body[data-sea-tone] .home-hero-card {
 
     .nav-button {
         height: 66px;
+        font-size: 10px;
+    }
+}
+
+/* --- Home screenshot corrections --- */
+.home-ps-card {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 0;
+    align-items: center;
+}
+
+.home-ps-icon {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    justify-self: center;
+    align-self: center;
+    width: 54px;
+    height: 54px;
+    flex-basis: auto;
+    background-position: center;
+    background-size: contain;
+}
+
+.home-ps-meta {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+}
+
+.home-specialty-row {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    justify-self: center;
+    align-self: end;
+    width: 176px;
+    max-width: 176px;
+    margin: 0;
+    gap: 2px;
+    justify-content: space-between;
+}
+
+.home-specialty-label {
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.home-specialty-chip {
+    width: 27px;
+    min-width: 27px;
+    height: 25px;
+}
+
+.home-specialty-chip span {
+    width: 25px;
+    height: 25px;
+    flex-basis: 25px;
+}
+
+.home-specialty-chip b {
+    right: -4px;
+    min-width: 16px;
+    height: 17px;
+    line-height: 15px;
+    font-size: 11px;
+}
+
+.home-hero-card .home-ship-avatar {
+    transform: translate(-50%, -50%) translateY(0) scale(1.62);
+}
+
+.home-hero-card .home-player-ship-frame .home-player-ship-icon {
+    animation: none !important;
+}
+
+#navKing .nav-icon {
+    background-position: center;
+    background-size: 30px 30px;
+    transform: none;
+}
+
+@media (max-width: 420px) {
+    .home-ps-card {
+        grid-template-columns: 52px minmax(0, 1fr);
+        column-gap: 8px;
+    }
+
+    .home-ps-icon {
+        width: 49px;
+        height: 49px;
+    }
+
+    .home-specialty-row {
+        width: 168px;
+        max-width: 168px;
+        margin-left: 0;
+    }
+
+    .home-specialty-label {
+        font-size: 12px;
+    }
+
+    .home-specialty-chip {
+        width: 25px;
+        min-width: 25px;
+        height: 24px;
+    }
+
+    .home-specialty-chip span {
+        width: 24px;
+        height: 24px;
+        flex-basis: 24px;
+    }
+
+    .home-specialty-chip b {
+        min-width: 15px;
+        height: 16px;
+        line-height: 14px;
         font-size: 10px;
     }
 }
