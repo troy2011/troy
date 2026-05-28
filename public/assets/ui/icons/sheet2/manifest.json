@@ -1,0 +1,972 @@
+[
+    {
+        "file":  "sheet2-001-r00-c07.png",
+        "row":  0,
+        "col":  7,
+        "x":  237,
+        "y":  2,
+        "width":  136,
+        "height":  124,
+        "alphaArea":  11010
+    },
+    {
+        "file":  "sheet2-002-r00-c04.png",
+        "row":  0,
+        "col":  4,
+        "x":  130,
+        "y":  5,
+        "width":  91,
+        "height":  87,
+        "alphaArea":  6038
+    },
+    {
+        "file":  "sheet2-003-r00-c00.png",
+        "row":  0,
+        "col":  0,
+        "x":  0,
+        "y":  8,
+        "width":  129,
+        "height":  109,
+        "alphaArea":  9012
+    },
+    {
+        "file":  "sheet2-004-r00-c12.png",
+        "row":  0,
+        "col":  12,
+        "x":  386,
+        "y":  8,
+        "width":  126,
+        "height":  115,
+        "alphaArea":  11641
+    },
+    {
+        "file":  "sheet2-005-r00-c33.png",
+        "row":  0,
+        "col":  33,
+        "x":  1059,
+        "y":  9,
+        "width":  91,
+        "height":  115,
+        "alphaArea":  6448
+    },
+    {
+        "file":  "sheet2-006-r00-c36.png",
+        "row":  0,
+        "col":  36,
+        "x":  1156,
+        "y":  10,
+        "width":  88,
+        "height":  115,
+        "alphaArea":  6439
+    },
+    {
+        "file":  "sheet2-007-r00-c39.png",
+        "row":  0,
+        "col":  39,
+        "x":  1251,
+        "y":  10,
+        "width":  91,
+        "height":  114,
+        "alphaArea":  8373
+    },
+    {
+        "file":  "sheet2-008-r00-c16.png",
+        "row":  0,
+        "col":  16,
+        "x":  527,
+        "y":  23,
+        "width":  138,
+        "height":  132,
+        "alphaArea":  14196
+    },
+    {
+        "file":  "sheet2-009-r01-c42.png",
+        "row":  1,
+        "col":  42,
+        "x":  1347,
+        "y":  38,
+        "width":  88,
+        "height":  85,
+        "alphaArea":  5167
+    },
+    {
+        "file":  "sheet2-010-r01-c30.png",
+        "row":  1,
+        "col":  30,
+        "x":  967,
+        "y":  45,
+        "width":  84,
+        "height":  74,
+        "alphaArea":  4169
+    },
+    {
+        "file":  "sheet2-011-r01-c21.png",
+        "row":  1,
+        "col":  21,
+        "x":  681,
+        "y":  48,
+        "width":  80,
+        "height":  69,
+        "alphaArea":  4046
+    },
+    {
+        "file":  "sheet2-012-r01-c24.png",
+        "row":  1,
+        "col":  24,
+        "x":  775,
+        "y":  49,
+        "width":  83,
+        "height":  69,
+        "alphaArea":  4056
+    },
+    {
+        "file":  "sheet2-013-r01-c27.png",
+        "row":  1,
+        "col":  27,
+        "x":  871,
+        "y":  50,
+        "width":  79,
+        "height":  68,
+        "alphaArea":  3995
+    },
+    {
+        "file":  "sheet2-014-r04-c00.png",
+        "row":  4,
+        "col":  0,
+        "x":  3,
+        "y":  128,
+        "width":  120,
+        "height":  128,
+        "alphaArea":  11735
+    },
+    {
+        "file":  "sheet2-015-r04-c29.png",
+        "row":  4,
+        "col":  29,
+        "x":  930,
+        "y":  128,
+        "width":  155,
+        "height":  128,
+        "alphaArea":  14426
+    },
+    {
+        "file":  "sheet2-016-r04-c34.png",
+        "row":  4,
+        "col":  34,
+        "x":  1090,
+        "y":  136,
+        "width":  61,
+        "height":  142,
+        "alphaArea":  4118
+    },
+    {
+        "file":  "sheet2-017-r04-c36.png",
+        "row":  4,
+        "col":  36,
+        "x":  1165,
+        "y":  136,
+        "width":  79,
+        "height":  148,
+        "alphaArea":  8289
+    },
+    {
+        "file":  "sheet2-018-r04-c26.png",
+        "row":  4,
+        "col":  26,
+        "x":  832,
+        "y":  138,
+        "width":  96,
+        "height":  109,
+        "alphaArea":  7724
+    },
+    {
+        "file":  "sheet2-019-r04-c08.png",
+        "row":  4,
+        "col":  8,
+        "x":  269,
+        "y":  139,
+        "width":  132,
+        "height":  110,
+        "alphaArea":  10569
+    },
+    {
+        "file":  "sheet2-020-r04-c04.png",
+        "row":  4,
+        "col":  4,
+        "x":  129,
+        "y":  141,
+        "width":  125,
+        "height":  136,
+        "alphaArea":  8563
+    },
+    {
+        "file":  "sheet2-021-r04-c21.png",
+        "row":  4,
+        "col":  21,
+        "x":  681,
+        "y":  141,
+        "width":  140,
+        "height":  138,
+        "alphaArea":  11467
+    },
+    {
+        "file":  "sheet2-022-r04-c39.png",
+        "row":  4,
+        "col":  39,
+        "x":  1265,
+        "y":  142,
+        "width":  69,
+        "height":  137,
+        "alphaArea":  4452
+    },
+    {
+        "file":  "sheet2-023-r05-c15.png",
+        "row":  5,
+        "col":  15,
+        "x":  490,
+        "y":  162,
+        "width":  171,
+        "height":  126,
+        "alphaArea":  16012
+    },
+    {
+        "file":  "sheet2-024-r08-c12.png",
+        "row":  8,
+        "col":  12,
+        "x":  386,
+        "y":  265,
+        "width":  89,
+        "height":  144,
+        "alphaArea":  5159
+    },
+    {
+        "file":  "sheet2-025-r09-c00.png",
+        "row":  9,
+        "col":  0,
+        "x":  14,
+        "y":  288,
+        "width":  128,
+        "height":  126,
+        "alphaArea":  5455
+    },
+    {
+        "file":  "sheet2-026-r09-c15.png",
+        "row":  9,
+        "col":  15,
+        "x":  493,
+        "y":  288,
+        "width":  101,
+        "height":  128,
+        "alphaArea":  9575
+    },
+    {
+        "file":  "sheet2-027-r09-c09.png",
+        "row":  9,
+        "col":  9,
+        "x":  298,
+        "y":  290,
+        "width":  82,
+        "height":  124,
+        "alphaArea":  4161
+    },
+    {
+        "file":  "sheet2-028-r09-c22.png",
+        "row":  9,
+        "col":  22,
+        "x":  708,
+        "y":  290,
+        "width":  86,
+        "height":  93,
+        "alphaArea":  5367
+    },
+    {
+        "file":  "sheet2-029-r09-c28.png",
+        "row":  9,
+        "col":  28,
+        "x":  904,
+        "y":  291,
+        "width":  110,
+        "height":  123,
+        "alphaArea":  9946
+    },
+    {
+        "file":  "sheet2-030-r09-c40.png",
+        "row":  9,
+        "col":  40,
+        "x":  1291,
+        "y":  292,
+        "width":  99,
+        "height":  91,
+        "alphaArea":  5091
+    },
+    {
+        "file":  "sheet2-031-r09-c25.png",
+        "row":  9,
+        "col":  25,
+        "x":  804,
+        "y":  295,
+        "width":  87,
+        "height":  87,
+        "alphaArea":  4843
+    },
+    {
+        "file":  "sheet2-032-r09-c19.png",
+        "row":  9,
+        "col":  19,
+        "x":  610,
+        "y":  300,
+        "width":  94,
+        "height":  111,
+        "alphaArea":  7891
+    },
+    {
+        "file":  "sheet2-033-r09-c05.png",
+        "row":  9,
+        "col":  5,
+        "x":  175,
+        "y":  301,
+        "width":  103,
+        "height":  110,
+        "alphaArea":  6451
+    },
+    {
+        "file":  "sheet2-034-r09-c35.png",
+        "row":  9,
+        "col":  35,
+        "x":  1127,
+        "y":  303,
+        "width":  143,
+        "height":  107,
+        "alphaArea":  10773
+    },
+    {
+        "file":  "sheet2-035-r09-c32.png",
+        "row":  9,
+        "col":  32,
+        "x":  1030,
+        "y":  305,
+        "width":  78,
+        "height":  102,
+        "alphaArea":  6736
+    },
+    {
+        "file":  "sheet2-036-r13-c14.png",
+        "row":  13,
+        "col":  14,
+        "x":  479,
+        "y":  416,
+        "width":  97,
+        "height":  128,
+        "alphaArea":  6241
+    },
+    {
+        "file":  "sheet2-037-r13-c11.png",
+        "row":  13,
+        "col":  11,
+        "x":  355,
+        "y":  418,
+        "width":  119,
+        "height":  93,
+        "alphaArea":  6311
+    },
+    {
+        "file":  "sheet2-038-r13-c18.png",
+        "row":  13,
+        "col":  18,
+        "x":  587,
+        "y":  419,
+        "width":  99,
+        "height":  121,
+        "alphaArea":  8177
+    },
+    {
+        "file":  "sheet2-039-r13-c00.png",
+        "row":  13,
+        "col":  0,
+        "x":  13,
+        "y":  420,
+        "width":  102,
+        "height":  122,
+        "alphaArea":  8335
+    },
+    {
+        "file":  "sheet2-040-r13-c04.png",
+        "row":  13,
+        "col":  4,
+        "x":  130,
+        "y":  420,
+        "width":  93,
+        "height":  123,
+        "alphaArea":  5821
+    },
+    {
+        "file":  "sheet2-041-r13-c22.png",
+        "row":  13,
+        "col":  22,
+        "x":  706,
+        "y":  421,
+        "width":  94,
+        "height":  117,
+        "alphaArea":  6737
+    },
+    {
+        "file":  "sheet2-042-r13-c29.png",
+        "row":  13,
+        "col":  29,
+        "x":  935,
+        "y":  421,
+        "width":  113,
+        "height":  119,
+        "alphaArea":  4051
+    },
+    {
+        "file":  "sheet2-043-r13-c38.png",
+        "row":  13,
+        "col":  38,
+        "x":  1226,
+        "y":  424,
+        "width":  111,
+        "height":  112,
+        "alphaArea":  9050
+    },
+    {
+        "file":  "sheet2-044-r13-c36.png",
+        "row":  13,
+        "col":  36,
+        "x":  1157,
+        "y":  426,
+        "width":  57,
+        "height":  113,
+        "alphaArea":  4148
+    },
+    {
+        "file":  "sheet2-045-r13-c07.png",
+        "row":  13,
+        "col":  7,
+        "x":  238,
+        "y":  436,
+        "width":  96,
+        "height":  94,
+        "alphaArea":  6750
+    },
+    {
+        "file":  "sheet2-046-r13-c25.png",
+        "row":  13,
+        "col":  25,
+        "x":  815,
+        "y":  436,
+        "width":  100,
+        "height":  97,
+        "alphaArea":  7541
+    },
+    {
+        "file":  "sheet2-047-r14-c33.png",
+        "row":  14,
+        "col":  33,
+        "x":  1059,
+        "y":  448,
+        "width":  89,
+        "height":  96,
+        "alphaArea":  6900
+    },
+    {
+        "file":  "sheet2-048-r17-c40.png",
+        "row":  17,
+        "col":  40,
+        "x":  1292,
+        "y":  545,
+        "width":  108,
+        "height":  126,
+        "alphaArea":  11249
+    },
+    {
+        "file":  "sheet2-049-r17-c00.png",
+        "row":  17,
+        "col":  0,
+        "x":  1,
+        "y":  550,
+        "width":  126,
+        "height":  112,
+        "alphaArea":  8883
+    },
+    {
+        "file":  "sheet2-050-r17-c20.png",
+        "row":  17,
+        "col":  20,
+        "x":  652,
+        "y":  550,
+        "width":  107,
+        "height":  118,
+        "alphaArea":  9856
+    },
+    {
+        "file":  "sheet2-051-r17-c24.png",
+        "row":  17,
+        "col":  24,
+        "x":  774,
+        "y":  552,
+        "width":  119,
+        "height":  117,
+        "alphaArea":  9612
+    },
+    {
+        "file":  "sheet2-052-r17-c28.png",
+        "row":  17,
+        "col":  28,
+        "x":  903,
+        "y":  552,
+        "width":  116,
+        "height":  118,
+        "alphaArea":  9717
+    },
+    {
+        "file":  "sheet2-053-r17-c32.png",
+        "row":  17,
+        "col":  32,
+        "x":  1029,
+        "y":  552,
+        "width":  118,
+        "height":  118,
+        "alphaArea":  9572
+    },
+    {
+        "file":  "sheet2-054-r17-c04.png",
+        "row":  17,
+        "col":  4,
+        "x":  131,
+        "y":  554,
+        "width":  123,
+        "height":  110,
+        "alphaArea":  9748
+    },
+    {
+        "file":  "sheet2-055-r17-c08.png",
+        "row":  17,
+        "col":  8,
+        "x":  258,
+        "y":  554,
+        "width":  123,
+        "height":  111,
+        "alphaArea":  9703
+    },
+    {
+        "file":  "sheet2-056-r17-c12.png",
+        "row":  17,
+        "col":  12,
+        "x":  392,
+        "y":  558,
+        "width":  115,
+        "height":  106,
+        "alphaArea":  6536
+    },
+    {
+        "file":  "sheet2-057-r17-c16.png",
+        "row":  17,
+        "col":  16,
+        "x":  515,
+        "y":  558,
+        "width":  122,
+        "height":  100,
+        "alphaArea":  7959
+    },
+    {
+        "file":  "sheet2-058-r21-c08.png",
+        "row":  21,
+        "col":  8,
+        "x":  269,
+        "y":  686,
+        "width":  105,
+        "height":  102,
+        "alphaArea":  10041
+    },
+    {
+        "file":  "sheet2-059-r21-c00.png",
+        "row":  21,
+        "col":  0,
+        "x":  12,
+        "y":  687,
+        "width":  102,
+        "height":  102,
+        "alphaArea":  9850
+    },
+    {
+        "file":  "sheet2-060-r21-c04.png",
+        "row":  21,
+        "col":  4,
+        "x":  139,
+        "y":  687,
+        "width":  103,
+        "height":  100,
+        "alphaArea":  9685
+    },
+    {
+        "file":  "sheet2-061-r21-c12.png",
+        "row":  21,
+        "col":  12,
+        "x":  400,
+        "y":  687,
+        "width":  99,
+        "height":  100,
+        "alphaArea":  9351
+    },
+    {
+        "file":  "sheet2-062-r21-c16.png",
+        "row":  21,
+        "col":  16,
+        "x":  526,
+        "y":  687,
+        "width":  98,
+        "height":  100,
+        "alphaArea":  9367
+    },
+    {
+        "file":  "sheet2-063-r21-c20.png",
+        "row":  21,
+        "col":  20,
+        "x":  653,
+        "y":  687,
+        "width":  94,
+        "height":  99,
+        "alphaArea":  8749
+    },
+    {
+        "file":  "sheet2-064-r21-c24.png",
+        "row":  21,
+        "col":  24,
+        "x":  771,
+        "y":  688,
+        "width":  91,
+        "height":  102,
+        "alphaArea":  8676
+    },
+    {
+        "file":  "sheet2-065-r21-c27.png",
+        "row":  21,
+        "col":  27,
+        "x":  865,
+        "y":  688,
+        "width":  94,
+        "height":  102,
+        "alphaArea":  8998
+    },
+    {
+        "file":  "sheet2-066-r21-c42.png",
+        "row":  21,
+        "col":  42,
+        "x":  1357,
+        "y":  688,
+        "width":  70,
+        "height":  71,
+        "alphaArea":  4490
+    },
+    {
+        "file":  "sheet2-067-r21-c30.png",
+        "row":  21,
+        "col":  30,
+        "x":  971,
+        "y":  689,
+        "width":  70,
+        "height":  71,
+        "alphaArea":  4539
+    },
+    {
+        "file":  "sheet2-068-r21-c39.png",
+        "row":  21,
+        "col":  39,
+        "x":  1260,
+        "y":  689,
+        "width":  73,
+        "height":  72,
+        "alphaArea":  4595
+    },
+    {
+        "file":  "sheet2-069-r21-c33.png",
+        "row":  21,
+        "col":  33,
+        "x":  1068,
+        "y":  691,
+        "width":  69,
+        "height":  66,
+        "alphaArea":  4274
+    },
+    {
+        "file":  "sheet2-070-r21-c36.png",
+        "row":  21,
+        "col":  36,
+        "x":  1163,
+        "y":  691,
+        "width":  71,
+        "height":  66,
+        "alphaArea":  4341
+    },
+    {
+        "file":  "sheet2-071-r25-c24.png",
+        "row":  25,
+        "col":  24,
+        "x":  775,
+        "y":  804,
+        "width":  83,
+        "height":  88,
+        "alphaArea":  5710
+    },
+    {
+        "file":  "sheet2-072-r25-c06.png",
+        "row":  25,
+        "col":  6,
+        "x":  197,
+        "y":  805,
+        "width":  85,
+        "height":  87,
+        "alphaArea":  5832
+    },
+    {
+        "file":  "sheet2-073-r25-c09.png",
+        "row":  25,
+        "col":  9,
+        "x":  293,
+        "y":  805,
+        "width":  85,
+        "height":  87,
+        "alphaArea":  5875
+    },
+    {
+        "file":  "sheet2-074-r25-c15.png",
+        "row":  25,
+        "col":  15,
+        "x":  488,
+        "y":  805,
+        "width":  83,
+        "height":  88,
+        "alphaArea":  5688
+    },
+    {
+        "file":  "sheet2-075-r25-c00.png",
+        "row":  25,
+        "col":  0,
+        "x":  5,
+        "y":  806,
+        "width":  86,
+        "height":  86,
+        "alphaArea":  5797
+    },
+    {
+        "file":  "sheet2-076-r25-c03.png",
+        "row":  25,
+        "col":  3,
+        "x":  102,
+        "y":  806,
+        "width":  85,
+        "height":  86,
+        "alphaArea":  5754
+    },
+    {
+        "file":  "sheet2-077-r25-c12.png",
+        "row":  25,
+        "col":  12,
+        "x":  390,
+        "y":  806,
+        "width":  84,
+        "height":  86,
+        "alphaArea":  5725
+    },
+    {
+        "file":  "sheet2-078-r25-c18.png",
+        "row":  25,
+        "col":  18,
+        "x":  582,
+        "y":  806,
+        "width":  82,
+        "height":  84,
+        "alphaArea":  5483
+    },
+    {
+        "file":  "sheet2-079-r25-c21.png",
+        "row":  25,
+        "col":  21,
+        "x":  679,
+        "y":  806,
+        "width":  85,
+        "height":  85,
+        "alphaArea":  5475
+    },
+    {
+        "file":  "sheet2-080-r25-c27.png",
+        "row":  25,
+        "col":  27,
+        "x":  871,
+        "y":  807,
+        "width":  84,
+        "height":  87,
+        "alphaArea":  5744
+    },
+    {
+        "file":  "sheet2-081-r25-c30.png",
+        "row":  25,
+        "col":  30,
+        "x":  967,
+        "y":  807,
+        "width":  83,
+        "height":  85,
+        "alphaArea":  5442
+    },
+    {
+        "file":  "sheet2-082-r25-c33.png",
+        "row":  25,
+        "col":  33,
+        "x":  1066,
+        "y":  809,
+        "width":  77,
+        "height":  80,
+        "alphaArea":  4781
+    },
+    {
+        "file":  "sheet2-083-r25-c42.png",
+        "row":  25,
+        "col":  42,
+        "x":  1356,
+        "y":  809,
+        "width":  77,
+        "height":  79,
+        "alphaArea":  4712
+    },
+    {
+        "file":  "sheet2-084-r25-c36.png",
+        "row":  25,
+        "col":  36,
+        "x":  1163,
+        "y":  810,
+        "width":  76,
+        "height":  80,
+        "alphaArea":  4682
+    },
+    {
+        "file":  "sheet2-085-r25-c39.png",
+        "row":  25,
+        "col":  39,
+        "x":  1259,
+        "y":  810,
+        "width":  77,
+        "height":  78,
+        "alphaArea":  4709
+    },
+    {
+        "file":  "sheet2-086-r28-c12.png",
+        "row":  28,
+        "col":  12,
+        "x":  384,
+        "y":  897,
+        "width":  128,
+        "height":  95,
+        "alphaArea":  11656
+    },
+    {
+        "file":  "sheet2-087-r28-c06.png",
+        "row":  28,
+        "col":  6,
+        "x":  202,
+        "y":  901,
+        "width":  173,
+        "height":  88,
+        "alphaArea":  12312
+    },
+    {
+        "file":  "sheet2-088-r28-c00.png",
+        "row":  28,
+        "col":  0,
+        "x":  4,
+        "y":  906,
+        "width":  182,
+        "height":  107,
+        "alphaArea":  15028
+    },
+    {
+        "file":  "sheet2-089-r28-c16.png",
+        "row":  28,
+        "col":  16,
+        "x":  515,
+        "y":  907,
+        "width":  120,
+        "height":  103,
+        "alphaArea":  9496
+    },
+    {
+        "file":  "sheet2-090-r28-c33.png",
+        "row":  28,
+        "col":  33,
+        "x":  1069,
+        "y":  909,
+        "width":  103,
+        "height":  105,
+        "alphaArea":  8028
+    },
+    {
+        "file":  "sheet2-091-r28-c37.png",
+        "row":  28,
+        "col":  37,
+        "x":  1197,
+        "y":  909,
+        "width":  103,
+        "height":  105,
+        "alphaArea":  8105
+    },
+    {
+        "file":  "sheet2-092-r28-c20.png",
+        "row":  28,
+        "col":  20,
+        "x":  651,
+        "y":  910,
+        "width":  105,
+        "height":  107,
+        "alphaArea":  8247
+    },
+    {
+        "file":  "sheet2-093-r28-c29.png",
+        "row":  28,
+        "col":  29,
+        "x":  942,
+        "y":  910,
+        "width":  101,
+        "height":  103,
+        "alphaArea":  7747
+    },
+    {
+        "file":  "sheet2-094-r28-c41.png",
+        "row":  28,
+        "col":  41,
+        "x":  1324,
+        "y":  910,
+        "width":  108,
+        "height":  106,
+        "alphaArea":  8447
+    },
+    {
+        "file":  "sheet2-095-r28-c24.png",
+        "row":  28,
+        "col":  24,
+        "x":  785,
+        "y":  913,
+        "width":  130,
+        "height":  97,
+        "alphaArea":  9129
+    },
+    {
+        "file":  "sheet2-096-r32-c00.png",
+        "row":  32,
+        "col":  0,
+        "x":  10,
+        "y":  1030,
+        "width":  459,
+        "height":  120,
+        "alphaArea":  37041
+    },
+    {
+        "file":  "sheet2-097-r36-c00.png",
+        "row":  36,
+        "col":  0,
+        "x":  12,
+        "y":  1165,
+        "width":  453,
+        "height":  65,
+        "alphaArea":  23971
+    }
+]

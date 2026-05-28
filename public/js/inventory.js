@@ -319,6 +319,7 @@ export function switchInventoryPanel(panel, options = {}) {
     const tabContent = document.getElementById('tabContentInventory');
     if (tabContent) {
         tabContent.dataset.inventoryPanel = activeInventoryPanel;
+        tabContent.dataset.inventoryGroup = activeInventoryGroup;
     }
     if (!options.scrollSwitcher) return;
     const switcher = document.getElementById('inventoryMobileSwitch');
@@ -865,7 +866,7 @@ function renderEquipmentFocusPanel(panel) {
 }
 
 function renderTarotFocusPanel(panel) {
-    panel.appendChild(createInventoryFocusHeader('現在のタロット', 'デッキとカード候補を同じ画面で確認できます'));
+    panel.appendChild(createInventoryFocusHeader('現在のタロットデッキ', 'デッキとカード候補を同じ画面で確認できます'));
     const deckGrid = document.createElement('div');
     deckGrid.className = 'inventory-focus-deck-grid';
     [
@@ -924,7 +925,7 @@ function renderInventoryFocusPanel() {
     const panel = document.getElementById('inventoryFocusPanel');
     if (!panel) return;
     panel.innerHTML = '';
-    panel.hidden = activeInventoryGroup !== 'Tarot';
+    panel.hidden = activeInventoryGroup !== 'Tarot' && activeInventoryGroup !== 'All';
     if (panel.hidden) return;
     renderTarotFocusPanel(panel);
 }

@@ -3133,6 +3133,17 @@ body[data-sea-tone="night"] .home-hero-card {
     box-shadow: none;
 }
 
+.section-header-btn::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: -4px;
+    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
 /* インベントリソートセレクト */
 .sort-select {
     background: #374151;
@@ -15489,6 +15500,18 @@ textarea {
     padding: 0 14px;
     background: #334155;
 }
+
+.event-refresh-btn::before,
+.troy-orders-refresh::before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: -4px;
+    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
 .event-list {
     display: flex;
     flex-direction: column;
@@ -17257,28 +17280,26 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #btnShowDartsRanking::before {
-    content: "◉";
-    color: #d8c29b;
-    font-size: 24px;
-    line-height: 28px;
-    text-align: center;
+    background-image: url("./assets/ui/icons/icon-dart.png");
 }
 
 #btnShowKaraokeRanking::before {
-    content: "♪";
-    color: #d8c29b;
-    font-size: 27px;
-    line-height: 28px;
-    text-align: center;
+    background-image: url("./assets/ui/icons/icon-microphone.png");
 }
 
 .ranking-toggle-btn.active {
-    color: #2a1605;
+    color: #fff1c2;
     border-color: rgba(255, 229, 149, 0.74);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18)),
         url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.28);
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78), 0 0 8px rgba(255, 222, 128, 0.28);
+}
+
+.ranking-toggle-btn.active::before {
+    color: #fff1c2;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.72));
 }
 
 .ranking-refresh-row {
@@ -17294,8 +17315,14 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .ranking-refresh-btn::before {
-    content: "↻";
+    content: "";
+    width: 20px;
+    height: 20px;
+    display: inline-block;
     margin-right: 6px;
+    vertical-align: -4px;
+    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .ranking-list {
@@ -17345,15 +17372,25 @@ body[data-sea-tone] .home-hero-card {
     position: relative;
     background:
         radial-gradient(circle at 50% 42%, rgba(30, 20, 10, 0.96) 0 36%, transparent 38%),
-        url("./assets/ui/icons/rank-crown-gold.png") center / contain no-repeat;
+        url("./assets/ui/icons/medal-empty.png") center / contain no-repeat;
+}
+
+.ranking-row-top-1 .ranking-rank-badge {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(30, 20, 10, 0.92) 0 34%, transparent 36%),
+        url("./assets/ui/icons/medal-gold.png") center / contain no-repeat;
 }
 
 .ranking-row-top-2 .ranking-rank-badge {
-    filter: grayscale(0.86) brightness(1.18);
+    background:
+        radial-gradient(circle at 50% 42%, rgba(24, 24, 24, 0.92) 0 34%, transparent 36%),
+        url("./assets/ui/icons/medal-silver.png") center / contain no-repeat;
 }
 
 .ranking-row-top-3 .ranking-rank-badge {
-    filter: sepia(0.72) saturate(1.45) hue-rotate(338deg) brightness(0.9);
+    background:
+        radial-gradient(circle at 50% 42%, rgba(30, 17, 8, 0.92) 0 34%, transparent 36%),
+        url("./assets/ui/icons/medal-bronze.png") center / contain no-repeat;
 }
 
 .ranking-rank-medal {
@@ -17396,7 +17433,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .ranking-row-score {
-    min-width: 92px;
+    min-width: 118px;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
@@ -17415,10 +17452,20 @@ body[data-sea-tone] .home-hero-card {
 .ranking-row-score-value {
     display: inline-block;
     color: #ffe188;
-    font-family: Georgia, "Times New Roman", serif;
+    min-width: 74px;
+    text-align: right;
+    font-family: Arial, "Helvetica Neue", "Yu Gothic", sans-serif;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
     font-size: 24px;
+    font-weight: 900;
     line-height: 1;
+    letter-spacing: 0;
     text-shadow: 0 2px 0 #201004;
+}
+
+.ranking-row-top-1 .ranking-row-score-value {
+    font-size: 24px;
 }
 
 @media (max-width: 420px) {
@@ -17469,7 +17516,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .ranking-row-score {
-        min-width: 68px;
+        min-width: 74px;
     }
 
     .ranking-row-score::before {
@@ -17477,6 +17524,11 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .ranking-row-score-value {
+        min-width: 68px;
+        font-size: 20px;
+    }
+
+    .ranking-row-top-1 .ranking-row-score-value {
         font-size: 20px;
     }
 }
@@ -17619,6 +17671,10 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .avatar-card.inventory-section:not(.active) {
     display: block;
+}
+
+#tabContentInventory[data-inventory-panel="items"][data-inventory-group="Tarot"] .avatar-card.inventory-section {
+    display: none;
 }
 
 #tabContentInventory .inventory-avatar-stage,
@@ -19246,8 +19302,8 @@ body[data-sea-tone] .home-hero-card {
     grid-row: 2;
     justify-self: center;
     align-self: end;
-    width: 176px;
-    max-width: 176px;
+    width: 184px;
+    max-width: 184px;
     margin: 0;
     gap: 2px;
     justify-content: space-between;
@@ -19259,19 +19315,21 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-specialty-chip {
-    width: 27px;
-    min-width: 27px;
-    height: 25px;
+    width: 31px;
+    min-width: 31px;
+    height: 28px;
 }
 
 .home-specialty-chip span {
-    width: 25px;
-    height: 25px;
-    flex-basis: 25px;
+    width: 29px;
+    height: 28px;
+    flex-basis: 29px;
+    background-position: left center;
+    background-size: auto 28px;
 }
 
 .home-specialty-chip b {
-    right: -4px;
+    right: -5px;
     min-width: 16px;
     height: 17px;
     line-height: 15px;
@@ -19284,6 +19342,71 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card .home-player-ship-frame .home-player-ship-icon {
     animation: none !important;
+}
+
+.home-hero-card .home-player-ship-frame {
+    top: -120px;
+    right: 9px;
+    width: 90px;
+    min-height: 166px;
+    padding: 10px 5px 6px;
+    border: 0;
+    border-image: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.home-hero-card .home-player-ship-frame.is-exploring {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.home-player-ship-head {
+    gap: 3px;
+}
+
+.home-player-ship-title {
+    color: rgba(239, 222, 188, 0.84);
+    font-size: 10px;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.86);
+}
+
+.home-player-ship-head strong,
+.home-player-ship-name {
+    color: #ffe188;
+    font-size: 18px;
+    line-height: 1.05;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.92), 0 0 8px rgba(255, 222, 128, 0.22);
+}
+
+.home-player-ship-body {
+    margin-top: 8px;
+    gap: 4px;
+}
+
+.home-hero-card .home-player-ship-icon {
+    width: 62px;
+    height: 62px;
+    filter: drop-shadow(0 0 0 white) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.78));
+}
+
+.home-player-ship-upgrades {
+    margin-top: 8px;
+}
+
+.home-player-ship-upgrades button {
+    min-height: 34px;
+    padding: 4px 13px;
+    font-size: 15px;
+}
+
+.home-player-ship-final,
+.home-player-ship-empty {
+    color: rgba(239, 222, 188, 0.88);
+    font-size: 10px;
+    line-height: 1.25;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.86);
 }
 
 #navKing .nav-icon {
@@ -19304,8 +19427,8 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-specialty-row {
-        width: 168px;
-        max-width: 168px;
+        width: 176px;
+        max-width: 176px;
         margin-left: 0;
     }
 
@@ -19314,15 +19437,17 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-specialty-chip {
-        width: 25px;
-        min-width: 25px;
-        height: 24px;
+        width: 29px;
+        min-width: 29px;
+        height: 27px;
     }
 
     .home-specialty-chip span {
-        width: 24px;
-        height: 24px;
-        flex-basis: 24px;
+        width: 27px;
+        height: 27px;
+        flex-basis: 27px;
+        background-position: left center;
+        background-size: auto 27px;
     }
 
     .home-specialty-chip b {
@@ -19330,5 +19455,29 @@ body[data-sea-tone] .home-hero-card {
         height: 16px;
         line-height: 14px;
         font-size: 10px;
+    }
+
+    .home-hero-card .home-player-ship-frame {
+        top: -116px;
+        right: 4px;
+        width: 84px;
+        min-height: 158px;
+        padding: 9px 4px 6px;
+    }
+
+    .home-player-ship-head strong,
+    .home-player-ship-name {
+        font-size: 17px;
+    }
+
+    .home-hero-card .home-player-ship-icon {
+        width: 58px;
+        height: 58px;
+    }
+
+    .home-player-ship-upgrades button {
+        min-height: 32px;
+        padding-inline: 11px;
+        font-size: 14px;
     }
 }

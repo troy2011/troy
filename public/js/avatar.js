@@ -13,18 +13,18 @@ const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['leather02_'], path: './Sprites/wardrobe/leather/leather02.png', width: 32, height: 48, cols: 4, twoHanded: false },
     { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
     { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true },
-    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false },
-    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false },
-    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true },
-    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false },
-    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true },
-    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff' },
-    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff' },
-    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true },
-    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false }
+    { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { shieldLeft: { x: -10, y: -7 } } },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true, avatarOffset: { weaponRight: { x: 0, y: -14 } } },
+    { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false, avatarOffset: { weaponRight: { x: -2, y: 2 } } },
+    { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false, avatarOffset: { weaponRight: { x: 2, y: 4 } } },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: -22, y: 14 } } },
+    { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { weaponRight: { x: -4, y: 5 } } },
+    { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { weaponRight: { x: -3, y: 5 } } },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, avatarOffset: { weaponRight: { x: 2, y: -24 } } },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 3, y: -24 } } },
+    { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 2, y: 4 } } },
+    { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: 8, y: 18 } } },
+    { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, avatarOffset: { weaponRight: { x: -4, y: 18 } } }
 ]);
 
 function resolveAvatarSpritePreset(item) {
@@ -43,6 +43,14 @@ function normalizeSpriteFrameSize(imageUrl, spriteWidth = 32, spriteHeight = 32,
         return { width: preset.width, height: preset.height, path: preset.path };
     }
     return { width: Number(spriteWidth) || 32, height: Number(spriteHeight) || 32, path: imageUrl };
+}
+
+function getAvatarLayerOffset(imageUrl, layerId) {
+    const preset = resolveAvatarSpritePreset({ sprite_path: imageUrl });
+    if (!preset?.avatarOffset) return { x: 0, y: 0 };
+    if (layerId.includes('weapon-right')) return preset.avatarOffset.weaponRight || { x: 0, y: 0 };
+    if (layerId.includes('shield-left')) return preset.avatarOffset.shieldLeft || { x: 0, y: 0 };
+    return { x: 0, y: 0 };
 }
 
 function getAvatarItemSpriteMeta(item) {
@@ -213,6 +221,9 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             } else if (layerId.includes('weapon-right')) {
                 let offsetX = AVATAR_PART_OFFSETS.rightHandItem.x;
                 let offsetY = AVATAR_PART_OFFSETS.rightHandItem.y;
+                const itemOffset = getAvatarLayerOffset(currentUrl, layerId);
+                offsetX += itemOffset.x;
+                offsetY += itemOffset.y;
                 if (itemCategory === 'Shield') {
                     offsetX += AVATAR_PART_OFFSETS.shield.x;
                     offsetY += AVATAR_PART_OFFSETS.shield.y;
@@ -221,6 +232,9 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             } else if (layerId.includes('shield-left')) {
                 let offsetX = AVATAR_PART_OFFSETS.leftHandItem.x;
                 let offsetY = AVATAR_PART_OFFSETS.leftHandItem.y;
+                const itemOffset = getAvatarLayerOffset(currentUrl, layerId);
+                offsetX += itemOffset.x;
+                offsetY += itemOffset.y;
                 if (itemCategory === 'Shield') {
                     offsetX += AVATAR_PART_OFFSETS.shield.x;
                     offsetY += AVATAR_PART_OFFSETS.shield.y;
