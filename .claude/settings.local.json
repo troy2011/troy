@@ -10,7 +10,9 @@
       "MultiEdit(*)",
       "NotebookEdit(*)",
       "WebFetch(*)",
-      "WebSearch(*)"
+      "WebSearch(*)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\bartr\\\\troy\\\\public\" -Recurse | Where-Object { $_.Extension -in \".mp3\",\".wav\",\".ogg\" } | Select-Object Name, DirectoryName)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\bartr\\\\troy\" -Recurse | Where-Object { $_.Extension -in \".mp3\",\".wav\",\".ogg\",\".aac\" } | Select-Object FullName)"
     ],
     "deny": [],
     "ask": []

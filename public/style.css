@@ -19481,3 +19481,79 @@ body[data-sea-tone] .home-hero-card {
         font-size: 14px;
     }
 }
+
+/* --- Mobile icon aspect safety --- */
+.nav-button .nav-icon {
+    aspect-ratio: 1 / 1;
+    flex: 0 0 40px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+#navKing .nav-icon {
+    background-size: contain;
+}
+
+.home-specialty-row {
+    width: 190px;
+    max-width: 190px;
+    gap: 4px;
+}
+
+.home-specialty-label {
+    flex: 0 0 auto;
+}
+
+.home-specialty-chip {
+    width: 33px;
+    min-width: 33px;
+    height: 25px;
+    flex: 0 0 33px;
+}
+
+.home-specialty-chip span {
+    width: 33px;
+    height: 22px;
+    aspect-ratio: 3 / 2;
+    flex: 0 0 33px;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.home-specialty-chip b {
+    right: -4px;
+}
+
+@media (max-width: 640px) {
+    .nav-button .nav-icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        background-size: contain;
+    }
+}
+
+@media (max-width: 420px) {
+    .home-specialty-row {
+        width: 184px;
+        max-width: 184px;
+        gap: 3px;
+    }
+
+    .home-specialty-chip {
+        width: 32px;
+        min-width: 32px;
+        height: 24px;
+        flex-basis: 32px;
+    }
+
+    .home-specialty-chip span {
+        width: 32px;
+        height: 21px;
+        flex-basis: 32px;
+        background-position: center;
+        background-size: contain;
+    }
+}
