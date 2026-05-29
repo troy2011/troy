@@ -153,38 +153,6 @@ async function getReadOnlyNationForPlayer(playFabId) {
     }
 }
 
-async function resolveGuestNationForTroyEntry(requestedNationRaw) {
-    const requested = String(requestedNationRaw || '').trim().toLowerCase();
-    const requestedMapping = nation.getNationMappingByNation(requested);
-    if (requestedMapping) {
-        try {
-            const roomSnap = await getTroyRoomDoc(requestedMapping.groupName).get();
-            const roomData = roomSnap.data() || {};
-            if (roomSnap.exists && roomData.isOpen) {
-                const kingNation = await getReadOnlyNationForPlayer(roomData.updatedBy);
-                return kingNation || requested;
-            }
-        } catch (error) {
-            console.warn('[troy-entry] Failed to read requested room:', error?.message || error);
-        }
-    }
-
-    try {
-        const openSnap = await firestore.collection('troy_rooms').where('isOpen', '==', true).limit(1).get();
-        if (!openSnap.empty) {
-            const roomDoc = openSnap.docs[0];
-            const roomNation = getNationKeyByGroupName(roomDoc.id);
-            const roomData = roomDoc.data() || {};
-            const kingNation = await getReadOnlyNationForPlayer(roomData.updatedBy);
-            if (kingNation) return kingNation;
-            if (roomNation) return roomNation;
-        }
-    } catch (error) {
-        console.warn('[troy-entry] Failed to find open room:', error?.message || error);
-    }
-
-    return normalizeTroyEntryNation(requestedNationRaw);
-}
 
 async function addPlayerToNationGroup(playFabId, nationKey) {
     const mapping = nation.getNationMappingByNation(nationKey);
@@ -1411,58 +1379,8 @@ app.post('/api/login-playfab', async (req, res) => {
         });
         const troyEntryRequested = String(req.body?.action || '').trim().toLowerCase() === 'troy-entry'
             || req.body?.troyEntry === true;
-        let needsRaceSelection = !(readOnly?.Data?.Race?.Value);
-        let nationValue = String(readOnly?.Data?.Nation?.Value || '').toLowerCase();
-        if (troyEntryRequested && (needsRaceSelection || !nationValue)) {
-            const guestNation = await resolveGuestNationForTroyEntry(req.body?.troyNation || req.body?.entryNation);
-            const guestMapping = nation.getNationMappingByNation(guestNation);
-            try {
-                await nation.ensureNationGroupExists(firestore, guestMapping, createDependencies());
-            } catch (groupError) {
-                console.warn('[login-playfab] Guest nation group ensure failed:', groupError?.errorMessage || groupError?.message || groupError);
-            }
-            try {
-                await addPlayerToNationGroup(playFabId, guestNation);
-            } catch (memberError) {
-                console.warn('[login-playfab] Guest nation member add failed:', memberError?.errorMessage || memberError?.message || memberError);
-            }
-            const baseName = String(displayName || '').trim().slice(0, 30) || `Guest-${String(playFabId).slice(-4)}`;
-            try {
-                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                    PlayFabId: playFabId,
-                    Statistics: [
-                        { StatisticName: 'Level', Value: 1 },
-                        { StatisticName: 'HP', Value: 5 },
-                        { StatisticName: 'MaxHP', Value: 5 },
-                        { StatisticName: 'MP', Value: 15 },
-                        { StatisticName: 'MaxMP', Value: 15 },
-                        { StatisticName: 'ちから', Value: 2 },
-                        { StatisticName: 'みのまもり', Value: 5 },
-                        { StatisticName: 'すばやさ', Value: 10 },
-                        { StatisticName: 'かしこさ', Value: 15 },
-                        { StatisticName: 'きようさ', Value: 10 }
-                    ]
-                });
-            } catch (statsError) {
-                console.warn('[login-playfab] Guest stats setup failed:', statsError?.errorMessage || statsError?.message || statsError);
-            }
-            try {
-                await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                    PlayFabId: playFabId,
-                    Data: {
-                        Race: readOnly?.Data?.Race?.Value || 'Human',
-                        Nation: guestNation,
-                        BaseDisplayName: baseName,
-                        IsGuest: 'true',
-                        GuestEntryCreatedAt: new Date().toISOString()
-                    }
-                });
-                needsRaceSelection = false;
-                nationValue = guestNation;
-            } catch (guestError) {
-                console.warn('[login-playfab] Guest profile setup failed:', guestError?.errorMessage || guestError?.message || guestError);
-            }
-        }
+        const needsRaceSelection = !(readOnly?.Data?.Race?.Value);
+        const nationValue = String(readOnly?.Data?.Nation?.Value || '').toLowerCase();
         const storedBaseName = readOnly?.Data?.BaseDisplayName?.Value || '';
         if (nationValue) {
             const result = await ensureNationDisplayName(playFabId, nationValue, storedBaseName || displayName);
@@ -1784,7 +1702,6 @@ app.post('/api/create-app-invite', async (req, res) => {
 // 種族設定API
 app.post('/api/set-race', async (req, res) => {
     const { playFabId, raceName, displayName, inviteToken, inviteNation } = req.body || {};
-    const completeGuestRegistrationRequest = req.body?.completeGuestRegistration === true;
     const clientEntityKey = normalizeEntityKey(req.body?.entityKey) || getEntityKeyFromToken(req.body?.entityToken);
     if (!playFabId || !raceName) return res.status(400).json({ error: 'playFabId and raceName are required' });
     console.log(`[set-race] ${playFabId} selected race ${raceName}`);
@@ -1827,13 +1744,11 @@ app.post('/api/set-race', async (req, res) => {
         setRaceStep = 'read-player-readonly';
         const currentReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Nation', 'lineUserId', 'IsGuest', 'StarterGoldGranted']
+            Keys: ['Nation', 'lineUserId', 'StarterGoldGranted']
         });
         const prevNation = String(currentReadOnly?.Data?.Nation?.Value || '').toLowerCase();
         const lineUserId = String(currentReadOnly?.Data?.lineUserId?.Value || '').trim();
-        const isGuest = String(currentReadOnly?.Data?.IsGuest?.Value || '').toLowerCase() === 'true';
         const starterGoldGranted = String(currentReadOnly?.Data?.StarterGoldGranted?.Value || '').toLowerCase() === 'true';
-        const completeGuestRegistration = completeGuestRegistrationRequest && isGuest && !!nation.getNationMappingByNation(prevNation);
 
         setRaceStep = 'resolve-invite';
         const fixedInviteNation = String(inviteNation || '').trim().toLowerCase();
@@ -1841,8 +1756,8 @@ app.post('/api/set-race', async (req, res) => {
         if (fixedInviteNation && !fixedInviteMapping) {
             return res.status(400).json({ error: 'InvalidInviteNation' });
         }
-        const tokenInviteAssignment = completeGuestRegistration ? null : await resolveAppInviteAssignment(inviteToken);
-        const fixedInviteAssignment = (!completeGuestRegistration && fixedInviteMapping) ? {
+        const tokenInviteAssignment = await resolveAppInviteAssignment(inviteToken);
+        const fixedInviteAssignment = fixedInviteMapping ? {
             mapping: fixedInviteMapping,
             nation: fixedInviteNation,
             inviterPlayFabId: '',
@@ -1850,9 +1765,7 @@ app.post('/api/set-race', async (req, res) => {
         } : null;
         const inviteAssignment = fixedInviteAssignment || tokenInviteAssignment;
         setRaceStep = 'resolve-mapping';
-        const mapping = completeGuestRegistration
-            ? nation.getNationMappingByNation(prevNation)
-            : (inviteAssignment?.mapping || nation.NATION_GROUP_BY_RACE[raceName]);
+        const mapping = inviteAssignment?.mapping || nation.NATION_GROUP_BY_RACE[raceName];
         if (!mapping) return res.status(400).json({ error: 'Invalid raceName' });
         const deps = createDependencies();
         setRaceStep = 'ensure-nation-group';
@@ -1873,7 +1786,7 @@ app.post('/api/set-race', async (req, res) => {
 
         let assignedGroupId = groupInfo.groupId;
         let assignedGroupName = groupInfo.groupName;
-        const assignedNation = completeGuestRegistration ? prevNation : (inviteAssignment?.nation || mapping.island);
+        const assignedNation = inviteAssignment?.nation || mapping.island;
         let isKing = !!groupInfo.created;
 
         try {
@@ -1881,9 +1794,6 @@ app.post('/api/set-race', async (req, res) => {
             const expectedKingLineId = String(kingMap?.[assignedGroupName] || '').trim();
             if (expectedKingLineId) {
                 isKing = lineUserId && lineUserId === expectedKingLineId;
-            }
-            if (completeGuestRegistration) {
-                isKing = false;
             }
             if (prevNation && prevNation !== assignedNation) {
                 const prevMapping = nation.getNationMappingByNation(prevNation);
@@ -1985,8 +1895,6 @@ app.post('/api/set-race', async (req, res) => {
             Nation: nationData.Nation,
             IsKing: isKing ? 'true' : 'false',
             NationKingId: isKing ? playFabId : null,
-            IsGuest: completeGuestRegistration ? 'false' : null,
-            GuestCompletedAt: completeGuestRegistration ? new Date().toISOString() : null
         });
         const readOnlyOptionalPayload = toReadOnlyStringMap({
             AvatarColor: avatarData.AvatarColor,
@@ -2001,8 +1909,7 @@ app.post('/api/set-race', async (req, res) => {
             'NationGroupId',
             'NationGroupName',
             ...(isKing ? [] : ['NationKingId']),
-            ...(inviteAssignment ? [] : ['InvitedByPlayFabId', 'InvitedByDisplayName', 'InviteAcceptedAt']),
-            ...(completeGuestRegistration ? ['GuestEntryCreatedAt'] : [])
+            ...(inviteAssignment ? [] : ['InvitedByPlayFabId', 'InvitedByDisplayName', 'InviteAcceptedAt'])
         ];
         const writeReadOnlyData = async (dataMap, keysToRemove = []) => {
             if ((!dataMap || Object.keys(dataMap).length === 0) && (!Array.isArray(keysToRemove) || !keysToRemove.length)) {
@@ -2046,7 +1953,7 @@ app.post('/api/set-race', async (req, res) => {
         const starterIsland = null;
 
         const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
-        const shouldGrantStarterGold = !starterGoldGranted && !prevNation && !completeGuestRegistration;
+        const shouldGrantStarterGold = !starterGoldGranted && !prevNation;
         if (shouldGrantStarterGold) {
             try {
                 await deps.addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, {
