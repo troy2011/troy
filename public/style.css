@@ -3263,19 +3263,8 @@ body.tabs-ready #bottomNav {
     transition: color 0.2s;
 }
 
-.nav-button .nav-icon {
-    font-size: 24px;
-    margin-bottom: 2px;
-    filter: grayscale(100%);
-    transition: filter 0.2s;
-}
-
 .nav-button.active {
     color: var(--accent-color);
-}
-
-.nav-button.active .nav-icon {
-    filter: grayscale(0%);
 }
 
 /* --- モーダル --- */
@@ -10730,11 +10719,6 @@ textarea {
     transition: transform 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
-.nav-button .nav-icon {
-    margin-bottom: 0;
-    font-size: 20px;
-}
-
 .nav-button.active {
     color: #fff;
     background:
@@ -10742,11 +10726,6 @@ textarea {
         linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
     border-color: rgba(251, 191, 36, 0.5);
     box-shadow: 0 10px 20px rgba(217, 119, 6, 0.28);
-}
-
-.nav-button.active .nav-icon {
-    filter: none;
-    transform: translateY(-1px);
 }
 
 .inventory-mobile-switch {
@@ -13257,10 +13236,6 @@ textarea {
         height: 56px;
         padding: 6px 2px;
         border-radius: 14px;
-    }
-
-    .nav-button .nav-icon {
-        font-size: 18px;
     }
 
     .nav-button span:last-child {
@@ -16786,11 +16761,6 @@ body[data-sea-tone] .home-hero-card {
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.12);
 }
 
-.nav-button .nav-icon {
-    font-size: 26px;
-    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.58));
-}
-
 .nav-button.active {
     border-color: rgba(255, 229, 149, 0.78);
     background:
@@ -17052,8 +17022,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .nav-button .nav-icon {
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
     display: block;
     margin-bottom: 2px;
     background-position: center;
@@ -18829,21 +18799,6 @@ body[data-sea-tone] .home-hero-card {
     transform: translateY(-50%);
 }
 
-.nav-button .nav-icon {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    margin: 0 auto 2px;
-    line-height: 0;
-    background-position: center;
-    background-size: 40px 40px;
-    transform: none;
-}
-
-.nav-button.active .nav-icon {
-    transform: none;
-}
-
 .ranking-header-icon {
     background-position: center;
     background-size: 86px 86px;
@@ -18862,15 +18817,6 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .equip-slot-icon {
     background-size: 46px 46px;
-}
-
-@media (max-width: 640px) {
-    .nav-button .nav-icon {
-        width: 34px;
-        height: 34px;
-        flex-basis: 34px;
-        background-size: 34px 34px;
-    }
 }
 
 @media (max-width: 420px) {
@@ -19362,11 +19308,6 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.86);
 }
 
-#navKing .nav-icon {
-    background-position: center;
-    background-size: 30px 30px;
-    transform: none;
-}
 
 @media (max-width: 420px) {
     .home-ps-card {
@@ -19435,18 +19376,6 @@ body[data-sea-tone] .home-hero-card {
     }
 }
 
-/* --- Mobile icon aspect safety --- */
-.nav-button .nav-icon {
-    aspect-ratio: 1 / 1;
-    flex: 0 0 40px;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-}
-
-#navKing .nav-icon {
-    background-size: contain;
-}
 
 .home-specialty-row {
     width: 190px;
@@ -19477,15 +19406,6 @@ body[data-sea-tone] .home-hero-card {
 
 .home-specialty-chip b {
     right: -4px;
-}
-
-@media (max-width: 640px) {
-    .nav-button .nav-icon {
-        width: 34px;
-        height: 34px;
-        flex: 0 0 34px;
-        background-size: contain;
-    }
 }
 
 @media (max-width: 420px) {
