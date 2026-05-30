@@ -812,6 +812,7 @@ async function initializeLiff() {
                     document.getElementById('appWrapper').style.display = 'block';
                     autoAssignRace();
                 } else {
+                    const troyEntryRequest = getTroyEntryRequestFromUrl();
                     await applyPendingAppInviteForExistingAccount();
                     clearPendingAppInviteState({ removeFromUrl: true });
                     await initializeAppFeatures();
@@ -830,7 +831,7 @@ async function initializeLiff() {
 
                     await showTab('home', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race || 'human', nation: myAvatarBaseInfo.Nation });
                     __perfLog('showTab(home) done');
-                    await handleTroyEntryRequestAfterLogin();
+                    await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true });
                     await showDailyFortunePromptAfterLogin();
                     scheduleWorldMapPrefetch();
                     const prefetchHeavy = () => {
@@ -1660,10 +1661,6 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
     }
 }
 
-async function handleTroyEntryRequestAfterLogin() {
-    const entryRequest = getTroyEntryRequestFromUrl();
-    await handleTroyEntryRequest(entryRequest, { clearUrl: true });
-}
 
 function getTransferAmountValue() {
     const amount = Math.max(0, Math.floor(Number(document.getElementById('transferAmount')?.value) || 0));
