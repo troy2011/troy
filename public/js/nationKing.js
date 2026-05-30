@@ -494,6 +494,7 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     if (message.includes('requestId is required')) return '処理IDの発行に失敗しました。画面を再読み込みしてもう一度お試しください。';
     if (message.includes('100G単位')) return message;
     if (message.includes('NotInTroy')) return '入店リストにいないプレイヤーです。入店状態を確認してください。';
+    if (message.includes('NotKingForOpenTroy')) return '別の国のTROYがOPEN中のため、CLOSEできません。';
     if (message.includes('NotKing')) return '王のみ操作できます。';
     if (message.includes('Authentication required')) return 'ログイン状態を確認できません。再ログインしてください。';
     if (message.includes('EntityKeyNotFound')) return '受取人のアカウントが見つかりません。';
@@ -701,24 +702,32 @@ function _wireHandlers(playFabId) {
 
     if (troyOpenBtn) {
         troyOpenBtn.addEventListener('click', async () => {
-            const result = await setTroyOpen(playFabId, true);
-            if (result) {
-                if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
-                if (troyStatusEl) troyStatusEl.classList.add('is-open');
-                await loadKingPage(playFabId);
-                _setMessage('TROYをOPENにしました。');
+            try {
+                const result = await setTroyOpen(playFabId, true, { throwOnError: true });
+                if (result) {
+                    if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
+                    if (troyStatusEl) troyStatusEl.classList.add('is-open');
+                    await loadKingPage(playFabId);
+                    _setMessage('TROYをOPENにしました。');
+                }
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'OPENに失敗しました。'), true);
             }
         });
     }
 
     if (troyCloseBtn) {
         troyCloseBtn.addEventListener('click', async () => {
-            const result = await setTroyOpen(playFabId, false);
-            if (result) {
-                if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
-                if (troyStatusEl) troyStatusEl.classList.remove('is-open');
-                await loadKingPage(playFabId);
-                _setMessage('TROYをCLOSEにしました。');
+            try {
+                const result = await setTroyOpen(playFabId, false, { throwOnError: true });
+                if (result) {
+                    if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
+                    if (troyStatusEl) troyStatusEl.classList.remove('is-open');
+                    await loadKingPage(playFabId);
+                    _setMessage('TROYをCLOSEにしました。');
+                }
+            } catch (error) {
+                _setMessage(_extractErrorMessage(error, 'CLOSEに失敗しました。'), true);
             }
         });
     }
