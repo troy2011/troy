@@ -17035,27 +17035,28 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navHome .nav-icon {
-    background-image: url("./assets/ui/icons/nav-home.png");
+    background-image: url("./assets/ui/icons/nav-home.png?v=20260530");
 }
 
 #navTroy .nav-icon {
-    background-image: url("./assets/ui/icons/nav-troy.png");
+    background-image: url("./assets/ui/icons/nav-troy.png?v=20260530");
 }
 
 #navEvents .nav-icon {
-    background-image: url("./assets/ui/icons/nav-events.png");
+    background-image: url("./assets/ui/icons/nav-events.png?v=20260530");
 }
 
 #navInventory .nav-icon {
-    background-image: url("./assets/ui/icons/nav-inventory.png");
+    background-image: url("./assets/ui/icons/nav-inventory.png?v=20260530");
 }
 
 #navRanking .nav-icon {
-    background-image: url("./assets/ui/icons/nav-ranking.png");
+    background-image: url("./assets/ui/icons/nav-ranking.png?v=20260530");
 }
 
 #navKing .nav-icon {
-    background-image: url("./assets/ui/icons/nav-king.png");
+    background-image: url("./assets/ui/icons/nav-king.png?v=20260530");
+    background-size: auto 85%;
 }
 
 
