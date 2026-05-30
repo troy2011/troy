@@ -17088,14 +17088,6 @@ body[data-sea-tone] .home-hero-card {
     background-image: url("./assets/ui/icons/nav-king.png");
 }
 
-#navTarot .nav-icon {
-    background-image: url("./assets/ui/icons/chest.png");
-}
-
-#navBattle .nav-icon,
-#navQr .nav-icon {
-    background-image: url("./assets/ui/icons/anchor.png");
-}
 
 /* Keep the bottom tabs fully visible across the screen. */
 #bottomNav {
