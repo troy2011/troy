@@ -19431,3 +19431,415 @@ body[data-sea-tone] .home-hero-card {
         background-size: contain;
     }
 }
+
+/* --- Shared icon map and final icon placement --- */
+:root {
+    --icon-nav-home: url("./assets/ui/icons/nav-home.png?v=20260531");
+    --icon-nav-troy: url("./assets/ui/icons/nav-troy.png?v=20260531");
+    --icon-nav-events: url("./assets/ui/icons/nav-events.png?v=20260531");
+    --icon-nav-inventory: url("./assets/ui/icons/nav-inventory.png?v=20260531");
+    --icon-nav-ranking: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
+    --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
+    --icon-anchor: url("./assets/ui/icons/anchor.png");
+    --icon-chest: url("./assets/ui/icons/chest.png");
+    --icon-chest-gold: url("./assets/ui/icons/icon-chest-gold.png");
+    --icon-coin: url("./assets/ui/icons/coin.png");
+    --icon-coin-stack: url("./assets/ui/icons/currency-coin-stack.png");
+    --icon-compass: url("./assets/ui/icons/compass.png");
+    --icon-dart: url("./assets/ui/icons/icon-dart.png");
+    --icon-microphone: url("./assets/ui/icons/icon-microphone.png");
+    --icon-money-bag: url("./assets/ui/icons/money-bag.png");
+    --icon-pirate-flag: url("./assets/ui/icons/pirate-flag-large.png");
+    --icon-potion-blue: url("./assets/ui/icons/icon-potion-blue.png");
+    --icon-refresh: url("./assets/ui/icons/icon-refresh.png");
+    --icon-settings: url("./assets/ui/icons/icon-settings.png");
+    --icon-skull: url("./assets/ui/icons/icon-skull.png");
+    --icon-swords: url("./assets/ui/icons/icon-swords.png");
+    --icon-tarot: url("./assets/ui/icons/icon-tarot.png");
+    --icon-trophy: url("./assets/ui/icons/trophy-gold.png");
+    --icon-vial: url("./assets/ui/icons/special-vial.png");
+    --icon-mushroom: url("./assets/ui/icons/special-mushroom.png");
+    --icon-slot-all: url("./assets/ui/icons/tab-all.png");
+    --icon-slot-equipment: url("./assets/ui/icons/tab-equipment.png");
+    --icon-slot-tarot: url("./assets/ui/icons/tab-tarot.png");
+    --icon-slot-weapon: url("./assets/ui/icons/slot-weapon.png");
+    --icon-slot-shield: url("./assets/ui/icons/slot-shield.png");
+    --icon-slot-armor: url("./assets/ui/icons/slot-armor.png");
+    --icon-slot-accessory: url("./assets/ui/icons/slot-accessory.png");
+}
+
+#navHome { --nav-icon-image: var(--icon-nav-home); }
+#navTroy { --nav-icon-image: var(--icon-nav-troy); }
+#navEvents { --nav-icon-image: var(--icon-nav-events); }
+#navInventory { --nav-icon-image: var(--icon-nav-inventory); }
+#navRanking { --nav-icon-image: var(--icon-nav-ranking); }
+#navKing { --nav-icon-image: var(--icon-nav-king); }
+
+#navHome .nav-icon { background-image: var(--icon-nav-home); }
+#navTroy .nav-icon { background-image: var(--icon-nav-troy); }
+#navEvents .nav-icon { background-image: var(--icon-nav-events); }
+#navInventory .nav-icon { background-image: var(--icon-nav-inventory); }
+#navRanking .nav-icon { background-image: var(--icon-nav-ranking); }
+#navKing .nav-icon { background-image: var(--icon-nav-king); }
+
+.nav-button .nav-icon,
+#navKing .nav-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 1px;
+    background-image: var(--nav-icon-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    color: transparent;
+    font-size: 0;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
+}
+
+.nav-button.active .nav-icon {
+    filter:
+        drop-shadow(0 0 7px rgba(255, 219, 120, 0.5))
+        drop-shadow(0 2px 2px rgba(0, 0, 0, 0.66));
+}
+
+.home-card-emoji,
+.tarot-game-select-icon,
+.tarot-mode-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-block;
+    flex: 0 0 34px;
+    background: var(--home-card-icon, var(--icon-anchor)) center / contain no-repeat;
+    color: transparent;
+    font-size: 0;
+    vertical-align: middle;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+.home-qr-card { --home-card-icon: var(--icon-compass); }
+.home-transfer-card { --home-card-icon: var(--icon-money-bag); }
+.home-social-card { --home-card-icon: var(--icon-pirate-flag); }
+.tarot-game-select-icon,
+#tarotModePoker .tarot-mode-icon,
+#tarotModeSpin .tarot-mode-icon { --home-card-icon: var(--icon-tarot); }
+#tarotModeKingdom .tarot-mode-icon { --home-card-icon: var(--icon-nav-king); }
+
+.home-qr-scan-btn,
+.transfer-send-btn,
+.transfer-coin-btn,
+.transfer-gold-btn,
+.home-vital-action,
+.home-exploration-btn,
+.ranking-toggle-btn,
+.ranking-refresh-btn,
+#tabContentInventory .inventory-primary-tab-btn,
+#tabContentQr .battle-entry-btn,
+#tabContentQr .equipment-gacha-btn,
+#tabContentQr .guild-entry-btn,
+#tabContentQr .guild-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.home-qr-scan-btn::before,
+.transfer-send-btn::before,
+.transfer-coin-btn::before,
+.transfer-gold-btn::before,
+.home-vital-action::before,
+.home-exploration-btn::before,
+.ranking-toggle-btn::before,
+.ranking-refresh-btn::before,
+#tabContentInventory .inventory-primary-tab-btn::before,
+#tabContentQr .equipment-gacha-btn::before,
+#tabContentQr .guild-action-btn::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    background: var(--button-icon, var(--icon-anchor)) center / contain no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.58));
+}
+
+.home-qr-scan-btn { --button-icon: var(--icon-compass); }
+.transfer-send-btn { --button-icon: var(--icon-money-bag); }
+.transfer-coin-btn { --button-icon: var(--icon-coin); }
+.transfer-gold-btn { --button-icon: var(--icon-coin-stack); }
+#btnRecoverHP { --button-icon: var(--icon-mushroom); }
+#btnRecoverMP { --button-icon: var(--icon-vial); }
+.home-exploration-btn { --button-icon: var(--icon-compass); }
+#btnShowPsRanking { --button-icon: var(--icon-coin-stack); }
+#btnShowDartsRanking { --button-icon: var(--icon-dart); }
+#btnShowKaraokeRanking { --button-icon: var(--icon-microphone); }
+.ranking-refresh-btn { --button-icon: var(--icon-refresh); }
+#tabContentQr .equipment-gacha-btn { --button-icon: var(--icon-chest-gold); }
+
+#tabContentInventory .inventory-primary-tab-btn[data-group="All"] { --button-icon: var(--icon-slot-all); }
+#tabContentInventory .inventory-primary-tab-btn[data-group="Equipment"] { --button-icon: var(--icon-slot-equipment); }
+#tabContentInventory .inventory-primary-tab-btn[data-group="Tarot"] { --button-icon: var(--icon-slot-tarot); }
+#tabContentInventory .inventory-primary-tab-btn[data-group="Consumable"] { --button-icon: var(--icon-potion-blue); }
+
+#tabContentQr .guild-action-btn:nth-child(1) { --button-icon: var(--icon-pirate-flag); }
+#tabContentQr .guild-action-btn:nth-child(2) { --button-icon: var(--icon-tarot); }
+#tabContentQr .guild-action-btn:nth-child(3) { --button-icon: var(--icon-chest); }
+#tabContentQr .guild-action-btn:nth-child(4) { --button-icon: var(--icon-settings); }
+
+#tabContentQr .battle-entry-btn > span,
+#tabContentQr .guild-entry-btn > span {
+    width: 28px;
+    height: 28px;
+    display: inline-block;
+    flex: 0 0 28px;
+    background: var(--button-icon, var(--icon-anchor)) center / contain no-repeat;
+    color: transparent;
+    font-size: 0 !important;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.58));
+}
+
+#tabContentQr .battle-entry-btn { --button-icon: var(--icon-swords); }
+#btnCreateGuild { --button-icon: var(--icon-pirate-flag); }
+#btnScanJoinGuild { --button-icon: var(--icon-compass); }
+
+#tabContentQr .qr-battle-card > h2::before,
+#tabContentQr .equipment-gacha-card > h2::before,
+#tabContentQr .guild-card > h2::before,
+#tabContentBattle .content-area > h2:first-child::before,
+#tabContentKing .content-area > h2:first-child::before {
+    content: "";
+    width: 48px;
+    height: 48px;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+    background: var(--section-icon, var(--icon-anchor)) center / contain no-repeat;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
+}
+
+#tabContentQr .qr-battle-card > h2 { --section-icon: var(--icon-swords); }
+#tabContentQr .equipment-gacha-card > h2 { --section-icon: var(--icon-chest-gold); }
+#tabContentQr .guild-card > h2 { --section-icon: var(--icon-pirate-flag); }
+#tabContentBattle .content-area > h2:first-child { --section-icon: var(--icon-swords); }
+#tabContentKing .content-area > h2:first-child { --section-icon: var(--icon-nav-king); }
+
+#tabContentTroy .troy-title::before {
+    background-image: var(--icon-nav-troy);
+}
+
+#tabContentEvents .event-page-header h2::before {
+    background-image: var(--icon-nav-events);
+}
+
+.ranking-header-icon {
+    background-image: var(--icon-trophy);
+}
+
+.currency-display::before {
+    background-image: var(--icon-coin);
+}
+
+.home-ps-icon {
+    background-image: var(--icon-money-bag);
+}
+
+#tabContentInventory .weapon-slot .equip-slot-icon {
+    background-image: var(--icon-slot-weapon);
+}
+
+#tabContentInventory .shield-slot .equip-slot-icon {
+    background-image: var(--icon-slot-shield);
+}
+
+#tabContentInventory .armor-slot .equip-slot-icon {
+    background-image: var(--icon-slot-armor);
+}
+
+#tabContentInventory .accessory-slot .equip-slot-icon {
+    background-image: var(--icon-slot-accessory);
+}
+
+@media (max-width: 640px) {
+    .nav-button .nav-icon,
+    #navKing .nav-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .home-exploration-btn::before {
+        width: 26px;
+        height: 26px;
+        flex-basis: 26px;
+    }
+}
+
+/* --- Rich banner and panel treatment from sheet2 --- */
+:root {
+    --panel-sheet-frame: url("./assets/ui/icons/sheet2/sheet2-086-r28-c12.png");
+    --panel-sheet-plaque: url("./assets/ui/icons/sheet2/sheet2-087-r28-c06.png");
+    --panel-sheet-plaque-gold: url("./assets/ui/icons/sheet2/sheet2-088-r28-c00.png");
+    --panel-sheet-plaque-blue: url("./assets/ui/icons/sheet2/sheet2-095-r28-c24.png");
+    --panel-sheet-divider: url("./assets/ui/icons/sheet2/sheet2-096-r32-c00.png");
+    --panel-sheet-rule: url("./assets/ui/icons/sheet2/sheet2-097-r36-c00.png");
+    --banner-sheet-skull: url("./assets/ui/icons/sheet2/sheet2-050-r17-c20.png");
+    --banner-sheet-swords: url("./assets/ui/icons/sheet2/sheet2-051-r17-c24.png");
+    --banner-sheet-anchor: url("./assets/ui/icons/sheet2/sheet2-052-r17-c28.png");
+    --banner-sheet-purple: url("./assets/ui/icons/sheet2/sheet2-053-r17-c32.png");
+}
+
+.home-card-header,
+#tabContentInventory .inventory-section[data-panel="items"] > .section-header,
+#tabContentInventory .avatar-card.inventory-section::before,
+#tabContentTroy .troy-entry-header,
+#tabContentTroy .troy-calendar-head,
+#tabContentEvents .event-list-head,
+#tabContentEvents .event-create-panel h3,
+#tabContentQr .guild-summary-header,
+.tarot-loadout-header {
+    position: relative;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 6px;
+    background:
+        linear-gradient(180deg, rgba(8, 10, 13, 0.14), rgba(0, 0, 0, 0.28)),
+        var(--panel-sheet-plaque) center / 100% 100% no-repeat;
+    box-shadow: none;
+}
+
+.home-card-header::after,
+#tabContentInventory .inventory-section[data-panel="items"] > .section-header::after,
+#tabContentTroy .troy-entry-header::after,
+#tabContentTroy .troy-calendar-head::after,
+#tabContentEvents .event-list-head::after,
+#tabContentQr .guild-summary-header::after,
+.tarot-loadout-header::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -11px;
+    height: 14px;
+    pointer-events: none;
+    background: var(--panel-sheet-rule) center / 100% 100% no-repeat;
+    opacity: 0.82;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+}
+
+.home-card-title,
+#tabContentTroy .troy-menu-title,
+#tabContentTroy .troy-entry-title,
+#tabContentEvents .event-list-head h3,
+#tabContentEvents .event-create-panel h3,
+#tabContentQr .guild-summary-header h3,
+.tarot-loadout-header h3 {
+    color: #ffe5a4;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78);
+}
+
+#tabContentTroy .troy-calendar-head,
+#tabContentEvents .event-list-head,
+.tarot-loadout-header {
+    background:
+        linear-gradient(180deg, rgba(16, 28, 42, 0.2), rgba(0, 0, 0, 0.34)),
+        var(--panel-sheet-plaque-blue) center / 100% 100% no-repeat;
+}
+
+#tabContentInventory .inventory-section[data-panel="items"] > .section-header,
+#tabContentEvents .event-create-panel h3 {
+    background:
+        linear-gradient(180deg, rgba(68, 34, 12, 0.12), rgba(0, 0, 0, 0.28)),
+        var(--panel-sheet-plaque-gold) center / 100% 100% no-repeat;
+}
+
+#tabContentQr .qr-battle-card > h2,
+#tabContentQr .equipment-gacha-card > h2,
+#tabContentQr .guild-card > h2,
+#tabContentBattle .content-area > h2:first-child,
+#tabContentKing .content-area > h2:first-child {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: max-content;
+    max-width: 100%;
+    min-height: 58px;
+    margin-bottom: 18px;
+    padding: 7px 18px 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(11, 9, 7, 0.18), rgba(0, 0, 0, 0.36)),
+        var(--panel-sheet-plaque-gold) center / 100% 100% no-repeat;
+}
+
+#tabContentQr .qr-battle-card > h2::after,
+#tabContentQr .equipment-gacha-card > h2::after,
+#tabContentQr .guild-card > h2::after,
+#tabContentBattle .content-area > h2:first-child::after,
+#tabContentKing .content-area > h2:first-child::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -12px;
+    height: 14px;
+    background: var(--panel-sheet-divider) center / 100% 100% no-repeat;
+    opacity: 0.86;
+}
+
+#tabContentQr .battle-entry-card,
+#tabContentQr .equipment-gacha-entry,
+#tabContentQr .guild-entry-grid > *,
+#tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-entry-item,
+#tabContentEvents .event-card,
+#tabContentKing .king-card,
+#tabContentKing .troy-admin-card {
+    border-color: rgba(235, 190, 103, 0.42);
+    background:
+        linear-gradient(180deg, rgba(12, 15, 20, 0.86), rgba(3, 4, 6, 0.96)),
+        var(--panel-sheet-frame) center / 100% 100% no-repeat;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 239, 190, 0.12),
+        0 10px 20px rgba(0, 0, 0, 0.24);
+}
+
+#tabContentQr .qr-battle-card > h2 { --section-banner: var(--banner-sheet-swords); }
+#tabContentQr .equipment-gacha-card > h2 { --section-banner: var(--banner-sheet-anchor); }
+#tabContentQr .guild-card > h2 { --section-banner: var(--banner-sheet-skull); }
+#tabContentBattle .content-area > h2:first-child { --section-banner: var(--banner-sheet-swords); }
+#tabContentKing .content-area > h2:first-child { --section-banner: var(--banner-sheet-purple); }
+
+#tabContentQr .qr-battle-card > h2::before,
+#tabContentQr .equipment-gacha-card > h2::before,
+#tabContentQr .guild-card > h2::before,
+#tabContentBattle .content-area > h2:first-child::before,
+#tabContentKing .content-area > h2:first-child::before {
+    width: 48px;
+    height: 48px;
+    margin-right: 8px;
+    background-image: var(--section-banner, var(--section-icon));
+    background-size: contain;
+}
+
+@media (max-width: 420px) {
+    .home-card-header,
+    #tabContentInventory .inventory-section[data-panel="items"] > .section-header,
+    #tabContentTroy .troy-entry-header,
+    #tabContentTroy .troy-calendar-head,
+    #tabContentEvents .event-list-head,
+    #tabContentQr .guild-summary-header,
+    .tarot-loadout-header {
+        min-height: 40px;
+        padding: 7px 10px;
+    }
+
+    #tabContentQr .qr-battle-card > h2,
+    #tabContentQr .equipment-gacha-card > h2,
+    #tabContentQr .guild-card > h2,
+    #tabContentBattle .content-area > h2:first-child,
+    #tabContentKing .content-area > h2:first-child {
+        width: 100%;
+        min-height: 52px;
+        font-size: clamp(25px, 8vw, 34px);
+    }
+}
