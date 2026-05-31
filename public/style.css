@@ -3102,7 +3102,7 @@ body[data-sea-tone="night"] .home-hero-card {
     display: inline-block;
     margin-right: 5px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -15446,7 +15446,7 @@ textarea {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 .event-list {
@@ -17051,11 +17051,11 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navRanking .nav-icon {
-    background-image: url("./assets/ui/icons/nav-ranking.png?v=20260530");
+    background-image: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
 }
 
 #navKing .nav-icon {
-    background-image: url("./assets/ui/icons/nav-king.png?v=20260530");
+    background-image: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
     background-size: auto 85%;
 }
 
@@ -17130,7 +17130,7 @@ body[data-sea-tone] .home-hero-card {
     width: 86px;
     height: 86px;
     display: block;
-    background: url("./assets/ui/icons/trophy-gold.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/trophy.png") center / contain no-repeat;
     color: transparent;
     font-size: 0;
     filter: drop-shadow(0 0 18px rgba(255, 207, 103, 0.7));
@@ -17205,11 +17205,11 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #btnShowDartsRanking::before {
-    background-image: url("./assets/ui/icons/icon-dart.png");
+    background-image: url("./assets/ui/icons/dart.png");
 }
 
 #btnShowKaraokeRanking::before {
-    background-image: url("./assets/ui/icons/icon-microphone.png");
+    background-image: url("./assets/ui/icons/microphone.png");
 }
 
 .ranking-toggle-btn.active {
@@ -17246,7 +17246,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/icon-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -17568,7 +17568,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Equipment"]::before {
-    background-image: url("./assets/ui/icons/tab-equipment.png");
+    background-image: url("./assets/ui/icons/slot-weapon.png");
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Tarot"]::before {
@@ -17576,7 +17576,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="All"]::before {
-    background-image: url("./assets/ui/icons/tab-all.png");
+    background-image: url("./assets/ui/icons/nav-inventory.png");
 }
 
 #tabContentInventory .inventory-panel-btn.active {
@@ -19442,25 +19442,25 @@ body[data-sea-tone] .home-hero-card {
     --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
     --icon-anchor: url("./assets/ui/icons/anchor.png");
     --icon-chest: url("./assets/ui/icons/chest.png");
-    --icon-chest-gold: url("./assets/ui/icons/icon-chest-gold.png");
+    --icon-chest-gold: url("./assets/ui/icons/chest-gold.png");
     --icon-coin: url("./assets/ui/icons/coin.png");
-    --icon-coin-stack: url("./assets/ui/icons/currency-coin-stack.png");
+    --icon-coin-stack: url("./assets/ui/icons/coin-stack.png");
     --icon-compass: url("./assets/ui/icons/compass.png");
-    --icon-dart: url("./assets/ui/icons/icon-dart.png");
-    --icon-microphone: url("./assets/ui/icons/icon-microphone.png");
+    --icon-dart: url("./assets/ui/icons/dart.png");
+    --icon-microphone: url("./assets/ui/icons/microphone.png");
     --icon-money-bag: url("./assets/ui/icons/money-bag.png");
-    --icon-pirate-flag: url("./assets/ui/icons/pirate-flag-large.png");
-    --icon-potion-blue: url("./assets/ui/icons/icon-potion-blue.png");
-    --icon-refresh: url("./assets/ui/icons/icon-refresh.png");
-    --icon-settings: url("./assets/ui/icons/icon-settings.png");
-    --icon-skull: url("./assets/ui/icons/icon-skull.png");
-    --icon-swords: url("./assets/ui/icons/icon-swords.png");
-    --icon-tarot: url("./assets/ui/icons/icon-tarot.png");
-    --icon-trophy: url("./assets/ui/icons/trophy-gold.png");
+    --icon-pirate-flag: url("./assets/ui/icons/pirate-flag.png");
+    --icon-potion-blue: url("./assets/ui/icons/potion-blue.png");
+    --icon-refresh: url("./assets/ui/icons/action-refresh.png");
+    --icon-settings: url("./assets/ui/icons/action-settings.png");
+    --icon-skull: url("./assets/ui/icons/skull.png");
+    --icon-swords: url("./assets/ui/icons/swords.png");
+    --icon-tarot: url("./assets/ui/icons/tarot-card.png");
+    --icon-trophy: url("./assets/ui/icons/trophy.png");
     --icon-vial: url("./assets/ui/icons/special-vial.png");
     --icon-mushroom: url("./assets/ui/icons/special-mushroom.png");
-    --icon-slot-all: url("./assets/ui/icons/tab-all.png");
-    --icon-slot-equipment: url("./assets/ui/icons/tab-equipment.png");
+    --icon-slot-all: url("./assets/ui/icons/nav-inventory.png");
+    --icon-slot-equipment: url("./assets/ui/icons/slot-weapon.png");
     --icon-slot-tarot: url("./assets/ui/icons/tab-tarot.png");
     --icon-slot-weapon: url("./assets/ui/icons/slot-weapon.png");
     --icon-slot-shield: url("./assets/ui/icons/slot-shield.png");
@@ -19674,16 +19674,16 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Rich banner and panel treatment from sheet2 --- */
 :root {
-    --panel-sheet-frame: url("./assets/ui/icons/sheet2/sheet2-086-r28-c12.png");
-    --panel-sheet-plaque: url("./assets/ui/icons/sheet2/sheet2-087-r28-c06.png");
-    --panel-sheet-plaque-gold: url("./assets/ui/icons/sheet2/sheet2-088-r28-c00.png");
-    --panel-sheet-plaque-blue: url("./assets/ui/icons/sheet2/sheet2-095-r28-c24.png");
-    --panel-sheet-divider: url("./assets/ui/icons/sheet2/sheet2-096-r32-c00.png");
-    --panel-sheet-rule: url("./assets/ui/icons/sheet2/sheet2-097-r36-c00.png");
-    --banner-sheet-skull: url("./assets/ui/icons/sheet2/sheet2-050-r17-c20.png");
-    --banner-sheet-swords: url("./assets/ui/icons/sheet2/sheet2-051-r17-c24.png");
-    --banner-sheet-anchor: url("./assets/ui/icons/sheet2/sheet2-052-r17-c28.png");
-    --banner-sheet-purple: url("./assets/ui/icons/sheet2/sheet2-053-r17-c32.png");
+    --panel-sheet-frame: url("./assets/ui/icons/sheet-panel-frame.png");
+    --panel-sheet-plaque: url("./assets/ui/icons/sheet-plaque.png");
+    --panel-sheet-plaque-gold: url("./assets/ui/icons/sheet-plaque-gold.png");
+    --panel-sheet-plaque-blue: url("./assets/ui/icons/sheet-plaque-blue.png");
+    --panel-sheet-divider: url("./assets/ui/icons/sheet-divider.png");
+    --panel-sheet-rule: url("./assets/ui/icons/sheet-rule.png");
+    --banner-sheet-skull: url("./assets/ui/icons/banner-skull.png");
+    --banner-sheet-swords: url("./assets/ui/icons/banner-swords.png");
+    --banner-sheet-anchor: url("./assets/ui/icons/banner-anchor.png");
+    --banner-sheet-purple: url("./assets/ui/icons/banner-purple.png");
 }
 
 .home-card-header,
@@ -19842,4 +19842,131 @@ body[data-sea-tone] .home-hero-card {
         min-height: 52px;
         font-size: clamp(25px, 8vw, 34px);
     }
+}
+
+/* --- Sheet2 action icons for richer command surfaces --- */
+:root {
+    --icon-action-plus: url("./assets/ui/icons/action-plus.png");
+    --icon-action-refresh: url("./assets/ui/icons/action-refresh.png");
+    --icon-action-check: url("./assets/ui/icons/action-check.png");
+    --icon-action-close: url("./assets/ui/icons/action-close.png");
+    --icon-action-cannon: url("./assets/ui/icons/cannon.png");
+    --icon-action-card: url("./assets/ui/icons/tab-tarot.png");
+    --icon-action-crew: url("./assets/ui/icons/crew.png");
+    --icon-action-mail: url("./assets/ui/icons/mail.png");
+    --icon-action-map: url("./assets/ui/icons/compass.png");
+    --icon-action-ship: url("./assets/ui/icons/ship.png");
+    --icon-action-swords: url("./assets/ui/icons/swords.png");
+    --icon-event-dice: url("./assets/ui/icons/dice.png");
+    --icon-event-eightball: url("./assets/ui/icons/eightball.png");
+}
+
+#tabContentTroy .troy-entry-btn,
+#tabContentTroy .troy-reservation-actions button,
+#tabContentEvents .event-create-btn,
+#tabContentEvents .btn-muted,
+#tabContentEvents .event-action-btn,
+#tabContentMap .map-action-button,
+#tabContentMap .map-secondary-action-btn,
+.battle-room-btn,
+#tabContentInventory .inventory-card-list-btn,
+#tabContentKing .king-inline-actions button,
+#tabContentKing .troy-admin-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+#tabContentTroy .troy-entry-btn::before,
+#tabContentTroy .troy-reservation-actions button::before,
+#tabContentEvents .event-create-btn::before,
+#tabContentEvents .btn-muted::before,
+#tabContentEvents .event-action-btn::before,
+#tabContentMap .map-action-button::before,
+#tabContentMap .map-secondary-action-btn::before,
+.battle-room-btn::before,
+#tabContentInventory .inventory-card-list-btn::before,
+#tabContentKing .king-inline-actions button::before,
+#tabContentKing .troy-admin-actions button::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    background: var(--command-icon, var(--icon-action-plus)) center / contain no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.58));
+}
+
+#btnTroyJoin,
+.event-action-btn.is-join,
+.event-action-btn.is-approve,
+#battleRoomJoinBtn,
+#btnKingTroyOpen {
+    --command-icon: var(--icon-action-check);
+}
+
+#btnCreateReservation,
+#btnCreateEvent,
+#battleRoomCreateBtn,
+#createIslandButton {
+    --command-icon: var(--icon-action-plus);
+}
+
+#btnCancelTroyReservation,
+.event-action-btn.is-reject,
+#btnKingTroyClose {
+    --command-icon: var(--icon-action-close);
+}
+
+#btnReloadEvents,
+#btnKingReload,
+#btnKingReload2 {
+    --command-icon: var(--icon-action-refresh);
+}
+
+#shipSideCannonButton {
+    --command-icon: var(--icon-action-cannon);
+}
+
+#shipNormalAttackButton {
+    --command-icon: var(--icon-action-swords);
+}
+
+#shipActionButton,
+#mapOwnedIslandsShortcut {
+    --command-icon: var(--icon-action-ship);
+}
+
+#shipSkillToggleButton,
+#tabContentInventory .inventory-card-list-btn,
+#btnKingCoinReturn {
+    --command-icon: var(--icon-action-card);
+}
+
+#btnKingScanStoreGamePlayer {
+    --command-icon: var(--icon-action-map);
+}
+
+#btnViewGuildMembers {
+    --command-icon: var(--icon-action-crew);
+}
+
+#btnViewGuildApplications {
+    --command-icon: var(--icon-action-mail);
+}
+
+#tabContentEvents .event-card[data-event-type="darts"] {
+    --event-card-icon: var(--icon-dart);
+}
+
+#tabContentEvents .event-card[data-event-type="karaoke"] {
+    --event-card-icon: var(--icon-microphone);
+}
+
+#tabContentEvents .event-card[data-event-type="billiards"] {
+    --event-card-icon: var(--icon-event-eightball);
+}
+
+#tabContentEvents .event-card[data-event-type="poker"] {
+    --event-card-icon: var(--icon-event-dice);
 }
