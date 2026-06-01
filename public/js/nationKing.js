@@ -494,7 +494,7 @@ function _extractErrorMessage(error, fallback = 'ゴールドの付与に失敗�
     if (message.includes('requestId is required')) return '処理IDの発行に失敗しました。画面を再読み込みしてもう一度お試しください。';
     if (message.includes('100G単位')) return message;
     if (message.includes('NotInTroy')) return '入店リストにいないプレイヤーです。入店状態を確認してください。';
-    if (message.includes('NotKingForOpenTroy')) return '別の国のTROYがOPEN中のため、CLOSEできません。';
+    if (message.includes('NotKingForOpenTroy')) return 'TROYの開閉に失敗しました。状態を再読み込みしてもう一度お試しください。';
     if (message.includes('NotKing')) return '王のみ操作できます。';
     if (message.includes('Authentication required')) return 'ログイン状態を確認できません。再ログインしてください。';
     if (message.includes('EntityKeyNotFound')) return '受取人のアカウントが見つかりません。';

@@ -2883,11 +2883,6 @@ function initializeNationRoutes(app, deps) {
 
         try {
             const kingContext = await requireKingContext(authenticatedPlayFabId, firestore, nationDeps);
-            const currentSnap = await getTroyRoomDoc(firestore).get();
-            const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
-            if (!nextOpen && currentSnap.data()?.isOpen && currentNation && currentNation !== kingContext.nation) {
-                return res.status(403).json({ error: 'NotKingForOpenTroy' });
-            }
             const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             let label = 'TROY';
@@ -4051,11 +4046,6 @@ function initializeNationRoutes(app, deps) {
         try {
             const nextOpen = !!req.body?.isOpen;
             const kingContext = await requireKingContext(requesterPlayFabId, firestore, nationDeps);
-            const currentSnap = await getTroyRoomDoc(firestore).get();
-            const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
-            if (!nextOpen && currentSnap.data()?.isOpen && currentNation && currentNation !== kingContext.nation) {
-                return res.status(403).json({ error: 'NotKingForOpenTroy' });
-            }
             const context = { nation: kingContext.nation, mapping: kingContext.mapping, kingId: kingContext.kingId };
             const result = await setGlobalTroyOpenState(context, nextOpen);
             return res.json(result);
