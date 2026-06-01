@@ -19446,6 +19446,7 @@ body[data-sea-tone] .home-hero-card {
     --icon-coin: url("./assets/ui/icons/coin.png");
     --icon-coin-stack: url("./assets/ui/icons/coin-stack.png");
     --icon-compass: url("./assets/ui/icons/compass.png");
+    --icon-crown: url("./assets/ui/icons/crown.png");
     --icon-dart: url("./assets/ui/icons/dart.png");
     --icon-microphone: url("./assets/ui/icons/microphone.png");
     --icon-money-bag: url("./assets/ui/icons/money-bag.png");
@@ -19698,11 +19699,14 @@ body[data-sea-tone] .home-hero-card {
     position: relative;
     min-height: 44px;
     padding: 8px 14px;
-    border: 0;
+    border: 14px solid transparent;
     border-radius: 6px;
-    background:
-        linear-gradient(180deg, rgba(8, 10, 13, 0.14), rgba(0, 0, 0, 0.28)),
-        var(--panel-sheet-plaque) center / 100% 100% no-repeat;
+    background: linear-gradient(180deg, rgba(8, 10, 13, 0.14), rgba(0, 0, 0, 0.28));
+    border-image-source: var(--panel-sheet-plaque);
+    border-image-slice: 28 48 30 fill;
+    border-image-width: 14px 22px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
     box-shadow: none;
 }
 
@@ -19719,8 +19723,17 @@ body[data-sea-tone] .home-hero-card {
     right: 14px;
     bottom: -11px;
     height: 14px;
+    box-sizing: border-box;
     pointer-events: none;
-    background: var(--panel-sheet-rule) center / 100% 100% no-repeat;
+    border: 7px solid transparent;
+    border-left-width: 42px;
+    border-right-width: 42px;
+    background: none;
+    border-image-source: var(--panel-sheet-rule);
+    border-image-slice: 22 150 fill;
+    border-image-width: 7px 42px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
     opacity: 0.82;
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
 }
@@ -19739,21 +19752,22 @@ body[data-sea-tone] .home-hero-card {
 #tabContentTroy .troy-calendar-head,
 #tabContentEvents .event-list-head,
 .tarot-loadout-header {
-    background:
-        linear-gradient(180deg, rgba(16, 28, 42, 0.2), rgba(0, 0, 0, 0.34)),
-        var(--panel-sheet-plaque-blue) center / 100% 100% no-repeat;
+    background: linear-gradient(180deg, rgba(16, 28, 42, 0.2), rgba(0, 0, 0, 0.34));
+    border-image-source: var(--panel-sheet-plaque-blue);
+    border-image-slice: 28 36 32 fill;
 }
 
 #tabContentInventory .inventory-section[data-panel="items"] > .section-header,
 #tabContentEvents .event-create-panel h3 {
-    background:
-        linear-gradient(180deg, rgba(68, 34, 12, 0.12), rgba(0, 0, 0, 0.28)),
-        var(--panel-sheet-plaque-gold) center / 100% 100% no-repeat;
+    background: linear-gradient(180deg, rgba(68, 34, 12, 0.12), rgba(0, 0, 0, 0.28));
+    border-image-source: var(--panel-sheet-plaque-gold);
+    border-image-slice: 32 52 34 fill;
 }
 
 #tabContentQr .qr-battle-card > h2,
 #tabContentQr .equipment-gacha-card > h2,
 #tabContentQr .guild-card > h2,
+#tabContentQr .content-area > h2:first-child,
 #tabContentBattle .content-area > h2:first-child,
 #tabContentKing .content-area > h2:first-child {
     position: relative;
@@ -19764,16 +19778,20 @@ body[data-sea-tone] .home-hero-card {
     min-height: 58px;
     margin-bottom: 18px;
     padding: 7px 18px 8px 12px;
-    border: 0;
+    border: 16px solid transparent;
     border-radius: 8px;
-    background:
-        linear-gradient(180deg, rgba(11, 9, 7, 0.18), rgba(0, 0, 0, 0.36)),
-        var(--panel-sheet-plaque-gold) center / 100% 100% no-repeat;
+    background: linear-gradient(180deg, rgba(11, 9, 7, 0.18), rgba(0, 0, 0, 0.36));
+    border-image-source: var(--panel-sheet-plaque-gold);
+    border-image-slice: 32 52 34 fill;
+    border-image-width: 16px 24px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
 }
 
 #tabContentQr .qr-battle-card > h2::after,
 #tabContentQr .equipment-gacha-card > h2::after,
 #tabContentQr .guild-card > h2::after,
+#tabContentQr .content-area > h2:first-child::after,
 #tabContentBattle .content-area > h2:first-child::after,
 #tabContentKing .content-area > h2:first-child::after {
     content: "";
@@ -19782,7 +19800,16 @@ body[data-sea-tone] .home-hero-card {
     right: 10px;
     bottom: -12px;
     height: 14px;
-    background: var(--panel-sheet-divider) center / 100% 100% no-repeat;
+    box-sizing: border-box;
+    border: 7px solid transparent;
+    border-left-width: 44px;
+    border-right-width: 44px;
+    background: none;
+    border-image-source: var(--panel-sheet-divider);
+    border-image-slice: 38 150 fill;
+    border-image-width: 7px 44px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
     opacity: 0.86;
 }
 
@@ -19795,23 +19822,28 @@ body[data-sea-tone] .home-hero-card {
 #tabContentKing .king-card,
 #tabContentKing .troy-admin-card {
     border-color: rgba(235, 190, 103, 0.42);
-    background:
-        linear-gradient(180deg, rgba(12, 15, 20, 0.86), rgba(3, 4, 6, 0.96)),
-        var(--panel-sheet-frame) center / 100% 100% no-repeat;
+    border: 13px solid transparent;
+    background: linear-gradient(180deg, rgba(12, 15, 20, 0.86), rgba(3, 4, 6, 0.96));
+    border-image-source: var(--panel-sheet-frame);
+    border-image-slice: 28 34 fill;
+    border-image-width: 13px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
     box-shadow:
         inset 0 1px 0 rgba(255, 239, 190, 0.12),
         0 10px 20px rgba(0, 0, 0, 0.24);
 }
 
 #tabContentQr .qr-battle-card > h2 { --section-banner: var(--banner-sheet-swords); }
-#tabContentQr .equipment-gacha-card > h2 { --section-banner: var(--banner-sheet-anchor); }
+#tabContentQr .equipment-gacha-card > h2 { --section-banner: var(--icon-chest-gold); }
 #tabContentQr .guild-card > h2 { --section-banner: var(--banner-sheet-skull); }
 #tabContentBattle .content-area > h2:first-child { --section-banner: var(--banner-sheet-swords); }
-#tabContentKing .content-area > h2:first-child { --section-banner: var(--banner-sheet-purple); }
+#tabContentKing .content-area > h2:first-child { --section-banner: var(--icon-crown); }
 
 #tabContentQr .qr-battle-card > h2::before,
 #tabContentQr .equipment-gacha-card > h2::before,
 #tabContentQr .guild-card > h2::before,
+#tabContentQr .content-area > h2:first-child::before,
 #tabContentBattle .content-area > h2:first-child::before,
 #tabContentKing .content-area > h2:first-child::before {
     width: 48px;
@@ -19836,6 +19868,7 @@ body[data-sea-tone] .home-hero-card {
     #tabContentQr .qr-battle-card > h2,
     #tabContentQr .equipment-gacha-card > h2,
     #tabContentQr .guild-card > h2,
+    #tabContentQr .content-area > h2:first-child,
     #tabContentBattle .content-area > h2:first-child,
     #tabContentKing .content-area > h2:first-child {
         width: 100%;
@@ -19901,20 +19934,26 @@ body[data-sea-tone] .home-hero-card {
 .event-action-btn.is-join,
 .event-action-btn.is-approve,
 #battleRoomJoinBtn,
-#btnKingTroyOpen {
+#btnKingTroyOpen,
+#btnKingSaveAnnouncement,
+#btnKingSaveStoreGameScore,
+#btnKingTroyCalendarSave {
     --command-icon: var(--icon-action-check);
 }
 
 #btnCreateReservation,
 #btnCreateEvent,
 #battleRoomCreateBtn,
-#createIslandButton {
+#createIslandButton,
+#btnKingMenuAddCustom,
+#btnKingMenuAddSpecial {
     --command-icon: var(--icon-action-plus);
 }
 
 #btnCancelTroyReservation,
 .event-action-btn.is-reject,
-#btnKingTroyClose {
+#btnKingTroyClose,
+#btnKingTroyCalendarClear {
     --command-icon: var(--icon-action-close);
 }
 
@@ -19938,13 +19977,24 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #shipSkillToggleButton,
-#tabContentInventory .inventory-card-list-btn,
-#btnKingCoinReturn {
+#tabContentInventory .inventory-card-list-btn {
     --command-icon: var(--icon-action-card);
+}
+
+#btnKingCoinReturn {
+    --command-icon: var(--icon-coin-stack);
 }
 
 #btnKingScanStoreGamePlayer {
     --command-icon: var(--icon-action-map);
+}
+
+#btnKingWarDeploy {
+    --command-icon: var(--icon-action-ship);
+}
+
+#btnKingWarStrike {
+    --command-icon: var(--icon-action-swords);
 }
 
 #btnViewGuildMembers {
