@@ -40,12 +40,7 @@ let _statusSnapshotState = {
 const TROY_ORDER_ENTRY_ENABLED = false;
 const TROY_MENU_IDS = ['favorite', 'beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
-const TROY_GROUP_BY_NATION = {
-    fire: 'nation_fire_island',
-    earth: 'nation_earth_island',
-    wind: 'nation_wind_island',
-    water: 'nation_water_island'
-};
+const TROY_GLOBAL_ROOM_ID = 'global';
 
 const TROY_BOTTLE_ITEMS = [
     { concept: 'キンミヤボトル', content: '割物はスタッフまで', price: 2500, emoji: '🍶' },
@@ -1159,11 +1154,10 @@ function applyMenuState(menuDisabled, menuSpecials, menuCustomItems) {
 
 function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey()) {
     stopStatusSubscription();
-    const groupName = TROY_GROUP_BY_NATION[String(nationKey || '').toLowerCase()];
     const memberId = normalizePlayFabId(playFabId);
-    if (!groupName || !memberId) return false;
+    if (!memberId) return false;
     const db = getFirestore();
-    const roomRef = doc(db, 'troy_rooms', groupName);
+    const roomRef = doc(db, 'troy_rooms', TROY_GLOBAL_ROOM_ID);
     const membersQuery = query(collection(roomRef, 'members'), orderBy('joinedAt', 'asc'), limit(50));
 
     _statusSnapshotState = {
@@ -1182,6 +1176,7 @@ function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey())
 
     _statusRoomUnsubscribe = onSnapshot(roomRef, (snapshot) => {
         const roomData = snapshot.data() || {};
+        _statusSnapshotState.nation = String(roomData.nation || nationKey || '').trim().toLowerCase();
         _statusSnapshotState.isOpen = !!roomData.isOpen;
         _statusSnapshotState.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
         _statusSnapshotState.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
