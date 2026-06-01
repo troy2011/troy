@@ -123,7 +123,7 @@ function renderCoinConversionLogs(logs = []) {
     if (!el) return;
     const rows = Array.isArray(logs) ? logs : [];
     if (!rows.length) {
-        el.innerHTML = '<div class="troy-orders-coin-log-empty">コイン化ログはまだありません。</div>';
+        el.innerHTML = '<div class="troy-orders-coin-log-empty">チップ化ログはまだありません。</div>';
         return;
     }
     el.innerHTML = rows.slice(0, 12).map((entry) => `

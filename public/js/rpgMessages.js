@@ -1,31 +1,57 @@
 // c:/Users/ikeda/my-liff-app/public/js/rpgMessages.js
 
-function makeMessageElement(text) {
+let activeMessageElement = null;
+
+function isErrorMessage(text, options = {}) {
+    if (options?.type === 'error' || options?.isError === true) return true;
+    if (options?.type === 'normal' || options?.isError === false) return false;
+    const value = String(text || '');
+    return /失敗|エラー|不足|不正|無効|できません|取得できません|読み取れません|必要です|CLOSE中|failed|error|missing|invalid|cannot/i.test(value);
+}
+
+function makeMessageElement(text, options = {}) {
     const msg = document.createElement('div');
-    msg.style.cssText = [
-        'position: fixed',
-        'left: 12px',
-        'right: 12px',
-        'bottom: 90px',
-        'z-index: 9999',
-        'background: rgba(17,24,39,0.95)',
-        'border: 1px solid #334155',
-        'color: #fff',
-        'padding: 12px 14px',
-        'border-radius: 10px',
-        'font-size: 13px',
-        'font-weight: 700'
-    ].join(';');
+    msg.className = `rpg-message-popup ${isErrorMessage(text, options) ? 'is-error' : 'is-normal'}`;
+    msg.setAttribute('role', 'status');
+    msg.setAttribute('aria-live', 'polite');
     msg.textContent = text;
     return msg;
 }
 
-export function showRpgMessage(text, durationMs = 4000) {
+function syncMessageToVisibleViewport(msg) {
+    if (!msg) return () => {};
+    const update = () => {
+        const viewport = window.visualViewport;
+        const baseBottom = 78;
+        const hiddenBottom = viewport
+            ? Math.max(0, window.innerHeight - (viewport.offsetTop + viewport.height))
+            : 0;
+        msg.style.setProperty('--rpg-message-bottom', `${Math.ceil(baseBottom + hiddenBottom)}px`);
+    };
+    update();
+    const viewport = window.visualViewport;
+    if (!viewport) return () => {};
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+        viewport.removeEventListener('resize', update);
+        viewport.removeEventListener('scroll', update);
+    };
+}
+
+export function showRpgMessage(text, durationMs = 4000, options = {}) {
     if (!text) return;
-    const msg = makeMessageElement(text);
+    if (activeMessageElement?.parentElement) {
+        activeMessageElement.remove();
+    }
+    const msg = makeMessageElement(text, options);
+    const cleanupViewportSync = syncMessageToVisibleViewport(msg);
+    activeMessageElement = msg;
     document.body.appendChild(msg);
     setTimeout(() => {
+        cleanupViewportSync();
         if (msg.parentElement) msg.remove();
+        if (activeMessageElement === msg) activeMessageElement = null;
     }, durationMs);
 }
 

@@ -80,7 +80,7 @@
                         </div>
                         <div class="home-exp-card">
                             <div class="home-exp-header">
-                                <div class="home-exp-rank">階級 <span id="homeExpRank">見習い</span></div>
+                                <div class="home-exp-rank" data-rank-tier="apprentice">階級 <span id="homeExpRank">見習い</span></div>
                             </div>
                             <div class="home-exp-bar">
                                 <div id="homeExpFill" class="home-exp-fill" style="width: 0%;"></div>
@@ -146,7 +146,7 @@
                     </div>
                     <div class="transfer-action-row">
                         <button id="btnScanPay" class="transfer-send-btn">渡す</button>
-                        <button id="btnCoinConvert" class="transfer-coin-btn" type="button">コイン化</button>
+                        <button id="btnCoinConvert" class="transfer-coin-btn" type="button">チップ化</button>
                         <button id="btnCoinGoldConvert" class="transfer-gold-btn" type="button">コイン返却</button>
                     </div>
                 </div>
@@ -1041,7 +1041,6 @@
                                 <div class="troy-admin-actions">
                                     <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
                                     <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
-                                    <button id="btnKingCoinReturn" class="btn-muted" type="button">コイン返却</button>
                                 </div>
                             </div>
                             <div class="king-coin-return-qr-row">
@@ -1049,19 +1048,22 @@
                                     <div class="troy-admin-label">コイン返却</div>
                                     <div class="troy-admin-help">返却されたコイン総額を入力し、お客様のMY QRを読み込んでゴールド化します。</div>
                                 </div>
-                                <div class="transfer-input-row king-coin-return-input-row">
-                                    <input id="kingCoinReturnAmount" type="number" min="100" step="100" placeholder="返却G" value="0" />
-                                    <span>G</span>
+                                <div class="king-coin-return-actions">
+                                    <div class="transfer-input-row king-coin-return-input-row">
+                                        <input id="kingCoinReturnAmount" type="number" min="100" step="100" placeholder="返却G" value="0" />
+                                        <span>G</span>
+                                    </div>
+                                    <button id="btnKingCoinReturn" class="btn-muted" type="button">コイン返却</button>
                                 </div>
                             </div>
-                        </div>
-                        <div class="troy-admin-card troy-king-priority-card">
-                            <div id="kingTroyCalendarMount"></div>
                         </div>
                         <div class="troy-admin-card troy-king-priority-card">
                             <div class="troy-admin-label">店内リスト</div>
                             <div id="kingTroyEntryList" class="troy-entry-list"></div>
                             <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
+                        </div>
+                        <div class="troy-admin-card troy-king-priority-card">
+                            <div id="kingTroyCalendarMount"></div>
                         </div>
                         <details class="troy-admin-details">
                             <summary>店内ゲーム採点</summary>
@@ -1353,22 +1355,22 @@
         <div class="modal-content coin-convert-modal-content">
             <div id="coinConvertMain">
                 <div class="coin-convert-icon">🪙</div>
-                <h3 id="coinConvertTitle">コイン化</h3>
+                <h3 id="coinConvertTitle">チップ化</h3>
                 <div id="coinConvertAmount" class="coin-convert-amount">0G</div>
-                <p id="coinConvertText" class="coin-convert-text">店内コインに交換します。</p>
+                <p id="coinConvertText" class="coin-convert-text">店内チップに交換します。</p>
                 <div class="modal-buttons">
-                    <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してコイン化</button>
+                    <button id="btnConfirmCoinConvert" style="background:var(--accent-color); color:#111827;">確認してチップ化</button>
                     <button id="btnCancelCoinConvert" style="background:#4b5563;">キャンセル</button>
                 </div>
                 <p id="coinConvertResult" class="coin-convert-result"></p>
             </div>
             <div id="coinConvertReceipt" class="coin-convert-receipt" hidden>
                 <div class="coin-convert-staff-view">
-                    <div class="coin-convert-staff-kicker">コインを渡してください</div>
+                    <div class="coin-convert-staff-kicker">チップを渡してください</div>
                     <div id="coinConvertReceiptAmountStaff" class="coin-convert-staff-amount">0G</div>
                     <div class="coin-convert-staff-note">この画面をスタッフに見せてください</div>
                 </div>
-                <button id="btnCoinConvertReceived" type="button" class="coin-convert-received-btn">コインを受け取った</button>
+                <button id="btnCoinConvertReceived" type="button" class="coin-convert-received-btn">チップを受け取った</button>
             </div>
         </div>
     </div>

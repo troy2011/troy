@@ -1372,6 +1372,15 @@ function getRankName(level, isKing) {
     return '見習い';
 }
 
+function getRankTier(level, isKing) {
+    if (isKing) return 'king';
+    if (level >= 41) return 'pirate-king';
+    if (level >= 31) return 'admiral';
+    if (level >= 21) return 'captain';
+    if (level >= 11) return 'navigator';
+    return 'apprentice';
+}
+
 function updateExperienceUI() {
     const rankEl = document.getElementById('homeExpRank');
     const progressEl = document.getElementById('homeExpProgress');
@@ -1382,8 +1391,10 @@ function updateExperienceUI() {
     const data = calculateLevelFromExp(myExperience);
     const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
     const rankName = getRankName(data.level, myIsKing);
+    const rankTier = getRankTier(data.level, myIsKing);
 
     rankEl.textContent = rankName;
+    rankEl.closest('.home-exp-rank')?.setAttribute('data-rank-tier', rankTier);
     progressEl.textContent = String(data.expInto);
     neededEl.textContent = String(data.expNeeded);
     fillEl.style.width = `${Math.round(ratio * 100)}%`;

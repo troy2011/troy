@@ -3513,6 +3513,27 @@ function initializeNationRoutes(app, deps) {
                     console.warn('[king-troy-return-coin] Balance/stat sync failed:', balanceSyncError);
                 }
             }
+            if (firestore && admin) {
+                try {
+                    const notification = {
+                        type: 'king_coin_return',
+                        fromId: kingContext.kingId,
+                        amount,
+                        currency: 'PS',
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (Number.isFinite(newBalance)) {
+                        notification.balanceAfter = newBalance;
+                    }
+                    await firestore
+                        .collection('notifications')
+                        .doc(receiverId)
+                        .collection('items')
+                        .add(notification);
+                } catch (notifyError) {
+                    console.warn('[king-troy-return-coin] Notification write failed:', notifyError?.message || notifyError);
+                }
+            }
             res.json({
                 success: true,
                 amount,

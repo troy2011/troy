@@ -4709,14 +4709,16 @@ function applyDailyFortuneOverlayLayout(overlay) {
         width: 'min(520px, calc(100% - 20px))',
         maxWidth: '520px',
         maxHeight: 'min(85dvh, 640px)',
+        boxSizing: 'border-box',
         overflowY: 'auto',
-        borderRadius: '14px',
-        border: '1px solid rgba(255, 215, 122, 0.55)',
-        background: 'linear-gradient(180deg, rgba(22, 29, 45, 0.97), rgba(11, 17, 29, 0.97))',
+        borderRadius: '8px',
+        border: '18px solid transparent',
+        borderImage: 'url("/assets/ui/icons/panel-blue-square.png") 24 fill / 18px / 0 stretch',
+        background: 'transparent',
         boxShadow: '0 18px 44px rgba(0, 0, 0, 0.45)',
         padding: '14px 14px 12px',
         textAlign: 'center',
-        color: '#f8fafc',
+        color: '#f8fbff',
         margin: '0 auto'
     });
 }

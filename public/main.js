@@ -67,6 +67,7 @@ const NATION_LABEL_BY_KEY = {
 };
 const VALID_NATION_KEYS = Object.freeze(Object.keys(NATION_LABEL_BY_KEY));
 const LINE_FRIEND_BONUS_STORAGE_KEY = 'troy:line-friend-bonus-claimed';
+const LINE_FRIEND_ENTRY_PROMPT_SESSION_KEY = 'troy:line-friend-entry-prompted';
 
 installPlayerProfileInteractions();
 
@@ -523,6 +524,50 @@ async function getLiffFriendshipFlag() {
     }
 }
 
+function hasPromptedLineFriendForEntry() {
+    try {
+        return window.sessionStorage.getItem(LINE_FRIEND_ENTRY_PROMPT_SESSION_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+function markLineFriendEntryPrompted() {
+    try {
+        window.sessionStorage.setItem(LINE_FRIEND_ENTRY_PROMPT_SESSION_KEY, '1');
+    } catch (_) {
+    }
+}
+
+async function promptLineOfficialFriendBeforeTroyEntry() {
+    if (hasPromptedLineFriendForEntry()) return;
+    const friendFlag = await getLiffFriendshipFlag();
+    if (friendFlag === true) return;
+    if (typeof liff === 'undefined' || typeof liff.requestFriendship !== 'function') {
+        return;
+    }
+    markLineFriendEntryPrompted();
+    try {
+        showRpgMessage('TROYの案内を受け取るため、LINE公式アカウントの追加画面を開きます。', 2600);
+        await liff.requestFriendship();
+        const nextFriendFlag = await getLiffFriendshipFlag();
+        if (nextFriendFlag === true) {
+            try {
+                await claimLineFriendBonus();
+            } catch (claimError) {
+                console.warn('[line-friend] Failed to auto claim friend bonus after TROY entry prompt:', claimError);
+                showRpgMessage('LINE公式アカウントの友だち追加を確認しました。特典はホーム画面から受け取れます。', 2600);
+                void refreshLineFriendPromo();
+            }
+        } else {
+            showRpgMessage('友だち追加はあとからホーム画面でもできます。', 2200);
+        }
+    } catch (error) {
+        console.warn('[line-friend] Failed to request friendship before TROY entry:', error);
+        showRpgMessage('友だち追加画面を開けませんでした。入店後にホーム画面から追加できます。', 2600);
+    }
+}
+
 function renderLineFriendPromo(state) {
     lineFriendPromoState = state || null;
     const card = document.getElementById('lineFriendPromo');
@@ -542,7 +587,7 @@ function renderLineFriendPromo(state) {
     button.disabled = false;
     if (state.claimed) {
         title.textContent = 'LINE公式アカウント';
-        text.textContent = `友だち追加特典は受け取り済みです。${state.claimedAmount || state.rewardAmount || 0} Ps を受け取りました。`;
+        text.textContent = `友だち追加特典は受け取り済みです。${state.claimedAmount || state.rewardAmount || 0}G を受け取りました。`;
         button.textContent = '受け取り済み';
         button.disabled = true;
         button.dataset.action = 'claimed';
@@ -551,7 +596,7 @@ function renderLineFriendPromo(state) {
 
     if (state.friendFlag === true) {
         title.textContent = 'LINE公式アカウント';
-        text.textContent = `友だち追加を確認しました。${state.rewardAmount || 0} Ps の特典を受け取れます。`;
+        text.textContent = `友だち追加を確認しました。${state.rewardAmount || 0}G の特典を受け取れます。`;
         button.textContent = '特典を受け取る';
         button.disabled = false;
         button.dataset.action = 'claim';
@@ -560,13 +605,13 @@ function renderLineFriendPromo(state) {
 
     title.textContent = 'LINE公式アカウント';
     if (state.addFriendUrl) {
-        text.textContent = `${state.rewardAmount || 0} Ps の特典があります。友だち追加後にここで受け取れます。`;
+        text.textContent = `${state.rewardAmount || 0}G の特典があります。友だち追加後にここで受け取れます。`;
         button.textContent = '友だち追加';
         button.disabled = false;
         button.dataset.action = 'friend';
         return;
     }
-    text.textContent = `${state.rewardAmount || 0} Ps の特典があります。現在は友だち追加URLが未設定です。`;
+    text.textContent = `${state.rewardAmount || 0}G の特典があります。現在は友だち追加URLが未設定です。`;
     button.textContent = '準備中';
     button.disabled = true;
     button.dataset.action = 'friend-pending';
@@ -607,7 +652,7 @@ async function claimLineFriendBonus() {
         await Player.getPoints(myPlayFabId);
     }
     await refreshLineFriendPromo();
-    showRpgMessage(`${result?.rewardAmount || 0} Ps を受け取りました。`, 2600);
+    showRpgMessage(`${result?.rewardAmount || 0}G を受け取りました。`, 2600);
 }
 
 function openLineFriendUrl() {
@@ -1308,11 +1353,15 @@ function subscribeTransferNotifications(playFabId) {
             const currency = String(data.currency || 'PS');
             const currencyLabel = formatCurrencyLabel(currency);
             if (amount <= 0) return;
+            const noticeType = String(data.type || '');
+            const noticeMessage = noticeType === 'king_coin_return'
+                ? `ゴールド化されました: ${amount} ${currencyLabel}`
+                : `送金を受け取りました: ${amount} ${currencyLabel}`;
             if (typeof showRpgMessage === 'function') {
-                showRpgMessage(`送金を受け取りました: ${amount} ${currencyLabel}`);
+                showRpgMessage(noticeMessage);
             } else {
                 const pointMessageEl = document.getElementById('pointMessage');
-                if (pointMessageEl) pointMessageEl.innerText = `送金を受け取りました: ${amount} ${currencyLabel}`;
+                if (pointMessageEl) pointMessageEl.innerText = noticeMessage;
             }
             if (Number.isFinite(Number(data.balanceAfter))) {
                 const nextBalance = Number(data.balanceAfter);
@@ -1579,18 +1628,24 @@ function promptCoinConvertBeforeEntry(goldBalance) {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
         overlay.innerHTML = `
-            <div style="background:#1e293b;border-radius:18px;padding:28px 20px 20px;width:100%;max-width:320px;color:#f1f5f9;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
-                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;">TROY COIN</div>
-                <div style="font-size:17px;font-weight:700;margin-bottom:6px;">Gをコインに変換しますか？</div>
-                <div style="color:#94a3b8;font-size:13px;margin-bottom:18px;">所持: <strong style="color:#fbbf24;">${goldBalance.toLocaleString('ja-JP')} G</strong></div>
+            <div role="dialog" aria-modal="true" aria-label="入店前のチップ確認" style="background:#1e293b;border-radius:18px;padding:26px 20px 20px;width:100%;max-width:340px;color:#f1f5f9;text-align:left;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;text-align:center;">TROY CHIP</div>
+                <div style="font-size:18px;font-weight:800;margin-bottom:8px;text-align:center;">入店前にチップを用意しますか？</div>
+                <div style="color:#cbd5e1;font-size:13px;line-height:1.6;margin-bottom:14px;text-align:center;">店内で使う分だけ、Gからチップへ交換できます。</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;color:#94a3b8;font-size:13px;margin-bottom:10px;">
+                    <span>所持G</span>
+                    <strong style="color:#fbbf24;">${goldBalance.toLocaleString('ja-JP')} G</strong>
+                </div>
                 ${canConvert ? `
-                    <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:18px;appearance:auto;">
+                    <label for="__troyEntryCoinSel" style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;">チップ化する金額</label>
+                    <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:8px;appearance:auto;">
                         ${options.join('')}
                     </select>
-                ` : '<div style="color:#fca5a5;font-size:13px;margin-bottom:18px;">コイン化できるGがありません。</div>'}
+                    <div style="color:#94a3b8;font-size:12px;line-height:1.5;margin-bottom:18px;">あとからホーム画面でもチップ化できます。</div>
+                ` : '<div style="color:#fca5a5;font-size:13px;line-height:1.5;margin-bottom:18px;text-align:center;">100G単位でチップ化できるGがありません。</div>'}
                 <div style="display:flex;gap:10px;">
-                    <button id="__troyEntryCoinSkip" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">このまま入店</button>
-                    <button id="__troyEntryCoinOk" type="button" ${canConvert ? '' : 'disabled'} style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer:${canConvert ? 'pointer' : 'not-allowed'};opacity:${canConvert ? '1' : '0.55'};">変換して入店</button>
+                    <button id="__troyEntryCoinSkip" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">そのまま入店</button>
+                    <button id="__troyEntryCoinOk" type="button" ${canConvert ? '' : 'disabled'} style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer:${canConvert ? 'pointer' : 'not-allowed'};opacity:${canConvert ? '1' : '0.55'};">チップ化して入店</button>
                 </div>
             </div>
         `;
@@ -1612,6 +1667,7 @@ function promptCoinConvertBeforeEntry(goldBalance) {
 async function handleTroyEntryRequest(entryRequest, options = {}) {
     if (!entryRequest || !myPlayFabId) return;
     try {
+        await promptLineOfficialFriendBeforeTroyEntry();
         const joinBody = {
             playFabId: myPlayFabId,
             displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
@@ -1634,7 +1690,7 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
                 }, { isSilent: true, throwOnError: true });
                 convertedAmount = convertAmount;
             } catch (error) {
-                showRpgMessage(formatCoinActionError(error, 'コイン変換に失敗しました。'), 3200);
+                showRpgMessage(formatCoinActionError(error, 'チップ化に失敗しました。'), 3200);
             }
         }
 
@@ -1648,7 +1704,7 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         if (result?.entryChargeCreated) parts.push('TROYに入店しました');
         else parts.push('TROYに入店済みです');
         if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
-        if (convertedAmount > 0) parts.push(`${convertedAmount.toLocaleString('ja-JP')}G をコインに変換`);
+        if (convertedAmount > 0) parts.push(`${convertedAmount.toLocaleString('ja-JP')}G をチップに変換`);
         showRpgMessage(parts.join(' / '), 2800);
     } catch (error) {
         const detail = String(error?.message || error || '');
@@ -1944,11 +2000,11 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     if (amount <= 0) {
         if (pointMessageEl) pointMessageEl.innerText = coinConvertMode === 'coin_to_gold'
             ? '返却するコイン金額を入力してください。'
-            : 'コイン化する金額を入力してください。';
+            : 'チップ化する金額を入力してください。';
         return;
     }
     if (amount % 100 !== 0) {
-        if (pointMessageEl) pointMessageEl.innerText = 'コイン化は100G単位で入力してください。';
+        if (pointMessageEl) pointMessageEl.innerText = 'チップ化は100G単位で入力してください。';
         return;
     }
     const titleEl = document.getElementById('coinConvertTitle');
@@ -1957,15 +2013,15 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
     const isGoldize = coinConvertMode === 'coin_to_gold';
-    if (titleEl) titleEl.innerText = isGoldize ? 'コイン返却' : 'コイン化';
+    if (titleEl) titleEl.innerText = isGoldize ? 'コイン返却' : 'チップ化';
     if (amountEl) amountEl.innerText = `${amount.toLocaleString('ja-JP')}G`;
     if (textEl) textEl.innerText = isGoldize
-        ? '店員の返却用QRコードを読み取り、店内コインをゴールドに戻します。入店後にコイン化した合計を超えた分だけ経験値が増えます。'
-        : '店内コインに交換します。';
+        ? '店員の返却用QRコードを読み取り、店内チップをゴールドに戻します。入店後にチップ化した合計を超えた分だけ経験値が増えます。'
+        : '店内チップに交換します。';
     if (resultEl) resultEl.innerText = '';
     if (confirmBtn) {
         confirmBtn.disabled = false;
-        confirmBtn.innerText = isGoldize ? '返却用QRを読み取る' : '確認してコイン化';
+        confirmBtn.innerText = isGoldize ? '返却用QRを読み取る' : '確認してチップ化';
     }
     const modal = document.getElementById('coinConvertModal');
     if (modal) modal.style.display = 'flex';
@@ -2004,7 +2060,7 @@ async function confirmCoinConvert() {
         return;
     }
     if (amount % 100 !== 0) {
-        if (resultEl) resultEl.innerText = 'コイン化は100G単位で入力してください。';
+        if (resultEl) resultEl.innerText = 'チップ化は100G単位で入力してください。';
         return;
     }
     const previousLabel = confirmBtn?.innerText || '';
@@ -2030,7 +2086,7 @@ async function confirmCoinConvert() {
             coinReturnQrToken,
             requestId: createRequestId(isGoldize ? 'troy-coin-to-gold' : 'troy-gold-to-coin')
         }, { throwOnError: true });
-        if (!data) throw new Error(isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
+        if (!data) throw new Error(isGoldize ? 'コイン返却に失敗しました。' : 'チップ化に失敗しました。');
         const contributionAmount = Math.max(0, Math.floor(Number(data.contributionAmount) || 0));
         const contributionNote = isGoldize && contributionAmount > 0
             ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}`
@@ -2041,7 +2097,7 @@ async function confirmCoinConvert() {
             : '';
         const message = (isGoldize
             ? `${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`
-            : `${amount.toLocaleString('ja-JP')}Gをコイン化しました。`) + levelNote;
+            : `${amount.toLocaleString('ja-JP')}Gをチップ化しました。`) + levelNote;
         if (resultEl) resultEl.innerText = message;
         document.getElementById('pointMessage').innerText = message;
         const amountInput = document.getElementById('transferAmount');
@@ -2054,13 +2110,13 @@ async function confirmCoinConvert() {
             showCoinConvertReceipt(amount);
         }
     } catch (error) {
-        const message = formatCoinActionError(error, isGoldize ? 'コイン返却に失敗しました。' : 'コイン化に失敗しました。');
+        const message = formatCoinActionError(error, isGoldize ? 'コイン返却に失敗しました。' : 'チップ化に失敗しました。');
         if (resultEl) resultEl.innerText = message;
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = message;
         if (confirmBtn) {
             confirmBtn.disabled = false;
-            confirmBtn.innerText = previousLabel || (isGoldize ? '返却用QRを読み取る' : '確認してコイン化');
+            confirmBtn.innerText = previousLabel || (isGoldize ? '返却用QRを読み取る' : '確認してチップ化');
         }
     }
 }

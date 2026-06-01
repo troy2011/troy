@@ -1,6 +1,6 @@
 [
     {
-        "file":  "sheet2-001-r00-c07.png",
+        "file":  "001.png",
         "row":  0,
         "col":  7,
         "x":  237,
@@ -10,7 +10,7 @@
         "alphaArea":  11010
     },
     {
-        "file":  "sheet2-002-r00-c04.png",
+        "file":  "002.png",
         "row":  0,
         "col":  4,
         "x":  130,
@@ -20,7 +20,7 @@
         "alphaArea":  6038
     },
     {
-        "file":  "sheet2-003-r00-c00.png",
+        "file":  "003.png",
         "row":  0,
         "col":  0,
         "x":  0,
@@ -30,7 +30,7 @@
         "alphaArea":  9012
     },
     {
-        "file":  "sheet2-004-r00-c12.png",
+        "file":  "004.png",
         "row":  0,
         "col":  12,
         "x":  386,
@@ -40,7 +40,7 @@
         "alphaArea":  11641
     },
     {
-        "file":  "sheet2-005-r00-c33.png",
+        "file":  "005.png",
         "row":  0,
         "col":  33,
         "x":  1059,
@@ -50,7 +50,7 @@
         "alphaArea":  6448
     },
     {
-        "file":  "sheet2-006-r00-c36.png",
+        "file":  "006.png",
         "row":  0,
         "col":  36,
         "x":  1156,
@@ -60,7 +60,7 @@
         "alphaArea":  6439
     },
     {
-        "file":  "sheet2-007-r00-c39.png",
+        "file":  "007.png",
         "row":  0,
         "col":  39,
         "x":  1251,
@@ -70,7 +70,7 @@
         "alphaArea":  8373
     },
     {
-        "file":  "sheet2-008-r00-c16.png",
+        "file":  "008.png",
         "row":  0,
         "col":  16,
         "x":  527,
@@ -80,7 +80,7 @@
         "alphaArea":  14196
     },
     {
-        "file":  "sheet2-009-r01-c42.png",
+        "file":  "009.png",
         "row":  1,
         "col":  42,
         "x":  1347,
@@ -90,7 +90,7 @@
         "alphaArea":  5167
     },
     {
-        "file":  "sheet2-010-r01-c30.png",
+        "file":  "010.png",
         "row":  1,
         "col":  30,
         "x":  967,
@@ -100,7 +100,7 @@
         "alphaArea":  4169
     },
     {
-        "file":  "sheet2-011-r01-c21.png",
+        "file":  "011.png",
         "row":  1,
         "col":  21,
         "x":  681,
@@ -110,7 +110,7 @@
         "alphaArea":  4046
     },
     {
-        "file":  "sheet2-012-r01-c24.png",
+        "file":  "012.png",
         "row":  1,
         "col":  24,
         "x":  775,
@@ -120,7 +120,7 @@
         "alphaArea":  4056
     },
     {
-        "file":  "sheet2-013-r01-c27.png",
+        "file":  "013.png",
         "row":  1,
         "col":  27,
         "x":  871,
@@ -130,7 +130,7 @@
         "alphaArea":  3995
     },
     {
-        "file":  "sheet2-014-r04-c00.png",
+        "file":  "014.png",
         "row":  4,
         "col":  0,
         "x":  3,
@@ -140,7 +140,7 @@
         "alphaArea":  11735
     },
     {
-        "file":  "sheet2-015-r04-c29.png",
+        "file":  "015.png",
         "row":  4,
         "col":  29,
         "x":  930,
@@ -150,7 +150,7 @@
         "alphaArea":  14426
     },
     {
-        "file":  "sheet2-016-r04-c34.png",
+        "file":  "016.png",
         "row":  4,
         "col":  34,
         "x":  1090,
@@ -160,7 +160,7 @@
         "alphaArea":  4118
     },
     {
-        "file":  "sheet2-017-r04-c36.png",
+        "file":  "017.png",
         "row":  4,
         "col":  36,
         "x":  1165,
@@ -170,7 +170,7 @@
         "alphaArea":  8289
     },
     {
-        "file":  "sheet2-018-r04-c26.png",
+        "file":  "018.png",
         "row":  4,
         "col":  26,
         "x":  832,
@@ -180,7 +180,7 @@
         "alphaArea":  7724
     },
     {
-        "file":  "sheet2-019-r04-c08.png",
+        "file":  "019.png",
         "row":  4,
         "col":  8,
         "x":  269,
@@ -190,7 +190,7 @@
         "alphaArea":  10569
     },
     {
-        "file":  "sheet2-020-r04-c04.png",
+        "file":  "020.png",
         "row":  4,
         "col":  4,
         "x":  129,
@@ -200,7 +200,7 @@
         "alphaArea":  8563
     },
     {
-        "file":  "sheet2-021-r04-c21.png",
+        "file":  "021.png",
         "row":  4,
         "col":  21,
         "x":  681,
@@ -210,7 +210,7 @@
         "alphaArea":  11467
     },
     {
-        "file":  "sheet2-022-r04-c39.png",
+        "file":  "022.png",
         "row":  4,
         "col":  39,
         "x":  1265,
@@ -220,7 +220,7 @@
         "alphaArea":  4452
     },
     {
-        "file":  "sheet2-023-r05-c15.png",
+        "file":  "023.png",
         "row":  5,
         "col":  15,
         "x":  490,
@@ -230,7 +230,7 @@
         "alphaArea":  16012
     },
     {
-        "file":  "sheet2-024-r08-c12.png",
+        "file":  "024.png",
         "row":  8,
         "col":  12,
         "x":  386,
@@ -240,7 +240,7 @@
         "alphaArea":  5159
     },
     {
-        "file":  "sheet2-025-r09-c00.png",
+        "file":  "025.png",
         "row":  9,
         "col":  0,
         "x":  14,
@@ -250,7 +250,7 @@
         "alphaArea":  5455
     },
     {
-        "file":  "sheet2-026-r09-c15.png",
+        "file":  "026.png",
         "row":  9,
         "col":  15,
         "x":  493,
@@ -260,7 +260,7 @@
         "alphaArea":  9575
     },
     {
-        "file":  "sheet2-027-r09-c09.png",
+        "file":  "027.png",
         "row":  9,
         "col":  9,
         "x":  298,
@@ -270,7 +270,7 @@
         "alphaArea":  4161
     },
     {
-        "file":  "sheet2-028-r09-c22.png",
+        "file":  "028.png",
         "row":  9,
         "col":  22,
         "x":  708,
@@ -280,7 +280,7 @@
         "alphaArea":  5367
     },
     {
-        "file":  "sheet2-029-r09-c28.png",
+        "file":  "029.png",
         "row":  9,
         "col":  28,
         "x":  904,
@@ -290,7 +290,7 @@
         "alphaArea":  9946
     },
     {
-        "file":  "sheet2-030-r09-c40.png",
+        "file":  "030.png",
         "row":  9,
         "col":  40,
         "x":  1291,
@@ -300,7 +300,7 @@
         "alphaArea":  5091
     },
     {
-        "file":  "sheet2-031-r09-c25.png",
+        "file":  "031.png",
         "row":  9,
         "col":  25,
         "x":  804,
@@ -310,7 +310,7 @@
         "alphaArea":  4843
     },
     {
-        "file":  "sheet2-032-r09-c19.png",
+        "file":  "032.png",
         "row":  9,
         "col":  19,
         "x":  610,
@@ -320,7 +320,7 @@
         "alphaArea":  7891
     },
     {
-        "file":  "sheet2-033-r09-c05.png",
+        "file":  "033.png",
         "row":  9,
         "col":  5,
         "x":  175,
@@ -330,7 +330,7 @@
         "alphaArea":  6451
     },
     {
-        "file":  "sheet2-034-r09-c35.png",
+        "file":  "034.png",
         "row":  9,
         "col":  35,
         "x":  1127,
@@ -340,7 +340,7 @@
         "alphaArea":  10773
     },
     {
-        "file":  "sheet2-035-r09-c32.png",
+        "file":  "035.png",
         "row":  9,
         "col":  32,
         "x":  1030,
@@ -350,7 +350,7 @@
         "alphaArea":  6736
     },
     {
-        "file":  "sheet2-036-r13-c14.png",
+        "file":  "036.png",
         "row":  13,
         "col":  14,
         "x":  479,
@@ -360,7 +360,7 @@
         "alphaArea":  6241
     },
     {
-        "file":  "sheet2-037-r13-c11.png",
+        "file":  "037.png",
         "row":  13,
         "col":  11,
         "x":  355,
@@ -370,7 +370,7 @@
         "alphaArea":  6311
     },
     {
-        "file":  "sheet2-038-r13-c18.png",
+        "file":  "038.png",
         "row":  13,
         "col":  18,
         "x":  587,
@@ -380,7 +380,7 @@
         "alphaArea":  8177
     },
     {
-        "file":  "sheet2-039-r13-c00.png",
+        "file":  "039.png",
         "row":  13,
         "col":  0,
         "x":  13,
@@ -390,7 +390,7 @@
         "alphaArea":  8335
     },
     {
-        "file":  "sheet2-040-r13-c04.png",
+        "file":  "040.png",
         "row":  13,
         "col":  4,
         "x":  130,
@@ -400,7 +400,7 @@
         "alphaArea":  5821
     },
     {
-        "file":  "sheet2-041-r13-c22.png",
+        "file":  "041.png",
         "row":  13,
         "col":  22,
         "x":  706,
@@ -410,7 +410,7 @@
         "alphaArea":  6737
     },
     {
-        "file":  "sheet2-042-r13-c29.png",
+        "file":  "042.png",
         "row":  13,
         "col":  29,
         "x":  935,
@@ -420,7 +420,7 @@
         "alphaArea":  4051
     },
     {
-        "file":  "sheet2-043-r13-c38.png",
+        "file":  "043.png",
         "row":  13,
         "col":  38,
         "x":  1226,
@@ -430,7 +430,7 @@
         "alphaArea":  9050
     },
     {
-        "file":  "sheet2-044-r13-c36.png",
+        "file":  "044.png",
         "row":  13,
         "col":  36,
         "x":  1157,
@@ -440,7 +440,7 @@
         "alphaArea":  4148
     },
     {
-        "file":  "sheet2-045-r13-c07.png",
+        "file":  "045.png",
         "row":  13,
         "col":  7,
         "x":  238,
@@ -450,7 +450,7 @@
         "alphaArea":  6750
     },
     {
-        "file":  "sheet2-046-r13-c25.png",
+        "file":  "046.png",
         "row":  13,
         "col":  25,
         "x":  815,
@@ -460,7 +460,7 @@
         "alphaArea":  7541
     },
     {
-        "file":  "sheet2-047-r14-c33.png",
+        "file":  "047.png",
         "row":  14,
         "col":  33,
         "x":  1059,
@@ -470,7 +470,7 @@
         "alphaArea":  6900
     },
     {
-        "file":  "sheet2-048-r17-c40.png",
+        "file":  "048.png",
         "row":  17,
         "col":  40,
         "x":  1292,
@@ -480,7 +480,7 @@
         "alphaArea":  11249
     },
     {
-        "file":  "sheet2-049-r17-c00.png",
+        "file":  "049.png",
         "row":  17,
         "col":  0,
         "x":  1,
@@ -490,7 +490,7 @@
         "alphaArea":  8883
     },
     {
-        "file":  "sheet2-050-r17-c20.png",
+        "file":  "050.png",
         "row":  17,
         "col":  20,
         "x":  652,
@@ -500,7 +500,7 @@
         "alphaArea":  9856
     },
     {
-        "file":  "sheet2-051-r17-c24.png",
+        "file":  "051.png",
         "row":  17,
         "col":  24,
         "x":  774,
@@ -510,7 +510,7 @@
         "alphaArea":  9612
     },
     {
-        "file":  "sheet2-052-r17-c28.png",
+        "file":  "052.png",
         "row":  17,
         "col":  28,
         "x":  903,
@@ -520,7 +520,7 @@
         "alphaArea":  9717
     },
     {
-        "file":  "sheet2-053-r17-c32.png",
+        "file":  "053.png",
         "row":  17,
         "col":  32,
         "x":  1029,
@@ -530,7 +530,7 @@
         "alphaArea":  9572
     },
     {
-        "file":  "sheet2-054-r17-c04.png",
+        "file":  "054.png",
         "row":  17,
         "col":  4,
         "x":  131,
@@ -540,7 +540,7 @@
         "alphaArea":  9748
     },
     {
-        "file":  "sheet2-055-r17-c08.png",
+        "file":  "055.png",
         "row":  17,
         "col":  8,
         "x":  258,
@@ -550,7 +550,7 @@
         "alphaArea":  9703
     },
     {
-        "file":  "sheet2-056-r17-c12.png",
+        "file":  "056.png",
         "row":  17,
         "col":  12,
         "x":  392,
@@ -560,7 +560,7 @@
         "alphaArea":  6536
     },
     {
-        "file":  "sheet2-057-r17-c16.png",
+        "file":  "057.png",
         "row":  17,
         "col":  16,
         "x":  515,
@@ -570,7 +570,7 @@
         "alphaArea":  7959
     },
     {
-        "file":  "sheet2-058-r21-c08.png",
+        "file":  "058.png",
         "row":  21,
         "col":  8,
         "x":  269,
@@ -580,7 +580,7 @@
         "alphaArea":  10041
     },
     {
-        "file":  "sheet2-059-r21-c00.png",
+        "file":  "059.png",
         "row":  21,
         "col":  0,
         "x":  12,
@@ -590,7 +590,7 @@
         "alphaArea":  9850
     },
     {
-        "file":  "sheet2-060-r21-c04.png",
+        "file":  "060.png",
         "row":  21,
         "col":  4,
         "x":  139,
@@ -600,7 +600,7 @@
         "alphaArea":  9685
     },
     {
-        "file":  "sheet2-061-r21-c12.png",
+        "file":  "061.png",
         "row":  21,
         "col":  12,
         "x":  400,
@@ -610,7 +610,7 @@
         "alphaArea":  9351
     },
     {
-        "file":  "sheet2-062-r21-c16.png",
+        "file":  "062.png",
         "row":  21,
         "col":  16,
         "x":  526,
@@ -620,7 +620,7 @@
         "alphaArea":  9367
     },
     {
-        "file":  "sheet2-063-r21-c20.png",
+        "file":  "063.png",
         "row":  21,
         "col":  20,
         "x":  653,
@@ -630,7 +630,7 @@
         "alphaArea":  8749
     },
     {
-        "file":  "sheet2-064-r21-c24.png",
+        "file":  "064.png",
         "row":  21,
         "col":  24,
         "x":  771,
@@ -640,7 +640,7 @@
         "alphaArea":  8676
     },
     {
-        "file":  "sheet2-065-r21-c27.png",
+        "file":  "065.png",
         "row":  21,
         "col":  27,
         "x":  865,
@@ -650,7 +650,7 @@
         "alphaArea":  8998
     },
     {
-        "file":  "sheet2-066-r21-c42.png",
+        "file":  "066.png",
         "row":  21,
         "col":  42,
         "x":  1357,
@@ -660,7 +660,7 @@
         "alphaArea":  4490
     },
     {
-        "file":  "sheet2-067-r21-c30.png",
+        "file":  "067.png",
         "row":  21,
         "col":  30,
         "x":  971,
@@ -670,7 +670,7 @@
         "alphaArea":  4539
     },
     {
-        "file":  "sheet2-068-r21-c39.png",
+        "file":  "068.png",
         "row":  21,
         "col":  39,
         "x":  1260,
@@ -680,7 +680,7 @@
         "alphaArea":  4595
     },
     {
-        "file":  "sheet2-069-r21-c33.png",
+        "file":  "069.png",
         "row":  21,
         "col":  33,
         "x":  1068,
@@ -690,7 +690,7 @@
         "alphaArea":  4274
     },
     {
-        "file":  "sheet2-070-r21-c36.png",
+        "file":  "070.png",
         "row":  21,
         "col":  36,
         "x":  1163,
@@ -700,7 +700,7 @@
         "alphaArea":  4341
     },
     {
-        "file":  "sheet2-071-r25-c24.png",
+        "file":  "071.png",
         "row":  25,
         "col":  24,
         "x":  775,
@@ -710,7 +710,7 @@
         "alphaArea":  5710
     },
     {
-        "file":  "sheet2-072-r25-c06.png",
+        "file":  "072.png",
         "row":  25,
         "col":  6,
         "x":  197,
@@ -720,7 +720,7 @@
         "alphaArea":  5832
     },
     {
-        "file":  "sheet2-073-r25-c09.png",
+        "file":  "073.png",
         "row":  25,
         "col":  9,
         "x":  293,
@@ -730,7 +730,7 @@
         "alphaArea":  5875
     },
     {
-        "file":  "sheet2-074-r25-c15.png",
+        "file":  "074.png",
         "row":  25,
         "col":  15,
         "x":  488,
@@ -740,7 +740,7 @@
         "alphaArea":  5688
     },
     {
-        "file":  "sheet2-075-r25-c00.png",
+        "file":  "075.png",
         "row":  25,
         "col":  0,
         "x":  5,
@@ -750,7 +750,7 @@
         "alphaArea":  5797
     },
     {
-        "file":  "sheet2-076-r25-c03.png",
+        "file":  "076.png",
         "row":  25,
         "col":  3,
         "x":  102,
@@ -760,7 +760,7 @@
         "alphaArea":  5754
     },
     {
-        "file":  "sheet2-077-r25-c12.png",
+        "file":  "077.png",
         "row":  25,
         "col":  12,
         "x":  390,
@@ -770,7 +770,7 @@
         "alphaArea":  5725
     },
     {
-        "file":  "sheet2-078-r25-c18.png",
+        "file":  "078.png",
         "row":  25,
         "col":  18,
         "x":  582,
@@ -780,7 +780,7 @@
         "alphaArea":  5483
     },
     {
-        "file":  "sheet2-079-r25-c21.png",
+        "file":  "079.png",
         "row":  25,
         "col":  21,
         "x":  679,
@@ -790,7 +790,7 @@
         "alphaArea":  5475
     },
     {
-        "file":  "sheet2-080-r25-c27.png",
+        "file":  "080.png",
         "row":  25,
         "col":  27,
         "x":  871,
@@ -800,7 +800,7 @@
         "alphaArea":  5744
     },
     {
-        "file":  "sheet2-081-r25-c30.png",
+        "file":  "081.png",
         "row":  25,
         "col":  30,
         "x":  967,
@@ -810,7 +810,7 @@
         "alphaArea":  5442
     },
     {
-        "file":  "sheet2-082-r25-c33.png",
+        "file":  "082.png",
         "row":  25,
         "col":  33,
         "x":  1066,
@@ -820,7 +820,7 @@
         "alphaArea":  4781
     },
     {
-        "file":  "sheet2-083-r25-c42.png",
+        "file":  "083.png",
         "row":  25,
         "col":  42,
         "x":  1356,
@@ -830,7 +830,7 @@
         "alphaArea":  4712
     },
     {
-        "file":  "sheet2-084-r25-c36.png",
+        "file":  "084.png",
         "row":  25,
         "col":  36,
         "x":  1163,
@@ -840,7 +840,7 @@
         "alphaArea":  4682
     },
     {
-        "file":  "sheet2-085-r25-c39.png",
+        "file":  "085.png",
         "row":  25,
         "col":  39,
         "x":  1259,
@@ -850,7 +850,7 @@
         "alphaArea":  4709
     },
     {
-        "file":  "sheet2-086-r28-c12.png",
+        "file":  "086.png",
         "row":  28,
         "col":  12,
         "x":  384,
@@ -860,7 +860,7 @@
         "alphaArea":  11656
     },
     {
-        "file":  "sheet2-087-r28-c06.png",
+        "file":  "087.png",
         "row":  28,
         "col":  6,
         "x":  202,
@@ -870,7 +870,7 @@
         "alphaArea":  12312
     },
     {
-        "file":  "sheet2-088-r28-c00.png",
+        "file":  "088.png",
         "row":  28,
         "col":  0,
         "x":  4,
@@ -880,7 +880,7 @@
         "alphaArea":  15028
     },
     {
-        "file":  "sheet2-089-r28-c16.png",
+        "file":  "089.png",
         "row":  28,
         "col":  16,
         "x":  515,
@@ -890,7 +890,7 @@
         "alphaArea":  9496
     },
     {
-        "file":  "sheet2-090-r28-c33.png",
+        "file":  "090.png",
         "row":  28,
         "col":  33,
         "x":  1069,
@@ -900,7 +900,7 @@
         "alphaArea":  8028
     },
     {
-        "file":  "sheet2-091-r28-c37.png",
+        "file":  "091.png",
         "row":  28,
         "col":  37,
         "x":  1197,
@@ -910,7 +910,7 @@
         "alphaArea":  8105
     },
     {
-        "file":  "sheet2-092-r28-c20.png",
+        "file":  "092.png",
         "row":  28,
         "col":  20,
         "x":  651,
@@ -920,7 +920,7 @@
         "alphaArea":  8247
     },
     {
-        "file":  "sheet2-093-r28-c29.png",
+        "file":  "093.png",
         "row":  28,
         "col":  29,
         "x":  942,
@@ -930,7 +930,7 @@
         "alphaArea":  7747
     },
     {
-        "file":  "sheet2-094-r28-c41.png",
+        "file":  "094.png",
         "row":  28,
         "col":  41,
         "x":  1324,
@@ -940,7 +940,7 @@
         "alphaArea":  8447
     },
     {
-        "file":  "sheet2-095-r28-c24.png",
+        "file":  "095.png",
         "row":  28,
         "col":  24,
         "x":  785,
@@ -950,7 +950,7 @@
         "alphaArea":  9129
     },
     {
-        "file":  "sheet2-096-r32-c00.png",
+        "file":  "096.png",
         "row":  32,
         "col":  0,
         "x":  10,
@@ -960,7 +960,7 @@
         "alphaArea":  37041
     },
     {
-        "file":  "sheet2-097-r36-c00.png",
+        "file":  "097.png",
         "row":  36,
         "col":  0,
         "x":  12,

@@ -3102,7 +3102,7 @@ body[data-sea-tone="night"] .home-hero-card {
     display: inline-block;
     margin-right: 5px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/066.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -10076,26 +10076,30 @@ body.modal-lock .modal-overlay {
 
 .tarot-fortune-modal {
     width: min(520px, calc(100% - 20px));
-    border-radius: 14px;
-    border: 1px solid rgba(255, 215, 122, 0.55);
-    background: linear-gradient(180deg, rgba(22, 29, 45, 0.97), rgba(11, 17, 29, 0.97));
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 18px solid transparent;
+    border-image: url("./assets/ui/icons/panel-blue-square.png") 24 fill / 18px / 0 stretch;
+    background: transparent;
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
     padding: 14px 14px 12px;
     text-align: center;
-    color: #f8fafc;
+    color: #f8fbff;
 }
 
 .tarot-fortune-title {
     font-size: 22px;
     font-weight: 900;
     letter-spacing: 0.04em;
-    color: #f8e2a8;
+    color: #fff4b8;
+    text-shadow: 0 2px 2px rgba(0, 0, 0, 0.45);
     margin-bottom: 6px;
 }
 
 .tarot-fortune-sub {
     font-size: 12px;
-    color: #cfd6e4;
+    color: #dbeafe;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     margin-bottom: 10px;
 }
 
@@ -10148,7 +10152,8 @@ body.modal-lock .modal-overlay {
 .tarot-fortune-text {
     font-size: 13px;
     line-height: 1.6;
-    color: #e2e8f0;
+    color: #f8fbff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     min-height: 44px;
     margin-bottom: 10px;
 }
@@ -10903,6 +10908,8 @@ textarea {
 .ship-exploration-panel {
     margin: 0 0 14px;
     padding: 12px;
+    max-height: min(34vh, 260px);
+    overflow-y: auto;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 8px;
     background: rgba(15, 23, 42, 0.58);
@@ -11691,6 +11698,19 @@ textarea {
     min-width: 0;
 }
 
+.king-coin-return-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: min(100%, 220px);
+}
+
+.king-coin-return-actions .king-coin-return-input-row,
+.king-coin-return-actions #btnKingCoinReturn {
+    width: 100%;
+}
+
 .king-coin-return-qr-canvas {
     width: 96px;
     height: 96px;
@@ -11703,6 +11723,11 @@ textarea {
     .king-coin-return-qr-row {
         grid-template-columns: 1fr;
         justify-items: start;
+    }
+
+    .king-coin-return-actions {
+        align-items: stretch;
+        width: 100%;
     }
 }
 
@@ -15446,7 +15471,7 @@ textarea {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/066.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 .event-list {
@@ -16964,7 +16989,7 @@ body[data-sea-tone] .home-hero-card {
 
 .currency-display::before {
     content: "";
-    background: url("./assets/ui/icons/coin.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/002.png") center / contain no-repeat;
     box-shadow: none;
 }
 
@@ -16989,7 +17014,7 @@ body[data-sea-tone] .home-hero-card {
     width: 58px;
     height: 58px;
     flex: 0 0 58px;
-    background: url("./assets/ui/icons/money-bag.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/001.png") center / contain no-repeat;
     color: transparent;
     font-size: 0;
 }
@@ -17035,19 +17060,19 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navHome .nav-icon {
-    background-image: url("./assets/ui/icons/nav-home.png?v=20260530");
+    background-image: url("./assets/ui/icons/sheet2/059.png?v=20260530");
 }
 
 #navTroy .nav-icon {
-    background-image: url("./assets/ui/icons/nav-troy.png?v=20260530");
+    background-image: url("./assets/ui/icons/sheet2/058.png?v=20260530");
 }
 
 #navEvents .nav-icon {
-    background-image: url("./assets/ui/icons/nav-events.png?v=20260530");
+    background-image: url("./assets/ui/icons/sheet2/061.png?v=20260530");
 }
 
 #navInventory .nav-icon {
-    background-image: url("./assets/ui/icons/nav-inventory.png?v=20260530");
+    background-image: url("./assets/ui/icons/sheet2/062.png?v=20260530");
 }
 
 #navRanking .nav-icon {
@@ -17130,7 +17155,7 @@ body[data-sea-tone] .home-hero-card {
     width: 86px;
     height: 86px;
     display: block;
-    background: url("./assets/ui/icons/trophy.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/056.png") center / contain no-repeat;
     color: transparent;
     font-size: 0;
     filter: drop-shadow(0 0 18px rgba(255, 207, 103, 0.7));
@@ -17201,15 +17226,15 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #btnShowPsRanking::before {
-    background-image: url("./assets/ui/icons/coin.png");
+    background-image: url("./assets/ui/icons/sheet2/002.png");
 }
 
 #btnShowDartsRanking::before {
-    background-image: url("./assets/ui/icons/dart.png");
+    background-image: url("./assets/ui/icons/sheet2/042.png");
 }
 
 #btnShowKaraokeRanking::before {
-    background-image: url("./assets/ui/icons/microphone.png");
+    background-image: url("./assets/ui/icons/sheet2/044.png");
 }
 
 .ranking-toggle-btn.active {
@@ -17246,7 +17271,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/action-refresh.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/066.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -17297,25 +17322,25 @@ body[data-sea-tone] .home-hero-card {
     position: relative;
     background:
         radial-gradient(circle at 50% 42%, rgba(30, 20, 10, 0.96) 0 36%, transparent 38%),
-        url("./assets/ui/icons/medal-empty.png") center / contain no-repeat;
+        url("./assets/ui/icons/sheet2/089.png") center / contain no-repeat;
 }
 
 .ranking-row-top-1 .ranking-rank-badge {
     background:
         radial-gradient(circle at 50% 42%, rgba(30, 20, 10, 0.92) 0 34%, transparent 36%),
-        url("./assets/ui/icons/medal-gold.png") center / contain no-repeat;
+        url("./assets/ui/icons/sheet2/049.png") center / contain no-repeat;
 }
 
 .ranking-row-top-2 .ranking-rank-badge {
     background:
         radial-gradient(circle at 50% 42%, rgba(24, 24, 24, 0.92) 0 34%, transparent 36%),
-        url("./assets/ui/icons/medal-silver.png") center / contain no-repeat;
+        url("./assets/ui/icons/sheet2/054.png") center / contain no-repeat;
 }
 
 .ranking-row-top-3 .ranking-rank-badge {
     background:
         radial-gradient(circle at 50% 42%, rgba(30, 17, 8, 0.92) 0 34%, transparent 36%),
-        url("./assets/ui/icons/medal-bronze.png") center / contain no-repeat;
+        url("./assets/ui/icons/sheet2/055.png") center / contain no-repeat;
 }
 
 .ranking-rank-medal {
@@ -17370,7 +17395,7 @@ body[data-sea-tone] .home-hero-card {
     width: 42px;
     height: 42px;
     flex: 0 0 42px;
-    background: url("./assets/ui/icons/chest.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/004.png") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.42));
 }
 
@@ -17568,15 +17593,15 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Equipment"]::before {
-    background-image: url("./assets/ui/icons/slot-weapon.png");
+    background-image: url("./assets/ui/icons/sheet2/075.png");
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Tarot"]::before {
-    background-image: url("./assets/ui/icons/tab-tarot.png");
+    background-image: url("./assets/ui/icons/sheet2/071.png");
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="All"]::before {
-    background-image: url("./assets/ui/icons/nav-inventory.png");
+    background-image: url("./assets/ui/icons/sheet2/062.png");
 }
 
 #tabContentInventory .inventory-panel-btn.active {
@@ -17670,19 +17695,19 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .weapon-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/slot-weapon.png");
+    background-image: url("./assets/ui/icons/sheet2/075.png");
 }
 
 #tabContentInventory .shield-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/slot-shield.png");
+    background-image: url("./assets/ui/icons/sheet2/072.png");
 }
 
 #tabContentInventory .armor-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/slot-armor.png");
+    background-image: url("./assets/ui/icons/sheet2/073.png");
 }
 
 #tabContentInventory .accessory-slot .equip-slot-icon {
-    background-image: url("./assets/ui/icons/slot-accessory.png");
+    background-image: url("./assets/ui/icons/sheet2/074.png");
 }
 
 #tabContentInventory .equip-slot-content {
@@ -17730,7 +17755,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 50%;
     background:
         radial-gradient(circle at 50% 46%, rgba(16, 12, 9, 0.84) 0 52%, transparent 54%),
-        url("./assets/ui/icons/anchor.png") center / 82% 82% no-repeat;
+        url("./assets/ui/icons/sheet2/020.png") center / 82% 82% no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.48));
 }
 
@@ -17956,7 +17981,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/nav-troy.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/058.png") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -17967,7 +17992,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/nav-events.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/sheet2/061.png") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -18330,7 +18355,7 @@ body[data-sea-tone] .home-hero-card {
     padding: 14px 12px 20px;
     background:
         linear-gradient(180deg, rgba(2, 4, 7, 0.02) 0%, rgba(3, 4, 5, 0.1) 38%, rgba(4, 3, 2, 0.04) 39%, rgba(5, 3, 2, 0.16) 100%),
-        url("./home-ui-sheet.png") center top / cover no-repeat;
+        url("./home-ui-sheet.png") center top / auto var(--home-hero-bg-height, 660px) no-repeat;
 }
 
 .home-hero-top {
@@ -18834,6 +18859,7 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card,
 body[data-sea-tone] .home-hero-card {
+    --home-hero-bg-height: 660px;
     min-height: 660px;
     padding-top: 10px;
     padding-bottom: 12px;
@@ -18910,7 +18936,7 @@ body[data-sea-tone] .home-hero-card {
 .home-exp-card {
     width: min(372px, calc(100% - 24px));
     min-height: 250px;
-    margin-top: 0;
+    margin-top: 22px;
     padding: 14px 14px 16px;
     display: grid;
     grid-template-columns: 98px minmax(0, 1fr);
@@ -18951,12 +18977,14 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-exp-rank::after {
-    content: "♛";
-    color: #e9b84a;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 46px;
-    line-height: 0.9;
-    text-shadow: 0 2px 0 #251204, 0 0 10px rgba(235, 186, 74, 0.38);
+    content: "";
+    width: 58px;
+    height: 58px;
+    display: block;
+    background: var(--home-rank-icon, url("./assets/ui/icons/sheet2/037.png")) center / contain no-repeat;
+    filter:
+        drop-shadow(0 2px 0 #251204)
+        drop-shadow(0 0 10px rgba(235, 186, 74, 0.38));
 }
 
 .home-exp-rank span {
@@ -18967,6 +18995,30 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 900;
     line-height: 1;
     white-space: nowrap;
+}
+
+.home-exp-rank[data-rank-tier="apprentice"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/037.png");
+}
+
+.home-exp-rank[data-rank-tier="navigator"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/028.png");
+}
+
+.home-exp-rank[data-rank-tier="captain"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/024.png");
+}
+
+.home-exp-rank[data-rank-tier="admiral"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/032.png");
+}
+
+.home-exp-rank[data-rank-tier="pirate-king"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/020.png");
+}
+
+.home-exp-rank[data-rank-tier="king"] {
+    --home-rank-icon: url("./assets/ui/icons/sheet2/029.png");
 }
 
 .home-exp-values {
@@ -19062,9 +19114,26 @@ body[data-sea-tone] .home-hero-card {
     max-width: none;
 }
 
+.nav-button:not(.active) {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/icons/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(17, 24, 39, 0.18), rgba(2, 6, 23, 0.34)),
+        url("./assets/ui/icons/panel-dark-square.png") center / 100% 100% no-repeat;
+}
+
+.nav-button.active {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/icons/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 189, 0.22), rgba(113, 63, 18, 0.18)),
+        url("./assets/ui/icons/panel-gold-square.png") center / 100% 100% no-repeat;
+}
+
 @media (max-width: 420px) {
     .home-hero-card,
     body[data-sea-tone] .home-hero-card {
+        --home-hero-bg-height: 646px;
         min-height: 646px;
         padding-inline: 10px;
     }
@@ -19090,7 +19159,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-ship-stage {
-        min-height: 376px;
+        min-height: 396px;
         margin-top: -10px;
     }
 
@@ -19109,6 +19178,7 @@ body[data-sea-tone] .home-hero-card {
     .home-exp-card {
         width: min(344px, calc(100% - 22px));
         min-height: 244px;
+        margin-top: 18px;
         grid-template-columns: 90px minmax(0, 1fr);
         column-gap: 12px;
         row-gap: 7px;
@@ -19122,7 +19192,8 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-exp-rank::after {
-        font-size: 40px;
+        width: 50px;
+        height: 50px;
     }
 
     .home-exp-rank span {
@@ -19434,39 +19505,39 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Shared icon map and final icon placement --- */
 :root {
-    --icon-nav-home: url("./assets/ui/icons/nav-home.png?v=20260531");
-    --icon-nav-troy: url("./assets/ui/icons/nav-troy.png?v=20260531");
-    --icon-nav-events: url("./assets/ui/icons/nav-events.png?v=20260531");
-    --icon-nav-inventory: url("./assets/ui/icons/nav-inventory.png?v=20260531");
+    --icon-nav-home: url("./assets/ui/icons/sheet2/059.png?v=20260531");
+    --icon-nav-troy: url("./assets/ui/icons/sheet2/058.png?v=20260531");
+    --icon-nav-events: url("./assets/ui/icons/sheet2/061.png?v=20260531");
+    --icon-nav-inventory: url("./assets/ui/icons/sheet2/062.png?v=20260531");
     --icon-nav-ranking: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
     --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
-    --icon-anchor: url("./assets/ui/icons/anchor.png");
-    --icon-chest: url("./assets/ui/icons/chest.png");
-    --icon-chest-gold: url("./assets/ui/icons/chest-gold.png");
-    --icon-coin: url("./assets/ui/icons/coin.png");
-    --icon-coin-stack: url("./assets/ui/icons/coin-stack.png");
-    --icon-compass: url("./assets/ui/icons/compass.png");
-    --icon-crown: url("./assets/ui/icons/crown.png");
-    --icon-dart: url("./assets/ui/icons/dart.png");
-    --icon-microphone: url("./assets/ui/icons/microphone.png");
-    --icon-money-bag: url("./assets/ui/icons/money-bag.png");
-    --icon-pirate-flag: url("./assets/ui/icons/pirate-flag.png");
-    --icon-potion-blue: url("./assets/ui/icons/potion-blue.png");
-    --icon-refresh: url("./assets/ui/icons/action-refresh.png");
-    --icon-settings: url("./assets/ui/icons/action-settings.png");
-    --icon-skull: url("./assets/ui/icons/skull.png");
-    --icon-swords: url("./assets/ui/icons/swords.png");
-    --icon-tarot: url("./assets/ui/icons/tarot-card.png");
-    --icon-trophy: url("./assets/ui/icons/trophy.png");
+    --icon-anchor: url("./assets/ui/icons/sheet2/020.png");
+    --icon-chest: url("./assets/ui/icons/sheet2/004.png");
+    --icon-chest-gold: url("./assets/ui/icons/sheet2/008.png");
+    --icon-coin: url("./assets/ui/icons/sheet2/002.png");
+    --icon-coin-stack: url("./assets/ui/icons/sheet2/003.png");
+    --icon-compass: url("./assets/ui/icons/sheet2/015.png");
+    --icon-crown: url("./assets/ui/icons/sheet2/057.png");
+    --icon-dart: url("./assets/ui/icons/sheet2/042.png");
+    --icon-microphone: url("./assets/ui/icons/sheet2/044.png");
+    --icon-money-bag: url("./assets/ui/icons/sheet2/001.png");
+    --icon-pirate-flag: url("./assets/ui/icons/sheet2/023.png");
+    --icon-potion-blue: url("./assets/ui/icons/sheet2/006.png");
+    --icon-refresh: url("./assets/ui/icons/sheet2/066.png");
+    --icon-settings: url("./assets/ui/icons/sheet2/068.png");
+    --icon-skull: url("./assets/ui/icons/sheet2/019.png");
+    --icon-swords: url("./assets/ui/icons/sheet2/033.png");
+    --icon-tarot: url("./assets/ui/icons/sheet2/038.png");
+    --icon-trophy: url("./assets/ui/icons/sheet2/056.png");
     --icon-vial: url("./assets/ui/icons/special-vial.png");
     --icon-mushroom: url("./assets/ui/icons/special-mushroom.png");
-    --icon-slot-all: url("./assets/ui/icons/nav-inventory.png");
-    --icon-slot-equipment: url("./assets/ui/icons/slot-weapon.png");
-    --icon-slot-tarot: url("./assets/ui/icons/tab-tarot.png");
-    --icon-slot-weapon: url("./assets/ui/icons/slot-weapon.png");
-    --icon-slot-shield: url("./assets/ui/icons/slot-shield.png");
-    --icon-slot-armor: url("./assets/ui/icons/slot-armor.png");
-    --icon-slot-accessory: url("./assets/ui/icons/slot-accessory.png");
+    --icon-slot-all: url("./assets/ui/icons/sheet2/062.png");
+    --icon-slot-equipment: url("./assets/ui/icons/sheet2/075.png");
+    --icon-slot-tarot: url("./assets/ui/icons/sheet2/071.png");
+    --icon-slot-weapon: url("./assets/ui/icons/sheet2/075.png");
+    --icon-slot-shield: url("./assets/ui/icons/sheet2/072.png");
+    --icon-slot-armor: url("./assets/ui/icons/sheet2/073.png");
+    --icon-slot-accessory: url("./assets/ui/icons/sheet2/074.png");
 }
 
 #navHome { --nav-icon-image: var(--icon-nav-home); }
@@ -19675,16 +19746,16 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Rich banner and panel treatment from sheet2 --- */
 :root {
-    --panel-sheet-frame: url("./assets/ui/icons/sheet-panel-frame.png");
-    --panel-sheet-plaque: url("./assets/ui/icons/sheet-plaque.png");
-    --panel-sheet-plaque-gold: url("./assets/ui/icons/sheet-plaque-gold.png");
-    --panel-sheet-plaque-blue: url("./assets/ui/icons/sheet-plaque-blue.png");
-    --panel-sheet-divider: url("./assets/ui/icons/sheet-divider.png");
-    --panel-sheet-rule: url("./assets/ui/icons/sheet-rule.png");
-    --banner-sheet-skull: url("./assets/ui/icons/banner-skull.png");
-    --banner-sheet-swords: url("./assets/ui/icons/banner-swords.png");
-    --banner-sheet-anchor: url("./assets/ui/icons/banner-anchor.png");
-    --banner-sheet-purple: url("./assets/ui/icons/banner-purple.png");
+    --panel-sheet-frame: url("./assets/ui/icons/sheet2/086.png");
+    --panel-sheet-plaque: url("./assets/ui/icons/sheet2/087.png");
+    --panel-sheet-plaque-gold: url("./assets/ui/icons/sheet2/088.png");
+    --panel-sheet-plaque-blue: url("./assets/ui/icons/sheet2/095.png");
+    --panel-sheet-divider: url("./assets/ui/icons/sheet2/096.png");
+    --panel-sheet-rule: url("./assets/ui/icons/sheet2/097.png");
+    --banner-sheet-skull: url("./assets/ui/icons/sheet2/050.png");
+    --banner-sheet-swords: url("./assets/ui/icons/sheet2/051.png");
+    --banner-sheet-anchor: url("./assets/ui/icons/sheet2/052.png");
+    --banner-sheet-purple: url("./assets/ui/icons/sheet2/053.png");
 }
 
 .home-card-header,
@@ -19719,23 +19790,17 @@ body[data-sea-tone] .home-hero-card {
 .tarot-loadout-header::after {
     content: "";
     position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: -11px;
-    height: 14px;
+    left: 50%;
+    bottom: -14px;
+    width: min(190px, calc(100% - 28px));
+    height: 18px;
     box-sizing: border-box;
     pointer-events: none;
-    border: 7px solid transparent;
-    border-left-width: 42px;
-    border-right-width: 42px;
-    background: none;
-    border-image-source: var(--panel-sheet-rule);
-    border-image-slice: 22 150 fill;
-    border-image-width: 7px 42px;
-    border-image-outset: 0;
-    border-image-repeat: stretch;
+    border: 0;
+    background: var(--panel-sheet-rule) center / contain no-repeat;
     opacity: 0.82;
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+    transform: translateX(-50%);
 }
 
 .home-card-title,
@@ -19796,21 +19861,15 @@ body[data-sea-tone] .home-hero-card {
 #tabContentKing .content-area > h2:first-child::after {
     content: "";
     position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: -12px;
-    height: 14px;
+    left: 50%;
+    bottom: -17px;
+    width: min(230px, calc(100% - 18px));
+    height: 24px;
     box-sizing: border-box;
-    border: 7px solid transparent;
-    border-left-width: 44px;
-    border-right-width: 44px;
-    background: none;
-    border-image-source: var(--panel-sheet-divider);
-    border-image-slice: 38 150 fill;
-    border-image-width: 7px 44px;
-    border-image-outset: 0;
-    border-image-repeat: stretch;
+    border: 0;
+    background: var(--panel-sheet-divider) center / contain no-repeat;
     opacity: 0.86;
+    transform: translateX(-50%);
 }
 
 #tabContentQr .battle-entry-card,
@@ -19879,19 +19938,19 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Sheet2 action icons for richer command surfaces --- */
 :root {
-    --icon-action-plus: url("./assets/ui/icons/action-plus.png");
-    --icon-action-refresh: url("./assets/ui/icons/action-refresh.png");
-    --icon-action-check: url("./assets/ui/icons/action-check.png");
-    --icon-action-close: url("./assets/ui/icons/action-close.png");
-    --icon-action-cannon: url("./assets/ui/icons/cannon.png");
-    --icon-action-card: url("./assets/ui/icons/tab-tarot.png");
-    --icon-action-crew: url("./assets/ui/icons/crew.png");
-    --icon-action-mail: url("./assets/ui/icons/mail.png");
-    --icon-action-map: url("./assets/ui/icons/compass.png");
-    --icon-action-ship: url("./assets/ui/icons/ship.png");
-    --icon-action-swords: url("./assets/ui/icons/swords.png");
-    --icon-event-dice: url("./assets/ui/icons/dice.png");
-    --icon-event-eightball: url("./assets/ui/icons/eightball.png");
+    --icon-action-plus: url("./assets/ui/icons/sheet2/067.png");
+    --icon-action-refresh: url("./assets/ui/icons/sheet2/066.png");
+    --icon-action-check: url("./assets/ui/icons/sheet2/069.png");
+    --icon-action-close: url("./assets/ui/icons/sheet2/070.png");
+    --icon-action-cannon: url("./assets/ui/icons/sheet2/034.png");
+    --icon-action-card: url("./assets/ui/icons/sheet2/071.png");
+    --icon-action-crew: url("./assets/ui/icons/sheet2/063.png");
+    --icon-action-mail: url("./assets/ui/icons/sheet2/064.png");
+    --icon-action-map: url("./assets/ui/icons/sheet2/015.png");
+    --icon-action-ship: url("./assets/ui/icons/sheet2/060.png");
+    --icon-action-swords: url("./assets/ui/icons/sheet2/033.png");
+    --icon-event-dice: url("./assets/ui/icons/sheet2/041.png");
+    --icon-event-eightball: url("./assets/ui/icons/sheet2/047.png");
 }
 
 #tabContentTroy .troy-entry-btn,
@@ -19995,6 +20054,55 @@ body[data-sea-tone] .home-hero-card {
 
 #btnKingWarStrike {
     --command-icon: var(--icon-action-swords);
+}
+
+.rpg-message-popup {
+    position: fixed;
+    left: max(14px, env(safe-area-inset-left));
+    right: max(14px, env(safe-area-inset-right));
+    bottom: calc(var(--rpg-message-bottom, 78px) + env(safe-area-inset-bottom));
+    z-index: 10020;
+    width: min(460px, calc(100vw - 28px));
+    margin-inline: auto;
+    padding: 16px 20px;
+    border: 14px solid transparent;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.45;
+    letter-spacing: 0;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: min(260px, calc(100dvh - 118px));
+    overflow-y: auto;
+    filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.42));
+    animation: rpgMessagePopupIn 140ms ease-out;
+    pointer-events: none;
+}
+
+.rpg-message-popup.is-normal {
+    border-image: url("./assets/ui/icons/speech-parchment.png") 28 fill / 14px / 0 stretch;
+    color: #241207;
+    text-shadow: 0 1px 0 rgba(255, 246, 210, 0.55);
+}
+
+.rpg-message-popup.is-error {
+    border-image: url("./assets/ui/icons/speech-dark.png") 28 fill / 14px / 0 stretch;
+    color: #fff;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
+}
+
+@keyframes rpgMessagePopupIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 #btnViewGuildMembers {

@@ -56,7 +56,7 @@ const { WeeklyContestScheduler } = require('./server/weeklyContestScheduler');
 
 const PORT = process.env.PORT || 8080;
 const VIRTUAL_CURRENCY_CODE = economy.VIRTUAL_CURRENCY_CODE;
-const LINE_FRIEND_BONUS_PS = Math.max(0, Math.floor(Number(process.env.LINE_FRIEND_BONUS_PS || 100) || 0));
+const LINE_FRIEND_BONUS_PS = Math.max(0, Math.floor(Number(process.env.LINE_FRIEND_BONUS_PS || 500) || 0));
 const LINE_OFFICIAL_ADD_FRIEND_URL = String(process.env.LINE_OFFICIAL_ADD_FRIEND_URL || '').trim();
 const LEADERBOARD_NAME = economy.LEADERBOARD_NAME;
 const BATTLE_REWARD_POINTS = Number(process.env.BATTLE_REWARD_POINTS || 10);
@@ -1744,11 +1744,10 @@ app.post('/api/set-race', async (req, res) => {
         setRaceStep = 'read-player-readonly';
         const currentReadOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
             PlayFabId: playFabId,
-            Keys: ['Nation', 'lineUserId', 'StarterGoldGranted']
+            Keys: ['Nation', 'lineUserId']
         });
         const prevNation = String(currentReadOnly?.Data?.Nation?.Value || '').toLowerCase();
         const lineUserId = String(currentReadOnly?.Data?.lineUserId?.Value || '').trim();
-        const starterGoldGranted = String(currentReadOnly?.Data?.StarterGoldGranted?.Value || '').toLowerCase() === 'true';
 
         setRaceStep = 'resolve-invite';
         const fixedInviteNation = String(inviteNation || '').trim().toLowerCase();
@@ -1953,37 +1952,6 @@ app.post('/api/set-race', async (req, res) => {
         const starterIsland = null;
 
         const starterAssets = await provisionStarterAssets({ playFabId, entityKey: playerEntity });
-        const shouldGrantStarterGold = !starterGoldGranted && !prevNation;
-        if (shouldGrantStarterGold) {
-            try {
-                await deps.addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, 500, {
-                    entityKeyOverride: playerEntity,
-                    idempotencyId: `starter-gold:${playFabId}`
-                });
-                try {
-                    const newBalance = await deps.getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
-                    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                        PlayFabId: playFabId,
-                        Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: newBalance }]
-                    });
-                } catch (syncError) {
-                    console.warn('[starterGrant] Failed to sync starter PS ranking:', syncError?.errorMessage || syncError?.message || syncError);
-                }
-                try {
-                    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                        PlayFabId: playFabId,
-                        Data: {
-                            StarterGoldGranted: 'true',
-                            StarterGoldGrantedAt: new Date().toISOString()
-                        }
-                    });
-                } catch (flagError) {
-                    console.warn('[starterGrant] Failed to persist starter grant flag:', flagError?.errorMessage || flagError?.message || flagError);
-                }
-            } catch (e) {
-                console.warn('[starterGrant] Failed to grant starter PS:', e?.errorMessage || e?.message || e);
-            }
-        }
 
         try {
             await ensureStarterShip({
