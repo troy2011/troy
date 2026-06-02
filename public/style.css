@@ -16900,7 +16900,7 @@ body[data-sea-tone] .home-hero-card {
 .home-exploration-btn {
     background:
         linear-gradient(180deg, rgba(255, 242, 183, 0.18), rgba(87, 43, 6, 0.2)),
-        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
 }
 
 .inventory-mobile-switch-btn.active,
@@ -16909,7 +16909,7 @@ body[data-sea-tone] .home-hero-card {
 .ranking-toggle-btn.active {
     background:
         linear-gradient(180deg, rgba(76, 196, 255, 0.12), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
 }
 
 .inventory-mobile-switch-btn:not(.active),
@@ -16964,7 +16964,7 @@ body[data-sea-tone] .home-hero-card {
 .nav-button.active {
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
-        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
 }
 
 .global-menu-button {
@@ -17247,7 +17247,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(255, 229, 149, 0.74);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18)),
-        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.28);
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78), 0 0 8px rgba(255, 222, 128, 0.28);
 }
@@ -17613,7 +17613,7 @@ body[data-sea-tone] .home-hero-card {
     color: #ffe188;
     background:
         linear-gradient(180deg, rgba(64, 160, 210, 0.16), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
     border-color: rgba(255, 229, 149, 0.42);
 }
 
@@ -17824,7 +17824,7 @@ body[data-sea-tone] .home-hero-card {
     color: #ffe8aa;
     background:
         linear-gradient(180deg, rgba(38, 150, 205, 0.14), rgba(2, 12, 18, 0.28)),
-        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="equipment"],
@@ -18140,7 +18140,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(255, 229, 149, 0.56);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2)),
-        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
     color: #241306;
     font-weight: 900;
     text-shadow: 0 1px 0 rgba(255, 245, 210, 0.45);
@@ -18336,7 +18336,7 @@ body[data-sea-tone] .home-hero-card {
 .home-exploration-btn,
 .nav-button.active {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
         linear-gradient(180deg, #e7b64b, #9c5c1e);
@@ -18348,7 +18348,7 @@ body[data-sea-tone] .home-hero-card {
 .ranking-toggle-btn.active,
 #tabContentInventory .inventory-panel-btn.active {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/buttons/button-blue.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
         linear-gradient(180deg, #104c70, #071b29);
@@ -18360,7 +18360,7 @@ body[data-sea-tone] .home-hero-card {
     padding: 14px 12px 20px;
     background:
         linear-gradient(180deg, rgba(2, 4, 7, 0.02) 0%, rgba(3, 4, 5, 0.1) 38%, rgba(4, 3, 2, 0.04) 39%, rgba(5, 3, 2, 0.16) 100%),
-        url("./home-ui-sheet.png") center top / auto var(--home-hero-bg-height, 660px) no-repeat;
+        url("./home-ui-sheet.png") calc(50% - 14px) top / auto var(--home-hero-bg-height, 660px) no-repeat;
 }
 
 .home-hero-top {
@@ -18538,12 +18538,12 @@ body[data-sea-tone] .home-hero-card {
     min-height: 36px;
     padding: 5px 12px;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
-        linear-gradient(180deg, #e7b64b, #9c5c1e);
-    color: #241205;
+        linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
     font-size: 15px;
 }
 
@@ -19340,7 +19340,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-frame {
-    top: -120px;
+    top: -108px;
     right: 9px;
     width: 90px;
     min-height: 166px;
@@ -19358,7 +19358,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-head {
-    gap: 3px;
+    gap: 0;
 }
 
 .home-player-ship-title {
@@ -19376,8 +19376,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-body {
-    margin-top: 8px;
-    gap: 4px;
+    margin-top: 42px;
+    gap: 0;
 }
 
 .home-hero-card .home-player-ship-icon {
@@ -19387,7 +19387,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-upgrades {
-    margin-top: 8px;
+    margin-top: 0;
+    margin-bottom: 1px;
 }
 
 .home-player-ship-upgrades button {
@@ -19468,7 +19469,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-hero-card .home-player-ship-frame {
-        top: -116px;
+        top: -104px;
         right: 4px;
         width: 84px;
         min-height: 158px;
@@ -20299,7 +20300,7 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .item-detail-close {
     border: 1px solid transparent;
     border-radius: 8px;
-    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(255, 239, 176, 0.28), rgba(109, 58, 11, 0.2)),
         linear-gradient(180deg, #e7b64b, #9c5c1e);
@@ -20312,7 +20313,7 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-transfer-cancel,
 #playerProfileModal .player-profile-transfer-quick-btn,
 #playerProfileModal .item-detail-close {
-    border-image: url("./assets/ui/buttons/button-blue.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(70, 181, 238, 0.18), rgba(3, 28, 45, 0.24)),
         linear-gradient(180deg, #104c70, #071b29);

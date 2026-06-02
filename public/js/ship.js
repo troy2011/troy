@@ -1094,12 +1094,6 @@ function renderPlayerShipWidget(ship) {
     const upgradeCosts = ship?.upgradeCosts || {};
     const evolveCostLabel = getShipEvolutionButtonCostLabel(upgrades, upgradeCosts);
     container.innerHTML = `
-        <div class="home-player-ship-body">
-            <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
-        </div>
-        <div class="home-player-ship-head">
-            <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
-        </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
                 <button type="button" data-player-ship-evolve>
@@ -1108,6 +1102,12 @@ function renderPlayerShipWidget(ship) {
                 </button>
             </div>
         ` : '<div class="home-player-ship-final">完成</div>'}
+        <div class="home-player-ship-body">
+            <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
+        </div>
+        <div class="home-player-ship-head">
+            <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
+        </div>
     `;
     container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
     container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
