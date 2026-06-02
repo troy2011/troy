@@ -226,6 +226,7 @@ const EQUIPMENT_FOCUS_SLOTS = Object.freeze([
     { slot: 'Armor', label: '頭', empty: '防具なし', category: 'Armor' },
     { slot: 'Accessory', label: 'アクセ', empty: 'アクセなし', category: 'Accessory' }
 ]);
+const EQUIPPABLE_INVENTORY_CATEGORIES = new Set(['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory']);
 
 export function getActiveInventoryCategory() {
     return activeInventoryCategory;
@@ -636,11 +637,20 @@ function compareInventoryItemsDefault(a, b, selectedCategory) {
 }
 
 function isInventoryItemEquipped(item) {
-    const instanceId = item?.instances?.[0];
-    const itemId = item?.itemId;
     return Object.entries(myCurrentEquipment || {})
         .filter(([slot]) => slot !== 'MajorArcana')
-        .some(([, equippedValue]) => equippedValue === instanceId || equippedValue === itemId);
+        .some(([, equippedValue]) => isEquipmentReferenceMatch(item, equippedValue));
+}
+
+function isInventoryEquipmentCategory(category) {
+    return EQUIPPABLE_INVENTORY_CATEGORIES.has(getCanonicalTarotCategory(category));
+}
+
+function isEquipmentReferenceMatch(item, equippedValue) {
+    if (!item || !equippedValue) return false;
+    const instanceId = item.instances?.[0];
+    const itemId = item.itemId;
+    return Boolean((instanceId && equippedValue === instanceId) || (itemId && equippedValue === itemId));
 }
 
 function getItemEffectSummary(effect) {
@@ -931,11 +941,9 @@ function renderInventoryFocusPanel() {
 }
 
 function getEquippedSlotsForItem(item) {
-    const instanceId = item?.instances?.[0];
-    const itemId = item?.itemId;
     return Object.entries(myCurrentEquipment || {})
         .filter(([slot]) => slot !== 'MajorArcana')
-        .filter(([, equippedValue]) => equippedValue === instanceId || equippedValue === itemId)
+        .filter(([, equippedValue]) => isEquipmentReferenceMatch(item, equippedValue))
         .map(([slot]) => slot);
 }
 
@@ -1211,7 +1219,15 @@ function createInventoryCell(item, requestedCategory) {
     cell.className = `inventory-item-cell inventory-item-cell--${layout}`;
     cell.dataset.layout = layout;
     cell.dataset.category = canonicalCategory || 'Unknown';
+    cell.title = item?.name || '不明なアイテム';
+    cell.setAttribute('role', 'button');
+    cell.tabIndex = 0;
     cell.onclick = () => showItemDetailModal(item);
+    cell.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        showItemDetailModal(item);
+    });
     const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
     const quickActions = getInventoryQuickActions(item, canonicalCategory);
     const quickAction = quickActions[0] || null;
@@ -1221,8 +1237,13 @@ function createInventoryCell(item, requestedCategory) {
     if (quickAction?.tone) {
         cell.classList.add(`has-${quickAction.tone}`);
     }
-    if (isInventoryItemEquipped(item)) {
+    const isEquipped = isInventoryItemEquipped(item);
+    const isEquipmentEquipped = isEquipped && isInventoryEquipmentCategory(canonicalCategory);
+    if (isEquipped) {
         cell.classList.add('is-equipped');
+    }
+    if (isEquipmentEquipped) {
+        cell.classList.add('is-equipment-equipped');
     }
 
     const head = document.createElement('div');
@@ -1231,8 +1252,7 @@ function createInventoryCell(item, requestedCategory) {
 
     const headMeta = document.createElement('div');
     headMeta.className = 'inventory-item-head-meta';
-    const isEquipped = isInventoryItemEquipped(item);
-    if (canonicalCategory !== 'TarotMajor' && canonicalCategory !== 'TarotMinor' && isEquipped) {
+    if (isEquipmentEquipped) {
         headMeta.appendChild(createInventoryBadge('装備中', 'active'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
@@ -1835,7 +1855,7 @@ function showItemDetailModal(item) {
     const equipItemId = item.itemId;
     const isEquipped = (slot) => {
         const equippedValue = myCurrentEquipment[slot];
-        return equippedValue === instanceId || equippedValue === equipItemId;
+        return isEquipmentReferenceMatch(item, equippedValue);
     };
 
     if (cd.Category === 'Weapon') {
