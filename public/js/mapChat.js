@@ -89,29 +89,29 @@ function createChatController(options) {
         if (!container) return;
         container.innerHTML = '';
         if (!messages || messages.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color: var(--text-sub); padding: 8px;">メッセージはまだありません</div>';
+            container.innerHTML = '<div class="map-chat-empty">メッセージはまだありません</div>';
             return;
         }
         messages.forEach((msg) => {
             const row = document.createElement('div');
-            row.style.cssText = 'margin-bottom: 8px; padding: 6px 8px; background: rgba(255,255,255,0.04); border-radius: 6px;';
+            row.className = 'map-chat-message';
 
             const header = document.createElement('div');
-            header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom: 2px;';
+            header.className = 'map-chat-message-head';
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = msg.displayName || 'Player';
-            nameSpan.style.cssText = 'font-weight: 700; color: var(--accent-color); font-size: 12px;';
+            nameSpan.className = 'map-chat-message-name';
             decoratePlayerTriggerElement(nameSpan, msg.playFabId, { className: 'player-link-inline' });
 
             const timeSpan = document.createElement('span');
             const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
             timeSpan.textContent = ts.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-            timeSpan.style.cssText = 'font-size: 10px; color: var(--text-sub);';
+            timeSpan.className = 'map-chat-message-time';
 
             const body = document.createElement('div');
             body.textContent = msg.message || '';
-            body.style.cssText = 'font-size: 13px; color: var(--text-main); word-wrap: break-word;';
+            body.className = 'map-chat-message-body';
 
             header.appendChild(nameSpan);
             header.appendChild(timeSpan);

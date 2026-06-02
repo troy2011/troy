@@ -18360,7 +18360,7 @@ body[data-sea-tone] .home-hero-card {
     padding: 14px 12px 20px;
     background:
         linear-gradient(180deg, rgba(2, 4, 7, 0.02) 0%, rgba(3, 4, 5, 0.1) 38%, rgba(4, 3, 2, 0.04) 39%, rgba(5, 3, 2, 0.16) 100%),
-        url("./home-ui-sheet.png") calc(50% - 14px) top / auto var(--home-hero-bg-height, 660px) no-repeat;
+        url("./home-ui-sheet.png") calc(50% - 24px) top / auto var(--home-hero-bg-height, 660px) no-repeat;
 }
 
 .home-hero-top {
@@ -19114,9 +19114,9 @@ body[data-sea-tone] .home-hero-card {
 .home-exploration-btn {
     grid-area: button;
     width: min(286px, 100%);
-    min-height: 68px;
+    min-height: 52px;
     margin: 8px auto 0;
-    font-size: clamp(29px, 7.4vw, 42px);
+    font-size: clamp(24px, 6.4vw, 34px);
 }
 
 #bottomNav {
@@ -19359,6 +19359,12 @@ body[data-sea-tone] .home-hero-card {
 
 .home-player-ship-head {
     gap: 0;
+    position: absolute;
+    top: 66px;
+    left: 50%;
+    width: 96px;
+    transform: translateX(-50%);
+    z-index: 2;
 }
 
 .home-player-ship-title {
@@ -19376,8 +19382,13 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-body {
-    margin-top: 42px;
+    position: absolute;
+    top: 92px;
+    left: 50%;
+    margin-top: 0;
     gap: 0;
+    transform: translateX(-50%);
+    z-index: 1;
 }
 
 .home-hero-card .home-player-ship-icon {
@@ -19387,8 +19398,12 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-upgrades {
-    margin-top: 0;
-    margin-bottom: 1px;
+    position: absolute;
+    top: 148px;
+    left: 50%;
+    margin: 0;
+    transform: translateX(-50%);
+    z-index: 2;
 }
 
 .home-player-ship-upgrades button {
@@ -19419,6 +19434,11 @@ body[data-sea-tone] .home-hero-card {
 
 .home-player-ship-final,
 .home-player-ship-empty {
+    position: absolute;
+    top: 148px;
+    left: 50%;
+    width: 96px;
+    transform: translateX(-50%);
     color: rgba(239, 222, 188, 0.88);
     font-size: 10px;
     line-height: 1.25;
@@ -19650,6 +19670,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn,
 .transfer-coin-btn,
 .transfer-gold-btn,
+#btnKingCoinReturn,
 .home-vital-action,
 .home-exploration-btn,
 .ranking-toggle-btn,
@@ -19669,6 +19690,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn::before,
 .transfer-coin-btn::before,
 .transfer-gold-btn::before,
+#btnKingCoinReturn::before,
 .home-vital-action::before,
 .home-exploration-btn::before,
 .ranking-toggle-btn::before,
@@ -19688,6 +19710,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn { --button-icon: var(--icon-money-bag); }
 .transfer-coin-btn { --button-icon: var(--icon-coin); }
 .transfer-gold-btn { --button-icon: var(--icon-coin-stack); }
+#btnKingCoinReturn { --button-icon: var(--icon-coin-stack); }
 #btnRecoverHP { --button-icon: var(--icon-mushroom); }
 #btnRecoverMP { --button-icon: var(--icon-vial); }
 .home-exploration-btn { --button-icon: var(--icon-compass); }
@@ -19722,6 +19745,74 @@ body[data-sea-tone] .home-hero-card {
 #tabContentQr .battle-entry-btn { --button-icon: var(--icon-swords); }
 #btnCreateGuild { --button-icon: var(--icon-pirate-flag); }
 #btnScanJoinGuild { --button-icon: var(--icon-compass); }
+
+.home-qr-scan-btn,
+.transfer-send-btn,
+.transfer-coin-btn,
+.transfer-gold-btn,
+#btnKingCoinReturn {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(70, 181, 238, 0.22), rgba(3, 28, 45, 0.3)),
+        linear-gradient(180deg, #104c70, #071b29);
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
+    color: #eff8ff;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.08;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+}
+
+.transfer-send-btn,
+.transfer-coin-btn {
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.3), rgba(109, 58, 11, 0.22)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    border-image-source: url("./assets/ui/buttons/button-gold-large.png");
+    color: #241205;
+    text-shadow: 0 1px 0 rgba(255, 236, 177, 0.48);
+}
+
+.home-qr-scan-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    gap: 8px;
+    font-size: 15px;
+}
+
+.transfer-action-row .transfer-send-btn,
+.transfer-action-row .transfer-coin-btn,
+.transfer-action-row .transfer-gold-btn {
+    min-height: 44px;
+    padding: 7px 5px;
+    gap: 4px;
+    font-size: clamp(12px, 3.2vw, 14px);
+    white-space: nowrap;
+}
+
+.home-qr-scan-btn::before {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+}
+
+.transfer-action-row .transfer-send-btn::before,
+.transfer-action-row .transfer-coin-btn::before,
+.transfer-action-row .transfer-gold-btn::before {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+}
+
+#btnKingCoinReturn {
+    min-height: 44px;
+    padding: 7px 12px;
+    gap: 7px;
+    font-size: 14px;
+    white-space: nowrap;
+}
 
 #tabContentQr .qr-battle-card > h2::before,
 #tabContentQr .equipment-gacha-card > h2::before,
@@ -19882,6 +19973,43 @@ body[data-sea-tone] .home-hero-card {
     border-image-slice: 22 84 22 fill;
 }
 
+#tabContentTroy .troy-reservation-panel,
+#tabContentTroy .troy-reservation-panel h3,
+#tabContentTroy .troy-reservation-panel label,
+#tabContentTroy .troy-reservation-panel .troy-calendar-meta,
+#tabContentTroy .troy-reservation-panel .event-host-fee {
+    color: #241306;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.44);
+}
+
+#tabContentTroy .troy-reservation-panel h3 {
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.14), rgba(104, 61, 23, 0.08)),
+        url("./assets/ui/banners/banner-rule.png") center / 100% 100% no-repeat;
+}
+
+#tabContentTroy .troy-reservation-panel .troy-reservation-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+#tabContentTroy #btnCancelTroyReservation {
+    min-width: 96px;
+    min-height: 40px;
+    padding-inline: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+}
+
+#tabContentTroy #btnCancelTroyReservation::before {
+    display: none;
+}
+
 #tabContentInventory .inventory-section[data-panel="items"] > .section-header,
 #tabContentEvents .event-create-panel h3 {
     background: linear-gradient(180deg, rgba(10, 7, 4, 0.2), rgba(0, 0, 0, 0.36));
@@ -20014,11 +20142,217 @@ body[data-sea-tone] .home-hero-card {
         repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.1) 0 1px, transparent 1px 12px);
 }
 
+.transfer-quick-row {
+    gap: 8px;
+}
+
+.transfer-quick-btn {
+    min-height: 34px;
+    padding: 0 6px;
+    border-width: 8px;
+    border-image-width: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(18px, 5vw, 24px);
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+}
+
+.transfer-quick-btn.reset {
+    color: #f0d6aa;
+}
+
 #tabContentQr .qr-battle-card > h2 { --section-banner: var(--banner-sheet-swords); }
 #tabContentQr .equipment-gacha-card > h2 { --section-banner: var(--icon-chest-gold); }
 #tabContentQr .guild-card > h2 { --section-banner: var(--banner-sheet-skull); }
 #tabContentBattle .content-area > h2:first-child { --section-banner: var(--banner-sheet-swords); }
 #tabContentKing .content-area > h2:first-child { --section-banner: var(--icon-crown); }
+
+/* --- Rich chat treatment --- */
+.map-chat-area {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 14px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(9, 16, 24, 0.9), rgba(3, 5, 9, 0.98)),
+        radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.1), transparent 58%);
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+
+.map-chat-tabs {
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.map-chat-tab {
+    min-height: 36px;
+    padding: 5px 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 9px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42)),
+        url("./assets/ui/panels/panel-dark-square.png") center / 100% 100% no-repeat;
+    color: #d7c5a6;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+}
+
+.map-chat-tab.active {
+    border-image-source: url("./assets/ui/buttons/button-gold-large.png");
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    color: #241306;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.48);
+}
+
+#chatMessages,
+#troyChatMessages {
+    height: 132px;
+    margin-bottom: 10px;
+    padding: 10px;
+    overflow-y: auto;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(6, 14, 24, 0.92), rgba(1, 3, 7, 0.96)),
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+    scrollbar-color: rgba(220, 169, 82, 0.6) rgba(3, 6, 10, 0.8);
+}
+
+.map-chat-empty {
+    width: max-content;
+    max-width: 100%;
+    margin: 26px auto;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/speech-parchment.png") 30 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.2), rgba(104, 61, 23, 0.12)),
+        url("./assets/ui/panels/speech-parchment.png") center / 100% 100% no-repeat;
+    color: #241306;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.44);
+}
+
+.map-chat-message {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/speech-dark.png") 30 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(4, 6, 10, 0.94)),
+        url("./assets/ui/panels/speech-dark.png") center / 100% 100% no-repeat;
+}
+
+.map-chat-message-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.map-chat-message-name {
+    min-width: 0;
+    color: #ffe5a4;
+    font-size: 12px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.map-chat-message-time {
+    flex: 0 0 auto;
+    color: rgba(239, 222, 188, 0.72);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.map-chat-message-body {
+    color: #f8f0dc;
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+#chatInputArea,
+#troyChatInputArea {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+#chatInput,
+#troyChatInput {
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(24, 31, 42, 0.92), rgba(7, 10, 15, 0.98)),
+        url("./assets/ui/panels/panel-dark-wide.png") center / 100% 100% no-repeat;
+    color: #f8f0dc;
+    font-size: 14px;
+    font-weight: 700;
+    outline: none;
+}
+
+#chatInput::placeholder,
+#troyChatInput::placeholder {
+    color: rgba(239, 222, 188, 0.58);
+}
+
+#btnSendChat,
+#btnSendTroyChat {
+    min-width: 72px;
+    min-height: 42px;
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+}
+
+#tabContentEvents #btnReloadEvents {
+    min-height: 38px;
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+}
 
 #tabContentQr .qr-battle-card > h2::before,
 #tabContentQr .equipment-gacha-card > h2::before,
