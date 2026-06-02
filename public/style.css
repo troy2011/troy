@@ -473,11 +473,11 @@ body[data-sea-tone="night"] .home-hero-card {
     white-space: nowrap;
 }
 
-.home-player-ship-title {
+.home-player-ship-title,
+button.home-player-ship-name {
     padding: 0;
     border: 0;
     background: transparent;
-    color: var(--text-sub);
     font: inherit;
     line-height: 1.15;
     text-decoration: underline;
@@ -18477,10 +18477,10 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card .home-player-ship-frame {
     right: 10px;
-    top: -132px;
+    top: -108px;
     transform: none;
     width: 94px;
-    min-height: 200px;
+    min-height: 176px;
     padding: 13px 7px 10px;
     z-index: 4;
     border-image-source: url("./assets/ui/panel-navy-wide.png");
@@ -18660,9 +18660,9 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-player-ship-frame {
         right: 6px;
-        top: -120px;
+        top: -96px;
         width: 88px;
-        min-height: 188px;
+        min-height: 164px;
         padding: 12px 6px 9px;
     }
 
@@ -18927,9 +18927,9 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-frame {
-    top: -104px;
+    top: -80px;
     width: 88px;
-    min-height: 180px;
+    min-height: 156px;
     padding: 12px 6px 9px;
 }
 
