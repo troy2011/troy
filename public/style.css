@@ -17025,25 +17025,30 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     color: transparent;
     font-size: 0;
+    border-radius: 999px;
+    background-color: #080706;
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
+    box-shadow:
+        inset 0 0 0 1px rgba(226, 177, 84, 0.26),
+        0 1px 2px rgba(0, 0, 0, 0.42);
 }
 
 .home-specialty-chip[title="火薬系"] span {
-    background-image: url("./assets/ui/icons/special-chili.png");
+    background-image: url("./assets/ui/icons/special-chili.png?v=20260602");
 }
 
 .home-specialty-chip[title="石材系"] span {
-    background-image: url("./assets/ui/icons/special-rock.png");
+    background-image: url("./assets/ui/icons/special-rock.png?v=20260602");
 }
 
 .home-specialty-chip[title="キノコ系"] span {
-    background-image: url("./assets/ui/icons/special-mushroom.png");
+    background-image: url("./assets/ui/icons/special-mushroom.png?v=20260602");
 }
 
 .home-specialty-chip[title="水系"] span {
-    background-image: url("./assets/ui/icons/special-vial.png");
+    background-image: url("./assets/ui/icons/special-vial.png?v=20260602");
 }
 
 .nav-button .nav-icon {
@@ -18386,37 +18391,40 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-ps-value {
-    align-items: baseline;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
     overflow: visible;
-    color: #fff7c2;
+    color: #f1d37b;
     font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
     font-size: clamp(54px, 14vw, 82px);
     font-weight: 900;
-    line-height: 0.9;
+    line-height: 1;
     letter-spacing: 0;
     font-variant-numeric: tabular-nums;
-    -webkit-text-stroke: 1px #2a1506;
     text-shadow:
-        0 3px 0 #4a260b,
-        0 0 10px rgba(255, 245, 180, 0.5);
+        0 3px 0 #3a1b06,
+        0 0 4px rgba(0, 0, 0, 0.76),
+        0 0 8px rgba(235, 176, 60, 0.32);
 }
 
 .home-ps-slit {
     min-width: 2.8ch;
-    height: 0.98em;
+    height: 1em;
     overflow: visible;
 }
 
 .home-ps-slit-value {
-    line-height: 0.98;
+    line-height: 1;
 }
 
 .home-ps-unit {
-    color: #6a3b13;
-    font-family: "Noto Sans JP", system-ui, sans-serif;
-    font-size: 18px;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.52em;
     font-weight: 900;
+    line-height: 1;
+    text-shadow: inherit;
+    transform: translateY(0.03em);
 }
 
 .home-specialty-row {
@@ -18559,24 +18567,28 @@ body[data-sea-tone] .home-hero-card {
     min-height: 48px;
     padding: 7px 10px;
     overflow: visible;
+    color: #f1d37b;
+    font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
     font-size: 22px;
+    font-weight: 900;
     line-height: 1;
     white-space: nowrap;
+    text-shadow:
+        0 2px 0 #3a1b06,
+        0 0 4px rgba(0, 0, 0, 0.72),
+        0 0 7px rgba(235, 176, 60, 0.28);
 }
 
 .currency-display b {
     min-width: 0;
     overflow: visible;
-    color: #fff7c2;
-    font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
+    color: inherit;
+    font-family: inherit;
     font-size: clamp(25px, 5vw, 34px);
     font-weight: 900;
     line-height: 1;
     font-variant-numeric: tabular-nums;
-    -webkit-text-stroke: 0.7px #2a1506;
-    text-shadow:
-        0 2px 0 #4a260b,
-        0 0 8px rgba(255, 245, 180, 0.45);
+    text-shadow: inherit;
 }
 
 .currency-display::before,
