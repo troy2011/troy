@@ -191,11 +191,8 @@ function stripNationEmoji(name) {
 }
 
 function buildNationDisplayName(baseName, nation) {
-    const key = String(nation || '').toLowerCase();
-    const emoji = NATION_EMOJI_BY_NATION[key] || '';
     const base = stripNationEmoji(baseName);
-    if (!emoji) return base;
-    return base ? `${emoji} ${base}` : emoji;
+    return base;
 }
 
 async function ensureNationDisplayName(playFabId, nation, deps) {

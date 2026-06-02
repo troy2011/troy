@@ -88,8 +88,7 @@ async function isKingPlayer(playFabId, deps) {
 
 function buildNationDisplayName(baseName, nation) {
     const base = normalizePlayerDisplayName(baseName);
-    const emoji = NATION_EMOJI_BY_NATION[String(nation || '').trim().toLowerCase()] || '';
-    return (emoji && base ? `${emoji} ${base}` : base).slice(0, 25);
+    return base.slice(0, 25);
 }
 
 function getJstDateKey(nowMs = Date.now()) {
