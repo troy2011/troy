@@ -96,6 +96,37 @@ function getItemPrice(item) {
     return Number.isFinite(amount) && amount > 0 ? amount : 500;
 }
 
+function getNumericItemValue(item, key) {
+    const value = Number(item?.[key] ?? item?.[String(key).toLowerCase()]);
+    return Number.isFinite(value) ? value : 0;
+}
+
+function getItemGateScore(item) {
+    return Math.max(
+        getNumericItemValue(item, 'Power'),
+        getNumericItemValue(item, 'Defense'),
+        getNumericItemValue(item, 'MagicPower'),
+        getNumericItemValue(item, 'HealPower')
+    );
+}
+
+function isWithinStatGate(item, options = {}) {
+    const category = getItemCategory(item);
+    const gates = options.maxStatsByCategory || {};
+    const gate = gates[category] || gates.default || null;
+    if (!gate || typeof gate !== 'object') return true;
+
+    for (const [key, maxValue] of Object.entries(gate)) {
+        const max = Number(maxValue);
+        if (!Number.isFinite(max)) continue;
+        const actual = String(key).toLowerCase() === 'score'
+            ? getItemGateScore(item)
+            : getNumericItemValue(item, key);
+        if (actual > max) return false;
+    }
+    return true;
+}
+
 function getItemRarity(item) {
     const explicit = String(item?.Rarity || item?.rarity || item?.Tier || item?.tier || '').trim().toLowerCase();
     if (explicit && RARITY_WEIGHTS[explicit]) return explicit;
@@ -139,6 +170,7 @@ function buildLocalGachaCandidates(catalogCache, options = {}) {
             const category = getItemCategory(item);
             if (isExcludedItemId(itemId, options)) return null;
             if (!itemId || !allowedCategories.has(category)) return null;
+            if (!isWithinStatGate(item, options)) return null;
             const weight = getCandidateWeight(item, options);
             if (weight <= 0) return null;
             return {
@@ -177,5 +209,6 @@ module.exports = {
     DEFAULT_RARITY_WEIGHTS,
     DEFAULT_EXCLUDED_ITEM_PATTERNS,
     buildLocalGachaCandidates,
-    drawLocalGachaItem
+    drawLocalGachaItem,
+    getItemGateScore
 };

@@ -104,6 +104,7 @@ function explorationDocToPayload(data = {}) {
         shipId: String(data.shipId || ''),
         shipName: String(data.shipName || ''),
         shipClass: String(data.shipClass || ''),
+        shipStage: Number(data.shipStage || data.stage || 1) || 1,
         startedAtMs: Number(data.startedAtMs || 0),
         completesAtMs: Number(data.completesAtMs || 0),
         cost: Number(data.cost || 0)
@@ -235,6 +236,26 @@ const DEFAULT_EXPLORATION_GACHA_PROFILES = {
     }
 };
 
+const EXPLORATION_SHIP_STAGE_GACHA_LIMITS = {
+    1: {
+        rarityWeights: { common: 88, uncommon: 12, rare: 0, epic: 0, legendary: 0 },
+        maxStatsByCategory: {
+            Weapon: { Power: 20 },
+            Armor: { Defense: 12 },
+            Shield: { Defense: 18 }
+        }
+    },
+    2: {
+        rarityWeights: { common: 58, uncommon: 30, rare: 10, epic: 1.8, legendary: 0.2 },
+        maxStatsByCategory: {
+            Weapon: { Power: 45 },
+            Armor: { Defense: 35 },
+            Shield: { Defense: 38 }
+        }
+    },
+    3: {}
+};
+
 function parseExplorationGachaProfiles() {
     const raw = process.env.EXPLORATION_GACHA_PROFILES;
     if (!raw) return DEFAULT_EXPLORATION_GACHA_PROFILES;
@@ -264,8 +285,24 @@ function parseExplorationGachaProfiles() {
 
 const EXPLORATION_GACHA_PROFILES = parseExplorationGachaProfiles();
 
-function getExplorationGachaOptions(destinationId) {
-    return EXPLORATION_GACHA_PROFILES[destinationId] || EXPLORATION_GACHA_PROFILES.near_sea;
+function normalizeShipStage(value) {
+    const stage = Math.floor(Number(value || 1) || 1);
+    if (stage <= 1) return 1;
+    if (stage === 2) return 2;
+    return 3;
+}
+
+function getExplorationGachaOptions(destinationId, ship = {}) {
+    const profile = EXPLORATION_GACHA_PROFILES[destinationId] || EXPLORATION_GACHA_PROFILES.near_sea;
+    const stageLimit = EXPLORATION_SHIP_STAGE_GACHA_LIMITS[normalizeShipStage(ship.stage)] || EXPLORATION_SHIP_STAGE_GACHA_LIMITS[1];
+    return {
+        ...profile,
+        rarityWeights: {
+            ...profile.rarityWeights,
+            ...stageLimit.rarityWeights
+        },
+        maxStatsByCategory: stageLimit.maxStatsByCategory
+    };
 }
 
 function resolveCatalogEntryByItemId(catalogCache, itemId) {
@@ -721,6 +758,7 @@ function initializeExplorationRoutes(app, deps) {
                 shipId: ship.shipId,
                 shipName: ship.shipName,
                 shipClass: ship.shipClass,
+                shipStage: normalizeShipStage(ship.stage),
                 cost: destination.cost,
                 startedAtMs: now,
                 completesAtMs: now,
@@ -847,7 +885,8 @@ function initializeExplorationRoutes(app, deps) {
             const ship = {
                 shipId: String(activeData.shipId || ''),
                 shipName: String(activeData.shipName || '船'),
-                shipClass: String(activeData.shipClass || 'common')
+                shipClass: String(activeData.shipClass || 'common'),
+                stage: normalizeShipStage(activeData.shipStage || activeData.stage || 1)
             };
 
             let bossResult = null;
@@ -870,7 +909,7 @@ function initializeExplorationRoutes(app, deps) {
                 }
 
                 const rewardCount = resolveRewardCount(bossResult, ship.shipClass);
-                const gachaOptions = getExplorationGachaOptions(destination.id);
+                const gachaOptions = getExplorationGachaOptions(destination.id, ship);
                 for (let i = 0; i < rewardCount; i++) {
                     const result = drawLocalGachaItem(catalogCache, gachaOptions);
                     if (result.itemId) {

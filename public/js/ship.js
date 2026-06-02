@@ -969,6 +969,9 @@ const EXPLORATION_SHIP_TRAITS = {
 
 let currentPlayerShipProfile = null;
 let explorationAutoRunning = false;
+const HOME_PLAYER_SHIP_DIRECTION_ROWS = [-64, -128, -192, -256];
+const HOME_PLAYER_SHIP_TAP_ANIMATION_MS = 3000;
+let homePlayerShipTapTimer = null;
 
 function normalizePlayerShipForm(form) {
     const key = String(form || 'boat').toLowerCase();
@@ -997,6 +1000,53 @@ function getExplorationDestinationVisual(destinationId) {
 function getPlayerShipClassName(form) {
     const key = normalizePlayerShipForm(form);
     return `home-player-ship-icon is-${key}`;
+}
+
+function clearHomePlayerShipTapAnimation(icon) {
+    if (homePlayerShipTapTimer) {
+        window.clearTimeout(homePlayerShipTapTimer);
+        homePlayerShipTapTimer = null;
+    }
+    const target = icon || document.querySelector('#homePlayerShipFrame .home-player-ship-icon.is-home-tap-animating');
+    target?.classList.remove('is-home-tap-animating');
+}
+
+function getHomePlayerShipDirectionY(icon) {
+    if (!icon) return HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
+    const rawValue = icon.dataset.playerShipDirectionY
+        || window.getComputedStyle(icon).getPropertyValue('--player-ship-sprite-y')
+        || String(HOME_PLAYER_SHIP_DIRECTION_ROWS[0]);
+    const parsed = Number.parseInt(rawValue, 10);
+    return HOME_PLAYER_SHIP_DIRECTION_ROWS.includes(parsed) ? parsed : HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
+}
+
+function pickHomePlayerShipDirectionY(icon) {
+    const current = getHomePlayerShipDirectionY(icon);
+    const options = HOME_PLAYER_SHIP_DIRECTION_ROWS.filter((value) => value !== current);
+    return options[Math.floor(Math.random() * options.length)] || HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
+}
+
+function triggerHomePlayerShipTapAnimation(event) {
+    const icon = event?.currentTarget;
+    const frame = icon?.closest('#homePlayerShipFrame');
+    if (!icon || frame?.classList.contains('is-exploring')) return;
+
+    clearHomePlayerShipTapAnimation(icon);
+    const nextDirectionY = pickHomePlayerShipDirectionY(icon);
+    icon.dataset.playerShipDirectionY = String(nextDirectionY);
+    icon.style.setProperty('--player-ship-sprite-y', `${nextDirectionY}px`);
+    void icon.offsetWidth;
+    icon.classList.add('is-home-tap-animating');
+    homePlayerShipTapTimer = window.setTimeout(() => {
+        icon.classList.remove('is-home-tap-animating');
+        homePlayerShipTapTimer = null;
+    }, HOME_PLAYER_SHIP_TAP_ANIMATION_MS);
+}
+
+function handleHomePlayerShipTapKeydown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    triggerHomePlayerShipTapAnimation(event);
 }
 
 function formatShipUpgradeCost(costs) {
@@ -1086,6 +1136,7 @@ function showShipEvolutionChoice(upgrades, upgradeCosts) {
 function renderPlayerShipWidget(ship) {
     const container = document.getElementById('homePlayerShipFrame');
     if (!container) return;
+    clearHomePlayerShipTapAnimation();
     currentPlayerShipProfile = ship || null;
     const form = normalizePlayerShipForm(ship?.form);
     const label = PLAYER_SHIP_LABELS[form] || 'ボート';
@@ -1098,7 +1149,7 @@ function renderPlayerShipWidget(ship) {
             <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
         </div>
         <div class="home-player-ship-body">
-            <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
+            <div class="${getPlayerShipClassName(form)}" data-player-ship-tap role="button" tabindex="0" aria-label="船を動かす"></div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
@@ -1111,6 +1162,9 @@ function renderPlayerShipWidget(ship) {
     `;
     container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
     container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
+    const shipIcon = container.querySelector('[data-player-ship-tap]');
+    shipIcon?.addEventListener('click', triggerHomePlayerShipTapAnimation);
+    shipIcon?.addEventListener('keydown', handleHomePlayerShipTapKeydown);
 }
 
 async function renamePlayerShipProfile() {
@@ -1480,6 +1534,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         </div>
     `;
     document.body.appendChild(overlay);
+    clearHomePlayerShipTapAnimation(homeIcon);
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');
 

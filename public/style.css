@@ -18760,6 +18760,30 @@ body[data-sea-tone] .home-hero-card {
     animation: homePlayerShipSail 1100ms ease-in-out infinite;
 }
 
+.home-hero-card .home-player-ship-icon[data-player-ship-tap] {
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.home-hero-card .home-player-ship-icon[data-player-ship-tap]:focus-visible {
+    outline: 2px solid rgba(255, 237, 151, 0.9);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+.home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-home-tap-animating {
+    animation: homePlayerShipFrameStep 420ms steps(6) infinite !important;
+}
+
+@keyframes homePlayerShipFrameStep {
+    from {
+        background-position: var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -64px);
+    }
+    to {
+        background-position: calc(var(--player-ship-sprite-x, -64px) - 384px) var(--player-ship-sprite-y, -64px);
+    }
+}
+
 @media (max-width: 640px) {
     .app-title-plaque {
         width: 100%;
