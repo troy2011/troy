@@ -18477,11 +18477,15 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card .home-player-ship-frame {
     right: 10px;
-    top: -60px;
+    top: 2px;
     transform: none;
     width: 94px;
-    min-height: 128px;
-    padding: 13px 7px 10px;
+    min-height: 0;
+    padding: 10px 7px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
     z-index: 4;
     border-image-source: url("./assets/ui/panel-navy-wide.png");
     border-image-slice: 34 fill;
@@ -18517,8 +18521,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-body {
-    gap: 6px;
-    margin-top: 6px;
+    gap: 0;
+    margin-top: 0;
 }
 
 .home-player-ship-icon {
@@ -18660,10 +18664,11 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-player-ship-frame {
         right: 6px;
-        top: -48px;
+        top: 10px;
         width: 88px;
-        min-height: 116px;
-        padding: 12px 6px 9px;
+        min-height: 0;
+        padding: 10px 6px 9px;
+        gap: 4px;
     }
 
     .home-player-ship-icon {
@@ -18927,10 +18932,11 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-frame {
-    top: -32px;
+    top: 24px;
     width: 88px;
-    min-height: 108px;
-    padding: 12px 6px 9px;
+    min-height: 0;
+    padding: 10px 6px 9px;
+    gap: 4px;
 }
 
 .home-player-ship-title {
@@ -18943,7 +18949,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-player-ship-body {
-    margin-top: 4px;
+    margin-top: 0;
 }
 
 .home-hero-card .home-player-ship-icon {
