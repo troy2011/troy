@@ -969,7 +969,18 @@ const EXPLORATION_SHIP_TRAITS = {
 
 let currentPlayerShipProfile = null;
 let explorationAutoRunning = false;
-const HOME_PLAYER_SHIP_DIRECTION_ROWS = [-64, -128, -192, -256];
+const HOME_PLAYER_SHIP_FRAME_SIZE = 64;
+const HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN = HOME_PLAYER_SHIP_FRAME_SIZE * 3;
+const HOME_PLAYER_SHIP_DIRECTIONS = [
+    { key: 'row0-a', spriteY: 0, frameOffsetX: 0 },
+    { key: 'row0-b', spriteY: 0, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN },
+    { key: 'row1-a', spriteY: -64, frameOffsetX: 0 },
+    { key: 'row1-b', spriteY: -64, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN },
+    { key: 'row2-a', spriteY: -128, frameOffsetX: 0 },
+    { key: 'row2-b', spriteY: -128, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN },
+    { key: 'row3-a', spriteY: -192, frameOffsetX: 0 },
+    { key: 'row3-b', spriteY: -192, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN }
+];
 const HOME_PLAYER_SHIP_TAP_ANIMATION_MS = 3000;
 let homePlayerShipTapTimer = null;
 
@@ -1011,19 +1022,29 @@ function clearHomePlayerShipTapAnimation(icon) {
     target?.classList.remove('is-home-tap-animating');
 }
 
-function getHomePlayerShipDirectionY(icon) {
-    if (!icon) return HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
-    const rawValue = icon.dataset.playerShipDirectionY
-        || window.getComputedStyle(icon).getPropertyValue('--player-ship-sprite-y')
-        || String(HOME_PLAYER_SHIP_DIRECTION_ROWS[0]);
-    const parsed = Number.parseInt(rawValue, 10);
-    return HOME_PLAYER_SHIP_DIRECTION_ROWS.includes(parsed) ? parsed : HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
+function parseCssPixelValue(value, fallback = 0) {
+    const parsed = Number.parseInt(String(value || '').trim(), 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function pickHomePlayerShipDirectionY(icon) {
-    const current = getHomePlayerShipDirectionY(icon);
-    const options = HOME_PLAYER_SHIP_DIRECTION_ROWS.filter((value) => value !== current);
-    return options[Math.floor(Math.random() * options.length)] || HOME_PLAYER_SHIP_DIRECTION_ROWS[0];
+function getHomePlayerShipGroupX(icon) {
+    if (!icon) return 0;
+    const styles = window.getComputedStyle(icon);
+    const groupX = parseCssPixelValue(styles.getPropertyValue('--player-ship-group-x'), Number.NaN);
+    if (Number.isFinite(groupX)) return groupX;
+    const spriteX = parseCssPixelValue(styles.getPropertyValue('--player-ship-sprite-x'), -HOME_PLAYER_SHIP_FRAME_SIZE);
+    return spriteX + HOME_PLAYER_SHIP_FRAME_SIZE;
+}
+
+function getHomePlayerShipDirectionKey(icon) {
+    const key = icon?.dataset.playerShipDirection || 'row1-a';
+    return HOME_PLAYER_SHIP_DIRECTIONS.some((direction) => direction.key === key) ? key : 'row1-a';
+}
+
+function pickHomePlayerShipDirection(icon) {
+    const current = getHomePlayerShipDirectionKey(icon);
+    const options = HOME_PLAYER_SHIP_DIRECTIONS.filter((direction) => direction.key !== current);
+    return options[Math.floor(Math.random() * options.length)] || HOME_PLAYER_SHIP_DIRECTIONS[0];
 }
 
 function triggerHomePlayerShipTapAnimation(event) {
@@ -1032,9 +1053,13 @@ function triggerHomePlayerShipTapAnimation(event) {
     if (!icon || frame?.classList.contains('is-exploring')) return;
 
     clearHomePlayerShipTapAnimation(icon);
-    const nextDirectionY = pickHomePlayerShipDirectionY(icon);
-    icon.dataset.playerShipDirectionY = String(nextDirectionY);
-    icon.style.setProperty('--player-ship-sprite-y', `${nextDirectionY}px`);
+    const direction = pickHomePlayerShipDirection(icon);
+    const firstFrameX = getHomePlayerShipGroupX(icon) + direction.frameOffsetX;
+    const restingFrameX = firstFrameX - HOME_PLAYER_SHIP_FRAME_SIZE;
+    icon.dataset.playerShipDirection = direction.key;
+    icon.style.setProperty('--player-ship-animation-x', `${firstFrameX}px`);
+    icon.style.setProperty('--player-ship-sprite-x', `${restingFrameX}px`);
+    icon.style.setProperty('--player-ship-sprite-y', `${direction.spriteY}px`);
     void icon.offsetWidth;
     icon.classList.add('is-home-tap-animating');
     homePlayerShipTapTimer = window.setTimeout(() => {

@@ -18750,11 +18750,11 @@ body[data-sea-tone] .home-hero-card {
     transform-origin: center center;
 }
 
-.home-hero-card .home-player-ship-icon.is-boat { --player-ship-sprite-x: -64px; }
-.home-hero-card .home-player-ship-icon.is-explorer { --player-ship-sprite-x: -448px; }
-.home-hero-card .home-player-ship-icon.is-defender { --player-ship-sprite-x: -832px; }
-.home-hero-card .home-player-ship-icon.is-fighter { --player-ship-sprite-x: -1216px; }
-.home-hero-card .home-player-ship-icon.is-merchant { --player-ship-sprite-x: -1600px; }
+.home-hero-card .home-player-ship-icon.is-boat { --player-ship-group-x: 0px; --player-ship-sprite-x: -64px; }
+.home-hero-card .home-player-ship-icon.is-explorer { --player-ship-group-x: -384px; --player-ship-sprite-x: -448px; }
+.home-hero-card .home-player-ship-icon.is-defender { --player-ship-group-x: -768px; --player-ship-sprite-x: -832px; }
+.home-hero-card .home-player-ship-icon.is-fighter { --player-ship-group-x: -1152px; --player-ship-sprite-x: -1216px; }
+.home-hero-card .home-player-ship-icon.is-merchant { --player-ship-group-x: -1536px; --player-ship-sprite-x: -1600px; }
 
 .home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
     animation: homePlayerShipSail 1100ms ease-in-out infinite;
@@ -18772,15 +18772,15 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-home-tap-animating {
-    animation: homePlayerShipFrameStep 420ms steps(6) infinite !important;
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite !important;
 }
 
 @keyframes homePlayerShipFrameStep {
     from {
-        background-position: var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -64px);
+        background-position: var(--player-ship-animation-x, 0px) var(--player-ship-sprite-y, -64px);
     }
     to {
-        background-position: calc(var(--player-ship-sprite-x, -64px) - 384px) var(--player-ship-sprite-y, -64px);
+        background-position: calc(var(--player-ship-animation-x, 0px) - 192px) var(--player-ship-sprite-y, -64px);
     }
 }
 
@@ -19416,8 +19416,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-icon {
-    width: 62px;
-    height: 62px;
+    width: 64px;
+    height: 64px;
     filter: drop-shadow(0 0 0 white) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.78));
 }
 
@@ -19526,8 +19526,8 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-hero-card .home-player-ship-icon {
-        width: 58px;
-        height: 58px;
+        width: 64px;
+        height: 64px;
     }
 
     .home-player-ship-upgrades button {
@@ -20384,14 +20384,32 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-vital-action {
-    gap: 4px;
+    min-height: 30px;
+    display: inline-grid !important;
+    grid-template-columns: 16px max-content;
+    align-items: center;
+    justify-content: center;
+    column-gap: 4px;
+    padding: 4px 8px;
+    line-height: 1;
 }
 
 .home-vital-action::before {
+    display: block;
     width: 16px;
     height: 16px;
     flex-basis: 16px;
     align-self: center;
+    justify-self: center;
+    margin: 0;
+    transform: translateY(0);
+}
+
+.home-ps-lamp,
+.home-ps-card.is-low .home-ps-lamp {
+    display: none !important;
+    animation: none !important;
+    box-shadow: none !important;
 }
 
 #tabContentInventory .avatar-card.inventory-section::before {
