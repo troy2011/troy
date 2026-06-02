@@ -4713,7 +4713,7 @@ function applyDailyFortuneOverlayLayout(overlay) {
         overflowY: 'auto',
         borderRadius: '8px',
         border: '18px solid transparent',
-        borderImage: 'url("/assets/ui/icons/panel-blue-square.png") 24 fill / 18px / 0 stretch',
+        borderImage: 'url("/assets/ui/panels/panel-blue-square.png") 24 fill / 18px / 0 stretch',
         background: 'transparent',
         boxShadow: '0 18px 44px rgba(0, 0, 0, 0.45)',
         padding: '14px 14px 12px',

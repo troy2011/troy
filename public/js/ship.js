@@ -1009,6 +1009,21 @@ function formatShipUpgradeCost(costs) {
     }).join(' / ');
 }
 
+function getShipEvolutionButtonCostLabel(upgrades, upgradeCosts) {
+    const labels = [];
+    const seen = new Set();
+    (Array.isArray(upgrades) ? upgrades : []).forEach((target) => {
+        const targetForm = normalizePlayerShipForm(target);
+        const costLabel = formatShipUpgradeCost(upgradeCosts?.[targetForm] || upgradeCosts?.[target]);
+        if (!costLabel || seen.has(costLabel)) return;
+        seen.add(costLabel);
+        labels.push(costLabel);
+    });
+    if (!labels.length) return '';
+    if (labels.length === 1) return labels[0];
+    return `${labels[0]}〜`;
+}
+
 function renderShipEvolutionChoiceOptions(upgrades, upgradeCosts) {
     return upgrades.map((target) => {
         const targetForm = normalizePlayerShipForm(target);
@@ -1077,6 +1092,7 @@ function renderPlayerShipWidget(ship) {
     const shipName = String(ship?.name || label).trim() || label;
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
+    const evolveCostLabel = getShipEvolutionButtonCostLabel(upgrades, upgradeCosts);
     container.innerHTML = `
         <div class="home-player-ship-body">
             <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
@@ -1086,7 +1102,10 @@ function renderPlayerShipWidget(ship) {
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
-                <button type="button" data-player-ship-evolve>進化</button>
+                <button type="button" data-player-ship-evolve>
+                    <span class="home-player-ship-evolve-main">進化</span>
+                    ${evolveCostLabel ? `<span class="home-player-ship-evolve-cost">${escapeHtml(evolveCostLabel)}</span>` : ''}
+                </button>
             </div>
         ` : '<div class="home-player-ship-final">完成</div>'}
     `;

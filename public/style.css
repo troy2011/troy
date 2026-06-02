@@ -3102,7 +3102,7 @@ button.home-player-ship-name {
     display: inline-block;
     margin-right: 5px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/066.png") center / contain no-repeat;
+    background: url("./assets/ui/buttons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -10079,7 +10079,7 @@ body.modal-lock .modal-overlay {
     box-sizing: border-box;
     border-radius: 8px;
     border: 18px solid transparent;
-    border-image: url("./assets/ui/icons/panel-blue-square.png") 24 fill / 18px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-blue-square.png") 24 fill / 18px / 0 stretch;
     background: transparent;
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
     padding: 14px 14px 12px;
@@ -15471,7 +15471,7 @@ textarea {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/066.png") center / contain no-repeat;
+    background: url("./assets/ui/buttons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 .event-list {
@@ -16843,7 +16843,7 @@ body[data-sea-tone] .home-hero-card {
 .app-title-plaque {
     background:
         linear-gradient(180deg, rgba(58, 33, 16, 0.1), rgba(22, 13, 8, 0.34)),
-        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
 }
 
 #globalPlayerInfoTop,
@@ -16861,13 +16861,13 @@ body[data-sea-tone] .home-hero-card {
 .item-card {
     background:
         linear-gradient(180deg, rgba(3, 5, 7, 0.08), rgba(0, 0, 0, 0.34)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
 }
 
 .content-area {
     background:
         linear-gradient(180deg, rgba(26, 14, 7, 0.24), rgba(4, 4, 5, 0.44)),
-        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
 }
 
 .home-hero-card,
@@ -16883,7 +16883,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .inventory-section {
     background:
         linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
-        url("./assets/ui/panel-parchment.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-parchment.png") center / 100% 100% no-repeat;
 }
 
 .home-exp-rank,
@@ -16894,13 +16894,13 @@ body[data-sea-tone] .home-hero-card {
 .exploration-treasure-dialog {
     background:
         linear-gradient(180deg, rgba(3, 5, 7, 0.1), rgba(0, 0, 0, 0.34)),
-        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
 }
 
 .home-exploration-btn {
     background:
         linear-gradient(180deg, rgba(255, 242, 183, 0.18), rgba(87, 43, 6, 0.2)),
-        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
 }
 
 .inventory-mobile-switch-btn.active,
@@ -16909,7 +16909,7 @@ body[data-sea-tone] .home-hero-card {
 .ranking-toggle-btn.active {
     background:
         linear-gradient(180deg, rgba(76, 196, 255, 0.12), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
 }
 
 .inventory-mobile-switch-btn:not(.active),
@@ -16920,7 +16920,7 @@ body[data-sea-tone] .home-hero-card {
 .ranking-refresh-btn {
     background:
         linear-gradient(180deg, rgba(22, 15, 10, 0.28), rgba(0, 0, 0, 0.32)),
-        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
 }
 
 .ranking-content-area {
@@ -16952,19 +16952,19 @@ body[data-sea-tone] .home-hero-card {
 #bottomNav {
     background:
         linear-gradient(180deg, rgba(12, 8, 5, 0.34), rgba(3, 3, 4, 0.78)),
-        url("./assets/ui/plank-wide.png") center / cover repeat-x;
+        url("./assets/ui/panels/panel-plank-wide.png") center / cover repeat-x;
 }
 
 .nav-button {
     background:
         linear-gradient(180deg, rgba(63, 34, 14, 0.08), rgba(0, 0, 0, 0.32)),
-        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
 }
 
 .nav-button.active {
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
-        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
 }
 
 .global-menu-button {
@@ -16979,7 +16979,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(5, 6, 8, 0.08), rgba(0, 0, 0, 0.36)),
-        url("./assets/ui/icons/dark-small-button.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-dark-small.png") center / 100% 100% no-repeat;
     color: #f8e6bc;
     font-size: 28px;
     font-weight: 900;
@@ -17003,7 +17003,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(255, 229, 149, 0.64);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
-        url("./assets/ui/icons/gold-small-button.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold-small.png") center / 100% 100% no-repeat;
     color: #fff1bd;
     font-size: 22px;
     line-height: 1;
@@ -17211,7 +17211,7 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 900;
     background:
         linear-gradient(180deg, rgba(17, 21, 25, 0.9), rgba(4, 6, 9, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     box-shadow: none;
 }
 
@@ -17247,7 +17247,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(255, 229, 149, 0.74);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18)),
-        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.28);
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78), 0 0 8px rgba(255, 222, 128, 0.28);
 }
@@ -17276,7 +17276,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 6px;
     vertical-align: -4px;
-    background: url("./assets/ui/icons/066.png") center / contain no-repeat;
+    background: url("./assets/ui/buttons/action-refresh.png") center / contain no-repeat;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
@@ -17293,7 +17293,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(150, 135, 109, 0.36);
     background:
         linear-gradient(180deg, rgba(8, 11, 15, 0.9), rgba(3, 5, 8, 0.96)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
@@ -17301,7 +17301,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(255, 221, 142, 0.84);
     background:
         linear-gradient(180deg, rgba(54, 34, 8, 0.36), rgba(5, 4, 3, 0.68)),
-        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
     box-shadow: 0 0 18px rgba(217, 164, 65, 0.28), inset 0 1px 0 rgba(255, 247, 214, 0.18);
 }
 
@@ -17309,14 +17309,14 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(200, 205, 212, 0.56);
     background:
         linear-gradient(180deg, rgba(42, 45, 50, 0.34), rgba(4, 5, 7, 0.72)),
-        url("./assets/ui/panel-dark-silver.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark-silver.png") center / 100% 100% no-repeat;
 }
 
 .ranking-row-top-3 {
     border-color: rgba(193, 104, 42, 0.58);
     background:
         linear-gradient(180deg, rgba(71, 32, 10, 0.26), rgba(5, 4, 3, 0.7)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
 }
 
 .ranking-rank-badge {
@@ -17558,7 +17558,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(220, 169, 82, 0.42);
     background:
         linear-gradient(180deg, rgba(10, 13, 17, 0.94), rgba(3, 5, 8, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     box-shadow: 0 12px 22px rgba(0, 0, 0, 0.3);
     backdrop-filter: none;
 }
@@ -17613,7 +17613,7 @@ body[data-sea-tone] .home-hero-card {
     color: #ffe188;
     background:
         linear-gradient(180deg, rgba(64, 160, 210, 0.16), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
     border-color: rgba(255, 229, 149, 0.42);
 }
 
@@ -17654,7 +17654,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 #000;
     background:
         linear-gradient(180deg, rgba(75, 38, 14, 0.62), rgba(20, 12, 8, 0.88)),
-        url("./assets/ui/icons/hamburger-panel.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-hamburger.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory #equipmentGrid {
@@ -17667,7 +17667,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(7, 10, 14, 0.86), rgba(2, 4, 7, 0.94)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory .equip-slot {
@@ -17681,7 +17681,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(220, 169, 82, 0.28);
     background:
         linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
@@ -17779,7 +17779,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(76, 45, 20, 0.44);
     background:
         linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     color: #f2d394;
     font-weight: 900;
 }
@@ -17794,7 +17794,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(8, 10, 12, 0.88), rgba(2, 3, 5, 0.94)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
 }
 
 #inventoryPrimaryTabs {
@@ -17816,7 +17816,7 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 900;
     background:
         linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory .inventory-primary-tab-btn.active,
@@ -17824,7 +17824,7 @@ body[data-sea-tone] .home-hero-card {
     color: #ffe8aa;
     background:
         linear-gradient(180deg, rgba(38, 150, 205, 0.14), rgba(2, 12, 18, 0.28)),
-        url("./assets/ui/button-blue.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-blue.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="equipment"],
@@ -17842,7 +17842,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(220, 169, 82, 0.28);
     background:
         linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
 }
 
 #tabContentInventory .inventory-item-icon-frame {
@@ -17940,7 +17940,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(220, 169, 82, 0.42);
     background:
         linear-gradient(180deg, rgba(9, 7, 5, 0.18), rgba(4, 4, 5, 0.54)),
-        url("./assets/ui/panel-dark-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
 }
 
 #tabContentTroy .troy-status-row,
@@ -18021,7 +18021,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(220, 169, 82, 0.4);
     background:
         linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     color: #f2d394;
     font-weight: 900;
 }
@@ -18051,7 +18051,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
@@ -18086,7 +18086,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panel-navy-wide.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
 }
 
 #tabContentEvents .event-create-panel,
@@ -18094,7 +18094,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentKing .king-editor-card {
     background:
         linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
-        url("./assets/ui/panel-parchment.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-parchment.png") center / 100% 100% no-repeat;
     color: #241306;
 }
 
@@ -18120,7 +18120,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(76, 45, 20, 0.36);
     background:
         linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
-        url("./assets/ui/panel-dark.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
     color: #f7e8c1;
 }
 
@@ -18140,7 +18140,7 @@ body[data-sea-tone] .home-hero-card {
     border-color: rgba(255, 229, 149, 0.56);
     background:
         linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2)),
-        url("./assets/ui/button-gold.png") center / 100% 100% no-repeat;
+        url("./assets/ui/buttons/button-gold.png") center / 100% 100% no-repeat;
     color: #241306;
     font-weight: 900;
     text-shadow: 0 1px 0 rgba(255, 245, 210, 0.45);
@@ -18152,7 +18152,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentTarot button.btn-muted {
     background:
         linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panel-wood.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
     color: #f2d394;
 }
 
@@ -18245,7 +18245,7 @@ body[data-sea-tone] .home-hero-card {
 /* --- Reference layout and sliced frame refinement --- */
 .app-title-plaque {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-wood.png") 38 fill / 12px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-wood.png") 38 fill / 12px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(67, 38, 18, 0.2), rgba(18, 10, 6, 0.38)),
         repeating-linear-gradient(0deg, rgba(111, 66, 30, 0.2) 0 1px, transparent 1px 14px);
@@ -18290,7 +18290,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentTarot .tarot-poker-root,
 #tabContentTarot .tarot-kingdom-root {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-dark.png") 30 fill / 12px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(13, 18, 24, 0.94), rgba(4, 5, 7, 0.98)),
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
@@ -18303,7 +18303,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentTarot .content-area,
 #tabContentKing .content-area {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(11, 8, 6, 0.3), rgba(4, 4, 5, 0.62)),
         repeating-linear-gradient(90deg, rgba(101, 58, 25, 0.12) 0 28px, rgba(16, 10, 6, 0.12) 28px 56px);
@@ -18313,7 +18313,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .content-area.avatar-card,
 #tabContentInventory .inventory-section {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-parchment.png") 34 fill / 14px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 14px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(255, 238, 190, 0.36), rgba(111, 64, 27, 0.12)),
         repeating-linear-gradient(0deg, rgba(88, 47, 20, 0.06) 0 1px, transparent 1px 10px);
@@ -18327,7 +18327,7 @@ body[data-sea-tone] .home-hero-card {
 .home-vital-action,
 .ranking-refresh-btn {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-wood.png") 34 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-wood.png") 34 fill / 10px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(49, 27, 13, 0.44), rgba(7, 6, 5, 0.42)),
         repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.14) 0 1px, transparent 1px 12px);
@@ -18336,7 +18336,7 @@ body[data-sea-tone] .home-hero-card {
 .home-exploration-btn,
 .nav-button.active {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/button-gold.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
         linear-gradient(180deg, #e7b64b, #9c5c1e);
@@ -18348,7 +18348,7 @@ body[data-sea-tone] .home-hero-card {
 .ranking-toggle-btn.active,
 #tabContentInventory .inventory-panel-btn.active {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/button-blue.png") 24 fill / 11px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-blue.png") 24 fill / 11px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
         linear-gradient(180deg, #104c70, #071b29);
@@ -18487,7 +18487,7 @@ body[data-sea-tone] .home-hero-card {
     align-items: center;
     gap: 4px;
     z-index: 4;
-    border-image-source: url("./assets/ui/panel-navy-wide.png");
+    border-image-source: url("./assets/ui/panels/panel-navy-wide.png");
     border-image-slice: 34 fill;
     border-image-width: 13px;
     background:
@@ -18538,7 +18538,7 @@ body[data-sea-tone] .home-hero-card {
     min-height: 36px;
     padding: 5px 12px;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/button-gold.png") 24 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 10px / 0 stretch;
     border-radius: 8px;
     background:
         linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
@@ -18601,7 +18601,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .ranking-row-top-1 {
-    border-image-source: url("./assets/ui/panel-dark-gold.png");
+    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
     border-image-slice: 32 fill;
     border-image-width: 13px;
     background:
@@ -18610,11 +18610,11 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .ranking-row-top-2 {
-    border-image-source: url("./assets/ui/panel-dark-silver.png");
+    border-image-source: url("./assets/ui/panels/panel-dark-silver.png");
 }
 
 .ranking-row-top-3 {
-    border-image-source: url("./assets/ui/panel-dark.png");
+    border-image-source: url("./assets/ui/panels/panel-dark.png");
 }
 
 @media (max-width: 420px) {
@@ -18990,7 +18990,7 @@ body[data-sea-tone] .home-hero-card {
     gap: 3px;
     padding: 10px 8px;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panel-dark-gold.png") 32 fill / 12px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 12px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(20, 16, 12, 0.96), rgba(4, 4, 5, 0.98)),
         radial-gradient(ellipse at 50% 36%, rgba(255, 206, 91, 0.16), transparent 58%);
@@ -19128,7 +19128,7 @@ body[data-sea-tone] .home-hero-card {
     overflow: hidden;
     background:
         linear-gradient(180deg, #2a180c 0%, #130b06 48%, #080504 100%),
-        url("./assets/ui/plank-wide.png") center / cover repeat-x;
+        url("./assets/ui/panels/panel-plank-wide.png") center / cover repeat-x;
     backdrop-filter: none;
 }
 
@@ -19140,18 +19140,18 @@ body[data-sea-tone] .home-hero-card {
 
 .nav-button:not(.active) {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/icons/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(17, 24, 39, 0.18), rgba(2, 6, 23, 0.34)),
-        url("./assets/ui/icons/panel-dark-square.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-dark-square.png") center / 100% 100% no-repeat;
 }
 
 .nav-button.active {
     border: 1px solid transparent;
-    border-image: url("./assets/ui/icons/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
     background:
         linear-gradient(180deg, rgba(255, 244, 189, 0.22), rgba(113, 63, 18, 0.18)),
-        url("./assets/ui/icons/panel-gold-square.png") center / 100% 100% no-repeat;
+        url("./assets/ui/panels/panel-gold-square.png") center / 100% 100% no-repeat;
 }
 
 @media (max-width: 420px) {
@@ -19393,7 +19393,27 @@ body[data-sea-tone] .home-hero-card {
 .home-player-ship-upgrades button {
     min-height: 34px;
     padding: 4px 13px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     font-size: 15px;
+    line-height: 1.05;
+}
+
+.home-player-ship-upgrades button .home-player-ship-evolve-main,
+.home-player-ship-upgrades button .home-player-ship-evolve-cost {
+    display: block;
+    margin-top: 0;
+}
+
+.home-player-ship-upgrades button .home-player-ship-evolve-cost {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.05;
+    white-space: nowrap;
+    opacity: 0.86;
 }
 
 .home-player-ship-final,
@@ -19466,9 +19486,13 @@ body[data-sea-tone] .home-hero-card {
     }
 
     .home-player-ship-upgrades button {
-        min-height: 32px;
+        min-height: 38px;
         padding-inline: 11px;
         font-size: 14px;
+    }
+
+    .home-player-ship-upgrades button .home-player-ship-evolve-cost {
+        font-size: 10px;
     }
 }
 
@@ -19548,8 +19572,8 @@ body[data-sea-tone] .home-hero-card {
     --icon-money-bag: url("./assets/ui/icons/001.png");
     --icon-pirate-flag: url("./assets/ui/icons/023.png");
     --icon-potion-blue: url("./assets/ui/icons/006.png");
-    --icon-refresh: url("./assets/ui/icons/066.png");
-    --icon-settings: url("./assets/ui/icons/068.png");
+    --icon-refresh: url("./assets/ui/buttons/action-refresh.png");
+    --icon-settings: url("./assets/ui/buttons/action-settings.png");
     --icon-skull: url("./assets/ui/icons/019.png");
     --icon-swords: url("./assets/ui/icons/033.png");
     --icon-tarot: url("./assets/ui/icons/038.png");
@@ -19756,6 +19780,13 @@ body[data-sea-tone] .home-hero-card {
 }
 
 @media (max-width: 640px) {
+    #bottomNav {
+        height: calc(88px + var(--safe-bottom));
+        overflow: visible;
+        padding-top: 8px;
+        padding-bottom: calc(8px + var(--safe-bottom));
+    }
+
     .nav-button .nav-icon,
     #navKing .nav-icon {
         width: 34px;
@@ -19771,12 +19802,12 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Rich banner and panel treatment from numbered icon assets --- */
 :root {
-    --panel-sheet-frame: url("./assets/ui/icons/086.png");
-    --panel-sheet-plaque: url("./assets/ui/icons/087.png");
-    --panel-sheet-plaque-gold: url("./assets/ui/icons/088.png");
-    --panel-sheet-plaque-blue: url("./assets/ui/icons/095.png");
-    --panel-sheet-divider: url("./assets/ui/icons/096.png");
-    --panel-sheet-rule: url("./assets/ui/icons/097.png");
+    --panel-sheet-frame: url("./assets/ui/panels/panel-sheet-frame.png");
+    --panel-sheet-plaque: url("./assets/ui/banners/banner-plaque.png");
+    --panel-sheet-plaque-gold: url("./assets/ui/banners/banner-plaque-gold.png");
+    --panel-sheet-plaque-blue: url("./assets/ui/banners/banner-plaque-blue.png");
+    --panel-sheet-divider: url("./assets/ui/banners/banner-divider.png");
+    --panel-sheet-rule: url("./assets/ui/banners/banner-rule.png");
     --banner-sheet-skull: url("./assets/ui/icons/050.png");
     --banner-sheet-swords: url("./assets/ui/icons/051.png");
     --banner-sheet-anchor: url("./assets/ui/icons/052.png");
@@ -19788,6 +19819,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .avatar-card.inventory-section::before,
 #tabContentTroy .troy-entry-header,
 #tabContentTroy .troy-calendar-head,
+#tabContentTroy .troy-reservation-panel h3,
 #tabContentEvents .event-list-head,
 #tabContentEvents .event-create-panel h3,
 #tabContentQr .guild-summary-header,
@@ -19795,12 +19827,12 @@ body[data-sea-tone] .home-hero-card {
     position: relative;
     min-height: 44px;
     padding: 8px 14px;
-    border: 14px solid transparent;
+    border: 12px solid transparent;
     border-radius: 6px;
-    background: linear-gradient(180deg, rgba(8, 10, 13, 0.14), rgba(0, 0, 0, 0.28));
-    border-image-source: var(--panel-sheet-plaque);
-    border-image-slice: 28 48 30 fill;
-    border-image-width: 14px 22px;
+    background: linear-gradient(180deg, rgba(10, 7, 4, 0.2), rgba(0, 0, 0, 0.36));
+    border-image-source: var(--panel-sheet-rule);
+    border-image-slice: 22 84 22 fill;
+    border-image-width: 12px 24px;
     border-image-outset: 0;
     border-image-repeat: stretch;
     box-shadow: none;
@@ -19826,11 +19858,13 @@ body[data-sea-tone] .home-hero-card {
     opacity: 0.82;
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
     transform: translateX(-50%);
+    display: none;
 }
 
 .home-card-title,
 #tabContentTroy .troy-menu-title,
 #tabContentTroy .troy-entry-title,
+#tabContentTroy .troy-reservation-panel h3,
 #tabContentEvents .event-list-head h3,
 #tabContentEvents .event-create-panel h3,
 #tabContentQr .guild-summary-header h3,
@@ -19842,16 +19876,16 @@ body[data-sea-tone] .home-hero-card {
 #tabContentTroy .troy-calendar-head,
 #tabContentEvents .event-list-head,
 .tarot-loadout-header {
-    background: linear-gradient(180deg, rgba(16, 28, 42, 0.2), rgba(0, 0, 0, 0.34));
-    border-image-source: var(--panel-sheet-plaque-blue);
-    border-image-slice: 28 36 32 fill;
+    background: linear-gradient(180deg, rgba(10, 7, 4, 0.2), rgba(0, 0, 0, 0.36));
+    border-image-source: var(--panel-sheet-rule);
+    border-image-slice: 22 84 22 fill;
 }
 
 #tabContentInventory .inventory-section[data-panel="items"] > .section-header,
 #tabContentEvents .event-create-panel h3 {
-    background: linear-gradient(180deg, rgba(68, 34, 12, 0.12), rgba(0, 0, 0, 0.28));
-    border-image-source: var(--panel-sheet-plaque-gold);
-    border-image-slice: 32 52 34 fill;
+    background: linear-gradient(180deg, rgba(10, 7, 4, 0.2), rgba(0, 0, 0, 0.36));
+    border-image-source: var(--panel-sheet-rule);
+    border-image-slice: 22 84 22 fill;
 }
 
 #tabContentQr .qr-battle-card > h2,
@@ -19918,6 +19952,67 @@ body[data-sea-tone] .home-hero-card {
         0 10px 20px rgba(0, 0, 0, 0.24);
 }
 
+.home-qr-card,
+.home-transfer-card,
+.home-social-card {
+    border: 13px solid transparent;
+    border-radius: 8px;
+    border-image-source: var(--panel-sheet-frame);
+    border-image-slice: 28 34 fill;
+    border-image-width: 13px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
+    background:
+        linear-gradient(180deg, rgba(12, 15, 20, 0.86), rgba(3, 4, 6, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.home-exp-card {
+    border: 13px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 13px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(16, 11, 8, 0.86), rgba(4, 4, 5, 0.94)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.1), transparent 58%);
+}
+
+.home-qr-area,
+.transfer-input-row,
+.line-friend-promo,
+.favorite-players-section {
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(9, 14, 22, 0.74), rgba(3, 5, 8, 0.88)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.07), transparent 58%);
+}
+
+.line-friend-promo {
+    border-image: url("./assets/ui/panels/panel-blue-square.png") 24 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(8, 35, 55, 0.72), rgba(3, 8, 16, 0.88)),
+        radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.16), transparent 52%);
+}
+
+.home-shortcut-btn,
+.transfer-quick-btn {
+    border: 11px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 11px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(14, 20, 30, 0.72), rgba(4, 6, 10, 0.9)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+}
+
+.home-shortcut-btn-secondary,
+.transfer-quick-btn.reset {
+    border-image: url("./assets/ui/panels/panel-wood.png") 34 fill / 11px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(49, 27, 13, 0.36), rgba(7, 6, 5, 0.42)),
+        repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.1) 0 1px, transparent 1px 12px);
+}
+
 #tabContentQr .qr-battle-card > h2 { --section-banner: var(--banner-sheet-swords); }
 #tabContentQr .equipment-gacha-card > h2 { --section-banner: var(--icon-chest-gold); }
 #tabContentQr .guild-card > h2 { --section-banner: var(--banner-sheet-skull); }
@@ -19963,10 +20058,10 @@ body[data-sea-tone] .home-hero-card {
 
 /* --- Sheet2 action icons for richer command surfaces --- */
 :root {
-    --icon-action-plus: url("./assets/ui/icons/067.png");
-    --icon-action-refresh: url("./assets/ui/icons/066.png");
-    --icon-action-check: url("./assets/ui/icons/069.png");
-    --icon-action-close: url("./assets/ui/icons/070.png");
+    --icon-action-plus: url("./assets/ui/buttons/action-plus.png");
+    --icon-action-refresh: url("./assets/ui/buttons/action-refresh.png");
+    --icon-action-check: url("./assets/ui/buttons/action-check.png");
+    --icon-action-close: url("./assets/ui/buttons/action-close.png");
     --icon-action-cannon: url("./assets/ui/icons/034.png");
     --icon-action-card: url("./assets/ui/icons/071.png");
     --icon-action-crew: url("./assets/ui/icons/063.png");
@@ -20081,6 +20176,223 @@ body[data-sea-tone] .home-hero-card {
     --command-icon: var(--icon-action-swords);
 }
 
+/* --- Rich player profile panel --- */
+#playerProfileModal {
+    padding: 12px;
+    align-items: center;
+    background:
+        radial-gradient(circle at 50% 88%, rgba(198, 141, 54, 0.18), transparent 34%),
+        rgba(2, 6, 23, 0.78);
+}
+
+#playerProfileModal .player-profile-sheet {
+    width: min(520px, calc(100vw - 18px));
+    max-height: min(760px, calc(100dvh - 26px));
+    margin: 0;
+    padding: 18px 18px calc(18px + var(--safe-bottom));
+    border: 16px solid transparent;
+    border-radius: 10px;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 16px / 0 stretch;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 220, 142, 0.16), transparent 52%),
+        linear-gradient(180deg, rgba(8, 9, 11, 0.9), rgba(3, 5, 8, 0.98));
+    box-shadow:
+        0 22px 54px rgba(0, 0, 0, 0.56),
+        inset 0 1px 0 rgba(255, 241, 190, 0.16);
+}
+
+#playerProfileModal .sheet-handle {
+    width: min(210px, 54%);
+    height: 18px;
+    margin: -8px auto 10px;
+    border-radius: 0;
+    background: var(--panel-sheet-rule) center / contain no-repeat;
+    opacity: 0.92;
+}
+
+#playerProfileModal .player-profile-head {
+    position: relative;
+    grid-template-columns: 118px 94px minmax(0, 1fr);
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 14px solid transparent;
+    border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 14px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(12, 18, 28, 0.82), rgba(2, 5, 9, 0.92)),
+        radial-gradient(ellipse at 28% 12%, rgba(248, 213, 129, 0.12), transparent 45%);
+}
+
+#playerProfileModal .player-profile-avatar-shell {
+    width: 112px;
+    min-width: 112px;
+    height: 132px;
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 12px / 0 stretch;
+    background:
+        radial-gradient(circle at 50% 16%, rgba(255, 239, 180, 0.42), transparent 43%),
+        linear-gradient(180deg, rgba(82, 45, 18, 0.32), rgba(20, 11, 7, 0.26));
+    box-shadow: inset 0 -10px 18px rgba(64, 32, 12, 0.16);
+}
+
+#playerProfileModal #playerProfileAvatar.player-profile-avatar {
+    transform: scale(1.68) translateY(3px);
+}
+
+#playerProfileModal .player-profile-ship {
+    width: 94px;
+    min-height: 132px;
+    padding: 9px 7px;
+    border: 11px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-blue-square.png") 24 fill / 11px / 0 stretch;
+    background:
+        radial-gradient(circle at 50% 20%, rgba(125, 211, 252, 0.24), transparent 46%),
+        linear-gradient(180deg, rgba(6, 24, 38, 0.68), rgba(3, 8, 16, 0.88));
+}
+
+#playerProfileModal .player-profile-ship-name {
+    color: #ffe8a6;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+#playerProfileModal .player-profile-ship-meta {
+    color: #b9d7ef;
+    font-weight: 800;
+}
+
+#playerProfileModal .item-detail-copy {
+    min-height: 132px;
+    justify-content: center;
+    padding: 12px 14px;
+    border: 14px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/banners/banner-plaque-blue.png") 28 36 32 fill / 14px 18px / 0 stretch;
+    background: linear-gradient(180deg, rgba(9, 22, 35, 0.46), rgba(0, 0, 0, 0.34));
+}
+
+#playerProfileModal #playerProfileName {
+    color: #ffedb7;
+    font-size: 20px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.82);
+}
+
+#playerProfileModal #playerProfileNation {
+    color: #d8ecff;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.64);
+}
+
+#playerProfileModal #playerProfileMeta {
+    color: rgba(232, 241, 255, 0.78);
+}
+
+#playerProfileModal .player-profile-actions {
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#playerProfileModal .player-profile-action-btn,
+#playerProfileModal .player-profile-transfer-submit,
+#playerProfileModal .item-detail-close {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/buttons/button-gold.png") 24 fill / 11px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.28), rgba(109, 58, 11, 0.2)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    color: #241205;
+    text-shadow: 0 1px 0 rgba(255, 236, 177, 0.48);
+    box-shadow: none;
+}
+
+#playerProfileModal .player-profile-action-btn.player-profile-action-btn-secondary,
+#playerProfileModal .player-profile-transfer-cancel,
+#playerProfileModal .player-profile-transfer-quick-btn,
+#playerProfileModal .item-detail-close {
+    border-image: url("./assets/ui/buttons/button-blue.png") 24 fill / 11px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(70, 181, 238, 0.18), rgba(3, 28, 45, 0.24)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+#playerProfileModal .player-profile-action-btn.is-active {
+    filter: brightness(1.08) saturate(1.08);
+    box-shadow: 0 0 0 1px rgba(255, 232, 166, 0.18);
+}
+
+#playerProfileModal .player-profile-transfer-panel,
+#playerProfileModal .player-profile-equip-row,
+#playerProfileModal .player-profile-empty {
+    border: 13px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 13px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(12, 15, 20, 0.74), rgba(3, 4, 6, 0.88)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+#playerProfileModal .player-profile-transfer-title,
+#playerProfileModal .player-profile-equip-row strong {
+    color: #fff1c2;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+#playerProfileModal .player-profile-transfer-input-row {
+    border: 11px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 11px / 0 stretch;
+    background: rgba(5, 10, 16, 0.74);
+}
+
+#playerProfileModal .player-profile-transfer-input-row input {
+    color: #fff4cf;
+}
+
+#playerProfileModal .player-profile-transfer-input-row span,
+#playerProfileModal .player-profile-equip-row span {
+    color: #a9c7dc;
+}
+
+@media (max-width: 640px) {
+    #playerProfileModal {
+        padding: 8px;
+        align-items: flex-end;
+    }
+
+    #playerProfileModal .player-profile-sheet {
+        width: 100%;
+        max-height: calc(100dvh - 14px);
+        padding: 14px 14px calc(16px + var(--safe-bottom));
+    }
+
+    #playerProfileModal .player-profile-head {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        text-align: center;
+        gap: 10px;
+    }
+
+    #playerProfileModal .player-profile-avatar-shell {
+        width: min(190px, 100%);
+        max-width: 190px;
+    }
+
+    #playerProfileModal .player-profile-ship {
+        width: min(170px, 100%);
+        min-height: 112px;
+    }
+
+    #playerProfileModal .item-detail-copy {
+        width: 100%;
+        min-height: auto;
+    }
+}
+
 .rpg-message-popup {
     position: fixed;
     left: max(14px, env(safe-area-inset-left));
@@ -20108,13 +20420,13 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .rpg-message-popup.is-normal {
-    border-image: url("./assets/ui/icons/speech-parchment.png") 28 fill / 14px / 0 stretch;
+    border-image: url("./assets/ui/panels/speech-parchment.png") 28 fill / 14px / 0 stretch;
     color: #241207;
     text-shadow: 0 1px 0 rgba(255, 246, 210, 0.55);
 }
 
 .rpg-message-popup.is-error {
-    border-image: url("./assets/ui/icons/speech-dark.png") 28 fill / 14px / 0 stretch;
+    border-image: url("./assets/ui/panels/speech-dark.png") 28 fill / 14px / 0 stretch;
     color: #fff;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
 }
