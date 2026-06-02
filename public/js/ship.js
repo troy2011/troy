@@ -1078,11 +1078,11 @@ function renderPlayerShipWidget(ship) {
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
     container.innerHTML = `
-        <div class="home-player-ship-head">
-            <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
-        </div>
         <div class="home-player-ship-body">
             <div class="${getPlayerShipClassName(form)}" aria-hidden="true"></div>
+        </div>
+        <div class="home-player-ship-head">
+            <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">

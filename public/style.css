@@ -18477,10 +18477,10 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card .home-player-ship-frame {
     right: 10px;
-    top: -84px;
+    top: -60px;
     transform: none;
     width: 94px;
-    min-height: 152px;
+    min-height: 128px;
     padding: 13px 7px 10px;
     z-index: 4;
     border-image-source: url("./assets/ui/panel-navy-wide.png");
@@ -18660,9 +18660,9 @@ body[data-sea-tone] .home-hero-card {
 
     .home-hero-card .home-player-ship-frame {
         right: 6px;
-        top: -72px;
+        top: -48px;
         width: 88px;
-        min-height: 140px;
+        min-height: 116px;
         padding: 12px 6px 9px;
     }
 
@@ -18927,9 +18927,9 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-hero-card .home-player-ship-frame {
-    top: -56px;
+    top: -32px;
     width: 88px;
-    min-height: 132px;
+    min-height: 108px;
     padding: 12px 6px 9px;
 }
 
