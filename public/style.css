@@ -13670,10 +13670,10 @@ textarea {
 }
 
 #tabContentInventory .tarot-loadout-card {
-    min-height: 0;
+    min-height: 150px;
     min-width: 0;
-    gap: 4px;
-    padding: 6px 3px;
+    gap: 3px;
+    padding: 7px 3px 5px;
     border: 11px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
@@ -13689,25 +13689,38 @@ textarea {
 }
 
 #tabContentInventory .tarot-loadout-slot {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    z-index: 3;
+    min-width: 15px;
+    height: 15px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(8, 10, 13, 0.82);
     font-size: 8px;
-    letter-spacing: 0.03em;
+    letter-spacing: 0;
     color: #d8c39b;
+    line-height: 1;
 }
 
 #tabContentInventory .tarot-loadout-suit {
     align-self: center;
     max-width: 100%;
-    padding: 2px 4px;
+    padding: 0 2px;
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
     color: #e8c879;
     font-size: 8px;
-    line-height: 1.1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.15;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
 }
 
 #tabContentInventory .tarot-loadout-visual {
@@ -13734,33 +13747,53 @@ textarea {
 
 #tabContentInventory .tarot-loadout-title {
     font-size: 9px;
-    line-height: 1.15;
+    line-height: 1.2;
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 #tabContentInventory .tarot-loadout-detail {
-    display: none;
+    display: block;
+    font-size: 8px;
+    line-height: 1.2;
+    color: #c9b37c;
+    text-align: center;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 #tabContentInventory .tarot-loadout-cell-actions {
     display: block;
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    z-index: 4;
+    width: auto;
 }
 
 #tabContentInventory .tarot-loadout-cell-remove {
-    min-height: 24px;
-    border-radius: 7px;
-    font-size: 9px;
+    width: 17px;
+    height: 17px;
+    min-height: 17px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/buttons/button-dark-large.png") 24 fill / 8px / 0 stretch;
-    background: linear-gradient(180deg, rgba(16, 18, 22, 0.72), rgba(3, 4, 6, 0.86));
-    color: #f0d29a;
+    border-image: none;
+    background: rgba(8, 10, 13, 0.86);
+    color: #f4d28c;
+    display: grid;
+    place-items: center;
 }
 
 #tabContentInventory .tarot-loadout-cell-empty {
-    min-height: 70px;
+    min-height: 124px;
     font-size: 9px;
 }
 
@@ -13928,9 +13961,10 @@ textarea {
 }
 
 #tabContentInventory .inventory-item-badge.is-active {
-    background: rgba(245, 158, 11, 0.16);
-    border-color: rgba(251, 191, 36, 0.34);
-    color: #fde68a;
+    background: linear-gradient(180deg, #fff0b8, #e2a83c);
+    border-color: rgba(255, 236, 177, 0.78);
+    color: #241305;
+    text-shadow: 0 1px 0 rgba(255, 249, 218, 0.72);
 }
 
 #tabContentInventory .inventory-item-badge.is-count {
@@ -14022,13 +14056,14 @@ textarea {
     min-height: 18px;
     padding: 2px 6px;
     border-radius: 999px;
-    background: rgba(30, 41, 59, 0.96);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    color: #e2e8f0;
+    background: rgba(7, 10, 16, 0.92);
+    border: 1px solid rgba(255, 226, 151, 0.22);
+    color: #fff2c6;
     font-size: 9px;
     font-weight: 700;
     line-height: 1.2;
     white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.78);
 }
 
 #tabContentInventory .inventory-item-tail {
@@ -14117,13 +14152,14 @@ textarea {
 }
 
 #tabContentInventory .inventory-item-footer {
-    color: #7dd3fc;
+    color: #fff2c6;
     font-size: 10px;
     line-height: 1.35;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.82);
 }
 
 #tabContentInventory .inventory-equipment-compare {
@@ -20310,8 +20346,8 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
     content: "E";
     position: absolute;
-    top: 4px;
-    left: 4px;
+    right: 6px;
+    bottom: 6px;
     z-index: 2;
     width: 20px;
     height: 20px;
@@ -20327,6 +20363,16 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1;
     text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.46);
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
+    top: 6px;
+    left: 6px;
+    right: auto;
+    bottom: auto;
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
 }
 
 #tabContentInventory .inventory-item-main {
@@ -20355,11 +20401,16 @@ body[data-sea-tone] .home-hero-card {
     gap: 8px;
 }
 
-#tabContentInventory #inventoryGrid[data-layout="equipment"],
-#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+#tabContentInventory #inventoryGrid[data-layout="equipment"] {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
     gap: 6px;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px;
 }
 
 #tabContentInventory .tarot-loadout-grid {
@@ -20423,6 +20474,44 @@ body[data-sea-tone] .home-hero-card {
     line-height: 1;
 }
 
+#tabContentInventory .inventory-item-stat-badges {
+    position: absolute;
+    left: 5px;
+    bottom: 5px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    pointer-events: none;
+}
+
+#tabContentInventory .inventory-item-stat-badge {
+    min-width: 22px;
+    min-height: 15px;
+    padding: 1px 4px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff7ed;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.84);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+#tabContentInventory .inventory-item-stat-badge.is-power {
+    background: rgba(127, 29, 29, 0.88);
+    border-color: rgba(252, 165, 165, 0.42);
+}
+
+#tabContentInventory .inventory-item-stat-badge.is-defense {
+    background: rgba(30, 64, 175, 0.86);
+    border-color: rgba(147, 197, 253, 0.42);
+}
+
 #tabContentInventory .inventory-item-main,
 #tabContentInventory .inventory-item-cell--tarot .inventory-item-main {
     width: 100%;
@@ -20458,6 +20547,22 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon {
     transform: scale(1.28);
     transform-origin: center;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon-frame,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon-frame,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon-frame {
+    width: min(100%, 58px);
+    height: min(100%, 92px);
+    max-width: 58px;
+    max-height: 92px;
+    overflow: visible;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon,
+#tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon {
+    transform: scale(1.12);
 }
 
 /* --- Inventory usability pass --- */
@@ -20497,6 +20602,7 @@ body[data-sea-tone] .home-hero-card {
     width: 28px;
     height: 28px;
     flex-basis: 28px;
+    background-size: 28px 28px;
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Consumable"]::before {
@@ -20713,6 +20819,7 @@ body[data-sea-tone] .home-hero-card {
         width: 24px;
         height: 24px;
         flex-basis: 24px;
+        background-size: 24px 24px;
     }
 
     #tabContentInventory .avatar-card.inventory-section,

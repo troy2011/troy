@@ -496,7 +496,9 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'tarot-loadout-cell-remove';
-            removeBtn.textContent = '外す';
+            removeBtn.textContent = '×';
+            removeBtn.setAttribute('aria-label', 'デッキから外す');
+            removeBtn.title = 'デッキから外す';
             if (playFabId) {
                 removeBtn.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
             }
@@ -523,10 +525,10 @@ function renderTarotDeckPanels() {
 
 function getInventoryTabHint(category) {
     if (category === 'TarotMajor') {
-        return '大アルカナはカードとしてタロットデッキに追加できます。';
+        return '大アルカナはタロットデッキにセットできます。';
     }
     if (category === 'TarotMinor') {
-        return '小アルカナはタロットデッキに追加できます。';
+        return '小アルカナはタロットデッキにセットできます。';
     }
     if (category === 'Accessory') {
         return 'アクセサリーは通常装備として使えます。';
@@ -823,6 +825,28 @@ function createInventoryChip(label, tone = '') {
     chip.className = `inventory-item-chip${tone ? ` is-${tone}` : ''}`;
     chip.textContent = label;
     return chip;
+}
+
+function createInventoryStatBadges(item) {
+    const cd = item?.customData || {};
+    if (!isInventoryEquipmentCategory(getCanonicalTarotCategory(cd.Category))) return null;
+    const stats = [
+        { key: 'Power', label: '攻', tone: 'power' },
+        { key: 'Defense', label: '防', tone: 'defense' }
+    ]
+        .map((stat) => ({ ...stat, value: getInventoryStatValue(cd, stat.key) }))
+        .filter((stat) => stat.value);
+    if (!stats.length) return null;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'inventory-item-stat-badges';
+    stats.forEach((stat) => {
+        const badge = document.createElement('span');
+        badge.className = `inventory-item-stat-badge is-${stat.tone}`;
+        badge.textContent = `${stat.label}${stat.value}`;
+        wrap.appendChild(badge);
+    });
+    return wrap;
 }
 
 function getEquippedSlotsForItem(item) {
@@ -1129,6 +1153,11 @@ function createInventoryCell(item, requestedCategory) {
     }
     head.appendChild(headMeta);
     cell.appendChild(head);
+
+    const statBadges = createInventoryStatBadges(item);
+    if (statBadges) {
+        cell.appendChild(statBadges);
+    }
 
     const main = document.createElement('div');
     main.className = 'inventory-item-main';
@@ -1644,6 +1673,7 @@ function showItemDetailModal(item) {
     const cd = item.customData || {};
     const instanceId = item.instances?.[0];
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
+    const isTarotCard = isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory);
     const spriteFrame = getInventorySpriteFrame(item);
     const appendStatLine = (html) => {
         statsEl.innerHTML += `${statsEl.innerHTML ? '<br>' : ''}${html}`;
@@ -1661,7 +1691,9 @@ function showItemDetailModal(item) {
     );
     document.getElementById('itemDetailName').innerText = item.name;
     document.getElementById('itemDetailCategory').innerText = getInventoryCategoryLabel(canonicalCategory);
-    document.getElementById('itemDetailDescription').innerText = item.description || '説明がありません。';
+    document.getElementById('itemDetailDescription').innerText = isTarotCard
+        ? 'タロットデッキにセットして役ボーナスに使用できます。'
+        : (item.description || '説明がありません。');
 
     const statsEl = document.getElementById('itemDetailStats');
     statsEl.innerHTML = '';
@@ -1688,7 +1720,7 @@ function showItemDetailModal(item) {
             : '<span>タロットデッキ: <strong>未セット</strong></span>');
     }
 
-    if (isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory)) {
+    if (isTarotCard) {
         const lvd = cardLevelMap[item.itemId];
         if (lvd) {
             appendStatLine(`<span>カードLv: <strong>Lv.${lvd.level} / MaxLv.${lvd.maxLevel}</strong></span>`);
@@ -1753,8 +1785,8 @@ function showItemDetailModal(item) {
         } else {
             buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'Accessory')">${getEquipActionLabel('Accessory', '装備')}</button>`;
         }
-    } else if (isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory)) {
-        appendActionNote('カードとしてタロットデッキに追加できます。');
+    } else if (isTarotCard) {
+        appendActionNote('タロットデッキにセットできます。');
         if (isCardInTarotDeck(equipItemId)) {
             buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'tarot')">デッキから外す</button>`;
         } else if (getCommonTarotDeck().length < 5) {
@@ -1766,7 +1798,7 @@ function showItemDetailModal(item) {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;
     }
 
-    if (isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory)) {
+    if (isTarotCard) {
         const lvd = cardLevelMap[equipItemId];
         if (lvd && lvd.level < lvd.maxLevel) {
             buttonsEl.innerHTML += `<button class="inventory-item-quick-action is-levelup" onclick="window.levelUpCard('${equipItemId}')">Lvアップ（${lvd.nextLevelCost}⚔）</button>`;
