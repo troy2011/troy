@@ -350,9 +350,37 @@ function isCardInShipDeck(itemId) {
     return myShipDeck.includes(String(itemId || '').trim());
 }
 
+function isCardInTarotDeck(itemId) {
+    return isCardInMeleeDeck(itemId) || isCardInShipDeck(itemId);
+}
+
+function getCommonTarotDeck() {
+    return Array.isArray(myMeleeDeck) ? myMeleeDeck : [];
+}
+
+function getCommonTarotRole() {
+    return myMeleeRole || myShipRole || null;
+}
+
+function applyTarotDeckData(deckData) {
+    const commonDeck = Array.isArray(deckData?.tarotDeck)
+        ? deckData.tarotDeck
+        : Array.isArray(deckData?.meleeDeck)
+            ? deckData.meleeDeck
+            : Array.isArray(deckData?.shipDeck)
+                ? deckData.shipDeck
+                : [];
+    const commonRole = deckData?.tarotRole || deckData?.meleeRole || deckData?.shipRole || null;
+    myMeleeDeck = commonDeck;
+    myShipDeck = commonDeck;
+    myMeleeRole = commonRole;
+    myShipRole = commonRole;
+}
+
 function renderDeckRolePanel(roleEl, deckRole) {
     if (!roleEl) return;
-    if (!deckRole?.role?.key) {
+    const role = deckRole?.role || deckRole || null;
+    if (!role?.key) {
         roleEl.innerHTML = `
             <div class="tarot-loadout-role-label">現在の役</div>
             <div class="tarot-loadout-role-main">未成立</div>
@@ -361,7 +389,6 @@ function renderDeckRolePanel(roleEl, deckRole) {
         `;
         return;
     }
-    const role = deckRole.role;
     const bonus = deckRole.bonus || {};
     const bonusParts = [];
     if (bonus.Power) bonusParts.push(`攻+${bonus.Power}`);
@@ -449,6 +476,7 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
         const cell = document.createElement('div');
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
         if (item) {
+            cell.classList.add('is-equipped');
             const entry = buildDeckCardEntry(item, itemId);
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
@@ -509,18 +537,18 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
 }
 
 function renderTarotDeckPanels() {
-    renderDeckRolePanel(document.getElementById('meleeDeckRole'), myMeleeRole);
-    renderDeckGrid(document.getElementById('meleeDeckGrid'), myMeleeDeck, 'melee');
-    renderDeckRolePanel(document.getElementById('shipDeckRole'), myShipRole);
-    renderDeckGrid(document.getElementById('shipDeckGrid'), myShipDeck, 'ship');
+    const shipPanel = document.getElementById('shipDeckPanel');
+    if (shipPanel) shipPanel.hidden = true;
+    renderDeckRolePanel(document.getElementById('meleeDeckRole'), getCommonTarotRole());
+    renderDeckGrid(document.getElementById('meleeDeckGrid'), getCommonTarotDeck(), 'tarot');
 }
 
 function getInventoryTabHint(category) {
     if (category === 'TarotMajor') {
-        return '大アルカナはカードとして白兵戦デッキまたは船デッキに追加できます。';
+        return '大アルカナはカードとしてタロットデッキに追加できます。';
     }
     if (category === 'TarotMinor') {
-        return '小アルカナは白兵戦デッキ（正位置）または船デッキ（逆位置）に追加できます。';
+        return '小アルカナはタロットデッキに追加できます。';
     }
     if (category === 'Accessory') {
         return 'アクセサリーは通常装備として使えます。';
@@ -699,15 +727,13 @@ function getInventoryCardChips(item, canonicalCategory) {
         if (Number.isFinite(number)) chips.push(`No.${number}`);
         const lvd = cardLevelMap[item.itemId];
         if (lvd) chips.push(`Lv.${lvd.level} / ${lvd.maxLevel}`);
-        if (isCardInMeleeDeck(item.itemId)) chips.push('白兵戦');
-        else if (isCardInShipDeck(item.itemId)) chips.push('船');
+        if (isCardInTarotDeck(item.itemId)) chips.push('デッキ');
         return chips.slice(0, 3);
     }
     if (canonicalCategory === 'TarotMinor') {
         const lvd = cardLevelMap[item.itemId];
         if (lvd) chips.push(`Lv.${lvd.level} / ${lvd.maxLevel}`);
-        if (isCardInMeleeDeck(item.itemId)) chips.push('白兵戦');
-        else if (isCardInShipDeck(item.itemId)) chips.push('船');
+        if (isCardInTarotDeck(item.itemId)) chips.push('デッキ');
         else chips.push('未セット');
         const keyword = String(cd.SkillKeyword || cd.ArcanaKeyword || '').trim();
         if (keyword) chips.push(keyword);
@@ -735,11 +761,9 @@ function getInventoryCardFooter(item, canonicalCategory) {
     if (canonicalCategory === 'TarotMajor') {
         const role = String(cd.ArcanaRole || '').trim();
         const lvd = cardLevelMap[item?.itemId];
-        const deckText = isCardInMeleeDeck(item?.itemId)
-            ? '白兵戦デッキにセット中'
-            : isCardInShipDeck(item?.itemId)
-                ? '船デッキにセット中'
-                : 'デッキに追加できます';
+        const deckText = isCardInTarotDeck(item?.itemId)
+            ? 'タロットデッキにセット中'
+            : 'デッキに追加できます';
         if (!lvd) return role ? `${role} — ${deckText}` : deckText;
         if (lvd.level >= lvd.maxLevel) return `${deckText} — MAX LV`;
         return `${deckText} — 次Lv: ${lvd.nextLevelCost}⚔シャード`;
@@ -748,8 +772,7 @@ function getInventoryCardFooter(item, canonicalCategory) {
         const lvd = cardLevelMap[item?.itemId];
         if (lvd && lvd.level >= lvd.maxLevel) return 'MAX LV';
         if (lvd && lvd.nextLevelCost) return `次Lv: ${lvd.nextLevelCost}⚔シャード`;
-        if (isCardInMeleeDeck(item?.itemId)) return '白兵戦デッキにセット中';
-        if (isCardInShipDeck(item?.itemId)) return '船デッキにセット中';
+        if (isCardInTarotDeck(item?.itemId)) return 'タロットデッキにセット中';
         return 'デッキに追加できます';
     }
     if (canonicalCategory === 'Consumable') {
@@ -880,8 +903,7 @@ function renderTarotFocusPanel(panel) {
     const deckGrid = document.createElement('div');
     deckGrid.className = 'inventory-focus-deck-grid';
     [
-        { label: '白兵戦', deck: myMeleeDeck, role: myMeleeRole },
-        { label: '船', deck: myShipDeck, role: myShipRole }
+        { label: 'タロットデッキ', deck: getCommonTarotDeck(), role: getCommonTarotRole() }
     ].forEach((deckDef) => {
         const deck = Array.isArray(deckDef.deck) ? deckDef.deck : [];
         const card = document.createElement('button');
@@ -1134,19 +1156,11 @@ function getInventoryQuickAction(item, canonicalCategory) {
         return { label: '装備', tone: 'equip', run: () => equipItem(playFabId, itemId, 'Accessory') };
     }
     if (canonicalCategory === 'TarotMajor') {
-        const inMelee = isCardInMeleeDeck(itemId);
-        const inShip = isCardInShipDeck(itemId);
-        if (inMelee) {
-            return { label: '白兵戦から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'melee') };
+        if (isCardInTarotDeck(itemId)) {
+            return { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
         }
-        if (inShip) {
-            return { label: '船から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'ship') };
-        }
-        if (myMeleeDeck.length < 5) {
-            return { label: '白兵戦に追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'melee') };
-        }
-        if (myShipDeck.length < 5) {
-            return { label: '船に追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'ship') };
+        if (getCommonTarotDeck().length < 5) {
+            return { label: 'デッキに追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
         }
         const lvd = cardLevelMap[itemId];
         if (lvd && lvd.level < lvd.maxLevel) {
@@ -1155,23 +1169,15 @@ function getInventoryQuickAction(item, canonicalCategory) {
         return null;
     }
     if (canonicalCategory === 'TarotMinor') {
-        const inMelee = isCardInMeleeDeck(itemId);
-        const inShip = isCardInShipDeck(itemId);
-        if (inMelee) {
-            return { label: '白兵戦から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'melee') };
-        }
-        if (inShip) {
-            return { label: '船から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'ship') };
+        if (isCardInTarotDeck(itemId)) {
+            return { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') };
         }
         const lvd = cardLevelMap[itemId];
         if (lvd && lvd.level < lvd.maxLevel) {
             return { label: `Lv↑ (${lvd.nextLevelCost}⚔)`, tone: 'levelup', run: () => levelUpCard(itemId) };
         }
-        if (myMeleeDeck.length < 5) {
-            return { label: '白兵戦に追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'melee') };
-        }
-        if (myShipDeck.length < 5) {
-            return { label: '船に追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'ship') };
+        if (getCommonTarotDeck().length < 5) {
+            return { label: 'デッキに追加', tone: 'equip', run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') };
         }
         return null;
     }
@@ -1189,17 +1195,12 @@ function getInventoryQuickActions(item, canonicalCategory) {
     }
 
     const itemId = item?.itemId;
-    const inMelee = isCardInMeleeDeck(itemId);
-    const inShip = isCardInShipDeck(itemId);
+    const inDeck = isCardInTarotDeck(itemId);
     const actions = [];
 
-    actions.push(inMelee
-        ? { label: '白兵戦から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'melee') }
-        : { label: '白兵戦', tone: (!inShip && myMeleeDeck.length < 5) ? 'equip' : 'disabled', disabled: inShip || myMeleeDeck.length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'melee') });
-
-    actions.push(inShip
-        ? { label: '船から外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'ship') }
-        : { label: '船', tone: (!inMelee && myShipDeck.length < 5) ? 'equip' : 'disabled', disabled: inMelee || myShipDeck.length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'ship') });
+    actions.push(inDeck
+        ? { label: 'デッキから外す', tone: 'remove', run: () => unequipTarotCardFromDeck(playFabId, itemId, 'tarot') }
+        : { label: 'デッキに追加', tone: getCommonTarotDeck().length < 5 ? 'equip' : 'disabled', disabled: getCommonTarotDeck().length >= 5, run: () => equipTarotCardToDeck(playFabId, itemId, 'tarot') });
 
     const lvd = cardLevelMap[itemId];
     if (lvd && lvd.level < lvd.maxLevel) {
@@ -1237,7 +1238,9 @@ function createInventoryCell(item, requestedCategory) {
     if (quickAction?.tone) {
         cell.classList.add(`has-${quickAction.tone}`);
     }
-    const isEquipped = isInventoryItemEquipped(item);
+    const isTarotDeckEquipped = (canonicalCategory === 'TarotMajor' || canonicalCategory === 'TarotMinor')
+        && isCardInTarotDeck(item?.itemId);
+    const isEquipped = isInventoryItemEquipped(item) || isTarotDeckEquipped;
     const isEquipmentEquipped = isEquipped && isInventoryEquipmentCategory(canonicalCategory);
     if (isEquipped) {
         cell.classList.add('is-equipped');
@@ -1254,6 +1257,9 @@ function createInventoryCell(item, requestedCategory) {
     headMeta.className = 'inventory-item-head-meta';
     if (isEquipmentEquipped) {
         headMeta.appendChild(createInventoryBadge('装備中', 'active'));
+    }
+    if (isTarotDeckEquipped) {
+        headMeta.appendChild(createInventoryBadge('E', 'equipped'));
     }
     if ((Number(item?.count || 0) || 0) > 1) {
         headMeta.appendChild(createInventoryBadge(`x${item.count}`, 'count'));
@@ -1450,10 +1456,7 @@ export async function getInventory(playFabId, options = {}) {
         preloadEquipmentSprites(myCurrentEquipment, myInventory, window.myAvatarBaseInfo?.AvatarColor);
     }
     if (deckData?.ok) {
-        myMeleeDeck = Array.isArray(deckData.meleeDeck) ? deckData.meleeDeck : [];
-        myShipDeck = Array.isArray(deckData.shipDeck) ? deckData.shipDeck : [];
-        myMeleeRole = deckData.meleeRole || null;
-        myShipRole = deckData.shipRole || null;
+        applyTarotDeckData(deckData);
     }
     await getEquipment(playFabId);
     renderInventoryTabControls();
@@ -1508,10 +1511,7 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         lastInventoryFetchAt = Date.now();
     }
     if (deckData?.ok) {
-        myMeleeDeck = Array.isArray(deckData.meleeDeck) ? deckData.meleeDeck : [];
-        myShipDeck = Array.isArray(deckData.shipDeck) ? deckData.shipDeck : [];
-        myMeleeRole = deckData.meleeRole || null;
-        myShipRole = deckData.shipRole || null;
+        applyTarotDeckData(deckData);
         renderTarotDeckPanels();
     }
 }
@@ -1537,13 +1537,10 @@ export async function equipItem(playFabId, itemId, slot) {
 }
 
 export async function equipTarotCardToDeck(playFabId, itemId, deckType) {
-    const deckLabel = deckType === 'melee' ? '白兵戦デッキ' : '船デッキ';
-    const data = await requestEquipTarotCard(playFabId, itemId, deckType);
+    const deckLabel = 'タロットデッキ';
+    const data = await requestEquipTarotCard(playFabId, itemId, 'tarot');
     if (data?.ok) {
-        myMeleeDeck = Array.isArray(data.meleeDeck) ? data.meleeDeck : myMeleeDeck;
-        myShipDeck = Array.isArray(data.shipDeck) ? data.shipDeck : myShipDeck;
-        myMeleeRole = data.meleeRole || myMeleeRole;
-        myShipRole = data.shipRole || myShipRole;
+        applyTarotDeckData(data);
         renderTarotDeckPanels();
         renderInventoryGrid(activeInventoryCategory);
         updateEquipmentBonusDisplay();
@@ -1555,13 +1552,10 @@ export async function equipTarotCardToDeck(playFabId, itemId, deckType) {
 }
 
 export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
-    const deckLabel = deckType === 'melee' ? '白兵戦デッキ' : '船デッキ';
-    const data = await requestUnequipTarotCard(playFabId, itemId, deckType);
+    const deckLabel = 'タロットデッキ';
+    const data = await requestUnequipTarotCard(playFabId, itemId, 'tarot');
     if (data?.ok) {
-        myMeleeDeck = Array.isArray(data.meleeDeck) ? data.meleeDeck : myMeleeDeck;
-        myShipDeck = Array.isArray(data.shipDeck) ? data.shipDeck : myShipDeck;
-        myMeleeRole = data.meleeRole || null;
-        myShipRole = data.shipRole || null;
+        applyTarotDeckData(data);
         renderTarotDeckPanels();
         renderInventoryGrid(activeInventoryCategory);
         updateEquipmentBonusDisplay();
@@ -1573,13 +1567,10 @@ export async function unequipTarotCardFromDeck(playFabId, itemId, deckType) {
 }
 
 export async function moveTarotCardInDeck(playFabId, itemId, deckType, direction) {
-    const deckLabel = deckType === 'melee' ? '白兵戦デッキ' : '船デッキ';
-    const data = await requestMoveTarotDeckCard(playFabId, itemId, deckType, direction);
+    const deckLabel = 'タロットデッキ';
+    const data = await requestMoveTarotDeckCard(playFabId, itemId, 'tarot', direction);
     if (data?.ok) {
-        myMeleeDeck = Array.isArray(data.meleeDeck) ? data.meleeDeck : myMeleeDeck;
-        myShipDeck = Array.isArray(data.shipDeck) ? data.shipDeck : myShipDeck;
-        myMeleeRole = data.meleeRole || null;
-        myShipRole = data.shipRole || null;
+        applyTarotDeckData(data);
         renderTarotDeckPanels();
         renderInventoryGrid(activeInventoryCategory);
         updateEquipmentBonusDisplay();
@@ -1820,18 +1811,14 @@ function showItemDetailModal(item) {
         appendStatLine(`<span>${line}</span>`);
     });
     if (isTarotMajorCategory(canonicalCategory)) {
-        const inMelee = isCardInMeleeDeck(item.itemId);
-        const inShip = isCardInShipDeck(item.itemId);
-        if (inMelee) appendStatLine('<span>白兵戦デッキ: <strong>セット中</strong></span>');
-        if (inShip) appendStatLine('<span>船デッキ: <strong>セット中</strong></span>');
-        if (!inMelee && !inShip) appendStatLine('<span>デッキ: <strong>未セット</strong></span>');
+        appendStatLine(isCardInTarotDeck(item.itemId)
+            ? '<span>タロットデッキ: <strong>セット中</strong></span>'
+            : '<span>タロットデッキ: <strong>未セット</strong></span>');
     }
     if (isTarotMinorCategory(canonicalCategory)) {
-        const inMelee = isCardInMeleeDeck(item.itemId);
-        const inShip = isCardInShipDeck(item.itemId);
-        if (inMelee) appendStatLine('<span>デッキ: <strong>白兵戦にセット中</strong></span>');
-        else if (inShip) appendStatLine('<span>デッキ: <strong>船にセット中</strong></span>');
-        else appendStatLine('<span>デッキ: <strong>未セット</strong></span>');
+        appendStatLine(isCardInTarotDeck(item.itemId)
+            ? '<span>タロットデッキ: <strong>セット中</strong></span>'
+            : '<span>タロットデッキ: <strong>未セット</strong></span>');
     }
 
     if (isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory)) {
@@ -1899,41 +1886,14 @@ function showItemDetailModal(item) {
         } else {
             buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'Accessory')">${getEquipActionLabel('Accessory', '装備')}</button>`;
         }
-    } else if (isTarotMajorCategory(canonicalCategory)) {
-        appendActionNote('大アルカナは装備ではなくカードとして扱います。白兵戦または船デッキに追加できます。');
-        const majorInMelee = isCardInMeleeDeck(equipItemId);
-        const majorInShip = isCardInShipDeck(equipItemId);
-        if (majorInMelee) {
-            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'melee')">白兵戦から外す</button>`;
-        } else if (myMeleeDeck.length < 5) {
-            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'melee')">白兵戦に追加</button>`;
+    } else if (isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory)) {
+        appendActionNote('カードとしてタロットデッキに追加できます。');
+        if (isCardInTarotDeck(equipItemId)) {
+            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'tarot')">デッキから外す</button>`;
+        } else if (getCommonTarotDeck().length < 5) {
+            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'tarot')">デッキに追加</button>`;
         } else {
-            buttonsEl.innerHTML += '<button disabled>白兵戦デッキ満杯</button>';
-        }
-        if (majorInShip) {
-            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'ship')">船から外す</button>`;
-        } else if (myShipDeck.length < 5) {
-            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'ship')">船に追加</button>`;
-        } else {
-            buttonsEl.innerHTML += '<button disabled>船デッキ満杯</button>';
-        }
-    } else if (isTarotMinorCategory(canonicalCategory)) {
-        appendActionNote('正位置のカードは白兵戦デッキ、逆位置は船デッキに追加できます。');
-        const minorInMelee = isCardInMeleeDeck(equipItemId);
-        const minorInShip = isCardInShipDeck(equipItemId);
-        if (minorInMelee) {
-            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'melee')">白兵戦から外す</button>`;
-        } else if (myMeleeDeck.length < 5) {
-            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'melee')">白兵戦に追加</button>`;
-        } else {
-            buttonsEl.innerHTML += '<button disabled>白兵戦デッキ満杯</button>';
-        }
-        if (minorInShip) {
-            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'ship')">船から外す</button>`;
-        } else if (myShipDeck.length < 5) {
-            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'ship')">船に追加</button>`;
-        } else {
-            buttonsEl.innerHTML += '<button disabled>船デッキ満杯</button>';
+            buttonsEl.innerHTML += '<button disabled>タロットデッキ満杯</button>';
         }
     } else if (cd.Category === 'Consumable') {
         buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;

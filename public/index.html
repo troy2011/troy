@@ -605,12 +605,12 @@
                 <div id="shipSkillSheet" class="ship-skill-sheet" aria-hidden="true">
                     <div class="ship-skill-sheet-handle" aria-hidden="true"></div>
                     <div class="ship-skill-sheet-header">
-                        <span class="ship-skill-sheet-title">船デッキスキル</span>
+                        <span class="ship-skill-sheet-title">タロットデッキスキル</span>
                         <span id="shipSkillRoleLabel" class="ship-skill-role-badge"></span>
                         <button id="shipSkillSheetClose" class="ship-skill-sheet-close" aria-label="閉じる">×</button>
                     </div>
                     <div id="shipSkillGrid" class="ship-skill-grid"></div>
-                    <p id="shipSkillEmptyMsg" class="ship-skill-empty-msg" hidden>船デッキにカードがありません</p>
+                    <p id="shipSkillEmptyMsg" class="ship-skill-empty-msg" hidden>タロットデッキにカードがありません</p>
                 </div>
                 <!-- バトルルームシート（下からスライドイン） -->
                 <div id="battleRoomSheet" class="battle-room-sheet" aria-hidden="true">
@@ -821,10 +821,10 @@
                         <div class="tarot-deck-panel" id="meleeDeckPanel">
                             <div class="tarot-loadout-header">
                                 <div>
-                                    <h3>白兵戦デッキ</h3>
-                                    <p>正位置のカードをセット。左から順に隊列へ出ます。</p>
+                                    <h3>タロットデッキ</h3>
+                                    <p>セットした5枚を白兵戦と船スキルで使用します。</p>
                                 </div>
-                                <span class="tarot-loadout-badge">隊列順</span>
+                                <span class="tarot-loadout-badge">デッキ</span>
                             </div>
                             <div id="meleeDeckRole" class="tarot-loadout-role">
                                 <div class="tarot-loadout-role-label">現在の役</div>
@@ -833,22 +833,6 @@
                                 <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
                             </div>
                             <div id="meleeDeckGrid" class="tarot-loadout-grid"></div>
-                        </div>
-                        <div class="tarot-deck-panel" id="shipDeckPanel">
-                            <div class="tarot-loadout-header">
-                                <div>
-                                    <h3>船デッキ</h3>
-                                    <p>逆位置のカードをセット。船バトル用スキルに使います。</p>
-                                </div>
-                                <span class="tarot-loadout-badge">船スキル</span>
-                            </div>
-                            <div id="shipDeckRole" class="tarot-loadout-role">
-                                <div class="tarot-loadout-role-label">現在の役</div>
-                                <div class="tarot-loadout-role-main">未成立</div>
-                                <div class="tarot-loadout-role-bonus">役ボーナスなし</div>
-                                <div class="tarot-loadout-role-hint">5枚の札が揃うと役判定されます。</div>
-                            </div>
-                            <div id="shipDeckGrid" class="tarot-loadout-grid"></div>
                         </div>
                     </div>
                 </div>

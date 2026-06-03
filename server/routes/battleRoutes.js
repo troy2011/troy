@@ -3,7 +3,7 @@ require('dotenv').config();
 const economy = require('../economy');
 const { getEntityKeyFromPlayFabId, withTitleEntityToken } = require('../playfab');
 const { applyDerivedPlayerLevelToStats } = require('../playerLevel');
-const { MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, readDecks } = require('../tarotDeck');
+const { TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY, evaluateDeckRole, readDecks } = require('../tarotDeck');
 const {
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
@@ -345,6 +345,7 @@ async function getPlayerFullProfile(playFabId) {
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
             "Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
+            TAROT_DECK_DATA_KEY,
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY
         ]
@@ -418,13 +419,20 @@ async function getPlayerFullProfile(playFabId) {
 
         // タロットデッキ読み込み
         try {
-            meleeDeckIds = JSON.parse(equipmentResult.Data[MELEE_DECK_DATA_KEY]?.Value || '[]');
-            if (!Array.isArray(meleeDeckIds)) meleeDeckIds = [];
-        } catch { meleeDeckIds = []; }
-        try {
-            shipDeckIds = JSON.parse(equipmentResult.Data[SHIP_DECK_DATA_KEY]?.Value || '[]');
-            if (!Array.isArray(shipDeckIds)) shipDeckIds = [];
-        } catch { shipDeckIds = []; }
+            const commonDeckIds = JSON.parse(equipmentResult.Data[TAROT_DECK_DATA_KEY]?.Value || 'null');
+            if (Array.isArray(commonDeckIds)) {
+                meleeDeckIds = commonDeckIds;
+                shipDeckIds = commonDeckIds;
+            } else {
+                meleeDeckIds = JSON.parse(equipmentResult.Data[MELEE_DECK_DATA_KEY]?.Value || '[]');
+                if (!Array.isArray(meleeDeckIds)) meleeDeckIds = [];
+                shipDeckIds = JSON.parse(equipmentResult.Data[SHIP_DECK_DATA_KEY]?.Value || '[]');
+                if (!Array.isArray(shipDeckIds)) shipDeckIds = [];
+            }
+        } catch {
+            meleeDeckIds = [];
+            shipDeckIds = [];
+        }
     }
 
     const equipmentStats = {

@@ -10,7 +10,7 @@
 
 const admin = require('firebase-admin');
 const { getShipSkillByCard, getMinorShipSkill, getMajorShipSkill } = require('../tarotShipSkills');
-const { SHIP_DECK_DATA_KEY } = require('../tarotDeck');
+const { readDecks } = require('../tarotDeck');
 const { getCanonicalTarotCategory } = require('../tarotCards');
 
 // ポーカーロールボーナス倍率（tarotRoles と同定義）
@@ -108,13 +108,8 @@ function initializeShipSkillRoutes(app, promisifyPlayFab, PlayFabServer, PlayFab
     // デッキデータ取得（PlayFab 1回限り、/api/ship-skill-status 専用）
     // ────────────────────────────────────────────────────────
     async function resolveShipDeck(playFabId) {
-        const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-            PlayFabId: playFabId,
-            Keys: [SHIP_DECK_DATA_KEY]
-        });
-        const raw = result?.Data?.[SHIP_DECK_DATA_KEY]?.Value;
-        if (!raw) return [];
-        try { return JSON.parse(raw); } catch { return []; }
+        const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
+        return Array.isArray(decks?.tarotDeck) ? decks.tarotDeck : [];
     }
 
     function getShipDeckRoleKey(deckItemIds) {

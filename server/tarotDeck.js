@@ -1,19 +1,19 @@
 // server/tarotDeck.js
 // タロットデッキ管理
-// 正位置カード → 白兵戦デッキ（meleeDeck）
-// 逆位置カード → 船デッキ（shipDeck）
-// 各デッキ最大5枚、ポーカーハンド評価を両デッキに適用
+// 白兵戦と船スキルは同じタロットデッキを参照する
+// 最大5枚、ポーカーハンド評価を適用
 
 const { getCanonicalTarotCategory, getMajorArcanaSuitInfo } = require('./tarotCards');
 const { evaluateTarotRole, getTarotRoleBonus } = require('./tarotRoles');
 
+const TAROT_DECK_DATA_KEY = 'TarotDeck';
 const MELEE_DECK_DATA_KEY = 'TarotMeleeDeck';
 const SHIP_DECK_DATA_KEY  = 'TarotShipDeck';
 const DECK_MAX_CARDS = 5;
 
 // orientation → deckType
 function getDeckType(orientation) {
-    return orientation === 'reversed' ? 'ship' : 'melee';
+    return 'tarot';
 }
 
 function parseJsonSafe(raw) {
@@ -24,6 +24,19 @@ function parseJsonSafe(raw) {
     } catch {
         return [];
     }
+}
+
+function normalizeDeckList(deck) {
+    const unique = [];
+    (Array.isArray(deck) ? deck : []).forEach((itemId) => {
+        const id = String(itemId || '').trim();
+        if (id && !unique.includes(id)) unique.push(id);
+    });
+    return unique.slice(0, DECK_MAX_CARDS);
+}
+
+function mergeLegacyDecks(primaryDeck, secondaryDeck) {
+    return normalizeDeckList([...(primaryDeck || []), ...(secondaryDeck || [])]);
 }
 
 function getInventoryItemAmount(items, itemId) {
@@ -43,23 +56,37 @@ function isTarotCardItem(itemId, catalogCache) {
 async function readDecks(playFabId, promisifyPlayFab, PlayFabServer) {
     const result = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
         PlayFabId: playFabId,
-        Keys: [MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY]
+        Keys: [TAROT_DECK_DATA_KEY, MELEE_DECK_DATA_KEY, SHIP_DECK_DATA_KEY]
     });
+    const data = result?.Data || {};
+    const hasCommonDeck = Object.prototype.hasOwnProperty.call(data, TAROT_DECK_DATA_KEY);
+    const meleeDeck = normalizeDeckList(parseJsonSafe(data?.[MELEE_DECK_DATA_KEY]?.Value));
+    const shipDeck = normalizeDeckList(parseJsonSafe(data?.[SHIP_DECK_DATA_KEY]?.Value));
+    const tarotDeck = hasCommonDeck
+        ? normalizeDeckList(parseJsonSafe(data?.[TAROT_DECK_DATA_KEY]?.Value))
+        : mergeLegacyDecks(meleeDeck, shipDeck);
     return {
-        meleeDeck: parseJsonSafe(result?.Data?.[MELEE_DECK_DATA_KEY]?.Value),
-        shipDeck:  parseJsonSafe(result?.Data?.[SHIP_DECK_DATA_KEY]?.Value)
+        tarotDeck,
+        meleeDeck: tarotDeck,
+        shipDeck: tarotDeck
     };
 }
 
 async function writeDecks(playFabId, decks, promisifyPlayFab, PlayFabServer) {
-    const updateData = {};
-    if (decks.meleeDeck !== undefined) {
-        updateData[MELEE_DECK_DATA_KEY] = JSON.stringify(decks.meleeDeck);
-    }
-    if (decks.shipDeck !== undefined) {
-        updateData[SHIP_DECK_DATA_KEY] = JSON.stringify(decks.shipDeck);
-    }
-    if (!Object.keys(updateData).length) return;
+    const nextDeck = decks.tarotDeck !== undefined
+        ? normalizeDeckList(decks.tarotDeck)
+        : decks.meleeDeck !== undefined
+            ? normalizeDeckList(decks.meleeDeck)
+            : decks.shipDeck !== undefined
+                ? normalizeDeckList(decks.shipDeck)
+                : null;
+    if (!nextDeck) return;
+    const encoded = JSON.stringify(nextDeck);
+    const updateData = {
+        [TAROT_DECK_DATA_KEY]: encoded,
+        [MELEE_DECK_DATA_KEY]: encoded,
+        [SHIP_DECK_DATA_KEY]: encoded
+    };
     await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
         PlayFabId: playFabId,
         Data: updateData,
@@ -186,13 +213,15 @@ function initializeTarotDeckRoutes(app, deps) {
     }
 
     function buildDeckResponse(decks) {
-        const meleeDeck = Array.isArray(decks?.meleeDeck) ? decks.meleeDeck : [];
-        const shipDeck = Array.isArray(decks?.shipDeck) ? decks.shipDeck : [];
+        const tarotDeck = normalizeDeckList(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || []);
+        const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => catalogCache?.[itemId] || null));
         return {
-            meleeDeck,
-            shipDeck,
-            meleeRole: evaluateDeckRole(meleeDeck.map((itemId) => catalogCache?.[itemId] || null)),
-            shipRole: evaluateDeckRole(shipDeck.map((itemId) => catalogCache?.[itemId] || null))
+            tarotDeck,
+            meleeDeck: tarotDeck,
+            shipDeck: tarotDeck,
+            tarotRole,
+            meleeRole: tarotRole,
+            shipRole: tarotRole
         };
     }
 
@@ -215,11 +244,11 @@ function initializeTarotDeckRoutes(app, deps) {
     app.post('/api/tarot-deck-equip', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
         const cardItemId = String(req.body?.cardItemId || '').trim();
-        const deckType   = String(req.body?.deckType   || '').trim(); // 'melee' | 'ship'
+        const deckType   = String(req.body?.deckType   || 'tarot').trim(); // 'tarot' | legacy 'melee' | 'ship'
         if (!requestedPlayFabId)  return res.status(400).json({ error: 'playFabId is required' });
         if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
-        if (deckType !== 'melee' && deckType !== 'ship') {
-            return res.status(400).json({ error: 'deckType must be melee or ship' });
+        if (deckType !== 'tarot' && deckType !== 'melee' && deckType !== 'ship') {
+            return res.status(400).json({ error: 'deckType must be tarot, melee or ship' });
         }
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
@@ -227,13 +256,11 @@ function initializeTarotDeckRoutes(app, deps) {
             const ownership = await requireOwnedTarotCard(playFabId, cardItemId);
             if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = deckType === 'ship' ? decks.shipDeck : decks.meleeDeck;
+            const current = decks.tarotDeck;
             const result = equipCardToDeck(current, cardItemId);
             if (!result.ok) return res.status(400).json({ error: result.error });
-            const updated = deckType === 'ship'
-                ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
-                : { meleeDeck: result.deck,     shipDeck: decks.shipDeck };
-            await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
+            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
+            await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-equip] Error:', error?.message || error);
@@ -245,22 +272,20 @@ function initializeTarotDeckRoutes(app, deps) {
     app.post('/api/tarot-deck-unequip', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
         const cardItemId = String(req.body?.cardItemId || '').trim();
-        const deckType   = String(req.body?.deckType   || '').trim();
+        const deckType   = String(req.body?.deckType   || 'tarot').trim();
         if (!requestedPlayFabId)  return res.status(400).json({ error: 'playFabId is required' });
         if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
-        if (deckType !== 'melee' && deckType !== 'ship') {
-            return res.status(400).json({ error: 'deckType must be melee or ship' });
+        if (deckType !== 'tarot' && deckType !== 'melee' && deckType !== 'ship') {
+            return res.status(400).json({ error: 'deckType must be tarot, melee or ship' });
         }
         const playFabId = await requireAuthedPlayFabId(req, res, requestedPlayFabId);
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = deckType === 'ship' ? decks.shipDeck : decks.meleeDeck;
+            const current = decks.tarotDeck;
             const result = unequipCardFromDeck(current, cardItemId);
-            const updated = deckType === 'ship'
-                ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
-                : { meleeDeck: result.deck,     shipDeck: decks.shipDeck };
-            await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
+            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
+            await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-unequip] Error:', error?.message || error);
@@ -271,12 +296,12 @@ function initializeTarotDeckRoutes(app, deps) {
     app.post('/api/tarot-deck-move', async (req, res) => {
         const requestedPlayFabId = String(req.body?.playFabId || '').trim();
         const cardItemId = String(req.body?.cardItemId || '').trim();
-        const deckType = String(req.body?.deckType || '').trim();
+        const deckType = String(req.body?.deckType || 'tarot').trim();
         const direction = String(req.body?.direction || '').trim();
         if (!requestedPlayFabId) return res.status(400).json({ error: 'playFabId is required' });
         if (!cardItemId) return res.status(400).json({ error: 'cardItemId is required' });
-        if (deckType !== 'melee' && deckType !== 'ship') {
-            return res.status(400).json({ error: 'deckType must be melee or ship' });
+        if (deckType !== 'tarot' && deckType !== 'melee' && deckType !== 'ship') {
+            return res.status(400).json({ error: 'deckType must be tarot, melee or ship' });
         }
         if (!['left', 'right', 'up', 'down', '-1', '1'].includes(direction)) {
             return res.status(400).json({ error: 'direction must be left or right' });
@@ -285,14 +310,12 @@ function initializeTarotDeckRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
-            const current = deckType === 'ship' ? decks.shipDeck : decks.meleeDeck;
+            const current = decks.tarotDeck;
             const result = moveCardInDeck(current, cardItemId, direction);
             if (!result.ok) return res.status(400).json({ error: result.error });
-            const updated = deckType === 'ship'
-                ? { meleeDeck: decks.meleeDeck, shipDeck: result.deck }
-                : { meleeDeck: result.deck, shipDeck: decks.shipDeck };
+            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
             if (!result.unchanged) {
-                await writeDecks(playFabId, { [deckType === 'ship' ? 'shipDeck' : 'meleeDeck']: result.deck }, promisifyPlayFab, PlayFabServer);
+                await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
             }
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
@@ -303,6 +326,7 @@ function initializeTarotDeckRoutes(app, deps) {
 }
 
 module.exports = {
+    TAROT_DECK_DATA_KEY,
     MELEE_DECK_DATA_KEY,
     SHIP_DECK_DATA_KEY,
     DECK_MAX_CARDS,

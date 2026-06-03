@@ -13698,15 +13698,39 @@ textarea {
 }
 
 #tabContentInventory .tarot-loadout-grid {
+    display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
+    gap: 4px;
+    overflow: visible;
+    padding-bottom: 0;
 }
 
 #tabContentInventory .tarot-loadout-card {
     min-height: 0;
+    min-width: 0;
     gap: 4px;
-    padding: 6px 4px;
+    padding: 6px 3px;
     border-radius: 12px;
+}
+
+#tabContentInventory .tarot-loadout-card.is-equipped::after {
+    content: 'E';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 2;
+    width: 17px;
+    height: 17px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 232, 166, 0.72);
+    background: linear-gradient(180deg, #ffe58a, #b87918);
+    color: #2a1405;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 #tabContentInventory .tarot-loadout-slot {
@@ -13716,14 +13740,18 @@ textarea {
 
 #tabContentInventory .tarot-loadout-suit {
     align-self: center;
-    padding: 2px 5px;
+    max-width: 100%;
+    padding: 2px 4px;
     font-size: 8px;
     line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #tabContentInventory .tarot-loadout-visual {
-    width: 34px;
-    height: 54px;
+    width: clamp(38px, 11vw, 44px);
+    height: clamp(60px, 17vw, 70px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -13741,7 +13769,7 @@ textarea {
 }
 
 #tabContentInventory .tarot-loadout-title {
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1.15;
     text-align: center;
     white-space: nowrap;
@@ -13943,6 +13971,16 @@ textarea {
     background: rgba(15, 23, 42, 0.7);
     border-color: rgba(148, 163, 184, 0.12);
     color: #e2e8f0;
+}
+
+#tabContentInventory .inventory-item-badge.is-equipped {
+    min-width: 20px;
+    padding-inline: 6px;
+    background: linear-gradient(180deg, #ffe58a, #b87918);
+    border-color: rgba(255, 232, 166, 0.72);
+    color: #2a1405;
+    font-size: 10px;
+    font-weight: 900;
 }
 
 #tabContentInventory .inventory-item-main {
