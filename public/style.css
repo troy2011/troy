@@ -20479,15 +20479,19 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped .inventory-item-icon-frame {
-    position: relative;
-    overflow: visible;
+    position: static;
 }
 
-#tabContentInventory .inventory-item-cell.is-equipment-equipped .inventory-item-icon-frame::after {
+#tabContentInventory .inventory-item-cell.is-equipment-equipped {
+    position: relative;
+}
+
+#tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
     content: "E";
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: 4px;
+    left: 4px;
     z-index: 2;
     width: 20px;
     height: 20px;
@@ -20524,13 +20528,22 @@ body[data-sea-tone] .home-hero-card {
     word-break: break-word;
 }
 
-#tabContentInventory #inventoryGrid[data-layout="equipment"],
 #tabContentInventory #inventoryGrid[data-layout="consumable"],
-#tabContentInventory #inventoryGrid[data-layout="mixed"],
-#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+#tabContentInventory #inventoryGrid[data-layout="mixed"] {
     grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
     align-items: start;
     gap: 8px;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"],
+#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: start;
+    gap: 6px;
+}
+
+#tabContentInventory .tarot-loadout-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 #tabContentInventory .inventory-item-cell,
@@ -20544,6 +20557,10 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     overflow: visible;
     cursor: pointer;
+}
+
+#tabContentInventory .inventory-item-cell--tarot {
+    aspect-ratio: 3 / 4;
 }
 
 #tabContentInventory .inventory-item-cell:focus-visible {
@@ -20603,12 +20620,26 @@ body[data-sea-tone] .home-hero-card {
     flex: none;
     display: grid;
     place-items: center;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 
 #tabContentInventory .inventory-item-cell--tarot .inventory-item-icon-frame {
     max-width: 58px;
     max-height: 82px;
-    border-radius: 7px;
+    border-radius: 0;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-icon {
+    transform: scale(1.35);
+    transform-origin: center;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon {
+    transform: scale(1.04);
+    transform-origin: center;
 }
 
 .ranking-rank-badge {
