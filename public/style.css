@@ -2339,20 +2339,6 @@ button.home-player-ship-name {
     line-height: 1.5;
 }
 
-.tarot-loadout-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    background: rgba(245, 158, 11, 0.12);
-    color: var(--accent-color);
-    font-size: 11px;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
 .tarot-loadout-role {
     margin-bottom: 12px;
     padding: 10px 12px;
@@ -2787,7 +2773,6 @@ button.home-player-ship-name {
     width: 100%;
 }
 
-.tarot-loadout-cell-move,
 .tarot-loadout-cell-remove {
     position: relative;
     z-index: 1;
@@ -2797,22 +2782,6 @@ button.home-player-ship-name {
     font-size: 11px;
     font-weight: 800;
     cursor: pointer;
-}
-
-.tarot-loadout-cell-move {
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(15, 23, 42, 0.5);
-    color: #e2e8f0;
-}
-
-.tarot-loadout-cell-move:hover:not(:disabled) {
-    background: rgba(51, 65, 85, 0.72);
-    border-color: rgba(226, 232, 240, 0.36);
-}
-
-.tarot-loadout-cell-move:disabled {
-    opacity: 0.38;
-    cursor: default;
 }
 
 .tarot-loadout-cell-remove {
@@ -13660,11 +13629,6 @@ textarea {
     display: none;
 }
 
-#tabContentInventory .tarot-loadout-badge {
-    padding: 4px 8px;
-    font-size: 10px;
-}
-
 #tabContentInventory .tarot-loadout-role {
     display: flex;
     align-items: center;
@@ -13710,38 +13674,35 @@ textarea {
     min-width: 0;
     gap: 4px;
     padding: 6px 3px;
-    border-radius: 12px;
+    border: 11px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(255, 224, 142, 0.1), transparent 48%),
+        linear-gradient(180deg, rgba(10, 14, 19, 0.8), rgba(3, 4, 6, 0.94));
+    box-shadow: none;
 }
 
+#tabContentInventory .tarot-loadout-card::before,
 #tabContentInventory .tarot-loadout-card.is-equipped::after {
-    content: 'E';
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    z-index: 2;
-    width: 17px;
-    height: 17px;
-    display: grid;
-    place-items: center;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 232, 166, 0.72);
-    background: linear-gradient(180deg, #ffe58a, #b87918);
-    color: #2a1405;
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    content: none;
 }
 
 #tabContentInventory .tarot-loadout-slot {
     font-size: 8px;
     letter-spacing: 0.03em;
+    color: #d8c39b;
 }
 
 #tabContentInventory .tarot-loadout-suit {
     align-self: center;
     max-width: 100%;
     padding: 2px 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #e8c879;
     font-size: 8px;
     line-height: 1.1;
     overflow: hidden;
@@ -13755,7 +13716,10 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 7px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 #tabContentInventory .tarot-loadout-card.is-empty .tarot-loadout-visual {
@@ -13782,15 +13746,17 @@ textarea {
 }
 
 #tabContentInventory .tarot-loadout-cell-actions {
-    grid-template-columns: 20px 20px minmax(0, 1fr);
-    gap: 3px;
+    display: block;
 }
 
-#tabContentInventory .tarot-loadout-cell-move,
 #tabContentInventory .tarot-loadout-cell-remove {
     min-height: 24px;
     border-radius: 7px;
     font-size: 9px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-dark-large.png") 24 fill / 8px / 0 stretch;
+    background: linear-gradient(180deg, rgba(16, 18, 22, 0.72), rgba(3, 4, 6, 0.86));
+    color: #f0d29a;
 }
 
 #tabContentInventory .tarot-loadout-cell-empty {
@@ -17490,15 +17456,15 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Equipment"]::before {
-    background-image: url("./assets/ui/icons/075.png");
+    background-image: var(--icon-slot-equipment);
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Tarot"]::before {
-    background-image: url("./assets/ui/icons/071.png");
+    background-image: var(--icon-slot-tarot);
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="All"]::before {
-    background-image: url("./assets/ui/icons/062.png");
+    background-image: var(--icon-slot-all);
 }
 
 #tabContentInventory .inventory-panel-btn.active {
@@ -19517,9 +19483,9 @@ body[data-sea-tone] .home-hero-card {
     --icon-trophy: url("./assets/ui/icons/056.png");
     --icon-vial: url("./assets/ui/icons/special-vial.png");
     --icon-mushroom: url("./assets/ui/icons/special-mushroom.png");
-    --icon-slot-all: url("./assets/ui/icons/062.png");
-    --icon-slot-equipment: url("./assets/ui/icons/075.png");
-    --icon-slot-tarot: url("./assets/ui/icons/071.png");
+    --icon-slot-all: url("./assets/ui/icons/029.png");
+    --icon-slot-equipment: url("./assets/ui/icons/040.png");
+    --icon-slot-tarot: url("./assets/ui/icons/038.png");
     --icon-slot-weapon: url("./assets/ui/icons/075.png");
     --icon-slot-shield: url("./assets/ui/icons/072.png");
     --icon-slot-armor: url("./assets/ui/icons/073.png");
@@ -20475,13 +20441,9 @@ body[data-sea-tone] .home-hero-card {
     flex: none;
     display: grid;
     place-items: center;
-    border: 8px solid transparent;
-    border-radius: 8px;
-    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 8px / 0 stretch;
-    background:
-        radial-gradient(circle at 50% 34%, rgba(255, 226, 151, 0.16), transparent 58%),
-        rgba(5, 7, 10, 0.82);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
     overflow: hidden;
 }
 

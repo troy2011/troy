@@ -493,28 +493,14 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             metaEl.textContent = entry.detail;
             const actionsEl = document.createElement('div');
             actionsEl.className = 'tarot-loadout-cell-actions';
-            const moveLeftBtn = document.createElement('button');
-            moveLeftBtn.type = 'button';
-            moveLeftBtn.className = 'tarot-loadout-cell-move';
-            moveLeftBtn.textContent = '←';
-            moveLeftBtn.title = '前へ';
-            moveLeftBtn.disabled = i <= 0;
-            const moveRightBtn = document.createElement('button');
-            moveRightBtn.type = 'button';
-            moveRightBtn.className = 'tarot-loadout-cell-move';
-            moveRightBtn.textContent = '→';
-            moveRightBtn.title = '後ろへ';
-            moveRightBtn.disabled = i >= deckItemIds.length - 1 || i >= MAX_SLOTS - 1;
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'tarot-loadout-cell-remove';
             removeBtn.textContent = '外す';
             if (playFabId) {
-                moveLeftBtn.addEventListener('click', () => moveTarotCardInDeck(playFabId, itemId, deckType, 'left'));
-                moveRightBtn.addEventListener('click', () => moveTarotCardInDeck(playFabId, itemId, deckType, 'right'));
                 removeBtn.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
             }
-            actionsEl.append(moveLeftBtn, moveRightBtn, removeBtn);
+            actionsEl.append(removeBtn);
             cell.append(slotEl, suitEl, visualEl, nameEl, metaEl, actionsEl);
         } else {
             const emptyEl = document.createElement('div');
