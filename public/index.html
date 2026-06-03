@@ -702,10 +702,11 @@
             </div>
 
             <!-- 5. インベントリタブ -->
-            <div id="tabContentInventory" class="tab-content" style="display: none;">
+            <div id="tabContentInventory" class="tab-content" data-inventory-panel="items" data-inventory-group="Equipment" style="display: none;">
                 <div id="inventoryMobileSwitch" class="inventory-mobile-switch">
                     <button class="inventory-panel-btn active" data-panel="items" data-inventory-group-switch="Equipment" type="button">装備</button>
                     <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Tarot" type="button">タロット</button>
+                    <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="Consumable" type="button">消耗品</button>
                     <button class="inventory-panel-btn" data-panel="items" data-inventory-group-switch="All" type="button">全部</button>
                 </div>
                 <!-- 装備スロット -->
@@ -839,7 +840,7 @@
 
                 <div class="content-area inventory-section active" data-panel="items">
                     <div class="section-header">
-                        <h2>アイテム</h2>
+                        <h2 id="inventoryItemsTitle">装備候補</h2>
                         <select id="inventorySort" class="sort-select">
                             <option value="default">標準</option>
                             <option value="power_desc">攻撃力順</option>
@@ -848,13 +849,7 @@
                     </div>
                     <p id="pointMessage"></p>
 
-                    <div id="inventoryPrimaryTabs" class="inventory-primary-tabs">
-                        <button class="inventory-primary-tab-btn active" data-group="All" type="button">全部</button>
-                        <button class="inventory-primary-tab-btn" data-group="Equipment" type="button">装備</button>
-                        <button class="inventory-primary-tab-btn" data-group="Tarot" type="button">タロット</button>
-                        <button class="inventory-primary-tab-btn" data-group="Consumable" type="button">消耗品</button>
-                    </div>
-                    <div id="inventoryFocusPanel" class="inventory-focus-panel" hidden></div>
+                    <div id="inventoryListSummary" class="inventory-list-summary" aria-live="polite"></div>
                     <div id="inventoryTabs"></div>
                     <div id="inventoryTabHint" class="inventory-tab-hint" hidden></div>
                     <div id="inventoryGrid"></div>

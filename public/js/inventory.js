@@ -220,12 +220,6 @@ const INVENTORY_SORT_OPTIONS = {
     ]
 };
 
-const EQUIPMENT_FOCUS_SLOTS = Object.freeze([
-    { slot: 'RightHand', label: '右手', empty: '武器なし', category: 'Weapon' },
-    { slot: 'LeftHand', label: '左手', empty: '盾 / 副手なし', category: 'Shield' },
-    { slot: 'Armor', label: '頭', empty: '防具なし', category: 'Armor' },
-    { slot: 'Accessory', label: 'アクセ', empty: 'アクセなし', category: 'Accessory' }
-]);
 const EQUIPPABLE_INVENTORY_CATEGORIES = new Set(['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory']);
 
 export function getActiveInventoryCategory() {
@@ -246,10 +240,6 @@ function getDefaultInventoryCategory(group) {
 
 function renderInventoryTabControls() {
     if (typeof document === 'undefined') return;
-    document.querySelectorAll('.inventory-primary-tab-btn').forEach((button) => {
-        button.classList.toggle('active', button.dataset.group === activeInventoryGroup);
-    });
-
     const container = document.getElementById('inventoryTabs');
     if (!container) return;
     const tabs = INVENTORY_GROUPS[activeInventoryGroup]?.tabs || [];
@@ -610,6 +600,55 @@ function getInventoryCategoryLabel(category) {
     return canonicalCategory || '不明';
 }
 
+function getInventoryListTitle(category) {
+    const group = getInventoryGroupForCategory(category);
+    if (group === 'Equipment') return '装備候補';
+    if (group === 'Tarot') return 'タロット候補';
+    if (group === 'Consumable') return '消耗品';
+    return '持ち物一覧';
+}
+
+function countInventoryEntriesForDisplay(items) {
+    return items.reduce((sum, item) => sum + Math.max(1, Number(item?.count || 1) || 1), 0);
+}
+
+function renderInventoryListSummary(category, filteredItems, allItems) {
+    if (typeof document === 'undefined') return;
+    const titleEl = document.getElementById('inventoryItemsTitle');
+    if (titleEl) {
+        titleEl.textContent = getInventoryListTitle(category);
+    }
+
+    const summaryEl = document.getElementById('inventoryListSummary');
+    if (!summaryEl) return;
+
+    const filtered = Array.isArray(filteredItems) ? filteredItems : [];
+    const all = Array.isArray(allItems) ? allItems : [];
+    const equippedCount = Object.values(myCurrentEquipment || {}).filter(Boolean).length;
+    const deckCount = getCommonTarotDeck().length;
+    const chips = [
+        ['表示', category === 'All' ? '全部' : getInventoryCategoryLabel(category)],
+        ['種類', `${filtered.length}`],
+        ['総数', `${countInventoryEntriesForDisplay(filtered)}`],
+        ['装備', `${equippedCount}/4`],
+        ['デッキ', `${deckCount}/5`]
+    ];
+    if (category !== 'All') {
+        chips.splice(3, 0, ['全体', `${all.length}`]);
+    }
+
+    summaryEl.replaceChildren(...chips.map(([label, value]) => {
+        const chip = document.createElement('span');
+        chip.className = 'inventory-summary-chip';
+        const labelEl = document.createElement('small');
+        labelEl.textContent = label;
+        const valueEl = document.createElement('strong');
+        valueEl.textContent = value;
+        chip.append(labelEl, valueEl);
+        return chip;
+    }));
+}
+
 function getInventoryLayout(category) {
     if (category === 'TarotMajor' || category === 'TarotMinor') return 'tarot';
     if (['Weapon', 'Shield', 'Offhand', 'Armor', 'Accessory'].includes(category)) return 'equipment';
@@ -796,170 +835,6 @@ function createInventoryChip(label, tone = '') {
     chip.className = `inventory-item-chip${tone ? ` is-${tone}` : ''}`;
     chip.textContent = label;
     return chip;
-}
-
-function getEquipmentFocusStats(item) {
-    if (!item) return '';
-    const cd = item.customData || {};
-    const parts = [
-        cd.Power ? `攻 ${cd.Power}` : '',
-        cd.Defense ? `防 ${cd.Defense}` : '',
-        cd.MagicPower ? `術 ${cd.MagicPower}` : '',
-        cd.HealPower ? `回 ${cd.HealPower}` : '',
-        cd.CastRate ? `詠 ${cd.CastRate}` : ''
-    ].filter(Boolean);
-    return parts.slice(0, 3).join(' / ');
-}
-
-function createInventoryFocusHeader(title, meta) {
-    const header = document.createElement('div');
-    header.className = 'inventory-focus-header';
-    const titleEl = document.createElement('div');
-    titleEl.className = 'inventory-focus-title';
-    titleEl.textContent = title;
-    const metaEl = document.createElement('div');
-    metaEl.className = 'inventory-focus-meta';
-    metaEl.textContent = meta;
-    header.append(titleEl, metaEl);
-    return header;
-}
-
-function scrollInventoryCandidatesIntoView() {
-    const tabsEl = document.getElementById('inventoryTabs');
-    const gridEl = document.getElementById('inventoryGrid');
-    (tabsEl || gridEl)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-}
-
-function renderEquipmentFocusPanel(panel) {
-    panel.appendChild(createInventoryFocusHeader('現在の装備', 'スロットを押すと候補を絞り込みます'));
-    const slotGrid = document.createElement('div');
-    slotGrid.className = 'inventory-focus-slot-grid';
-
-    EQUIPMENT_FOCUS_SLOTS.forEach((slotDef) => {
-        const equippedRef = myCurrentEquipment?.[slotDef.slot];
-        const item = equippedRef ? getInventoryItemByReference(equippedRef) : null;
-        const category = item ? getCanonicalTarotCategory(item.customData?.Category) : slotDef.category;
-        const button = document.createElement('div');
-        button.role = 'button';
-        button.tabIndex = 0;
-        button.className = `inventory-focus-slot${item ? ' is-filled' : ''}`;
-        button.dataset.slot = slotDef.slot;
-        const selectSlot = () => {
-            switchInventoryTab(category || slotDef.category);
-            scrollInventoryCandidatesIntoView();
-        };
-        button.addEventListener('click', selectSlot);
-        button.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            selectSlot();
-        });
-
-        const label = document.createElement('span');
-        label.className = 'inventory-focus-slot-label';
-        label.textContent = slotDef.label;
-        const name = document.createElement('strong');
-        name.textContent = item?.name || slotDef.empty;
-        const stats = document.createElement('span');
-        stats.className = 'inventory-focus-slot-stats';
-        stats.textContent = item ? (getEquipmentFocusStats(item) || getInventoryCategoryLabel(category)) : '未装備';
-        button.append(label, name, stats);
-        slotGrid.appendChild(button);
-
-        if (item) {
-            const removeButton = document.createElement('button');
-            removeButton.type = 'button';
-            removeButton.className = 'inventory-focus-slot-remove';
-            removeButton.textContent = '外す';
-            removeButton.addEventListener('click', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!window.myPlayFabId) return;
-                await equipItem(window.myPlayFabId, null, slotDef.slot);
-            });
-            button.appendChild(removeButton);
-        }
-    });
-
-    const quickTabs = document.createElement('div');
-    quickTabs.className = 'inventory-focus-actions';
-    INVENTORY_GROUPS.Equipment.tabs.forEach((tab) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `inventory-focus-chip${tab.category === activeInventoryCategory ? ' active' : ''}`;
-        button.textContent = tab.label;
-        button.addEventListener('click', () => {
-            switchInventoryTab(tab.category);
-            scrollInventoryCandidatesIntoView();
-        });
-        quickTabs.appendChild(button);
-    });
-
-    panel.append(slotGrid, quickTabs);
-}
-
-function renderTarotFocusPanel(panel) {
-    panel.appendChild(createInventoryFocusHeader('現在のタロットデッキ', 'デッキとカード候補を同じ画面で確認できます'));
-    const deckGrid = document.createElement('div');
-    deckGrid.className = 'inventory-focus-deck-grid';
-    [
-        { label: 'タロットデッキ', deck: getCommonTarotDeck(), role: getCommonTarotRole() }
-    ].forEach((deckDef) => {
-        const deck = Array.isArray(deckDef.deck) ? deckDef.deck : [];
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = 'inventory-focus-deck';
-        card.addEventListener('click', () => switchInventoryPanel('tarot', { scrollSwitcher: true }));
-        const roleLabel = deckDef.role?.role?.label || '未成立';
-        const cardNames = deck
-            .map((itemId) => getInventoryItemByReference(itemId)?.name || '')
-            .filter(Boolean)
-            .slice(0, 2)
-            .join(' / ');
-        const labelEl = document.createElement('span');
-        labelEl.textContent = deckDef.label;
-        const countEl = document.createElement('strong');
-        countEl.textContent = `${deck.length}/5枚`;
-        const roleEl = document.createElement('em');
-        roleEl.textContent = roleLabel;
-        const cardsEl = document.createElement('small');
-        cardsEl.textContent = cardNames || '未セット';
-        card.append(labelEl, countEl, roleEl, cardsEl);
-        deckGrid.appendChild(card);
-    });
-
-    const quickTabs = document.createElement('div');
-    quickTabs.className = 'inventory-focus-actions';
-    INVENTORY_GROUPS.Tarot.tabs.forEach((tab) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `inventory-focus-chip${tab.category === activeInventoryCategory ? ' active' : ''}`;
-        button.textContent = tab.label;
-        button.addEventListener('click', () => {
-            switchInventoryTab(tab.category);
-            scrollInventoryCandidatesIntoView();
-        });
-        quickTabs.appendChild(button);
-    });
-
-    const manageButton = document.createElement('button');
-    manageButton.type = 'button';
-    manageButton.className = 'inventory-focus-chip';
-    manageButton.textContent = 'デッキ管理';
-    manageButton.addEventListener('click', () => switchInventoryPanel('tarot', { scrollSwitcher: true }));
-    quickTabs.appendChild(manageButton);
-
-    panel.append(deckGrid, quickTabs);
-}
-
-function renderInventoryFocusPanel() {
-    if (typeof document === 'undefined') return;
-    const panel = document.getElementById('inventoryFocusPanel');
-    if (!panel) return;
-    panel.innerHTML = '';
-    panel.hidden = activeInventoryGroup !== 'Tarot' && activeInventoryGroup !== 'All';
-    if (panel.hidden) return;
-    renderTarotFocusPanel(panel);
 }
 
 function getEquippedSlotsForItem(item) {
@@ -1612,17 +1487,21 @@ export function switchInventoryTab(category) {
     renderInventoryGrid(activeInventoryCategory);
 }
 
-export function switchInventoryGroup(group) {
+export function switchInventoryGroup(group, options = {}) {
     activeInventoryGroup = INVENTORY_GROUPS[group] ? group : 'All';
     const currentGroup = getInventoryGroupForCategory(activeInventoryCategory);
     if (currentGroup !== activeInventoryGroup) {
         activeInventoryCategory = getDefaultInventoryCategory(activeInventoryGroup);
     }
-    switchInventoryPanel('items', { preserveScroll: true });
+    const targetPanel = options.panel || (activeInventoryGroup === 'Tarot' ? 'tarot' : 'items');
+    switchInventoryPanel(targetPanel, { preserveScroll: true });
     renderInventoryTabControls();
     updateInventorySortOptions(activeInventoryCategory);
     updateInventoryTabHint(activeInventoryCategory);
     renderInventoryGrid(activeInventoryCategory);
+    if (targetPanel === 'tarot') {
+        renderTarotDeckPanels();
+    }
     if (group === 'Tarot' || group === 'All') {
         loadCardLevels().then(() => renderInventoryGrid(activeInventoryCategory));
     }
@@ -1636,12 +1515,12 @@ export function renderInventoryGrid(category) {
     gridEl.dataset.layout = layout;
     gridEl.dataset.category = category || 'All';
     updateInventorySortOptions(category);
-    renderInventoryFocusPanel();
 
     const displayInventory = getDisplayInventoryEntries();
     const filtered = (category === 'All')
         ? displayInventory
         : displayInventory.filter(item => matchesInventoryCategory(item.customData?.Category, category));
+    renderInventoryListSummary(category, filtered, displayInventory);
 
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {

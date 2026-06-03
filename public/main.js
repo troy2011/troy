@@ -1154,20 +1154,18 @@ async function initializeAppFeatures() {
 
     window.addEventListener('tab:battle-visible', () => loadBattleTab());
 
-    document.querySelectorAll('.inventory-primary-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.group));
-    });
     document.querySelectorAll('.inventory-panel-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.dataset.inventoryGroupSwitch) {
-                Inventory.switchInventoryGroup(btn.dataset.inventoryGroupSwitch);
+                const group = btn.dataset.inventoryGroupSwitch;
+                Inventory.switchInventoryGroup(group, { panel: group === 'Tarot' ? 'tarot' : 'items' });
                 return;
             }
             Inventory.switchInventoryPanel(btn.dataset.panel);
         });
     });
     document.querySelectorAll('[data-inventory-group-jump]').forEach(btn => {
-        btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.inventoryGroupJump));
+        btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.inventoryGroupJump, { panel: 'items' }));
     });
     document.getElementById('inventorySort').addEventListener('change', () => {
         const currentCategory = Inventory.getActiveInventoryCategory();
