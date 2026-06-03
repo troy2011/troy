@@ -20413,6 +20413,11 @@ body[data-sea-tone] .home-hero-card {
     cursor: pointer;
 }
 
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-cell,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell {
+    aspect-ratio: 3 / 4;
+}
+
 #tabContentInventory .inventory-item-cell:focus-visible {
     outline: 2px solid rgba(255, 225, 134, 0.92);
     outline-offset: 2px;
@@ -20533,7 +20538,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-panel-btn[data-inventory-group-switch="Consumable"]::before {
-    background-image: url("./assets/ui/icons/070.png");
+    background-image: var(--icon-potion-blue);
 }
 
 #tabContentInventory .inventory-panel-btn.active {
@@ -20691,8 +20696,7 @@ body[data-sea-tone] .home-hero-card {
     border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 9px / 0 stretch;
 }
 
-#tabContentInventory .sort-select,
-#tabContentInventory .inventory-card-list-btn {
+#tabContentInventory .sort-select {
     border: 1px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
@@ -20866,7 +20870,6 @@ body[data-sea-tone] .home-hero-card {
 #tabContentMap .map-action-button,
 #tabContentMap .map-secondary-action-btn,
 .battle-room-btn,
-#tabContentInventory .inventory-card-list-btn,
 #tabContentKing .king-inline-actions button,
 #tabContentKing .troy-admin-actions button {
     display: inline-flex;
@@ -20883,7 +20886,6 @@ body[data-sea-tone] .home-hero-card {
 #tabContentMap .map-action-button::before,
 #tabContentMap .map-secondary-action-btn::before,
 .battle-room-btn::before,
-#tabContentInventory .inventory-card-list-btn::before,
 #tabContentKing .king-inline-actions button::before,
 #tabContentKing .troy-admin-actions button::before {
     content: "";
@@ -20940,8 +20942,7 @@ body[data-sea-tone] .home-hero-card {
     --command-icon: var(--icon-action-ship);
 }
 
-#shipSkillToggleButton,
-#tabContentInventory .inventory-card-list-btn {
+#shipSkillToggleButton {
     --command-icon: var(--icon-action-card);
 }
 

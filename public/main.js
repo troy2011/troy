@@ -1164,9 +1164,6 @@ async function initializeAppFeatures() {
             Inventory.switchInventoryPanel(btn.dataset.panel);
         });
     });
-    document.querySelectorAll('[data-inventory-group-jump]').forEach(btn => {
-        btn.addEventListener('click', () => Inventory.switchInventoryGroup(btn.dataset.inventoryGroupJump, { panel: 'items' }));
-    });
     document.getElementById('inventorySort').addEventListener('change', () => {
         const currentCategory = Inventory.getActiveInventoryCategory();
         Inventory.renderInventoryGrid(currentCategory);

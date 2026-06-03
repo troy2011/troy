@@ -305,7 +305,9 @@ export function switchInventoryPanel(panel, options = {}) {
         button.classList.toggle('active', isActive);
     });
     document.querySelectorAll('#tabContentInventory .inventory-section').forEach((section) => {
-        section.classList.toggle('active', section.dataset.panel === activeInventoryPanel);
+        const shouldShow = section.dataset.panel === activeInventoryPanel
+            || (activeInventoryPanel === 'tarot' && section.dataset.panel === 'items');
+        section.classList.toggle('active', shouldShow);
     });
     const tabContent = document.getElementById('tabContentInventory');
     if (tabContent) {
@@ -1480,7 +1482,7 @@ export async function sellItem(playFabId, itemInstanceId, itemId) {
 export function switchInventoryTab(category) {
     activeInventoryCategory = category || 'All';
     activeInventoryGroup = getInventoryGroupForCategory(activeInventoryCategory);
-    switchInventoryPanel('items', { preserveScroll: true });
+    switchInventoryPanel(activeInventoryGroup === 'Tarot' ? 'tarot' : 'items', { preserveScroll: true });
     renderInventoryTabControls();
     updateInventorySortOptions(activeInventoryCategory);
     updateInventoryTabHint(activeInventoryCategory);
