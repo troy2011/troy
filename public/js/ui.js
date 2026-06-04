@@ -16,9 +16,10 @@ const ensureTroyModule = async () => {
 };
 
 let eventModule = null;
+const EVENT_MODULE_VERSION = '20260604a';
 const ensureEventModule = async () => {
     if (eventModule) return eventModule;
-    eventModule = await import('./events.js');
+    eventModule = await import(`./events.js?v=${EVENT_MODULE_VERSION}`);
     return eventModule;
 };
 
