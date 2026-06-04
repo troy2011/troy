@@ -20323,7 +20323,7 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
 }
 
-.content-area,
+.content-area:not(.home-hero-card),
 #tabContentTroy .content-area,
 #tabContentEvents .content-area,
 #tabContentQr .content-area,

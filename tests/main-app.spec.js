@@ -74,10 +74,12 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
     return {
       tabBackground: window.getComputedStyle(homeTab).backgroundImage,
       heroBackground: window.getComputedStyle(heroCard).backgroundImage,
+      heroBorderImageSource: window.getComputedStyle(heroCard).borderImageSource,
       shipStageBackground: window.getComputedStyle(shipStage, '::before').backgroundImage
     };
   });
   expect(homeBackgrounds.heroBackground).toContain('home-ui-sheet.png');
+  expect(homeBackgrounds.heroBorderImageSource).toBe('none');
   expect(homeBackgrounds.tabBackground).not.toContain('bg-sea.png');
   expect(homeBackgrounds.shipStageBackground).not.toContain('bg-sea.png');
   await expectNoPageErrors(errors);
