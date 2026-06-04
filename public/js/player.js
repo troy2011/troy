@@ -273,6 +273,17 @@ function renderRankingAvatar({ avatarUrl, label }) {
     return `<div class="ranking-avatar ranking-avatar-fallback" aria-hidden="true">${text}</div>`;
 }
 
+function formatPlayerLevelRankMeta(entry, index) {
+    const rawLevel = Number(entry?.level ?? entry?.Level);
+    const level = Number.isFinite(rawLevel) && rawLevel >= 1 ? Math.floor(rawLevel) : null;
+    const rankName = String(entry?.crewRankTitle || entry?.rankName || entry?.rankTitle || '').trim()
+        || (level ? getPlayerRankName(level) : '');
+    if (level && rankName) return `Lv.${level} ${rankName}`;
+    if (level) return `Lv.${level}`;
+    if (rankName) return rankName;
+    return `${index + 1}位`;
+}
+
 function renderRankingRows(entries, options = {}) {
     if (!Array.isArray(entries) || entries.length === 0) {
         return renderRankingState(options.emptyMessage || '（データがありません）');
@@ -317,7 +328,7 @@ export async function getRanking() {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             getName: (entry) => entry.displayName || '冒険者',
             getScore: (entry) => `${formatNumber(entry.score)}G`,
-            getMeta: (entry, index) => (index < 3 ? '上位ランカー' : '総資産ランキング'),
+            getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });
         return;
@@ -334,7 +345,7 @@ export async function getBountyRanking() {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             getName: (entry) => entry.displayName || '冒険者',
             getScore: (entry) => `${formatNumber(entry.contribution ?? entry.score)} 貢献`,
-            getMeta: (entry, index) => (index < 3 ? '本日の上位貢献者' : '日次ランキング'),
+            getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });
         return;
@@ -380,7 +391,7 @@ export async function getStoreGameRanking(gameType = 'darts_countup') {
             emptyMessage: '（まだ記録がありません）',
             getName: (entry) => entry.displayName || '冒険者',
             getScore: (entry) => `${formatStoreGameScore(entry, safeType)}点`,
-            getMeta: (entry, index) => (index < 3 ? `${loadingLabel} 上位記録` : `${loadingLabel}ランキング`),
+            getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });
         return;

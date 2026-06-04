@@ -7,6 +7,10 @@ const {
     PLAYER_DAILY_CONTRIBUTION_STAT,
     ensureDailyContributionVersionForToday
 } = require('./contributionStats');
+const {
+    applyDerivedPlayerLevelToStats,
+    buildStatsMapFromStatistics
+} = require('./playerLevel');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
@@ -268,6 +272,44 @@ async function ensureDailyBountyConversion(playFabId, deps) {
     return { updated: true, bountyConverted: bountyAmount, exp: nextExp };
 }
 
+function getPlayerRankNameByLevel(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return '海賊王';
+    if (value >= 31) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
+}
+
+async function getLeaderboardPlayerRankInfo(playFabId, deps) {
+    if (!playFabId || !deps?.promisifyPlayFab || !deps?.PlayFabServer) return {};
+    try {
+        const statsResult = await deps.promisifyPlayFab(deps.PlayFabServer.GetPlayerStatistics, {
+            PlayFabId: playFabId
+        });
+        const stats = applyDerivedPlayerLevelToStats(
+            buildStatsMapFromStatistics(statsResult?.Statistics || [])
+        ).stats;
+        const level = Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
+        return {
+            level,
+            rankName: getPlayerRankNameByLevel(level)
+        };
+    } catch (error) {
+        console.warn('[ranking] player rank resolve failed:', playFabId, error?.errorMessage || error?.message || error);
+        return {};
+    }
+}
+
+async function buildPlayerRankingRows(leaderboard, deps, mapEntry) {
+    const entries = Array.isArray(leaderboard) ? leaderboard : [];
+    return Promise.all(entries.map(async (entry) => {
+        const row = mapEntry(entry);
+        const rankInfo = await getLeaderboardPlayerRankInfo(row.playFabId || entry?.PlayFabId, deps);
+        return { ...row, ...rankInfo };
+    }));
+}
+
 // APIルートを初期化
 function initializeEconomyRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, getEntityKeyFromPlayFabId, firestore, admin, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
@@ -385,7 +427,7 @@ function initializeEconomyRoutes(app, deps) {
             });
             let ranking = [];
             if (result && result.Leaderboard) {
-                ranking = result.Leaderboard.map((entry) => {
+                ranking = await buildPlayerRankingRows(result.Leaderboard, { promisifyPlayFab, PlayFabServer }, (entry) => {
                     const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                     return {
                         position: entry.Position,
@@ -425,7 +467,7 @@ function initializeEconomyRoutes(app, deps) {
             });
             let ranking = [];
             if (result && result.Leaderboard) {
-                ranking = result.Leaderboard.map((entry) => {
+                ranking = await buildPlayerRankingRows(result.Leaderboard, { promisifyPlayFab, PlayFabServer }, (entry) => {
                     const avatarUrl = (entry.Profile && entry.Profile.AvatarUrl) ? entry.Profile.AvatarUrl : null;
                     return {
                         position: entry.Position,
@@ -462,16 +504,18 @@ function initializeEconomyRoutes(app, deps) {
                 ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
             });
             const ranking = Array.isArray(result?.Leaderboard)
-                ? result.Leaderboard
-                    .filter((entry) => Number(entry?.StatValue || 0) > 0)
-                    .map((entry) => ({
+                ? await buildPlayerRankingRows(
+                    result.Leaderboard.filter((entry) => Number(entry?.StatValue || 0) > 0),
+                    { promisifyPlayFab, PlayFabServer },
+                    (entry) => ({
                         position: entry.Position,
                         playFabId: entry.PlayFabId || null,
                         displayName: entry.DisplayName || entry.Profile?.DisplayName || '名無し',
                         score: Number(entry.StatValue || 0),
                         scoreScale: Math.max(1, Math.floor(Number(game.scoreScale) || 1)),
                         avatarUrl: entry.Profile?.AvatarUrl || null
-                    }))
+                    })
+                )
                 : [];
             res.json({ success: true, gameType, label: game.label, ranking });
         } catch (error) {
