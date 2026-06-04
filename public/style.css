@@ -15467,6 +15467,8 @@ body[data-sea-tone] .home-hero-card {
 
 .ranking-row-top-1 .ranking-row-score-value {
     font-size: 24px;
+}
+
 @media (max-width: 420px) {
     .ranking-content-area {
         padding-inline: 10px;
