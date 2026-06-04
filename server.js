@@ -18,6 +18,7 @@ const {
     PlayFabAdmin,
     PlayFabAuthentication,
     PlayFabGroups,
+    PlayFabData,
     PlayFabEconomy,
     configurePlayFab,
     promisifyPlayFab,
