@@ -934,14 +934,6 @@ async function initializeAppFeatures() {
 
     // --- UI event bindings ---
     document.getElementById('btnGetStats').addEventListener('click', () => Player.getPlayerStats(myPlayFabId));
-    document.getElementById('btnRecoverHP').addEventListener('click', async () => {
-        const result = await Player.recoverHpResource(myPlayFabId);
-        if (result?.message) showRpgMessage(result.message, 2200);
-    });
-    document.getElementById('btnRecoverMP').addEventListener('click', async () => {
-        const result = await Player.recoverMpResource(myPlayFabId);
-        if (result?.message) showRpgMessage(result.message, 2200);
-    });
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
     document.getElementById('btnCoinConvert').addEventListener('click', () => openCoinConvertModal('gold_to_coin'));
     document.getElementById('btnCoinGoldConvert')?.addEventListener('click', () => {

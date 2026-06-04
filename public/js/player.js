@@ -2,8 +2,6 @@
 
 import {
     getPlayerStats as fetchPlayerStats,
-    recoverHpResource as requestRecoverHpResource,
-    recoverMpResource as requestRecoverMpResource,
     consumeVoyageMp as requestConsumeVoyageMp,
     recoverDockedMp as requestRecoverDockedMp,
     getPoints as fetchPoints,
@@ -72,15 +70,13 @@ export async function getPlayerStats(playFabId) {
 }
 
 function updatePlayerStatsDisplay() {
-    const { HP = 0, MaxHP = 1, MP = 0, MaxMP = 1, Level = 1, ちから = 0, みのまもり = 0, すばやさ = 0, かしこさ = 0 } = myPlayerStats;
+    const { Level = 1, ちから = 0, みのまもり = 0, すばやさ = 0, かしこさ = 0 } = myPlayerStats;
     const rankName = myCrewRankInfo?.crewRankTitle || getPlayerRankName(Level);
-    document.getElementById('globalCurrentHP').innerText = HP;
-    document.getElementById('globalMaxHP').innerText = MaxHP;
-    document.getElementById('globalCurrentMP').innerText = MP;
-    document.getElementById('globalMaxMP').innerText = MaxMP;
-    document.getElementById('globalHpBar').style.width = `${(HP / MaxHP) * 100}%`;
-    document.getElementById('globalMpBar').style.width = `${(MP / MaxMP) * 100}%`;
-    document.getElementById('globalLevel').innerText = Level;
+    const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.innerText = value;
+    };
+    setText('globalLevel', Level);
     const rankBadgeEl = document.getElementById('globalRankBadge');
     if (rankBadgeEl) rankBadgeEl.innerText = rankName;
     const benefitEl = document.getElementById('homeRankBenefit');
@@ -92,36 +88,20 @@ function updatePlayerStatsDisplay() {
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('player:stats-updated', { detail: { stats: { ...myPlayerStats } } }));
     }
-    document.getElementById('currentStr').innerText = ちから;
-    document.getElementById('currentDef').innerText = みのまもり;
-    document.getElementById('currentAgi').innerText = すばやさ;
-    document.getElementById('currentInt').innerText = かしこさ;
-    const hpRecoverBtn = document.getElementById('btnRecoverHP');
-    const mpRecoverBtn = document.getElementById('btnRecoverMP');
-    if (hpRecoverBtn) hpRecoverBtn.disabled = HP >= MaxHP;
-    if (mpRecoverBtn) mpRecoverBtn.disabled = MP >= MaxMP;
+    setText('homeStatStr', ちから);
+    setText('homeStatDef', みのまもり);
+    setText('homeStatAgi', すばやさ);
+    setText('homeStatInt', かしこさ);
+    setText('currentStr', ちから);
+    setText('currentDef', みのまもり);
+    setText('currentAgi', すばやさ);
+    setText('currentInt', かしこさ);
 }
 
 function applyUpdatedStats(updatedStats) {
     if (!updatedStats || typeof updatedStats !== 'object') return;
     myPlayerStats = { ...myPlayerStats, ...updatedStats };
     updatePlayerStatsDisplay();
-}
-
-export async function recoverHpResource(playFabId) {
-    const data = await requestRecoverHpResource(playFabId);
-    if (data?.updatedStats) {
-        applyUpdatedStats(data.updatedStats);
-    }
-    return data;
-}
-
-export async function recoverMpResource(playFabId) {
-    const data = await requestRecoverMpResource(playFabId);
-    if (data?.updatedStats) {
-        applyUpdatedStats(data.updatedStats);
-    }
-    return data;
 }
 
 export async function consumeVoyageMp(playFabId, durationMs) {

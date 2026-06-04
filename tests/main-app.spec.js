@@ -22,6 +22,103 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
+test('home tab replaces HP and MP recovery controls with compact stat chips', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: {
+          Level: 12,
+          ちから: 7,
+          みのまもり: 8,
+          すばやさ: 9,
+          かしこさ: 10
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const player = await import('/js/player.js');
+    await player.getPlayerStats('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#globalHpBar')).toHaveCount(0);
+  await expect(page.locator('#globalMpBar')).toHaveCount(0);
+  await expect(page.locator('#btnRecoverHP')).toHaveCount(0);
+  await expect(page.locator('#btnRecoverMP')).toHaveCount(0);
+  await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10']);
+  await expectNoPageErrors(errors);
+});
+
+test('player profile shows public stats on the left with avatar on the right', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_OTHER',
+          displayName: 'Other Player',
+          nation: 'water',
+          level: 18,
+          stats: {
+            Level: 18,
+            ちから: 12,
+            みのまもり: 11,
+            すばやさ: 10,
+            かしこさ: 9
+          },
+          avatarBase: {
+            Race: 'human',
+            Nation: 'water',
+            AvatarColor: 'blue',
+            level: 18
+          },
+          playerShip: {
+            form: 'explorer',
+            stage: 2
+          },
+          equipment: {},
+          itemSource: {},
+          equipmentList: []
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const profile = await import('/js/playerProfile.js');
+    await profile.openPlayerProfile('PF_OTHER');
+  });
+
+  await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
+  const layout = await page.evaluate(() => {
+    const stats = document.getElementById('playerProfileStats');
+    const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
+    const copy = document.querySelector('#playerProfileModal .item-detail-copy');
+    const statsRect = stats?.getBoundingClientRect();
+    const avatarRect = avatar?.getBoundingClientRect();
+    const copyRect = copy?.getBoundingClientRect();
+    return {
+      statsRight: statsRect?.right || 0,
+      avatarLeft: avatarRect?.left || 0,
+      avatarRight: avatarRect?.right || 0,
+      copyRight: copyRect?.right || 0
+    };
+  });
+  expect(layout.avatarLeft).toBeGreaterThan(layout.statsRight);
+  expect(layout.avatarRight).toBeGreaterThan(layout.copyRight);
+  await expectNoPageErrors(errors);
+});
+
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);

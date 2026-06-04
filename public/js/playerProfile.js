@@ -31,6 +31,7 @@ function getPlayerProfileModalElements() {
         name: document.getElementById('playerProfileName'),
         nation: document.getElementById('playerProfileNation'),
         meta: document.getElementById('playerProfileMeta'),
+        stats: document.getElementById('playerProfileStats'),
         equipment: document.getElementById('playerProfileEquipment'),
         close: document.getElementById('btnClosePlayerProfile'),
         transferButton: document.getElementById('btnPlayerProfileTransfer'),
@@ -391,6 +392,28 @@ function renderEquipmentRows(rows = []) {
     `).join('');
 }
 
+function normalizeProfileStatValue(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+}
+
+function renderProfileStats(stats = {}) {
+    const { stats: statsEl } = getPlayerProfileModalElements();
+    if (!statsEl) return;
+    const rows = [
+        ['力', stats?.ちから],
+        ['守', stats?.みのまもり],
+        ['速', stats?.すばやさ],
+        ['知', stats?.かしこさ]
+    ];
+    statsEl.innerHTML = rows.map(([label, value]) => `
+        <div class="player-profile-stat">
+            <span>${escapeHtml(label)}</span>
+            <strong>${normalizeProfileStatValue(value)}</strong>
+        </div>
+    `).join('');
+}
+
 const PROFILE_SHIP_LABELS = {
     boat: 'ボート',
     explorer: 'エクスプローラー',
@@ -433,6 +456,7 @@ function renderProfile(profile = {}) {
         const level = Math.max(1, Math.floor(Number(profile.level || profile.avatarBase?.level || 1) || 1));
         meta.textContent = `ID: ${activeProfile.playFabId || '-'} / Lv.${level}`;
     }
+    renderProfileStats(profile.stats || {});
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderProfileShip(profile.playerShip || null);
     renderAvatar(
@@ -449,7 +473,7 @@ function renderProfile(profile = {}) {
 }
 
 function renderLoadingState(targetPlayFabId = '') {
-    const { name, nation, meta, equipment } = getPlayerProfileModalElements();
+    const { name, nation, meta, stats, equipment } = getPlayerProfileModalElements();
     activeProfile = {
         playFabId: String(targetPlayFabId || '').trim(),
         displayName: '',
@@ -459,6 +483,7 @@ function renderLoadingState(targetPlayFabId = '') {
     if (name) name.textContent = '読み込み中...';
     if (nation) nation.textContent = '';
     if (meta) meta.textContent = targetPlayFabId ? `ID: ${targetPlayFabId}` : '';
+    if (stats) stats.innerHTML = '';
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
@@ -467,8 +492,9 @@ function renderLoadingState(targetPlayFabId = '') {
 }
 
 function renderErrorState(message) {
-    const { nation, equipment } = getPlayerProfileModalElements();
+    const { nation, stats, equipment } = getPlayerProfileModalElements();
     if (nation) nation.textContent = '';
+    if (stats) stats.innerHTML = '';
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }

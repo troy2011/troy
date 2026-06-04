@@ -895,6 +895,13 @@ function initializeInventoryRoutes(app, deps) {
             assignEquipmentValue('Accessory', readOnlyData?.Equipped_Accessory?.Value || null);
 
             const avatarBase = buildAvatarBaseFromReadOnly(readOnlyData, stats);
+            const publicStats = {
+                Level: Math.max(1, Math.floor(Number(stats.Level || avatarBase.level || 1) || 1)),
+                ちから: Math.max(0, Math.floor(Number(stats.ちから || 0) || 0)),
+                みのまもり: Math.max(0, Math.floor(Number(stats.みのまもり || 0) || 0)),
+                すばやさ: Math.max(0, Math.floor(Number(stats.すばやさ || 0) || 0)),
+                かしこさ: Math.max(0, Math.floor(Number(stats.かしこさ || 0) || 0))
+            };
             const playerShip = await resourceStorage.getPlayerShipProfile(targetId, { promisifyPlayFab, PlayFabServer }, { persist: false }).catch(() => null);
             return res.json({
                 success: true,
@@ -904,6 +911,7 @@ function initializeInventoryRoutes(app, deps) {
                     avatarUrl: String(profileResult?.PlayerProfile?.AvatarUrl || '').trim(),
                     nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
                     level: avatarBase.level,
+                    stats: publicStats,
                     avatarBase,
                     playerShip,
                     equipment,

@@ -87,26 +87,22 @@
                             </div>
                             <div class="home-exp-values"><span id="homeExpProgress">0</span>/<span id="homeExpNeeded">100</span> 貢献</div>
                             <div id="homeRankBenefit" class="home-rank-benefit">通常サービス / 入店表示のみ</div>
-                            <div class="home-vitals">
-                                <div class="global-status-bar-container home-vital-row">
-                                    <span>HP</span>
-                                    <div class="global-status-bar-bg">
-                                        <div id="globalHpBar" class="status-bar hp-bar"></div>
-                                    </div>
-                                    <div class="home-vital-values">
-                                        <b id="globalCurrentHP">?</b><span>/</span><b id="globalMaxHP">?</b>
-                                    </div>
-                                    <button id="btnRecoverHP" class="home-vital-action" type="button" disabled>回復</button>
+                            <div class="home-stat-panel" aria-label="能力値">
+                                <div class="home-stat-chip">
+                                    <span>力</span>
+                                    <b id="homeStatStr">?</b>
                                 </div>
-                                <div class="global-status-bar-container home-vital-row">
-                                    <span>MP</span>
-                                    <div class="global-status-bar-bg">
-                                        <div id="globalMpBar" class="status-bar mp-bar"></div>
-                                    </div>
-                                    <div class="home-vital-values">
-                                        <b id="globalCurrentMP">?</b><span>/</span><b id="globalMaxMP">?</b>
-                                    </div>
-                                    <button id="btnRecoverMP" class="home-vital-action home-vital-action-mp" type="button" disabled>回復</button>
+                                <div class="home-stat-chip">
+                                    <span>守</span>
+                                    <b id="homeStatDef">?</b>
+                                </div>
+                                <div class="home-stat-chip">
+                                    <span>速</span>
+                                    <b id="homeStatAgi">?</b>
+                                </div>
+                                <div class="home-stat-chip">
+                                    <span>知</span>
+                                    <b id="homeStatInt">?</b>
                                 </div>
                             </div>
                             <button id="btnHomeExploration" class="home-exploration-btn" type="button">探索に出る</button>
@@ -1261,6 +1257,7 @@
                     <h3 id="playerProfileName">プレイヤー</h3>
                     <p id="playerProfileNation"></p>
                     <p id="playerProfileMeta"></p>
+                    <div id="playerProfileStats" class="player-profile-stats" aria-label="能力値"></div>
                 </div>
             </div>
             <div class="player-profile-actions">
