@@ -20451,9 +20451,9 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
-    gap: 8px;
+    gap: 6px;
 }
 
 #tabContentInventory .tarot-loadout-grid {
@@ -20829,8 +20829,7 @@ body[data-sea-tone] .home-hero-card {
     padding: 4px 0 0;
 }
 
-#tabContentInventory #inventoryGrid[data-layout="equipment"],
-#tabContentInventory #inventoryGrid[data-layout="tarot"] {
+#tabContentInventory #inventoryGrid[data-layout="equipment"] {
     gap: 7px;
 }
 
