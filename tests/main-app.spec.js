@@ -161,6 +161,8 @@ test('panel frame assets are applied through border-image slices', async ({ page
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
 
+  await expect(page.locator('#tabContentEvents #btnReloadEvents')).toHaveCount(0);
+
   const audit = await page.evaluate(() => {
     const selectors = [
       '#globalPlayerInfoTop',

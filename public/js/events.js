@@ -657,7 +657,6 @@ async function rejectApplication(playFabId, button) {
 
 function bindEvents(playFabId) {
     if (bound) return;
-    document.getElementById('btnReloadEvents')?.addEventListener('click', () => loadCompanionPage(window.myPlayFabId || playFabId));
     document.getElementById('btnCreateCrew')?.addEventListener('click', () => createCrew(window.myPlayFabId || playFabId));
     document.getElementById('btnCopyCrewInvite')?.addEventListener('click', async () => {
         const value = document.getElementById('crewInviteValue')?.textContent || '';
