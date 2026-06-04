@@ -132,6 +132,97 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expectNoPageErrors(errors);
 });
 
+test('exploration event overlays use sliced panels and no moving grid', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  const audit = await page.evaluate(async () => {
+    document.querySelectorAll('.exploration-sequence-overlay, .exploration-result-overlay').forEach((element) => element.remove());
+
+    const sequence = document.createElement('div');
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-sail';
+    sequence.innerHTML = `
+      <div class="exploration-sequence-dialog">
+        <div class="exploration-sequence-scene">
+          <div class="exploration-sequence-sky"></div>
+          <div class="exploration-sequence-ship is-boat"></div>
+          <div class="exploration-sequence-log"><div>log</div></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(sequence);
+
+    const result = document.createElement('div');
+    result.className = 'exploration-result-overlay';
+    result.innerHTML = `
+      <div class="exploration-result-dialog">
+        <button type="button" class="exploration-result-close">×</button>
+        <div class="exploration-result-body"><div><b>BOSS</b><span>clear</span></div></div>
+        <ul class="exploration-result-rewards"><li><strong>reward</strong><span>x1</span></li></ul>
+        <div class="exploration-result-actions"><button type="button">close</button><button type="button">next</button></div>
+      </div>
+    `;
+    document.body.appendChild(result);
+
+    const styleOf = (selector) => {
+      const element = document.querySelector(selector);
+      const style = window.getComputedStyle(element);
+      return {
+        animationName: style.animationName,
+        backgroundImage: style.backgroundImage,
+        borderImageSource: style.borderImageSource,
+        borderRadius: style.borderRadius,
+        display: style.display,
+        height: style.height,
+        minHeight: style.minHeight
+      };
+    };
+
+    const shipElement = sequence.querySelector('.exploration-sequence-ship');
+    const sailAnimationName = window.getComputedStyle(shipElement).animationName;
+    const initialShipLeft = shipElement.getBoundingClientRect().left;
+    await new Promise((resolve) => setTimeout(resolve, 220));
+    const shipMotionDelta = shipElement.getBoundingClientRect().left - initialShipLeft;
+    sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
+    const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
+
+    const output = {
+      sequenceDialog: styleOf('.exploration-sequence-dialog'),
+      sequenceScene: styleOf('.exploration-sequence-scene'),
+      sequenceSky: styleOf('.exploration-sequence-sky'),
+      sequenceLog: styleOf('.exploration-sequence-log div'),
+      resultDialog: styleOf('.exploration-result-dialog'),
+      resultClose: styleOf('.exploration-result-close'),
+      resultMetric: styleOf('.exploration-result-body div'),
+      resultReward: styleOf('.exploration-result-rewards li'),
+      sailAnimationName,
+      shipMotionDelta,
+      treasureAnimationName
+    };
+
+    sequence.remove();
+    result.remove();
+    return output;
+  });
+
+  expect(audit.sequenceDialog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultMetric.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultReward.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.sequenceSky.display).toBe('none');
+  expect(audit.sequenceSky.animationName).toBe('none');
+  expect(audit.sequenceSky.backgroundImage).toBe('none');
+  expect(audit.sailAnimationName).toContain('explorationSequenceSail');
+  expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
+  expect(audit.treasureAnimationName).toContain('explorationSequenceTreasureShip');
+  expect(audit.resultClose.height).toBe('32px');
+  expect(audit.resultClose.minHeight).toBe('32px');
+  expect(audit.resultClose.borderRadius).toBe('50%');
+  await expectNoPageErrors(errors);
+});
+
 test('player profile shows public stats on the left with avatar on the right', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-player-public-profile', async (route) => {
