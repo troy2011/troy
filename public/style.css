@@ -15507,6 +15507,29 @@ textarea {
     width: 100%;
     margin-top: 12px;
 }
+.crew-recruitment-role-select,
+.crew-application-role-row select {
+    min-height: 36px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 7px;
+    background: #111827;
+    color: #f8fafc;
+    padding: 7px 9px;
+    font-size: 13px;
+}
+.crew-recruitment-role-select {
+    flex: 1 1 180px;
+}
+.crew-application-role-row {
+    margin-top: 10px;
+}
+.crew-application-role-row label {
+    display: grid;
+    gap: 6px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 700;
+}
 .crew-invite-title {
     color: #f8fafc;
     font-size: 14px;
@@ -16997,7 +17020,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navEvents .nav-icon {
-    background-image: url("./assets/ui/icons/060.png?v=20260604b");
+    background-image: url("./assets/ui/icons/060.png?v=20260604c");
 }
 
 #navInventory .nav-icon {
@@ -17921,7 +17944,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/060.png?v=20260604b") center / contain no-repeat;
+    background: url("./assets/ui/icons/060.png?v=20260604c") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -19525,7 +19548,7 @@ body[data-sea-tone] .home-hero-card {
     /* Numbered icons live in ./assets/ui/icons/NNN.png. Swap these numbers to change assigned artwork. */
     --icon-nav-home: url("./assets/ui/icons/059.png?v=20260531");
     --icon-nav-troy: url("./assets/ui/icons/058.png?v=20260531");
-    --icon-nav-events: url("./assets/ui/icons/060.png?v=20260604b");
+    --icon-nav-events: url("./assets/ui/icons/060.png?v=20260604c");
     --icon-nav-inventory: url("./assets/ui/icons/062.png?v=20260531");
     --icon-nav-ranking: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
     --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");

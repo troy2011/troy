@@ -18,6 +18,9 @@ const {
 const CREW_UNLOCK_LEVEL = 21;
 const CREW_FOUNDING_COST = 10000;
 const MAX_CREW_COMPANIONS = 7;
+const CREW_RECRUITMENT_COLLECTION = 'crew_recruitment_posts';
+const MAX_CREW_RECRUITMENT_MESSAGE_LENGTH = 120;
+const CREW_RECRUITMENT_LIST_LIMIT = 50;
 
 const GEO_CONFIG = {
     GRID_SIZE: 32,
@@ -122,6 +125,24 @@ function normalizePlayFabId(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+}
+
+function sanitizeRecruitmentMessage(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CREW_RECRUITMENT_MESSAGE_LENGTH);
+}
+
+function normalizeCrewRoleIds(values) {
+    const source = Array.isArray(values) ? values : [values];
+    const seen = new Set();
+    const result = [];
+    source.forEach((value) => {
+        const roleId = normalizeCrewRoleId(value);
+        if (roleId && !seen.has(roleId)) {
+            seen.add(roleId);
+            result.push(roleId);
+        }
+    });
+    return result;
 }
 
 /**
@@ -232,6 +253,101 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         }));
     }
 
+    function getAvailableCrewRoleIds(guildData) {
+        return getAvailableCrewRoles(guildData)
+            .filter((role) => role.available)
+            .map((role) => role.id);
+    }
+
+    function getRecruitmentRoleIds(guildData, requestedRoleIds = null) {
+        const available = new Set(getAvailableCrewRoleIds(guildData));
+        const source = requestedRoleIds === null
+            ? guildData?.recruitment?.roleIds
+            : requestedRoleIds;
+        return normalizeCrewRoleIds(source).filter((roleId) => available.has(roleId));
+    }
+
+    function buildCrewRolePayload(roleIds) {
+        return normalizeCrewRoleIds(roleIds).map((roleId) => {
+            const role = CREW_ROLE_BY_ID[roleId];
+            return {
+                id: role.id,
+                label: role.label,
+                gameLabel: role.gameLabel,
+                iconKey: role.iconKey
+            };
+        });
+    }
+
+    function getPendingApplications(guildData) {
+        const pending = Array.isArray(guildData?.pendingApplications) ? guildData.pendingApplications : [];
+        return pending
+            .map((entry) => ({
+                ...entry,
+                playFabId: normalizePlayFabId(entry?.playFabId || entry?.applicantId),
+                entityId: String(entry?.entityId || '').trim(),
+                entityType: String(entry?.entityType || 'title_player_account').trim() || 'title_player_account',
+                crewRoleId: normalizeCrewRoleId(entry?.crewRoleId || entry?.roleId),
+                appliedAt: String(entry?.appliedAt || new Date().toISOString())
+            }))
+            .filter((entry) => entry.playFabId || entry.entityId);
+    }
+
+    function findPendingApplication(guildData, applicantId) {
+        const target = normalizePlayFabId(applicantId);
+        const raw = String(applicantId || '').trim();
+        return getPendingApplications(guildData).find((entry) => (
+            (target && normalizePlayFabId(entry.playFabId) === target)
+            || (raw && String(entry.entityId || '') === raw)
+        )) || null;
+    }
+
+    function upsertPendingApplication(guildData, application) {
+        const pending = getPendingApplications(guildData);
+        const nextPlayFabId = normalizePlayFabId(application?.playFabId);
+        const nextEntityId = String(application?.entityId || '').trim();
+        const filtered = pending.filter((entry) => {
+            if (nextPlayFabId && normalizePlayFabId(entry.playFabId) === nextPlayFabId) return false;
+            if (nextEntityId && String(entry.entityId || '') === nextEntityId) return false;
+            return true;
+        });
+        filtered.push({
+            ...application,
+            playFabId: nextPlayFabId,
+            entityId: nextEntityId,
+            entityType: String(application?.entityType || 'title_player_account').trim() || 'title_player_account',
+            crewRoleId: normalizeCrewRoleId(application?.crewRoleId),
+            appliedAt: application?.appliedAt || new Date().toISOString()
+        });
+        guildData.pendingApplications = filtered;
+        return filtered;
+    }
+
+    function removePendingApplication(guildData, applicantId) {
+        const target = normalizePlayFabId(applicantId);
+        const raw = String(applicantId || '').trim();
+        guildData.pendingApplications = getPendingApplications(guildData).filter((entry) => {
+            if (target && normalizePlayFabId(entry.playFabId) === target) return false;
+            if (raw && String(entry.entityId || '') === raw) return false;
+            return true;
+        });
+        return guildData.pendingApplications;
+    }
+
+    function buildRecruitmentInfo(guildData) {
+        const roleIds = getRecruitmentRoleIds(guildData);
+        const companionCount = countCrewCompanions(guildData);
+        const maxCompanions = Math.max(1, Number(guildData?.maxCompanions || MAX_CREW_COMPANIONS) || MAX_CREW_COMPANIONS);
+        const isOpen = guildData?.recruitment?.isOpen !== false && roleIds.length > 0 && companionCount < maxCompanions;
+        return {
+            isOpen,
+            roleIds,
+            roles: buildCrewRolePayload(roleIds),
+            message: sanitizeRecruitmentMessage(guildData?.recruitment?.message),
+            pendingApplicationsCount: getPendingApplications(guildData).length
+        };
+    }
+
     function buildGuildCrewMeta(guildData, playFabId, playerLevel = 1) {
         const roleId = getAssignedCrewRole(playFabId, guildData);
         const role = CREW_ROLE_BY_ID[roleId] || null;
@@ -247,6 +363,48 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             maxCompanions: Number(guildData?.maxCompanions || MAX_CREW_COMPANIONS),
             availableRoles: getAvailableCrewRoles(guildData)
         };
+    }
+
+    async function getGuildName(guildId) {
+        try {
+            const groupResult = await callTitleScopedApi(PlayFabGroups.GetGroup, {
+                Group: { Id: guildId, Type: 'group' }
+            });
+            return String(groupResult?.GroupName || '').trim();
+        } catch (error) {
+            console.warn('[CrewRecruitment] Failed to resolve guild name:', error?.errorMessage || error?.message || error);
+            return '';
+        }
+    }
+
+    async function syncCrewRecruitmentPost(guildId, guildName, guildData) {
+        const recruitment = buildRecruitmentInfo(guildData);
+        const db = admin.firestore();
+        const docRef = db.collection(CREW_RECRUITMENT_COLLECTION).doc(String(guildId));
+        const now = new Date().toISOString();
+        guildData.recruitment = {
+            ...(guildData.recruitment || {}),
+            isOpen: recruitment.isOpen,
+            roleIds: recruitment.roleIds,
+            message: recruitment.message,
+            updatedAt: now
+        };
+
+        await docRef.set({
+            guildId: String(guildId),
+            guildName: String(guildName || guildData?.name || '').trim() || '海賊団',
+            captainName: String(guildData?.captainName || '').trim(),
+            ownerPlayFabId: normalizePlayFabId(guildData?.ownerPlayFabId),
+            isOpen: recruitment.isOpen,
+            roleIds: recruitment.roleIds,
+            roles: recruitment.roles,
+            message: recruitment.message,
+            companionCount: countCrewCompanions(guildData),
+            maxCompanions: Number(guildData?.maxCompanions || MAX_CREW_COMPANIONS),
+            pendingApplicationsCount: recruitment.pendingApplicationsCount,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAtIso: now
+        }, { merge: true });
     }
 
     function handleGuildAccessError(res, error) {
@@ -325,6 +483,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const currentLevel = calculateGuildLevel(guildData.exp);
             const requesterLevel = await getPlayerLevel(requesterPlayFabId).catch(() => 1);
             const crewMeta = buildGuildCrewMeta(guildData, requesterPlayFabId, requesterLevel);
+            const recruitment = buildRecruitmentInfo(guildData);
 
             // 次のレベルまでの必要経験値を計算
             const nextLevel = currentLevel < 10 ? currentLevel + 1 : 10;
@@ -356,14 +515,199 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     crewRankDecorationClass: crewMeta.rankDecorationClass,
                     crewRankTitle: crewMeta.rankTitle,
                     availableRoles: crewMeta.availableRoles,
+                    recruitment,
+                    isOwner: normalizePlayFabId(guildData?.ownerPlayFabId) === normalizePlayFabId(requesterPlayFabId),
                     role: memberRoleLabel,
-                    pendingApplicationsCount: (guildData.pendingApplications || []).length
+                    pendingApplicationsCount: recruitment.pendingApplicationsCount
                 }
             });
 
         } catch (error) {
             console.error('[ギルド情報取得エラー]', error.errorMessage || error.message);
             res.status(500).json({ error: 'ギルド情報の取得に失敗しました。', details: error.errorMessage || error.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: 募集中の海賊団一覧を取得
+    // ----------------------------------------------------
+    app.post('/api/crew-recruitment/list', async (req, res) => {
+        const { playFabId } = req.body;
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            let currentGuildId = '';
+            let appliedGuildIds = new Set();
+            const requesterEntity = await resolvePlayerEntityKey(requesterPlayFabId).catch(() => null);
+            if (requesterEntity?.Id && requesterEntity?.Type) {
+                const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, {
+                    Entity: requesterEntity
+                }).catch(() => null);
+                const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
+                currentGuildId = String(groups[0]?.Group?.Id || '');
+
+                const opportunities = await callTitleScopedApi(PlayFabGroups.ListMembershipOpportunities, {
+                    Entity: requesterEntity
+                }).catch(() => null);
+                const applications = Array.isArray(opportunities?.Applications) ? opportunities.Applications : [];
+                appliedGuildIds = new Set(applications.map((entry) => String(entry?.Group?.Id || '')).filter(Boolean));
+            }
+
+            const snapshot = await admin.firestore()
+                .collection(CREW_RECRUITMENT_COLLECTION)
+                .where('isOpen', '==', true)
+                .limit(CREW_RECRUITMENT_LIST_LIMIT)
+                .get();
+
+            const posts = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data() || {};
+                const roleIds = normalizeCrewRoleIds(data.roleIds);
+                if (roleIds.length === 0) return;
+                const guildId = String(data.guildId || doc.id || '').trim();
+                if (!guildId) return;
+                const updatedAt = data.updatedAtIso
+                    || (data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : '')
+                    || '';
+                posts.push({
+                    guildId,
+                    guildName: String(data.guildName || '海賊団').trim() || '海賊団',
+                    captainName: String(data.captainName || '').trim(),
+                    message: sanitizeRecruitmentMessage(data.message),
+                    roleIds,
+                    roles: buildCrewRolePayload(roleIds),
+                    companionCount: Number(data.companionCount || 0),
+                    maxCompanions: Number(data.maxCompanions || MAX_CREW_COMPANIONS),
+                    pendingApplicationsCount: Number(data.pendingApplicationsCount || 0),
+                    updatedAt,
+                    canApply: !currentGuildId && !appliedGuildIds.has(guildId),
+                    hasApplied: appliedGuildIds.has(guildId),
+                    isOwnGuild: currentGuildId === guildId
+                });
+            });
+
+            posts.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+            res.json({ posts });
+        } catch (error) {
+            console.error('[CrewRecruitmentList]', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '募集掲示板の取得に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: 海賊団の募集内容を保存（船長用）
+    // ----------------------------------------------------
+    app.post('/api/crew-recruitment/save', async (req, res) => {
+        const { playFabId, guildId } = req.body;
+        if (!playFabId || !guildId) return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
+            const wantsOpen = req.body?.isOpen !== false;
+            const roleIds = getRecruitmentRoleIds(guildData, req.body?.roleIds);
+            if (wantsOpen && roleIds.length === 0) {
+                return res.status(400).json({ error: '募集する空き役職を選んでください。' });
+            }
+
+            const guildName = await getGuildName(guildId);
+            guildData.recruitment = {
+                isOpen: wantsOpen && roleIds.length > 0,
+                roleIds,
+                message: sanitizeRecruitmentMessage(req.body?.message),
+                updatedAt: new Date().toISOString()
+            };
+            await syncCrewRecruitmentPost(guildId, guildName, guildData);
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
+            res.json({
+                success: true,
+                recruitment: buildRecruitmentInfo(guildData)
+            });
+        } catch (error) {
+            if (handleGuildAccessError(res, error)) return;
+            console.error('[CrewRecruitmentSave]', error?.errorMessage || error?.message || error);
+            res.status(500).json({ error: '募集内容の保存に失敗しました。', details: error?.errorMessage || error?.message });
+        }
+    });
+
+    // ----------------------------------------------------
+    // API: 募集掲示板から加入申請
+    // ----------------------------------------------------
+    app.post('/api/crew-recruitment/apply', async (req, res) => {
+        const { playFabId, guildId } = req.body;
+        const requestedRoleId = normalizeCrewRoleId(req.body?.crewRoleId || req.body?.roleId);
+        if (!playFabId || !guildId) return res.status(400).json({ error: 'IDまたはギルドIDがありません。' });
+        if (!requestedRoleId) return res.status(400).json({ error: '役職を選んでください。' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: requesterPlayFabId,
+                ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true, ShowLinkedAccounts: true, ShowEntity: true }
+            });
+            const profile = entityResult?.PlayerProfile || {};
+            const entityKey = {
+                Id: profile?.Entity?.Id || profile?.PlayerId,
+                Type: profile?.Entity?.Type || 'title_player_account'
+            };
+            if (!entityKey.Id || !entityKey.Type) {
+                return res.status(500).json({ error: 'プレイヤー情報の取得に失敗しました。' });
+            }
+
+            const membershipResult = await callTitleScopedApi(PlayFabGroups.ListMembership, { Entity: entityKey });
+            if (Array.isArray(membershipResult?.Groups) && membershipResult.Groups.length > 0) {
+                return res.status(400).json({ error: '既に海賊団に所属しています。' });
+            }
+
+            const guildData = await getGuildData(guildId, promisifyPlayFab);
+            const recruitment = buildRecruitmentInfo(guildData);
+            if (!recruitment.isOpen || !recruitment.roleIds.includes(requestedRoleId)) {
+                const roleLabel = CREW_ROLE_BY_ID[requestedRoleId]?.label || '選択した役職';
+                return res.status(400).json({ error: `${roleLabel}は現在募集されていません。` });
+            }
+            if (findPendingApplication(guildData, requesterPlayFabId)) {
+                return res.status(400).json({ error: 'この海賊団には既に申請済みです。' });
+            }
+
+            const groupEntity = { Id: guildId, Type: 'group' };
+            await callTitleScopedApi(PlayFabGroups.ApplyToGroup, {
+                Group: groupEntity,
+                Entity: entityKey,
+                AutoAcceptOutstandingInvite: false
+            });
+
+            upsertPendingApplication(guildData, {
+                playFabId: requesterPlayFabId,
+                entityId: entityKey.Id,
+                entityType: entityKey.Type,
+                displayName: profile.DisplayName || requesterPlayFabId,
+                avatarUrl: profile.AvatarUrl || null,
+                crewRoleId: requestedRoleId,
+                source: 'recruitment_board',
+                appliedAt: new Date().toISOString()
+            });
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData);
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
+            res.json({
+                success: true,
+                message: '加入申請を送信しました。',
+                crewRoleId: requestedRoleId,
+                crewRoleLabel: CREW_ROLE_BY_ID[requestedRoleId]?.label || ''
+            });
+        } catch (error) {
+            console.error('[CrewRecruitmentApply]', error?.errorMessage || error?.message || error);
+            const message = String(error?.errorMessage || error?.message || '');
+            const alreadyApplied = /already|application|exists/i.test(message);
+            res.status(alreadyApplied ? 400 : 500).json({
+                error: alreadyApplied ? 'この海賊団には既に申請済みです。' : '加入申請の送信に失敗しました。',
+                details: error?.errorMessage || error?.message
+            });
         }
     });
 
@@ -445,6 +789,12 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 captainName,
                 maxCompanions: MAX_CREW_COMPANIONS,
                 crewRoles: {},
+                recruitment: {
+                    isOpen: false,
+                    roleIds: [],
+                    message: '',
+                    updatedAt: new Date().toISOString()
+                },
                 guildShipId: `guild_ship_${guildId}`
             };
             await saveGuildData(guildId, initialGuildData, promisifyPlayFab);
@@ -638,7 +988,6 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 roleAssignments[normalizedRequesterId] = requestedRoleId;
                 guildData.crewRoles = roleAssignments;
                 guildData.maxCompanions = maxCompanions;
-                await saveGuildData(guildId, guildData, promisifyPlayFab);
 
                 console.log(`[ギルド加入] 成功: ${requesterPlayFabId} がギルド ${guildId} に ${requestedRoleId} として加入しました。`);
 
@@ -652,6 +1001,11 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 } catch (e) {
                     console.warn('[ギルド加入] ギルド名の取得に失敗しました。', e.message);
                 }
+
+                await syncCrewRecruitmentPost(guildId, guildName, guildData).catch((syncError) => {
+                    console.warn('[ギルド加入] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+                });
+                await saveGuildData(guildId, guildData, promisifyPlayFab);
 
                 res.json({
                     success: true,
@@ -734,6 +1088,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             const roleAssignments = getCrewRoleAssignments(guildData);
             delete roleAssignments[normalizePlayFabId(requesterPlayFabId)];
             guildData.crewRoles = roleAssignments;
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
+                console.warn('[ギルド脱退] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+            });
             await saveGuildData(guildId, guildData, promisifyPlayFab);
 
             console.log(`[ギルド脱退] 成功: ${playFabId} がギルド ${guildId} から脱退しました。`);
@@ -866,38 +1223,74 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[加入申請取得] ギルド ${guildId} の加入申請を取得します...`);
 
         try {
-            await assertGuildOwner(requesterPlayFabId, guildId);
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
             const groupEntity = { Id: guildId, Type: 'group' };
+            const storedPending = getPendingApplications(guildData);
+            const storedByEntity = new Map(storedPending.map((entry) => [String(entry.entityId || ''), entry]));
+            const storedByPlayer = new Map(storedPending.map((entry) => [normalizePlayFabId(entry.playFabId), entry]));
+            const applicationMap = new Map();
+
+            function addApplication(entry) {
+                const role = CREW_ROLE_BY_ID[entry.crewRoleId] || null;
+                const key = normalizePlayFabId(entry.playFabId) || String(entry.entityId || '');
+                if (!key) return;
+                applicationMap.set(key, {
+                    playFabId: entry.playFabId || entry.entityId,
+                    entityId: entry.entityId || '',
+                    displayName: entry.displayName || entry.playFabId || entry.entityId || 'Unknown',
+                    avatarUrl: entry.avatarUrl || null,
+                    appliedAt: entry.appliedAt || new Date().toISOString(),
+                    crewRoleId: entry.crewRoleId || '',
+                    crewRoleLabel: role?.label || '',
+                    crewGameLabel: role?.gameLabel || '',
+                    crewIconKey: role?.iconKey || ''
+                });
+            }
+
+            storedPending.forEach(addApplication);
 
             // PlayFab Groups APIで申請リストを取得
             const applicationsResult = await callTitleScopedApi(PlayFabGroups.ListGroupApplications, {
                 Group: groupEntity
+            }).catch((error) => {
+                console.warn('[加入申請取得] PlayFab申請リストの取得に失敗:', error?.errorMessage || error?.message || error);
+                return null;
             });
 
-            const applications = [];
-            if (applicationsResult.Applications && applicationsResult.Applications.length > 0) {
+            if (applicationsResult?.Applications && applicationsResult.Applications.length > 0) {
                 for (const app of applicationsResult.Applications) {
-                    const entityId = app.Entity.Id;
+                    const entityId = String(app?.Entity?.Id || '').trim();
+                    const stored = storedByEntity.get(entityId) || storedByPlayer.get(normalizePlayFabId(entityId)) || null;
 
                     try {
                         const profileResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                            PlayFabId: entityId,
+                            PlayFabId: stored?.playFabId || entityId,
                             ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
                         });
 
                         if (profileResult.PlayerProfile) {
-                            applications.push({
-                                playFabId: entityId,
+                            addApplication({
+                                playFabId: stored?.playFabId || entityId,
+                                entityId,
                                 displayName: profileResult.PlayerProfile.DisplayName || 'Unknown',
                                 avatarUrl: profileResult.PlayerProfile.AvatarUrl || null,
-                                appliedAt: app.Created || new Date().toISOString()
+                                appliedAt: stored?.appliedAt || app.Created || new Date().toISOString(),
+                                crewRoleId: stored?.crewRoleId || ''
                             });
                         }
                     } catch (profileError) {
                         console.warn(`[加入申請取得] Entity ${entityId} のプロフィール取得に失敗:`, profileError.message);
+                        addApplication({
+                            ...(stored || {}),
+                            playFabId: stored?.playFabId || entityId,
+                            entityId,
+                            appliedAt: stored?.appliedAt || app.Created || new Date().toISOString()
+                        });
                     }
                 }
             }
+
+            const applications = Array.from(applicationMap.values());
 
             console.log(`[加入申請取得] 成功: ${applications.length} 件の申請を取得しました。`);
 
@@ -917,6 +1310,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
     // ----------------------------------------------------
     app.post('/api/approve-guild-application', async (req, res) => {
         const { playFabId, guildId, applicantId } = req.body;
+        const requestedRoleId = normalizeCrewRoleId(req.body?.crewRoleId || req.body?.roleId);
         if (!playFabId || !guildId || !applicantId) {
             return res.status(400).json({ error: '必要な情報が不足しています。' });
         }
@@ -926,11 +1320,26 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[加入申請承認] ${applicantId} の申請を承認します...`);
 
         try {
-            await assertGuildOwner(requesterPlayFabId, guildId);
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
+            const pending = findPendingApplication(guildData, applicantId);
+            const approvedRoleId = requestedRoleId || normalizeCrewRoleId(pending?.crewRoleId);
+            if (!approvedRoleId) {
+                return res.status(400).json({ error: '承認する役職を選んでください。' });
+            }
+            const roleAssignments = getCrewRoleAssignments(guildData);
+            const maxCompanions = Math.max(1, Number(guildData.maxCompanions || MAX_CREW_COMPANIONS) || MAX_CREW_COMPANIONS);
+            if (Object.keys(roleAssignments).length >= maxCompanions) {
+                return res.status(400).json({ error: `仲間は最大${maxCompanions}名までです。` });
+            }
+            if (Object.values(roleAssignments).map(normalizeCrewRoleId).includes(approvedRoleId)) {
+                const roleLabel = CREW_ROLE_BY_ID[approvedRoleId]?.label || '選択した役職';
+                return res.status(400).json({ error: `${roleLabel}はすでに同じ海賊団内で使われています。` });
+            }
+
             // 申請者のEntityKeyを取得
             const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: applicantId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
+                ProfileConstraints: { ShowLinkedAccounts: true, ShowEntity: true }
             });
 
             if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
@@ -938,8 +1347,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             }
 
             const applicantEntityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
+                Id: pending?.entityId || entityResult.PlayerProfile.Entity?.Id || entityResult.PlayerProfile.PlayerId,
+                Type: pending?.entityType || entityResult.PlayerProfile.Entity?.Type || 'title_player_account'
             };
 
             const groupEntity = { Id: guildId, Type: 'group' };
@@ -950,11 +1359,21 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 Entity: applicantEntityKey
             });
 
+            roleAssignments[normalizePlayFabId(applicantId)] = approvedRoleId;
+            guildData.crewRoles = roleAssignments;
+            removePendingApplication(guildData, applicantId);
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
+                console.warn('[加入申請承認] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+            });
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
+
             console.log(`[加入申請承認] 成功: ${applicantId} をギルドに追加しました。`);
 
             res.json({
                 success: true,
-                message: '加入申請を承認しました。'
+                message: '加入申請を承認しました。',
+                crewRoleId: approvedRoleId,
+                crewRoleLabel: CREW_ROLE_BY_ID[approvedRoleId]?.label || ''
             });
 
         } catch (error) {
@@ -978,11 +1397,12 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         console.log(`[加入申請拒否] ${applicantId} の申請を拒否します...`);
 
         try {
-            await assertGuildOwner(requesterPlayFabId, guildId);
+            const guildData = await assertGuildOwner(requesterPlayFabId, guildId);
+            const pending = findPendingApplication(guildData, applicantId);
             // 申請者のEntityKeyを取得
             const entityResult = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
                 PlayFabId: applicantId,
-                ProfileConstraints: { ShowLinkedAccounts: true }
+                ProfileConstraints: { ShowLinkedAccounts: true, ShowEntity: true }
             });
 
             if (!entityResult.PlayerProfile || !entityResult.PlayerProfile.PlayerId) {
@@ -990,8 +1410,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
             }
 
             const applicantEntityKey = {
-                Id: entityResult.PlayerProfile.PlayerId,
-                Type: 'title_player_account'
+                Id: pending?.entityId || entityResult.PlayerProfile.Entity?.Id || entityResult.PlayerProfile.PlayerId,
+                Type: pending?.entityType || entityResult.PlayerProfile.Entity?.Type || 'title_player_account'
             };
 
             const groupEntity = { Id: guildId, Type: 'group' };
@@ -1001,6 +1421,12 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                 Group: groupEntity,
                 Entity: applicantEntityKey
             });
+
+            removePendingApplication(guildData, applicantId);
+            await syncCrewRecruitmentPost(guildId, await getGuildName(guildId), guildData).catch((syncError) => {
+                console.warn('[加入申請拒否] 募集掲示板の同期に失敗しました。', syncError?.message || syncError);
+            });
+            await saveGuildData(guildId, guildData, promisifyPlayFab);
 
             console.log(`[加入申請拒否] 成功: ${applicantId} の申請を削除しました。`);
 

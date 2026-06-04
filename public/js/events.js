@@ -4,7 +4,13 @@ import {
     createGuild as requestCreateGuild,
     joinGuild as requestJoinGuild,
     leaveGuild as requestLeaveGuild,
-    getGuildMembers as requestGuildMembers
+    getGuildMembers as requestGuildMembers,
+    getGuildApplications,
+    approveGuildApplication,
+    rejectGuildApplication,
+    getCrewRecruitmentBoard,
+    saveCrewRecruitment,
+    applyCrewRecruitment
 } from './playfabClient.js';
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
@@ -23,6 +29,9 @@ let bound = false;
 let currentGuild = null;
 let currentLevel = 1;
 let currentRankName = '見習い';
+let currentRecruitmentPosts = [];
+let currentApplications = [];
+let selectedRecruitmentRoleIds = new Set();
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -136,6 +145,193 @@ function renderRoleGuide(availability = new Map()) {
             select.value = button.dataset.crewRoleId || '';
             renderRoleGuide(availability);
         });
+    });
+}
+
+function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getAvailableRoleMap(availableRoles = []) {
+    return new Map(
+        Array.isArray(availableRoles)
+            ? availableRoles.map((role) => [String(role.id || '').trim(), role.available !== false])
+            : []
+    );
+}
+
+function renderRecruitmentRoleGuide(guild) {
+    const guide = document.getElementById('crewRecruitmentRoleGuide');
+    if (!guide) return;
+    const availability = getAvailableRoleMap(guild?.availableRoles || []);
+    guide.innerHTML = CREW_ROLE_DEFS.map((role) => {
+        const known = availability.has(role.id);
+        const available = known ? availability.get(role.id) : true;
+        const selected = selectedRecruitmentRoleIds.has(role.id);
+        return `
+            <button
+                type="button"
+                class="crew-role-card ${selected ? 'is-selected' : ''} ${available ? '' : 'is-disabled'} crew-rank-3"
+                data-recruitment-role-id="${escapeHtml(role.id)}"
+                data-crew-icon="${escapeHtml(role.iconKey)}"
+                aria-pressed="${selected ? 'true' : 'false'}"
+                ${available ? '' : 'disabled'}
+            >
+                <span class="crew-role-icon" aria-hidden="true"></span>
+                <span class="crew-role-copy">
+                    <strong>${escapeHtml(role.label)}</strong>
+                    <span>${escapeHtml(role.gameLabel)}${available ? '' : ' / 使用中'}</span>
+                </span>
+            </button>
+        `;
+    }).join('');
+
+    guide.querySelectorAll('[data-recruitment-role-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (button.disabled) return;
+            const roleId = button.dataset.recruitmentRoleId || '';
+            if (selectedRecruitmentRoleIds.has(roleId)) {
+                selectedRecruitmentRoleIds.delete(roleId);
+            } else {
+                selectedRecruitmentRoleIds.add(roleId);
+            }
+            renderRecruitmentRoleGuide(guild);
+        });
+    });
+}
+
+function renderRecruitmentManager(guild) {
+    const panel = document.getElementById('crewRecruitmentManagePanel');
+    const note = document.getElementById('crewRecruitmentManageNote');
+    const messageInput = document.getElementById('crewRecruitmentMessage');
+    const saveBtn = document.getElementById('btnSaveCrewRecruitment');
+    const closeBtn = document.getElementById('btnCloseCrewRecruitment');
+    const isOwner = !!guild?.guildId && (guild.isOwner || guild.role === '船長');
+    if (panel) panel.hidden = !isOwner;
+    if (!isOwner) return;
+
+    const recruitment = guild.recruitment || {};
+    selectedRecruitmentRoleIds = new Set(Array.isArray(recruitment.roleIds) ? recruitment.roleIds : []);
+    if (messageInput) messageInput.value = recruitment.message || '';
+    if (note) {
+        const openCount = selectedRecruitmentRoleIds.size;
+        note.textContent = recruitment.isOpen
+            ? `現在 ${openCount} 役職を募集中です。`
+            : '募集する役職を選んで公開できます。';
+    }
+    if (saveBtn) saveBtn.disabled = false;
+    if (closeBtn) closeBtn.disabled = !recruitment.isOpen;
+    renderRecruitmentRoleGuide(guild);
+}
+
+function renderApplications(applications, guild) {
+    const panel = document.getElementById('crewApplicationsPanel');
+    const list = document.getElementById('crewApplicationsList');
+    const empty = document.getElementById('crewApplicationsEmpty');
+    const summary = document.getElementById('crewApplicationsSummary');
+    const isOwner = !!guild?.guildId && (guild.isOwner || guild.role === '船長');
+    if (panel) panel.hidden = !isOwner;
+    if (!isOwner || !list || !empty) return;
+
+    const entries = Array.isArray(applications) ? applications : [];
+    list.innerHTML = '';
+    empty.hidden = entries.length > 0;
+    if (summary) summary.textContent = `${entries.length}件`;
+    const availability = getAvailableRoleMap(guild?.availableRoles || []);
+
+    entries.forEach((app) => {
+        const playFabId = String(app.playFabId || '').trim();
+        const roleId = String(app.crewRoleId || '').trim();
+        const roleDef = CREW_ROLE_BY_ID[roleId] || null;
+        const availableOptions = CREW_ROLE_DEFS.map((role) => {
+            const available = availability.has(role.id) ? availability.get(role.id) : true;
+            const selected = role.id === roleId;
+            const disabled = !available && !selected;
+            return `<option value="${escapeHtml(role.id)}" ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${escapeHtml(role.label)}${available || selected ? '' : '（使用中）'}</option>`;
+        }).join('');
+        const card = document.createElement('article');
+        card.className = 'event-card is-pending crew-application-card';
+        if (roleDef?.iconKey) card.dataset.crewIcon = roleDef.iconKey;
+        card.innerHTML = `
+            <div class="event-card-head">
+                <span class="crew-role-icon" aria-hidden="true"></span>
+                <div>
+                    <div class="event-card-type">加入申請</div>
+                    <h3>${buildPlayerTriggerHtml(playFabId, app.displayName || playFabId || 'Unknown', { className: 'player-link-inline' })}</h3>
+                </div>
+                <span class="event-status">${escapeHtml(app.crewRoleLabel || roleDef?.label || '役職未選択')}</span>
+            </div>
+            <div class="event-card-meta">
+                <span>ID ${escapeHtml(playFabId || '-')}</span>
+                ${app.appliedAt ? `<span>${escapeHtml(formatDateTime(app.appliedAt))}</span>` : ''}
+            </div>
+            <div class="crew-application-role-row">
+                <label>承認役職<select data-application-role>${availableOptions}</select></label>
+            </div>
+            <div class="event-card-actions">
+                <button class="event-action-btn is-approve js-approve-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">承認</button>
+                <button class="event-action-btn is-reject js-reject-crew-application" type="button" data-applicant-id="${escapeHtml(playFabId)}">拒否</button>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+function renderRecruitmentBoard(posts, guild) {
+    const list = document.getElementById('crewRecruitmentBoardList');
+    const empty = document.getElementById('crewRecruitmentBoardEmpty');
+    const summary = document.getElementById('crewRecruitmentBoardSummary');
+    if (!list || !empty) return;
+
+    const entries = Array.isArray(posts) ? posts : [];
+    list.innerHTML = '';
+    empty.hidden = entries.length > 0;
+    if (summary) summary.textContent = `${entries.length}件`;
+
+    entries.forEach((post) => {
+        const roleOptions = (Array.isArray(post.roles) ? post.roles : [])
+            .map((role) => `<option value="${escapeHtml(role.id)}">${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel || '')}</option>`)
+            .join('');
+        const status = guild?.guildId
+            ? '所属中'
+            : post.hasApplied
+                ? '申請済み'
+                : post.canApply
+                    ? '募集中'
+                    : '申請不可';
+        const card = document.createElement('article');
+        card.className = `event-card ${post.hasApplied ? 'is-pending' : 'is-approved'}`;
+        card.innerHTML = `
+            <div class="event-card-head">
+                <div>
+                    <div class="event-card-type">勧誘掲示板</div>
+                    <h3>${escapeHtml(post.guildName || '海賊団')}</h3>
+                </div>
+                <span class="event-status">${escapeHtml(status)}</span>
+            </div>
+            <div class="event-card-meta">
+                ${post.captainName ? `<span>船長 ${escapeHtml(post.captainName)}</span>` : ''}
+                <span>仲間 ${Number(post.companionCount || 0)} / ${Number(post.maxCompanions || 7)}人</span>
+                ${post.updatedAt ? `<span>${escapeHtml(formatDateTime(post.updatedAt))}</span>` : ''}
+            </div>
+            ${post.message ? `<p class="event-card-desc">${escapeHtml(post.message)}</p>` : ''}
+            <div class="event-card-meta">
+                ${(post.roles || []).map((role) => `<span>${escapeHtml(role.label)}</span>`).join('')}
+            </div>
+            <div class="event-card-actions">
+                <select class="crew-recruitment-role-select" data-board-role ${post.canApply ? '' : 'disabled'}>${roleOptions}</select>
+                <button class="event-action-btn is-join js-apply-crew-recruitment" type="button" data-guild-id="${escapeHtml(post.guildId)}" ${post.canApply ? '' : 'disabled'}>加入申請</button>
+            </div>
+        `;
+        list.appendChild(card);
     });
 }
 
@@ -288,25 +484,35 @@ async function loadCompanionPage(playFabId) {
     if (!playFabId) return;
     setMessage('');
 
-    const [statsData, guildData] = await Promise.all([
+    const [statsData, guildData, boardData] = await Promise.all([
         getPlayerStats(playFabId, { isSilent: true }).catch(() => null),
-        getGuildInfo(playFabId, null, { isSilent: true }).catch(() => null)
+        getGuildInfo(playFabId, null, { isSilent: true }).catch(() => null),
+        getCrewRecruitmentBoard(playFabId, { isSilent: true }).catch(() => null)
     ]);
 
     currentLevel = normalizeLevel(statsData?.stats);
     currentRankName = getRankName(currentLevel);
     currentGuild = guildData?.guild || null;
+    currentRecruitmentPosts = Array.isArray(boardData?.posts) ? boardData.posts : [];
 
     let members = [];
     if (currentGuild?.guildId) {
         const memberData = await requestGuildMembers(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
         members = Array.isArray(memberData?.members) ? memberData.members : [];
     }
+    currentApplications = [];
+    if (currentGuild?.guildId && (currentGuild.isOwner || currentGuild.role === '船長')) {
+        const applicationsData = await getGuildApplications(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
+        currentApplications = Array.isArray(applicationsData?.applications) ? applicationsData.applications : [];
+    }
 
     updateRankSummary();
     renderOverview(currentGuild);
     renderMembers(members);
     renderInvitePanel(currentGuild);
+    renderRecruitmentManager(currentGuild);
+    renderApplications(currentApplications, currentGuild);
+    renderRecruitmentBoard(currentRecruitmentPosts, currentGuild);
 }
 
 async function createCrew(playFabId) {
@@ -368,6 +574,87 @@ async function leaveCrew(playFabId) {
     }
 }
 
+async function saveRecruitment(playFabId, isOpen = true) {
+    if (!currentGuild?.guildId) return;
+    const roleIds = Array.from(selectedRecruitmentRoleIds);
+    if (isOpen && roleIds.length === 0) {
+        setMessage('募集する役職を選んでください。', true);
+        return;
+    }
+    try {
+        const message = document.getElementById('crewRecruitmentMessage')?.value || '';
+        const data = await saveCrewRecruitment(playFabId, currentGuild.guildId, {
+            isOpen,
+            roleIds: isOpen ? roleIds : [],
+            message
+        }, { throwOnError: true });
+        if (data?.success) {
+            setMessage(isOpen ? '募集を掲示板に公開しました。' : '募集を停止しました。');
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '募集内容の保存に失敗しました。', true);
+    }
+}
+
+async function applyToRecruitment(playFabId, button) {
+    const guildId = String(button?.dataset?.guildId || '').trim();
+    const card = button?.closest?.('.event-card');
+    const crewRoleId = String(card?.querySelector?.('[data-board-role]')?.value || '').trim();
+    if (!guildId || !crewRoleId) {
+        setMessage('申請する海賊団と役職を選んでください。', true);
+        return;
+    }
+    try {
+        const data = await applyCrewRecruitment(playFabId, guildId, crewRoleId, { throwOnError: true });
+        if (data?.success) {
+            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}で加入申請を送りました。`);
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '加入申請の送信に失敗しました。', true);
+    }
+}
+
+async function approveApplication(playFabId, button) {
+    if (!currentGuild?.guildId) return;
+    const applicantId = String(button?.dataset?.applicantId || '').trim();
+    const card = button?.closest?.('.event-card');
+    const crewRoleId = String(card?.querySelector?.('[data-application-role]')?.value || '').trim();
+    if (!applicantId || !crewRoleId) {
+        setMessage('承認する申請と役職を選んでください。', true);
+        return;
+    }
+    try {
+        const data = await approveGuildApplication(playFabId, currentGuild.guildId, applicantId, { crewRoleId }, { throwOnError: true });
+        if (data?.success) {
+            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として加入を承認しました。`);
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '加入申請の承認に失敗しました。', true);
+    }
+}
+
+async function rejectApplication(playFabId, button) {
+    if (!currentGuild?.guildId) return;
+    const applicantId = String(button?.dataset?.applicantId || '').trim();
+    if (!applicantId) {
+        setMessage('拒否する申請を選んでください。', true);
+        return;
+    }
+    if (!confirm('この加入申請を拒否しますか？')) return;
+    try {
+        const data = await rejectGuildApplication(playFabId, currentGuild.guildId, applicantId, { throwOnError: true });
+        if (data?.success) {
+            setMessage('加入申請を拒否しました。');
+            await loadCompanionPage(playFabId);
+        }
+    } catch (error) {
+        setMessage(error?.message || error?.error || '加入申請の拒否に失敗しました。', true);
+    }
+}
+
 function bindEvents(playFabId) {
     if (bound) return;
     document.getElementById('btnReloadEvents')?.addEventListener('click', () => loadCompanionPage(window.myPlayFabId || playFabId));
@@ -379,6 +666,24 @@ function bindEvents(playFabId) {
     });
     document.getElementById('btnScanJoinCrew')?.addEventListener('click', () => joinCrewFromScan(window.myPlayFabId || playFabId));
     document.getElementById('btnLeaveCrew')?.addEventListener('click', () => leaveCrew(window.myPlayFabId || playFabId));
+    document.getElementById('btnSaveCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, true));
+    document.getElementById('btnCloseCrewRecruitment')?.addEventListener('click', () => saveRecruitment(window.myPlayFabId || playFabId, false));
+    document.getElementById('crewRecruitmentBoardList')?.addEventListener('click', (event) => {
+        const button = event.target?.closest?.('.js-apply-crew-recruitment');
+        if (!button) return;
+        applyToRecruitment(window.myPlayFabId || playFabId, button);
+    });
+    document.getElementById('crewApplicationsList')?.addEventListener('click', (event) => {
+        const approveButton = event.target?.closest?.('.js-approve-crew-application');
+        if (approveButton) {
+            approveApplication(window.myPlayFabId || playFabId, approveButton);
+            return;
+        }
+        const rejectButton = event.target?.closest?.('.js-reject-crew-application');
+        if (rejectButton) {
+            rejectApplication(window.myPlayFabId || playFabId, rejectButton);
+        }
+    });
     bound = true;
 }
 

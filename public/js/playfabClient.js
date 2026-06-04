@@ -235,12 +235,30 @@ export function getGuildApplications(playFabId, guildId, options) {
     return callApiWithLoader('/api/get-guild-applications', { playFabId, guildId }, options);
 }
 
-export function approveGuildApplication(playFabId, guildId, applicantId, options) {
-    return callApiWithLoader('/api/approve-guild-application', { playFabId, guildId, applicantId }, options);
+export function approveGuildApplication(playFabId, guildId, applicantId, payloadOrOptions, maybeOptions) {
+    const hasPayload = payloadOrOptions && typeof payloadOrOptions === 'object' && (
+        Object.prototype.hasOwnProperty.call(payloadOrOptions, 'crewRoleId')
+        || Object.prototype.hasOwnProperty.call(payloadOrOptions, 'roleId')
+    );
+    const payload = hasPayload ? payloadOrOptions : {};
+    const options = hasPayload ? maybeOptions : payloadOrOptions;
+    return callApiWithLoader('/api/approve-guild-application', { playFabId, guildId, applicantId, ...(payload || {}) }, options);
 }
 
 export function rejectGuildApplication(playFabId, guildId, applicantId, options) {
     return callApiWithLoader('/api/reject-guild-application', { playFabId, guildId, applicantId }, options);
+}
+
+export function getCrewRecruitmentBoard(playFabId, options) {
+    return callApiWithLoader('/api/crew-recruitment/list', { playFabId }, options);
+}
+
+export function saveCrewRecruitment(playFabId, guildId, payload = {}, options) {
+    return callApiWithLoader('/api/crew-recruitment/save', { playFabId, guildId, ...(payload || {}) }, options);
+}
+
+export function applyCrewRecruitment(playFabId, guildId, crewRoleId, options) {
+    return callApiWithLoader('/api/crew-recruitment/apply', { playFabId, guildId, crewRoleId }, options);
 }
 
 export function getNearbyChat(playFabId, x, y, mapId, options) {
