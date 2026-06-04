@@ -1356,9 +1356,9 @@ function getRewardItemsForReveal(data) {
 }
 
 function renderExplorationRewardChests(count) {
-    const total = Math.max(0, Math.min(6, Number(count || 0)));
+    const total = Math.max(0, Number(count || 0));
     if (!total) return '<span class="exploration-sequence-no-chest">なし</span>';
-    return Array.from({ length: total }, (_, index) => '<span class="exploration-sequence-mini-chest" style="--i:' + index + ';"></span>').join('');
+    return '<span class="exploration-sequence-mini-chest" style="--i:0;"></span>';
 }
 
 function getExplorationBattleLogLines(report) {
@@ -1407,6 +1407,9 @@ function showExplorationResultSummary(data, options = {}) {
     const bossResult = normalizeBossResult(report.bossResult);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
+    const awaitsChestOpen = rewardTotal > 0;
+    const resultLabel = getExplorationBossResultLabel(bossResult);
+    const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
@@ -1435,48 +1438,73 @@ function showExplorationResultSummary(data, options = {}) {
     existing?.remove();
 
     const overlay = document.createElement('div');
-    overlay.className = `exploration-result-overlay is-${bossResult}`;
+    overlay.className = `exploration-result-overlay is-${bossResult} ${awaitsChestOpen ? 'is-awaiting-open' : 'is-opened'}`;
     overlay.innerHTML = `
         <div class="exploration-result-dialog" role="dialog" aria-modal="true" aria-label="探索結果">
             <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
             <div class="exploration-result-head">
-                <span>${getExplorationBossResultLabel(bossResult)}</span>
+                <span data-exploration-result-state>${awaitsChestOpen ? '宝箱を発見' : resultLabel}</span>
                 <strong>${escapeHtml(report.destinationName || '探索結果')}</strong>
-                <small>${rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした'}</small>
+                <small data-exploration-result-hint>${awaitsChestOpen ? '宝箱を開けて探索結果を確認' : resultHint}</small>
             </div>
             <div class="exploration-result-showcase ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}">
-                <span class="exploration-result-chest ${rewardTotal > 0 ? 'is-open' : 'is-empty'}" aria-hidden="true"></span>
-                <div>
-                    <b>${rewardTotal > 0 ? '回収完了' : '回収なし'}</b>
-                    <span>${rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。'}</span>
+                <button type="button" class="exploration-result-chest-button" data-exploration-result-open aria-label="${awaitsChestOpen ? '宝箱を開ける' : '宝箱'}" ${awaitsChestOpen ? '' : 'disabled'}>
+                    <span class="exploration-result-chest ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}" aria-hidden="true"></span>
+                </button>
+                <div class="exploration-result-prompt">
+                    <b data-exploration-result-prompt-title>${awaitsChestOpen ? '宝箱を開ける' : '回収なし'}</b>
+                    <span data-exploration-result-prompt-text>${awaitsChestOpen ? 'クリックして中身を確認してください。' : '航路を確認して帰還しました。'}</span>
                 </div>
             </div>
-            <div class="exploration-result-body">
-                <div>
-                    <b>BOSS</b>
-                    <span>${escapeHtml(report.bossName || '遭遇なし')}</span>
+            <div class="exploration-result-details" data-exploration-result-details>
+                <div class="exploration-result-body">
+                    <div>
+                        <b>BOSS</b>
+                        <span>${escapeHtml(report.bossName || '遭遇なし')}</span>
+                    </div>
+                    <div>
+                        <b>結果</b>
+                        <span>${escapeHtml(getExplorationBossResultText(report, bossResult))}</span>
+                    </div>
+                    <div>
+                        <b>お宝</b>
+                        <span>${rewardTotal.toLocaleString('ja-JP')}個</span>
+                    </div>
                 </div>
-                <div>
-                    <b>結果</b>
-                    <span>${escapeHtml(getExplorationBossResultText(report, bossResult))}</span>
+                <ul class="exploration-result-rewards">${rewardHtml}</ul>
+                <div class="exploration-result-log">${logHtml}</div>
+                <div class="exploration-result-actions">
+                    <button type="button" data-exploration-result-close>閉じる</button>
+                    ${options.playFabId ? '<button type="button" data-exploration-result-next>次の探索</button>' : ''}
                 </div>
-                <div>
-                    <b>お宝</b>
-                    <span>${rewardTotal.toLocaleString('ja-JP')}個</span>
-                </div>
-            </div>
-            <ul class="exploration-result-rewards">${rewardHtml}</ul>
-            <div class="exploration-result-log">${logHtml}</div>
-            <div class="exploration-result-actions">
-                <button type="button" data-exploration-result-close>閉じる</button>
-                ${options.playFabId ? '<button type="button" data-exploration-result-next>次の探索</button>' : ''}
             </div>
         </div>
     `;
     document.body.appendChild(overlay);
 
     const close = () => overlay.remove();
+    const openResult = () => {
+        if (!awaitsChestOpen || overlay.classList.contains('is-opening') || overlay.classList.contains('is-opened')) return;
+        const openButton = overlay.querySelector('[data-exploration-result-open]');
+        const state = overlay.querySelector('[data-exploration-result-state]');
+        const hint = overlay.querySelector('[data-exploration-result-hint]');
+        const promptTitle = overlay.querySelector('[data-exploration-result-prompt-title]');
+        const promptText = overlay.querySelector('[data-exploration-result-prompt-text]');
+        if (openButton) openButton.disabled = true;
+        if (promptTitle) promptTitle.textContent = '開封中';
+        if (promptText) promptText.textContent = '宝箱を開けています。';
+        overlay.classList.add('is-opening');
+        window.setTimeout(() => {
+            overlay.classList.remove('is-awaiting-open', 'is-opening');
+            overlay.classList.add('is-opened');
+            if (state) state.textContent = resultLabel;
+            if (hint) hint.textContent = resultHint;
+            if (promptTitle) promptTitle.textContent = '回収完了';
+            if (promptText) promptText.textContent = '宝箱を開封し、戦利品を持ち帰りました。';
+        }, 760);
+    };
     overlay.querySelector('.exploration-result-close')?.addEventListener('click', close);
+    overlay.querySelector('[data-exploration-result-open]')?.addEventListener('click', openResult);
     overlay.querySelector('[data-exploration-result-close]')?.addEventListener('click', close);
     overlay.querySelector('[data-exploration-result-next]')?.addEventListener('click', () => {
         close();

@@ -158,16 +158,21 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     document.body.appendChild(sequence);
 
     const result = document.createElement('div');
-    result.className = 'exploration-result-overlay';
+    result.className = 'exploration-result-overlay is-opened';
     result.innerHTML = `
       <div class="exploration-result-dialog">
         <button type="button" class="exploration-result-close">×</button>
         <div class="exploration-result-head"><span>勝利</span><strong>result</strong><small>1個のお宝を回収</small></div>
-        <div class="exploration-result-showcase"><span class="exploration-result-chest is-open"></span><div><b>回収完了</b><span>clear</span></div></div>
-        <div class="exploration-result-body"><div><b>BOSS</b><span>clear</span></div></div>
-        <ul class="exploration-result-rewards"><li class="exploration-result-reward is-rare"><span class="exploration-result-reward-icon"></span><strong>reward</strong><span>x1</span></li></ul>
-        <div class="exploration-result-log"><div>battle log</div></div>
-        <div class="exploration-result-actions"><button type="button">close</button><button type="button">next</button></div>
+        <div class="exploration-result-showcase">
+          <button type="button" class="exploration-result-chest-button"><span class="exploration-result-chest has-rewards"></span></button>
+          <div class="exploration-result-prompt"><b>回収完了</b><span>clear</span></div>
+        </div>
+        <div class="exploration-result-details">
+          <div class="exploration-result-body"><div><b>BOSS</b><span>clear</span></div></div>
+          <ul class="exploration-result-rewards"><li class="exploration-result-reward is-rare"><span class="exploration-result-reward-icon"></span><strong>reward</strong><span>x1</span></li></ul>
+          <div class="exploration-result-log"><div>battle log</div></div>
+          <div class="exploration-result-actions"><button type="button">close</button><button type="button">next</button></div>
+        </div>
       </div>
     `;
     document.body.appendChild(result);
@@ -182,7 +187,10 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
         borderRadius: style.borderRadius,
         display: style.display,
         height: style.height,
-        minHeight: style.minHeight
+        minHeight: style.minHeight,
+        opacity: style.opacity,
+        overflowX: style.overflowX,
+        pointerEvents: style.pointerEvents
       };
     };
 
@@ -205,6 +213,10 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
     const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
+    const openedDetails = styleOf('.exploration-result-details');
+    result.className = 'exploration-result-overlay is-awaiting-open';
+    await new Promise((resolve) => setTimeout(resolve, 360));
+    const awaitingDetails = styleOf('.exploration-result-details');
 
     const output = {
       sequenceDialog: styleOf('.exploration-sequence-dialog'),
@@ -216,6 +228,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       resultDialog: styleOf('.exploration-result-dialog'),
       resultClose: styleOf('.exploration-result-close'),
       resultShowcase: styleOf('.exploration-result-showcase'),
+      resultDetailsOpened: openedDetails,
+      resultDetailsAwaiting: awaitingDetails,
       resultMetric: styleOf('.exploration-result-body div'),
       resultReward: styleOf('.exploration-result-rewards li'),
       resultLog: styleOf('.exploration-result-log div'),
@@ -238,7 +252,11 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
   expect(audit.sequenceArrival.borderRadius).toBe('50%');
   expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultDialog.overflowX).toBe('hidden');
   expect(audit.resultShowcase.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultDetailsOpened.opacity).toBe('1');
+  expect(audit.resultDetailsAwaiting.opacity).toBe('0');
+  expect(audit.resultDetailsAwaiting.pointerEvents).toBe('none');
   expect(audit.resultMetric.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultReward.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultLog.borderImageSource).toContain('assets/ui/panels/');
@@ -255,6 +273,83 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.resultClose.height).toBe('32px');
   expect(audit.resultClose.minHeight).toBe('32px');
   expect(audit.resultClose.borderRadius).toBe('50%');
+  await expectNoPageErrors(errors);
+});
+
+test('exploration result reveals details after opening one chest', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-ranking', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ ranking: [{ displayName: 'Playwright Tester', score: 9000, level: 18, rank: '船長', playFabId: 'PF_PLAYWRIGHT' }] })
+    });
+  });
+  await page.route('**/api/exploration/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        active: null,
+        reports: [],
+        destinations: [{ id: 'harbor-edge', name: '港の外れ', description: '近場の探索', cost: 100, bossName: '海霧の番人' }]
+      })
+    });
+  });
+  await page.route('**/api/exploration/start', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        balance: 9000,
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        active: { destinationId: 'harbor-edge', destinationName: '港の外れ', shipName: 'テスト船' },
+        reports: [],
+        destinations: []
+      })
+    });
+  });
+  await page.route('**/api/exploration/claim', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船', form: 'fighter' },
+        active: null,
+        reports: [],
+        report: {
+          destinationId: 'harbor-edge',
+          destinationName: '港の外れ',
+          bossName: '海霧の番人',
+          bossResult: 'victory',
+          rewardCount: 2,
+          rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
+          bossLog: '戦闘開始\n船が島へ接近。\n宝箱を発見した。'
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page, { fixedHour: 18 });
+  await page.locator('#btnHomeExploration').click();
+  await page.locator('#shipExplorationPanel').waitFor({ state: 'visible' });
+  await page.locator('.ship-exploration-start').click();
+
+  const result = page.locator('.exploration-result-overlay');
+  await expect(result).toHaveClass(/is-awaiting-open/, { timeout: 15_000 });
+  await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '0');
+  await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
+  await expect(result.locator('[data-exploration-result-state]')).toHaveText('宝箱を発見');
+  expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
+
+  await result.locator('[data-exploration-result-open]').click();
+  await expect(result).toHaveClass(/is-opened/, { timeout: 3_000 });
+  await expect(result).not.toHaveClass(/is-awaiting-open/);
+  await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
+  await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
+  await expect(result.locator('.exploration-result-reward')).toContainText('RARE×2');
+  await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
   await expectNoPageErrors(errors);
 });
 
