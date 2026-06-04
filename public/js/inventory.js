@@ -827,12 +827,45 @@ function createInventoryChip(label, tone = '') {
     return chip;
 }
 
+function getInventoryRarityTone(item) {
+    const cd = item?.customData || {};
+    const category = getCanonicalTarotCategory(cd.Category);
+    if (category === 'TarotMajor') return 'red';
+
+    const score = Math.max(
+        getInventoryStatValue(cd, 'Power'),
+        getInventoryStatValue(cd, 'Defense'),
+        getInventoryStatValue(cd, 'MagicPower'),
+        getInventoryStatValue(cd, 'HealPower')
+    );
+    if (score > 0) {
+        if (category === 'TarotMinor') {
+            if (score >= 15) return 'purple';
+            if (score >= 8) return 'blue';
+            return 'green';
+        }
+        if (score >= 60) return 'red';
+        if (score >= 35) return 'purple';
+        if (score >= 18) return 'blue';
+        return 'green';
+    }
+
+    const raw = String(cd.Rarity || cd.rarity || cd.Rare || item?.rarity || item?.Rarity || '').trim().toLowerCase();
+    if (raw === 'legendary' || raw === 'lgd' || raw === 'red') return 'red';
+    if (raw === 'epic' || raw === 'purple') return 'purple';
+    if (raw === 'rare' || raw === 'blue') return 'blue';
+    return 'green';
+}
+
 function createInventoryStatBadges(item) {
     const cd = item?.customData || {};
     if (!isInventoryEquipmentCategory(getCanonicalTarotCategory(cd.Category))) return null;
+    const rarityTone = getInventoryRarityTone(item);
     const stats = [
         { key: 'Power', label: '攻', tone: 'power' },
-        { key: 'Defense', label: '防', tone: 'defense' }
+        { key: 'Defense', label: '防', tone: 'defense' },
+        { key: 'MagicPower', label: '術', tone: 'magic' },
+        { key: 'HealPower', label: '回', tone: 'heal' }
     ]
         .map((stat) => ({ ...stat, value: getInventoryStatValue(cd, stat.key) }))
         .filter((stat) => stat.value);
@@ -842,7 +875,7 @@ function createInventoryStatBadges(item) {
     wrap.className = 'inventory-item-stat-badges';
     stats.forEach((stat) => {
         const badge = document.createElement('span');
-        badge.className = `inventory-item-stat-badge is-${stat.tone}`;
+        badge.className = `inventory-item-stat-badge is-${stat.tone} is-${rarityTone}`;
         badge.textContent = `${stat.label}${stat.value}`;
         wrap.appendChild(badge);
     });

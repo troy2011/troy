@@ -6,12 +6,22 @@ const DEFAULT_CATEGORY_WEIGHTS = {
 };
 
 const DEFAULT_RARITY_WEIGHTS = {
-    common: 55,
-    uncommon: 25,
-    rare: 13,
-    epic: 5,
-    legendary: 2
+    common: 70,
+    rare: 20,
+    epic: 7,
+    legendary: 3
 };
+
+const ITEM_RARITY_THRESHOLDS = Object.freeze({
+    rare: 18,
+    epic: 35,
+    legendary: 60
+});
+
+const TAROT_MINOR_RARITY_THRESHOLDS = Object.freeze({
+    rare: 8,
+    epic: 15
+});
 
 const DEFAULT_EXCLUDED_ITEM_PATTERNS = [
     'metal_*_*'
@@ -66,11 +76,22 @@ function normalizeCategory(value) {
 }
 
 function getItemCategory(item) {
-    return normalizeCategory(item?.Category || item?.ItemClass || item?.ContentType || item?.Type);
+    return normalizeCategory(
+        item?.Category
+        || item?.DisplayProperties?.Category
+        || item?.CustomData?.Category
+        || item?.customData?.Category
+        || item?.ItemClass
+        || item?.ContentType
+        || item?.Type
+    );
 }
 
 function getItemId(item) {
-    return String(item?.ItemId || item?.FriendlyId || '').trim();
+    const friendlyAlternate = Array.isArray(item?.AlternateIds)
+        ? item.AlternateIds.find((entry) => String(entry?.Type || '').toLowerCase() === 'friendlyid')?.Value
+        : '';
+    return String(item?.ItemId || item?.FriendlyId || friendlyAlternate || item?.Id || '').trim();
 }
 
 function wildcardToRegExp(pattern) {
@@ -89,15 +110,18 @@ function isExcludedItemId(itemId, options = {}) {
     return patterns.some((pattern) => wildcardToRegExp(pattern).test(id));
 }
 
-function getItemPrice(item) {
-    const amounts = Array.isArray(item?.PriceAmounts) ? item.PriceAmounts : [];
-    const ps = amounts.find((entry) => String(entry?.ItemId || '').toUpperCase() === 'PS');
-    const amount = Number(ps?.Amount);
-    return Number.isFinite(amount) && amount > 0 ? amount : 500;
-}
-
 function getNumericItemValue(item, key) {
-    const value = Number(item?.[key] ?? item?.[String(key).toLowerCase()]);
+    const lowerKey = String(key).toLowerCase();
+    const value = Number(
+        item?.[key]
+        ?? item?.[lowerKey]
+        ?? item?.DisplayProperties?.[key]
+        ?? item?.DisplayProperties?.[lowerKey]
+        ?? item?.CustomData?.[key]
+        ?? item?.CustomData?.[lowerKey]
+        ?? item?.customData?.[key]
+        ?? item?.customData?.[lowerKey]
+    );
     return Number.isFinite(value) ? value : 0;
 }
 
@@ -128,24 +152,22 @@ function isWithinStatGate(item, options = {}) {
 }
 
 function getItemRarity(item) {
-    const explicit = String(item?.Rarity || item?.rarity || item?.Tier || item?.tier || '').trim().toLowerCase();
-    if (explicit && RARITY_WEIGHTS[explicit]) return explicit;
+    const category = getItemCategory(item);
+    if (category === 'TarotMajor') return 'legendary';
 
-    const id = getItemId(item);
-    const suffixMatch = id.match(/_(\d+)$/);
-    if (suffixMatch) {
-        const rank = Number(suffixMatch[1]);
-        if (rank >= 24) return 'legendary';
-        if (rank >= 18) return 'epic';
-        if (rank >= 11) return 'rare';
-        if (rank >= 5) return 'uncommon';
+    const score = getItemGateScore(item);
+    if (score > 0) {
+        const thresholds = category === 'TarotMinor'
+            ? TAROT_MINOR_RARITY_THRESHOLDS
+            : ITEM_RARITY_THRESHOLDS;
+        if (thresholds.legendary && score >= thresholds.legendary) return 'legendary';
+        if (thresholds.epic && score >= thresholds.epic) return 'epic';
+        if (thresholds.rare && score >= thresholds.rare) return 'rare';
+        return 'common';
     }
 
-    const price = getItemPrice(item);
-    if (price >= 12000) return 'legendary';
-    if (price >= 5000) return 'epic';
-    if (price >= 1500) return 'rare';
-    if (price >= 800) return 'uncommon';
+    const explicit = String(item?.Rarity || item?.rarity || item?.Tier || item?.tier || '').trim().toLowerCase();
+    if (explicit === 'legendary' || explicit === 'epic' || explicit === 'rare' || explicit === 'common') return explicit;
     return 'common';
 }
 
@@ -210,5 +232,6 @@ module.exports = {
     DEFAULT_EXCLUDED_ITEM_PATTERNS,
     buildLocalGachaCandidates,
     drawLocalGachaItem,
+    getItemRarity,
     getItemGateScore
 };

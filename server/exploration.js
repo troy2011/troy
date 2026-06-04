@@ -220,25 +220,25 @@ const BOSS_STATS = {
 const DEFAULT_EXPLORATION_GACHA_PROFILES = {
     near_sea: {
         categoryWeights: { Weapon: 20, Armor: 25, Shield: 20, Consumable: 35 },
-        rarityWeights: { common: 70, uncommon: 22, rare: 6, epic: 1.5, legendary: 0.5 }
+        rarityWeights: { common: 92, rare: 6, epic: 1.5, legendary: 0.5 }
     },
     old_lighthouse: {
         categoryWeights: { Weapon: 20, Armor: 55, Shield: 20, Consumable: 5 },
-        rarityWeights: { common: 45, uncommon: 32, rare: 16, epic: 5, legendary: 2 }
+        rarityWeights: { common: 77, rare: 16, epic: 5, legendary: 2 }
     },
     sunken_trader: {
         categoryWeights: { Weapon: 25, Armor: 35, Shield: 15, Consumable: 25 },
-        rarityWeights: { common: 40, uncommon: 32, rare: 18, epic: 7, legendary: 3 }
+        rarityWeights: { common: 72, rare: 18, epic: 7, legendary: 3 }
     },
     pirate_cove: {
         categoryWeights: { Weapon: 55, Armor: 15, Shield: 25, Consumable: 5 },
-        rarityWeights: { common: 25, uncommon: 30, rare: 25, epic: 14, legendary: 6 }
+        rarityWeights: { common: 55, rare: 25, epic: 14, legendary: 6 }
     }
 };
 
 const EXPLORATION_SHIP_STAGE_GACHA_LIMITS = {
     1: {
-        rarityWeights: { common: 88, uncommon: 12, rare: 0, epic: 0, legendary: 0 },
+        rarityWeights: { common: 100, rare: 0, epic: 0, legendary: 0 },
         maxStatsByCategory: {
             Weapon: { Power: 20 },
             Armor: { Defense: 12 },
@@ -246,7 +246,7 @@ const EXPLORATION_SHIP_STAGE_GACHA_LIMITS = {
         }
     },
     2: {
-        rarityWeights: { common: 58, uncommon: 30, rare: 10, epic: 1.8, legendary: 0.2 },
+        rarityWeights: { common: 88, rare: 10, epic: 1.8, legendary: 0.2 },
         maxStatsByCategory: {
             Weapon: { Power: 45 },
             Armor: { Defense: 35 },

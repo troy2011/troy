@@ -2845,13 +2845,6 @@ button.home-player-ship-name {
     border-color: rgba(156, 163, 175, 0.6);
 }
 
-.equip-slot[data-rarity="uncommon"].equipped {
-    border-color: rgba(34, 197, 94, 0.6);
-    box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.3),
-        0 0 15px rgba(34, 197, 94, 0.3);
-}
-
 .equip-slot[data-rarity="rare"].equipped {
     border-color: rgba(59, 130, 246, 0.6);
     box-shadow:
@@ -11042,10 +11035,6 @@ textarea {
     filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
 }
 
-.exploration-treasure-box.is-uncommon .exploration-treasure-chest {
-    filter: sepia(0.25) saturate(1.3) hue-rotate(70deg) drop-shadow(0 0 12px rgba(74, 222, 128, 0.35));
-}
-
 .exploration-treasure-box.is-rare .exploration-treasure-chest {
     filter: sepia(0.2) saturate(1.4) hue-rotate(150deg) drop-shadow(0 0 14px rgba(96, 165, 250, 0.45));
 }
@@ -11098,7 +11087,6 @@ textarea {
 }
 
 .exploration-treasure-box.is-common .exploration-treasure-name { color: #e5e7eb; }
-.exploration-treasure-box.is-uncommon .exploration-treasure-name { color: #86efac; }
 .exploration-treasure-box.is-rare .exploration-treasure-name { color: #93c5fd; }
 .exploration-treasure-box.is-epic .exploration-treasure-name { color: #d8b4fe; }
 .exploration-treasure-box.is-legendary .exploration-treasure-name { color: #fde68a; }
@@ -20344,25 +20332,18 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    content: "E";
+    content: "";
     position: absolute;
-    right: 6px;
-    bottom: 6px;
+    top: 6px;
+    left: 6px;
+    right: auto;
+    bottom: auto;
     z-index: 2;
-    width: 20px;
-    height: 20px;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(255, 241, 179, 0.92);
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at 35% 28%, rgba(255, 250, 214, 0.96), rgba(245, 178, 45, 0.92) 42%, rgba(111, 57, 12, 0.98));
-    color: #2b1606;
-    font-size: 12px;
-    font-weight: 900;
-    line-height: 1;
-    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.46);
+    width: 18px;
+    height: 18px;
+    display: block;
+    background: url("./assets/ui/icons/077.png") center / contain no-repeat;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.64));
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
@@ -20370,9 +20351,6 @@ body[data-sea-tone] .home-hero-card {
     left: 6px;
     right: auto;
     bottom: auto;
-    width: 16px;
-    height: 16px;
-    font-size: 9px;
 }
 
 #tabContentInventory .inventory-item-main {
@@ -20487,29 +20465,36 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-item-stat-badge {
-    min-width: 22px;
-    min-height: 15px;
-    padding: 1px 4px;
-    border-radius: 999px;
+    min-width: 34px;
+    min-height: 16px;
+    padding: 2px 6px 3px;
     display: inline-grid;
     place-items: center;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 0;
+    border-radius: 0;
+    background: url("./assets/ui/icons/badge-green.png") center / 100% 100% no-repeat;
     color: #fff7ed;
     font-size: 9px;
     font-weight: 900;
     line-height: 1;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.84);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+    box-shadow: none;
 }
 
-#tabContentInventory .inventory-item-stat-badge.is-power {
-    background: rgba(127, 29, 29, 0.88);
-    border-color: rgba(252, 165, 165, 0.42);
+#tabContentInventory .inventory-item-stat-badge.is-blue {
+    background-image: url("./assets/ui/icons/badge-blue.png");
 }
 
-#tabContentInventory .inventory-item-stat-badge.is-defense {
-    background: rgba(30, 64, 175, 0.86);
-    border-color: rgba(147, 197, 253, 0.42);
+#tabContentInventory .inventory-item-stat-badge.is-purple {
+    background-image: url("./assets/ui/icons/badge-purple.png");
+}
+
+#tabContentInventory .inventory-item-stat-badge.is-red {
+    background-image: url("./assets/ui/icons/badge-red.png");
+}
+
+#tabContentInventory .inventory-item-stat-badge.is-green {
+    background-image: url("./assets/ui/icons/badge-green.png");
 }
 
 #tabContentInventory .inventory-item-main,
@@ -20871,10 +20856,11 @@ body[data-sea-tone] .home-hero-card {
     place-items: center;
     width: auto;
     color: #ffe7a6;
-    font-size: 26px;
+    font-size: 18px;
+    font-weight: 900;
     line-height: 1;
     text-align: center;
-    transform: translateY(1px);
+    transform: translateY(-2px);
 }
 
 #tabContentQr .qr-battle-card > h2::before,

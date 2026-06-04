@@ -1311,7 +1311,7 @@ function normalizeBossResult(value) {
 
 function normalizeRewardRarity(value) {
     const rarity = String(value || 'common').trim().toLowerCase();
-    return ['common', 'uncommon', 'rare', 'epic', 'legendary'].includes(rarity) ? rarity : 'common';
+    return ['common', 'rare', 'epic', 'legendary'].includes(rarity) ? rarity : 'common';
 }
 
 function getRewardItemsForReveal(data) {
