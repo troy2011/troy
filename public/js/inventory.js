@@ -18,6 +18,7 @@ import {
     compareTarotItems,
     getCanonicalTarotCategory,
     getMajorArcanaSuitInfo,
+    getTarotNumberBadge,
     getTarotRankLabel,
     getTarotSpriteFrame,
     getTarotSlotLabel,
@@ -477,10 +478,43 @@ function getDeckCardSuitKey(item, canonicalCategory) {
 
 function getDeckCardNumberLabel(item, canonicalCategory) {
     const cd = item?.customData || {};
+    const badgeLabel = getTarotNumberBadge(cd);
+    if (badgeLabel) return badgeLabel;
     if (canonicalCategory === 'TarotMajor') {
         return String(cd.ArcanaNumber ?? cd.CardNumber ?? '').trim();
     }
     return getTarotRankLabel(cd);
+}
+
+function normalizeTarotSuitKeyForBadge(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw === 'wands') return 'wand';
+    if (raw === 'swords') return 'sword';
+    if (raw === 'cups') return 'cup';
+    if (raw === 'pentacles') return 'pentacle';
+    if (raw === 'wand' || raw === 'sword' || raw === 'cup' || raw === 'pentacle' || raw === 'all') return raw;
+    return 'none';
+}
+
+function createTarotNumberBadge(numberLabel, suitKey) {
+    const label = String(numberLabel || '').trim();
+    if (!label) return null;
+    const badge = document.createElement('span');
+    badge.className = `tarot-number-badge is-${normalizeTarotSuitKeyForBadge(suitKey)}`;
+    badge.textContent = label;
+    badge.setAttribute('aria-hidden', 'true');
+    return badge;
+}
+
+function createTarotNumberBadgeForItem(item, canonicalCategory = '') {
+    const cd = item?.customData || item || {};
+    const category = canonicalCategory || getCanonicalTarotCategory(cd.Category);
+    if (category !== 'TarotMajor' && category !== 'TarotMinor') return null;
+    const numberLabel = getTarotNumberBadge(cd);
+    const suitKey = category === 'TarotMajor'
+        ? getMajorArcanaSuitInfo(cd).key
+        : (cd.ArcanaSuit || cd.Suit);
+    return createTarotNumberBadge(numberLabel, suitKey);
 }
 
 function buildDeckCardEntry(item, itemId) {
@@ -547,6 +581,8 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
             const visualEl = document.createElement('div');
             visualEl.className = 'tarot-loadout-visual';
             renderDeckCardSprite(visualEl, entry);
+            const numberBadge = createTarotNumberBadge(entry.numberLabel, entry.suitKey);
+            if (numberBadge) visualEl.appendChild(numberBadge);
             const actionsEl = document.createElement('div');
             actionsEl.className = 'tarot-loadout-cell-actions';
             const removeBtn = document.createElement('button');
@@ -1270,6 +1306,8 @@ function createInventoryCell(item, requestedCategory) {
         window.myAvatarBaseInfo?.AvatarColor
     );
     iconFrame.appendChild(iconDiv);
+    const tarotNumberBadge = createTarotNumberBadgeForItem(item, canonicalCategory);
+    if (tarotNumberBadge) iconFrame.appendChild(tarotNumberBadge);
     main.appendChild(iconFrame);
 
     const copy = document.createElement('div');

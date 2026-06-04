@@ -260,7 +260,7 @@ export function getTarotRankLabel(itemData) {
     return TAROT_FACE_LABELS[raw.toUpperCase()] || raw;
 }
 
-function getTarotNumberBadge(itemData) {
+export function getTarotNumberBadge(itemData) {
     const category = getCanonicalTarotCategory(itemData?.Category);
     if (category === 'TarotMajor') {
         const number = getMajorArcanaNumber(itemData);
