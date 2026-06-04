@@ -183,44 +183,6 @@ button:disabled {
     pointer-events: none;
 }
 
-.home-hero-card {
-    padding: 18px;
-    background:
-        linear-gradient(180deg, rgba(18, 48, 80, 0.92), rgba(10, 24, 42, 0.96)),
-        radial-gradient(circle at 30% 15%, rgba(80, 170, 230, 0.28), transparent 60%);
-    border: 1px solid rgba(130, 190, 240, 0.28);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    position: relative;
-    overflow: hidden;
-}
-
-body[data-sea-tone="dawn"] .home-hero-card {
-    background:
-        linear-gradient(180deg, rgba(26, 64, 96, 0.92), rgba(12, 28, 46, 0.96)),
-        radial-gradient(circle at 20% 12%, rgba(140, 196, 230, 0.32), transparent 62%);
-    border-color: rgba(150, 198, 230, 0.3);
-}
-
-body[data-sea-tone="day"] .home-hero-card {
-    background:
-        linear-gradient(180deg, rgba(30, 78, 120, 0.92), rgba(14, 34, 56, 0.96)),
-        radial-gradient(circle at 24% 12%, rgba(120, 208, 245, 0.34), transparent 62%);
-    border-color: rgba(140, 210, 245, 0.32);
-}
-
-body[data-sea-tone="dusk"] .home-hero-card {
-    background:
-        linear-gradient(180deg, rgba(22, 54, 82, 0.92), rgba(10, 24, 40, 0.96)),
-        radial-gradient(circle at 24% 12%, rgba(110, 160, 210, 0.26), transparent 62%);
-    border-color: rgba(120, 175, 220, 0.26);
-}
-
-body[data-sea-tone="night"] .home-hero-card {
-    background:
-        linear-gradient(180deg, rgba(12, 30, 52, 0.92), rgba(6, 16, 28, 0.96)),
-        radial-gradient(circle at 24% 12%, rgba(70, 120, 170, 0.22), transparent 60%);
-    border-color: rgba(90, 140, 180, 0.22);
-}
 .home-hero-header {
     display: flex;
     flex-direction: column;
@@ -234,16 +196,6 @@ body[data-sea-tone="night"] .home-hero-card {
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 12px;
-}
-
-.home-hero-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.08) 45%, transparent 75%);
-    transform: translateX(-120%);
-    animation: homeSheen 8s ease-in-out infinite;
-    pointer-events: none;
 }
 
 .home-ps-card {
@@ -1750,13 +1702,6 @@ button.home-player-ship-name {
 .transfer-send-btn:active {
     transform: translateY(2px) scale(0.98);
     box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.35);
-}
-
-@keyframes homeSheen {
-    0%, 65% { transform: translateX(-120%); opacity: 0; }
-    70% { opacity: 0.5; }
-    85% { transform: translateX(120%); opacity: 0; }
-    100% { transform: translateX(120%); opacity: 0; }
 }
 
 @keyframes pulseLamp {
@@ -14496,23 +14441,6 @@ body {
         0 12px 26px rgba(0, 0, 0, 0.38);
 }
 
-.home-hero-card,
-body[data-sea-tone] .home-hero-card {
-    overflow: hidden;
-    background:
-        linear-gradient(180deg, rgba(6, 10, 14, 0.38) 0%, rgba(10, 32, 42, 0.46) 38%, rgba(28, 14, 7, 0.92) 78%),
-        radial-gradient(ellipse at 72% 22%, rgba(227, 171, 78, 0.22), transparent 34%),
-        radial-gradient(ellipse at 22% 48%, rgba(19, 79, 102, 0.42), transparent 48%),
-        linear-gradient(90deg, #15100d, #06131a 44%, #1c1109);
-}
-
-.home-hero-card::after {
-    background:
-        linear-gradient(90deg, transparent 0 5%, rgba(247, 208, 132, 0.12) 5% 5.4%, transparent 5.4% 100%),
-        linear-gradient(180deg, transparent 0 62%, rgba(0, 0, 0, 0.28) 62% 100%);
-    opacity: 0.8;
-}
-
 .home-ps-card {
     border: 1px solid rgba(98, 54, 23, 0.5);
     border-radius: 8px;
@@ -14812,14 +14740,6 @@ body[data-sea-tone] .home-hero-card {
     background:
         linear-gradient(180deg, rgba(26, 14, 7, 0.24), rgba(4, 4, 5, 0.44)),
         url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
-}
-
-.home-hero-card,
-body[data-sea-tone] .home-hero-card {
-    background:
-        linear-gradient(180deg, rgba(3, 5, 8, 0.08), rgba(9, 6, 4, 0.9) 72%),
-        url("./assets/ui/bg-tavern.png") center top / cover no-repeat,
-        linear-gradient(180deg, #070809, #120b07);
 }
 
 .home-ps-card,
@@ -15429,57 +15349,6 @@ body[data-sea-tone] .home-hero-card {
     .ranking-row-top-1 .ranking-row-score-value {
         font-size: 20px;
     }
-}
-
-/* --- Home dedicated background sheet --- */
-.home-hero-card,
-body[data-sea-tone] .home-hero-card {
-    min-height: 720px;
-    padding: 16px 14px 22px;
-    border-color: rgba(220, 169, 82, 0.5);
-    background:
-        linear-gradient(180deg, rgba(2, 4, 7, 0.04) 0%, rgba(3, 4, 5, 0.12) 42%, rgba(4, 3, 2, 0.04) 43%, rgba(5, 3, 2, 0.16) 100%),
-        url("./home-ui-sheet.png") center top / cover no-repeat;
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.44);
-}
-
-.home-hero-card::after {
-    display: none;
-}
-
-.home-hero-top,
-.home-ship-stage,
-#shipExplorationPanel {
-    position: relative;
-    z-index: 1;
-}
-
-.home-ps-card {
-    width: min(320px, 78vw);
-    margin-top: 2px;
-    margin-left: 2px;
-}
-
-.home-ship-stage {
-    width: 100%;
-    min-height: 448px;
-    margin: 14px auto 0;
-    justify-content: flex-start;
-}
-
-.home-ship-bob {
-    width: min(390px, 100%);
-    min-height: 228px;
-    margin: 0 auto;
-}
-
-.home-ship-image {
-    width: min(310px, 78vw);
-    filter: drop-shadow(0 20px 18px rgba(0, 0, 0, 0.48));
-}
-
-.home-hero-card .home-ship-image {
-    display: none;
 }
 
 /* --- Inventory tab reference style --- */
@@ -16264,9 +16133,24 @@ body[data-sea-tone] .home-hero-card {
 body[data-sea-tone] .home-hero-card {
     min-height: 724px;
     padding: 14px 12px 20px;
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(220, 169, 82, 0.5);
     background:
         linear-gradient(180deg, rgba(2, 4, 7, 0.02) 0%, rgba(3, 4, 5, 0.1) 38%, rgba(4, 3, 2, 0.04) 39%, rgba(5, 3, 2, 0.16) 100%),
         url("./home-ui-sheet.png") calc(50% - 24px) top / auto var(--home-hero-bg-height, 660px) no-repeat;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.44);
+}
+
+.home-hero-card::after {
+    display: none;
+}
+
+.home-hero-top,
+.home-ship-stage,
+#shipExplorationPanel {
+    position: relative;
+    z-index: 1;
 }
 
 .home-hero-top {
