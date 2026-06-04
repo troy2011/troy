@@ -89,6 +89,49 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expectNoPageErrors(errors);
 });
 
+test('home exploration button loads exploration data in a popup', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let explorationStatusBody = null;
+  await page.route('**/api/exploration/status', async (route) => {
+    explorationStatusBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ship: { shipId: 'ship-test', shipName: 'テスト船' },
+        active: null,
+        reports: [],
+        destinations: [
+          {
+            id: 'harbor-edge',
+            name: '港の外れ',
+            description: '近場の探索',
+            cost: 100,
+            bossName: 'なし'
+          }
+        ]
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+
+  await page.locator('#btnHomeExploration').click();
+
+  const panel = page.locator('#shipExplorationPanel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveClass(/is-popup/);
+  await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
+  await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
+  await expect(panel.locator('.ship-exploration-destination strong')).toHaveText('港の外れ');
+  await expect(panel.locator('.ship-exploration-start')).toHaveText('探索開始');
+  expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
+
+  await panel.locator('[data-home-exploration-close]').click();
+  await expect(panel).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
 test('player profile shows public stats on the left with avatar on the right', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-player-public-profile', async (route) => {

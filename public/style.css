@@ -9635,6 +9635,50 @@ textarea {
     background: rgba(15, 23, 42, 0.58);
 }
 
+#shipExplorationPanel.ship-exploration-panel.is-popup {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 10050;
+    width: min(380px, calc(100vw - 28px));
+    max-height: min(78vh, 640px);
+    margin: 0;
+    padding: 44px 14px 16px;
+    transform: translate(-50%, -50%);
+    overflow-y: auto;
+    pointer-events: auto;
+    box-shadow:
+        0 0 0 9999px rgba(0, 0, 0, 0.62),
+        0 18px 42px rgba(0, 0, 0, 0.62);
+}
+
+body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
+    pointer-events: auto;
+}
+
+.home-exploration-popup-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid rgba(220, 169, 82, 0.52);
+    border-radius: 50%;
+    background: rgba(3, 5, 8, 0.88);
+    color: #f8e7bc;
+    font-size: 20px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 .ship-exploration-head {
     display: flex;
     justify-content: space-between;

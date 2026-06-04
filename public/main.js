@@ -740,8 +740,72 @@ PlayFab.settings.titleId = '1A0BA';
 
 // --- 初期化フロー ---
 
+let homeExplorationButtonBound = false;
+let homeExplorationPopupObserver = null;
+
+function closeHomeExplorationPopup() {
+    const panel = document.getElementById('shipExplorationPanel');
+    if (!panel) return;
+    panel.hidden = true;
+    panel.classList.remove('is-popup');
+    panel.removeAttribute('role');
+    panel.removeAttribute('aria-modal');
+    document.body.classList.remove('modal-lock');
+    if (homeExplorationPopupObserver) {
+        homeExplorationPopupObserver.disconnect();
+        homeExplorationPopupObserver = null;
+    }
+}
+
+function ensureHomeExplorationPopupClose(panel) {
+    if (!panel || panel.querySelector('[data-home-exploration-close]')) return;
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'home-exploration-popup-close';
+    closeButton.setAttribute('aria-label', '閉じる');
+    closeButton.setAttribute('data-home-exploration-close', 'true');
+    closeButton.textContent = '×';
+    closeButton.addEventListener('click', closeHomeExplorationPopup);
+    panel.prepend(closeButton);
+}
+
+async function openHomeExplorationPopup() {
+    const panel = document.getElementById('shipExplorationPanel');
+    if (!panel) return;
+    panel.hidden = false;
+    panel.classList.add('is-popup');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    document.body.classList.add('modal-lock');
+    panel.innerHTML = '<div class="ship-exploration-empty">探索情報を読み込み中です。</div>';
+    ensureHomeExplorationPopupClose(panel);
+    if (!homeExplorationPopupObserver) {
+        homeExplorationPopupObserver = new MutationObserver(() => ensureHomeExplorationPopupClose(panel));
+        homeExplorationPopupObserver.observe(panel, { childList: true });
+    }
+    const playFabId = window.myPlayFabId || '';
+    if (!playFabId) {
+        panel.innerHTML = '<div class="ship-exploration-empty">プレイヤー情報を読み込み中です。</div>';
+        ensureHomeExplorationPopupClose(panel);
+        return;
+    }
+    await Ship.loadExplorationPanel(playFabId);
+    ensureHomeExplorationPopupClose(panel);
+}
+
+function initHomeExplorationButton() {
+    if (homeExplorationButtonBound) return;
+    const button = document.getElementById('btnHomeExploration');
+    if (!button) return;
+    button.addEventListener('click', () => {
+        void openHomeExplorationPopup();
+    });
+    homeExplorationButtonBound = true;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
+    initHomeExplorationButton();
     updateSeaToneByTime();
     initPwaShell();
     syncPendingAppInviteTokenFromUrl();
@@ -1168,11 +1232,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetDartsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('darts_countup'));
     document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
     document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
-    document.getElementById('btnHomeExploration')?.addEventListener('click', () => {
-        const panel = document.getElementById('shipExplorationPanel');
-        if (!panel) return;
-        panel.hidden = !panel.hidden;
-    });
+    initHomeExplorationButton();
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {
