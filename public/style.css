@@ -19257,7 +19257,7 @@ body[data-sea-tone] .home-hero-card {
     grid-template-columns: minmax(0, 1fr) 156px;
     grid-template-areas:
         "copy avatar"
-        "ship avatar";
+        "copy ship";
     gap: 8px 10px;
     align-items: start;
     margin-bottom: 14px;
@@ -19271,10 +19271,12 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .player-profile-avatar-shell {
     grid-area: avatar;
-    justify-self: end;
+    justify-self: center;
     width: 150px;
     min-width: 150px;
     height: 162px;
+    display: grid;
+    place-items: center;
     border: 10px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 10px / 0 stretch;
@@ -19285,14 +19287,16 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal #playerProfileAvatar.player-profile-avatar {
-    transform: scale(1.72) translateY(3px);
+    transform: translateY(5px) scale(1.58);
+    transform-origin: center center;
 }
 
 #playerProfileModal .player-profile-ship {
     grid-area: ship;
-    width: 100%;
-    min-height: 66px;
-    grid-template-columns: 48px minmax(0, 1fr);
+    width: 150px;
+    justify-self: center;
+    min-height: 72px;
+    grid-template-columns: 46px minmax(0, 1fr);
     justify-items: start;
     align-items: center;
     padding: 7px 8px;
@@ -19657,7 +19661,8 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .item-detail-copy {
     grid-area: copy;
-    min-height: 132px;
+    min-height: 242px;
+    align-self: stretch;
     justify-content: center;
     padding: 9px 10px;
     border: 10px solid transparent;
@@ -19815,7 +19820,7 @@ body[data-sea-tone] .home-hero-card {
         grid-template-columns: minmax(0, 1fr) 132px;
         grid-template-areas:
             "copy avatar"
-            "ship avatar";
+            "copy ship";
         justify-items: stretch;
         text-align: left;
         gap: 8px;
@@ -19832,11 +19837,12 @@ body[data-sea-tone] .home-hero-card {
         border-width: 9px;
         border-image-width: 9px;
         align-self: stretch;
-        justify-self: end;
+        justify-self: center;
     }
 
     #playerProfileModal .player-profile-ship {
-        width: 100%;
+        width: 132px;
+        justify-self: center;
         min-height: 64px;
         grid-template-columns: 40px minmax(0, 1fr);
         justify-items: start;
@@ -19855,7 +19861,7 @@ body[data-sea-tone] .home-hero-card {
 
     #playerProfileModal .item-detail-copy {
         width: 100%;
-        min-height: auto;
+        min-height: 0;
         padding-inline: 9px;
         border-width: 9px;
         border-image-width: 9px;

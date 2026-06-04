@@ -103,24 +103,40 @@ test('player profile shows public stats on the left with avatar on the right', a
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
     const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
+    const avatarInner = document.getElementById('playerProfileAvatar');
+    const ship = document.querySelector('#playerProfileModal .player-profile-ship');
     const copy = document.querySelector('#playerProfileModal .item-detail-copy');
     const firstStat = document.querySelector('#playerProfileStats .player-profile-stat');
     const statsRect = stats?.getBoundingClientRect();
     const avatarRect = avatar?.getBoundingClientRect();
+    const avatarInnerRect = avatarInner?.getBoundingClientRect();
+    const shipRect = ship?.getBoundingClientRect();
     const copyRect = copy?.getBoundingClientRect();
     const firstStatRect = firstStat?.getBoundingClientRect();
     return {
       statsRight: statsRect?.right || 0,
       avatarLeft: avatarRect?.left || 0,
       avatarRight: avatarRect?.right || 0,
+      avatarBottom: avatarRect?.bottom || 0,
       avatarWidth: avatarRect?.width || 0,
+      avatarCenterDelta: Math.abs(
+        ((avatarInnerRect?.left || 0) + (avatarInnerRect?.width || 0) / 2)
+        - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2)
+      ),
       copyRight: copyRect?.right || 0,
+      shipTop: shipRect?.top || 0,
+      shipLeft: shipRect?.left || 0,
+      shipRight: shipRect?.right || 0,
       statHeight: firstStatRect?.height || 0
     };
   });
   expect(layout.avatarLeft).toBeGreaterThan(layout.statsRight);
   expect(layout.avatarRight).toBeGreaterThan(layout.copyRight);
+  expect(layout.shipTop).toBeGreaterThan(layout.avatarBottom);
+  expect(Math.abs(layout.shipLeft - layout.avatarLeft)).toBeLessThanOrEqual(2);
+  expect(Math.abs(layout.shipRight - layout.avatarRight)).toBeLessThanOrEqual(2);
   expect(layout.avatarWidth).toBeGreaterThanOrEqual(130);
+  expect(layout.avatarCenterDelta).toBeLessThanOrEqual(6);
   expect(layout.statHeight).toBeLessThanOrEqual(36);
   await expectNoPageErrors(errors);
 });
