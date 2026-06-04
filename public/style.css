@@ -16691,9 +16691,6 @@ body[data-sea-tone] .home-hero-card {
 /* --- Home reference tightening --- */
 #tabContentHome {
     min-height: calc(100vh - var(--nav-height));
-    background:
-        linear-gradient(180deg, rgba(4, 7, 12, 0.22), rgba(3, 4, 6, 0.9) 72%),
-        url("./assets/ui/bg-sea.png") center top / cover repeat-y;
 }
 
 #globalPlayerInfoTop {
@@ -17149,27 +17146,6 @@ body[data-sea-tone] .home-hero-card {
     height: 17px;
     line-height: 15px;
     font-size: 11px;
-}
-
-.home-ship-stage::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 210px;
-    border-radius: 8px;
-    background:
-        linear-gradient(180deg, rgba(3, 6, 10, 0.08), rgba(4, 5, 7, 0.5) 84%, rgba(4, 5, 7, 0.88)),
-        url("./assets/ui/bg-sea.png") center / cover no-repeat;
-    box-shadow: inset 0 -32px 38px rgba(5, 4, 3, 0.74);
-    pointer-events: none;
-    z-index: 0;
-}
-
-.home-ship-stage > * {
-    position: relative;
-    z-index: 1;
 }
 
 .home-hero-card .home-ship-avatar {
