@@ -18853,6 +18853,37 @@ body[data-sea-tone] .home-hero-card {
     cursor: pointer;
 }
 
+#tabContentInventory .equip-slot-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    gap: 2px;
+    padding-top: 2px;
+}
+
+#tabContentInventory .equip-slot-name {
+    display: -webkit-box;
+    max-width: 100%;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    color: #f7e8c1;
+    font-size: 14px;
+    line-height: 1.24;
+    font-weight: 900;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 0 #000;
+}
+
+#tabContentInventory .equip-slot-stats {
+    min-height: 14px;
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
 #tabContentInventory .equip-slot:hover {
     filter: brightness(1.08);
 }
@@ -18989,8 +19020,48 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #tabContentInventory #equipmentGrid {
+        grid-template-columns: minmax(0, 1fr);
         gap: 6px;
         padding: 6px;
+    }
+
+    #tabContentInventory .equip-slot {
+        min-height: 88px;
+        grid-template-columns: 34px minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+        align-items: center;
+        gap: 4px 8px;
+        padding: 8px 9px;
+    }
+
+    #tabContentInventory .equip-slot-content {
+        display: contents;
+    }
+
+    #tabContentInventory .equip-slot-icon {
+        grid-column: 1;
+        grid-row: 1;
+        width: 32px;
+        height: 32px;
+    }
+
+    #tabContentInventory .equip-slot-label {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    #tabContentInventory .equip-slot-name {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin-top: 2px;
+        font-size: 13px;
+        line-height: 1.22;
+    }
+
+    #tabContentInventory .equip-slot-stats {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        margin-top: 0;
     }
 }
 
