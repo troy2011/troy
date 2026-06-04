@@ -18455,10 +18455,14 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped,
-#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped,
 #tabContentInventory .inventory-item-cell.has-stat-badges {
     position: relative;
     overflow: visible;
+}
+
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped {
+    position: relative;
+    overflow: hidden;
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
@@ -18485,9 +18489,9 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    top: -7px;
-    left: -2px;
-    font-size: 16px;
+    top: 2px;
+    left: 5px;
+    font-size: 14px;
 }
 
 #tabContentInventory .inventory-item-main {
