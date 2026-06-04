@@ -142,6 +142,55 @@ function clearEquipmentSlotArt(artEl) {
     artEl.innerHTML = '';
 }
 
+function cropVisibleSpriteFrame(img, sourceX, sourceY, frameWidth, frameHeight) {
+    try {
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = frameWidth;
+        frameCanvas.height = frameHeight;
+        const frameContext = frameCanvas.getContext('2d');
+        if (!frameContext) return null;
+        frameContext.drawImage(img, sourceX, sourceY, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
+
+        const { data } = frameContext.getImageData(0, 0, frameWidth, frameHeight);
+        let minX = frameWidth;
+        let minY = frameHeight;
+        let maxX = -1;
+        let maxY = -1;
+        for (let y = 0; y < frameHeight; y += 1) {
+            for (let x = 0; x < frameWidth; x += 1) {
+                const alpha = data[((y * frameWidth + x) * 4) + 3];
+                if (alpha <= 8) continue;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY) return null;
+        const pad = 1;
+        const cropX = Math.max(0, minX - pad);
+        const cropY = Math.max(0, minY - pad);
+        const cropRight = Math.min(frameWidth - 1, maxX + pad);
+        const cropBottom = Math.min(frameHeight - 1, maxY + pad);
+        const cropWidth = cropRight - cropX + 1;
+        const cropHeight = cropBottom - cropY + 1;
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropWidth;
+        cropCanvas.height = cropHeight;
+        const cropContext = cropCanvas.getContext('2d');
+        if (!cropContext) return null;
+        cropContext.drawImage(frameCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        return {
+            url: cropCanvas.toDataURL('image/png'),
+            width: cropWidth,
+            height: cropHeight
+        };
+    } catch {
+        return null;
+    }
+}
+
 function renderEquipmentSlotArt(artId, item, avatarColor = null) {
     const artEl = document.getElementById(artId);
     if (!artEl) return;
@@ -193,15 +242,29 @@ function renderEquipmentSlotArt(artId, item, avatarColor = null) {
             const columns = Math.max(1, Math.floor(naturalWidth / frameWidth));
             const col = spriteIndex % columns;
             const row = Math.floor(spriteIndex / columns);
-            const fitSize = 40;
-            const previewScale = Math.min(2, Math.max(0.6, fitSize / Math.max(frameWidth, frameHeight)));
+            const croppedFrame = cropVisibleSpriteFrame(
+                img,
+                col * frameWidth,
+                row * frameHeight,
+                frameWidth,
+                frameHeight
+            );
+            const displayUrl = croppedFrame?.url || currentUrl;
+            const displayWidth = croppedFrame?.width || frameWidth;
+            const displayHeight = croppedFrame?.height || frameHeight;
+            const fitSize = 52;
+            const previewScale = Math.min(4, Math.max(0.6, fitSize / Math.max(displayWidth, displayHeight)));
             const spriteEl = document.createElement('div');
             spriteEl.className = 'equip-slot-item-sprite';
-            spriteEl.style.width = `${frameWidth}px`;
-            spriteEl.style.height = `${frameHeight}px`;
-            spriteEl.style.backgroundImage = `url('${currentUrl}')`;
-            spriteEl.style.backgroundSize = `${naturalWidth}px ${naturalHeight}px`;
-            spriteEl.style.backgroundPosition = `${-(col * frameWidth)}px ${-(row * frameHeight)}px`;
+            spriteEl.style.width = `${displayWidth}px`;
+            spriteEl.style.height = `${displayHeight}px`;
+            spriteEl.style.backgroundImage = `url('${displayUrl}')`;
+            spriteEl.style.backgroundSize = croppedFrame
+                ? `${displayWidth}px ${displayHeight}px`
+                : `${naturalWidth}px ${naturalHeight}px`;
+            spriteEl.style.backgroundPosition = croppedFrame
+                ? '0 0'
+                : `${-(col * frameWidth)}px ${-(row * frameHeight)}px`;
             spriteEl.style.transform = `scale(${previewScale})`;
 
             artEl.innerHTML = '';

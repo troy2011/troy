@@ -212,42 +212,88 @@ test('current equipment slots render equipped item sprites on the right edge', a
           sprite_h: '32',
           Def: '2'
         }
+      },
+      shield_001: {
+        itemId: 'shield_001',
+        name: 'Test Shield',
+        customData: {
+          Category: 'Shield',
+          sprite_path: './Sprites/weapons/melee weapons/shield.png',
+          sprite_index: '2',
+          sprite_w: '32',
+          sprite_h: '32',
+          Def: '3'
+        }
+      },
+      accessory_001: {
+        itemId: 'accessory_001',
+        name: 'Test Ring',
+        customData: {
+          Category: 'Accessory',
+          sprite_path: './Sprites/items/icons.png',
+          sprite_index: '8',
+          sprite_w: '16',
+          sprite_h: '16',
+          Int: '1'
+        }
       }
     };
 
     renderAvatar(
       'avatar',
       { Race: 'human', AvatarColor: 'brown' },
-      { RightHand: 'sword_001', Armor: 'hat_black_001' },
+      { RightHand: 'sword_001', LeftHand: 'shield_001', Armor: 'hat_black_001', Accessory: 'accessory_001' },
       items
     );
   });
 
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedArmorArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
-  const headSlotIcon = await page.locator('.armor-slot .equip-slot-icon').evaluate((element) =>
-    window.getComputedStyle(element).backgroundImage
-  );
-  expect(headSlotIcon).toContain('019.png');
-  expect(headSlotIcon).not.toContain('073.png');
+  await expect(page.locator('#equippedAccessoryArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  const slotIcons = await page.evaluate(() => ({
+    head: window.getComputedStyle(document.querySelector('.armor-slot .equip-slot-icon')).backgroundImage,
+    right: window.getComputedStyle(document.querySelector('.weapon-slot .equip-slot-icon')).backgroundImage,
+    left: window.getComputedStyle(document.querySelector('.shield-slot .equip-slot-icon')).backgroundImage,
+    accessory: window.getComputedStyle(document.querySelector('.accessory-slot .equip-slot-icon')).backgroundImage
+  }));
+  expect(slotIcons.head).toContain('032.png');
+  expect(slotIcons.right).toContain('033.png');
+  expect(slotIcons.left).toContain('026.png');
+  expect(slotIcons.accessory).toContain('028.png');
 
   const layout = await page.evaluate(() => {
     const slot = document.querySelector('.weapon-slot');
     const content = slot?.querySelector('.equip-slot-content');
     const art = document.getElementById('equippedRightHandArt');
+    const sprite = art?.querySelector('.equip-slot-item-sprite');
     const contentRect = content?.getBoundingClientRect();
     const artRect = art?.getBoundingClientRect();
+    const spriteRect = sprite?.getBoundingClientRect();
     const slotRect = slot?.getBoundingClientRect();
     return {
       contentRight: contentRect?.right || 0,
       artLeft: artRect?.left || 0,
       artRight: artRect?.right || 0,
+      artWidth: artRect?.width || 0,
+      artHeight: artRect?.height || 0,
+      artCenterX: artRect ? artRect.left + artRect.width / 2 : 0,
+      artCenterY: artRect ? artRect.top + artRect.height / 2 : 0,
+      spriteWidth: spriteRect?.width || 0,
+      spriteHeight: spriteRect?.height || 0,
+      spriteCenterX: spriteRect ? spriteRect.left + spriteRect.width / 2 : 0,
+      spriteCenterY: spriteRect ? spriteRect.top + spriteRect.height / 2 : 0,
       slotRight: slotRect?.right || 0
     };
   });
 
   expect(layout.artLeft).toBeGreaterThan(layout.contentRight);
   expect(layout.slotRight - layout.artRight).toBeLessThan(20);
+  expect(layout.artWidth).toBeGreaterThanOrEqual(52);
+  expect(layout.artHeight).toBeGreaterThanOrEqual(52);
+  expect(Math.max(layout.spriteWidth, layout.spriteHeight)).toBeGreaterThanOrEqual(48);
+  expect(Math.abs(layout.spriteCenterX - layout.artCenterX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(layout.spriteCenterY - layout.artCenterY)).toBeLessThanOrEqual(2);
   await expectNoPageErrors(errors);
 });
 

@@ -17533,11 +17533,11 @@ body[data-sea-tone] .home-hero-card {
     --icon-slot-all: url("./assets/ui/icons/029.png");
     --icon-slot-equipment: url("./assets/ui/icons/040.png");
     --icon-slot-tarot: url("./assets/ui/icons/038.png");
-    --icon-slot-head: var(--icon-skull);
-    --icon-slot-weapon: url("./assets/ui/icons/075.png");
-    --icon-slot-shield: url("./assets/ui/icons/072.png");
-    --icon-slot-armor: url("./assets/ui/icons/073.png");
-    --icon-slot-accessory: url("./assets/ui/icons/074.png");
+    --icon-slot-head: url("./assets/ui/icons/032.png");
+    --icon-slot-weapon: url("./assets/ui/icons/033.png");
+    --icon-slot-shield: url("./assets/ui/icons/026.png");
+    --icon-slot-armor: url("./assets/ui/icons/032.png");
+    --icon-slot-accessory: url("./assets/ui/icons/028.png");
 }
 
 #navHome { --nav-icon-image: var(--icon-nav-home); }
@@ -18753,7 +18753,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .equip-slot {
     min-height: 84px;
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 42px;
+    grid-template-columns: 40px minmax(0, 1fr) 58px;
     align-items: center;
     gap: 7px;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 11px / 0 stretch;
@@ -18805,8 +18805,8 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .equip-slot-item-art {
     grid-column: 3;
     grid-row: 1;
-    width: 42px;
-    height: 42px;
+    width: 56px;
+    height: 56px;
     display: grid;
     place-items: center;
     justify-self: end;
@@ -18976,7 +18976,7 @@ body[data-sea-tone] .home-hero-card {
 
     #tabContentInventory .equip-slot {
         min-height: 88px;
-        grid-template-columns: 34px minmax(0, 1fr) 42px;
+        grid-template-columns: 34px minmax(0, 1fr) 54px;
         grid-template-rows: auto auto auto;
         align-items: center;
         gap: 4px 7px;
@@ -19017,8 +19017,8 @@ body[data-sea-tone] .home-hero-card {
     #tabContentInventory .equip-slot-item-art {
         grid-column: 3;
         grid-row: 1 / 4;
-        width: 40px;
-        height: 40px;
+        width: 52px;
+        height: 52px;
         align-self: center;
     }
 }
