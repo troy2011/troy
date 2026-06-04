@@ -19742,6 +19742,10 @@ body[data-sea-tone] .home-hero-card {
 }
 
 /* --- Inventory tarot deck: fixed 5-card equal-scale loadout --- */
+#tabContentInventory .inventory-section[hidden] {
+    display: none !important;
+}
+
 #tabContentInventory .tarot-deck-panel {
     display: grid;
     gap: 10px;

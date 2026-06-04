@@ -305,9 +305,12 @@ export function switchInventoryPanel(panel, options = {}) {
         button.classList.toggle('active', isActive);
     });
     document.querySelectorAll('#tabContentInventory .inventory-section').forEach((section) => {
-        const shouldShow = section.dataset.panel === activeInventoryPanel
-            || (activeInventoryPanel === 'tarot' && section.dataset.panel === 'items');
+        const sectionPanel = section.dataset.panel;
+        const shouldShow = sectionPanel === activeInventoryPanel
+            || (sectionPanel === 'items' && activeInventoryPanel === 'tarot')
+            || (sectionPanel === 'loadout' && activeInventoryPanel === 'items' && activeInventoryGroup === 'Equipment');
         section.classList.toggle('active', shouldShow);
+        section.hidden = !shouldShow;
     });
     const tabContent = document.getElementById('tabContentInventory');
     if (tabContent) {
