@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
 
     <title>TROYゴールドアプリ</title>
-    <link rel="stylesheet" href="style.css?v=20260604c">
+    <link rel="stylesheet" href="style.css?v=20260604d">
     <link rel="stylesheet" href="css/island.css">
 </head>
 
@@ -910,9 +910,17 @@
                     </div>
                 </div>
 
-                <!-- ギルド機能エリア -->
-                <div class="content-area guild-card">
-                    <h2>ギルド</h2>
+                <!-- 仲間導線 -->
+                <div class="content-area guild-card companion-redirect-card">
+                    <h2>仲間</h2>
+                    <div class="guild-companion-redirect">
+                        <p>海賊団の設立、募集掲示板、加入申請の管理は仲間タブに移動しました。</p>
+                        <button id="btnOpenCompanionsFromQr" class="guild-entry-btn" type="button" onclick="showTab('events')">
+                            <span aria-hidden="true">🏴‍☠️</span>
+                            仲間タブを開く
+                        </button>
+                    </div>
+                    <div class="legacy-guild-ui" hidden>
 
                     <!-- ギルド未加入時の表示 -->
                     <div id="guildNotJoined" class="guild-empty-state" style="display: none;">
@@ -985,6 +993,7 @@
                             <button id="btnViewGuildApplications" class="guild-action-btn" style="display: none;">📋 申請管理</button>
                             <button id="btnLeaveGuild" class="guild-action-btn guild-action-btn-danger">脱退</button>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -1518,7 +1527,7 @@
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
         "config": "./js/config.js",
         "api": "./js/api.js",
-        "ui": "./js/ui.js?v=20260604c",
+        "ui": "./js/ui.js?v=20260604d",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js",
         "inventory": "./js/inventory.js",
@@ -1564,6 +1573,6 @@
 
     <!-- Scripts -->
     <script src="battle-client.js"></script>
-    <script type="module" src="main.js?v=20260604c"></script>
+    <script type="module" src="main.js?v=20260604d"></script>
 </body>
 </html>

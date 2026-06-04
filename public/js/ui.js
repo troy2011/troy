@@ -2,7 +2,6 @@
 
 import * as Player from './player.js';
 import * as Inventory from './inventory.js';
-import * as Guild from './guild.js';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
@@ -16,7 +15,7 @@ const ensureTroyModule = async () => {
 };
 
 let eventModule = null;
-const EVENT_MODULE_VERSION = '20260604c';
+const EVENT_MODULE_VERSION = '20260604d';
 const ensureEventModule = async () => {
     if (eventModule) return eventModule;
     eventModule = await import(`./events.js?v=${EVENT_MODULE_VERSION}`);
@@ -1389,7 +1388,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
                 case 'qr':
                     await Player.getPoints(playerInfo.playFabId);
                     await Inventory.refreshResourceSummary(playerInfo.playFabId);
-                    await Guild.loadGuildInfo(playerInfo.playFabId);
                     break;
                 case 'battle':
                     window.dispatchEvent(new CustomEvent('tab:battle-visible', { detail: { playerInfo } }));

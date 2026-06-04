@@ -17020,7 +17020,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navEvents .nav-icon {
-    background-image: url("./assets/ui/icons/060.png?v=20260604c");
+    background-image: url("./assets/ui/icons/060.png?v=20260604d");
 }
 
 #navInventory .nav-icon {
@@ -17944,7 +17944,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/060.png?v=20260604c") center / contain no-repeat;
+    background: url("./assets/ui/icons/060.png?v=20260604d") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -19548,7 +19548,7 @@ body[data-sea-tone] .home-hero-card {
     /* Numbered icons live in ./assets/ui/icons/NNN.png. Swap these numbers to change assigned artwork. */
     --icon-nav-home: url("./assets/ui/icons/059.png?v=20260531");
     --icon-nav-troy: url("./assets/ui/icons/058.png?v=20260531");
-    --icon-nav-events: url("./assets/ui/icons/060.png?v=20260604c");
+    --icon-nav-events: url("./assets/ui/icons/060.png?v=20260604d");
     --icon-nav-inventory: url("./assets/ui/icons/062.png?v=20260531");
     --icon-nav-ranking: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
     --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
@@ -21543,4 +21543,107 @@ body[data-sea-tone] .home-hero-card {
 #tabContentEvents .crew-rank-5 {
     --crew-rank-accent: #d8b4fe;
     --crew-rank-glow: rgba(216, 180, 254, 0.34);
+}
+
+#tabContentEvents .crew-invite-panel,
+#tabContentEvents .crew-join-panel,
+#tabContentEvents .crew-application-role-row,
+#tabContentEvents .guild-companion-redirect {
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%),
+        linear-gradient(180deg, rgba(8, 12, 18, 0.88), rgba(2, 5, 9, 0.96));
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
+}
+
+#tabContentEvents [hidden],
+#tabContentQr [hidden] {
+    display: none !important;
+}
+
+#tabContentEvents .crew-invite-title {
+    min-height: 36px;
+    margin: -2px 0 10px;
+    padding: 8px 12px;
+    border: 10px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/banners/banner-plaque-blue.png") 28 36 32 fill / 10px 14px / 0 stretch;
+    color: #fff1c2;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+#tabContentEvents .crew-invite-value,
+#tabContentEvents .crew-recruitment-role-select,
+#tabContentEvents .crew-application-role-row select {
+    border: 10px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(21, 27, 37, 0.82), rgba(4, 7, 11, 0.94)),
+        radial-gradient(ellipse at 50% 0%, rgba(125, 211, 252, 0.08), transparent 60%);
+    color: #f7e8c1;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.06);
+}
+
+#tabContentEvents .crew-invite-value {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+}
+
+#tabContentEvents .crew-recruitment-role-select {
+    min-width: 0;
+}
+
+#tabContentEvents .crew-application-role-row {
+    padding: 10px;
+}
+
+#tabContentEvents .crew-application-role-row label {
+    color: #f2d394;
+    text-shadow: 0 1px 0 #000;
+}
+
+#tabContentEvents .event-card-actions .crew-recruitment-role-select {
+    flex: 1 1 100%;
+}
+
+#tabContentEvents #crewRecruitmentManagePanel textarea {
+    min-height: 84px;
+}
+
+#tabContentQr .companion-redirect-card .legacy-guild-ui {
+    display: none !important;
+}
+
+#tabContentQr .guild-companion-redirect {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 12px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+}
+
+#tabContentQr .guild-companion-redirect p {
+    margin: 0;
+    color: #d0b98c;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.55;
+}
+
+#btnOpenCompanionsFromQr {
+    --button-icon: var(--icon-nav-events);
+    width: 100%;
 }
