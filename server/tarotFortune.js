@@ -1,4 +1,4 @@
-const { VIRTUAL_CURRENCY_CODE } = require('./economy');
+const { VIRTUAL_CURRENCY_CODE, LEADERBOARD_NAME } = require('./economy');
 const { getCardSkillName } = require('./tarotSkillNames');
 const { getDeckType } = require('./tarotDeck');
 const { drawLocalGachaItem } = require('./gacha');
@@ -293,13 +293,20 @@ function pickRandom(list) {
 
 function buildFortuneReward(card, orientation) {
     const rewardItemName = getCardName(card);
+    const rewardPs = getFortuneGoldRewardAmount(card);
+    const goldLabel = rewardPs > 0 ? ` / +${rewardPs}G` : '';
     return {
         rewardType: 'card',
-        rewardPs: 0,
+        rewardPs,
         rewardItemId: String(card?.id || '').trim(),
         rewardItemName,
-        rewardLabel: `${rewardItemName}を獲得`
+        rewardLabel: `${rewardItemName}を獲得${goldLabel}`
     };
+}
+
+function getFortuneGoldRewardAmount(card) {
+    const amount = Math.floor(Number(card?.number) || 0);
+    return Math.max(0, amount);
 }
 
 function getCardName(card) {
@@ -479,6 +486,19 @@ async function claimDailyBountyGachaReward(playFabId, deps, todayKey) {
     return normalizeDailyBountyRewardRecord(rewardRecord, todayKey);
 }
 
+async function updatePlayerGoldLeaderboard(playFabId, balance, deps) {
+    const value = Math.max(0, Math.floor(Number(balance) || 0));
+    if (!playFabId || !deps?.promisifyPlayFab || !deps?.PlayFabServer) return;
+    try {
+        await deps.promisifyPlayFab(deps.PlayFabServer.UpdatePlayerStatistics, {
+            PlayFabId: playFabId,
+            Statistics: [{ StatisticName: LEADERBOARD_NAME, Value: value }]
+        });
+    } catch (error) {
+        console.warn('[tarot-fortune] gold leaderboard update skipped:', error?.errorMessage || error?.message || error);
+    }
+}
+
 function initializeTarotFortuneRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem, getCurrencyBalance } = deps;
 
@@ -562,6 +582,10 @@ function initializeTarotFortuneRoutes(app, deps) {
                 const idempotencyId = `tarot-fortune-card-${playFabId}-${todayKey}-${reward.rewardItemId}`;
                 await addEconomyItem(playFabId, reward.rewardItemId, 1, { idempotencyId });
             }
+            if (reward.rewardPs > 0) {
+                const goldIdempotencyId = `tarot-fortune-gold-${playFabId}-${todayKey}-${card.id}`;
+                await addEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, reward.rewardPs, { idempotencyId: goldIdempotencyId });
+            }
             await writeFortuneRecord(playFabId, result, promisifyPlayFab, PlayFabServer);
             let dailyBountyReward = null;
             try {
@@ -570,6 +594,9 @@ function initializeTarotFortuneRoutes(app, deps) {
                 console.warn('[daily-bounty-gacha] claim skipped:', rewardError?.errorMessage || rewardError?.message || rewardError);
             }
             const balance = await getCurrencyBalance(playFabId, VIRTUAL_CURRENCY_CODE);
+            if (reward.rewardPs > 0) {
+                await updatePlayerGoldLeaderboard(playFabId, balance, { promisifyPlayFab, PlayFabServer });
+            }
 
             return res.json({
                 ok: true,

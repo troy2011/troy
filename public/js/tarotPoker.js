@@ -4768,14 +4768,15 @@ function renderDailyFortuneResultLegacy(result) {
 }
 
 function getDailyFortuneRewardText(result) {
+    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
+    const goldPart = reward > 0 ? ` +${reward}G` : '';
     const rewardType = String(result?.rewardType || '').trim().toLowerCase();
     if (rewardType === 'card') {
         const rewardItemName = String(result?.rewardItemName || result?.cardName || 'カード').trim();
         const skillName = String(result?.skillName || '').trim();
         const skillPart = skillName ? ` スキル:「${skillName}」` : '';
-        return `「${rewardItemName}」を受け取った。${skillPart}`;
+        return `「${rewardItemName}」を受け取った。${goldPart}${skillPart}`;
     }
-    const reward = Math.max(0, Math.floor(Number(result?.rewardPs || 0)));
     return reward > 0 ? `+${reward}G` : '';
 }
 
