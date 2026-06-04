@@ -19254,9 +19254,9 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .player-profile-head {
     position: relative;
-    grid-template-columns: minmax(0, 1fr) 94px 118px;
+    grid-template-columns: minmax(0, 1fr) 86px 142px;
     grid-template-areas: "copy ship avatar";
-    gap: 12px;
+    gap: 10px;
     align-items: stretch;
     margin-bottom: 14px;
     padding: 12px;
@@ -19270,9 +19270,9 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-avatar-shell {
     grid-area: avatar;
     justify-self: end;
-    width: 112px;
-    min-width: 112px;
-    height: 132px;
+    width: 136px;
+    min-width: 136px;
+    height: 144px;
     border: 12px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 12px / 0 stretch;
@@ -19283,14 +19283,14 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal #playerProfileAvatar.player-profile-avatar {
-    transform: scale(1.68) translateY(3px);
+    transform: scale(1.72) translateY(3px);
 }
 
 #playerProfileModal .player-profile-ship {
     grid-area: ship;
-    width: 94px;
-    min-height: 132px;
-    padding: 9px 7px;
+    width: 86px;
+    min-height: 128px;
+    padding: 8px 6px;
     border: 11px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-blue-square.png") 24 fill / 11px / 0 stretch;
@@ -19646,18 +19646,18 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .item-detail-copy {
     grid-area: copy;
-    min-height: 132px;
+    min-height: 126px;
     justify-content: center;
-    padding: 12px 14px;
-    border: 14px solid transparent;
+    padding: 9px 11px;
+    border: 12px solid transparent;
     border-radius: 8px;
-    border-image: url("./assets/ui/banners/banner-plaque-blue.png") 28 36 32 fill / 14px 18px / 0 stretch;
+    border-image: url("./assets/ui/banners/banner-plaque-blue.png") 28 36 32 fill / 12px 15px / 0 stretch;
     background: linear-gradient(180deg, rgba(9, 22, 35, 0.46), rgba(0, 0, 0, 0.34));
 }
 
 #playerProfileModal #playerProfileName {
     color: #ffedb7;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 900;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.82);
 }
@@ -19674,17 +19674,17 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 5px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-top: 6px;
 }
 
 #playerProfileModal .player-profile-stat {
     min-width: 0;
-    min-height: 42px;
+    min-height: 32px;
     display: grid;
     place-items: center;
     gap: 1px;
-    padding: 5px 3px;
+    padding: 3px 2px;
     border: 1px solid rgba(158, 197, 224, 0.22);
     border-radius: 7px;
     background:
@@ -19694,14 +19694,14 @@ body[data-sea-tone] .home-hero-card {
 
 #playerProfileModal .player-profile-stat span {
     color: #a9d7f4;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     line-height: 1;
 }
 
 #playerProfileModal .player-profile-stat strong {
     color: #fff2c6;
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 900;
     line-height: 1;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
@@ -19789,7 +19789,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-head {
-        grid-template-columns: minmax(0, 1fr) 108px;
+        grid-template-columns: minmax(0, 1fr) 132px;
         grid-template-areas:
             "copy avatar"
             "ship avatar";
@@ -19799,10 +19799,10 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-avatar-shell {
-        width: 108px;
-        min-width: 108px;
-        max-width: 108px;
-        height: 142px;
+        width: 132px;
+        min-width: 132px;
+        max-width: 132px;
+        height: 152px;
         align-self: stretch;
         justify-self: end;
     }
@@ -19825,11 +19825,29 @@ body[data-sea-tone] .home-hero-card {
     #playerProfileModal .item-detail-copy {
         width: 100%;
         min-height: auto;
-        padding-inline: 12px;
+        padding-inline: 9px;
+    }
+
+    #playerProfileModal #playerProfileName {
+        font-size: 16px;
+    }
+
+    #playerProfileModal #playerProfileNation,
+    #playerProfileModal #playerProfileMeta {
+        font-size: 11px;
     }
 
     #playerProfileModal .player-profile-stats {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 3px;
+    }
+
+    #playerProfileModal .player-profile-stat {
+        min-height: 29px;
+    }
+
+    #playerProfileModal .player-profile-stat strong {
+        font-size: 13px;
     }
 }
 

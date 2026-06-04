@@ -104,18 +104,24 @@ test('player profile shows public stats on the left with avatar on the right', a
     const stats = document.getElementById('playerProfileStats');
     const avatar = document.querySelector('#playerProfileModal .player-profile-avatar-shell');
     const copy = document.querySelector('#playerProfileModal .item-detail-copy');
+    const firstStat = document.querySelector('#playerProfileStats .player-profile-stat');
     const statsRect = stats?.getBoundingClientRect();
     const avatarRect = avatar?.getBoundingClientRect();
     const copyRect = copy?.getBoundingClientRect();
+    const firstStatRect = firstStat?.getBoundingClientRect();
     return {
       statsRight: statsRect?.right || 0,
       avatarLeft: avatarRect?.left || 0,
       avatarRight: avatarRect?.right || 0,
-      copyRight: copyRect?.right || 0
+      avatarWidth: avatarRect?.width || 0,
+      copyRight: copyRect?.right || 0,
+      statHeight: firstStatRect?.height || 0
     };
   });
   expect(layout.avatarLeft).toBeGreaterThan(layout.statsRight);
   expect(layout.avatarRight).toBeGreaterThan(layout.copyRight);
+  expect(layout.avatarWidth).toBeGreaterThanOrEqual(130);
+  expect(layout.statHeight).toBeLessThanOrEqual(36);
   await expectNoPageErrors(errors);
 });
 
