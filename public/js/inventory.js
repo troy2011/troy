@@ -1760,24 +1760,79 @@ function getInventorySpriteFrame(item) {
     };
 }
 
+function createItemDetailMetaChip(label, tone = '') {
+    const chip = document.createElement('span');
+    chip.className = `item-detail-meta-chip${tone ? ` is-${tone}` : ''}`;
+    chip.textContent = label;
+    return chip;
+}
+
+function createItemDetailStatRow(label, value, tone = '') {
+    const row = document.createElement('div');
+    row.className = `item-detail-stat-row${tone ? ` is-${tone}` : ''}`;
+    const labelEl = document.createElement('span');
+    labelEl.className = 'item-detail-stat-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('strong');
+    valueEl.className = 'item-detail-stat-value';
+    valueEl.textContent = String(value);
+    row.append(labelEl, valueEl);
+    return row;
+}
+
+function appendItemDetailStat(statsEl, label, value, tone = '') {
+    if (value === undefined || value === null || value === '') return;
+    statsEl.appendChild(createItemDetailStatRow(label, value, tone));
+}
+
+function appendTarotMetaStats(statsEl, itemData) {
+    buildTarotCardMeta(itemData).forEach((line) => {
+        const parts = String(line || '').split(':');
+        if (parts.length > 1) {
+            appendItemDetailStat(statsEl, parts.shift().trim(), parts.join(':').trim(), 'tarot');
+        } else if (line) {
+            appendItemDetailStat(statsEl, 'カード', line, 'tarot');
+        }
+    });
+}
+
+function createItemDetailActionButton(label, tone, run, options = {}) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `item-detail-action${tone ? ` is-${tone}` : ''}`;
+    button.textContent = label;
+    button.disabled = !!options.disabled;
+    if (typeof run === 'function') {
+        button.addEventListener('click', async () => {
+            if (button.disabled) return;
+            await run();
+        });
+    }
+    return button;
+}
+
 function showItemDetailModal(item) {
     const modal = document.getElementById('itemDetailModal');
     const cd = item.customData || {};
     const instanceId = item.instances?.[0];
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
     const isTarotCard = isTarotMajorCategory(canonicalCategory) || isTarotMinorCategory(canonicalCategory);
+    const isEquipmentItem = isInventoryEquipmentCategory(canonicalCategory);
+    const detailKind = isTarotCard ? 'tarot' : (isEquipmentItem ? 'equipment' : 'item');
     const spriteFrame = getInventorySpriteFrame(item);
-    const appendStatLine = (html) => {
-        statsEl.innerHTML += `${statsEl.innerHTML ? '<br>' : ''}${html}`;
-    };
+    const iconEl = document.getElementById('itemDetailIcon');
+    const metaEl = document.getElementById('itemDetailMeta');
+
+    modal.dataset.detailKind = detailKind;
+    modal.dataset.detailCategory = canonicalCategory || 'Unknown';
 
     setSpriteIcon(
-        document.getElementById('itemDetailIcon'),
+        iconEl,
         spriteFrame.path,
         spriteFrame.index,
         spriteFrame.width,
         spriteFrame.height,
-        1,
+        isTarotCard ? 1 : 1.2,
         spriteFrame.category,
         window.myAvatarBaseInfo?.AvatarColor
     );
@@ -1787,50 +1842,77 @@ function showItemDetailModal(item) {
         ? 'タロットデッキにセットして役ボーナスに使用できます。'
         : (item.description || '説明がありません。');
 
+    if (metaEl) {
+        metaEl.innerHTML = '';
+        metaEl.appendChild(createItemDetailMetaChip(getInventoryCategoryLabel(canonicalCategory), detailKind));
+        if (isEquipmentItem && isInventoryItemEquipped(item)) {
+            metaEl.appendChild(createItemDetailMetaChip('装備中', 'equipped'));
+        }
+        if (isTarotCard) {
+            metaEl.appendChild(createItemDetailMetaChip(isCardInTarotDeck(item.itemId) ? 'デッキセット中' : '未セット', isCardInTarotDeck(item.itemId) ? 'equipped' : 'muted'));
+        }
+        const count = Number(item?.count || 0) || 0;
+        if (count > 1) {
+            metaEl.appendChild(createItemDetailMetaChip(`所持 ${count}`, 'count'));
+        }
+    }
+
     const statsEl = document.getElementById('itemDetailStats');
     statsEl.innerHTML = '';
-    if (cd.Power) appendStatLine(`<span>攻撃力: <strong>${cd.Power}</strong></span>`);
-    if (cd.Defense) appendStatLine(`<span>防御力: <strong>${cd.Defense}</strong></span>`);
-    if (cd.Int) appendStatLine(`<span>かしこさ: <strong>${cd.Int}</strong></span>`);
-    if (cd.MagicPower) appendStatLine(`<span>術補: <strong>${cd.MagicPower}</strong></span>`);
-    if (cd.HealPower) appendStatLine(`<span>回復補正: <strong>${cd.HealPower}</strong></span>`);
-    if (cd.CastRate) appendStatLine(`<span>詠唱補正: <strong>${cd.CastRate}</strong></span>`);
-    if (cd.MpEfficiency) appendStatLine(`<span>MP効率: <strong>${cd.MpEfficiency}</strong></span>`);
-    if (cd.StatusRate) appendStatLine(`<span>状態付与: <strong>${cd.StatusRate}</strong></span>`);
-    if (cd.Effect) appendStatLine(`<span>効果: <strong>${cd.Effect.Type} ${cd.Effect.Amount}</strong></span>`);
-    buildTarotCardMeta(cd).forEach((line) => {
-        appendStatLine(`<span>${line}</span>`);
-    });
+    appendItemDetailStat(statsEl, '攻撃力', cd.Power, 'power');
+    appendItemDetailStat(statsEl, '防御力', cd.Defense, 'defense');
+    appendItemDetailStat(statsEl, 'かしこさ', cd.Int, 'magic');
+    appendItemDetailStat(statsEl, '術補', cd.MagicPower, 'magic');
+    appendItemDetailStat(statsEl, '回復補正', cd.HealPower, 'heal');
+    appendItemDetailStat(statsEl, '詠唱補正', cd.CastRate);
+    appendItemDetailStat(statsEl, 'MP効率', cd.MpEfficiency);
+    appendItemDetailStat(statsEl, '状態付与', cd.StatusRate);
+    if (cd.Effect) {
+        const effectText = typeof cd.Effect === 'object'
+            ? [cd.Effect.Type, cd.Effect.Amount].filter(Boolean).join(' ')
+            : String(cd.Effect);
+        appendItemDetailStat(statsEl, '効果', effectText);
+    }
+    appendTarotMetaStats(statsEl, cd);
     if (isTarotMajorCategory(canonicalCategory)) {
-        appendStatLine(isCardInTarotDeck(item.itemId)
-            ? '<span>タロットデッキ: <strong>セット中</strong></span>'
-            : '<span>タロットデッキ: <strong>未セット</strong></span>');
+        appendItemDetailStat(statsEl, 'タロットデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
     }
     if (isTarotMinorCategory(canonicalCategory)) {
-        appendStatLine(isCardInTarotDeck(item.itemId)
-            ? '<span>タロットデッキ: <strong>セット中</strong></span>'
-            : '<span>タロットデッキ: <strong>未セット</strong></span>');
+        appendItemDetailStat(statsEl, 'タロットデッキ', isCardInTarotDeck(item.itemId) ? 'セット中' : '未セット', 'tarot');
     }
 
     if (isTarotCard) {
         const lvd = cardLevelMap[item.itemId];
         if (lvd) {
-            appendStatLine(`<span>カードLv: <strong>Lv.${lvd.level} / MaxLv.${lvd.maxLevel}</strong></span>`);
-            appendStatLine(`<span>重複数: <strong>${lvd.quantity}枚</strong></span>`);
+            appendItemDetailStat(statsEl, 'カードLv', `Lv.${lvd.level} / MaxLv.${lvd.maxLevel}`, 'level');
+            appendItemDetailStat(statsEl, '重複数', `${lvd.quantity}枚`);
             if (lvd.level < lvd.maxLevel) {
-                appendStatLine(`<span>次Lvコスト: <strong>${lvd.nextLevelCost}⚔シャード</strong></span>`);
+                appendItemDetailStat(statsEl, '次Lvコスト', `${lvd.nextLevelCost}⚔シャード`, 'level');
             } else {
-                appendStatLine('<span>育成: <strong>MAX LV 到達</strong></span>');
+                appendItemDetailStat(statsEl, '育成', 'MAX LV 到達', 'level');
             }
         }
+    }
+    if (!statsEl.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'item-detail-empty';
+        empty.textContent = '表示できるステータスはありません。';
+        statsEl.appendChild(empty);
     }
 
     const buttonsEl = document.getElementById('itemDetailButtons');
     buttonsEl.innerHTML = '';
     const appendActionNote = (text) => {
-        buttonsEl.innerHTML += `<div class="item-detail-action-note">${text}</div>`;
+        const note = document.createElement('div');
+        note.className = 'item-detail-action-note';
+        note.textContent = text;
+        buttonsEl.appendChild(note);
+    };
+    const addAction = (label, tone, run, options = {}) => {
+        buttonsEl.appendChild(createItemDetailActionButton(label, tone, run, options));
     };
     const equipItemId = item.itemId;
+    const playFabId = window.myPlayFabId || null;
     const isEquipped = (slot) => {
         const equippedValue = myCurrentEquipment[slot];
         return isEquipmentReferenceMatch(item, equippedValue);
@@ -1840,20 +1922,20 @@ function showItemDetailModal(item) {
         const isTwoHanded = isTwoHandedInventoryWeapon(item);
         if (isTwoHanded) {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u5916\u3059</button>';
+                addAction('外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'RightHand')">\u4e21\u624b\u88c5\u5099</button>`;
+                addAction('両手装備', 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
             }
         } else {
             if (isEquipped('RightHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'RightHand\')">\u53f3\u624b\u3092\u5916\u3059</button>';
+                addAction('右手を外す', 'remove', () => equipItem(playFabId, null, 'RightHand'));
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'RightHand')">${getEquipActionLabel('RightHand', '\u53f3\u624b\u88c5\u5099')}</button>`;
+                addAction(getEquipActionLabel('RightHand', '右手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'RightHand'));
             }
             if (isEquipped('LeftHand')) {
-                buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">\u5de6\u624b\u3092\u5916\u3059</button>';
+                addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
             } else {
-                buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'LeftHand')">${getEquipActionLabel('LeftHand', '\u5de6\u624b\u88c5\u5099')}</button>`;
+                addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand'));
             }
         }
     } else if (cd.Category === 'Shield' || cd.Category === 'Offhand') {
@@ -1861,44 +1943,44 @@ function showItemDetailModal(item) {
             appendActionNote('副手は左手専用です。杖や魔法寄りの装備と相性が良い補助枠です。');
         }
         if (isEquipped('LeftHand')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'LeftHand\')">\u5de6\u624b\u3092\u5916\u3059</button>';
+            addAction('左手を外す', 'remove', () => equipItem(playFabId, null, 'LeftHand'));
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'LeftHand')">${getEquipActionLabel('LeftHand', '\u5de6\u624b\u88c5\u5099')}</button>`;
+            addAction(getEquipActionLabel('LeftHand', '左手装備'), 'equip', () => equipItem(playFabId, equipItemId, 'LeftHand'));
         }
     } else if (cd.Category === 'Armor') {
         if (isEquipped('Armor')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Armor\')">\u5916\u3059</button>';
+            addAction('外す', 'remove', () => equipItem(playFabId, null, 'Armor'));
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'Armor')">${getEquipActionLabel('Armor', '\u88c5\u5099')}</button>`;
+            addAction(getEquipActionLabel('Armor', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Armor'));
         }
     } else if (cd.Category === 'Accessory') {
         if (isEquipped('Accessory')) {
-            buttonsEl.innerHTML += '<button onclick="window.equipItem(null, \'Accessory\')">\u5916\u3059</button>';
+            addAction('外す', 'remove', () => equipItem(playFabId, null, 'Accessory'));
         } else {
-            buttonsEl.innerHTML += `<button onclick="window.equipItem('${equipItemId}', 'Accessory')">${getEquipActionLabel('Accessory', '装備')}</button>`;
+            addAction(getEquipActionLabel('Accessory', '装備'), 'equip', () => equipItem(playFabId, equipItemId, 'Accessory'));
         }
     } else if (isTarotCard) {
         appendActionNote('タロットデッキにセットできます。');
         if (isCardInTarotDeck(equipItemId)) {
-            buttonsEl.innerHTML += `<button onclick="window.unequipTarotCardFromDeck('${equipItemId}', 'tarot')">デッキから外す</button>`;
+            addAction('デッキから外す', 'remove', () => unequipTarotCardFromDeck(playFabId, equipItemId, 'tarot'));
         } else if (getCommonTarotDeck().length < 5) {
-            buttonsEl.innerHTML += `<button onclick="window.equipTarotCardToDeck('${equipItemId}', 'tarot')">デッキに追加</button>`;
+            addAction('デッキに追加', 'equip', () => equipTarotCardToDeck(playFabId, equipItemId, 'tarot'));
         } else {
-            buttonsEl.innerHTML += '<button disabled>タロットデッキ満杯</button>';
+            addAction('タロットデッキ満杯', 'disabled', null, { disabled: true });
         }
     } else if (cd.Category === 'Consumable') {
-        buttonsEl.innerHTML += `<button class="use-button" onclick="window.useItem('${instanceId}', '${item.itemId}')">\u4f7f\u3046</button>`;
+        addAction('使う', 'use', () => useItem(playFabId, instanceId, item.itemId));
     }
 
     if (isTarotCard) {
         const lvd = cardLevelMap[equipItemId];
         if (lvd && lvd.level < lvd.maxLevel) {
-            buttonsEl.innerHTML += `<button class="inventory-item-quick-action is-levelup" onclick="window.levelUpCard('${equipItemId}')">Lvアップ（${lvd.nextLevelCost}⚔）</button>`;
+            addAction(`Lvアップ（${lvd.nextLevelCost}⚔）`, 'levelup', () => levelUpCard(equipItemId));
         }
     }
 
     if (cd.SellPrice > 0) {
-        buttonsEl.innerHTML += `<button style="background: #a0aec0;" onclick="window.showSellConfirmationModal('${instanceId}', '${item.itemId}')">\u58f2\u5374</button>`;
+        addAction(`売却 ${cd.SellPrice}G`, 'sell', () => showSellConfirmationModal(instanceId, item.itemId));
     }
 
     showModal(modal);
