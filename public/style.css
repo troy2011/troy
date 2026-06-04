@@ -20488,6 +20488,7 @@ body[data-sea-tone] .home-hero-card {
     padding: 7px;
     display: grid;
     place-items: center;
+    place-content: center;
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
@@ -20589,6 +20590,7 @@ body[data-sea-tone] .home-hero-card {
     min-width: 0;
     display: grid;
     place-items: center;
+    place-content: center;
 }
 
 #tabContentInventory .inventory-item-icon-frame,
@@ -20600,10 +20602,18 @@ body[data-sea-tone] .home-hero-card {
     flex: none;
     display: grid;
     place-items: center;
+    justify-self: center;
+    align-self: center;
     border: 0;
     background: transparent;
     box-shadow: none;
     overflow: hidden;
+}
+
+#tabContentInventory .inventory-item-icon {
+    margin: 0 !important;
+    justify-self: center;
+    align-self: center;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-icon,
