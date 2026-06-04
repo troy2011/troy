@@ -29,6 +29,8 @@ let bound = false;
 let currentGuild = null;
 let currentLevel = 1;
 let currentRankName = '見習い';
+let currentIsKing = false;
+let currentNationKey = '';
 let currentRecruitmentPosts = [];
 let currentApplications = [];
 let selectedRecruitmentRoleIds = new Set();
@@ -50,7 +52,32 @@ function setMessage(text, isError = false) {
     el.classList.toggle('is-error', !!isError);
 }
 
-function getRankName(level) {
+function parseBooleanFlag(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
+function normalizeNationKey(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const aliases = {
+        human: 'fire',
+        goblin: 'water',
+        orc: 'earth',
+        elf: 'wind'
+    };
+    const key = aliases[raw] || raw;
+    const match = /^nation_([a-z]+)_island$/.exec(key);
+    const resolved = match ? match[1] : key;
+    return getNationLabel(resolved) ? resolved : '';
+}
+
+function getNationGuildName() {
+    return `${getNationLabel(currentNationKey) || '国'}ギルド`;
+}
+
+function getRankName(level, isKing = false) {
+    if (isKing) return '王';
     const value = Math.max(1, Math.floor(Number(level) || 1));
     if (value >= 41) return '海賊王';
     if (value >= 31) return '提督';
@@ -61,6 +88,32 @@ function getRankName(level) {
 
 function normalizeLevel(stats) {
     return Math.max(1, Math.floor(Number(stats?.Level || window.myAvatarBaseInfo?.level || 1) || 1));
+}
+
+function canRecruitCompanions() {
+    return currentIsKing || currentLevel >= CAPTAIN_LEVEL;
+}
+
+function resolveNationKey(statsData, guild) {
+    const candidates = [
+        statsData?.nation,
+        statsData?.stats?.Nation,
+        window.myAvatarBaseInfo?.Nation,
+        window.myAvatarBaseInfo?.nation,
+        guild?.nation
+    ];
+    for (const candidate of candidates) {
+        const key = normalizeNationKey(candidate);
+        if (key) return key;
+    }
+    return '';
+}
+
+function resolveKingFlag(statsData, guild) {
+    return parseBooleanFlag(statsData?.isKing)
+        || parseBooleanFlag(statsData?.stats?.IsKing)
+        || parseBooleanFlag(window.myAvatarBaseInfo?.isKing)
+        || (!!guild?.isNationGuild && !!guild?.isOwner);
 }
 
 async function copyText(text) {
@@ -84,11 +137,13 @@ async function copyText(text) {
 function updateRankSummary() {
     const summary = document.getElementById('crewRankSummary');
     if (!summary) return;
-    const unlocked = currentLevel >= CAPTAIN_LEVEL;
-    summary.textContent = `Lv.${currentLevel} ${currentRankName} / ${unlocked ? '勧誘可' : `Lv.${CAPTAIN_LEVEL}で開放`}`;
+    const unlocked = canRecruitCompanions();
+    const unlockLabel = currentIsKing ? '国ギルド勧誘可' : (unlocked ? '勧誘可' : `Lv.${CAPTAIN_LEVEL}で開放`);
+    summary.textContent = `Lv.${currentLevel} ${currentRankName} / ${unlockLabel}`;
 }
 
 function getCaptainCrewName() {
+    if (currentIsKing) return getNationGuildName();
     const visibleName = document.getElementById('globalPlayerName')?.textContent || '';
     const rawName = String(window.myPlayFabDisplayName || window.myAvatarBaseInfo?.displayName || visibleName || '船長').trim() || '船長';
     return `${rawName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`;
@@ -297,6 +352,10 @@ function renderRecruitmentBoard(posts, guild) {
     if (summary) summary.textContent = `${entries.length}件`;
 
     entries.forEach((post) => {
+        const isNationGuild = post.guildType === 'nation' || !!post.isNationGuild;
+        const guildKindLabel = isNationGuild ? '国ギルド' : '海賊団';
+        const ownerTitle = post.ownerTitle || (isNationGuild ? '王' : '船長');
+        const guildName = post.guildName || (isNationGuild ? `${getNationLabel(post.nation) || '国'}ギルド` : '海賊団');
         const roleOptions = (Array.isArray(post.roles) ? post.roles : [])
             .map((role) => `<option value="${escapeHtml(role.id)}">${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel || '')}</option>`)
             .join('');
@@ -312,13 +371,13 @@ function renderRecruitmentBoard(posts, guild) {
         card.innerHTML = `
             <div class="event-card-head">
                 <div>
-                    <div class="event-card-type">勧誘掲示板</div>
-                    <h3>${escapeHtml(post.guildName || '海賊団')}</h3>
+                    <div class="event-card-type">${escapeHtml(guildKindLabel)}勧誘</div>
+                    <h3>${escapeHtml(guildName)}</h3>
                 </div>
                 <span class="event-status">${escapeHtml(status)}</span>
             </div>
             <div class="event-card-meta">
-                ${post.captainName ? `<span>船長 ${escapeHtml(post.captainName)}</span>` : ''}
+                ${post.captainName ? `<span>${escapeHtml(ownerTitle)} ${escapeHtml(post.captainName)}</span>` : ''}
                 <span>仲間 ${Number(post.companionCount || 0)} / ${Number(post.maxCompanions || 7)}人</span>
                 ${post.updatedAt ? `<span>${escapeHtml(formatDateTime(post.updatedAt))}</span>` : ''}
             </div>
@@ -343,33 +402,48 @@ function renderOverview(guild) {
     list.innerHTML = '';
     if (!guild) {
         empty.hidden = true;
-        const locked = currentLevel < CAPTAIN_LEVEL;
+        const locked = !canRecruitCompanions();
+        const title = locked
+            ? '船長になると仲間を集められます'
+            : currentIsKing
+                ? '国のギルドを設立できます'
+                : '仲間を作成できます';
+        const status = locked ? `Lv.${CAPTAIN_LEVEL}+` : (currentIsKing ? '王' : 'OK');
+        const typeLabel = locked ? '未開放' : (currentIsKing ? '王権限' : '作成可能');
+        const desc = locked
+            ? `現在はLv.${currentLevel} ${currentRankName}です。階級が船長以上になると、他プレイヤーを勧誘できるようになります。`
+            : currentIsKing
+                ? `王はレベルに関係なく、${getNationGuildName()}で他プレイヤーを勧誘できます。`
+                : '船長の名前で海賊団を設立すると、勧誘QRを使って他プレイヤーを招待できます。';
         const card = document.createElement('article');
         card.className = `event-card ${locked ? 'is-pending' : 'is-approved'}`;
         card.innerHTML = `
             <div class="event-card-head">
                 <div>
-                    <div class="event-card-type">${locked ? '未開放' : '作成可能'}</div>
-                    <h3>${locked ? '船長になると仲間を集められます' : '仲間を作成できます'}</h3>
+                    <div class="event-card-type">${escapeHtml(typeLabel)}</div>
+                    <h3>${escapeHtml(title)}</h3>
                 </div>
-                <span class="event-status">${locked ? `Lv.${CAPTAIN_LEVEL}+` : 'OK'}</span>
+                <span class="event-status">${escapeHtml(status)}</span>
             </div>
-            <p class="event-card-desc">${locked
-                ? `現在はLv.${currentLevel} ${escapeHtml(currentRankName)}です。階級が船長以上になると、他プレイヤーを勧誘できるようになります。`
-                : '船長の名前で海賊団を設立すると、勧誘QRを使って他プレイヤーを招待できます。'}</p>
+            <p class="event-card-desc">${escapeHtml(desc)}</p>
         `;
         list.appendChild(card);
         return;
     }
 
     empty.hidden = true;
+    const isNationGuild = guild.guildType === 'nation' || !!guild.isNationGuild;
+    const guildKindLabel = isNationGuild ? '国ギルド' : '海賊団';
     const guildName = getNationLabel(guild.name) || guild.name || '仲間';
+    const desc = isNationGuild
+        ? '王の国ギルドです。勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。'
+        : '勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。';
     const card = document.createElement('article');
     card.className = 'event-card is-approved';
     card.innerHTML = `
         <div class="event-card-head">
             <div>
-                <div class="event-card-type">所属中</div>
+                <div class="event-card-type">所属中 / ${escapeHtml(guildKindLabel)}</div>
                 <h3>${escapeHtml(guildName)}</h3>
             </div>
             <span class="event-status">${escapeHtml(guild.role || 'メンバー')}</span>
@@ -380,7 +454,7 @@ function renderOverview(guild) {
             <span>Lv.${Number(guild.level || 1)}</span>
             <span>資金 ${Number(guild.treasury || 0).toLocaleString('ja-JP')}</span>
         </div>
-        <p class="event-card-desc">勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。</p>
+        <p class="event-card-desc">${escapeHtml(desc)}</p>
     `;
     list.appendChild(card);
 }
@@ -446,16 +520,21 @@ function renderInvitePanel(guild) {
     const invitePanel = document.getElementById('crewInvitePanel');
     const joinPanel = document.getElementById('crewJoinPanel');
     const isCaptain = currentLevel >= CAPTAIN_LEVEL;
+    const canCreateGuild = canRecruitCompanions();
     const hasGuild = !!guild?.guildId;
+    const isNationGuild = guild?.guildType === 'nation' || !!guild?.isNationGuild;
+    const guildKindLabel = isNationGuild ? '国ギルド' : '海賊団';
 
     if (hostFeeEl) {
         if (hasGuild) {
-            hostFeeEl.textContent = isCaptain
+            hostFeeEl.textContent = canCreateGuild || guild?.isOwner
                 ? `勧誘QRを共有して他プレイヤーを最大${Number(guild.maxCompanions || 7)}名まで仲間にできます。`
-                : '所属中の海賊団です。';
+                : `所属中の${guildKindLabel}です。`;
         } else {
-            hostFeeEl.textContent = isCaptain
-                ? `設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。設立後に勧誘QRが発行されます。`
+            hostFeeEl.textContent = currentIsKing
+                ? `王はレベルに関係なく国ギルドを設立できます。設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。`
+                : isCaptain
+                    ? `設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。設立後に勧誘QRが発行されます。`
                 : `現在はLv.${currentLevel} ${currentRankName}です。船長以上で利用できます。`;
         }
     }
@@ -465,9 +544,13 @@ function renderInvitePanel(guild) {
         createPreview.textContent = `${getCaptainCrewName()} を設立します。`;
     }
     if (createBtn) {
-        createBtn.disabled = !isCaptain || hasGuild;
+        createBtn.disabled = !canCreateGuild || hasGuild;
         createBtn.hidden = hasGuild;
-        createBtn.textContent = isCaptain ? `${CREW_FOUNDING_COST.toLocaleString('ja-JP')}Gで海賊団を設立` : `Lv.${CAPTAIN_LEVEL}で開放`;
+        createBtn.textContent = currentIsKing
+            ? `${CREW_FOUNDING_COST.toLocaleString('ja-JP')}Gで国ギルドを設立`
+            : isCaptain
+                ? `${CREW_FOUNDING_COST.toLocaleString('ja-JP')}Gで海賊団を設立`
+                : `Lv.${CAPTAIN_LEVEL}で開放`;
     }
     if (invitePanel) {
         invitePanel.hidden = !hasGuild;
@@ -490,9 +573,11 @@ async function loadCompanionPage(playFabId) {
         getCrewRecruitmentBoard(playFabId, { isSilent: true }).catch(() => null)
     ]);
 
-    currentLevel = normalizeLevel(statsData?.stats);
-    currentRankName = getRankName(currentLevel);
     currentGuild = guildData?.guild || null;
+    currentNationKey = resolveNationKey(statsData, currentGuild);
+    currentIsKing = resolveKingFlag(statsData, currentGuild);
+    currentLevel = normalizeLevel(statsData?.stats);
+    currentRankName = getRankName(currentLevel, currentIsKing);
     currentRecruitmentPosts = Array.isArray(boardData?.posts) ? boardData.posts : [];
 
     let members = [];
@@ -516,18 +601,19 @@ async function loadCompanionPage(playFabId) {
 }
 
 async function createCrew(playFabId) {
-    if (currentLevel < CAPTAIN_LEVEL) {
-        setMessage('船長以上になると海賊団を設立できます。', true);
+    if (!canRecruitCompanions()) {
+        setMessage('船長以上、または王になるとギルドを設立できます。', true);
         return;
     }
     try {
         const data = await requestCreateGuild(playFabId, '', { throwOnError: true });
         if (data?.success) {
-            setMessage(`${data.guildName || '海賊団'}を設立しました。勧誘QRを共有できます。`);
+            const fallbackName = data?.isNationGuild ? '国ギルド' : '海賊団';
+            setMessage(`${data.guildName || fallbackName}を設立しました。勧誘QRを共有できます。`);
             await loadCompanionPage(playFabId);
         }
     } catch (error) {
-        setMessage(error?.message || error?.error || '海賊団の設立に失敗しました。', true);
+        setMessage(error?.message || error?.error || 'ギルドの設立に失敗しました。', true);
     }
 }
 
@@ -602,7 +688,7 @@ async function applyToRecruitment(playFabId, button) {
     const card = button?.closest?.('.event-card');
     const crewRoleId = String(card?.querySelector?.('[data-board-role]')?.value || '').trim();
     if (!guildId || !crewRoleId) {
-        setMessage('申請する海賊団と役職を選んでください。', true);
+        setMessage('申請するギルドと役職を選んでください。', true);
         return;
     }
     try {

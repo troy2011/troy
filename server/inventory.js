@@ -1016,8 +1016,17 @@ function initializeInventoryRoutes(app, deps) {
             }
             const stats = applyDerivedPlayerLevelToStats((await applyOfflineMpRecovery(playFabId)).currentStats).stats;
             const crewRankInfo = await getPlayerCrewRankInfo(playFabId, stats);
+            let isKing = false;
+            let nation = null;
+            try {
+                const readOnly = await getPlayerReadOnlyData(playFabId, ['IsKing', 'Nation']);
+                isKing = resolveIsKingFlag(readOnly?.Data);
+                nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
+            } catch (rankError) {
+                console.warn('[ステータス取得] 王情報の取得に失敗:', rankError?.errorMessage || rankError?.message || rankError);
+            }
             console.log('[ステータス取得] 完了');
-            res.json({ stats: stats, dailyNationSpecialtyReward, crewRankInfo });
+            res.json({ stats: stats, dailyNationSpecialtyReward, crewRankInfo, isKing, nation });
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });

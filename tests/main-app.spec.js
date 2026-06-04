@@ -197,6 +197,60 @@ test('panel frame assets are applied through border-image slices', async ({ page
   await expectNoPageErrors(errors);
 });
 
+test('king can found a nation guild from companions regardless of level', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: { Level: 3 },
+        isKing: true,
+        nation: 'fire'
+      })
+    });
+  });
+  await page.route('**/api/crew-recruitment/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ posts: [] })
+    });
+  });
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-guild-info');
+  await page.route('**/api/get-guild-info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ guild: null })
+    });
+  });
+
+  await page.evaluate(() => {
+    window.myAvatarBaseInfo = {
+      ...(window.myAvatarBaseInfo || {}),
+      Nation: 'fire',
+      level: 3,
+      isKing: true
+    };
+  });
+  await page.evaluate(async () => {
+    const events = await import('/js/events.js');
+    await events.loadEventPage('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#crewRankSummary')).toContainText('Lv.3 王 / 国ギルド勧誘可');
+  await expect(page.locator('#crewOverviewList .event-card')).toContainText('王権限');
+  await expect(page.locator('#crewOverviewList .event-card')).toContainText('国のギルドを設立できます');
+  await expect(page.locator('#eventHostFeeInfo')).toContainText('王はレベルに関係なく国ギルドを設立できます。');
+  await expect(page.locator('#crewCreatePreview')).toHaveText('火の国ギルド を設立します。');
+  await expect(page.locator('#btnCreateCrew')).toBeEnabled();
+  await expect(page.locator('#btnCreateCrew')).toHaveText('10,000Gで国ギルドを設立');
+  await expect(page.locator('#crewOverviewList .event-card')).not.toContainText('Lv.21');
+  await expectNoPageErrors(errors);
+});
+
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
