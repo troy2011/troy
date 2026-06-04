@@ -21647,3 +21647,150 @@ body[data-sea-tone] .home-hero-card {
     --button-icon: var(--icon-nav-events);
     width: 100%;
 }
+
+/* --- Inventory tarot deck: fixed 5-card equal-scale loadout --- */
+#tabContentInventory .tarot-deck-panel {
+    display: grid;
+    gap: 10px;
+}
+
+#tabContentInventory .tarot-loadout-header p,
+#tabContentInventory .tarot-loadout-suit,
+#tabContentInventory .tarot-loadout-number,
+#tabContentInventory .tarot-loadout-title,
+#tabContentInventory .tarot-loadout-detail {
+    display: none !important;
+}
+
+#tabContentInventory .tarot-loadout-role {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: hidden;
+}
+
+#tabContentInventory .tarot-loadout-role-label,
+#tabContentInventory .tarot-loadout-role-main,
+#tabContentInventory .tarot-loadout-role-bonus {
+    min-width: 0;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+}
+
+#tabContentInventory .tarot-loadout-role-main {
+    flex: 0 1 auto;
+    font-size: 13px;
+}
+
+#tabContentInventory .tarot-loadout-role-bonus {
+    flex: 1 1 auto;
+    font-size: 10px;
+}
+
+#tabContentInventory .tarot-loadout-role-hint {
+    display: none !important;
+}
+
+#tabContentInventory .tarot-loadout-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 48px);
+    grid-auto-rows: 80px;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    overflow: visible;
+}
+
+#tabContentInventory .tarot-loadout-card {
+    position: relative;
+    width: 48px;
+    height: 80px;
+    min-width: 48px;
+    min-height: 80px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    box-shadow: none;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+}
+
+#tabContentInventory .tarot-loadout-card::before,
+#tabContentInventory .tarot-loadout-card::after,
+#tabContentInventory .tarot-loadout-card.is-equipped::after {
+    content: none !important;
+}
+
+#tabContentInventory .tarot-loadout-visual {
+    width: 48px;
+    height: 80px;
+    border: 0;
+    border-radius: 3px;
+    background: rgba(3, 5, 8, 0.72);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.42);
+    overflow: hidden;
+}
+
+#tabContentInventory .tarot-loadout-visual::after {
+    content: none;
+}
+
+#tabContentInventory .tarot-loadout-art {
+    margin: 0 !important;
+}
+
+#tabContentInventory .tarot-loadout-cell-actions {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 5;
+    display: block;
+    width: 17px;
+    height: 17px;
+}
+
+#tabContentInventory .tarot-loadout-cell-remove {
+    width: 17px;
+    height: 17px;
+    min-height: 17px;
+    padding: 0;
+    border: 1px solid rgba(255, 228, 160, 0.32);
+    border-radius: 50%;
+    background:
+        rgba(7, 8, 10, 0.92)
+        var(--icon-action-close)
+        center / 11px 11px
+        no-repeat;
+    color: transparent;
+    font-size: 0;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+}
+
+#tabContentInventory .tarot-loadout-cell-empty {
+    width: 48px;
+    height: 80px;
+    min-height: 0;
+    border: 1px dashed rgba(255, 228, 160, 0.26);
+    border-radius: 3px;
+    background:
+        linear-gradient(180deg, rgba(18, 20, 24, 0.42), rgba(3, 4, 6, 0.72)),
+        repeating-linear-gradient(135deg, rgba(255, 228, 160, 0.05) 0 6px, transparent 6px 12px);
+}
+
+@media (max-width: 360px) {
+    #tabContentInventory .tarot-loadout-grid {
+        gap: 4px;
+    }
+}

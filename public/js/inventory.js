@@ -440,14 +440,13 @@ function renderDeckCardSprite(visualEl, entry) {
     const artEl = document.createElement('div');
     artEl.className = 'tarot-loadout-art';
     if (sprite?.path) {
-        const scale = Math.min(34 / (Number(sprite.width || 48) || 48), 54 / (Number(sprite.height || 80) || 80));
         setSpriteIcon(
             artEl,
             sprite.path,
             Number(sprite.index || 0) || 0,
             Number(sprite.width || 48) || 48,
             Number(sprite.height || 80) || 80,
-            scale,
+            1,
             null,
             null
         );
@@ -467,47 +466,33 @@ function renderDeckGrid(gridEl, deckItemIds, deckType) {
         const item = itemId ? myInventory.find((inv) => inv.itemId === itemId) : null;
         const cell = document.createElement('div');
         cell.className = `tarot-loadout-card${item ? '' : ' is-empty'}`;
+        cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目`);
         if (item) {
             cell.classList.add('is-equipped');
             const entry = buildDeckCardEntry(item, itemId);
             if (entry.isArcana) cell.classList.add('is-arcana');
             cell.dataset.suit = entry.suitKey || 'none';
-            const slotEl = document.createElement('div');
-            slotEl.className = 'tarot-loadout-slot';
-            slotEl.textContent = `${i + 1}`;
-            const suitEl = document.createElement('div');
-            suitEl.className = 'tarot-loadout-suit';
-            suitEl.textContent = entry.suitLabel || '無属性';
+            cell.title = entry.title;
             const visualEl = document.createElement('div');
             visualEl.className = 'tarot-loadout-visual';
             renderDeckCardSprite(visualEl, entry);
-            const numberEl = document.createElement('div');
-            numberEl.className = 'tarot-loadout-number';
-            numberEl.textContent = entry.numberLabel || '';
-            visualEl.appendChild(numberEl);
-            const nameEl = document.createElement('div');
-            nameEl.className = 'tarot-loadout-title';
-            nameEl.textContent = entry.title;
-            const metaEl = document.createElement('div');
-            metaEl.className = 'tarot-loadout-detail';
-            metaEl.textContent = entry.detail;
             const actionsEl = document.createElement('div');
             actionsEl.className = 'tarot-loadout-cell-actions';
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'tarot-loadout-cell-remove';
-            removeBtn.textContent = '×';
             removeBtn.setAttribute('aria-label', 'デッキから外す');
             removeBtn.title = 'デッキから外す';
             if (playFabId) {
                 removeBtn.addEventListener('click', () => unequipTarotCardFromDeck(playFabId, itemId, deckType));
             }
             actionsEl.append(removeBtn);
-            cell.append(slotEl, suitEl, visualEl, nameEl, metaEl, actionsEl);
+            cell.append(visualEl, actionsEl);
         } else {
+            cell.setAttribute('aria-label', `タロットデッキ ${i + 1}枚目 空き`);
             const emptyEl = document.createElement('div');
             emptyEl.className = 'tarot-loadout-cell-empty';
-            emptyEl.textContent = `スロット${i + 1}`;
+            emptyEl.setAttribute('aria-hidden', 'true');
             cell.appendChild(emptyEl);
         }
         cells.push(cell);
