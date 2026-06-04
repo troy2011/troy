@@ -444,7 +444,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-scene {
     position: relative;
-    height: 260px;
+    height: 278px;
     overflow: hidden;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
@@ -473,27 +473,79 @@ button.home-player-ship-name {
     display: none;
 }
 
+.exploration-sequence-horizon {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 112px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(254, 243, 199, 0.38), transparent);
+    opacity: 0.5;
+}
+
+.exploration-sequence-route {
+    position: absolute;
+    left: 98px;
+    right: 126px;
+    bottom: 92px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(186, 230, 253, 0.18), rgba(254, 240, 138, 0.84));
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.34);
+    opacity: 0;
+    transform: scaleX(0.18);
+    transform-origin: left center;
+    transition: opacity 260ms ease, transform 520ms linear;
+}
+
+.exploration-sequence-route::after {
+    content: "";
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fef3c7;
+    box-shadow: 0 0 12px rgba(254, 243, 199, 0.72);
+    transform: translateY(-50%);
+}
+
+.exploration-sequence-arrival {
+    position: absolute;
+    right: 92px;
+    bottom: 101px;
+    width: 50px;
+    height: 50px;
+    border: 2px solid rgba(254, 243, 199, 0.74);
+    border-radius: 50%;
+    box-shadow: inset 0 0 14px rgba(14, 165, 233, 0.22), 0 0 18px rgba(250, 204, 21, 0.3);
+    opacity: 0;
+    transform: scale(0.56);
+    transition: opacity 260ms ease, transform 420ms ease;
+}
+
 .exploration-sequence-island {
     position: absolute;
-    right: 36px;
-    bottom: 54px;
-    width: 132px;
-    height: 104px;
+    right: 30px;
+    bottom: 66px;
+    width: 146px;
+    height: 112px;
     display: grid;
     place-items: center;
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-    font-size: 82px;
+    font-size: 88px;
     line-height: 1;
-    opacity: 0.52;
-    transform: translateX(26px) scale(0.86);
+    opacity: 0.58;
+    transform: translateX(22px) scale(0.88);
     text-shadow: 0 16px 18px rgba(0, 0, 0, 0.38);
     transition: opacity 260ms ease, transform 520ms ease;
 }
 
 .exploration-sequence-boss {
     position: absolute;
-    right: 72px;
-    bottom: 88px;
+    right: 76px;
+    bottom: 108px;
     display: grid;
     place-items: center;
     gap: 0;
@@ -529,7 +581,7 @@ button.home-player-ship-name {
 .exploration-sequence-ship-effect {
     position: absolute;
     left: 226px;
-    bottom: 86px;
+    bottom: 92px;
     width: 96px;
     height: 96px;
     border-radius: 50%;
@@ -557,8 +609,8 @@ button.home-player-ship-name {
 
 .exploration-sequence-chests {
     position: absolute;
-    right: 86px;
-    bottom: 80px;
+    right: 88px;
+    bottom: 96px;
     min-width: 72px;
     min-height: 72px;
     display: flex;
@@ -622,10 +674,20 @@ button.home-player-ship-name {
         homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
+.exploration-sequence-overlay.is-sail .exploration-sequence-route {
+    opacity: 0.44;
+    transform: scaleX(0.42);
+}
+
 .exploration-sequence-overlay.is-up .exploration-sequence-ship {
     animation:
         explorationSequenceUp 1400ms linear forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
+}
+
+.exploration-sequence-overlay.is-up .exploration-sequence-route {
+    opacity: 0.58;
+    transform: scaleX(0.68);
 }
 
 .exploration-sequence-overlay.is-up .exploration-sequence-island,
@@ -636,10 +698,25 @@ button.home-player-ship-name {
     transform: translateX(0) scale(1);
 }
 
+.exploration-sequence-overlay.is-up .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-left .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-battle .exploration-sequence-arrival,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-arrival {
+    opacity: 0.72;
+    transform: scale(1);
+}
+
 .exploration-sequence-overlay.is-left .exploration-sequence-ship {
     animation:
         explorationSequenceLeft 1200ms linear forwards,
         homePlayerShipFrameStep 300ms steps(3) infinite;
+}
+
+.exploration-sequence-overlay.is-left .exploration-sequence-route,
+.exploration-sequence-overlay.is-battle .exploration-sequence-route,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-route {
+    opacity: 0.8;
+    transform: scaleX(1);
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship {
@@ -711,6 +788,11 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-boss {
     opacity: 0;
+}
+
+.exploration-sequence-overlay.is-treasure .exploration-sequence-arrival {
+    opacity: 0.95;
+    transform: scale(1.18);
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-chests {
@@ -829,12 +911,14 @@ button.home-player-ship-name {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgba(2, 6, 23, 0.68);
+    background: rgba(2, 6, 23, 0.72);
 }
 
 .exploration-result-dialog {
     position: relative;
-    width: min(520px, 100%);
+    width: min(560px, 100%);
+    max-height: min(720px, 92vh);
+    overflow: auto;
     padding: 16px;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
@@ -884,11 +968,61 @@ button.home-player-ship-name {
     font-size: 20px;
 }
 
+.exploration-result-head small {
+    color: #bae6fd;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.exploration-result-showcase {
+    min-height: 100px;
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 8px / 0 stretch;
+    border-radius: 6px;
+    background:
+        linear-gradient(90deg, rgba(250, 204, 21, 0.12), rgba(15, 23, 42, 0.3));
+}
+
+.exploration-result-chest {
+    width: 76px;
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    background: url("./Sprites/items/Chest/chest2_open_strip8.png") 100% 0 / 800% 100% no-repeat;
+    filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.58));
+}
+
+.exploration-result-chest.is-empty {
+    background-image: url("./Sprites/items/Chest/chest1_idle_strip8.png");
+    background-position: 0 0;
+    filter: grayscale(0.7) drop-shadow(0 10px 16px rgba(0, 0, 0, 0.42));
+}
+
+.exploration-result-showcase b {
+    display: block;
+    color: #fde68a;
+    font-size: 14px;
+}
+
+.exploration-result-showcase span {
+    display: block;
+    margin-top: 4px;
+    color: #e0f2fe;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
 .exploration-result-body {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .exploration-result-body div {
@@ -923,8 +1057,10 @@ button.home-player-ship-name {
 }
 
 .exploration-result-rewards li {
-    display: flex;
-    justify-content: space-between;
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
     gap: 10px;
     padding: 8px 10px;
     border: 1px solid transparent;
@@ -933,15 +1069,69 @@ button.home-player-ship-name {
     background: rgba(15, 23, 42, 0.62);
 }
 
+.exploration-result-reward-icon {
+    width: 30px;
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    background: url("./Sprites/items/Chest/chest1_open_strip8.png") 100% 0 / 800% 100% no-repeat;
+    filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.38));
+}
+
 .exploration-result-rewards strong {
     color: #f8fafc;
     font-size: 13px;
+    overflow-wrap: anywhere;
 }
 
 .exploration-result-rewards span {
     color: #fde68a;
     font-size: 11px;
     font-weight: 800;
+    white-space: nowrap;
+}
+
+.exploration-result-reward.is-rare .exploration-result-reward-icon {
+    filter: sepia(0.2) saturate(1.4) hue-rotate(150deg) drop-shadow(0 0 12px rgba(96, 165, 250, 0.45));
+}
+
+.exploration-result-reward.is-epic .exploration-result-reward-icon {
+    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
+    filter: sepia(0.15) saturate(1.5) hue-rotate(245deg) drop-shadow(0 0 14px rgba(192, 132, 252, 0.56));
+}
+
+.exploration-result-reward.is-legendary .exploration-result-reward-icon {
+    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
+    filter: sepia(0.35) saturate(1.8) hue-rotate(350deg) drop-shadow(0 0 16px rgba(250, 204, 21, 0.72));
+}
+
+.exploration-result-reward.is-empty {
+    opacity: 0.76;
+}
+
+.exploration-result-reward.is-empty .exploration-result-reward-icon {
+    background-image: url("./Sprites/items/Chest/chest1_idle_strip8.png");
+    background-position: 0 0;
+    filter: grayscale(0.75);
+}
+
+.exploration-result-reward.is-rare span { color: #93c5fd; }
+.exploration-result-reward.is-epic span { color: #d8b4fe; }
+.exploration-result-reward.is-legendary span { color: #fde68a; }
+
+.exploration-result-log {
+    display: grid;
+    gap: 4px;
+    margin-top: 10px;
+}
+
+.exploration-result-log div {
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 7px / 0 stretch;
+    border-radius: 5px;
+    color: #c7d2fe;
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .exploration-result-actions {
@@ -982,6 +1172,14 @@ button.home-player-ship-name {
 }
 
 @media (max-width: 520px) {
+    .exploration-result-showcase {
+        grid-template-columns: 68px minmax(0, 1fr);
+    }
+
+    .exploration-result-chest {
+        width: 62px;
+    }
+
     .exploration-result-body {
         grid-template-columns: 1fr;
     }
@@ -9778,163 +9976,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     opacity: 0.55;
 }
 
-.exploration-treasure-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10038;
-    display: grid;
-    place-items: center;
-    padding: 18px;
-    background: rgba(2, 6, 23, 0.72);
-}
-
-.exploration-treasure-dialog {
-    width: min(560px, 100%);
-    max-height: min(720px, 92vh);
-    overflow: auto;
-    padding: 14px;
-    border: 1px solid rgba(250, 204, 21, 0.24);
-    border-radius: 8px;
-    background: #0f172a;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-}
-
-.exploration-treasure-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.exploration-treasure-head h3 {
-    margin: 0;
-    font-size: 16px;
-    color: #fde68a;
-}
-
-.exploration-treasure-close {
-    width: 34px;
-    height: 34px;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    border-radius: 6px;
-    background: rgba(15, 23, 42, 0.9);
-    color: #e5e7eb;
-    font-size: 20px;
-    line-height: 1;
-}
-
-.exploration-treasure-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-    gap: 10px;
-}
-
-.exploration-treasure-box {
-    min-height: 142px;
-    display: grid;
-    grid-template-rows: 96px minmax(28px, auto);
-    place-items: center;
-    gap: 6px;
-    padding: 10px 8px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 8px;
-    background: rgba(2, 6, 23, 0.52);
-    color: #e5e7eb;
-    cursor: pointer;
-}
-
-.exploration-treasure-box.is-opening,
-.exploration-treasure-box.is-open {
-    cursor: default;
-}
-
-.exploration-treasure-chest {
-    width: 88px;
-    aspect-ratio: 1 / 1;
-    image-rendering: pixelated;
-    background-repeat: no-repeat;
-    background-size: 800% 100%;
-    background-image: url("./Sprites/items/Chest/chest1_idle_strip8.png");
-    animation: exploration-treasure-idle 900ms steps(8) infinite;
-    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
-}
-
-.exploration-treasure-box.is-rare .exploration-treasure-chest {
-    filter: sepia(0.2) saturate(1.4) hue-rotate(150deg) drop-shadow(0 0 14px rgba(96, 165, 250, 0.45));
-}
-
-.exploration-treasure-box.is-epic .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest2_idle_strip8.png");
-    filter: sepia(0.15) saturate(1.5) hue-rotate(245deg) drop-shadow(0 0 16px rgba(192, 132, 252, 0.55));
-}
-
-.exploration-treasure-box.is-legendary .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest2_idle_strip8.png");
-    filter: sepia(0.35) saturate(1.8) hue-rotate(350deg) drop-shadow(0 0 18px rgba(250, 204, 21, 0.7));
-}
-
-.exploration-treasure-box.is-opening .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest1_open_strip8.png");
-    animation: exploration-treasure-open 720ms steps(8) 1 forwards;
-}
-
-.exploration-treasure-box.is-opening.is-epic .exploration-treasure-chest,
-.exploration-treasure-box.is-opening.is-legendary .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
-}
-
-.exploration-treasure-box.is-open .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest1_open_strip8.png");
-    animation: none;
-    background-position: 100% 0;
-}
-
-.exploration-treasure-box.is-open.is-epic .exploration-treasure-chest,
-.exploration-treasure-box.is-open.is-legendary .exploration-treasure-chest {
-    background-image: url("./Sprites/items/Chest/chest2_open_strip8.png");
-}
-
-.exploration-treasure-box.is-open {
-    border-color: rgba(250, 204, 21, 0.36);
-    background: rgba(15, 23, 42, 0.86);
-}
-
-.exploration-treasure-name {
-    width: 100%;
-    min-height: 28px;
-    color: #f8fafc;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.35;
-    text-align: center;
-    overflow-wrap: anywhere;
-}
-
-.exploration-treasure-box.is-common .exploration-treasure-name { color: #e5e7eb; }
-.exploration-treasure-box.is-rare .exploration-treasure-name { color: #93c5fd; }
-.exploration-treasure-box.is-epic .exploration-treasure-name { color: #d8b4fe; }
-.exploration-treasure-box.is-legendary .exploration-treasure-name { color: #fde68a; }
-
-.exploration-treasure-foot {
-    min-height: 18px;
-    margin-top: 12px;
-    color: var(--text-sub);
-    font-size: 12px;
-    text-align: center;
-}
-
-@keyframes exploration-treasure-idle {
-    from { background-position: 0 0; }
-    to { background-position: 100% 0; }
-}
-
-@keyframes exploration-treasure-open {
-    from { background-position: 0 0; transform: scale(1); }
-    55% { transform: scale(1.08); }
-    to { background-position: 100% 0; transform: scale(1); }
-}
-
 @media (max-width: 520px) {
     .avatar-style-controls {
         grid-template-columns: 1fr;
@@ -14821,8 +14862,7 @@ body {
 #inventoryMobileSwitch,
 #inventoryPrimaryTabs,
 #tabContentInventory #inventoryTabs,
-#rankingToggleButtons,
-.exploration-treasure-dialog {
+#rankingToggleButtons {
     background:
         linear-gradient(180deg, rgba(3, 5, 7, 0.1), rgba(0, 0, 0, 0.34)),
         url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
@@ -20422,7 +20462,6 @@ body[data-sea-tone] .home-hero-card {
 #inventoryPrimaryTabs,
 #tabContentInventory #inventoryTabs,
 #rankingToggleButtons,
-.exploration-treasure-dialog,
 #tabContentInventory .equip-slot,
 #tabContentTroy .troy-calendar-item,
 #tabContentTroy .troy-entry-item,

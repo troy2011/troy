@@ -1355,73 +1355,6 @@ function getRewardItemsForReveal(data) {
     return [];
 }
 
-function openTreasureButton(button, item) {
-    if (!button || button.classList.contains('is-open') || button.classList.contains('is-opening')) return;
-    const rarity = normalizeRewardRarity(item?.rarity || item?.Rarity);
-    const name = String(item?.displayName || item?.DisplayName || item?.itemId || item?.ItemId || 'お宝');
-    button.classList.add('is-opening');
-    window.setTimeout(() => {
-        button.classList.remove('is-opening');
-        button.classList.add('is-open');
-        const nameEl = button.querySelector('.exploration-treasure-name');
-        if (nameEl) nameEl.textContent = name;
-        button.setAttribute('aria-label', `${name} ${rarity}`);
-        const overlay = button.closest('.exploration-treasure-overlay');
-        if (overlay?.querySelectorAll('.exploration-treasure-box:not(.is-open)').length === 0) {
-            const foot = overlay.querySelector('.exploration-treasure-foot');
-            if (foot) foot.textContent = 'すべてのお宝を入手しました。';
-        }
-    }, 720);
-}
-
-function showExplorationTreasureReveal(rewards, options = {}) {
-    const items = (Array.isArray(rewards) ? rewards : []).filter(Boolean);
-    if (!items.length) return;
-    const existing = document.querySelector('.exploration-treasure-overlay');
-    existing?.remove();
-
-    const overlay = document.createElement('div');
-    overlay.className = 'exploration-treasure-overlay';
-    overlay.innerHTML = `
-        <div class="exploration-treasure-dialog" role="dialog" aria-modal="true" aria-label="探索のお宝">
-            <div class="exploration-treasure-head">
-                <h3>探索のお宝</h3>
-                <button type="button" class="exploration-treasure-close" aria-label="閉じる">×</button>
-            </div>
-            <div class="exploration-treasure-grid">
-                ${items.map((item, index) => {
-                    const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
-                    return `
-                        <button type="button" class="exploration-treasure-box is-${rarity}" data-treasure-index="${index}" aria-label="宝箱 ${index + 1}">
-                            <span class="exploration-treasure-chest"></span>
-                            <span class="exploration-treasure-name">未開封</span>
-                        </button>
-                    `;
-                }).join('')}
-            </div>
-            <div class="exploration-treasure-foot">${options.autoOpen ? '宝箱を回収中です。' : '宝箱を選んで開けてください。'}</div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    overlay.querySelector('.exploration-treasure-close')?.addEventListener('click', close);
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) close();
-    });
-    overlay.querySelectorAll('[data-treasure-index]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const index = Number(button.getAttribute('data-treasure-index') || 0);
-            openTreasureButton(button, items[index] || {});
-        });
-    });
-    if (options.autoOpen) {
-        overlay.querySelectorAll('[data-treasure-index]').forEach((button, index) => {
-            window.setTimeout(() => openTreasureButton(button, items[index] || {}), 420 + (index * 260));
-        });
-    }
-}
-
 function renderExplorationRewardChests(count) {
     const total = Math.max(0, Math.min(6, Number(count || 0)));
     if (!total) return '<span class="exploration-sequence-no-chest">なし</span>';
@@ -1437,18 +1370,67 @@ function getExplorationBattleLogLines(report) {
         .slice(0, 4);
 }
 
+function getExplorationRewardName(item) {
+    return String(item?.displayName || item?.DisplayName || item?.itemId || item?.ItemId || 'お宝');
+}
+
+function getExplorationRewardQuantity(item) {
+    const value = Number(item?.quantity ?? item?.Quantity ?? item?.amount ?? item?.Amount ?? item?.count ?? item?.Count ?? 1);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function getExplorationRarityLabel(rarity) {
+    return {
+        common: 'COMMON',
+        rare: 'RARE',
+        epic: 'EPIC',
+        legendary: 'LEGEND'
+    }[normalizeRewardRarity(rarity)] || 'COMMON';
+}
+
+function getExplorationBossResultLabel(bossResult) {
+    if (bossResult === 'victory') return '勝利';
+    if (bossResult === 'defeat') return '撤退';
+    if (bossResult === 'escaped' || bossResult === 'draw') return '離脱';
+    return '発見';
+}
+
+function getExplorationBossResultText(report, bossResult) {
+    if (bossResult === 'victory') return '撃破成功、HP全回復';
+    if (bossResult === 'defeat') return '敗北、HP全回復';
+    if (bossResult === 'escaped' || bossResult === 'draw') return '決着なし、HP全回復';
+    return report?.bossName ? '接触なし、HP全回復' : '戦闘なし、HP全回復';
+}
+
 function showExplorationResultSummary(data, options = {}) {
     const report = data?.report || {};
     const bossResult = normalizeBossResult(report.bossResult);
     const rewards = getRewardItemsForReveal(data);
+    const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const rewardHtml = rewards.length
-        ? rewards.map((item) => `
-            <li>
-                <strong>${escapeHtml(item.displayName || item.DisplayName || item.itemId || item.ItemId || 'お宝')}</strong>
-                <span>${escapeHtml(normalizeRewardRarity(item.rarity || item.Rarity))}</span>
+        ? rewards.map((item) => {
+            const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
+            const quantity = getExplorationRewardQuantity(item);
+            const quantityText = quantity > 1 ? `×${quantity.toLocaleString('ja-JP')}` : '';
+            return `
+                <li class="exploration-result-reward is-${rarity}">
+                    <span class="exploration-result-reward-icon" aria-hidden="true"></span>
+                    <strong>${escapeHtml(getExplorationRewardName(item))}</strong>
+                    <span>${escapeHtml(getExplorationRarityLabel(rarity))}${quantityText}</span>
+                </li>
+            `;
+        }).join('')
+        : `
+            <li class="exploration-result-reward is-empty">
+                <span class="exploration-result-reward-icon" aria-hidden="true"></span>
+                <strong>報酬なし</strong>
+                <span>NONE</span>
             </li>
-        `).join('')
-        : '<li><strong>報酬なし</strong><span>none</span></li>';
+        `;
+    const logLines = getExplorationBattleLogLines(report);
+    const logHtml = logLines.length
+        ? logLines.map((line) => `<div>${escapeHtml(line)}</div>`).join('')
+        : '<div>静かな航路を抜けて探索を終えました。</div>';
     const existing = document.querySelector('.exploration-result-overlay');
     existing?.remove();
 
@@ -1458,8 +1440,16 @@ function showExplorationResultSummary(data, options = {}) {
         <div class="exploration-result-dialog" role="dialog" aria-modal="true" aria-label="探索結果">
             <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
             <div class="exploration-result-head">
-                <span>${bossResult === 'victory' ? '勝利' : bossResult === 'defeat' ? '撤退' : bossResult === 'escaped' || bossResult === 'draw' ? '離脱' : '発見'}</span>
+                <span>${getExplorationBossResultLabel(bossResult)}</span>
                 <strong>${escapeHtml(report.destinationName || '探索結果')}</strong>
+                <small>${rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした'}</small>
+            </div>
+            <div class="exploration-result-showcase ${rewardTotal > 0 ? 'has-rewards' : 'is-empty'}">
+                <span class="exploration-result-chest ${rewardTotal > 0 ? 'is-open' : 'is-empty'}" aria-hidden="true"></span>
+                <div>
+                    <b>${rewardTotal > 0 ? '回収完了' : '回収なし'}</b>
+                    <span>${rewardTotal > 0 ? '宝箱を開封し、戦利品を持ち帰りました。' : '航路を確認して帰還しました。'}</span>
+                </div>
             </div>
             <div class="exploration-result-body">
                 <div>
@@ -1468,14 +1458,15 @@ function showExplorationResultSummary(data, options = {}) {
                 </div>
                 <div>
                     <b>結果</b>
-                    <span>${bossResult === 'victory' ? '撃破成功、HP全回復' : bossResult === 'defeat' ? '敗北、HP全回復' : bossResult === 'escaped' || bossResult === 'draw' ? '決着なし、HP全回復' : '戦闘なし、HP全回復'}</span>
+                    <span>${escapeHtml(getExplorationBossResultText(report, bossResult))}</span>
                 </div>
                 <div>
                     <b>お宝</b>
-                    <span>${Number(report.rewardCount || rewards.length || 0).toLocaleString('ja-JP')}個</span>
+                    <span>${rewardTotal.toLocaleString('ja-JP')}個</span>
                 </div>
             </div>
             <ul class="exploration-result-rewards">${rewardHtml}</ul>
+            <div class="exploration-result-log">${logHtml}</div>
             <div class="exploration-result-actions">
                 <button type="button" data-exploration-result-close>閉じる</button>
                 ${options.playFabId ? '<button type="button" data-exploration-result-next>次の探索</button>' : ''}
@@ -1496,25 +1487,9 @@ function showExplorationResultSummary(data, options = {}) {
     });
 }
 
-function handleExplorationClaimResult(data, playFabId, options = {}) {
+function handleExplorationClaimResult(data, playFabId) {
     renderExplorationPanel(data, playFabId);
-    const rewards = getRewardItemsForReveal(data);
-    showExplorationTreasureReveal(rewards, { autoOpen: !!options.autoOpenTreasure });
     showExplorationResultSummary(data, { playFabId });
-    const report = data?.report || {};
-    const bossResult = normalizeBossResult(report.bossResult);
-    const rewardName = report.rewardItemName || data?.reward?.DisplayName || 'お宝';
-    const rewardCount = report.rewardCount ?? (data?.reward ? 1 : 0);
-    const rewardSuffix = rewardCount > 0 ? `${rewardName}×${rewardCount}個を入手。` : '報酬は得られませんでした。';
-    if (bossResult === 'defeat') {
-        showRpgMessage(`BOSS「${report.bossName}」に敗北。探索後にHPは全回復しました。${rewardSuffix}`, 3500);
-    } else if (bossResult === 'victory') {
-        showRpgMessage(`BOSS「${report.bossName}」を撃破！探索後にHPは全回復しました。${rewardSuffix}`, 3500);
-    } else if (bossResult === 'escaped' || bossResult === 'draw') {
-        showRpgMessage(`BOSS「${report.bossName}」との戦闘は決着せず終了。HPは全回復しました。${rewardSuffix}`, 3500);
-    } else {
-        showRpgMessage(`探索レポートを確認しました。HPは全回復しました。${rewardSuffix}`);
-    }
 }
 
 function isExplorationStartConflict(error) {
@@ -1568,6 +1543,9 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="探索">
             <div class="exploration-sequence-scene">
                 <div class="exploration-sequence-sky"></div>
+                <div class="exploration-sequence-horizon" aria-hidden="true"></div>
+                <div class="exploration-sequence-route" aria-hidden="true"></div>
+                <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 <div class="exploration-sequence-island" aria-hidden="true">${escapeHtml(destinationVisual.island)}</div>
                 <div class="exploration-sequence-boss" aria-hidden="true">
                     <span>${escapeHtml(bossEmoji)}</span>
@@ -1604,18 +1582,18 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     };
 
     setPhase('sail', shipTrait.label);
-    await wait(900);
+    await wait(760);
     setPhase('up', `${destinationVisual.label}を発見`);
-    await wait(850);
-    setPhase('left', '上陸地点へ回り込み');
-    await wait(850);
+    await wait(640);
+    setPhase('left', '上陸地点へ直進');
+    await wait(640);
     setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `BOSS「${report.bossName || '???'}」と交戦`);
     setBattleLog(2);
-    await wait(520);
+    await wait(420);
     setBattleLog(4);
-    await wait(1050);
+    await wait(820);
     setPhase('treasure', rewardCount > 0 ? `宝箱${rewardCount}個を発見` : 'お宝は見つからなかった');
-    await wait(900);
+    await wait(760);
 
     overlay.remove();
     homeFrame?.classList.remove('is-exploring');
@@ -1719,10 +1697,10 @@ async function startExploration(playFabId, destinationId) {
     }
 }
 
-async function claimExploration(playFabId, options = {}) {
+async function claimExploration(playFabId) {
     try {
         const data = await requestClaimExploration(playFabId, { throwOnError: true });
-        handleExplorationClaimResult(data, playFabId, options);
+        handleExplorationClaimResult(data, playFabId);
     } catch (error) {
         showRpgMessage(error?.message || '探索結果を確認できませんでした。');
     }

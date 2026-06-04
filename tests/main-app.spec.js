@@ -145,7 +145,12 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       <div class="exploration-sequence-dialog">
         <div class="exploration-sequence-scene">
           <div class="exploration-sequence-sky"></div>
+          <div class="exploration-sequence-horizon"></div>
+          <div class="exploration-sequence-route"></div>
+          <div class="exploration-sequence-arrival"></div>
+          <div class="exploration-sequence-island">🏝️</div>
           <div class="exploration-sequence-ship is-boat"></div>
+          <div class="exploration-sequence-chests"><span class="exploration-sequence-mini-chest"></span></div>
           <div class="exploration-sequence-log"><div>log</div></div>
         </div>
       </div>
@@ -157,8 +162,11 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
     result.innerHTML = `
       <div class="exploration-result-dialog">
         <button type="button" class="exploration-result-close">×</button>
+        <div class="exploration-result-head"><span>勝利</span><strong>result</strong><small>1個のお宝を回収</small></div>
+        <div class="exploration-result-showcase"><span class="exploration-result-chest is-open"></span><div><b>回収完了</b><span>clear</span></div></div>
         <div class="exploration-result-body"><div><b>BOSS</b><span>clear</span></div></div>
-        <ul class="exploration-result-rewards"><li><strong>reward</strong><span>x1</span></li></ul>
+        <ul class="exploration-result-rewards"><li class="exploration-result-reward is-rare"><span class="exploration-result-reward-icon"></span><strong>reward</strong><span>x1</span></li></ul>
+        <div class="exploration-result-log"><div>battle log</div></div>
         <div class="exploration-result-actions"><button type="button">close</button><button type="button">next</button></div>
       </div>
     `;
@@ -202,11 +210,15 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       sequenceDialog: styleOf('.exploration-sequence-dialog'),
       sequenceScene: styleOf('.exploration-sequence-scene'),
       sequenceSky: styleOf('.exploration-sequence-sky'),
+      sequenceRoute: styleOf('.exploration-sequence-route'),
+      sequenceArrival: styleOf('.exploration-sequence-arrival'),
       sequenceLog: styleOf('.exploration-sequence-log div'),
       resultDialog: styleOf('.exploration-result-dialog'),
       resultClose: styleOf('.exploration-result-close'),
+      resultShowcase: styleOf('.exploration-result-showcase'),
       resultMetric: styleOf('.exploration-result-body div'),
       resultReward: styleOf('.exploration-result-rewards li'),
+      resultLog: styleOf('.exploration-result-log div'),
       sailAnimationName,
       shipFrameCount,
       shipMotionDelta,
@@ -222,9 +234,14 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceScene.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceLog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.sequenceRoute.animationName).toBe('none');
+  expect(audit.sequenceRoute.backgroundImage).not.toContain('repeating-linear-gradient');
+  expect(audit.sequenceArrival.borderRadius).toBe('50%');
   expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultShowcase.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultMetric.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultReward.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultLog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.sequenceSky.display).toBe('none');
   expect(audit.sequenceSky.animationName).toBe('none');
   expect(audit.sequenceSky.backgroundImage).toBe('none');
