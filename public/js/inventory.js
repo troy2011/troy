@@ -317,11 +317,79 @@ export function switchInventoryPanel(panel, options = {}) {
         tabContent.dataset.inventoryPanel = activeInventoryPanel;
         tabContent.dataset.inventoryGroup = activeInventoryGroup;
     }
+    bindEquipmentSlotInteractions();
     if (!options.scrollSwitcher) return;
     const switcher = document.getElementById('inventoryMobileSwitch');
     if (switcher) {
         switcher.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
+}
+
+export function scrollInventoryItemsIntoView(options = {}) {
+    if (typeof document === 'undefined') return;
+    const target = document.querySelector('#tabContentInventory .inventory-section[data-panel="items"]')
+        || document.getElementById('inventoryGrid');
+    if (!target) return;
+    const behavior = options.behavior || 'smooth';
+    const block = options.block || 'start';
+    requestAnimationFrame(() => {
+        target.scrollIntoView({ block, behavior });
+    });
+}
+
+function getTargetInventoryCategoryForEquipmentSlot(slotElement) {
+    const slotType = slotElement?.dataset?.slot || '';
+    const slotKeyMap = {
+        rightHand: 'RightHand',
+        leftHand: 'LeftHand',
+        armor: 'Armor',
+        accessory: 'Accessory',
+        majorarcana: 'MajorArcana'
+    };
+    const currentSlotKey = slotKeyMap[slotType] || '';
+    const currentEntry = currentSlotKey ? myCurrentEquipment?.[currentSlotKey] : null;
+    const currentItem = getInventoryItemByReference(currentEntry);
+    const currentCategory = String(currentItem?.customData?.Category || '').trim();
+
+    if (slotType === 'majorarcana') return 'TarotMajor';
+    if (currentCategory === 'Weapon' || currentCategory === 'Shield' || currentCategory === 'Offhand' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
+        return currentCategory;
+    }
+    if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
+        return 'TarotMajor';
+    }
+    if (slotType === 'rightHand') return 'Weapon';
+    if (slotType === 'leftHand') return 'Offhand';
+    if (slotType === 'armor') return 'Armor';
+    if (slotType === 'accessory') return 'Accessory';
+    return 'All';
+}
+
+function handleEquipmentSlotSelect(slotElement) {
+    const targetCategory = getTargetInventoryCategoryForEquipmentSlot(slotElement);
+    switchInventoryPanel('items', { preserveScroll: true });
+    if (targetCategory !== 'All') {
+        switchInventoryTab(targetCategory);
+    } else {
+        switchInventoryGroup('Equipment', { panel: 'items' });
+    }
+    scrollInventoryItemsIntoView({ behavior: 'smooth' });
+}
+
+export function bindEquipmentSlotInteractions() {
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll('#tabContentInventory .equip-slot').forEach((slot) => {
+        if (slot.dataset.inventoryScrollBound === 'true') return;
+        slot.dataset.inventoryScrollBound = 'true';
+        slot.setAttribute('role', 'button');
+        slot.tabIndex = 0;
+        slot.addEventListener('click', () => handleEquipmentSlotSelect(slot));
+        slot.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            handleEquipmentSlotSelect(slot);
+        });
+    });
 }
 
 function getInventoryItemByReference(itemRef) {

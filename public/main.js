@@ -1169,55 +1169,6 @@ async function initializeAppFeatures() {
         Inventory.renderInventoryGrid(currentCategory);
     });
 
-    // 装備スロットのクリックイベント（インベントリタブに移動してフィルタリング）
-    document.querySelectorAll('.equip-slot').forEach(slot => {
-        slot.addEventListener('click', async () => {
-            const slotType = slot.dataset.slot;
-            const currentEquipment = Inventory.getMyCurrentEquipment();
-            const inventoryItems = Inventory.getMyInventory();
-            const slotKeyMap = {
-                rightHand: 'RightHand',
-                leftHand: 'LeftHand',
-                armor: 'Armor',
-                accessory: 'Accessory',
-                majorarcana: 'MajorArcana'
-            };
-            const currentSlotKey = slotKeyMap[slotType] || '';
-            const currentEntry = currentSlotKey ? currentEquipment?.[currentSlotKey] : null;
-            const currentItem = (currentEntry && typeof currentEntry === 'object' && currentEntry.customData)
-                ? currentEntry
-                : inventoryItems.find((item) => item.instances?.includes(currentEntry))
-                    || inventoryItems.find((item) => item.itemId === currentEntry)
-                    || null;
-            const currentCategory = String(currentItem?.customData?.Category || '').trim();
-            let targetCategory = 'All';
-
-            if (slotType === 'majorarcana') {
-                targetCategory = 'TarotMajor';
-            } else if (currentCategory === 'Weapon' || currentCategory === 'Shield' || currentCategory === 'Offhand' || currentCategory === 'Armor' || currentCategory === 'Accessory') {
-                targetCategory = currentCategory;
-            } else if (currentCategory === 'TarotMajor' || currentCategory === 'MajorArcana' || currentCategory === 'TarotArcanaMajor') {
-                targetCategory = 'TarotMajor';
-            } else if (slotType === 'rightHand') {
-                targetCategory = 'Weapon';
-            } else if (slotType === 'leftHand') {
-                targetCategory = 'Offhand';
-            } else if (slotType === 'armor') {
-                targetCategory = 'Armor';
-            } else if (slotType === 'accessory') {
-                targetCategory = 'Accessory';
-            }
-
-            // インベントリタブに移動
-            await showTab('inventory', { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
-            Inventory.switchInventoryPanel('items', { preserveScroll: true });
-
-            // カテゴリタブを切り替え
-            if (targetCategory !== 'All') {
-                Inventory.switchInventoryTab(targetCategory);
-            }
-        });
-    });
     document.getElementById('btnGetRanking').addEventListener('click', Player.getRanking);
     document.getElementById('btnShowPsRanking')?.addEventListener('click', () => Player.showRanking('ps'));
     document.getElementById('btnShowDartsRanking')?.addEventListener('click', () => Player.showRanking('darts'));

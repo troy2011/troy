@@ -18850,6 +18850,16 @@ body[data-sea-tone] .home-hero-card {
     min-height: 84px;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 11px / 0 stretch;
     border-color: transparent;
+    cursor: pointer;
+}
+
+#tabContentInventory .equip-slot:hover {
+    filter: brightness(1.08);
+}
+
+#tabContentInventory .equip-slot:focus-visible {
+    outline: 2px solid rgba(255, 224, 142, 0.82);
+    outline-offset: 2px;
 }
 
 #tabContentInventory .inventory-list-summary {
