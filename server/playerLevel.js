@@ -7,7 +7,7 @@ const {
 const { getUnlockedFeaturesBetween } = require('./featureUnlocks');
 
 const PLAYER_LEVEL_STAT = 'Level';
-const BASE_CONTRIBUTION_PER_LEVEL = 3000;
+const BASE_CONTRIBUTION_PER_LEVEL = 1500;
 
 function normalizeContribution(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
