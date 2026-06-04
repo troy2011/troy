@@ -18841,12 +18841,26 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .equip-slot {
     min-height: 84px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 7px;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 11px / 0 stretch;
     border-color: transparent;
     cursor: pointer;
 }
 
+#tabContentInventory .equip-slot-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 40px;
+    height: 40px;
+    background-size: 40px 40px;
+}
+
 #tabContentInventory .equip-slot-content {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -18875,6 +18889,37 @@ body[data-sea-tone] .home-hero-card {
     margin-top: 1px;
     font-size: 11px;
     line-height: 1.2;
+}
+
+#tabContentInventory .equip-slot-item-art {
+    grid-column: 3;
+    grid-row: 1;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    justify-self: end;
+    border: 1px solid rgba(209, 173, 114, 0.3);
+    border-radius: 7px;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 232, 168, 0.16), transparent 62%),
+        linear-gradient(180deg, rgba(4, 7, 10, 0.62), rgba(1, 2, 4, 0.9));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 239, 192, 0.08),
+        0 2px 5px rgba(0, 0, 0, 0.28);
+    opacity: 0.36;
+    overflow: hidden;
+}
+
+#tabContentInventory .equip-slot-item-art.has-item {
+    opacity: 1;
+}
+
+#tabContentInventory .equip-slot-item-sprite {
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    transform-origin: center;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.65));
 }
 
 #tabContentInventory .equip-slot:hover {
@@ -19020,10 +19065,10 @@ body[data-sea-tone] .home-hero-card {
 
     #tabContentInventory .equip-slot {
         min-height: 88px;
-        grid-template-columns: 34px minmax(0, 1fr);
+        grid-template-columns: 34px minmax(0, 1fr) 42px;
         grid-template-rows: auto auto auto;
         align-items: center;
-        gap: 4px 8px;
+        gap: 4px 7px;
         padding: 8px 9px;
     }
 
@@ -19036,6 +19081,7 @@ body[data-sea-tone] .home-hero-card {
         grid-row: 1;
         width: 32px;
         height: 32px;
+        background-size: 32px 32px;
     }
 
     #tabContentInventory .equip-slot-label {
@@ -19044,7 +19090,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #tabContentInventory .equip-slot-name {
-        grid-column: 1 / -1;
+        grid-column: 1 / 3;
         grid-row: 2;
         margin-top: 2px;
         font-size: 13px;
@@ -19052,9 +19098,17 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #tabContentInventory .equip-slot-stats {
-        grid-column: 1 / -1;
+        grid-column: 1 / 3;
         grid-row: 3;
         margin-top: 0;
+    }
+
+    #tabContentInventory .equip-slot-item-art {
+        grid-column: 3;
+        grid-row: 1 / 4;
+        width: 40px;
+        height: 40px;
+        align-self: center;
     }
 }
 

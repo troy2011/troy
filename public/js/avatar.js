@@ -135,6 +135,85 @@ function getSpritePathCandidates(spritePath, itemCategory = null, avatarColor = 
     return [resolved, spritePath];
 }
 
+function clearEquipmentSlotArt(artEl) {
+    if (!artEl) return;
+    artEl.classList.remove('has-item', 'is-loading', 'is-error');
+    artEl.removeAttribute('data-art-key');
+    artEl.innerHTML = '';
+}
+
+function renderEquipmentSlotArt(artId, item, avatarColor = null) {
+    const artEl = document.getElementById(artId);
+    if (!artEl) return;
+    if (!item?.customData) {
+        clearEquipmentSlotArt(artEl);
+        return;
+    }
+
+    const spriteMeta = getAvatarItemSpriteMeta(item);
+    const spritePath = spriteMeta.path;
+    const spriteIndex = Number.parseInt(spriteMeta.index, 10) || 0;
+    const spriteWidth = Number(spriteMeta.width) || 32;
+    const spriteHeight = Number(spriteMeta.height) || 32;
+    if (!spritePath || spriteIndex < 0) {
+        clearEquipmentSlotArt(artEl);
+        return;
+    }
+
+    const category = item.customData?.Category || null;
+    const artKey = [
+        item.itemId || item.id || item.customData?.ItemId || item.name || '',
+        spritePath,
+        spriteIndex
+    ].join('|');
+    artEl.dataset.artKey = artKey;
+    artEl.classList.add('is-loading');
+    artEl.classList.remove('has-item', 'is-error');
+
+    const pathCandidates = getSpritePathCandidates(spritePath, category, avatarColor);
+    const tryApplyImage = (candidateIndex) => {
+        const currentUrl = pathCandidates[candidateIndex];
+        loadSpriteImage(currentUrl).then((img) => {
+            if (artEl.dataset.artKey !== artKey) return;
+            if (!img) {
+                if (candidateIndex + 1 < pathCandidates.length) {
+                    tryApplyImage(candidateIndex + 1);
+                    return;
+                }
+                clearEquipmentSlotArt(artEl);
+                artEl.classList.add('is-error');
+                return;
+            }
+
+            const normalizedSize = normalizeSpriteFrameSize(currentUrl, spriteWidth, spriteHeight, item);
+            const frameWidth = normalizedSize.width;
+            const frameHeight = normalizedSize.height;
+            const naturalWidth = img.naturalWidth || img.width || frameWidth;
+            const naturalHeight = img.naturalHeight || img.height || frameHeight;
+            const columns = Math.max(1, Math.floor(naturalWidth / frameWidth));
+            const col = spriteIndex % columns;
+            const row = Math.floor(spriteIndex / columns);
+            const fitSize = 40;
+            const previewScale = Math.min(2, Math.max(0.6, fitSize / Math.max(frameWidth, frameHeight)));
+            const spriteEl = document.createElement('div');
+            spriteEl.className = 'equip-slot-item-sprite';
+            spriteEl.style.width = `${frameWidth}px`;
+            spriteEl.style.height = `${frameHeight}px`;
+            spriteEl.style.backgroundImage = `url('${currentUrl}')`;
+            spriteEl.style.backgroundSize = `${naturalWidth}px ${naturalHeight}px`;
+            spriteEl.style.backgroundPosition = `${-(col * frameWidth)}px ${-(row * frameHeight)}px`;
+            spriteEl.style.transform = `scale(${previewScale})`;
+
+            artEl.innerHTML = '';
+            artEl.appendChild(spriteEl);
+            artEl.classList.add('has-item');
+            artEl.classList.remove('is-loading', 'is-error');
+        });
+    };
+
+    tryApplyImage(0);
+}
+
 /**
  * アバターの各パーツ（レイヤー）のスタイルを設定して描画する
  * @param {string} layerId - 操作対象のDOM要素ID
@@ -493,12 +572,13 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
 
     // 4. ホーム画面の装備名表示を更新（洗練されたUI対応）
     if (prefix === 'avatar') {
-        const updateEquipmentSlot = (slotId, statsId, item, slot, slotElement) => {
+        const updateEquipmentSlot = (slotId, statsId, artId, item, slot, slotElement) => {
             const nameEl = document.getElementById(slotId);
             const statsEl = document.getElementById(statsId);
             const slotContainer = slotElement || document.querySelector(`[data-slot="${slot.toLowerCase()}"]`);
 
             if (!nameEl) return;
+            renderEquipmentSlotArt(artId, item, avatarColor);
 
             if (item) {
                 // 装備名を表示
@@ -552,13 +632,13 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         };
 
         // 各スロットを更新
-        updateEquipmentSlot('equippedRightHand', 'equippedRightHandStats', rightHandItem, 'RightHand',
+        updateEquipmentSlot('equippedRightHand', 'equippedRightHandStats', 'equippedRightHandArt', rightHandItem, 'RightHand',
             document.querySelector('.weapon-slot'));
-        updateEquipmentSlot('equippedLeftHand', 'equippedLeftHandStats', leftHandItem, 'LeftHand',
+        updateEquipmentSlot('equippedLeftHand', 'equippedLeftHandStats', 'equippedLeftHandArt', leftHandItem, 'LeftHand',
             document.querySelector('.shield-slot'));
-        updateEquipmentSlot('equippedArmor', 'equippedArmorStats', armorItem, 'Armor',
+        updateEquipmentSlot('equippedArmor', 'equippedArmorStats', 'equippedArmorArt', armorItem, 'Armor',
             document.querySelector('.armor-slot'));
-        updateEquipmentSlot('equippedAccessory', 'equippedAccessoryStats', accessoryItem, 'Accessory',
+        updateEquipmentSlot('equippedAccessory', 'equippedAccessoryStats', 'equippedAccessoryArt', accessoryItem, 'Accessory',
             document.querySelector('.accessory-slot'));
         // 両手持ち武器の場合、左手スロットをクリア
         if (isTwoHanded) {
@@ -569,6 +649,7 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
             if (leftHandEl) leftHandEl.textContent = '両手持ち';
             if (leftHandStatsEl) leftHandStatsEl.innerHTML = '';
             if (leftHandSlot) leftHandSlot.classList.remove('equipped');
+            renderEquipmentSlotArt('equippedLeftHandArt', null, avatarColor);
         }
     }
 }
