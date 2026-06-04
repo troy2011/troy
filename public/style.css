@@ -16700,7 +16700,7 @@ body[data-sea-tone] .home-hero-card {
 
 .home-hero-card,
 body[data-sea-tone] .home-hero-card {
-    --home-hero-bg-height: 920px;
+    --home-hero-bg-height: 660px;
     min-height: 660px;
     padding-top: 10px;
     padding-bottom: 12px;
@@ -16977,7 +16977,7 @@ body[data-sea-tone] .home-hero-card {
 @media (max-width: 420px) {
     .home-hero-card,
     body[data-sea-tone] .home-hero-card {
-        --home-hero-bg-height: 900px;
+        --home-hero-bg-height: 646px;
         min-height: 646px;
         padding-inline: 10px;
     }
