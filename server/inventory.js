@@ -2,9 +2,15 @@
 // インベントリ・装備関連のAPI
 
 const { getItemAmount, getCurrencyIdFromItem } = require('./economy');
+const { withTitleEntityToken } = require('./playfab');
 const { drawLocalGachaItem } = require('./gacha');
 const resourceStorage = require('./resourceStorage');
 const { getAvatarColorForNation, getNationTreasuryRanking } = require('./nation');
+const {
+    CREW_ROLE_BY_ID,
+    normalizeCrewRoleId,
+    getCrewRankTitle
+} = require('./crewRoles');
 const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
@@ -215,7 +221,7 @@ function resolveIsKingFlag(readOnlyData) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
 
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
@@ -241,6 +247,51 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.warn('[inventory] display name resolve failed:', error?.errorMessage || error?.message || error);
             return '';
+        }
+    }
+
+    function normalizePlayFabId(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        return raw.replace(/^playfab:/i, '').trim().toUpperCase();
+    }
+
+    async function getPlayerCrewRankInfo(playFabId, stats = {}) {
+        if (!PlayFabGroups || !PlayFabData || !playFabId) return null;
+        try {
+            const entityKey = await getEntityKeyForPlayFabId(playFabId);
+            const membershipResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabGroups.ListMembership, {
+                Entity: entityKey
+            }));
+            const groups = Array.isArray(membershipResult?.Groups) ? membershipResult.Groups : [];
+            if (!groups.length) return null;
+
+            const group = groups[0];
+            const guildId = group?.Group?.Id;
+            if (!guildId) return null;
+
+            const guildDataResult = await withTitleEntityToken(() => promisifyPlayFab(PlayFabData.GetObjects, {
+                Entity: { Id: guildId, Type: 'group' },
+                EscapeObject: false
+            }));
+            const rawData = guildDataResult?.Objects?.GuildData?.DataObject;
+            const guildData = rawData ? JSON.parse(rawData) : {};
+            const roleAssignments = guildData?.crewRoles && typeof guildData.crewRoles === 'object' ? guildData.crewRoles : {};
+            const roleId = normalizeCrewRoleId(roleAssignments[normalizePlayFabId(playFabId)]);
+            const role = CREW_ROLE_BY_ID[roleId] || null;
+            if (!role) return null;
+
+            const level = Math.max(1, Math.floor(Number(stats.Level || 1) || 1));
+            return {
+                guildId,
+                guildName: String(group?.GroupName || '').trim(),
+                crewRoleId: roleId,
+                crewRoleLabel: role.label,
+                crewRankTitle: getCrewRankTitle(roleId, level)
+            };
+        } catch (error) {
+            console.warn('[inventory] crew rank info resolve failed:', error?.errorMessage || error?.message || error);
+            return null;
         }
     }
 
@@ -956,8 +1007,9 @@ function initializeInventoryRoutes(app, deps) {
                 console.warn('[daily-nation-specialty] Claim skipped:', rewardError?.errorMessage || rewardError?.message || rewardError);
             }
             const stats = applyDerivedPlayerLevelToStats((await applyOfflineMpRecovery(playFabId)).currentStats).stats;
+            const crewRankInfo = await getPlayerCrewRankInfo(playFabId, stats);
             console.log('[ステータス取得] 完了');
-            res.json({ stats: stats, dailyNationSpecialtyReward });
+            res.json({ stats: stats, dailyNationSpecialtyReward, crewRankInfo });
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });

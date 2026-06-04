@@ -19,6 +19,7 @@ import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
 
 let myPlayerStats = {};
+let myCrewRankInfo = null;
 const LOW_GOLD_THRESHOLD = 200;
 const SPECIALTY_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB'];
 const FALLBACK_AVATAR = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
@@ -27,6 +28,10 @@ const FALLBACK_AVATAR = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
 
 export function getMyPlayerStats() {
     return myPlayerStats;
+}
+
+export function getMyCrewRankInfo() {
+    return myCrewRankInfo;
 }
 
 function getPlayerRankName(level) {
@@ -51,6 +56,7 @@ export async function getPlayerStats(playFabId) {
     const data = await fetchPlayerStats(playFabId);
     if (data?.stats) {
         myPlayerStats = data.stats;
+        myCrewRankInfo = data.crewRankInfo || null;
         updatePlayerStatsDisplay();
     }
     if (data?.dailyNationSpecialtyReward) {
@@ -67,7 +73,7 @@ export async function getPlayerStats(playFabId) {
 
 function updatePlayerStatsDisplay() {
     const { HP = 0, MaxHP = 1, MP = 0, MaxMP = 1, Level = 1, ちから = 0, みのまもり = 0, すばやさ = 0, かしこさ = 0 } = myPlayerStats;
-    const rankName = getPlayerRankName(Level);
+    const rankName = myCrewRankInfo?.crewRankTitle || getPlayerRankName(Level);
     document.getElementById('globalCurrentHP').innerText = HP;
     document.getElementById('globalMaxHP').innerText = MaxHP;
     document.getElementById('globalCurrentMP').innerText = MP;
@@ -78,7 +84,11 @@ function updatePlayerStatsDisplay() {
     const rankBadgeEl = document.getElementById('globalRankBadge');
     if (rankBadgeEl) rankBadgeEl.innerText = rankName;
     const benefitEl = document.getElementById('homeRankBenefit');
-    if (benefitEl) benefitEl.innerText = getPlayerRankBenefits(Level).join(' / ');
+    if (benefitEl) {
+        benefitEl.innerText = myCrewRankInfo?.crewRoleLabel
+            ? `${myCrewRankInfo.crewRoleLabel} / ${getPlayerRankBenefits(Level).join(' / ')}`
+            : getPlayerRankBenefits(Level).join(' / ');
+    }
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('player:stats-updated', { detail: { stats: { ...myPlayerStats } } }));
     }

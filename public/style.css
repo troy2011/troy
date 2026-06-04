@@ -15480,6 +15480,11 @@ textarea {
 .event-action-btn.is-reject {
     background: #b91c1c;
 }
+.event-create-btn:disabled,
+.event-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+}
 .event-action-note {
     color: #6ee7b7;
     font-size: 13px;
@@ -15489,6 +15494,43 @@ textarea {
     color: #94a3b8;
     text-align: center;
     padding: 28px 8px;
+}
+.crew-invite-panel,
+.crew-join-panel {
+    margin-top: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 8px;
+    background: #0b1220;
+    padding: 12px;
+}
+.crew-join-panel .event-action-btn {
+    width: 100%;
+    margin-top: 12px;
+}
+.crew-invite-title {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.crew-invite-qr {
+    display: block;
+    width: 160px;
+    height: 160px;
+    max-width: 100%;
+    margin: 0 auto 10px;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px;
+}
+.crew-invite-value {
+    overflow-wrap: anywhere;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #cbd5e1;
+    padding: 8px;
+    font-size: 12px;
+    text-align: center;
 }
 
 @media (max-width: 720px) {

@@ -18,10 +18,20 @@ import {
 import { showRpgMessage, rpgSay } from './rpgMessages.js';
 import { getNationLabel } from './nationLabels.js';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
+import { CREW_ROLE_DEFS } from './crewRoles.js';
 
 // ギルド情報をキャッシュ
 let currentGuildInfo = null;
 let guildChatPollingInterval = null;
+
+function promptCrewRoleId() {
+    const message = CREW_ROLE_DEFS
+        .map((role, index) => `${index + 1}. ${role.label}`)
+        .join('\n');
+    const answer = prompt(`役職を番号で選んでください。\n${message}`);
+    const index = Math.max(0, Math.floor(Number(answer) || 0) - 1);
+    return CREW_ROLE_DEFS[index]?.id || '';
+}
 
 /**
  * ギルド情報を取得して表示する
@@ -203,7 +213,12 @@ export async function scanJoinGuild(playFabId) {
  */
 async function joinGuild(playFabId, guildId) {
     try {
-        const data = await requestJoinGuild(playFabId, guildId);
+        const crewRoleId = promptCrewRoleId();
+        if (!crewRoleId) {
+            showRpgMessage('役職を選んでください。');
+            return;
+        }
+        const data = await requestJoinGuild(playFabId, guildId, { crewRoleId });
 
         if (data && data.success) {
             // ギルド情報を再読み込み

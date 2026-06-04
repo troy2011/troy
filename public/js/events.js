@@ -1,52 +1,22 @@
 import {
-    getEvents as requestEvents,
-    createEvent as requestCreateEvent,
-    joinEvent as requestJoinEvent,
-    approveEvent as requestApproveEvent,
-    getReservations as requestReservations,
-    reviewReservation as requestReviewReservation,
-    cancelReservation as requestCancelReservation
+    getPlayerStats,
+    getGuildInfo,
+    createGuild as requestCreateGuild,
+    joinGuild as requestJoinGuild,
+    leaveGuild as requestLeaveGuild,
+    getGuildMembers as requestGuildMembers
 } from './playfabClient.js';
-import { createRequestId } from './api.js';
-import { formatCurrencyLabel } from './config.js';
+import { getNationLabel } from './nationLabels.js';
+import { buildPlayerTriggerHtml } from './playerProfile.js';
+import { CREW_ROLE_DEFS, getCrewRoleLabel } from './crewRoles.js';
 
-const EVENT_TYPE_LABELS = {
-    darts: 'ダーツ',
-    billiards: 'ビリヤード',
-    karaoke: 'カラオケ',
-    tabletennis: '卓球',
-    poker: 'ポーカー',
-    other: 'その他'
-};
+const CAPTAIN_LEVEL = 21;
+const CREW_FOUNDING_COST = 10000;
 
-let cachedHostFee = 1000;
-let cachedIsKing = false;
-const GOLD_LABEL = formatCurrencyLabel('PS');
-const DEFAULT_SPONSOR_NOTE = '王国協賛あり';
-const RESERVATION_PURPOSE_LABELS = {
-    visit: '通常来店',
-    darts: 'ダーツ',
-    billiards: 'ビリヤード',
-    consultation: '相談',
-    private: '貸切',
-    other: 'その他'
-};
-
-function formatGold(amount) {
-    return `${Number(amount || 0).toLocaleString('ja-JP')}${GOLD_LABEL}`;
-}
-
-function formatDateTime(ms) {
-    const value = Number(ms || 0);
-    if (!value) return '-';
-    return new Intl.DateTimeFormat('ja-JP', {
-        month: 'numeric',
-        day: 'numeric',
-        weekday: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(new Date(value));
-}
+let bound = false;
+let currentGuild = null;
+let currentLevel = 1;
+let currentRankName = '見習い';
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -58,19 +28,6 @@ function escapeHtml(value) {
     }[char]));
 }
 
-function toLocalDateTimeValue(date) {
-    const pad = (value) => String(value).padStart(2, '0');
-    return [
-        date.getFullYear(),
-        pad(date.getMonth() + 1),
-        pad(date.getDate())
-    ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function getEventTypeLabel(event) {
-    return event?.typeLabel || EVENT_TYPE_LABELS[event?.type] || 'イベント';
-}
-
 function setMessage(text, isError = false) {
     const el = document.getElementById('eventPageMessage');
     if (!el) return;
@@ -78,312 +35,298 @@ function setMessage(text, isError = false) {
     el.classList.toggle('is-error', !!isError);
 }
 
-function setDefaultDateTime() {
-    const input = document.getElementById('eventStartsAt');
-    if (!input || input.value) return;
-    const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    date.setMinutes(0, 0, 0);
-    input.value = toLocalDateTimeValue(date);
+function getRankName(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    if (value >= 41) return '海賊王';
+    if (value >= 31) return '提督';
+    if (value >= 21) return '船長';
+    if (value >= 11) return '航海士';
+    return '見習い';
 }
 
-function renderEventCreateMeta() {
+function normalizeLevel(stats) {
+    return Math.max(1, Math.floor(Number(stats?.Level || window.myAvatarBaseInfo?.level || 1) || 1));
+}
+
+async function copyText(text) {
+    if (!text) return false;
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+    }
+    const input = document.createElement('textarea');
+    input.value = text;
+    input.setAttribute('readonly', 'readonly');
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand('copy');
+    input.remove();
+    return copied;
+}
+
+function updateRankSummary() {
+    const summary = document.getElementById('crewRankSummary');
+    if (!summary) return;
+    const unlocked = currentLevel >= CAPTAIN_LEVEL;
+    summary.textContent = `Lv.${currentLevel} ${currentRankName} / ${unlocked ? '勧誘可' : `Lv.${CAPTAIN_LEVEL}で開放`}`;
+}
+
+function getCaptainCrewName() {
+    const visibleName = document.getElementById('globalPlayerName')?.textContent || '';
+    const rawName = String(window.myPlayFabDisplayName || window.myAvatarBaseInfo?.displayName || visibleName || '船長').trim() || '船長';
+    return `${rawName.replace(/海賊団$/u, '').slice(0, 25)}海賊団`;
+}
+
+function renderRoleOptions(availableRoles = null) {
+    const select = document.getElementById('crewRoleSelect');
+    if (!select) return;
+    const availability = new Map(
+        Array.isArray(availableRoles)
+            ? availableRoles.map((role) => [String(role.id || '').trim(), role.available !== false])
+            : []
+    );
+    select.innerHTML = CREW_ROLE_DEFS.map((role) => {
+        const known = availability.has(role.id);
+        const available = known ? availability.get(role.id) : true;
+        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)}${available ? '' : '（使用中）'}</option>`;
+    }).join('');
+}
+
+function renderOverview(guild) {
+    const list = document.getElementById('crewOverviewList');
+    const empty = document.getElementById('crewOverviewEmpty');
+    if (!list || !empty) return;
+
+    list.innerHTML = '';
+    if (!guild) {
+        empty.hidden = true;
+        const locked = currentLevel < CAPTAIN_LEVEL;
+        const card = document.createElement('article');
+        card.className = `event-card ${locked ? 'is-pending' : 'is-approved'}`;
+        card.innerHTML = `
+            <div class="event-card-head">
+                <div>
+                    <div class="event-card-type">${locked ? '未開放' : '作成可能'}</div>
+                    <h3>${locked ? '船長になると仲間を集められます' : '仲間を作成できます'}</h3>
+                </div>
+                <span class="event-status">${locked ? `Lv.${CAPTAIN_LEVEL}+` : 'OK'}</span>
+            </div>
+            <p class="event-card-desc">${locked
+                ? `現在はLv.${currentLevel} ${escapeHtml(currentRankName)}です。階級が船長以上になると、他プレイヤーを勧誘できるようになります。`
+                : '船長の名前で海賊団を設立すると、勧誘QRを使って他プレイヤーを招待できます。'}</p>
+        `;
+        list.appendChild(card);
+        return;
+    }
+
+    empty.hidden = true;
+    const guildName = getNationLabel(guild.name) || guild.name || '仲間';
+    const card = document.createElement('article');
+    card.className = 'event-card is-approved';
+    card.innerHTML = `
+        <div class="event-card-head">
+            <div>
+                <div class="event-card-type">所属中</div>
+                <h3>${escapeHtml(guildName)}</h3>
+            </div>
+            <span class="event-status">${escapeHtml(guild.role || 'メンバー')}</span>
+        </div>
+        <div class="event-card-meta">
+            <span>仲間 ${Number(guild.companionCount || 0)} / ${Number(guild.maxCompanions || 7)}人</span>
+            <span>総員 ${Number(guild.memberCount || 0)} / ${Number(guild.maxMembers || 8)}人</span>
+            <span>Lv.${Number(guild.level || 1)}</span>
+            <span>資金 ${Number(guild.treasury || 0).toLocaleString('ja-JP')}</span>
+        </div>
+        <p class="event-card-desc">勧誘QRを共有すると、他プレイヤーがこの仲間に参加できます。</p>
+    `;
+    list.appendChild(card);
+}
+
+function renderMembers(members) {
+    const list = document.getElementById('crewMembersList');
+    const empty = document.getElementById('crewMembersEmpty');
+    if (!list || !empty) return;
+
+    list.innerHTML = '';
+    const entries = Array.isArray(members) ? members : [];
+    empty.hidden = entries.length > 0;
+    entries.forEach((member) => {
+        const playFabId = String(member.playFabId || '').trim();
+        const displayName = member.displayName || playFabId || 'Unknown';
+        const card = document.createElement('article');
+        card.className = 'event-card';
+        card.innerHTML = `
+            <div class="event-card-head">
+                <div>
+                    <div class="event-card-type">${escapeHtml(member.crewRankTitle || member.crewRoleLabel || member.roleName || member.role || 'メンバー')}</div>
+                    <h3>${buildPlayerTriggerHtml(playFabId, displayName, { className: 'player-link-inline' })}</h3>
+                </div>
+                <span class="event-status">${escapeHtml(member.crewRoleLabel || member.role || '仲間')}</span>
+            </div>
+            <div class="event-card-meta">
+                <span>ID ${escapeHtml(playFabId || '-')}</span>
+                ${member.level ? `<span>Lv.${Number(member.level || 1)}</span>` : ''}
+            </div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+function generateInviteQr(guildId) {
+    const value = guildId ? `guild:${guildId}` : '';
+    const canvas = document.getElementById('crewInviteQrCanvas');
+    const valueEl = document.getElementById('crewInviteValue');
+    if (valueEl) valueEl.textContent = value;
+    if (!canvas || !value || typeof QRious !== 'function') return;
+    new QRious({
+        element: canvas,
+        value,
+        size: 160
+    });
+}
+
+function renderInvitePanel(guild) {
     const hostFeeEl = document.getElementById('eventHostFeeInfo');
+    const createPreview = document.getElementById('crewCreatePreview');
+    const createBtn = document.getElementById('btnCreateCrew');
+    const invitePanel = document.getElementById('crewInvitePanel');
+    const joinPanel = document.getElementById('crewJoinPanel');
+    const isCaptain = currentLevel >= CAPTAIN_LEVEL;
+    const hasGuild = !!guild?.guildId;
+
     if (hostFeeEl) {
-        hostFeeEl.textContent = cachedIsKing
-            ? '王側の公式イベントは主催費なしで即公開されます。王国協賛は常に付きます。'
-            : `主催費 ${cachedHostFee}${GOLD_LABEL}。承認後、イベント一覧と全体チャットに告知されます。王国協賛は常に付きます。`;
+        if (hasGuild) {
+            hostFeeEl.textContent = isCaptain
+                ? `勧誘QRを共有して他プレイヤーを最大${Number(guild.maxCompanions || 7)}名まで仲間にできます。`
+                : '所属中の海賊団です。';
+        } else {
+            hostFeeEl.textContent = isCaptain
+                ? `設立には${CREW_FOUNDING_COST.toLocaleString('ja-JP')}G必要です。設立後に勧誘QRが発行されます。`
+                : `現在はLv.${currentLevel} ${currentRankName}です。船長以上で利用できます。`;
+        }
     }
-}
 
-function eventStatusLabel(status) {
-    if (status === 'approved') return '公開中';
-    if (status === 'pending') return '承認待ち';
-    if (status === 'rejected') return '却下';
-    return status || '-';
-}
-
-function reservationStatusLabel(status) {
-    if (status === 'approved') return '確定';
-    if (status === 'pending') return '承認待ち';
-    if (status === 'rejected') return '却下';
-    if (status === 'cancelled') return 'キャンセル';
-    return status || '-';
-}
-
-function getReservationPurposeLabel(reservation) {
-    return reservation?.purposeLabel || RESERVATION_PURPOSE_LABELS[reservation?.purpose] || '予約';
-}
-
-function renderEventCard(event, playFabId) {
-    const card = document.createElement('article');
-    card.className = `event-card is-${event.status || 'unknown'}`;
-    const feeText = Number(event.entryFee || 0) > 0 ? formatGold(event.entryFee) : '無料';
-    const prizeText = Number(event.prize || 0) > 0 ? formatGold(event.prize) : 'なし';
-    const collectedText = formatGold(event.collectedEntryFeePs);
-    const status = eventStatusLabel(event.status);
-    const participants = Array.isArray(event.participants) ? event.participants : [];
-    const participantNames = participants.length
-        ? participants.map((entry) => entry.displayName || entry.playFabId).join(' / ')
-        : '参加者なし';
-    const hostName = event.hostDisplayName || event.hostPlayFabId || '-';
-    const description = event.description || '説明はありません。';
-    const sponsorNote = event.sponsorNote || DEFAULT_SPONSOR_NOTE;
-
-    card.innerHTML = `
-        <div class="event-card-head">
-            <div>
-                <div class="event-card-type">${escapeHtml(getEventTypeLabel(event))}</div>
-                <h3>${escapeHtml(event.title || 'イベント')}</h3>
-            </div>
-            <span class="event-status">${escapeHtml(status)}</span>
-        </div>
-        <div class="event-card-time">${escapeHtml(formatDateTime(event.startsAtMs))}</div>
-        <div class="event-card-meta">
-            <span>主催 ${escapeHtml(hostName)}</span>
-            <span>参加費 ${escapeHtml(feeText)}</span>
-            <span>賞品 ${escapeHtml(prizeText)}</span>
-            <span>集金 ${escapeHtml(collectedText)}</span>
-            <span>${event.participantCount || 0}/${event.capacity || 0}</span>
-        </div>
-        <div class="event-sponsor-note">${escapeHtml(sponsorNote)}</div>
-        <p class="event-card-desc">${escapeHtml(description)}</p>
-        <div class="event-card-participants">${escapeHtml(participantNames)}</div>
-        <div class="event-card-actions"></div>
-    `;
-
-    const actions = card.querySelector('.event-card-actions');
-    if (event.canJoin) {
-        const joinBtn = document.createElement('button');
-        joinBtn.type = 'button';
-        joinBtn.className = 'event-action-btn is-join';
-        joinBtn.textContent = Number(event.entryFee || 0) > 0 ? `${formatGold(event.entryFee)}で参加` : '参加する';
-        joinBtn.addEventListener('click', async () => {
-            await joinEvent(playFabId, event.id);
-        });
-        actions.appendChild(joinBtn);
-    } else if (event.isParticipant) {
-        const joined = document.createElement('span');
-        joined.className = 'event-action-note';
-        joined.textContent = '参加済み';
-        actions.appendChild(joined);
+    if (createPreview) {
+        createPreview.hidden = hasGuild;
+        createPreview.textContent = `${getCaptainCrewName()} を設立します。`;
     }
-    if (event.canApprove) {
-        const sponsorInput = document.createElement('input');
-        sponsorInput.type = 'text';
-        sponsorInput.className = 'event-sponsor-input';
-        sponsorInput.maxLength = 120;
-        sponsorInput.placeholder = DEFAULT_SPONSOR_NOTE;
-        sponsorInput.value = event.sponsorNote || DEFAULT_SPONSOR_NOTE;
-        actions.appendChild(sponsorInput);
-        const approveBtn = document.createElement('button');
-        approveBtn.type = 'button';
-        approveBtn.className = 'event-action-btn is-approve';
-        approveBtn.textContent = '承認';
-        approveBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, true, sponsorInput.value));
-        const rejectBtn = document.createElement('button');
-        rejectBtn.type = 'button';
-        rejectBtn.className = 'event-action-btn is-reject';
-        rejectBtn.textContent = '却下';
-        rejectBtn.addEventListener('click', async () => approveEvent(playFabId, event.id, false, sponsorInput.value));
-        actions.append(approveBtn, rejectBtn);
+    if (createBtn) {
+        createBtn.disabled = !isCaptain || hasGuild;
+        createBtn.hidden = hasGuild;
+        createBtn.textContent = isCaptain ? `${CREW_FOUNDING_COST.toLocaleString('ja-JP')}Gで海賊団を設立` : `Lv.${CAPTAIN_LEVEL}で開放`;
     }
-    if (!actions.childNodes.length) {
-        actions.remove();
+    if (invitePanel) {
+        invitePanel.hidden = !hasGuild;
     }
-    return card;
+    if (joinPanel) {
+        joinPanel.hidden = hasGuild;
+    }
+
+    renderRoleOptions(guild?.availableRoles || null);
+    generateInviteQr(guild?.guildId || '');
 }
 
-function renderReservationCard(reservation, playFabId) {
-    const card = document.createElement('article');
-    card.className = `event-card is-${reservation.status || 'unknown'}`;
-    const status = reservationStatusLabel(reservation.status);
-    const name = reservation.displayName || (reservation.isOwner ? 'あなた' : '予約あり');
-    const note = reservation.note || '';
-    card.innerHTML = `
-        <div class="event-card-head">
-            <div>
-                <div class="event-card-type">${escapeHtml(getReservationPurposeLabel(reservation))}</div>
-                <h3>${escapeHtml(formatDateTime(reservation.startsAtMs))}</h3>
-            </div>
-            <span class="event-status">${escapeHtml(status)}</span>
-        </div>
-        <div class="event-card-meta">
-            <span>${Number(reservation.partySize || 0)}名</span>
-            <span>${escapeHtml(name)}</span>
-        </div>
-        ${note ? `<p class="event-card-desc">${escapeHtml(note)}</p>` : ''}
-        <div class="event-card-actions"></div>
-    `;
-    const actions = card.querySelector('.event-card-actions');
-    if (reservation.canReview) {
-        const approveBtn = document.createElement('button');
-        approveBtn.type = 'button';
-        approveBtn.className = 'event-action-btn is-approve';
-        approveBtn.textContent = '承認';
-        approveBtn.addEventListener('click', async () => reviewReservation(playFabId, reservation.id, true));
-        const rejectBtn = document.createElement('button');
-        rejectBtn.type = 'button';
-        rejectBtn.className = 'event-action-btn is-reject';
-        rejectBtn.textContent = '却下';
-        rejectBtn.addEventListener('click', async () => reviewReservation(playFabId, reservation.id, false));
-        actions.append(approveBtn, rejectBtn);
-    }
-    if (reservation.canCancel) {
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'event-action-btn is-reject';
-        cancelBtn.textContent = 'キャンセル';
-        cancelBtn.addEventListener('click', async () => cancelReservation(playFabId, reservation.id));
-        actions.appendChild(cancelBtn);
-    }
-    if (!actions.childNodes.length) actions.remove();
-    return card;
-}
-
-function renderEvents(data, playFabId) {
-    cachedHostFee = Number(data?.hostFee || cachedHostFee || 0);
-    cachedIsKing = !!data?.isKing;
-    renderEventCreateMeta();
-
-    const listEl = document.getElementById('eventList');
-    const emptyEl = document.getElementById('eventListEmpty');
-    if (!listEl || !emptyEl) return;
-    const events = Array.isArray(data?.events) ? data.events : [];
-    listEl.innerHTML = '';
-    emptyEl.hidden = events.length > 0;
-    events.forEach((event) => {
-        listEl.appendChild(renderEventCard(event, playFabId));
-    });
-}
-
-function renderReservations(data, playFabId) {
-    const listEl = document.getElementById('reservationList');
-    const emptyEl = document.getElementById('reservationListEmpty');
-    if (!listEl || !emptyEl) return;
-    const reservations = Array.isArray(data?.reservations) ? data.reservations : [];
-    listEl.innerHTML = '';
-    emptyEl.hidden = reservations.length > 0;
-    reservations.forEach((reservation) => {
-        listEl.appendChild(renderReservationCard(reservation, playFabId));
-    });
-}
-
-async function loadEvents(playFabId) {
+async function loadCompanionPage(playFabId) {
     if (!playFabId) return;
-    setDefaultDateTime();
     setMessage('');
-    const [data, reservationData] = await Promise.all([
-        requestEvents(playFabId, { isSilent: true }),
-        requestReservations(playFabId, { isSilent: true })
+
+    const [statsData, guildData] = await Promise.all([
+        getPlayerStats(playFabId, { isSilent: true }).catch(() => null),
+        getGuildInfo(playFabId, null, { isSilent: true }).catch(() => null)
     ]);
-    if (data?.success) {
-        renderEvents(data, playFabId);
+
+    currentLevel = normalizeLevel(statsData?.stats);
+    currentRankName = getRankName(currentLevel);
+    currentGuild = guildData?.guild || null;
+
+    let members = [];
+    if (currentGuild?.guildId) {
+        const memberData = await requestGuildMembers(playFabId, currentGuild.guildId, { isSilent: true }).catch(() => null);
+        members = Array.isArray(memberData?.members) ? memberData.members : [];
     }
-    if (reservationData?.success) {
-        renderReservations(reservationData, playFabId);
-    }
+
+    updateRankSummary();
+    renderOverview(currentGuild);
+    renderMembers(members);
+    renderInvitePanel(currentGuild);
 }
 
-async function createEvent(playFabId) {
-    const title = document.getElementById('eventTitle')?.value || '';
-    const type = document.getElementById('eventType')?.value || 'other';
-    const startsAt = document.getElementById('eventStartsAt')?.value || '';
-    const capacity = document.getElementById('eventCapacity')?.value || 8;
-    const entryFee = document.getElementById('eventEntryFee')?.value || 0;
-    const prize = document.getElementById('eventPrize')?.value || 0;
-    const description = document.getElementById('eventDescription')?.value || '';
+async function createCrew(playFabId) {
+    if (currentLevel < CAPTAIN_LEVEL) {
+        setMessage('船長以上になると海賊団を設立できます。', true);
+        return;
+    }
     try {
-        const data = await requestCreateEvent(playFabId, {
-            title,
-            type,
-            startsAt,
-            startsAtMs: Date.parse(startsAt),
-            capacity,
-            entryFee,
-            prize,
-            description,
-            requestId: createRequestId('event-create')
-        }, { throwOnError: true });
+        const data = await requestCreateGuild(playFabId, '', { throwOnError: true });
         if (data?.success) {
-            setMessage(data.event?.status === 'approved' ? 'イベントを公開しました。' : 'イベントを作成しました。承認後に公開されます。');
-            ['eventTitle', 'eventDescription'].forEach((id) => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            await loadEvents(playFabId);
+            setMessage(`${data.guildName || '海賊団'}を設立しました。勧誘QRを共有できます。`);
+            await loadCompanionPage(playFabId);
         }
     } catch (error) {
-        setMessage(error?.message || 'イベント作成に失敗しました。', true);
+        setMessage(error?.message || error?.error || '海賊団の設立に失敗しました。', true);
     }
 }
 
-async function joinEvent(playFabId, eventId) {
+async function joinCrewFromScan(playFabId) {
+    const lineClient = typeof liff !== 'undefined' ? liff : null;
+    if (!lineClient?.isInClient?.()) {
+        setMessage('QR読み取りはLINEアプリ内で利用できます。', true);
+        return;
+    }
     try {
-        const data = await requestJoinEvent(playFabId, eventId, {
-            displayName: window.myPlayFabDisplayName || '',
-            requestId: createRequestId('event-join')
-        }, { throwOnError: true });
+        const result = await lineClient.scanCodeV2();
+        const value = String(result?.value || '').trim();
+        if (!value.startsWith('guild:')) {
+            setMessage('仲間の勧誘QRではありません。', true);
+            return;
+        }
+        const crewRoleId = String(document.getElementById('crewRoleSelect')?.value || '').trim();
+        if (!crewRoleId) {
+            setMessage('役職を選んでください。', true);
+            return;
+        }
+        const guildId = value.slice(6).trim();
+        const data = await requestJoinGuild(playFabId, guildId, { crewRoleId }, { throwOnError: true });
         if (data?.success) {
-            setMessage('参加しました。');
-            await loadEvents(playFabId);
+            setMessage(`${getCrewRoleLabel(crewRoleId) || '選択した役職'}として仲間に参加しました。`);
+            await loadCompanionPage(playFabId);
         }
     } catch (error) {
-        setMessage(error?.message || '参加処理に失敗しました。', true);
+        setMessage(error?.message || error?.error || '仲間への参加に失敗しました。', true);
     }
 }
 
-async function approveEvent(playFabId, eventId, approve, sponsorNote = DEFAULT_SPONSOR_NOTE) {
+async function leaveCrew(playFabId) {
+    if (!currentGuild?.guildId) return;
+    if (!confirm('仲間から脱退しますか？')) return;
     try {
-        const data = await requestApproveEvent(playFabId, eventId, approve, { sponsorNote }, { throwOnError: true });
+        const data = await requestLeaveGuild(playFabId, { throwOnError: true });
         if (data?.success) {
-            setMessage(approve ? 'イベントを承認し、全体チャットへ告知しました。' : 'イベントを却下しました。');
-            await loadEvents(playFabId);
+            setMessage('仲間から脱退しました。');
+            await loadCompanionPage(playFabId);
         }
     } catch (error) {
-        setMessage(error?.message || '承認処理に失敗しました。', true);
+        setMessage(error?.message || error?.error || '脱退に失敗しました。', true);
     }
 }
-
-async function reviewReservation(playFabId, reservationId, approve) {
-    try {
-        const data = await requestReviewReservation(playFabId, reservationId, approve, { throwOnError: true });
-        if (data?.success) {
-            setMessage(approve ? '予約を承認しました。' : '予約を却下しました。');
-            await loadEvents(playFabId);
-        }
-    } catch (error) {
-        setMessage(error?.message || '予約の承認処理に失敗しました。', true);
-    }
-}
-
-async function cancelReservation(playFabId, reservationId) {
-    try {
-        const data = await requestCancelReservation(playFabId, reservationId, { throwOnError: true });
-        if (data?.success) {
-            setMessage('予約をキャンセルしました。');
-            await loadEvents(playFabId);
-        }
-    } catch (error) {
-        setMessage(error?.message || '予約キャンセルに失敗しました。', true);
-    }
-}
-
-let bound = false;
 
 function bindEvents(playFabId) {
     if (bound) return;
-    const createBtn = document.getElementById('btnCreateEvent');
-    if (createBtn) {
-        createBtn.addEventListener('click', () => createEvent(window.myPlayFabId || playFabId));
-    }
-    const reloadBtn = document.getElementById('btnReloadEvents');
-    if (reloadBtn) {
-        reloadBtn.addEventListener('click', () => loadEvents(window.myPlayFabId || playFabId));
-    }
+    document.getElementById('btnReloadEvents')?.addEventListener('click', () => loadCompanionPage(window.myPlayFabId || playFabId));
+    document.getElementById('btnCreateCrew')?.addEventListener('click', () => createCrew(window.myPlayFabId || playFabId));
+    document.getElementById('btnCopyCrewInvite')?.addEventListener('click', async () => {
+        const value = document.getElementById('crewInviteValue')?.textContent || '';
+        const copied = await copyText(value).catch(() => false);
+        setMessage(copied ? '勧誘コードをコピーしました。' : 'コピーに失敗しました。', !copied);
+    });
+    document.getElementById('btnScanJoinCrew')?.addEventListener('click', () => joinCrewFromScan(window.myPlayFabId || playFabId));
+    document.getElementById('btnLeaveCrew')?.addEventListener('click', () => leaveCrew(window.myPlayFabId || playFabId));
     bound = true;
 }
 
 export async function loadEventPage(playFabId) {
     bindEvents(playFabId);
-    await loadEvents(playFabId);
+    await loadCompanionPage(playFabId);
 }

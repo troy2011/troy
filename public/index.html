@@ -492,8 +492,8 @@
                 <div class="content-area event-page">
                     <div class="event-page-header">
                         <div>
-                            <h2>イベント</h2>
-                            <p>店舗大会の予定確認、参加、主催ができます。</p>
+                            <h2>仲間</h2>
+                            <p>船長以上になると他プレイヤーを勧誘して仲間を集められます。</p>
                         </div>
                         <button id="btnReloadEvents" class="btn-muted" type="button">更新</button>
                     </div>
@@ -501,42 +501,39 @@
                     <div class="event-layout">
                         <section class="event-list-panel">
                             <div class="event-list-head">
-                                <h3>予定</h3>
-                                <span>承認済みと自分の申請が表示されます</span>
+                                <h3>仲間状況</h3>
+                                <span id="crewRankSummary">階級を確認中</span>
                             </div>
-                            <div id="eventList" class="event-list"></div>
-                            <div id="eventListEmpty" class="event-empty">予定されているイベントはありません。</div>
+                            <div id="crewOverviewList" class="event-list"></div>
+                            <div id="crewOverviewEmpty" class="event-empty">仲間情報を読み込んでいます。</div>
                         </section>
                         <section class="event-list-panel">
                             <div class="event-list-head">
-                                <h3>店舗予約</h3>
-                                <span>予約は王の承認後に確定します</span>
+                                <h3>メンバー</h3>
+                                <span>現在の仲間一覧</span>
                             </div>
-                            <div id="reservationList" class="event-list"></div>
-                            <div id="reservationListEmpty" class="event-empty">予約はありません。</div>
+                            <div id="crewMembersList" class="event-list"></div>
+                            <div id="crewMembersEmpty" class="event-empty">仲間はまだいません。</div>
                         </section>
                         <section class="event-create-panel">
-                            <h3>大会を主催</h3>
-                            <div id="eventHostFeeInfo" class="event-host-fee">主催費を確認中...</div>
-                            <label>タイトル<input id="eventTitle" type="text" maxlength="80" placeholder="例: 金曜ダーツ大会"></label>
-                            <label>種目
-                                <select id="eventType">
-                                    <option value="darts">ダーツ</option>
-                                    <option value="billiards">ビリヤード</option>
-                                    <option value="karaoke">カラオケ</option>
-                                    <option value="tabletennis">卓球</option>
-                                    <option value="poker">ポーカー</option>
-                                    <option value="other">その他</option>
-                                </select>
-                            </label>
-                            <label>開催日時<input id="eventStartsAt" type="datetime-local"></label>
-                            <div class="event-form-grid">
-                                <label>定員<input id="eventCapacity" type="number" min="1" max="64" value="8"></label>
-                                <label>参加費G<input id="eventEntryFee" type="number" min="0" value="0"></label>
-                                <label>賞品G<input id="eventPrize" type="number" min="0" value="0"></label>
+                            <h3>仲間を集める</h3>
+                            <div id="eventHostFeeInfo" class="event-host-fee">船長以上で利用できます。</div>
+                            <div id="crewCreatePreview" class="event-create-note">船長の名前で海賊団を設立します。</div>
+                            <button id="btnCreateCrew" class="event-create-btn" type="button">10,000Gで海賊団を設立</button>
+                            <div id="crewInvitePanel" class="crew-invite-panel" hidden>
+                                <div class="crew-invite-title">勧誘QR</div>
+                                <canvas id="crewInviteQrCanvas" class="crew-invite-qr"></canvas>
+                                <div id="crewInviteValue" class="crew-invite-value"></div>
+                                <div class="event-card-actions">
+                                    <button id="btnCopyCrewInvite" class="event-action-btn is-approve" type="button">勧誘コードをコピー</button>
+                                    <button id="btnLeaveCrew" class="event-action-btn is-reject" type="button">脱退</button>
+                                </div>
                             </div>
-                            <label>説明<textarea id="eventDescription" rows="4" maxlength="800" placeholder="ルール、集合時間、賞品など"></textarea></label>
-                            <button id="btnCreateEvent" class="event-create-btn" type="button">作成する</button>
+                            <div id="crewJoinPanel" class="crew-join-panel">
+                                <div class="crew-invite-title">勧誘を受ける</div>
+                                <label>役職<select id="crewRoleSelect"></select></label>
+                                <button id="btnScanJoinCrew" class="event-action-btn is-join" type="button">勧誘QRを読む</button>
+                            </div>
                         </section>
                     </div>
                 </div>
@@ -1162,7 +1159,7 @@
             <span class="nav-icon">🏴‍☠️</span><span>TROY</span>
         </button>
         <button id="navEvents" class="nav-button" onclick="showTab('events')">
-            <span class="nav-icon">📅</span><span>イベント</span>
+            <span class="nav-icon">👥</span><span>仲間</span>
         </button>
         <button id="navInventory" class="nav-button" onclick="showTab('inventory')">
             <span class="nav-icon">🎒</span><span>持ち物</span>

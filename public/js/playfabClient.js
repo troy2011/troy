@@ -186,12 +186,25 @@ export function getGuildInfo(playFabId, entityKey, options) {
     return callApiWithLoader('/api/get-guild-info', { playFabId, entityKey: resolvedEntityKey }, options);
 }
 
-export function createGuild(playFabId, guildName, options) {
-    return callApiWithLoader('/api/create-guild', { playFabId, guildName }, options);
+export function createGuild(playFabId, guildName, payloadOrOptions, maybeOptions) {
+    const hasPayload = payloadOrOptions && typeof payloadOrOptions === 'object' && (
+        Object.prototype.hasOwnProperty.call(payloadOrOptions, 'requestId')
+        || Object.prototype.hasOwnProperty.call(payloadOrOptions, 'crewRoleId')
+        || Object.prototype.hasOwnProperty.call(payloadOrOptions, 'payload')
+    );
+    const payload = hasPayload ? payloadOrOptions : {};
+    const options = hasPayload ? maybeOptions : payloadOrOptions;
+    return callApiWithLoader('/api/create-guild', { playFabId, guildName, ...(payload || {}) }, options);
 }
 
-export function joinGuild(playFabId, guildId, options) {
-    return callApiWithLoader('/api/join-guild', { playFabId, guildId }, options);
+export function joinGuild(playFabId, guildId, payloadOrOptions, maybeOptions) {
+    const hasPayload = payloadOrOptions && typeof payloadOrOptions === 'object' && (
+        Object.prototype.hasOwnProperty.call(payloadOrOptions, 'crewRoleId')
+        || Object.prototype.hasOwnProperty.call(payloadOrOptions, 'roleId')
+    );
+    const payload = hasPayload ? payloadOrOptions : {};
+    const options = hasPayload ? maybeOptions : payloadOrOptions;
+    return callApiWithLoader('/api/join-guild', { playFabId, guildId, ...(payload || {}) }, options);
 }
 
 export function leaveGuild(playFabId, options) {

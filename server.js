@@ -941,6 +941,7 @@ function createDependencies() {
         PlayFabServer,
         PlayFabAdmin,
         PlayFabGroups,
+        PlayFabData,
         PlayFabEconomy,
         firestore,
         admin,
