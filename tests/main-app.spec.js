@@ -51,6 +51,22 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expect(page.locator('#btnRecoverHP')).toHaveCount(0);
   await expect(page.locator('#btnRecoverMP')).toHaveCount(0);
   await expect(page.locator('.home-stat-chip b')).toHaveText(['7', '8', '9', '10']);
+  await expect(page.locator('.home-transfer-card .home-card-title')).toHaveText('ゴールド管理');
+  await expect(page.locator('#btnCoinGoldConvert')).toHaveText('チップ返却');
+  const transferUi = await page.evaluate(() => {
+    const sendBtn = document.getElementById('btnScanPay');
+    const chipBtn = document.getElementById('btnCoinConvert');
+    const returnBtn = document.getElementById('btnCoinGoldConvert');
+    return {
+      sendColor: window.getComputedStyle(sendBtn).color,
+      chipColor: window.getComputedStyle(chipBtn).color,
+      returnColor: window.getComputedStyle(returnBtn).color,
+      chipIcon: window.getComputedStyle(chipBtn, '::before').backgroundImage
+    };
+  });
+  expect(transferUi.sendColor).toBe(transferUi.returnColor);
+  expect(transferUi.chipColor).toBe(transferUi.returnColor);
+  expect(transferUi.chipIcon).toContain('046.png');
   await expectNoPageErrors(errors);
 });
 

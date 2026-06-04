@@ -17515,6 +17515,7 @@ body[data-sea-tone] .home-hero-card {
     --icon-chest-gold: url("./assets/ui/icons/008.png");
     --icon-coin: url("./assets/ui/icons/002.png");
     --icon-coin-stack: url("./assets/ui/icons/003.png");
+    --icon-chip: url("./assets/ui/icons/046.png");
     --icon-compass: url("./assets/ui/icons/015.png");
     --icon-crown: url("./assets/ui/icons/057.png");
     --icon-dart: url("./assets/ui/icons/042.png");
@@ -17636,7 +17637,7 @@ body[data-sea-tone] .home-hero-card {
 
 .home-qr-scan-btn { --button-icon: var(--icon-compass); }
 .transfer-send-btn { --button-icon: var(--icon-money-bag); }
-.transfer-coin-btn { --button-icon: var(--icon-coin); }
+.transfer-coin-btn { --button-icon: var(--icon-chip); }
 .transfer-gold-btn { --button-icon: var(--icon-coin-stack); }
 #btnKingCoinReturn { --button-icon: var(--icon-coin-stack); }
 .home-exploration-btn { --button-icon: var(--icon-compass); }
@@ -17702,8 +17703,8 @@ body[data-sea-tone] .home-hero-card {
         linear-gradient(180deg, rgba(255, 239, 176, 0.3), rgba(109, 58, 11, 0.22)),
         linear-gradient(180deg, #e7b64b, #9c5c1e);
     border-image-source: url("./assets/ui/buttons/button-gold-large.png");
-    color: #241205;
-    text-shadow: 0 1px 0 rgba(255, 236, 177, 0.48);
+    color: #eff8ff;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
 .home-qr-scan-btn {

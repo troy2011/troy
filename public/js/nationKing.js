@@ -736,7 +736,7 @@ function _wireHandlers(playFabId) {
         coinReturnBtn.addEventListener('click', async () => {
             const amount = Math.floor(Number(coinReturnAmountEl?.value) || 0);
             if (!amount || amount <= 0 || amount % 100 !== 0) {
-                _setMessage('返却コイン総額は100G刻みで入力してください。', true);
+                _setMessage('返却チップ総額は100G刻みで入力してください。', true);
                 return;
             }
             if (!window.liff?.isInClient?.()) {
@@ -761,11 +761,11 @@ function _wireHandlers(playFabId) {
                 const levelNote = contribution.leveledUp
                     ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
                     : '';
-                _setMessage(`${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}${levelNote}`);
+                _setMessage(`${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}${levelNote}`);
                 if (coinReturnAmountEl) coinReturnAmountEl.value = '0';
                 await loadKingPage(playFabId);
             } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'コイン返却に失敗しました。'), true);
+                _setMessage(_extractErrorMessage(error, 'チップ返却に失敗しました。'), true);
             } finally {
                 coinReturnBtn.disabled = false;
                 coinReturnBtn.textContent = previous;

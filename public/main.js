@@ -937,7 +937,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnScanPay').addEventListener('click', startScanAndPay);
     document.getElementById('btnCoinConvert').addEventListener('click', () => openCoinConvertModal('gold_to_coin'));
     document.getElementById('btnCoinGoldConvert')?.addEventListener('click', () => {
-        showRpgMessage('コイン返却は王が操作します。MY QRを提示してください。', 2600);
+        showRpgMessage('チップ返却は王が操作します。MY QRを提示してください。', 2600);
     });
     document.getElementById('btnCancelCoinConvert').addEventListener('click', closeCoinConvertModal);
     document.getElementById('btnConfirmCoinConvert').addEventListener('click', confirmCoinConvert);
@@ -1925,8 +1925,8 @@ function formatCoinActionError(error, fallback = 'コイン処理に失敗しま
     if (message.includes('Authentication required')) {
         return 'ログイン状態を確認できません。再ログインしてください。';
     }
-    if (message.includes('コイン返却は王')) {
-        return 'コイン返却は王の操作画面から行ってください。';
+    if (message.includes('コイン返却は王') || message.includes('チップ返却は王')) {
+        return 'チップ返却は王の操作画面から行ってください。';
     }
     return message;
 }
@@ -1937,7 +1937,7 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     const pointMessageEl = document.getElementById('pointMessage');
     if (amount <= 0) {
         if (pointMessageEl) pointMessageEl.innerText = coinConvertMode === 'coin_to_gold'
-            ? '返却するコイン金額を入力してください。'
+            ? '返却するチップ金額を入力してください。'
             : 'チップ化する金額を入力してください。';
         return;
     }
@@ -1951,7 +1951,7 @@ function openCoinConvertModal(mode = 'gold_to_coin') {
     const resultEl = document.getElementById('coinConvertResult');
     const confirmBtn = document.getElementById('btnConfirmCoinConvert');
     const isGoldize = coinConvertMode === 'coin_to_gold';
-    if (titleEl) titleEl.innerText = isGoldize ? 'コイン返却' : 'チップ化';
+    if (titleEl) titleEl.innerText = isGoldize ? 'チップ返却' : 'チップ化';
     if (amountEl) amountEl.innerText = `${amount.toLocaleString('ja-JP')}G`;
     if (textEl) textEl.innerText = isGoldize
         ? '店員の返却用QRコードを読み取り、店内チップをゴールドに戻します。入店後にチップ化した合計を超えた分だけ経験値が増えます。'
@@ -2010,12 +2010,12 @@ async function confirmCoinConvert() {
         const endpoint = isGoldize ? '/api/troy-convert-coin-to-gold' : '/api/troy-convert-gold-to-coin';
         let coinReturnQrToken = '';
         if (isGoldize) {
-            if (!liff.isInClient()) throw new Error('コイン返却QRの読み取りはLINEアプリ内でのみ利用できます。');
+            if (!liff.isInClient()) throw new Error('チップ返却QRの読み取りはLINEアプリ内でのみ利用できます。');
             if (resultEl) resultEl.innerText = '店員の返却用QRコードを読み取ってください。';
             if (confirmBtn) confirmBtn.innerText = 'QRを読み取り中...';
             coinReturnQrToken = await scanQrValue();
             if (!isTroyCoinReturnQrValue(coinReturnQrToken)) {
-                throw new Error('コイン返却用QRコードではありません。');
+                throw new Error('チップ返却用QRコードではありません。');
             }
         }
         const data = await callApiWithLoader(endpoint, {
@@ -2024,7 +2024,7 @@ async function confirmCoinConvert() {
             coinReturnQrToken,
             requestId: createRequestId(isGoldize ? 'troy-coin-to-gold' : 'troy-gold-to-coin')
         }, { throwOnError: true });
-        if (!data) throw new Error(isGoldize ? 'コイン返却に失敗しました。' : 'チップ化に失敗しました。');
+        if (!data) throw new Error(isGoldize ? 'チップ返却に失敗しました。' : 'チップ化に失敗しました。');
         const contributionAmount = Math.max(0, Math.floor(Number(data.contributionAmount) || 0));
         const contributionNote = isGoldize && contributionAmount > 0
             ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}`
@@ -2034,7 +2034,7 @@ async function confirmCoinConvert() {
             ? `\nLv.${data.contribution.previousLevel} → Lv.${data.contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
             : '';
         const message = (isGoldize
-            ? `${amount.toLocaleString('ja-JP')}Gをコイン返却しました。${contributionNote}`
+            ? `${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}`
             : `${amount.toLocaleString('ja-JP')}Gをチップ化しました。`) + levelNote;
         if (resultEl) resultEl.innerText = message;
         document.getElementById('pointMessage').innerText = message;
@@ -2048,7 +2048,7 @@ async function confirmCoinConvert() {
             showCoinConvertReceipt(amount);
         }
     } catch (error) {
-        const message = formatCoinActionError(error, isGoldize ? 'コイン返却に失敗しました。' : 'チップ化に失敗しました。');
+        const message = formatCoinActionError(error, isGoldize ? 'チップ返却に失敗しました。' : 'チップ化に失敗しました。');
         if (resultEl) resultEl.innerText = message;
         const pointMessageEl = document.getElementById('pointMessage');
         if (pointMessageEl) pointMessageEl.innerText = message;
