@@ -20388,3 +20388,213 @@ body[data-sea-tone] .home-hero-card {
         gap: 4px;
     }
 }
+
+/* --- Final sliced panel enforcement --- */
+.app-title-plaque {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-wood.png") 38 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(67, 38, 18, 0.2), rgba(18, 10, 6, 0.38)),
+        repeating-linear-gradient(0deg, rgba(111, 66, 30, 0.2) 0 1px, transparent 1px 14px);
+}
+
+#globalPlayerInfoTop,
+.currency-display,
+.global-rank-badge,
+.home-player-ship-frame,
+.ship-exploration-panel,
+.ship-exploration-destination,
+.ship-exploration-report,
+.ship-exploration-reward,
+.equipment-slot-card,
+.inventory-item-card,
+.item-card,
+#tabContentInventory .inventory-mobile-switch,
+#tabContentInventory #equipmentGrid,
+#tabContentInventory .sort-select,
+#tabContentTroy .troy-state-badge,
+#tabContentEvents .event-host-fee,
+#tabContentEvents .event-status,
+#tabContentKing .king-troy-status,
+#tabContentTroy .troy-entry-section,
+#tabContentTroy .troy-calendar-section,
+#tabContentTroy .troy-chat-details,
+#tabContentEvents .event-list-panel,
+#tabContentEvents .event-create-panel,
+#tabContentKing .king-card,
+#tabContentKing .king-editor-card,
+#tabContentKing .troy-admin-card,
+#tabContentKing .troy-admin-details,
+#tabContentQr .qr-battle-card,
+#tabContentQr .equipment-gacha-card,
+#tabContentQr .guild-card,
+#tabContentBattle .content-area,
+#tabContentTarot .tarot-poker-root,
+#tabContentTarot .tarot-kingdom-root,
+#tabContentEvents input,
+#tabContentEvents select,
+#tabContentEvents textarea,
+#tabContentTroy input,
+#tabContentTroy select,
+#tabContentTroy textarea,
+#tabContentKing input,
+#tabContentKing select,
+#tabContentKing textarea {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(13, 18, 24, 0.94), rgba(4, 5, 7, 0.98)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.content-area,
+#tabContentTroy .content-area,
+#tabContentEvents .content-area,
+#tabContentQr .content-area,
+#tabContentBattle .content-area,
+#tabContentTarot .content-area,
+#tabContentKing .content-area {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(11, 8, 6, 0.3), rgba(4, 4, 5, 0.62)),
+        repeating-linear-gradient(90deg, rgba(101, 58, 25, 0.12) 0 28px, rgba(16, 10, 6, 0.12) 28px 56px);
+}
+
+.home-ps-card,
+#tabContentInventory .content-area.avatar-card,
+#tabContentInventory .inventory-section,
+#tabContentEvents .event-create-panel,
+#tabContentTroy .troy-reservation-panel,
+#tabContentKing .king-editor-card {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 14px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 238, 190, 0.36), rgba(111, 64, 27, 0.12)),
+        repeating-linear-gradient(0deg, rgba(88, 47, 20, 0.06) 0 1px, transparent 1px 10px);
+}
+
+.home-exp-rank,
+#inventoryMobileSwitch,
+#inventoryPrimaryTabs,
+#tabContentInventory #inventoryTabs,
+#rankingToggleButtons,
+.exploration-treasure-dialog,
+#tabContentInventory .equip-slot,
+#tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-entry-item,
+#tabContentEvents .event-card,
+#tabContentEvents .crew-role-card,
+#tabContentKing .king-announcement-current,
+#tabContentKing .king-menu-specials-list,
+#tabContentKing .king-menu-disable-list,
+#tabContentTarot .tarot-poker-column,
+#tabContentTarot .tarot-kingdom-panel,
+#tabContentTarot .tarot-log,
+#tabContentQr .guild-entry-grid > *,
+#tabContentQr .battle-entry-card,
+#tabContentQr .equipment-gacha-entry,
+#chatMessages,
+#troyChatMessages {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(8, 20, 32, 0.9), rgba(2, 5, 10, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.1), transparent 58%);
+}
+
+.inventory-mobile-switch-btn:not(.active),
+.inventory-primary-tab-btn:not(.active),
+#tabContentInventory .inventory-tab-btn:not(.active),
+.ranking-toggle-btn:not(.active),
+.ranking-refresh-btn,
+#tabContentInventory .inventory-primary-tab-btn:not(.active),
+#tabContentTroy .troy-entry-btn.alt,
+#tabContentEvents .event-action-btn:not(.is-join):not(.is-approve),
+#tabContentKing .troy-admin-actions .btn-muted,
+#tabContentTarot button.btn-muted {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-wood.png") 34 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(49, 27, 13, 0.44), rgba(7, 6, 5, 0.42)),
+        repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.14) 0 1px, transparent 1px 12px);
+}
+
+#bottomNav {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-plank-wide.png") 34 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(12, 8, 5, 0.42), rgba(3, 3, 4, 0.82)),
+        repeating-linear-gradient(90deg, rgba(108, 64, 28, 0.18) 0 30px, rgba(23, 12, 6, 0.14) 30px 60px);
+}
+
+.nav-button:not(.active),
+.map-chat-tab {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+}
+
+.nav-button.active {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 189, 0.22), rgba(113, 63, 18, 0.18)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.18), transparent 58%);
+}
+
+.ranking-row {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(8, 11, 15, 0.9), rgba(3, 5, 8, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.ranking-row-top-1 {
+    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
+    background:
+        linear-gradient(180deg, rgba(54, 34, 8, 0.36), rgba(5, 4, 3, 0.68)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.14), transparent 58%);
+}
+
+.ranking-row-top-2 {
+    border-image-source: url("./assets/ui/panels/panel-dark-silver.png");
+    background:
+        linear-gradient(180deg, rgba(42, 45, 50, 0.34), rgba(4, 5, 7, 0.72)),
+        radial-gradient(ellipse at 50% 0%, rgba(214, 221, 232, 0.1), transparent 58%);
+}
+
+.ranking-row-top-3 {
+    border-image-source: url("./assets/ui/panels/panel-dark.png");
+    background:
+        linear-gradient(180deg, rgba(71, 32, 10, 0.26), rgba(5, 4, 3, 0.7)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 183, 116, 0.08), transparent 58%);
+}
+
+.map-chat-empty {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/speech-parchment.png") 30 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 244, 208, 0.2), rgba(104, 61, 23, 0.12)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.12), transparent 58%);
+}
+
+.map-chat-message {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/speech-dark.png") 30 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(4, 6, 10, 0.94)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+}
+
+#chatInput,
+#troyChatInput {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(24, 31, 42, 0.92), rgba(7, 10, 15, 0.98)),
+        radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.08), transparent 58%);
+}

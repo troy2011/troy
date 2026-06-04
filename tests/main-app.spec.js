@@ -125,6 +125,44 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expectNoPageErrors(errors);
 });
 
+test('panel frame assets are applied through border-image slices', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  const audit = await page.evaluate(() => {
+    const selectors = [
+      '#globalPlayerInfoTop',
+      '.home-exp-card',
+      '.home-ps-card',
+      '#bottomNav',
+      '.nav-button',
+      '#rankingToggleButtons',
+      '#tabContentInventory .inventory-section',
+      '#tabContentInventory .equip-slot',
+      '#tabContentEvents .event-list-panel',
+      '#tabContentEvents .event-card',
+      '#tabContentQr .guild-card'
+    ];
+    return selectors
+      .map((selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const style = window.getComputedStyle(element);
+        return {
+          selector,
+          backgroundImage: style.backgroundImage,
+          borderImageSource: style.borderImageSource
+        };
+      })
+      .filter(Boolean);
+  });
+
+  expect(audit.length).toBeGreaterThanOrEqual(8);
+  expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
+  expect(audit.filter((entry) => !/assets\/ui\/panels\//.test(entry.borderImageSource))).toEqual([]);
+  await expectNoPageErrors(errors);
+});
+
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
