@@ -180,9 +180,21 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
 
     const shipElement = sequence.querySelector('.exploration-sequence-ship');
     const sailAnimationName = window.getComputedStyle(shipElement).animationName;
-    const initialShipLeft = shipElement.getBoundingClientRect().left;
-    await new Promise((resolve) => setTimeout(resolve, 220));
-    const shipMotionDelta = shipElement.getBoundingClientRect().left - initialShipLeft;
+    const shipSamples = [];
+    for (let index = 0; index < 5; index += 1) {
+      const rect = shipElement.getBoundingClientRect();
+      const style = window.getComputedStyle(shipElement);
+      shipSamples.push({
+        backgroundPosition: style.backgroundPosition,
+        left: rect.left,
+        top: rect.top
+      });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    const shipMotionDelta = shipSamples[shipSamples.length - 1].left - shipSamples[0].left;
+    const shipTopValues = shipSamples.map((sample) => sample.top);
+    const shipVerticalDelta = Math.max(...shipTopValues) - Math.min(...shipTopValues);
+    const shipFrameCount = new Set(shipSamples.map((sample) => sample.backgroundPosition)).size;
     sequence.className = 'exploration-sequence-overlay is-boat is-sky-deep is-treasure';
     const treasureAnimationName = window.getComputedStyle(shipElement).animationName;
 
@@ -196,7 +208,9 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       resultMetric: styleOf('.exploration-result-body div'),
       resultReward: styleOf('.exploration-result-rewards li'),
       sailAnimationName,
+      shipFrameCount,
       shipMotionDelta,
+      shipVerticalDelta,
       treasureAnimationName
     };
 
@@ -215,8 +229,12 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.sequenceSky.animationName).toBe('none');
   expect(audit.sequenceSky.backgroundImage).toBe('none');
   expect(audit.sailAnimationName).toContain('explorationSequenceSail');
+  expect(audit.sailAnimationName).toContain('homePlayerShipFrameStep');
   expect(Math.abs(audit.shipMotionDelta)).toBeGreaterThan(2);
-  expect(audit.treasureAnimationName).toContain('explorationSequenceTreasureShip');
+  expect(Math.abs(audit.shipVerticalDelta)).toBeLessThanOrEqual(1);
+  expect(audit.shipFrameCount).toBeGreaterThanOrEqual(2);
+  expect(audit.treasureAnimationName).toContain('homePlayerShipFrameStep');
+  expect(audit.treasureAnimationName).not.toContain('explorationSequenceTreasureShip');
   expect(audit.resultClose.height).toBe('32px');
   expect(audit.resultClose.minHeight).toBe('32px');
   expect(audit.resultClose.borderRadius).toBe('50%');

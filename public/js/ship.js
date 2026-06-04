@@ -1056,10 +1056,26 @@ function getHomePlayerShipDirectionKey(icon) {
     return HOME_PLAYER_SHIP_DIRECTIONS.some((direction) => direction.key === key) ? key : 'row1-a';
 }
 
+function getHomePlayerShipDirection(directionKey) {
+    return HOME_PLAYER_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey) || HOME_PLAYER_SHIP_DIRECTIONS[0];
+}
+
 function pickHomePlayerShipDirection(icon) {
     const current = getHomePlayerShipDirectionKey(icon);
     const options = HOME_PLAYER_SHIP_DIRECTIONS.filter((direction) => direction.key !== current);
     return options[Math.floor(Math.random() * options.length)] || HOME_PLAYER_SHIP_DIRECTIONS[0];
+}
+
+function applyPlayerShipFrameDirection(icon, directionKey) {
+    if (!icon) return null;
+    const direction = getHomePlayerShipDirection(directionKey);
+    const firstFrameX = getHomePlayerShipGroupX(icon) + direction.frameOffsetX;
+    const restingFrameX = firstFrameX - HOME_PLAYER_SHIP_FRAME_SIZE;
+    icon.dataset.playerShipDirection = direction.key;
+    icon.style.setProperty('--player-ship-animation-x', `${firstFrameX}px`);
+    icon.style.setProperty('--player-ship-sprite-x', `${restingFrameX}px`);
+    icon.style.setProperty('--player-ship-sprite-y', `${direction.spriteY}px`);
+    return direction;
 }
 
 function triggerHomePlayerShipTapAnimation(event) {
@@ -1069,12 +1085,7 @@ function triggerHomePlayerShipTapAnimation(event) {
 
     clearHomePlayerShipTapAnimation(icon);
     const direction = pickHomePlayerShipDirection(icon);
-    const firstFrameX = getHomePlayerShipGroupX(icon) + direction.frameOffsetX;
-    const restingFrameX = firstFrameX - HOME_PLAYER_SHIP_FRAME_SIZE;
-    icon.dataset.playerShipDirection = direction.key;
-    icon.style.setProperty('--player-ship-animation-x', `${firstFrameX}px`);
-    icon.style.setProperty('--player-ship-sprite-x', `${restingFrameX}px`);
-    icon.style.setProperty('--player-ship-sprite-y', `${direction.spriteY}px`);
+    applyPlayerShipFrameDirection(icon, direction.key);
     void icon.offsetWidth;
     icon.classList.add('is-home-tap-animating');
     homePlayerShipTapTimer = window.setTimeout(() => {
@@ -1574,6 +1585,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         </div>
     `;
     document.body.appendChild(overlay);
+    applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), 'row2-a');
     clearHomePlayerShipTapAnimation(homeIcon);
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');

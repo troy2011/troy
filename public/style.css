@@ -549,11 +549,11 @@ button.home-player-ship-name {
     filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.34));
 }
 
-.exploration-sequence-ship.is-boat { --player-ship-sprite-x: -64px; --player-ship-sprite-y: -128px; }
-.exploration-sequence-ship.is-explorer { --player-ship-sprite-x: -448px; --player-ship-sprite-y: -128px; }
-.exploration-sequence-ship.is-defender { --player-ship-sprite-x: -832px; --player-ship-sprite-y: -128px; }
-.exploration-sequence-ship.is-fighter { --player-ship-sprite-x: -1216px; --player-ship-sprite-y: -128px; }
-.exploration-sequence-ship.is-merchant { --player-ship-sprite-x: -1600px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-boat { --player-ship-group-x: 0px; --player-ship-sprite-x: -64px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-explorer { --player-ship-group-x: -384px; --player-ship-sprite-x: -448px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-defender { --player-ship-group-x: -768px; --player-ship-sprite-x: -832px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-fighter { --player-ship-group-x: -1152px; --player-ship-sprite-x: -1216px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-merchant { --player-ship-group-x: -1536px; --player-ship-sprite-x: -1600px; --player-ship-sprite-y: -128px; }
 
 .exploration-sequence-chests {
     position: absolute;
@@ -617,11 +617,15 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-sail .exploration-sequence-ship {
-    animation: explorationSequenceSail 1600ms linear forwards;
+    animation:
+        explorationSequenceSail 1600ms linear forwards,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-up .exploration-sequence-ship {
-    animation: explorationSequenceUp 1400ms linear forwards;
+    animation:
+        explorationSequenceUp 1400ms linear forwards,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-up .exploration-sequence-island,
@@ -633,13 +637,17 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-left .exploration-sequence-ship {
-    animation: explorationSequenceLeft 1200ms linear forwards;
+    animation:
+        explorationSequenceLeft 1200ms linear forwards,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship {
     left: 214px;
     bottom: 58px;
-    animation: explorationSequenceBattle 150ms ease-in-out infinite;
+    animation:
+        explorationSequenceBattle 150ms ease-in-out infinite,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-boss {
@@ -658,12 +666,16 @@ button.home-player-ship-name {
 }
 
 .exploration-sequence-overlay.is-battle.is-result-defeat .exploration-sequence-ship {
-    animation: explorationSequenceShipDefeat 320ms ease-in-out infinite;
+    animation:
+        explorationSequenceShipDefeat 320ms ease-in-out infinite,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-battle.is-result-escaped .exploration-sequence-ship,
 .exploration-sequence-overlay.is-battle.is-result-draw .exploration-sequence-ship {
-    animation: explorationSequenceLeft 900ms linear forwards;
+    animation:
+        explorationSequenceLeft 900ms linear forwards,
+        homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-battle.is-defender-run .exploration-sequence-ship-effect {
@@ -694,7 +706,7 @@ button.home-player-ship-name {
 .exploration-sequence-overlay.is-treasure .exploration-sequence-ship {
     left: 232px;
     bottom: 58px;
-    animation: explorationSequenceTreasureShip 700ms ease-in-out infinite;
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-boss {
@@ -755,21 +767,18 @@ button.home-player-ship-name {
 }
 
 @keyframes explorationSequenceSail {
-    0% { left: 42px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
-    50% { left: 92px; bottom: 62px; transform: translateY(-2px) scale(1.82) rotate(1deg); }
-    100% { left: 132px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
+    from { left: 42px; bottom: 58px; transform: scale(1.8); }
+    to { left: 132px; bottom: 58px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceUp {
-    0% { left: 132px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
-    50% { left: 158px; bottom: 63px; transform: translateY(-3px) scale(1.82) rotate(1deg); }
-    100% { left: 182px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
+    from { left: 132px; bottom: 58px; transform: scale(1.8); }
+    to { left: 182px; bottom: 58px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceLeft {
-    0% { left: 182px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
-    50% { left: 202px; bottom: 62px; transform: translateY(-2px) scale(1.82) rotate(1deg); }
-    100% { left: 214px; bottom: 58px; transform: translateY(0) scale(1.8) rotate(-1deg); }
+    from { left: 182px; bottom: 58px; transform: scale(1.8); }
+    to { left: 214px; bottom: 58px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceBattle {
@@ -806,11 +815,6 @@ button.home-player-ship-name {
 @keyframes explorationSequenceCoin {
     0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.46; }
     50% { transform: translateY(-18px) scale(1.08); opacity: 1; }
-}
-
-@keyframes explorationSequenceTreasureShip {
-    0%, 100% { transform: translateY(0) scale(1.8) rotate(-1deg); filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.34)); }
-    50% { transform: translateY(-6px) scale(1.86) rotate(1deg); filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.72)); }
 }
 
 @keyframes explorationSequenceChest {
