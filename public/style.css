@@ -17638,6 +17638,7 @@ body[data-sea-tone] .home-hero-card {
     --icon-slot-all: url("./assets/ui/icons/029.png");
     --icon-slot-equipment: url("./assets/ui/icons/040.png");
     --icon-slot-tarot: url("./assets/ui/icons/038.png");
+    --icon-slot-head: var(--icon-skull);
     --icon-slot-weapon: url("./assets/ui/icons/075.png");
     --icon-slot-shield: url("./assets/ui/icons/072.png");
     --icon-slot-armor: url("./assets/ui/icons/073.png");
@@ -17903,7 +17904,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .armor-slot .equip-slot-icon {
-    background-image: var(--icon-slot-armor);
+    background-image: var(--icon-slot-head);
 }
 
 #tabContentInventory .accessory-slot .equip-slot-icon {

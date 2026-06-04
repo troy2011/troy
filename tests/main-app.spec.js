@@ -68,6 +68,11 @@ test('current equipment slots render equipped item sprites on the right edge', a
 
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedArmorArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
+  const headSlotIcon = await page.locator('.armor-slot .equip-slot-icon').evaluate((element) =>
+    window.getComputedStyle(element).backgroundImage
+  );
+  expect(headSlotIcon).toContain('019.png');
+  expect(headSlotIcon).not.toContain('073.png');
 
   const layout = await page.evaluate(() => {
     const slot = document.querySelector('.weapon-slot');
