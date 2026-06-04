@@ -20391,31 +20391,51 @@ body[data-sea-tone] .home-hero-card {
     position: static;
 }
 
-#tabContentInventory .inventory-item-cell.is-equipment-equipped {
+#tabContentInventory .inventory-item-cell.is-equipment-equipped,
+#tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped,
+#tabContentInventory .inventory-item-cell.has-stat-badges {
     position: relative;
+    overflow: visible;
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
     content: "";
     position: absolute;
-    top: 6px;
-    left: 6px;
-    right: auto;
-    bottom: auto;
-    z-index: 2;
-    width: 18px;
-    height: 18px;
+    top: auto;
+    left: auto;
+    right: -5px;
+    bottom: -5px;
+    z-index: 5;
+    width: 22px;
+    height: 22px;
     display: block;
-    background: url("./assets/ui/icons/077.png") center / contain no-repeat;
+    background: var(--inventory-equipped-icon, url("./assets/ui/icons/010.png?v=20260604g")) center / contain no-repeat;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.64));
+    pointer-events: none;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    top: 6px;
-    left: 6px;
-    right: auto;
-    bottom: auto;
+    right: -4px;
+    bottom: -4px;
+    width: 20px;
+    height: 20px;
+}
+
+#tabContentInventory .inventory-item-cell.is-rarity-green {
+    --inventory-equipped-icon: url("./assets/ui/icons/010.png?v=20260604g");
+}
+
+#tabContentInventory .inventory-item-cell.is-rarity-blue {
+    --inventory-equipped-icon: url("./assets/ui/icons/011.png?v=20260604g");
+}
+
+#tabContentInventory .inventory-item-cell.is-rarity-purple {
+    --inventory-equipped-icon: url("./assets/ui/icons/013.png?v=20260604g");
+}
+
+#tabContentInventory .inventory-item-cell.is-rarity-red {
+    --inventory-equipped-icon: url("./assets/ui/icons/012.png?v=20260604g");
 }
 
 #tabContentInventory .inventory-item-main {
@@ -20519,8 +20539,8 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .inventory-item-stat-badges {
     position: absolute;
-    left: 5px;
-    bottom: 5px;
+    left: 4px;
+    bottom: -4px;
     z-index: 3;
     display: flex;
     flex-direction: column;

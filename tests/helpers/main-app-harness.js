@@ -636,7 +636,7 @@ async function prepareMapPlayerContext(page, playerInfo = DEFAULT_PLAYER_INFO) {
 async function openMapTab(page, playerInfo = DEFAULT_PLAYER_INFO, options = {}) {
   await prepareMapPlayerContext(page, playerInfo);
   await page.evaluate(async ({ playerInfo: info, showOptions }) => {
-    const ui = await import('/js/ui.js?v=20260604e');
+    const ui = await import('/js/ui.js?v=20260604g');
     await ui.showTab('map', info, showOptions || {});
   }, { playerInfo, showOptions: options });
   await page.waitForTimeout(50);
@@ -652,7 +652,7 @@ async function openMapTab(page, playerInfo = DEFAULT_PLAYER_INFO, options = {}) 
     const explicitMapLabel = options.mapLabel || explicitMapId;
     await page.evaluate(async ({ playerInfo: info, showOptions }) => {
       window.dispatchEvent(new Event('resize'));
-      const ui = await import('/js/ui.js?v=20260604e');
+      const ui = await import('/js/ui.js?v=20260604g');
       await ui.showTab('map', info, showOptions);
     }, {
       playerInfo,

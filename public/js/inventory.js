@@ -1137,6 +1137,8 @@ function createInventoryCell(item, requestedCategory) {
     const compareSummary = getInventoryComparisonSummary(item, canonicalCategory);
     const quickActions = getInventoryQuickActions(item, canonicalCategory);
     const quickAction = quickActions[0] || null;
+    const rarityTone = getInventoryRarityTone(item);
+    cell.classList.add(`is-rarity-${rarityTone}`);
     if (compareSummary?.tone) {
         cell.classList.add(`is-${compareSummary.tone}`);
     }
@@ -1174,6 +1176,7 @@ function createInventoryCell(item, requestedCategory) {
 
     const statBadges = createInventoryStatBadges(item);
     if (statBadges) {
+        cell.classList.add('has-stat-badges');
         cell.appendChild(statBadges);
     }
 
