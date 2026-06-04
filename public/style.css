@@ -16997,7 +16997,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #navEvents .nav-icon {
-    background-image: url("./assets/ui/icons/061.png?v=20260530");
+    background-image: url("./assets/ui/icons/060.png?v=20260604b");
 }
 
 #navInventory .nav-icon {
@@ -17921,7 +17921,7 @@ body[data-sea-tone] .home-hero-card {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/061.png") center / contain no-repeat;
+    background: url("./assets/ui/icons/060.png?v=20260604b") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -19525,7 +19525,7 @@ body[data-sea-tone] .home-hero-card {
     /* Numbered icons live in ./assets/ui/icons/NNN.png. Swap these numbers to change assigned artwork. */
     --icon-nav-home: url("./assets/ui/icons/059.png?v=20260531");
     --icon-nav-troy: url("./assets/ui/icons/058.png?v=20260531");
-    --icon-nav-events: url("./assets/ui/icons/061.png?v=20260531");
+    --icon-nav-events: url("./assets/ui/icons/060.png?v=20260604b");
     --icon-nav-inventory: url("./assets/ui/icons/062.png?v=20260531");
     --icon-nav-ranking: url("./assets/ui/icons/nav-ranking-framed.png?v=20260531");
     --icon-nav-king: url("./assets/ui/icons/nav-king-framed.png?v=20260531");
