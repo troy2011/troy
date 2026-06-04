@@ -5,6 +5,7 @@ const { geohashForLocation, geohashQueryBounds, distanceBetween } = require('geo
 const { getEffectsAtPosition } = require('../islandEffects');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('../featureUnlocks');
 const { applyDerivedPlayerLevelToStats, buildStatsMapFromStatistics } = require('../playerLevel');
+const { resolveGuildShipContext } = require('../guildShipSharing');
 
 // WorldMapScene.js と同じ座標系（ピクセル）→緯度経度の近似変換（geofire-common用）
 const GEO_CONFIG = {
@@ -50,7 +51,7 @@ function worldToLatLng(point) {
 function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabEconomy, catalogCache, resolveItemId, catalogCurrencyMap, authTools = {}) {
     const db = admin.firestore();
     const shipsCollection = db.collection('ships');
-    const { getEntityKeyFromPlayFabId, getTitleEntityKey, withTitleEntityToken } = require('../playfab');
+    const { PlayFabGroups, PlayFabData, getEntityKeyFromPlayFabId, getTitleEntityKey, withTitleEntityToken } = require('../playfab');
     const { addEconomyItem, subtractEconomyItem, getAllInventoryItems, getVirtualCurrencyMap, VIRTUAL_CURRENCY_CODE } = require('../economy');
     const resourceStorage = require('../resourceStorage');
     const requireAuthenticatedPlayFabId = authTools?.requireAuthenticatedPlayFabId || null;
@@ -75,16 +76,37 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
     }
 
     async function assertOwnedShip(playFabId, shipId) {
+        const shipContext = await resolveGuildShipContext(playFabId, {
+            promisifyPlayFab,
+            PlayFabServer,
+            PlayFabGroups,
+            PlayFabData,
+            getEntityKeyFromPlayFabId
+        });
+        const effectiveOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
         const shipDoc = await shipsCollection.doc(shipId).get();
         if (!shipDoc.exists) {
             throw new Error('ShipNotFound');
         }
         const shipData = shipDoc.data() || {};
         const ownerPlayFabId = normalizePlayFabId(shipData.playFabId || extractPlayFabIdFromShipId(shipId));
-        if (!ownerPlayFabId || ownerPlayFabId !== normalizePlayFabId(playFabId)) {
+        if (!ownerPlayFabId || ownerPlayFabId !== normalizePlayFabId(effectiveOwnerPlayFabId)) {
             throw new Error('NotYourShip');
         }
-        return { shipDoc, shipData };
+        return { shipDoc, shipData, shipOwnerPlayFabId: effectiveOwnerPlayFabId, shipContext };
+    }
+
+    async function resolveActiveShipContext(playFabId) {
+        const shipContext = await resolveGuildShipContext(playFabId, {
+            promisifyPlayFab,
+            PlayFabServer,
+            PlayFabGroups,
+            PlayFabData,
+            getEntityKeyFromPlayFabId
+        });
+        const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+        const activeShipId = await getActiveShipId(shipOwnerPlayFabId);
+        return { ...shipContext, shipOwnerPlayFabId, activeShipId };
     }
 
     function handleShipOwnershipError(res, error) {
@@ -800,8 +822,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            const activeShipId = await getActiveShipId(playFabId);
-            res.json({ success: true, activeShipId });
+            const shipContext = await resolveActiveShipContext(playFabId);
+            res.json({
+                success: true,
+                activeShipId: shipContext.activeShipId,
+                shipOwnerPlayFabId: shipContext.shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip,
+                guildId: shipContext.guildId,
+                guildName: shipContext.guildName,
+                captainName: shipContext.captainName
+            });
         } catch (error) {
             console.error('[GetActiveShip] Error:', error);
             res.status(500).json({ error: 'Failed to get active ship', details: error.errorMessage || error.message });
@@ -819,18 +849,25 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
 
         try {
             // 1) Firestoreで所有者チェック
-            const { shipData } = await assertOwnedShip(playFabId, shipId);
+            const { shipData, shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
 
             // 2) PlayFab側のShip_キーでも存在チェック（不正なshipId弾き）
             const assetKey = `Ship_${shipId}`;
             const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: shipOwnerPlayFabId,
                 Keys: [assetKey]
             });
             if (!assetResult?.Data?.[assetKey]?.Value) return res.status(403).json({ error: 'Ship asset not owned' });
 
-            await setActiveShipId(playFabId, shipId, shipData);
-            res.json({ success: true, activeShipId: shipId });
+            await setActiveShipId(shipOwnerPlayFabId, shipId, shipData);
+            res.json({
+                success: true,
+                activeShipId: shipId,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip,
+                guildId: shipContext.guildId,
+                guildName: shipContext.guildName
+            });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
             console.error('[SetActiveShip] Error:', error);
@@ -1194,11 +1231,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            await assertOwnedShip(playFabId, shipId);
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
 
             const assetKey = `Ship_${shipId}`;
             const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: shipOwnerPlayFabId,
                 Keys: [assetKey]
             });
             if (!assetResult?.Data?.[assetKey]?.Value) {
@@ -1247,11 +1284,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             leveledData.Stats.CurrentHP = leveledData.Stats.MaxHP;
 
             await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: shipOwnerPlayFabId,
                 Data: { [assetKey]: JSON.stringify(leveledData) }
             });
 
-            res.json({ success: true, shipId, shipData: leveledData, level: nextLevel, costs: upgradeCosts });
+            res.json({ success: true, shipId, shipData: leveledData, level: nextLevel, costs: upgradeCosts, shipOwnerPlayFabId, isSharedShip: shipContext.isSharedShip });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
             console.error('[UpgradeShip] Error:', error);
@@ -1275,13 +1312,14 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            const activeShipId = requestedShipId || await getActiveShipId(playFabId);
+            const activeContext = await resolveActiveShipContext(playFabId);
+            const activeShipId = requestedShipId || activeContext.activeShipId;
             if (!activeShipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
-            await assertOwnedShip(playFabId, activeShipId);
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, activeShipId);
             const costs = SHIP_ACTION_RESOURCE_COSTS.broadside;
-            const consumeResult = await tryConsumeShipCargoCosts(playFabId, activeShipId, costs);
+            const consumeResult = await tryConsumeShipCargoCosts(shipOwnerPlayFabId, activeShipId, costs);
             if (!consumeResult.success) {
                 return res.status(402).json({
                     error: '舷側砲の火薬が足りません',
@@ -1291,7 +1329,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     shipId: activeShipId
                 });
             }
-            return res.json({ success: true, costs, balances: consumeResult.balances, shipId: activeShipId });
+            return res.json({ success: true, costs, balances: consumeResult.balances, shipId: activeShipId, shipOwnerPlayFabId, isSharedShip: shipContext.isSharedShip });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
             console.error('[ConsumeShipBroadside] Error:', error);
@@ -1315,11 +1353,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            await assertOwnedShip(playFabId, shipId);
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
 
             const assetKey = `Ship_${shipId}`;
             const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: shipOwnerPlayFabId,
                 Keys: [assetKey]
             });
             if (!assetResult?.Data?.[assetKey]?.Value) {
@@ -1348,7 +1386,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 });
             }
 
-            const consumeResult = await tryConsumeShipCargoCosts(playFabId, shipId, repairTier.costs);
+            const consumeResult = await tryConsumeShipCargoCosts(shipOwnerPlayFabId, shipId, repairTier.costs);
             if (!consumeResult.success) {
                 return res.status(402).json({
                     error: '修理資源が足りません',
@@ -1365,7 +1403,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             currentShipData.Stats.CurrentHP = nextHp;
 
             await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-                PlayFabId: playFabId,
+                PlayFabId: shipOwnerPlayFabId,
                 Data: { [assetKey]: JSON.stringify(currentShipData) }
             });
 
@@ -1375,9 +1413,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
-            const activeShipId = await getActiveShipId(playFabId);
+            const activeShipId = await getActiveShipId(shipOwnerPlayFabId);
             if (activeShipId === shipId) {
-                await shipsCollection.doc(playFabId).set({
+                await shipsCollection.doc(shipOwnerPlayFabId).set({
                     currentHp: nextHp,
                     maxHp,
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
@@ -1392,7 +1430,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 repairedHp: nextHp - currentHp,
                 costs: repairTier.costs,
                 shipData: currentShipData,
-                balances: consumeResult.balances
+                balances: consumeResult.balances,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip
             });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
@@ -1412,7 +1452,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const activeShipId = await getActiveShipId(playFabId);
+            const shipContext = await resolveActiveShipContext(playFabId);
+            const activeShipId = shipContext.activeShipId;
+            const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId;
             const homeBalances = await getPlayerCurrencyBalances(playFabId);
             const homeResources = resourceStorage.normalizeResourceMap(homeBalances);
             const preset = await resourceStorage.getShipCargoPreset(playFabId, { promisifyPlayFab, PlayFabServer });
@@ -1424,10 +1466,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                     cargoResources: resourceStorage.normalizeResourceMap({}),
                     cargoCapacity: 0,
                     cargoUsed: 0,
-                    preset
+                    preset,
+                    shipOwnerPlayFabId,
+                    isSharedShip: shipContext.isSharedShip
                 });
             }
-            const { cargo, capacity } = await getShipCargoBalances(playFabId, activeShipId);
+            const { cargo, capacity } = await getShipCargoBalances(shipOwnerPlayFabId, activeShipId);
             return res.json({
                 success: true,
                 activeShipId,
@@ -1435,7 +1479,11 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 cargoResources: cargo,
                 cargoCapacity: capacity,
                 cargoUsed: resourceStorage.sumResourceMap(cargo),
-                preset
+                preset,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip,
+                guildId: shipContext.guildId,
+                guildName: shipContext.guildName
             });
         } catch (error) {
             console.error('[GetShipResourceStorage] Error:', error);
@@ -1456,12 +1504,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const shipId = requestedShipId || await getActiveShipId(playFabId);
+            const activeContext = await resolveActiveShipContext(playFabId);
+            const shipId = requestedShipId || activeContext.activeShipId;
             if (!shipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
-            await assertOwnedShip(playFabId, shipId);
-            const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
+            const { asset, cargo, capacity } = await getShipCargoBalances(shipOwnerPlayFabId, shipId);
             const transferred = {};
             for (const itemId of resourceStorage.RESOURCE_ITEM_IDS) {
                 const amount = Number(cargo[itemId] || 0) || 0;
@@ -1470,7 +1519,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 transferred[itemId] = amount;
             }
             const nextCargo = resourceStorage.setShipResourceCargo(asset, {});
-            await resourceStorage.updateShipAsset(playFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
+            await resourceStorage.updateShipAsset(shipOwnerPlayFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
             const nextHomeBalances = resourceStorage.normalizeResourceMap(await getPlayerCurrencyBalances(playFabId));
             return res.json({
                 success: true,
@@ -1479,7 +1528,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 cargoResources: nextCargo,
                 cargoCapacity: capacity,
                 cargoUsed: 0,
-                homeResources: nextHomeBalances
+                homeResources: nextHomeBalances,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip
             });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
@@ -1512,12 +1563,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const shipId = requestedShipId || await getActiveShipId(playFabId);
+            const activeContext = await resolveActiveShipContext(playFabId);
+            const shipId = requestedShipId || activeContext.activeShipId;
             if (!shipId) {
                 return res.status(400).json({ error: 'ActiveShipRequired' });
             }
-            await assertOwnedShip(playFabId, shipId);
-            const { asset, cargo, capacity } = await getShipCargoBalances(playFabId, shipId);
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
+            const { asset, cargo, capacity } = await getShipCargoBalances(shipOwnerPlayFabId, shipId);
             const preset = await resourceStorage.getShipCargoPreset(playFabId, { promisifyPlayFab, PlayFabServer });
             const homeBalances = resourceStorage.normalizeResourceMap(await getPlayerCurrencyBalances(playFabId));
             const nextCargo = { ...cargo };
@@ -1541,7 +1593,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             }
 
             resourceStorage.setShipResourceCargo(asset, nextCargo);
-            await resourceStorage.updateShipAsset(playFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
+            await resourceStorage.updateShipAsset(shipOwnerPlayFabId, shipId, asset, { promisifyPlayFab, PlayFabServer });
 
             return res.json({
                 success: true,
@@ -1551,7 +1603,9 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 cargoCapacity: capacity,
                 cargoUsed: resourceStorage.sumResourceMap(nextCargo),
                 homeResources: resourceStorage.normalizeResourceMap(homeBalances),
-                preset
+                preset,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip
             });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
@@ -2250,12 +2304,14 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            await assertOwnedShip(playFabId, shipId);
-            const result = await respawnShip(playFabId, shipId, reason || 'manual');
+            const { shipOwnerPlayFabId, shipContext } = await assertOwnedShip(playFabId, shipId);
+            const result = await respawnShip(shipOwnerPlayFabId, shipId, reason || 'manual');
             res.json({
                 success: true,
                 position: result?.position || result || null,
-                repairUntil: result?.repairUntil || null
+                repairUntil: result?.repairUntil || null,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip
             });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
@@ -2279,16 +2335,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const parsedPlayFabId = extractPlayFabIdFromShipId(shipId);
             let ownerPlayFabId = isLikelyPlayFabId(parsedPlayFabId) ? parsedPlayFabId : null;
 
-            if (!ownerPlayFabId && isLikelyPlayFabId(playFabId)) {
-                ownerPlayFabId = playFabId;
-            }
-
             if (!ownerPlayFabId) {
                 const shipDoc = await shipsCollection.doc(shipId).get();
                 const shipData = shipDoc.exists ? (shipDoc.data() || {}) : {};
                 if (isLikelyPlayFabId(shipData.playFabId)) {
                     ownerPlayFabId = shipData.playFabId;
                 }
+            }
+
+            if (!ownerPlayFabId && isLikelyPlayFabId(playFabId)) {
+                ownerPlayFabId = playFabId;
             }
 
             if (!ownerPlayFabId) {
@@ -2332,16 +2388,16 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             const parsedPlayFabId = extractPlayFabIdFromShipId(shipId);
             let ownerPlayFabId = isLikelyPlayFabId(parsedPlayFabId) ? parsedPlayFabId : null;
 
-            if (!ownerPlayFabId && isLikelyPlayFabId(playFabId)) {
-                ownerPlayFabId = playFabId;
-            }
-
             if (!ownerPlayFabId) {
                 const shipDoc = await shipsCollection.doc(shipId).get();
                 const shipData = shipDoc.exists ? (shipDoc.data() || {}) : {};
                 if (isLikelyPlayFabId(shipData.playFabId)) {
                     ownerPlayFabId = shipData.playFabId;
                 }
+            }
+
+            if (!ownerPlayFabId && isLikelyPlayFabId(playFabId)) {
+                ownerPlayFabId = playFabId;
             }
 
             if (!ownerPlayFabId) {
@@ -2531,8 +2587,10 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
         if (!playFabId) return;
 
         try {
-            const activeShipId = await getActiveShipId(playFabId);
-            const shipsSnapshot = await db.collection('ships').where('playFabId', '==', playFabId).get();
+            const shipContext = await resolveActiveShipContext(playFabId);
+            const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId;
+            const activeShipId = shipContext.activeShipId;
+            const shipsSnapshot = await db.collection('ships').where('playFabId', '==', shipOwnerPlayFabId).get();
 
             const ships = [];
             for (const doc of shipsSnapshot.docs) {
@@ -2543,7 +2601,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 if (typeof firestoreData.shipId !== 'string' || !firestoreData.shipId.startsWith('ship_')) continue;
 
                 const assetResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-                    PlayFabId: playFabId,
+                    PlayFabId: shipOwnerPlayFabId,
                     Keys: [`Ship_${firestoreData.shipId}`]
                 });
 
@@ -2557,13 +2615,24 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 ships.push({
                     shipId: firestoreData.shipId,
                     assetData: assetData,
-                    positionData: firestoreData,
+                    positionData: {
+                        ...firestoreData,
+                        sharedForPlayFabId: shipContext.isSharedShip ? playFabId : null
+                    },
                     currentPosition: currentPos,
                     isActive: !!activeShipId && firestoreData.shipId === activeShipId
                 });
             }
 
-            res.json({ success: true, ships: ships, activeShipId: activeShipId });
+            res.json({
+                success: true,
+                ships: ships,
+                activeShipId: activeShipId,
+                shipOwnerPlayFabId,
+                isSharedShip: shipContext.isSharedShip,
+                guildId: shipContext.guildId,
+                guildName: shipContext.guildName
+            });
 
         } catch (error) {
             console.error('[GetPlayerShips] Error:', error);

@@ -1,6 +1,7 @@
 const resourceStorage = require('./resourceStorage');
 const { drawLocalGachaItem } = require('./gacha');
 const battleRoutes = require('./routes/battleRoutes');
+const { resolveGuildShipContext } = require('./guildShipSharing');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
@@ -144,18 +145,24 @@ function reportDocToPayload(doc) {
 }
 
 async function resolveActiveShip(playFabId, deps) {
-    const profile = await resourceStorage.getPlayerShipProfile(playFabId, deps);
+    const shipContext = await resolveGuildShipContext(playFabId, deps);
+    const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+    const profile = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, deps);
     if (!profile) return null;
     const itemId = String(profile.itemId || '').trim();
     return {
-        shipId: playFabId,
+        shipId: shipOwnerPlayFabId,
         shipName: String(profile.name || itemId || '船'),
         shipClass: String(profile.shipClass || normalizeShipClassFromItemId(itemId)),
         itemId,
         form: profile.form,
         stage: profile.stage,
         level: profile.level,
-        upgradeOptions: resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[profile.form] || []
+        upgradeOptions: resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[profile.form] || [],
+        shipOwnerPlayFabId,
+        isSharedShip: shipContext.isSharedShip,
+        guildId: shipContext.guildId,
+        guildName: shipContext.guildName
     };
 }
 
@@ -586,7 +593,7 @@ function initializeExplorationRoutes(app, deps) {
     }
 
     async function buildExplorationStatus(playFabId) {
-        const ship = await resolveActiveShip(playFabId, { promisifyPlayFab, PlayFabServer });
+        const ship = await resolveActiveShip(playFabId, deps);
         const availableDestinations = ship
             ? Object.values(DESTINATIONS).filter((destination) => destination.classes.includes(ship.shipClass)).map(publicDestination)
             : [];
@@ -626,10 +633,18 @@ function initializeExplorationRoutes(app, deps) {
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const ship = await resourceStorage.getPlayerShipProfile(playFabId, { promisifyPlayFab, PlayFabServer });
+            const shipContext = await resolveGuildShipContext(playFabId, deps);
+            const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+            const ship = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
             res.json({
                 success: true,
-                ship: attachUpgradeCosts(ship, catalogCache)
+                ship: {
+                    ...attachUpgradeCosts(ship, catalogCache),
+                    shipOwnerPlayFabId,
+                    isSharedShip: shipContext.isSharedShip,
+                    guildId: shipContext.guildId,
+                    guildName: shipContext.guildName
+                }
             });
         } catch (error) {
             console.error('[player-ship/status] failed:', error?.errorMessage || error?.message || error);
@@ -643,7 +658,9 @@ function initializeExplorationRoutes(app, deps) {
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const current = await resourceStorage.getPlayerShipProfile(playFabId, { promisifyPlayFab, PlayFabServer });
+            const shipContext = await resolveGuildShipContext(playFabId, deps);
+            const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+            const current = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
             const allowed = resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[current.form] || [];
             const normalizedTarget = String(targetForm || '').trim().toLowerCase();
             if (!allowed.includes(normalizedTarget)) {
@@ -669,7 +686,7 @@ function initializeExplorationRoutes(app, deps) {
                     }
                 }
             }
-            const idempotencyBase = `player-ship-upgrade-${playFabId}-${current.form}-${normalizedTarget}-${requestId || Date.now()}`;
+            const idempotencyBase = `player-ship-upgrade-${playFabId}-${shipOwnerPlayFabId}-${current.form}-${normalizedTarget}-${requestId || Date.now()}`;
             for (const cost of costs) {
                 await subtractEconomyItem(playFabId, cost.ItemId, cost.Amount, {
                     idempotencyId: `${idempotencyBase}-${cost.ItemId}`
@@ -677,7 +694,7 @@ function initializeExplorationRoutes(app, deps) {
             }
             let ship;
             try {
-                ship = await resourceStorage.upgradePlayerShipProfile(playFabId, targetForm, { promisifyPlayFab, PlayFabServer });
+                ship = await resourceStorage.upgradePlayerShipProfile(shipOwnerPlayFabId, targetForm, { promisifyPlayFab, PlayFabServer });
             } catch (upgradeError) {
                 await Promise.all(costs.map((cost) => addEconomyItem(playFabId, cost.ItemId, cost.Amount, {
                     idempotencyId: `${idempotencyBase}-refund-${cost.ItemId}`
@@ -688,7 +705,13 @@ function initializeExplorationRoutes(app, deps) {
             }
             res.json({
                 success: true,
-                ship: attachUpgradeCosts(ship, catalogCache),
+                ship: {
+                    ...attachUpgradeCosts(ship, catalogCache),
+                    shipOwnerPlayFabId,
+                    isSharedShip: shipContext.isSharedShip,
+                    guildId: shipContext.guildId,
+                    guildName: shipContext.guildName
+                },
                 costs
             });
         } catch (error) {
@@ -710,10 +733,18 @@ function initializeExplorationRoutes(app, deps) {
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const ship = await resourceStorage.renamePlayerShipProfile(playFabId, name, { promisifyPlayFab, PlayFabServer });
+            const shipContext = await resolveGuildShipContext(playFabId, deps);
+            const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
+            const ship = await resourceStorage.renamePlayerShipProfile(shipOwnerPlayFabId, name, { promisifyPlayFab, PlayFabServer });
             res.json({
                 success: true,
-                ship: attachUpgradeCosts(ship, catalogCache)
+                ship: {
+                    ...attachUpgradeCosts(ship, catalogCache),
+                    shipOwnerPlayFabId,
+                    isSharedShip: shipContext.isSharedShip,
+                    guildId: shipContext.guildId,
+                    guildName: shipContext.guildName
+                }
             });
         } catch (error) {
             if (error?.message === 'InvalidShipName') {
@@ -731,7 +762,7 @@ function initializeExplorationRoutes(app, deps) {
         playFabId = await requireAuthed(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const ship = await resolveActiveShip(playFabId, { promisifyPlayFab, PlayFabServer });
+            const ship = await resolveActiveShip(playFabId, deps);
             if (!ship) return res.status(400).json({ error: '探索には使用中の船が必要です。' });
             const destination = DESTINATIONS[destinationId];
             if (!destination.classes.includes(ship.shipClass)) {

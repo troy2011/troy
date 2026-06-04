@@ -20956,7 +20956,11 @@ body[data-sea-tone] .home-hero-card {
     --icon-action-ship: url("./assets/ui/icons/060.png");
     --icon-action-swords: url("./assets/ui/icons/033.png");
     --icon-event-dice: url("./assets/ui/icons/041.png");
+    --icon-event-drink: url("./assets/ui/icons/043.png");
     --icon-event-eightball: url("./assets/ui/icons/047.png");
+    --icon-event-fish: url("./assets/ui/icons/037.png");
+    --icon-event-game: url("./assets/ui/icons/041.png");
+    --icon-event-poker-chip: url("./assets/ui/icons/046.png");
 }
 
 #tabContentTroy .troy-entry-btn,
@@ -21347,4 +21351,173 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentEvents .event-card[data-event-type="poker"] {
     --event-card-icon: var(--icon-event-dice);
+}
+
+#tabContentEvents [data-crew-icon="billiards"] {
+    --crew-role-icon-image: var(--icon-event-eightball);
+}
+
+#tabContentEvents [data-crew-icon="darts"] {
+    --crew-role-icon-image: var(--icon-dart);
+}
+
+#tabContentEvents [data-crew-icon="drink"] {
+    --crew-role-icon-image: var(--icon-event-drink);
+}
+
+#tabContentEvents [data-crew-icon="fish"] {
+    --crew-role-icon-image: var(--icon-event-fish);
+}
+
+#tabContentEvents [data-crew-icon="game"] {
+    --crew-role-icon-image: var(--icon-event-game);
+}
+
+#tabContentEvents [data-crew-icon="karaoke"] {
+    --crew-role-icon-image: var(--icon-microphone);
+}
+
+#tabContentEvents [data-crew-icon="poker"] {
+    --crew-role-icon-image: var(--icon-event-poker-chip);
+}
+
+#tabContentEvents .crew-role-guide {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+    gap: 8px;
+    margin: 10px 0 12px;
+}
+
+#tabContentEvents .crew-role-card {
+    --crew-rank-accent: #a7b0bd;
+    --crew-rank-glow: rgba(167, 176, 189, 0.18);
+    position: relative;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 8px 9px;
+    border: 1px solid rgba(220, 169, 82, 0.24);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(5, 7, 10, 0.94)),
+        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+    color: #f7e8c1;
+    text-align: left;
+    box-shadow: inset 0 0 0 1px var(--crew-rank-glow);
+}
+
+#tabContentEvents .crew-role-card.is-selected {
+    border-color: var(--crew-rank-accent);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 239, 192, 0.12),
+        0 0 0 2px var(--crew-rank-glow);
+}
+
+#tabContentEvents .crew-role-card.is-disabled {
+    opacity: 0.48;
+}
+
+#tabContentEvents .crew-role-card::after,
+#tabContentEvents .crew-member-card::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    right: 7px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--crew-rank-accent, rgba(220, 169, 82, 0.4));
+    opacity: 0.72;
+}
+
+#tabContentEvents .crew-role-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+#tabContentEvents .crew-role-copy strong,
+#tabContentEvents .crew-role-copy span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#tabContentEvents .crew-role-copy strong {
+    color: #ffe2a0;
+    font-size: 13px;
+    line-height: 1.15;
+}
+
+#tabContentEvents .crew-role-copy span {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+#tabContentEvents .crew-role-icon {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 229, 149, 0.38);
+    background:
+        radial-gradient(circle at 50% 36%, rgba(255, 238, 182, 0.18), rgba(0, 0, 0, 0.2) 64%),
+        var(--crew-role-icon-image, var(--icon-action-crew)) center / 72% 72% no-repeat;
+    box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.36),
+        0 0 12px var(--crew-rank-glow, rgba(220, 169, 82, 0.12));
+}
+
+#tabContentEvents [data-crew-icon="fish"] .crew-role-icon {
+    background:
+        radial-gradient(circle at 50% 36%, rgba(255, 238, 182, 0.18), rgba(0, 0, 0, 0.2) 64%),
+        var(--icon-event-fish) center / 76% 76% no-repeat,
+        linear-gradient(180deg, rgba(11, 17, 25, 0.88), rgba(3, 5, 8, 0.96));
+}
+
+#tabContentEvents [data-crew-icon="fish"] .crew-role-icon::before,
+#tabContentEvents [data-crew-icon="fish"] .crew-role-icon::after {
+    content: none;
+}
+
+#tabContentEvents .crew-member-card {
+    --crew-rank-accent: #a7b0bd;
+    --crew-rank-glow: rgba(167, 176, 189, 0.18);
+    position: relative;
+    box-shadow:
+        inset 0 0 0 1px var(--crew-rank-glow),
+        0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+#tabContentEvents .crew-member-card .event-card-head {
+    align-items: center;
+}
+
+#tabContentEvents .crew-rank-1 {
+    --crew-rank-accent: #9ca3af;
+    --crew-rank-glow: rgba(156, 163, 175, 0.18);
+}
+
+#tabContentEvents .crew-rank-2 {
+    --crew-rank-accent: #7dd3fc;
+    --crew-rank-glow: rgba(125, 211, 252, 0.22);
+}
+
+#tabContentEvents .crew-rank-3 {
+    --crew-rank-accent: #f2d394;
+    --crew-rank-glow: rgba(242, 211, 148, 0.24);
+}
+
+#tabContentEvents .crew-rank-4 {
+    --crew-rank-accent: #fb923c;
+    --crew-rank-glow: rgba(251, 146, 60, 0.28);
+}
+
+#tabContentEvents .crew-rank-5 {
+    --crew-rank-accent: #d8b4fe;
+    --crew-rank-glow: rgba(216, 180, 254, 0.34);
 }

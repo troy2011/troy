@@ -78,6 +78,8 @@ let cachedShipsData = new LRUCache(100);
 let assetDataCache = new LRUCache(200);
 const ASSET_CACHE_TTL = 5 * 60 * 1000;
 let activeShipIdCache = null;
+let activeShipOwnerIdCache = null;
+let activeShipSharedCache = false;
 const SHIP_LEVEL_CAP = 5;
 const NATION_ALIAS = {
     wands: 'fire',
@@ -526,8 +528,13 @@ export async function getActiveShipId(playFabId) {
     const result = await fetchActiveShip(playFabId, { isSilent: true });
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || null;
+        activeShipOwnerIdCache = result.shipOwnerPlayFabId || playFabId || null;
+        activeShipSharedCache = !!result.isSharedShip;
         return activeShipIdCache;
     }
+    activeShipIdCache = null;
+    activeShipOwnerIdCache = playFabId || null;
+    activeShipSharedCache = false;
     return null;
 }
 
@@ -535,6 +542,8 @@ export async function setActiveShip(playFabId, shipId) {
     const result = await requestSetActiveShip(playFabId, shipId);
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || shipId;
+        activeShipOwnerIdCache = result.shipOwnerPlayFabId || activeShipOwnerIdCache || playFabId || null;
+        activeShipSharedCache = !!result.isSharedShip;
         invalidateShipResourceStorage(playFabId);
 
         const container = document.getElementById('playerShipsContainer');
@@ -552,7 +561,13 @@ export async function setActiveShip(playFabId, shipId) {
             });
         }
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('ship:active-changed', { detail: { shipId: activeShipIdCache } }));
+            window.dispatchEvent(new CustomEvent('ship:active-changed', {
+                detail: {
+                    shipId: activeShipIdCache,
+                    shipOwnerPlayFabId: activeShipOwnerIdCache,
+                    isSharedShip: activeShipSharedCache
+                }
+            }));
         }
         await loadExplorationPanel(playFabId);
         return result;
@@ -1895,13 +1910,16 @@ async function displayPlayerShipsWithRetry(playFabId, retryCount = 0, targetCont
         await getActiveShipId(playFabId);
     } catch (e) {
         console.warn('[DisplayPlayerShips] Failed to get active ship:', e);
+        activeShipOwnerIdCache = playFabId;
+        activeShipSharedCache = false;
     }
     await loadExplorationPanel(playFabId);
 
+    const shipOwnerPlayFabId = activeShipOwnerIdCache || playFabId;
     const shipsRef = collection(firestore, 'ships');
-    const q = query(shipsRef, where('playFabId', '==', playFabId));
+    const q = query(shipsRef, where('playFabId', '==', shipOwnerPlayFabId));
 
-    console.log('[DisplayPlayerShips] Starting realtime listener for playFabId:', playFabId);
+    console.log('[DisplayPlayerShips] Starting realtime listener for playFabId:', playFabId, 'shipOwner:', shipOwnerPlayFabId);
 
     playerShipsListener = onSnapshot(q, async (snapshot) => {
         console.log('[DisplayPlayerShips] Snapshot received, changes:', snapshot.docChanges().length);
@@ -1924,7 +1942,7 @@ async function displayPlayerShipsWithRetry(playFabId, retryCount = 0, targetCont
             for (const doc of shipDocs) {
                 const firestoreData = doc.data();
                 const shipId = firestoreData.shipId || firestoreData.ShipId || doc.id;
-                const assetData = shipId ? await getShipAsset(playFabId, shipId) : null;
+                const assetData = shipId ? await getShipAsset(shipOwnerPlayFabId, shipId) : null;
                 await addShipCard(container, shipId, firestoreData, assetData);
             }
             return;
@@ -1950,11 +1968,11 @@ async function displayPlayerShipsWithRetry(playFabId, retryCount = 0, targetCont
 
             if (change.type === 'added') {
                 console.log(`[DisplayPlayerShips] Ship added: ${shipId}`);
-                const assetData = shipId ? await getShipAsset(playFabId, shipId) : null;
+                const assetData = shipId ? await getShipAsset(shipOwnerPlayFabId, shipId) : null;
                 await addShipCard(container, shipId, firestoreData, assetData);
             } else if (change.type === 'modified') {
                 console.log(`[DisplayPlayerShips] Ship modified: ${shipId}`);
-                const assetData = shipId ? (cachedShipsData.get(shipId)?.assetData || await getShipAsset(playFabId, shipId)) : null;
+                const assetData = shipId ? (cachedShipsData.get(shipId)?.assetData || await getShipAsset(shipOwnerPlayFabId, shipId)) : null;
                 await updateShipCard(container, shipId, firestoreData, assetData);
             } else if (change.type === 'removed') {
                 console.log(`[DisplayPlayerShips] Ship removed: ${shipId}`);

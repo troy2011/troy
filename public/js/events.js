@@ -8,7 +8,13 @@ import {
 } from './playfabClient.js';
 import { getNationLabel } from './nationLabels.js';
 import { buildPlayerTriggerHtml } from './playerProfile.js';
-import { CREW_ROLE_DEFS, getCrewRoleLabel } from './crewRoles.js';
+import {
+    CREW_ROLE_DEFS,
+    CREW_ROLE_BY_ID,
+    getCrewRankDecorationClass,
+    getCrewRankLevel,
+    getCrewRoleLabel
+} from './crewRoles.js';
 
 const CAPTAIN_LEVEL = 21;
 const CREW_FOUNDING_COST = 10000;
@@ -90,8 +96,47 @@ function renderRoleOptions(availableRoles = null) {
     select.innerHTML = CREW_ROLE_DEFS.map((role) => {
         const known = availability.has(role.id);
         const available = known ? availability.get(role.id) : true;
-        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)}${available ? '' : '（使用中）'}</option>`;
+        return `<option value="${escapeHtml(role.id)}" ${available ? '' : 'disabled'}>${escapeHtml(role.label)} / ${escapeHtml(role.gameLabel)}${available ? '' : '（使用中）'}</option>`;
     }).join('');
+    select.onchange = () => renderRoleGuide(availability);
+    renderRoleGuide(availability);
+}
+
+function renderRoleGuide(availability = new Map()) {
+    const guide = document.getElementById('crewRoleGuide');
+    const select = document.getElementById('crewRoleSelect');
+    if (!guide || !select) return;
+
+    const selectedRoleId = String(select.value || '').trim();
+    guide.innerHTML = CREW_ROLE_DEFS.map((role) => {
+        const known = availability.has(role.id);
+        const available = known ? availability.get(role.id) : true;
+        const selected = selectedRoleId === role.id;
+        const sampleRankLevel = 3;
+        return `
+            <button
+                type="button"
+                class="crew-role-card ${selected ? 'is-selected' : ''} ${available ? '' : 'is-disabled'} crew-rank-${sampleRankLevel}"
+                data-crew-role-id="${escapeHtml(role.id)}"
+                data-crew-icon="${escapeHtml(role.iconKey)}"
+                ${available ? '' : 'disabled'}
+            >
+                <span class="crew-role-icon" aria-hidden="true"></span>
+                <span class="crew-role-copy">
+                    <strong>${escapeHtml(role.label)}</strong>
+                    <span>${escapeHtml(role.gameLabel)}</span>
+                </span>
+            </button>
+        `;
+    }).join('');
+
+    guide.querySelectorAll('[data-crew-role-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (button.disabled) return;
+            select.value = button.dataset.crewRoleId || '';
+            renderRoleGuide(availability);
+        });
+    });
 }
 
 function renderOverview(guild) {
@@ -155,10 +200,19 @@ function renderMembers(members) {
     entries.forEach((member) => {
         const playFabId = String(member.playFabId || '').trim();
         const displayName = member.displayName || playFabId || 'Unknown';
+        const roleId = String(member.crewRoleId || '').trim();
+        const roleDef = CREW_ROLE_BY_ID[roleId] || null;
+        const memberLevel = Number(member.level || 1) || 1;
+        const rankLevel = Number(member.crewRankLevel || getCrewRankLevel(memberLevel)) || 1;
+        const rankClass = member.crewRankDecorationClass || getCrewRankDecorationClass(memberLevel);
+        const iconKey = member.crewIconKey || roleDef?.iconKey || '';
+        const gameLabel = member.crewGameLabel || roleDef?.gameLabel || '';
         const card = document.createElement('article');
-        card.className = 'event-card';
+        card.className = `event-card crew-member-card ${rankClass}`;
+        if (iconKey) card.dataset.crewIcon = iconKey;
         card.innerHTML = `
             <div class="event-card-head">
+                <span class="crew-role-icon" aria-hidden="true"></span>
                 <div>
                     <div class="event-card-type">${escapeHtml(member.crewRankTitle || member.crewRoleLabel || member.roleName || member.role || 'メンバー')}</div>
                     <h3>${buildPlayerTriggerHtml(playFabId, displayName, { className: 'player-link-inline' })}</h3>
@@ -167,6 +221,8 @@ function renderMembers(members) {
             </div>
             <div class="event-card-meta">
                 <span>ID ${escapeHtml(playFabId || '-')}</span>
+                ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
+                ${roleId ? `<span>役職Lv.${rankLevel}</span>` : ''}
                 ${member.level ? `<span>Lv.${Number(member.level || 1)}</span>` : ''}
             </div>
         `;

@@ -10,6 +10,8 @@ const {
     CREW_ROLE_DEFS,
     CREW_ROLE_BY_ID,
     normalizeCrewRoleId,
+    getCrewRankLevel,
+    getCrewRankDecorationClass,
     getCrewRankTitle
 } = require('../crewRoles');
 
@@ -224,6 +226,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         return CREW_ROLE_DEFS.map((role) => ({
             id: role.id,
             label: role.label,
+            gameLabel: role.gameLabel,
+            iconKey: role.iconKey,
             available: !assigned.has(role.id)
         }));
     }
@@ -234,6 +238,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
         return {
             roleId,
             roleLabel: role?.label || '',
+            gameLabel: role?.gameLabel || '',
+            iconKey: role?.iconKey || '',
+            rankLevel: role ? getCrewRankLevel(playerLevel) : 0,
+            rankDecorationClass: role ? getCrewRankDecorationClass(playerLevel) : '',
             rankTitle: role ? getCrewRankTitle(roleId, playerLevel) : '',
             companionCount: countCrewCompanions(guildData),
             maxCompanions: Number(guildData?.maxCompanions || MAX_CREW_COMPANIONS),
@@ -342,6 +350,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     maxCompanions: crewMeta.maxCompanions,
                     crewRoleId: crewMeta.roleId,
                     crewRoleLabel: crewMeta.roleLabel,
+                    crewGameLabel: crewMeta.gameLabel,
+                    crewIconKey: crewMeta.iconKey,
+                    crewRankLevel: crewMeta.rankLevel,
+                    crewRankDecorationClass: crewMeta.rankDecorationClass,
                     crewRankTitle: crewMeta.rankTitle,
                     availableRoles: crewMeta.availableRoles,
                     role: memberRoleLabel,
@@ -646,7 +658,9 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                     guildId: guildId,
                     guildName: guildName,
                     crewRoleId: requestedRoleId,
-                    crewRoleLabel: CREW_ROLE_BY_ID[requestedRoleId]?.label || ''
+                    crewRoleLabel: CREW_ROLE_BY_ID[requestedRoleId]?.label || '',
+                    crewGameLabel: CREW_ROLE_BY_ID[requestedRoleId]?.gameLabel || '',
+                    crewIconKey: CREW_ROLE_BY_ID[requestedRoleId]?.iconKey || ''
                 });
 
             } catch (addError) {
@@ -798,6 +812,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                             role: roleName === 'admins' ? '船長' : 'メンバー',
                             crewRoleId,
                             crewRoleLabel: crewRole?.label || '',
+                            crewGameLabel: crewRole?.gameLabel || '',
+                            crewIconKey: crewRole?.iconKey || '',
+                            crewRankLevel: crewRole ? getCrewRankLevel(memberLevel) : 0,
+                            crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(memberLevel) : '',
                             crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, memberLevel) : '',
                             level: memberLevel
                         });
@@ -812,6 +830,10 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         role: roleName === 'admins' ? '船長' : 'メンバー',
                         crewRoleId,
                         crewRoleLabel: crewRole?.label || '',
+                        crewGameLabel: crewRole?.gameLabel || '',
+                        crewIconKey: crewRole?.iconKey || '',
+                        crewRankLevel: crewRole ? getCrewRankLevel(1) : 0,
+                        crewRankDecorationClass: crewRole ? getCrewRankDecorationClass(1) : '',
                         crewRankTitle: crewRole ? getCrewRankTitle(crewRoleId, 1) : ''
                     });
                 }
