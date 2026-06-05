@@ -14496,6 +14496,77 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-weight: 1000;
 }
 
+.troy-orders-custom-item {
+    display: grid;
+    gap: 10px;
+    padding: 2px 0 14px;
+}
+
+.troy-orders-custom-price-row {
+    display: grid;
+    grid-template-columns: 54px 54px minmax(118px, 1fr) 54px 54px;
+    gap: 7px;
+    align-items: stretch;
+}
+
+.troy-orders-custom-price-row button,
+.troy-orders-custom-presets button,
+.troy-orders-custom-add {
+    min-height: 44px;
+    border: 1px solid rgba(108, 61, 18, 0.34);
+    border-radius: 8px;
+    background: rgba(91, 52, 18, 0.16);
+    color: #4e2b0f;
+    font-size: 13px;
+    font-weight: 1000;
+    cursor: pointer;
+}
+
+.troy-orders-custom-price-row label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid rgba(108, 61, 18, 0.34);
+    border-radius: 8px;
+    background: rgba(255, 244, 211, 0.58);
+}
+
+.troy-orders-custom-price-row label span {
+    color: #7c5a32;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.troy-orders-custom-price-row input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: #2d1b0b;
+    font-size: 20px;
+    font-weight: 1000;
+    text-align: right;
+    outline: none;
+}
+
+.troy-orders-custom-presets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.troy-orders-custom-add {
+    min-height: 50px;
+    border: 0;
+    background: linear-gradient(180deg, #f2c56c, #ad6720);
+    color: #211206;
+    font-size: 15px;
+    box-shadow: inset 0 1px 0 rgba(255, 246, 207, 0.48), 0 5px 12px rgba(0, 0, 0, 0.18);
+}
+
 .troy-orders-confirm {
     position: fixed;
     inset: 0;
@@ -14705,6 +14776,19 @@ body.is-new-order-flash::before {
 
     .troy-orders-settle {
         grid-template-columns: 1fr;
+    }
+
+    .troy-orders-custom-price-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .troy-orders-custom-price-row label {
+        grid-column: 1 / -1;
+        order: -1;
+    }
+
+    .troy-orders-custom-presets {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .troy-orders-confirm-actions {

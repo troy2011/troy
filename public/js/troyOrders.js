@@ -50,6 +50,10 @@ const ORDER_SOUND_SOURCES = {
     entry: '/audio/order-count-5-plus-battlefield.mp3'
 };
 const ORDER_SOUND_BY_COUNT_TIER = ['default', 'drink', 'food', 'premium', 'entry'];
+const CUSTOM_ORDER_ITEM_NAME = 'その他';
+const CUSTOM_ORDER_PRICE_PRESETS = [100, 300, 500, 1000, 1500, 2000, 3000, 5000];
+const CUSTOM_ORDER_PRICE_MIN = 100;
+const CUSTOM_ORDER_PRICE_MAX = 100000;
 
 let refreshTimer = null;
 let sseSource = null;
@@ -81,6 +85,12 @@ function formatYen(value) {
 
 function formatGold(value) {
     return `${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}G`;
+}
+
+function normalizeCustomOrderPrice(value) {
+    const raw = Math.floor(Number(value) || 0);
+    if (raw < CUSTOM_ORDER_PRICE_MIN) return 0;
+    return Math.min(CUSTOM_ORDER_PRICE_MAX, Math.floor(raw / 100) * 100);
 }
 
 function formatTime(ms) {
@@ -359,7 +369,7 @@ function getPendingServeCount(items = []) {
 }
 
 function buildPosCategoryHtml() {
-    return STAFF_MENU.map((cat, index) => {
+    const menuHtml = STAFF_MENU.map((cat, index) => {
         const btns = cat.items.map((item) => `
             <button type="button" class="troy-orders-pos-btn"
                 data-add-item
@@ -373,6 +383,27 @@ function buildPosCategoryHtml() {
                 <div class="troy-orders-pos-items">${btns}</div>
             </details>`;
     }).join('');
+    const presetButtons = CUSTOM_ORDER_PRICE_PRESETS.map((price) => `
+        <button type="button" data-custom-price-preset="${price}">${formatYen(price)}</button>
+    `).join('');
+    return `${menuHtml}
+        <details class="troy-orders-pos-category troy-orders-custom-category">
+            <summary>その他</summary>
+            <div class="troy-orders-custom-item">
+                <div class="troy-orders-custom-price-row">
+                    <button type="button" data-custom-price-step="-500">-500</button>
+                    <button type="button" data-custom-price-step="-100">-100</button>
+                    <label>
+                        <span>金額</span>
+                        <input type="number" min="100" max="${CUSTOM_ORDER_PRICE_MAX}" step="100" inputmode="numeric" value="500" data-custom-price>
+                    </label>
+                    <button type="button" data-custom-price-step="100">+100</button>
+                    <button type="button" data-custom-price-step="500">+500</button>
+                </div>
+                <button type="button" class="troy-orders-custom-add" data-add-custom-item>${CUSTOM_ORDER_ITEM_NAME}を追加</button>
+                <div class="troy-orders-custom-presets">${presetButtons}</div>
+            </div>
+        </details>`;
 }
 
 function renderOrderItemRows(entry) {
@@ -636,6 +667,57 @@ async function addItemToCheckout(button) {
     }
 }
 
+function getCustomPriceInput(source) {
+    const root = source?.closest?.('.troy-orders-custom-item') || $('troyOrdersTicketDetail');
+    return root?.querySelector?.('[data-custom-price]') || null;
+}
+
+function setCustomPrice(input, value) {
+    if (!input) return 0;
+    const normalized = normalizeCustomOrderPrice(value) || CUSTOM_ORDER_PRICE_MIN;
+    input.value = String(normalized);
+    return normalized;
+}
+
+function adjustCustomPrice(button) {
+    const input = getCustomPriceInput(button);
+    const current = normalizeCustomOrderPrice(input?.value) || CUSTOM_ORDER_PRICE_MIN;
+    const delta = Math.floor(Number(button?.dataset?.customPriceStep) || 0);
+    setCustomPrice(input, current + delta);
+}
+
+function applyCustomPricePreset(button) {
+    const input = getCustomPriceInput(button);
+    setCustomPrice(input, button?.dataset?.customPricePreset);
+}
+
+async function addCustomItemToCheckout(button) {
+    if (!button || !selectedCustomerId) return;
+    const input = getCustomPriceInput(button);
+    const price = normalizeCustomOrderPrice(input?.value);
+    if (price <= 0) {
+        setMessage('その他の金額は100円単位で入力してください。', true);
+        input?.focus();
+        return;
+    }
+    setCustomPrice(input, price);
+    button.disabled = true;
+    try {
+        await callApiWithLoader('/api/troy-orders/add-item', {
+            ...getRequestedNationPayload(),
+            receiverPlayFabId: selectedCustomerId,
+            name: CUSTOM_ORDER_ITEM_NAME,
+            price,
+            quantity: 1
+        }, { isSilent: true, throwOnError: true });
+        await refreshOrders({ silent: true, force: true });
+    } catch (error) {
+        setMessage(`商品を追加できませんでした: ${error?.message || error}`, true);
+    } finally {
+        button.disabled = false;
+    }
+}
+
 async function toggleServedFromButton(button) {
     if (!button || busy) return;
     const card = button.closest('[data-receiver-id]');
@@ -799,9 +881,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             void toggleServedFromButton(servedButton);
             return;
         }
+        const customStepButton = target?.closest('[data-custom-price-step]');
+        if (customStepButton) {
+            adjustCustomPrice(customStepButton);
+            return;
+        }
+        const customPresetButton = target?.closest('[data-custom-price-preset]');
+        if (customPresetButton) {
+            applyCustomPricePreset(customPresetButton);
+            return;
+        }
+        const customAddButton = target?.closest('[data-add-custom-item]');
+        if (customAddButton) {
+            void addCustomItemToCheckout(customAddButton);
+            return;
+        }
         const settleButton = target?.closest('[data-settle]');
         if (!settleButton) return;
         openConfirmModal(settleButton.closest('[data-receiver-id]'));
+    });
+    $('troyOrdersTicketDetail')?.addEventListener('change', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.matches('[data-custom-price]')) {
+            setCustomPrice(target, target.value);
+        }
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !$('troyOrdersTicketModal')?.hidden) closeTicketDetail();
