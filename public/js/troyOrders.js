@@ -139,7 +139,7 @@ async function setTroyOpen(nextOpen) {
     if (busy) return;
     if (!nextOpen) {
         const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
-        if (entries.length > 0 && !confirm(`お会計待ちが ${entries.length}件 います。TROYをCLOSEしますか？`)) return;
+        if (entries.length > 0 && !confirm(`会計待ちの伝票が ${entries.length}件 あります。TROYをCLOSEしますか？`)) return;
     }
     const nationPayload = getRequestedNationPayload();
     busy = true;
@@ -152,7 +152,7 @@ async function setTroyOpen(nextOpen) {
             isOpen: nextOpen
         }, { isSilent: true, throwOnError: true });
         setMessage(nextOpen ? 'TROYをOPENにしました。' : 'TROYをCLOSEにしました。');
-        await refreshOrders({ silent: true });
+        await refreshOrders({ silent: true, force: true });
     } catch (error) {
         setMessage(`営業状態を変更できませんでした: ${error?.message || error}`, true);
     } finally {
@@ -186,6 +186,39 @@ function sortEntries(entries = []) {
     } else {
         rows.sort((a, b) => (Number(a.createdAtMs || a.lastOrderedAtMs) || 0) - (Number(b.createdAtMs || b.lastOrderedAtMs) || 0));
     }
+    return rows;
+}
+
+function getCheckoutEntries(data = lastData) {
+    return Array.isArray(data?.troyPendingCheckouts) ? data.troyPendingCheckouts : [];
+}
+
+function getMemberEntries(data = lastData) {
+    return Array.isArray(data?.troyMembers) ? data.troyMembers : [];
+}
+
+function getCustomerEntries(data = lastData) {
+    const checkouts = getCheckoutEntries(data);
+    const checkoutById = new Map(checkouts.map((entry) => [entry.playFabId, entry]));
+    const rows = [];
+    getMemberEntries(data).forEach((member) => {
+        const checkout = checkoutById.get(member.playFabId) || null;
+        rows.push({
+            ...member,
+            checkout,
+            total: Math.max(0, Number(checkout?.total) || 0),
+            totalItems: Math.max(0, Number(checkout?.totalItems) || 0)
+        });
+    });
+    checkouts.forEach((checkout) => {
+        if (rows.some((entry) => entry.playFabId === checkout.playFabId)) return;
+        rows.push({
+            ...checkout,
+            checkout,
+            total: Math.max(0, Number(checkout.total) || 0),
+            totalItems: Math.max(0, Number(checkout.totalItems) || 0)
+        });
+    });
     return rows;
 }
 
@@ -294,7 +327,7 @@ function updateServeSummary(entries = []) {
         });
     });
     const el = $('troyOrdersServeSummary');
-    if (el) el.textContent = `未提供 ${pending}件 / 提供済み ${served}件`;
+    if (el) el.textContent = `伝票 ${entries.length}件 / 未提供 ${pending}件 / 提供済み ${served}件`;
 }
 
 function buildPosCategoryHtml() {
@@ -322,19 +355,18 @@ function rebuildPosMenu() {
         el.innerHTML = '';
         return;
     }
-    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
-    const selected = entries.find((e) => e.playFabId === selectedCustomerId);
+    const selected = getCustomerEntries().find((e) => e.playFabId === selectedCustomerId);
     if (!selected) {
         el.hidden = true;
         el.innerHTML = '';
         return;
     }
-    const total = Math.max(0, Number(selected.total) || 0);
+    const total = Math.max(0, Number(selected.checkout?.total ?? selected.total) || 0);
     const name = escapeHtml(selected.displayName || selected.playFabId || 'Player');
     el.innerHTML = `
         <div id="troyOrdersPosMenuHeader" class="troy-orders-pos-menu-header">
-            <span>選択中: <strong>${name}</strong></span>
-            <span>合計 <strong>${formatYen(total)}</strong></span>
+            <span>会計入力: <strong>${name}</strong></span>
+            <span>伝票合計 <strong>${formatYen(total)}</strong></span>
         </div>
         ${buildPosCategoryHtml()}
     `;
@@ -344,31 +376,30 @@ function rebuildPosMenu() {
 function updatePosMenuHeader() {
     const header = $('troyOrdersPosMenuHeader');
     if (!header || !selectedCustomerId) return;
-    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
-    const selected = entries.find((e) => e.playFabId === selectedCustomerId);
+    const selected = getCustomerEntries().find((e) => e.playFabId === selectedCustomerId);
     if (!selected) {
         selectedCustomerId = null;
         rebuildPosMenu();
         return;
     }
-    const total = Math.max(0, Number(selected.total) || 0);
+    const total = Math.max(0, Number(selected.checkout?.total ?? selected.total) || 0);
     const name = escapeHtml(selected.displayName || selected.playFabId || 'Player');
-    header.innerHTML = `<span>選択中: <strong>${name}</strong></span><span>合計 <strong>${formatYen(total)}</strong></span>`;
+    header.innerHTML = `<span>会計入力: <strong>${name}</strong></span><span>伝票合計 <strong>${formatYen(total)}</strong></span>`;
 }
 
 function updateCustomerSelector(entries) {
     const el = $('troyOrdersCustomerSelector');
     if (!el) return;
     if (!entries.length) {
-        el.innerHTML = '<span class="troy-orders-no-customers">お客様なし</span>';
+        el.innerHTML = '<span class="troy-orders-no-customers">入店中のお客様なし</span>';
         return;
     }
-    const label = '<span class="troy-orders-selector-label">客を選択:</span>';
+    const label = '<span class="troy-orders-selector-label">会計する客:</span>';
     const chips = entries.map((entry) => {
         const isSelected = entry.playFabId === selectedCustomerId;
         const total = Math.max(0, Number(entry.total) || 0);
         const name = escapeHtml(entry.displayName || entry.playFabId || 'Player');
-        const chip = total > 0 ? `${name} ▸ ${formatYen(total)}` : name;
+        const chip = total > 0 ? `${name} / ${formatYen(total)}` : `${name} / 未入力`;
         return `<button type="button" class="troy-orders-customer-chip${isSelected ? ' is-selected' : ''}" data-customer-chip data-customer-id="${escapeHtml(entry.playFabId)}">${chip}</button>`;
     }).join('');
     el.innerHTML = `${label}<div class="troy-orders-chips">${chips}</div>`;
@@ -376,8 +407,7 @@ function updateCustomerSelector(entries) {
 
 function selectCustomer(customerId) {
     selectedCustomerId = customerId || null;
-    const entries = Array.isArray(lastData?.troyPendingCheckouts) ? lastData.troyPendingCheckouts : [];
-    updateCustomerSelector(entries);
+    updateCustomerSelector(getCustomerEntries());
     rebuildPosMenu();
 }
 
@@ -395,7 +425,7 @@ function renderCheckoutCard(entry) {
         const served = String(item.status || '').toLowerCase() === 'served' || Number(item.servedAtMs) > 0;
         return `
             <div class="troy-orders-item-row${served ? ' is-served' : ''}">
-                <span>${escapeHtml(item.name || '注文')}</span>
+                <span>${escapeHtml(item.name || '商品')}</span>
                 <em>${quantity > 1 ? `x${quantity}` : ''}</em>
                 <strong>${formatYen(item.lineTotal || ((Number(item.price) || 0) * quantity))}</strong>
                 ${orderId ? `<button type="button" data-toggle-served data-order-id="${escapeHtml(orderId)}" data-served="${served ? 'true' : 'false'}">${served ? '提供済み' : '未提供'}</button>` : '<i></i>'}
@@ -403,7 +433,7 @@ function renderCheckoutCard(entry) {
         `;
     }).join('');
     const meta = [
-        status === 'pending' ? '確認待ち' : '未会計',
+        status === 'pending' ? '確認待ち' : '会計伝票',
         orderedAt,
         totalItems ? `${totalItems}点` : '',
         grantTotal ? `付与済み ${grantTotal.toLocaleString('ja-JP')}G` : ''
@@ -421,14 +451,14 @@ function renderCheckoutCard(entry) {
                     <span class="${pendingServeCount > 0 ? 'is-pending-serve' : 'is-served-all'}">${pendingServeCount > 0 ? `未提供 ${pendingServeCount}` : '全て提供済み'}</span>
                 </div>
             </div>
-            <div class="troy-orders-items">${itemRows || '<div class="troy-orders-item-row"><span>注文内容なし</span></div>'}</div>
+            <div class="troy-orders-items">${itemRows || '<div class="troy-orders-item-row"><span>商品なし</span></div>'}</div>
             <div class="troy-orders-settle">
                 <label>
-                    <span>預かりコイン</span>
-                    <input type="number" min="0" step="1" inputmode="numeric" value="0" data-coin-deposit>
+                    <span>チップ返却</span>
+                    <input type="number" min="0" step="100" inputmode="numeric" value="0" data-chip-return>
                     <b>G</b>
                 </label>
-                <button type="button" data-settle>お会計する</button>
+                <button type="button" data-settle>会計・退店</button>
             </div>
         </article>
     `;
@@ -440,29 +470,35 @@ function render(data = {}) {
     renderCoinConversionLogs(data.troyCoinConversionLogs);
     const list = $('troyOrdersList');
     const empty = $('troyOrdersEmpty');
-    const entries = Array.isArray(data.troyPendingCheckouts) ? data.troyPendingCheckouts : [];
+    const entries = getCheckoutEntries(data);
+    const customers = getCustomerEntries(data);
+    if (selectedCustomerId && !customers.some((entry) => entry.playFabId === selectedCustomerId)) {
+        selectedCustomerId = null;
+    }
     flashForNewOrders(entries);
     updateServeSummary(entries);
-    updateCustomerSelector(entries);
+    updateCustomerSelector(customers);
     updatePosMenuHeader();
     if (!entries.length) {
         list.innerHTML = '';
         empty.hidden = false;
+        rebuildPosMenu();
         return;
     }
     empty.hidden = true;
     list.innerHTML = sortEntries(entries).map(renderCheckoutCard).join('');
+    rebuildPosMenu();
 }
 
-async function refreshOrders({ silent = true } = {}) {
-    if (busy) return;
+async function refreshOrders({ silent = true, force = false } = {}) {
+    if (busy && !force) return;
     try {
         const data = await callApiWithLoader('/api/troy-orders/list', getRequestedNationPayload(), { isSilent: silent, throwOnError: true });
         setMessage('');
         render(data || {});
     } catch (error) {
         console.warn('[troy-orders] refresh failed:', error);
-        setMessage('注文リストを取得できませんでした。通信状態を確認してください。', true);
+        setMessage('会計レジを取得できませんでした。通信状態を確認してください。', true);
     }
 }
 
@@ -470,9 +506,13 @@ async function settleFromCard(card) {
     if (!card || busy) return;
     const receiverId = String(card.dataset.receiverId || '').trim();
     const expectedTotal = Math.max(0, Math.floor(Number(card.dataset.amount) || 0));
-    const coinInput = card.querySelector('[data-coin-deposit]');
-    const coinDepositAmount = Math.max(0, Math.floor(Number(coinInput?.value || 0) || 0));
+    const chipReturnInput = card.querySelector('[data-chip-return]');
+    const chipReturnAmount = Math.max(0, Math.floor(Number(chipReturnInput?.value || 0) || 0));
     if (!receiverId || expectedTotal <= 0) return;
+    if (chipReturnAmount > 0 && (chipReturnAmount % 100 !== 0 || chipReturnAmount > 1000000)) {
+        setMessage('チップ返却は100G単位、100万Gまでで入力してください。', true);
+        return;
+    }
     const confirmCheck = $('troyOrdersConfirmCheck');
     if (confirmCheck && !confirmCheck.checked) {
         openConfirmModal(card);
@@ -487,13 +527,13 @@ async function settleFromCard(card) {
             receiverPlayFabId: receiverId,
             expectedTotal,
             requestId: createRequestId('troy-orders-settle'),
-            coinDepositAmount
+            chipReturnAmount
         }, { isSilent: true, throwOnError: true });
-        setMessage('お会計しました。');
-        await refreshOrders({ silent: true });
+        await refreshOrders({ silent: true, force: true });
+        setMessage('会計と退店処理を完了しました。');
     } catch (error) {
         console.warn('[troy-orders] settle failed:', error);
-        setMessage(`お会計できませんでした: ${error?.message || error}`, true);
+        setMessage(`会計できませんでした: ${error?.message || error}`, true);
     } finally {
         busy = false;
         card.classList.remove('is-busy');
@@ -514,8 +554,9 @@ async function addItemToCheckout(button) {
             price,
             quantity: 1
         }, { isSilent: true, throwOnError: true });
+        await refreshOrders({ silent: true, force: true });
     } catch (error) {
-        setMessage(`注文を追加できませんでした: ${error?.message || error}`, true);
+        setMessage(`商品を追加できませんでした: ${error?.message || error}`, true);
     } finally {
         button.disabled = false;
     }
@@ -553,14 +594,18 @@ function openConfirmModal(card) {
     if (!modal || !card) return;
     const name = card.querySelector('h2')?.textContent || card.dataset.receiverId || '-';
     const total = Math.max(0, Math.floor(Number(card.dataset.amount) || 0));
-    const itemsHtml = [...card.querySelectorAll('.troy-orders-item-row')].map((row) => {
+    const chipReturnAmount = Math.max(0, Math.floor(Number(card.querySelector('[data-chip-return]')?.value || 0) || 0));
+    const itemRows = [...card.querySelectorAll('.troy-orders-item-row')].map((row) => {
         const nameEl = row.querySelector('span');
         const priceEl = row.querySelector('strong');
         return `<div><span>${escapeHtml(nameEl?.textContent || '')}</span><strong>${escapeHtml(priceEl?.textContent || '')}</strong></div>`;
-    }).join('');
+    });
+    if (chipReturnAmount > 0) {
+        itemRows.push(`<div><span>チップ返却</span><strong>${escapeHtml(formatGold(chipReturnAmount))}</strong></div>`);
+    }
     $('troyOrdersConfirmName').textContent = name;
     $('troyOrdersConfirmTotal').textContent = formatYen(total);
-    $('troyOrdersConfirmItems').innerHTML = itemsHtml;
+    $('troyOrdersConfirmItems').innerHTML = itemRows.join('');
     const check = $('troyOrdersConfirmCheck');
     const submit = $('troyOrdersConfirmSubmit');
     if (check) check.checked = false;

@@ -72,7 +72,7 @@ const TREASURY_CASHBACK_RATE_BPS_BY_RANK = [1300, 1100, 900, 700];
 const NATION_WAR_EVENT_LIMIT = 40;
 const NATION_WAR_STATE_COLLECTION = 'nation_wars';
 const NATION_WAR_EVENT_COLLECTION = 'nation_war_events';
-const TROY_CHECKOUT_ENABLED = false;
+const TROY_STAFF_CHECKOUT_ENABLED = true;
 const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
 const TROY_GLOBAL_ROOM_ID = 'global';
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
@@ -1830,7 +1830,7 @@ function buildTroyCheckoutPayload(docOrData = null) {
 }
 
 function buildTroyPendingCheckoutPayload(checkoutDocs = []) {
-    if (!TROY_CHECKOUT_ENABLED) return [];
+    if (!TROY_STAFF_CHECKOUT_ENABLED) return [];
     return (Array.isArray(checkoutDocs) ? checkoutDocs : [])
         .map((doc) => buildTroyCheckoutPayload(doc))
         .filter((entry) => entry && (entry.status === 'open' || entry.status === 'pending'))
@@ -3864,30 +3864,35 @@ function initializeNationRoutes(app, deps) {
     }
 
     async function buildTroyOrdersPagePayload(context) {
-        if (!TROY_CHECKOUT_ENABLED) {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) {
             return {
                 troyOpen: true,
                 nation: context.nation,
                 troyTodaySales: { total: 0, count: 0 },
                 troyPendingCheckouts: [],
+                troyMembers: buildTroyMemberPayload([]),
                 troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
                 checkoutDisabled: true
             };
         }
-        const checkoutSnap = await context.roomRef.collection('checkouts').limit(50).get();
-        const groupSnap = await getNationGroupDoc(firestore, context.mapping.groupName).get();
+        const [checkoutSnap, membersSnap, groupSnap] = await Promise.all([
+            context.roomRef.collection('checkouts').limit(50).get(),
+            context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get(),
+            getNationGroupDoc(firestore, context.mapping.groupName).get()
+        ]);
         const groupData = groupSnap.data() || {};
         return {
             troyOpen: true,
             nation: context.nation,
             troyTodaySales: buildTroyTodaySalesSnapshot(groupData),
             troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
+            troyMembers: buildTroyMemberPayload(membersSnap.docs),
             troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData)
         };
     }
 
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
-        if (!TROY_CHECKOUT_ENABLED) {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) {
             const error = new Error('TroyCheckoutDisabled');
             error.statusCode = 503;
             throw error;
@@ -3899,6 +3904,7 @@ function initializeNationRoutes(app, deps) {
             throw error;
         }
 
+        const memberRef = context.roomRef.collection('members').doc(receiverId);
         const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
         const checkoutSnap = await checkoutRef.get();
         if (!checkoutSnap.exists) {
@@ -3928,7 +3934,13 @@ function initializeNationRoutes(app, deps) {
         }
 
         const requestId = String(payload.requestId || '').trim();
-        const coinDepositAmount = Math.min(1000000, Math.max(0, Math.floor(Number(payload.coinDepositAmount) || 0)));
+        const rawChipReturnAmount = Math.max(0, Math.floor(Number(payload.chipReturnAmount ?? payload.coinDepositAmount) || 0));
+        const chipReturnAmount = rawChipReturnAmount > 0 ? normalizeTroyCoinConversionAmount(rawChipReturnAmount) : 0;
+        if (rawChipReturnAmount > 0 && chipReturnAmount <= 0) {
+            const error = new Error('InvalidChipReturnAmount');
+            error.statusCode = 400;
+            throw error;
+        }
         const settleBaseId = requestId
             || `troy-settle:${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
         const idempotencyFor = (suffix) => `${settleBaseId}:${suffix}`;
@@ -3967,12 +3979,24 @@ function initializeNationRoutes(app, deps) {
             }
         }
 
-        let coinDepositApplied = false;
-        let coinDepositError = null;
-        if (coinDepositAmount > 0) {
+        let chipReturnApplied = false;
+        let chipReturnError = null;
+        let chipReturnConversion = null;
+        let chipReturnContribution = null;
+        if (chipReturnAmount > 0) {
             try {
-                await addEconomyItem(receiverId, 'PS', coinDepositAmount, { idempotencyId: `troy-coin-deposit:${checkoutStableId}:${coinDepositAmount}` });
-                coinDepositApplied = true;
+                const chipReturnRequestId = `${settleBaseId}:chip-return`;
+                await addEconomyItem(receiverId, 'PS', chipReturnAmount, { idempotencyId: `troy-chip-return:${checkoutStableId}:${chipReturnAmount}` });
+                chipReturnApplied = true;
+                chipReturnConversion = await recordTroyCoinConversion(memberRef, chipReturnRequestId, 'coin_to_gold', chipReturnAmount);
+                if (!chipReturnConversion.duplicate && chipReturnConversion.contributionAmount > 0) {
+                    try {
+                        chipReturnContribution = await addPlayerNationContribution(receiverId, chipReturnConversion.contributionAmount, nationDeps);
+                        await updateTroyMemberRankSnapshot(memberRef, chipReturnContribution);
+                    } catch (contributionError) {
+                        console.warn(`[${logPrefix}] Chip return contribution failed:`, contributionError?.errorMessage || contributionError?.message || contributionError);
+                    }
+                }
                 if (getCurrencyBalance) {
                     const receiverBalance = await getCurrencyBalance(receiverId, 'PS');
                     await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
@@ -3980,12 +4004,28 @@ function initializeNationRoutes(app, deps) {
                         Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
                     });
                 }
-            } catch (coinIssue) {
-                coinDepositError = coinIssue?.errorMessage || coinIssue?.message || String(coinIssue);
-                console.warn(`[${logPrefix}] Coin deposit failed:`, coinDepositError);
-                const error = new Error('FailedToDepositCoin');
+                if (firestore && admin) {
+                    try {
+                        await firestore
+                            .collection('notifications')
+                            .doc(receiverId)
+                            .collection('items')
+                            .add({
+                                type: 'troy_chip_return',
+                                amount: chipReturnAmount,
+                                currency: 'PS',
+                                createdAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                    } catch (notifyError) {
+                        console.warn(`[${logPrefix}] Chip return notification failed:`, notifyError?.message || notifyError);
+                    }
+                }
+            } catch (chipReturnIssue) {
+                chipReturnError = chipReturnIssue?.errorMessage || chipReturnIssue?.message || String(chipReturnIssue);
+                console.warn(`[${logPrefix}] Chip return failed:`, chipReturnError);
+                const error = new Error('FailedToReturnChip');
                 error.statusCode = 500;
-                error.details = coinDepositError;
+                error.details = chipReturnError;
                 throw error;
             }
         }
@@ -4029,14 +4069,14 @@ function initializeNationRoutes(app, deps) {
         }
 
         try {
-            await context.roomRef.collection('members').doc(receiverId).delete();
+            await memberRef.delete();
         } catch (memberDeleteError) {
             console.warn(`[${logPrefix}] Member delete failed:`, memberDeleteError?.message || memberDeleteError);
         }
 
         pushDisplayEvent({
             type: 'flare',
-            label: `会計済: ${checkoutPayload.displayName}${coinDepositAmount > 0 ? ` / 預かり ${coinDepositAmount}G` : ''}`
+            label: `会計済: ${checkoutPayload.displayName}${chipReturnAmount > 0 ? ` / チップ返却 ${chipReturnAmount}G` : ''}`
         });
 
         return {
@@ -4050,9 +4090,14 @@ function initializeNationRoutes(app, deps) {
             treasuryPs,
             grantApplied,
             grantError,
-            coinDepositAmount,
-            coinDepositApplied,
-            coinDepositError,
+            chipReturnAmount,
+            chipReturnApplied,
+            chipReturnError,
+            chipReturnConversion,
+            chipReturnContribution,
+            coinDepositAmount: chipReturnAmount,
+            coinDepositApplied: chipReturnApplied,
+            coinDepositError: chipReturnError,
             settledStatus: checkoutPayload.status,
             troyTodaySales
         };
@@ -4067,6 +4112,7 @@ function initializeNationRoutes(app, deps) {
                     nation: null,
                     troyTodaySales: { total: 0, count: 0 },
                     troyPendingCheckouts: [],
+                    troyMembers: [],
                     troyCoinConversionLogs: []
                 });
             }
@@ -4078,7 +4124,7 @@ function initializeNationRoutes(app, deps) {
     });
 
     app.post('/api/troy-orders/item-status', async (req, res) => {
-        if (!TROY_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
+        if (!TROY_STAFF_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
         try {
             const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
             if (!context) return res.status(403).json({ error: 'TroyClosed' });
@@ -4175,11 +4221,19 @@ function initializeNationRoutes(app, deps) {
             const quantity = Math.max(1, Math.min(99, Math.floor(Number(req.body?.quantity) || 1)));
             if (!receiverId || !name) return res.status(400).json({ error: 'receiverPlayFabId and name are required' });
 
+            const memberRef = context.roomRef.collection('members').doc(receiverId);
+            const memberSnap = await memberRef.get();
+            if (!memberSnap.exists) return res.status(403).json({ error: 'NotInTroy' });
+            const memberData = memberSnap.data() || {};
+            const displayName = String(memberData.displayName || receiverId).trim();
+
             const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
             const checkoutSnap = await checkoutRef.get();
-            if (!checkoutSnap.exists) return res.status(404).json({ error: 'CheckoutNotFound' });
-
-            const checkoutData = checkoutSnap.data() || {};
+            const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
+            const checkoutStatus = String(checkoutData.status || 'open').trim().toLowerCase();
+            if (checkoutStatus && !['open', 'pending'].includes(checkoutStatus)) {
+                return res.status(409).json({ error: 'CheckoutAlreadyClosed' });
+            }
             const existingItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
             const orderedAtMs = Date.now();
             const orderId = `staff:${receiverId}:${orderedAtMs}`;
@@ -4189,7 +4243,16 @@ function initializeNationRoutes(app, deps) {
             const nextTotal = normalized.reduce((sum, i) => sum + i.lineTotal, 0);
             const nextTotalItems = normalized.reduce((sum, i) => sum + i.quantity, 0);
             const nextGrantTotal = normalized.reduce((sum, i) => sum + Math.max(0, Number(i.grantedPs) || 0), 0);
+            const basePatch = checkoutSnap.exists ? {} : {
+                playFabId: receiverId,
+                displayName,
+                status: 'open',
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            };
             await checkoutRef.set({
+                ...basePatch,
+                playFabId: checkoutData.playFabId || receiverId,
+                displayName: checkoutData.displayName || displayName,
                 items: nextItems,
                 total: nextTotal,
                 totalItems: nextTotalItems,
@@ -4246,7 +4309,7 @@ function initializeNationRoutes(app, deps) {
         try {
             const context = await resolveOpenTroyOrdersContext(requestedNation);
             if (!context) {
-                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyCoinConversionLogs: [] });
+                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [] });
                 if (!res.writableEnded) res.write('retry: 15000\n\n');
                 cleanup();
                 return;
@@ -4254,7 +4317,7 @@ function initializeNationRoutes(app, deps) {
 
             send(await buildTroyOrdersPagePayload(context));
 
-            if (!TROY_CHECKOUT_ENABLED) {
+            if (!TROY_STAFF_CHECKOUT_ENABLED) {
                 if (!res.writableEnded) res.write('retry: 15000\n\n');
                 cleanup();
                 return;
@@ -4263,13 +4326,17 @@ function initializeNationRoutes(app, deps) {
             unsubCheckouts = context.roomRef.collection('checkouts').onSnapshot(async (snap) => {
                 if (closed) return;
                 try {
-                    const groupSnap = await getNationGroupDoc(firestore, context.mapping.groupName).get();
-                    const roomSnap = await context.roomRef.get();
+                    const [groupSnap, roomSnap, membersSnap] = await Promise.all([
+                        getNationGroupDoc(firestore, context.mapping.groupName).get(),
+                        context.roomRef.get(),
+                        context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get()
+                    ]);
                     send({
                         troyOpen: true,
                         nation: context.nation,
                         troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}),
                         troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs),
+                        troyMembers: buildTroyMemberPayload(membersSnap.docs),
                         troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomSnap.data() || {})
                     });
                 } catch (e) {
@@ -4283,7 +4350,7 @@ function initializeNationRoutes(app, deps) {
                 if (closed) return;
                 const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
                 if (!roomData.isOpen) {
-                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyCoinConversionLogs: [] });
+                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [] });
                     if (!res.writableEnded) try { res.write('retry: 15000\n\n'); } catch (_) {}
                     cleanup();
                 } else {
@@ -4292,6 +4359,7 @@ function initializeNationRoutes(app, deps) {
                         nation: context.nation,
                         troyTodaySales: lastPayload?.troyTodaySales || { total: 0, count: 0 },
                         troyPendingCheckouts: lastPayload?.troyPendingCheckouts || [],
+                        troyMembers: lastPayload?.troyMembers || [],
                         troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData)
                     });
                 }

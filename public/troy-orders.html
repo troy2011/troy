@@ -6,14 +6,14 @@
     <meta name="theme-color" content="#111827">
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="stylesheet" href="/style.css">
-    <title>TROY 注文リスト</title>
+    <title>TROY 会計レジ</title>
 </head>
 <body class="troy-orders-body">
     <main class="troy-orders-shell">
         <header class="troy-orders-header">
             <div>
                 <div class="troy-orders-kicker">TROY STAFF</div>
-                <h1>注文リスト</h1>
+                <h1>会計レジ</h1>
             </div>
             <div class="troy-orders-header-actions">
                 <div id="troyOrdersAuthName" class="troy-orders-auth-name">ログイン不要</div>
@@ -32,7 +32,7 @@
                 <strong id="troyOrdersOpenState">-</strong>
             </div>
             <div class="troy-orders-summary-item">
-                <span>未会計</span>
+                <span>会計待ち</span>
                 <strong id="troyOrdersPendingCount">0件</strong>
             </div>
             <div class="troy-orders-summary-item">
@@ -49,12 +49,12 @@
             <label>
                 <span>並び順</span>
                 <select id="troyOrdersSort">
-                    <option value="oldest">注文時刻順</option>
+                    <option value="oldest">伝票作成順</option>
                     <option value="newest">新しい順</option>
                     <option value="name">席/名前順</option>
                 </select>
             </label>
-            <div id="troyOrdersServeSummary" class="troy-orders-serve-summary">未提供 0件</div>
+            <div id="troyOrdersServeSummary" class="troy-orders-serve-summary">伝票 0件</div>
         </section>
 
         <section class="troy-orders-pos-panel">
@@ -67,13 +67,13 @@
             <div class="troy-orders-section-head">
                 <div>
                     <div class="troy-orders-section-title">チップ化ログ</div>
-                    <div class="troy-orders-section-sub">お客様に渡すコインの確認用</div>
+                    <div class="troy-orders-section-sub">チップ化したお客様の確認用</div>
                 </div>
             </div>
             <div id="troyOrdersCoinLog" class="troy-orders-coin-log"></div>
         </section>
         <section id="troyOrdersList" class="troy-orders-list"></section>
-        <section id="troyOrdersEmpty" class="troy-orders-empty" hidden>未会計の注文はありません。</section>
+        <section id="troyOrdersEmpty" class="troy-orders-empty" hidden>会計中の伝票はありません。客を選んで商品を追加してください。</section>
     </main>
 
     <div id="troyOrdersConfirmModal" class="troy-orders-confirm" hidden>
@@ -84,11 +84,11 @@
             <div id="troyOrdersConfirmItems" class="troy-orders-confirm-items"></div>
             <label class="troy-orders-confirm-check">
                 <input id="troyOrdersConfirmCheck" type="checkbox">
-                <span>現金の受け取りを確認しました</span>
+                <span>現金受け取り・チップ返却・退店処理を確認しました</span>
             </label>
             <div class="troy-orders-confirm-actions">
                 <button id="troyOrdersConfirmCancel" type="button" class="is-cancel">戻る</button>
-                <button id="troyOrdersConfirmSubmit" type="button" disabled>会計を確定</button>
+                <button id="troyOrdersConfirmSubmit" type="button" disabled>会計・退店を確定</button>
             </div>
         </div>
     </div>
