@@ -477,6 +477,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '.nav-button',
       '#rankingToggleButtons',
       '#tabContentInventory .inventory-section',
+      '#tabContentInventory .avatar-style-panel',
       '#tabContentInventory .equip-slot',
       '#tabContentEvents .event-list-panel',
       '#tabContentEvents .event-card',
@@ -622,8 +623,15 @@ test('current equipment slots render equipped item sprites on the right edge', a
       { RightHand: 'sword_001', LeftHand: 'shield_001', Armor: 'hat_black_001', Accessory: 'accessory_001' },
       items
     );
+
+    const inventory = await import('/js/inventory.js');
+    inventory.switchInventoryGroup('Equipment', { panel: 'items' });
   });
 
+  await expect(page.locator('#avatarStylePanel')).toBeVisible();
+  await expect(page.locator('#btnRandomHaircut')).toContainText('100G');
+  await expect(page.locator('#btnRandomSkin')).toContainText('300G');
+  await expect(page.locator('#btnRandomFace')).toContainText('800G');
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedArmorArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
@@ -641,14 +649,18 @@ test('current equipment slots render equipped item sprites on the right edge', a
 
   const layout = await page.evaluate(() => {
     const slot = document.querySelector('.weapon-slot');
+    const stylePanel = document.getElementById('avatarStylePanel');
     const content = slot?.querySelector('.equip-slot-content');
     const art = document.getElementById('equippedRightHandArt');
     const sprite = art?.querySelector('.equip-slot-item-sprite');
+    const panelStyle = stylePanel ? window.getComputedStyle(stylePanel) : null;
     const contentRect = content?.getBoundingClientRect();
     const artRect = art?.getBoundingClientRect();
     const spriteRect = sprite?.getBoundingClientRect();
     const slotRect = slot?.getBoundingClientRect();
     return {
+      stylePanelDisplay: panelStyle?.display || '',
+      stylePanelBorderImage: panelStyle?.borderImageSource || '',
       contentRight: contentRect?.right || 0,
       artLeft: artRect?.left || 0,
       artRight: artRect?.right || 0,
@@ -664,6 +676,8 @@ test('current equipment slots render equipped item sprites on the right edge', a
     };
   });
 
+  expect(layout.stylePanelDisplay).not.toBe('none');
+  expect(layout.stylePanelBorderImage).toContain('panel-sheet-frame.png');
   expect(layout.artLeft).toBeGreaterThan(layout.contentRight);
   expect(layout.slotRight - layout.artRight).toBeLessThan(20);
   expect(layout.artWidth).toBeGreaterThanOrEqual(52);

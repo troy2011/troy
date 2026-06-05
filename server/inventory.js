@@ -45,9 +45,9 @@ const NATION_SPECIALTY_RESOURCE_BY_NATION = {
 };
 const DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK = [4, 3, 2, 1];
 const AVATAR_CUSTOMIZE_LIMITS = {
-    SkinColorIndex: { min: 1, max: 8, feature: 'skinChange', label: '美容', cost: 500 },
-    FaceIndex: { min: 1, max: 40, feature: 'faceChange', label: '整形', cost: 1000 },
-    HairStyleIndex: { min: 1, max: 30, feature: 'haircut', label: '散髪', cost: 500 }
+    SkinColorIndex: { min: 1, max: 8, feature: 'skinChange', label: '美容', cost: 300 },
+    FaceIndex: { min: 1, max: 40, feature: 'faceChange', label: '整形', cost: 800 },
+    HairStyleIndex: { min: 1, max: 30, feature: 'haircut', label: '散髪', cost: 100 }
 };
 const AVATAR_CUSTOMIZE_ACTIONS = {
     skin: 'SkinColorIndex',

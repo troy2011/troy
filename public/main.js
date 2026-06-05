@@ -2129,6 +2129,7 @@ let shipCreateInFlight = false;
 let shipCreateContext = null;
 let shipCreateBalances = null;
 let avatarStyleSaveInFlight = false;
+const AVATAR_STYLE_COSTS = { haircut: 100, skin: 300, face: 800 };
 
 function getCurrentPlayerLevel() {
     return normalizeLevel(Player.getMyPlayerStats?.()?.Level || window.myAvatarBaseInfo?.level || 1);
@@ -2145,6 +2146,8 @@ function renderAvatarStylePanel() {
     panel.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
         const action = String(button.getAttribute('data-avatar-style-action') || '');
         button.disabled = avatarStyleSaveInFlight || !actionState[action];
+        const priceEl = button.querySelector('span');
+        if (priceEl && AVATAR_STYLE_COSTS[action]) priceEl.textContent = `${AVATAR_STYLE_COSTS[action]}G`;
     });
 
     const summaryEl = document.getElementById('avatarStyleUnlockSummary');
@@ -2171,7 +2174,7 @@ async function randomizeAvatarStyle(action) {
         showRpgMessage(`${labelByAction[action] || '美容室'}はLv.${FEATURE_UNLOCK_LEVELS[feature] || FEATURE_UNLOCK_LEVELS.haircut}から利用できます。`);
         return;
     }
-    const cost = action === 'face' ? 1000 : 500;
+    const cost = AVATAR_STYLE_COSTS[action] || 0;
     const confirmed = window.confirm(`${labelByAction[action]}を行いますか？\n${cost}Gを消費して、現在とは違う見た目にランダム変更します。`);
     if (!confirmed) return;
     avatarStyleSaveInFlight = true;
