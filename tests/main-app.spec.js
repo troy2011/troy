@@ -12,6 +12,20 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expect(page.locator('#appWrapper')).toBeVisible();
   await expect(page.locator('#globalPlayerName')).toHaveText('Playwright Tester');
   await expect(page.locator('#tabContentHome')).toBeVisible();
+  await expect(page.locator('#troyMapLink')).toHaveText('MAP');
+
+  const troyMapLink = await page.locator('#troyMapLink').evaluate((link) => ({
+    href: link.href,
+    target: link.target,
+    rel: link.rel
+  }));
+  const troyMapUrl = new URL(troyMapLink.href);
+  expect(troyMapUrl.hostname).toBe('www.google.com');
+  expect(troyMapUrl.pathname).toBe('/maps/search/');
+  expect(troyMapUrl.searchParams.get('api')).toBe('1');
+  expect(troyMapUrl.searchParams.get('query')).toBe('千葉県富里市十倉310-401');
+  expect(troyMapLink.target).toBe('_blank');
+  expect(troyMapLink.rel).toContain('noopener');
 
   expect(state.loginPlayFabBody).toMatchObject({
     lineAccessToken: 'playwright-access-token',

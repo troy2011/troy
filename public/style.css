@@ -15833,6 +15833,14 @@ body {
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+#tabContentTroy .troy-title-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-width: 0;
+}
+
 #tabContentTroy .troy-title,
 #tabContentEvents .event-page-header h2,
 #tabContentBattle .content-area > h2:first-child,
@@ -15855,6 +15863,33 @@ body {
     vertical-align: middle;
     background: url("./assets/ui/icons/058.png") center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
+}
+
+#tabContentTroy .troy-map-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 5px 12px;
+    border: 10px solid transparent;
+    border-radius: 7px;
+    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    color: #2a1606;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1;
+    text-decoration: none;
+    text-shadow: 0 1px 0 rgba(255, 238, 178, 0.45);
+}
+
+#tabContentTroy .troy-map-link::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    background: var(--icon-action-map) center / contain no-repeat;
+    filter: drop-shadow(0 1px 0 rgba(255, 238, 178, 0.32));
 }
 
 #tabContentEvents .event-page-header h2::before {
@@ -16066,6 +16101,16 @@ body {
     #tabContentKing .content-area > h2:first-child,
     #tabContentQr .content-area > h2:first-child {
         font-size: clamp(30px, 9vw, 46px);
+    }
+
+    #tabContentTroy .troy-title-wrap {
+        gap: 8px;
+    }
+
+    #tabContentTroy .troy-map-link {
+        min-height: 32px;
+        padding-inline: 10px;
+        font-size: 12px;
     }
 }
 
