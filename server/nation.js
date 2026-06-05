@@ -77,6 +77,7 @@ const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION |
 const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
 const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
 const TROY_GLOBAL_ROOM_ID = 'global';
+const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
 const NATION_WAR_RECON_COST_PS = 200;
@@ -350,6 +351,55 @@ function getJapanDayKey(date = new Date()) {
         const day = `${date.getUTCDate()}`.padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
+}
+
+function normalizeLineUserIdList(value) {
+    if (Array.isArray(value)) {
+        return [...new Set(value.map((entry) => String(entry || '').trim()).filter(Boolean))];
+    }
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return normalizeLineUserIdList(parsed);
+    } catch (_) {
+    }
+    return [...new Set(raw.split(/[\s,;]+/).map((entry) => entry.trim()).filter(Boolean))];
+}
+
+function getConfiguredTroyCloseSummaryLineUserIds(extraValue) {
+    const fromExtra = normalizeLineUserIdList(extraValue);
+    const fromEnv = TROY_CLOSE_SUMMARY_LINE_ENV_KEYS.flatMap((key) => normalizeLineUserIdList(process.env[key]));
+    return [...new Set([...fromExtra, ...fromEnv])];
+}
+
+function formatTroyMoney(value) {
+    return `¥${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}`;
+}
+
+function formatTroyCloseSummaryMessage(summary = {}) {
+    const sales = summary.sales || {};
+    const pending = summary.pending || {};
+    const topItems = Array.isArray(pending.topItems) ? pending.topItems : [];
+    const itemLines = topItems
+        .slice(0, 6)
+        .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
+    const lines = [
+        '【TROY CLOSE 売上まとめ】',
+        `日付: ${summary.dayKey || getJapanDayKey()}`,
+        `国: ${getNationLabel(summary.nation) || summary.nation || '-'}`,
+        `本日売上: ${formatTroyMoney(sales.total)} / ${Math.max(0, Math.floor(Number(sales.count) || 0))}件`,
+        `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`,
+        `未会計: ${Math.max(0, Math.floor(Number(pending.count) || 0))}件 / ${formatTroyMoney(pending.total)}`
+    ];
+    if (itemLines.length) {
+        lines.push('未会計内訳:');
+        lines.push(...itemLines);
+    }
+    if (pending.count > 0) {
+        lines.push('※未会計伝票はCLOSE処理でクリアされます。');
+    }
+    return lines.join('\n');
 }
 
 const TROY_LAST_ORDER_UNDO_WINDOW_MS = 45 * 1000;
@@ -1981,7 +2031,7 @@ async function ensureKingStarterCrown(playFabId, nation, deps) {
 
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, lineClient, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
 
     const nationDeps = {
         promisifyPlayFab,
@@ -2007,6 +2057,56 @@ function initializeNationRoutes(app, deps) {
         }
     };
 
+    async function buildTroyCloseSummary(context = {}) {
+        const roomRef = getTroyRoomDoc(firestore);
+        const groupRef = context.mapping?.groupName
+            ? getNationGroupDoc(firestore, context.mapping.groupName)
+            : null;
+        const reads = [
+            roomRef.collection('members').limit(100).get(),
+            roomRef.collection('checkouts').limit(100).get(),
+            groupRef ? groupRef.get() : Promise.resolve(null)
+        ];
+        const [membersSnap, checkoutSnap, groupSnap] = await Promise.all(reads);
+        const checkouts = buildTroyPendingCheckoutPayload(checkoutSnap.docs);
+        const itemMap = new Map();
+        checkouts.forEach((checkout) => {
+            (Array.isArray(checkout.items) ? checkout.items : []).forEach((item) => {
+                const name = String(item?.name || '商品').trim() || '商品';
+                const current = itemMap.get(name) || { name, quantity: 0, total: 0 };
+                current.quantity += Math.max(1, Math.floor(Number(item?.quantity) || 1));
+                current.total += Math.max(0, Math.floor(Number(item?.lineTotal) || 0));
+                itemMap.set(name, current);
+            });
+        });
+        const topItems = [...itemMap.values()].sort((a, b) => b.total - a.total || b.quantity - a.quantity);
+        const sales = buildTroyTodaySalesSnapshot(groupSnap?.data?.() || {});
+        return {
+            dayKey: sales.dayKey || getJapanDayKey(),
+            nation: context.nation || '',
+            sales,
+            memberCount: Math.max(0, Number(membersSnap?.size) || 0),
+            pending: {
+                count: checkouts.length,
+                total: checkouts.reduce((sum, checkout) => sum + Math.max(0, Number(checkout.total) || 0), 0),
+                topItems
+            }
+        };
+    }
+
+    async function notifyTroyCloseSummary(context = {}) {
+        if (!lineClient || typeof lineClient.pushMessage !== 'function') return null;
+        const lineUserIds = getConfiguredTroyCloseSummaryLineUserIds(deps.troyGameMasterLineUserIds);
+        if (!lineUserIds.length) {
+            console.warn('[troy-close-summary] GAME_MASTER_LINE_USER_ID is not configured.');
+            return null;
+        }
+        const summary = await buildTroyCloseSummary(context);
+        const message = formatTroyCloseSummaryMessage(summary);
+        await Promise.all(lineUserIds.map((lineUserId) => lineClient.pushMessage(lineUserId, { type: 'text', text: message })));
+        return { sent: true, lineUserCount: lineUserIds.length, summary };
+    }
+
     async function setGlobalTroyOpenState(context, nextOpen) {
         const roomRef = getTroyRoomDoc(firestore);
         const update = {
@@ -2017,6 +2117,11 @@ function initializeNationRoutes(app, deps) {
         if (nextOpen) update.nation = context.nation;
         await roomRef.set(update, { merge: true });
         if (!nextOpen) {
+            try {
+                await notifyTroyCloseSummary(context);
+            } catch (summaryError) {
+                console.warn('[troy-close-summary] Failed to notify:', summaryError?.message || summaryError);
+            }
             await deleteCollectionDocs(roomRef.collection('members'));
             await deleteCollectionDocs(roomRef.collection('checkouts'));
         }
@@ -4797,5 +4902,7 @@ module.exports = {
     getMapOccupationNation,
     setMapOccupationNation,
     getPlayerEntity,
+    normalizeLineUserIdList,
+    formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };
