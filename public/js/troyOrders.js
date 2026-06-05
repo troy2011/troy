@@ -1,41 +1,93 @@
 import { callApiWithLoader, createRequestId } from 'api';
 
+const DRINK_SIZE_OPTIONS = [
+    { suffix: 'S', price: 500 },
+    { suffix: 'M', price: 700 },
+    { suffix: '海賊ジョッキ', price: 1000 }
+];
+
+function buildSizedDrinkItems(names = []) {
+    return names.flatMap((name) => DRINK_SIZE_OPTIONS.map((size) => ({
+        name: `${name} ${size.suffix}`,
+        price: size.price
+    })));
+}
+
 const STAFF_MENU = [
-    { category: 'アルコール', items: [
-        { name: 'ラム', price: 500 },
-        { name: 'ウォッカ', price: 500 },
-        { name: 'テキーラ', price: 500 },
-        { name: 'ジン', price: 500 },
-        { name: 'リキュール', price: 500 },
-        { name: '焼酎（キンミヤ）', price: 500 },
-        { name: 'ビール（ハートランド）', price: 600 },
-        { name: 'グラスワイン', price: 500 },
-        { name: 'ワインボトル', price: 3000 },
+    { category: 'ビール・ハイボール', items: [
+        { name: '瓶ビール（ハートランド）', price: 700 },
+        ...buildSizedDrinkItems([
+            'ハイボール（角）',
+            'シャンディガフ（ビール+ジンジャーエール）'
+        ]),
+        { name: 'ノンアルコール瓶ビール（ハイネケン）', price: 700 }
     ]},
-    { category: 'ノンアル', items: [
-        { name: 'コーラ', price: 400 },
-        { name: 'ジンジャーエール', price: 400 },
-        { name: 'オレンジジュース', price: 400 },
+    { category: 'ジンベース', items: buildSizedDrinkItems([
+        'ジントニック（+トニック）',
+        'ジンバック（+ジンジャーエール）',
+        'ジンリッキー（+ソーダ）'
+    ])},
+    { category: 'ウォッカベース', items: buildSizedDrinkItems([
+        'モスコミュール（+ジンジャーエール）',
+        'スクリュードライバー（+オレンジ）',
+        'ウォッカトニック（+トニック）',
+        'ブルドッグ（+グレープフルーツ）'
+    ])},
+    { category: 'ラムベース', items: buildSizedDrinkItems([
+        'キューバリブレ（+コーラ）',
+        'ラムバック（+ジンジャーエール）'
+    ])},
+    { category: 'テキーラベース', items: buildSizedDrinkItems([
+        'テキーラサンライズ（+オレンジ）',
+        'メキシコーラ（+コーラ）'
+    ])},
+    { category: 'リキュール・その他', items: buildSizedDrinkItems([
+        'カシスオレンジ',
+        'カシスソーダ',
+        'カシスウーロン',
+        'ファジーネーブル（ピーチ+オレンジ）',
+        'スプモーニ（カンパリ+グレープフルーツ+トニック）',
+        'レモンサワー',
+        'グレープフルーツサワー'
+    ])},
+    { category: 'ウイスキー・焼酎・ワイン', items: [
+        ...buildSizedDrinkItems([
+            'ウイスキー（ロック）',
+            'ウイスキー（水割り）'
+        ]),
+        { name: 'キンミヤボトル', price: 2500 },
+        { name: '黒霧ボトル', price: 3000 },
+        ...buildSizedDrinkItems([
+            '焼酎 お茶割り',
+            '焼酎 ウーロン割り',
+            '焼酎 ソーダ割り',
+            '焼酎 芋',
+            '焼酎 麦',
+            '焼酎 米',
+            '焼酎 しそ',
+            'グラスワイン（赤）',
+            'グラスワイン（白）'
+        ])
+    ]},
+    { category: '割り物', items: [
+        { name: 'お茶', price: 600 },
+        { name: 'ウーロン', price: 600 },
+        { name: 'ソーダ 1本', price: 300 },
+        { name: '水 1本', price: 300 }
+    ]},
+    { category: '酒場のフード', items: [
+        { name: '漬けチーズ', price: 500 },
+        { name: 'うずらの味玉', price: 500 },
+        { name: 'ナゲット', price: 500 },
+        { name: '韓国のり', price: 300 },
+        { name: '梅水晶', price: 500 }
+    ]},
+    { category: 'ソフトドリンク', items: [
         { name: 'ウーロン茶', price: 400 },
-        { name: 'ノンアルビール（ハイネケン）', price: 500 },
-    ]},
-    { category: '料理', items: [
-        { name: 'ポテチ', price: 400 },
-        { name: 'チョコ', price: 500 },
-        { name: 'ミックスナッツ', price: 500 },
-        { name: 'フライドポテト', price: 500 },
-        { name: 'チキンナゲット', price: 500 },
-        { name: 'ピザトースト', price: 500 },
-        { name: 'フランクフルト', price: 500 },
-        { name: 'ワッフル', price: 500 },
-        { name: 'チュロス', price: 500 },
-        { name: 'カップラーメン', price: 500 },
-    ]},
-    { category: 'ボトル', items: [
-        { name: 'キンミヤ（720ml）', price: 2800 },
-        { name: '水割りセット', price: 500 },
-        { name: 'ソーダ / お茶割り用', price: 600 },
-        { name: 'カットレモン', price: 100 },
+        { name: 'オレンジジュース', price: 400 },
+        { name: 'グレープフルーツジュース', price: 400 },
+        { name: 'コーラ', price: 400 },
+        { name: 'ジンジャーエール', price: 400 }
     ]},
 ];
 
@@ -256,8 +308,8 @@ function getOrderSoundKey(item = {}) {
     const price = Math.max(0, Number(item.lineTotal) || (Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1));
     if (orderId.startsWith('troy-entry:') || /入店|チャージ/.test(name)) return 'entry';
     if (price >= 2800 || /ボトル|キンミヤ|ゴールド購入|5000G|3000G|2000G/.test(name)) return 'premium';
-    if (/ポテ|チョコ|ナッツ|フライ|ナゲット|ピザ|フランク|ワッフル|チュロス|ラーメン/.test(name)) return 'food';
-    if (/ラム|ウォッカ|テキーラ|ジン|リキュール|焼酎|ビール|ワイン|コーラ|ジンジャー|オレンジ|ウーロン|ノンアル|水割り|ソーダ|お茶|レモン|トニック/.test(name)) return 'drink';
+    if (/漬け|うずら|ナゲット|韓国のり|梅水晶|ポテ|チョコ|ナッツ|フライ|ピザ|フランク|ワッフル|チュロス|ラーメン/.test(name)) return 'food';
+    if (/ラム|ウォッカ|テキーラ|ジン|リキュール|焼酎|ビール|ハイボール|カシス|ファジー|スプモーニ|サワー|ウイスキー|ワイン|コーラ|ジンジャー|オレンジ|グレープフルーツ|ウーロン|ノンアル|水割り|ソーダ|お茶|レモン|トニック|ブルドッグ|モスコミュール/.test(name)) return 'drink';
     return 'default';
 }
 

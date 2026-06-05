@@ -89,15 +89,15 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('大きな伝票');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('海風の船長');
 
-  await page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ビール（ハートランド）"]').click();
+  await page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="瓶ビール（ハートランド）"]').click();
 
   expect(addItemRequests).toHaveLength(1);
   expect(addItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
-  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥600');
-  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥600');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥700');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
 
-  await page.locator('#troyOrdersTicketDetail summary', { hasText: 'その他' }).click();
+  await page.locator('#troyOrdersTicketDetail .troy-orders-custom-category summary').click();
   await page.locator('#troyOrdersTicketDetail [data-custom-price-preset="1500"]').click();
   await page.locator('#troyOrdersTicketDetail [data-add-custom-item]').click();
 
@@ -106,8 +106,8 @@ test('staff register creates a checkout from an in-store member and settles with
   expect(addItemRequests[1].name).toBe('その他');
   expect(addItemRequests[1].price).toBe(1500);
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('その他');
-  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,100');
-  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,100');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,200');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,200');
 
   await page.locator('#troyOrdersTicketDetail [data-chip-return]').fill('300');
   await page.locator('#troyOrdersTicketDetail [data-settle]').click();
@@ -120,7 +120,7 @@ test('staff register creates a checkout from an in-store member and settles with
 
   expect(settleRequests).toHaveLength(1);
   expect(settleRequests[0].receiverPlayFabId).toBe('PLAYER1');
-  expect(settleRequests[0].expectedTotal).toBe(2100);
+  expect(settleRequests[0].expectedTotal).toBe(2200);
   expect(settleRequests[0].chipReturnAmount).toBe(300);
   await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
