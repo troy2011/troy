@@ -19412,8 +19412,9 @@ body[data-sea-tone] .home-hero-card {
     grid-area: ship;
     width: 150px;
     justify-self: center;
-    min-height: 72px;
-    grid-template-columns: 46px minmax(0, 1fr);
+    min-height: 86px;
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 6px;
     justify-items: start;
     align-items: center;
     padding: 7px 8px;
@@ -19423,22 +19424,30 @@ body[data-sea-tone] .home-hero-card {
     background:
         radial-gradient(circle at 50% 20%, rgba(125, 211, 252, 0.24), transparent 46%),
         linear-gradient(180deg, rgba(6, 24, 38, 0.68), rgba(3, 8, 16, 0.88));
+    overflow: hidden;
 }
 
 #playerProfileModal .player-profile-ship-name {
+    min-width: 0;
     color: #ffe8a6;
+    line-height: 1.12;
+    overflow-wrap: anywhere;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
 #playerProfileModal .player-profile-ship-icon {
     grid-row: 1 / 3;
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
+    background-position: var(--player-ship-sprite-x, -64px) -64px;
+    background-size: 2048px 1024px;
 }
 
 #playerProfileModal .player-profile-ship-meta {
+    min-width: 0;
     color: #b9d7ef;
     font-weight: 800;
+    line-height: 1.1;
 }
 
 #itemDetailModal {
@@ -19891,6 +19900,9 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-transfer-panel,
 #playerProfileModal .player-profile-equip-row,
 #playerProfileModal .player-profile-empty {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border: 13px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 13px / 0 stretch;
@@ -19899,13 +19911,34 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
 }
 
+#playerProfileModal .player-profile-transfer-quick-row,
+#playerProfileModal .player-profile-transfer-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+#playerProfileModal .player-profile-transfer-quick-btn,
+#playerProfileModal .player-profile-transfer-submit {
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
 #playerProfileModal .player-profile-transfer-title,
 #playerProfileModal .player-profile-equip-row strong {
     color: #fff1c2;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+    overflow-wrap: anywhere;
 }
 
 #playerProfileModal .player-profile-transfer-input-row {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     border: 11px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 11px / 0 stretch;
@@ -19913,6 +19946,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal .player-profile-transfer-input-row input {
+    width: 100%;
+    min-width: 0;
     color: #fff4cf;
 }
 
@@ -19934,7 +19969,7 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-head {
-        grid-template-columns: minmax(0, 1fr) 132px;
+        grid-template-columns: minmax(0, 1fr) 128px;
         grid-template-areas:
             "copy avatar"
             "copy ship";
@@ -19947,9 +19982,9 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-avatar-shell {
-        width: 132px;
-        min-width: 132px;
-        max-width: 132px;
+        width: 128px;
+        min-width: 128px;
+        max-width: 128px;
         height: 154px;
         border-width: 9px;
         border-image-width: 9px;
@@ -19958,10 +19993,11 @@ body[data-sea-tone] .home-hero-card {
     }
 
     #playerProfileModal .player-profile-ship {
-        width: 132px;
+        width: 128px;
         justify-self: center;
-        min-height: 64px;
-        grid-template-columns: 40px minmax(0, 1fr);
+        min-height: 72px;
+        grid-template-columns: 56px minmax(0, 1fr);
+        column-gap: 4px;
         justify-items: start;
         align-items: center;
         text-align: left;
@@ -19972,9 +20008,17 @@ body[data-sea-tone] .home-hero-card {
 
     #playerProfileModal .player-profile-ship-icon {
         grid-row: 1 / 3;
-        width: 40px;
-        height: 40px;
+        width: 56px;
+        height: 56px;
+        background-position: var(--player-ship-sprite-x, -56px) -56px;
+        background-size: 1792px 896px;
     }
+
+    #playerProfileModal .player-profile-ship-icon.is-boat { --player-ship-sprite-x: -56px; }
+    #playerProfileModal .player-profile-ship-icon.is-explorer { --player-ship-sprite-x: -392px; }
+    #playerProfileModal .player-profile-ship-icon.is-defender { --player-ship-sprite-x: -728px; }
+    #playerProfileModal .player-profile-ship-icon.is-fighter { --player-ship-sprite-x: -1064px; }
+    #playerProfileModal .player-profile-ship-icon.is-merchant { --player-ship-sprite-x: -1400px; }
 
     #playerProfileModal .item-detail-copy {
         width: 100%;

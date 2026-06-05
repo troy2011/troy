@@ -561,6 +561,123 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expectNoPageErrors(errors);
 });
 
+test('player profile transfer panel stays inside the sheet on narrow screens', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_OTHER',
+          displayName: 'Other Player',
+          nation: 'water',
+          level: 18,
+          stats: {
+            Level: 18
+          },
+          avatarBase: {
+            Race: 'human',
+            Nation: 'water',
+            AvatarColor: 'blue',
+            level: 18
+          },
+          playerShip: {
+            form: 'explorer',
+            stage: 2
+          },
+          equipment: {},
+          itemSource: {},
+          equipmentList: []
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const profile = await import('/js/playerProfile.js');
+    await profile.openPlayerProfile('PF_OTHER');
+  });
+  await page.locator('#btnPlayerProfileTransfer').click();
+  await expect(page.locator('#playerProfileTransferPanel')).toBeVisible();
+
+  const audit = await page.evaluate(() => {
+    const panel = document.getElementById('playerProfileTransferPanel');
+    const sheet = document.querySelector('#playerProfileModal .player-profile-sheet');
+    const ship = document.querySelector('#playerProfileModal .player-profile-ship');
+    const shipIcon = document.querySelector('#playerProfileModal .player-profile-ship-icon');
+    const panelRect = panel.getBoundingClientRect();
+    const sheetRect = sheet.getBoundingClientRect();
+    const shipRect = ship.getBoundingClientRect();
+    const shipIconRect = shipIcon.getBoundingClientRect();
+    const shipIconStyle = window.getComputedStyle(shipIcon);
+    const selectors = [
+      '#playerProfileTransferPanel',
+      '#playerProfileModal .player-profile-transfer-title',
+      '#playerProfileModal .player-profile-transfer-quick-row',
+      '#playerProfileModal .player-profile-transfer-input-row',
+      '#playerProfileModal .player-profile-transfer-actions',
+      '#btnPlayerProfileTransferSubmit'
+    ];
+    const entries = selectors.map((selector) => {
+      const element = document.querySelector(selector);
+      const rect = element.getBoundingClientRect();
+      return {
+        selector,
+        left: rect.left,
+        right: rect.right,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth
+      };
+    });
+    const quickButtons = Array.from(document.querySelectorAll('#playerProfileModal .player-profile-transfer-quick-btn')).map((button) => ({
+      text: button.textContent.trim(),
+      scrollWidth: button.scrollWidth,
+      clientWidth: button.clientWidth
+    }));
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      pageScrollWidth: document.documentElement.scrollWidth,
+      sheetLeft: sheetRect.left,
+      sheetRight: sheetRect.right,
+      sheetScrollWidth: sheet.scrollWidth,
+      sheetClientWidth: sheet.clientWidth,
+      panelLeft: panelRect.left,
+      panelRight: panelRect.right,
+      panelScrollWidth: panel.scrollWidth,
+      panelClientWidth: panel.clientWidth,
+      entries,
+      quickButtons,
+      shipRight: shipRect.right,
+      shipIconRight: shipIconRect.right,
+      shipIconWidth: shipIconRect.width,
+      shipIconHeight: shipIconRect.height,
+      shipIconBackgroundSize: shipIconStyle.backgroundSize,
+      shipIconBackgroundPosition: shipIconStyle.backgroundPosition
+    };
+  });
+
+  expect(audit.pageScrollWidth).toBeLessThanOrEqual(audit.viewportWidth + 1);
+  expect(audit.sheetScrollWidth).toBeLessThanOrEqual(audit.sheetClientWidth + 1);
+  expect(audit.panelScrollWidth).toBeLessThanOrEqual(audit.panelClientWidth + 1);
+  expect(audit.entries.filter((entry) => (
+    entry.left < audit.panelLeft - 1
+    || entry.right > audit.panelRight + 1
+    || entry.scrollWidth > entry.clientWidth + 1
+  ))).toEqual([]);
+  expect(audit.quickButtons.filter((button) => button.scrollWidth > button.clientWidth + 1)).toEqual([]);
+  expect(audit.shipIconRight).toBeLessThanOrEqual(audit.shipRight + 1);
+  expect(audit.shipIconWidth).toBe(56);
+  expect(audit.shipIconHeight).toBe(56);
+  expect(audit.shipIconBackgroundSize).toBe('1792px 896px');
+  expect(audit.shipIconBackgroundPosition).toContain('-392px');
+  expect(audit.shipIconBackgroundPosition).toContain('-56px');
+  await expectNoPageErrors(errors);
+});
+
 test('panel frame assets are applied through border-image slices', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
