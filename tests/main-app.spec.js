@@ -36,6 +36,89 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
+test('troy tab replaces bottom chat with a read-only menu board', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: `
+const troySnapshot = {
+  data: () => ({
+    nation: 'fire',
+    isOpen: true,
+    menuDisabled: ['ナゲット'],
+    menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }],
+    menuCustomItems: [{ menuId: 'food', concept: '氷', content: '割材', price: 500, emoji: '🧊' }]
+  }),
+  docs: []
+};
+export function getFirestore() { return {}; }
+export function doc() { return {}; }
+export function collection() { return {}; }
+export function query() { return {}; }
+export function where() { return {}; }
+export function orderBy() { return {}; }
+export function limit() { return {}; }
+export function getDocs() { return Promise.resolve({ docs: [] }); }
+export function getDoc() { return Promise.resolve({ exists: () => false, data: () => ({}), id: '' }); }
+export function setDoc() { return Promise.resolve(); }
+export function updateDoc() { return Promise.resolve(); }
+export function addDoc() { return Promise.resolve({ id: 'mock-doc' }); }
+export function serverTimestamp() { return Date.now(); }
+export function onSnapshot(_ref, next) {
+  Promise.resolve().then(() => next({
+    ...troySnapshot
+  }));
+  return () => {};
+}
+`
+    });
+  });
+  await page.route('**/api/troy-calendar/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ calendar: [] })
+    });
+  });
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: [],
+        menuDisabled: ['ナゲット'],
+        menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }],
+        menuCustomItems: [{ menuId: 'food', concept: '氷', content: '割材', price: 500, emoji: '🧊' }]
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    await window.showTab('troy');
+  });
+
+  await expect(page.locator('#tabContentTroy')).toBeVisible();
+  await expect(page.locator('#troyChatDetails')).toHaveCount(0);
+  await expect(page.locator('#troyMenuBoardSection')).toContainText('メニュー表');
+  await expect(page.locator('#troyMenuBoardSection')).toContainText('価格確認用・注文はスタッフへ');
+  await expect(page.locator('#troyMenuBoardList')).toContainText('瓶ビール');
+  await expect(page.locator('#troyMenuBoardList')).toContainText('S ¥500 / M ¥700');
+  await expect(page.locator('#troyMenuBoardSection .troy-menu-quick-btn')).toHaveCount(0);
+  await expect(page.locator('#troyMenuBoardSection #troyChatInput')).toHaveCount(0);
+
+  await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).click();
+  await expect(page.locator('#troyMenuBoardList')).toContainText('ナゲット');
+  await expect(page.locator('#troyMenuBoardList')).toContainText('SOLD OUT');
+  await expect(page.locator('#troyMenuBoardList')).toContainText('氷');
+
+  await expectNoPageErrors(errors);
+});
+
 test('home tab replaces HP and MP recovery controls with compact stat chips', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-stats', async (route) => {

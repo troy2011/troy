@@ -12,8 +12,10 @@ import { decoratePlayerTriggerElement } from './playerProfile.js';
 
 let _wired = false;
 let _menuWired = false;
+let _menuBoardWired = false;
 let _lastStatus = null;
 let _menuActiveId = 'beer';
+let _menuBoardActiveId = 'beer';
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
 const _menuSizeByKey = new Map();
@@ -516,6 +518,147 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function getMenuBoardCategoryList() {
+    return getMenuCategoryList().filter((entry) => entry.id !== 'favorite');
+}
+
+function getMenuBoardPriceText(item = null) {
+    const sizeChoices = getItemSizeChoices(item);
+    if (sizeChoices.length) {
+        return sizeChoices
+            .map((choice) => `${choice.label} ${formatYen(choice.price)}`)
+            .join(' / ');
+    }
+    const price = parseYenPrice(item?.price);
+    return price > 0 ? formatYen(price) : 'ASK';
+}
+
+function getMenuBoardDetailText(item = null) {
+    const parts = [];
+    const content = String(item?.content || '').trim();
+    if (content && !/選択$/.test(content)) parts.push(content);
+    const optionChoices = getItemOptionChoices(item);
+    if (optionChoices.length) {
+        parts.push(`${getItemOptionFieldLabel(item)}: ${optionChoices.join(' / ')}`);
+    }
+    return parts.join(' ・ ');
+}
+
+function createMenuBoardIcon(item = null) {
+    const icon = document.createElement('div');
+    icon.className = 'troy-menu-board-icon';
+    if (item?.iconImage) {
+        const image = document.createElement('img');
+        image.src = item.iconImage;
+        image.alt = '';
+        image.loading = 'lazy';
+        icon.classList.add('has-image');
+        icon.appendChild(image);
+    } else {
+        icon.textContent = item?.emoji || getMenuItemEmoji(item);
+    }
+    icon.setAttribute('aria-hidden', 'true');
+    return icon;
+}
+
+function renderTroyMenuBoard() {
+    const tabsEl = document.getElementById('troyMenuBoardCategoryTabs');
+    const listEl = document.getElementById('troyMenuBoardList');
+    if (!listEl) return;
+
+    const categories = getMenuBoardCategoryList();
+    const fallback = categories.find((entry) => entry.id === 'beer') || categories[0] || null;
+    if (!categories.some((entry) => entry.id === _menuBoardActiveId)) {
+        _menuBoardActiveId = fallback?.id || 'beer';
+    }
+
+    if (tabsEl) {
+        tabsEl.innerHTML = '';
+        categories.forEach((entry) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'troy-menu-board-tab';
+            button.dataset.menuId = entry.id;
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-selected', entry.id === _menuBoardActiveId ? 'true' : 'false');
+            button.classList.toggle('is-active', entry.id === _menuBoardActiveId);
+            button.textContent = entry.title;
+            tabsEl.appendChild(button);
+        });
+    }
+
+    const data = getMenuDataById(_menuBoardActiveId);
+    const items = Array.isArray(data?.items) ? data.items : [];
+    listEl.innerHTML = '';
+    if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'troy-calendar-empty';
+        empty.textContent = '表示できるメニューがありません。';
+        listEl.appendChild(empty);
+        return;
+    }
+
+    items.forEach((item) => {
+        const row = document.createElement('article');
+        row.className = 'troy-menu-board-item';
+        const nameText = String(item?.concept || item?.name || '').trim();
+        const isSoldOut = _menuDisabled.includes(nameText);
+        row.classList.toggle('is-sold-out', isSoldOut);
+
+        const body = document.createElement('div');
+        body.className = 'troy-menu-board-body';
+
+        const name = document.createElement('div');
+        name.className = 'troy-menu-board-name';
+        name.textContent = nameText || '商品';
+
+        const detailText = getMenuBoardDetailText(item);
+        const detail = document.createElement('div');
+        detail.className = 'troy-menu-board-detail';
+        detail.textContent = detailText || ' ';
+
+        body.append(name, detail);
+
+        const priceWrap = document.createElement('div');
+        priceWrap.className = 'troy-menu-board-price-wrap';
+
+        const price = document.createElement('div');
+        price.className = 'troy-menu-board-price';
+        price.textContent = getMenuBoardPriceText(item);
+        priceWrap.appendChild(price);
+
+        if (isSoldOut) {
+            const badge = document.createElement('div');
+            badge.className = 'troy-menu-board-badge';
+            badge.textContent = 'SOLD OUT';
+            priceWrap.appendChild(badge);
+        } else if (item?.disabled && !parseYenPrice(item?.price)) {
+            const badge = document.createElement('div');
+            badge.className = 'troy-menu-board-badge is-ask';
+            badge.textContent = 'STAFF';
+            priceWrap.appendChild(badge);
+        }
+
+        row.append(createMenuBoardIcon(item), body, priceWrap);
+        listEl.appendChild(row);
+    });
+}
+
+function wireTroyMenuBoard() {
+    if (_menuBoardWired) return;
+    _menuBoardWired = true;
+    const tabsEl = document.getElementById('troyMenuBoardCategoryTabs');
+    if (tabsEl) {
+        tabsEl.addEventListener('click', (event) => {
+            const button = event.target?.closest?.('.troy-menu-board-tab[data-menu-id]');
+            if (!button) return;
+            _menuBoardActiveId = button.dataset.menuId || _menuBoardActiveId;
+            renderTroyMenuBoard();
+        });
+    }
+    renderTroyMenuBoard();
 }
 
 function formatTroyCalendarDate(ms) {
@@ -1156,6 +1299,7 @@ function applyMenuState(menuDisabled, menuSpecials, menuCustomItems) {
     if (Array.isArray(menuDisabled)) _menuDisabled = menuDisabled;
     if (Array.isArray(menuSpecials)) _menuSpecials = menuSpecials;
     if (Array.isArray(menuCustomItems)) _menuCustomItems = menuCustomItems;
+    renderTroyMenuBoard();
 }
 
 function attachStatusSubscription(playFabId, nationKey = resolveTroyNationKey()) {
@@ -1333,6 +1477,7 @@ function wireHandlers(playFabId) {
 export async function loadTroyPage(playFabId) {
     loadFavoriteDrinkEntries(playFabId);
     wireHandlers(playFabId);
+    wireTroyMenuBoard();
     wireMenuPopups();
     updateTroyRoleUI();
     await loadTroyBusinessCalendar(playFabId);

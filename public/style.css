@@ -3723,6 +3723,166 @@ body.modal-lock .modal-overlay {
     gap: 8px;
 }
 
+.troy-menu-board-section {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.troy-menu-board-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(12, 9, 6, 0.26), rgba(0, 0, 0, 0.34)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.troy-menu-board-tabs {
+    display: flex;
+    gap: 6px;
+    margin-inline: -2px;
+    padding: 0 2px 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(220, 169, 82, 0.58) rgba(10, 8, 6, 0.42);
+}
+
+.troy-menu-board-tab {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+    color: #d7c5a6;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+}
+
+.troy-menu-board-tab.is-active {
+    border-image-source: url("./assets/ui/buttons/button-gold-large.png");
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    color: #241306;
+    text-shadow: 0 1px 0 rgba(255, 245, 210, 0.48);
+}
+
+.troy-menu-board-list {
+    display: grid;
+    gap: 8px;
+}
+
+.troy-menu-board-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 66px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(8, 20, 32, 0.9), rgba(2, 5, 10, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.1), transparent 58%);
+}
+
+.troy-menu-board-item.is-sold-out {
+    opacity: 0.58;
+}
+
+.troy-menu-board-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 8px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(24, 31, 42, 0.66), rgba(7, 10, 15, 0.92)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+    font-size: 23px;
+    line-height: 1;
+}
+
+.troy-menu-board-icon img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+.troy-menu-board-body {
+    min-width: 0;
+}
+
+.troy-menu-board-name {
+    color: #ffe5a4;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.troy-menu-board-detail {
+    margin-top: 3px;
+    color: #d0b98c;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.troy-menu-board-price-wrap {
+    display: grid;
+    gap: 4px;
+    justify-items: end;
+    min-width: 86px;
+}
+
+.troy-menu-board-price {
+    color: #f8f0dc;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: right;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.troy-menu-board-badge {
+    width: max-content;
+    max-width: 100%;
+    padding: 2px 6px;
+    border: 1px solid rgba(239, 68, 68, 0.42);
+    border-radius: 999px;
+    color: #fecaca;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.troy-menu-board-badge.is-ask {
+    border-color: rgba(220, 169, 82, 0.44);
+    color: #f2d394;
+}
+
 .troy-calendar-item {
     display: grid;
     grid-template-columns: minmax(58px, 72px) 1fr;
@@ -3939,21 +4099,6 @@ body.modal-lock .modal-overlay {
     color: #bbf7d0;
     font-size: 12px;
     line-height: 1.5;
-}
-
-.troy-chat-details {
-    padding: 12px;
-}
-
-.troy-chat-details summary {
-    color: #f8fafc;
-    font-size: 14px;
-    font-weight: 900;
-    cursor: pointer;
-}
-
-.troy-chat-details[open] summary {
-    margin-bottom: 10px;
 }
 
 .king-troy-ops-head {
@@ -15936,7 +16081,7 @@ body {
 
 #tabContentTroy .troy-entry-section,
 #tabContentTroy .troy-calendar-section,
-#tabContentTroy .troy-chat-details,
+#tabContentTroy .troy-menu-board-section,
 #tabContentEvents .event-list-panel,
 #tabContentEvents .event-create-panel,
 #tabContentKing .king-card,
@@ -15973,6 +16118,7 @@ body {
 }
 
 #tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-menu-board-item,
 #tabContentTroy .troy-entry-item,
 #tabContentEvents .event-card,
 #tabContentKing .king-announcement-current,
@@ -16189,7 +16335,7 @@ body {
 #tabContentKing .king-troy-status,
 #tabContentTroy .troy-entry-section,
 #tabContentTroy .troy-calendar-section,
-#tabContentTroy .troy-chat-details,
+#tabContentTroy .troy-menu-board-section,
 #tabContentEvents .event-list-panel,
 #tabContentEvents .event-create-panel,
 #tabContentKing .king-card,
@@ -17867,6 +18013,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .avatar-card.inventory-section::before,
 #tabContentTroy .troy-entry-header,
 #tabContentTroy .troy-calendar-head,
+#tabContentTroy .troy-menu-board-head,
 #tabContentTroy .troy-reservation-panel h3,
 #tabContentEvents .event-list-head,
 #tabContentEvents .event-create-panel h3,
@@ -17890,6 +18037,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .inventory-section[data-panel="items"] > .section-header::after,
 #tabContentTroy .troy-entry-header::after,
 #tabContentTroy .troy-calendar-head::after,
+#tabContentTroy .troy-menu-board-head::after,
 #tabContentEvents .event-list-head::after,
 #tabContentQr .guild-summary-header::after,
 .tarot-loadout-header::after {
@@ -17922,6 +18070,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentTroy .troy-calendar-head,
+#tabContentTroy .troy-menu-board-head,
 #tabContentEvents .event-list-head,
 .tarot-loadout-header {
     background: linear-gradient(180deg, rgba(10, 7, 4, 0.2), rgba(0, 0, 0, 0.36));
@@ -18020,6 +18169,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentQr .equipment-gacha-entry,
 #tabContentQr .guild-entry-grid > *,
 #tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-menu-board-item,
 #tabContentTroy .troy-entry-item,
 #tabContentEvents .event-card,
 #tabContentKing .king-card,
@@ -18168,8 +18318,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 rgba(255, 245, 210, 0.48);
 }
 
-#chatMessages,
-#troyChatMessages {
+#chatMessages {
     height: 132px;
     margin-bottom: 10px;
     padding: 10px;
@@ -18243,16 +18392,14 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 
-#chatInputArea,
-#troyChatInputArea {
+#chatInputArea {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
 }
 
-#chatInput,
-#troyChatInput {
+#chatInput {
     min-height: 42px;
     padding: 8px 12px;
     border: 1px solid transparent;
@@ -18267,13 +18414,11 @@ body[data-sea-tone] .home-hero-card {
     outline: none;
 }
 
-#chatInput::placeholder,
-#troyChatInput::placeholder {
+#chatInput::placeholder {
     color: rgba(239, 222, 188, 0.58);
 }
 
-#btnSendChat,
-#btnSendTroyChat {
+#btnSendChat {
     min-width: 72px;
     min-height: 42px;
     padding: 7px 14px;
@@ -20521,7 +20666,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentKing .king-troy-status,
 #tabContentTroy .troy-entry-section,
 #tabContentTroy .troy-calendar-section,
-#tabContentTroy .troy-chat-details,
+#tabContentTroy .troy-menu-board-section,
 #tabContentEvents .event-list-panel,
 #tabContentEvents .event-create-panel,
 #tabContentKing .king-card,
@@ -20584,6 +20729,7 @@ body[data-sea-tone] .home-hero-card {
 #rankingToggleButtons,
 #tabContentInventory .equip-slot,
 #tabContentTroy .troy-calendar-item,
+#tabContentTroy .troy-menu-board-item,
 #tabContentTroy .troy-entry-item,
 #tabContentEvents .event-card,
 #tabContentEvents .crew-role-card,
@@ -20596,8 +20742,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentQr .guild-entry-grid > *,
 #tabContentQr .battle-entry-card,
 #tabContentQr .equipment-gacha-entry,
-#chatMessages,
-#troyChatMessages {
+#chatMessages {
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
     background:
@@ -20692,8 +20837,7 @@ body[data-sea-tone] .home-hero-card {
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
 }
 
-#chatInput,
-#troyChatInput {
+#chatInput {
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 10px / 0 stretch;
     background:
