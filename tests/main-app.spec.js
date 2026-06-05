@@ -693,6 +693,69 @@ test('own player profile allocates level-up stat points', async ({ page }) => {
   await expectNoPageErrors(errors);
 });
 
+test('own player profile hides stat allocation when no points are available', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          nation: 'fire',
+          level: 2,
+          stats: {
+            Level: 2,
+            ちから: 5,
+            みのまもり: 5,
+            すばやさ: 5,
+            かしこさ: 5
+          },
+          statAllocation: {
+            pointsPerLevel: 5,
+            level: 2,
+            totalEarned: 5,
+            totalAllocated: 5,
+            availablePoints: 0,
+            stats: {
+              str: { id: 'str', stat: 'ちから', label: '力', value: 5, allocated: 2 },
+              def: { id: 'def', stat: 'みのまもり', label: '守', value: 5, allocated: 1 },
+              agi: { id: 'agi', stat: 'すばやさ', label: '速', value: 5, allocated: 1 },
+              int: { id: 'int', stat: 'かしこさ', label: '知', value: 5, allocated: 1 }
+            }
+          },
+          avatarBase: {
+            Race: 'human',
+            Nation: 'fire',
+            AvatarColor: 'red',
+            level: 2
+          },
+          playerShip: {
+            form: 'boat',
+            stage: 1
+          },
+          equipment: {},
+          itemSource: {},
+          equipmentList: []
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const profile = await import('/js/playerProfile.js');
+    await profile.openPlayerProfile('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#playerProfileStatAllocation')).toBeHidden();
+  await expect(page.locator('#playerProfileStatAllocation')).toBeEmpty();
+  await expectNoPageErrors(errors);
+});
+
 test('player profile transfer panel stays inside the sheet on narrow screens', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.setViewportSize({ width: 320, height: 720 });

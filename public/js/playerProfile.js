@@ -486,6 +486,12 @@ function renderStatAllocationPanel() {
     }
 
     const availablePoints = normalizeProfileStatValue(allocation.availablePoints);
+    if (availablePoints <= 0) {
+        panel.hidden = true;
+        panel.innerHTML = '';
+        pendingStatAllocation = {};
+        return;
+    }
     const pendingTotal = getPendingStatAllocationTotal();
     const remainingPoints = Math.max(0, availablePoints - pendingTotal);
     const stats = activeProfile?.stats || {};
