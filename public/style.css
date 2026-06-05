@@ -14380,6 +14380,111 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     align-items: end;
 }
 
+.troy-orders-group-settle {
+    margin: 0 0 14px;
+    border-top: 1px solid rgba(91, 61, 28, 0.18);
+    border-bottom: 1px solid rgba(91, 61, 28, 0.18);
+}
+
+.troy-orders-group-settle summary {
+    padding: 10px 2px;
+    color: #5c3a17;
+    font-size: 14px;
+    font-weight: 1000;
+    cursor: pointer;
+}
+
+.troy-orders-group-body {
+    display: grid;
+    gap: 8px;
+    padding: 0 0 12px;
+}
+
+.troy-orders-group-total {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 10px;
+    border: 1px solid rgba(91, 61, 28, 0.28);
+    border-radius: 8px;
+    background: rgba(255, 244, 211, 0.42);
+}
+
+.troy-orders-group-total span,
+.troy-orders-group-total em {
+    color: #7c5a32;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.troy-orders-group-total strong {
+    color: #2d1b0b;
+    font-size: 22px;
+    font-weight: 1000;
+    text-align: right;
+}
+
+.troy-orders-group-list {
+    display: grid;
+    gap: 6px;
+}
+
+.troy-orders-group-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) 86px;
+    gap: 8px;
+    align-items: center;
+    min-height: 48px;
+    padding: 7px 9px;
+    border: 1px solid rgba(108, 61, 18, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 248, 225, 0.26);
+    color: #2d1b0b;
+    cursor: pointer;
+}
+
+.troy-orders-group-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: #ad6720;
+}
+
+.troy-orders-group-row span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.troy-orders-group-row strong {
+    overflow: hidden;
+    color: #2d1b0b;
+    font-size: 14px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-group-row em {
+    overflow: hidden;
+    color: #7c5a32;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-group-row b {
+    color: #3b1d09;
+    font-size: 14px;
+    font-weight: 1000;
+    text-align: right;
+    white-space: nowrap;
+}
+
 .troy-orders-settle label {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -14776,6 +14881,15 @@ body.is-new-order-flash::before {
 
     .troy-orders-settle {
         grid-template-columns: 1fr;
+    }
+
+    .troy-orders-group-row {
+        grid-template-columns: 22px minmax(0, 1fr);
+    }
+
+    .troy-orders-group-row b {
+        grid-column: 2;
+        text-align: left;
     }
 
     .troy-orders-custom-price-row {

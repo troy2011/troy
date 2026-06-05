@@ -126,6 +126,103 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });
 
+test('staff register can settle grouped customer tickets together', async ({ page }) => {
+  const now = Date.now();
+  const state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 600000, level: 24, rankName: '船長' },
+      { playFabId: 'PLAYER2', displayName: '港町の料理人', joinedAtMs: now - 300000, level: 18, rankName: '航海士' }
+    ],
+    troyPendingCheckouts: [
+      {
+        playFabId: 'PLAYER1',
+        displayName: '海風の船長',
+        status: 'open',
+        total: 1000,
+        totalItems: 2,
+        grantTotal: 0,
+        createdAtMs: now - 500000,
+        lastOrderedAtMs: now - 490000,
+        items: [
+          { orderId: 'staff:PLAYER1:1', name: 'ハイボール（角） M', quantity: 1, price: 700, lineTotal: 700, status: 'served', servedAtMs: now - 480000, orderedAtMs: now - 500000 },
+          { orderId: 'staff:PLAYER1:2', name: '韓国のり', quantity: 1, price: 300, lineTotal: 300, status: 'served', servedAtMs: now - 470000, orderedAtMs: now - 490000 }
+        ]
+      },
+      {
+        playFabId: 'PLAYER2',
+        displayName: '港町の料理人',
+        status: 'open',
+        total: 700,
+        totalItems: 1,
+        grantTotal: 0,
+        createdAtMs: now - 280000,
+        lastOrderedAtMs: now - 270000,
+        items: [
+          { orderId: 'staff:PLAYER2:1', name: '瓶ビール（ハートランド）', quantity: 1, price: 700, lineTotal: 700, status: 'served', servedAtMs: now - 260000, orderedAtMs: now - 270000 }
+        ]
+      }
+    ]
+  };
+  const settleRequests = [];
+
+  await page.addInitScript(() => {
+    window.EventSource = class {
+      constructor() {}
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.route('**/api/troy-orders/settle', async (route) => {
+    const body = route.request().postDataJSON();
+    settleRequests.push(body);
+    state.troyPendingCheckouts = state.troyPendingCheckouts.filter((entry) => entry.playFabId !== body.receiverPlayFabId);
+    state.troyMembers = state.troyMembers.filter((entry) => entry.playFabId !== body.receiverPlayFabId);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, chipReturnAmount: body.chipReturnAmount })
+    });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-open-ticket]', { hasText: '海風の船長' }).click();
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('グループ会計');
+
+  await page.locator('#troyOrdersTicketDetail .troy-orders-group-settle summary').click();
+  await page.locator('#troyOrdersTicketDetail [data-group-customer-id="PLAYER2"]').check();
+  await expect(page.locator('#troyOrdersTicketDetail [data-group-total]')).toHaveText('¥1,700');
+  await expect(page.locator('#troyOrdersTicketDetail [data-group-count]')).toHaveText('2名');
+
+  await page.locator('#troyOrdersTicketDetail [data-settle]').click();
+  await expect(page.locator('#troyOrdersConfirmModal')).toBeVisible();
+  await expect(page.locator('#troyOrdersConfirmName')).toHaveText('グループ会計（2名）');
+  await expect(page.locator('#troyOrdersConfirmTotal')).toHaveText('¥1,700');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('海風の船長');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('港町の料理人');
+
+  await page.locator('#troyOrdersConfirmCheck').check();
+  await page.locator('#troyOrdersConfirmSubmit').click();
+
+  await expect(page.locator('#troyOrdersMessage')).toContainText('グループ会計と退店処理を完了しました');
+  expect(settleRequests).toHaveLength(2);
+  expect(settleRequests.map((entry) => entry.receiverPlayFabId)).toEqual(['PLAYER1', 'PLAYER2']);
+  expect(settleRequests.map((entry) => entry.expectedTotal)).toEqual([1000, 700]);
+  expect(settleRequests.map((entry) => entry.chipReturnAmount)).toEqual([0, 0]);
+  await expect(page.locator('[data-open-ticket]')).toHaveCount(0);
+});
+
 test('staff register shows automatic entry charge on a newly entered member ticket', async ({ page }) => {
   const now = Date.now();
   const state = {

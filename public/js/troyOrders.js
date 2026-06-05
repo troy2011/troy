@@ -540,6 +540,86 @@ function findSelectedCustomer() {
     return getCustomerEntries(lastData).find((entry) => entry.playFabId === selectedCustomerId) || null;
 }
 
+function getCustomerEntryById(playFabId) {
+    const id = String(playFabId || '').trim();
+    if (!id) return null;
+    return getCustomerEntries(lastData).find((entry) => entry.playFabId === id) || null;
+}
+
+function getGroupCheckoutCandidates(currentId) {
+    const id = String(currentId || '').trim();
+    return sortCustomerEntries(getCustomerEntries(lastData))
+        .filter((entry) => String(entry.playFabId || '').trim() !== id)
+        .filter((entry) => getEntryTotal(entry) > 0);
+}
+
+function buildGroupCheckoutHtml(entry) {
+    const candidates = getGroupCheckoutCandidates(entry.playFabId);
+    if (!candidates.length) return '';
+    const rows = candidates.map((candidate) => {
+        const total = getEntryTotal(candidate);
+        const totalItems = getEntryTotalItems(candidate);
+        const meta = [
+            totalItems ? `${totalItems}点` : '',
+            Number(candidate.level) > 0 ? `Lv.${Math.floor(Number(candidate.level))}` : '',
+            candidate.rankName || ''
+        ].filter(Boolean).join(' / ');
+        return `
+            <label class="troy-orders-group-row">
+                <input type="checkbox" data-group-checkout data-group-customer-id="${escapeHtml(candidate.playFabId || '')}">
+                <span>
+                    <strong>${escapeHtml(candidate.displayName || candidate.playFabId || 'Player')}</strong>
+                    <em>${escapeHtml(meta || '会計待ち')}</em>
+                </span>
+                <b>${formatYen(total)}</b>
+            </label>`;
+    }).join('');
+    return `
+        <details class="troy-orders-group-settle">
+            <summary>グループ会計</summary>
+            <div class="troy-orders-group-body">
+                <div class="troy-orders-group-total">
+                    <span>合算</span>
+                    <strong data-group-total>${formatYen(getEntryTotal(entry))}</strong>
+                    <em data-group-count>1名</em>
+                </div>
+                <div class="troy-orders-group-list">${rows}</div>
+            </div>
+        </details>`;
+}
+
+function getGroupSettleTargets(card) {
+    if (!card) return [];
+    const primaryId = String(card.dataset.receiverId || '').trim();
+    const ids = [];
+    if (primaryId) ids.push(primaryId);
+    card.querySelectorAll('[data-group-checkout]:checked').forEach((input) => {
+        const id = String(input.dataset.groupCustomerId || '').trim();
+        if (id && !ids.includes(id)) ids.push(id);
+    });
+    return ids
+        .map((id) => getCustomerEntryById(id))
+        .filter((entry) => entry && getEntryTotal(entry) > 0);
+}
+
+function updateGroupCheckoutSummary(card) {
+    if (!card) return;
+    const targets = getGroupSettleTargets(card);
+    const total = targets.reduce((sum, entry) => sum + getEntryTotal(entry), 0);
+    const count = targets.length;
+    const totalEl = card.querySelector('[data-group-total]');
+    const countEl = card.querySelector('[data-group-count]');
+    const settleButton = card.querySelector('[data-settle]');
+    const headerTotalEl = card.querySelector('.troy-orders-total');
+    if (totalEl) totalEl.textContent = formatYen(total);
+    if (countEl) countEl.textContent = `${count}名`;
+    if (headerTotalEl) headerTotalEl.textContent = formatYen(total);
+    if (settleButton) {
+        settleButton.textContent = count > 1 ? 'グループ会計・退店' : '会計・退店';
+        settleButton.disabled = total <= 0;
+    }
+}
+
 function renderTicketDetail() {
     const detail = $('troyOrdersTicketDetail');
     if (!detail) return;
@@ -556,6 +636,7 @@ function renderTicketDetail() {
     const items = getEntryItems(entry);
     const pendingServeCount = getPendingServeCount(items);
     const itemRows = renderOrderItemRows(entry);
+    const groupCheckoutHtml = buildGroupCheckoutHtml(entry);
     const meta = [
         status === 'pending' ? '確認待ち' : '店内伝票',
         orderedAt,
@@ -585,6 +666,7 @@ function renderTicketDetail() {
                         <span>${totalItems ? `${totalItems}点` : '商品なし'}</span>
                     </div>
                     <div class="troy-orders-items">${itemRows || '<div class="troy-orders-item-row is-empty"><span>注文を追加してください</span></div>'}</div>
+                    ${groupCheckoutHtml}
                     <div class="troy-orders-settle">
                         <label>
                             <span>チップ返却</span>
@@ -604,6 +686,7 @@ function renderTicketDetail() {
             </div>
         </section>
     `;
+    updateGroupCheckoutSummary(detail.querySelector('[data-receiver-id]'));
 }
 
 function openTicketDetail(customerId) {
@@ -662,10 +745,11 @@ async function refreshOrders({ silent = true, force = false } = {}) {
 async function settleFromCard(card) {
     if (!card || busy) return;
     const receiverId = String(card.dataset.receiverId || '').trim();
-    const expectedTotal = Math.max(0, Math.floor(Number(card.dataset.amount) || 0));
+    const targets = getGroupSettleTargets(card);
+    const expectedTotal = targets.reduce((sum, entry) => sum + getEntryTotal(entry), 0);
     const chipReturnInput = card.querySelector('[data-chip-return]');
     const chipReturnAmount = Math.max(0, Math.floor(Number(chipReturnInput?.value || 0) || 0));
-    if (!receiverId || expectedTotal <= 0) return;
+    if (!receiverId || expectedTotal <= 0 || !targets.length) return;
     if (chipReturnAmount > 0 && (chipReturnAmount % 100 !== 0 || chipReturnAmount > 1000000)) {
         setMessage('チップ返却は100G単位、100万Gまでで入力してください。', true);
         return;
@@ -679,15 +763,20 @@ async function settleFromCard(card) {
     busy = true;
     card.classList.add('is-busy');
     try {
-        await callApiWithLoader('/api/troy-orders/settle', {
-            ...getRequestedNationPayload(),
-            receiverPlayFabId: receiverId,
-            expectedTotal,
-            requestId: createRequestId('troy-orders-settle'),
-            chipReturnAmount
-        }, { isSilent: true, throwOnError: true });
+        const groupRequestId = createRequestId(targets.length > 1 ? 'troy-orders-group-settle' : 'troy-orders-settle');
+        for (const target of targets) {
+            const targetId = String(target.playFabId || '').trim();
+            if (!targetId) continue;
+            await callApiWithLoader('/api/troy-orders/settle', {
+                ...getRequestedNationPayload(),
+                receiverPlayFabId: targetId,
+                expectedTotal: getEntryTotal(target),
+                requestId: `${groupRequestId}:${targetId}`,
+                chipReturnAmount: targetId === receiverId ? chipReturnAmount : 0
+            }, { isSilent: true, throwOnError: true });
+        }
         await refreshOrders({ silent: true, force: true });
-        setMessage('会計と退店処理を完了しました。');
+        setMessage(targets.length > 1 ? 'グループ会計と退店処理を完了しました。' : '会計と退店処理を完了しました。');
     } catch (error) {
         console.warn('[troy-orders] settle failed:', error);
         setMessage(`会計できませんでした: ${error?.message || error}`, true);
@@ -800,14 +889,19 @@ function openConfirmModal(card) {
     pendingSettleCard = card;
     const modal = $('troyOrdersConfirmModal');
     if (!modal || !card) return;
-    const name = card.querySelector('[data-ticket-customer-name]')?.textContent || card.querySelector('h2')?.textContent || card.dataset.receiverId || '-';
-    const total = Math.max(0, Math.floor(Number(card.dataset.amount) || 0));
+    const targets = getGroupSettleTargets(card);
+    const groupMode = targets.length > 1;
+    const primaryName = card.querySelector('[data-ticket-customer-name]')?.textContent || card.querySelector('h2')?.textContent || card.dataset.receiverId || '-';
+    const name = groupMode ? `グループ会計（${targets.length}名）` : primaryName;
+    const total = targets.reduce((sum, entry) => sum + getEntryTotal(entry), 0);
     const chipReturnAmount = Math.max(0, Math.floor(Number(card.querySelector('[data-chip-return]')?.value || 0) || 0));
-    const itemRows = [...card.querySelectorAll('.troy-orders-item-row')].map((row) => {
-        const nameEl = row.querySelector('span');
-        const priceEl = row.querySelector('strong');
-        return `<div><span>${escapeHtml(nameEl?.textContent || '')}</span><strong>${escapeHtml(priceEl?.textContent || '')}</strong></div>`;
-    });
+    const itemRows = groupMode
+        ? targets.map((entry) => `<div><span>${escapeHtml(entry.displayName || entry.playFabId || 'Player')}</span><strong>${formatYen(getEntryTotal(entry))}</strong></div>`)
+        : [...card.querySelectorAll('.troy-orders-item-row')].map((row) => {
+            const nameEl = row.querySelector('span');
+            const priceEl = row.querySelector('strong');
+            return `<div><span>${escapeHtml(nameEl?.textContent || '')}</span><strong>${escapeHtml(priceEl?.textContent || '')}</strong></div>`;
+        });
     if (chipReturnAmount > 0) {
         itemRows.push(`<div><span>チップ返却</span><strong>${escapeHtml(formatGold(chipReturnAmount))}</strong></div>`);
     }
@@ -956,6 +1050,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.matches('[data-custom-price]')) {
             setCustomPrice(target, target.value);
+            return;
+        }
+        if (target?.matches('[data-group-checkout]')) {
+            updateGroupCheckoutSummary(target.closest('[data-receiver-id]'));
         }
     });
     document.addEventListener('keydown', (event) => {
