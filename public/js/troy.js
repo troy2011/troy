@@ -463,11 +463,16 @@ function clickTroyJoinButton() {
 function updateTroyRoleUI() {
     const menuSection = document.getElementById('troyMenuSection');
     if (menuSection) {
-        menuSection.style.display = 'block';
+        menuSection.style.display = 'none';
     }
     const menuList = document.querySelector('#troyMenuSection .troy-menu-list');
     if (menuList) {
-        menuList.hidden = !TROY_ORDER_ENTRY_ENABLED;
+        menuList.hidden = true;
+    }
+    const menuModal = document.getElementById('troyMenuModal');
+    if (menuModal) {
+        menuModal.hidden = true;
+        menuModal.style.display = 'none';
     }
     const openTabCard = document.getElementById('troyOpenTabCard');
     if (openTabCard) openTabCard.hidden = true;
@@ -488,14 +493,14 @@ function applyOrderEntryClosedPrimaryState() {
     const isMember = isTroyMember(_lastStatus, window.myPlayFabId);
     if (!isMember) {
         title.textContent = '入店できます';
-        meta.textContent = '注文は現在停止中です。';
+        meta.textContent = 'ご注文はスタッフにお伝えください。';
         button.textContent = '入店';
         button.disabled = false;
         return;
     }
-    title.textContent = '注文は停止中';
-    meta.textContent = '現在は注文を受け付けていません。';
-    button.textContent = '停止中';
+    title.textContent = '入店中';
+    meta.textContent = 'ご注文はスタッフにお伝えください。';
+    button.textContent = '入店済み';
     button.disabled = true;
 }
 
@@ -770,8 +775,8 @@ function updateTroyStatusInline() {
         return;
     }
     status.textContent = isTroyMember(_lastStatus, window.myPlayFabId)
-        ? '注文は現在停止中です。'
-        : '入店できます。注文は現在停止中です。';
+        ? '入店中です。ご注文はスタッフにお伝えください。'
+        : '入店できます。ご注文はスタッフにお伝えください。';
     status.classList.remove('is-pending');
 }
 
@@ -798,22 +803,22 @@ function updateTroyPrimaryAction() {
     }
     if (!isMember) {
         title.textContent = '入店できます';
-        meta.textContent = '注文は現在停止中です。';
+        meta.textContent = 'ご注文はスタッフにお伝えください。';
         button.textContent = '入店';
         return;
     }
-    title.textContent = '注文は停止中';
-    meta.textContent = '現在は注文を受け付けていません。';
-    button.textContent = '停止中';
+    title.textContent = '入店中';
+    meta.textContent = 'ご注文はスタッフにお伝えください。';
+    button.textContent = '入店済み';
     button.disabled = true;
 }
 
 async function submitQuickCheckout() {
-    showTroyNotice('注文は現在停止中です。');
+    showTroyNotice('ご注文はスタッフにお伝えください。');
 }
 function openMenuModal(menuId) {
     if (!TROY_ORDER_ENTRY_ENABLED) {
-        showTroyNotice('注文は現在停止中です。');
+        showTroyNotice('ご注文はスタッフにお伝えください。');
         return;
     }
     if (!canUseTroyMenu()) {
@@ -1053,6 +1058,7 @@ function closeMenuModal() {
 }
 
 function wireMenuPopups() {
+    if (!TROY_ORDER_ENTRY_ENABLED) return;
     if (_menuWired) return;
     _menuWired = true;
     const { modal, close } = getMenuModalElements();
@@ -1070,7 +1076,7 @@ function wireMenuPopups() {
             const targetMenuId = button.dataset.menuId;
             if (!targetMenuId) return;
             if (!TROY_ORDER_ENTRY_ENABLED) {
-                showTroyNotice('注文は現在停止中です。');
+                showTroyNotice('ご注文はスタッフにお伝えください。');
                 return;
             }
             if (!canUseTroyMenu()) {

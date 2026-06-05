@@ -14,7 +14,7 @@ function buildSizedDrinkItems(names = []) {
 }
 
 const STAFF_MENU = [
-    { category: 'ビール・ハイボール', items: [
+    { id: 'beer', category: 'ビール・ハイボール', items: [
         { name: '瓶ビール（ハートランド）', price: 700 },
         ...buildSizedDrinkItems([
             'ハイボール（角）',
@@ -22,26 +22,26 @@ const STAFF_MENU = [
         ]),
         { name: 'ノンアルコール瓶ビール（ハイネケン）', price: 700 }
     ]},
-    { category: 'ジンベース', items: buildSizedDrinkItems([
+    { id: 'gin', category: 'ジンベース', items: buildSizedDrinkItems([
         'ジントニック（+トニック）',
         'ジンバック（+ジンジャーエール）',
         'ジンリッキー（+ソーダ）'
     ])},
-    { category: 'ウォッカベース', items: buildSizedDrinkItems([
+    { id: 'vodka', category: 'ウォッカベース', items: buildSizedDrinkItems([
         'モスコミュール（+ジンジャーエール）',
         'スクリュードライバー（+オレンジ）',
         'ウォッカトニック（+トニック）',
         'ブルドッグ（+グレープフルーツ）'
     ])},
-    { category: 'ラムベース', items: buildSizedDrinkItems([
+    { id: 'rum', category: 'ラムベース', items: buildSizedDrinkItems([
         'キューバリブレ（+コーラ）',
         'ラムバック（+ジンジャーエール）'
     ])},
-    { category: 'テキーラベース', items: buildSizedDrinkItems([
+    { id: 'tequila', category: 'テキーラベース', items: buildSizedDrinkItems([
         'テキーラサンライズ（+オレンジ）',
         'メキシコーラ（+コーラ）'
     ])},
-    { category: 'リキュール・その他', items: buildSizedDrinkItems([
+    { id: 'liqueur', category: 'リキュール・その他', items: buildSizedDrinkItems([
         'カシスオレンジ',
         'カシスソーダ',
         'カシスウーロン',
@@ -50,7 +50,7 @@ const STAFF_MENU = [
         'レモンサワー',
         'グレープフルーツサワー'
     ])},
-    { category: 'ウイスキー・焼酎・ワイン', items: [
+    { id: 'whisky', category: 'ウイスキー・焼酎・ワイン', items: [
         ...buildSizedDrinkItems([
             'ウイスキー（ロック）',
             'ウイスキー（水割り）'
@@ -69,21 +69,21 @@ const STAFF_MENU = [
             'グラスワイン（白）'
         ])
     ]},
-    { category: '割り物', items: [
+    { id: 'mixer', category: '割り物', items: [
         { name: 'お茶', price: 600 },
         { name: 'ウーロン', price: 600 },
         { name: 'ソーダ 1本', price: 300 },
         { name: '水 1本', price: 300 },
         { name: '氷', price: 500 }
     ]},
-    { category: '酒場のフード', items: [
+    { id: 'food', category: '酒場のフード', items: [
         { name: '漬けチーズ', price: 500 },
         { name: 'うずらの味玉', price: 500 },
         { name: 'ナゲット', price: 500 },
         { name: '韓国のり', price: 300 },
         { name: '梅水晶', price: 500 }
     ]},
-    { category: 'ソフトドリンク', items: [
+    { id: 'soft', category: 'ソフトドリンク', items: [
         { name: 'ウーロン茶', price: 400 },
         { name: 'オレンジジュース', price: 400 },
         { name: 'グレープフルーツジュース', price: 400 },
@@ -91,6 +91,10 @@ const STAFF_MENU = [
         { name: 'ジンジャーエール', price: 400 }
     ]},
 ];
+
+const STAFF_MENU_CUSTOM_CATEGORY_ALIASES = {
+    bottle: 'whisky'
+};
 
 const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
@@ -138,6 +142,38 @@ function formatYen(value) {
 
 function formatGold(value) {
     return `${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}G`;
+}
+
+function normalizeStaffCustomMenuItems(data = lastData) {
+    const items = Array.isArray(data?.menuCustomItems) ? data.menuCustomItems : [];
+    return items.map((item) => {
+        const rawMenuId = String(item?.menuId || '').trim().toLowerCase();
+        const categoryId = STAFF_MENU_CUSTOM_CATEGORY_ALIASES[rawMenuId] || rawMenuId;
+        const name = String(item?.concept || item?.name || '').trim().slice(0, 60);
+        const note = String(item?.content || '').trim().slice(0, 80);
+        const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+        if (!categoryId || !name || price <= 0) return null;
+        return { categoryId, name, note, price };
+    }).filter(Boolean);
+}
+
+function buildStaffMenu(data = lastData) {
+    const categories = STAFF_MENU.map((category) => ({
+        ...category,
+        items: category.items.map((item) => ({ ...item }))
+    }));
+    const categoryById = new Map(categories.map((category) => [category.id, category]));
+    normalizeStaffCustomMenuItems(data).forEach((item) => {
+        const category = categoryById.get(item.categoryId);
+        if (!category) return;
+        category.items.push({
+            name: item.name,
+            note: item.note,
+            price: item.price,
+            isCustom: true
+        });
+    });
+    return categories;
 }
 
 function normalizeCustomOrderPrice(value) {
@@ -422,13 +458,15 @@ function getPendingServeCount(items = []) {
 }
 
 function buildPosCategoryHtml() {
-    const menuHtml = STAFF_MENU.map((cat, index) => {
+    const menuHtml = buildStaffMenu().map((cat, index) => {
         const btns = cat.items.map((item) => `
             <button type="button" class="troy-orders-pos-btn"
                 data-add-item
                 data-item-name="${escapeHtml(item.name)}"
                 data-item-price="${item.price}">
-                ${escapeHtml(item.name)}<span>${formatYen(item.price)}</span>
+                ${escapeHtml(item.name)}
+                ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ''}
+                <span>${formatYen(item.price)}</span>
             </button>`).join('');
         return `
             <details class="troy-orders-pos-category"${index === 0 ? ' open' : ''}>

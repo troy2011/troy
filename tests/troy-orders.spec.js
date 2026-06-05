@@ -126,6 +126,59 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });
 
+test('staff register shows king-managed custom menu items', async ({ page }) => {
+  const now = Date.now();
+  const state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    menuCustomItems: [
+      { id: 'custom-ice', menuId: 'mixer', concept: '特製氷', content: '澄んだ丸氷', price: 800, emoji: '🧊' }
+    ],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 600000, level: 24, rankName: '船長' }
+    ],
+    troyPendingCheckouts: []
+  };
+  const addItemRequests = [];
+
+  await page.addInitScript(() => {
+    window.EventSource = class {
+      constructor() {}
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.route('**/api/troy-orders/add-item', async (route) => {
+    addItemRequests.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-open-ticket]', { hasText: '海風の船長' }).click();
+
+  const mixerCategory = page.locator('#troyOrdersTicketDetail .troy-orders-pos-category', { hasText: '割り物' });
+  await mixerCategory.locator('summary').click();
+  await expect(mixerCategory).toContainText('特製氷');
+  await expect(mixerCategory).toContainText('澄んだ丸氷');
+
+  await mixerCategory.locator('[data-add-item][data-item-name="特製氷"]').click();
+
+  expect(addItemRequests).toHaveLength(1);
+  expect(addItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
+  expect(addItemRequests[0].name).toBe('特製氷');
+  expect(addItemRequests[0].price).toBe(800);
+});
+
 test('staff register can settle grouped customer tickets together', async ({ page }) => {
   const now = Date.now();
   const state = {

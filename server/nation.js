@@ -3099,9 +3099,9 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // メニュー管理（品切れ・本日のおすすめ）
+    // スタッフ注文メニュー管理
     app.post('/api/king-update-menu', async (req, res) => {
-        const { playFabId, action, concept, name, content, price, emoji, id, menuId } = req.body || {};
+        const { playFabId, action, name, content, price, emoji, id, menuId } = req.body || {};
         if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
         const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!requesterPlayFabId) return;
@@ -3112,42 +3112,9 @@ function initializeNationRoutes(app, deps) {
             const roomSnap = await roomRef.get();
             const roomData = roomSnap.data() || {};
 
-            if (action === 'toggleDisabled') {
-                const safeConcept = String(concept || '').trim();
-                if (!safeConcept) return res.status(400).json({ error: 'concept is required' });
-                const current = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
-                const next = current.includes(safeConcept)
-                    ? current.filter((c) => c !== safeConcept)
-                    : [...current, safeConcept];
-                await roomRef.set({ menuDisabled: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                return res.json({ success: true, menuDisabled: next });
-            }
-
-            if (action === 'addSpecial') {
-                const safeName = String(name || '').trim();
-                const safePrice = Math.max(1, Math.floor(Number(price) || 0));
-                const safeEmoji = String(emoji || '').trim() || '⭐';
-                if (!safeName || !safePrice) return res.status(400).json({ error: 'name and price are required' });
-                const current = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
-                if (current.length >= 10) return res.status(400).json({ error: 'おすすめは最大10件まです。' });
-                const newSpecial = { id: `special-${Date.now()}`, name: safeName, price: safePrice, emoji: safeEmoji };
-                const next = [...current, newSpecial];
-                await roomRef.set({ menuSpecials: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                return res.json({ success: true, menuSpecials: next });
-            }
-
-            if (action === 'removeSpecial') {
-                const safeId = String(id || '').trim();
-                if (!safeId) return res.status(400).json({ error: 'id is required' });
-                const current = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
-                const next = current.filter((s) => s.id !== safeId);
-                await roomRef.set({ menuSpecials: next, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                return res.json({ success: true, menuSpecials: next });
-            }
-
             if (action === 'addCustom') {
                 const safeMenuId = String(menuId || '').trim().toLowerCase();
-                const allowedMenuIds = new Set(['beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle']);
+                const allowedMenuIds = new Set(['beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'mixer', 'soft', 'food', 'bottle']);
                 if (!allowedMenuIds.has(safeMenuId)) return res.status(400).json({ error: 'Invalid menuId' });
                 const safeName = String(name || '').trim().slice(0, 40);
                 const safeContent = String(content || '').trim().slice(0, 80);
@@ -3155,7 +3122,7 @@ function initializeNationRoutes(app, deps) {
                 const safeEmoji = String(emoji || '').trim().slice(0, 8) || '🍽';
                 if (!safeName || !safePrice) return res.status(400).json({ error: 'name and price are required' });
                 const current = Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : [];
-                if (current.length >= 80) return res.status(400).json({ error: '通常メニューは最大80件までです。' });
+                if (current.length >= 80) return res.status(400).json({ error: 'スタッフ用オーダーメニューは最大80件までです。' });
                 const newItem = {
                     id: `custom-${Date.now()}`,
                     menuId: safeMenuId,
@@ -4009,6 +3976,7 @@ function initializeNationRoutes(app, deps) {
     }
 
     async function buildTroyOrdersPagePayload(context) {
+        const menuCustomItems = Array.isArray(context.roomData?.menuCustomItems) ? context.roomData.menuCustomItems : [];
         if (!TROY_STAFF_CHECKOUT_ENABLED) {
             return {
                 troyOpen: true,
@@ -4017,6 +3985,7 @@ function initializeNationRoutes(app, deps) {
                 troyPendingCheckouts: [],
                 troyMembers: buildTroyMemberPayload([]),
                 troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
+                menuCustomItems,
                 checkoutDisabled: true
             };
         }
@@ -4032,7 +4001,8 @@ function initializeNationRoutes(app, deps) {
             troyTodaySales: buildTroyTodaySalesSnapshot(groupData),
             troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
             troyMembers: buildTroyMemberPayload(membersSnap.docs),
-            troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData)
+            troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
+            menuCustomItems
         };
     }
 
@@ -4350,7 +4320,8 @@ function initializeNationRoutes(app, deps) {
                     troyTodaySales: { total: 0, count: 0 },
                     troyPendingCheckouts: [],
                     troyMembers: [],
-                    troyCoinConversionLogs: []
+                    troyCoinConversionLogs: [],
+                    menuCustomItems: []
                 });
             }
             return res.json(await buildTroyOrdersPagePayload(context));
@@ -4524,7 +4495,7 @@ function initializeNationRoutes(app, deps) {
         try {
             const context = await resolveOpenTroyOrdersContext(requestedNation);
             if (!context) {
-                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [] });
+                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [], menuCustomItems: [] });
                 if (!res.writableEnded) res.write('retry: 15000\n\n');
                 cleanup();
                 return;
@@ -4546,13 +4517,15 @@ function initializeNationRoutes(app, deps) {
                         context.roomRef.get(),
                         context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get()
                     ]);
+                    const roomData = roomSnap.data() || {};
                     send({
                         troyOpen: true,
                         nation: context.nation,
                         troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}),
                         troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs),
                         troyMembers: buildTroyMemberPayload(membersSnap.docs),
-                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomSnap.data() || {})
+                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
+                        menuCustomItems: Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : []
                     });
                 } catch (e) {
                     console.warn('[troy-orders-stream] checkout snapshot error:', e?.message || e);
@@ -4565,7 +4538,7 @@ function initializeNationRoutes(app, deps) {
                 if (closed) return;
                 const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
                 if (!roomData.isOpen) {
-                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [] });
+                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [], menuCustomItems: [] });
                     if (!res.writableEnded) try { res.write('retry: 15000\n\n'); } catch (_) {}
                     cleanup();
                 } else {
@@ -4575,7 +4548,8 @@ function initializeNationRoutes(app, deps) {
                         troyTodaySales: lastPayload?.troyTodaySales || { total: 0, count: 0 },
                         troyPendingCheckouts: lastPayload?.troyPendingCheckouts || [],
                         troyMembers: lastPayload?.troyMembers || [],
-                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData)
+                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
+                        menuCustomItems: Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : []
                     });
                 }
             }, (err) => {

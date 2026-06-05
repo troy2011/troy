@@ -206,53 +206,27 @@ function _clearCalendarForm() {
     if (noteEl) noteEl.value = '';
 }
 
-const _KING_MENU_ITEM_GROUPS = [
-    {
-        category: 'アルコール 🍸',
-        items: ['ラム', 'ウォッカ', 'テキーラ', 'ジン', 'リキュール', '焼酎（キンミヤ）', 'ビール（ハートランド）', 'グラスワイン', 'ワインボトル']
-    },
-    {
-        category: 'ノンアルコール 🥤',
-        items: ['コーラ', 'ジンジャーエール', 'オレンジジュース', 'ウーロン茶', 'ノンアルコールビール（ハイネケン）']
-    },
-    {
-        category: '温かい料理 🍟',
-        items: ['フライドポテト', 'チキンナゲット', 'ピザトースト', 'フランクフルト', 'ワッフル', 'チュロス', 'カップラーメン']
-    },
-    {
-        category: '乾きもの 🥜',
-        items: ['ポテチ', 'チョコ', 'ミックスナッツ']
-    },
-    {
-        category: 'ボトルキープ 🍶',
-        items: ['キンミヤ焼酎（720ml）']
-    },
-    {
-        category: 'ボトル用セット 🧊',
-        items: ['水割りセット', 'ソーダ / お茶割り用', 'カットレモン']
-    }
-];
-
 const _KING_MENU_CATEGORY_OPTIONS = [
     { id: 'beer', label: 'ビール・ハイボール' },
-    { id: 'gin', label: 'ジン' },
-    { id: 'vodka', label: 'ウォッカ' },
-    { id: 'rum', label: 'ラム' },
-    { id: 'tequila', label: 'テキーラ' },
-    { id: 'liqueur', label: 'リキュール' },
+    { id: 'gin', label: 'ジンベース' },
+    { id: 'vodka', label: 'ウォッカベース' },
+    { id: 'rum', label: 'ラムベース' },
+    { id: 'tequila', label: 'テキーラベース' },
+    { id: 'liqueur', label: 'リキュール・その他' },
     { id: 'whisky', label: 'ウイスキー・焼酎・ワイン' },
-    { id: 'soft', label: 'ソフトドリンク' },
-    { id: 'food', label: 'フード' },
-    { id: 'bottle', label: 'ボトル' }
+    { id: 'mixer', label: '割り物' },
+    { id: 'food', label: '酒場のフード' },
+    { id: 'soft', label: 'ソフトドリンク' }
 ];
 
+const _KING_MENU_CATEGORY_LABELS = new Map([
+    ..._KING_MENU_CATEGORY_OPTIONS.map((option) => [option.id, option.label]),
+    ['bottle', 'ウイスキー・焼酎・ワイン']
+]);
+
 function _renderMenuManagement(data) {
-    const disableListEl = document.getElementById('kingMenuDisableList');
-    const specialsListEl = document.getElementById('kingMenuSpecialsList');
     const customListEl = document.getElementById('kingMenuCustomList');
     const customCategoryEl = document.getElementById('kingMenuCustomCategory');
-    const disabled = Array.isArray(data?.menuDisabled) ? data.menuDisabled : [];
-    const specials = Array.isArray(data?.menuSpecials) ? data.menuSpecials : [];
     const customItems = Array.isArray(data?.menuCustomItems) ? data.menuCustomItems : [];
 
     if (customCategoryEl && !customCategoryEl.dataset.initialized) {
@@ -262,46 +236,18 @@ function _renderMenuManagement(data) {
         customCategoryEl.dataset.initialized = 'true';
     }
 
-    if (disableListEl) {
-        disableListEl.innerHTML = _KING_MENU_ITEM_GROUPS.map((group) => `
-            <div class="king-menu-group">
-                <div class="king-menu-group-label">${_escapeHtml(group.category)}</div>
-                <div class="king-menu-toggle-row">
-                    ${group.items.map((concept) => {
-                        const isSoldOut = disabled.includes(concept);
-                        return `<button type="button" class="king-menu-toggle-btn${isSoldOut ? ' is-sold-out' : ''}" data-menu-toggle="${_escapeHtml(concept)}">${_escapeHtml(concept)}</button>`;
-                    }).join('')}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    if (specialsListEl) {
-        if (!specials.length) {
-            specialsListEl.innerHTML = '<div class="king-menu-specials-empty">おすすめは未設定です。</div>';
-        } else {
-            specialsListEl.innerHTML = specials.map((s) => `
-                <div class="king-menu-special-row">
-                    <span class="king-menu-special-emoji">${_escapeHtml(s.emoji || '⭐')}</span>
-                    <span class="king-menu-special-name">${_escapeHtml(s.name)}</span>
-                    <span class="king-menu-special-price">¥${Math.max(0, Number(s.price) || 0).toLocaleString('ja-JP')}</span>
-                    <button type="button" class="btn-muted king-menu-special-remove" data-special-remove="${_escapeHtml(s.id)}">削除</button>
-                </div>
-            `).join('');
-        }
-    }
-
     if (customListEl) {
         if (!customItems.length) {
-            customListEl.innerHTML = '<div class="king-menu-specials-empty">追加した通常メニューはありません。</div>';
+            customListEl.innerHTML = '<div class="king-menu-specials-empty">追加したスタッフ用オーダーメニューはありません。</div>';
         } else {
             customListEl.innerHTML = customItems.map((item) => {
                 const menuId = String(item?.menuId || '').trim();
-                const category = _KING_MENU_CATEGORY_OPTIONS.find((option) => option.id === menuId)?.label || menuId;
+                const category = _KING_MENU_CATEGORY_LABELS.get(menuId) || menuId;
+                const note = [category, String(item?.content || '').trim()].filter(Boolean).join(' / ');
                 return `
                     <div class="king-menu-special-row">
                         <span class="king-menu-special-emoji">${_escapeHtml(item.emoji || '🍽')}</span>
-                        <span class="king-menu-special-name">${_escapeHtml(item.concept || item.name || '')}<small>${_escapeHtml(category)}</small></span>
+                        <span class="king-menu-special-name">${_escapeHtml(item.concept || item.name || '')}<small>${_escapeHtml(note)}</small></span>
                         <span class="king-menu-special-price">¥${Math.max(0, Number(item.price) || 0).toLocaleString('ja-JP')}</span>
                         <button type="button" class="btn-muted king-menu-special-remove" data-custom-remove="${_escapeHtml(item.id)}">削除</button>
                     </div>
@@ -914,47 +860,6 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    const menuDisableListEl = document.getElementById('kingMenuDisableList');
-    if (menuDisableListEl) {
-        menuDisableListEl.addEventListener('click', async (event) => {
-            const btn = event.target instanceof Element ? event.target.closest('[data-menu-toggle]') : null;
-            if (!btn) return;
-            const concept = String(btn.getAttribute('data-menu-toggle') || '').trim();
-            if (!concept) return;
-            const previous = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '処理中...';
-            try {
-                await kingUpdateMenu(playFabId, { action: 'toggleDisabled', concept }, { isSilent: true });
-                await loadKingPage(playFabId);
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'メニューの更新に失敗しました。'), true);
-                btn.disabled = false;
-                btn.textContent = previous;
-            }
-        });
-    }
-
-    const menuSpecialsListEl = document.getElementById('kingMenuSpecialsList');
-    if (menuSpecialsListEl) {
-        menuSpecialsListEl.addEventListener('click', async (event) => {
-            const btn = event.target instanceof Element ? event.target.closest('[data-special-remove]') : null;
-            if (!btn) return;
-            const id = String(btn.getAttribute('data-special-remove') || '').trim();
-            if (!id) return;
-            btn.disabled = true;
-            btn.textContent = '処理中...';
-            try {
-                await kingUpdateMenu(playFabId, { action: 'removeSpecial', id }, { isSilent: true });
-                await loadKingPage(playFabId);
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'おすすめの削除に失敗しました。'), true);
-                btn.disabled = false;
-                btn.textContent = '削除';
-            }
-        });
-    }
-
     const menuCustomListEl = document.getElementById('kingMenuCustomList');
     if (menuCustomListEl) {
         menuCustomListEl.addEventListener('click', async (event) => {
@@ -968,7 +873,7 @@ function _wireHandlers(playFabId) {
                 await kingUpdateMenu(playFabId, { action: 'removeCustom', id }, { isSilent: true });
                 await loadKingPage(playFabId);
             } catch (error) {
-                _setMessage(_extractErrorMessage(error, '通常メニューの削除に失敗しました。'), true);
+                _setMessage(_extractErrorMessage(error, 'スタッフ用オーダーメニューの削除に失敗しました。'), true);
                 btn.disabled = false;
                 btn.textContent = '削除';
             }
@@ -1001,42 +906,12 @@ function _wireHandlers(playFabId) {
                 if (priceEl) priceEl.value = '';
                 if (emojiEl) emojiEl.value = '';
                 await loadKingPage(playFabId);
-                _setMessage('通常メニューを追加しました。');
+                _setMessage('スタッフ用オーダーメニューを追加しました。');
             } catch (error) {
-                _setMessage(_extractErrorMessage(error, '通常メニューの追加に失敗しました。'), true);
+                _setMessage(_extractErrorMessage(error, 'スタッフ用オーダーメニューの追加に失敗しました。'), true);
             } finally {
                 addCustomBtn.disabled = false;
                 addCustomBtn.textContent = previous;
-            }
-        });
-    }
-
-    const addSpecialBtn = document.getElementById('btnKingMenuAddSpecial');
-    if (addSpecialBtn) {
-        addSpecialBtn.addEventListener('click', async () => {
-            const nameEl = document.getElementById('kingMenuSpecialName');
-            const priceEl = document.getElementById('kingMenuSpecialPrice');
-            const emojiEl = document.getElementById('kingMenuSpecialEmoji');
-            const name = String(nameEl?.value || '').trim();
-            const price = Math.max(0, Math.floor(Number(priceEl?.value) || 0));
-            const emoji = String(emojiEl?.value || '').trim() || '⭐';
-            if (!name) { _setMessage('商品名を入力してください。', true); return; }
-            if (!price) { _setMessage('金額を入力してください。', true); return; }
-            const previous = addSpecialBtn.textContent;
-            addSpecialBtn.disabled = true;
-            addSpecialBtn.textContent = '追加中...';
-            try {
-                await kingUpdateMenu(playFabId, { action: 'addSpecial', name, price, emoji }, { isSilent: true });
-                if (nameEl) nameEl.value = '';
-                if (priceEl) priceEl.value = '';
-                if (emojiEl) emojiEl.value = '';
-                await loadKingPage(playFabId);
-                _setMessage('おすすめを追加しました。');
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'おすすめの追加に失敗しました。'), true);
-            } finally {
-                addSpecialBtn.disabled = false;
-                addSpecialBtn.textContent = previous;
             }
         });
     }
