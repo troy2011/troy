@@ -576,7 +576,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '.nav-button',
       '#rankingToggleButtons',
       '#tabContentInventory .inventory-section',
-      '#tabContentInventory .avatar-style-panel',
+      '#avatarStyleModal .avatar-style-panel',
       '#tabContentInventory .equip-slot',
       '#tabContentEvents .event-list-panel',
       '#tabContentEvents .event-card',
@@ -727,6 +727,10 @@ test('current equipment slots render equipped item sprites on the right edge', a
     inventory.switchInventoryGroup('Equipment', { panel: 'items' });
   });
 
+  await expect(page.locator('#tabContentInventory .avatar-style-panel')).toHaveCount(0);
+  await expect(page.locator('#avatarStyleModal')).not.toBeVisible();
+  await page.locator('#home-avatar').click();
+  await expect(page.locator('#avatarStyleModal')).toBeVisible();
   await expect(page.locator('#avatarStylePanel')).toBeVisible();
   await expect(page.locator('#btnRandomHaircut')).toContainText('100G');
   await expect(page.locator('#btnRandomSkin')).toContainText('300G');

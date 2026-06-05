@@ -806,6 +806,7 @@ function initHomeExplorationButton() {
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     initHomeExplorationButton();
+    initHomeAvatarStyleModal();
     updateSeaToneByTime();
     initPwaShell();
     syncPendingAppInviteTokenFromUrl();
@@ -1233,6 +1234,7 @@ async function initializeAppFeatures() {
     document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
     document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
     initHomeExplorationButton();
+    initHomeAvatarStyleModal();
     document.getElementById('globalPlayerName')?.addEventListener('click', promptChangeDisplayName);
     document.getElementById('btnCreateGuild').addEventListener('click', () => Guild.showCreateGuildModal());
     document.getElementById('btnConfirmCreateGuild').addEventListener('click', () => {
@@ -2133,6 +2135,64 @@ const AVATAR_STYLE_COSTS = { haircut: 100, skin: 300, face: 800 };
 
 function getCurrentPlayerLevel() {
     return normalizeLevel(Player.getMyPlayerStats?.()?.Level || window.myAvatarBaseInfo?.level || 1);
+}
+
+function hasVisibleModalExcept(exceptModal = null) {
+    return Array.from(document.querySelectorAll('.modal-overlay')).some((modal) => {
+        if (!modal || modal === exceptModal) return false;
+        const display = String(modal.style?.display || '').trim().toLowerCase();
+        return display === 'flex' || modal.classList.contains('active');
+    });
+}
+
+function openAvatarStyleModal() {
+    const modal = document.getElementById('avatarStyleModal');
+    if (!modal) return;
+    renderAvatarStylePanel();
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-lock');
+    document.getElementById('btnCloseAvatarStyleModal')?.focus?.();
+}
+
+function closeAvatarStyleModal() {
+    const modal = document.getElementById('avatarStyleModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    if (!hasVisibleModalExcept(modal)) {
+        document.body.classList.remove('modal-lock');
+    }
+}
+
+function initHomeAvatarStyleModal() {
+    const avatar = document.getElementById('home-avatar');
+    const modal = document.getElementById('avatarStyleModal');
+    const closeBtn = document.getElementById('btnCloseAvatarStyleModal');
+    if (avatar && avatar.dataset.avatarStyleTriggerBound !== 'true') {
+        avatar.dataset.avatarStyleTriggerBound = 'true';
+        avatar.addEventListener('click', openAvatarStyleModal);
+        avatar.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openAvatarStyleModal();
+        });
+    }
+    if (closeBtn && closeBtn.dataset.avatarStyleCloseBound !== 'true') {
+        closeBtn.dataset.avatarStyleCloseBound = 'true';
+        closeBtn.addEventListener('click', closeAvatarStyleModal);
+    }
+    if (modal && modal.dataset.avatarStyleOverlayBound !== 'true') {
+        modal.dataset.avatarStyleOverlayBound = 'true';
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeAvatarStyleModal();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            const isOpen = String(modal.style?.display || '').trim().toLowerCase() === 'flex';
+            if (isOpen) closeAvatarStyleModal();
+        });
+    }
 }
 
 function renderAvatarStylePanel() {

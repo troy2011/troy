@@ -2928,7 +2928,15 @@ body.modal-lock .modal-overlay {
     margin: 0;
     border-radius: 14px;
     padding: 6px;
+    cursor: pointer;
     transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.home-ship-avatar:hover,
+.home-ship-avatar:focus-visible {
+    outline: 2px solid rgba(255, 225, 136, 0.78);
+    outline-offset: 3px;
+    box-shadow: 0 0 18px rgba(255, 218, 116, 0.32);
 }
 
 .home-ship-avatar[data-sea-tone="day"] {
@@ -18873,7 +18881,20 @@ body[data-sea-tone] .home-hero-card {
     gap: 8px;
 }
 
-#tabContentInventory .avatar-style-panel {
+#avatarStyleModal .avatar-style-sheet {
+    width: min(360px, calc(100vw - 28px));
+    max-width: 360px;
+    padding: 14px;
+    border: 15px solid transparent;
+    border-radius: 9px;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 15px / 0 stretch;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 222, 144, 0.12), transparent 58%),
+        var(--inventory-panel-bg);
+    text-align: left;
+}
+
+#avatarStyleModal .avatar-style-panel {
     display: block;
     margin: 0 0 12px;
     padding: 10px;
@@ -18886,7 +18907,7 @@ body[data-sea-tone] .home-hero-card {
     color: var(--inventory-gold);
 }
 
-#tabContentInventory .avatar-style-head {
+#avatarStyleModal .avatar-style-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -18894,7 +18915,7 @@ body[data-sea-tone] .home-hero-card {
     margin: 0 0 8px;
 }
 
-#tabContentInventory .avatar-style-head h3 {
+#avatarStyleModal .avatar-style-head h3 {
     margin: 0;
     color: var(--inventory-gold);
     font-size: 18px;
@@ -18902,7 +18923,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
-#tabContentInventory .avatar-style-head span {
+#avatarStyleModal .avatar-style-head span {
     color: #f3d58a;
     font-size: 12px;
     font-weight: 800;
@@ -18910,7 +18931,7 @@ body[data-sea-tone] .home-hero-card {
     white-space: nowrap;
 }
 
-#tabContentInventory .avatar-style-notice {
+#avatarStyleModal .avatar-style-notice {
     margin: 0 0 10px;
     color: #d8c39b;
     font-size: 12px;
@@ -18918,13 +18939,13 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.72);
 }
 
-#tabContentInventory .avatar-style-controls {
+#avatarStyleModal .avatar-style-controls {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
 }
 
-#tabContentInventory .avatar-style-action {
+#avatarStyleModal .avatar-style-action {
     width: 100%;
     min-height: 50px;
     padding: 7px 8px;
@@ -18938,7 +18959,7 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 
-#tabContentInventory .avatar-style-action span {
+#avatarStyleModal .avatar-style-action span {
     display: inline-block;
     margin-top: 2px;
     color: #f5c85b;
@@ -18946,17 +18967,17 @@ body[data-sea-tone] .home-hero-card {
     font-weight: 900;
 }
 
-#tabContentInventory .avatar-style-action:not(:disabled) {
+#avatarStyleModal .avatar-style-action:not(:disabled) {
     border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
     color: #2a1606;
     text-shadow: 0 1px 0 rgba(255, 238, 178, 0.45);
 }
 
-#tabContentInventory .avatar-style-action:not(:disabled) span {
+#avatarStyleModal .avatar-style-action:not(:disabled) span {
     color: #3a1b05;
 }
 
-#tabContentInventory .avatar-style-action:disabled {
+#avatarStyleModal .avatar-style-action:disabled {
     opacity: 0.58;
 }
 
@@ -19207,7 +19228,7 @@ body[data-sea-tone] .home-hero-card {
         font-size: 18px;
     }
 
-    #tabContentInventory .avatar-style-controls {
+    #avatarStyleModal .avatar-style-controls {
         grid-template-columns: minmax(0, 1fr);
     }
 
