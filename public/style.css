@@ -19862,8 +19862,13 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal .player-profile-actions {
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     gap: 8px;
     margin-bottom: 12px;
+}
+
+#playerProfileModal .player-profile-action-btn[hidden] {
+    display: none;
 }
 
 #playerProfileModal .player-profile-action-btn,

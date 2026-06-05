@@ -2165,17 +2165,26 @@ function closeAvatarStyleModal() {
     }
 }
 
+function openOwnPlayerProfileFromAvatar() {
+    const playFabId = String(window.myPlayFabId || '').trim();
+    if (!playFabId) {
+        showRpgMessage('プレイヤー情報を取得できません。', 2200);
+        return;
+    }
+    void openPlayerProfile(playFabId);
+}
+
 function initHomeAvatarStyleModal() {
     const avatar = document.getElementById('home-avatar');
     const modal = document.getElementById('avatarStyleModal');
     const closeBtn = document.getElementById('btnCloseAvatarStyleModal');
-    if (avatar && avatar.dataset.avatarStyleTriggerBound !== 'true') {
-        avatar.dataset.avatarStyleTriggerBound = 'true';
-        avatar.addEventListener('click', openAvatarStyleModal);
+    if (avatar && avatar.dataset.playerProfileTriggerBound !== 'true') {
+        avatar.dataset.playerProfileTriggerBound = 'true';
+        avatar.addEventListener('click', openOwnPlayerProfileFromAvatar);
         avatar.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
-            openAvatarStyleModal();
+            openOwnPlayerProfileFromAvatar();
         });
     }
     if (closeBtn && closeBtn.dataset.avatarStyleCloseBound !== 'true') {
@@ -2193,6 +2202,11 @@ function initHomeAvatarStyleModal() {
             if (isOpen) closeAvatarStyleModal();
         });
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.openAvatarStyleModal = openAvatarStyleModal;
+    window.showAvatarStyleModal = openAvatarStyleModal;
 }
 
 function renderAvatarStylePanel() {

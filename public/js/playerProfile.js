@@ -36,6 +36,7 @@ function getPlayerProfileModalElements() {
         close: document.getElementById('btnClosePlayerProfile'),
         transferButton: document.getElementById('btnPlayerProfileTransfer'),
         favoriteButton: document.getElementById('btnPlayerProfileFavorite'),
+        beautyButton: document.getElementById('btnPlayerProfileBeauty'),
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
         transferPanel: document.getElementById('playerProfileTransferPanel'),
         transferAmount: document.getElementById('playerProfileTransferAmount'),
@@ -201,27 +202,34 @@ function updateProfileActionState() {
     const {
         transferButton,
         favoriteButton,
+        beautyButton,
         copyIdButton
     } = getPlayerProfileModalElements();
     const myPlayFabId = getCurrentUserPlayFabId();
     const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
     const loaded = !!(targetPlayFabId && activeProfile?.loaded);
-    const isSelf = !!(loaded && myPlayFabId && targetPlayFabId === myPlayFabId);
-    const favoriteActive = !!(loaded && !isSelf && isFavoritePlayer(targetPlayFabId, myPlayFabId));
+    const isTargetSelf = !!(myPlayFabId && targetPlayFabId && targetPlayFabId === myPlayFabId);
+    const favoriteActive = !!(loaded && !isTargetSelf && isFavoritePlayer(targetPlayFabId, myPlayFabId));
 
     if (transferButton) {
-        transferButton.disabled = !loaded || isSelf;
-        transferButton.textContent = isSelf ? '自分には送れない' : 'ゴールド送金';
+        transferButton.hidden = isTargetSelf;
+        transferButton.disabled = !loaded || isTargetSelf;
+        transferButton.textContent = 'ゴールド送金';
     }
     if (favoriteButton) {
-        favoriteButton.disabled = !loaded || isSelf;
+        favoriteButton.hidden = isTargetSelf;
+        favoriteButton.disabled = !loaded || isTargetSelf;
         favoriteButton.classList.toggle('is-active', favoriteActive);
         favoriteButton.textContent = favoriteActive ? '★ お気に入り済み' : 'お気に入り';
+    }
+    if (beautyButton) {
+        beautyButton.hidden = !isTargetSelf;
+        beautyButton.disabled = !loaded || !isTargetSelf;
     }
     if (copyIdButton) {
         copyIdButton.disabled = !targetPlayFabId;
     }
-    if (isSelf || !loaded) {
+    if (isTargetSelf || !loaded) {
         setTransferPanelOpen(false);
     }
 }
@@ -278,6 +286,19 @@ function handleFavoriteToggle() {
     showRpgMessage(exists ? 'お気に入りから外しました。' : 'お気に入りに追加しました。', 2200);
 }
 
+function handleBeautySalonOpen() {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    if (!myPlayFabId || !targetPlayFabId || !activeProfile?.loaded || myPlayFabId !== targetPlayFabId) return;
+    const openSalon = window.openAvatarStyleModal || window.showAvatarStyleModal;
+    if (typeof openSalon !== 'function') {
+        showRpgMessage('美容室を開けません。', 2200);
+        return;
+    }
+    closePlayerProfileModal();
+    openSalon();
+}
+
 async function executeProfileTransfer(amount) {
     const myPlayFabId = getCurrentUserPlayFabId();
     const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
@@ -322,6 +343,7 @@ function bindModalEvents() {
         close,
         transferButton,
         favoriteButton,
+        beautyButton,
         copyIdButton,
         transferCancel,
         transferSubmit
@@ -347,6 +369,10 @@ function bindModalEvents() {
     if (favoriteButton && !favoriteButton.dataset.profileBound) {
         favoriteButton.dataset.profileBound = 'true';
         favoriteButton.addEventListener('click', () => handleFavoriteToggle());
+    }
+    if (beautyButton && !beautyButton.dataset.profileBound) {
+        beautyButton.dataset.profileBound = 'true';
+        beautyButton.addEventListener('click', () => handleBeautySalonOpen());
     }
     if (copyIdButton && !copyIdButton.dataset.profileBound) {
         copyIdButton.dataset.profileBound = 'true';

@@ -519,6 +519,9 @@ test('player profile shows public stats on the left with avatar on the right', a
   });
 
   await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileTransfer')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileFavorite')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileBeauty')).toBeHidden();
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
@@ -775,6 +778,37 @@ test('king can found a nation guild from companions regardless of level', async 
 
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          nation: 'fire',
+          level: 12,
+          stats: {
+            Level: 12
+          },
+          avatarBase: {
+            Race: 'human',
+            Nation: 'fire',
+            AvatarColor: 'brown',
+            level: 12
+          },
+          playerShip: {
+            form: 'boat',
+            stage: 1
+          },
+          equipment: {},
+          itemSource: {},
+          equipmentList: []
+        }
+      })
+    });
+  });
   await bootstrapMainApp(page);
 
   await page.evaluate(async () => {
@@ -847,6 +881,12 @@ test('current equipment slots render equipped item sprites on the right edge', a
   await expect(page.locator('#tabContentInventory .avatar-style-panel')).toHaveCount(0);
   await expect(page.locator('#avatarStyleModal')).not.toBeVisible();
   await page.locator('#home-avatar').click();
+  await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileTransfer')).toBeHidden();
+  await expect(page.locator('#btnPlayerProfileFavorite')).toBeHidden();
+  await expect(page.locator('#btnPlayerProfileBeauty')).toBeVisible();
+  await page.locator('#btnPlayerProfileBeauty').click();
+  await expect(page.locator('#playerProfileModal')).not.toBeVisible();
   await expect(page.locator('#avatarStyleModal')).toBeVisible();
   await expect(page.locator('#avatarStylePanel')).toBeVisible();
   await expect(page.locator('#btnRandomHaircut')).toContainText('100G');
