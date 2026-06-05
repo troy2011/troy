@@ -122,12 +122,14 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
     const rankingTitle = document.getElementById('rankingTitle');
     const firstAvatar = document.querySelector('.ranking-avatar');
     const firstBounty = document.querySelector('.ranking-bounty');
+    const firstWanted = document.querySelector('.ranking-wanted-stamp');
     return {
       audioPlayCount: window.__displayAudioPlayCount || 0,
       panelWidth: Math.round(rankingPanel.getBoundingClientRect().width),
       titleFontSize: Number.parseFloat(getComputedStyle(rankingTitle).fontSize),
       panelText: rankingPanel.textContent || '',
       firstBountyText: firstBounty?.textContent || '',
+      firstWantedText: firstWanted?.textContent || '',
       avatarSize: Math.round(firstAvatar.getBoundingClientRect().width),
       videoCurrentTime: document.getElementById('seaVideo')?.currentTime || 0,
       videoPaused: document.getElementById('seaVideo')?.paused ?? true,
@@ -143,6 +145,8 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.videoMuted).toBe(true);
   expect(audit.panelWidth).toBeGreaterThanOrEqual(380);
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
+  expect(audit.firstWantedText).toBe('WANTED');
+  expect(audit.firstBountyText).toContain('BOUNTY');
   expect(audit.firstBountyText).toContain('B');
   expect(audit.panelText).not.toContain('貢献度');
   expect(audit.panelText).not.toContain('×');

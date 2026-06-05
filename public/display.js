@@ -413,6 +413,10 @@
       const main = document.createElement('div');
       main.className = 'ranking-main';
 
+      const wanted = document.createElement('div');
+      wanted.className = 'ranking-wanted-stamp';
+      wanted.textContent = 'WANTED';
+
       const name = document.createElement('div');
       name.className = 'ranking-name';
       name.textContent = displayName;
@@ -423,13 +427,19 @@
       const rankName = String(row.rankName || '').trim();
       meta.textContent = rankName ? `Lv.${level} ${rankName}` : `Lv.${level}`;
 
+      main.appendChild(wanted);
       main.appendChild(name);
       main.appendChild(meta);
 
       const bounty = document.createElement('div');
       bounty.className = 'ranking-bounty';
       const bountyValue = Number(row.bounty ?? row.score ?? 0) || 0;
-      bounty.textContent = `${formatNumber(bountyValue)} B`;
+      const bountyLabel = document.createElement('span');
+      bountyLabel.textContent = 'BOUNTY';
+      const bountyAmount = document.createElement('strong');
+      bountyAmount.textContent = `${formatNumber(bountyValue)} B`;
+      bounty.appendChild(bountyLabel);
+      bounty.appendChild(bountyAmount);
 
       line.appendChild(rank);
       line.appendChild(avatar);
