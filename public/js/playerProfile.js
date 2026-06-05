@@ -214,13 +214,18 @@ function updateProfileActionState() {
     if (transferButton) {
         transferButton.hidden = isTargetSelf;
         transferButton.disabled = !loaded || isTargetSelf;
-        transferButton.textContent = 'ゴールド送金';
+        transferButton.textContent = 'G';
+        transferButton.setAttribute('aria-label', 'ゴールド送金');
+        transferButton.setAttribute('title', 'ゴールド送金');
     }
     if (favoriteButton) {
         favoriteButton.hidden = isTargetSelf;
         favoriteButton.disabled = !loaded || isTargetSelf;
         favoriteButton.classList.toggle('is-active', favoriteActive);
-        favoriteButton.textContent = favoriteActive ? '★ お気に入り済み' : 'お気に入り';
+        favoriteButton.textContent = favoriteActive ? '♥' : '♡';
+        favoriteButton.setAttribute('aria-pressed', favoriteActive ? 'true' : 'false');
+        favoriteButton.setAttribute('aria-label', favoriteActive ? 'お気に入りから外す' : 'お気に入りに追加');
+        favoriteButton.setAttribute('title', favoriteActive ? 'お気に入り済み' : 'お気に入り');
     }
     if (beautyButton) {
         beautyButton.hidden = !isTargetSelf;

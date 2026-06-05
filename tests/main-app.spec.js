@@ -520,8 +520,12 @@ test('player profile shows public stats on the left with avatar on the right', a
 
   await expect(page.locator('#playerProfileModal')).toBeVisible();
   await expect(page.locator('#btnPlayerProfileTransfer')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileTransfer')).toHaveText('G');
   await expect(page.locator('#btnPlayerProfileFavorite')).toBeVisible();
+  await expect(page.locator('#btnPlayerProfileFavorite')).toHaveText('♡');
+  await expect(page.locator('#btnPlayerProfileFavorite')).toHaveAttribute('aria-label', 'お気に入りに追加');
   await expect(page.locator('#btnPlayerProfileBeauty')).toBeHidden();
+  await expect(page.locator('#playerProfileTransferPanel')).toBeHidden();
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
@@ -546,6 +550,7 @@ test('player profile shows public stats on the left with avatar on the right', a
         ((avatarInnerRect?.left || 0) + (avatarInnerRect?.width || 0) / 2)
         - ((avatarRect?.left || 0) + (avatarRect?.width || 0) / 2)
       ),
+      avatarTransform: avatarInner ? window.getComputedStyle(avatarInner).transform : '',
       copyRight: copyRect?.right || 0,
       shipTop: shipRect?.top || 0,
       shipLeft: shipRect?.left || 0,
@@ -559,7 +564,8 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(Math.abs(layout.shipLeft - layout.avatarLeft)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.shipRight - layout.avatarRight)).toBeLessThanOrEqual(2);
   expect(layout.avatarWidth).toBeGreaterThanOrEqual(130);
-  expect(layout.avatarCenterDelta).toBeLessThanOrEqual(6);
+  expect(layout.avatarCenterDelta).toBeLessThanOrEqual(12);
+  expect(layout.avatarTransform).toContain('matrix');
   expect(layout.statHeight).toBeLessThanOrEqual(36);
   await expectNoPageErrors(errors);
 });
@@ -604,6 +610,7 @@ test('player profile transfer panel stays inside the sheet on narrow screens', a
     const profile = await import('/js/playerProfile.js');
     await profile.openPlayerProfile('PF_OTHER');
   });
+  await expect(page.locator('#playerProfileTransferPanel')).toBeHidden();
   await page.locator('#btnPlayerProfileTransfer').click();
   await expect(page.locator('#playerProfileTransferPanel')).toBeVisible();
 

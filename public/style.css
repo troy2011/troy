@@ -19404,7 +19404,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal #playerProfileAvatar.player-profile-avatar {
-    transform: translateY(5px) scale(1.58);
+    transform: translate(8px, 5px) scale(1.58);
     transform-origin: center center;
 }
 
@@ -19862,7 +19862,10 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #playerProfileModal .player-profile-actions {
-    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -19874,6 +19877,7 @@ body[data-sea-tone] .home-hero-card {
 #playerProfileModal .player-profile-action-btn,
 #playerProfileModal .player-profile-transfer-submit,
 #playerProfileModal .item-detail-close {
+    flex: 1 1 118px;
     border: 1px solid transparent;
     border-radius: 8px;
     border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 11px / 0 stretch;
@@ -19883,6 +19887,38 @@ body[data-sea-tone] .home-hero-card {
     color: #241205;
     text-shadow: 0 1px 0 rgba(255, 236, 177, 0.48);
     box-shadow: none;
+}
+
+#playerProfileModal .player-profile-action-btn-icon {
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    font-size: 18px;
+    line-height: 1;
+}
+
+#playerProfileModal .player-profile-action-btn-heart {
+    font-size: 23px;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+#playerProfileModal .player-profile-action-btn-heart.is-active {
+    color: #ffe4ec;
+    text-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.72),
+        0 0 12px rgba(255, 112, 156, 0.52);
+}
+
+#playerProfileModal #btnPlayerProfileCopyId {
+    flex: 0 1 98px;
+}
+
+#playerProfileModal #btnPlayerProfileBeauty {
+    flex: 1 1 132px;
 }
 
 #playerProfileModal .player-profile-action-btn.player-profile-action-btn-secondary,
@@ -19914,6 +19950,10 @@ body[data-sea-tone] .home-hero-card {
     background:
         linear-gradient(180deg, rgba(12, 15, 20, 0.74), rgba(3, 4, 6, 0.88)),
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+#playerProfileModal .player-profile-transfer-panel[hidden] {
+    display: none;
 }
 
 #playerProfileModal .player-profile-transfer-quick-row,
