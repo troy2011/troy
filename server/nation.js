@@ -78,6 +78,7 @@ const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
 const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
+const TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT = 5;
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
 const NATION_WAR_RECON_COST_PS = 200;
@@ -353,6 +354,36 @@ function getJapanDayKey(date = new Date()) {
     }
 }
 
+function normalizeTroyBusinessDayKey(value) {
+    const raw = String(value || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function getTroyBusinessDayRolloverHour() {
+    const raw = Number(process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST);
+    if (!Number.isFinite(raw)) return TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT;
+    return Math.min(23, Math.max(0, Math.floor(raw)));
+}
+
+function formatJstDateKeyFromLocalParts(date) {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function getTroyBusinessDayKey(date = new Date()) {
+    try {
+        const jstDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        if (jstDate.getHours() < getTroyBusinessDayRolloverHour()) {
+            jstDate.setDate(jstDate.getDate() - 1);
+        }
+        return formatJstDateKeyFromLocalParts(jstDate);
+    } catch {
+        return getJapanDayKey(date);
+    }
+}
+
 function normalizeLineUserIdList(value) {
     if (Array.isArray(value)) {
         return [...new Set(value.map((entry) => String(entry || '').trim()).filter(Boolean))];
@@ -381,22 +412,28 @@ function formatTroyCloseSummaryMessage(summary = {}) {
     const sales = summary.sales || {};
     const pending = summary.pending || {};
     const topItems = Array.isArray(pending.topItems) ? pending.topItems : [];
+    const settledTotal = Math.max(0, Math.floor(Number(sales.total) || 0));
+    const settledCount = Math.max(0, Math.floor(Number(sales.count) || 0));
+    const pendingTotal = Math.max(0, Math.floor(Number(pending.total) || 0));
+    const pendingCount = Math.max(0, Math.floor(Number(pending.count) || 0));
+    const recordedTotal = settledTotal + pendingTotal;
     const itemLines = topItems
         .slice(0, 6)
         .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
     const lines = [
         '【TROY CLOSE 売上まとめ】',
-        `日付: ${summary.dayKey || getJapanDayKey()}`,
+        `営業日: ${summary.dayKey || getTroyBusinessDayKey()}`,
         `国: ${getNationLabel(summary.nation) || summary.nation || '-'}`,
-        `本日売上: ${formatTroyMoney(sales.total)} / ${Math.max(0, Math.floor(Number(sales.count) || 0))}件`,
-        `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`,
-        `未会計: ${Math.max(0, Math.floor(Number(pending.count) || 0))}件 / ${formatTroyMoney(pending.total)}`
+        `会計済売上: ${formatTroyMoney(settledTotal)} / ${settledCount}伝票`,
+        `未会計伝票: ${pendingCount}件 / ${formatTroyMoney(pendingTotal)}`,
+        `記録合計: ${formatTroyMoney(recordedTotal)}`,
+        `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`
     ];
     if (itemLines.length) {
         lines.push('未会計内訳:');
         lines.push(...itemLines);
     }
-    if (pending.count > 0) {
+    if (pendingCount > 0) {
         lines.push('※未会計伝票はCLOSE処理でクリアされます。');
     }
     return lines.join('\n');
@@ -697,11 +734,12 @@ async function appendNationTreasuryRecentEntry(nation, firestore, admin, entry =
     });
 }
 
-async function addTroyDailySales(nation, amount, firestore, admin) {
+async function addTroyDailySales(nation, amount, firestore, admin, options = {}) {
     const mapping = getNationMappingByNation(nation);
     const value = Math.max(0, Math.floor(Number(amount) || 0));
     if (!mapping || !firestore || !admin || value <= 0) return null;
-    const dayKey = getJapanDayKey();
+    const dayKey = normalizeTroyBusinessDayKey(options.dayKey || options.businessDayKey)
+        || getTroyBusinessDayKey(options.date || new Date());
     const docRef = getNationGroupDoc(firestore, mapping.groupName);
     let nextTotal = value;
     let nextCount = 1;
@@ -727,7 +765,7 @@ async function incrementTroyDailyOrderCount(nation, playFabId, firestore, admin)
     const mapping = getNationMappingByNation(nation);
     const memberId = normalizePlayFabId(playFabId);
     if (!mapping || !memberId || !firestore || !admin) return 1;
-    const dayKey = getJapanDayKey();
+    const dayKey = getTroyBusinessDayKey();
     const docRef = getNationGroupDoc(firestore, mapping.groupName);
     let nextCount = 1;
     await firestore.runTransaction(async (tx) => {
@@ -753,7 +791,7 @@ async function decrementTroyDailyOrderCount(nation, playFabId, firestore, admin)
     const mapping = getNationMappingByNation(nation);
     const memberId = normalizePlayFabId(playFabId);
     if (!mapping || !memberId || !firestore || !admin) return null;
-    const dayKey = getJapanDayKey();
+    const dayKey = getTroyBusinessDayKey();
     const docRef = getNationGroupDoc(firestore, mapping.groupName);
     let nextCount = 0;
     await firestore.runTransaction(async (tx) => {
@@ -776,8 +814,9 @@ async function decrementTroyDailyOrderCount(nation, playFabId, firestore, admin)
     return nextCount;
 }
 
-function buildTroyTodaySalesSnapshot(groupData = {}) {
-    const todayDayKey = getJapanDayKey();
+function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
+    const todayDayKey = normalizeTroyBusinessDayKey(options.dayKey || options.businessDayKey)
+        || getTroyBusinessDayKey(options.date || new Date());
     const storedDayKey = String(groupData?.troyTodaySalesDayKey || '').trim();
     if (storedDayKey === todayDayKey) {
         return {
@@ -790,7 +829,7 @@ function buildTroyTodaySalesSnapshot(groupData = {}) {
     const troyEntries = fallbackEntries
         .map((entry) => buildTreasuryRecentEntry(entry))
         .filter((entry) => entry.direction === 'in' && ['troy_settlement', 'troy_order'].includes(entry.source))
-        .filter((entry) => getJapanDayKey(new Date(entry.timestampMs || 0)) === todayDayKey);
+        .filter((entry) => getTroyBusinessDayKey(new Date(entry.timestampMs || 0)) === todayDayKey);
     return {
         dayKey: todayDayKey,
         total: troyEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
@@ -2067,8 +2106,17 @@ function initializeNationRoutes(app, deps) {
 
     async function buildTroyCloseSummary(context = {}) {
         const roomRef = getTroyRoomDoc(firestore);
-        const groupRef = context.mapping?.groupName
-            ? getNationGroupDoc(firestore, context.mapping.groupName)
+        const roomSnap = await roomRef.get();
+        const roomData = context.roomData || (roomSnap.exists ? (roomSnap.data() || {}) : {});
+        const roomNation = String(roomData?.nation || '').trim().toLowerCase();
+        const nation = getNationMappingByNation(roomNation)
+            ? roomNation
+            : (getNationMappingByNation(context.nation) ? context.nation : '');
+        const mapping = getNationMappingByNation(nation) || context.mapping || null;
+        const businessDayKey = normalizeTroyBusinessDayKey(context.businessDayKey || roomData?.troyBusinessDayKey)
+            || getTroyBusinessDayKey();
+        const groupRef = mapping?.groupName
+            ? getNationGroupDoc(firestore, mapping.groupName)
             : null;
         const reads = [
             roomRef.collection('members').limit(100).get(),
@@ -2088,10 +2136,10 @@ function initializeNationRoutes(app, deps) {
             });
         });
         const topItems = [...itemMap.values()].sort((a, b) => b.total - a.total || b.quantity - a.quantity);
-        const sales = buildTroyTodaySalesSnapshot(groupSnap?.data?.() || {});
+        const sales = buildTroyTodaySalesSnapshot(groupSnap?.data?.() || {}, { dayKey: businessDayKey });
         return {
-            dayKey: sales.dayKey || getJapanDayKey(),
-            nation: context.nation || '',
+            dayKey: sales.dayKey || businessDayKey,
+            nation,
             sales,
             memberCount: Math.max(0, Number(membersSnap?.size) || 0),
             pending: {
@@ -2117,16 +2165,38 @@ function initializeNationRoutes(app, deps) {
 
     async function setGlobalTroyOpenState(context, nextOpen) {
         const roomRef = getTroyRoomDoc(firestore);
+        const currentSnap = await roomRef.get();
+        const currentData = currentSnap.exists ? (currentSnap.data() || {}) : {};
+        const currentNation = String(currentData?.nation || '').trim().toLowerCase();
+        const activeNation = nextOpen
+            ? context.nation
+            : (getNationMappingByNation(currentNation) ? currentNation : context.nation);
+        const activeMapping = getNationMappingByNation(activeNation) || context.mapping || null;
+        const businessDayKey = nextOpen
+            ? getTroyBusinessDayKey()
+            : (normalizeTroyBusinessDayKey(currentData?.troyBusinessDayKey) || getTroyBusinessDayKey());
         const update = {
             isOpen: !!nextOpen,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedBy: context?.kingId || null
         };
-        if (nextOpen) update.nation = context.nation;
+        if (nextOpen) {
+            update.nation = activeNation;
+            update.troyBusinessDayKey = businessDayKey;
+            update.openedAt = admin.firestore.FieldValue.serverTimestamp();
+        } else {
+            update.closedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
         await roomRef.set(update, { merge: true });
         if (!nextOpen) {
             try {
-                await notifyTroyCloseSummary(context);
+                await notifyTroyCloseSummary({
+                    ...context,
+                    nation: activeNation,
+                    mapping: activeMapping,
+                    businessDayKey,
+                    roomData: currentData
+                });
             } catch (summaryError) {
                 console.warn('[troy-close-summary] Failed to notify:', summaryError?.message || summaryError);
             }
@@ -2137,14 +2207,15 @@ function initializeNationRoutes(app, deps) {
             ? { type: 'flare', label: 'TROY OPEN' }
             : { type: 'splash', label: 'TROY CLOSE' }
         );
-        return { success: true, isOpen: !!nextOpen, nation: context.nation };
+        return { success: true, isOpen: !!nextOpen, nation: activeNation, troyBusinessDayKey: businessDayKey };
     }
 
     async function resolveTroyOpenStateContext(req, nextOpen) {
         const currentSnap = await getTroyRoomDoc(firestore).get();
         const currentNation = String(currentSnap.data()?.nation || '').trim().toLowerCase();
         const requestedNation = String(req.body?.troyNation || req.body?.entryNation || '').trim().toLowerCase();
-        let nation = requestedNation && getNationMappingByNation(requestedNation) ? requestedNation : null;
+        let nation = !nextOpen && getNationMappingByNation(currentNation) ? currentNation : null;
+        if (!nation) nation = requestedNation && getNationMappingByNation(requestedNation) ? requestedNation : null;
         if (!nation && !nextOpen) nation = await findOpenTroyNation(firestore);
         if (!nation) nation = currentNation || TROY_ENTRY_DEFAULT_NATION || 'fire';
         const mapping = getNationMappingByNation(nation);
@@ -2296,10 +2367,11 @@ function initializeNationRoutes(app, deps) {
                 const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
                 const mapping = getNationMappingByNation(nation);
-                if (groupId) {
+                let groupData = {};
+                if (groupId && mapping) {
                     const treasuryPs = await getGroupTreasuryBalance(groupId, nationDeps);
                     const groupSnap = await getNationGroupDoc(firestore, mapping.groupName).get();
-                    const groupData = groupSnap.data() || {};
+                    groupData = groupSnap.data() || {};
                     const treasuryOverview = buildTreasuryOverview(groupSnap.data()?.treasuryRecentEntries || []);
                     const cashbackInfo = await getNationTreasuryCashbackInfo(nation, firestore, nationDeps);
                     payload.treasuryPs = treasuryPs;
@@ -2308,11 +2380,13 @@ function initializeNationRoutes(app, deps) {
                     payload.troyCashbackRatePercent = cashbackInfo.ratePercent;
                     payload.treasuryRecentEntries = treasuryOverview.recentEntries;
                     payload.treasurySummary = treasuryOverview.summary;
-                    payload.troyTodaySales = buildTroyTodaySalesSnapshot(groupData);
                 }
                 if (mapping) {
                     const roomSnap = await getTroyRoomDoc(firestore, mapping.groupName).get();
                     const roomData = roomSnap.data() || {};
+                    payload.troyTodaySales = buildTroyTodaySalesSnapshot(groupData || {}, {
+                        dayKey: normalizeTroyBusinessDayKey(roomData.troyBusinessDayKey)
+                    });
                     payload.troyOpen = !!roomData.isOpen;
                     payload.menuDisabled = Array.isArray(roomData.menuDisabled) ? roomData.menuDisabled : [];
                     payload.menuSpecials = Array.isArray(roomData.menuSpecials) ? roomData.menuSpecials : [];
@@ -3962,16 +4036,16 @@ function initializeNationRoutes(app, deps) {
 
     async function resolveOpenTroyOrdersContext(requestedNationRaw) {
         const requestedNation = String(requestedNationRaw || '').trim().toLowerCase();
-        const nation = requestedNation && getNationMappingByNation(requestedNation)
-            ? requestedNation
-            : await findOpenTroyNation(firestore);
-        if (!nation) return null;
-        const mapping = getNationMappingByNation(nation);
-        if (!mapping) return null;
-        const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
+        const roomRef = getTroyRoomDoc(firestore);
         const roomSnap = await roomRef.get();
         const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
         if (!roomSnap.exists || !roomData.isOpen) return null;
+        const roomNation = String(roomData.nation || '').trim().toLowerCase();
+        const nation = getNationMappingByNation(roomNation)
+            ? roomNation
+            : (requestedNation && getNationMappingByNation(requestedNation) ? requestedNation : TROY_ENTRY_DEFAULT_NATION);
+        const mapping = getNationMappingByNation(nation);
+        if (!mapping) return null;
         return { nation, mapping, roomRef, roomData };
     }
 
@@ -3998,7 +4072,9 @@ function initializeNationRoutes(app, deps) {
         return {
             troyOpen: true,
             nation: context.nation,
-            troyTodaySales: buildTroyTodaySalesSnapshot(groupData),
+            troyTodaySales: buildTroyTodaySalesSnapshot(groupData, {
+                dayKey: normalizeTroyBusinessDayKey(context.roomData?.troyBusinessDayKey)
+            }),
             troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
             troyMembers: buildTroyMemberPayload(membersSnap.docs),
             troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
@@ -4257,7 +4333,9 @@ function initializeNationRoutes(app, deps) {
 
         let troyTodaySales = null;
         try {
-            troyTodaySales = await addTroyDailySales(context.nation, checkoutPayload.total, firestore, admin);
+            troyTodaySales = await addTroyDailySales(context.nation, checkoutPayload.total, firestore, admin, {
+                dayKey: normalizeTroyBusinessDayKey(context.roomData?.troyBusinessDayKey)
+            });
         } catch (salesError) {
             console.warn(`[${logPrefix}] Daily sales update failed:`, salesError?.message || salesError);
         }
@@ -4521,7 +4599,9 @@ function initializeNationRoutes(app, deps) {
                     send({
                         troyOpen: true,
                         nation: context.nation,
-                        troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}),
+                        troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}, {
+                            dayKey: normalizeTroyBusinessDayKey(roomData.troyBusinessDayKey)
+                        }),
                         troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs),
                         troyMembers: buildTroyMemberPayload(membersSnap.docs),
                         troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
@@ -4896,6 +4976,8 @@ module.exports = {
     getPlayerEntity,
     normalizeLineUserIdList,
     getConfiguredTroyCloseSummaryLineUserIds,
+    getTroyBusinessDayKey,
+    buildTroyTodaySalesSnapshot,
     formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };

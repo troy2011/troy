@@ -2,6 +2,8 @@ const { test, expect } = require('@playwright/test');
 const {
   normalizeLineUserIdList,
   getConfiguredTroyCloseSummaryLineUserIds,
+  getTroyBusinessDayKey,
+  buildTroyTodaySalesSnapshot,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 
@@ -25,12 +27,39 @@ test('formats TROY close summary LINE message with daily sales and pending check
   });
 
   expect(message).toContain('【TROY CLOSE 売上まとめ】');
-  expect(message).toContain('日付: 2026-06-05');
-  expect(message).toContain('本日売上: ¥8,600 / 3件');
+  expect(message).toContain('営業日: 2026-06-05');
+  expect(message).toContain('会計済売上: ¥8,600 / 3伝票');
   expect(message).toContain('入店中: 2名');
-  expect(message).toContain('未会計: 1件 / ¥1,600');
+  expect(message).toContain('未会計伝票: 1件 / ¥1,600');
+  expect(message).toContain('記録合計: ¥10,200');
   expect(message).toContain('- 入店チャージ x1 / ¥500');
   expect(message).toContain('※未会計伝票はCLOSE処理でクリアされます。');
+});
+
+test('keeps after-midnight TROY close sales on the same business day', () => {
+  const previousRollover = process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST;
+  try {
+    process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST = '5';
+
+    const beforeMidnightJst = new Date('2026-06-05T14:30:00.000Z');
+    const afterMidnightJst = new Date('2026-06-05T16:30:00.000Z');
+    const afterRolloverJst = new Date('2026-06-05T20:30:00.000Z');
+
+    expect(getTroyBusinessDayKey(beforeMidnightJst)).toBe('2026-06-05');
+    expect(getTroyBusinessDayKey(afterMidnightJst)).toBe('2026-06-05');
+    expect(getTroyBusinessDayKey(afterRolloverJst)).toBe('2026-06-06');
+
+    const snapshot = buildTroyTodaySalesSnapshot({
+      troyTodaySalesDayKey: '2026-06-05',
+      troyTodaySalesTotal: 8600,
+      troyTodaySalesCount: 3
+    }, { date: afterMidnightJst });
+
+    expect(snapshot).toEqual({ dayKey: '2026-06-05', total: 8600, count: 3 });
+  } finally {
+    if (previousRollover === undefined) delete process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST;
+    else process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST = previousRollover;
+  }
 });
 
 test('resolves TROY close summary LINE IDs from game master environment keys', () => {
