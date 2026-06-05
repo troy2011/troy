@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const {
   normalizeLineUserIdList,
-  getTroyCloseSummaryLineUserIdsFromKingMap,
+  getConfiguredTroyCloseSummaryLineUserIds,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 
@@ -33,18 +33,26 @@ test('formats TROY close summary LINE message with daily sales and pending check
   expect(message).toContain('※未会計伝票はCLOSE処理でクリアされます。');
 });
 
-test('resolves TROY close summary LINE IDs from existing NationKingLineUserIds title data', () => {
-  const lineUserIds = getTroyCloseSummaryLineUserIdsFromKingMap(
-    JSON.stringify({
-      nation_fire_island: 'Ufire',
-      fire: 'UfireNation',
-      default: 'Udefault'
-    }),
-    {
-      nation: 'fire',
-      mapping: { groupName: 'nation_fire_island' }
-    }
-  );
+test('resolves TROY close summary LINE IDs from game master environment keys', () => {
+  const previousTroy = process.env.TROY_GAME_MASTER_LINE_USER_IDS;
+  const previousQuest = process.env.QUEST_APPROVER_ADMIN_LINE_IDS;
+  const previousGameMaster = process.env.GAME_MASTER_LINE_USER_IDS;
+  const previousGameMasterSingle = process.env.GAME_MASTER_LINE_USER_ID;
+  try {
+    delete process.env.TROY_GAME_MASTER_LINE_USER_IDS;
+    delete process.env.GAME_MASTER_LINE_USER_IDS;
+    delete process.env.GAME_MASTER_LINE_USER_ID;
+    process.env.QUEST_APPROVER_ADMIN_LINE_IDS = 'Ugm1, Ugm2 Ugm1';
 
-  expect(lineUserIds).toEqual(['Ufire', 'UfireNation', 'Udefault']);
+    expect(getConfiguredTroyCloseSummaryLineUserIds()).toEqual(['Ugm1', 'Ugm2']);
+  } finally {
+    if (previousTroy === undefined) delete process.env.TROY_GAME_MASTER_LINE_USER_IDS;
+    else process.env.TROY_GAME_MASTER_LINE_USER_IDS = previousTroy;
+    if (previousQuest === undefined) delete process.env.QUEST_APPROVER_ADMIN_LINE_IDS;
+    else process.env.QUEST_APPROVER_ADMIN_LINE_IDS = previousQuest;
+    if (previousGameMaster === undefined) delete process.env.GAME_MASTER_LINE_USER_IDS;
+    else process.env.GAME_MASTER_LINE_USER_IDS = previousGameMaster;
+    if (previousGameMasterSingle === undefined) delete process.env.GAME_MASTER_LINE_USER_ID;
+    else process.env.GAME_MASTER_LINE_USER_ID = previousGameMasterSingle;
+  }
 });

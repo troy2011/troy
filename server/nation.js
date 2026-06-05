@@ -77,8 +77,7 @@ const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION |
 const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
 const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
 const TROY_GLOBAL_ROOM_ID = 'global';
-const NATION_KING_LINE_USER_IDS_KEY = 'NationKingLineUserIds';
-const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
+const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
 const NATION_WAR_RECON_COST_PS = 200;
@@ -372,33 +371,6 @@ function getConfiguredTroyCloseSummaryLineUserIds(extraValue) {
     const fromExtra = normalizeLineUserIdList(extraValue);
     const fromEnv = TROY_CLOSE_SUMMARY_LINE_ENV_KEYS.flatMap((key) => normalizeLineUserIdList(process.env[key]));
     return [...new Set([...fromExtra, ...fromEnv])];
-}
-
-function parseLineUserIdMap(value) {
-    const source = typeof value === 'string' ? value.trim() : value;
-    if (!source) return {};
-    if (typeof source === 'object' && !Array.isArray(source)) return source;
-    try {
-        const parsed = JSON.parse(source);
-        return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
-    } catch (_) {
-        return {};
-    }
-}
-
-function getTroyCloseSummaryLineUserIdsFromKingMap(value, context = {}) {
-    const map = parseLineUserIdMap(value);
-    const nation = String(context.nation || '').trim().toLowerCase();
-    const groupName = String(context.mapping?.groupName || getNationMappingByNation(nation)?.groupName || '').trim();
-    const candidateKeys = [
-        groupName,
-        nation,
-        'troy',
-        'gameMaster',
-        'game_master',
-        'default'
-    ].filter(Boolean);
-    return normalizeLineUserIdList(candidateKeys.flatMap((key) => normalizeLineUserIdList(map[key])));
 }
 
 function formatTroyMoney(value) {
@@ -2124,26 +2096,9 @@ function initializeNationRoutes(app, deps) {
 
     async function notifyTroyCloseSummary(context = {}) {
         if (!lineClient || typeof lineClient.pushMessage !== 'function') return null;
-        let titleDataLineUserIds = [];
-        if (promisifyPlayFab && PlayFabAdmin?.GetTitleData) {
-            try {
-                const titleData = await promisifyPlayFab(PlayFabAdmin.GetTitleData, { Keys: [NATION_KING_LINE_USER_IDS_KEY] });
-                titleDataLineUserIds = getTroyCloseSummaryLineUserIdsFromKingMap(
-                    titleData?.Data?.[NATION_KING_LINE_USER_IDS_KEY],
-                    context
-                );
-            } catch (lineUserIdError) {
-                console.warn('[troy-close-summary] Failed to load NationKingLineUserIds:', lineUserIdError?.errorMessage || lineUserIdError?.message || lineUserIdError);
-            }
-        }
-        const lineUserIds = [
-            ...new Set([
-                ...titleDataLineUserIds,
-                ...getConfiguredTroyCloseSummaryLineUserIds(deps.troyGameMasterLineUserIds)
-            ])
-        ];
+        const lineUserIds = getConfiguredTroyCloseSummaryLineUserIds(deps.troyGameMasterLineUserIds);
         if (!lineUserIds.length) {
-            console.warn('[troy-close-summary] NationKingLineUserIds or GAME_MASTER_LINE_USER_ID is not configured.');
+            console.warn('[troy-close-summary] TROY_GAME_MASTER_LINE_USER_IDS or QUEST_APPROVER_ADMIN_LINE_IDS is not configured.');
             return null;
         }
         const summary = await buildTroyCloseSummary(context);
@@ -4948,7 +4903,7 @@ module.exports = {
     setMapOccupationNation,
     getPlayerEntity,
     normalizeLineUserIdList,
-    getTroyCloseSummaryLineUserIdsFromKingMap,
+    getConfiguredTroyCloseSummaryLineUserIds,
     formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };
