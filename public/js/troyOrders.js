@@ -73,7 +73,8 @@ const STAFF_MENU = [
         { name: 'お茶', price: 600 },
         { name: 'ウーロン', price: 600 },
         { name: 'ソーダ 1本', price: 300 },
-        { name: '水 1本', price: 300 }
+        { name: '水 1本', price: 300 },
+        { name: '氷', price: 500 }
     ]},
     { category: '酒場のフード', items: [
         { name: '漬けチーズ', price: 500 },
@@ -309,7 +310,7 @@ function getOrderSoundKey(item = {}) {
     if (orderId.startsWith('troy-entry:') || /入店|チャージ/.test(name)) return 'entry';
     if (price >= 2800 || /ボトル|キンミヤ|ゴールド購入|5000G|3000G|2000G/.test(name)) return 'premium';
     if (/漬け|うずら|ナゲット|韓国のり|梅水晶|ポテ|チョコ|ナッツ|フライ|ピザ|フランク|ワッフル|チュロス|ラーメン/.test(name)) return 'food';
-    if (/ラム|ウォッカ|テキーラ|ジン|リキュール|焼酎|ビール|ハイボール|カシス|ファジー|スプモーニ|サワー|ウイスキー|ワイン|コーラ|ジンジャー|オレンジ|グレープフルーツ|ウーロン|ノンアル|水割り|ソーダ|お茶|レモン|トニック|ブルドッグ|モスコミュール/.test(name)) return 'drink';
+    if (/ラム|ウォッカ|テキーラ|ジン|リキュール|焼酎|ビール|ハイボール|カシス|ファジー|スプモーニ|サワー|ウイスキー|ワイン|コーラ|ジンジャー|オレンジ|グレープフルーツ|ウーロン|ノンアル|水割り|ソーダ|お茶|氷|レモン|トニック|ブルドッグ|モスコミュール/.test(name)) return 'drink';
     return 'default';
 }
 
