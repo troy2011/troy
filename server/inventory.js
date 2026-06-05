@@ -17,6 +17,12 @@ const {
     getPlayerContributionTotal
 } = require('./playerLevel');
 const {
+    calculateStatAllocationState,
+    normalizeStatAllocationDeltas,
+    getStatAllocationDeltaTotal,
+    applyStatAllocationDeltas
+} = require('./statAllocation');
+const {
     TAROT_MAJOR_SLOT,
     TAROT_EQUIPMENT_SLOT_TO_KEY,
     isTarotEquipmentSlot,
@@ -883,6 +889,7 @@ function initializeInventoryRoutes(app, deps) {
             const readOnlyData = readOnlyResult?.Data || {};
             const stats = buildStatsMapFromStatistics(statsResult?.Statistics || []);
             Object.assign(stats, applyDerivedPlayerLevelToStats(stats).stats);
+            const isOwnProfile = targetId === String(playFabId || '').trim();
             const equipment = {};
             const assignEquipmentValue = (slotName, rawValue) => {
                 const parsed = parseStoredEquipmentValue(rawValue);
@@ -912,6 +919,7 @@ function initializeInventoryRoutes(app, deps) {
                     nation: String(readOnlyData?.Nation?.Value || '').trim().toLowerCase() || null,
                     level: avatarBase.level,
                     stats: publicStats,
+                    statAllocation: isOwnProfile ? calculateStatAllocationState(stats) : null,
                     avatarBase,
                     playerShip,
                     equipment,
@@ -1026,10 +1034,67 @@ function initializeInventoryRoutes(app, deps) {
                 console.warn('[ステータス取得] 王情報の取得に失敗:', rankError?.errorMessage || rankError?.message || rankError);
             }
             console.log('[ステータス取得] 完了');
-            res.json({ stats: stats, dailyNationSpecialtyReward, crewRankInfo, isKing, nation });
+            res.json({
+                stats: stats,
+                statAllocation: calculateStatAllocationState(stats),
+                dailyNationSpecialtyReward,
+                crewRankInfo,
+                isKing,
+                nation
+            });
         } catch (error) {
             console.error('[ステータス取得] エラー', error.errorMessage);
             res.status(500).json({ error: 'ステータス取得に失敗しました。', details: error.errorMessage });
+        }
+    });
+
+    app.post('/api/allocate-stat-points', async (req, res) => {
+        let { playFabId, allocations } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const currentStats = await getPlayerStatsMap(playFabId);
+            const deltas = normalizeStatAllocationDeltas(allocations || {});
+            const requestedTotal = getStatAllocationDeltaTotal(deltas);
+            if (requestedTotal <= 0) {
+                return res.status(400).json({ error: '割り振るポイントを選択してください。' });
+            }
+
+            const currentAllocation = calculateStatAllocationState(currentStats);
+            if (requestedTotal > currentAllocation.availablePoints) {
+                return res.status(400).json({
+                    error: '未割り振りポイントが不足しています。',
+                    requestedPoints: requestedTotal,
+                    availablePoints: currentAllocation.availablePoints,
+                    statAllocation: currentAllocation
+                });
+            }
+
+            const updated = applyStatAllocationDeltas(currentStats, deltas);
+            if (!updated.statistics.length) {
+                return res.status(400).json({ error: '割り振るポイントを選択してください。' });
+            }
+
+            await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                PlayFabId: playFabId,
+                Statistics: updated.statistics
+            });
+
+            const nextAllocation = calculateStatAllocationState(updated.stats);
+            return res.json({
+                success: true,
+                stats: updated.stats,
+                statAllocation: nextAllocation,
+                allocatedPoints: requestedTotal
+            });
+        } catch (error) {
+            console.error('[allocate-stat-points] Error:', error?.errorMessage || error?.message || error);
+            return res.status(500).json({
+                error: 'ステータスポイントの割り振りに失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 

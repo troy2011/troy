@@ -19956,6 +19956,135 @@ body[data-sea-tone] .home-hero-card {
     display: none;
 }
 
+#playerProfileModal .player-profile-stat-allocation {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-bottom: 12px;
+    padding: 11px 12px;
+    border: 13px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/panels/panel-sheet-frame.png") 28 34 fill / 13px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(14, 22, 31, 0.8), rgba(3, 7, 12, 0.9)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+#playerProfileModal .player-profile-stat-allocation[hidden] {
+    display: none;
+}
+
+#playerProfileModal .player-profile-stat-alloc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 3px;
+    color: #fff2c6;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-stat-alloc-head b {
+    color: #ffe48c;
+    font-size: 18px;
+    line-height: 1;
+}
+
+#playerProfileModal .player-profile-stat-alloc-sub {
+    margin-bottom: 9px;
+    color: #a9d7f4;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+#playerProfileModal .player-profile-stat-alloc-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+}
+
+#playerProfileModal .player-profile-stat-alloc-row {
+    min-width: 0;
+    min-height: 38px;
+    display: grid;
+    grid-template-columns: 24px minmax(38px, 1fr) 36px 64px;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 5px;
+    border: 1px solid rgba(158, 197, 224, 0.2);
+    border-radius: 7px;
+    background: rgba(2, 8, 14, 0.44);
+}
+
+#playerProfileModal .player-profile-stat-alloc-label {
+    color: #a9d7f4;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+#playerProfileModal .player-profile-stat-alloc-value {
+    color: #fff2c6;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+#playerProfileModal .player-profile-stat-alloc-pending {
+    min-width: 0;
+    color: #7dd3fc;
+    font-size: 11px;
+    font-weight: 900;
+    text-align: right;
+}
+
+#playerProfileModal .player-profile-stat-alloc-controls {
+    display: grid;
+    grid-template-columns: repeat(2, 27px);
+    gap: 4px;
+}
+
+#playerProfileModal .player-profile-stat-alloc-controls button {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    border-image: url("./assets/ui/buttons/button-blue-large.png") 24 fill / 9px / 0 stretch;
+    background: linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+#playerProfileModal .player-profile-stat-alloc-controls button:disabled {
+    opacity: 0.45;
+}
+
+#playerProfileModal .player-profile-stat-alloc-save {
+    width: 100%;
+    min-height: 40px;
+    margin-top: 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 11px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.28), rgba(109, 58, 11, 0.2)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    color: #241205;
+    font-size: 13px;
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 236, 177, 0.48);
+}
+
+#playerProfileModal .player-profile-stat-alloc-save:disabled {
+    opacity: 0.5;
+}
+
 #playerProfileModal .player-profile-transfer-quick-row,
 #playerProfileModal .player-profile-transfer-actions {
     width: 100%;

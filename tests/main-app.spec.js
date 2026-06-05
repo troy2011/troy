@@ -526,6 +526,7 @@ test('player profile shows public stats on the left with avatar on the right', a
   await expect(page.locator('#btnPlayerProfileFavorite')).toHaveAttribute('aria-label', 'お気に入りに追加');
   await expect(page.locator('#btnPlayerProfileBeauty')).toBeHidden();
   await expect(page.locator('#playerProfileTransferPanel')).toBeHidden();
+  await expect(page.locator('#playerProfileStatAllocation')).toBeHidden();
   await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['12', '11', '10', '9']);
   const layout = await page.evaluate(() => {
     const stats = document.getElementById('playerProfileStats');
@@ -567,6 +568,128 @@ test('player profile shows public stats on the left with avatar on the right', a
   expect(layout.avatarCenterDelta).toBeLessThanOrEqual(12);
   expect(layout.avatarTransform).toContain('matrix');
   expect(layout.statHeight).toBeLessThanOrEqual(36);
+  await expectNoPageErrors(errors);
+});
+
+test('own player profile allocates level-up stat points', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  let allocationRequest = null;
+  const profileStats = {
+    Level: 3,
+    ちから: 4,
+    みのまもり: 6,
+    すばやさ: 8,
+    かしこさ: 9
+  };
+  const initialAllocation = {
+    pointsPerLevel: 5,
+    level: 3,
+    totalEarned: 10,
+    totalAllocated: 5,
+    availablePoints: 5,
+    stats: {
+      str: { id: 'str', stat: 'ちから', label: '力', value: 4, allocated: 2 },
+      def: { id: 'def', stat: 'みのまもり', label: '守', value: 6, allocated: 1 },
+      agi: { id: 'agi', stat: 'すばやさ', label: '速', value: 8, allocated: 1 },
+      int: { id: 'int', stat: 'かしこさ', label: '知', value: 9, allocated: 1 }
+    }
+  };
+  await page.route('**/api/get-player-public-profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        profile: {
+          playFabId: 'PF_PLAYWRIGHT',
+          displayName: 'Playwright Tester',
+          nation: 'fire',
+          level: 3,
+          stats: profileStats,
+          statAllocation: initialAllocation,
+          avatarBase: {
+            Race: 'human',
+            Nation: 'fire',
+            AvatarColor: 'red',
+            level: 3
+          },
+          playerShip: {
+            form: 'boat',
+            stage: 1
+          },
+          equipment: {},
+          itemSource: {},
+          equipmentList: []
+        }
+      })
+    });
+  });
+  await page.route('**/api/allocate-stat-points', async (route) => {
+    allocationRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        allocatedPoints: 3,
+        stats: {
+          ...profileStats,
+          ちから: 6,
+          みのまもり: 7,
+          StatPointSpent_Str: 4,
+          StatPointSpent_Def: 2
+        },
+        statAllocation: {
+          ...initialAllocation,
+          totalAllocated: 8,
+          availablePoints: 2,
+          stats: {
+            ...initialAllocation.stats,
+            str: { ...initialAllocation.stats.str, value: 6, allocated: 4 },
+            def: { ...initialAllocation.stats.def, value: 7, allocated: 2 }
+          }
+        }
+      })
+    });
+  });
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: {
+          ...profileStats,
+          ちから: 6,
+          みのまもり: 7
+        }
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const profile = await import('/js/playerProfile.js');
+    await profile.openPlayerProfile('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#playerProfileModal')).toBeVisible();
+  await expect(page.locator('#playerProfileStatAllocation')).toBeVisible();
+  await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('5pt');
+  await page.locator('[data-profile-stat-alloc="str"][data-profile-stat-delta="1"]').click();
+  await page.locator('[data-profile-stat-alloc="def"][data-profile-stat-delta="1"]').click();
+  await page.locator('[data-profile-stat-alloc="str"][data-profile-stat-delta="1"]').click();
+  await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('2pt');
+  await expect(page.locator('.player-profile-stat-alloc-row').nth(0).locator('.player-profile-stat-alloc-value')).toHaveText('6');
+  await expect(page.locator('.player-profile-stat-alloc-row').nth(1).locator('.player-profile-stat-alloc-value')).toHaveText('7');
+  await page.locator('[data-profile-stat-alloc-save]').click();
+
+  await expect.poll(() => allocationRequest?.allocations?.str || 0).toBe(2);
+  expect(allocationRequest).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    allocations: { str: 2, def: 1 }
+  });
+  await expect(page.locator('#playerProfileStats .player-profile-stat strong')).toHaveText(['6', '7', '8', '9']);
+  await expect(page.locator('#playerProfileStatAllocation .player-profile-stat-alloc-head b')).toHaveText('2pt');
   await expectNoPageErrors(errors);
 });
 
@@ -704,6 +827,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '#rankingToggleButtons',
       '#tabContentInventory .inventory-section',
       '#avatarStyleModal .avatar-style-panel',
+      '#playerProfileStatAllocation',
       '#tabContentInventory .equip-slot',
       '#tabContentEvents .event-list-panel',
       '#tabContentEvents .event-card',

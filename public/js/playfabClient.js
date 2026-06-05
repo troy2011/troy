@@ -21,6 +21,10 @@ export function getPlayerStats(playFabId, options) {
     return callApiWithLoader('/api/get-stats', { playFabId }, options);
 }
 
+export function allocateStatPoints(playFabId, allocations, options) {
+    return callApiWithLoader('/api/allocate-stat-points', { playFabId, allocations }, options);
+}
+
 export function recoverHpResource(playFabId, options) {
     return callApiWithLoader('/api/recover-hp-resource', { playFabId }, options);
 }

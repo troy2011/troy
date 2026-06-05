@@ -1,15 +1,23 @@
 import { renderAvatar } from './avatar.js';
 import { getNationLabel } from './nationLabels.js';
-import { transferPoints, getPublicPlayerProfile } from './playfabClient.js';
+import { transferPoints, getPublicPlayerProfile, allocateStatPoints } from './playfabClient.js';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
 
 const FAVORITE_PLAYERS_STORAGE_PREFIX = 'favorite-players:';
 const MAX_FAVORITE_PLAYERS = 24;
+const PROFILE_ALLOCATABLE_STATS = Object.freeze([
+    { id: 'str', key: 'ちから', label: '力' },
+    { id: 'def', key: 'みのまもり', label: '守' },
+    { id: 'agi', key: 'すばやさ', label: '速' },
+    { id: 'int', key: 'かしこさ', label: '知' }
+]);
 
 let playerProfileInstalled = false;
 let activeProfileRequestToken = 0;
 let activeProfile = null;
+let pendingStatAllocation = {};
+let statAllocationSaveInFlight = false;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -38,6 +46,7 @@ function getPlayerProfileModalElements() {
         favoriteButton: document.getElementById('btnPlayerProfileFavorite'),
         beautyButton: document.getElementById('btnPlayerProfileBeauty'),
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
+        statAllocation: document.getElementById('playerProfileStatAllocation'),
         transferPanel: document.getElementById('playerProfileTransferPanel'),
         transferAmount: document.getElementById('playerProfileTransferAmount'),
         transferSubmit: document.getElementById('btnPlayerProfileTransferSubmit'),
@@ -406,6 +415,21 @@ function bindModalEvents() {
             transferAmount.value = String(Math.max(0, amount));
         });
     }
+    if (modal && !modal.dataset.profileStatAllocationBound) {
+        modal.dataset.profileStatAllocationBound = 'true';
+        modal.addEventListener('click', (event) => {
+            const saveButton = event.target?.closest?.('[data-profile-stat-alloc-save]');
+            if (saveButton) {
+                void savePendingStatAllocation();
+                return;
+            }
+            const button = event.target?.closest?.('[data-profile-stat-alloc]');
+            if (!button) return;
+            const statId = String(button.dataset.profileStatAlloc || '');
+            const delta = Number.parseInt(String(button.dataset.profileStatDelta || '0'), 10) || 0;
+            adjustPendingStatAllocation(statId, delta);
+        });
+    }
 }
 
 function renderEquipmentRows(rows = []) {
@@ -426,6 +450,130 @@ function renderEquipmentRows(rows = []) {
 function normalizeProfileStatValue(value) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+}
+
+function getProfileIsSelf() {
+    const myPlayFabId = getCurrentUserPlayFabId();
+    const targetPlayFabId = String(activeProfile?.playFabId || '').trim();
+    return !!(myPlayFabId && targetPlayFabId && myPlayFabId === targetPlayFabId);
+}
+
+function getPendingStatAllocationTotal() {
+    return Object.values(pendingStatAllocation || {}).reduce(
+        (sum, value) => sum + normalizeProfileStatValue(value),
+        0
+    );
+}
+
+function getPendingStatAllocationMap() {
+    return PROFILE_ALLOCATABLE_STATS.reduce((map, entry) => {
+        const value = normalizeProfileStatValue(pendingStatAllocation?.[entry.id]);
+        if (value > 0) map[entry.id] = value;
+        return map;
+    }, {});
+}
+
+function renderStatAllocationPanel() {
+    const { statAllocation: panel } = getPlayerProfileModalElements();
+    if (!panel) return;
+    const allocation = activeProfile?.statAllocation || null;
+    const isSelf = getProfileIsSelf();
+    if (!isSelf || !allocation) {
+        panel.hidden = true;
+        panel.innerHTML = '';
+        pendingStatAllocation = {};
+        return;
+    }
+
+    const availablePoints = normalizeProfileStatValue(allocation.availablePoints);
+    const pendingTotal = getPendingStatAllocationTotal();
+    const remainingPoints = Math.max(0, availablePoints - pendingTotal);
+    const stats = activeProfile?.stats || {};
+    const rows = PROFILE_ALLOCATABLE_STATS.map((entry) => {
+        const pending = normalizeProfileStatValue(pendingStatAllocation?.[entry.id]);
+        const currentValue = normalizeProfileStatValue(stats?.[entry.key]);
+        const nextValue = currentValue + pending;
+        const minusDisabled = statAllocationSaveInFlight || pending <= 0 ? ' disabled' : '';
+        const plusDisabled = statAllocationSaveInFlight || remainingPoints <= 0 ? ' disabled' : '';
+        return `
+            <div class="player-profile-stat-alloc-row">
+                <span class="player-profile-stat-alloc-label">${escapeHtml(entry.label)}</span>
+                <strong class="player-profile-stat-alloc-value">${nextValue}</strong>
+                <span class="player-profile-stat-alloc-pending">${pending > 0 ? `+${pending}` : ''}</span>
+                <div class="player-profile-stat-alloc-controls">
+                    <button type="button" data-profile-stat-alloc="${escapeHtml(entry.id)}" data-profile-stat-delta="-1"${minusDisabled}>-</button>
+                    <button type="button" data-profile-stat-alloc="${escapeHtml(entry.id)}" data-profile-stat-delta="1"${plusDisabled}>+</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    const saveDisabled = statAllocationSaveInFlight || pendingTotal <= 0 ? ' disabled' : '';
+    panel.hidden = false;
+    panel.innerHTML = `
+        <div class="player-profile-stat-alloc-head">
+            <span>ステータスポイント</span>
+            <b>${remainingPoints}pt</b>
+        </div>
+        <div class="player-profile-stat-alloc-sub">Lvアップごとに${normalizeProfileStatValue(allocation.pointsPerLevel || 5)}pt獲得</div>
+        <div class="player-profile-stat-alloc-list">${rows}</div>
+        <button type="button" class="player-profile-stat-alloc-save" data-profile-stat-alloc-save="true"${saveDisabled}>
+            ${statAllocationSaveInFlight ? '保存中...' : '割り振りを保存'}
+        </button>
+    `;
+}
+
+function adjustPendingStatAllocation(statId, delta) {
+    if (statAllocationSaveInFlight) return;
+    const target = PROFILE_ALLOCATABLE_STATS.find((entry) => entry.id === statId);
+    if (!target) return;
+    const allocation = activeProfile?.statAllocation || null;
+    if (!getProfileIsSelf() || !allocation) return;
+    const change = Math.trunc(Number(delta) || 0);
+    if (!change) return;
+    const availablePoints = normalizeProfileStatValue(allocation.availablePoints);
+    const pendingTotal = getPendingStatAllocationTotal();
+    const currentPending = normalizeProfileStatValue(pendingStatAllocation?.[statId]);
+    if (change > 0 && pendingTotal >= availablePoints) return;
+    if (change < 0 && currentPending <= 0) return;
+    pendingStatAllocation = {
+        ...pendingStatAllocation,
+        [statId]: Math.max(0, currentPending + change)
+    };
+    renderStatAllocationPanel();
+}
+
+async function savePendingStatAllocation() {
+    if (statAllocationSaveInFlight || !getProfileIsSelf()) return;
+    const allocations = getPendingStatAllocationMap();
+    const total = getPendingStatAllocationTotal();
+    if (total <= 0) return;
+    const playFabId = getCurrentUserPlayFabId();
+    if (!playFabId) return;
+    statAllocationSaveInFlight = true;
+    renderStatAllocationPanel();
+    try {
+        const data = await allocateStatPoints(playFabId, allocations, { throwOnError: true });
+        activeProfile = {
+            ...(activeProfile || {}),
+            stats: data?.stats || activeProfile?.stats || {},
+            statAllocation: data?.statAllocation || activeProfile?.statAllocation || null
+        };
+        pendingStatAllocation = {};
+        renderProfileStats(activeProfile.stats);
+        renderStatAllocationPanel();
+        showRpgMessage(`${Number(data?.allocatedPoints || total) || total}ptを割り振りました。`, 2200);
+        try {
+            const Player = await import('./player.js');
+            await Player.getPlayerStats(playFabId);
+        } catch (refreshError) {
+            console.warn('[playerProfile] Failed to refresh stats after allocation:', refreshError);
+        }
+    } catch (error) {
+        showRpgMessage(error?.message || 'ステータスの割り振りに失敗しました。', 2600);
+    } finally {
+        statAllocationSaveInFlight = false;
+        renderStatAllocationPanel();
+    }
 }
 
 function renderProfileStats(stats = {}) {
@@ -475,6 +623,8 @@ function renderProfile(profile = {}) {
         playFabId: String(profile.playFabId || '').trim(),
         displayName: String(profile.displayName || profile.playFabId || 'Player'),
         nation: String(profile.nation || '').trim().toLowerCase(),
+        stats: profile.stats || {},
+        statAllocation: profile.statAllocation || null,
         loaded: true
     };
     if (name) name.textContent = activeProfile.displayName;
@@ -487,7 +637,8 @@ function renderProfile(profile = {}) {
         const level = Math.max(1, Math.floor(Number(profile.level || profile.avatarBase?.level || 1) || 1));
         meta.textContent = `ID: ${activeProfile.playFabId || '-'} / Lv.${level}`;
     }
-    renderProfileStats(profile.stats || {});
+    renderProfileStats(activeProfile.stats);
+    renderStatAllocationPanel();
     renderEquipmentRows(Array.isArray(profile.equipmentList) ? profile.equipmentList : []);
     renderProfileShip(profile.playerShip || null);
     renderAvatar(
@@ -504,17 +655,24 @@ function renderProfile(profile = {}) {
 }
 
 function renderLoadingState(targetPlayFabId = '') {
-    const { name, nation, meta, stats, equipment } = getPlayerProfileModalElements();
+    const { name, nation, meta, stats, equipment, statAllocation } = getPlayerProfileModalElements();
+    pendingStatAllocation = {};
     activeProfile = {
         playFabId: String(targetPlayFabId || '').trim(),
         displayName: '',
         nation: '',
+        stats: {},
+        statAllocation: null,
         loaded: false
     };
     if (name) name.textContent = '読み込み中...';
     if (nation) nation.textContent = '';
     if (meta) meta.textContent = targetPlayFabId ? `ID: ${targetPlayFabId}` : '';
     if (stats) stats.innerHTML = '';
+    if (statAllocation) {
+        statAllocation.hidden = true;
+        statAllocation.innerHTML = '';
+    }
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
     }
@@ -523,9 +681,13 @@ function renderLoadingState(targetPlayFabId = '') {
 }
 
 function renderErrorState(message) {
-    const { nation, stats, equipment } = getPlayerProfileModalElements();
+    const { nation, stats, equipment, statAllocation } = getPlayerProfileModalElements();
     if (nation) nation.textContent = '';
     if (stats) stats.innerHTML = '';
+    if (statAllocation) {
+        statAllocation.hidden = true;
+        statAllocation.innerHTML = '';
+    }
     if (equipment) {
         equipment.innerHTML = `<div class="player-profile-empty">${escapeHtml(message || 'プレイヤー情報を取得できませんでした。')}</div>`;
     }
