@@ -13717,13 +13717,20 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .troy-orders-body {
     min-height: 100vh;
     margin: 0;
-    background: #0b1020;
-    color: #f8fafc;
+    background:
+        linear-gradient(180deg, rgba(10, 7, 4, 0.82), rgba(15, 9, 4, 0.95)),
+        radial-gradient(ellipse at 20% 0%, rgba(182, 130, 48, 0.26), transparent 38%),
+        repeating-linear-gradient(90deg, #1a0f07 0 44px, #0f0905 44px 88px);
+    color: #f8e8bd;
     overflow-x: hidden;
 }
 
+.troy-orders-body.is-troy-ticket-open {
+    overflow: hidden;
+}
+
 .troy-orders-shell {
-    width: min(1180px, calc(100vw - 32px));
+    width: min(1220px, calc(100vw - 32px));
     margin: 0 auto;
     padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 32px;
 }
@@ -13733,13 +13740,15 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     align-items: center;
     justify-content: space-between;
     gap: 18px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+    padding: 8px 2px;
 }
 
 .troy-orders-kicker {
     font-size: 12px;
     font-weight: 800;
-    color: #38bdf8;
+    color: #e1b35a;
+    letter-spacing: 0;
 }
 
 .troy-orders-header h1 {
@@ -13756,78 +13765,33 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 .troy-orders-auth-name {
     max-width: 220px;
-    color: #cbd5e1;
+    color: #c8b184;
     font-size: 13px;
     text-align: right;
 }
 
-.troy-orders-open-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.troy-orders-open-btn {
-    border: 0;
-    border-radius: 8px;
-    font-weight: 800;
-    font-size: 13px;
-    min-height: 38px;
-    padding: 0 16px;
-    cursor: pointer;
-}
-
-.troy-orders-open-btn.is-open {
-    background: #22c55e;
-    color: #fff;
-}
-
-.troy-orders-open-btn.is-close {
-    background: rgba(239, 68, 68, 0.85);
-    color: #fff;
-}
-
-.troy-orders-open-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.troy-orders-nation-select {
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 8px;
-    background: rgba(30, 41, 59, 0.9);
-    color: #e2e8f0;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 0 10px;
-    min-height: 38px;
-    cursor: pointer;
-}
-
-.troy-orders-refresh,
-.troy-orders-sound-toggle,
-.troy-orders-settle button {
-    border: 0;
-    border-radius: 8px;
-    background: #f59e0b;
-    color: #111827;
-    font-weight: 800;
-    cursor: pointer;
-}
-
 .troy-orders-refresh,
 .troy-orders-sound-toggle {
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #f3c46d, #b77321);
+    color: #261407;
+    font-weight: 900;
+    cursor: pointer;
     min-height: 42px;
     padding: 0 18px;
+    box-shadow: inset 0 1px 0 rgba(255, 246, 207, 0.5), 0 6px 14px rgba(0, 0, 0, 0.28);
 }
 
 .troy-orders-sound-toggle {
-    background: rgba(148, 163, 184, 0.18);
-    color: #e2e8f0;
+    background: rgba(28, 18, 9, 0.72);
+    color: #f0d7a0;
+    border: 1px solid rgba(226, 179, 90, 0.36);
 }
 
 .troy-orders-sound-toggle.is-enabled {
-    background: #22c55e;
-    color: #06210f;
+    background: linear-gradient(180deg, #71d58b, #248143);
+    color: #081b0d;
 }
 
 .troy-orders-summary {
@@ -13843,31 +13807,31 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 14px;
-    padding: 10px 12px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.72);
+    padding: 12px 14px;
+    border: 16px solid transparent;
+    border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 16px / 0 stretch;
+    color: #f8e8bd;
 }
 
 .troy-orders-toolbar label {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #94a3b8;
+    color: #d7bd82;
     font-size: 13px;
 }
 
 .troy-orders-toolbar select {
     min-height: 34px;
-    border: 1px solid rgba(148, 163, 184, 0.26);
+    border: 1px solid rgba(226, 179, 90, 0.42);
     border-radius: 7px;
-    background: #111827;
-    color: #f8fafc;
+    background: rgba(24, 14, 6, 0.82);
+    color: #f8e8bd;
     padding: 0 10px;
 }
 
 .troy-orders-serve-summary {
-    color: #fbbf24;
+    color: #ffd67b;
     font-size: 14px;
     font-weight: 800;
 }
@@ -13875,15 +13839,14 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .troy-orders-summary-item {
     min-height: 72px;
     padding: 13px 14px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.88);
+    border: 16px solid transparent;
+    border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 16px / 0 stretch;
 }
 
 .troy-orders-summary-item span {
     display: block;
     margin-bottom: 6px;
-    color: #94a3b8;
+    color: #d2b679;
     font-size: 12px;
 }
 
@@ -13892,20 +13855,20 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-summary-item .is-open {
-    color: #4ade80;
+    color: #8af0a4;
 }
 
 .troy-orders-summary-item .is-close {
-    color: #f87171;
+    color: #f99282;
 }
 
 .troy-orders-message {
     margin-bottom: 14px;
     padding: 12px 14px;
-    border: 1px solid rgba(34, 197, 94, 0.24);
+    border: 1px solid rgba(75, 183, 105, 0.34);
     border-radius: 8px;
-    background: rgba(20, 83, 45, 0.24);
-    color: #bbf7d0;
+    background: rgba(19, 77, 39, 0.34);
+    color: #d3ffd7;
 }
 
 .troy-orders-message:empty,
@@ -13914,17 +13877,16 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-message.is-error {
-    border-color: rgba(248, 113, 113, 0.32);
-    background: rgba(127, 29, 29, 0.28);
-    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.44);
+    background: rgba(127, 29, 29, 0.36);
+    color: #ffd0c7;
 }
 
 .troy-orders-coin-log-panel {
     margin-bottom: 14px;
-    background: #111827;
-    border: 1px solid rgba(251, 191, 36, 0.22);
-    border-radius: 8px;
     padding: 12px;
+    border: 18px solid transparent;
+    border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 18px / 0 stretch;
 }
 
 .troy-orders-section-head {
@@ -13936,12 +13898,12 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-section-title {
-    color: #f8fafc;
+    color: #ffe0a0;
     font-weight: 900;
 }
 
 .troy-orders-section-sub {
-    color: #94a3b8;
+    color: #c1a56e;
     font-size: 12px;
     margin-top: 2px;
 }
@@ -13952,7 +13914,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-coin-log-empty {
-    color: #94a3b8;
+    color: #bda16a;
     font-size: 13px;
 }
 
@@ -13963,74 +13925,260 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     align-items: center;
     padding: 10px 12px;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.82);
-    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(22, 13, 6, 0.68);
+    border: 1px solid rgba(226, 179, 90, 0.18);
 }
 
 .troy-orders-coin-log-name {
-    color: #f8fafc;
+    color: #f7e8bd;
     font-size: 14px;
     font-weight: 800;
 }
 
 .troy-orders-coin-log-time {
-    color: #94a3b8;
+    color: #bda16a;
     font-size: 12px;
 }
 
 .troy-orders-coin-log-amount {
     grid-row: 1 / span 2;
     grid-column: 2;
-    color: #fbbf24;
+    color: #ffd67b;
     font-size: 20px;
     font-weight: 1000;
     white-space: nowrap;
 }
 
-.troy-orders-list {
+.troy-orders-ticket-board {
+    margin: 0 0 14px;
+    padding: 18px;
+    border: 20px solid transparent;
+    border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 20px / 0 stretch;
+}
+
+.troy-orders-ticket-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 18px;
+    padding: 4px 2px 2px;
 }
 
-.troy-orders-card {
+.troy-orders-ticket {
+    position: relative;
     display: flex;
-    min-height: 310px;
+    width: 100%;
+    min-height: 246px;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.96);
+    gap: 8px;
+    padding: 16px 15px 14px;
+    border: 28px solid transparent;
+    border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 28px / 0 stretch;
+    background: transparent;
+    color: #35230f;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 16px 26px rgba(0, 0, 0, 0.28);
+    transform-origin: 50% 30%;
+    transition: transform 0.12s ease, filter 0.12s ease;
 }
 
-.troy-orders-card.is-busy {
-    opacity: 0.72;
-    pointer-events: none;
+.troy-orders-ticket:hover,
+.troy-orders-ticket:focus-visible {
+    filter: brightness(1.05);
+    transform: translateY(-2px);
+    outline: none;
 }
 
-.troy-orders-card-head {
+.troy-orders-ticket.is-tilt-left {
+    rotate: -0.7deg;
+}
+
+.troy-orders-ticket.is-tilt-right {
+    rotate: 0.7deg;
+}
+
+.troy-orders-ticket.is-selected {
+    filter: brightness(1.08) saturate(1.05);
+}
+
+.troy-orders-ticket.has-order .troy-orders-ticket-pin {
+    background: radial-gradient(circle at 34% 30%, #ffdf87, #b94a2a 46%, #5d1c12 100%);
+}
+
+.troy-orders-ticket-pin {
+    position: absolute;
+    top: -10px;
+    right: 24px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #f7d48a, #7d3a22 54%, #3e170d 100%);
+    box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.25), 0 5px 12px rgba(0, 0, 0, 0.32);
+}
+
+.troy-orders-ticket-kicker,
+.troy-orders-ticket-meta,
+.troy-orders-ticket-foot em,
+.troy-orders-ticket-note {
+    color: #6f5534;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.troy-orders-ticket-kicker {
+    display: block;
+}
+
+.troy-orders-ticket-name {
+    display: block;
+    min-height: 50px;
+    color: #2b1a0b;
+    font-size: 22px;
+    font-weight: 1000;
+    line-height: 1.12;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.troy-orders-ticket-meta {
+    display: block;
+    min-height: 32px;
+    line-height: 1.35;
+}
+
+.troy-orders-ticket-preview {
+    display: block;
+    flex: 1;
+    margin: 4px 0;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(90, 63, 31, 0.36);
+}
+
+.troy-orders-ticket-items {
+    display: grid;
+    gap: 6px;
+}
+
+.troy-orders-ticket-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 8px;
+    color: #3b2b17;
+    font-size: 13px;
+}
+
+.troy-orders-ticket-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-ticket-item strong {
+    white-space: nowrap;
+}
+
+.troy-orders-ticket-foot {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 34px;
+    border-top: 1px solid rgba(90, 63, 31, 0.2);
+    padding-top: 10px;
+}
+
+.troy-orders-ticket-foot strong {
+    color: #4a2107;
+    font-size: 25px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.troy-orders-ticket-foot em {
+    font-style: normal;
+    white-space: nowrap;
+}
+
+.troy-orders-ticket-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(9, 6, 3, 0.78);
+}
+
+.troy-orders-ticket-modal[hidden] {
+    display: none;
+}
+
+.troy-orders-ticket-modal-panel {
+    position: relative;
+    width: min(1120px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    padding: 22px;
+    border: 32px solid transparent;
+    border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 32px / 0 stretch;
+    color: #2d1b0b;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.55);
+}
+
+.troy-orders-ticket-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    z-index: 2;
+    display: grid;
+    width: 42px;
+    height: 42px;
+    margin: -8px -6px 0 10px;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: #3f1d0d;
+    color: #fff4d8;
+    font-size: 28px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.troy-orders-ticket-detail-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
     align-items: start;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid rgba(89, 54, 22, 0.28);
 }
 
-.troy-orders-card h2 {
-    margin: 0 0 6px;
-    font-size: 22px;
+.troy-orders-ticket-detail-kicker {
+    color: #8a5d2c;
+    font-size: 13px;
+    font-weight: 900;
 }
 
-.troy-orders-card p {
+.troy-orders-ticket-detail h2 {
+    margin: 4px 0 4px;
+    color: #231305;
+    font-size: 34px;
+    line-height: 1.08;
+}
+
+.troy-orders-ticket-detail p {
     margin: 0;
-    color: #94a3b8;
-    font-size: 12px;
+    color: #6b4c2b;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .troy-orders-total {
-    font-size: 28px;
-    font-weight: 900;
-    color: #fbbf24;
+    color: #4b2108;
+    font-size: 32px;
+    font-weight: 1000;
 }
 
 .troy-orders-total-wrap {
@@ -14043,36 +14191,72 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     padding: 4px 8px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 900;
 }
 
 .troy-orders-total-wrap .is-pending-serve {
-    background: rgba(248, 113, 113, 0.18);
-    color: #fecaca;
+    background: rgba(178, 64, 38, 0.18);
+    color: #8b2c17;
 }
 
 .troy-orders-total-wrap .is-served-all {
-    background: rgba(34, 197, 94, 0.18);
-    color: #bbf7d0;
+    background: rgba(47, 125, 74, 0.16);
+    color: #286b38;
+}
+
+.troy-orders-ticket-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 400px);
+    gap: 20px;
+    align-items: start;
+}
+
+.troy-orders-subhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 32px;
+    margin-bottom: 10px;
+    color: #2b1a0b;
+}
+
+.troy-orders-subhead strong {
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.troy-orders-subhead span {
+    color: #8a653b;
+    font-size: 12px;
+    font-weight: 900;
 }
 
 .troy-orders-items {
-    margin: 14px 0;
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    display: grid;
+    gap: 7px;
+    margin: 0 0 14px;
 }
 
 .troy-orders-item-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 46px 86px 92px;
+    grid-template-columns: minmax(0, 1fr) 46px 86px 94px;
     gap: 10px;
     align-items: center;
-    min-height: 44px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    min-height: 42px;
+    border-bottom: 1px solid rgba(91, 61, 28, 0.18);
+    color: #30200f;
     font-size: 15px;
 }
 
+.troy-orders-item-row.is-empty {
+    grid-template-columns: 1fr;
+    color: #7a613d;
+    font-weight: 800;
+}
+
 .troy-orders-item-row.is-served {
-    color: #94a3b8;
+    color: #7b6a4f;
 }
 
 .troy-orders-item-row.is-served span {
@@ -14081,30 +14265,31 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-item-row em {
-    color: #cbd5e1;
+    color: #6a4a25;
     font-style: normal;
     text-align: right;
 }
 
 .troy-orders-item-row strong {
     text-align: right;
+    white-space: nowrap;
 }
 
 .troy-orders-item-row button {
-    min-height: 30px;
-    border: 1px solid rgba(248, 113, 113, 0.34);
+    min-height: 31px;
+    border: 1px solid rgba(153, 52, 30, 0.34);
     border-radius: 7px;
-    background: rgba(127, 29, 29, 0.28);
-    color: #fecaca;
+    background: rgba(176, 66, 36, 0.14);
+    color: #843018;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 900;
     cursor: pointer;
 }
 
 .troy-orders-item-row.is-served button {
-    border-color: rgba(34, 197, 94, 0.34);
-    background: rgba(20, 83, 45, 0.28);
-    color: #bbf7d0;
+    border-color: rgba(47, 125, 74, 0.34);
+    background: rgba(47, 125, 74, 0.14);
+    color: #286b38;
 }
 
 .troy-orders-settle {
@@ -14121,14 +14306,15 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     align-items: center;
     min-height: 46px;
     padding: 0 10px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border: 1px solid rgba(91, 61, 28, 0.28);
     border-radius: 8px;
-    background: rgba(2, 6, 23, 0.55);
+    background: rgba(255, 244, 211, 0.42);
 }
 
 .troy-orders-settle label span {
-    color: #94a3b8;
+    color: #7c5a32;
     font-size: 12px;
+    font-weight: 900;
 }
 
 .troy-orders-settle input {
@@ -14136,8 +14322,9 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     min-width: 0;
     border: 0;
     background: transparent;
-    color: #f8fafc;
+    color: #2d1b0b;
     font-size: 20px;
+    font-weight: 900;
     text-align: right;
     outline: none;
 }
@@ -14145,168 +14332,98 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .troy-orders-settle button {
     min-height: 46px;
     padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #f2c56c, #ad6720);
+    color: #211206;
     font-size: 15px;
+    font-weight: 1000;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 246, 207, 0.48), 0 6px 14px rgba(0, 0, 0, 0.22);
+}
+
+.troy-orders-settle button:disabled {
+    cursor: not-allowed;
+    filter: grayscale(0.7);
+    opacity: 0.48;
 }
 
 .troy-orders-empty {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 260px;
-    border: 1px dashed rgba(148, 163, 184, 0.22);
-    border-radius: 8px;
-    color: #94a3b8;
+    min-height: 180px;
+    color: #c7aa72;
     font-size: 18px;
+    font-weight: 800;
 }
 
 .troy-orders-empty[hidden] {
     display: none;
 }
 
-.troy-orders-pos-panel {
-    margin: 0 0 14px;
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    border-radius: 10px;
-    overflow: hidden;
-    background: rgba(15, 23, 42, 0.4);
-}
-
-.troy-orders-customer-selector {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-    min-height: 44px;
-}
-
-.troy-orders-selector-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #94a3b8;
-    letter-spacing: 0.06em;
-    flex-shrink: 0;
-    padding-top: 5px;
-}
-
-.troy-orders-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.troy-orders-customer-chip {
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(30, 41, 59, 0.6);
-    color: #cbd5e1;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-    white-space: nowrap;
-}
-
-.troy-orders-customer-chip.is-selected {
-    background: rgba(245, 158, 11, 0.2);
-    border-color: #f59e0b;
-    color: #fbbf24;
-    font-weight: 700;
-}
-
-.troy-orders-no-customers {
-    font-size: 12px;
-    color: #64748b;
-    padding: 4px 0;
-}
-
-.troy-orders-pos-menu[hidden] {
-    display: none;
-}
-
-.troy-orders-pos-menu-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 14px;
-    font-size: 13px;
-    color: #94a3b8;
-    background: rgba(15, 23, 42, 0.5);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.troy-orders-pos-menu-header strong {
-    color: #e2e8f0;
-    font-weight: 700;
-}
-
 .troy-orders-pos-category {
-    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    border-top: 1px solid rgba(91, 61, 28, 0.18);
 }
 
 .troy-orders-pos-category summary {
-    padding: 7px 14px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #64748b;
-    background: transparent;
-    letter-spacing: 0.05em;
+    padding: 10px 2px;
+    color: #5c3a17;
+    font-size: 14px;
+    font-weight: 1000;
+    cursor: pointer;
 }
 
-.troy-orders-pos-category summary::before {
-    content: '▶ ';
-    font-size: 9px;
-}
-
-.troy-orders-pos-category[open] summary::before {
-    content: '▼ ';
+.troy-orders-pos-category summary::marker {
+    color: #9a6325;
 }
 
 .troy-orders-pos-items {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 12px 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 8px;
+    padding: 2px 0 12px;
 }
 
 .troy-orders-pos-btn {
     display: flex;
+    min-height: 58px;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 8px 10px;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 9px;
+    border: 1px solid rgba(108, 61, 18, 0.34);
     border-radius: 8px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(30, 41, 59, 0.7);
-    color: #e2e8f0;
+    background: linear-gradient(180deg, rgba(92, 50, 19, 0.9), rgba(49, 25, 10, 0.94));
+    color: #fff0c8;
     font-size: 13px;
-    cursor: pointer;
-    min-width: 80px;
+    font-weight: 900;
     text-align: center;
-    line-height: 1.3;
-    transition: background 0.12s;
+    line-height: 1.28;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 230, 168, 0.18), 0 4px 10px rgba(0, 0, 0, 0.18);
 }
 
 .troy-orders-pos-btn:active {
-    background: rgba(245, 158, 11, 0.25);
+    transform: translateY(1px);
 }
 
 .troy-orders-pos-btn span {
+    color: #ffd67b;
     font-size: 11px;
-    color: #f59e0b;
-    font-weight: 700;
+    font-weight: 1000;
 }
 
 .troy-orders-confirm {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 10020;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: rgba(2, 6, 23, 0.78);
+    background: rgba(9, 6, 3, 0.82);
 }
 
 .troy-orders-confirm[hidden] {
@@ -14318,20 +14435,21 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     max-height: 88vh;
     overflow: auto;
     padding: 22px;
-    border: 1px solid rgba(251, 191, 36, 0.32);
-    border-radius: 8px;
-    background: #0f172a;
+    border: 30px solid transparent;
+    border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 30px / 0 stretch;
+    color: #2d1b0b;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
 .troy-orders-confirm-kicker {
-    color: #fbbf24;
+    color: #8a5d2c;
     font-size: 13px;
     font-weight: 900;
 }
 
 .troy-orders-confirm-panel h2 {
     margin: 8px 0 0;
+    color: #231305;
     font-size: 30px;
 }
 
@@ -14339,10 +14457,10 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     margin: 16px 0;
     padding: 18px;
     border-radius: 8px;
-    background: rgba(245, 158, 11, 0.14);
-    color: #fbbf24;
+    background: rgba(112, 69, 26, 0.13);
+    color: #4b2108;
     font-size: 48px;
-    font-weight: 900;
+    font-weight: 1000;
     text-align: center;
 }
 
@@ -14357,7 +14475,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     justify-content: space-between;
     gap: 12px;
     min-height: 30px;
-    color: #cbd5e1;
+    color: #3a2713;
     font-size: 14px;
 }
 
@@ -14368,9 +14486,9 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     min-height: 48px;
     margin: 12px 0 16px;
     padding: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border: 1px solid rgba(91, 61, 28, 0.28);
     border-radius: 8px;
-    background: rgba(2, 6, 23, 0.5);
+    background: rgba(255, 244, 211, 0.42);
     font-size: 16px;
     font-weight: 800;
 }
@@ -14396,13 +14514,13 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-confirm-actions .is-cancel {
-    background: #334155;
-    color: #f8fafc;
+    background: #5b3519;
+    color: #fff0c8;
 }
 
 .troy-orders-confirm-actions button:not(.is-cancel) {
-    background: #f59e0b;
-    color: #111827;
+    background: linear-gradient(180deg, #f2c56c, #ad6720);
+    color: #211206;
 }
 
 .troy-orders-confirm-actions button:disabled {
@@ -14431,6 +14549,17 @@ body.is-new-order-flash::before {
     18%, 52%, 100% { opacity: 0; }
 }
 
+@media (max-width: 980px) {
+    .troy-orders-ticket-detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-ticket-menu {
+        border-top: 2px solid rgba(89, 54, 22, 0.22);
+        padding-top: 14px;
+    }
+}
+
 @media (max-width: 720px) {
     .troy-orders-shell {
         width: min(100vw - 20px, 1180px);
@@ -14456,8 +14585,33 @@ body.is-new-order-flash::before {
         flex-direction: column;
     }
 
-    .troy-orders-list {
+    .troy-orders-ticket-board {
+        padding: 12px;
+    }
+
+    .troy-orders-ticket-grid {
         grid-template-columns: 1fr;
+    }
+
+    .troy-orders-ticket-modal {
+        align-items: stretch;
+        padding: 8px;
+    }
+
+    .troy-orders-ticket-modal-panel {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+        padding: 16px;
+        border-width: 24px;
+        border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 24px / 0 stretch;
+    }
+
+    .troy-orders-ticket-detail-head {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-total-wrap {
+        text-align: left;
     }
 
     .troy-orders-item-row {
@@ -14473,6 +14627,25 @@ body.is-new-order-flash::before {
     }
 
     .troy-orders-confirm-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .troy-orders-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-header h1 {
+        font-size: 30px;
+    }
+
+    .troy-orders-ticket-name {
+        min-height: 0;
+        font-size: 20px;
+    }
+
+    .troy-orders-pos-items {
         grid-template-columns: 1fr;
     }
 }

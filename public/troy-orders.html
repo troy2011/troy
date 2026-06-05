@@ -17,10 +17,6 @@
             </div>
             <div class="troy-orders-header-actions">
                 <div id="troyOrdersAuthName" class="troy-orders-auth-name">ログイン不要</div>
-                <div class="troy-orders-open-controls">
-                    <button id="troyOrdersOpenBtn" type="button" class="troy-orders-open-btn is-open" hidden>OPEN</button>
-                    <button id="troyOrdersCloseBtn" type="button" class="troy-orders-open-btn is-close" hidden>CLOSE</button>
-                </div>
                 <button id="troyOrdersSoundToggle" type="button" class="troy-orders-sound-toggle" aria-pressed="false">Sound OFF</button>
                 <button id="troyOrdersRefresh" type="button" class="troy-orders-refresh">更新</button>
             </div>
@@ -57,9 +53,15 @@
             <div id="troyOrdersServeSummary" class="troy-orders-serve-summary">伝票 0件</div>
         </section>
 
-        <section class="troy-orders-pos-panel">
-            <div id="troyOrdersCustomerSelector" class="troy-orders-customer-selector"></div>
-            <div id="troyOrdersPosMenu" class="troy-orders-pos-menu" hidden></div>
+        <section class="troy-orders-ticket-board">
+            <div class="troy-orders-section-head">
+                <div>
+                    <div class="troy-orders-section-title">店内伝票</div>
+                    <div class="troy-orders-section-sub">お客様ごとの伝票を開いて注文追加・会計を行います</div>
+                </div>
+            </div>
+            <div id="troyOrdersTicketGrid" class="troy-orders-ticket-grid"></div>
+            <section id="troyOrdersEmpty" class="troy-orders-empty" hidden>店内の伝票はありません。</section>
         </section>
 
         <section id="troyOrdersMessage" class="troy-orders-message"></section>
@@ -72,9 +74,14 @@
             </div>
             <div id="troyOrdersCoinLog" class="troy-orders-coin-log"></div>
         </section>
-        <section id="troyOrdersList" class="troy-orders-list"></section>
-        <section id="troyOrdersEmpty" class="troy-orders-empty" hidden>会計中の伝票はありません。客を選んで商品を追加してください。</section>
     </main>
+
+    <div id="troyOrdersTicketModal" class="troy-orders-ticket-modal" hidden>
+        <div class="troy-orders-ticket-modal-panel">
+            <button id="troyOrdersTicketClose" type="button" class="troy-orders-ticket-close" aria-label="伝票を閉じる">×</button>
+            <div id="troyOrdersTicketDetail" class="troy-orders-ticket-detail-wrap"></div>
+        </div>
+    </div>
 
     <div id="troyOrdersConfirmModal" class="troy-orders-confirm" hidden>
         <div class="troy-orders-confirm-panel">
