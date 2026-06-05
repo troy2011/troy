@@ -15,8 +15,10 @@
   <body>
     <div id="audioGate">
       <div id="audioGatePanel">
-        <div id="audioGateLabel">🔊 タップして音を有効化</div>
-        <div id="audioGateHelp">iPadは最初のタップ後に音が出ます</div>
+        <div id="audioGateLabel">店内ディスプレイ開始</div>
+        <button id="btnStartDisplay" type="button">音を有効化して全画面表示</button>
+        <div id="audioGateHelp">iPadをApple TVへミラーリングしてから、この画面を1回タップしてください</div>
+        <div id="audioGateStatus" aria-live="polite"></div>
       </div>
     </div>
     <div id="sea">
@@ -31,7 +33,7 @@
       <div id="effects" aria-live="polite"></div>
       <div id="rankingPanel" aria-live="polite">
         <div id="rankingTitle">日次貢献度ランキング</div>
-        <div id="rankingSub">PlayFab 日次貢献度ランキング</div>
+        <div id="rankingSub">本日の貢献度</div>
         <ol id="rankingList"></ol>
       </div>
     </div>

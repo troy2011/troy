@@ -5,6 +5,8 @@
   const sea = document.getElementById('sea');
   const seaVideo = document.getElementById('seaVideo');
   const audioGate = document.getElementById('audioGate');
+  const audioGateStatus = document.getElementById('audioGateStatus');
+  const startDisplayBtn = document.getElementById('btnStartDisplay');
   const unlockAudioBtn = document.getElementById('btnUnlockAudio');
   const testSoundBtn = document.getElementById('btnTestSound');
   const fullscreenBtn = document.getElementById('btnFullscreen');
@@ -19,56 +21,141 @@
   ];
 
   let audioUnlocked = false;
+  let audioUnlocking = false;
+  let audioContext = null;
   const soundPlayers = new Map(ENTRY_SOUNDS.map((src) => {
     const audio = new Audio(src);
     audio.preload = 'auto';
+    audio.playsInline = true;
     audio.volume = 0.9;
     return [src, audio];
   }));
 
+  const setGateStatus = (text) => {
+    if (audioGateStatus) audioGateStatus.textContent = text || '';
+  };
+
+  const warmupAudioElement = async (audio) => {
+    if (!audio) return false;
+    const previousVolume = audio.volume;
+    audio.volume = 0.01;
+    audio.currentTime = 0;
+    try {
+      const result = audio.play();
+      if (result?.catch) await result;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = previousVolume;
+      return true;
+    } catch (_) {
+      audio.volume = previousVolume;
+      return false;
+    }
+  };
+
+  const unlockWebAudio = async () => {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return true;
+    try {
+      audioContext = audioContext || new AudioContextCtor();
+      if (audioContext.state === 'suspended') await audioContext.resume();
+      const source = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      gain.gain.value = 0.0001;
+      source.connect(gain);
+      gain.connect(audioContext.destination);
+      source.start();
+      source.stop(audioContext.currentTime + 0.03);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const unlockAudio = async () => {
     if (audioUnlocked) {
       if (audioGate) audioGate.style.display = 'none';
+      document.body.classList.add('display-ready');
       return true;
     }
-    const warmupSrc = ENTRY_SOUNDS[0];
-    const warmup = soundPlayers.get(warmupSrc);
-    if (!warmup) return false;
-    const previousVolume = warmup.volume;
-    warmup.volume = 0.01;
-    warmup.currentTime = 0;
-    try {
-      await warmup.play();
-      warmup.pause();
-      warmup.currentTime = 0;
-    } catch (_) {
-      warmup.volume = previousVolume;
-      return false;
+    if (audioUnlocking) return true;
+    audioUnlocking = true;
+    setGateStatus('音声を準備しています...');
+
+    await unlockWebAudio();
+    const warmupResults = [];
+    for (const audio of soundPlayers.values()) {
+      warmupResults.push(await warmupAudioElement(audio));
     }
-    warmup.volume = previousVolume;
+
     if (seaVideo) {
       seaVideo.muted = false;
       seaVideo.volume = 0.28;
       try {
         const videoPlayResult = seaVideo.play();
-        if (videoPlayResult?.catch) videoPlayResult.catch(() => {});
+        if (videoPlayResult?.catch) await videoPlayResult.catch(() => {});
       } catch (_) {}
     }
-    audioUnlocked = true;
+
+    const anySoundReady = warmupResults.some(Boolean);
+    audioUnlocked = anySoundReady;
+    audioUnlocking = false;
+    if (!audioUnlocked) {
+      setGateStatus('音が有効化できませんでした。もう一度タップしてください。');
+      return false;
+    }
+    setGateStatus('音声ON');
     if (audioGate) audioGate.style.display = 'none';
+    document.body.classList.add('display-ready');
     return true;
   };
 
-  const handleAudioUnlockGesture = () => {
-    unlockAudio().then((ok) => {
-      if (!ok && audioGate) audioGate.classList.add('needs-audio-tap');
-    });
+  const handleAudioUnlockGesture = async (event) => {
+    event?.stopPropagation?.();
+    const ok = await unlockAudio();
+    await enterKioskMode();
+    if (!ok && audioGate) {
+      audioGate.classList.add('needs-audio-tap');
+    }
+  };
+
+  const handleAudioButtonGesture = async (event) => {
+    event?.stopPropagation?.();
+    const ok = await unlockAudio();
+    if (!ok && audioGate) audioGate.classList.add('needs-audio-tap');
   };
 
   audioGate?.addEventListener('click', handleAudioUnlockGesture);
   audioGate?.addEventListener('touchend', handleAudioUnlockGesture);
-  unlockAudioBtn?.addEventListener('click', handleAudioUnlockGesture);
-  unlockAudioBtn?.addEventListener('touchend', handleAudioUnlockGesture);
+  startDisplayBtn?.addEventListener('click', handleAudioUnlockGesture);
+  startDisplayBtn?.addEventListener('touchend', handleAudioUnlockGesture);
+  unlockAudioBtn?.addEventListener('click', handleAudioButtonGesture);
+  unlockAudioBtn?.addEventListener('touchend', handleAudioButtonGesture);
+
+  const enterKioskMode = async () => {
+    const target = sea || document.documentElement;
+    document.body.classList.add('display-kiosk');
+    document.body.classList.add('display-ready');
+    try {
+      if (target?.requestFullscreen && !document.fullscreenElement) {
+        await target.requestFullscreen();
+      } else if (target?.webkitRequestFullscreen && !document.webkitFullscreenElement) {
+        await target.webkitRequestFullscreen();
+      }
+    } catch (_) {
+      // iPad Safari may not expose element fullscreen; kiosk CSS still hides controls.
+    }
+    window.scrollTo(0, 1);
+  };
+
+  fullscreenBtn?.addEventListener('click', async () => {
+    const ok = await unlockAudio();
+    await enterKioskMode();
+    if (!ok && audioGate) {
+      audioGate.style.display = 'flex';
+      audioGate.classList.add('needs-audio-tap');
+    }
+  });
 
   const playSound = (src) => {
     if (!audioUnlocked || !src) return;
@@ -88,21 +175,6 @@
     if (!audioUnlocked) await unlockAudio();
     playSound(ENTRY_SOUNDS[0]);
   });
-
-  const enterFullscreen = async () => {
-    const target = sea || document.documentElement;
-    try {
-      if (target?.requestFullscreen) {
-        await target.requestFullscreen();
-      } else if (target?.webkitRequestFullscreen) {
-        await target.webkitRequestFullscreen();
-      }
-    } catch (_) {}
-    document.body.classList.add('display-kiosk');
-    window.scrollTo(0, 1);
-  };
-
-  fullscreenBtn?.addEventListener('click', enterFullscreen);
 
   const getEntrySoundSrc = (level) => {
     const rank = Math.floor(Math.max(1, Math.floor(Number(level) || 1)) / 10);
@@ -227,7 +299,7 @@
     const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
 
     if (rankingSub) {
-      rankingSub.textContent = 'PlayFab 日次貢献度ランキング';
+      rankingSub.textContent = '本日の貢献度';
     }
 
     if (ranking.length === 0) {

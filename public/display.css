@@ -1,6 +1,10 @@
 :root {
   --sea-deep: #041724;
   --sea-mid: #0a2f44;
+  --display-text: #f4fbff;
+  --display-muted: rgba(226, 240, 255, 0.74);
+  --display-panel: rgba(2, 8, 16, 0.9);
+  --display-line: rgba(190, 226, 255, 0.32);
 }
 
 * {
@@ -53,34 +57,65 @@ body.display-kiosk #sea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.72);
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(16, 80, 120, 0.22), transparent 44%),
+    rgba(0, 0, 0, 0.78);
 }
 
 #audioGatePanel {
-  color: #e9f6ff;
+  width: min(640px, 92vw);
+  color: var(--display-text);
   font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   text-align: center;
-  padding: 28px 40px;
-  border: 1px solid rgba(180, 220, 255, 0.3);
-  border-radius: 16px;
-  background: rgba(5, 10, 16, 0.7);
-  backdrop-filter: blur(6px);
+  padding: 34px 42px;
+  border: 1px solid var(--display-line);
+  border-radius: 8px;
+  background: rgba(5, 10, 16, 0.84);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.56);
 }
 
 #audioGateLabel {
-  font-size: 26px;
+  font-size: clamp(30px, 4vw, 48px);
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
+}
+
+#btnStartDisplay {
+  width: 100%;
+  min-height: 64px;
+  margin-top: 22px;
+  border: 1px solid rgba(255, 229, 138, 0.56);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 224, 128, 0.95), rgba(184, 112, 24, 0.92));
+  color: #171104;
+  font: inherit;
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 1000;
+  cursor: pointer;
+  box-shadow: 0 0 28px rgba(250, 204, 21, 0.28);
 }
 
 #audioGateHelp {
-  margin-top: 10px;
-  color: rgba(233, 246, 255, 0.72);
-  font-size: 14px;
+  margin-top: 14px;
+  color: var(--display-muted);
+  font-size: clamp(15px, 1.6vw, 20px);
+  line-height: 1.45;
 }
 
 #audioGate.needs-audio-tap #audioGateHelp {
   color: #ffe58a;
+}
+
+#audioGateStatus {
+  min-height: 22px;
+  margin-top: 10px;
+  color: #ffe58a;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 #displayControls {
@@ -91,6 +126,7 @@ body.display-kiosk #sea {
   display: flex;
   gap: 8px;
   font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  transition: opacity 240ms ease, transform 240ms ease;
 }
 
 #displayControls button {
@@ -105,75 +141,106 @@ body.display-kiosk #sea {
   -webkit-backdrop-filter: blur(8px);
 }
 
+body.display-ready #displayControls {
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+}
+
 #rankingPanel {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: min(320px, 42vw);
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(3, 7, 14, 0.84);
-  border: 1px solid rgba(180, 220, 255, 0.22);
-  color: #e9f6ff;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  width: clamp(380px, 28vw, 520px);
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: var(--display-panel);
+  border: 1px solid var(--display-line);
+  color: var(--display-text);
   font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 34px rgba(0, 0, 0, 0.64);
 }
 
 #rankingTitle {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: clamp(20px, 1.7vw, 28px);
+  font-weight: 1000;
+  letter-spacing: 0;
 }
 
 #rankingSub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: rgba(233, 246, 255, 0.7);
+  margin-top: 5px;
+  font-size: clamp(13px, 1vw, 17px);
+  color: var(--display-muted);
 }
 
 #rankingList {
-  margin: 12px 0 0 0;
+  margin: 16px 0 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 6px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: clamp(16px, 1.18vw, 22px);
 }
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
-  gap: 8px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
+  min-height: 30px;
 }
 
 .ranking-rank {
-  font-weight: 700;
-  color: rgba(233, 246, 255, 0.75);
+  font-weight: 1000;
+  color: #e7f4ff;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .ranking-name {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-weight: 900;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.78);
 }
 
 .ranking-bounty {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 1000;
   color: #b8f7ff;
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.28);
 }
 
 .ranking-empty {
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(233, 246, 255, 0.6);
+}
+
+@media (max-width: 1100px) {
+  #rankingPanel {
+    width: clamp(330px, 35vw, 420px);
+    padding: 15px 16px;
+  }
+
+  #rankingList {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  #rankingPanel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
 }
 
 .effect {
   position: absolute;
+  z-index: 1;
   width: 120px;
   height: 120px;
   border-radius: 999px;
@@ -194,6 +261,7 @@ body.display-kiosk #sea {
   --entry-confetti-b: #67e8f9;
   width: min(520px, 72vw);
   height: min(520px, 72vw);
+  z-index: 5;
   border-width: 3px;
   border-color: var(--entry-border);
   background:
