@@ -1282,8 +1282,7 @@ button.home-player-ship-name {
     border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
     border-radius: 6px;
     background:
-        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2)),
-        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2));
     color: #111827;
     font-weight: 900;
 }
@@ -1291,8 +1290,7 @@ button.home-player-ship-name {
 .exploration-result-actions button:first-child {
     border-image-source: url("./assets/ui/buttons/button-dark-large.png");
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.28)),
-        url("./assets/ui/buttons/button-dark-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.28));
     color: #e5e7eb;
 }
 
@@ -14957,97 +14955,6 @@ body {
     }
 }
 
-/* --- Pirate UI sheet assets --- */
-.app-title-plaque {
-    background:
-        linear-gradient(180deg, rgba(58, 33, 16, 0.1), rgba(22, 13, 8, 0.34)),
-        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
-}
-
-#globalPlayerInfoTop,
-.currency-display,
-.global-rank-badge,
-.home-player-ship-frame,
-.home-exp-card,
-.ship-exploration-panel,
-.ship-exploration-destination,
-.ship-exploration-report,
-.ship-exploration-reward,
-.ranking-row,
-.equipment-slot-card,
-.inventory-item-card,
-.item-card {
-    background:
-        linear-gradient(180deg, rgba(3, 5, 7, 0.08), rgba(0, 0, 0, 0.34)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
-}
-
-.content-area {
-    background:
-        linear-gradient(180deg, rgba(26, 14, 7, 0.24), rgba(4, 4, 5, 0.44)),
-        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
-}
-
-.home-ps-card,
-#tabContentInventory .content-area.avatar-card,
-#tabContentInventory .inventory-section {
-    background:
-        linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
-        url("./assets/ui/panels/panel-parchment.png") center / 100% 100% no-repeat;
-}
-
-.home-exp-rank,
-#inventoryMobileSwitch,
-#inventoryPrimaryTabs,
-#tabContentInventory #inventoryTabs,
-#rankingToggleButtons {
-    background:
-        linear-gradient(180deg, rgba(3, 5, 7, 0.1), rgba(0, 0, 0, 0.34)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
-}
-
-.home-exploration-btn {
-    background:
-        linear-gradient(180deg, rgba(255, 242, 183, 0.18), rgba(87, 43, 6, 0.2)),
-        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
-}
-
-.inventory-mobile-switch-btn.active,
-.inventory-primary-tab-btn.active,
-#tabContentInventory .inventory-tab-btn.active,
-.ranking-toggle-btn.active {
-    background:
-        linear-gradient(180deg, rgba(76, 196, 255, 0.12), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
-}
-
-.inventory-mobile-switch-btn:not(.active),
-.inventory-primary-tab-btn:not(.active),
-#tabContentInventory .inventory-tab-btn:not(.active),
-.ranking-toggle-btn:not(.active),
-.ranking-refresh-btn {
-    background:
-        linear-gradient(180deg, rgba(22, 15, 10, 0.28), rgba(0, 0, 0, 0.32)),
-        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
-}
-
-.ranking-content-area {
-    background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(3, 4, 6, 0.9) 68%),
-        url("./assets/ui/bg-map.png") center top / cover no-repeat,
-        linear-gradient(180deg, #050608, #020303);
-}
-
-.ranking-header {
-    background:
-        linear-gradient(90deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.48)),
-        url("./assets/ui/bg-tavern.png") center / cover no-repeat;
-}
-
-.exploration-sequence-dialog {
-    border-color: rgba(220, 169, 82, 0.48);
-}
-
 .exploration-sequence-scene,
 .exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene,
 .exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene,
@@ -15055,24 +14962,6 @@ body {
     background:
         linear-gradient(180deg, rgba(5, 10, 16, 0.06), rgba(5, 12, 18, 0.58) 78%),
         url("./assets/ui/bg-sea.png") center / cover no-repeat;
-}
-
-#bottomNav {
-    background:
-        linear-gradient(180deg, rgba(12, 8, 5, 0.34), rgba(3, 3, 4, 0.78)),
-        url("./assets/ui/panels/panel-plank-wide.png") center / cover repeat-x;
-}
-
-.nav-button {
-    background:
-        linear-gradient(180deg, rgba(63, 34, 14, 0.08), rgba(0, 0, 0, 0.32)),
-        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
-}
-
-.nav-button.active {
-    background:
-        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
-        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
 }
 
 .global-menu-button {
@@ -15086,8 +14975,7 @@ body {
     border: 1px solid rgba(235, 194, 116, 0.46);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(5, 6, 8, 0.08), rgba(0, 0, 0, 0.36)),
-        url("./assets/ui/buttons/button-dark-small.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(5, 6, 8, 0.08), rgba(0, 0, 0, 0.36));
     color: #f8e6bc;
     font-size: 28px;
     font-weight: 900;
@@ -15110,8 +14998,7 @@ body {
     border-radius: 50%;
     border: 1px solid rgba(255, 229, 149, 0.64);
     background:
-        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28)),
-        url("./assets/ui/buttons/button-gold-small.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28));
     color: #fff1bd;
     font-size: 22px;
     line-height: 1;
@@ -15318,8 +15205,7 @@ body {
     font-size: 14px;
     font-weight: 900;
     background:
-        linear-gradient(180deg, rgba(17, 21, 25, 0.9), rgba(4, 6, 9, 0.98)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(17, 21, 25, 0.9), rgba(4, 6, 9, 0.98));
     box-shadow: none;
 }
 
@@ -15354,8 +15240,7 @@ body {
     color: #fff1c2;
     border-color: rgba(255, 229, 149, 0.74);
     background:
-        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18)),
-        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.18));
     box-shadow: inset 0 1px 0 rgba(255, 247, 214, 0.28);
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78), 0 0 8px rgba(255, 222, 128, 0.28);
 }
@@ -15400,31 +15285,27 @@ body {
     border-radius: 8px;
     border-color: rgba(150, 135, 109, 0.36);
     background:
-        linear-gradient(180deg, rgba(8, 11, 15, 0.9), rgba(3, 5, 8, 0.96)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(8, 11, 15, 0.9), rgba(3, 5, 8, 0.96));
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
 .ranking-row-top-1 {
     border-color: rgba(255, 221, 142, 0.84);
     background:
-        linear-gradient(180deg, rgba(54, 34, 8, 0.36), rgba(5, 4, 3, 0.68)),
-        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(54, 34, 8, 0.36), rgba(5, 4, 3, 0.68));
     box-shadow: 0 0 18px rgba(217, 164, 65, 0.28), inset 0 1px 0 rgba(255, 247, 214, 0.18);
 }
 
 .ranking-row-top-2 {
     border-color: rgba(200, 205, 212, 0.56);
     background:
-        linear-gradient(180deg, rgba(42, 45, 50, 0.34), rgba(4, 5, 7, 0.72)),
-        url("./assets/ui/panels/panel-dark-silver.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(42, 45, 50, 0.34), rgba(4, 5, 7, 0.72));
 }
 
 .ranking-row-top-3 {
     border-color: rgba(193, 104, 42, 0.58);
     background:
-        linear-gradient(180deg, rgba(71, 32, 10, 0.26), rgba(5, 4, 3, 0.7)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(71, 32, 10, 0.26), rgba(5, 4, 3, 0.7));
 }
 
 .ranking-rank-badge {
@@ -15614,8 +15495,7 @@ body {
     border-radius: 8px;
     border: 1px solid rgba(220, 169, 82, 0.42);
     background:
-        linear-gradient(180deg, rgba(10, 13, 17, 0.94), rgba(3, 5, 8, 0.98)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(10, 13, 17, 0.94), rgba(3, 5, 8, 0.98));
     box-shadow: 0 12px 22px rgba(0, 0, 0, 0.3);
     backdrop-filter: none;
 }
@@ -15669,8 +15549,7 @@ body {
 #tabContentInventory .inventory-panel-btn.active {
     color: #ffe188;
     background:
-        linear-gradient(180deg, rgba(64, 160, 210, 0.16), rgba(0, 0, 0, 0.18)),
-        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(64, 160, 210, 0.16), rgba(0, 0, 0, 0.18));
     border-color: rgba(255, 229, 149, 0.42);
 }
 
@@ -15709,8 +15588,7 @@ body {
     font-weight: 900;
     text-shadow: 0 1px 0 #000;
     background:
-        linear-gradient(180deg, rgba(75, 38, 14, 0.62), rgba(20, 12, 8, 0.88)),
-        url("./assets/ui/panels/panel-hamburger.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(75, 38, 14, 0.62), rgba(20, 12, 8, 0.88));
 }
 
 #tabContentInventory #equipmentGrid {
@@ -15722,8 +15600,7 @@ body {
     border: 1px solid rgba(220, 169, 82, 0.34);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(7, 10, 14, 0.86), rgba(2, 4, 7, 0.94)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(7, 10, 14, 0.86), rgba(2, 4, 7, 0.94));
 }
 
 #tabContentInventory .equip-slot {
@@ -15736,8 +15613,7 @@ body {
     border-radius: 8px;
     border: 1px solid rgba(220, 169, 82, 0.28);
     background:
-        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94));
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
@@ -15834,8 +15710,7 @@ body {
     border-radius: 999px;
     border-color: rgba(76, 45, 20, 0.44);
     background:
-        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98));
     color: #f2d394;
     font-weight: 900;
 }
@@ -15849,8 +15724,7 @@ body {
     padding: 6px;
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(8, 10, 12, 0.88), rgba(2, 3, 5, 0.94)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(8, 10, 12, 0.88), rgba(2, 3, 5, 0.94));
 }
 
 #inventoryPrimaryTabs {
@@ -15871,16 +15745,14 @@ body {
     font-size: 13px;
     font-weight: 900;
     background:
-        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96));
 }
 
 #tabContentInventory .inventory-primary-tab-btn.active,
 #tabContentInventory .inventory-tab-btn.active {
     color: #ffe8aa;
     background:
-        linear-gradient(180deg, rgba(38, 150, 205, 0.14), rgba(2, 12, 18, 0.28)),
-        url("./assets/ui/buttons/button-blue-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(38, 150, 205, 0.14), rgba(2, 12, 18, 0.28));
 }
 
 }
@@ -15959,8 +15831,7 @@ body {
 #tabContentKing .content-area {
     border-color: rgba(220, 169, 82, 0.42);
     background:
-        linear-gradient(180deg, rgba(9, 7, 5, 0.18), rgba(4, 4, 5, 0.54)),
-        url("./assets/ui/panels/panel-dark-gold.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(9, 7, 5, 0.18), rgba(4, 4, 5, 0.54));
 }
 
 #tabContentTroy .troy-status-row,
@@ -16075,8 +15946,7 @@ body {
     border-radius: 999px;
     border: 1px solid rgba(220, 169, 82, 0.4);
     background:
-        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96));
     color: #f2d394;
     font-weight: 900;
 }
@@ -16105,8 +15975,7 @@ body {
     border: 1px solid rgba(220, 169, 82, 0.34);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(10, 14, 19, 0.9), rgba(4, 5, 7, 0.98));
     box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.08);
 }
 
@@ -16141,16 +16010,14 @@ body {
     border: 1px solid rgba(220, 169, 82, 0.28);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94));
 }
 
 #tabContentEvents .event-create-panel,
 #tabContentTroy .troy-reservation-panel,
 #tabContentKing .king-editor-card {
     background:
-        linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18)),
-        url("./assets/ui/panels/panel-parchment.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 244, 208, 0.18), rgba(104, 61, 23, 0.18));
     color: #241306;
 }
 
@@ -16175,8 +16042,7 @@ body {
     border-radius: 8px;
     border: 1px solid rgba(76, 45, 20, 0.36);
     background:
-        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98)),
-        url("./assets/ui/panels/panel-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(34, 28, 23, 0.95), rgba(10, 9, 8, 0.98));
     color: #f7e8c1;
 }
 
@@ -16195,8 +16061,7 @@ body {
     border-radius: 8px;
     border-color: rgba(255, 229, 149, 0.56);
     background:
-        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2)),
-        url("./assets/ui/buttons/button-gold-large.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.2));
     color: #241306;
     font-weight: 900;
     text-shadow: 0 1px 0 rgba(255, 245, 210, 0.45);
@@ -16207,8 +16072,7 @@ body {
 #tabContentKing .troy-admin-actions .btn-muted,
 #tabContentTarot button.btn-muted {
     background:
-        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96)),
-        url("./assets/ui/panels/panel-wood.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(27, 22, 18, 0.88), rgba(5, 5, 6, 0.96));
     color: #f2d394;
 }
 
@@ -17236,9 +17100,6 @@ body[data-sea-tone] .home-hero-card {
     align-items: center;
     gap: 5px;
     overflow: hidden;
-    background:
-        linear-gradient(180deg, #2a180c 0%, #130b06 48%, #080504 100%),
-        url("./assets/ui/panels/panel-plank-wide.png") center / cover repeat-x;
     backdrop-filter: none;
 }
 
@@ -17252,16 +17113,14 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(17, 24, 39, 0.18), rgba(2, 6, 23, 0.34)),
-        url("./assets/ui/panels/panel-dark-square.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(17, 24, 39, 0.18), rgba(2, 6, 23, 0.34));
 }
 
 .nav-button.active {
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(255, 244, 189, 0.22), rgba(113, 63, 18, 0.18)),
-        url("./assets/ui/panels/panel-gold-square.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 244, 189, 0.22), rgba(113, 63, 18, 0.18));
 }
 
 @media (max-width: 420px) {
@@ -18307,8 +18166,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 9px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42)),
-        url("./assets/ui/panels/panel-dark-square.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(17, 24, 39, 0.22), rgba(2, 6, 23, 0.42));
     color: #d7c5a6;
     font-size: 13px;
     font-weight: 900;
@@ -18335,8 +18193,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(6, 14, 24, 0.92), rgba(1, 3, 7, 0.96)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(6, 14, 24, 0.92), rgba(1, 3, 7, 0.96));
     scrollbar-color: rgba(220, 169, 82, 0.6) rgba(3, 6, 10, 0.8);
 }
 
@@ -18349,8 +18206,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/speech-parchment.png") 30 fill / 12px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(255, 244, 208, 0.2), rgba(104, 61, 23, 0.12)),
-        url("./assets/ui/panels/speech-parchment.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(255, 244, 208, 0.2), rgba(104, 61, 23, 0.12));
     color: #241306;
     font-size: 13px;
     font-weight: 900;
@@ -18365,8 +18221,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/speech-dark.png") 30 fill / 10px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(4, 6, 10, 0.94)),
-        url("./assets/ui/panels/speech-dark.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(4, 6, 10, 0.94));
 }
 
 .map-chat-message-head {
@@ -18414,8 +18269,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-wide.png") 34 fill / 10px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(24, 31, 42, 0.92), rgba(7, 10, 15, 0.98)),
-        url("./assets/ui/panels/panel-dark-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(24, 31, 42, 0.92), rgba(7, 10, 15, 0.98));
     color: #f8f0dc;
     font-size: 14px;
     font-weight: 700;
@@ -20274,8 +20128,7 @@ body[data-sea-tone] .home-hero-card {
     border: 1px solid rgba(220, 169, 82, 0.24);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(13, 19, 27, 0.86), rgba(5, 7, 10, 0.94));
     color: #f7e8c1;
     text-align: left;
     box-shadow: inset 0 0 0 1px var(--crew-rank-glow);
@@ -20481,8 +20334,7 @@ body[data-sea-tone] .home-hero-card {
     border-radius: 8px;
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
     background:
-        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94)),
-        url("./assets/ui/panels/panel-navy-wide.png") center / 100% 100% no-repeat;
+        linear-gradient(180deg, rgba(13, 19, 27, 0.84), rgba(5, 7, 10, 0.94));
 }
 
 #tabContentQr .guild-companion-redirect p {
