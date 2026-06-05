@@ -16019,13 +16019,13 @@ body {
     border: 10px solid transparent;
     border-radius: 7px;
     border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
-    color: #2a1606;
+    color: #fff1b8;
     font-size: 13px;
     font-weight: 900;
     letter-spacing: 0;
     line-height: 1;
     text-decoration: none;
-    text-shadow: 0 1px 0 rgba(255, 238, 178, 0.45);
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.78), 0 0 8px rgba(255, 215, 128, 0.34);
 }
 
 #tabContentTroy .troy-map-link::before {

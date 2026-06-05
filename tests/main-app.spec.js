@@ -17,7 +17,8 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   const troyMapLink = await page.locator('#troyMapLink').evaluate((link) => ({
     href: link.href,
     target: link.target,
-    rel: link.rel
+    rel: link.rel,
+    color: window.getComputedStyle(link).color
   }));
   const troyMapUrl = new URL(troyMapLink.href);
   expect(troyMapUrl.hostname).toBe('www.google.com');
@@ -26,6 +27,7 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   expect(troyMapUrl.searchParams.get('query')).toBe('千葉県富里市十倉310-401');
   expect(troyMapLink.target).toBe('_blank');
   expect(troyMapLink.rel).toContain('noopener');
+  expect(troyMapLink.color).toBe('rgb(255, 241, 184)');
 
   expect(state.loginPlayFabBody).toMatchObject({
     lineAccessToken: 'playwright-access-token',
