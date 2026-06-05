@@ -23,6 +23,10 @@
   let audioUnlocked = false;
   let audioUnlocking = false;
   let audioContext = null;
+  let seaVideoWatchTimer = null;
+  let seaVideoLoadRequested = false;
+  let lastSeaVideoTime = 0;
+  let lastSeaVideoCheckAt = 0;
   const soundPlayers = new Map(ENTRY_SOUNDS.map((src) => {
     const audio = new Audio(src);
     audio.preload = 'auto';
@@ -33,6 +37,62 @@
 
   const setGateStatus = (text) => {
     if (audioGateStatus) audioGateStatus.textContent = text || '';
+  };
+
+  const ensureSeaVideoPlayback = async () => {
+    if (!seaVideo) return false;
+    seaVideo.muted = true;
+    seaVideo.defaultMuted = true;
+    seaVideo.loop = true;
+    seaVideo.playsInline = true;
+    seaVideo.setAttribute('muted', '');
+    seaVideo.setAttribute('playsinline', '');
+    seaVideo.setAttribute('webkit-playsinline', '');
+    try {
+      if (seaVideo.readyState === 0 && seaVideo.networkState === HTMLMediaElement.NETWORK_EMPTY && !seaVideoLoadRequested) {
+        seaVideoLoadRequested = true;
+        seaVideo.load();
+      }
+      const result = seaVideo.play();
+      if (result?.catch) await result.catch(() => {});
+    } catch (_) {}
+    return !seaVideo.paused;
+  };
+
+  const startSeaVideoWatchdog = () => {
+    if (!seaVideo || seaVideoWatchTimer) return;
+    lastSeaVideoTime = Number(seaVideo.currentTime) || 0;
+    lastSeaVideoCheckAt = Date.now();
+    seaVideoWatchTimer = window.setInterval(() => {
+      if (!seaVideo) return;
+      const now = Date.now();
+      const current = Number(seaVideo.currentTime) || 0;
+      const stalled = seaVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        && !seaVideo.paused
+        && current <= lastSeaVideoTime + 0.02
+        && now - lastSeaVideoCheckAt > 1400;
+      if (seaVideo.paused || stalled) {
+        ensureSeaVideoPlayback();
+      }
+      lastSeaVideoTime = current;
+      lastSeaVideoCheckAt = now;
+    }, 1500);
+  };
+
+  const installSeaVideoRecovery = () => {
+    if (!seaVideo) return;
+    ['canplay', 'pause', 'stalled', 'error'].forEach((eventName) => {
+      seaVideo.addEventListener(eventName, () => {
+        ensureSeaVideoPlayback();
+      });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) ensureSeaVideoPlayback();
+    });
+    window.addEventListener('pageshow', () => ensureSeaVideoPlayback());
+    window.addEventListener('focus', () => ensureSeaVideoPlayback());
+    ensureSeaVideoPlayback();
+    startSeaVideoWatchdog();
   };
 
   const warmupAudioElement = async (audio) => {
@@ -73,6 +133,7 @@
   };
 
   const unlockAudio = async () => {
+    await ensureSeaVideoPlayback();
     if (audioUnlocked) {
       if (audioGate) audioGate.style.display = 'none';
       document.body.classList.add('display-ready');
@@ -88,14 +149,7 @@
       warmupResults.push(await warmupAudioElement(audio));
     }
 
-    if (seaVideo) {
-      seaVideo.muted = false;
-      seaVideo.volume = 0.28;
-      try {
-        const videoPlayResult = seaVideo.play();
-        if (videoPlayResult?.catch) await videoPlayResult.catch(() => {});
-      } catch (_) {}
-    }
+    await ensureSeaVideoPlayback();
 
     const anySoundReady = warmupResults.some(Boolean);
     audioUnlocked = anySoundReady;
@@ -466,5 +520,6 @@
   };
 
   connectStream();
+  installSeaVideoRecovery();
   fetchRanking();
 })();

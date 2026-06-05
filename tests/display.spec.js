@@ -111,6 +111,7 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   await expect(page.locator('.ranking-avatar img')).toHaveCount(5);
 
   await page.locator('#btnStartDisplay').click();
+  await page.waitForTimeout(700);
   await expect(page.locator('body')).toHaveClass(/display-kiosk/);
   await expect(page.locator('body')).toHaveClass(/display-ready/);
   await expect(page.locator('#audioGate')).toBeHidden();
@@ -128,12 +129,18 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
       panelText: rankingPanel.textContent || '',
       firstBountyText: firstBounty?.textContent || '',
       avatarSize: Math.round(firstAvatar.getBoundingClientRect().width),
+      videoCurrentTime: document.getElementById('seaVideo')?.currentTime || 0,
+      videoPaused: document.getElementById('seaVideo')?.paused ?? true,
+      videoMuted: document.getElementById('seaVideo')?.muted ?? false,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth
     };
   });
 
   expect(audit.audioPlayCount).toBeGreaterThanOrEqual(5);
+  expect(audit.videoCurrentTime).toBeGreaterThan(0.2);
+  expect(audit.videoPaused).toBe(false);
+  expect(audit.videoMuted).toBe(true);
   expect(audit.panelWidth).toBeGreaterThanOrEqual(380);
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
   expect(audit.firstBountyText).toContain('B');
