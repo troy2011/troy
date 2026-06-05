@@ -829,7 +829,12 @@ function buildTreasuryOverview(entries = []) {
 async function addNationTreasury(nation, amount, firestore, deps, options = {}) {
     const value = Math.max(0, Math.floor(Number(amount) || 0));
     const entityKey = await getNationGroupEntityKey(nation, firestore, deps);
-    if (!entityKey) return null;
+    if (!entityKey) {
+        if (options.requireContribution) {
+            throw new Error('Nation group not found for required contribution');
+        }
+        return null;
+    }
     if (!deps?.addEconomyItem) {
         throw new Error('Missing addEconomyItem dependency');
     }
@@ -842,6 +847,9 @@ async function addNationTreasury(nation, amount, firestore, deps, options = {}) 
             contribution = await addPlayerNationContribution(options.contributorPlayFabId, value, deps);
         } catch (error) {
             console.warn('[addNationTreasury] Failed to update player contribution:', error?.errorMessage || error?.message || error);
+            if (options.requireContribution) {
+                throw error;
+            }
         }
     }
     if (value > 0) {
@@ -4250,6 +4258,8 @@ function initializeNationRoutes(app, deps) {
         }
 
         let treasuryPs = null;
+        let settlementContribution = null;
+        let settlementContributionAmount = 0;
         try {
             const treasuryResult = await addNationTreasury(context.nation, checkoutPayload.total, firestore, nationDeps, {
                 idempotencyId: idempotencyFor('treasury'),
@@ -4257,9 +4267,15 @@ function initializeNationRoutes(app, deps) {
                 contributorName: checkoutPayload.displayName,
                 source: 'troy_settlement',
                 label: 'TROY会計',
-                note: checkoutPayload.summary || `${checkoutPayload.totalItems}点`
+                note: checkoutPayload.summary || `${checkoutPayload.totalItems}点`,
+                requireContribution: true
             });
             treasuryPs = treasuryResult?.treasuryPs ?? null;
+            settlementContribution = treasuryResult?.contribution || null;
+            settlementContributionAmount = checkoutPayload.total;
+            if (settlementContribution) {
+                await updateTroyMemberRankSnapshot(memberRef, settlementContribution);
+            }
         } catch (treasuryError) {
             const message = treasuryError?.errorMessage || treasuryError?.message || String(treasuryError);
             console.warn(`[${logPrefix}] Treasury failed:`, message);
@@ -4307,6 +4323,8 @@ function initializeNationRoutes(app, deps) {
             treasuryRank,
             treasuryUpdated: true,
             treasuryPs,
+            settlementContributionAmount,
+            settlementContribution,
             grantApplied,
             grantError,
             chipReturnAmount,
