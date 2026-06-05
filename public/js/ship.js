@@ -958,12 +958,69 @@ const HOME_PLAYER_SHIP_LABELS = {
     merchant: '商船'
 };
 
-const EXPLORATION_BOSS_EMOJIS = {
-    near_sea: ['🏴‍☠️', '🦀', '🦈', '🐙'],
-    old_lighthouse: ['👻', '💀', '🧟', '🕯️'],
-    sunken_trader: ['🦑', '🐙', '🐲', '👾'],
-    pirate_cove: ['👹', '🏴‍☠️', '🐉', '💀'],
-    default: ['👾', '👹', '🐉', '💀', '🦑', '🐲']
+const EXPLORATION_MONSTER_SPRITES = {
+    skeleton_captain: { id: 'skeleton_captain', src: './Sprites/monsters/skeleton_captain.png', name: '骸骨船長' },
+    ghost_pirate: { id: 'ghost_pirate', src: './Sprites/monsters/ghost_pirate.png', name: '幽霊海賊' },
+    zombie_raider: { id: 'zombie_raider', src: './Sprites/monsters/zombie_raider.png', name: 'ゾンビ海賊' },
+    drowned_buccaneer: { id: 'drowned_buccaneer', src: './Sprites/monsters/drowned_buccaneer.png', name: '濡れし海賊' },
+    shark_raider: { id: 'shark_raider', src: './Sprites/monsters/shark_raider.png', name: '鮫の略奪者' },
+    crab_brute: { id: 'crab_brute', src: './Sprites/monsters/crab_brute.png', name: '甲殻の暴れ者' },
+    anchor_golem: { id: 'anchor_golem', src: './Sprites/monsters/anchor_golem.png', name: '錨ゴーレム' },
+    cursed_shipwheel: { id: 'cursed_shipwheel', src: './Sprites/monsters/cursed_shipwheel.png', name: '呪いの舵輪' },
+    mimic_chest: { id: 'mimic_chest', src: './Sprites/monsters/mimic_chest.png', name: '宝箱ミミック' },
+    cannon_mimic: { id: 'cannon_mimic', src: './Sprites/monsters/cannon_mimic.png', name: '大砲ミミック' },
+    blue_kraken: { id: 'blue_kraken', src: './Sprites/monsters/blue_kraken.png', name: '深海クラーケン' },
+    kraken_pirate: { id: 'kraken_pirate', src: './Sprites/monsters/kraken_pirate.png', name: '海賊クラーケン' },
+    lantern_wraith: { id: 'lantern_wraith', src: './Sprites/monsters/lantern_wraith.png', name: 'ランタンの亡霊' },
+    skeletal_parrot: { id: 'skeletal_parrot', src: './Sprites/monsters/skeletal_parrot.png', name: '骸骨オウム' },
+    puffer_bomb: { id: 'puffer_bomb', src: './Sprites/monsters/puffer_bomb.png', name: '爆弾フグ' },
+    treasure_slime: { id: 'treasure_slime', src: './Sprites/monsters/treasure_slime.png', name: '財宝スライム' },
+    coral_goblin: { id: 'coral_goblin', src: './Sprites/monsters/coral_goblin.png', name: '珊瑚ゴブリン' },
+    merfolk_lancer: { id: 'merfolk_lancer', src: './Sprites/monsters/merfolk_lancer.png', name: '人魚の槍兵' }
+};
+
+const EXPLORATION_DESTINATION_BOSS_SPRITES = {
+    near_sea: 'skeleton_captain',
+    old_lighthouse: 'lantern_wraith',
+    sunken_trader: 'anchor_golem',
+    pirate_cove: 'shark_raider'
+};
+
+const EXPLORATION_BOSS_NAME_HINTS = [
+    { keywords: ['霧', '亡霊', '幽霊', '灯台'], spriteId: 'ghost_pirate' },
+    { keywords: ['宝箱', '箱', '漂流'], spriteId: 'mimic_chest' },
+    { keywords: ['沈没', '錨', '番人'], spriteId: 'anchor_golem' },
+    { keywords: ['大砲', '砲'], spriteId: 'cannon_mimic' },
+    { keywords: ['鮫', 'サメ'], spriteId: 'shark_raider' },
+    { keywords: ['クラーケン', '海獣'], spriteId: 'kraken_pirate' },
+    { keywords: ['海賊', 'BOSS'], spriteId: 'skeleton_captain' }
+];
+
+const EXPLORATION_DEFAULT_BOSS_SPRITE_IDS = [
+    'skeleton_captain',
+    'ghost_pirate',
+    'zombie_raider',
+    'drowned_buccaneer',
+    'shark_raider',
+    'crab_brute',
+    'anchor_golem',
+    'cursed_shipwheel',
+    'mimic_chest',
+    'cannon_mimic',
+    'blue_kraken',
+    'kraken_pirate',
+    'lantern_wraith',
+    'skeletal_parrot',
+    'puffer_bomb',
+    'treasure_slime',
+    'coral_goblin',
+    'merfolk_lancer'
+];
+
+const EXPLORATION_FALLBACK_BOSS_SPRITE = {
+    id: 'boss',
+    src: './Sprites/monsters/kraken_pirate.png',
+    name: 'BOSS'
 };
 
 const EXPLORATION_DESTINATION_VISUALS = {
@@ -1004,18 +1061,32 @@ function normalizePlayerShipForm(form) {
     return PLAYER_SHIP_LABELS[key] ? key : 'boat';
 }
 
-function pickExplorationBossEmoji(destinationId) {
-    const key = String(destinationId || '').trim();
-    const list = EXPLORATION_BOSS_EMOJIS[key] || EXPLORATION_BOSS_EMOJIS.default;
-    return list[Math.floor(Math.random() * list.length)] || '👾';
+function getExplorationMonsterSprite(spriteId, bossName = '') {
+    const sprite = EXPLORATION_MONSTER_SPRITES[spriteId] || EXPLORATION_FALLBACK_BOSS_SPRITE;
+    return {
+        ...sprite,
+        name: String(bossName || sprite.name || 'BOSS')
+    };
 }
 
-function resolveExplorationBossEmoji(destinationId, bossName) {
-    const key = String(destinationId || '').trim();
-    const list = EXPLORATION_BOSS_EMOJIS[key] || EXPLORATION_BOSS_EMOJIS.default;
-    const source = String(bossName || key || 'boss');
-    const index = Array.from(source).reduce((sum, char) => sum + char.codePointAt(0), 0) % list.length;
-    return list[index] || pickExplorationBossEmoji(key);
+function resolveExplorationBossSprite(destinationId, bossName) {
+    const key = String(destinationId || '').trim().toLowerCase();
+    const normalizedName = String(bossName || '').trim();
+    const destinationSpriteId = EXPLORATION_DESTINATION_BOSS_SPRITES[key];
+    if (destinationSpriteId) return getExplorationMonsterSprite(destinationSpriteId, normalizedName);
+
+    const hinted = EXPLORATION_BOSS_NAME_HINTS.find((hint) => hint.keywords.some((keyword) => normalizedName.includes(keyword)));
+    if (hinted) return getExplorationMonsterSprite(hinted.spriteId, normalizedName);
+
+    const source = normalizedName || key || 'boss';
+    const index = Array.from(source).reduce((sum, char) => sum + char.codePointAt(0), 0) % EXPLORATION_DEFAULT_BOSS_SPRITE_IDS.length;
+    return getExplorationMonsterSprite(EXPLORATION_DEFAULT_BOSS_SPRITE_IDS[index], normalizedName);
+}
+
+function renderExplorationBossImage(sprite, className = '', options = {}) {
+    const classes = ['exploration-boss-image', className].filter(Boolean).join(' ');
+    const alt = options.decorative ? '' : String(sprite?.name || 'BOSS');
+    return `<img class="${escapeHtml(classes)}" src="${escapeHtml(sprite?.src || EXPLORATION_FALLBACK_BOSS_SPRITE.src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`;
 }
 
 function getExplorationDestinationVisual(destinationId) {
@@ -1405,6 +1476,9 @@ function getExplorationBossResultText(report, bossResult) {
 function showExplorationResultSummary(data, options = {}) {
     const report = data?.report || {};
     const bossResult = normalizeBossResult(report.bossResult);
+    const reportDestinationId = report.destinationId || data?.active?.destinationId || data?.destinationId || '';
+    const bossName = String(report.bossName || '遭遇なし');
+    const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const awaitsChestOpen = rewardTotal > 0;
@@ -1457,11 +1531,17 @@ function showExplorationResultSummary(data, options = {}) {
                 </div>
             </div>
             <div class="exploration-result-details" data-exploration-result-details>
-                <div class="exploration-result-body">
-                    <div>
-                        <b>BOSS</b>
-                        <span>${escapeHtml(report.bossName || '遭遇なし')}</span>
+                <div class="exploration-result-boss-card" data-exploration-boss-id="${escapeHtml(bossSprite.id || '')}">
+                    <div class="exploration-result-boss-art">
+                        ${renderExplorationBossImage(bossSprite, 'exploration-result-boss-image')}
                     </div>
+                    <div class="exploration-result-boss-copy">
+                        <b>BOSS</b>
+                        <strong>${escapeHtml(bossName)}</strong>
+                        <span>${escapeHtml(resultLabel)}</span>
+                    </div>
+                </div>
+                <div class="exploration-result-body">
                     <div>
                         <b>結果</b>
                         <span>${escapeHtml(getExplorationBossResultText(report, bossResult))}</span>
@@ -1555,7 +1635,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
     const bossResult = normalizeBossResult(report.bossResult);
-    const bossEmoji = resolveExplorationBossEmoji(resolvedDestinationId, report.bossName);
+    const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName);
     const rewards = getRewardItemsForReveal(claimData);
     const rewardCount = Number(report.rewardCount || rewards.length || 0);
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
@@ -1575,8 +1655,8 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                 <div class="exploration-sequence-route" aria-hidden="true"></div>
                 <div class="exploration-sequence-arrival" aria-hidden="true"></div>
                 <div class="exploration-sequence-island" aria-hidden="true">${escapeHtml(destinationVisual.island)}</div>
-                <div class="exploration-sequence-boss" aria-hidden="true">
-                    <span>${escapeHtml(bossEmoji)}</span>
+                <div class="exploration-sequence-boss" data-exploration-boss-id="${escapeHtml(bossSprite.id || '')}" aria-hidden="true">
+                    ${renderExplorationBossImage(bossSprite, 'exploration-sequence-boss-image', { decorative: true })}
                     <small>BOSS</small>
                 </div>
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>

@@ -129,6 +129,7 @@ function reportDocToPayload(doc) {
     })) : [];
     return {
         id: doc.id || String(data.id || ''),
+        destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
         shipName: String(data.shipName || ''),
         bossName: String(data.bossName || ''),

@@ -168,7 +168,11 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
           <div class="exploration-result-prompt"><b>回収完了</b><span>clear</span></div>
         </div>
         <div class="exploration-result-details">
-          <div class="exploration-result-body"><div><b>BOSS</b><span>clear</span></div></div>
+          <div class="exploration-result-boss-card">
+            <div class="exploration-result-boss-art"><img class="exploration-boss-image exploration-result-boss-image" src="./Sprites/monsters/ghost_pirate.png" alt="boss"></div>
+            <div class="exploration-result-boss-copy"><b>BOSS</b><strong>clear</strong><span>勝利</span></div>
+          </div>
+          <div class="exploration-result-body"><div><b>結果</b><span>clear</span></div></div>
           <ul class="exploration-result-rewards"><li class="exploration-result-reward is-rare"><span class="exploration-result-reward-icon"></span><strong>reward</strong><span>x1</span></li></ul>
           <div class="exploration-result-log"><div>battle log</div></div>
           <div class="exploration-result-actions"><button type="button">close</button><button type="button">next</button></div>
@@ -228,6 +232,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
       resultDialog: styleOf('.exploration-result-dialog'),
       resultClose: styleOf('.exploration-result-close'),
       resultShowcase: styleOf('.exploration-result-showcase'),
+      resultBossCard: styleOf('.exploration-result-boss-card'),
+      resultBossImage: styleOf('.exploration-result-boss-image'),
       resultDetailsOpened: openedDetails,
       resultDetailsAwaiting: awaitingDetails,
       resultMetric: styleOf('.exploration-result-body div'),
@@ -254,6 +260,8 @@ test('exploration event overlays use sliced panels and no moving grid', async ({
   expect(audit.resultDialog.borderImageSource).toContain('assets/ui/panels/');
   expect(audit.resultDialog.overflowX).toBe('hidden');
   expect(audit.resultShowcase.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultBossCard.borderImageSource).toContain('assets/ui/panels/');
+  expect(audit.resultBossImage.height).not.toBe('0px');
   expect(audit.resultDetailsOpened.opacity).toBe('1');
   expect(audit.resultDetailsAwaiting.opacity).toBe('0');
   expect(audit.resultDetailsAwaiting.pointerEvents).toBe('none');
@@ -348,6 +356,9 @@ test('exploration result reveals details after opening one chest', async ({ page
   await expect(result).not.toHaveClass(/is-awaiting-open/);
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
+  await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ghost_pirate');
+  await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('src', /Sprites\/monsters\/ghost_pirate\.png/);
+  await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('alt', '海霧の番人');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE×2');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
   await expectNoPageErrors(errors);
