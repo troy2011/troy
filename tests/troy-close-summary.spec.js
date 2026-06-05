@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const {
   normalizeLineUserIdList,
+  getTroyCloseSummaryLineUserIdsFromKingMap,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 
@@ -30,4 +31,20 @@ test('formats TROY close summary LINE message with daily sales and pending check
   expect(message).toContain('未会計: 1件 / ¥1,600');
   expect(message).toContain('- 入店チャージ x1 / ¥500');
   expect(message).toContain('※未会計伝票はCLOSE処理でクリアされます。');
+});
+
+test('resolves TROY close summary LINE IDs from existing NationKingLineUserIds title data', () => {
+  const lineUserIds = getTroyCloseSummaryLineUserIdsFromKingMap(
+    JSON.stringify({
+      nation_fire_island: 'Ufire',
+      fire: 'UfireNation',
+      default: 'Udefault'
+    }),
+    {
+      nation: 'fire',
+      mapping: { groupName: 'nation_fire_island' }
+    }
+  );
+
+  expect(lineUserIds).toEqual(['Ufire', 'UfireNation', 'Udefault']);
 });
