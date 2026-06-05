@@ -113,3 +113,67 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });
+
+test('staff register shows automatic entry charge on a newly entered member ticket', async ({ page }) => {
+  const now = Date.now();
+  const state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 120000, level: 24, rankName: '船長' }
+    ],
+    troyPendingCheckouts: [
+      {
+        playFabId: 'PLAYER1',
+        displayName: '海風の船長',
+        status: 'open',
+        total: 500,
+        totalItems: 1,
+        grantTotal: 0,
+        createdAtMs: now - 120000,
+        lastOrderedAtMs: now - 120000,
+        items: [
+          {
+            orderId: 'troy-entry:PLAYER1:fire',
+            name: '入店チャージ',
+            quantity: 1,
+            price: 500,
+            lineTotal: 500,
+            status: 'served',
+            servedAtMs: now - 120000,
+            orderedAtMs: now - 120000
+          }
+        ]
+      }
+    ]
+  };
+
+  await page.addInitScript(() => {
+    window.EventSource = class {
+      constructor() {}
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+
+  const ticket = page.locator('[data-open-ticket]', { hasText: '海風の船長' });
+  await expect(ticket).toContainText('入店チャージ');
+  await expect(ticket).toContainText('¥500');
+  await expect(ticket).toContainText('会計待ち');
+
+  await ticket.click();
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('入店チャージ');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥500');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('全て提供済み');
+});

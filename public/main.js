@@ -1700,8 +1700,9 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         });
 
         const parts = [];
-        if (result?.entryChargeCreated) parts.push('TROYに入店しました');
-        else parts.push('TROYに入店済みです');
+        if (result?.alreadyEntered) parts.push('TROYに入店済みです');
+        else parts.push('TROYに入店しました');
+        if (result?.entryChargeError) parts.push('入店チャージ未登録');
         if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
         if (convertedAmount > 0) parts.push(`${convertedAmount.toLocaleString('ja-JP')}G をチップに変換`);
         showRpgMessage(parts.join(' / '), 2800);

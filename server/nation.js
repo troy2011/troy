@@ -74,6 +74,8 @@ const NATION_WAR_STATE_COLLECTION = 'nation_wars';
 const NATION_WAR_EVENT_COLLECTION = 'nation_war_events';
 const TROY_STAFF_CHECKOUT_ENABLED = true;
 const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
+const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
+const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
 const TROY_GLOBAL_ROOM_ID = 'global';
 const NATION_WAR_MIN_TREASURY_RESERVE = 5000;
 const NATION_WAR_MAX_RAID_AMOUNT = 100000;
@@ -3155,6 +3157,8 @@ function initializeNationRoutes(app, deps) {
             const entryRankBenefits = getPlayerRankServiceBenefitsByLevel(entryLevel);
             let entryBonusGranted = 0;
             let entryBonusError = null;
+            let entryChargeCreated = false;
+            let entryChargeError = null;
             if (isNewEntry) {
                 try {
                     const entryBonusRef = firestore.collection('troy_entry_bonus_grants').doc(memberId);
@@ -3196,6 +3200,31 @@ function initializeNationRoutes(app, deps) {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            if (isNewEntry && TROY_ENTRY_CHARGE_AMOUNT > 0) {
+                try {
+                    const orderedAtMs = Date.now();
+                    const entryChargeResult = await appendTroyCheckoutItem({
+                        nation,
+                        mapping,
+                        roomRef,
+                        roomData
+                    }, {
+                        receiverPlayFabId: memberId,
+                        displayName: name,
+                        name: TROY_ENTRY_CHARGE_ITEM_NAME,
+                        price: TROY_ENTRY_CHARGE_AMOUNT,
+                        quantity: 1,
+                        orderId: `troy-entry:${memberId}:${nation}`,
+                        orderedAtMs,
+                        servedAtMs: orderedAtMs
+                    });
+                    entryChargeCreated = !!(entryChargeResult?.created || entryChargeResult?.duplicate);
+                } catch (chargeError) {
+                    entryChargeError = chargeError?.errorMessage || chargeError?.message || String(chargeError);
+                    console.warn('[troy-join] Entry charge failed:', entryChargeError);
+                }
+            }
+
             pushDisplayEvent({
                 type: 'flare',
                 topic: 'troy-entry',
@@ -3209,6 +3238,9 @@ function initializeNationRoutes(app, deps) {
                 nation,
                 entryBonusGranted,
                 entryBonusError,
+                entryChargeAmount: isNewEntry ? TROY_ENTRY_CHARGE_AMOUNT : 0,
+                entryChargeCreated,
+                entryChargeError,
                 alreadyEntered: !isNewEntry
             });
         } catch (error) {
@@ -3891,6 +3923,88 @@ function initializeNationRoutes(app, deps) {
         };
     }
 
+    async function appendTroyCheckoutItem(context, payload = {}) {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) {
+            const error = new Error('TroyCheckoutDisabled');
+            error.statusCode = 503;
+            throw error;
+        }
+        const receiverId = normalizePlayFabId(payload.receiverPlayFabId);
+        const name = String(payload.name || '').trim().slice(0, 60);
+        const price = Math.max(0, Math.floor(Number(payload.price) || 0));
+        const quantity = Math.max(1, Math.min(99, Math.floor(Number(payload.quantity) || 1)));
+        if (!receiverId || !name) {
+            const error = new Error('InvalidCheckoutItem');
+            error.statusCode = 400;
+            throw error;
+        }
+        const displayName = String(payload.displayName || receiverId).trim().slice(0, 40) || receiverId;
+        const orderedAtMs = Math.max(0, Math.floor(Number(payload.orderedAtMs) || Date.now()));
+        const orderId = String(payload.orderId || `staff:${receiverId}:${orderedAtMs}`).trim().slice(0, 120);
+        const undoUntilMs = Math.max(0, Math.floor(Number(payload.undoUntilMs) || 0));
+        const servedAtMs = Math.max(0, Math.floor(Number(payload.servedAtMs) || 0));
+        const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
+
+        return firestore.runTransaction(async (tx) => {
+            const checkoutSnap = await tx.get(checkoutRef);
+            const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
+            const checkoutStatus = String(checkoutData.status || 'open').trim().toLowerCase();
+            if (checkoutStatus && !['open', 'pending'].includes(checkoutStatus)) {
+                const error = new Error('CheckoutAlreadyClosed');
+                error.statusCode = 409;
+                throw error;
+            }
+
+            const existingItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
+            if (orderId && existingItems.some((item) => String(item?.orderId || '').trim() === orderId)) {
+                return { created: false, duplicate: true };
+            }
+
+            const newItem = buildStoredTroyCheckoutItem({
+                name,
+                price,
+                quantity,
+                grantedPs: 0,
+                cashbackRateBps: 0,
+                orderId,
+                orderedAtMs,
+                undoUntilMs,
+                servedAtMs
+            });
+            if (!newItem) {
+                const error = new Error('InvalidCheckoutItem');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            const nextItems = existingItems.concat([newItem]);
+            const normalized = normalizeTroyCheckoutItems(nextItems);
+            const nextTotal = normalized.reduce((sum, item) => sum + item.lineTotal, 0);
+            const nextTotalItems = normalized.reduce((sum, item) => sum + item.quantity, 0);
+            const nextGrantTotal = normalized.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+            const basePatch = checkoutSnap.exists ? {} : {
+                playFabId: receiverId,
+                displayName,
+                status: 'open',
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            tx.set(checkoutRef, {
+                ...basePatch,
+                playFabId: checkoutData.playFabId || receiverId,
+                displayName: checkoutData.displayName || displayName,
+                items: nextItems,
+                total: nextTotal,
+                totalItems: nextTotalItems,
+                grantTotal: nextGrantTotal,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastOrderedAt: admin.firestore.Timestamp.fromMillis(orderedAtMs)
+            }, { merge: true });
+
+            return { created: true, duplicate: false, total: nextTotal, totalItems: nextTotalItems };
+        });
+    }
+
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
         if (!TROY_STAFF_CHECKOUT_ENABLED) {
             const error = new Error('TroyCheckoutDisabled');
@@ -4226,44 +4340,22 @@ function initializeNationRoutes(app, deps) {
             if (!memberSnap.exists) return res.status(403).json({ error: 'NotInTroy' });
             const memberData = memberSnap.data() || {};
             const displayName = String(memberData.displayName || receiverId).trim();
-
-            const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
-            const checkoutSnap = await checkoutRef.get();
-            const checkoutData = checkoutSnap.exists ? (checkoutSnap.data() || {}) : {};
-            const checkoutStatus = String(checkoutData.status || 'open').trim().toLowerCase();
-            if (checkoutStatus && !['open', 'pending'].includes(checkoutStatus)) {
-                return res.status(409).json({ error: 'CheckoutAlreadyClosed' });
-            }
-            const existingItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
             const orderedAtMs = Date.now();
-            const orderId = `staff:${receiverId}:${orderedAtMs}`;
-            const newItem = buildStoredTroyCheckoutItem({ name, price, quantity, grantedPs: 0, cashbackRateBps: 0, orderId, orderedAtMs, undoUntilMs: orderedAtMs + 60000 });
-            const nextItems = existingItems.concat(newItem ? [newItem] : []);
-            const normalized = normalizeTroyCheckoutItems(nextItems);
-            const nextTotal = normalized.reduce((sum, i) => sum + i.lineTotal, 0);
-            const nextTotalItems = normalized.reduce((sum, i) => sum + i.quantity, 0);
-            const nextGrantTotal = normalized.reduce((sum, i) => sum + Math.max(0, Number(i.grantedPs) || 0), 0);
-            const basePatch = checkoutSnap.exists ? {} : {
-                playFabId: receiverId,
+            await appendTroyCheckoutItem(context, {
+                receiverPlayFabId: receiverId,
                 displayName,
-                status: 'open',
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            };
-            await checkoutRef.set({
-                ...basePatch,
-                playFabId: checkoutData.playFabId || receiverId,
-                displayName: checkoutData.displayName || displayName,
-                items: nextItems,
-                total: nextTotal,
-                totalItems: nextTotalItems,
-                grantTotal: nextGrantTotal,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                lastOrderedAt: admin.firestore.Timestamp.fromMillis(orderedAtMs)
-            }, { merge: true });
+                name,
+                price,
+                quantity,
+                orderId: `staff:${receiverId}:${orderedAtMs}`,
+                orderedAtMs,
+                undoUntilMs: orderedAtMs + 60000
+            });
             return res.json({ success: true });
         } catch (error) {
             console.error('[troy-orders-add-item] Error:', error?.message || error);
-            return res.status(500).json({ error: 'FailedToAddItem' });
+            const status = Number(error?.statusCode) || 500;
+            return res.status(status).json({ error: error?.message || 'FailedToAddItem' });
         }
     });
 
