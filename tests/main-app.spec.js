@@ -107,7 +107,12 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             name: '港の外れ',
             description: '近場の探索',
             cost: 100,
-            bossName: 'なし'
+            bossName: 'なし',
+            bosses: [
+              { id: 'treasure_slime', name: '財宝スライム', spriteId: 'treasure_slime', tier: 'weak', tierLabel: '弱' },
+              { id: 'puffer_bomb', name: '爆弾フグ', spriteId: 'puffer_bomb', tier: 'medium', tierLabel: '中' },
+              { id: 'mimic_chest', name: '宝箱ミミック', spriteId: 'mimic_chest', tier: 'strong', tierLabel: '強' }
+            ]
           }
         ]
       })
@@ -124,6 +129,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
   await expect(panel.locator('.ship-exploration-destination strong')).toHaveText('港の外れ');
+  await expect(panel.locator('.ship-exploration-destination')).toContainText('弱: 財宝スライム / 中: 爆弾フグ / 強: 宝箱ミミック');
   await expect(panel.locator('.ship-exploration-start')).toHaveText('探索開始');
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
 
@@ -329,7 +335,11 @@ test('exploration result reveals details after opening one chest', async ({ page
         report: {
           destinationId: 'harbor-edge',
           destinationName: '港の外れ',
+          bossId: 'ghost_pirate',
           bossName: '海霧の番人',
+          bossSpriteId: 'ghost_pirate',
+          bossTier: 'strong',
+          bossTierLabel: '強',
           bossResult: 'victory',
           rewardCount: 2,
           rewardItems: [{ itemId: 'mist_blade', displayName: '霧切りの刃', rarity: 'rare', quantity: 2 }],
@@ -359,6 +369,7 @@ test('exploration result reveals details after opening one chest', async ({ page
   await expect(result.locator('.exploration-result-boss-card')).toHaveAttribute('data-exploration-boss-id', 'ghost_pirate');
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('src', /Sprites\/monsters\/ghost_pirate\.png/);
   await expect(result.locator('.exploration-result-boss-image')).toHaveAttribute('alt', '海霧の番人');
+  await expect(result.locator('.exploration-result-boss-copy span')).toHaveText('強BOSS / 勝利');
   await expect(result.locator('.exploration-result-reward')).toContainText('RARE×2');
   await expect(result.locator('.exploration-result-chest')).toHaveCSS('animation-name', 'none');
   await expectNoPageErrors(errors);

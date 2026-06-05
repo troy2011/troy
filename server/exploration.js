@@ -11,6 +11,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const PENDING_STALE_MS = 5 * 60 * 1000;
 // claiming 中にプロセスが落ちた場合、この時間後に再実行を許可する
 const CLAIMING_STALE_MS = 2 * 60 * 1000;
+const EXPLORATION_SHIP_CLASSES = ['common', 'explorer', 'merchant', 'fighter', 'defender'];
 
 const DESTINATIONS = {
     near_sea: {
@@ -19,8 +20,17 @@ const DESTINATIONS = {
         description: '初期ボートでも向かえる短距離探索。',
         cost: 100,
         durationMs: 3 * HOUR_MS,
-        bossName: '漂流箱を守る小型海賊',
-        classes: ['common', 'explorer', 'merchant', 'fighter', 'defender']
+        bosses: ['treasure_slime', 'puffer_bomb', 'mimic_chest'],
+        classes: EXPLORATION_SHIP_CLASSES
+    },
+    coral_passage: {
+        id: 'coral_passage',
+        name: '珊瑚礁の抜け道',
+        description: '浅瀬を抜ける明るい航路。小型の魔物が多い。',
+        cost: 180,
+        durationMs: 4 * HOUR_MS,
+        bosses: ['skeletal_parrot', 'coral_goblin', 'crab_brute'],
+        classes: EXPLORATION_SHIP_CLASSES
     },
     old_lighthouse: {
         id: 'old_lighthouse',
@@ -28,8 +38,8 @@ const DESTINATIONS = {
         description: '探索船が見つけやすい古い航路。',
         cost: 250,
         durationMs: 5 * HOUR_MS,
-        bossName: '灯台守の亡霊',
-        classes: ['explorer']
+        bosses: ['lantern_wraith', 'ghost_pirate', 'cursed_shipwheel'],
+        classes: EXPLORATION_SHIP_CLASSES
     },
     sunken_trader: {
         id: 'sunken_trader',
@@ -37,8 +47,8 @@ const DESTINATIONS = {
         description: '積荷の多い商船向けの探索先。',
         cost: 300,
         durationMs: 6 * HOUR_MS,
-        bossName: '沈没船の番人',
-        classes: ['merchant', 'explorer']
+        bosses: ['zombie_raider', 'drowned_buccaneer', 'anchor_golem'],
+        classes: EXPLORATION_SHIP_CLASSES
     },
     pirate_cove: {
         id: 'pirate_cove',
@@ -46,8 +56,17 @@ const DESTINATIONS = {
         description: '戦闘向きの船で挑む危険な海域。',
         cost: 400,
         durationMs: 8 * HOUR_MS,
-        bossName: '隠れ家のBOSS',
-        classes: ['fighter', 'defender']
+        bosses: ['skeleton_captain', 'shark_raider', 'cannon_mimic'],
+        classes: EXPLORATION_SHIP_CLASSES
+    },
+    deep_maelstrom: {
+        id: 'deep_maelstrom',
+        name: '深海の渦',
+        description: '渦潮の奥へ踏み込む高難度の探索先。',
+        cost: 550,
+        durationMs: 10 * HOUR_MS,
+        bosses: ['blue_kraken', 'merfolk_lancer', 'kraken_pirate'],
+        classes: EXPLORATION_SHIP_CLASSES
     }
 };
 
@@ -67,14 +86,42 @@ function normalizeDestinationId(value) {
     return DESTINATIONS[id] ? id : '';
 }
 
+function getBossTierDef(tier) {
+    return BOSS_TIER_DEFS[String(tier || '').trim().toLowerCase()] || BOSS_TIER_DEFS.weak;
+}
+
+function getExplorationBoss(bossId) {
+    const id = String(bossId || '').trim();
+    return EXPLORATION_BOSSES[id] || null;
+}
+
+function getDestinationBosses(destination) {
+    const ids = Array.isArray(destination?.bosses) ? destination.bosses : [];
+    const bosses = ids.map(getExplorationBoss).filter(Boolean);
+    return bosses.length ? bosses : [EXPLORATION_BOSSES.treasure_slime].filter(Boolean);
+}
+
+function publicBoss(boss) {
+    const tierDef = getBossTierDef(boss?.tier);
+    return {
+        id: String(boss?.id || ''),
+        name: String(boss?.name || ''),
+        spriteId: String(boss?.spriteId || boss?.id || ''),
+        tier: String(boss?.tier || 'weak'),
+        tierLabel: tierDef.label
+    };
+}
+
 function publicDestination(destination) {
+    const bosses = getDestinationBosses(destination);
     return {
         id: destination.id,
         name: destination.name,
         description: destination.description,
         cost: destination.cost,
         durationMs: destination.durationMs,
-        bossName: destination.bossName
+        bossName: bosses.map((boss) => boss.name).join(' / '),
+        bosses: bosses.map(publicBoss)
     };
 }
 
@@ -132,7 +179,11 @@ function reportDocToPayload(doc) {
         destinationId: String(data.destinationId || ''),
         destinationName: String(data.destinationName || ''),
         shipName: String(data.shipName || ''),
+        bossId: String(data.bossId || ''),
         bossName: String(data.bossName || ''),
+        bossSpriteId: String(data.bossSpriteId || ''),
+        bossTier: String(data.bossTier || ''),
+        bossTierLabel: String(data.bossTierLabel || ''),
         bossAppeared: !!data.bossAppeared,
         bossResult: String(data.bossResult || ''),
         bossLog: String(data.bossLog || ''),
@@ -167,60 +218,302 @@ async function resolveActiveShip(playFabId, deps) {
     };
 }
 
-const BOSS_STATS = {
-    near_sea: {
-        hp: 45,
-        attack: 8,
-        defense: 2,
-        strength: 8,
-        guard: 2,
+const BOSS_TIER_DEFS = {
+    weak: { label: '弱', weight: 60, rewardBonus: 0 },
+    medium: { label: '中', weight: 30, rewardBonus: 0 },
+    strong: { label: '強', weight: 10, rewardBonus: 1 }
+};
+
+const EXPLORATION_BOSSES = {
+    treasure_slime: {
+        id: 'treasure_slime',
+        name: '財宝スライム',
+        spriteId: 'treasure_slime',
+        tier: 'weak',
+        level: 2,
+        hp: 32,
+        attack: 5,
+        defense: 1,
+        strength: 5,
+        guard: 1,
+        agility: 6,
+        weapon: 'blunt',
+        skills: [{ type: 'passive', weapon: 'blunt', name: 'ぷるぷる回避', level: 1 }]
+    },
+    mimic_chest: {
+        id: 'mimic_chest',
+        name: '宝箱ミミック',
+        spriteId: 'mimic_chest',
+        tier: 'strong',
+        level: 6,
+        hp: 78,
+        attack: 12,
+        defense: 5,
+        strength: 11,
+        guard: 5,
+        agility: 5,
+        weapon: 'blunt',
+        skills: [{ type: 'weapon', weapon: 'blunt', name: '噛みつき', procChance: 0.16, powerMultiplier: 1.18 }]
+    },
+    crab_brute: {
+        id: 'crab_brute',
+        name: '甲殻の暴れ者',
+        spriteId: 'crab_brute',
+        tier: 'strong',
+        level: 7,
+        hp: 84,
+        attack: 13,
+        defense: 7,
+        strength: 12,
+        guard: 8,
         agility: 8,
+        weapon: 'axe',
+        skills: [{ type: 'weapon', weapon: 'axe', name: '大ばさみの一撃', procChance: 0.16, powerMultiplier: 1.2 }]
+    },
+    puffer_bomb: {
+        id: 'puffer_bomb',
+        name: '爆弾フグ',
+        spriteId: 'puffer_bomb',
+        tier: 'medium',
+        level: 4,
+        hp: 46,
+        attack: 7,
+        defense: 2,
+        strength: 7,
+        guard: 2,
+        agility: 9,
+        weapon: 'blunt',
+        skills: [{ type: 'weapon', weapon: 'blunt', name: 'ふくらみ突進', procChance: 0.14, powerMultiplier: 1.15 }]
+    },
+    coral_goblin: {
+        id: 'coral_goblin',
+        name: '珊瑚ゴブリン',
+        spriteId: 'coral_goblin',
+        tier: 'medium',
+        level: 7,
+        hp: 78,
+        attack: 12,
+        defense: 5,
+        strength: 11,
+        guard: 5,
+        agility: 12,
         weapon: 'sword',
+        skills: [{ type: 'weapon', weapon: 'sword', name: '珊瑚刃の連撃', procChance: 0.16, powerMultiplier: 1.16 }]
+    },
+    merfolk_lancer: {
+        id: 'merfolk_lancer',
+        name: '人魚の槍兵',
+        spriteId: 'merfolk_lancer',
+        tier: 'medium',
+        level: 19,
+        hp: 192,
+        attack: 30,
+        defense: 15,
+        strength: 26,
+        guard: 15,
+        agility: 19,
+        weapon: 'polearm',
+        skills: [{ type: 'weapon', weapon: 'polearm', name: '潮流の突き', procChance: 0.18, powerMultiplier: 1.2 }]
+    },
+    skeletal_parrot: {
+        id: 'skeletal_parrot',
+        name: '骸骨オウム',
+        spriteId: 'skeletal_parrot',
+        tier: 'weak',
+        level: 6,
+        hp: 56,
+        attack: 9,
+        defense: 3,
+        strength: 8,
+        guard: 3,
+        agility: 14,
+        weapon: 'gun',
+        skills: [{ type: 'weapon', weapon: 'gun', name: '骨ばった急襲', procChance: 0.14, powerMultiplier: 1.14 }]
+    },
+    lantern_wraith: {
+        id: 'lantern_wraith',
+        name: 'ランタンの亡霊',
+        spriteId: 'lantern_wraith',
+        tier: 'weak',
+        level: 8,
+        hp: 78,
+        attack: 12,
+        defense: 5,
+        strength: 10,
+        guard: 5,
+        agility: 13,
+        mp: 18,
+        weapon: 'staff',
+        magicPower: 12,
         skills: [
-            { type: 'weapon', weapon: 'sword', name: '小太刀の連撃', procChance: 0.16, powerMultiplier: 1.16 },
-            { type: 'passive', weapon: 'sword', name: '小型海賊の身軽さ', level: 1 }
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '灯火の呪い', mpCost: 6, minRange: 1, maxRange: 2, powerMultiplier: 1.14 },
+            { type: 'weapon', weapon: 'staff', name: '霊気集中', procChance: 0.16, powerMultiplier: 1.16 }
         ]
     },
-    old_lighthouse: {
-        hp: 110,
-        attack: 15,
-        defense: 7,
-        strength: 14,
+    ghost_pirate: {
+        id: 'ghost_pirate',
+        name: '幽霊海賊',
+        spriteId: 'ghost_pirate',
+        tier: 'medium',
+        level: 11,
+        hp: 118,
+        attack: 18,
+        defense: 8,
+        strength: 15,
         guard: 8,
-        agility: 14,
-        mp: 22,
+        agility: 17,
+        mp: 24,
         weapon: 'staff',
-        magicPower: 14,
+        magicPower: 16,
         skills: [
-            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '灯火の呪い', mpCost: 6, minRange: 1, maxRange: 2, powerMultiplier: 1.16 },
-            { type: 'weapon', weapon: 'staff', name: '霊気集中', procChance: 0.16, powerMultiplier: 1.16 },
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '霧海の呪い', mpCost: 7, minRange: 1, maxRange: 2, powerMultiplier: 1.18 },
             { type: 'passive', weapon: 'staff', name: '亡霊の集中', level: 2 }
         ]
     },
-    sunken_trader: {
-        hp: 135,
-        attack: 18,
-        defense: 10,
-        strength: 16,
-        guard: 12,
-        agility: 10,
+    zombie_raider: {
+        id: 'zombie_raider',
+        name: 'ゾンビ海賊',
+        spriteId: 'zombie_raider',
+        tier: 'weak',
+        level: 8,
+        hp: 72,
+        attack: 11,
+        defense: 5,
+        strength: 11,
+        guard: 5,
+        agility: 7,
+        weapon: 'sword',
+        skills: [{ type: 'weapon', weapon: 'sword', name: 'よろめき斬り', procChance: 0.14, powerMultiplier: 1.14 }]
+    },
+    drowned_buccaneer: {
+        id: 'drowned_buccaneer',
+        name: '濡れし海賊',
+        spriteId: 'drowned_buccaneer',
+        tier: 'medium',
+        level: 11,
+        hp: 112,
+        attack: 17,
+        defense: 8,
+        strength: 15,
+        guard: 8,
+        agility: 11,
+        weapon: 'sword',
+        skills: [{ type: 'weapon', weapon: 'sword', name: '濡れ刃の連撃', procChance: 0.16, powerMultiplier: 1.17 }]
+    },
+    anchor_golem: {
+        id: 'anchor_golem',
+        name: '錨ゴーレム',
+        spriteId: 'anchor_golem',
+        tier: 'strong',
+        level: 14,
+        hp: 168,
+        attack: 23,
+        defense: 13,
+        strength: 20,
+        guard: 15,
+        agility: 8,
         weapon: 'shield',
         skills: [
-            { type: 'passive', weapon: 'shield', name: '沈没船の守り', level: 3 },
-            { type: 'weapon', weapon: 'blunt', name: '錆びた錨撃ち', procChance: 0.14, powerMultiplier: 1.18 }
+            { type: 'passive', weapon: 'shield', name: '錨の守り', level: 3 },
+            { type: 'weapon', weapon: 'blunt', name: '沈没錨撃ち', procChance: 0.16, powerMultiplier: 1.2 }
         ]
     },
-    pirate_cove: {
-        hp: 220,
+    skeleton_captain: {
+        id: 'skeleton_captain',
+        name: '骸骨船長',
+        spriteId: 'skeleton_captain',
+        tier: 'weak',
+        level: 12,
+        hp: 108,
+        attack: 18,
+        defense: 8,
+        strength: 17,
+        guard: 8,
+        agility: 15,
+        weapon: 'sword',
+        skills: [{ type: 'weapon', weapon: 'sword', name: '船長の連撃', procChance: 0.16, powerMultiplier: 1.18 }]
+    },
+    shark_raider: {
+        id: 'shark_raider',
+        name: '鮫の略奪者',
+        spriteId: 'shark_raider',
+        tier: 'medium',
+        level: 15,
+        hp: 158,
+        attack: 25,
+        defense: 12,
+        strength: 22,
+        guard: 12,
+        agility: 18,
+        weapon: 'axe',
+        skills: [{ type: 'weapon', weapon: 'axe', name: '鮫牙の強撃', procChance: 0.18, powerMultiplier: 1.22 }]
+    },
+    kraken_pirate: {
+        id: 'kraken_pirate',
+        name: '海賊クラーケン',
+        spriteId: 'kraken_pirate',
+        tier: 'strong',
+        level: 18,
+        hp: 226,
         attack: 32,
-        defense: 14,
-        strength: 24,
+        defense: 15,
+        strength: 27,
         guard: 16,
-        agility: 20,
+        agility: 18,
         weapon: 'axe',
         skills: [
-            { type: 'weapon', weapon: 'axe', name: '荒くれ強撃', procChance: 0.2, powerMultiplier: 1.25 },
+            { type: 'weapon', weapon: 'axe', name: '触腕強撃', procChance: 0.2, powerMultiplier: 1.25 },
             { type: 'passive', weapon: 'axe', name: '海賊頭の威圧', level: 3 }
+        ]
+    },
+    blue_kraken: {
+        id: 'blue_kraken',
+        name: '深海クラーケン',
+        spriteId: 'blue_kraken',
+        tier: 'weak',
+        level: 15,
+        hp: 132,
+        attack: 21,
+        defense: 10,
+        strength: 20,
+        guard: 10,
+        agility: 15,
+        weapon: 'blunt',
+        skills: [{ type: 'weapon', weapon: 'blunt', name: '青い触腕', procChance: 0.16, powerMultiplier: 1.18 }]
+    },
+    cannon_mimic: {
+        id: 'cannon_mimic',
+        name: '大砲ミミック',
+        spriteId: 'cannon_mimic',
+        tier: 'strong',
+        level: 17,
+        hp: 196,
+        attack: 31,
+        defense: 15,
+        strength: 27,
+        guard: 15,
+        agility: 10,
+        weapon: 'gun',
+        skills: [{ type: 'weapon', weapon: 'gun', name: '大砲の咆哮', procChance: 0.18, powerMultiplier: 1.22 }]
+    },
+    cursed_shipwheel: {
+        id: 'cursed_shipwheel',
+        name: '呪いの舵輪',
+        spriteId: 'cursed_shipwheel',
+        tier: 'strong',
+        level: 22,
+        hp: 260,
+        attack: 36,
+        defense: 18,
+        strength: 30,
+        guard: 18,
+        agility: 16,
+        mp: 32,
+        weapon: 'staff',
+        magicPower: 22,
+        skills: [
+            { type: 'magic', weapon: 'staff', magicKind: 'attack', name: '渦潮の呪縛', mpCost: 8, minRange: 1, maxRange: 2, powerMultiplier: 1.22 },
+            { type: 'passive', weapon: 'staff', name: '深海の呪力', level: 3 }
         ]
     }
 };
@@ -229,6 +522,10 @@ const DEFAULT_EXPLORATION_GACHA_PROFILES = {
     near_sea: {
         categoryWeights: { Weapon: 20, Armor: 25, Shield: 20, Consumable: 35 },
         rarityWeights: { common: 92, rare: 6, epic: 1.5, legendary: 0.5 }
+    },
+    coral_passage: {
+        categoryWeights: { Weapon: 24, Armor: 22, Shield: 18, Consumable: 36 },
+        rarityWeights: { common: 86, rare: 10, epic: 3, legendary: 1 }
     },
     old_lighthouse: {
         categoryWeights: { Weapon: 20, Armor: 55, Shield: 20, Consumable: 5 },
@@ -241,6 +538,10 @@ const DEFAULT_EXPLORATION_GACHA_PROFILES = {
     pirate_cove: {
         categoryWeights: { Weapon: 55, Armor: 15, Shield: 25, Consumable: 5 },
         rarityWeights: { common: 55, rare: 25, epic: 14, legendary: 6 }
+    },
+    deep_maelstrom: {
+        categoryWeights: { Weapon: 45, Armor: 20, Shield: 20, Consumable: 15 },
+        rarityWeights: { common: 46, rare: 28, epic: 17, legendary: 9 }
     }
 };
 
@@ -349,13 +650,33 @@ function attachUpgradeCosts(ship, catalogCache) {
     };
 }
 
-// BOSS出現なし:1個 / BOSS勝利:2個 / 逃走・決着なし:1個 / BOSS敗北:0個、merchant は+1
+function pickWeighted(entries, random = Math.random) {
+    const total = entries.reduce((sum, entry) => sum + Math.max(0, Number(entry.weight || 0)), 0);
+    if (total <= 0) return entries[0] || null;
+    let roll = random() * total;
+    for (const entry of entries) {
+        roll -= Math.max(0, Number(entry.weight || 0));
+        if (roll < 0) return entry;
+    }
+    return entries[entries.length - 1] || null;
+}
+
+function selectExplorationBoss(destination, random = Math.random) {
+    const candidates = getDestinationBosses(destination).map((boss) => ({
+        ...boss,
+        weight: getBossTierDef(boss.tier).weight
+    }));
+    return pickWeighted(candidates, random) || EXPLORATION_BOSSES.treasure_slime;
+}
+
+// BOSS勝利:2個 / 強BOSS勝利:+1個 / 逃走・決着なし:1個 / BOSS敗北:0個、merchant は+1
 function resolveRewardCount(bossResult, shipClass) {
     let base;
     if (!bossResult || !bossResult.bossAppeared) {
         base = 1;
     } else if (bossResult.playerWon) {
         base = 2;
+        base += getBossTierDef(bossResult.bossTier).rewardBonus;
     } else if (bossResult.escaped || bossResult.draw) {
         base = 1;
     } else {
@@ -398,9 +719,9 @@ function buildExplorationBossProfile(destination, bossBase) {
         equipment.RightHand = createBossEquipmentRef(weapon);
     }
     return {
-        id: `boss-${destination.id}`,
+        id: `boss-${destination.id}-${bossBase.id || 'monster'}`,
         stats: {
-            DisplayName: destination.bossName,
+            DisplayName: bossBase.name || 'BOSS',
             Level: Math.max(1, Number(bossBase.level || 1)),
             HP: bossBase.hp,
             MaxHP: bossBase.hp,
@@ -468,8 +789,8 @@ async function getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, 
 }
 
 // BOSS戦では一時的にHPを使うが、探索後に全回復する
-async function resolveBossBattle(playFabId, destination, shipClass, { promisifyPlayFab, PlayFabServer }) {
-    const bossBase = BOSS_STATS[destination.id] || BOSS_STATS.near_sea;
+async function resolveBossBattle(playFabId, destination, bossBase, { promisifyPlayFab, PlayFabServer }) {
+    const tierDef = getBossTierDef(bossBase?.tier);
     let player;
     try {
         player = await getExplorationBattlePlayerProfile(playFabId, { promisifyPlayFab, PlayFabServer });
@@ -495,12 +816,17 @@ async function resolveBossBattle(playFabId, destination, shipClass, { promisifyP
     const draw = !escaped && !battleResult?.winner;
     return {
         bossAppeared: true,
+        bossId: String(bossBase.id || ''),
+        bossName: String(bossBase.name || 'BOSS'),
+        bossSpriteId: String(bossBase.spriteId || bossBase.id || ''),
+        bossTier: String(bossBase.tier || 'weak'),
+        bossTierLabel: tierDef.label,
         playerWon,
         escaped,
         draw,
         hpCost: 0,
         battleLog: [
-            `${destination.bossName}と戦闘！`,
+            `${tierDef.label}BOSS「${bossBase.name || 'BOSS'}」と戦闘！`,
             ...(Array.isArray(battleResult?.logs) ? battleResult.logs : []),
             escaped
                 ? '戦闘は決着せず終了した。探索後にHPは全回復した。'
@@ -566,14 +892,16 @@ function buildReportText({ destination, ship, bossResult, rewardDisplayName, rew
     const lines = [
         `${ship.shipName}は${destination.name}の探索から帰還しました。`
     ];
+    const bossName = bossResult?.bossName || 'BOSS';
+    const bossLabel = bossResult?.bossTierLabel ? `${bossResult.bossTierLabel}BOSS` : 'BOSS';
     if (!bossResult || !bossResult.bossAppeared) {
         lines.push('大きな戦闘を避けながら、海域を丁寧に調査しました。');
     } else if (bossResult.playerWon) {
-        lines.push(`BOSS「${destination.bossName}」と激闘の末、勝利しました！探索後にHPは全回復しました。`);
+        lines.push(`${bossLabel}「${bossName}」と激闘の末、勝利しました！探索後にHPは全回復しました。`);
     } else if (bossResult.escaped || bossResult.draw) {
-        lines.push(`BOSS「${destination.bossName}」との戦闘は決着せず、持ち帰れるお宝だけを回収しました。探索後にHPは全回復しました。`);
+        lines.push(`${bossLabel}「${bossName}」との戦闘は決着せず、持ち帰れるお宝だけを回収しました。探索後にHPは全回復しました。`);
     } else {
-        lines.push(`BOSS「${destination.bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
+        lines.push(`${bossLabel}「${bossName}」に敗北しましたが、探索後にHPは全回復しました。`);
     }
     if (ship.shipClass === 'merchant') lines.push('積荷スペースが広く、お宝を多く持ち帰った。');
     if (rewardCount > 0) lines.push(`発見したお宝 (${rewardCount}個): ${rewardDisplayName}`);
@@ -934,11 +1262,9 @@ function initializeExplorationRoutes(app, deps) {
                     : (activeData.rolledRewardIds || []);
                 await restoreHpToFullOnce(activeRef, playFabId, { admin, promisifyPlayFab, PlayFabServer });
             } else {
-                // 初回: BOSS戦闘 → 抽選 → Firestore保存 → HP全回復
-                const bossEncountered = Math.random() < 0.35;
-                if (bossEncountered) {
-                    bossResult = await resolveBossBattle(playFabId, destination, ship.shipClass, { promisifyPlayFab, PlayFabServer });
-                }
+                // 初回: BOSS抽選 → BOSS戦闘 → 報酬抽選 → Firestore保存 → HP全回復
+                const selectedBoss = selectExplorationBoss(destination);
+                bossResult = await resolveBossBattle(playFabId, destination, selectedBoss, { promisifyPlayFab, PlayFabServer });
 
                 const rewardCount = resolveRewardCount(bossResult, ship.shipClass);
                 const gachaOptions = getExplorationGachaOptions(destination.id, ship);
@@ -997,7 +1323,11 @@ function initializeExplorationRoutes(app, deps) {
                 shipId: ship.shipId,
                 shipName: ship.shipName,
                 shipClass: ship.shipClass,
-                bossName: destination.bossName,
+                bossId: bossResult?.bossId || '',
+                bossName: bossResult?.bossName || '',
+                bossSpriteId: bossResult?.bossSpriteId || '',
+                bossTier: bossResult?.bossTier || '',
+                bossTierLabel: bossResult?.bossTierLabel || '',
                 bossAppeared: bossResult?.bossAppeared || false,
                 bossResult: bossResult
                     ? (bossResult.playerWon ? 'victory' : (bossResult.escaped || bossResult.draw ? 'escaped' : 'defeat'))
@@ -1026,4 +1356,14 @@ function initializeExplorationRoutes(app, deps) {
     });
 }
 
-module.exports = { initializeExplorationRoutes };
+module.exports = {
+    initializeExplorationRoutes,
+    __test: {
+        DESTINATIONS,
+        EXPLORATION_BOSSES,
+        BOSS_TIER_DEFS,
+        getDestinationBosses,
+        selectExplorationBoss,
+        publicDestination
+    }
+};

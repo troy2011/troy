@@ -980,10 +980,18 @@ const EXPLORATION_MONSTER_SPRITES = {
 };
 
 const EXPLORATION_DESTINATION_BOSS_SPRITES = {
-    near_sea: 'skeleton_captain',
-    old_lighthouse: 'lantern_wraith',
-    sunken_trader: 'anchor_golem',
-    pirate_cove: 'shark_raider'
+    near_sea: 'puffer_bomb',
+    coral_passage: 'coral_goblin',
+    old_lighthouse: 'ghost_pirate',
+    sunken_trader: 'drowned_buccaneer',
+    pirate_cove: 'shark_raider',
+    deep_maelstrom: 'merfolk_lancer'
+};
+
+const EXPLORATION_BOSS_TIER_LABELS = {
+    weak: '弱',
+    medium: '中',
+    strong: '強'
 };
 
 const EXPLORATION_BOSS_NAME_HINTS = [
@@ -1025,9 +1033,11 @@ const EXPLORATION_FALLBACK_BOSS_SPRITE = {
 
 const EXPLORATION_DESTINATION_VISUALS = {
     near_sea: { island: '🏝️', sky: 'day', label: '穏やかな近海' },
+    coral_passage: { island: '🪸', sky: 'day', label: '珊瑚礁の抜け道' },
     old_lighthouse: { island: '🗼', sky: 'mist', label: '霧の灯台跡' },
     sunken_trader: { island: '🚢', sky: 'deep', label: '沈没商船' },
     pirate_cove: { island: '⛰️', sky: 'storm', label: '海賊の隠れ家' },
+    deep_maelstrom: { island: '🌀', sky: 'deep', label: '深海の渦' },
     default: { island: '🏝️', sky: 'day', label: '未知の海域' }
 };
 
@@ -1069,7 +1079,14 @@ function getExplorationMonsterSprite(spriteId, bossName = '') {
     };
 }
 
-function resolveExplorationBossSprite(destinationId, bossName) {
+function getExplorationBossTierLabel(tier, fallback = '') {
+    return EXPLORATION_BOSS_TIER_LABELS[String(tier || '').trim().toLowerCase()] || fallback;
+}
+
+function resolveExplorationBossSprite(destinationId, bossName, bossSpriteId = '') {
+    const explicitSpriteId = String(bossSpriteId || '').trim();
+    if (explicitSpriteId) return getExplorationMonsterSprite(explicitSpriteId, bossName);
+
     const key = String(destinationId || '').trim().toLowerCase();
     const normalizedName = String(bossName || '').trim();
     const destinationSpriteId = EXPLORATION_DESTINATION_BOSS_SPRITES[key];
@@ -1400,6 +1417,18 @@ function renderExplorationReport(report) {
     `;
 }
 
+function renderExplorationDestinationBossPool(destination) {
+    const bosses = Array.isArray(destination?.bosses) ? destination.bosses : [];
+    if (bosses.length) {
+        return bosses.map((boss) => {
+            const label = boss.tierLabel || getExplorationBossTierLabel(boss.tier);
+            const name = boss.name || boss.id || 'BOSS';
+            return `${label ? `${label}: ` : ''}${name}`;
+        }).join(' / ');
+    }
+    return destination?.bossName || 'あり';
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -1478,11 +1507,13 @@ function showExplorationResultSummary(data, options = {}) {
     const bossResult = normalizeBossResult(report.bossResult);
     const reportDestinationId = report.destinationId || data?.active?.destinationId || data?.destinationId || '';
     const bossName = String(report.bossName || '遭遇なし');
-    const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName);
+    const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
+    const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const awaitsChestOpen = rewardTotal > 0;
     const resultLabel = getExplorationBossResultLabel(bossResult);
+    const bossResultSummary = bossTierLabel ? `${bossTierLabel}BOSS / ${resultLabel}` : resultLabel;
     const resultHint = rewardTotal > 0 ? `${rewardTotal.toLocaleString('ja-JP')}個のお宝を回収` : 'お宝は見つかりませんでした';
     const rewardHtml = rewards.length
         ? rewards.map((item) => {
@@ -1538,7 +1569,7 @@ function showExplorationResultSummary(data, options = {}) {
                     <div class="exploration-result-boss-copy">
                         <b>BOSS</b>
                         <strong>${escapeHtml(bossName)}</strong>
-                        <span>${escapeHtml(resultLabel)}</span>
+                        <span>${escapeHtml(bossResultSummary)}</span>
                     </div>
                 </div>
                 <div class="exploration-result-body">
@@ -1635,7 +1666,8 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
     const destinationName = active.destinationName || report.destinationName || destinationVisual.label || '探索先';
     const bossResult = normalizeBossResult(report.bossResult);
-    const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName);
+    const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName, report.bossSpriteId);
+    const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
     const rewards = getRewardItemsForReveal(claimData);
     const rewardCount = Number(report.rewardCount || rewards.length || 0);
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
@@ -1695,7 +1727,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     await wait(640);
     setPhase('left', '上陸地点へ直進');
     await wait(640);
-    setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `BOSS「${report.bossName || '???'}」と交戦`);
+    setPhase('battle', bossResult === 'none' ? 'BOSSの気配を回避' : `${bossTierLabel ? `${bossTierLabel}BOSS` : 'BOSS'}「${report.bossName || '???'}」と交戦`);
     setBattleLog(2);
     await wait(420);
     setBattleLog(4);
@@ -1746,7 +1778,7 @@ function renderExplorationPanel(data, playFabId) {
             <div class="ship-exploration-destination">
                 <strong>${escapeHtml(destination.name)}</strong>
                 <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
-                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / BOSS: ${escapeHtml(destination.bossName || 'あり')}</div>
+                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / BOSS: ${escapeHtml(renderExplorationDestinationBossPool(destination))}</div>
                 <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
             </div>
         `).join('')
