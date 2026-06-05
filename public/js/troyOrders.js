@@ -20,7 +20,7 @@ const STAFF_MENU = [
             'ハイボール（角）',
             'シャンディガフ（ビール+ジンジャーエール）'
         ]),
-        { name: 'ノンアルコール瓶ビール（ハイネケン）', price: 700 }
+        { name: 'ノンアルコール瓶ビール（ハイネケン）', price: 500 }
     ]},
     { id: 'gin', category: 'ジンベース', items: buildSizedDrinkItems([
         'ジントニック（+トニック）',

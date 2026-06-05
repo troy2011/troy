@@ -88,6 +88,11 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('大きな伝票');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('海風の船長');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ハイボール（角） S"]')).toContainText('¥500');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ハイボール（角） M"]')).toContainText('¥700');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="シャンディガフ（ビール+ジンジャーエール） S"]')).toContainText('¥500');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="シャンディガフ（ビール+ジンジャーエール） M"]')).toContainText('¥700');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ノンアルコール瓶ビール（ハイネケン）"]')).toContainText('¥500');
 
   await page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="瓶ビール（ハートランド）"]').click();
 
