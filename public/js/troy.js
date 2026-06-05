@@ -693,6 +693,29 @@ function getTroyCalendarStatusLabel(status) {
     }
 }
 
+function renderTroyBusinessCalendarItem(entry) {
+    const status = String(entry?.status || 'open').toLowerCase();
+    const canReserve = status === 'open';
+    const time = status === 'closed'
+        ? '休業'
+        : `${entry.openTime || '--:--'}-${entry.closeTime || '--:--'}`;
+    const note = entry.note ? `<div class="troy-calendar-note">${escapeHtml(entry.note)}</div>` : '';
+    return `
+        <div class="troy-calendar-item is-${escapeHtml(status)}${canReserve ? ' is-reservable' : ''}" ${canReserve ? `data-troy-calendar-reserve="${escapeHtml(entry.id || '')}" role="button" tabindex="0"` : ''}>
+            <div class="troy-calendar-date">${escapeHtml(formatTroyCalendarDate(entry.startsAtMs))}</div>
+            <div class="troy-calendar-main">
+                <div class="troy-calendar-title-row">
+                    <strong>${escapeHtml(entry.title || 'TROY営業')}</strong>
+                    <span class="troy-calendar-status">${escapeHtml(getTroyCalendarStatusLabel(status))}</span>
+                </div>
+                <div class="troy-calendar-time">${escapeHtml(time)}</div>
+                ${note}
+                ${canReserve ? '<div class="troy-calendar-reserve-hint">クリックして予約申請</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
 function renderTroyBusinessCalendar(entries = _businessCalendar) {
     const listEl = document.getElementById('troyBusinessCalendarList');
     const metaEl = document.getElementById('troyBusinessCalendarMeta');
@@ -705,28 +728,18 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
         listEl.innerHTML = '<div class="troy-calendar-empty">営業予定はまだありません。</div>';
         return;
     }
-    listEl.innerHTML = rows.slice(0, 8).map((entry) => {
-        const status = String(entry?.status || 'open').toLowerCase();
-        const canReserve = status === 'open';
-        const time = status === 'closed'
-            ? '休業'
-            : `${entry.openTime || '--:--'}-${entry.closeTime || '--:--'}`;
-        const note = entry.note ? `<div class="troy-calendar-note">${escapeHtml(entry.note)}</div>` : '';
-        return `
-            <div class="troy-calendar-item is-${escapeHtml(status)}${canReserve ? ' is-reservable' : ''}" ${canReserve ? `data-troy-calendar-reserve="${escapeHtml(entry.id || '')}" role="button" tabindex="0"` : ''}>
-                <div class="troy-calendar-date">${escapeHtml(formatTroyCalendarDate(entry.startsAtMs))}</div>
-                <div class="troy-calendar-main">
-                    <div class="troy-calendar-title-row">
-                        <strong>${escapeHtml(entry.title || 'TROY営業')}</strong>
-                        <span class="troy-calendar-status">${escapeHtml(getTroyCalendarStatusLabel(status))}</span>
-                    </div>
-                    <div class="troy-calendar-time">${escapeHtml(time)}</div>
-                    ${note}
-                    ${canReserve ? '<div class="troy-calendar-reserve-hint">クリックして予約申請</div>' : ''}
+    const [latestEntry, ...collapsedEntries] = rows;
+    const collapsedBlock = collapsedEntries.length
+        ? `
+            <details class="troy-calendar-collapsed">
+                <summary>他の営業予定 ${collapsedEntries.length}件</summary>
+                <div class="troy-calendar-collapsed-list">
+                    ${collapsedEntries.map(renderTroyBusinessCalendarItem).join('')}
                 </div>
-            </div>
-        `;
-    }).join('');
+            </details>
+        `
+        : '';
+    listEl.innerHTML = `${renderTroyBusinessCalendarItem(latestEntry)}${collapsedBlock}`;
 }
 
 async function loadTroyBusinessCalendar(playFabId) {

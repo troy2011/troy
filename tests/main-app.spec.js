@@ -121,6 +121,133 @@ export function onSnapshot(_ref, next) {
   await expectNoPageErrors(errors);
 });
 
+test('troy calendar shows only the nearest business day before expanding the rest', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const calendarEntries = [
+    {
+      id: 'cal-1',
+      title: 'First open',
+      status: 'open',
+      date: '2026-06-08',
+      startsAtMs: Date.UTC(2026, 5, 8, 18, 0),
+      openTime: '18:00',
+      closeTime: '23:00'
+    },
+    {
+      id: 'cal-2',
+      title: 'Second open',
+      status: 'open',
+      date: '2026-06-09',
+      startsAtMs: Date.UTC(2026, 5, 9, 18, 0),
+      openTime: '18:00',
+      closeTime: '23:00'
+    },
+    {
+      id: 'cal-3',
+      title: 'Closed day',
+      status: 'closed',
+      date: '2026-06-10',
+      startsAtMs: Date.UTC(2026, 5, 10, 18, 0),
+      openTime: '18:00',
+      closeTime: '23:00'
+    },
+    ...Array.from({ length: 6 }, (_, index) => {
+      const day = 11 + index;
+      return {
+        id: `cal-extra-${index + 1}`,
+        title: `Extra ${index + 1}`,
+        status: 'open',
+        date: `2026-06-${String(day).padStart(2, '0')}`,
+        startsAtMs: Date.UTC(2026, 5, day, 18, 0),
+        openTime: '18:00',
+        closeTime: '23:00'
+      };
+    })
+  ];
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: `
+const troySnapshot = {
+  data: () => ({
+    nation: 'fire',
+    isOpen: true,
+    menuDisabled: [],
+    menuSpecials: [],
+    menuCustomItems: []
+  }),
+  docs: []
+};
+export function getFirestore() { return {}; }
+export function doc() { return {}; }
+export function collection() { return {}; }
+export function query() { return {}; }
+export function where() { return {}; }
+export function orderBy() { return {}; }
+export function limit() { return {}; }
+export function getDocs() { return Promise.resolve({ docs: [] }); }
+export function getDoc() { return Promise.resolve({ exists: () => false, data: () => ({}), id: '' }); }
+export function setDoc() { return Promise.resolve(); }
+export function updateDoc() { return Promise.resolve(); }
+export function addDoc() { return Promise.resolve({ id: 'mock-doc' }); }
+export function serverTimestamp() { return Date.now(); }
+export function onSnapshot(_ref, next) {
+  Promise.resolve().then(() => next({
+    ...troySnapshot
+  }));
+  return () => {};
+}
+`
+    });
+  });
+  await page.route('**/api/troy-calendar/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        calendar: calendarEntries
+      })
+    });
+  });
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: [],
+        menuDisabled: [],
+        menuSpecials: [],
+        menuCustomItems: []
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    await window.showTab('troy');
+  });
+
+  const directCards = page.locator('#troyBusinessCalendarList > .troy-calendar-item');
+  const folded = page.locator('#troyBusinessCalendarList > .troy-calendar-collapsed');
+  await expect(directCards).toHaveCount(1);
+  await expect(directCards.first()).toContainText('First open');
+  await expect(folded).toHaveCount(1);
+  await expect(folded.locator('summary')).toContainText('8');
+  await expect(folded.locator('.troy-calendar-item')).toHaveCount(8);
+  await expect(folded.locator('.troy-calendar-item').first()).toBeHidden();
+
+  await folded.locator('summary').click();
+  await expect(folded.locator('.troy-calendar-item').first()).toBeVisible();
+  await folded.locator('[data-troy-calendar-reserve="cal-2"]').click();
+  await expect(page.locator('#troyReservationPanel')).toBeVisible();
+  await expect(page.locator('#reservationStartsAt')).toHaveValue('2026-06-09T18:00');
+
+  await expectNoPageErrors(errors);
+});
+
 test('home tab replaces HP and MP recovery controls with compact stat chips', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-stats', async (route) => {
