@@ -293,43 +293,93 @@
     return num.toLocaleString('ja-JP');
   };
 
+  const getRankingAvatarUrl = (row) => String(
+    row?.avatarUrl
+    || row?.pictureUrl
+    || row?.linePictureUrl
+    || ''
+  ).trim();
+
+  const getRankingInitial = (label) => String(label || '?').trim().slice(0, 1) || '?';
+
+  const createRankingAvatar = (row, label) => {
+    const avatar = document.createElement('div');
+    avatar.className = 'ranking-avatar';
+    const initial = getRankingInitial(label);
+    const avatarUrl = getRankingAvatarUrl(row);
+
+    if (!avatarUrl) {
+      avatar.classList.add('ranking-avatar-fallback');
+      avatar.textContent = initial;
+      return avatar;
+    }
+
+    const img = document.createElement('img');
+    img.src = avatarUrl;
+    img.alt = `${label || 'LINE'} icon`;
+    img.loading = 'eager';
+    img.decoding = 'async';
+    img.addEventListener('error', () => {
+      img.remove();
+      avatar.classList.add('ranking-avatar-fallback');
+      avatar.textContent = initial;
+    });
+    avatar.appendChild(img);
+    return avatar;
+  };
+
   const renderRanking = (data) => {
     if (!rankingList) return;
     rankingList.innerHTML = '';
     const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
 
     if (rankingSub) {
-      rankingSub.textContent = '本日の貢献度';
+      rankingSub.textContent = data?.isOpen === false ? 'TROY CLOSE' : '入店中メンバーのみ';
     }
 
     if (ranking.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'ranking-empty';
-      empty.textContent = 'ランキングデータがありません';
+      empty.textContent = '入店中メンバーがいません';
       rankingList.appendChild(empty);
       return;
     }
 
     ranking.slice(0, 10).forEach((row, index) => {
-      const line = document.createElement('div');
-      line.className = 'ranking-row';
+      const line = document.createElement('li');
+      line.className = `ranking-row ranking-row-${index + 1}`;
 
       const rank = document.createElement('div');
       rank.className = 'ranking-rank';
       rank.textContent = `${Number(row?.position) || index + 1}`;
 
+      const displayName = row.displayName || row.playFabId || 'Unknown';
+      const avatar = createRankingAvatar(row, displayName);
+
+      const main = document.createElement('div');
+      main.className = 'ranking-main';
+
       const name = document.createElement('div');
       name.className = 'ranking-name';
-      const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
-      name.textContent = `${medal}${row.displayName || row.playFabId || 'Unknown'}`;
+      name.textContent = displayName;
+
+      const meta = document.createElement('div');
+      meta.className = 'ranking-meta';
+      const level = Math.max(1, Math.floor(Number(row.level) || 1));
+      const rankName = String(row.rankName || '').trim();
+      meta.textContent = rankName ? `Lv.${level} ${rankName}` : `Lv.${level}`;
+
+      main.appendChild(name);
+      main.appendChild(meta);
 
       const bounty = document.createElement('div');
       bounty.className = 'ranking-bounty';
-      const contribution = Number(row.contribution ?? row.score ?? row.bounty ?? 0) || 0;
-      bounty.textContent = `${formatNumber(contribution)} 貢献`;
+      const bountyValue = Number(row.bounty ?? row.score ?? 0) || 0;
+      bounty.textContent = `${formatNumber(bountyValue)} B`;
 
       line.appendChild(rank);
-      line.appendChild(name);
+      line.appendChild(avatar);
+      line.appendChild(main);
       line.appendChild(bounty);
       rankingList.appendChild(line);
     });

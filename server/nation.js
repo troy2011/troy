@@ -3,7 +3,7 @@
 
 const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
-const { addPlayerNationContribution, calculateLevelFromContribution, buildStatsMapFromStatistics, PLAYER_CONTRIBUTION_STAT } = require('./playerLevel');
+const { addPlayerNationContribution, calculateLevelFromContribution, buildStatsMapFromStatistics, PLAYER_CONTRIBUTION_STAT, PLAYER_LEVEL_STAT } = require('./playerLevel');
 const {
     CAPITAL_CAPTURE_BASE_DURATION_MS,
     CAPITAL_CAPTURE_BREACH_WALLS,
@@ -19,11 +19,6 @@ const {
     getNationModelLabel,
     getNationLabel
 } = require('./nationWarWeapons');
-const {
-    PLAYER_DAILY_CONTRIBUTION_STAT,
-    ensureDailyContributionVersionForToday
-} = require('./contributionStats');
-
 const NATION_GROUP_BY_RACE = {
     Human: { island: 'fire', groupName: 'nation_fire_island' },
     Goblin: { island: 'water', groupName: 'nation_water_island' },
@@ -96,6 +91,7 @@ const NATION_WAR_CARD_REWARD_MAJOR_CHANCE = 0.2;
 const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
 const TROY_COIN_CONVERSION_MAX_AMOUNT = 1000000;
 const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
+const TROY_BOUNTY_RANKING_MEMBER_LIMIT = 50;
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -1862,6 +1858,85 @@ function buildTroyMemberPayload(memberDocs = []) {
         .sort((a, b) => (a.joinedAtMs - b.joinedAtMs) || String(a.playFabId || '').localeCompare(String(b.playFabId || '')));
 }
 
+function normalizeTroyBountyNumber(value, fallback = 0) {
+    const num = Math.floor(Number(value));
+    if (!Number.isFinite(num)) return Math.max(0, Math.floor(Number(fallback) || 0));
+    return Math.max(0, num);
+}
+
+function getTroyMemberAvatarUrl(data = {}) {
+    return String(
+        data.avatarUrl
+        || data.pictureUrl
+        || data.linePictureUrl
+        || data.profileImageUrl
+        || ''
+    ).trim();
+}
+
+async function buildTroyBountyRankingRow(memberDoc, deps) {
+    const data = typeof memberDoc?.data === 'function' ? (memberDoc.data() || {}) : {};
+    const playFabId = normalizePlayFabId(memberDoc?.id || data.playFabId || '');
+    if (!playFabId) return null;
+
+    let contribution = normalizeTroyBountyNumber(
+        data.contributionTotal ?? data.contribution ?? data.coinGoldContributionTotal ?? 0
+    );
+    let level = Math.max(1, normalizeTroyBountyNumber(data.level, 1));
+    let displayName = String(data.displayName || playFabId || 'Player').trim();
+    let rankName = String(data.rankName || getPlayerRankNameByLevel(level)).trim();
+    let avatarUrl = getTroyMemberAvatarUrl(data);
+    const joinedAtMs = data.joinedAt?.toMillis ? data.joinedAt.toMillis() : Number(data.joinedAt) || 0;
+
+    const { promisifyPlayFab, PlayFabServer } = deps || {};
+    if (typeof promisifyPlayFab === 'function' && PlayFabServer) {
+        const [statsResult, profileResult] = await Promise.allSettled([
+            promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId }),
+            promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
+                PlayFabId: playFabId,
+                ProfileConstraints: { ShowDisplayName: true, ShowAvatarUrl: true }
+            })
+        ]);
+
+        if (statsResult.status === 'fulfilled') {
+            const statsMap = buildStatsMapFromStatistics(statsResult.value?.Statistics || []);
+            if (Object.prototype.hasOwnProperty.call(statsMap, PLAYER_CONTRIBUTION_STAT)) {
+                contribution = normalizeTroyBountyNumber(statsMap[PLAYER_CONTRIBUTION_STAT]);
+            }
+            const derived = calculateLevelFromContribution(contribution);
+            const statLevel = normalizeTroyBountyNumber(statsMap[PLAYER_LEVEL_STAT], 0);
+            level = Math.max(1, statLevel || derived.level || level);
+            rankName = getPlayerRankNameByLevel(level);
+        } else {
+            console.warn('[troy-bounty-ranking] Statistics fetch failed:', playFabId, statsResult.reason?.errorMessage || statsResult.reason?.message || statsResult.reason);
+        }
+
+        if (profileResult.status === 'fulfilled') {
+            const profile = profileResult.value?.PlayerProfile || {};
+            displayName = String(profile.DisplayName || displayName || playFabId).trim();
+            avatarUrl = String(profile.AvatarUrl || avatarUrl || '').trim();
+        } else {
+            console.warn('[troy-bounty-ranking] Profile fetch failed:', playFabId, profileResult.reason?.errorMessage || profileResult.reason?.message || profileResult.reason);
+        }
+    }
+
+    const bountyRaw = contribution * level;
+    const bounty = Number.isFinite(bountyRaw)
+        ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(bountyRaw)))
+        : 0;
+
+    return {
+        playFabId,
+        displayName,
+        avatarUrl,
+        level,
+        rankName,
+        bounty,
+        score: bounty,
+        joinedAtMs
+    };
+}
+
 async function ensureKingStarterCrown(playFabId, nation, deps) {
     const { promisifyPlayFab, PlayFabServer, addEconomyItem } = deps;
     const kingId = normalizePlayFabId(playFabId);
@@ -2160,37 +2235,49 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
-    // PlayFab全体の日次貢献度ランキング（ディスプレイ用）
+    // 店内メンバー限定の懸賞金ランキング（ディスプレイ用）
     app.get('/api/troy-bounty-ranking', async (req, res) => {
         const limitRaw = Number.parseInt(String(req.query?.limit || '10'), 10);
         const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 10;
         try {
-            const contributionState = await ensureDailyContributionVersionForToday(nationDeps);
-            const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-                StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT,
-                StartPosition: 0,
-                MaxResultsCount: limit,
-                ProfileConstraints: { ShowDisplayName: true },
-                Version: contributionState.activeVersion
-            });
-            const entries = Array.isArray(result?.Leaderboard) ? result.Leaderboard : [];
-            const ranking = entries.map((entry) => ({
-                position: Number(entry?.Position) + 1,
-                playFabId: String(entry?.PlayFabId || '').trim(),
-                displayName: String(entry?.DisplayName || '').trim() || String(entry?.PlayFabId || '').trim() || 'Unknown',
-                contribution: Number(entry?.StatValue) || 0,
-                score: Number(entry?.StatValue) || 0,
-                bounty: Number(entry?.StatValue) || 0
-            }));
+            const roomRef = getTroyRoomDoc(firestore);
+            const roomSnap = await roomRef.get();
+            const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
+            const membersSnap = await roomRef
+                .collection('members')
+                .orderBy('joinedAt', 'asc')
+                .limit(TROY_BOUNTY_RANKING_MEMBER_LIMIT)
+                .get();
+            const rows = await Promise.all(membersSnap.docs.map((doc) => buildTroyBountyRankingRow(doc, nationDeps)));
+            const ranking = rows
+                .filter(Boolean)
+                .sort((a, b) => (
+                    (b.bounty - a.bounty)
+                    || (b.level - a.level)
+                    || (a.joinedAtMs - b.joinedAtMs)
+                    || String(a.playFabId || '').localeCompare(String(b.playFabId || ''))
+                ))
+                .slice(0, limit)
+                .map((entry, index) => ({
+                    position: index + 1,
+                    playFabId: entry.playFabId,
+                    displayName: entry.displayName,
+                    avatarUrl: entry.avatarUrl,
+                    level: entry.level,
+                    rankName: entry.rankName,
+                    bounty: entry.bounty,
+                    score: entry.score
+                }));
             res.json({
-                scope: 'global',
-                dayKey: contributionState.activeDayKey,
+                scope: 'troy-members',
+                isOpen: !!roomData.isOpen,
+                memberCount: membersSnap.size,
                 updatedAt: Date.now(),
                 ranking
             });
         } catch (error) {
             console.error('[troy-bounty-ranking] Error:', error?.errorMessage || error?.message || error);
-            res.status(500).json({ error: 'Failed to load global contribution ranking' });
+            res.status(500).json({ error: 'Failed to load troy bounty ranking' });
         }
     });
 
@@ -3054,6 +3141,7 @@ function initializeNationRoutes(app, deps) {
 
             const memberId = normalizePlayFabId(requesterPlayFabId);
             const name = String(displayName || '').trim().slice(0, 40) || memberId;
+            const pictureUrl = String(req.body?.pictureUrl || req.body?.avatarUrl || '').trim().slice(0, 500);
             const memberRef = roomRef.collection('members').doc(memberId);
             const existingMemberSnap = await memberRef.get();
             const isNewEntry = !existingMemberSnap.exists;
@@ -3100,6 +3188,7 @@ function initializeNationRoutes(app, deps) {
             await memberRef.set({
                 playFabId: memberId,
                 displayName: name,
+                ...(pictureUrl ? { avatarUrl: pictureUrl } : {}),
                 level: entryLevel,
                 rankName: entryRankName,
                 rankBenefits: entryRankBenefits,

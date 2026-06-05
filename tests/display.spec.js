@@ -80,16 +80,19 @@ async function installDisplayMocks(page) {
   });
 
   await page.route('**/api/troy-bounty-ranking?limit=10', async (route) => {
+    const avatarUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
+        scope: 'troy-members',
+        isOpen: true,
         ranking: [
-          { position: 1, displayName: '海風の船長', contribution: 12800 },
-          { position: 2, displayName: '港町の料理人', contribution: 9200 },
-          { position: 3, displayName: '霧切りの狙撃手', contribution: 7600 },
-          { position: 4, displayName: '古地図の考古学者', contribution: 5400 },
-          { position: 5, displayName: '歌う音楽家', contribution: 4100 }
+          { position: 1, displayName: '海風の船長', level: 24, rankName: '船長', bounty: 307200, avatarUrl },
+          { position: 2, displayName: '港町の料理人', level: 18, rankName: '航海士', bounty: 165600, avatarUrl },
+          { position: 3, displayName: '霧切りの狙撃手', level: 13, rankName: '航海士', bounty: 98800, avatarUrl },
+          { position: 4, displayName: '古地図の考古学者', level: 9, rankName: '見習い', bounty: 48600, avatarUrl },
+          { position: 5, displayName: '歌う音楽家', level: 7, rankName: '見習い', bounty: 28700, avatarUrl }
         ]
       })
     });
@@ -102,7 +105,10 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
 
   await expect(page.locator('#audioGate')).toBeVisible();
   await expect(page.locator('#rankingPanel')).toBeVisible();
+  await expect(page.locator('#rankingTitle')).toHaveText('店内懸賞金ランキング');
+  await expect(page.locator('#rankingSub')).toHaveText('入店中メンバーのみ');
   await expect(page.locator('.ranking-row')).toHaveCount(5);
+  await expect(page.locator('.ranking-avatar img')).toHaveCount(5);
 
   await page.locator('#btnStartDisplay').click();
   await expect(page.locator('body')).toHaveClass(/display-kiosk/);
@@ -113,10 +119,15 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   const audit = await page.evaluate(() => {
     const rankingPanel = document.getElementById('rankingPanel');
     const rankingTitle = document.getElementById('rankingTitle');
+    const firstAvatar = document.querySelector('.ranking-avatar');
+    const firstBounty = document.querySelector('.ranking-bounty');
     return {
       audioPlayCount: window.__displayAudioPlayCount || 0,
       panelWidth: Math.round(rankingPanel.getBoundingClientRect().width),
       titleFontSize: Number.parseFloat(getComputedStyle(rankingTitle).fontSize),
+      panelText: rankingPanel.textContent || '',
+      firstBountyText: firstBounty?.textContent || '',
+      avatarSize: Math.round(firstAvatar.getBoundingClientRect().width),
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth
     };
@@ -125,6 +136,10 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.audioPlayCount).toBeGreaterThanOrEqual(5);
   expect(audit.panelWidth).toBeGreaterThanOrEqual(380);
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
+  expect(audit.firstBountyText).toContain('B');
+  expect(audit.panelText).not.toContain('貢献度');
+  expect(audit.panelText).not.toContain('×');
+  expect(audit.avatarSize).toBeGreaterThanOrEqual(40);
   expect(audit.scrollWidth).toBe(audit.clientWidth);
 });
 

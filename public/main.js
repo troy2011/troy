@@ -1668,7 +1668,8 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         await promptLineOfficialFriendBeforeTroyEntry();
         const joinBody = {
             playFabId: myPlayFabId,
-            displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || ''
+            displayName: window.myLineProfile?.displayName || window.myPlayFabDisplayName || '',
+            pictureUrl: window.myLineProfile?.pictureUrl || ''
         };
         const resolvedEntryNation = window.__resolvedTroyEntryNation || entryRequest.nation || null;
         if (resolvedEntryNation) joinBody.troyNation = resolvedEntryNation;
