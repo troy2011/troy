@@ -68,7 +68,7 @@ const TROY_PRODUCT_MENUS = {
     beer: {
         title: 'ビール・ハイボール',
         items: [
-            { concept: '瓶ビール', content: 'ハートランド', price: 500, emoji: '🍺' },
+            { concept: '瓶ビール', content: 'ハートランド', price: 700, emoji: '🍺' },
             withAlcoholSize({ concept: 'ハイボール', content: '角', price: 500, emoji: '🥃' }),
             withAlcoholSize({ concept: 'シャンディガフ', content: 'ビール + ジンジャーエール', price: 500, emoji: '🍺' }),
             { concept: 'ノンアルコール瓶ビール', content: 'ハイネケン', price: 500, emoji: '🍺' }
