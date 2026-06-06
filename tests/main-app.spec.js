@@ -247,6 +247,9 @@ export function onSnapshot(_ref, next) {
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).click();
   const blackBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^黒霧ボトル$/ }) });
   await expect(blackBottleItem.locator('.troy-menu-board-price')).toHaveText('¥3,000');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^ワインボトル$/ }) }).locator('.troy-menu-board-price')).toHaveText('¥3,000');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^モエ・エ・シャンドン$/ }) }).locator('.troy-menu-board-price')).toHaveText('¥18,000');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^角ボトル$/ }) }).locator('.troy-menu-board-price')).toHaveText('¥4,000');
 
   await expectNoPageErrors(errors);
 });
