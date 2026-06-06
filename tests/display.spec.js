@@ -2,7 +2,18 @@ const { test, expect } = require('@playwright/test');
 
 async function installDisplayMocks(page, options = {}) {
   const autoEntryEvent = options.autoEntryEvent !== false;
-  await page.addInitScript(({ autoEntryEvent: shouldEmitAutoEntry }) => {
+  const strictAudioActivation = !!options.strictAudioActivation;
+  await page.addInitScript(({ autoEntryEvent: shouldEmitAutoEntry, strictAudioActivation: shouldRequireGesture }) => {
+    if (shouldRequireGesture) {
+      window.__displayVideoPlayStarted = false;
+      HTMLMediaElement.prototype.play = function playMedia() {
+        if (document.getElementById('audioGateStatus')?.textContent === '音声を準備しています...') {
+          window.__displayVideoPlayStarted = true;
+        }
+        return Promise.resolve();
+      };
+    }
+
     class MockAudio {
       constructor(src) {
         this.src = src;
@@ -10,9 +21,15 @@ async function installDisplayMocks(page, options = {}) {
         this.currentTime = 0;
         this.preload = '';
         this.playsInline = false;
+        this.unlocked = false;
       }
 
       async play() {
+        if (shouldRequireGesture && !this.unlocked && window.__displayVideoPlayStarted) {
+          window.__displayAudioBlockedCount = Number(window.__displayAudioBlockedCount || 0) + 1;
+          throw new Error('NotAllowedError');
+        }
+        this.unlocked = true;
         window.__displayAudioPlayCount = Number(window.__displayAudioPlayCount || 0) + 1;
       }
 
@@ -82,7 +99,7 @@ async function installDisplayMocks(page, options = {}) {
 
       close() {}
     };
-  }, { autoEntryEvent });
+  }, { autoEntryEvent, strictAudioActivation });
 
   const defaultRankingResponse = {
     scope: 'troy-members',
@@ -165,6 +182,75 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.panelText).not.toContain('×');
   expect(audit.avatarSize).toBeGreaterThanOrEqual(40);
   expect(audit.scrollWidth).toBe(audit.clientWidth);
+});
+
+test('display audio unlock works when Android-style activation expires after the tap task', async ({ page }) => {
+  await installDisplayMocks(page, {
+    autoEntryEvent: false,
+    strictAudioActivation: true
+  });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    window.__displayVideoPlayStarted = false;
+  });
+
+  await page.locator('#btnStartDisplay').click();
+  await expect(page.locator('#audioGate')).toBeHidden();
+  await expect(page.locator('body')).toHaveClass(/display-ready/);
+
+  let audit = await page.evaluate(() => ({
+    audioPlayCount: window.__displayAudioPlayCount || 0,
+    blockedCount: window.__displayAudioBlockedCount || 0,
+    gateStatus: document.getElementById('audioGateStatus')?.textContent || ''
+  }));
+  expect(audit.audioPlayCount).toBeGreaterThanOrEqual(5);
+  expect(audit.blockedCount).toBe(0);
+  expect(audit.gateStatus).toBe('音声ON');
+
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-entry',
+      type: 'flare',
+      label: '入店: Android確認',
+      level: 24,
+      rankName: '船長'
+    });
+  });
+  await page.waitForTimeout(80);
+
+  audit = await page.evaluate(() => ({
+    audioPlayCount: window.__displayAudioPlayCount || 0,
+    blockedCount: window.__displayAudioBlockedCount || 0
+  }));
+  expect(audit.audioPlayCount).toBeGreaterThanOrEqual(6);
+  expect(audit.blockedCount).toBe(0);
+});
+
+test('display audio unlock starts from touchstart for iPhone Safari', async ({ page }) => {
+  await installDisplayMocks(page, {
+    autoEntryEvent: false,
+    strictAudioActivation: true
+  });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    window.__displayVideoPlayStarted = false;
+  });
+
+  await page.locator('#btnStartDisplay').dispatchEvent('touchstart', {
+    bubbles: true,
+    cancelable: true
+  });
+
+  await expect(page.locator('#audioGate')).toBeHidden();
+  await expect(page.locator('body')).toHaveClass(/display-ready/);
+  const audit = await page.evaluate(() => ({
+    audioPlayCount: window.__displayAudioPlayCount || 0,
+    blockedCount: window.__displayAudioBlockedCount || 0,
+    gateStatus: document.getElementById('audioGateStatus')?.textContent || ''
+  }));
+  expect(audit.audioPlayCount).toBeGreaterThanOrEqual(5);
+  expect(audit.blockedCount).toBe(0);
+  expect(audit.gateStatus).toBe('音声ON');
 });
 
 test('display ranking refreshes after troy close event', async ({ page }) => {

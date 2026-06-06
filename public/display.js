@@ -31,10 +31,14 @@
   let audioUnlocked = false;
   let audioUnlocking = false;
   let audioContext = null;
+  let audioDecodeStarted = false;
   let seaVideoWatchTimer = null;
   let seaVideoLoadRequested = false;
   let lastSeaVideoTime = 0;
   let lastSeaVideoCheckAt = 0;
+  const soundBuffers = new Map();
+  const soundBufferPromises = new Map();
+  const soundArrayBufferPromises = new Map();
   const soundPlayers = new Map(ENTRY_SOUNDS.map((src) => {
     const audio = new Audio(src);
     audio.preload = 'auto';
@@ -42,6 +46,20 @@
     audio.volume = 0.9;
     return [src, audio];
   }));
+
+  const fetchSoundArrayBuffer = (src) => {
+    if (!src) return Promise.resolve(null);
+    if (soundArrayBufferPromises.has(src)) return soundArrayBufferPromises.get(src);
+    const promise = fetch(src, { cache: 'force-cache' })
+      .then((res) => (res.ok ? res.arrayBuffer() : null))
+      .catch(() => null);
+    soundArrayBufferPromises.set(src, promise);
+    return promise;
+  };
+
+  ENTRY_SOUNDS.forEach((src) => {
+    fetchSoundArrayBuffer(src);
+  });
 
   const setGateStatus = (text) => {
     if (audioGateStatus) audioGateStatus.textContent = text || '';
@@ -103,22 +121,27 @@
     startSeaVideoWatchdog();
   };
 
-  const warmupAudioElement = async (audio) => {
-    if (!audio) return false;
+  const beginWarmupAudioElement = (audio) => {
+    if (!audio) return Promise.resolve(false);
     const previousVolume = audio.volume;
     audio.volume = 0.01;
     audio.currentTime = 0;
+    let result = null;
     try {
-      const result = audio.play();
-      if (result?.catch) await result;
+      result = audio.play();
+    } catch (_) {
+      audio.volume = previousVolume;
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(result).then(() => {
       audio.pause();
       audio.currentTime = 0;
       audio.volume = previousVolume;
       return true;
-    } catch (_) {
+    }).catch(() => {
       audio.volume = previousVolume;
       return false;
-    }
+    });
   };
 
   const unlockWebAudio = async () => {
@@ -140,8 +163,61 @@
     }
   };
 
+  const decodeAudioData = (arrayBuffer) => {
+    if (!audioContext?.decodeAudioData) return Promise.resolve(null);
+    return new Promise((resolve, reject) => {
+      try {
+        const result = audioContext.decodeAudioData(arrayBuffer, resolve, reject);
+        if (result?.then) result.then(resolve, reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  const loadSoundBuffer = async (src) => {
+    if (!src || !audioContext?.decodeAudioData) return null;
+    if (soundBuffers.has(src)) return soundBuffers.get(src);
+    if (soundBufferPromises.has(src)) return soundBufferPromises.get(src);
+    const promise = fetchSoundArrayBuffer(src)
+      .then((arrayBuffer) => (arrayBuffer ? decodeAudioData(arrayBuffer.slice(0)) : null))
+      .then((buffer) => {
+        if (buffer) soundBuffers.set(src, buffer);
+        return buffer;
+      })
+      .catch(() => null);
+    soundBufferPromises.set(src, promise);
+    return promise;
+  };
+
+  const startSoundBufferPreload = () => {
+    if (audioDecodeStarted || !audioContext) return;
+    audioDecodeStarted = true;
+    ENTRY_SOUNDS.forEach((src) => {
+      loadSoundBuffer(src);
+    });
+  };
+
+  const playBufferedSound = (src) => {
+    if (!src || !audioContext || !soundBuffers.has(src)) return false;
+    try {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume?.().catch?.(() => {});
+      }
+      const source = audioContext.createBufferSource();
+      const gain = audioContext.createGain();
+      source.buffer = soundBuffers.get(src);
+      gain.gain.value = 0.85;
+      source.connect(gain);
+      gain.connect(audioContext.destination);
+      source.start(0);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const unlockAudio = async () => {
-    await ensureSeaVideoPlayback();
     if (audioUnlocked) {
       if (audioGate) audioGate.style.display = 'none';
       document.body.classList.add('display-ready');
@@ -151,16 +227,22 @@
     audioUnlocking = true;
     setGateStatus('音声を準備しています...');
 
-    await unlockWebAudio();
-    const warmupResults = [];
-    for (const audio of soundPlayers.values()) {
-      warmupResults.push(await warmupAudioElement(audio));
-    }
+    const webAudioPromise = unlockWebAudio();
+    const warmupPromises = [...soundPlayers.values()].map((audio) => beginWarmupAudioElement(audio));
+    const seaVideoPromise = ensureSeaVideoPlayback();
 
+    const webAudioReady = await webAudioPromise;
+    if (webAudioReady) startSoundBufferPreload();
+    const warmupResults = await Promise.all(warmupPromises);
+    const bufferResults = webAudioReady
+      ? await Promise.all(ENTRY_SOUNDS.map((src) => loadSoundBuffer(src)))
+      : [];
+    await seaVideoPromise;
     await ensureSeaVideoPlayback();
 
     const anySoundReady = warmupResults.some(Boolean);
-    audioUnlocked = anySoundReady;
+    const anyBufferReady = bufferResults.some(Boolean);
+    audioUnlocked = anySoundReady || anyBufferReady;
     audioUnlocking = false;
     if (!audioUnlocked) {
       setGateStatus('音が有効化できませんでした。もう一度タップしてください。');
@@ -173,6 +255,7 @@
   };
 
   const handleAudioUnlockGesture = async (event) => {
+    event?.preventDefault?.();
     event?.stopPropagation?.();
     const ok = await unlockAudio();
     await enterKioskMode();
@@ -182,17 +265,22 @@
   };
 
   const handleAudioButtonGesture = async (event) => {
+    event?.preventDefault?.();
     event?.stopPropagation?.();
     const ok = await unlockAudio();
     if (!ok && audioGate) audioGate.classList.add('needs-audio-tap');
   };
 
+  const touchGestureOptions = { passive: false };
+  audioGate?.addEventListener('touchstart', handleAudioUnlockGesture, touchGestureOptions);
   audioGate?.addEventListener('click', handleAudioUnlockGesture);
-  audioGate?.addEventListener('touchend', handleAudioUnlockGesture);
+  audioGate?.addEventListener('touchend', handleAudioUnlockGesture, touchGestureOptions);
+  startDisplayBtn?.addEventListener('touchstart', handleAudioUnlockGesture, touchGestureOptions);
   startDisplayBtn?.addEventListener('click', handleAudioUnlockGesture);
-  startDisplayBtn?.addEventListener('touchend', handleAudioUnlockGesture);
+  startDisplayBtn?.addEventListener('touchend', handleAudioUnlockGesture, touchGestureOptions);
+  unlockAudioBtn?.addEventListener('touchstart', handleAudioButtonGesture, touchGestureOptions);
   unlockAudioBtn?.addEventListener('click', handleAudioButtonGesture);
-  unlockAudioBtn?.addEventListener('touchend', handleAudioButtonGesture);
+  unlockAudioBtn?.addEventListener('touchend', handleAudioButtonGesture, touchGestureOptions);
 
   const enterKioskMode = async () => {
     const target = sea || document.documentElement;
@@ -219,14 +307,32 @@
     }
   });
 
+  const resumeUnlockedAudioContext = () => {
+    if (!audioUnlocked || !audioContext || audioContext.state !== 'suspended') return;
+    audioContext.resume?.().catch?.(() => {});
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resumeUnlockedAudioContext();
+  });
+  window.addEventListener('pageshow', resumeUnlockedAudioContext);
+  window.addEventListener('focus', resumeUnlockedAudioContext);
+
   const playSound = (src) => {
     if (!audioUnlocked || !src) return;
+    if (playBufferedSound(src)) return;
+    if (audioContext && !soundBuffers.has(src)) {
+      loadSoundBuffer(src).then((buffer) => {
+        if (buffer && audioUnlocked) playBufferedSound(src);
+      });
+    }
     try {
       const audio = soundPlayers.get(src) || new Audio(src);
       audio.volume = 0.85;
       audio.currentTime = 0;
       const result = audio.play();
       if (result?.catch) result.catch(() => {
+        if (audioContext?.state === 'running') return;
         audioUnlocked = false;
         if (audioGate) audioGate.style.display = 'flex';
       });
