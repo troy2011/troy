@@ -1429,6 +1429,46 @@ function renderExplorationDestinationBossPool(destination) {
     return destination?.bossName || 'あり';
 }
 
+function normalizeExplorationBossTier(tier) {
+    const key = String(tier || '').trim().toLowerCase();
+    return ['weak', 'medium', 'strong'].includes(key) ? key : 'unknown';
+}
+
+function renderExplorationDestinationBossChips(destination) {
+    const bosses = Array.isArray(destination?.bosses) ? destination.bosses : [];
+    const summary = renderExplorationDestinationBossPool(destination);
+    if (!bosses.length) {
+        return `
+            <div class="ship-exploration-boss-list is-single" aria-label="BOSS: ${escapeHtml(summary)}">
+                <span class="ship-exploration-boss-chip is-unknown">
+                    <span class="ship-exploration-boss-avatar" aria-hidden="true"></span>
+                    <b>BOSS</b>
+                    <span>${escapeHtml(summary)}</span>
+                </span>
+            </div>
+        `;
+    }
+    return `
+        <div class="ship-exploration-boss-list" aria-label="BOSS: ${escapeHtml(summary)}">
+            ${bosses.map((boss) => {
+                const tier = normalizeExplorationBossTier(boss.tier);
+                const label = boss.tierLabel || getExplorationBossTierLabel(boss.tier, 'BOSS');
+                const name = String(boss.name || boss.id || 'BOSS');
+                const sprite = getExplorationMonsterSprite(boss.spriteId || boss.id, name);
+                return `
+                    <span class="ship-exploration-boss-chip is-${tier}">
+                        <span class="ship-exploration-boss-avatar" aria-hidden="true">
+                            ${renderExplorationBossImage(sprite, 'ship-exploration-boss-image', { decorative: true })}
+                        </span>
+                        <b>${escapeHtml(label)}</b>
+                        <span>${escapeHtml(name)}</span>
+                    </span>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function normalizeBossResult(value) {
     const result = String(value || 'none').toLowerCase();
     if (result === 'victory' || result === 'defeat' || result === 'escaped' || result === 'draw') return result;
@@ -1509,6 +1549,7 @@ function showExplorationResultSummary(data, options = {}) {
     const bossName = String(report.bossName || '遭遇なし');
     const bossSprite = resolveExplorationBossSprite(reportDestinationId, report.bossName, report.bossSpriteId);
     const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
+    const bossTierKey = normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(data);
     const rewardTotal = Number(report.rewardCount || rewards.length || 0);
     const awaitsChestOpen = rewardTotal > 0;
@@ -1543,7 +1584,7 @@ function showExplorationResultSummary(data, options = {}) {
     existing?.remove();
 
     const overlay = document.createElement('div');
-    overlay.className = `exploration-result-overlay is-${bossResult} ${awaitsChestOpen ? 'is-awaiting-open' : 'is-opened'}`;
+    overlay.className = `exploration-result-overlay is-${bossResult} is-boss-${bossTierKey} ${awaitsChestOpen ? 'is-awaiting-open' : 'is-opened'}`;
     overlay.innerHTML = `
         <div class="exploration-result-dialog" role="dialog" aria-modal="true" aria-label="探索結果">
             <button type="button" class="exploration-result-close" aria-label="閉じる">×</button>
@@ -1668,6 +1709,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const bossResult = normalizeBossResult(report.bossResult);
     const bossSprite = resolveExplorationBossSprite(resolvedDestinationId, report.bossName, report.bossSpriteId);
     const bossTierLabel = report.bossTierLabel || getExplorationBossTierLabel(report.bossTier);
+    const bossTierKey = normalizeExplorationBossTier(report.bossTier);
     const rewards = getRewardItemsForReveal(claimData);
     const rewardCount = Number(report.rewardCount || rewards.length || 0);
     const shipTrait = EXPLORATION_SHIP_TRAITS[form] || EXPLORATION_SHIP_TRAITS.boat;
@@ -1678,10 +1720,11 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     existing?.remove();
 
     const overlay = document.createElement('div');
-    overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky}`;
+    overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey}`;
     overlay.innerHTML = `
         <div class="exploration-sequence-dialog" role="dialog" aria-modal="true" aria-label="探索">
             <div class="exploration-sequence-scene">
+                <div class="exploration-sequence-compass" aria-hidden="true"></div>
                 <div class="exploration-sequence-sky"></div>
                 <div class="exploration-sequence-horizon" aria-hidden="true"></div>
                 <div class="exploration-sequence-route" aria-hidden="true"></div>
@@ -1711,7 +1754,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const label = overlay.querySelector('[data-exploration-sequence-label]');
     const logBox = overlay.querySelector('.exploration-sequence-log');
     const setPhase = (phase, text) => {
-        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-${phase} is-result-${bossResult}`;
+        overlay.className = `exploration-sequence-overlay is-${form} ${shipTrait.className} is-sky-${destinationVisual.sky} is-boss-${bossTierKey} is-${phase} is-result-${bossResult}`;
         if (label) label.textContent = text;
         homeIcon?.classList.remove('is-exploring-sail', 'is-exploring-up', 'is-exploring-left', 'is-exploring-battle', 'is-exploring-treasure');
         homeIcon?.classList.add(`is-exploring-${phase}`);
@@ -1757,11 +1800,21 @@ function renderExplorationPanel(data, playFabId) {
         </div>
     `;
     if (active) {
+        const activeVisual = getExplorationDestinationVisual(active.destinationId);
         panel.innerHTML = `
             ${head}
-            <div class="ship-exploration-destination">
-                <strong>${escapeHtml(active.destinationName || '探索中')}</strong>
-                <div class="ship-exploration-meta">出航船: ${escapeHtml(active.shipName || '')}</div>
+            <div class="ship-exploration-destination is-active">
+                <div class="ship-exploration-card-head">
+                    <span class="ship-exploration-mapmark" aria-hidden="true">${escapeHtml(activeVisual.island)}</span>
+                    <div class="ship-exploration-title-group">
+                        <strong>${escapeHtml(active.destinationName || '探索中')}</strong>
+                        <div class="ship-exploration-meta">出航船: ${escapeHtml(active.shipName || '')}</div>
+                    </div>
+                </div>
+                <div class="ship-exploration-badges" aria-label="探索状態">
+                    <span class="ship-exploration-badge is-active">探索中</span>
+                    <span class="ship-exploration-badge">結果確認待ち</span>
+                </div>
                 <div class="ship-exploration-meta">演出完了後に結果を確認できます。</div>
                 <div class="ship-exploration-actions">
                     <button type="button" data-exploration-claim>結果を見る</button>
@@ -1774,14 +1827,26 @@ function renderExplorationPanel(data, playFabId) {
     }
     const destinations = Array.isArray(data?.destinations) ? data.destinations : [];
     const destinationHtml = destinations.length
-        ? destinations.map((destination) => `
-            <div class="ship-exploration-destination">
-                <strong>${escapeHtml(destination.name)}</strong>
-                <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
-                <div class="ship-exploration-meta">${Number(destination.cost || 0).toLocaleString('ja-JP')}G / BOSS: ${escapeHtml(renderExplorationDestinationBossPool(destination))}</div>
+        ? destinations.map((destination) => {
+            const visual = getExplorationDestinationVisual(destination.id);
+            return `
+            <div class="ship-exploration-destination" data-exploration-destination-id="${escapeHtml(destination.id)}">
+                <div class="ship-exploration-card-head">
+                    <span class="ship-exploration-mapmark" aria-hidden="true">${escapeHtml(visual.island)}</span>
+                    <div class="ship-exploration-title-group">
+                        <strong>${escapeHtml(destination.name)}</strong>
+                        <div class="ship-exploration-meta">${escapeHtml(destination.description || '')}</div>
+                    </div>
+                </div>
+                <div class="ship-exploration-badges" aria-label="探索条件">
+                    <span class="ship-exploration-badge">${Number(destination.cost || 0).toLocaleString('ja-JP')}G</span>
+                    <span class="ship-exploration-badge">${escapeHtml(formatExplorationDuration(destination.durationMs))}</span>
+                </div>
+                ${renderExplorationDestinationBossChips(destination)}
                 <button type="button" class="ship-exploration-start" data-exploration-start="${escapeHtml(destination.id)}">探索開始</button>
             </div>
-        `).join('')
+        `;
+        }).join('')
         : '<div class="ship-exploration-empty">この船で行ける探索先がありません。</div>';
     panel.innerHTML = `
         ${head}

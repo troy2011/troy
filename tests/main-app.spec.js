@@ -355,6 +355,7 @@ test('home exploration button loads exploration data in a popup', async ({ page 
             name: '港の外れ',
             description: '近場の探索',
             cost: 100,
+            durationMs: 3 * 60 * 60 * 1000,
             bossName: 'なし',
             bosses: [
               { id: 'treasure_slime', name: '財宝スライム', spriteId: 'treasure_slime', tier: 'weak', tierLabel: '弱' },
@@ -377,8 +378,22 @@ test('home exploration button loads exploration data in a popup', async ({ page 
   await expect(panel.locator('.ship-exploration-head h3')).toHaveText('探索');
   await expect(panel.locator('.ship-exploration-meta').first()).toContainText('テスト船');
   await expect(panel.locator('.ship-exploration-destination strong')).toHaveText('港の外れ');
-  await expect(panel.locator('.ship-exploration-destination')).toContainText('弱: 財宝スライム / 中: 爆弾フグ / 強: 宝箱ミミック');
+  await expect(panel.locator('.ship-exploration-badge')).toContainText(['100G', '3時間']);
+  await expect(panel.locator('.ship-exploration-boss-chip')).toHaveCount(3);
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('弱');
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(0)).toContainText('財宝スライム');
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(1)).toContainText('中');
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(1)).toContainText('爆弾フグ');
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(2)).toContainText('強');
+  await expect(panel.locator('.ship-exploration-boss-chip').nth(2)).toContainText('宝箱ミミック');
+  await expect(panel.locator('.ship-exploration-boss-image')).toHaveCount(3);
   await expect(panel.locator('.ship-exploration-start')).toHaveText('探索開始');
+  const explorationPanelFrame = await panel.locator('.ship-exploration-destination').evaluate((element) => ({
+    panelBorder: getComputedStyle(document.getElementById('shipExplorationPanel')).borderImageSource,
+    destinationBorder: getComputedStyle(element).borderImageSource
+  }));
+  expect(explorationPanelFrame.panelBorder).toContain('assets/ui/panels/');
+  expect(explorationPanelFrame.destinationBorder).toContain('assets/ui/panels/');
   expect(explorationStatusBody).toMatchObject({ playFabId: 'PF_PLAYWRIGHT' });
 
   await panel.locator('[data-home-exploration-close]').click();

@@ -427,68 +427,115 @@ button.home-player-ship-name {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgba(2, 6, 23, 0.62);
+    background:
+        radial-gradient(ellipse at 50% 18%, rgba(14, 165, 233, 0.18), transparent 42%),
+        rgba(2, 6, 23, 0.72);
 }
 
 .exploration-sequence-dialog {
-    width: min(560px, 100%);
-    padding: 16px;
+    width: min(620px, 100%);
+    padding: 18px;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(16, 11, 7, 0.36), rgba(2, 4, 7, 0.82)),
-        radial-gradient(ellipse at 50% 0%, rgba(255, 220, 122, 0.12), transparent 62%);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.56);
+        radial-gradient(ellipse at 18% 0%, rgba(253, 230, 138, 0.18), transparent 36%),
+        linear-gradient(180deg, rgba(16, 11, 7, 0.42), rgba(2, 4, 7, 0.88)),
+        repeating-linear-gradient(90deg, rgba(102, 60, 27, 0.1) 0 28px, rgba(4, 6, 9, 0.1) 28px 56px);
+    box-shadow:
+        0 30px 78px rgba(0, 0, 0, 0.62),
+        inset 0 1px 0 rgba(255, 239, 180, 0.16);
 }
 
 .exploration-sequence-scene {
     position: relative;
-    height: 278px;
+    height: 306px;
     overflow: hidden;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 12px / 0 stretch;
     border-radius: 6px;
     background:
-        linear-gradient(180deg, rgba(5, 10, 16, 0.06), rgba(5, 12, 18, 0.58) 78%),
+        linear-gradient(180deg, rgba(8, 47, 73, 0.12) 0%, rgba(5, 12, 18, 0.24) 42%, rgba(6, 24, 36, 0.58) 100%),
         url("./assets/ui/bg-sea.png") center / cover no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene {
     background:
-        linear-gradient(180deg, rgba(203, 213, 225, 0.58) 0%, rgba(100, 116, 139, 0.34) 44%, rgba(14, 116, 144, 0.46) 45%, rgba(15, 23, 42, 0.72) 100%);
+        linear-gradient(180deg, rgba(226, 232, 240, 0.48) 0%, rgba(100, 116, 139, 0.34) 42%, rgba(14, 116, 144, 0.42) 43%, rgba(15, 23, 42, 0.72) 100%),
+        url("./assets/ui/bg-sea.png") center / cover no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene {
     background:
-        linear-gradient(180deg, rgba(14, 165, 233, 0.26) 0%, rgba(12, 74, 110, 0.42) 44%, rgba(3, 105, 161, 0.68) 45%, rgba(8, 47, 73, 0.88) 100%);
+        linear-gradient(180deg, rgba(14, 165, 233, 0.16) 0%, rgba(12, 74, 110, 0.34) 42%, rgba(3, 105, 161, 0.56) 43%, rgba(8, 47, 73, 0.88) 100%),
+        url("./assets/ui/bg-sea.png") center / cover no-repeat;
 }
 
 .exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
     background:
-        linear-gradient(180deg, rgba(71, 85, 105, 0.72) 0%, rgba(30, 41, 59, 0.56) 44%, rgba(8, 47, 73, 0.82) 45%, rgba(15, 23, 42, 0.94) 100%);
+        linear-gradient(180deg, rgba(71, 85, 105, 0.66) 0%, rgba(30, 41, 59, 0.54) 42%, rgba(8, 47, 73, 0.76) 43%, rgba(15, 23, 42, 0.94) 100%),
+        url("./assets/ui/bg-sea.png") center / cover no-repeat;
+}
+
+.exploration-sequence-scene::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 4px;
+    box-shadow:
+        inset 0 0 42px rgba(0, 0, 0, 0.46),
+        inset 0 0 0 1px rgba(255, 240, 180, 0.08);
+}
+
+.exploration-sequence-scene::after {
+    content: "";
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 72px;
+    z-index: 1;
+    height: 34px;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    opacity: 0.5;
 }
 
 .exploration-sequence-sky {
     display: none;
 }
 
+.exploration-sequence-compass {
+    position: absolute;
+    right: 18px;
+    top: 18px;
+    z-index: 2;
+    width: 42px;
+    aspect-ratio: 1 / 1;
+    background: url("./assets/ui/icons/015.png") center / contain no-repeat;
+    opacity: 0.56;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.58));
+}
+
 .exploration-sequence-horizon {
     position: absolute;
     left: 18px;
     right: 18px;
-    top: 112px;
+    top: 118px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(254, 243, 199, 0.38), transparent);
-    opacity: 0.5;
+    z-index: 2;
+    background: linear-gradient(90deg, transparent, rgba(254, 243, 199, 0.46), transparent);
+    opacity: 0.62;
 }
 
 .exploration-sequence-route {
     position: absolute;
     left: 98px;
     right: 126px;
-    bottom: 92px;
+    bottom: 98px;
     height: 3px;
+    z-index: 3;
     border-radius: 999px;
     background: linear-gradient(90deg, rgba(186, 230, 253, 0.18), rgba(254, 240, 138, 0.84));
     box-shadow: 0 0 12px rgba(250, 204, 21, 0.34);
@@ -514,9 +561,10 @@ button.home-player-ship-name {
 .exploration-sequence-arrival {
     position: absolute;
     right: 92px;
-    bottom: 101px;
+    bottom: 107px;
     width: 50px;
     height: 50px;
+    z-index: 3;
     border: 2px solid rgba(254, 243, 199, 0.74);
     border-radius: 50%;
     box-shadow: inset 0 0 14px rgba(14, 165, 233, 0.22), 0 0 18px rgba(250, 204, 21, 0.3);
@@ -528,9 +576,10 @@ button.home-player-ship-name {
 .exploration-sequence-island {
     position: absolute;
     right: 30px;
-    bottom: 66px;
+    bottom: 72px;
     width: 146px;
     height: 112px;
+    z-index: 2;
     display: grid;
     place-items: center;
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
@@ -545,11 +594,12 @@ button.home-player-ship-name {
 .exploration-sequence-boss {
     position: absolute;
     right: 20px;
-    bottom: 112px;
+    bottom: 118px;
     display: grid;
     place-items: center;
     width: 96px;
     height: 126px;
+    z-index: 4;
     opacity: 0;
     transform: scale(0.55);
     filter: drop-shadow(0 18px 16px rgba(0, 0, 0, 0.38)) drop-shadow(0 0 18px rgba(248, 113, 113, 0.28));
@@ -589,12 +639,31 @@ button.home-player-ship-name {
     line-height: 1;
 }
 
+.exploration-sequence-overlay.is-boss-weak .exploration-sequence-boss small {
+    border-color: rgba(134, 239, 172, 0.76);
+    background: rgba(20, 83, 45, 0.84);
+    color: #bbf7d0;
+}
+
+.exploration-sequence-overlay.is-boss-medium .exploration-sequence-boss small {
+    border-color: rgba(253, 186, 116, 0.82);
+    background: rgba(124, 45, 18, 0.84);
+    color: #fed7aa;
+}
+
+.exploration-sequence-overlay.is-boss-strong .exploration-sequence-boss small {
+    border-color: rgba(252, 165, 165, 0.86);
+    background: rgba(127, 29, 29, 0.88);
+    color: #fee2e2;
+}
+
 .exploration-sequence-ship-effect {
     position: absolute;
     left: 226px;
-    bottom: 92px;
+    bottom: 98px;
     width: 96px;
     height: 96px;
+    z-index: 5;
     border-radius: 50%;
     opacity: 0;
     pointer-events: none;
@@ -603,9 +672,10 @@ button.home-player-ship-name {
 .exploration-sequence-ship {
     position: absolute;
     left: 42px;
-    bottom: 58px;
+    bottom: 64px;
     width: 64px;
     height: 64px;
+    z-index: 6;
     background: url("./Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -128px) / 2048px 1024px no-repeat;
     image-rendering: pixelated;
     transform: scale(1.8);
@@ -621,7 +691,7 @@ button.home-player-ship-name {
 .exploration-sequence-chests {
     position: absolute;
     right: 88px;
-    bottom: 96px;
+    bottom: 102px;
     min-width: 72px;
     min-height: 72px;
     display: flex;
@@ -631,6 +701,7 @@ button.home-player-ship-name {
     flex-wrap: wrap;
     opacity: 0;
     transform: scale(0.4);
+    z-index: 5;
 }
 
 .exploration-sequence-log {
@@ -638,6 +709,7 @@ button.home-player-ship-name {
     left: 12px;
     right: 12px;
     bottom: 10px;
+    z-index: 7;
     display: grid;
     gap: 3px;
     pointer-events: none;
@@ -732,7 +804,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-battle .exploration-sequence-ship {
     left: 214px;
-    bottom: 58px;
+    bottom: 64px;
     animation:
         explorationSequenceBattle 150ms ease-in-out infinite,
         homePlayerShipFrameStep 300ms steps(3) infinite;
@@ -793,7 +865,7 @@ button.home-player-ship-name {
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-ship {
     left: 232px;
-    bottom: 58px;
+    bottom: 64px;
     animation: homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
@@ -818,7 +890,7 @@ button.home-player-ship-name {
 .exploration-sequence-copy {
     display: grid;
     gap: 4px;
-    margin-top: 12px;
+    margin-top: 14px;
     color: #bae6fd;
     text-align: center;
 }
@@ -860,18 +932,18 @@ button.home-player-ship-name {
 }
 
 @keyframes explorationSequenceSail {
-    from { left: 42px; bottom: 58px; transform: scale(1.8); }
-    to { left: 132px; bottom: 58px; transform: scale(1.8); }
+    from { left: 42px; bottom: 64px; transform: scale(1.8); }
+    to { left: 132px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceUp {
-    from { left: 132px; bottom: 58px; transform: scale(1.8); }
-    to { left: 182px; bottom: 58px; transform: scale(1.8); }
+    from { left: 132px; bottom: 64px; transform: scale(1.8); }
+    to { left: 182px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceLeft {
-    from { left: 182px; bottom: 58px; transform: scale(1.8); }
-    to { left: 214px; bottom: 58px; transform: scale(1.8); }
+    from { left: 182px; bottom: 64px; transform: scale(1.8); }
+    to { left: 214px; bottom: 64px; transform: scale(1.8); }
 }
 
 @keyframes explorationSequenceBattle {
@@ -922,23 +994,28 @@ button.home-player-ship-name {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgba(2, 6, 23, 0.72);
+    background:
+        radial-gradient(ellipse at 50% 18%, rgba(245, 158, 11, 0.14), transparent 40%),
+        rgba(2, 6, 23, 0.78);
 }
 
 .exploration-result-dialog {
     position: relative;
-    width: min(560px, 100%);
+    width: min(620px, 100%);
     max-height: min(720px, 92vh);
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 16px;
+    padding: 18px;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(15, 10, 6, 0.42), rgba(2, 4, 7, 0.86)),
-        radial-gradient(ellipse at 50% 0%, rgba(255, 222, 124, 0.12), transparent 62%);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.56);
+        radial-gradient(ellipse at 18% 0%, rgba(250, 204, 21, 0.18), transparent 36%),
+        linear-gradient(180deg, rgba(15, 10, 6, 0.48), rgba(2, 4, 7, 0.9)),
+        repeating-linear-gradient(90deg, rgba(102, 60, 27, 0.1) 0 28px, rgba(4, 6, 9, 0.1) 28px 56px);
+    box-shadow:
+        0 30px 78px rgba(0, 0, 0, 0.64),
+        inset 0 1px 0 rgba(255, 239, 180, 0.16);
 }
 
 .exploration-result-close {
@@ -967,6 +1044,8 @@ button.home-player-ship-name {
     display: grid;
     gap: 4px;
     padding-right: 42px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 224, 160, 0.14);
 }
 
 .exploration-result-head span {
@@ -998,12 +1077,14 @@ button.home-player-ship-name {
     border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 8px / 0 stretch;
     border-radius: 6px;
     background:
-        linear-gradient(90deg, rgba(250, 204, 21, 0.12), rgba(15, 23, 42, 0.3));
+        radial-gradient(ellipse at 22% 50%, rgba(250, 204, 21, 0.22), transparent 38%),
+        linear-gradient(90deg, rgba(43, 27, 10, 0.74), rgba(15, 23, 42, 0.5)),
+        url("./assets/ui/bg-sea.png") center / cover no-repeat;
     transition: min-height 260ms ease, text-align 260ms ease;
 }
 
 .exploration-result-overlay.is-awaiting-open .exploration-result-showcase {
-    min-height: 220px;
+    min-height: 232px;
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
@@ -1011,23 +1092,34 @@ button.home-player-ship-name {
 
 .exploration-result-chest-button {
     width: 86px;
+    min-height: 0;
     aspect-ratio: 1 / 1;
     display: grid;
     place-items: center;
     padding: 0;
-    border: none;
+    border: 0;
+    border-image: none;
     border-radius: 0;
     background: transparent;
+    box-shadow: none;
+    color: transparent;
     cursor: pointer;
+    transition: transform 160ms ease, filter 160ms ease;
+}
+
+.exploration-result-chest-button:not(:disabled):active {
+    transform: scale(0.96);
 }
 
 .exploration-result-chest-button:disabled {
+    background: transparent;
+    color: transparent;
     cursor: default;
 }
 
 .exploration-result-overlay.is-awaiting-open .exploration-result-chest-button {
     width: 126px;
-    filter: drop-shadow(0 0 20px rgba(250, 204, 21, 0.34));
+    filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.42));
 }
 
 .exploration-result-chest {
@@ -1084,6 +1176,10 @@ button.home-player-ship-name {
     transition: max-height 320ms ease, opacity 220ms ease;
 }
 
+.exploration-result-overlay.is-opened .exploration-result-details {
+    animation: explorationResultDetailsIn 280ms ease-out 1;
+}
+
 .exploration-result-overlay.is-awaiting-open .exploration-result-details,
 .exploration-result-overlay.is-opening .exploration-result-details {
     max-height: 0;
@@ -1095,7 +1191,7 @@ button.home-player-ship-name {
 .exploration-result-boss-card {
     min-width: 0;
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-columns: 122px minmax(0, 1fr);
     align-items: center;
     gap: 12px;
     margin-top: 10px;
@@ -1108,8 +1204,8 @@ button.home-player-ship-name {
 }
 
 .exploration-result-boss-art {
-    width: 112px;
-    height: 118px;
+    width: 122px;
+    height: 128px;
     display: grid;
     place-items: center;
     min-width: 0;
@@ -1131,6 +1227,18 @@ button.home-player-ship-name {
     color: #fecaca;
     font-size: 11px;
     font-weight: 900;
+}
+
+.exploration-result-overlay.is-boss-weak .exploration-result-boss-copy b {
+    color: #bbf7d0;
+}
+
+.exploration-result-overlay.is-boss-medium .exploration-result-boss-copy b {
+    color: #fed7aa;
+}
+
+.exploration-result-overlay.is-boss-strong .exploration-result-boss-copy b {
+    color: #fecaca;
 }
 
 .exploration-result-boss-copy strong {
@@ -1156,7 +1264,7 @@ button.home-player-ship-name {
 }
 
 .exploration-result-body div {
-    min-height: 62px;
+    min-height: 66px;
     display: grid;
     align-content: center;
     gap: 4px;
@@ -1266,6 +1374,7 @@ button.home-player-ship-name {
     color: #c7d2fe;
     font-size: 11px;
     line-height: 1.35;
+    background: rgba(2, 6, 23, 0.42);
 }
 
 .exploration-result-actions {
@@ -1307,6 +1416,11 @@ button.home-player-ship-name {
     from { background-position: 0 0; transform: scale(1); }
     58% { transform: scale(1.08); }
     to { background-position: 100% 0; transform: scale(1); }
+}
+
+@keyframes explorationResultDetailsIn {
+    from { transform: translateY(8px); }
+    to { transform: translateY(0); }
 }
 
 @media (max-width: 520px) {
@@ -9658,12 +9772,15 @@ textarea {
 
 .ship-exploration-panel {
     margin: 0 0 14px;
-    padding: 12px;
+    padding: 14px;
     max-height: min(34vh, 260px);
     overflow-y: auto;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.58);
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%),
+        linear-gradient(180deg, rgba(13, 18, 24, 0.94), rgba(4, 5, 7, 0.98));
 }
 
 #shipExplorationPanel.ship-exploration-panel.is-popup {
@@ -9671,13 +9788,14 @@ textarea {
     left: 50%;
     top: 50%;
     z-index: 10050;
-    width: min(380px, calc(100vw - 28px));
+    width: min(460px, calc(100vw - 28px));
     max-height: min(78vh, 640px);
     margin: 0;
-    padding: 44px 14px 16px;
+    padding: 48px 16px 18px;
     transform: translate(-50%, -50%);
     overflow-y: auto;
     pointer-events: auto;
+    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
     box-shadow:
         0 0 0 9999px rgba(0, 0, 0, 0.62),
         0 18px 42px rgba(0, 0, 0, 0.62);
@@ -9715,13 +9833,16 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     justify-content: space-between;
     gap: 10px;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 224, 160, 0.14);
 }
 
 .ship-exploration-head h3 {
     margin: 0;
-    font-size: 15px;
-    color: var(--accent-color);
+    font-size: 18px;
+    color: #ffe6a3;
+    text-shadow: 0 1px 0 #000;
 }
 
 .ship-exploration-empty,
@@ -9735,26 +9856,190 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .ship-exploration-destinations,
 .ship-exploration-reports {
     display: grid;
-    gap: 8px;
+    gap: 10px;
 }
 
 .ship-exploration-destination,
 .ship-exploration-report {
-    padding: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 6px;
-    background: rgba(2, 6, 23, 0.45);
+    padding: 12px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-parchment.png") 34 fill / 12px / 0 stretch;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 238, 190, 0.32), rgba(111, 64, 27, 0.12)),
+        repeating-linear-gradient(0deg, rgba(88, 47, 20, 0.06) 0 1px, transparent 1px 10px);
+    color: #27160b;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.ship-exploration-destination.is-active {
+    border-image-source: url("./assets/ui/panels/panel-dark-gold.png");
+    background:
+        linear-gradient(180deg, rgba(28, 19, 11, 0.88), rgba(6, 8, 12, 0.92)),
+        radial-gradient(ellipse at 50% 0%, rgba(250, 204, 21, 0.14), transparent 56%);
+    color: #f8fafc;
+}
+
+.ship-exploration-card-head {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.ship-exploration-mapmark {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(94, 55, 24, 0.22);
+    border-radius: 8px;
+    background:
+        radial-gradient(ellipse at 50% 38%, rgba(255, 251, 235, 0.56), transparent 58%),
+        rgba(93, 51, 21, 0.18);
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.ship-exploration-title-group {
+    min-width: 0;
+}
+
+.ship-exploration-destination .ship-exploration-meta,
+.ship-exploration-report,
+.ship-exploration-report-body {
+    color: #5d3b1c;
+}
+
+.ship-exploration-destination.is-active .ship-exploration-meta {
+    color: #cbd5e1;
 }
 
 .ship-exploration-destination strong,
 .ship-exploration-report strong {
     display: block;
     margin-bottom: 4px;
-    color: #f8fafc;
+    color: #2a1608;
+    font-size: 15px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.ship-exploration-destination.is-active strong {
+    color: #fff1bd;
+}
+
+.ship-exploration-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.ship-exploration-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid rgba(94, 55, 24, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 250, 221, 0.5);
+    color: #41250e;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.ship-exploration-destination.is-active .ship-exploration-badge {
+    border-color: rgba(255, 224, 160, 0.22);
+    background: rgba(15, 23, 42, 0.56);
+    color: #fde68a;
+}
+
+.ship-exploration-badge.is-active {
+    color: #bbf7d0;
+}
+
+.ship-exploration-boss-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.ship-exploration-boss-list.is-single {
+    grid-template-columns: 1fr;
+}
+
+.ship-exploration-boss-chip {
+    min-width: 0;
+    min-height: 72px;
+    display: grid;
+    grid-template-rows: 34px auto auto;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border: 1px solid rgba(94, 55, 24, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 251, 235, 0.42);
+    text-align: center;
+}
+
+.ship-exploration-boss-avatar {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.28));
+}
+
+.ship-exploration-boss-image {
+    width: 100%;
+    height: 100%;
+}
+
+.ship-exploration-boss-chip b {
+    min-width: 28px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    color: #fff7ed;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.ship-exploration-boss-chip span:last-child {
+    max-width: 100%;
+    color: #321b0a;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ship-exploration-boss-chip.is-weak b { background: #15803d; }
+.ship-exploration-boss-chip.is-medium b { background: #c2410c; }
+.ship-exploration-boss-chip.is-strong b { background: #b91c1c; }
+.ship-exploration-boss-chip.is-unknown b { background: #475569; }
+
+.ship-exploration-boss-chip.is-weak {
+    border-color: rgba(34, 197, 94, 0.28);
+}
+
+.ship-exploration-boss-chip.is-medium {
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.ship-exploration-boss-chip.is-strong {
+    border-color: rgba(239, 68, 68, 0.32);
 }
 
 .ship-exploration-report summary {
-    color: #f8fafc;
+    color: #2a1608;
     font-weight: 800;
     cursor: pointer;
     list-style-position: inside;
@@ -9767,18 +10052,24 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .ship-exploration-actions {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .ship-exploration-actions button,
 .ship-exploration-start {
+    width: 100%;
     min-height: 36px;
     padding: 7px 10px;
-    border: none;
-    border-radius: 6px;
-    background: var(--accent-color);
-    color: #111827;
-    font-weight: 800;
+    margin-top: 10px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 239, 176, 0.28), rgba(109, 58, 11, 0.2)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+    color: #211208;
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 236, 179, 0.5);
 }
 
 .ship-exploration-actions button:disabled,
@@ -14985,15 +15276,6 @@ body {
     color: #f7e8c1;
 }
 
-.ship-exploration-panel,
-.ship-exploration-destination,
-.ship-exploration-report,
-.ship-exploration-reward {
-    border-color: rgba(220, 169, 82, 0.36);
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(21, 15, 10, 0.96), rgba(8, 8, 9, 0.96));
-}
-
 #inventoryMobileSwitch,
 #inventoryPrimaryTabs,
 #tabContentInventory #inventoryTabs,
@@ -15161,15 +15443,6 @@ body {
         min-width: 72px;
         height: 60px;
     }
-}
-
-.exploration-sequence-scene,
-.exploration-sequence-overlay.is-sky-mist .exploration-sequence-scene,
-.exploration-sequence-overlay.is-sky-deep .exploration-sequence-scene,
-.exploration-sequence-overlay.is-sky-storm .exploration-sequence-scene {
-    background:
-        linear-gradient(180deg, rgba(5, 10, 16, 0.06), rgba(5, 12, 18, 0.58) 78%),
-        url("./assets/ui/bg-sea.png") center / cover no-repeat;
 }
 
 .global-menu-button {
@@ -16407,10 +16680,6 @@ body {
 .currency-display,
 .global-rank-badge,
 .home-player-ship-frame,
-.ship-exploration-panel,
-.ship-exploration-destination,
-.ship-exploration-report,
-.ship-exploration-reward,
 .ranking-row,
 .equipment-slot-card,
 .inventory-item-card,
@@ -20964,10 +21233,6 @@ body[data-sea-tone] .home-hero-card {
 .currency-display,
 .global-rank-badge,
 .home-player-ship-frame,
-.ship-exploration-panel,
-.ship-exploration-destination,
-.ship-exploration-report,
-.ship-exploration-reward,
 .equipment-slot-card,
 .inventory-item-card,
 .item-card,
