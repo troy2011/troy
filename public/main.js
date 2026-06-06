@@ -17,7 +17,10 @@ import { enterBattleRoom } from './BattleRoomScene.js';
 import { renderAvatar, preloadAvatarBaseSprites } from './js/avatar.js';
 import { installPlayerProfileInteractions, openPlayerProfile, refreshFavoritePlayersList } from './js/playerProfile.js';
 import { showRpgMessage, rpgSay } from './js/rpgMessages.js';
-import { updateAvatarStyle as requestUpdateAvatarStyle } from './js/playfabClient.js';
+import {
+    ensureAvatarStyleDefaults as requestEnsureAvatarStyleDefaults,
+    updateAvatarStyle as requestUpdateAvatarStyle
+} from './js/playfabClient.js';
 import { FEATURE_UNLOCK_LEVELS, formatUnlockedFeatures, isFeatureUnlocked, normalizeLevel } from './js/featureUnlocks.js';
 
 import { getDatabase } from "firebase/database";
@@ -1600,6 +1603,21 @@ async function updateAvatarBaseInfo() {
                 const parsed = parseInt(value, 10);
                 return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
             };
+            const isAvatarStyleUnset = (value) => value === undefined || value === null || String(value).trim() === '';
+            const avatarStyleDefaultKeys = ['HairStyleIndex', 'FacialHairStyleIndex'];
+            let ensuredAvatarStyle = {};
+            if (avatarStyleDefaultKeys.some((key) => isAvatarStyleUnset(result.Data[key]?.Value))) {
+                try {
+                    const defaults = await requestEnsureAvatarStyleDefaults(myPlayFabId, {
+                        isSilent: true,
+                        throwOnError: true
+                    });
+                    ensuredAvatarStyle = defaults?.avatarStyle || {};
+                } catch (error) {
+                    console.warn('[updateAvatarBaseInfo] ensure avatar defaults failed:', error?.message || error);
+                }
+            }
+            const readAvatarStyleValue = (key) => ensuredAvatarStyle[key] ?? result.Data[key]?.Value;
             const nation = (result.Data.Nation?.Value || '').toLowerCase();
             const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
             const nationColor = getAvatarColorForNation(nation);
@@ -1609,9 +1627,9 @@ async function updateAvatarBaseInfo() {
                 AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
                 SkinColorIndex: parseAvatarStyleIndex(result.Data.SkinColorIndex?.Value),
                 FaceIndex: parseAvatarStyleIndex(result.Data.FaceIndex?.Value),
-                HairStyleIndex: parseAvatarStyleIndex(result.Data.HairStyleIndex?.Value),
+                HairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('HairStyleIndex')),
                 HairColorIndex: parseAvatarStyleIndex(result.Data.HairColorIndex?.Value),
-                FacialHairStyleIndex: parseAvatarStyleIndex(result.Data.FacialHairStyleIndex?.Value, 1, 0),
+                FacialHairStyleIndex: parseAvatarStyleIndex(readAvatarStyleValue('FacialHairStyleIndex'), 1, 0),
                 level: getCurrentPlayerLevel()
             };
             window.myAvatarBaseInfo = myAvatarBaseInfo;

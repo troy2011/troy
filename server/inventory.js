@@ -110,6 +110,11 @@ const RESOURCE_RECOVERY_SETTINGS = {
         missingMessage: '🫙が足りません。'
     }
 };
+
+const AVATAR_RANDOM_DEFAULT_STYLE_KEYS = [
+    'HairStyleIndex',
+    'FacialHairStyleIndex'
+];
 const VOYAGE_MP_SETTINGS = {
     freeSeconds: 30,
     extraStepSeconds: 90,
@@ -264,6 +269,33 @@ function resolveAvatarCustomizeAction(requestedAction) {
     return { styleKey, ...config };
 }
 
+function isReadOnlyAvatarStyleUnset(readOnlyData, styleKey) {
+    const value = readOnlyData?.[styleKey]?.Value;
+    return value === undefined || value === null || String(value).trim() === '';
+}
+
+function pickInitialAvatarStyleValue(styleKey) {
+    const config = AVATAR_CUSTOMIZE_LIMITS[styleKey];
+    if (!config) return null;
+    const min = Math.max(0, Math.floor(Number(config.min) || 0));
+    const max = Math.max(min, Math.floor(Number(config.max) || min));
+    return min + Math.floor(Math.random() * ((max - min) + 1));
+}
+
+function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
+    const config = AVATAR_CUSTOMIZE_LIMITS[styleKey] || {};
+    const value = readOnlyData?.[styleKey]?.Value;
+    if (value === undefined || value === null || String(value).trim() === '') {
+        return config.defaultValue ?? config.min ?? 1;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return config.defaultValue ?? config.min ?? 1;
+    if (styleKey === 'FacialHairStyleIndex') {
+        return Math.max(FACIAL_HAIR_STYLE_INDEX_NONE, Math.floor(parsed));
+    }
+    return Math.max(config.min ?? 1, Math.floor(parsed));
+}
+
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
@@ -402,19 +434,15 @@ function initializeInventoryRoutes(app, deps) {
         const avatarColor = getAvatarColorForNation(nation)
             || String(readOnlyData?.AvatarColor?.Value || '').trim()
             || 'brown';
-        const rawFacialHairStyle = readOnlyData?.FacialHairStyleIndex?.Value;
-        const facialHairStyleIndex = rawFacialHairStyle === undefined || rawFacialHairStyle === null || rawFacialHairStyle === ''
-            ? FACIAL_HAIR_STYLE_INDEX_DEFAULT
-            : Math.max(FACIAL_HAIR_STYLE_INDEX_NONE, Number(rawFacialHairStyle) || FACIAL_HAIR_STYLE_INDEX_NONE);
         return {
             Race: String(readOnlyData?.Race?.Value || 'human').trim() || 'human',
             Nation: nation || null,
             AvatarColor: avatarColor,
             SkinColorIndex: Math.max(1, Number(readOnlyData?.SkinColorIndex?.Value || 1) || 1),
             FaceIndex: Math.max(1, Number(readOnlyData?.FaceIndex?.Value || 1) || 1),
-            HairStyleIndex: Math.max(1, Number(readOnlyData?.HairStyleIndex?.Value || 1) || 1),
+            HairStyleIndex: parseAvatarStyleReadOnlyValue(readOnlyData, 'HairStyleIndex'),
             HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1),
-            FacialHairStyleIndex: facialHairStyleIndex,
+            FacialHairStyleIndex: parseAvatarStyleReadOnlyValue(readOnlyData, 'FacialHairStyleIndex'),
             level: Math.max(1, Number(stats?.Level || stats?.level || 1) || 1)
         };
     }
@@ -1212,6 +1240,52 @@ function initializeInventoryRoutes(app, deps) {
         } catch (error) {
             console.error('[update-avatar-style] Error:', error?.errorMessage || error?.message || error);
             res.status(500).json({ error: 'アバター変更に失敗しました。', details: error?.errorMessage || error?.message || String(error) });
+        }
+    });
+
+    app.post('/api/ensure-avatar-style-defaults', async (req, res) => {
+        let { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID がありません。' });
+        playFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!playFabId) return;
+
+        try {
+            const readOnly = await getPlayerReadOnlyData(playFabId, AVATAR_RANDOM_DEFAULT_STYLE_KEYS);
+            const readOnlyData = readOnly?.Data || {};
+            const nextData = {};
+
+            AVATAR_RANDOM_DEFAULT_STYLE_KEYS.forEach((styleKey) => {
+                if (!isReadOnlyAvatarStyleUnset(readOnlyData, styleKey)) return;
+                const nextValue = pickInitialAvatarStyleValue(styleKey);
+                if (nextValue === null) return;
+                nextData[styleKey] = String(nextValue);
+            });
+
+            if (Object.keys(nextData).length) {
+                await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                    PlayFabId: playFabId,
+                    Data: nextData
+                });
+            }
+
+            const avatarStyle = {};
+            AVATAR_RANDOM_DEFAULT_STYLE_KEYS.forEach((styleKey) => {
+                avatarStyle[styleKey] = Number(
+                    nextData[styleKey] ?? parseAvatarStyleReadOnlyValue(readOnlyData, styleKey)
+                );
+            });
+
+            res.json({
+                success: true,
+                createdKeys: Object.keys(nextData),
+                avatarStyle
+            });
+        } catch (error) {
+            console.error('[ensure-avatar-style-defaults] Error:', error?.errorMessage || error?.message || error);
+            res.status(500).json({
+                error: 'アバター初期スタイルの保存に失敗しました。',
+                details: error?.errorMessage || error?.message || String(error)
+            });
         }
     });
 

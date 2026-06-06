@@ -91,6 +91,10 @@ export function updateAvatarStyle(playFabId, style, options) {
     return callApiWithLoader('/api/update-avatar-style', { playFabId, style, requestId: style?.requestId || null }, options);
 }
 
+export function ensureAvatarStyleDefaults(playFabId, options) {
+    return callApiWithLoader('/api/ensure-avatar-style-defaults', { playFabId }, options);
+}
+
 export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
     return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
 }
