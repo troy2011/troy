@@ -241,6 +241,12 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '梅水晶' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_ume_crystal_bowl\.png/);
   await expect(page.locator('#troyMenuBoardList')).toContainText('氷');
   await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '氷' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
+  const noriItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^韓国のり$/ }) });
+  await expect(noriItem.locator('.troy-menu-board-price')).toHaveText('¥300');
+
+  await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).click();
+  const blackBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^黒霧ボトル$/ }) });
+  await expect(blackBottleItem.locator('.troy-menu-board-price')).toHaveText('¥3,000');
 
   await expectNoPageErrors(errors);
 });

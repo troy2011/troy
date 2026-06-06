@@ -1,101 +1,6 @@
 import { callApiWithLoader, createRequestId } from 'api';
 import { getTroyMenuImage } from './troyMenuAssets.js';
-
-const DRINK_SIZE_OPTIONS = [
-    { suffix: 'S', price: 500 },
-    { suffix: 'M', price: 700 },
-    { suffix: '海賊ジョッキ', price: 1000 }
-];
-
-function buildSizedDrinkItems(names = []) {
-    return names.flatMap((name) => DRINK_SIZE_OPTIONS.map((size) => ({
-        name: `${name} ${size.suffix}`,
-        price: size.price
-    })));
-}
-
-const STAFF_MENU = [
-    { id: 'beer', category: 'ビール・ハイボール', items: [
-        { name: '瓶ビール（ハートランド）', price: 700 },
-        ...buildSizedDrinkItems([
-            'ハイボール（角）',
-            'シャンディガフ（ビール+ジンジャーエール）'
-        ]),
-        { name: 'ノンアルコール瓶ビール（ハイネケン）', price: 500 }
-    ]},
-    { id: 'gin', category: 'ジンベース', items: buildSizedDrinkItems([
-        'ジントニック（+トニック）',
-        'ジンバック（+ジンジャーエール）',
-        'ジンリッキー（+ソーダ）'
-    ])},
-    { id: 'vodka', category: 'ウォッカベース', items: buildSizedDrinkItems([
-        'モスコミュール（+ジンジャーエール）',
-        'スクリュードライバー（+オレンジ）',
-        'ウォッカトニック（+トニック）',
-        'ブルドッグ（+グレープフルーツ）'
-    ])},
-    { id: 'rum', category: 'ラムベース', items: buildSizedDrinkItems([
-        'キューバリブレ（+コーラ）',
-        'ラムバック（+ジンジャーエール）'
-    ])},
-    { id: 'tequila', category: 'テキーラベース', items: buildSizedDrinkItems([
-        'テキーラサンライズ（+オレンジ）',
-        'メキシコーラ（+コーラ）'
-    ])},
-    { id: 'liqueur', category: 'リキュール・その他', items: buildSizedDrinkItems([
-        'カシスオレンジ',
-        'カシスソーダ',
-        'カシスウーロン',
-        'ファジーネーブル（ピーチ+オレンジ）',
-        'スプモーニ（カンパリ+グレープフルーツ+トニック）',
-        'レモンサワー',
-        'グレープフルーツサワー'
-    ])},
-    { id: 'whisky', category: 'ウイスキー・焼酎・ワイン', items: [
-        ...buildSizedDrinkItems([
-            'ウイスキー（ロック）',
-            'ウイスキー（水割り）'
-        ]),
-        { name: 'キンミヤボトル', price: 2500 },
-        { name: '黒霧ボトル', price: 3000 },
-        ...buildSizedDrinkItems([
-            '焼酎 お茶割り',
-            '焼酎 ウーロン割り',
-            '焼酎 ソーダ割り',
-            '焼酎 芋',
-            '焼酎 麦',
-            '焼酎 米',
-            '焼酎 しそ',
-            'グラスワイン（赤）',
-            'グラスワイン（白）'
-        ])
-    ]},
-    { id: 'mixer', category: '割り物', items: [
-        { name: 'お茶', price: 600 },
-        { name: 'ウーロン', price: 600 },
-        { name: 'ソーダ 1本', price: 300 },
-        { name: '水 1本', price: 300 },
-        { name: '氷', price: 500 }
-    ]},
-    { id: 'food', category: '酒場のフード', items: [
-        { name: '漬けチーズ', price: 500 },
-        { name: 'うずらの味玉', price: 500 },
-        { name: 'ナゲット', price: 500 },
-        { name: '韓国のり', price: 300 },
-        { name: '梅水晶', price: 500 }
-    ]},
-    { id: 'soft', category: 'ソフトドリンク', items: [
-        { name: 'ウーロン茶', price: 400 },
-        { name: 'オレンジジュース', price: 400 },
-        { name: 'グレープフルーツジュース', price: 400 },
-        { name: 'コーラ', price: 400 },
-        { name: 'ジンジャーエール', price: 400 }
-    ]},
-];
-
-const STAFF_MENU_CUSTOM_CATEGORY_ALIASES = {
-    bottle: 'whisky'
-};
+import { STAFF_MENU_CUSTOM_CATEGORY_ALIASES, getTroyStaffMenu } from './troyMenuData.js';
 
 const FALLBACK_REFRESH_MS = 10000;
 const SORT_STORAGE_KEY = 'troy-orders-sort-mode';
@@ -165,10 +70,7 @@ function normalizeStaffCustomMenuItems(data = lastData) {
 }
 
 function buildStaffMenu(data = lastData) {
-    const categories = STAFF_MENU.map((category) => ({
-        ...category,
-        items: category.items.map((item) => ({ ...item }))
-    }));
+    const categories = getTroyStaffMenu();
     const categoryById = new Map(categories.map((category) => [category.id, category]));
     normalizeStaffCustomMenuItems(data).forEach((item) => {
         const category = categoryById.get(item.categoryId);

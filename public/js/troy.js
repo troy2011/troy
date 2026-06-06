@@ -10,6 +10,7 @@ import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
 import { getTroyMenuImage } from './troyMenuAssets.js';
+import { TROY_BOTTLE_ITEMS, TROY_MENU_IDS, TROY_PRODUCT_MENUS } from './troyMenuData.js';
 
 let _wired = false;
 let _menuWired = false;
@@ -41,109 +42,8 @@ let _statusSnapshotState = {
 };
 
 const TROY_ORDER_ENTRY_ENABLED = false;
-const TROY_MENU_IDS = ['favorite', 'beer', 'gin', 'vodka', 'rum', 'tequila', 'liqueur', 'whisky', 'soft', 'food', 'bottle'];
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GLOBAL_ROOM_ID = 'global';
-
-const TROY_BOTTLE_ITEMS = [
-    { concept: 'キンミヤボトル', content: '割物はスタッフまで', price: 2500, emoji: '🍶' },
-    { concept: '黒霧島ボトル', content: '割物はスタッフまで', price: 4500, emoji: '🍾' },
-    { concept: 'ワイン各種', content: '赤・白・シャンパン / ASK', price: 0, emoji: '🍷', disabled: true }
-];
-
-const TROY_ALCOHOL_SIZE_OPTIONS = [
-    { label: 'S', price: 500 },
-    { label: 'M', price: 700 }
-];
-
-function withAlcoholSizes(items = []) {
-    return items.map((item) => ({ ...item, sizeOptions: TROY_ALCOHOL_SIZE_OPTIONS }));
-}
-
-function withAlcoholSize(item = {}) {
-    return { ...item, sizeOptions: TROY_ALCOHOL_SIZE_OPTIONS };
-}
-
-const TROY_PRODUCT_MENUS = {
-    beer: {
-        title: 'ビール・ハイボール',
-        items: [
-            { concept: '瓶ビール', content: 'ハートランド', price: 700, emoji: '🍺' },
-            withAlcoholSize({ concept: 'ハイボール', content: '角', price: 500, emoji: '🥃' }),
-            withAlcoholSize({ concept: 'シャンディガフ', content: 'ビール + ジンジャーエール', price: 500, emoji: '🍺' }),
-            { concept: 'ノンアルコール瓶ビール', content: 'ハイネケン', price: 500, emoji: '🍺' }
-        ]
-    },
-    gin: {
-        title: 'ジンベース',
-        items: withAlcoholSizes([
-            { concept: 'ジントニック', content: 'トニック', price: 500, emoji: '🍸' },
-            { concept: 'ジンバック', content: 'ジンジャーエール', price: 500, emoji: '🍸' },
-            { concept: 'ジンリッキー', content: 'ソーダ', price: 500, emoji: '🍸' }
-        ])
-    },
-    vodka: {
-        title: 'ウォッカベース',
-        items: withAlcoholSizes([
-            { concept: 'モスコミュール', content: 'ジンジャーエール', price: 500, emoji: '🍹' },
-            { concept: 'スクリュードライバー', content: 'オレンジ', price: 500, emoji: '🍹' },
-            { concept: 'ウォッカトニック', content: 'トニック', price: 500, emoji: '🍹' },
-            { concept: 'ブルドッグ', content: 'グレープフルーツ', price: 500, emoji: '🍹' }
-        ])
-    },
-    rum: {
-        title: 'ラムベース',
-        items: withAlcoholSizes([
-            { concept: 'キューバリブレ', content: 'コーラ', price: 500, emoji: '🥃' },
-            { concept: 'ラムバック', content: 'ジンジャーエール', price: 500, emoji: '🥃' }
-        ])
-    },
-    tequila: {
-        title: 'テキーラベース',
-        items: withAlcoholSizes([
-            { concept: 'テキーラサンライズ', content: 'オレンジ', price: 500, emoji: '🍹' },
-            { concept: 'メキシコーラ', content: 'コーラ', price: 500, emoji: '🥃' }
-        ])
-    },
-    liqueur: {
-        title: 'リキュール・その他',
-        items: withAlcoholSizes([
-            { concept: 'カシス', content: '割り物を選択', price: 500, mixers: ['オレンジ', 'ソーダ', 'ウーロン'], emoji: '🍷' },
-            { concept: 'ファジーネーブル', content: 'ピーチ + オレンジ', price: 500, emoji: '🍑' },
-            { concept: 'スプモーニ', content: 'カンパリ + グレープフルーツ + トニック', price: 500, emoji: '🍊' },
-            { concept: 'レモンサワー', content: '', price: 500, emoji: '🍋' },
-            { concept: 'グレープフルーツサワー', content: '', price: 500, emoji: '🍊' }
-        ])
-    },
-    whisky: {
-        title: 'ウイスキー・焼酎・ワイン',
-        items: [
-            { concept: 'ウイスキー', content: '飲み方を選択', price: 500, mixers: ['ロック', '水割り'], optionLabelName: '飲み方', emoji: '🥃' },
-            { concept: '焼酎', content: '種類を選択', price: 500, mixers: ['サトウキビ', '芋', '麦'], optionLabelName: '種類', emoji: '🍶' },
-            { concept: 'グラスワイン', content: '赤 / 白を選択', price: 500, mixers: ['赤', '白'], optionLabelName: '種類', emoji: '🍷' }
-        ]
-    },
-    soft: {
-        title: 'ソフトドリンク',
-        items: [
-            { concept: 'ウーロン茶', content: '', price: 400, emoji: '🫖' },
-            { concept: 'オレンジジュース', content: '', price: 400, emoji: '🧃' },
-            { concept: 'グレープフルーツジュース', content: '', price: 400, emoji: '🧃' },
-            { concept: 'コーラ', content: '', price: 400, emoji: '🥤' },
-            { concept: 'ジンジャーエール', content: '', price: 400, emoji: '🥤' }
-        ]
-    },
-    food: {
-        title: '酒場のフード',
-        items: [
-            { concept: '漬けチーズ', content: '', price: 500, emoji: '🧀' },
-            { concept: 'うずらの味玉', content: '', price: 500, emoji: '🥚' },
-            { concept: 'ナゲット', content: '', price: 500, emoji: '🍗' },
-            { concept: '韓国のり', content: '', price: 500, emoji: '◼️' },
-            { concept: '梅水晶', content: '', price: 500, emoji: '🥢' }
-        ]
-    }
-};
 
 function isFavoritableMenuId(menuId, item = null) {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
