@@ -147,7 +147,7 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.titleFontSize).toBeGreaterThanOrEqual(20);
   expect(audit.firstWantedText).toBe('WANTED');
   expect(audit.firstBountyText).toContain('BOUNTY');
-  expect(audit.firstBountyText).toContain('B');
+  expect(audit.firstBountyText).toContain('ĐɃ');
   expect(audit.panelText).toContain('Lv.24 船長');
   expect(audit.panelText).not.toContain('ランクLv');
   expect(audit.panelText).not.toContain('貢献度');

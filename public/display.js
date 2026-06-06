@@ -11,6 +11,7 @@
   const testSoundBtn = document.getElementById('btnTestSound');
   const fullscreenBtn = document.getElementById('btnFullscreen');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
+  const BOUNTY_UNIT_LABEL = 'ĐɃ';
 
   const ENTRY_SOUNDS = [
     '/audio/order-count-1-missile.mp3',
@@ -437,7 +438,7 @@
       const bountyLabel = document.createElement('span');
       bountyLabel.textContent = 'BOUNTY';
       const bountyAmount = document.createElement('strong');
-      bountyAmount.textContent = `${formatNumber(bountyValue)} B`;
+      bountyAmount.textContent = `${formatNumber(bountyValue)} ${BOUNTY_UNIT_LABEL}`;
       bounty.appendChild(bountyLabel);
       bounty.appendChild(bountyAmount);
 

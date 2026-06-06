@@ -110,7 +110,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await page.locator('#btnShowBountyRanking').click();
   await expect(page.locator('#bountyRankingArea')).toBeVisible();
   await expect(page.locator('#bountyRankingList')).toContainText('賞金首');
-  await expect(page.locator('#bountyRankingList')).toContainText('1,234 B');
+  await expect(page.locator('#bountyRankingList')).toContainText('1,234 ĐɃ');
 
   await page.locator('#btnShowBilliardsRanking').click();
   await expect(page.locator('#billiardsRankingArea')).toBeVisible();

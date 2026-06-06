@@ -21,6 +21,7 @@ let myCrewRankInfo = null;
 let rankingControlsWired = false;
 const LOW_GOLD_THRESHOLD = 200;
 const SPECIALTY_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB'];
+const BOUNTY_UNIT_LABEL = 'ĐɃ';
 const STORE_GAME_RANKING_UI = {
     darts_countup: {
         listId: 'dartsRankingList',
@@ -349,7 +350,7 @@ export async function getBountyRanking() {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             emptyMessage: '（まだ懸賞金がありません）',
             getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatNumber(entry.bounty ?? entry.score)} B`,
+            getScore: (entry) => `${formatNumber(entry.bounty ?? entry.score)} ${BOUNTY_UNIT_LABEL}`,
             getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });
