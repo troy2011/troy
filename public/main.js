@@ -1232,6 +1232,9 @@ async function initializeAppFeatures() {
     document.getElementById('btnShowKaraokeRanking')?.addEventListener('click', () => Player.showRanking('karaoke'));
     document.getElementById('btnGetDartsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('darts_countup'));
     document.getElementById('btnGetKaraokeRanking')?.addEventListener('click', () => Player.getStoreGameRanking('karaoke'));
+    document.getElementById('btnGetBountyRanking')?.addEventListener('click', () => Player.getBountyRanking());
+    document.getElementById('btnGetBilliardsRanking')?.addEventListener('click', () => Player.getStoreGameRanking('billiards'));
+    document.getElementById('btnGetGameRanking')?.addEventListener('click', () => Player.getStoreGameRanking('game'));
     document.getElementById('btnHomeScanQr')?.addEventListener('click', startHomeQrScan);
     initHomeExplorationButton();
     initHomeAvatarStyleModal();

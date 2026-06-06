@@ -1031,6 +1031,48 @@
                         <ol id="karaokeRankingList" class="ranking-list"></ol>
                     </div>
 
+                    <div class="ranking-subsection" aria-label="追加ランキング">
+                        <div class="ranking-subsection-head">
+                            <span>LOWER RANKINGS</span>
+                            <strong>追加ランキング</strong>
+                        </div>
+                        <div class="ranking-subgrid">
+                            <section class="ranking-subcard ranking-subcard-bounty">
+                                <div class="ranking-subcard-head">
+                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
+                                    <div>
+                                        <strong>懸賞金</strong>
+                                        <span>BOUNTY</span>
+                                    </div>
+                                    <button id="btnGetBountyRanking" class="ranking-mini-refresh" type="button">更新</button>
+                                </div>
+                                <ol id="bountyRankingList" class="ranking-list ranking-list-compact"></ol>
+                            </section>
+                            <section class="ranking-subcard ranking-subcard-billiards">
+                                <div class="ranking-subcard-head">
+                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
+                                    <div>
+                                        <strong>ビリヤード</strong>
+                                        <span>BILLIARDS</span>
+                                    </div>
+                                    <button id="btnGetBilliardsRanking" class="ranking-mini-refresh" type="button">更新</button>
+                                </div>
+                                <ol id="billiardsRankingList" class="ranking-list ranking-list-compact"></ol>
+                            </section>
+                            <section class="ranking-subcard ranking-subcard-game">
+                                <div class="ranking-subcard-head">
+                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
+                                    <div>
+                                        <strong>ゲーム</strong>
+                                        <span>GAME</span>
+                                    </div>
+                                    <button id="btnGetGameRanking" class="ranking-mini-refresh" type="button">更新</button>
+                                </div>
+                                <ol id="gameRankingList" class="ranking-list ranking-list-compact"></ol>
+                            </section>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -1084,6 +1126,8 @@
                                         <div class="troy-admin-field-label">種目</div>
                                         <select id="kingStoreGameType" class="admin-input">
                                             <option value="darts_countup">ダーツカウントアップ</option>
+                                            <option value="billiards">ビリヤード</option>
+                                            <option value="game">ゲーム</option>
                                             <option value="karaoke">カラオケ採点</option>
                                         </select>
                                     </div>

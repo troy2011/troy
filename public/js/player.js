@@ -20,6 +20,24 @@ let myPlayerStats = {};
 let myCrewRankInfo = null;
 const LOW_GOLD_THRESHOLD = 200;
 const SPECIALTY_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB'];
+const STORE_GAME_RANKING_UI = {
+    darts_countup: {
+        listId: 'dartsRankingList',
+        label: 'ダーツカウントアップ'
+    },
+    billiards: {
+        listId: 'billiardsRankingList',
+        label: 'ビリヤード'
+    },
+    game: {
+        listId: 'gameRankingList',
+        label: 'ゲーム'
+    },
+    karaoke: {
+        listId: 'karaokeRankingList',
+        label: 'カラオケ採点'
+    }
+};
 const FALLBACK_AVATAR = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="48" fill="#1f2937"/><circle cx="48" cy="38" r="18" fill="#64748b"/><path d="M18 82c6-16 19-24 30-24s24 8 30 24" fill="#94a3b8"/></svg>'
 )}`;
@@ -232,6 +250,11 @@ function formatStoreGameScore(entry, gameType) {
     return formatNumber(storedScore);
 }
 
+function normalizeStoreGameRankingType(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return STORE_GAME_RANKING_UI[key] ? key : 'darts_countup';
+}
+
 function getRankMedal(index) {
     if (index === 0) return '🥇';
     if (index === 1) return '🥈';
@@ -319,12 +342,13 @@ export async function getRanking() {
 export async function getBountyRanking() {
     const rankingListEl = document.getElementById('bountyRankingList');
     if (!rankingListEl) return;
-    rankingListEl.innerHTML = renderRankingState('（日次貢献度ランキングを読み込んでいます...）');
+    rankingListEl.innerHTML = renderRankingState('（懸賞金ランキングを読み込んでいます...）');
     const data = await fetchBountyRanking();
     if (data?.ranking) {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
+            emptyMessage: '（まだ懸賞金がありません）',
             getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatNumber(entry.contribution ?? entry.score)} 貢献`,
+            getScore: (entry) => `${formatNumber(entry.bounty ?? entry.score)} B`,
             getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });
@@ -360,11 +384,11 @@ export async function getNationTreasuryRanking() {
 }
 
 export async function getStoreGameRanking(gameType = 'darts_countup') {
-    const safeType = gameType === 'karaoke' ? 'karaoke' : 'darts_countup';
-    const rankingListEl = document.getElementById(safeType === 'karaoke' ? 'karaokeRankingList' : 'dartsRankingList');
+    const safeType = normalizeStoreGameRankingType(gameType);
+    const config = STORE_GAME_RANKING_UI[safeType];
+    const rankingListEl = document.getElementById(config.listId);
     if (!rankingListEl) return;
-    const loadingLabel = safeType === 'karaoke' ? 'カラオケ採点' : 'ダーツカウントアップ';
-    rankingListEl.innerHTML = renderRankingState(`（${loadingLabel}ランキングを読み込んでいます...）`);
+    rankingListEl.innerHTML = renderRankingState(`（${config.label}ランキングを読み込んでいます...）`);
     const data = await fetchStoreGameRanking(safeType);
     if (data?.ranking) {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
@@ -379,26 +403,31 @@ export async function getStoreGameRanking(gameType = 'darts_countup') {
     rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
+export async function loadRankingTab() {
+    await getRanking();
+    await Promise.all([
+        getBountyRanking(),
+        getStoreGameRanking('billiards'),
+        getStoreGameRanking('game')
+    ]);
+}
+
 export function showRanking(type) {
     const psRankingArea = document.getElementById('psRankingArea');
-    const bountyRankingArea = document.getElementById('bountyRankingArea');
-    const treasuryRankingArea = document.getElementById('treasuryRankingArea');
     const dartsRankingArea = document.getElementById('dartsRankingArea');
     const karaokeRankingArea = document.getElementById('karaokeRankingArea');
     const btnPs = document.getElementById('btnShowPsRanking');
-    const btnBounty = document.getElementById('btnShowBountyRanking');
-    const btnTreasury = document.getElementById('btnShowTreasuryRanking');
     const btnDarts = document.getElementById('btnShowDartsRanking');
     const btnKaraoke = document.getElementById('btnShowKaraokeRanking');
 
     const setActive = (activeBtn) => {
-        [btnPs, btnBounty, btnTreasury, btnDarts, btnKaraoke].forEach((btn) => {
+        [btnPs, btnDarts, btnKaraoke].forEach((btn) => {
             if (btn) btn.classList.toggle('active', btn === activeBtn);
         });
     };
 
     const showArea = (activeArea) => {
-        [psRankingArea, bountyRankingArea, treasuryRankingArea, dartsRankingArea, karaokeRankingArea].forEach((area) => {
+        [psRankingArea, dartsRankingArea, karaokeRankingArea].forEach((area) => {
             if (area) area.style.display = area === activeArea ? 'block' : 'none';
         });
     };
@@ -407,10 +436,6 @@ export function showRanking(type) {
         showArea(psRankingArea);
         setActive(btnPs);
         getRanking();
-    } else if (type === 'bounty') {
-        showArea(bountyRankingArea);
-        setActive(btnBounty);
-        getBountyRanking();
     } else if (type === 'darts') {
         showArea(dartsRankingArea);
         setActive(btnDarts);
@@ -419,9 +444,9 @@ export function showRanking(type) {
         showArea(karaokeRankingArea);
         setActive(btnKaraoke);
         getStoreGameRanking('karaoke');
-    } else { // treasury
-        showArea(treasuryRankingArea);
-        setActive(btnTreasury);
-        getNationTreasuryRanking();
+    } else {
+        showArea(psRankingArea);
+        setActive(btnPs);
+        getRanking();
     }
 }

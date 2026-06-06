@@ -1380,7 +1380,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
                     await Islands.loadOwnedIslands(playerInfo.playFabId);
                     break;
                 case 'ranking':
-                    await Player.getRanking();
+                    await Player.loadRankingTab();
                     break;
                 case 'king':
                     await NationKing.loadKingPage(playerInfo.playFabId, { useCache: true });

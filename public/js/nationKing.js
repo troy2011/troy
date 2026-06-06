@@ -23,6 +23,12 @@ import { formatUnlockedFeatures } from './featureUnlocks.js';
 let _isKing = false;
 let _lastPageData = null;
 let _hasKingCheck = false;
+const STORE_GAME_LABELS = {
+    darts_countup: 'ダーツカウントアップ',
+    billiards: 'ビリヤード',
+    game: 'ゲーム',
+    karaoke: 'カラオケ採点'
+};
 
 function _setMessage(text, isError = false) {
     const el = document.getElementById('kingPageMessage');
@@ -455,6 +461,10 @@ function _formatStoreGameScore(score, gameType) {
     return Math.floor(value).toLocaleString('ja-JP');
 }
 
+function _getStoreGameLabel(gameType) {
+    return STORE_GAME_LABELS[String(gameType || '').trim().toLowerCase()] || STORE_GAME_LABELS.darts_countup;
+}
+
 function _syncStoreGameScoreInput(typeEl, scoreEl) {
     if (!scoreEl) return;
     const isKaraoke = String(typeEl?.value || '') === 'karaoke';
@@ -760,7 +770,7 @@ function _wireHandlers(playFabId) {
             saveStoreGameScoreBtn.textContent = '保存中...';
             try {
                 const result = await kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, { isSilent: true, throwOnError: true });
-                const label = result?.label || (gameType === 'karaoke' ? 'カラオケ採点' : 'ダーツカウントアップ');
+                const label = result?.label || _getStoreGameLabel(gameType);
                 const name = result?.displayName || targetPlayFabId;
                 _setMessage(`${label}: ${name} の記録を ${_formatStoreGameScore(result?.score || score, gameType)}点で保存しました。`);
                 if (storeGameScoreEl) storeGameScoreEl.value = '';

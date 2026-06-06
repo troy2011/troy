@@ -4,16 +4,13 @@
 const { addGlobalChatMessage } = require('./chat');
 const { withTitleEntityToken } = require('./playfab');
 const {
-    PLAYER_DAILY_CONTRIBUTION_STAT,
-    ensureDailyContributionVersionForToday
-} = require('./contributionStats');
-const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics
 } = require('./playerLevel');
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
+const BOUNTY_RANKING_STAT = 'bounty_ranking';
 
 const ECONOMY_CURRENCY_IDS = new Set([
     VIRTUAL_CURRENCY_CODE,
@@ -31,6 +28,18 @@ const STORE_GAME_RANKING_STATS = {
         statisticName: 'troy_darts_countup_score',
         label: 'ダーツカウントアップ',
         maxScore: 9999,
+        scoreScale: 1
+    },
+    billiards: {
+        statisticName: 'troy_billiards_score',
+        label: 'ビリヤード',
+        maxScore: 999999,
+        scoreScale: 1
+    },
+    game: {
+        statisticName: 'troy_game_score',
+        label: 'ゲーム',
+        maxScore: 999999,
         scoreScale: 1
     },
     karaoke: {
@@ -266,7 +275,7 @@ async function ensureDailyBountyConversion(playFabId, deps) {
     });
     await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
         PlayFabId: playFabId,
-        Statistics: [{ StatisticName: 'bounty_ranking', Value: 0 }]
+        Statistics: [{ StatisticName: BOUNTY_RANKING_STAT, Value: 0 }]
     });
 
     return { updated: true, bountyConverted: bountyAmount, exp: nextExp };
@@ -448,22 +457,14 @@ function initializeEconomyRoutes(app, deps) {
         }
     });
 
-    // 日次貢献度ランキング取得
+    // 懸賞金ランキング取得
     app.post('/api/get-bounty-ranking', async (req, res) => {
         try {
-            const contributionState = await ensureDailyContributionVersionForToday({
-                firestore,
-                admin,
-                promisifyPlayFab,
-                PlayFabServer,
-                PlayFabAdmin
-            });
             const result = await promisifyPlayFab(PlayFabServer.GetLeaderboard, {
-                StatisticName: PLAYER_DAILY_CONTRIBUTION_STAT,
+                StatisticName: BOUNTY_RANKING_STAT,
                 StartPosition: 0,
                 MaxResultsCount: 10,
-                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true },
-                Version: contributionState.activeVersion
+                ProfileConstraints: { ShowAvatarUrl: true, ShowDisplayName: true }
             });
             let ranking = [];
             if (result && result.Leaderboard) {
@@ -473,19 +474,17 @@ function initializeEconomyRoutes(app, deps) {
                         position: entry.Position,
                         playFabId: entry.PlayFabId || null,
                         displayName: entry.DisplayName || '名無し',
+                        bounty: entry.StatValue,
                         score: entry.StatValue,
                         avatarUrl: avatarUrl
                     };
                 });
             }
-            res.json({
-                ranking,
-                dayKey: contributionState.activeDayKey
-            });
+            res.json({ ranking });
         } catch (error) {
-            console.error('貢献度ランキング取得失敗:', error.errorMessage || error.message || error);
+            console.error('懸賞金ランキング取得失敗:', error.errorMessage || error.message || error);
             return res.status(500).json({
-                error: '貢献度ランキング取得に失敗しました。',
+                error: '懸賞金ランキング取得に失敗しました。',
                 details: error.errorMessage || error.message
             });
         }
@@ -635,7 +634,7 @@ function initializeEconomyRoutes(app, deps) {
                 });
                 const receiverStats = [{ StatisticName: LEADERBOARD_NAME, Value: receiverNewBalance }];
                 if (bountyAdded && receiverNewBounty !== null) {
-                    receiverStats.push({ StatisticName: 'bounty_ranking', Value: receiverNewBounty });
+                    receiverStats.push({ StatisticName: BOUNTY_RANKING_STAT, Value: receiverNewBounty });
                 }
                 await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                     PlayFabId: toId,
@@ -644,7 +643,7 @@ function initializeEconomyRoutes(app, deps) {
                 if (bountyAdded && payerNewBounty !== null) {
                     await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
                         PlayFabId: authenticatedPlayFabId,
-                        Statistics: [{ StatisticName: 'bounty_ranking', Value: payerNewBounty }]
+                        Statistics: [{ StatisticName: BOUNTY_RANKING_STAT, Value: payerNewBounty }]
                     });
                 }
                 try {

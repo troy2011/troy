@@ -42,6 +42,78 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
+test('ranking tab shows lower bounty billiards and game rankings', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const storeGameRequests = [];
+  await page.route('**/api/get-ranking', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ranking: [
+          { displayName: 'Playwright Tester', score: 9000, level: 18, rankName: '航海士', playFabId: 'PF_PLAYWRIGHT' }
+        ]
+      })
+    });
+  });
+  await page.route('**/api/get-bounty-ranking', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        ranking: [
+          { displayName: '賞金首', bounty: 1234, score: 1234, level: 21, rankName: '船長', playFabId: 'PF_BOUNTY' }
+        ]
+      })
+    });
+  });
+  await page.route('**/api/get-store-game-ranking', async (route) => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    const gameType = String(body.gameType || '');
+    storeGameRequests.push(gameType);
+    const rankingByType = {
+      billiards: [
+        { displayName: '玉突き名人', score: 800, scoreScale: 1, level: 12, rankName: '航海士', playFabId: 'PF_BILLIARDS' }
+      ],
+      game: [
+        { displayName: '遊技王', score: 42, scoreScale: 1, level: 31, rankName: '提督', playFabId: 'PF_GAME' }
+      ]
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        gameType,
+        ranking: rankingByType[gameType] || []
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    await window.showTab('ranking');
+  });
+
+  await expect(page.locator('#tabContentRanking')).toBeVisible();
+  await expect(page.locator('#bountyRankingList')).toContainText('賞金首');
+  await expect(page.locator('#bountyRankingList')).toContainText('1,234 B');
+  await expect(page.locator('#billiardsRankingList')).toContainText('玉突き名人');
+  await expect(page.locator('#billiardsRankingList')).toContainText('800点');
+  await expect(page.locator('#gameRankingList')).toContainText('遊技王');
+  await expect(page.locator('#gameRankingList')).toContainText('42点');
+  expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
+  await expect(page.locator('#kingStoreGameType option[value="billiards"]')).toHaveText('ビリヤード');
+  await expect(page.locator('#kingStoreGameType option[value="game"]')).toHaveText('ゲーム');
+
+  const subcardFrame = await page.locator('.ranking-subcard').first().evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return style.borderImageSource;
+  });
+  expect(subcardFrame).toContain('assets/ui/panels/');
+  await expectNoPageErrors(errors);
+});
+
 test('troy tab replaces bottom chat with a read-only menu board', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
