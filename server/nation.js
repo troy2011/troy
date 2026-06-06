@@ -2204,8 +2204,8 @@ function initializeNationRoutes(app, deps) {
             await deleteCollectionDocs(roomRef.collection('checkouts'));
         }
         pushDisplayEvent(nextOpen
-            ? { type: 'flare', label: 'TROY OPEN' }
-            : { type: 'splash', label: 'TROY CLOSE' }
+            ? { type: 'flare', topic: 'troy-status', isOpen: true, label: 'TROY OPEN' }
+            : { type: 'splash', topic: 'troy-status', isOpen: false, label: 'TROY CLOSE' }
         );
         return { success: true, isOpen: !!nextOpen, nation: activeNation, troyBusinessDayKey: businessDayKey };
     }
@@ -3418,6 +3418,10 @@ function initializeNationRoutes(app, deps) {
             const memberId = normalizePlayFabId(requesterPlayFabId);
             const roomRef = getTroyRoomDoc(firestore, mapping.groupName);
             await roomRef.collection('members').doc(memberId).delete();
+            pushDisplayEvent({
+                type: 'refresh',
+                topic: 'troy-leave'
+            });
             res.json({ success: true });
         } catch (error) {
             console.error('[troy-leave] Error:', error?.message || error);
@@ -4359,6 +4363,7 @@ function initializeNationRoutes(app, deps) {
 
         pushDisplayEvent({
             type: 'flare',
+            topic: 'troy-checkout',
             label: `会計済: ${checkoutPayload.displayName}${chipReturnAmount > 0 ? ` / チップ返却 ${chipReturnAmount}G` : ''}`
         });
 

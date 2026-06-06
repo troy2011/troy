@@ -1,7 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
-async function installDisplayMocks(page) {
-  await page.addInitScript(() => {
+async function installDisplayMocks(page, options = {}) {
+  const autoEntryEvent = options.autoEntryEvent !== false;
+  await page.addInitScript(({ autoEntryEvent: shouldEmitAutoEntry }) => {
     class MockAudio {
       constructor(src) {
         this.src = src;
@@ -51,18 +52,22 @@ async function installDisplayMocks(page) {
     window.EventSource = class MockEventSource {
       constructor() {
         this.listeners = new Map();
-        window.setTimeout(() => {
-          this.emit('message', {
-            data: JSON.stringify({
-              topic: 'troy-entry',
-              type: 'flare',
-              label: '入店: 海風の船長',
-              level: 28,
-              rankName: '船長',
-              rankBenefits: ['ドリンクサイズアップ1回', '専用ジョッキ 店内専用']
-            })
-          });
-        }, 180);
+        window.__displayEventSource = this;
+        window.__emitDisplayEvent = (payload) => this.emit('message', { data: JSON.stringify(payload) });
+        if (shouldEmitAutoEntry) {
+          window.setTimeout(() => {
+            this.emit('message', {
+              data: JSON.stringify({
+                topic: 'troy-entry',
+                type: 'flare',
+                label: '入店: 海風の船長',
+                level: 28,
+                rankName: '船長',
+                rankBenefits: ['ドリンクサイズアップ1回', '専用ジョッキ 店内専用']
+              })
+            });
+          }, 180);
+        }
       }
 
       addEventListener(type, callback) {
@@ -77,24 +82,30 @@ async function installDisplayMocks(page) {
 
       close() {}
     };
-  });
+  }, { autoEntryEvent });
 
+  const defaultRankingResponse = {
+    scope: 'troy-members',
+    isOpen: true,
+    ranking: [
+      { position: 1, displayName: '海風の船長', level: 24, rankName: '船長', bounty: 307200, avatarUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' },
+      { position: 2, displayName: '港町の料理人', level: 18, rankName: '航海士', bounty: 165600, avatarUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' },
+      { position: 3, displayName: '霧切りの狙撃手', level: 13, rankName: '航海士', bounty: 98800, avatarUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' },
+      { position: 4, displayName: '古地図の考古学者', level: 9, rankName: '見習い', bounty: 48600, avatarUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' },
+      { position: 5, displayName: '歌う音楽家', level: 7, rankName: '見習い', bounty: 28700, avatarUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' }
+    ]
+  };
+  let rankingRequestCount = 0;
+  const rankingResponses = Array.isArray(options.rankingResponses) && options.rankingResponses.length > 0
+    ? options.rankingResponses
+    : [defaultRankingResponse];
   await page.route('**/api/troy-bounty-ranking?limit=10', async (route) => {
-    const avatarUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    const body = rankingResponses[Math.min(rankingRequestCount, rankingResponses.length - 1)];
+    rankingRequestCount += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({
-        scope: 'troy-members',
-        isOpen: true,
-        ranking: [
-          { position: 1, displayName: '海風の船長', level: 24, rankName: '船長', bounty: 307200, avatarUrl },
-          { position: 2, displayName: '港町の料理人', level: 18, rankName: '航海士', bounty: 165600, avatarUrl },
-          { position: 3, displayName: '霧切りの狙撃手', level: 13, rankName: '航海士', bounty: 98800, avatarUrl },
-          { position: 4, displayName: '古地図の考古学者', level: 9, rankName: '見習い', bounty: 48600, avatarUrl },
-          { position: 5, displayName: '歌う音楽家', level: 7, rankName: '見習い', bounty: 28700, avatarUrl }
-        ]
-      })
+      body: JSON.stringify(body)
     });
   });
 }
@@ -154,6 +165,44 @@ test('display kiosk starts with audio gate and hides controls after launch', asy
   expect(audit.panelText).not.toContain('×');
   expect(audit.avatarSize).toBeGreaterThanOrEqual(40);
   expect(audit.scrollWidth).toBe(audit.clientWidth);
+});
+
+test('display ranking refreshes after troy close event', async ({ page }) => {
+  await installDisplayMocks(page, {
+    autoEntryEvent: false,
+    rankingResponses: [
+      {
+        scope: 'troy-members',
+        isOpen: true,
+        ranking: [
+          { position: 1, displayName: '海風の船長', level: 24, rankName: '船長', bounty: 307200 }
+        ]
+      },
+      {
+        scope: 'troy-members',
+        isOpen: false,
+        ranking: []
+      }
+    ]
+  });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.locator('.ranking-row')).toHaveCount(1);
+  await expect(page.locator('#rankingSub')).toHaveText('入店中メンバーのみ');
+
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-status',
+      type: 'splash',
+      label: 'TROY CLOSE',
+      isOpen: false
+    });
+  });
+
+  await expect(page.locator('#rankingSub')).toHaveText('TROY CLOSE');
+  await expect(page.locator('.ranking-row')).toHaveCount(0);
+  await expect(page.locator('.ranking-empty')).toHaveText('入店中メンバーがいません');
+  await expect(page.locator('.effect-rank-badge')).toHaveCount(0);
 });
 
 test('display entry effect remains readable on mirrored iPad landscape', async ({ page }) => {

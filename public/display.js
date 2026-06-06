@@ -12,6 +12,13 @@
   const fullscreenBtn = document.getElementById('btnFullscreen');
   const effectTypes = ['splash', 'boom', 'flare', 'ghost'];
   const BOUNTY_UNIT_LABEL = 'ĐɃ';
+  const RANKING_REFRESH_TOPICS = new Set([
+    'ps-transfer',
+    'troy-entry',
+    'troy-leave',
+    'troy-checkout',
+    'troy-status'
+  ]);
 
   const ENTRY_SOUNDS = [
     '/audio/order-count-1-missile.mp3',
@@ -276,8 +283,10 @@
     const x = isFeaturedEntry ? 50 : (Number.isFinite(xRaw) ? clamp(xRaw, 5, 95) : 15 + Math.random() * 70);
     const y = isFeaturedEntry ? 50 : (Number.isFinite(yRaw) ? clamp(yRaw, 5, 95) : 15 + Math.random() * 70);
 
-    const level = Math.max(1, Math.floor(Number(payload.level) || 0));
-    const tier = getEntryRankTier(level);
+    const rawLevel = Number(payload.level);
+    const hasLevel = Number.isFinite(rawLevel) && rawLevel > 0;
+    const level = hasLevel ? Math.max(1, Math.floor(rawLevel)) : 0;
+    const tier = hasLevel ? getEntryRankTier(level) : 'rookie';
     const effect = document.createElement('div');
     effect.className = `effect ${effectType}${isFeaturedEntry ? ` entry-feature rank-${tier}` : ''}`;
     effect.style.left = `${x}%`;
@@ -314,7 +323,7 @@
       effect.appendChild(text);
     }
 
-    if (level > 0) {
+    if (hasLevel) {
       const badge = document.createElement('div');
       badge.className = 'effect-rank-badge';
       badge.textContent = `Lv.${level} ${getRankName(level, payload.rankName)}`;
@@ -342,6 +351,19 @@
       effect.remove();
     }, isFeaturedEntry ? (durationByTier[tier] || 4200) : 3200);
   };
+
+  const shouldRefreshRankingForEvent = (payload = {}) => {
+    const topic = String(payload.topic || '').toLowerCase();
+    if (RANKING_REFRESH_TOPICS.has(topic)) return true;
+    const label = String(payload.label || '').trim();
+    return label === 'TROY OPEN'
+      || label === 'TROY CLOSE'
+      || label.startsWith('会計済:');
+  };
+
+  const shouldRenderEffectForEvent = (payload = {}) => (
+    String(payload.type || payload.effectType || '').toLowerCase() !== 'refresh'
+  );
 
   const formatNumber = (value) => {
     const num = Math.max(0, Math.floor(Number(value) || 0));
@@ -484,19 +506,19 @@
     if (payload.type === 'batch' && Array.isArray(payload.events)) {
       let shouldRefreshRanking = false;
       payload.events.forEach((event) => {
-        spawnEffect(event);
+        if (shouldRenderEffectForEvent(event)) spawnEffect(event);
         const topic = String(event?.topic || '').toLowerCase();
-        if (topic === 'ps-transfer') shouldRefreshRanking = true;
+        if (shouldRefreshRankingForEvent(event)) shouldRefreshRanking = true;
         if (topic === 'troy-entry') playSound(getEntrySoundSrc(event.level));
       });
       if (shouldRefreshRanking) scheduleRankingRefresh(120);
       return;
     }
 
-    spawnEffect(payload);
+    if (shouldRenderEffectForEvent(payload)) spawnEffect(payload);
     const topic = String(payload.topic || '').toLowerCase();
     if (topic === 'troy-entry') playSound(getEntrySoundSrc(payload.level));
-    if (topic === 'ps-transfer') scheduleRankingRefresh(120);
+    if (shouldRefreshRankingForEvent(payload)) scheduleRankingRefresh(120);
   };
 
   const connectStream = () => {
