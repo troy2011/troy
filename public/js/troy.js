@@ -9,6 +9,7 @@ import {
 import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
+import { getTroyMenuImage } from './troyMenuAssets.js';
 
 let _wired = false;
 let _menuWired = false;
@@ -61,12 +62,6 @@ function withAlcoholSizes(items = []) {
 
 function withAlcoholSize(item = {}) {
     return { ...item, sizeOptions: TROY_ALCOHOL_SIZE_OPTIONS };
-}
-
-function buildTroyItemSpritePath(fileName) {
-    const normalized = String(fileName || '').trim();
-    if (!normalized) return '';
-    return `./Sprites/items/Food/${encodeURIComponent(normalized)}`;
 }
 
 const TROY_PRODUCT_MENUS = {
@@ -143,7 +138,7 @@ const TROY_PRODUCT_MENUS = {
         items: [
             { concept: '漬けチーズ', content: '', price: 500, emoji: '🧀' },
             { concept: 'うずらの味玉', content: '', price: 500, emoji: '🥚' },
-            { concept: 'ナゲット', content: '', price: 500, emoji: '🍗', iconImage: buildTroyItemSpritePath('Chicken Nuggets.png') },
+            { concept: 'ナゲット', content: '', price: 500, emoji: '🍗' },
             { concept: '韓国のり', content: '', price: 500, emoji: '◼️' },
             { concept: '梅水晶', content: '', price: 500, emoji: '🥢' }
         ]
@@ -262,7 +257,7 @@ function buildFavoriteDrinkEntry(menuId, item, optionLabel = '', sizeLabel = '')
         price: getItemEffectivePrice(item, normalizedSize),
         image: item?.image,
         emoji: item?.emoji || getMenuItemEmoji(item),
-        iconImage: item?.iconImage || '',
+        iconImage: getTroyMenuImage(sourceMenuId, item),
         optionLabel: normalizedOption,
         sizeLabel: normalizedSize,
         sizeOptions: getItemSizeChoices(item),
@@ -310,7 +305,9 @@ function getCustomMenuItems(menuId) {
             concept: String(item?.concept || item?.name || '').trim(),
             content: String(item?.content || '').trim(),
             price: Math.max(0, Math.floor(Number(item?.price) || 0)),
-            emoji: String(item?.emoji || '').trim()
+            emoji: String(item?.emoji || '').trim(),
+            image: String(item?.image || '').trim(),
+            iconImage: String(item?.iconImage || item?.image || '').trim()
         }))
         .filter((item) => item.concept && item.price > 0);
 }
@@ -546,12 +543,13 @@ function getMenuBoardDetailText(item = null) {
     return parts.join(' ・ ');
 }
 
-function createMenuBoardIcon(item = null) {
+function createMenuBoardIcon(item = null, menuId = '') {
     const icon = document.createElement('div');
     icon.className = 'troy-menu-board-icon';
-    if (item?.iconImage) {
+    const iconImage = getTroyMenuImage(menuId, item);
+    if (iconImage) {
         const image = document.createElement('img');
-        image.src = item.iconImage;
+        image.src = iconImage;
         image.alt = '';
         image.loading = 'lazy';
         icon.classList.add('has-image');
@@ -641,7 +639,7 @@ function renderTroyMenuBoard() {
             priceWrap.appendChild(badge);
         }
 
-        row.append(createMenuBoardIcon(item), body, priceWrap);
+        row.append(createMenuBoardIcon(item, _menuBoardActiveId), body, priceWrap);
         listEl.appendChild(row);
     });
 }
@@ -1033,7 +1031,17 @@ function openMenuModal(menuId) {
 
         const hero = document.createElement('div');
         hero.className = 'troy-menu-modal-emoji';
-        hero.textContent = item.emoji || getMenuItemEmoji(item);
+        const heroImage = getTroyMenuImage(menuId, item);
+        if (heroImage) {
+            const image = document.createElement('img');
+            image.src = heroImage;
+            image.alt = '';
+            image.loading = 'lazy';
+            hero.classList.add('has-image');
+            hero.appendChild(image);
+        } else {
+            hero.textContent = item.emoji || getMenuItemEmoji(item);
+        }
         hero.setAttribute('aria-hidden', 'true');
 
         const body = document.createElement('div');

@@ -93,6 +93,9 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="シャンディガフ（ビール+ジンジャーエール） S"]')).toContainText('¥500');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="シャンディガフ（ビール+ジンジャーエール） M"]')).toContainText('¥700');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ノンアルコール瓶ビール（ハイネケン）"]')).toContainText('¥500');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="瓶ビール（ハートランド）"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_golden_compass_beer\.png/);
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ナゲット"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/food\/pirate_fried_chicken_nuggets\.png/);
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="梅水晶"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/food\/snack_umeboshi_bowl\.png/);
 
   await page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="瓶ビール（ハートランド）"]').click();
 
@@ -175,6 +178,7 @@ test('staff register shows king-managed custom menu items', async ({ page }) => 
   await mixerCategory.locator('summary').click();
   await expect(mixerCategory).toContainText('特製氷');
   await expect(mixerCategory).toContainText('澄んだ丸氷');
+  await expect(mixerCategory.locator('[data-add-item][data-item-name="特製氷"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
 
   await mixerCategory.locator('[data-add-item][data-item-name="特製氷"]').click();
 

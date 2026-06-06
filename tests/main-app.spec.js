@@ -204,13 +204,17 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyMenuBoardSection')).toContainText('価格確認用・注文はスタッフへ');
   await expect(page.locator('#troyMenuBoardList')).toContainText('瓶ビール');
   await expect(page.locator('#troyMenuBoardList')).toContainText('S ¥500 / M ¥700');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^瓶ビール$/ }) }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_golden_compass_beer\.png/);
   await expect(page.locator('#troyMenuBoardSection .troy-menu-quick-btn')).toHaveCount(0);
   await expect(page.locator('#troyMenuBoardSection #troyChatInput')).toHaveCount(0);
 
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).click();
   await expect(page.locator('#troyMenuBoardList')).toContainText('ナゲット');
   await expect(page.locator('#troyMenuBoardList')).toContainText('SOLD OUT');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: 'ナゲット' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_fried_chicken_nuggets\.png/);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '梅水晶' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_umeboshi_bowl\.png/);
   await expect(page.locator('#troyMenuBoardList')).toContainText('氷');
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '氷' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
 
   await expectNoPageErrors(errors);
 });

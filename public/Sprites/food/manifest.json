@@ -299,29 +299,6 @@
         "alphaArea":  24763
     },
     {
-        "id":  "pirate_edamame_bowl",
-        "displayName":  "Edamame Bowl",
-        "file":  "./Sprites/food/pirate_edamame_bowl.png",
-        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
-        "sourceRegion":  {
-                             "x":  216,
-                             "y":  533,
-                             "w":  202,
-                             "h":  179
-                         },
-        "sourceRect":  {
-                           "x":  214,
-                           "y":  531,
-                           "w":  206,
-                           "h":  183
-                       },
-        "row":  2,
-        "col":  1,
-        "width":  206,
-        "height":  183,
-        "alphaArea":  26937
-    },
-    {
         "id":  "pirate_garlic_shrimp_bowl",
         "displayName":  "Garlic Shrimp Bowl",
         "file":  "./Sprites/food/pirate_garlic_shrimp_bowl.png",
@@ -874,29 +851,6 @@
         "alphaArea":  22180
     },
     {
-        "id":  "snack_nori_stack",
-        "displayName":  "Nori Stack",
-        "file":  "./Sprites/food/snack_nori_stack.png",
-        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
-        "sourceRegion":  {
-                             "x":  408,
-                             "y":  275,
-                             "w":  206,
-                             "h":  188
-                         },
-        "sourceRect":  {
-                           "x":  406,
-                           "y":  273,
-                           "w":  210,
-                           "h":  192
-                       },
-        "row":  1,
-        "col":  2,
-        "width":  210,
-        "height":  192,
-        "alphaArea":  24951
-    },
-    {
         "id":  "snack_spiced_cheese_bowl",
         "displayName":  "Spiced Cheese Bowl",
         "file":  "./Sprites/food/snack_spiced_cheese_bowl.png",
@@ -1058,29 +1012,6 @@
         "alphaArea":  24992
     },
     {
-        "id":  "snack_fries_mug",
-        "displayName":  "Fries Mug",
-        "file":  "./Sprites/food/snack_fries_mug.png",
-        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
-        "sourceRegion":  {
-                             "x":  863,
-                             "y":  460,
-                             "w":  175,
-                             "h":  201
-                         },
-        "sourceRect":  {
-                           "x":  861,
-                           "y":  458,
-                           "w":  179,
-                           "h":  205
-                       },
-        "row":  2,
-        "col":  4,
-        "width":  179,
-        "height":  205,
-        "alphaArea":  25928
-    },
-    {
         "id":  "snack_pickle_barrel",
         "displayName":  "Pickle Barrel",
         "file":  "./Sprites/food/snack_pickle_barrel.png",
@@ -1102,29 +1033,6 @@
         "width":  189,
         "height":  189,
         "alphaArea":  26508
-    },
-    {
-        "id":  "snack_dried_squid_plate",
-        "displayName":  "Dried Squid Plate",
-        "file":  "./Sprites/food/snack_dried_squid_plate.png",
-        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
-        "sourceRegion":  {
-                             "x":  16,
-                             "y":  667,
-                             "w":  189,
-                             "h":  168
-                         },
-        "sourceRect":  {
-                           "x":  14,
-                           "y":  665,
-                           "w":  193,
-                           "h":  172
-                       },
-        "row":  3,
-        "col":  0,
-        "width":  193,
-        "height":  172,
-        "alphaArea":  22987
     },
     {
         "id":  "snack_onion_rings_basket",

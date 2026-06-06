@@ -48,5 +48,5 @@ test('drink sprite manifest points to sliced PNG assets', () => {
 });
 
 test('food sprite manifest points to sliced PNG assets', () => {
-  verifyMenuManifest('food', 66);
+  verifyMenuManifest('food', 62);
 });

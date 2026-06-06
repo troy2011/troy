@@ -1,4 +1,5 @@
 import { callApiWithLoader, createRequestId } from 'api';
+import { getTroyMenuImage } from './troyMenuAssets.js';
 
 const DRINK_SIZE_OPTIONS = [
     { suffix: 'S', price: 500 },
@@ -156,8 +157,10 @@ function normalizeStaffCustomMenuItems(data = lastData) {
         const name = String(item?.concept || item?.name || '').trim().slice(0, 60);
         const note = String(item?.content || '').trim().slice(0, 80);
         const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+        const image = String(item?.iconImage || item?.image || '').trim();
+        const emoji = String(item?.emoji || '').trim();
         if (!categoryId || !name || price <= 0) return null;
-        return { categoryId, name, note, price };
+        return { categoryId, name, note, price, image, iconImage: image, emoji };
     }).filter(Boolean);
 }
 
@@ -174,6 +177,9 @@ function buildStaffMenu(data = lastData) {
             name: item.name,
             note: item.note,
             price: item.price,
+            image: item.image,
+            iconImage: item.iconImage,
+            emoji: item.emoji,
             isCustom: true
         });
     });
@@ -610,15 +616,24 @@ function getPendingServeCount(items = []) {
 
 function buildPosCategoryHtml() {
     const menuHtml = buildStaffMenu().map((cat, index) => {
-        const btns = cat.items.map((item) => `
+        const btns = cat.items.map((item) => {
+            const image = getTroyMenuImage(cat.id, item);
+            const thumb = image
+                ? `<span class="troy-orders-pos-thumb"><img src="${escapeHtml(image)}" alt="" loading="lazy"></span>`
+                : `<span class="troy-orders-pos-thumb is-emoji" aria-hidden="true">${escapeHtml(item.emoji || '•')}</span>`;
+            return `
             <button type="button" class="troy-orders-pos-btn"
                 data-add-item
                 data-item-name="${escapeHtml(item.name)}"
                 data-item-price="${item.price}">
-                ${escapeHtml(item.name)}
-                ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ''}
-                <span>${formatYen(item.price)}</span>
-            </button>`).join('');
+                ${thumb}
+                <span class="troy-orders-pos-copy">
+                    <strong class="troy-orders-pos-name">${escapeHtml(item.name)}</strong>
+                    ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ''}
+                </span>
+                <span class="troy-orders-pos-price">${formatYen(item.price)}</span>
+            </button>`;
+        }).join('');
         return `
             <details class="troy-orders-pos-category"${index === 0 ? ' open' : ''}>
                 <summary>${escapeHtml(cat.category)}</summary>
