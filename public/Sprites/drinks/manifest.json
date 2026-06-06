@@ -1,0 +1,2302 @@
+[
+    {
+        "id":  "pirate_skull_beer_stein",
+        "displayName":  "Skull Beer Stein",
+        "file":  "./Sprites/drinks/pirate_skull_beer_stein.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  77,
+                             "y":  27,
+                             "w":  194,
+                             "h":  224
+                         },
+        "sourceRect":  {
+                           "x":  75,
+                           "y":  25,
+                           "w":  198,
+                           "h":  228
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  198,
+        "height":  228,
+        "alphaArea":  32068
+    },
+    {
+        "id":  "pirate_rum_square_bottle",
+        "displayName":  "Pirate Rum Square Bottle",
+        "file":  "./Sprites/drinks/pirate_rum_square_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  328,
+                             "y":  16,
+                             "w":  138,
+                             "h":  239
+                         },
+        "sourceRect":  {
+                           "x":  326,
+                           "y":  14,
+                           "w":  142,
+                           "h":  243
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  142,
+        "height":  243,
+        "alphaArea":  21024
+    },
+    {
+        "id":  "pirate_red_wine_bottle",
+        "displayName":  "Red Wine Bottle",
+        "file":  "./Sprites/drinks/pirate_red_wine_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  564,
+                             "y":  16,
+                             "w":  100,
+                             "h":  234
+                         },
+        "sourceRect":  {
+                           "x":  562,
+                           "y":  14,
+                           "w":  104,
+                           "h":  238
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  104,
+        "height":  238,
+        "alphaArea":  15473
+    },
+    {
+        "id":  "pirate_red_wine_glass",
+        "displayName":  "Red Wine Glass",
+        "file":  "./Sprites/drinks/pirate_red_wine_glass.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  784,
+                             "y":  33,
+                             "w":  110,
+                             "h":  216
+                         },
+        "sourceRect":  {
+                           "x":  782,
+                           "y":  31,
+                           "w":  114,
+                           "h":  220
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  114,
+        "height":  220,
+        "alphaArea":  14224
+    },
+    {
+        "id":  "pirate_steel_skull_tankard",
+        "displayName":  "Steel Skull Tankard",
+        "file":  "./Sprites/drinks/pirate_steel_skull_tankard.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  993,
+                             "y":  50,
+                             "w":  186,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  991,
+                           "y":  48,
+                           "w":  190,
+                           "h":  196
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  190,
+        "height":  196,
+        "alphaArea":  25552
+    },
+    {
+        "id":  "pirate_leather_anchor_canteen",
+        "displayName":  "Leather Anchor Canteen",
+        "file":  "./Sprites/drinks/pirate_leather_anchor_canteen.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  65,
+                             "y":  277,
+                             "w":  170,
+                             "h":  226
+                         },
+        "sourceRect":  {
+                           "x":  63,
+                           "y":  275,
+                           "w":  174,
+                           "h":  230
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  174,
+        "height":  230,
+        "alphaArea":  26819
+    },
+    {
+        "id":  "pirate_black_skull_flask",
+        "displayName":  "Black Skull Flask",
+        "file":  "./Sprites/drinks/pirate_black_skull_flask.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  306,
+                             "y":  268,
+                             "w":  164,
+                             "h":  243
+                         },
+        "sourceRect":  {
+                           "x":  304,
+                           "y":  266,
+                           "w":  168,
+                           "h":  247
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  168,
+        "height":  247,
+        "alphaArea":  28659
+    },
+    {
+        "id":  "pirate_lime_grog_mug",
+        "displayName":  "Lime Grog Mug",
+        "file":  "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  536,
+                             "y":  282,
+                             "w":  193,
+                             "h":  216
+                         },
+        "sourceRect":  {
+                           "x":  534,
+                           "y":  280,
+                           "w":  197,
+                           "h":  220
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  197,
+        "height":  220,
+        "alphaArea":  31259
+    },
+    {
+        "id":  "pirate_green_grog_bottle",
+        "displayName":  "Green Grog Bottle",
+        "file":  "./Sprites/drinks/pirate_green_grog_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  771,
+                             "y":  273,
+                             "w":  146,
+                             "h":  228
+                         },
+        "sourceRect":  {
+                           "x":  769,
+                           "y":  271,
+                           "w":  150,
+                           "h":  232
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  150,
+        "height":  232,
+        "alphaArea":  25015
+    },
+    {
+        "id":  "pirate_golden_lager_pint",
+        "displayName":  "Golden Lager Pint",
+        "file":  "./Sprites/drinks/pirate_golden_lager_pint.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1010,
+                             "y":  276,
+                             "w":  130,
+                             "h":  227
+                         },
+        "sourceRect":  {
+                           "x":  1008,
+                           "y":  274,
+                           "w":  134,
+                           "h":  231
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  134,
+        "height":  231,
+        "alphaArea":  24441
+    },
+    {
+        "id":  "pirate_amber_gem_decanter",
+        "displayName":  "Amber Gem Decanter",
+        "file":  "./Sprites/drinks/pirate_amber_gem_decanter.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  54,
+                             "y":  520,
+                             "w":  176,
+                             "h":  229
+                         },
+        "sourceRect":  {
+                           "x":  52,
+                           "y":  518,
+                           "w":  180,
+                           "h":  233
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  180,
+        "height":  233,
+        "alphaArea":  25061
+    },
+    {
+        "id":  "pirate_coconut_tiki_cocktail",
+        "displayName":  "Coconut Tiki Cocktail",
+        "file":  "./Sprites/drinks/pirate_coconut_tiki_cocktail.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  289,
+                             "y":  534,
+                             "w":  206,
+                             "h":  211
+                         },
+        "sourceRect":  {
+                           "x":  287,
+                           "y":  532,
+                           "w":  210,
+                           "h":  215
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  210,
+        "height":  215,
+        "alphaArea":  28538
+    },
+    {
+        "id":  "pirate_sunset_citrus_cocktail",
+        "displayName":  "Sunset Citrus Cocktail",
+        "file":  "./Sprites/drinks/pirate_sunset_citrus_cocktail.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  537,
+                             "y":  518,
+                             "w":  155,
+                             "h":  237
+                         },
+        "sourceRect":  {
+                           "x":  535,
+                           "y":  516,
+                           "w":  159,
+                           "h":  241
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  159,
+        "height":  241,
+        "alphaArea":  19882
+    },
+    {
+        "id":  "pirate_blue_shell_martini",
+        "displayName":  "Blue Shell Martini",
+        "file":  "./Sprites/drinks/pirate_blue_shell_martini.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  751,
+                             "y":  521,
+                             "w":  176,
+                             "h":  228
+                         },
+        "sourceRect":  {
+                           "x":  749,
+                           "y":  519,
+                           "w":  180,
+                           "h":  232
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  180,
+        "height":  232,
+        "alphaArea":  17546
+    },
+    {
+        "id":  "pirate_grape_tumbler",
+        "displayName":  "Grape Tumbler",
+        "file":  "./Sprites/drinks/pirate_grape_tumbler.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  993,
+                             "y":  542,
+                             "w":  213,
+                             "h":  195
+                         },
+        "sourceRect":  {
+                           "x":  991,
+                           "y":  540,
+                           "w":  217,
+                           "h":  199
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  217,
+        "height":  199,
+        "alphaArea":  29809
+    },
+    {
+        "id":  "pirate_green_rum_potion",
+        "displayName":  "Green Rum Potion",
+        "file":  "./Sprites/drinks/pirate_green_rum_potion.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  53,
+                             "y":  775,
+                             "w":  158,
+                             "h":  208
+                         },
+        "sourceRect":  {
+                           "x":  51,
+                           "y":  773,
+                           "w":  162,
+                           "h":  212
+                       },
+        "row":  3,
+        "col":  0,
+        "width":  162,
+        "height":  212,
+        "alphaArea":  21562
+    },
+    {
+        "id":  "pirate_blue_crystal_potion",
+        "displayName":  "Blue Crystal Potion",
+        "file":  "./Sprites/drinks/pirate_blue_crystal_potion.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  291,
+                             "y":  744,
+                             "w":  120,
+                             "h":  248
+                         },
+        "sourceRect":  {
+                           "x":  289,
+                           "y":  742,
+                           "w":  124,
+                           "h":  252
+                       },
+        "row":  3,
+        "col":  1,
+        "width":  124,
+        "height":  252,
+        "alphaArea":  19662
+    },
+    {
+        "id":  "pirate_red_jewel_elixir",
+        "displayName":  "Red Jewel Elixir",
+        "file":  "./Sprites/drinks/pirate_red_jewel_elixir.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  521,
+                             "y":  776,
+                             "w":  159,
+                             "h":  211
+                         },
+        "sourceRect":  {
+                           "x":  519,
+                           "y":  774,
+                           "w":  163,
+                           "h":  215
+                       },
+        "row":  3,
+        "col":  2,
+        "width":  163,
+        "height":  215,
+        "alphaArea":  20727
+    },
+    {
+        "id":  "pirate_aged_rum_bottle",
+        "displayName":  "Aged Rum Bottle",
+        "file":  "./Sprites/drinks/pirate_aged_rum_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  754,
+                             "y":  774,
+                             "w":  156,
+                             "h":  211
+                         },
+        "sourceRect":  {
+                           "x":  752,
+                           "y":  772,
+                           "w":  160,
+                           "h":  215
+                       },
+        "row":  3,
+        "col":  3,
+        "width":  160,
+        "height":  215,
+        "alphaArea":  22033
+    },
+    {
+        "id":  "pirate_treasure_map_rum",
+        "displayName":  "Treasure Map Rum",
+        "file":  "./Sprites/drinks/pirate_treasure_map_rum.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1012,
+                             "y":  757,
+                             "w":  175,
+                             "h":  229
+                         },
+        "sourceRect":  {
+                           "x":  1010,
+                           "y":  755,
+                           "w":  179,
+                           "h":  233
+                       },
+        "row":  3,
+        "col":  4,
+        "width":  179,
+        "height":  233,
+        "alphaArea":  26760
+    },
+    {
+        "id":  "pirate_barrel_ale_mug",
+        "displayName":  "Barrel Ale Mug",
+        "file":  "./Sprites/drinks/pirate_barrel_ale_mug.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  39,
+                             "y":  1010,
+                             "w":  209,
+                             "h":  213
+                         },
+        "sourceRect":  {
+                           "x":  37,
+                           "y":  1008,
+                           "w":  213,
+                           "h":  217
+                       },
+        "row":  4,
+        "col":  0,
+        "width":  213,
+        "height":  217,
+        "alphaArea":  34123
+    },
+    {
+        "id":  "pirate_kraken_silver_goblet",
+        "displayName":  "Kraken Silver Goblet",
+        "file":  "./Sprites/drinks/pirate_kraken_silver_goblet.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  284,
+                             "y":  1017,
+                             "w":  146,
+                             "h":  206
+                         },
+        "sourceRect":  {
+                           "x":  282,
+                           "y":  1015,
+                           "w":  150,
+                           "h":  210
+                       },
+        "row":  4,
+        "col":  1,
+        "width":  150,
+        "height":  210,
+        "alphaArea":  21600
+    },
+    {
+        "id":  "pirate_shipwheel_barrel_flask",
+        "displayName":  "Shipwheel Barrel Flask",
+        "file":  "./Sprites/drinks/pirate_shipwheel_barrel_flask.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  481,
+                             "y":  1015,
+                             "w":  152,
+                             "h":  213
+                         },
+        "sourceRect":  {
+                           "x":  479,
+                           "y":  1013,
+                           "w":  156,
+                           "h":  217
+                       },
+        "row":  4,
+        "col":  2,
+        "width":  156,
+        "height":  217,
+        "alphaArea":  22442
+    },
+    {
+        "id":  "pirate_seaweed_bottle",
+        "displayName":  "Seaweed Bottle",
+        "file":  "./Sprites/drinks/pirate_seaweed_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  694,
+                             "y":  1002,
+                             "w":  125,
+                             "h":  226
+                         },
+        "sourceRect":  {
+                           "x":  692,
+                           "y":  1000,
+                           "w":  129,
+                           "h":  230
+                       },
+        "row":  4,
+        "col":  3,
+        "width":  129,
+        "height":  230,
+        "alphaArea":  19036
+    },
+    {
+        "id":  "pirate_green_skull_tag_bottle",
+        "displayName":  "Green Skull Tag Bottle",
+        "file":  "./Sprites/drinks/pirate_green_skull_tag_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  835,
+                             "y":  1007,
+                             "w":  183,
+                             "h":  221
+                         },
+        "sourceRect":  {
+                           "x":  833,
+                           "y":  1005,
+                           "w":  187,
+                           "h":  225
+                       },
+        "row":  4,
+        "col":  4,
+        "width":  187,
+        "height":  225,
+        "alphaArea":  23321
+    },
+    {
+        "id":  "pirate_orange_citrus_bottle",
+        "displayName":  "Orange Citrus Bottle",
+        "file":  "./Sprites/drinks/pirate_orange_citrus_bottle.png",
+        "source":  "./assets/ui/drink/海賊風飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1044,
+                             "y":  1015,
+                             "w":  170,
+                             "h":  209
+                         },
+        "sourceRect":  {
+                           "x":  1042,
+                           "y":  1013,
+                           "w":  174,
+                           "h":  213
+                       },
+        "row":  4,
+        "col":  5,
+        "width":  174,
+        "height":  213,
+        "alphaArea":  21737
+    },
+    {
+        "id":  "fantasy_skull_medallion_rum",
+        "displayName":  "Skull Medallion Rum",
+        "file":  "./Sprites/drinks/fantasy_skull_medallion_rum.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  46,
+                             "y":  36,
+                             "w":  137,
+                             "h":  196
+                         },
+        "sourceRect":  {
+                           "x":  44,
+                           "y":  34,
+                           "w":  141,
+                           "h":  200
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  141,
+        "height":  200,
+        "alphaArea":  18599
+    },
+    {
+        "id":  "fantasy_shipwheel_cork_bottle",
+        "displayName":  "Shipwheel Cork Bottle",
+        "file":  "./Sprites/drinks/fantasy_shipwheel_cork_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  261,
+                             "y":  35,
+                             "w":  125,
+                             "h":  196
+                         },
+        "sourceRect":  {
+                           "x":  259,
+                           "y":  33,
+                           "w":  129,
+                           "h":  200
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  129,
+        "height":  200,
+        "alphaArea":  18280
+    },
+    {
+        "id":  "fantasy_compass_square_bottle",
+        "displayName":  "Compass Square Bottle",
+        "file":  "./Sprites/drinks/fantasy_compass_square_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  467,
+                             "y":  33,
+                             "w":  140,
+                             "h":  205
+                         },
+        "sourceRect":  {
+                           "x":  465,
+                           "y":  31,
+                           "w":  144,
+                           "h":  209
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  144,
+        "height":  209,
+        "alphaArea":  20240
+    },
+    {
+        "id":  "fantasy_anchor_round_rum",
+        "displayName":  "Anchor Round Rum",
+        "file":  "./Sprites/drinks/fantasy_anchor_round_rum.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  676,
+                             "y":  36,
+                             "w":  144,
+                             "h":  198
+                         },
+        "sourceRect":  {
+                           "x":  674,
+                           "y":  34,
+                           "w":  148,
+                           "h":  202
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  148,
+        "height":  202,
+        "alphaArea":  19300
+    },
+    {
+        "id":  "fantasy_diamond_skull_decanter",
+        "displayName":  "Diamond Skull Decanter",
+        "file":  "./Sprites/drinks/fantasy_diamond_skull_decanter.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  885,
+                             "y":  33,
+                             "w":  129,
+                             "h":  201
+                         },
+        "sourceRect":  {
+                           "x":  883,
+                           "y":  31,
+                           "w":  133,
+                           "h":  205
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  133,
+        "height":  205,
+        "alphaArea":  17593
+    },
+    {
+        "id":  "fantasy_skull_rope_jug",
+        "displayName":  "Skull Rope Jug",
+        "file":  "./Sprites/drinks/fantasy_skull_rope_jug.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1074,
+                             "y":  38,
+                             "w":  135,
+                             "h":  195
+                         },
+        "sourceRect":  {
+                           "x":  1072,
+                           "y":  36,
+                           "w":  139,
+                           "h":  199
+                       },
+        "row":  0,
+        "col":  5,
+        "width":  139,
+        "height":  199,
+        "alphaArea":  21051
+    },
+    {
+        "id":  "fantasy_anchor_clay_jug",
+        "displayName":  "Anchor Clay Jug",
+        "file":  "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  41,
+                             "y":  254,
+                             "w":  153,
+                             "h":  194
+                         },
+        "sourceRect":  {
+                           "x":  39,
+                           "y":  252,
+                           "w":  157,
+                           "h":  198
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  157,
+        "height":  198,
+        "alphaArea":  23091
+    },
+    {
+        "id":  "fantasy_shell_green_bottle",
+        "displayName":  "Shell Green Bottle",
+        "file":  "./Sprites/drinks/fantasy_shell_green_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  263,
+                             "y":  248,
+                             "w":  123,
+                             "h":  199
+                         },
+        "sourceRect":  {
+                           "x":  261,
+                           "y":  246,
+                           "w":  127,
+                           "h":  203
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  127,
+        "height":  203,
+        "alphaArea":  16343
+    },
+    {
+        "id":  "fantasy_starfish_basket_bottle",
+        "displayName":  "Starfish Basket Bottle",
+        "file":  "./Sprites/drinks/fantasy_starfish_basket_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  456,
+                             "y":  255,
+                             "w":  146,
+                             "h":  190
+                         },
+        "sourceRect":  {
+                           "x":  454,
+                           "y":  253,
+                           "w":  150,
+                           "h":  194
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  150,
+        "height":  194,
+        "alphaArea":  21184
+    },
+    {
+        "id":  "fantasy_compass_wine_bottle",
+        "displayName":  "Compass Wine Bottle",
+        "file":  "./Sprites/drinks/fantasy_compass_wine_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  697,
+                             "y":  248,
+                             "w":  67,
+                             "h":  203
+                         },
+        "sourceRect":  {
+                           "x":  695,
+                           "y":  246,
+                           "w":  71,
+                           "h":  207
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  71,
+        "height":  207,
+        "alphaArea":  10893
+    },
+    {
+        "id":  "fantasy_compass_white_wine",
+        "displayName":  "Compass White Wine",
+        "file":  "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  875,
+                             "y":  256,
+                             "w":  98,
+                             "h":  194
+                         },
+        "sourceRect":  {
+                           "x":  873,
+                           "y":  254,
+                           "w":  102,
+                           "h":  198
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  102,
+        "height":  198,
+        "alphaArea":  12773
+    },
+    {
+        "id":  "fantasy_golden_compass_beer",
+        "displayName":  "Golden Compass Beer",
+        "file":  "./Sprites/drinks/fantasy_golden_compass_beer.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1096,
+                             "y":  254,
+                             "w":  74,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  1094,
+                           "y":  252,
+                           "w":  78,
+                           "h":  201
+                       },
+        "row":  1,
+        "col":  5,
+        "width":  78,
+        "height":  201,
+        "alphaArea":  12018
+    },
+    {
+        "id":  "fantasy_green_navigator_flask",
+        "displayName":  "Green Navigator Flask",
+        "file":  "./Sprites/drinks/fantasy_green_navigator_flask.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  62,
+                             "y":  463,
+                             "w":  100,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  60,
+                           "y":  461,
+                           "w":  104,
+                           "h":  196
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  104,
+        "height":  196,
+        "alphaArea":  15881
+    },
+    {
+        "id":  "fantasy_skull_amber_beer_bottle",
+        "displayName":  "Skull Amber Beer Bottle",
+        "file":  "./Sprites/drinks/fantasy_skull_amber_beer_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  272,
+                             "y":  463,
+                             "w":  72,
+                             "h":  193
+                         },
+        "sourceRect":  {
+                           "x":  270,
+                           "y":  461,
+                           "w":  76,
+                           "h":  197
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  76,
+        "height":  197,
+        "alphaArea":  11354
+    },
+    {
+        "id":  "fantasy_anchor_green_beer_bottle",
+        "displayName":  "Anchor Green Beer Bottle",
+        "file":  "./Sprites/drinks/fantasy_anchor_green_beer_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  471,
+                             "y":  463,
+                             "w":  71,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  469,
+                           "y":  461,
+                           "w":  75,
+                           "h":  201
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  75,
+        "height":  201,
+        "alphaArea":  11543
+    },
+    {
+        "id":  "fantasy_foamy_anchor_wooden_mug",
+        "displayName":  "Foamy Anchor Wooden Mug",
+        "file":  "./Sprites/drinks/fantasy_foamy_anchor_wooden_mug.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  645,
+                             "y":  477,
+                             "w":  167,
+                             "h":  179
+                         },
+        "sourceRect":  {
+                           "x":  643,
+                           "y":  475,
+                           "w":  171,
+                           "h":  183
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  171,
+        "height":  183,
+        "alphaArea":  24962
+    },
+    {
+        "id":  "fantasy_shipwheel_beer_mug",
+        "displayName":  "Shipwheel Beer Mug",
+        "file":  "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  862,
+                             "y":  471,
+                             "w":  155,
+                             "h":  184
+                         },
+        "sourceRect":  {
+                           "x":  860,
+                           "y":  469,
+                           "w":  159,
+                           "h":  188
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  159,
+        "height":  188,
+        "alphaArea":  23397
+    },
+    {
+        "id":  "fantasy_shell_golden_goblet",
+        "displayName":  "Shell Golden Goblet",
+        "file":  "./Sprites/drinks/fantasy_shell_golden_goblet.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1071,
+                             "y":  477,
+                             "w":  112,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  1069,
+                           "y":  475,
+                           "w":  116,
+                           "h":  182
+                       },
+        "row":  2,
+        "col":  5,
+        "width":  116,
+        "height":  182,
+        "alphaArea":  15853
+    },
+    {
+        "id":  "fantasy_pineapple_elixir_bottle",
+        "displayName":  "Pineapple Elixir Bottle",
+        "file":  "./Sprites/drinks/fantasy_pineapple_elixir_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  67,
+                             "y":  665,
+                             "w":  109,
+                             "h":  193
+                         },
+        "sourceRect":  {
+                           "x":  65,
+                           "y":  663,
+                           "w":  113,
+                           "h":  197
+                       },
+        "row":  3,
+        "col":  0,
+        "width":  113,
+        "height":  197,
+        "alphaArea":  13870
+    },
+    {
+        "id":  "fantasy_pineapple_cocktail",
+        "displayName":  "Pineapple Cocktail",
+        "file":  "./Sprites/drinks/fantasy_pineapple_cocktail.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  231,
+                             "y":  678,
+                             "w":  163,
+                             "h":  180
+                         },
+        "sourceRect":  {
+                           "x":  229,
+                           "y":  676,
+                           "w":  167,
+                           "h":  184
+                       },
+        "row":  3,
+        "col":  1,
+        "width":  167,
+        "height":  184,
+        "alphaArea":  18379
+    },
+    {
+        "id":  "fantasy_orange_elixir_bottle",
+        "displayName":  "Orange Elixir Bottle",
+        "file":  "./Sprites/drinks/fantasy_orange_elixir_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  451,
+                             "y":  675,
+                             "w":  127,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  449,
+                           "y":  673,
+                           "w":  131,
+                           "h":  187
+                       },
+        "row":  3,
+        "col":  2,
+        "width":  131,
+        "height":  187,
+        "alphaArea":  16440
+    },
+    {
+        "id":  "fantasy_orange_juice_highball",
+        "displayName":  "Orange Juice Highball",
+        "file":  "./Sprites/drinks/fantasy_orange_juice_highball.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  664,
+                             "y":  681,
+                             "w":  114,
+                             "h":  179
+                         },
+        "sourceRect":  {
+                           "x":  662,
+                           "y":  679,
+                           "w":  118,
+                           "h":  183
+                       },
+        "row":  3,
+        "col":  3,
+        "width":  118,
+        "height":  183,
+        "alphaArea":  15100
+    },
+    {
+        "id":  "fantasy_grape_elixir_bottle",
+        "displayName":  "Grape Elixir Bottle",
+        "file":  "./Sprites/drinks/fantasy_grape_elixir_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  862,
+                             "y":  670,
+                             "w":  108,
+                             "h":  193
+                         },
+        "sourceRect":  {
+                           "x":  860,
+                           "y":  668,
+                           "w":  112,
+                           "h":  197
+                       },
+        "row":  3,
+        "col":  4,
+        "width":  112,
+        "height":  197,
+        "alphaArea":  13868
+    },
+    {
+        "id":  "fantasy_grape_wine_glass",
+        "displayName":  "Grape Wine Glass",
+        "file":  "./Sprites/drinks/fantasy_grape_wine_glass.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1051,
+                             "y":  675,
+                             "w":  119,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  1049,
+                           "y":  673,
+                           "w":  123,
+                           "h":  187
+                       },
+        "row":  3,
+        "col":  5,
+        "width":  123,
+        "height":  187,
+        "alphaArea":  13120
+    },
+    {
+        "id":  "fantasy_red_berry_elixir",
+        "displayName":  "Red Berry Elixir",
+        "file":  "./Sprites/drinks/fantasy_red_berry_elixir.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  46,
+                             "y":  869,
+                             "w":  120,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  44,
+                           "y":  867,
+                           "w":  124,
+                           "h":  180
+                       },
+        "row":  4,
+        "col":  0,
+        "width":  124,
+        "height":  180,
+        "alphaArea":  15464
+    },
+    {
+        "id":  "fantasy_red_berry_iced_drink",
+        "displayName":  "Red Berry Iced Drink",
+        "file":  "./Sprites/drinks/fantasy_red_berry_iced_drink.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  240,
+                             "y":  881,
+                             "w":  116,
+                             "h":  162
+                         },
+        "sourceRect":  {
+                           "x":  238,
+                           "y":  879,
+                           "w":  120,
+                           "h":  166
+                       },
+        "row":  4,
+        "col":  1,
+        "width":  120,
+        "height":  166,
+        "alphaArea":  14366
+    },
+    {
+        "id":  "fantasy_apple_elixir_bottle",
+        "displayName":  "Apple Elixir Bottle",
+        "file":  "./Sprites/drinks/fantasy_apple_elixir_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  455,
+                             "y":  875,
+                             "w":  121,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  453,
+                           "y":  873,
+                           "w":  125,
+                           "h":  174
+                       },
+        "row":  4,
+        "col":  2,
+        "width":  125,
+        "height":  174,
+        "alphaArea":  14691
+    },
+    {
+        "id":  "fantasy_apple_whiskey_glass",
+        "displayName":  "Apple Whiskey Glass",
+        "file":  "./Sprites/drinks/fantasy_apple_whiskey_glass.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  644,
+                             "y":  916,
+                             "w":  113,
+                             "h":  129
+                         },
+        "sourceRect":  {
+                           "x":  642,
+                           "y":  914,
+                           "w":  117,
+                           "h":  133
+                       },
+        "row":  4,
+        "col":  3,
+        "width":  117,
+        "height":  133,
+        "alphaArea":  13272
+    },
+    {
+        "id":  "fantasy_coconut_shell_cocktail",
+        "displayName":  "Coconut Shell Cocktail",
+        "file":  "./Sprites/drinks/fantasy_coconut_shell_cocktail.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  823,
+                             "y":  857,
+                             "w":  151,
+                             "h":  191
+                         },
+        "sourceRect":  {
+                           "x":  821,
+                           "y":  855,
+                           "w":  155,
+                           "h":  195
+                       },
+        "row":  4,
+        "col":  4,
+        "width":  155,
+        "height":  195,
+        "alphaArea":  18620
+    },
+    {
+        "id":  "fantasy_tropical_orange_cocktail",
+        "displayName":  "Tropical Orange Cocktail",
+        "file":  "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1044,
+                             "y":  863,
+                             "w":  139,
+                             "h":  184
+                         },
+        "sourceRect":  {
+                           "x":  1042,
+                           "y":  861,
+                           "w":  143,
+                           "h":  188
+                       },
+        "row":  4,
+        "col":  5,
+        "width":  143,
+        "height":  188,
+        "alphaArea":  15491
+    },
+    {
+        "id":  "fantasy_blue_skull_elixir",
+        "displayName":  "Blue Skull Elixir",
+        "file":  "./Sprites/drinks/fantasy_blue_skull_elixir.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  45,
+                             "y":  1051,
+                             "w":  125,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  43,
+                           "y":  1049,
+                           "w":  129,
+                           "h":  182
+                       },
+        "row":  5,
+        "col":  0,
+        "width":  129,
+        "height":  182,
+        "alphaArea":  14689
+    },
+    {
+        "id":  "fantasy_purple_arcane_elixir",
+        "displayName":  "Purple Arcane Elixir",
+        "file":  "./Sprites/drinks/fantasy_purple_arcane_elixir.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  245,
+                             "y":  1053,
+                             "w":  125,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  243,
+                           "y":  1051,
+                           "w":  129,
+                           "h":  180
+                       },
+        "row":  5,
+        "col":  1,
+        "width":  129,
+        "height":  180,
+        "alphaArea":  14505
+    },
+    {
+        "id":  "fantasy_black_skull_potion",
+        "displayName":  "Black Skull Potion",
+        "file":  "./Sprites/drinks/fantasy_black_skull_potion.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  467,
+                             "y":  1052,
+                             "w":  119,
+                             "h":  177
+                         },
+        "sourceRect":  {
+                           "x":  465,
+                           "y":  1050,
+                           "w":  123,
+                           "h":  181
+                       },
+        "row":  5,
+        "col":  2,
+        "width":  123,
+        "height":  181,
+        "alphaArea":  13890
+    },
+    {
+        "id":  "fantasy_green_ship_bottle",
+        "displayName":  "Green Ship Bottle",
+        "file":  "./Sprites/drinks/fantasy_green_ship_bottle.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  647,
+                             "y":  1064,
+                             "w":  147,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  645,
+                           "y":  1062,
+                           "w":  151,
+                           "h":  168
+                       },
+        "row":  5,
+        "col":  3,
+        "width":  151,
+        "height":  168,
+        "alphaArea":  16402
+    },
+    {
+        "id":  "fantasy_champagne_flute",
+        "displayName":  "Champagne Flute",
+        "file":  "./Sprites/drinks/fantasy_champagne_flute.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  890,
+                             "y":  1066,
+                             "w":  64,
+                             "h":  162
+                         },
+        "sourceRect":  {
+                           "x":  888,
+                           "y":  1064,
+                           "w":  68,
+                           "h":  166
+                       },
+        "row":  5,
+        "col":  4,
+        "width":  68,
+        "height":  166,
+        "alphaArea":  7745
+    },
+    {
+        "id":  "fantasy_blue_starfish_elixir",
+        "displayName":  "Blue Starfish Elixir",
+        "file":  "./Sprites/drinks/fantasy_blue_starfish_elixir.png",
+        "source":  "./assets/ui/drink/ファンタジー飲料アイコンコレクション_alpha.png",
+        "sourceRegion":  {
+                             "x":  1058,
+                             "y":  1065,
+                             "w":  128,
+                             "h":  163
+                         },
+        "sourceRect":  {
+                           "x":  1056,
+                           "y":  1063,
+                           "w":  132,
+                           "h":  167
+                       },
+        "row":  5,
+        "col":  5,
+        "width":  132,
+        "height":  167,
+        "alphaArea":  16338
+    },
+    {
+        "id":  "cocktail_lime_rosemary_gin",
+        "displayName":  "Lime Rosemary Gin",
+        "file":  "./Sprites/drinks/cocktail_lime_rosemary_gin.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  47,
+                             "y":  34,
+                             "w":  160,
+                             "h":  214
+                         },
+        "sourceRect":  {
+                           "x":  45,
+                           "y":  32,
+                           "w":  164,
+                           "h":  218
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  164,
+        "height":  218,
+        "alphaArea":  22695
+    },
+    {
+        "id":  "cocktail_green_coupe",
+        "displayName":  "Green Coupe Cocktail",
+        "file":  "./Sprites/drinks/cocktail_green_coupe.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  251,
+                             "y":  52,
+                             "w":  153,
+                             "h":  195
+                         },
+        "sourceRect":  {
+                           "x":  249,
+                           "y":  50,
+                           "w":  157,
+                           "h":  199
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  157,
+        "height":  199,
+        "alphaArea":  12931
+    },
+    {
+        "id":  "cocktail_anchor_martini",
+        "displayName":  "Anchor Martini",
+        "file":  "./Sprites/drinks/cocktail_anchor_martini.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  442,
+                             "y":  39,
+                             "w":  149,
+                             "h":  209
+                         },
+        "sourceRect":  {
+                           "x":  440,
+                           "y":  37,
+                           "w":  153,
+                           "h":  213
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  153,
+        "height":  213,
+        "alphaArea":  12212
+    },
+    {
+        "id":  "cocktail_skull_mint_tankard",
+        "displayName":  "Skull Mint Tankard",
+        "file":  "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  626,
+                             "y":  52,
+                             "w":  157,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  624,
+                           "y":  50,
+                           "w":  161,
+                           "h":  201
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  161,
+        "height":  201,
+        "alphaArea":  24773
+    },
+    {
+        "id":  "cocktail_amber_whiskey_tumbler",
+        "displayName":  "Amber Whiskey Tumbler",
+        "file":  "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  852,
+                             "y":  85,
+                             "w":  142,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  850,
+                           "y":  83,
+                           "w":  146,
+                           "h":  168
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  146,
+        "height":  168,
+        "alphaArea":  20798
+    },
+    {
+        "id":  "cocktail_rope_rum_bottle",
+        "displayName":  "Rope Rum Bottle",
+        "file":  "./Sprites/drinks/cocktail_rope_rum_bottle.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1054,
+                             "y":  22,
+                             "w":  160,
+                             "h":  229
+                         },
+        "sourceRect":  {
+                           "x":  1052,
+                           "y":  20,
+                           "w":  164,
+                           "h":  233
+                       },
+        "row":  0,
+        "col":  5,
+        "width":  164,
+        "height":  233,
+        "alphaArea":  24780
+    },
+    {
+        "id":  "cocktail_pineapple_skull_tiki",
+        "displayName":  "Pineapple Skull Tiki",
+        "file":  "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  41,
+                             "y":  259,
+                             "w":  166,
+                             "h":  195
+                         },
+        "sourceRect":  {
+                           "x":  39,
+                           "y":  257,
+                           "w":  170,
+                           "h":  199
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  170,
+        "height":  199,
+        "alphaArea":  21489
+    },
+    {
+        "id":  "cocktail_pineapple_coconut",
+        "displayName":  "Pineapple Coconut Cocktail",
+        "file":  "./Sprites/drinks/cocktail_pineapple_coconut.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  237,
+                             "y":  266,
+                             "w":  181,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  235,
+                           "y":  264,
+                           "w":  185,
+                           "h":  187
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  185,
+        "height":  187,
+        "alphaArea":  21649
+    },
+    {
+        "id":  "cocktail_hurricane_cherry",
+        "displayName":  "Hurricane Cherry Cocktail",
+        "file":  "./Sprites/drinks/cocktail_hurricane_cherry.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  441,
+                             "y":  261,
+                             "w":  146,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  439,
+                           "y":  259,
+                           "w":  150,
+                           "h":  201
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  150,
+        "height":  201,
+        "alphaArea":  15348
+    },
+    {
+        "id":  "cocktail_copper_mint_mug",
+        "displayName":  "Copper Mint Mug",
+        "file":  "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  642,
+                             "y":  278,
+                             "w":  181,
+                             "h":  174
+                         },
+        "sourceRect":  {
+                           "x":  640,
+                           "y":  276,
+                           "w":  185,
+                           "h":  178
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  185,
+        "height":  178,
+        "alphaArea":  23632
+    },
+    {
+        "id":  "cocktail_lime_cola_highball",
+        "displayName":  "Lime Cola Highball",
+        "file":  "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  872,
+                             "y":  271,
+                             "w":  117,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  870,
+                           "y":  269,
+                           "w":  121,
+                           "h":  187
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  121,
+        "height":  187,
+        "alphaArea":  14551
+    },
+    {
+        "id":  "cocktail_orange_lightning_mug",
+        "displayName":  "Orange Lightning Mug",
+        "file":  "./Sprites/drinks/cocktail_orange_lightning_mug.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1059,
+                             "y":  281,
+                             "w":  152,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  1057,
+                           "y":  279,
+                           "w":  156,
+                           "h":  182
+                       },
+        "row":  1,
+        "col":  5,
+        "width":  156,
+        "height":  182,
+        "alphaArea":  21818
+    },
+    {
+        "id":  "cocktail_frozen_lime_margarita",
+        "displayName":  "Frozen Lime Margarita",
+        "file":  "./Sprites/drinks/cocktail_frozen_lime_margarita.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  40,
+                             "y":  470,
+                             "w":  168,
+                             "h":  193
+                         },
+        "sourceRect":  {
+                           "x":  38,
+                           "y":  468,
+                           "w":  172,
+                           "h":  197
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  172,
+        "height":  197,
+        "alphaArea":  15625
+    },
+    {
+        "id":  "cocktail_skull_lime_sour",
+        "displayName":  "Skull Lime Sour",
+        "file":  "./Sprites/drinks/cocktail_skull_lime_sour.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  250,
+                             "y":  493,
+                             "w":  152,
+                             "h":  163
+                         },
+        "sourceRect":  {
+                           "x":  248,
+                           "y":  491,
+                           "w":  156,
+                           "h":  167
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  156,
+        "height":  167,
+        "alphaArea":  17764
+    },
+    {
+        "id":  "cocktail_sunrise_orange_highball",
+        "displayName":  "Sunrise Orange Highball",
+        "file":  "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  441,
+                             "y":  479,
+                             "w":  131,
+                             "h":  182
+                         },
+        "sourceRect":  {
+                           "x":  439,
+                           "y":  477,
+                           "w":  135,
+                           "h":  186
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  135,
+        "height":  186,
+        "alphaArea":  14543
+    },
+    {
+        "id":  "cocktail_frozen_lime_coupe",
+        "displayName":  "Frozen Lime Coupe",
+        "file":  "./Sprites/drinks/cocktail_frozen_lime_coupe.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  642,
+                             "y":  474,
+                             "w":  159,
+                             "h":  189
+                         },
+        "sourceRect":  {
+                           "x":  640,
+                           "y":  472,
+                           "w":  163,
+                           "h":  193
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  163,
+        "height":  193,
+        "alphaArea":  13854
+    },
+    {
+        "id":  "cocktail_mojito_highball",
+        "displayName":  "Mojito Highball",
+        "file":  "./Sprites/drinks/cocktail_mojito_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  860,
+                             "y":  459,
+                             "w":  128,
+                             "h":  203
+                         },
+        "sourceRect":  {
+                           "x":  858,
+                           "y":  457,
+                           "w":  132,
+                           "h":  207
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  132,
+        "height":  207,
+        "alphaArea":  16930
+    },
+    {
+        "id":  "cocktail_grapefruit_spritz",
+        "displayName":  "Grapefruit Spritz",
+        "file":  "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1050,
+                             "y":  480,
+                             "w":  141,
+                             "h":  181
+                         },
+        "sourceRect":  {
+                           "x":  1048,
+                           "y":  478,
+                           "w":  145,
+                           "h":  185
+                       },
+        "row":  2,
+        "col":  5,
+        "width":  145,
+        "height":  185,
+        "alphaArea":  18051
+    },
+    {
+        "id":  "cocktail_gin_anchor_bottle",
+        "displayName":  "Gin Anchor Bottle",
+        "file":  "./Sprites/drinks/cocktail_gin_anchor_bottle.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  57,
+                             "y":  671,
+                             "w":  141,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  55,
+                           "y":  669,
+                           "w":  145,
+                           "h":  201
+                       },
+        "row":  3,
+        "col":  0,
+        "width":  145,
+        "height":  201,
+        "alphaArea":  18983
+    },
+    {
+        "id":  "cocktail_shipwheel_olive_flask",
+        "displayName":  "Shipwheel Olive Flask",
+        "file":  "./Sprites/drinks/cocktail_shipwheel_olive_flask.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  240,
+                             "y":  666,
+                             "w":  153,
+                             "h":  203
+                         },
+        "sourceRect":  {
+                           "x":  238,
+                           "y":  664,
+                           "w":  157,
+                           "h":  207
+                       },
+        "row":  3,
+        "col":  1,
+        "width":  157,
+        "height":  207,
+        "alphaArea":  19362
+    },
+    {
+        "id":  "cocktail_glass_skull_decanter",
+        "displayName":  "Glass Skull Decanter",
+        "file":  "./Sprites/drinks/cocktail_glass_skull_decanter.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  441,
+                             "y":  671,
+                             "w":  137,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  439,
+                           "y":  669,
+                           "w":  141,
+                           "h":  201
+                       },
+        "row":  3,
+        "col":  2,
+        "width":  141,
+        "height":  201,
+        "alphaArea":  18154
+    },
+    {
+        "id":  "cocktail_blue_anchor_bottle",
+        "displayName":  "Blue Anchor Bottle",
+        "file":  "./Sprites/drinks/cocktail_blue_anchor_bottle.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  634,
+                             "y":  672,
+                             "w":  149,
+                             "h":  198
+                         },
+        "sourceRect":  {
+                           "x":  632,
+                           "y":  670,
+                           "w":  153,
+                           "h":  202
+                       },
+        "row":  3,
+        "col":  3,
+        "width":  153,
+        "height":  202,
+        "alphaArea":  19563
+    },
+    {
+        "id":  "cocktail_black_tequila_bottle",
+        "displayName":  "Black Tequila Bottle",
+        "file":  "./Sprites/drinks/cocktail_black_tequila_bottle.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  830,
+                             "y":  671,
+                             "w":  151,
+                             "h":  197
+                         },
+        "sourceRect":  {
+                           "x":  828,
+                           "y":  669,
+                           "w":  155,
+                           "h":  201
+                       },
+        "row":  3,
+        "col":  4,
+        "width":  155,
+        "height":  201,
+        "alphaArea":  18878
+    },
+    {
+        "id":  "cocktail_spiced_rum_bottle",
+        "displayName":  "Spiced Rum Bottle",
+        "file":  "./Sprites/drinks/cocktail_spiced_rum_bottle.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1035,
+                             "y":  671,
+                             "w":  144,
+                             "h":  196
+                         },
+        "sourceRect":  {
+                           "x":  1033,
+                           "y":  669,
+                           "w":  148,
+                           "h":  200
+                       },
+        "row":  3,
+        "col":  5,
+        "width":  148,
+        "height":  200,
+        "alphaArea":  19408
+    },
+    {
+        "id":  "cocktail_cola_highball",
+        "displayName":  "Cola Highball",
+        "file":  "./Sprites/drinks/cocktail_cola_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  52,
+                             "y":  882,
+                             "w":  99,
+                             "h":  161
+                         },
+        "sourceRect":  {
+                           "x":  50,
+                           "y":  880,
+                           "w":  103,
+                           "h":  165
+                       },
+        "row":  4,
+        "col":  0,
+        "width":  103,
+        "height":  165,
+        "alphaArea":  11779
+    },
+    {
+        "id":  "cocktail_gold_sparkle_highball",
+        "displayName":  "Gold Sparkle Highball",
+        "file":  "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  230,
+                             "y":  886,
+                             "w":  122,
+                             "h":  157
+                         },
+        "sourceRect":  {
+                           "x":  228,
+                           "y":  884,
+                           "w":  126,
+                           "h":  161
+                       },
+        "row":  4,
+        "col":  1,
+        "width":  126,
+        "height":  161,
+        "alphaArea":  13265
+    },
+    {
+        "id":  "cocktail_silver_sparkle_highball",
+        "displayName":  "Silver Sparkle Highball",
+        "file":  "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  408,
+                             "y":  882,
+                             "w":  114,
+                             "h":  160
+                         },
+        "sourceRect":  {
+                           "x":  406,
+                           "y":  880,
+                           "w":  118,
+                           "h":  164
+                       },
+        "row":  4,
+        "col":  2,
+        "width":  118,
+        "height":  164,
+        "alphaArea":  12888
+    },
+    {
+        "id":  "cocktail_clear_soda_tumbler",
+        "displayName":  "Clear Soda Tumbler",
+        "file":  "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  581,
+                             "y":  897,
+                             "w":  97,
+                             "h":  146
+                         },
+        "sourceRect":  {
+                           "x":  579,
+                           "y":  895,
+                           "w":  101,
+                           "h":  150
+                       },
+        "row":  4,
+        "col":  3,
+        "width":  101,
+        "height":  150,
+        "alphaArea":  12044
+    },
+    {
+        "id":  "cocktail_lemon_mason_jar",
+        "displayName":  "Lemon Mason Jar",
+        "file":  "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  765,
+                             "y":  871,
+                             "w":  124,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  763,
+                           "y":  869,
+                           "w":  128,
+                           "h":  180
+                       },
+        "row":  4,
+        "col":  4,
+        "width":  128,
+        "height":  180,
+        "alphaArea":  14922
+    },
+    {
+        "id":  "cocktail_orange_shipwheel_highball",
+        "displayName":  "Orange Shipwheel Highball",
+        "file":  "./Sprites/drinks/cocktail_orange_shipwheel_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  932,
+                             "y":  889,
+                             "w":  117,
+                             "h":  157
+                         },
+        "sourceRect":  {
+                           "x":  930,
+                           "y":  887,
+                           "w":  121,
+                           "h":  161
+                       },
+        "row":  4,
+        "col":  5,
+        "width":  121,
+        "height":  161,
+        "alphaArea":  12700
+    },
+    {
+        "id":  "cocktail_pineapple_tiki_highball",
+        "displayName":  "Pineapple Tiki Highball",
+        "file":  "./Sprites/drinks/cocktail_pineapple_tiki_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1083,
+                             "y":  882,
+                             "w":  133,
+                             "h":  167
+                         },
+        "sourceRect":  {
+                           "x":  1081,
+                           "y":  880,
+                           "w":  137,
+                           "h":  171
+                       },
+        "row":  4,
+        "col":  6,
+        "width":  137,
+        "height":  171,
+        "alphaArea":  14504
+    },
+    {
+        "id":  "cocktail_grape_crush_highball",
+        "displayName":  "Grape Crush Highball",
+        "file":  "./Sprites/drinks/cocktail_grape_crush_highball.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  44,
+                             "y":  1050,
+                             "w":  119,
+                             "h":  180
+                         },
+        "sourceRect":  {
+                           "x":  42,
+                           "y":  1048,
+                           "w":  123,
+                           "h":  184
+                       },
+        "row":  5,
+        "col":  0,
+        "width":  123,
+        "height":  184,
+        "alphaArea":  13555
+    },
+    {
+        "id":  "cocktail_green_icecream_soda",
+        "displayName":  "Green Icecream Soda",
+        "file":  "./Sprites/drinks/cocktail_green_icecream_soda.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  209,
+                             "y":  1045,
+                             "w":  110,
+                             "h":  185
+                         },
+        "sourceRect":  {
+                           "x":  207,
+                           "y":  1043,
+                           "w":  114,
+                           "h":  189
+                       },
+        "row":  5,
+        "col":  1,
+        "width":  114,
+        "height":  189,
+        "alphaArea":  14390
+    },
+    {
+        "id":  "cocktail_cream_soda_mug",
+        "displayName":  "Cream Soda Mug",
+        "file":  "./Sprites/drinks/cocktail_cream_soda_mug.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  386,
+                             "y":  1051,
+                             "w":  136,
+                             "h":  181
+                         },
+        "sourceRect":  {
+                           "x":  384,
+                           "y":  1049,
+                           "w":  140,
+                           "h":  185
+                       },
+        "row":  5,
+        "col":  2,
+        "width":  140,
+        "height":  185,
+        "alphaArea":  16853
+    },
+    {
+        "id":  "cocktail_amber_anchor_mason_jar",
+        "displayName":  "Amber Anchor Mason Jar",
+        "file":  "./Sprites/drinks/cocktail_amber_anchor_mason_jar.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  567,
+                             "y":  1053,
+                             "w":  136,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  565,
+                           "y":  1051,
+                           "w":  140,
+                           "h":  182
+                       },
+        "row":  5,
+        "col":  3,
+        "width":  140,
+        "height":  182,
+        "alphaArea":  19391
+    },
+    {
+        "id":  "cocktail_blue_starfish_cocktail",
+        "displayName":  "Blue Starfish Cocktail",
+        "file":  "./Sprites/drinks/cocktail_blue_starfish_cocktail.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  738,
+                             "y":  1054,
+                             "w":  126,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  736,
+                           "y":  1052,
+                           "w":  130,
+                           "h":  182
+                       },
+        "row":  5,
+        "col":  4,
+        "width":  130,
+        "height":  182,
+        "alphaArea":  14771
+    },
+    {
+        "id":  "cocktail_red_berry_cocktail",
+        "displayName":  "Red Berry Cocktail",
+        "file":  "./Sprites/drinks/cocktail_red_berry_cocktail.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  912,
+                             "y":  1055,
+                             "w":  125,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  910,
+                           "y":  1053,
+                           "w":  129,
+                           "h":  180
+                       },
+        "row":  5,
+        "col":  5,
+        "width":  129,
+        "height":  180,
+        "alphaArea":  14114
+    },
+    {
+        "id":  "cocktail_yellow_mint_cocktail",
+        "displayName":  "Yellow Mint Cocktail",
+        "file":  "./Sprites/drinks/cocktail_yellow_mint_cocktail.png",
+        "source":  "./assets/ui/drink/カラフルな海賊カクテルアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1088,
+                             "y":  1060,
+                             "w":  109,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  1086,
+                           "y":  1058,
+                           "w":  113,
+                           "h":  174
+                       },
+        "row":  5,
+        "col":  6,
+        "width":  113,
+        "height":  174,
+        "alphaArea":  15248
+    }
+]

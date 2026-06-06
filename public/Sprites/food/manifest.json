@@ -1,0 +1,1520 @@
+[
+    {
+        "id":  "pirate_spiced_cheese_bowl",
+        "displayName":  "Spiced Cheese Bowl",
+        "file":  "./Sprites/food/pirate_spiced_cheese_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  14,
+                             "y":  112,
+                             "w":  195,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  12,
+                           "y":  110,
+                           "w":  199,
+                           "h":  168
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  199,
+        "height":  168,
+        "alphaArea":  25182
+    },
+    {
+        "id":  "pirate_boiled_egg_bowl",
+        "displayName":  "Boiled Egg Bowl",
+        "file":  "./Sprites/food/pirate_boiled_egg_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  228,
+                             "y":  108,
+                             "w":  183,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  226,
+                           "y":  106,
+                           "w":  187,
+                           "h":  168
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  187,
+        "height":  168,
+        "alphaArea":  22900
+    },
+    {
+        "id":  "pirate_fried_chicken_nuggets",
+        "displayName":  "Fried Chicken Nuggets",
+        "file":  "./Sprites/food/pirate_fried_chicken_nuggets.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  427,
+                             "y":  102,
+                             "w":  194,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  425,
+                           "y":  100,
+                           "w":  198,
+                           "h":  180
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  198,
+        "height":  180,
+        "alphaArea":  24668
+    },
+    {
+        "id":  "pirate_nori_stack",
+        "displayName":  "Nori Stack",
+        "file":  "./Sprites/food/pirate_nori_stack.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  639,
+                             "y":  96,
+                             "w":  188,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  637,
+                           "y":  94,
+                           "w":  192,
+                           "h":  196
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  192,
+        "height":  196,
+        "alphaArea":  25816
+    },
+    {
+        "id":  "pirate_diced_tuna_bowl",
+        "displayName":  "Diced Tuna Bowl",
+        "file":  "./Sprites/food/pirate_diced_tuna_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  843,
+                             "y":  96,
+                             "w":  203,
+                             "h":  177
+                         },
+        "sourceRect":  {
+                           "x":  841,
+                           "y":  94,
+                           "w":  207,
+                           "h":  181
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  207,
+        "height":  181,
+        "alphaArea":  25536
+    },
+    {
+        "id":  "pirate_mixed_nuts_barrel",
+        "displayName":  "Mixed Nuts Barrel",
+        "file":  "./Sprites/food/pirate_mixed_nuts_barrel.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1062,
+                             "y":  103,
+                             "w":  172,
+                             "h":  179
+                         },
+        "sourceRect":  {
+                           "x":  1060,
+                           "y":  101,
+                           "w":  176,
+                           "h":  183
+                       },
+        "row":  0,
+        "col":  5,
+        "width":  176,
+        "height":  183,
+        "alphaArea":  24429
+    },
+    {
+        "id":  "pirate_jerky_platter",
+        "displayName":  "Jerky Platter",
+        "file":  "./Sprites/food/pirate_jerky_platter.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  12,
+                             "y":  323,
+                             "w":  206,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  10,
+                           "y":  321,
+                           "w":  210,
+                           "h":  187
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  210,
+        "height":  187,
+        "alphaArea":  24144
+    },
+    {
+        "id":  "pirate_sausage_bucket",
+        "displayName":  "Sausage Bucket",
+        "file":  "./Sprites/food/pirate_sausage_bucket.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  238,
+                             "y":  302,
+                             "w":  161,
+                             "h":  194
+                         },
+        "sourceRect":  {
+                           "x":  236,
+                           "y":  300,
+                           "w":  165,
+                           "h":  198
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  165,
+        "height":  198,
+        "alphaArea":  22987
+    },
+    {
+        "id":  "pirate_smoked_cheese_slices",
+        "displayName":  "Smoked Cheese Slices",
+        "file":  "./Sprites/food/pirate_smoked_cheese_slices.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  419,
+                             "y":  323,
+                             "w":  207,
+                             "h":  166
+                         },
+        "sourceRect":  {
+                           "x":  417,
+                           "y":  321,
+                           "w":  211,
+                           "h":  170
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  211,
+        "height":  170,
+        "alphaArea":  23170
+    },
+    {
+        "id":  "pirate_olive_cheese_skewers",
+        "displayName":  "Olive Cheese Skewers",
+        "file":  "./Sprites/food/pirate_olive_cheese_skewers.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  631,
+                             "y":  303,
+                             "w":  209,
+                             "h":  196
+                         },
+        "sourceRect":  {
+                           "x":  629,
+                           "y":  301,
+                           "w":  213,
+                           "h":  200
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  213,
+        "height":  200,
+        "alphaArea":  26475
+    },
+    {
+        "id":  "pirate_dried_squid_plate",
+        "displayName":  "Dried Squid Plate",
+        "file":  "./Sprites/food/pirate_dried_squid_plate.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  851,
+                             "y":  299,
+                             "w":  192,
+                             "h":  195
+                         },
+        "sourceRect":  {
+                           "x":  849,
+                           "y":  297,
+                           "w":  196,
+                           "h":  199
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  196,
+        "height":  199,
+        "alphaArea":  24844
+    },
+    {
+        "id":  "pirate_pickle_barrel",
+        "displayName":  "Pickle Barrel",
+        "file":  "./Sprites/food/pirate_pickle_barrel.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1060,
+                             "y":  320,
+                             "w":  176,
+                             "h":  181
+                         },
+        "sourceRect":  {
+                           "x":  1058,
+                           "y":  318,
+                           "w":  180,
+                           "h":  185
+                       },
+        "row":  1,
+        "col":  5,
+        "width":  180,
+        "height":  185,
+        "alphaArea":  24414
+    },
+    {
+        "id":  "pirate_mixed_olives_bowl",
+        "displayName":  "Mixed Olives Bowl",
+        "file":  "./Sprites/food/pirate_mixed_olives_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  15,
+                             "y":  552,
+                             "w":  192,
+                             "h":  162
+                         },
+        "sourceRect":  {
+                           "x":  13,
+                           "y":  550,
+                           "w":  196,
+                           "h":  166
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  196,
+        "height":  166,
+        "alphaArea":  24763
+    },
+    {
+        "id":  "pirate_edamame_bowl",
+        "displayName":  "Edamame Bowl",
+        "file":  "./Sprites/food/pirate_edamame_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  216,
+                             "y":  533,
+                             "w":  202,
+                             "h":  179
+                         },
+        "sourceRect":  {
+                           "x":  214,
+                           "y":  531,
+                           "w":  206,
+                           "h":  183
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  206,
+        "height":  183,
+        "alphaArea":  26937
+    },
+    {
+        "id":  "pirate_garlic_shrimp_bowl",
+        "displayName":  "Garlic Shrimp Bowl",
+        "file":  "./Sprites/food/pirate_garlic_shrimp_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  429,
+                             "y":  530,
+                             "w":  193,
+                             "h":  184
+                         },
+        "sourceRect":  {
+                           "x":  427,
+                           "y":  528,
+                           "w":  197,
+                           "h":  188
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  197,
+        "height":  188,
+        "alphaArea":  26657
+    },
+    {
+        "id":  "pirate_fried_fish_basket",
+        "displayName":  "Fried Fish Basket",
+        "file":  "./Sprites/food/pirate_fried_fish_basket.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  634,
+                             "y":  517,
+                             "w":  194,
+                             "h":  199
+                         },
+        "sourceRect":  {
+                           "x":  632,
+                           "y":  515,
+                           "w":  198,
+                           "h":  203
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  198,
+        "height":  203,
+        "alphaArea":  26831
+    },
+    {
+        "id":  "pirate_potato_wedges_mug",
+        "displayName":  "Potato Wedges Mug",
+        "file":  "./Sprites/food/pirate_potato_wedges_mug.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  842,
+                             "y":  509,
+                             "w":  204,
+                             "h":  212
+                         },
+        "sourceRect":  {
+                           "x":  840,
+                           "y":  507,
+                           "w":  208,
+                           "h":  216
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  208,
+        "height":  216,
+        "alphaArea":  27705
+    },
+    {
+        "id":  "pirate_french_fries_bucket",
+        "displayName":  "French Fries Bucket",
+        "file":  "./Sprites/food/pirate_french_fries_bucket.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1058,
+                             "y":  522,
+                             "w":  177,
+                             "h":  199
+                         },
+        "sourceRect":  {
+                           "x":  1056,
+                           "y":  520,
+                           "w":  181,
+                           "h":  203
+                       },
+        "row":  2,
+        "col":  5,
+        "width":  181,
+        "height":  203,
+        "alphaArea":  25107
+    },
+    {
+        "id":  "pirate_onion_rings_platter",
+        "displayName":  "Onion Rings Platter",
+        "file":  "./Sprites/food/pirate_onion_rings_platter.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  14,
+                             "y":  748,
+                             "w":  201,
+                             "h":  181
+                         },
+        "sourceRect":  {
+                           "x":  12,
+                           "y":  746,
+                           "w":  205,
+                           "h":  185
+                       },
+        "row":  3,
+        "col":  0,
+        "width":  205,
+        "height":  185,
+        "alphaArea":  28876
+    },
+    {
+        "id":  "pirate_crackers_tray",
+        "displayName":  "Crackers Tray",
+        "file":  "./Sprites/food/pirate_crackers_tray.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  223,
+                             "y":  757,
+                             "w":  199,
+                             "h":  174
+                         },
+        "sourceRect":  {
+                           "x":  221,
+                           "y":  755,
+                           "w":  203,
+                           "h":  178
+                       },
+        "row":  3,
+        "col":  1,
+        "width":  203,
+        "height":  178,
+        "alphaArea":  23148
+    },
+    {
+        "id":  "pirate_salami_plate",
+        "displayName":  "Salami Plate",
+        "file":  "./Sprites/food/pirate_salami_plate.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  429,
+                             "y":  758,
+                             "w":  192,
+                             "h":  172
+                         },
+        "sourceRect":  {
+                           "x":  427,
+                           "y":  756,
+                           "w":  196,
+                           "h":  176
+                       },
+        "row":  3,
+        "col":  2,
+        "width":  196,
+        "height":  176,
+        "alphaArea":  25100
+    },
+    {
+        "id":  "pirate_bacon_strips_plate",
+        "displayName":  "Bacon Strips Plate",
+        "file":  "./Sprites/food/pirate_bacon_strips_plate.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  633,
+                             "y":  744,
+                             "w":  195,
+                             "h":  187
+                         },
+        "sourceRect":  {
+                           "x":  631,
+                           "y":  742,
+                           "w":  199,
+                           "h":  191
+                       },
+        "row":  3,
+        "col":  3,
+        "width":  199,
+        "height":  191,
+        "alphaArea":  27280
+    },
+    {
+        "id":  "pirate_club_sandwich_plate",
+        "displayName":  "Club Sandwich Plate",
+        "file":  "./Sprites/food/pirate_club_sandwich_plate.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  839,
+                             "y":  745,
+                             "w":  202,
+                             "h":  190
+                         },
+        "sourceRect":  {
+                           "x":  837,
+                           "y":  743,
+                           "w":  206,
+                           "h":  194
+                       },
+        "row":  3,
+        "col":  4,
+        "width":  206,
+        "height":  194,
+        "alphaArea":  29235
+    },
+    {
+        "id":  "pirate_karaage_bowl",
+        "displayName":  "Karaage Bowl",
+        "file":  "./Sprites/food/pirate_karaage_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1051,
+                             "y":  746,
+                             "w":  193,
+                             "h":  185
+                         },
+        "sourceRect":  {
+                           "x":  1049,
+                           "y":  744,
+                           "w":  197,
+                           "h":  189
+                       },
+        "row":  3,
+        "col":  5,
+        "width":  197,
+        "height":  189,
+        "alphaArea":  26657
+    },
+    {
+        "id":  "pirate_tortilla_chips_bowl",
+        "displayName":  "Tortilla Chips Bowl",
+        "file":  "./Sprites/food/pirate_tortilla_chips_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  12,
+                             "y":  952,
+                             "w":  200,
+                             "h":  184
+                         },
+        "sourceRect":  {
+                           "x":  10,
+                           "y":  950,
+                           "w":  204,
+                           "h":  188
+                       },
+        "row":  4,
+        "col":  0,
+        "width":  204,
+        "height":  188,
+        "alphaArea":  27857
+    },
+    {
+        "id":  "pirate_dried_fruit_bowl",
+        "displayName":  "Dried Fruit Bowl",
+        "file":  "./Sprites/food/pirate_dried_fruit_bowl.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  223,
+                             "y":  964,
+                             "w":  195,
+                             "h":  168
+                         },
+        "sourceRect":  {
+                           "x":  221,
+                           "y":  962,
+                           "w":  199,
+                           "h":  172
+                       },
+        "row":  4,
+        "col":  1,
+        "width":  199,
+        "height":  172,
+        "alphaArea":  25684
+    },
+    {
+        "id":  "pirate_dried_fish_sticks",
+        "displayName":  "Dried Fish Sticks",
+        "file":  "./Sprites/food/pirate_dried_fish_sticks.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  432,
+                             "y":  955,
+                             "w":  190,
+                             "h":  183
+                         },
+        "sourceRect":  {
+                           "x":  430,
+                           "y":  953,
+                           "w":  194,
+                           "h":  187
+                       },
+        "row":  4,
+        "col":  2,
+        "width":  194,
+        "height":  187,
+        "alphaArea":  25617
+    },
+    {
+        "id":  "pirate_roasted_chickpeas_barrel",
+        "displayName":  "Roasted Chickpeas Barrel",
+        "file":  "./Sprites/food/pirate_roasted_chickpeas_barrel.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  636,
+                             "y":  958,
+                             "w":  188,
+                             "h":  185
+                         },
+        "sourceRect":  {
+                           "x":  634,
+                           "y":  956,
+                           "w":  192,
+                           "h":  189
+                       },
+        "row":  4,
+        "col":  3,
+        "width":  192,
+        "height":  189,
+        "alphaArea":  26736
+    },
+    {
+        "id":  "pirate_scallops_shell",
+        "displayName":  "Scallops Shell",
+        "file":  "./Sprites/food/pirate_scallops_shell.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  845,
+                             "y":  964,
+                             "w":  193,
+                             "h":  174
+                         },
+        "sourceRect":  {
+                           "x":  843,
+                           "y":  962,
+                           "w":  197,
+                           "h":  178
+                       },
+        "row":  4,
+        "col":  4,
+        "width":  197,
+        "height":  178,
+        "alphaArea":  24436
+    },
+    {
+        "id":  "pirate_baguette_basket",
+        "displayName":  "Baguette Basket",
+        "file":  "./Sprites/food/pirate_baguette_basket.png",
+        "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
+        "sourceRegion":  {
+                             "x":  1054,
+                             "y":  955,
+                             "w":  185,
+                             "h":  206
+                         },
+        "sourceRect":  {
+                           "x":  1052,
+                           "y":  953,
+                           "w":  189,
+                           "h":  210
+                       },
+        "row":  4,
+        "col":  5,
+        "width":  189,
+        "height":  210,
+        "alphaArea":  29290
+    },
+    {
+        "id":  "snack_mini_pizza_plate",
+        "displayName":  "Mini Pizza Plate",
+        "file":  "./Sprites/food/snack_mini_pizza_plate.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  15,
+                             "y":  73,
+                             "w":  222,
+                             "h":  187
+                         },
+        "sourceRect":  {
+                           "x":  13,
+                           "y":  71,
+                           "w":  226,
+                           "h":  191
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  226,
+        "height":  191,
+        "alphaArea":  29784
+    },
+    {
+        "id":  "snack_potato_chips_bowl",
+        "displayName":  "Potato Chips Bowl",
+        "file":  "./Sprites/food/snack_potato_chips_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  246,
+                             "y":  78,
+                             "w":  207,
+                             "h":  176
+                         },
+        "sourceRect":  {
+                           "x":  244,
+                           "y":  76,
+                           "w":  211,
+                           "h":  180
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  211,
+        "height":  180,
+        "alphaArea":  27312
+    },
+    {
+        "id":  "snack_ramen_bowl",
+        "displayName":  "Ramen Bowl",
+        "file":  "./Sprites/food/snack_ramen_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  466,
+                             "y":  54,
+                             "w":  187,
+                             "h":  203
+                         },
+        "sourceRect":  {
+                           "x":  464,
+                           "y":  52,
+                           "w":  191,
+                           "h":  207
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  191,
+        "height":  207,
+        "alphaArea":  28748
+    },
+    {
+        "id":  "snack_miso_soup_bowl",
+        "displayName":  "Miso Soup Bowl",
+        "file":  "./Sprites/food/snack_miso_soup_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  674,
+                             "y":  73,
+                             "w":  175,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  672,
+                           "y":  71,
+                           "w":  179,
+                           "h":  182
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  179,
+        "height":  182,
+        "alphaArea":  24371
+    },
+    {
+        "id":  "snack_umeboshi_bowl",
+        "displayName":  "Umeboshi Bowl",
+        "file":  "./Sprites/food/snack_umeboshi_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  862,
+                             "y":  79,
+                             "w":  192,
+                             "h":  167
+                         },
+        "sourceRect":  {
+                           "x":  860,
+                           "y":  77,
+                           "w":  196,
+                           "h":  171
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  196,
+        "height":  171,
+        "alphaArea":  22669
+    },
+    {
+        "id":  "snack_mixed_nuts_barrel",
+        "displayName":  "Mixed Nuts Barrel",
+        "file":  "./Sprites/food/snack_mixed_nuts_barrel.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1062,
+                             "y":  83,
+                             "w":  174,
+                             "h":  177
+                         },
+        "sourceRect":  {
+                           "x":  1060,
+                           "y":  81,
+                           "w":  178,
+                           "h":  181
+                       },
+        "row":  0,
+        "col":  5,
+        "width":  178,
+        "height":  181,
+        "alphaArea":  25186
+    },
+    {
+        "id":  "snack_jerky_mug",
+        "displayName":  "Jerky Mug",
+        "file":  "./Sprites/food/snack_jerky_mug.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  7,
+                             "y":  270,
+                             "w":  195,
+                             "h":  188
+                         },
+        "sourceRect":  {
+                           "x":  5,
+                           "y":  268,
+                           "w":  199,
+                           "h":  192
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  199,
+        "height":  192,
+        "alphaArea":  25931
+    },
+    {
+        "id":  "snack_quail_egg_barrel",
+        "displayName":  "Quail Egg Barrel",
+        "file":  "./Sprites/food/snack_quail_egg_barrel.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  233,
+                             "y":  283,
+                             "w":  155,
+                             "h":  174
+                         },
+        "sourceRect":  {
+                           "x":  231,
+                           "y":  281,
+                           "w":  159,
+                           "h":  178
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  159,
+        "height":  178,
+        "alphaArea":  22180
+    },
+    {
+        "id":  "snack_nori_stack",
+        "displayName":  "Nori Stack",
+        "file":  "./Sprites/food/snack_nori_stack.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  408,
+                             "y":  275,
+                             "w":  206,
+                             "h":  188
+                         },
+        "sourceRect":  {
+                           "x":  406,
+                           "y":  273,
+                           "w":  210,
+                           "h":  192
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  210,
+        "height":  192,
+        "alphaArea":  24951
+    },
+    {
+        "id":  "snack_spiced_cheese_bowl",
+        "displayName":  "Spiced Cheese Bowl",
+        "file":  "./Sprites/food/snack_spiced_cheese_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  631,
+                             "y":  279,
+                             "w":  187,
+                             "h":  169
+                         },
+        "sourceRect":  {
+                           "x":  629,
+                           "y":  277,
+                           "w":  191,
+                           "h":  173
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  191,
+        "height":  173,
+        "alphaArea":  23886
+    },
+    {
+        "id":  "snack_fried_chicken_skillet",
+        "displayName":  "Fried Chicken Skillet",
+        "file":  "./Sprites/food/snack_fried_chicken_skillet.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  827,
+                             "y":  271,
+                             "w":  230,
+                             "h":  184
+                         },
+        "sourceRect":  {
+                           "x":  825,
+                           "y":  269,
+                           "w":  234,
+                           "h":  188
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  234,
+        "height":  188,
+        "alphaArea":  28861
+    },
+    {
+        "id":  "snack_smoked_cheese_board",
+        "displayName":  "Smoked Cheese Board",
+        "file":  "./Sprites/food/snack_smoked_cheese_board.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1040,
+                             "y":  282,
+                             "w":  202,
+                             "h":  168
+                         },
+        "sourceRect":  {
+                           "x":  1038,
+                           "y":  280,
+                           "w":  206,
+                           "h":  172
+                       },
+        "row":  1,
+        "col":  5,
+        "width":  206,
+        "height":  172,
+        "alphaArea":  21302
+    },
+    {
+        "id":  "snack_mixed_olives_bowl",
+        "displayName":  "Mixed Olives Bowl",
+        "file":  "./Sprites/food/snack_mixed_olives_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  12,
+                             "y":  480,
+                             "w":  191,
+                             "h":  168
+                         },
+        "sourceRect":  {
+                           "x":  10,
+                           "y":  478,
+                           "w":  195,
+                           "h":  172
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  195,
+        "height":  172,
+        "alphaArea":  25041
+    },
+    {
+        "id":  "snack_edamame_bowl",
+        "displayName":  "Edamame Bowl",
+        "file":  "./Sprites/food/snack_edamame_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  222,
+                             "y":  477,
+                             "w":  208,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  220,
+                           "y":  475,
+                           "w":  212,
+                           "h":  174
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  212,
+        "height":  174,
+        "alphaArea":  26702
+    },
+    {
+        "id":  "snack_garlic_shrimp_plate",
+        "displayName":  "Garlic Shrimp Plate",
+        "file":  "./Sprites/food/snack_garlic_shrimp_plate.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  434,
+                             "y":  476,
+                             "w":  202,
+                             "h":  175
+                         },
+        "sourceRect":  {
+                           "x":  432,
+                           "y":  474,
+                           "w":  206,
+                           "h":  179
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  206,
+        "height":  179,
+        "alphaArea":  27344
+    },
+    {
+        "id":  "snack_sausage_skillet",
+        "displayName":  "Sausage Skillet",
+        "file":  "./Sprites/food/snack_sausage_skillet.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  651,
+                             "y":  480,
+                             "w":  207,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  649,
+                           "y":  478,
+                           "w":  211,
+                           "h":  174
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  211,
+        "height":  174,
+        "alphaArea":  24992
+    },
+    {
+        "id":  "snack_fries_mug",
+        "displayName":  "Fries Mug",
+        "file":  "./Sprites/food/snack_fries_mug.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  863,
+                             "y":  460,
+                             "w":  175,
+                             "h":  201
+                         },
+        "sourceRect":  {
+                           "x":  861,
+                           "y":  458,
+                           "w":  179,
+                           "h":  205
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  179,
+        "height":  205,
+        "alphaArea":  25928
+    },
+    {
+        "id":  "snack_pickle_barrel",
+        "displayName":  "Pickle Barrel",
+        "file":  "./Sprites/food/snack_pickle_barrel.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1053,
+                             "y":  474,
+                             "w":  185,
+                             "h":  185
+                         },
+        "sourceRect":  {
+                           "x":  1051,
+                           "y":  472,
+                           "w":  189,
+                           "h":  189
+                       },
+        "row":  2,
+        "col":  5,
+        "width":  189,
+        "height":  189,
+        "alphaArea":  26508
+    },
+    {
+        "id":  "snack_dried_squid_plate",
+        "displayName":  "Dried Squid Plate",
+        "file":  "./Sprites/food/snack_dried_squid_plate.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  16,
+                             "y":  667,
+                             "w":  189,
+                             "h":  168
+                         },
+        "sourceRect":  {
+                           "x":  14,
+                           "y":  665,
+                           "w":  193,
+                           "h":  172
+                       },
+        "row":  3,
+        "col":  0,
+        "width":  193,
+        "height":  172,
+        "alphaArea":  22987
+    },
+    {
+        "id":  "snack_onion_rings_basket",
+        "displayName":  "Onion Rings Basket",
+        "file":  "./Sprites/food/snack_onion_rings_basket.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  206,
+                             "y":  664,
+                             "w":  217,
+                             "h":  192
+                         },
+        "sourceRect":  {
+                           "x":  204,
+                           "y":  662,
+                           "w":  221,
+                           "h":  196
+                       },
+        "row":  3,
+        "col":  1,
+        "width":  221,
+        "height":  196,
+        "alphaArea":  28002
+    },
+    {
+        "id":  "snack_salami_plate",
+        "displayName":  "Salami Plate",
+        "file":  "./Sprites/food/snack_salami_plate.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  422,
+                             "y":  676,
+                             "w":  217,
+                             "h":  164
+                         },
+        "sourceRect":  {
+                           "x":  420,
+                           "y":  674,
+                           "w":  221,
+                           "h":  168
+                       },
+        "row":  3,
+        "col":  2,
+        "width":  221,
+        "height":  168,
+        "alphaArea":  24802
+    },
+    {
+        "id":  "snack_beef_jerky_board",
+        "displayName":  "Beef Jerky Board",
+        "file":  "./Sprites/food/snack_beef_jerky_board.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  635,
+                             "y":  672,
+                             "w":  221,
+                             "h":  173
+                         },
+        "sourceRect":  {
+                           "x":  633,
+                           "y":  670,
+                           "w":  225,
+                           "h":  177
+                       },
+        "row":  3,
+        "col":  3,
+        "width":  225,
+        "height":  177,
+        "alphaArea":  24897
+    },
+    {
+        "id":  "snack_karaage_basket",
+        "displayName":  "Karaage Basket",
+        "file":  "./Sprites/food/snack_karaage_basket.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  867,
+                             "y":  668,
+                             "w":  178,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  865,
+                           "y":  666,
+                           "w":  182,
+                           "h":  182
+                       },
+        "row":  3,
+        "col":  4,
+        "width":  182,
+        "height":  182,
+        "alphaArea":  24800
+    },
+    {
+        "id":  "snack_scallops_shell",
+        "displayName":  "Scallops Shell",
+        "file":  "./Sprites/food/snack_scallops_shell.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1045,
+                             "y":  668,
+                             "w":  209,
+                             "h":  178
+                         },
+        "sourceRect":  {
+                           "x":  1043,
+                           "y":  675,
+                           "w":  204,
+                           "h":  160
+                       },
+        "row":  3,
+        "col":  5,
+        "width":  204,
+        "height":  160,
+        "alphaArea":  21988
+    },
+    {
+        "id":  "snack_olive_cheese_skewers",
+        "displayName":  "Olive Cheese Skewers",
+        "file":  "./Sprites/food/snack_olive_cheese_skewers.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  12,
+                             "y":  856,
+                             "w":  207,
+                             "h":  175
+                         },
+        "sourceRect":  {
+                           "x":  10,
+                           "y":  854,
+                           "w":  211,
+                           "h":  179
+                       },
+        "row":  4,
+        "col":  0,
+        "width":  211,
+        "height":  179,
+        "alphaArea":  20374
+    },
+    {
+        "id":  "snack_grilled_sardines_plate",
+        "displayName":  "Grilled Sardines Plate",
+        "file":  "./Sprites/food/snack_grilled_sardines_plate.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  228,
+                             "y":  858,
+                             "w":  209,
+                             "h":  166
+                         },
+        "sourceRect":  {
+                           "x":  226,
+                           "y":  856,
+                           "w":  213,
+                           "h":  170
+                       },
+        "row":  4,
+        "col":  1,
+        "width":  213,
+        "height":  170,
+        "alphaArea":  25857
+    },
+    {
+        "id":  "snack_cheese_puffs_bowl",
+        "displayName":  "Cheese Puffs Bowl",
+        "file":  "./Sprites/food/snack_cheese_puffs_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  451,
+                             "y":  864,
+                             "w":  189,
+                             "h":  163
+                         },
+        "sourceRect":  {
+                           "x":  449,
+                           "y":  862,
+                           "w":  193,
+                           "h":  167
+                       },
+        "row":  4,
+        "col":  2,
+        "width":  193,
+        "height":  167,
+        "alphaArea":  23657
+    },
+    {
+        "id":  "snack_crackers_basket",
+        "displayName":  "Crackers Basket",
+        "file":  "./Sprites/food/snack_crackers_basket.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  655,
+                             "y":  856,
+                             "w":  195,
+                             "h":  174
+                         },
+        "sourceRect":  {
+                           "x":  653,
+                           "y":  854,
+                           "w":  199,
+                           "h":  178
+                       },
+        "row":  4,
+        "col":  3,
+        "width":  199,
+        "height":  178,
+        "alphaArea":  25206
+    },
+    {
+        "id":  "snack_dip_crackers_bowl",
+        "displayName":  "Dip Crackers Bowl",
+        "file":  "./Sprites/food/snack_dip_crackers_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  866,
+                             "y":  866,
+                             "w":  168,
+                             "h":  161
+                         },
+        "sourceRect":  {
+                           "x":  864,
+                           "y":  864,
+                           "w":  172,
+                           "h":  165
+                       },
+        "row":  4,
+        "col":  4,
+        "width":  172,
+        "height":  165,
+        "alphaArea":  20179
+    },
+    {
+        "id":  "snack_baguette_slices",
+        "displayName":  "Baguette Slices",
+        "file":  "./Sprites/food/snack_baguette_slices.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1049,
+                             "y":  861,
+                             "w":  195,
+                             "h":  170
+                         },
+        "sourceRect":  {
+                           "x":  1047,
+                           "y":  859,
+                           "w":  199,
+                           "h":  174
+                       },
+        "row":  4,
+        "col":  5,
+        "width":  199,
+        "height":  174,
+        "alphaArea":  24363
+    },
+    {
+        "id":  "snack_pistachio_bowl",
+        "displayName":  "Pistachio Bowl",
+        "file":  "./Sprites/food/snack_pistachio_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  21,
+                             "y":  1053,
+                             "w":  182,
+                             "h":  155
+                         },
+        "sourceRect":  {
+                           "x":  19,
+                           "y":  1051,
+                           "w":  186,
+                           "h":  159
+                       },
+        "row":  5,
+        "col":  0,
+        "width":  186,
+        "height":  159,
+        "alphaArea":  22269
+    },
+    {
+        "id":  "snack_mushroom_skillet",
+        "displayName":  "Mushroom Skillet",
+        "file":  "./Sprites/food/snack_mushroom_skillet.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  234,
+                             "y":  1050,
+                             "w":  190,
+                             "h":  158
+                         },
+        "sourceRect":  {
+                           "x":  232,
+                           "y":  1048,
+                           "w":  194,
+                           "h":  162
+                       },
+        "row":  5,
+        "col":  1,
+        "width":  194,
+        "height":  162,
+        "alphaArea":  24083
+    },
+    {
+        "id":  "snack_dried_fruit_bowl",
+        "displayName":  "Dried Fruit Bowl",
+        "file":  "./Sprites/food/snack_dried_fruit_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  441,
+                             "y":  1051,
+                             "w":  182,
+                             "h":  158
+                         },
+        "sourceRect":  {
+                           "x":  439,
+                           "y":  1049,
+                           "w":  186,
+                           "h":  162
+                       },
+        "row":  5,
+        "col":  2,
+        "width":  186,
+        "height":  162,
+        "alphaArea":  22618
+    },
+    {
+        "id":  "snack_roasted_chickpeas_bag",
+        "displayName":  "Roasted Chickpeas Bag",
+        "file":  "./Sprites/food/snack_roasted_chickpeas_bag.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  647,
+                             "y":  1046,
+                             "w":  170,
+                             "h":  160
+                         },
+        "sourceRect":  {
+                           "x":  645,
+                           "y":  1044,
+                           "w":  174,
+                           "h":  164
+                       },
+        "row":  5,
+        "col":  3,
+        "width":  174,
+        "height":  164,
+        "alphaArea":  21577
+    },
+    {
+        "id":  "snack_dried_fish_sticks",
+        "displayName":  "Dried Fish Sticks",
+        "file":  "./Sprites/food/snack_dried_fish_sticks.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  837,
+                             "y":  1057,
+                             "w":  196,
+                             "h":  152
+                         },
+        "sourceRect":  {
+                           "x":  835,
+                           "y":  1055,
+                           "w":  200,
+                           "h":  156
+                       },
+        "row":  5,
+        "col":  4,
+        "width":  200,
+        "height":  156,
+        "alphaArea":  22895
+    },
+    {
+        "id":  "snack_bean_stew_bowl",
+        "displayName":  "Bean Stew Bowl",
+        "file":  "./Sprites/food/snack_bean_stew_bowl.png",
+        "source":  "./assets/ui/food/美味しいおつまみのアイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1045,
+                             "y":  1050,
+                             "w":  196,
+                             "h":  166
+                         },
+        "sourceRect":  {
+                           "x":  1043,
+                           "y":  1048,
+                           "w":  200,
+                           "h":  170
+                       },
+        "row":  5,
+        "col":  5,
+        "width":  200,
+        "height":  170,
+        "alphaArea":  25107
+    }
+]
