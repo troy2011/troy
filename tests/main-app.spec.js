@@ -224,6 +224,16 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyMenuBoardSection .troy-menu-quick-btn')).toHaveCount(0);
   await expect(page.locator('#troyMenuBoardSection #troyChatInput')).toHaveCount(0);
 
+  await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'ソフトドリンク' }).click();
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item')).toHaveCount(5);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-price')).toHaveText([
+    '¥400',
+    '¥400',
+    '¥400',
+    '¥400',
+    '¥400'
+  ]);
+
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).click();
   await expect(page.locator('#troyMenuBoardList')).toContainText('ナゲット');
   await expect(page.locator('#troyMenuBoardList')).toContainText('SOLD OUT');

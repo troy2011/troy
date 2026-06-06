@@ -126,11 +126,11 @@ const TROY_PRODUCT_MENUS = {
     soft: {
         title: 'ソフトドリンク',
         items: [
-            { concept: 'ウーロン茶', content: '', price: 500, emoji: '🫖' },
-            { concept: 'オレンジジュース', content: '', price: 500, emoji: '🧃' },
-            { concept: 'グレープフルーツジュース', content: '', price: 500, emoji: '🧃' },
-            { concept: 'コーラ', content: '', price: 500, emoji: '🥤' },
-            { concept: 'ジンジャーエール', content: '', price: 500, emoji: '🥤' }
+            { concept: 'ウーロン茶', content: '', price: 400, emoji: '🫖' },
+            { concept: 'オレンジジュース', content: '', price: 400, emoji: '🧃' },
+            { concept: 'グレープフルーツジュース', content: '', price: 400, emoji: '🧃' },
+            { concept: 'コーラ', content: '', price: 400, emoji: '🥤' },
+            { concept: 'ジンジャーエール', content: '', price: 400, emoji: '🥤' }
         ]
     },
     food: {
