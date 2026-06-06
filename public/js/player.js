@@ -18,6 +18,7 @@ import { buildPlayerTriggerHtml } from './playerProfile.js';
 
 let myPlayerStats = {};
 let myCrewRankInfo = null;
+let rankingControlsWired = false;
 const LOW_GOLD_THRESHOLD = 200;
 const SPECIALTY_RESOURCE_IDS = ['RR', 'RG', 'RY', 'RB'];
 const STORE_GAME_RANKING_UI = {
@@ -403,50 +404,86 @@ export async function getStoreGameRanking(gameType = 'darts_countup') {
     rankingListEl.innerHTML = renderRankingState('（ランキングを取得できませんでした）');
 }
 
-export async function loadRankingTab() {
-    await getRanking();
-    await Promise.all([
-        getBountyRanking(),
-        getStoreGameRanking('billiards'),
-        getStoreGameRanking('game')
-    ]);
+function getRankingViewEntries() {
+    return [
+        ['ps', {
+            areaId: 'psRankingArea',
+            buttonId: 'btnShowPsRanking',
+            refreshButtonId: 'btnGetRanking',
+            load: getRanking
+        }],
+        ['bounty', {
+            areaId: 'bountyRankingArea',
+            buttonId: 'btnShowBountyRanking',
+            refreshButtonId: 'btnGetBountyRanking',
+            load: getBountyRanking
+        }],
+        ['darts', {
+            areaId: 'dartsRankingArea',
+            buttonId: 'btnShowDartsRanking',
+            refreshButtonId: 'btnGetDartsRanking',
+            load: () => getStoreGameRanking('darts_countup')
+        }],
+        ['billiards', {
+            areaId: 'billiardsRankingArea',
+            buttonId: 'btnShowBilliardsRanking',
+            refreshButtonId: 'btnGetBilliardsRanking',
+            load: () => getStoreGameRanking('billiards')
+        }],
+        ['karaoke', {
+            areaId: 'karaokeRankingArea',
+            buttonId: 'btnShowKaraokeRanking',
+            refreshButtonId: 'btnGetKaraokeRanking',
+            load: () => getStoreGameRanking('karaoke')
+        }],
+        ['game', {
+            areaId: 'gameRankingArea',
+            buttonId: 'btnShowGameRanking',
+            refreshButtonId: 'btnGetGameRanking',
+            load: () => getStoreGameRanking('game')
+        }]
+    ];
 }
 
-export function showRanking(type) {
-    const psRankingArea = document.getElementById('psRankingArea');
-    const dartsRankingArea = document.getElementById('dartsRankingArea');
-    const karaokeRankingArea = document.getElementById('karaokeRankingArea');
-    const btnPs = document.getElementById('btnShowPsRanking');
-    const btnDarts = document.getElementById('btnShowDartsRanking');
-    const btnKaraoke = document.getElementById('btnShowKaraokeRanking');
+function wireRankingControls() {
+    if (rankingControlsWired || typeof document === 'undefined') return;
+    rankingControlsWired = true;
+    getRankingViewEntries().forEach(([type, config]) => {
+        const tabButton = document.getElementById(config.buttonId);
+        if (tabButton) {
+            tabButton.addEventListener('click', () => {
+                showRanking(type);
+            });
+        }
+        const refreshButton = document.getElementById(config.refreshButtonId);
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                config.load();
+            });
+        }
+    });
+}
 
-    const setActive = (activeBtn) => {
-        [btnPs, btnDarts, btnKaraoke].forEach((btn) => {
-            if (btn) btn.classList.toggle('active', btn === activeBtn);
-        });
-    };
+export async function loadRankingTab() {
+    wireRankingControls();
+    const activeEntry = getRankingViewEntries().find(([, config]) => (
+        document.getElementById(config.buttonId)?.classList.contains('active')
+    ));
+    await showRanking(activeEntry?.[0] || 'ps');
+}
 
-    const showArea = (activeArea) => {
-        [psRankingArea, dartsRankingArea, karaokeRankingArea].forEach((area) => {
-            if (area) area.style.display = area === activeArea ? 'block' : 'none';
-        });
-    };
+export async function showRanking(type) {
+    wireRankingControls();
+    const entries = getRankingViewEntries();
+    const activeEntry = entries.find(([key]) => key === type) || entries[0];
+    const activeConfig = activeEntry[1];
 
-    if (type === 'ps') {
-        showArea(psRankingArea);
-        setActive(btnPs);
-        getRanking();
-    } else if (type === 'darts') {
-        showArea(dartsRankingArea);
-        setActive(btnDarts);
-        getStoreGameRanking('darts_countup');
-    } else if (type === 'karaoke') {
-        showArea(karaokeRankingArea);
-        setActive(btnKaraoke);
-        getStoreGameRanking('karaoke');
-    } else {
-        showArea(psRankingArea);
-        setActive(btnPs);
-        getRanking();
-    }
+    entries.forEach(([, config]) => {
+        const area = document.getElementById(config.areaId);
+        if (area) area.style.display = config === activeConfig ? 'block' : 'none';
+        const button = document.getElementById(config.buttonId);
+        if (button) button.classList.toggle('active', config === activeConfig);
+    });
+
+    await activeConfig.load();
 }

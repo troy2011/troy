@@ -1006,8 +1006,11 @@
                     </div>
                     <div id="rankingToggleButtons">
                         <button id="btnShowPsRanking" class="ranking-toggle-btn active">ゴールド順</button>
+                        <button id="btnShowBountyRanking" class="ranking-toggle-btn">懸賞金</button>
                         <button id="btnShowDartsRanking" class="ranking-toggle-btn">ダーツ</button>
+                        <button id="btnShowBilliardsRanking" class="ranking-toggle-btn">ビリヤード</button>
                         <button id="btnShowKaraokeRanking" class="ranking-toggle-btn">カラオケ</button>
+                        <button id="btnShowGameRanking" class="ranking-toggle-btn">ゲーム</button>
                     </div>
 
                     <div id="psRankingArea">
@@ -1017,11 +1020,25 @@
                         <ol id="rankingList" class="ranking-list"></ol>
                     </div>
 
+                    <div id="bountyRankingArea" style="display: none;">
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetBountyRanking" class="ranking-refresh-btn">更新</button>
+                        </div>
+                        <ol id="bountyRankingList" class="ranking-list"></ol>
+                    </div>
+
                     <div id="dartsRankingArea" style="display: none;">
                         <div class="ranking-refresh-row">
                             <button id="btnGetDartsRanking" class="ranking-refresh-btn">更新</button>
                         </div>
                         <ol id="dartsRankingList" class="ranking-list"></ol>
+                    </div>
+
+                    <div id="billiardsRankingArea" style="display: none;">
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetBilliardsRanking" class="ranking-refresh-btn">更新</button>
+                        </div>
+                        <ol id="billiardsRankingList" class="ranking-list"></ol>
                     </div>
 
                     <div id="karaokeRankingArea" style="display: none;">
@@ -1031,46 +1048,11 @@
                         <ol id="karaokeRankingList" class="ranking-list"></ol>
                     </div>
 
-                    <div class="ranking-subsection" aria-label="追加ランキング">
-                        <div class="ranking-subsection-head">
-                            <span>LOWER RANKINGS</span>
-                            <strong>追加ランキング</strong>
+                    <div id="gameRankingArea" style="display: none;">
+                        <div class="ranking-refresh-row">
+                            <button id="btnGetGameRanking" class="ranking-refresh-btn">更新</button>
                         </div>
-                        <div class="ranking-subgrid">
-                            <section class="ranking-subcard ranking-subcard-bounty">
-                                <div class="ranking-subcard-head">
-                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
-                                    <div>
-                                        <strong>懸賞金</strong>
-                                        <span>BOUNTY</span>
-                                    </div>
-                                    <button id="btnGetBountyRanking" class="ranking-mini-refresh" type="button">更新</button>
-                                </div>
-                                <ol id="bountyRankingList" class="ranking-list ranking-list-compact"></ol>
-                            </section>
-                            <section class="ranking-subcard ranking-subcard-billiards">
-                                <div class="ranking-subcard-head">
-                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
-                                    <div>
-                                        <strong>ビリヤード</strong>
-                                        <span>BILLIARDS</span>
-                                    </div>
-                                    <button id="btnGetBilliardsRanking" class="ranking-mini-refresh" type="button">更新</button>
-                                </div>
-                                <ol id="billiardsRankingList" class="ranking-list ranking-list-compact"></ol>
-                            </section>
-                            <section class="ranking-subcard ranking-subcard-game">
-                                <div class="ranking-subcard-head">
-                                    <span class="ranking-subcard-icon" aria-hidden="true"></span>
-                                    <div>
-                                        <strong>ゲーム</strong>
-                                        <span>GAME</span>
-                                    </div>
-                                    <button id="btnGetGameRanking" class="ranking-mini-refresh" type="button">更新</button>
-                                </div>
-                                <ol id="gameRankingList" class="ranking-list ranking-list-compact"></ol>
-                            </section>
-                        </div>
+                        <ol id="gameRankingList" class="ranking-list"></ol>
                     </div>
 
                 </div>

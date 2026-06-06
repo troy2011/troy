@@ -42,7 +42,7 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
-test('ranking tab shows lower bounty billiards and game rankings', async ({ page }) => {
+test('ranking tab shows bounty billiards and game as top category buttons', async ({ page }) => {
   const errors = trackPageErrors(page);
   const storeGameRequests = [];
   await page.route('**/api/get-ranking', async (route) => {
@@ -96,21 +96,35 @@ test('ranking tab shows lower bounty billiards and game rankings', async ({ page
   });
 
   await expect(page.locator('#tabContentRanking')).toBeVisible();
+  await expect(page.locator('.ranking-subsection')).toHaveCount(0);
+  await expect(page.locator('.ranking-subcard')).toHaveCount(0);
+  const toggleLabels = await page.locator('#rankingToggleButtons .ranking-toggle-btn').evaluateAll((buttons) => (
+    buttons.map((button) => button.textContent.trim())
+  ));
+  expect(toggleLabels).toEqual(['ゴールド順', '懸賞金', 'ダーツ', 'ビリヤード', 'カラオケ', 'ゲーム']);
+  await expect(page.locator('#psRankingArea')).toBeVisible();
+  await expect(page.locator('#bountyRankingArea')).toBeHidden();
+  await expect(page.locator('#billiardsRankingArea')).toBeHidden();
+  await expect(page.locator('#gameRankingArea')).toBeHidden();
+
+  await page.locator('#btnShowBountyRanking').click();
+  await expect(page.locator('#bountyRankingArea')).toBeVisible();
   await expect(page.locator('#bountyRankingList')).toContainText('賞金首');
   await expect(page.locator('#bountyRankingList')).toContainText('1,234 B');
+
+  await page.locator('#btnShowBilliardsRanking').click();
+  await expect(page.locator('#billiardsRankingArea')).toBeVisible();
   await expect(page.locator('#billiardsRankingList')).toContainText('玉突き名人');
   await expect(page.locator('#billiardsRankingList')).toContainText('800点');
+
+  await page.locator('#btnShowGameRanking').click();
+  await expect(page.locator('#gameRankingArea')).toBeVisible();
   await expect(page.locator('#gameRankingList')).toContainText('遊技王');
   await expect(page.locator('#gameRankingList')).toContainText('42点');
   expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
   await expect(page.locator('#kingStoreGameType option[value="billiards"]')).toHaveText('ビリヤード');
   await expect(page.locator('#kingStoreGameType option[value="game"]')).toHaveText('ゲーム');
 
-  const subcardFrame = await page.locator('.ranking-subcard').first().evaluate((element) => {
-    const style = window.getComputedStyle(element);
-    return style.borderImageSource;
-  });
-  expect(subcardFrame).toContain('assets/ui/panels/');
   await expectNoPageErrors(errors);
 });
 
