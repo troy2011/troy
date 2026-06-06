@@ -15667,7 +15667,7 @@ body {
     margin: 0 -4px 12px;
     padding: 20px 16px;
     display: grid;
-    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-columns: 82px minmax(0, 1fr);
     align-items: center;
     gap: 14px;
     border: 0;
@@ -15679,8 +15679,8 @@ body {
 }
 
 .ranking-header-icon {
-    width: 86px;
-    height: 86px;
+    width: 76px;
+    height: 76px;
     display: block;
     background: url("./assets/ui/icons/056.png") center / contain no-repeat;
     color: transparent;
@@ -15958,13 +15958,13 @@ body {
 
     .ranking-header {
         min-height: 136px;
-        grid-template-columns: 78px minmax(0, 1fr);
+        grid-template-columns: 68px minmax(0, 1fr);
         padding: 16px 12px;
     }
 
     .ranking-header-icon {
-        width: 72px;
-        height: 72px;
+        width: 62px;
+        height: 62px;
     }
 
     .ranking-toggle-btn {
@@ -17363,11 +17363,6 @@ body[data-sea-tone] .home-hero-card {
     text-align: center;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
     transform: translateY(-50%);
-}
-
-.ranking-header-icon {
-    background-position: center;
-    background-size: 86px 86px;
 }
 
 .ranking-toggle-btn::before,
