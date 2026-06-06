@@ -10,6 +10,7 @@ const line = require('@line/bot-sdk');
 const admin = require('firebase-admin');
 const { geohashForLocation } = require('geofire-common');
 const { buildAuthHelpers } = require('./server/auth');
+const { normalizeDisplayEvent } = require('./server/displayEvents');
 
 // PlayFab モジュール
 const {
@@ -477,32 +478,6 @@ app.use((req, res, next) => {
 const displayClients = new Set();
 const displayEventBuffer = [];
 const DISPLAY_EVENT_LIMIT = 40;
-
-function normalizeDisplayEvent(input) {
-    const now = Date.now();
-    const type = String(input?.type || 'splash').toLowerCase();
-    const label = String(input?.label || '').trim().slice(0, 120);
-    let x = Number(input?.x);
-    let y = Number(input?.y);
-
-    if (Number.isFinite(x) && x >= 0 && x <= 1) x *= 100;
-    if (Number.isFinite(y) && y >= 0 && y <= 1) y *= 100;
-
-    if (!Number.isFinite(x)) x = null;
-    if (!Number.isFinite(y)) y = null;
-
-    if (Number.isFinite(x)) x = Math.min(95, Math.max(5, x));
-    if (Number.isFinite(y)) y = Math.min(95, Math.max(5, y));
-
-    return {
-        id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-        type,
-        label,
-        x,
-        y,
-        at: now
-    };
-}
 
 function pushDisplayEvent(event) {
     displayEventBuffer.push(event);
