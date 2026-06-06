@@ -15896,6 +15896,8 @@ body {
 
 #tabContentTroy .troy-status-row {
     grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 88px;
+    padding: 8px 14px;
 }
 
 #tabContentTroy .troy-title-wrap {
@@ -15904,6 +15906,13 @@ body {
     flex-wrap: wrap;
     gap: 10px;
     min-width: 0;
+}
+
+#tabContentTroy .troy-status-actions {
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+    align-content: center;
 }
 
 #tabContentTroy .troy-title,
@@ -15934,13 +15943,13 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
-    padding: 5px 12px;
-    border: 10px solid transparent;
+    min-height: 32px;
+    padding: 4px 10px;
+    border: 8px solid transparent;
     border-radius: 7px;
-    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    border-image: url("./assets/ui/panels/panel-gold-square.png") 24 fill / 8px / 0 stretch;
     color: #fff1b8;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     letter-spacing: 0;
     line-height: 1;
@@ -16152,6 +16161,11 @@ body {
     #tabContentQr .content-area > h2:first-child {
         min-height: 112px;
         padding: 14px 12px;
+    }
+
+    #tabContentTroy .troy-status-row {
+        min-height: 86px;
+        padding: 8px 10px;
     }
 
     #tabContentTroy .troy-title,

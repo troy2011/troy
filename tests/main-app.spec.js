@@ -106,6 +106,24 @@ export function onSnapshot(_ref, next) {
 
   await expect(page.locator('#tabContentTroy')).toBeVisible();
   await expect(page.locator('#troyChatDetails')).toHaveCount(0);
+  const troyHeaderLayout = await page.evaluate(() => {
+    const row = document.querySelector('#tabContentTroy .troy-status-row');
+    const map = document.getElementById('troyMapLink');
+    const badge = document.getElementById('troyOpenBadge');
+    const rowRect = row.getBoundingClientRect();
+    const mapRect = map.getBoundingClientRect();
+    const badgeRect = badge.getBoundingClientRect();
+    return {
+      rowHeight: rowRect.height,
+      mapBottom: mapRect.bottom,
+      badgeTop: badgeRect.top,
+      badgeRight: badgeRect.right,
+      mapRight: mapRect.right
+    };
+  });
+  expect(troyHeaderLayout.mapBottom).toBeLessThanOrEqual(troyHeaderLayout.badgeTop);
+  expect(Math.abs(troyHeaderLayout.mapRight - troyHeaderLayout.badgeRight)).toBeLessThanOrEqual(2);
+  expect(troyHeaderLayout.rowHeight).toBeLessThan(120);
   await expect(page.locator('#troyMenuBoardSection')).toContainText('メニュー表');
   await expect(page.locator('#troyMenuBoardSection')).toContainText('価格確認用・注文はスタッフへ');
   await expect(page.locator('#troyMenuBoardList')).toContainText('瓶ビール');
