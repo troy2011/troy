@@ -16433,7 +16433,7 @@ body {
     display: inline-block;
     margin-right: 10px;
     vertical-align: middle;
-    background: url("./assets/ui/icons/058.png") center / contain no-repeat;
+    background: var(--icon-pirate-flag) center / contain no-repeat;
     filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.52));
 }
 
@@ -18348,10 +18348,6 @@ body[data-sea-tone] .home-hero-card {
 #tabContentQr .guild-card > h2 { --section-icon: var(--icon-pirate-flag); }
 #tabContentBattle .content-area > h2:first-child { --section-icon: var(--icon-swords); }
 #tabContentKing .content-area > h2:first-child { --section-icon: var(--icon-nav-king); }
-
-#tabContentTroy .troy-title::before {
-    background-image: var(--icon-nav-troy);
-}
 
 #tabContentEvents .event-page-header h2::before {
     background-image: var(--icon-nav-events);
