@@ -17776,6 +17776,7 @@ body[data-sea-tone] .home-hero-card {
     --icon-coin-stack: url("./assets/ui/icons/003.png");
     --icon-chip: url("./assets/ui/icons/046.png");
     --icon-compass: url("./assets/ui/icons/015.png");
+    --icon-qr-scan: url("./assets/ui/icons/030.png");
     --icon-crown: url("./assets/ui/icons/057.png");
     --icon-dart: url("./assets/ui/icons/042.png");
     --icon-microphone: url("./assets/ui/icons/044.png");
@@ -17894,7 +17895,7 @@ body[data-sea-tone] .home-hero-card {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.58));
 }
 
-.home-qr-scan-btn { --button-icon: var(--icon-compass); }
+.home-qr-scan-btn { --button-icon: var(--icon-qr-scan); }
 .transfer-send-btn { --button-icon: var(--icon-money-bag); }
 .transfer-coin-btn { --button-icon: var(--icon-chip); }
 .transfer-gold-btn { --button-icon: var(--icon-coin-stack); }

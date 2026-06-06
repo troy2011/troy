@@ -20,6 +20,9 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
     rel: link.rel,
     color: window.getComputedStyle(link).color
   }));
+  const homeQrIcon = await page.locator('#btnHomeScanQr').evaluate((button) => (
+    window.getComputedStyle(button, '::before').backgroundImage
+  ));
   const troyMapUrl = new URL(troyMapLink.href);
   expect(troyMapUrl.hostname).toBe('www.google.com');
   expect(troyMapUrl.pathname).toBe('/maps/search/');
@@ -28,6 +31,7 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   expect(troyMapLink.target).toBe('_blank');
   expect(troyMapLink.rel).toContain('noopener');
   expect(troyMapLink.color).toBe('rgb(255, 241, 184)');
+  expect(homeQrIcon).toContain('030.png');
 
   expect(state.loginPlayFabBody).toMatchObject({
     lineAccessToken: 'playwright-access-token',
