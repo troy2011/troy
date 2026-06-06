@@ -212,7 +212,7 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyMenuBoardList')).toContainText('ナゲット');
   await expect(page.locator('#troyMenuBoardList')).toContainText('SOLD OUT');
   await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: 'ナゲット' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_fried_chicken_nuggets\.png/);
-  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '梅水晶' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_umeboshi_bowl\.png/);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '梅水晶' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_ume_crystal_bowl\.png/);
   await expect(page.locator('#troyMenuBoardList')).toContainText('氷');
   await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '氷' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
 

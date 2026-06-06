@@ -92,9 +92,9 @@
         "alphaArea":  25816
     },
     {
-        "id":  "pirate_diced_tuna_bowl",
-        "displayName":  "Diced Tuna Bowl",
-        "file":  "./Sprites/food/pirate_diced_tuna_bowl.png",
+        "id":  "pirate_ume_crystal_bowl",
+        "displayName":  "Ume Crystal Bowl",
+        "file":  "./Sprites/food/pirate_ume_crystal_bowl.png",
         "source":  "./assets/ui/food/海賊つまみアイコン_alpha.png",
         "sourceRegion":  {
                              "x":  843,
