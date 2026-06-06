@@ -106,14 +106,15 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
 
   await page.locator('#troyOrdersTicketDetail .troy-orders-custom-category summary').click();
+  await expect(page.locator('#troyOrdersTicketDetail .troy-orders-custom-category summary')).toHaveText('裏メニュー');
   await page.locator('#troyOrdersTicketDetail [data-custom-price-preset="1500"]').click();
   await page.locator('#troyOrdersTicketDetail [data-add-custom-item]').click();
 
   expect(addItemRequests).toHaveLength(2);
   expect(addItemRequests[1].receiverPlayFabId).toBe('PLAYER1');
-  expect(addItemRequests[1].name).toBe('その他');
+  expect(addItemRequests[1].name).toBe('裏メニュー');
   expect(addItemRequests[1].price).toBe(1500);
-  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('その他');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('裏メニュー');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,200');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,200');
 

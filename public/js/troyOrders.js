@@ -108,7 +108,7 @@ const ORDER_SOUND_SOURCES = {
     entry: '/audio/order-count-5-plus-battlefield.mp3'
 };
 const ORDER_SOUND_BY_COUNT_TIER = ['default', 'drink', 'food', 'premium', 'entry'];
-const CUSTOM_ORDER_ITEM_NAME = 'その他';
+const CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
 const CUSTOM_ORDER_PRICE_PRESETS = [100, 300, 500, 1000, 1500, 2000, 3000, 5000];
 const CUSTOM_ORDER_PRICE_MIN = 100;
 const CUSTOM_ORDER_PRICE_MAX = 100000;
@@ -645,7 +645,7 @@ function buildPosCategoryHtml() {
     `).join('');
     return `${menuHtml}
         <details class="troy-orders-pos-category troy-orders-custom-category">
-            <summary>その他</summary>
+            <summary>${CUSTOM_ORDER_ITEM_NAME}</summary>
             <div class="troy-orders-custom-item">
                 <div class="troy-orders-custom-price-row">
                     <button type="button" data-custom-price-step="-500">-500</button>
@@ -1137,7 +1137,7 @@ async function addCustomItemToCheckout(button) {
     const input = getCustomPriceInput(button);
     const price = normalizeCustomOrderPrice(input?.value);
     if (price <= 0) {
-        setMessage('その他の金額は100円単位で入力してください。', true);
+        setMessage(`${CUSTOM_ORDER_ITEM_NAME}の金額は100円単位で入力してください。`, true);
         input?.focus();
         return;
     }
