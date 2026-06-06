@@ -13694,6 +13694,8 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     box-shadow: 0 16px 26px rgba(0, 0, 0, 0.28);
     transform-origin: 50% 30%;
     transition: transform 0.12s ease, filter 0.12s ease;
+    user-select: none;
+    touch-action: none;
 }
 
 .troy-orders-ticket:hover,
@@ -13713,6 +13715,71 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 .troy-orders-ticket.is-selected {
     filter: brightness(1.08) saturate(1.05);
+}
+
+.troy-orders-ticket.is-dragging {
+    z-index: 20;
+    cursor: grabbing;
+    filter: brightness(1.08) saturate(1.06);
+    box-shadow: 0 24px 44px rgba(0, 0, 0, 0.46);
+}
+
+.troy-orders-ticket.is-drop-group {
+    filter: brightness(1.12) saturate(1.12);
+    outline: 3px solid rgba(174, 106, 32, 0.72);
+    outline-offset: 4px;
+}
+
+.troy-orders-ticket.is-drop-before::before,
+.troy-orders-ticket.is-drop-after::before {
+    content: "";
+    position: absolute;
+    top: 18px;
+    bottom: 18px;
+    width: 6px;
+    border-radius: 999px;
+    background: #f2c56c;
+    box-shadow: 0 0 0 2px rgba(60, 31, 8, 0.28), 0 0 14px rgba(242, 197, 108, 0.72);
+    z-index: 4;
+}
+
+.troy-orders-ticket.is-drop-before::before {
+    left: -10px;
+}
+
+.troy-orders-ticket.is-drop-after::before {
+    right: -10px;
+}
+
+.troy-orders-ticket.is-grouped {
+    min-height: 270px;
+    filter: saturate(1.04);
+    z-index: 0;
+}
+
+.troy-orders-ticket.is-grouped::after {
+    content: "";
+    position: absolute;
+    inset: 12px -10px -12px 12px;
+    z-index: -1;
+    border: 28px solid transparent;
+    border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 28px / 0 stretch;
+    opacity: 0.82;
+    transform: rotate(2.2deg);
+    pointer-events: none;
+}
+
+.troy-orders-group-ungroup {
+    align-self: flex-end;
+    min-height: 30px;
+    padding: 4px 10px;
+    border: 1px solid rgba(98, 47, 17, 0.32);
+    border-radius: 8px;
+    background: rgba(92, 47, 20, 0.12);
+    color: #5c3012;
+    font-size: 12px;
+    font-weight: 1000;
+    cursor: pointer;
 }
 
 .troy-orders-ticket.has-order .troy-orders-ticket-pin {
@@ -14063,6 +14130,89 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .troy-orders-group-list {
     display: grid;
     gap: 6px;
+}
+
+.troy-orders-group-current {
+    display: grid;
+    gap: 7px;
+    padding: 9px;
+    border: 1px solid rgba(91, 61, 28, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 244, 211, 0.3);
+}
+
+.troy-orders-group-current-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.troy-orders-group-current-head span {
+    color: #6b421c;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.troy-orders-group-current-head button {
+    min-height: 28px;
+    padding: 3px 9px;
+    border: 1px solid rgba(98, 47, 17, 0.3);
+    border-radius: 8px;
+    background: rgba(92, 47, 20, 0.12);
+    color: #5c3012;
+    font-size: 12px;
+    font-weight: 1000;
+    cursor: pointer;
+}
+
+.troy-orders-group-current-list {
+    display: grid;
+    gap: 5px;
+}
+
+.troy-orders-group-current-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 42px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: rgba(255, 248, 225, 0.36);
+}
+
+.troy-orders-group-current-row span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.troy-orders-group-current-row strong,
+.troy-orders-group-current-row b {
+    color: #2d1b0b;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.troy-orders-group-current-row strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-group-current-row em {
+    overflow: hidden;
+    color: #7c5a32;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-group-current-row b {
+    white-space: nowrap;
 }
 
 .troy-orders-group-row {
@@ -14525,6 +14675,23 @@ body.is-new-order-flash::before {
 
     .troy-orders-group-row {
         grid-template-columns: 22px minmax(0, 1fr);
+    }
+
+    .troy-orders-group-current-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .troy-orders-group-current-head button {
+        width: 100%;
+    }
+
+    .troy-orders-group-current-row {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-group-current-row b {
+        text-align: left;
     }
 
     .troy-orders-group-row b {

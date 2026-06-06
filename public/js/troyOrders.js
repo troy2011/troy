@@ -122,6 +122,10 @@ let hasRenderedOnce = false;
 let pendingSettleCard = null;
 let soundEnabled = false;
 let selectedCustomerId = null;
+let localTicketGroups = [];
+let manualTicketOrder = [];
+let ticketDragState = null;
+let suppressNextTicketClick = false;
 
 function $(id) {
     return document.getElementById(id);
@@ -440,6 +444,153 @@ function getEntrySortTime(entry = {}) {
     return Number(checkout.lastOrderedAtMs || checkout.createdAtMs || entry.lastOrderedAtMs || entry.createdAtMs || entry.joinedAtMs) || 0;
 }
 
+function normalizeCustomerId(value) {
+    return String(value || '').trim();
+}
+
+function createLocalGroupId(ids = []) {
+    const seed = ids.map(normalizeCustomerId).filter(Boolean).join('-');
+    return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}-${seed}`.slice(0, 96);
+}
+
+function getCustomerDisplayName(entry = {}) {
+    return String(entry.displayName || entry.playFabId || 'Player');
+}
+
+function formatGroupName(entries = []) {
+    const names = entries.map(getCustomerDisplayName).filter(Boolean);
+    if (names.length <= 1) return names[0] || 'グループ';
+    if (names.length === 2) return `${names[0]} と ${names[1]}`;
+    return `${names[0]} と ${names[1]} 他${names.length - 2}名`;
+}
+
+function getCardKeyForCustomer(id) {
+    return `customer:${normalizeCustomerId(id)}`;
+}
+
+function getCardKeyForGroup(groupId) {
+    return `group:${String(groupId || '').trim()}`;
+}
+
+function cleanupLocalTicketGroups(entries = getCustomerEntries(lastData)) {
+    const validIds = new Set(entries.map((entry) => normalizeCustomerId(entry.playFabId)).filter(Boolean));
+    const usedIds = new Set();
+    localTicketGroups = localTicketGroups
+        .map((group) => {
+            const memberIds = (Array.isArray(group.memberIds) ? group.memberIds : [])
+                .map(normalizeCustomerId)
+                .filter((id) => id && validIds.has(id) && !usedIds.has(id));
+            memberIds.forEach((id) => usedIds.add(id));
+            return { id: String(group.id || createLocalGroupId(memberIds)), memberIds };
+        })
+        .filter((group) => group.memberIds.length > 1);
+
+    const validKeys = new Set(entries.map((entry) => getCardKeyForCustomer(entry.playFabId)));
+    localTicketGroups.forEach((group) => {
+        group.memberIds.forEach((id) => validKeys.delete(getCardKeyForCustomer(id)));
+        validKeys.add(getCardKeyForGroup(group.id));
+    });
+    manualTicketOrder = manualTicketOrder.filter((key) => validKeys.has(key));
+}
+
+function getLocalTicketGroupById(groupId) {
+    const id = String(groupId || '').trim();
+    return localTicketGroups.find((group) => group.id === id) || null;
+}
+
+function getLocalTicketGroupByCustomerId(customerId) {
+    const id = normalizeCustomerId(customerId);
+    if (!id) return null;
+    return localTicketGroups.find((group) => group.memberIds.includes(id)) || null;
+}
+
+function getLocalGroupEntriesByCustomerId(customerId) {
+    const group = getLocalTicketGroupByCustomerId(customerId);
+    if (!group) return [];
+    return group.memberIds
+        .map((id) => getCustomerEntryById(id))
+        .filter(Boolean);
+}
+
+function getCardIdsFromTicket(ticket) {
+    return String(ticket?.dataset?.customerIds || ticket?.dataset?.customerId || '')
+        .split('|')
+        .map(normalizeCustomerId)
+        .filter(Boolean);
+}
+
+function getCardKeyFromTicket(ticket) {
+    return String(ticket?.dataset?.cardKey || '').trim();
+}
+
+function getCurrentDisplayOrderKeys() {
+    const grid = $('troyOrdersTicketGrid');
+    const keys = [...(grid?.querySelectorAll('[data-open-ticket]') || [])]
+        .map(getCardKeyFromTicket)
+        .filter(Boolean);
+    return keys.length ? keys : manualTicketOrder.slice();
+}
+
+function ensureManualOrderSeed() {
+    if (manualTicketOrder.length) return;
+    manualTicketOrder = getCurrentDisplayOrderKeys();
+}
+
+function mergeLocalTicketGroups(sourceTicket, targetTicket) {
+    const sourceIds = getCardIdsFromTicket(sourceTicket);
+    const targetIds = getCardIdsFromTicket(targetTicket);
+    const mergedIds = [...targetIds, ...sourceIds].filter((id, index, ids) => id && ids.indexOf(id) === index);
+    if (mergedIds.length < 2) return false;
+
+    ensureManualOrderSeed();
+    const sourceKey = getCardKeyFromTicket(sourceTicket);
+    const targetKey = getCardKeyFromTicket(targetTicket);
+    const existingGroup = [getLocalTicketGroupById(targetTicket?.dataset?.groupId), getLocalTicketGroupById(sourceTicket?.dataset?.groupId)]
+        .find(Boolean);
+    const groupId = existingGroup?.id || createLocalGroupId(mergedIds);
+    const mergedSet = new Set(mergedIds);
+
+    localTicketGroups = localTicketGroups.filter((group) => !group.memberIds.some((id) => mergedSet.has(id)));
+    localTicketGroups.push({ id: groupId, memberIds: mergedIds });
+
+    const groupKey = getCardKeyForGroup(groupId);
+    const targetIndex = manualTicketOrder.indexOf(targetKey);
+    const nextOrder = manualTicketOrder.filter((key) => key !== sourceKey && key !== targetKey && key !== groupKey);
+    nextOrder.splice(targetIndex >= 0 ? targetIndex : nextOrder.length, 0, groupKey);
+    manualTicketOrder = nextOrder;
+    selectedCustomerId = mergedIds.includes(selectedCustomerId) ? mergedIds[0] : selectedCustomerId;
+    render(lastData || {});
+    return true;
+}
+
+function ungroupLocalTicketGroup(groupId) {
+    const group = getLocalTicketGroupById(groupId);
+    if (!group) return false;
+    const groupKey = getCardKeyForGroup(group.id);
+    const insertIndex = manualTicketOrder.indexOf(groupKey);
+    localTicketGroups = localTicketGroups.filter((entry) => entry.id !== group.id);
+    const customerKeys = group.memberIds.map(getCardKeyForCustomer);
+    const nextOrder = manualTicketOrder.filter((key) => key !== groupKey && !customerKeys.includes(key));
+    nextOrder.splice(insertIndex >= 0 ? insertIndex : nextOrder.length, 0, ...customerKeys);
+    manualTicketOrder = nextOrder;
+    render(lastData || {});
+    return true;
+}
+
+function moveLocalTicketCard(sourceTicket, targetTicket, position = 'before') {
+    const sourceKey = getCardKeyFromTicket(sourceTicket);
+    const targetKey = getCardKeyFromTicket(targetTicket);
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return false;
+    ensureManualOrderSeed();
+    const nextOrder = manualTicketOrder.filter((key) => key !== sourceKey);
+    const targetIndex = nextOrder.indexOf(targetKey);
+    if (targetIndex < 0) return false;
+    nextOrder.splice(position === 'after' ? targetIndex + 1 : targetIndex, 0, sourceKey);
+    manualTicketOrder = nextOrder;
+    render(lastData || {});
+    return true;
+}
+
 function sortCustomerEntries(entries = []) {
     const rows = [...entries];
     const mode = getSortMode();
@@ -525,19 +676,69 @@ function renderTicketPreviewItems(items = []) {
     return `<span class="troy-orders-ticket-items">${rows}</span>`;
 }
 
-function renderTicketCard(entry, index) {
-    const total = getEntryTotal(entry);
-    const totalItems = getEntryTotalItems(entry);
-    const grantTotal = Math.max(0, Number(entry.grantTotal || entry.checkout?.grantTotal) || 0);
+function buildTicketDisplayCards(entries = []) {
+    cleanupLocalTicketGroups(entries);
+    const entryById = new Map(entries.map((entry) => [normalizeCustomerId(entry.playFabId), entry]));
+    const groupedIds = new Set();
+    localTicketGroups.forEach((group) => group.memberIds.forEach((id) => groupedIds.add(id)));
+
+    const naturalCards = [];
+    const renderedGroups = new Set();
+    entries.forEach((entry) => {
+        const id = normalizeCustomerId(entry.playFabId);
+        const group = getLocalTicketGroupByCustomerId(id);
+        if (group) {
+            if (renderedGroups.has(group.id)) return;
+            renderedGroups.add(group.id);
+            const groupEntries = group.memberIds.map((memberId) => entryById.get(memberId)).filter(Boolean);
+            if (groupEntries.length > 0) {
+                naturalCards.push({
+                    type: 'group',
+                    key: getCardKeyForGroup(group.id),
+                    groupId: group.id,
+                    entries: groupEntries
+                });
+            }
+            return;
+        }
+        if (!groupedIds.has(id)) {
+            naturalCards.push({
+                type: 'single',
+                key: getCardKeyForCustomer(id),
+                groupId: '',
+                entries: [entry]
+            });
+        }
+    });
+
+    const byKey = new Map(naturalCards.map((card) => [card.key, card]));
+    const orderedCards = manualTicketOrder.map((key) => byKey.get(key)).filter(Boolean);
+    naturalCards.forEach((card) => {
+        if (!orderedCards.some((entry) => entry.key === card.key)) orderedCards.push(card);
+    });
+    manualTicketOrder = manualTicketOrder.filter((key) => byKey.has(key));
+    return orderedCards;
+}
+
+function renderTicketCard(card, index) {
+    const entries = Array.isArray(card?.entries) ? card.entries : [];
+    const entry = entries[0] || {};
+    const groupMode = card?.type === 'group' && entries.length > 1;
+    const total = entries.reduce((sum, row) => sum + getEntryTotal(row), 0);
+    const totalItems = entries.reduce((sum, row) => sum + getEntryTotalItems(row), 0);
+    const grantTotal = entries.reduce((sum, row) => sum + Math.max(0, Number(row.grantTotal || row.checkout?.grantTotal) || 0), 0);
     const checkout = getEntryCheckout(entry);
-    const orderedAt = formatTime(checkout.lastOrderedAtMs || checkout.createdAtMs || entry.joinedAtMs);
-    const items = getEntryItems(entry);
+    const orderedAt = formatTime(Math.max(...entries.map(getEntrySortTime), 0) || checkout.lastOrderedAtMs || checkout.createdAtMs || entry.joinedAtMs);
+    const items = entries.flatMap(getEntryItems);
     const pendingServeCount = getPendingServeCount(items);
     const hasOrder = total > 0 || totalItems > 0;
     const ticketState = hasOrder
         ? (pendingServeCount > 0 ? `未提供 ${pendingServeCount}` : '会計待ち')
         : '未入力';
+    const customerIds = entries.map((row) => normalizeCustomerId(row.playFabId)).filter(Boolean);
+    const displayName = groupMode ? formatGroupName(entries) : getCustomerDisplayName(entry);
     const meta = [
+        groupMode ? `グループ ${entries.length}名` : '',
         entry.rankName || '',
         Number(entry.level) > 0 ? `Lv.${Math.floor(Number(entry.level))}` : '',
         orderedAt,
@@ -545,19 +746,23 @@ function renderTicketCard(entry, index) {
     ].filter(Boolean).join(' / ');
 
     return `
-        <button type="button" class="troy-orders-ticket${entry.playFabId === selectedCustomerId ? ' is-selected' : ''}${hasOrder ? ' has-order' : ''} is-tilt-${index % 2 ? 'right' : 'left'}"
+        <div role="button" tabindex="0" class="troy-orders-ticket${customerIds.includes(selectedCustomerId) ? ' is-selected' : ''}${hasOrder ? ' has-order' : ''}${groupMode ? ' is-grouped' : ''} is-tilt-${index % 2 ? 'right' : 'left'}"
             data-open-ticket
-            data-customer-id="${escapeHtml(entry.playFabId || '')}">
+            data-card-key="${escapeHtml(card.key || '')}"
+            data-customer-id="${escapeHtml(entry.playFabId || '')}"
+            data-customer-ids="${escapeHtml(customerIds.join('|'))}"
+            ${groupMode ? `data-group-id="${escapeHtml(card.groupId || '')}"` : ''}>
             <span class="troy-orders-ticket-pin"></span>
             <span class="troy-orders-ticket-kicker">伝票 ${String(index + 1).padStart(2, '0')}</span>
-            <span class="troy-orders-ticket-name">${escapeHtml(entry.displayName || entry.playFabId || 'Player')}</span>
+            <span class="troy-orders-ticket-name">${escapeHtml(displayName)}</span>
             <span class="troy-orders-ticket-meta">${escapeHtml(meta || '店内滞在中')}</span>
             <span class="troy-orders-ticket-preview">${renderTicketPreviewItems(items)}</span>
             <span class="troy-orders-ticket-foot">
                 <strong>${hasOrder ? formatYen(total) : '未入力'}</strong>
                 <em>${escapeHtml(ticketState)}</em>
             </span>
-        </button>
+            ${groupMode ? `<button type="button" class="troy-orders-group-ungroup" data-ungroup-ticket data-group-id="${escapeHtml(card.groupId || '')}">グループ解除</button>` : ''}
+        </div>
     `;
 }
 
@@ -571,7 +776,7 @@ function renderTicketGrid(entries = []) {
         return;
     }
     if (empty) empty.hidden = true;
-    grid.innerHTML = entries.map(renderTicketCard).join('');
+    grid.innerHTML = buildTicketDisplayCards(entries).map(renderTicketCard).join('');
 }
 
 function findSelectedCustomer() {
@@ -587,14 +792,35 @@ function getCustomerEntryById(playFabId) {
 
 function getGroupCheckoutCandidates(currentId) {
     const id = String(currentId || '').trim();
+    const localGroupIds = new Set((getLocalTicketGroupByCustomerId(id)?.memberIds || []).map(normalizeCustomerId));
     return sortCustomerEntries(getCustomerEntries(lastData))
         .filter((entry) => String(entry.playFabId || '').trim() !== id)
+        .filter((entry) => !localGroupIds.has(normalizeCustomerId(entry.playFabId)))
         .filter((entry) => getEntryTotal(entry) > 0);
 }
 
 function buildGroupCheckoutHtml(entry) {
+    const localGroup = getLocalGroupEntriesByCustomerId(entry.playFabId);
+    const hasLocalGroup = localGroup.length > 1;
     const candidates = getGroupCheckoutCandidates(entry.playFabId);
-    if (!candidates.length) return '';
+    if (!hasLocalGroup && !candidates.length) return '';
+    const localRows = hasLocalGroup ? localGroup.map((groupEntry) => {
+        const total = getEntryTotal(groupEntry);
+        const totalItems = getEntryTotalItems(groupEntry);
+        const meta = [
+            totalItems ? `${totalItems}点` : '',
+            Number(groupEntry.level) > 0 ? `Lv.${Math.floor(Number(groupEntry.level))}` : '',
+            groupEntry.rankName || ''
+        ].filter(Boolean).join(' / ');
+        return `
+            <div class="troy-orders-group-current-row">
+                <span>
+                    <strong>${escapeHtml(groupEntry.displayName || groupEntry.playFabId || 'Player')}</strong>
+                    <em>${escapeHtml(meta || '店内滞在中')}</em>
+                </span>
+                <b>${total > 0 ? formatYen(total) : '未入力'}</b>
+            </div>`;
+    }).join('') : '';
     const rows = candidates.map((candidate) => {
         const total = getEntryTotal(candidate);
         const totalItems = getEntryTotalItems(candidate);
@@ -614,7 +840,7 @@ function buildGroupCheckoutHtml(entry) {
             </label>`;
     }).join('');
     return `
-        <details class="troy-orders-group-settle">
+        <details class="troy-orders-group-settle"${hasLocalGroup ? ' open' : ''}>
             <summary>グループ会計</summary>
             <div class="troy-orders-group-body">
                 <div class="troy-orders-group-total">
@@ -622,7 +848,16 @@ function buildGroupCheckoutHtml(entry) {
                     <strong data-group-total>${formatYen(getEntryTotal(entry))}</strong>
                     <em data-group-count>1名</em>
                 </div>
-                <div class="troy-orders-group-list">${rows}</div>
+                ${hasLocalGroup ? `
+                    <div class="troy-orders-group-current">
+                        <div class="troy-orders-group-current-head">
+                            <span>現在のグループ</span>
+                            <button type="button" data-ungroup-ticket data-group-id="${escapeHtml(getLocalTicketGroupByCustomerId(entry.playFabId)?.id || '')}">グループ解除</button>
+                        </div>
+                        <div class="troy-orders-group-current-list">${localRows}</div>
+                    </div>
+                ` : ''}
+                ${rows ? `<div class="troy-orders-group-list">${rows}</div>` : ''}
             </div>
         </details>`;
 }
@@ -631,7 +866,14 @@ function getGroupSettleTargets(card) {
     if (!card) return [];
     const primaryId = String(card.dataset.receiverId || '').trim();
     const ids = [];
-    if (primaryId) ids.push(primaryId);
+    const localGroup = getLocalTicketGroupByCustomerId(primaryId);
+    if (localGroup) {
+        localGroup.memberIds.forEach((id) => {
+            if (id && !ids.includes(id)) ids.push(id);
+        });
+    } else if (primaryId) {
+        ids.push(primaryId);
+    }
     card.querySelectorAll('[data-group-checkout]:checked').forEach((input) => {
         const id = String(input.dataset.groupCustomerId || '').trim();
         if (id && !ids.includes(id)) ids.push(id);
@@ -667,17 +909,21 @@ function renderTicketDetail() {
         closeTicketDetail();
         return;
     }
-    const total = getEntryTotal(entry);
-    const totalItems = getEntryTotalItems(entry);
+    const localGroupEntries = getLocalGroupEntriesByCustomerId(entry.playFabId);
+    const detailEntries = localGroupEntries.length > 1 ? localGroupEntries : [entry];
+    const groupMode = detailEntries.length > 1;
+    const total = detailEntries.reduce((sum, row) => sum + getEntryTotal(row), 0);
+    const totalItems = detailEntries.reduce((sum, row) => sum + getEntryTotalItems(row), 0);
     const checkout = getEntryCheckout(entry);
     const status = String(checkout.status || entry.status || 'open').trim().toLowerCase();
-    const orderedAt = formatTime(checkout.lastOrderedAtMs || checkout.createdAtMs || entry.joinedAtMs);
+    const orderedAt = formatTime(Math.max(...detailEntries.map(getEntrySortTime), 0) || checkout.lastOrderedAtMs || checkout.createdAtMs || entry.joinedAtMs);
     const items = getEntryItems(entry);
-    const pendingServeCount = getPendingServeCount(items);
+    const pendingServeCount = detailEntries.reduce((sum, row) => sum + getPendingServeCount(getEntryItems(row)), 0);
     const itemRows = renderOrderItemRows(entry);
     const groupCheckoutHtml = buildGroupCheckoutHtml(entry);
+    const displayName = groupMode ? formatGroupName(detailEntries) : getCustomerDisplayName(entry);
     const meta = [
-        status === 'pending' ? '確認待ち' : '店内伝票',
+        groupMode ? `グループ ${detailEntries.length}名` : (status === 'pending' ? '確認待ち' : '店内伝票'),
         orderedAt,
         totalItems ? `${totalItems}点` : '',
         Number(entry.level) > 0 ? `Lv.${Math.floor(Number(entry.level))}` : '',
@@ -689,7 +935,7 @@ function renderTicketDetail() {
             <div class="troy-orders-ticket-detail-head">
                 <div>
                     <div class="troy-orders-ticket-detail-kicker">大きな伝票</div>
-                    <h2 data-ticket-customer-name>${escapeHtml(entry.displayName || entry.playFabId || 'Player')}</h2>
+                    <h2 data-ticket-customer-name>${escapeHtml(displayName)}</h2>
                     <p>${escapeHtml(meta || '店内滞在中')}</p>
                 </div>
                 <div class="troy-orders-total-wrap">
@@ -960,6 +1206,100 @@ function closeConfirmModal() {
     if (modal) modal.hidden = true;
 }
 
+function getTicketDropMode(targetTicket, pointerX) {
+    if (!targetTicket) return '';
+    const rect = targetTicket.getBoundingClientRect();
+    const edge = Math.min(58, rect.width * 0.24);
+    if (pointerX <= rect.left + edge) return 'before';
+    if (pointerX >= rect.right - edge) return 'after';
+    return 'group';
+}
+
+function clearTicketDropHints() {
+    document.querySelectorAll('.troy-orders-ticket.is-drop-group, .troy-orders-ticket.is-drop-before, .troy-orders-ticket.is-drop-after')
+        .forEach((ticket) => ticket.classList.remove('is-drop-group', 'is-drop-before', 'is-drop-after'));
+}
+
+function updateTicketDropHint(targetTicket, mode) {
+    clearTicketDropHints();
+    if (!targetTicket || !mode) return;
+    targetTicket.classList.add(mode === 'group' ? 'is-drop-group' : `is-drop-${mode}`);
+}
+
+function clearTicketDragState() {
+    if (ticketDragState?.source) {
+        ticketDragState.source.classList.remove('is-dragging');
+        ticketDragState.source.style.transform = '';
+        ticketDragState.source.style.pointerEvents = '';
+    }
+    document.body.classList.remove('is-troy-ticket-dragging');
+    clearTicketDropHints();
+    ticketDragState = null;
+}
+
+function startTicketDrag(event) {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('[data-ungroup-ticket]')) return;
+    const source = event.target.closest('[data-open-ticket]');
+    if (!source || !source.isConnected) return;
+    ticketDragState = {
+        source,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        active: false
+    };
+    source.setPointerCapture?.(event.pointerId);
+}
+
+function moveTicketDrag(event) {
+    if (!ticketDragState) return;
+    const dx = event.clientX - ticketDragState.startX;
+    const dy = event.clientY - ticketDragState.startY;
+    ticketDragState.lastX = event.clientX;
+    ticketDragState.lastY = event.clientY;
+    if (!ticketDragState.active && Math.hypot(dx, dy) < 10) return;
+    if (!ticketDragState.active) {
+        ticketDragState.active = true;
+        suppressNextTicketClick = true;
+        ticketDragState.source.classList.add('is-dragging');
+        ticketDragState.source.style.pointerEvents = 'none';
+        document.body.classList.add('is-troy-ticket-dragging');
+    }
+    ticketDragState.source.style.transform = `translate(${dx}px, ${dy}px) rotate(0deg)`;
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const targetTicket = hit instanceof Element ? hit.closest('[data-open-ticket]') : null;
+    if (!targetTicket || targetTicket === ticketDragState.source) {
+        updateTicketDropHint(null, '');
+        return;
+    }
+    updateTicketDropHint(targetTicket, getTicketDropMode(targetTicket, event.clientX));
+    event.preventDefault();
+}
+
+function finishTicketDrag(event) {
+    if (!ticketDragState) return;
+    const state = ticketDragState;
+    const wasActive = state.active;
+    state.source.style.pointerEvents = 'none';
+    const hit = document.elementFromPoint(state.lastX, state.lastY);
+    const targetTicket = hit instanceof Element ? hit.closest('[data-open-ticket]') : null;
+    if (wasActive && targetTicket && targetTicket !== state.source) {
+        const mode = getTicketDropMode(targetTicket, state.lastX);
+        if (mode === 'group') {
+            mergeLocalTicketGroups(state.source, targetTicket);
+        } else {
+            moveLocalTicketCard(state.source, targetTicket, mode);
+        }
+    }
+    clearTicketDragState();
+    if (wasActive) {
+        event.preventDefault();
+        window.setTimeout(() => { suppressNextTicketClick = false; }, 0);
+    }
+}
+
 function buildStreamUrl() {
     const params = getRequestedNationPayload();
     const url = new URL('/api/troy-orders/stream', window.location.origin);
@@ -1039,15 +1379,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                 localStorage.setItem(SORT_STORAGE_KEY, sortEl.value);
             } catch (_) {
             }
+            manualTicketOrder = [];
             render(lastData || {});
         });
     }
     $('troyOrdersRefresh')?.addEventListener('click', () => refreshOrders({ silent: false }));
     $('troyOrdersOpenBtn')?.addEventListener('click', () => setTroyOpen(true));
     $('troyOrdersCloseBtn')?.addEventListener('click', () => setTroyOpen(false));
-    $('troyOrdersTicketGrid')?.addEventListener('click', (event) => {
+    const ticketGrid = $('troyOrdersTicketGrid');
+    ticketGrid?.addEventListener('pointerdown', startTicketDrag);
+    ticketGrid?.addEventListener('pointermove', moveTicketDrag);
+    ticketGrid?.addEventListener('pointerup', finishTicketDrag);
+    ticketGrid?.addEventListener('pointercancel', finishTicketDrag);
+    ticketGrid?.addEventListener('click', (event) => {
+        if (suppressNextTicketClick) {
+            suppressNextTicketClick = false;
+            event.preventDefault();
+            return;
+        }
+        const target = event.target instanceof Element ? event.target : null;
+        const ungroupButton = target?.closest('[data-ungroup-ticket]');
+        if (ungroupButton) {
+            event.preventDefault();
+            ungroupLocalTicketGroup(ungroupButton.dataset.groupId || '');
+            return;
+        }
         const ticket = event.target instanceof Element ? event.target.closest('[data-open-ticket]') : null;
         if (!ticket) return;
+        openTicketDetail(ticket.dataset.customerId || '');
+    });
+    ticketGrid?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if (event.target instanceof Element && event.target.closest('[data-ungroup-ticket]')) return;
+        const ticket = event.target instanceof Element ? event.target.closest('[data-open-ticket]') : null;
+        if (!ticket) return;
+        event.preventDefault();
         openTicketDetail(ticket.dataset.customerId || '');
     });
     $('troyOrdersTicketClose')?.addEventListener('click', closeTicketDetail);
@@ -1079,6 +1445,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const customAddButton = target?.closest('[data-add-custom-item]');
         if (customAddButton) {
             void addCustomItemToCheckout(customAddButton);
+            return;
+        }
+        const ungroupButton = target?.closest('[data-ungroup-ticket]');
+        if (ungroupButton) {
+            ungroupLocalTicketGroup(ungroupButton.dataset.groupId || '');
             return;
         }
         const settleButton = target?.closest('[data-settle]');
