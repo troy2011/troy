@@ -1340,6 +1340,8 @@ test('current equipment slots render equipped item sprites on the right edge', a
   await expect(page.locator('#btnRandomHaircut')).toContainText('100G');
   await expect(page.locator('#btnRandomSkin')).toContainText('300G');
   await expect(page.locator('#btnRandomFace')).toContainText('800G');
+  await expect(page.locator('#btnRemoveFacialHair')).toContainText('1000G');
+  await expect(page.locator('#btnRandomFacialHair')).toContainText('1000G');
   await expect(page.locator('#equippedRightHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedLeftHandArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
   await expect(page.locator('#equippedArmorArt.has-item .equip-slot-item-sprite')).toHaveCount(1);
@@ -1393,6 +1395,108 @@ test('current equipment slots render equipped item sprites on the right edge', a
   expect(Math.max(layout.spriteWidth, layout.spriteHeight)).toBeGreaterThanOrEqual(48);
   expect(Math.abs(layout.spriteCenterX - layout.artCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.spriteCenterY - layout.artCenterY)).toBeLessThanOrEqual(2);
+  await expectNoPageErrors(errors);
+});
+
+test('facial hair unlocks at level 21 and salon actions update the layer', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const updateRequests = [];
+
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: {
+          Level: 21,
+          ちから: 7,
+          みのまもり: 8,
+          すばやさ: 9,
+          かしこさ: 10
+        }
+      })
+    });
+  });
+
+  await page.route('**/api/update-avatar-style', async (route) => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    updateRequests.push(body);
+    const action = String(body?.style?.action || '');
+    const nextValue = action === 'facialHairRemove' ? 0 : 7;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        action,
+        changedKey: 'FacialHairStyleIndex',
+        nextValue,
+        cost: 1000,
+        avatarStyle: { FacialHairStyleIndex: nextValue }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const player = await import('/js/player.js');
+    await player.getPlayerStats('PF_PLAYWRIGHT');
+    window.myAvatarBaseInfo = {
+      ...(window.myAvatarBaseInfo || {}),
+      Race: 'human',
+      AvatarColor: 'brown',
+      SkinColorIndex: 1,
+      FaceIndex: 1,
+      HairStyleIndex: 1,
+      FacialHairStyleIndex: 2,
+      level: 21
+    };
+    const { renderAvatar } = await import('/js/avatar.js');
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, {}, {}, false);
+  });
+
+  await expect.poll(async () => (
+    page.locator('#home-avatar-layer-facial-hair').evaluate((layer) => ({
+      spriteIndex: layer.dataset.spriteIndex,
+      backgroundImage: window.getComputedStyle(layer).backgroundImage
+    }))
+  )).toMatchObject({
+    spriteIndex: '1',
+    backgroundImage: expect.stringContaining('human_facialhair_brown.png')
+  });
+
+  await page.evaluate(() => {
+    window.confirm = () => true;
+    window.openAvatarStyleModal();
+  });
+  await expect(page.locator('#btnRemoveFacialHair')).toBeEnabled();
+  await expect(page.locator('#btnRandomFacialHair')).toBeEnabled();
+  await page.locator('#btnRemoveFacialHair').click();
+  await expect.poll(() => updateRequests.length).toBe(1);
+
+  await expect.poll(async () => (
+    page.locator('#home-avatar-layer-facial-hair').evaluate((layer) => ({
+      spriteIndex: layer.dataset.spriteIndex,
+      backgroundImage: window.getComputedStyle(layer).backgroundImage
+    }))
+  )).toMatchObject({
+    spriteIndex: '',
+    backgroundImage: 'none'
+  });
+
+  await page.locator('#btnRandomFacialHair').click();
+  await expect.poll(() => updateRequests.length).toBe(2);
+  await expect.poll(async () => (
+    page.locator('#home-avatar-layer-facial-hair').evaluate((layer) => ({
+      spriteIndex: layer.dataset.spriteIndex,
+      backgroundImage: window.getComputedStyle(layer).backgroundImage
+    }))
+  )).toMatchObject({
+    spriteIndex: '6',
+    backgroundImage: expect.stringContaining('human_facialhair_brown.png')
+  });
+
+  expect(updateRequests.map((request) => request?.style?.action)).toEqual(['facialHairRemove', 'facialHair']);
   await expectNoPageErrors(errors);
 });
 

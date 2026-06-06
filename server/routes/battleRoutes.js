@@ -344,7 +344,7 @@ async function getPlayerFullProfile(playFabId) {
         // ★ v122: アバター情報も取得するようにキーを追加
         PlayFabId: playFabId, Keys: [
             "Equipped_RightHand", "Equipped_LeftHand", "Equipped_Armor", "Equipped_Accessory", "lineUserId",
-            "Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex",
+            "Race", "Nation", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "FacialHairStyleIndex",
             TAROT_DECK_DATA_KEY,
             MELEE_DECK_DATA_KEY,
             SHIP_DECK_DATA_KEY
@@ -415,6 +415,12 @@ async function getPlayerFullProfile(playFabId) {
         avatar.SkinColorIndex = Number(equipmentResult.Data.SkinColorIndex?.Value || 1) || 1;
         avatar.FaceIndex = Number(equipmentResult.Data.FaceIndex?.Value || 1) || 1;
         avatar.HairStyleIndex = Number(equipmentResult.Data.HairStyleIndex?.Value || 1) || 1;
+        {
+            const rawFacialHairStyle = equipmentResult.Data.FacialHairStyleIndex?.Value;
+            avatar.FacialHairStyleIndex = rawFacialHairStyle === undefined || rawFacialHairStyle === null || rawFacialHairStyle === ''
+                ? 1
+                : Math.max(0, Number(rawFacialHairStyle) || 0);
+        }
         avatar.level = Number(stats.Level || 1) || 1;
 
         // タロットデッキ読み込み

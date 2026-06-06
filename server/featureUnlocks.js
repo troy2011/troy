@@ -3,6 +3,9 @@ const FEATURE_UNLOCK_LEVELS = {
     haircut: 4,
     skinChange: 6,
     faceChange: 8,
+    facialHairVisible: 21,
+    facialHairRemove: 21,
+    facialHairChange: 21,
     shipPurchase: 10,
     exploration: 10
 };
@@ -11,6 +14,9 @@ const FEATURE_UNLOCK_LABELS = {
     haircut: '髪型ランダム変更（散髪）',
     skinChange: '肌色ランダム変更（美容）',
     faceChange: '顔ランダム変更（整形）',
+    facialHairVisible: 'ひげ表示',
+    facialHairRemove: 'ひげ脱毛',
+    facialHairChange: 'フェイシャルエステ',
     shipPurchase: '船建造',
     exploration: '探索'
 };

@@ -24,7 +24,7 @@ import { getDatabase } from "firebase/database";
 // --- グローバル変数 ---
 window.myLineProfile = null;
 window.myPlayFabId = null;
-window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, Nation: 'fire' };
+window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 1, Nation: 'fire' };
 window.myEntityToken = null;
 window.myPlayFabLoginInfo = null;
 let playFabLoginInProgress = false;
@@ -803,6 +803,14 @@ function initHomeExplorationButton() {
     homeExplorationButtonBound = true;
 }
 
+function bindAvatarStyleActionButtons(root = document) {
+    root.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
+        if (button.dataset.avatarStyleActionBound === 'true') return;
+        button.dataset.avatarStyleActionBound = 'true';
+        button.addEventListener('click', () => randomizeAvatarStyle(String(button.getAttribute('data-avatar-style-action') || '')));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initHomeSurprises();
     initHomeExplorationButton();
@@ -1265,9 +1273,7 @@ async function initializeAppFeatures() {
     }
     document.getElementById('btnConfirmCreateShip').addEventListener('click', () => confirmCreateShip(myPlayFabId));
     document.getElementById('shipTypeSelect').addEventListener('change', updateShipTypeDetails);
-    document.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
-        button.addEventListener('click', () => randomizeAvatarStyle(String(button.getAttribute('data-avatar-style-action') || '')));
-    });
+    bindAvatarStyleActionButtons();
     window.addEventListener('player:stats-updated', (event) => {
         const level = normalizeLevel(event?.detail?.stats?.Level || 1);
         window.myAvatarBaseInfo = { ...window.myAvatarBaseInfo, level };
@@ -1586,10 +1592,14 @@ async function updateAvatarBaseInfo() {
     console.log('[updateAvatarBaseInfo] Fetching user data from PlayFab...');
     const result = await callApiWithLoader(PlayFab.ClientApi.GetUserReadOnlyData, {
         PlayFabId: myPlayFabId,
-        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "HairColorIndex"]
+        Keys: ["Race", "Nation", "NationChangedAt", "AvatarColor", "SkinColorIndex", "FaceIndex", "HairStyleIndex", "FacialHairStyleIndex", "HairColorIndex"]
     }, { isSilent: true });
 
         if (result && result.Data) {
+            const parseAvatarStyleIndex = (value, fallback = 1, min = 1) => {
+                const parsed = parseInt(value, 10);
+                return Number.isFinite(parsed) ? Math.max(min, parsed) : fallback;
+            };
             const nation = (result.Data.Nation?.Value || '').toLowerCase();
             const nationChangedAt = String(result.Data.NationChangedAt?.Value || '');
             const nationColor = getAvatarColorForNation(nation);
@@ -1597,10 +1607,11 @@ async function updateAvatarBaseInfo() {
                 Race: (result.Data.Race?.Value || 'Human').toLowerCase(),
                 Nation: nation,
                 AvatarColor: nationColor || result.Data.AvatarColor?.Value || 'brown',
-                SkinColorIndex: parseInt(result.Data.SkinColorIndex?.Value, 10) || 1,
-                FaceIndex: parseInt(result.Data.FaceIndex?.Value, 10) || 1,
-                HairStyleIndex: parseInt(result.Data.HairStyleIndex?.Value, 10) || 1,
-                HairColorIndex: parseInt(result.Data.HairColorIndex?.Value, 10) || 1,
+                SkinColorIndex: parseAvatarStyleIndex(result.Data.SkinColorIndex?.Value),
+                FaceIndex: parseAvatarStyleIndex(result.Data.FaceIndex?.Value),
+                HairStyleIndex: parseAvatarStyleIndex(result.Data.HairStyleIndex?.Value),
+                HairColorIndex: parseAvatarStyleIndex(result.Data.HairColorIndex?.Value),
+                FacialHairStyleIndex: parseAvatarStyleIndex(result.Data.FacialHairStyleIndex?.Value, 1, 0),
                 level: getCurrentPlayerLevel()
             };
             window.myAvatarBaseInfo = myAvatarBaseInfo;
@@ -2134,7 +2145,7 @@ let shipCreateInFlight = false;
 let shipCreateContext = null;
 let shipCreateBalances = null;
 let avatarStyleSaveInFlight = false;
-const AVATAR_STYLE_COSTS = { haircut: 100, skin: 300, face: 800 };
+const AVATAR_STYLE_COSTS = { haircut: 100, skin: 300, face: 800, facialHairRemove: 1000, facialHair: 1000 };
 
 function getCurrentPlayerLevel() {
     return normalizeLevel(Player.getMyPlayerStats?.()?.Level || window.myAvatarBaseInfo?.level || 1);
@@ -2151,6 +2162,7 @@ function hasVisibleModalExcept(exceptModal = null) {
 function openAvatarStyleModal() {
     const modal = document.getElementById('avatarStyleModal');
     if (!modal) return;
+    bindAvatarStyleActionButtons(modal);
     renderAvatarStylePanel();
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
@@ -2219,7 +2231,14 @@ function renderAvatarStylePanel() {
     const hairUnlocked = isFeatureUnlocked('haircut', level);
     const faceUnlocked = isFeatureUnlocked('faceChange', level);
     const skinUnlocked = isFeatureUnlocked('skinChange', level);
-    const actionState = { haircut: hairUnlocked, face: faceUnlocked, skin: skinUnlocked };
+    const facialHairUnlocked = isFeatureUnlocked('facialHairChange', level);
+    const actionState = {
+        haircut: hairUnlocked,
+        face: faceUnlocked,
+        skin: skinUnlocked,
+        facialHairRemove: facialHairUnlocked,
+        facialHair: facialHairUnlocked
+    };
     panel.querySelectorAll('[data-avatar-style-action]').forEach((button) => {
         const action = String(button.getAttribute('data-avatar-style-action') || '');
         button.disabled = avatarStyleSaveInFlight || !actionState[action];
@@ -2235,7 +2254,9 @@ function renderAvatarStylePanel() {
             level >= FEATURE_UNLOCK_LEVELS.hairVisible ? '髪型表示: 開放済み' : `髪型表示: Lv.${FEATURE_UNLOCK_LEVELS.hairVisible}`,
             hairUnlocked ? '散髪: 開放済み' : `散髪: Lv.${FEATURE_UNLOCK_LEVELS.haircut}`,
             skinUnlocked ? '美容: 開放済み' : `美容: Lv.${FEATURE_UNLOCK_LEVELS.skinChange}`,
-            faceUnlocked ? '整形: 開放済み' : `整形: Lv.${FEATURE_UNLOCK_LEVELS.faceChange}`
+            faceUnlocked ? '整形: 開放済み' : `整形: Lv.${FEATURE_UNLOCK_LEVELS.faceChange}`,
+            level >= FEATURE_UNLOCK_LEVELS.facialHairVisible ? 'ひげ表示: 開放済み' : `ひげ表示: Lv.${FEATURE_UNLOCK_LEVELS.facialHairVisible}`,
+            facialHairUnlocked ? 'ひげメニュー: 開放済み' : `ひげメニュー: Lv.${FEATURE_UNLOCK_LEVELS.facialHairChange}`
         ];
         noticeEl.textContent = notes.join(' / ');
     }
@@ -2244,15 +2265,32 @@ function renderAvatarStylePanel() {
 async function randomizeAvatarStyle(action) {
     if (avatarStyleSaveInFlight || !window.myPlayFabId) return;
     const level = getCurrentPlayerLevel();
-    const featureByAction = { haircut: 'haircut', skin: 'skinChange', face: 'faceChange' };
-    const labelByAction = { haircut: '散髪', skin: '美容', face: '整形' };
+    const featureByAction = {
+        haircut: 'haircut',
+        skin: 'skinChange',
+        face: 'faceChange',
+        facialHairRemove: 'facialHairRemove',
+        facialHair: 'facialHairChange'
+    };
+    const labelByAction = {
+        haircut: '散髪',
+        skin: '美容',
+        face: '整形',
+        facialHairRemove: 'ひげ脱毛',
+        facialHair: 'フェイシャルエステ'
+    };
     const feature = featureByAction[action];
     if (!feature || !isFeatureUnlocked(feature, level)) {
         showRpgMessage(`${labelByAction[action] || '美容室'}はLv.${FEATURE_UNLOCK_LEVELS[feature] || FEATURE_UNLOCK_LEVELS.haircut}から利用できます。`);
         return;
     }
     const cost = AVATAR_STYLE_COSTS[action] || 0;
-    const confirmed = window.confirm(`${labelByAction[action]}を行いますか？\n${cost}Gを消費して、現在とは違う見た目にランダム変更します。`);
+    const descriptionByAction = {
+        facialHairRemove: `${cost}Gを消費して、ひげをなくします。`,
+        facialHair: `${cost}Gを消費して、ひげをランダム変更します。`
+    };
+    const description = descriptionByAction[action] || `${cost}Gを消費して、現在とは違う見た目にランダム変更します。`;
+    const confirmed = window.confirm(`${labelByAction[action]}を行いますか？\n${description}`);
     if (!confirmed) return;
     avatarStyleSaveInFlight = true;
     renderAvatarStylePanel();
@@ -2267,7 +2305,7 @@ async function randomizeAvatarStyle(action) {
             preloadAvatarBaseSprites(myAvatarBaseInfo);
             renderAvatar('avatar', myAvatarBaseInfo, Inventory.getMyCurrentEquipment?.() || {}, Inventory.getMyInventory?.() || {}, false);
             renderAvatar('home-avatar', myAvatarBaseInfo, Inventory.getMyCurrentEquipment?.() || {}, Inventory.getMyInventory?.() || {}, false);
-            showRpgMessage(`${labelByAction[action]}で見た目を変更しました。-${result.cost || cost}G`);
+            showRpgMessage(`${labelByAction[action]}を行いました。-${result.cost || cost}G`);
         }
     } catch (error) {
         showRpgMessage(error?.message || '見た目の変更に失敗しました。');

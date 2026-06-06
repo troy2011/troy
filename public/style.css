@@ -19345,7 +19345,7 @@ body[data-sea-tone] .home-hero-card {
 
 #avatarStyleModal .avatar-style-controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -19358,8 +19358,10 @@ body[data-sea-tone] .home-hero-card {
     border-image: url("./assets/ui/panels/panel-navy-wide.png") 34 fill / 10px / 0 stretch;
     background: linear-gradient(180deg, rgba(7, 12, 20, 0.52), rgba(0, 0, 0, 0.32));
     color: #ead7ad;
+    font-size: 13px;
     font-weight: 900;
     line-height: 1.18;
+    overflow-wrap: anywhere;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
 }
 

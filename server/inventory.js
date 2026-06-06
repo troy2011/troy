@@ -43,6 +43,8 @@ const GACHA_COST = Number(process.env.GACHA_COST || 10);
 const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').trim().toUpperCase();
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const DAILY_NATION_SPECIALTY_REWARD_KEY = 'DailyNationSpecialtyRewardDay';
+const FACIAL_HAIR_STYLE_INDEX_DEFAULT = 1;
+const FACIAL_HAIR_STYLE_INDEX_NONE = 0;
 const NATION_SPECIALTY_RESOURCE_BY_NATION = {
     fire: { itemId: 'RR', label: '火薬系の特産品' },
     earth: { itemId: 'RG', label: '石材系の特産品' },
@@ -53,7 +55,8 @@ const DAILY_NATION_SPECIALTY_AMOUNT_BY_RANK = [4, 3, 2, 1];
 const AVATAR_CUSTOMIZE_LIMITS = {
     SkinColorIndex: { min: 1, max: 8, feature: 'skinChange', label: '美容', cost: 300 },
     FaceIndex: { min: 1, max: 40, feature: 'faceChange', label: '整形', cost: 800 },
-    HairStyleIndex: { min: 1, max: 30, feature: 'haircut', label: '散髪', cost: 100 }
+    HairStyleIndex: { min: 1, max: 30, feature: 'haircut', label: '散髪', cost: 100 },
+    FacialHairStyleIndex: { min: 1, max: 30, feature: 'facialHairChange', label: 'フェイシャルエステ', cost: 1000, defaultValue: FACIAL_HAIR_STYLE_INDEX_DEFAULT }
 };
 const AVATAR_CUSTOMIZE_ACTIONS = {
     skin: 'SkinColorIndex',
@@ -63,7 +66,30 @@ const AVATAR_CUSTOMIZE_ACTIONS = {
     faceChange: 'FaceIndex',
     surgery: 'FaceIndex',
     hair: 'HairStyleIndex',
-    haircut: 'HairStyleIndex'
+    haircut: 'HairStyleIndex',
+    facialHair: 'FacialHairStyleIndex',
+    facialHairChange: 'FacialHairStyleIndex',
+    facialEsthe: 'FacialHairStyleIndex'
+};
+const AVATAR_CUSTOMIZE_ACTION_OVERRIDES = {
+    facialHairRemove: {
+        styleKey: 'FacialHairStyleIndex',
+        feature: 'facialHairRemove',
+        label: 'ひげ脱毛',
+        cost: 1000,
+        mode: 'clear',
+        clearValue: FACIAL_HAIR_STYLE_INDEX_NONE,
+        defaultValue: FACIAL_HAIR_STYLE_INDEX_DEFAULT
+    },
+    beardRemoval: {
+        styleKey: 'FacialHairStyleIndex',
+        feature: 'facialHairRemove',
+        label: 'ひげ脱毛',
+        cost: 1000,
+        mode: 'clear',
+        clearValue: FACIAL_HAIR_STYLE_INDEX_NONE,
+        defaultValue: FACIAL_HAIR_STYLE_INDEX_DEFAULT
+    }
 };
 const RESOURCE_RECOVERY_SETTINGS = {
     hp: {
@@ -225,6 +251,19 @@ function resolveIsKingFlag(readOnlyData) {
     return parseBooleanFlag(readOnlyData?.IsKing?.Value);
 }
 
+function resolveAvatarCustomizeAction(requestedAction) {
+    const override = AVATAR_CUSTOMIZE_ACTION_OVERRIDES[requestedAction];
+    if (override) {
+        const baseConfig = AVATAR_CUSTOMIZE_LIMITS[override.styleKey] || {};
+        return { ...baseConfig, ...override };
+    }
+    const styleKey = AVATAR_CUSTOMIZE_ACTIONS[requestedAction];
+    if (!styleKey) return null;
+    const config = AVATAR_CUSTOMIZE_LIMITS[styleKey];
+    if (!config) return null;
+    return { styleKey, ...config };
+}
+
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
     const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
@@ -363,6 +402,10 @@ function initializeInventoryRoutes(app, deps) {
         const avatarColor = getAvatarColorForNation(nation)
             || String(readOnlyData?.AvatarColor?.Value || '').trim()
             || 'brown';
+        const rawFacialHairStyle = readOnlyData?.FacialHairStyleIndex?.Value;
+        const facialHairStyleIndex = rawFacialHairStyle === undefined || rawFacialHairStyle === null || rawFacialHairStyle === ''
+            ? FACIAL_HAIR_STYLE_INDEX_DEFAULT
+            : Math.max(FACIAL_HAIR_STYLE_INDEX_NONE, Number(rawFacialHairStyle) || FACIAL_HAIR_STYLE_INDEX_NONE);
         return {
             Race: String(readOnlyData?.Race?.Value || 'human').trim() || 'human',
             Nation: nation || null,
@@ -371,6 +414,7 @@ function initializeInventoryRoutes(app, deps) {
             FaceIndex: Math.max(1, Number(readOnlyData?.FaceIndex?.Value || 1) || 1),
             HairStyleIndex: Math.max(1, Number(readOnlyData?.HairStyleIndex?.Value || 1) || 1),
             HairColorIndex: Math.max(1, Number(readOnlyData?.HairColorIndex?.Value || 1) || 1),
+            FacialHairStyleIndex: facialHairStyleIndex,
             level: Math.max(1, Number(stats?.Level || stats?.level || 1) || 1)
         };
     }
@@ -500,11 +544,14 @@ function initializeInventoryRoutes(app, deps) {
 
     function pickRandomAvatarStyleValue(currentValue, config) {
         const candidates = [];
-        const current = Math.max(config.min, Math.floor(Number(currentValue) || config.min));
+        const parsedCurrent = Math.floor(Number(currentValue));
+        const current = Number.isFinite(parsedCurrent) && parsedCurrent >= config.min && parsedCurrent <= config.max
+            ? parsedCurrent
+            : null;
         for (let value = config.min; value <= config.max; value += 1) {
             if (value !== current) candidates.push(value);
         }
-        if (!candidates.length) return current;
+        if (!candidates.length) return current ?? config.min;
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
@@ -872,6 +919,7 @@ function initializeInventoryRoutes(app, deps) {
                 'SkinColorIndex',
                 'FaceIndex',
                 'HairStyleIndex',
+                'FacialHairStyleIndex',
                 'HairColorIndex',
                 'Equipped_RightHand',
                 'Equipped_LeftHand',
@@ -1105,8 +1153,8 @@ function initializeInventoryRoutes(app, deps) {
         playFabId = await requireAuthedPlayFabId(req, res, playFabId);
         if (!playFabId) return;
         try {
-            const styleKey = AVATAR_CUSTOMIZE_ACTIONS[requestedAction];
-            const config = AVATAR_CUSTOMIZE_LIMITS[styleKey];
+            const config = resolveAvatarCustomizeAction(requestedAction);
+            const styleKey = config?.styleKey;
             if (!styleKey || !config) {
                 return res.status(400).json({ error: '変更メニューが正しくありません。' });
             }
@@ -1131,8 +1179,13 @@ function initializeInventoryRoutes(app, deps) {
                 });
             }
             const readOnly = await getPlayerReadOnlyData(playFabId, Object.keys(AVATAR_CUSTOMIZE_LIMITS));
-            const currentValue = Number(readOnly?.Data?.[styleKey]?.Value || config.min);
-            const nextValue = pickRandomAvatarStyleValue(currentValue, config);
+            const rawCurrentValue = readOnly?.Data?.[styleKey]?.Value;
+            const currentValue = rawCurrentValue === undefined || rawCurrentValue === null || rawCurrentValue === ''
+                ? (config.defaultValue ?? config.min)
+                : Number(rawCurrentValue);
+            const nextValue = config.mode === 'clear'
+                ? Number(config.clearValue ?? FACIAL_HAIR_STYLE_INDEX_NONE)
+                : pickRandomAvatarStyleValue(currentValue, config);
             const nextData = { [styleKey]: String(nextValue) };
             await subtractEconomyItem(playFabId, VIRTUAL_CURRENCY_CODE, config.cost, {
                 idempotencyId: req.body?.requestId ? `avatar-style-${req.body.requestId}` : undefined

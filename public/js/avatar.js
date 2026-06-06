@@ -414,18 +414,26 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
 
 export function preloadAvatarBaseSprites(avatarBase) {
     if (!avatarBase) return;
-    const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, level } = avatarBase;
+    const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
     const race = (Race || 'human').toLowerCase();
     const color = AvatarColor || 'brown';
     const skinIndex = SkinColorIndex || 1;
     const faceIdx = (FaceIndex || 1) - 1;
     const hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
+    const facialHairStyle = Number(FacialHairStyleIndex);
+    const facialHairIdx = (
+        level >= FEATURE_UNLOCK_LEVELS.facialHairVisible
+        && Number.isFinite(facialHairStyle)
+        && facialHairStyle > 0
+    ) ? (Math.floor(facialHairStyle) - 1) : -1;
     const bodyUrl = `./Sprites/Characters/body/body_${color}.png`;
     const headUrl = `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`;
     const hairUrl = hairIdx >= 0 ? `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png` : null;
+    const facialHairUrl = facialHairIdx >= 0 ? `./Sprites/Characters/${race}/hair/facial hair/${race}_facialhair_${color}.png` : null;
     const handUrl = `./Sprites/Characters/${race}/hand/${race}_hand.png`;
     loadSpriteImage(bodyUrl);
     loadSpriteImage(headUrl);
+    if (facialHairUrl) loadSpriteImage(facialHairUrl);
     if (hairUrl) loadSpriteImage(hairUrl);
     loadSpriteImage(handUrl);
 }
@@ -557,15 +565,22 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
 
     // 1. 素体の描画
     if (avatarBase) {
-        const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, level } = avatarBase;
+        const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
         const race = (Race || 'human').toLowerCase();
         const color = AvatarColor || 'brown';
         const skinIndex = SkinColorIndex || 1;
         const faceIdx = (FaceIndex || 1) - 1;
         let hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
+        const facialHairStyle = Number(FacialHairStyleIndex);
+        const facialHairIdx = (
+            level >= FEATURE_UNLOCK_LEVELS.facialHairVisible
+            && Number.isFinite(facialHairStyle)
+            && facialHairStyle > 0
+        ) ? (Math.floor(facialHairStyle) - 1) : -1;
 
         drawLayer(`${prefix}-layer-body`, `./Sprites/Characters/body/body_${color}.png`, 0, 32, 32);
         drawLayer(`${prefix}-layer-head`, `./Sprites/Characters/${race}/head/${race}_head_skin_${skinIndex}.png`, faceIdx, 32, 32);
+        drawLayer(`${prefix}-layer-facial-hair`, `./Sprites/Characters/${race}/hair/facial hair/${race}_facialhair_${color}.png`, facialHairIdx, 32, 32);
         drawLayer(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png`, hairIdx, 32, 32);
         drawLayer(`${prefix}-layer-hand-right`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
         drawLayer(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
