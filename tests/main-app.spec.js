@@ -1550,6 +1550,64 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
   await expectNoPageErrors(errors);
 });
 
+test('king store game scoring selects an in-store customer before saving', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const scoreRequests = [];
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        troyOpen: true,
+        troyMembers: [
+          { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: Date.now() - 1000, level: 24, rankName: '船長' }
+        ],
+        announcement: { message: 'Map systems nominal' }
+      })
+    });
+  });
+  await page.route('**/api/king-update-store-game-score', async (route) => {
+    scoreRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, label: 'ビリヤード', displayName: '海風の船長', score: 42 })
+    });
+  });
+
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+    await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+
+  await expect(page.locator('#kingStoreGameSelected')).toHaveText('店内リストからお客さんを選択');
+  await expect(page.locator('#btnKingSaveStoreGameScore')).toBeDisabled();
+
+  await page.locator('.troy-entry-main[data-store-game-target="PLAYER1"]').click();
+  await expect.poll(async () => page.locator('#kingStoreGameDetails').evaluate((details) => details.open)).toBe(true);
+  await expect(page.locator('#kingStoreGameSelected')).toHaveText('対象: 海風の船長');
+  await expect(page.locator('#kingStoreGamePlayerId')).toHaveValue('PLAYER1');
+  await expect(page.locator('#btnKingSaveStoreGameScore')).toBeEnabled();
+
+  await page.locator('#kingStoreGameType').selectOption('billiards');
+  await page.locator('#kingStoreGameScore').fill('42');
+  await page.locator('#btnKingSaveStoreGameScore').click();
+
+  await expect.poll(() => scoreRequests.length).toBe(1);
+  expect(scoreRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    targetPlayFabId: 'PLAYER1',
+    gameType: 'billiards',
+    score: 42
+  });
+  await expect(page.locator('#kingPageMessage')).toContainText('ビリヤード: 海風の船長 の記録を 42点で保存しました。');
+  await expectNoPageErrors(errors);
+});
+
 test('king can found a nation guild from companions regardless of level', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-stats', async (route) => {

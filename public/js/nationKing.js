@@ -75,15 +75,17 @@ function _renderTroyMembers(members = []) {
             ? member.rankBenefits.map((entry) => String(entry || '').trim()).filter(Boolean)
             : [];
         const benefitText = rankBenefits.length ? rankBenefits.join(' / ') : '通常サービス';
+        const displayName = String(member.displayName || playFabId || 'Player').trim();
         return `
             <div class="troy-entry-item">
-                <div class="troy-entry-main">
-                    <b>${buildPlayerTriggerHtml(playFabId, member.displayName || playFabId || 'Player', { className: 'player-link-inline' })}</b>
+                <div class="troy-entry-main king-store-game-target" data-store-game-target="${_escapeHtml(playFabId)}" data-store-game-name="${_escapeHtml(displayName)}">
+                    <b>${buildPlayerTriggerHtml(playFabId, displayName, { className: 'player-link-inline' })}</b>
                     <span class="troy-entry-rank">Lv.${level} ${_escapeHtml(rankName)}</span>
                     <span class="troy-entry-benefit">${_escapeHtml(benefitText)}</span>
                     <span>${_escapeHtml(joinedAt)}</span>
                 </div>
                 <div class="king-direct-grant-controls">
+                    <button type="button" class="btn-open king-store-game-select-btn" data-store-game-target="${_escapeHtml(playFabId)}" data-store-game-name="${_escapeHtml(displayName)}">採点</button>
                     <input type="number" class="king-direct-grant-input" min="100" step="100" inputmode="numeric" value="100" data-direct-grant-amount="${_escapeHtml(playFabId)}" aria-label="付与G" />
                     <button type="button" class="btn-muted king-direct-grant-btn" data-direct-grant="${_escapeHtml(playFabId)}">付与</button>
                 </div>
@@ -473,6 +475,30 @@ function _syncStoreGameScoreInput(typeEl, scoreEl) {
     scoreEl.placeholder = isKaraoke ? '例: 90.568' : '例: 701';
 }
 
+function _setStoreGameTarget(playFabId, displayName = '') {
+    const targetId = String(playFabId || '').trim();
+    const targetName = String(displayName || '').trim() || targetId;
+    const targetInput = document.getElementById('kingStoreGamePlayerId');
+    const selectedEl = document.getElementById('kingStoreGameSelected');
+    const scoreEl = document.getElementById('kingStoreGameScore');
+    const saveBtn = document.getElementById('btnKingSaveStoreGameScore');
+    const detailsEl = document.getElementById('kingStoreGameDetails');
+    if (targetInput) {
+        targetInput.value = targetId;
+        targetInput.dataset.displayName = targetName;
+    }
+    if (selectedEl) {
+        selectedEl.classList.toggle('is-empty', !targetId);
+        selectedEl.textContent = targetId ? `対象: ${targetName}` : '店内リストからお客さんを選択';
+    }
+    if (saveBtn) saveBtn.disabled = !targetId;
+    if (detailsEl && targetId) detailsEl.open = true;
+    if (scoreEl && targetId) {
+        scoreEl.focus();
+        scoreEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+}
+
 function _resolveTroyEntryNation() {
     return String(
         _lastPageData?.nation
@@ -644,7 +670,6 @@ function _wireHandlers(playFabId) {
     const storeGameTypeEl = document.getElementById('kingStoreGameType');
     const storeGameScoreEl = document.getElementById('kingStoreGameScore');
     const storeGamePlayerIdEl = document.getElementById('kingStoreGamePlayerId');
-    const scanStoreGamePlayerBtn = document.getElementById('btnKingScanStoreGamePlayer');
     const saveStoreGameScoreBtn = document.getElementById('btnKingSaveStoreGameScore');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const warSectionEl = document.getElementById('kingWarSection');
@@ -676,7 +701,23 @@ function _wireHandlers(playFabId) {
 
     if (troyEntryListEl) {
         troyEntryListEl.addEventListener('click', async (event) => {
-            const button = event.target instanceof Element ? event.target.closest('[data-direct-grant]') : null;
+            const target = event.target instanceof Element ? event.target : null;
+            const scoreTarget = target && !target.closest('[data-player-playfab-id]')
+                ? target.closest('[data-store-game-target]')
+                : null;
+            if (scoreTarget) {
+                const targetId = String(scoreTarget.getAttribute('data-store-game-target') || '').trim();
+                const targetName = String(scoreTarget.getAttribute('data-store-game-name') || '').trim();
+                if (!targetId) {
+                    _setMessage('採点対象が不正です。', true);
+                    return;
+                }
+                _setStoreGameTarget(targetId, targetName);
+                _setMessage(`${targetName || targetId}を採点対象にしました。`);
+                return;
+            }
+
+            const button = target ? target.closest('[data-direct-grant]') : null;
             if (!button) return;
             const receiverPlayFabId = String(button.getAttribute('data-direct-grant') || '').trim();
             const input = receiverPlayFabId
@@ -829,36 +870,13 @@ function _wireHandlers(playFabId) {
         });
     }
 
-    if (scanStoreGamePlayerBtn) {
-        scanStoreGamePlayerBtn.addEventListener('click', async () => {
-            if (!window.liff?.isInClient?.()) {
-                _setMessage('MY QRの読み取りはLINEアプリ内で利用してください。', true);
-                return;
-            }
-            const previous = scanStoreGamePlayerBtn.textContent;
-            scanStoreGamePlayerBtn.disabled = true;
-            scanStoreGamePlayerBtn.textContent = '読取中...';
-            try {
-                const value = await _scanQrValue();
-                if (!value) throw new Error('MY QRを読み取れませんでした。');
-                if (storeGamePlayerIdEl) storeGamePlayerIdEl.value = value;
-                _setMessage('プレイヤーIDを読み取りました。');
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'MY QRの読み取りに失敗しました。'), true);
-            } finally {
-                scanStoreGamePlayerBtn.disabled = false;
-                scanStoreGamePlayerBtn.textContent = previous;
-            }
-        });
-    }
-
     if (saveStoreGameScoreBtn) {
         saveStoreGameScoreBtn.addEventListener('click', async () => {
             const gameType = String(storeGameTypeEl?.value || 'darts_countup');
             const score = Number(storeGameScoreEl?.value) || 0;
             const targetPlayFabId = String(storeGamePlayerIdEl?.value || '').trim();
             if (!targetPlayFabId) {
-                _setMessage('プレイヤーIDを入力、またはMY QRを読み取ってください。', true);
+                _setMessage('店内リストから採点対象のお客さんを選択してください。', true);
                 return;
             }
             if (!score || score <= 0) {

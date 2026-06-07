@@ -3696,6 +3696,14 @@ body.modal-lock .modal-overlay {
     gap: 2px;
 }
 
+.king-store-game-target {
+    cursor: pointer;
+}
+
+.king-store-game-target:active {
+    color: #fde68a;
+}
+
 .troy-entry-item b {
     color: var(--accent-color);
 }
@@ -3722,6 +3730,8 @@ body.modal-lock .modal-overlay {
     align-items: center;
     gap: 6px;
     flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .king-direct-grant-input {
@@ -3737,6 +3747,28 @@ body.modal-lock .modal-overlay {
 .king-direct-grant-btn {
     min-height: 32px;
     padding: 6px 10px;
+}
+
+.king-store-game-select-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+}
+
+.king-store-game-selected {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.32);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fde68a;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.king-store-game-selected.is-empty {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.45);
+    color: var(--text-sub);
 }
 
 .troy-entry-empty {
@@ -20376,10 +20408,6 @@ body[data-sea-tone] .home-hero-card {
 
 #btnKingCoinReturn {
     --command-icon: var(--icon-coin-stack);
-}
-
-#btnKingScanStoreGamePlayer {
-    --command-icon: var(--icon-action-map);
 }
 
 #btnKingWarDeploy {

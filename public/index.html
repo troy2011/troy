@@ -1101,11 +1101,13 @@
                         <div class="troy-admin-card troy-king-priority-card">
                             <div id="kingTroyCalendarMount"></div>
                         </div>
-                        <details class="troy-admin-details">
+                        <details id="kingStoreGameDetails" class="troy-admin-details">
                             <summary>店内ゲーム採点</summary>
                             <div class="troy-admin-card">
                                 <div class="troy-admin-label">ランキング点数を更新</div>
-                                <div class="troy-admin-help">実際の画面に表示された点数を確認し、対象プレイヤーのMY QRまたはPlayFab IDと一緒に入力してください。</div>
+                                <div class="troy-admin-help">店内リストのお客さんを選んでから、種目と点数を入力してください。</div>
+                                <div id="kingStoreGameSelected" class="king-store-game-selected is-empty">店内リストからお客さんを選択</div>
+                                <input id="kingStoreGamePlayerId" type="hidden" />
                                 <div class="troy-admin-grid">
                                     <div>
                                         <div class="troy-admin-field-label">種目</div>
@@ -1120,14 +1122,9 @@
                                         <div class="troy-admin-field-label">点数</div>
                                         <input id="kingStoreGameScore" type="number" min="0.001" step="1" placeholder="例: 701" class="admin-input" />
                                     </div>
-                                    <div>
-                                        <div class="troy-admin-field-label">プレイヤーID</div>
-                                        <input id="kingStoreGamePlayerId" type="text" placeholder="MY QR読取またはID入力" class="admin-input" />
-                                    </div>
                                 </div>
                                 <div class="troy-admin-actions">
-                                    <button id="btnKingScanStoreGamePlayer" class="btn-muted" type="button">MY QR読取</button>
-                                    <button id="btnKingSaveStoreGameScore" class="btn-open" type="button">点数を保存</button>
+                                    <button id="btnKingSaveStoreGameScore" class="btn-open" type="button" disabled>点数を保存</button>
                                 </div>
                             </div>
                         </details>
