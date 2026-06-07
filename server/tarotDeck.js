@@ -35,6 +35,43 @@ function normalizeDeckList(deck) {
     return unique.slice(0, DECK_MAX_CARDS);
 }
 
+function getTarotDeckCardNumber(itemId, catalogCache) {
+    const itemData = catalogCache?.[itemId] || {};
+    const category = getCanonicalTarotCategory(itemData?.Category);
+    if (category === 'TarotMajor') {
+        const number = Number(itemData?.ArcanaNumber ?? itemData?.CardNumber);
+        if (Number.isFinite(number)) return number;
+    }
+    if (category === 'TarotMinor') {
+        const raw = String(itemData?.ArcanaRank || itemData?.Rank || itemData?.CardRank || itemData?.CardNumber || '').trim();
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed)) return parsed;
+        const faceOrder = {
+            A: 1,
+            ACE: 1,
+            PAGE: 11,
+            KNIGHT: 12,
+            QUEEN: 13,
+            KING: 14
+        };
+        const faceValue = faceOrder[raw.toUpperCase()];
+        if (faceValue) return faceValue;
+    }
+    const fallbackMatch = String(itemId || '').match(/(?:arcana-|_)(\d+)$/i);
+    return fallbackMatch ? Number(fallbackMatch[1]) : 999;
+}
+
+function sortDeckByCardNumber(deck, catalogCache) {
+    return normalizeDeckList(deck)
+        .map((itemId, index) => ({ itemId, index }))
+        .sort((left, right) => {
+            const numberDiff = getTarotDeckCardNumber(left.itemId, catalogCache) - getTarotDeckCardNumber(right.itemId, catalogCache);
+            if (numberDiff !== 0) return numberDiff;
+            return left.index - right.index;
+        })
+        .map((entry) => entry.itemId);
+}
+
 function mergeLegacyDecks(primaryDeck, secondaryDeck) {
     return normalizeDeckList([...(primaryDeck || []), ...(secondaryDeck || [])]);
 }
@@ -213,7 +250,7 @@ function initializeTarotDeckRoutes(app, deps) {
     }
 
     function buildDeckResponse(decks) {
-        const tarotDeck = normalizeDeckList(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || []);
+        const tarotDeck = sortDeckByCardNumber(decks?.tarotDeck || decks?.meleeDeck || decks?.shipDeck || [], catalogCache);
         const tarotRole = evaluateDeckRole(tarotDeck.map((itemId) => catalogCache?.[itemId] || null));
         return {
             tarotDeck,
@@ -259,8 +296,9 @@ function initializeTarotDeckRoutes(app, deps) {
             const current = decks.tarotDeck;
             const result = equipCardToDeck(current, cardItemId);
             if (!result.ok) return res.status(400).json({ error: result.error });
-            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
-            await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
+            const sortedDeck = sortDeckByCardNumber(result.deck, catalogCache);
+            const updated = { tarotDeck: sortedDeck, meleeDeck: sortedDeck, shipDeck: sortedDeck };
+            await writeDecks(playFabId, { tarotDeck: sortedDeck }, promisifyPlayFab, PlayFabServer);
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-equip] Error:', error?.message || error);
@@ -284,8 +322,9 @@ function initializeTarotDeckRoutes(app, deps) {
             const decks = await readDecks(playFabId, promisifyPlayFab, PlayFabServer);
             const current = decks.tarotDeck;
             const result = unequipCardFromDeck(current, cardItemId);
-            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
-            await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
+            const sortedDeck = sortDeckByCardNumber(result.deck, catalogCache);
+            const updated = { tarotDeck: sortedDeck, meleeDeck: sortedDeck, shipDeck: sortedDeck };
+            await writeDecks(playFabId, { tarotDeck: sortedDeck }, promisifyPlayFab, PlayFabServer);
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
             console.error('[tarot-deck-unequip] Error:', error?.message || error);
@@ -313,9 +352,10 @@ function initializeTarotDeckRoutes(app, deps) {
             const current = decks.tarotDeck;
             const result = moveCardInDeck(current, cardItemId, direction);
             if (!result.ok) return res.status(400).json({ error: result.error });
-            const updated = { tarotDeck: result.deck, meleeDeck: result.deck, shipDeck: result.deck };
+            const sortedDeck = sortDeckByCardNumber(result.deck, catalogCache);
+            const updated = { tarotDeck: sortedDeck, meleeDeck: sortedDeck, shipDeck: sortedDeck };
             if (!result.unchanged) {
-                await writeDecks(playFabId, { tarotDeck: result.deck }, promisifyPlayFab, PlayFabServer);
+                await writeDecks(playFabId, { tarotDeck: sortedDeck }, promisifyPlayFab, PlayFabServer);
             }
             return res.json({ ok: true, ...buildDeckResponse(updated) });
         } catch (error) {
@@ -336,6 +376,7 @@ module.exports = {
     equipCardToDeck,
     unequipCardFromDeck,
     moveCardInDeck,
+    sortDeckByCardNumber,
     buildDeckRoleCards,
     evaluateDeckRole,
     initializeTarotDeckRoutes

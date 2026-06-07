@@ -1604,7 +1604,7 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({
         ok: true,
-        tarotDeck: ['tarot_major_sword_5', 'tarot_minor_cup_10'],
+        tarotDeck: ['tarot_minor_cup_10', 'tarot_major_sword_5'],
         tarotRole: null
       })
     });
@@ -1642,6 +1642,7 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
   await expect(page.locator('#inventoryGrid .tarot-number-badge.is-cup')).toHaveText('10');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-sword')).toHaveText('5');
   await expect(page.locator('#meleeDeckGrid .tarot-loadout-visual .tarot-number-badge.is-cup')).toHaveText('10');
+  await expect(page.locator('#meleeDeckGrid .tarot-loadout-card:not(.is-empty) .tarot-number-badge')).toHaveText(['5', '10']);
 
   const badgeStyles = await page.evaluate(() => {
     const read = (selector) => {

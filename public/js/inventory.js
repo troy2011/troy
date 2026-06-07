@@ -402,6 +402,44 @@ function getInventoryItemByReference(itemRef) {
         || null;
 }
 
+function getTarotDeckCardNumberValue(item) {
+    const cd = item?.customData || {};
+    const category = getCanonicalTarotCategory(cd.Category);
+    if (category === 'TarotMajor') {
+        const number = Number(cd.ArcanaNumber ?? cd.CardNumber);
+        return Number.isFinite(number) ? number : 999;
+    }
+    if (category === 'TarotMinor') {
+        const raw = String(cd.ArcanaRank || cd.Rank || cd.CardRank || cd.CardNumber || '').trim();
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed)) return parsed;
+        const faceOrder = {
+            A: 1,
+            ACE: 1,
+            PAGE: 11,
+            KNIGHT: 12,
+            QUEEN: 13,
+            KING: 14
+        };
+        return faceOrder[raw.toUpperCase()] || 999;
+    }
+    return 999;
+}
+
+function sortTarotDeckItemIds(deckItemIds) {
+    return (Array.isArray(deckItemIds) ? deckItemIds : [])
+        .map((itemId, index) => ({ itemId: String(itemId || '').trim(), index }))
+        .filter((entry) => entry.itemId)
+        .sort((left, right) => {
+            const leftItem = getInventoryItemByReference(left.itemId);
+            const rightItem = getInventoryItemByReference(right.itemId);
+            const numberDiff = getTarotDeckCardNumberValue(leftItem) - getTarotDeckCardNumberValue(rightItem);
+            if (numberDiff !== 0) return numberDiff;
+            return left.index - right.index;
+        })
+        .map((entry) => entry.itemId);
+}
+
 function getDisplayInventoryEntries() {
     return [...myInventory];
 }
@@ -419,7 +457,7 @@ function isCardInTarotDeck(itemId) {
 }
 
 function getCommonTarotDeck() {
-    return Array.isArray(myMeleeDeck) ? myMeleeDeck : [];
+    return sortTarotDeckItemIds(myMeleeDeck);
 }
 
 function getCommonTarotRole() {
@@ -427,13 +465,13 @@ function getCommonTarotRole() {
 }
 
 function applyTarotDeckData(deckData) {
-    const commonDeck = Array.isArray(deckData?.tarotDeck)
+    const commonDeck = sortTarotDeckItemIds(Array.isArray(deckData?.tarotDeck)
         ? deckData.tarotDeck
         : Array.isArray(deckData?.meleeDeck)
             ? deckData.meleeDeck
             : Array.isArray(deckData?.shipDeck)
                 ? deckData.shipDeck
-                : [];
+                : []);
     const commonRole = deckData?.tarotRole || deckData?.meleeRole || deckData?.shipRole || null;
     myMeleeDeck = commonDeck;
     myShipDeck = commonDeck;
