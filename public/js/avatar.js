@@ -114,10 +114,17 @@ function normalizeAvatarColor(value) {
     const aliasMap = {
         fire: 'red',
         water: 'blue',
-        wind: 'yellow',
+        wind: 'purple',
         earth: 'yellow'
     };
     return aliasMap[raw] || raw;
+}
+
+function resolveAvatarBaseSpriteColor(race, value) {
+    const color = normalizeAvatarColor(value) || 'brown';
+    const raceKey = String(race || '').trim().toLowerCase();
+    if (raceKey === 'elf' && color === 'yellow') return 'purple';
+    return color;
 }
 
 export function resolveSpritePathByAvatarColor(spritePath, itemCategory = null, avatarColor = null) {
@@ -416,7 +423,7 @@ export function preloadAvatarBaseSprites(avatarBase) {
     if (!avatarBase) return;
     const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
     const race = (Race || 'human').toLowerCase();
-    const color = AvatarColor || 'brown';
+    const color = resolveAvatarBaseSpriteColor(race, AvatarColor);
     const skinIndex = SkinColorIndex || 1;
     const faceIdx = (FaceIndex || 1) - 1;
     const hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;
@@ -560,14 +567,14 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth, spriteHeight, itemCategory, markLayerReady, layerAvatarColor);
     };
     const avatarColor = avatarBase
-        ? (avatarBase.AvatarColor || 'brown')
+        ? resolveAvatarBaseSpriteColor(avatarBase.Race, avatarBase.AvatarColor)
         : (window.myAvatarBaseInfo?.AvatarColor || null);
 
     // 1. 素体の描画
     if (avatarBase) {
         const { Race, AvatarColor, SkinColorIndex, FaceIndex, HairStyleIndex, FacialHairStyleIndex, level } = avatarBase;
         const race = (Race || 'human').toLowerCase();
-        const color = AvatarColor || 'brown';
+        const color = resolveAvatarBaseSpriteColor(race, AvatarColor);
         const skinIndex = SkinColorIndex || 1;
         const faceIdx = (FaceIndex || 1) - 1;
         let hairIdx = (level >= FEATURE_UNLOCK_LEVELS.hairVisible && HairStyleIndex) ? (HairStyleIndex - 1) : -1;

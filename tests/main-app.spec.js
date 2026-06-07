@@ -1670,6 +1670,46 @@ test('facial hair unlocks at level 21 and salon actions update the layer', async
   await expectNoPageErrors(errors);
 });
 
+test('elf avatar uses purple base sprites when stored color is yellow', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const yellowElfSpriteRequests = [];
+  page.on('request', (request) => {
+    const url = request.url();
+    if (url.includes('/Sprites/Characters/elf/') && url.includes('_yellow.png')) {
+      yellowElfSpriteRequests.push(url);
+    }
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    window.myAvatarBaseInfo = {
+      ...(window.myAvatarBaseInfo || {}),
+      Race: 'Elf',
+      AvatarColor: 'yellow',
+      SkinColorIndex: 1,
+      FaceIndex: 1,
+      HairStyleIndex: 1,
+      FacialHairStyleIndex: 1,
+      level: 21
+    };
+    const { preloadAvatarBaseSprites, renderAvatar } = await import('/js/avatar.js');
+    preloadAvatarBaseSprites(window.myAvatarBaseInfo);
+    renderAvatar('home-avatar', window.myAvatarBaseInfo, {}, {}, false);
+  });
+
+  await expect.poll(async () => page.locator('#home-avatar-layer-body').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('body_purple.png');
+  await expect.poll(async () => page.locator('#home-avatar-layer-hair').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('elf_hair_purple.png');
+  await expect.poll(async () => page.locator('#home-avatar-layer-facial-hair').evaluate((layer) => (
+    window.getComputedStyle(layer).backgroundImage
+  ))).toContain('elf_facialhair_purple.png');
+  expect(yellowElfSpriteRequests).toHaveLength(0);
+  await expectNoPageErrors(errors);
+});
+
 test('tarot deck and list show suit-colored number badges at the upper left', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
