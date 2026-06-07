@@ -495,6 +495,61 @@ test('home tab replaces HP and MP recovery controls with compact stat chips', as
   await expectNoPageErrors(errors);
 });
 
+test('home ship evolution button stays inside the ship panel', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: {
+          form: 'boat',
+          name: 'Test Ship',
+          upgradeOptions: ['explorer'],
+          upgradeCosts: {
+            explorer: [{ ItemId: 'PS', Amount: 1000 }]
+          }
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const ship = await import('/js/ship.js');
+    await ship.loadPlayerShipProfile('PF_PLAYWRIGHT');
+  });
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeVisible();
+
+  const layout = await page.locator('#homePlayerShipFrame').evaluate((panel) => {
+    const button = panel.querySelector('[data-player-ship-evolve]');
+    const panelRect = panel.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const panelStyle = window.getComputedStyle(panel);
+    return {
+      panelTop: panelRect.top,
+      panelRight: panelRect.right,
+      panelBottom: panelRect.bottom,
+      panelLeft: panelRect.left,
+      buttonTop: buttonRect.top,
+      buttonRight: buttonRect.right,
+      buttonBottom: buttonRect.bottom,
+      buttonLeft: buttonRect.left,
+      computedTop: panelStyle.top,
+      computedRight: panelStyle.right
+    };
+  });
+
+  expect(layout.computedTop).toBe('-108px');
+  expect(layout.computedRight).toBe('9px');
+  expect(layout.buttonTop).toBeGreaterThanOrEqual(layout.panelTop + 2);
+  expect(layout.buttonLeft).toBeGreaterThanOrEqual(layout.panelLeft + 2);
+  expect(layout.buttonRight).toBeLessThanOrEqual(layout.panelRight - 2);
+  expect(layout.buttonBottom).toBeLessThanOrEqual(layout.panelBottom - 2);
+  await expectNoPageErrors(errors);
+});
+
 test('home exploration button loads exploration data in a popup', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusBody = null;
