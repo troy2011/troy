@@ -6,15 +6,17 @@ test('staff register creates a checkout from an in-store member and settles with
     troyOpen: true,
     nation: 'fire',
     troyTodaySales: {
-      total: 2200,
-      count: 2,
+      total: 2700,
+      count: 3,
       categories: [
         { categoryId: 'beer', name: 'ビール・ハイボール', quantity: 2, total: 1400 },
-        { categoryId: 'custom', name: '裏メニュー', quantity: 1, total: 800 }
+        { categoryId: 'custom', name: '裏メニュー', quantity: 1, total: 800 },
+        { categoryId: 'entry', name: 'チャージ', quantity: 1, total: 500 }
       ],
       items: [
         { name: '瓶ビール（ハートランド）', quantity: 2, total: 1400 },
-        { name: '裏メニュー', quantity: 1, total: 800 }
+        { name: '裏メニュー', quantity: 1, total: 800 },
+        { name: '入店チャージ', quantity: 1, total: 500 }
       ]
     },
     troyCoinConversionLogs: [],
@@ -126,7 +128,11 @@ test('staff register creates a checkout from an in-store member and settles with
   await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
 
   await expect(page.locator('h1')).toHaveText('会計レジ');
-  await expect(page.locator('#troyOrdersTodaySales')).toHaveText('¥2,200');
+  await expect(page.locator('#troyOrdersTodaySales')).toHaveText('¥2,700');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('マスター取り分');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('¥1,100');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('ディーラー取り分');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('¥500');
   await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('カテゴリ別売上');
   await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('商品別売上');
   await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('ビール・ハイボール');

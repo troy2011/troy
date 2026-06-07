@@ -13874,6 +13874,55 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     gap: 12px;
 }
 
+.troy-orders-payouts {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.troy-orders-payout-card {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    padding: 13px 14px;
+    border: 1px solid rgba(226, 179, 90, 0.26);
+    border-radius: 8px;
+    background: rgba(255, 226, 151, 0.1);
+}
+
+.troy-orders-payout-card span {
+    color: #d8bd80;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.troy-orders-payout-card strong {
+    color: #ffe0a0;
+    font-size: 28px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.troy-orders-payout-card em {
+    min-width: 0;
+    overflow: hidden;
+    color: #bda16a;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-payout-card.is-master strong {
+    color: #9ef7b0;
+}
+
+.troy-orders-payout-card.is-dealer strong {
+    color: #ffd67b;
+}
+
 .troy-orders-sales-column {
     min-width: 0;
     display: grid;
@@ -15184,6 +15233,14 @@ body.is-new-order-flash::before {
 
     .troy-orders-sales-breakdown {
         grid-template-columns: 1fr;
+    }
+
+    .troy-orders-payouts {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-payout-card em {
+        white-space: normal;
     }
 
     .troy-orders-sales-row {

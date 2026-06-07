@@ -163,13 +163,43 @@ function normalizeSalesSummaryRows(rows = []) {
     return (Array.isArray(rows) ? rows : [])
         .map((row) => {
             const name = String(row?.name || row?.label || '').trim();
+            const categoryId = String(row?.categoryId || row?.id || '').trim().toLowerCase();
             const quantity = Math.max(0, Math.floor(Number(row?.quantity) || 0));
             const total = Math.max(0, Math.floor(Number(row?.total) || 0));
             if (!name || quantity <= 0 || total <= 0) return null;
-            return { name, quantity, total };
+            return { categoryId, name, quantity, total };
         })
         .filter(Boolean)
         .sort((a, b) => (b.total - a.total) || (b.quantity - a.quantity) || a.name.localeCompare(b.name, 'ja'));
+}
+
+function buildSalesPayouts(sales = {}, categories = [], items = []) {
+    const total = Math.max(0, Math.floor(Number(sales.total) || 0));
+    const raw = sales.payouts && typeof sales.payouts === 'object' ? sales.payouts : null;
+    if (raw) {
+        return {
+            total,
+            chargeTotal: Math.max(0, Math.floor(Number(raw.chargeTotal ?? raw.dealerShare) || 0)),
+            nonChargeTotal: Math.max(0, Math.floor(Number(raw.nonChargeTotal) || 0)),
+            masterShare: Math.max(0, Math.floor(Number(raw.masterShare) || 0)),
+            dealerShare: Math.max(0, Math.floor(Number(raw.dealerShare ?? raw.chargeTotal) || 0))
+        };
+    }
+    const categoryChargeTotal = categories
+        .filter((row) => row.categoryId === 'entry' || row.name === 'チャージ')
+        .reduce((sum, row) => sum + row.total, 0);
+    const itemChargeTotal = categoryChargeTotal > 0
+        ? 0
+        : items.filter((row) => row.name === '入店チャージ').reduce((sum, row) => sum + row.total, 0);
+    const dealerShare = Math.min(total, categoryChargeTotal + itemChargeTotal);
+    const nonChargeTotal = Math.max(0, total - dealerShare);
+    return {
+        total,
+        chargeTotal: dealerShare,
+        nonChargeTotal,
+        masterShare: Math.floor(nonChargeTotal / 2),
+        dealerShare
+    };
 }
 
 function renderSalesList(rows, emptyText) {
@@ -192,13 +222,26 @@ function renderSalesBreakdown(sales = {}) {
     const panel = $('troyOrdersSalesPanel');
     const categories = normalizeSalesSummaryRows(sales.categories);
     const items = normalizeSalesSummaryRows(sales.items);
-    const hasRows = categories.length > 0 || items.length > 0;
+    const payouts = buildSalesPayouts(sales, categories, items);
+    const hasRows = payouts.total > 0 || categories.length > 0 || items.length > 0;
     if (panel) panel.hidden = !hasRows;
     if (!hasRows) {
         el.innerHTML = '';
         return;
     }
     el.innerHTML = `
+        <section class="troy-orders-payouts">
+            <div class="troy-orders-payout-card is-master">
+                <span>マスター取り分</span>
+                <strong>${formatYen(payouts.masterShare)}</strong>
+                <em>チャージ除外売上 ${formatYen(payouts.nonChargeTotal)} の半分</em>
+            </div>
+            <div class="troy-orders-payout-card is-dealer">
+                <span>ディーラー取り分</span>
+                <strong>${formatYen(payouts.dealerShare)}</strong>
+                <em>チャージ代 ${formatYen(payouts.chargeTotal)}</em>
+            </div>
+        </section>
         <section class="troy-orders-sales-column">
             <div class="troy-orders-sales-column-head">
                 <strong>カテゴリ別売上</strong>

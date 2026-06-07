@@ -502,6 +502,35 @@ function buildTroySalesBreakdownsFromItems(items = []) {
     };
 }
 
+function getTroyChargeSalesTotal(sales = {}) {
+    const categoryRows = Array.isArray(sales.categories) ? sales.categories : [];
+    const itemRows = Array.isArray(sales.items) ? sales.items : [];
+    const categoryChargeTotal = categoryRows
+        .map(normalizeTroySalesCategoryRow)
+        .filter(Boolean)
+        .filter((row) => row.categoryId === 'entry' || row.name === 'チャージ')
+        .reduce((sum, row) => sum + Math.max(0, Math.floor(Number(row.total) || 0)), 0);
+    if (categoryChargeTotal > 0) return categoryChargeTotal;
+    return itemRows
+        .map(normalizeTroySalesItemRow)
+        .filter(Boolean)
+        .filter((row) => row.name === TROY_ENTRY_CHARGE_ITEM_NAME)
+        .reduce((sum, row) => sum + Math.max(0, Math.floor(Number(row.total) || 0)), 0);
+}
+
+function buildTroySalesPayouts(sales = {}) {
+    const total = Math.max(0, Math.floor(Number(sales.total) || 0));
+    const dealerShare = Math.min(total, getTroyChargeSalesTotal(sales));
+    const nonChargeTotal = Math.max(0, total - dealerShare);
+    return {
+        total,
+        chargeTotal: dealerShare,
+        nonChargeTotal,
+        masterShare: Math.floor(nonChargeTotal / 2),
+        dealerShare
+    };
+}
+
 function formatTroyCloseSummaryMessage(summary = {}) {
     const sales = summary.sales || {};
     const pending = summary.pending || {};
@@ -513,6 +542,7 @@ function formatTroyCloseSummaryMessage(summary = {}) {
     const pendingTotal = Math.max(0, Math.floor(Number(pending.total) || 0));
     const pendingCount = Math.max(0, Math.floor(Number(pending.count) || 0));
     const recordedTotal = settledTotal + pendingTotal;
+    const payouts = sales.payouts || buildTroySalesPayouts(sales);
     const settledCategoryLines = settledCategories
         .slice(0, 6)
         .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
@@ -527,6 +557,7 @@ function formatTroyCloseSummaryMessage(summary = {}) {
         `営業日: ${summary.dayKey || getTroyBusinessDayKey()}`,
         `国: ${getNationLabel(summary.nation) || summary.nation || '-'}`,
         `会計済売上: ${formatTroyMoney(settledTotal)} / ${settledCount}伝票`,
+        `取り分: マスター ${formatTroyMoney(payouts.masterShare)} / ディーラー ${formatTroyMoney(payouts.dealerShare)}`,
         `未会計伝票: ${pendingCount}件 / ${formatTroyMoney(pendingTotal)}`,
         `記録合計: ${formatTroyMoney(recordedTotal)}`,
         `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`
@@ -856,6 +887,7 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
     let nextCount = 1;
     let nextItems = [];
     let nextCategories = [];
+    let nextPayouts = buildTroySalesPayouts({ total: value, items: addedBreakdowns.items, categories: addedBreakdowns.categories });
     await firestore.runTransaction(async (tx) => {
         const snap = await tx.get(docRef);
         const data = snap.data() || {};
@@ -886,8 +918,9 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
             troyTodaySalesCategories: nextCategories,
             troyTodaySalesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+        nextPayouts = buildTroySalesPayouts({ total: nextTotal, items: nextItems, categories: nextCategories });
     });
-    return { dayKey, total: nextTotal, count: nextCount, items: nextItems, categories: nextCategories };
+    return { dayKey, total: nextTotal, count: nextCount, items: nextItems, categories: nextCategories, payouts: nextPayouts };
 }
 
 async function incrementTroyDailyOrderCount(nation, playFabId, firestore, admin) {
@@ -948,30 +981,36 @@ function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
         || getTroyBusinessDayKey(options.date || new Date());
     const storedDayKey = String(groupData?.troyTodaySalesDayKey || '').trim();
     if (storedDayKey === todayDayKey) {
-        return {
+        const snapshotItems = sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesItems) ? groupData.troyTodaySalesItems : [])
+            .map(normalizeTroySalesItemRow)
+            .filter(Boolean));
+        const snapshotCategories = sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesCategories) ? groupData.troyTodaySalesCategories : [])
+            .map(normalizeTroySalesCategoryRow)
+            .filter(Boolean));
+        const snapshot = {
             dayKey: todayDayKey,
             total: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesTotal) || 0)),
             count: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesCount) || 0)),
-            items: sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesItems) ? groupData.troyTodaySalesItems : [])
-                .map(normalizeTroySalesItemRow)
-                .filter(Boolean)),
-            categories: sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesCategories) ? groupData.troyTodaySalesCategories : [])
-                .map(normalizeTroySalesCategoryRow)
-                .filter(Boolean))
+            items: snapshotItems,
+            categories: snapshotCategories
         };
+        snapshot.payouts = buildTroySalesPayouts(snapshot);
+        return snapshot;
     }
     const fallbackEntries = Array.isArray(groupData?.treasuryRecentEntries) ? groupData.treasuryRecentEntries : [];
     const troyEntries = fallbackEntries
         .map((entry) => buildTreasuryRecentEntry(entry))
         .filter((entry) => entry.direction === 'in' && ['troy_settlement', 'troy_order'].includes(entry.source))
         .filter((entry) => getTroyBusinessDayKey(new Date(entry.timestampMs || 0)) === todayDayKey);
-    return {
+    const fallbackSnapshot = {
         dayKey: todayDayKey,
         total: troyEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
         count: troyEntries.length,
         items: [],
         categories: []
     };
+    fallbackSnapshot.payouts = buildTroySalesPayouts(fallbackSnapshot);
+    return fallbackSnapshot;
 }
 
 function buildTreasuryOverview(entries = []) {
@@ -5446,6 +5485,7 @@ module.exports = {
     getTroyBusinessDayKey,
     buildTroyTodaySalesSnapshot,
     buildTroySalesBreakdownsFromItems,
+    buildTroySalesPayouts,
     buildTroyUsualItemsPayload,
     mergeTroyOrderHistoryItems,
     formatTroyCloseSummaryMessage,
