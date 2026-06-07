@@ -1116,6 +1116,38 @@ function getPlayerShipClassName(form) {
     return `home-player-ship-icon is-${key}`;
 }
 
+function withPlayerShipStatusContext(status, fallbackPlayFabId) {
+    const ship = status?.ship || null;
+    if (!ship) return null;
+    const isSharedShip = Boolean(ship.isSharedShip ?? status?.isSharedShip);
+    return {
+        ...ship,
+        shipOwnerPlayFabId: ship.shipOwnerPlayFabId || status?.shipOwnerPlayFabId || fallbackPlayFabId || null,
+        isSharedShip,
+        guildId: ship.guildId || status?.guildId || null,
+        guildName: ship.guildName || status?.guildName || '',
+        captainName: ship.captainName || status?.captainName || ''
+    };
+}
+
+function isSharedPlayerShipProfile(ship) {
+    return Boolean(ship?.isSharedShip || ship?.sharedForPlayFabId);
+}
+
+function getPlayerShipOwnerLabel(ship) {
+    if (!isSharedPlayerShipProfile(ship)) return '自分の船';
+    const ownerName = String(
+        ship?.captainName
+        || ship?.ownerDisplayName
+        || ship?.ownerName
+        || ship?.guildCaptainName
+        || ''
+    ).trim();
+    if (ownerName) return `${ownerName}の船`;
+    const guildName = String(ship?.guildName || '').trim();
+    return guildName ? `${guildName}の船` : '仲間の船';
+}
+
 function clearHomePlayerShipTapAnimation(icon) {
     if (homePlayerShipTapTimer) {
         window.clearTimeout(homePlayerShipTapTimer);
@@ -1280,27 +1312,33 @@ function renderPlayerShipWidget(ship) {
     const form = normalizePlayerShipForm(ship?.form);
     const label = PLAYER_SHIP_LABELS[form] || 'ボート';
     const shipName = String(ship?.name || label).trim() || label;
+    const isSharedShip = isSharedPlayerShipProfile(ship);
+    const ownerLabel = getPlayerShipOwnerLabel(ship);
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
     const evolveCostLabel = getShipEvolutionButtonCostLabel(upgrades, upgradeCosts);
+    container.classList.toggle('is-shared-ship', isSharedShip);
     container.innerHTML = `
+        <div class="home-player-ship-owner" data-player-ship-owner>${escapeHtml(ownerLabel)}</div>
         <div class="home-player-ship-head">
-            <button type="button" class="home-player-ship-name" data-player-ship-rename>${escapeHtml(shipName)}</button>
+            <button type="button" class="home-player-ship-name" data-player-ship-rename ${isSharedShip ? 'disabled aria-disabled="true"' : ''}>${escapeHtml(shipName)}</button>
         </div>
         <div class="home-player-ship-body">
             <div class="${getPlayerShipClassName(form)}" data-player-ship-tap role="button" tabindex="0" aria-label="船を動かす"></div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
-                <button type="button" data-player-ship-evolve>
+                <button type="button" data-player-ship-evolve ${isSharedShip ? 'disabled aria-disabled="true"' : ''}>
                     <span class="home-player-ship-evolve-main">進化</span>
                     ${evolveCostLabel ? `<span class="home-player-ship-evolve-cost">${escapeHtml(evolveCostLabel)}</span>` : ''}
                 </button>
             </div>
         ` : '<div class="home-player-ship-final">完成</div>'}
     `;
-    container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
-    container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
+    if (!isSharedShip) {
+        container.querySelector('[data-player-ship-evolve]')?.addEventListener('click', () => showShipEvolutionChoice(upgrades, upgradeCosts));
+        container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
+    }
     const shipIcon = container.querySelector('[data-player-ship-tap]');
     shipIcon?.addEventListener('click', triggerHomePlayerShipTapAnimation);
     shipIcon?.addEventListener('keydown', handleHomePlayerShipTapKeydown);
@@ -1309,6 +1347,10 @@ function renderPlayerShipWidget(ship) {
 async function renamePlayerShipProfile() {
     const playFabId = window.myPlayFabId;
     if (!playFabId || !currentPlayerShipProfile) return;
+    if (isSharedPlayerShipProfile(currentPlayerShipProfile)) {
+        showRpgMessage('他プレイヤーの船は名前を変更できません。');
+        return;
+    }
     const currentName = String(currentPlayerShipProfile.name || '').trim();
     const input = window.prompt('船の名前を入力してください（16文字まで）', currentName);
     if (input === null) return;
@@ -1323,7 +1365,7 @@ async function renamePlayerShipProfile() {
     }
     try {
         const data = await requestRenamePlayerShip(playFabId, name, { throwOnError: true });
-        renderPlayerShipWidget(data?.ship || null);
+        renderPlayerShipWidget(withPlayerShipStatusContext(data, playFabId));
         showRpgMessage(`船の名前を「${name}」にしました。`);
     } catch (error) {
         showRpgMessage(error?.message || '船の名前を変更できませんでした。');
@@ -1381,11 +1423,15 @@ export async function loadPlayerShipProfile(playFabId) {
     if (!playFabId) return null;
     try {
         const data = await requestPlayerShipStatus(playFabId, { isSilent: true, throwOnError: true });
-        renderPlayerShipWidget(data?.ship || null);
-        return data?.ship || null;
+        const ship = withPlayerShipStatusContext(data, playFabId);
+        renderPlayerShipWidget(ship);
+        return ship;
     } catch (error) {
         const container = document.getElementById('homePlayerShipFrame');
-        if (container) container.innerHTML = '<div class="home-player-ship-empty">船情報を読み込めませんでした。</div>';
+        if (container) {
+            container.classList.remove('is-shared-ship');
+            container.innerHTML = '<div class="home-player-ship-empty">船情報を読み込めませんでした。</div>';
+        }
         return null;
     }
 }
@@ -1393,12 +1439,17 @@ export async function loadPlayerShipProfile(playFabId) {
 async function upgradePlayerShipProfile(targetForm) {
     const playFabId = window.myPlayFabId;
     if (!playFabId || !targetForm) return;
+    if (isSharedPlayerShipProfile(currentPlayerShipProfile)) {
+        showRpgMessage('他プレイヤーの船は進化できません。');
+        return;
+    }
     const label = PLAYER_SHIP_LABELS[targetForm] || targetForm;
     if (!window.confirm(`${label}へ進化します。よろしいですか？`)) return;
     try {
         const beforeShip = currentPlayerShipProfile;
         const data = await requestUpgradePlayerShip(playFabId, targetForm, createRequestId('player-ship-upgrade'), { throwOnError: true });
-        renderPlayerShipWidget(data?.ship || null);
+        const ship = withPlayerShipStatusContext(data, playFabId);
+        renderPlayerShipWidget(ship);
         showShipEvolutionReveal(beforeShip, data?.ship || { form: targetForm });
         await loadExplorationPanel(playFabId);
         showRpgMessage(`船が${label}へ進化しました。`);

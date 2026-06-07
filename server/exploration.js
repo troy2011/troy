@@ -972,7 +972,8 @@ function initializeExplorationRoutes(app, deps) {
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
                     guildId: shipContext.guildId,
-                    guildName: shipContext.guildName
+                    guildName: shipContext.guildName,
+                    captainName: shipContext.captainName
                 }
             });
         } catch (error) {
@@ -988,6 +989,9 @@ function initializeExplorationRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const shipContext = await resolveGuildShipContext(playFabId, deps);
+            if (shipContext.isSharedShip) {
+                return res.status(403).json({ error: '他プレイヤーの船は進化できません。' });
+            }
             const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
             const current = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
             const allowed = resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[current.form] || [];
@@ -1039,7 +1043,8 @@ function initializeExplorationRoutes(app, deps) {
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
                     guildId: shipContext.guildId,
-                    guildName: shipContext.guildName
+                    guildName: shipContext.guildName,
+                    captainName: shipContext.captainName
                 },
                 costs
             });
@@ -1063,6 +1068,9 @@ function initializeExplorationRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const shipContext = await resolveGuildShipContext(playFabId, deps);
+            if (shipContext.isSharedShip) {
+                return res.status(403).json({ error: '他プレイヤーの船は名前を変更できません。' });
+            }
             const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
             const ship = await resourceStorage.renamePlayerShipProfile(shipOwnerPlayFabId, name, { promisifyPlayFab, PlayFabServer });
             res.json({
@@ -1072,7 +1080,8 @@ function initializeExplorationRoutes(app, deps) {
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
                     guildId: shipContext.guildId,
-                    guildName: shipContext.guildName
+                    guildName: shipContext.guildName,
+                    captainName: shipContext.captainName
                 }
             });
         } catch (error) {

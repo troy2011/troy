@@ -545,6 +545,7 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
     await ship.loadPlayerShipProfile('PF_PLAYWRIGHT');
   });
   await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeVisible();
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-owner]')).toHaveText('自分の船');
 
   const layout = await page.locator('#homePlayerShipFrame').evaluate((panel) => {
     const button = panel.querySelector('[data-player-ship-evolve]');
@@ -571,6 +572,43 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
   expect(layout.buttonLeft).toBeGreaterThanOrEqual(layout.panelLeft + 2);
   expect(layout.buttonRight).toBeLessThanOrEqual(layout.panelRight - 2);
   expect(layout.buttonBottom).toBeLessThanOrEqual(layout.panelBottom - 2);
+  await expectNoPageErrors(errors);
+});
+
+test('home shared guild ship shows owner label and disables evolution', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: {
+          form: 'fighter',
+          name: 'Shared Ship',
+          shipOwnerPlayFabId: 'PF_CAPTAIN',
+          isSharedShip: true,
+          guildId: 'guild-test',
+          guildName: 'テスト海賊団',
+          captainName: 'テスト船長',
+          upgradeOptions: ['merchant'],
+          upgradeCosts: {
+            merchant: [{ ItemId: 'PS', Amount: 1000 }]
+          }
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const ship = await import('/js/ship.js');
+    await ship.loadPlayerShipProfile('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-owner]')).toHaveText('テスト船長の船');
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeDisabled();
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-rename]')).toBeDisabled();
   await expectNoPageErrors(errors);
 });
 
