@@ -215,8 +215,15 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersConfirmModal')).toBeVisible();
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('チップ返却');
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('300G');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('瓶ビール（ハートランド）');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('裏メニュー');
 
+  await page.locator('#troyOrdersReceivedAmount').fill('2000');
+  await expect(page.locator('#troyOrdersChangeAmount')).toHaveText('不足 ¥900');
   await page.locator('#troyOrdersConfirmCheck').check();
+  await expect(page.locator('#troyOrdersConfirmSubmit')).toBeDisabled();
+  await page.locator('#troyOrdersReceivedAmount').fill('3000');
+  await expect(page.locator('#troyOrdersChangeAmount')).toHaveText('¥100');
   await page.locator('#troyOrdersConfirmSubmit').click();
 
   expect(settleRequests).toHaveLength(1);
@@ -368,7 +375,11 @@ test('staff register can settle grouped customer tickets together', async ({ pag
   await expect(page.locator('#troyOrdersConfirmTotal')).toHaveText('¥1,700');
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('海風の船長');
   await expect(page.locator('#troyOrdersConfirmItems')).toContainText('港町の料理人');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('ハイボール（角） M');
+  await expect(page.locator('#troyOrdersConfirmItems')).toContainText('瓶ビール');
 
+  await page.locator('#troyOrdersReceivedAmount').fill('2000');
+  await expect(page.locator('#troyOrdersChangeAmount')).toHaveText('¥300');
   await page.locator('#troyOrdersConfirmCheck').check();
   await page.locator('#troyOrdersConfirmSubmit').click();
 
@@ -584,6 +595,8 @@ test('staff register can group tickets by dragging and ungroup locally', async (
   await page.locator('#troyOrdersTicketDetail [data-settle]').click();
   await expect(page.locator('#troyOrdersConfirmName')).toHaveText('グループ会計（2名）');
   await expect(page.locator('#troyOrdersConfirmTotal')).toHaveText('¥1,700');
+  await page.locator('#troyOrdersReceivedAmount').fill('2000');
+  await expect(page.locator('#troyOrdersChangeAmount')).toHaveText('¥300');
   await page.locator('#troyOrdersConfirmCheck').check();
   await page.locator('#troyOrdersConfirmSubmit').click();
 

@@ -14803,9 +14803,9 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 .troy-orders-confirm-panel {
     width: min(620px, calc(100vw - 28px));
-    max-height: 88vh;
+    max-height: 92vh;
     overflow: auto;
-    padding: 22px;
+    padding: 18px;
     border: 30px solid transparent;
     border-image: url('/assets/ui/panels/panel-parchment-large.png') 36 fill / 30px / 0 stretch;
     color: #2d1b0b;
@@ -14825,12 +14825,12 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-confirm-total {
-    margin: 16px 0;
-    padding: 18px;
+    margin: 12px 0;
+    padding: 14px;
     border-radius: 8px;
     background: rgba(112, 69, 26, 0.13);
     color: #4b2108;
-    font-size: 48px;
+    font-size: 44px;
     font-weight: 1000;
     text-align: center;
 }
@@ -14838,7 +14838,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 .troy-orders-confirm-items {
     display: grid;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .troy-orders-confirm-items div {
@@ -14850,13 +14850,147 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     font-size: 14px;
 }
 
+.troy-orders-confirm-items .troy-orders-confirm-customer-row {
+    align-items: center;
+    min-height: 34px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(92, 58, 23, 0.16);
+    color: #2c1809;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.troy-orders-confirm-items .troy-orders-confirm-item-row {
+    align-items: center;
+    padding: 6px 2px;
+    border-bottom: 1px solid rgba(91, 61, 28, 0.16);
+}
+
+.troy-orders-confirm-items .troy-orders-confirm-item-row span {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.troy-orders-confirm-items .troy-orders-confirm-item-row b {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.troy-orders-confirm-items .troy-orders-confirm-item-row em {
+    flex: 0 0 auto;
+    color: #8a5d2c;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.troy-orders-confirm-items .troy-orders-confirm-chip-row {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(30, 87, 67, 0.14);
+    color: #143d2f;
+    font-weight: 900;
+}
+
+.troy-orders-payment-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(170px, 0.72fr);
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid rgba(91, 61, 28, 0.24);
+    border-radius: 8px;
+    background: rgba(255, 244, 211, 0.38);
+}
+
+.troy-orders-payment-input {
+    display: grid;
+    gap: 6px;
+    color: #4c2a10;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.troy-orders-payment-input input {
+    width: 100%;
+    min-height: 50px;
+    border: 2px solid rgba(91, 61, 28, 0.28);
+    border-radius: 8px;
+    background: rgba(255, 253, 242, 0.92);
+    color: #241304;
+    font-size: 28px;
+    font-weight: 1000;
+    text-align: right;
+}
+
+.troy-orders-payment-presets {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.troy-orders-payment-presets button {
+    min-height: 40px;
+    border: 0;
+    border-radius: 8px;
+    background: #684021;
+    color: #fff0c8;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.troy-orders-change-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(49, 30, 12, 0.11);
+}
+
+.troy-orders-change-row span {
+    color: #5f3717;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.troy-orders-change-row strong {
+    color: #1c5f41;
+    font-size: 32px;
+    font-weight: 1000;
+}
+
+.troy-orders-change-row strong.is-shortage {
+    color: #a12b1f;
+}
+
+.troy-orders-payment-note {
+    min-height: 20px;
+    margin: 0;
+    color: #5f3717;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.troy-orders-payment-note.is-shortage {
+    color: #a12b1f;
+}
+
 .troy-orders-confirm-check {
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 48px;
-    margin: 12px 0 16px;
-    padding: 12px;
+    margin: 10px 0 12px;
+    padding: 10px;
     border: 1px solid rgba(91, 61, 28, 0.28);
     border-radius: 8px;
     background: rgba(255, 244, 211, 0.42);
@@ -14876,7 +15010,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 }
 
 .troy-orders-confirm-actions button {
-    min-height: 54px;
+    min-height: 50px;
     border: 0;
     border-radius: 8px;
     font-size: 17px;
@@ -14983,6 +15117,23 @@ body.is-new-order-flash::before {
 
     .troy-orders-total-wrap {
         text-align: left;
+    }
+
+    .troy-orders-confirm-total {
+        font-size: 40px;
+    }
+
+    .troy-orders-payment-presets {
+        grid-column: auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .troy-orders-payment-box {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-change-row strong {
+        font-size: 28px;
     }
 
     .troy-orders-item-row {

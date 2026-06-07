@@ -85,13 +85,25 @@
 
     <div id="troyOrdersConfirmModal" class="troy-orders-confirm" hidden>
         <div class="troy-orders-confirm-panel">
-            <div class="troy-orders-confirm-kicker">会計確認</div>
+            <div class="troy-orders-confirm-kicker">お客様確認</div>
             <h2 id="troyOrdersConfirmName">-</h2>
             <div id="troyOrdersConfirmTotal" class="troy-orders-confirm-total">¥0</div>
             <div id="troyOrdersConfirmItems" class="troy-orders-confirm-items"></div>
+            <section class="troy-orders-payment-box">
+                <label class="troy-orders-payment-input">
+                    <span>預かり金額</span>
+                    <input id="troyOrdersReceivedAmount" type="number" min="0" step="100" inputmode="numeric" placeholder="0">
+                </label>
+                <div id="troyOrdersPaymentPresets" class="troy-orders-payment-presets"></div>
+                <div class="troy-orders-change-row">
+                    <span>おつり</span>
+                    <strong id="troyOrdersChangeAmount">-</strong>
+                </div>
+                <p id="troyOrdersPaymentNote" class="troy-orders-payment-note">預かり金額を入力してください</p>
+            </section>
             <label class="troy-orders-confirm-check">
                 <input id="troyOrdersConfirmCheck" type="checkbox">
-                <span>現金受け取り・チップ返却・退店処理を確認しました</span>
+                <span>注文内容・預かり金額・チップ返却を確認しました</span>
             </label>
             <div class="troy-orders-confirm-actions">
                 <button id="troyOrdersConfirmCancel" type="button" class="is-cancel">戻る</button>

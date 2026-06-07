@@ -1150,6 +1150,91 @@ async function incrementItemQuantityFromButton(button) {
     }
 }
 
+function renderConfirmOrderRowsForEntry(entry, { includeCustomer = false } = {}) {
+    const items = getEntryItems(entry);
+    const rows = [];
+    if (includeCustomer) {
+        rows.push(`
+            <div class="troy-orders-confirm-customer-row">
+                <span>${escapeHtml(entry.displayName || entry.playFabId || 'Player')}</span>
+                <strong>${formatYen(getEntryTotal(entry))}</strong>
+            </div>
+        `);
+    }
+    if (!items.length) {
+        rows.push('<div class="troy-orders-confirm-item-row is-empty"><span>注文はありません</span><strong>¥0</strong></div>');
+        return rows.join('');
+    }
+    items.forEach((item) => {
+        const quantity = Math.max(1, Number(item.quantity) || 1);
+        const lineTotal = Math.max(0, Math.floor(Number(item.lineTotal ?? ((Number(item.price) || 0) * quantity)) || 0));
+        const itemName = String(item.name || '商品').trim();
+        rows.push(`
+            <div class="troy-orders-confirm-item-row">
+                <span>
+                    <b>${escapeHtml(itemName)}</b>
+                    <em>x${quantity}</em>
+                </span>
+                <strong>${formatYen(lineTotal)}</strong>
+            </div>
+        `);
+    });
+    return rows.join('');
+}
+
+function buildPaymentPresetAmounts(total) {
+    const normalizedTotal = Math.max(0, Math.floor(Number(total) || 0));
+    if (normalizedTotal <= 0) return [];
+    const amounts = new Set([normalizedTotal]);
+    [1000, 5000, 10000].forEach((unit) => {
+        const rounded = Math.ceil(normalizedTotal / unit) * unit;
+        if (rounded >= normalizedTotal) amounts.add(rounded);
+    });
+    if (normalizedTotal > 10000) {
+        amounts.add(Math.ceil(normalizedTotal / 10000) * 10000);
+    }
+    return [...amounts].sort((left, right) => left - right).slice(0, 4);
+}
+
+function setConfirmSubmitState() {
+    const modal = $('troyOrdersConfirmModal');
+    const check = $('troyOrdersConfirmCheck');
+    const submit = $('troyOrdersConfirmSubmit');
+    const input = $('troyOrdersReceivedAmount');
+    const changeEl = $('troyOrdersChangeAmount');
+    const noteEl = $('troyOrdersPaymentNote');
+    if (!modal || !submit) return;
+
+    const total = Math.max(0, Math.floor(Number(modal.dataset.total || 0) || 0));
+    const raw = String(input?.value || '').trim();
+    const received = Math.max(0, Math.floor(Number(raw) || 0));
+    const hasReceived = raw !== '';
+    const shortage = hasReceived && received < total;
+    const exact = hasReceived && received === total;
+    const change = hasReceived && received >= total ? received - total : 0;
+
+    if (changeEl) {
+        changeEl.classList.toggle('is-shortage', shortage);
+        changeEl.classList.toggle('is-ready', hasReceived && !shortage);
+        changeEl.textContent = !hasReceived
+            ? '-'
+            : shortage
+                ? `不足 ${formatYen(total - received)}`
+                : formatYen(change);
+    }
+    if (noteEl) {
+        noteEl.classList.toggle('is-shortage', shortage);
+        noteEl.textContent = !hasReceived
+            ? '預かり金額を入力してください'
+            : shortage
+                ? `あと ${formatYen(total - received)} 不足しています`
+                : exact
+                    ? 'ちょうどです'
+                    : `${formatYen(change)} をお返しします`;
+    }
+    submit.disabled = !check?.checked || !hasReceived || shortage;
+}
+
 function openConfirmModal(card) {
     pendingSettleCard = card;
     const modal = $('troyOrdersConfirmModal');
@@ -1160,30 +1245,34 @@ function openConfirmModal(card) {
     const name = groupMode ? `グループ会計（${targets.length}名）` : primaryName;
     const total = targets.reduce((sum, entry) => sum + getEntryTotal(entry), 0);
     const chipReturnAmount = Math.max(0, Math.floor(Number(card.querySelector('[data-chip-return]')?.value || 0) || 0));
-    const itemRows = groupMode
-        ? targets.map((entry) => `<div><span>${escapeHtml(entry.displayName || entry.playFabId || 'Player')}</span><strong>${formatYen(getEntryTotal(entry))}</strong></div>`)
-        : [...card.querySelectorAll('.troy-orders-item-row')].map((row) => {
-            const nameEl = row.querySelector('span');
-            const priceEl = row.querySelector('strong');
-            return `<div><span>${escapeHtml(nameEl?.textContent || '')}</span><strong>${escapeHtml(priceEl?.textContent || '')}</strong></div>`;
-        });
+    const itemRows = targets.map((entry) => renderConfirmOrderRowsForEntry(entry, { includeCustomer: groupMode }));
     if (chipReturnAmount > 0) {
-        itemRows.push(`<div><span>チップ返却</span><strong>${escapeHtml(formatGold(chipReturnAmount))}</strong></div>`);
+        itemRows.push(`<div class="troy-orders-confirm-chip-row"><span>チップ返却</span><strong>${escapeHtml(formatGold(chipReturnAmount))}</strong></div>`);
     }
     $('troyOrdersConfirmName').textContent = name;
     $('troyOrdersConfirmTotal').textContent = formatYen(total);
     $('troyOrdersConfirmItems').innerHTML = itemRows.join('');
+    modal.dataset.total = String(total);
+    const input = $('troyOrdersReceivedAmount');
+    if (input) input.value = '';
+    const presets = $('troyOrdersPaymentPresets');
+    if (presets) {
+        presets.innerHTML = buildPaymentPresetAmounts(total)
+            .map((amount, index) => `<button type="button" data-payment-preset="${amount}">${index === 0 ? 'ちょうど' : formatYen(amount)}</button>`)
+            .join('');
+    }
     const check = $('troyOrdersConfirmCheck');
-    const submit = $('troyOrdersConfirmSubmit');
     if (check) check.checked = false;
-    if (submit) submit.disabled = true;
+    setConfirmSubmitState();
     modal.hidden = false;
+    requestAnimationFrame(() => input?.focus?.());
 }
 
 function closeConfirmModal() {
     pendingSettleCard = null;
     const modal = $('troyOrdersConfirmModal');
     if (modal) modal.hidden = true;
+    if (modal) delete modal.dataset.total;
 }
 
 function getTicketDropMode(targetTicket, pointerX) {
@@ -1456,8 +1545,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     $('troyOrdersConfirmCancel')?.addEventListener('click', closeConfirmModal);
     $('troyOrdersConfirmCheck')?.addEventListener('change', () => {
-        const submit = $('troyOrdersConfirmSubmit');
-        if (submit) submit.disabled = !$('troyOrdersConfirmCheck')?.checked;
+        setConfirmSubmitState();
+    });
+    $('troyOrdersReceivedAmount')?.addEventListener('input', setConfirmSubmitState);
+    $('troyOrdersPaymentPresets')?.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('[data-payment-preset]') : null;
+        if (!target) return;
+        const input = $('troyOrdersReceivedAmount');
+        if (input) input.value = String(Math.max(0, Math.floor(Number(target.dataset.paymentPreset) || 0)));
+        setConfirmSubmitState();
     });
     $('troyOrdersConfirmSubmit')?.addEventListener('click', async () => {
         const card = pendingSettleCard;
