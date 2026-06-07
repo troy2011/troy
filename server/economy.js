@@ -21,8 +21,6 @@ const ECONOMY_CURRENCY_IDS = new Set([
     'RT',
     'RS'
 ]);
-const BOUNTY_RESET_DATE_KEY = 'BountyResetDate';
-const EXPERIENCE_KEY = 'Experience';
 const STORE_GAME_RANKING_STATS = {
     darts_countup: {
         statisticName: 'troy_darts_countup_score',
@@ -102,11 +100,6 @@ async function isKingPlayer(playFabId, deps) {
 function buildNationDisplayName(baseName, nation) {
     const base = normalizePlayerDisplayName(baseName);
     return base.slice(0, 25);
-}
-
-function getJstDateKey(nowMs = Date.now()) {
-    const jstMs = nowMs + (9 * 60 * 60 * 1000);
-    return new Date(jstMs).toISOString().slice(0, 10);
 }
 
 function normalizeEntityKey(input) {
@@ -241,44 +234,6 @@ function applyTax(amount, taxRateBps) {
     const tax = Math.floor((gross * bps) / 10000);
     const net = Math.max(0, gross - tax);
     return { gross, tax, net, bps };
-}
-
-async function ensureDailyBountyConversion(playFabId, deps) {
-    const { promisifyPlayFab, PlayFabServer } = deps;
-    if (!playFabId) return { updated: false };
-
-    const todayKey = getJstDateKey();
-    const readResult = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Keys: [BOUNTY_RESET_DATE_KEY, EXPERIENCE_KEY]
-    });
-    const currentExpRaw = readResult?.Data?.[EXPERIENCE_KEY]?.Value;
-    const currentExp = Number(currentExpRaw) || 0;
-    const lastKey = readResult?.Data?.[BOUNTY_RESET_DATE_KEY]?.Value || '';
-    if (lastKey === todayKey) {
-        return { updated: false, exp: currentExp };
-    }
-    const bountyAmount = await getCurrencyBalance(playFabId, 'BT', deps);
-
-    let nextExp = currentExp;
-    if (bountyAmount > 0) {
-        await subtractEconomyItem(playFabId, 'BT', bountyAmount, deps);
-        nextExp = currentExp + bountyAmount;
-    }
-
-    await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
-        PlayFabId: playFabId,
-        Data: {
-            [BOUNTY_RESET_DATE_KEY]: todayKey,
-            [EXPERIENCE_KEY]: String(nextExp)
-        }
-    });
-    await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-        PlayFabId: playFabId,
-        Statistics: [{ StatisticName: BOUNTY_RANKING_STAT, Value: 0 }]
-    });
-
-    return { updated: true, bountyConverted: bountyAmount, exp: nextExp };
 }
 
 function getPlayerRankNameByLevel(level) {
@@ -778,7 +733,6 @@ module.exports = {
     subtractEconomyItem,
     getCurrencyBalance,
     transferEconomyItem,
-    ensureDailyBountyConversion,
     applyTax,
     initializeEconomyRoutes
 };

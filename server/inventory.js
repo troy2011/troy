@@ -298,7 +298,7 @@ function parseAvatarStyleReadOnlyValue(readOnlyData, styleKey) {
 
 // APIルートを初期化
 function initializeInventoryRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, ensureDailyBountyConversion, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, PlayFabData, PlayFabEconomy, firestore, admin, catalogCache, getEntityKeyForPlayFabId, getAllInventoryItems, getVirtualCurrencyMap, addEconomyItem, subtractEconomyItem, getCurrencyBalance, requireAuthenticatedPlayFabId } = deps;
 
     async function requireAuthedPlayFabId(req, res, playFabId) {
         if (typeof requireAuthenticatedPlayFabId !== 'function') {
@@ -736,13 +736,6 @@ function initializeInventoryRoutes(app, deps) {
         try {
             const { currentStats } = await applyOfflineMpRecovery(playFabId);
             let experience = getPlayerContributionTotal(currentStats);
-            if (typeof ensureDailyBountyConversion === 'function') {
-                try {
-                    await ensureDailyBountyConversion(playFabId);
-                } catch (resetError) {
-                    console.warn('[bounty-reset] Failed:', resetError?.errorMessage || resetError?.message || resetError);
-                }
-            }
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const itemMap = new Map();
