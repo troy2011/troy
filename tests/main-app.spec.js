@@ -288,7 +288,7 @@ export function onSnapshot(_ref, next) {
   await expectNoPageErrors(errors);
 });
 
-test('troy calendar shows only the nearest business day before expanding the rest', async ({ page }) => {
+test('troy calendar shows the nearest three business days before folding the rest', async ({ page }) => {
   const errors = trackPageErrors(page);
   const calendarEntries = [
     {
@@ -399,18 +399,20 @@ export function onSnapshot(_ref, next) {
 
   const directCards = page.locator('#troyBusinessCalendarList > .troy-calendar-item');
   const folded = page.locator('#troyBusinessCalendarList > .troy-calendar-collapsed');
-  await expect(directCards).toHaveCount(1);
-  await expect(directCards.first()).toContainText('First open');
+  await expect(directCards).toHaveCount(3);
+  await expect(directCards.nth(0)).toContainText('First open');
+  await expect(directCards.nth(1)).toContainText('Second open');
+  await expect(directCards.nth(2)).toContainText('Closed day');
   await expect(folded).toHaveCount(1);
-  await expect(folded.locator('summary')).toContainText('8');
-  await expect(folded.locator('.troy-calendar-item')).toHaveCount(8);
+  await expect(folded.locator('summary')).toContainText('6');
+  await expect(folded.locator('.troy-calendar-item')).toHaveCount(6);
   await expect(folded.locator('.troy-calendar-item').first()).toBeHidden();
 
   await folded.locator('summary').click();
   await expect(folded.locator('.troy-calendar-item').first()).toBeVisible();
-  await folded.locator('[data-troy-calendar-reserve="cal-2"]').click();
+  await folded.locator('[data-troy-calendar-reserve="cal-extra-1"]').click();
   await expect(page.locator('#troyReservationPanel')).toBeVisible();
-  await expect(page.locator('#reservationStartsAt')).toHaveValue('2026-06-09T18:00');
+  await expect(page.locator('#reservationStartsAt')).toHaveValue('2026-06-11T18:00');
 
   await expectNoPageErrors(errors);
 });

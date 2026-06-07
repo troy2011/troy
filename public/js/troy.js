@@ -44,6 +44,7 @@ let _statusSnapshotState = {
 const TROY_ORDER_ENTRY_ENABLED = false;
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GLOBAL_ROOM_ID = 'global';
+const TROY_CALENDAR_DIRECT_LIMIT = 3;
 
 function isFavoritableMenuId(menuId, item = null) {
     const sourceMenuId = String(menuId === 'favorite' ? (item?.menuId || '') : (menuId || '')).trim();
@@ -644,7 +645,8 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
         listEl.innerHTML = '<div class="troy-calendar-empty">営業予定はまだありません。</div>';
         return;
     }
-    const [latestEntry, ...collapsedEntries] = rows;
+    const directEntries = rows.slice(0, TROY_CALENDAR_DIRECT_LIMIT);
+    const collapsedEntries = rows.slice(TROY_CALENDAR_DIRECT_LIMIT);
     const collapsedBlock = collapsedEntries.length
         ? `
             <details class="troy-calendar-collapsed">
@@ -655,7 +657,7 @@ function renderTroyBusinessCalendar(entries = _businessCalendar) {
             </details>
         `
         : '';
-    listEl.innerHTML = `${renderTroyBusinessCalendarItem(latestEntry)}${collapsedBlock}`;
+    listEl.innerHTML = `${directEntries.map(renderTroyBusinessCalendarItem).join('')}${collapsedBlock}`;
 }
 
 async function loadTroyBusinessCalendar(playFabId) {
