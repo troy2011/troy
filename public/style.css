@@ -21337,7 +21337,6 @@ body[data-sea-tone] .home-hero-card {
 #globalPlayerInfoTop,
 .currency-display,
 .global-rank-badge,
-.home-player-ship-frame,
 .equipment-slot-card,
 .inventory-item-card,
 .item-card,
@@ -21377,6 +21376,16 @@ body[data-sea-tone] .home-hero-card {
     background:
         linear-gradient(180deg, rgba(13, 18, 24, 0.94), rgba(4, 5, 7, 0.98)),
         radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.home-hero-card .home-player-ship-frame,
+.home-hero-card .home-player-ship-frame.is-exploring {
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(13, 18, 24, 0.42), rgba(4, 5, 7, 0.72)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
 }
 
 .content-area:not(.home-hero-card),

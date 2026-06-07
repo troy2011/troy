@@ -23,6 +23,14 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   const homeQrIcon = await page.locator('#btnHomeScanQr').evaluate((button) => (
     window.getComputedStyle(button, '::before').backgroundImage
   ));
+  const homeShipPanel = await page.locator('#homePlayerShipFrame').evaluate((panel) => {
+    const style = window.getComputedStyle(panel);
+    return {
+      borderImageSource: style.borderImageSource,
+      borderImageSlice: style.borderImageSlice,
+      borderImageWidth: style.borderImageWidth
+    };
+  });
   const troyMapUrl = new URL(troyMapLink.href);
   expect(troyMapUrl.hostname).toBe('www.google.com');
   expect(troyMapUrl.pathname).toBe('/maps/search/');
@@ -32,6 +40,9 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   expect(troyMapLink.rel).toContain('noopener');
   expect(troyMapLink.color).toBe('rgb(255, 241, 184)');
   expect(homeQrIcon).toContain('030.png');
+  expect(homeShipPanel.borderImageSource).toContain('panel-dark-square.png');
+  expect(homeShipPanel.borderImageSlice).toContain('24');
+  expect(homeShipPanel.borderImageWidth).toContain('10px');
 
   expect(state.loginPlayFabBody).toMatchObject({
     lineAccessToken: 'playwright-access-token',
