@@ -49,17 +49,18 @@ const MENU_IMAGE_RULES = [
 ];
 
 const CATEGORY_FALLBACK_IMAGES = {
+    specials: drinkAsset('troy_champagne_bottle_flute.png'),
     beer: drinkAsset('fantasy_golden_compass_beer.png'),
-    gin: drinkAsset('cocktail_lime_rosemary_gin.png'),
-    vodka: drinkAsset('cocktail_copper_mint_mug.png'),
-    rum: drinkAsset('cocktail_spiced_rum_bottle.png'),
-    tequila: drinkAsset('cocktail_black_tequila_bottle.png'),
-    liqueur: drinkAsset('cocktail_red_berry_cocktail.png'),
-    whisky: drinkAsset('cocktail_amber_whiskey_tumbler.png'),
-    bottle: drinkAsset('fantasy_compass_square_bottle.png'),
+    gin: drinkAsset('troy_gin_bottle.png'),
+    vodka: drinkAsset('troy_vodka_bottle.png'),
+    rum: drinkAsset('troy_rum_square_bottle.png'),
+    tequila: drinkAsset('troy_tequila_bottle.png'),
+    liqueur: drinkAsset('troy_cassis_bottle.png'),
+    whisky: drinkAsset('troy_highball_mug.png'),
+    bottle: drinkAsset('troy_champagne_bottle_flute.png'),
     mixer: drinkAsset('cocktail_clear_soda_tumbler.png'),
-    soft: drinkAsset('fantasy_orange_juice_highball.png'),
-    food: foodAsset('pirate_spiced_cheese_bowl.png')
+    soft: drinkAsset('troy_oolong_tea_glass.png'),
+    food: foodAsset('snack_fried_chicken_skillet.png')
 };
 
 function getMenuAssetSearchText(item = {}) {
@@ -82,5 +83,10 @@ export function getTroyMenuImage(categoryId = '', item = {}) {
     const matched = MENU_IMAGE_RULES.find((rule) => rule.pattern.test(searchText));
     if (matched) return matched.image;
 
+    return CATEGORY_FALLBACK_IMAGES[normalizedCategory] || '';
+}
+
+export function getTroyMenuCategoryImage(categoryId = '') {
+    const normalizedCategory = String(categoryId || '').trim().toLowerCase();
     return CATEGORY_FALLBACK_IMAGES[normalizedCategory] || '';
 }

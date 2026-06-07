@@ -9,7 +9,7 @@ import {
 import { createRequestId } from './api.js';
 import { getFirestore, doc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { decoratePlayerTriggerElement } from './playerProfile.js';
-import { getTroyMenuImage } from './troyMenuAssets.js';
+import { getTroyMenuCategoryImage, getTroyMenuImage } from './troyMenuAssets.js';
 import { TROY_BOTTLE_ITEMS, TROY_MENU_IDS, TROY_PRODUCT_MENUS } from './troyMenuData.js';
 
 let _wired = false;
@@ -461,6 +461,21 @@ function createMenuBoardIcon(item = null, menuId = '') {
     return icon;
 }
 
+function createMenuBoardCategoryIcon(menuId = '') {
+    const icon = document.createElement('span');
+    icon.className = 'troy-menu-board-tab-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    const iconImage = getTroyMenuCategoryImage(menuId);
+    if (iconImage) {
+        const image = document.createElement('img');
+        image.src = iconImage;
+        image.alt = '';
+        image.loading = 'lazy';
+        icon.appendChild(image);
+    }
+    return icon;
+}
+
 function renderTroyMenuBoard() {
     const tabsEl = document.getElementById('troyMenuBoardCategoryTabs');
     const listEl = document.getElementById('troyMenuBoardList');
@@ -482,7 +497,10 @@ function renderTroyMenuBoard() {
             button.setAttribute('role', 'tab');
             button.setAttribute('aria-selected', entry.id === _menuBoardActiveId ? 'true' : 'false');
             button.classList.toggle('is-active', entry.id === _menuBoardActiveId);
-            button.textContent = entry.title;
+            const label = document.createElement('span');
+            label.className = 'troy-menu-board-tab-label';
+            label.textContent = entry.title;
+            button.append(createMenuBoardCategoryIcon(entry.id), label);
             tabsEl.appendChild(button);
         });
     }
