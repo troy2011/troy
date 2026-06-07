@@ -4587,6 +4587,83 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-orders/item-quantity', async (req, res) => {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
+        try {
+            const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+            if (!context) return res.status(403).json({ error: 'TroyClosed' });
+            const receiverId = normalizePlayFabId(req.body?.receiverPlayFabId);
+            const orderId = String(req.body?.orderId || '').trim();
+            const delta = Math.max(-99, Math.min(99, Math.floor(Number(req.body?.delta) || 0)));
+            if (!receiverId || !orderId || !delta) {
+                return res.status(400).json({ error: 'receiverPlayFabId, orderId and delta are required' });
+            }
+            if (orderId.startsWith('troy-entry:')) {
+                return res.status(400).json({ error: 'EntryChargeQuantityLocked' });
+            }
+            const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
+            const nowMs = Date.now();
+            const result = await firestore.runTransaction(async (tx) => {
+                const checkoutSnap = await tx.get(checkoutRef);
+                if (!checkoutSnap.exists) {
+                    const error = new Error('CheckoutNotFound');
+                    error.statusCode = 404;
+                    throw error;
+                }
+                const checkoutData = checkoutSnap.data() || {};
+                const checkoutStatus = String(checkoutData.status || '').trim().toLowerCase();
+                if (checkoutStatus && !['open', 'pending'].includes(checkoutStatus)) {
+                    const error = new Error('CheckoutAlreadyClosed');
+                    error.statusCode = 409;
+                    throw error;
+                }
+                const storedItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
+                let matched = false;
+                const nextItems = storedItems.map((item) => {
+                    if (String(item?.orderId || '').trim() !== orderId) return item;
+                    matched = true;
+                    const next = { ...(item || {}) };
+                    if (isTroyUndoProtectedItem(next)) {
+                        const error = new Error('EntryChargeQuantityLocked');
+                        error.statusCode = 400;
+                        throw error;
+                    }
+                    const currentQuantity = Math.max(1, Math.floor(Number(next.quantity) || 1));
+                    const nextQuantity = Math.max(1, Math.min(99, currentQuantity + delta));
+                    next.quantity = nextQuantity;
+                    if (delta > 0) {
+                        delete next.status;
+                        delete next.servedAtMs;
+                    }
+                    return next;
+                });
+                if (!matched) {
+                    const error = new Error('OrderItemNotFound');
+                    error.statusCode = 404;
+                    throw error;
+                }
+                const normalized = normalizeTroyCheckoutItems(nextItems);
+                const nextTotal = normalized.reduce((sum, item) => sum + item.lineTotal, 0);
+                const nextTotalItems = normalized.reduce((sum, item) => sum + item.quantity, 0);
+                const nextGrantTotal = normalized.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+                tx.set(checkoutRef, {
+                    items: nextItems,
+                    total: nextTotal,
+                    totalItems: nextTotalItems,
+                    grantTotal: nextGrantTotal,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    ...(delta > 0 ? { lastOrderedAt: admin.firestore.Timestamp.fromMillis(nowMs) } : {})
+                }, { merge: true });
+                return buildTroyCheckoutPayload({ ...checkoutData, items: nextItems, total: nextTotal, totalItems: nextTotalItems, grantTotal: nextGrantTotal, lastOrderedAt: nowMs });
+            });
+            return res.json({ success: true, checkout: result });
+        } catch (error) {
+            const status = Number(error?.statusCode) || 500;
+            console.error('[troy-orders-item-quantity] Error:', error?.message || error);
+            return res.status(status).json({ error: error?.message || 'FailedToUpdateOrderItemQuantity' });
+        }
+    });
+
     app.post('/api/troy-orders/settle', async (req, res) => {
         try {
             const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);

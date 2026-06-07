@@ -599,10 +599,14 @@ function renderOrderItemRows(entry) {
         const quantity = Math.max(1, Number(item.quantity) || 1);
         const orderId = String(item.orderId || '').trim();
         const served = String(item.status || '').toLowerCase() === 'served' || Number(item.servedAtMs) > 0;
+        const itemName = String(item.name || '商品').trim();
+        const quantityControls = orderId && !/^troy-entry:/u.test(orderId) && !/入店|チャージ/u.test(itemName)
+            ? `<span class="troy-orders-quantity-control"><em>x${quantity}</em><button type="button" data-increment-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}の数量を増やす">+</button></span>`
+            : `<span class="troy-orders-quantity-control is-locked"><em>x${quantity}</em></span>`;
         return `
             <div class="troy-orders-item-row${served ? ' is-served' : ''}">
-                <span>${escapeHtml(item.name || '商品')}</span>
-                <em>${quantity > 1 ? `x${quantity}` : ''}</em>
+                <span>${escapeHtml(itemName)}</span>
+                ${quantityControls}
                 <strong>${formatYen(item.lineTotal || ((Number(item.price) || 0) * quantity))}</strong>
                 ${orderId ? `<button type="button" data-toggle-served data-order-id="${escapeHtml(orderId)}" data-served="${served ? 'true' : 'false'}">${served ? '提供済み' : '未提供'}</button>` : '<i></i>'}
             </div>
@@ -1116,6 +1120,31 @@ async function toggleServedFromButton(button) {
     }
 }
 
+async function incrementItemQuantityFromButton(button) {
+    if (!button || busy) return;
+    const card = button.closest('[data-receiver-id]');
+    const receiverId = String(card?.dataset.receiverId || '').trim();
+    const orderId = String(button.dataset.orderId || '').trim();
+    if (!receiverId || !orderId) return;
+    busy = true;
+    button.disabled = true;
+    try {
+        await callApiWithLoader('/api/troy-orders/item-quantity', {
+            ...getRequestedNationPayload(),
+            receiverPlayFabId: receiverId,
+            orderId,
+            delta: 1
+        }, { isSilent: true, throwOnError: true });
+        await refreshOrders({ silent: true, force: true });
+    } catch (error) {
+        console.warn('[troy-orders] quantity update failed:', error);
+        setMessage(`数量を更新できませんでした: ${error?.message || error}`, true);
+    } finally {
+        busy = false;
+        button.disabled = false;
+    }
+}
+
 function openConfirmModal(card) {
     pendingSettleCard = card;
     const modal = $('troyOrdersConfirmModal');
@@ -1371,6 +1400,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addItemButton = target?.closest('[data-add-item]');
         if (addItemButton) {
             void addItemToCheckout(addItemButton);
+            return;
+        }
+        const incrementButton = target?.closest('[data-increment-item]');
+        if (incrementButton) {
+            void incrementItemQuantityFromButton(incrementButton);
             return;
         }
         const servedButton = target?.closest('[data-toggle-served]');

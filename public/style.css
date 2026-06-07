@@ -14344,7 +14344,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 
 .troy-orders-item-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 46px 86px 94px;
+    grid-template-columns: minmax(0, 1fr) 84px 86px 94px;
     gap: 10px;
     align-items: center;
     min-height: 42px;
@@ -14368,10 +14368,37 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     text-decoration-thickness: 2px;
 }
 
-.troy-orders-item-row em {
+.troy-orders-quantity-control {
+    display: inline-flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.troy-orders-quantity-control em {
     color: #6a4a25;
     font-style: normal;
     text-align: right;
+    min-width: 28px;
+    font-weight: 900;
+}
+
+.troy-orders-quantity-control button {
+    width: 31px;
+    min-width: 31px;
+    min-height: 31px;
+    padding: 0;
+    border-color: rgba(42, 96, 54, 0.38);
+    border-radius: 999px;
+    background: rgba(42, 96, 54, 0.18);
+    color: #1d6030;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.troy-orders-quantity-control.is-locked {
+    padding-right: 37px;
 }
 
 .troy-orders-item-row strong {
@@ -14379,7 +14406,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     white-space: nowrap;
 }
 
-.troy-orders-item-row button {
+.troy-orders-item-row [data-toggle-served] {
     min-height: 31px;
     border: 1px solid rgba(153, 52, 30, 0.34);
     border-radius: 7px;
@@ -14390,7 +14417,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     cursor: pointer;
 }
 
-.troy-orders-item-row.is-served button {
+.troy-orders-item-row.is-served [data-toggle-served] {
     border-color: rgba(47, 125, 74, 0.34);
     background: rgba(47, 125, 74, 0.14);
     color: #286b38;
@@ -15024,10 +15051,10 @@ body.is-new-order-flash::before {
     }
 
     .troy-orders-item-row {
-        grid-template-columns: minmax(0, 1fr) 42px 78px;
+        grid-template-columns: minmax(0, 1fr) 82px 78px;
     }
 
-    .troy-orders-item-row button {
+    .troy-orders-item-row [data-toggle-served] {
         grid-column: 1 / -1;
     }
 

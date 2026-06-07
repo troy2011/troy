@@ -24,6 +24,7 @@ test('staff register creates a checkout from an in-store member and settles with
     troyPendingCheckouts: []
   };
   const addItemRequests = [];
+  const quantityRequests = [];
   const settleRequests = [];
 
   await page.addInitScript(() => {
@@ -74,6 +75,24 @@ test('staff register creates a checkout from an in-store member and settles with
       });
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+  });
+
+  await page.route('**/api/troy-orders/item-quantity', async (route) => {
+    const body = route.request().postDataJSON();
+    quantityRequests.push(body);
+    const checkout = state.troyPendingCheckouts.find((entry) => entry.playFabId === body.receiverPlayFabId);
+    const item = checkout?.items.find((entry) => entry.orderId === body.orderId);
+    if (checkout && item) {
+      const previousQuantity = Math.max(1, item.quantity || 1);
+      item.quantity = Math.max(1, Math.min(99, previousQuantity + (body.delta || 0)));
+      item.lineTotal = item.price * item.quantity;
+      delete item.status;
+      delete item.servedAtMs;
+      checkout.total = checkout.items.reduce((sum, entry) => sum + entry.lineTotal, 0);
+      checkout.totalItems = checkout.items.reduce((sum, entry) => sum + entry.quantity, 0);
+      checkout.lastOrderedAtMs = Date.now();
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, checkout }) });
   });
 
   await page.route('**/api/troy-orders/settle', async (route) => {
@@ -159,6 +178,15 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥700');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
+  const beerOrderRow = page.locator('#troyOrdersTicketDetail .troy-orders-item-row', { hasText: '瓶ビール（ハートランド）' });
+  await expect(beerOrderRow.locator('.troy-orders-quantity-control em')).toHaveText('x1');
+  await beerOrderRow.locator('[data-increment-item]').click();
+  expect(quantityRequests).toHaveLength(1);
+  expect(quantityRequests[0].receiverPlayFabId).toBe('PLAYER1');
+  expect(quantityRequests[0].delta).toBe(1);
+  await expect(beerOrderRow.locator('.troy-orders-quantity-control em')).toHaveText('x2');
+  await expect(beerOrderRow.locator('strong')).toHaveText('¥1,400');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥1,400');
 
   await page.locator('#troyOrdersTicketDetail .troy-orders-custom-category summary').click();
   await expect(page.locator('#troyOrdersTicketDetail .troy-orders-custom-category summary')).toHaveText('裏メニュー');
@@ -170,8 +198,8 @@ test('staff register creates a checkout from an in-store member and settles with
   expect(addItemRequests[1].name).toBe('裏メニュー');
   expect(addItemRequests[1].price).toBe(1500);
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('裏メニュー');
-  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,200');
-  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,200');
+  await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,900');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,900');
 
   await page.locator('#troyOrdersTicketDetail [data-chip-return]').fill('300');
   await page.locator('#troyOrdersTicketDetail [data-settle]').click();
@@ -184,7 +212,7 @@ test('staff register creates a checkout from an in-store member and settles with
 
   expect(settleRequests).toHaveLength(1);
   expect(settleRequests[0].receiverPlayFabId).toBe('PLAYER1');
-  expect(settleRequests[0].expectedTotal).toBe(2200);
+  expect(settleRequests[0].expectedTotal).toBe(2900);
   expect(settleRequests[0].chipReturnAmount).toBe(300);
   await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
