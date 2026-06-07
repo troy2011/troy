@@ -328,6 +328,115 @@ export function onSnapshot(_ref, next) {
   await expectNoPageErrors(errors);
 });
 
+test('troy entry QR joins directly without entry gold bonus or chip conversion prompt', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  const joinRequests = [];
+  const convertRequests = [];
+  let joined = false;
+
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: `
+const getMemberDocs = () => globalThis.__pwTroyJoined ? [{ id: 'PF_PLAYWRIGHT', data: () => ({ displayName: 'Playwright Tester', joinedAt: Date.now() }) }] : [];
+const troyRoomData = () => ({ nation: 'fire', isOpen: true, menuDisabled: [], menuSpecials: [], menuCustomItems: [] });
+export function getFirestore() { return {}; }
+export function doc() { return {}; }
+export function collection() { return {}; }
+export function query() { return {}; }
+export function where() { return {}; }
+export function orderBy() { return {}; }
+export function limit() { return {}; }
+export function getDocs() { return Promise.resolve({ docs: [] }); }
+export function getDoc() { return Promise.resolve({ exists: () => false, data: () => ({}), id: '' }); }
+export function setDoc() { return Promise.resolve(); }
+export function updateDoc() { return Promise.resolve(); }
+export function addDoc() { return Promise.resolve({ id: 'mock-doc' }); }
+export function serverTimestamp() { return Date.now(); }
+export function onSnapshot(_ref, next) {
+  Promise.resolve().then(() => next({
+    data: troyRoomData,
+    docs: getMemberDocs()
+  }));
+  return () => {};
+}
+`
+    });
+  });
+  await page.route('**/api/troy-calendar/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ calendar: [] })
+    });
+  });
+  await page.route('**/api/get-troy-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        isOpen: true,
+        members: joined ? [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'Playwright Tester' }] : [],
+        menuDisabled: [],
+        menuSpecials: [],
+        menuCustomItems: []
+      })
+    });
+  });
+  await page.route('**/api/troy-join', async (route) => {
+    joinRequests.push(route.request().postDataJSON());
+    joined = true;
+    await page.evaluate(() => {
+      window.__pwTroyJoined = true;
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        nation: 'fire',
+        entryBonusGranted: 0,
+        entryBonusError: null,
+        entryChargeAmount: 500,
+        entryChargeCreated: true,
+        entryChargeError: null,
+        alreadyEntered: false
+      })
+    });
+  });
+  await page.route('**/api/troy-convert-gold-to-coin', async (route) => {
+    convertRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true })
+    });
+  });
+
+  const state = await bootstrapMainApp(page, {
+    gotoUrl: '/?action=troy-entry&troyNation=fire',
+    firebaseToken: 'playwright-firebase-token',
+    mockFirebaseAuth: true
+  });
+
+  await expect.poll(() => joinRequests.length).toBe(1);
+  expect(state.loginPlayFabBody).toMatchObject({ action: 'troy-entry', troyEntry: true, troyNation: 'fire' });
+  expect(joinRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    displayName: 'Playwright Tester',
+    troyNation: 'fire'
+  });
+  await expect(page.locator('[aria-label="入店前のチップ確認"]')).toHaveCount(0);
+  expect(convertRequests).toHaveLength(0);
+  await expect(page.locator('#tabContentTroy')).toBeVisible();
+  await expect(page.locator('#tabContentTroy')).toContainText('入店中');
+  await expect(page.locator('.rpg-message-popup')).toContainText('スタッフからチップ500を受け取ってください');
+
+  await expectNoPageErrors(errors);
+});
+
 test('troy calendar shows the nearest three business days before folding the rest', async ({ page }) => {
   const errors = trackPageErrors(page);
   const calendarEntries = [

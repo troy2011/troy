@@ -71,6 +71,7 @@ const NATION_LABEL_BY_KEY = {
 const VALID_NATION_KEYS = Object.freeze(Object.keys(NATION_LABEL_BY_KEY));
 const LINE_FRIEND_BONUS_STORAGE_KEY = 'troy:line-friend-bonus-claimed';
 const LINE_FRIEND_ENTRY_PROMPT_SESSION_KEY = 'troy:line-friend-entry-prompted';
+const TROY_ENTRY_STAFF_CHIP_AMOUNT = 500;
 
 installPlayerProfileInteractions();
 
@@ -1648,54 +1649,6 @@ async function updateAvatarBaseInfo() {
 // --- 機能別ロジック ---
 
 // 5. その他（ステータス、送金）
-function promptCoinConvertBeforeEntry(goldBalance) {
-    return new Promise((resolve) => {
-        const maxConvert = Math.floor(goldBalance / 100) * 100;
-        const options = [];
-        for (let v = maxConvert; v >= 100; v -= 100) {
-            options.push(`<option value="${v}">${v.toLocaleString('ja-JP')} G</option>`);
-        }
-        const canConvert = options.length > 0;
-
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;';
-        overlay.innerHTML = `
-            <div role="dialog" aria-modal="true" aria-label="入店前のチップ確認" style="background:#1e293b;border-radius:18px;padding:26px 20px 20px;width:100%;max-width:340px;color:#f1f5f9;text-align:left;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
-                <div style="font-size:11px;letter-spacing:0.1em;color:#94a3b8;margin-bottom:10px;font-weight:700;text-align:center;">TROY CHIP</div>
-                <div style="font-size:18px;font-weight:800;margin-bottom:8px;text-align:center;">入店前にチップを用意しますか？</div>
-                <div style="color:#cbd5e1;font-size:13px;line-height:1.6;margin-bottom:14px;text-align:center;">店内で使う分だけ、Gからチップへ交換できます。</div>
-                <div style="display:flex;justify-content:space-between;gap:12px;color:#94a3b8;font-size:13px;margin-bottom:10px;">
-                    <span>所持G</span>
-                    <strong style="color:#fbbf24;">${goldBalance.toLocaleString('ja-JP')} G</strong>
-                </div>
-                ${canConvert ? `
-                    <label for="__troyEntryCoinSel" style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;">チップ化する金額</label>
-                    <select id="__troyEntryCoinSel" style="width:100%;padding:11px 10px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;font-size:15px;margin-bottom:8px;appearance:auto;">
-                        ${options.join('')}
-                    </select>
-                    <div style="color:#94a3b8;font-size:12px;line-height:1.5;margin-bottom:18px;">あとからホーム画面でもチップ化できます。</div>
-                ` : '<div style="color:#fca5a5;font-size:13px;line-height:1.5;margin-bottom:18px;text-align:center;">100G単位でチップ化できるGがありません。</div>'}
-                <div style="display:flex;gap:10px;">
-                    <button id="__troyEntryCoinSkip" type="button" style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer;">そのまま入店</button>
-                    <button id="__troyEntryCoinOk" type="button" ${canConvert ? '' : 'disabled'} style="flex:1;padding:13px 0;border-radius:10px;border:none;background:#f59e0b;color:#0f172a;font-size:14px;font-weight:700;cursor:pointer:${canConvert ? 'pointer' : 'not-allowed'};opacity:${canConvert ? '1' : '0.55'};">チップ化して入店</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        overlay.querySelector('#__troyEntryCoinSkip').addEventListener('click', () => {
-            document.body.removeChild(overlay);
-            resolve(0);
-        });
-        overlay.querySelector('#__troyEntryCoinOk').addEventListener('click', () => {
-            const sel = overlay.querySelector('#__troyEntryCoinSel');
-            const amount = Math.floor(Number(sel?.value || 0) / 100) * 100;
-            document.body.removeChild(overlay);
-            resolve(amount >= 100 ? amount : 0);
-        });
-    });
-}
-
 async function handleTroyEntryRequest(entryRequest, options = {}) {
     if (!entryRequest || !myPlayFabId) return;
     try {
@@ -1710,23 +1663,6 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         const result = await callApiWithLoader('/api/troy-join', joinBody, { throwOnError: true });
         window.__troyEntryNation = result.nation || resolvedEntryNation || null;
 
-        // Get fresh balance (includes entry bonus if granted)
-        const { points: goldBalance } = await Player.getPoints(myPlayFabId, { isSilent: true }) || {};
-        let convertedAmount = 0;
-        const convertAmount = await promptCoinConvertBeforeEntry(goldBalance || 0);
-        if (convertAmount >= 100) {
-            try {
-                await callApiWithLoader('/api/troy-convert-gold-to-coin', {
-                    playFabId: myPlayFabId,
-                    amount: convertAmount,
-                    requestId: createRequestId('troy-gold-to-coin')
-                }, { isSilent: true, throwOnError: true });
-                convertedAmount = convertAmount;
-            } catch (error) {
-                showRpgMessage(formatCoinActionError(error, 'チップ化に失敗しました。'), 3200);
-            }
-        }
-
         await showTab('troy', {
             playFabId: myPlayFabId,
             race: myAvatarBaseInfo.Race || 'human',
@@ -1735,10 +1671,12 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
 
         const parts = [];
         if (result?.alreadyEntered) parts.push('TROYに入店済みです');
-        else parts.push('TROYに入店しました');
+        else {
+            parts.push('TROYに入店しました');
+            parts.push(`スタッフからチップ${TROY_ENTRY_STAFF_CHIP_AMOUNT.toLocaleString('ja-JP')}を受け取ってください`);
+        }
         if (result?.entryChargeError) parts.push('入店チャージ未登録');
         if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
-        if (convertedAmount > 0) parts.push(`${convertedAmount.toLocaleString('ja-JP')}G をチップに変換`);
         showRpgMessage(parts.join(' / '), 2800);
     } catch (error) {
         const detail = String(error?.message || error || '');

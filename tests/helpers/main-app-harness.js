@@ -50,6 +50,34 @@ window.PlayFab = window.PlayFab || {
   ClientApi: {},
   _internalSettings: {}
 };
+window.PlayFab.ClientApi.LoginWithCustomID = (_request, callback) => {
+  callback({
+    data: {
+      PlayFabId: 'PF_PLAYWRIGHT',
+      SessionTicket: 'playwright-session-ticket',
+      EntityToken: {
+        EntityToken: 'playwright-entity-token',
+        Entity: { Id: 'PF_PLAYWRIGHT', Type: 'title_player_account' }
+      }
+    }
+  }, null);
+};
+window.PlayFab.ClientApi.GetUserReadOnlyData = (_request, callback) => {
+  callback({
+    data: {
+      Data: {
+        Race: { Value: 'human' },
+        Nation: { Value: 'fire' },
+        AvatarColor: { Value: 'red' },
+        SkinColorIndex: { Value: '1' },
+        FaceIndex: { Value: '1' },
+        HairStyleIndex: { Value: '1' },
+        HairColorIndex: { Value: '1' },
+        FacialHairStyleIndex: { Value: '0' }
+      }
+    }
+  }, null);
+};
 window.PlayFabClientSDK = window.PlayFab;
 window.PlayFabGroups = window.PlayFabGroups || {};
 window.PlayFabEconomy = window.PlayFabEconomy || {};
@@ -76,6 +104,29 @@ window.QRious = class QRious {
     Object.assign(this.options, options);
   }
 };
+`;
+
+const FIREBASE_AUTH_MOCK_MODULE = `
+let currentCallback = null;
+
+export function getAuth() {
+  return { __mock: true };
+}
+
+export function onAuthStateChanged(_auth, callback) {
+  currentCallback = callback;
+  queueMicrotask(() => callback({ uid: 'PF_PLAYWRIGHT' }));
+  return () => {
+    if (currentCallback === callback) currentCallback = null;
+  };
+}
+
+export function signInWithCustomToken() {
+  queueMicrotask(() => {
+    if (typeof currentCallback === 'function') currentCallback({ uid: 'PF_PLAYWRIGHT' });
+  });
+  return Promise.resolve({ user: { uid: 'PF_PLAYWRIGHT' } });
+}
 `;
 
 const FIREBASE_DATABASE_MOCK_MODULE = `
@@ -437,6 +488,15 @@ async function installBaseAppMocks(page, state, options = {}) {
       });
     });
   }
+  if (options.mockFirebaseAuth) {
+    await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript; charset=utf-8',
+        body: FIREBASE_AUTH_MOCK_MODULE
+      });
+    });
+  }
 
   if (options.mockGame !== false) {
     await page.route('**/Game.js', async (route) => {
@@ -457,7 +517,7 @@ async function installBaseAppMocks(page, state, options = {}) {
       body: JSON.stringify({
         playFabId: DEFAULT_PLAYER_INFO.playFabId,
         needsRaceSelection: false,
-        firebaseToken: ''
+        firebaseToken: options.firebaseToken || ''
       })
     });
   });
@@ -574,7 +634,7 @@ async function bootstrapMainApp(page, options = {}) {
     gameRouteHits: 0
   };
   await installBaseAppMocks(page, state, options);
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto(options.gotoUrl || '/', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => {
     const appWrapper = document.getElementById('appWrapper');
     if (!appWrapper) return false;

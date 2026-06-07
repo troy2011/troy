@@ -3939,40 +3939,8 @@ function initializeNationRoutes(app, deps) {
             } catch (_) {}
             const entryRankName = getPlayerRankNameByLevel(entryLevel);
             const entryRankBenefits = getPlayerRankServiceBenefitsByLevel(entryLevel);
-            let entryBonusGranted = 0;
-            let entryBonusError = null;
             let entryChargeCreated = false;
             let entryChargeError = null;
-            if (isNewEntry) {
-                try {
-                    const entryBonusRef = firestore.collection('troy_entry_bonus_grants').doc(memberId);
-                    const entryBonusSnap = await entryBonusRef.get();
-                    if (!entryBonusSnap.exists) {
-                        await addEconomyItem(memberId, 'PS', 500, { idempotencyId: `troy-entry-bonus:${memberId}:${nation}` });
-                        await entryBonusRef.set({
-                            playFabId: memberId,
-                            nation,
-                            amount: 500,
-                            grantedAt: admin.firestore.FieldValue.serverTimestamp()
-                        }, { merge: true });
-                        entryBonusGranted = 500;
-                        if (getCurrencyBalance) {
-                            try {
-                                const receiverBalance = await getCurrencyBalance(memberId, 'PS');
-                                await promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
-                                    PlayFabId: memberId,
-                                    Statistics: [{ StatisticName: process.env.LEADERBOARD_NAME || 'ps_ranking', Value: receiverBalance }]
-                                });
-                            } catch (syncError) {
-                                console.warn('[troy-join] Entry bonus balance/stat sync failed:', syncError?.errorMessage || syncError?.message || syncError);
-                            }
-                        }
-                    }
-                } catch (bonusError) {
-                    entryBonusError = bonusError?.errorMessage || bonusError?.message || String(bonusError);
-                    console.warn('[troy-join] Entry bonus grant failed:', entryBonusError);
-                }
-            }
             await memberRef.set({
                 playFabId: memberId,
                 displayName: name,
@@ -4023,8 +3991,8 @@ function initializeNationRoutes(app, deps) {
             return res.json({
                 success: true,
                 nation,
-                entryBonusGranted,
-                entryBonusError,
+                entryBonusGranted: 0,
+                entryBonusError: null,
                 entryChargeAmount: isNewEntry ? TROY_ENTRY_CHARGE_AMOUNT : 0,
                 entryChargeCreated,
                 entryChargeError,
