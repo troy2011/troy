@@ -1801,6 +1801,53 @@ test('tall avatar weapons stay close to the avatar floor', async ({ page }) => {
   await expectNoPageErrors(errors);
 });
 
+test('avatar shield center aligns with the left hand center', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const fixture = document.createElement('div');
+    fixture.id = 'shieldOffsetFixture';
+    fixture.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;';
+    fixture.innerHTML = `
+      <div id="shieldCenterAvatar" class="avatar-container">
+        <div id="shieldCenterAvatar-layer-body" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-head" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-facial-hair" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-hair" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-armor" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-hand-right" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-weapon-right" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-hand-left" class="avatar-layer"></div>
+        <div id="shieldCenterAvatar-layer-shield-left" class="avatar-layer"></div>
+      </div>`;
+    document.body.appendChild(fixture);
+
+    const { renderAvatar } = await import('/js/avatar.js');
+    const avatar = { Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1, FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 1 };
+    const items = {
+      shield_020: { itemId: 'shield_020', customData: { Category: 'Shield', sprite_path: './Sprites/weapons/melee weapons/shield.png', sprite_index: '20', sprite_w: '32', sprite_h: '32' } }
+    };
+    renderAvatar('shieldCenterAvatar', avatar, { LeftHand: 'shield_020' }, items, false);
+  });
+
+  await page.waitForFunction(() => (
+    document.getElementById('shieldCenterAvatar-layer-shield-left')?.dataset.loadState === 'ready'
+  ));
+  const centerDelta = await page.evaluate(() => {
+    const hand = document.getElementById('shieldCenterAvatar-layer-hand-left').getBoundingClientRect();
+    const shield = document.getElementById('shieldCenterAvatar-layer-shield-left').getBoundingClientRect();
+    return {
+      x: Math.abs((shield.left + shield.width / 2) - (hand.left + hand.width / 2)),
+      y: Math.abs((shield.top + shield.height / 2) - (hand.top + hand.height / 2))
+    };
+  });
+
+  expect(centerDelta.x).toBeLessThanOrEqual(1);
+  expect(centerDelta.y).toBeLessThanOrEqual(1);
+  await expectNoPageErrors(errors);
+});
+
 test('tarot deck and list show suit-colored number badges at the upper left', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
