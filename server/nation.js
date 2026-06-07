@@ -76,6 +76,9 @@ const TROY_STAFF_CHECKOUT_ENABLED = true;
 const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
 const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
 const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
+const TROY_CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
+const TROY_USUAL_ORDER_ITEMS_LIMIT = 8;
+const TROY_ORDER_HISTORY_ITEMS_LIMIT = 32;
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT = 5;
@@ -1898,6 +1901,90 @@ function buildStoredTroyCheckoutItem(item = {}) {
     return stored;
 }
 
+function getTroyUsualOrderItemKey(name, price) {
+    return `${String(name || '').trim()}::${Math.max(0, Math.floor(Number(price) || 0))}`;
+}
+
+function isTroyUsualOrderCandidate(item = {}) {
+    const name = String(item?.name || '').trim();
+    const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+    if (!name || price <= 0) return false;
+    if (name === TROY_ENTRY_CHARGE_ITEM_NAME || name === TROY_CUSTOM_ORDER_ITEM_NAME) return false;
+    return !isDeprecatedTroyCoinPurchaseItem(item);
+}
+
+function normalizeTroyUsualOrderItems(items = [], limit = TROY_USUAL_ORDER_ITEMS_LIMIT) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const name = String(item?.name || '').trim().slice(0, 60);
+            const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+            const count = Math.max(0, Math.floor(Number(item?.count ?? item?.orderCount ?? item?.quantity) || 0));
+            if (!name || price <= 0 || count <= 0) return null;
+            return {
+                name,
+                price,
+                count,
+                orderCount: count,
+                quantity: Math.max(count, Math.floor(Number(item?.quantity) || 0)),
+                total: Math.max(0, Math.floor(Number(item?.total) || price * count)),
+                lastOrderedAtMs: Math.max(0, Math.floor(Number(item?.lastOrderedAtMs) || 0)),
+                lastSettledAtMs: Math.max(0, Math.floor(Number(item?.lastSettledAtMs) || 0))
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => (b.count - a.count)
+            || (b.lastOrderedAtMs - a.lastOrderedAtMs)
+            || String(a.name).localeCompare(String(b.name), 'ja'))
+        .slice(0, Math.max(0, Math.floor(Number(limit) || 0)));
+}
+
+function buildTroyUsualItemsPayload(dataOrItems = {}) {
+    const source = Array.isArray(dataOrItems)
+        ? dataOrItems
+        : (Array.isArray(dataOrItems?.items) ? dataOrItems.items : dataOrItems?.usualItems);
+    return normalizeTroyUsualOrderItems(source, TROY_USUAL_ORDER_ITEMS_LIMIT)
+        .map((item) => ({
+            name: item.name,
+            price: item.price,
+            count: item.count,
+            lastOrderedAtMs: item.lastOrderedAtMs,
+            lastSettledAtMs: item.lastSettledAtMs
+        }));
+}
+
+function mergeTroyOrderHistoryItems(existingItems = [], checkoutItems = [], settledAtMs = Date.now()) {
+    const byKey = new Map();
+    normalizeTroyUsualOrderItems(existingItems, TROY_ORDER_HISTORY_ITEMS_LIMIT).forEach((item) => {
+        byKey.set(getTroyUsualOrderItemKey(item.name, item.price), { ...item });
+    });
+
+    normalizeTroyCheckoutItems(checkoutItems)
+        .filter(isTroyUsualOrderCandidate)
+        .forEach((item) => {
+            const key = getTroyUsualOrderItemKey(item.name, item.price);
+            const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
+            const current = byKey.get(key) || {
+                name: item.name,
+                price: item.price,
+                count: 0,
+                orderCount: 0,
+                quantity: 0,
+                total: 0,
+                lastOrderedAtMs: 0,
+                lastSettledAtMs: 0
+            };
+            current.count += quantity;
+            current.orderCount = current.count;
+            current.quantity += quantity;
+            current.total += Math.max(0, Math.floor(Number(item.lineTotal) || item.price * quantity));
+            current.lastOrderedAtMs = Math.max(current.lastOrderedAtMs, Math.max(0, Math.floor(Number(item.orderedAtMs) || 0)));
+            current.lastSettledAtMs = Math.max(current.lastSettledAtMs, Math.max(0, Math.floor(Number(settledAtMs) || 0)));
+            byKey.set(key, current);
+        });
+
+    return normalizeTroyUsualOrderItems([...byKey.values()], TROY_ORDER_HISTORY_ITEMS_LIMIT);
+}
+
 function buildTroyCheckoutPayload(docOrData = null) {
     const hasDataFn = typeof docOrData?.data === 'function';
     const data = hasDataFn ? (docOrData.data() || {}) : (docOrData || {});
@@ -1948,6 +2035,7 @@ function buildTroyMemberPayload(memberDocs = []) {
                 joinedAtMs,
                 level: Math.max(1, Math.floor(Number(data.level) || 1)),
                 rankName: String(data.rankName || getPlayerRankNameByLevel(data.level)).trim(),
+                usualItems: buildTroyUsualItemsPayload(data.usualItems),
                 rankBenefits: Array.isArray(data.rankBenefits)
                     ? data.rankBenefits.map((entry) => String(entry || '').trim()).filter(Boolean)
                     : getPlayerRankServiceBenefitsByLevel(data.level)
@@ -3301,6 +3389,13 @@ function initializeNationRoutes(app, deps) {
             const memberRef = roomRef.collection('members').doc(memberId);
             const existingMemberSnap = await memberRef.get();
             const isNewEntry = !existingMemberSnap.exists;
+            let usualItems = [];
+            try {
+                const orderStatsSnap = await roomRef.collection('orderStats').doc(memberId).get();
+                usualItems = buildTroyUsualItemsPayload(orderStatsSnap.data() || {});
+            } catch (historyError) {
+                console.warn('[troy-join] Failed to load order history:', historyError?.message || historyError);
+            }
             let entryLevel = 1;
             try {
                 const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberId });
@@ -3350,6 +3445,7 @@ function initializeNationRoutes(app, deps) {
                 level: entryLevel,
                 rankName: entryRankName,
                 rankBenefits: entryRankBenefits,
+                usualItems,
                 joinedAt: existingMemberSnap.exists ? (existingMemberSnap.data()?.joinedAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
@@ -4168,6 +4264,27 @@ function initializeNationRoutes(app, deps) {
         });
     }
 
+    async function recordTroyOrderHistory(roomRef, receiverId, checkoutPayload = {}) {
+        const normalizedReceiverId = normalizePlayFabId(receiverId);
+        const historyItems = normalizeTroyCheckoutItems(checkoutPayload.items).filter(isTroyUsualOrderCandidate);
+        if (!normalizedReceiverId || !historyItems.length) return [];
+        const statsRef = roomRef.collection('orderStats').doc(normalizedReceiverId);
+        const settledAtMs = Date.now();
+        return firestore.runTransaction(async (tx) => {
+            const statsSnap = await tx.get(statsRef);
+            const statsData = statsSnap.exists ? (statsSnap.data() || {}) : {};
+            const nextItems = mergeTroyOrderHistoryItems(statsData.items, historyItems, settledAtMs);
+            tx.set(statsRef, {
+                playFabId: normalizedReceiverId,
+                displayName: checkoutPayload.displayName || normalizedReceiverId,
+                items: nextItems,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastSettledAt: admin.firestore.Timestamp.fromMillis(settledAtMs)
+            }, { merge: true });
+            return nextItems;
+        });
+    }
+
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
         if (!TROY_STAFF_CHECKOUT_ENABLED) {
             const error = new Error('TroyCheckoutDisabled');
@@ -4342,6 +4459,12 @@ function initializeNationRoutes(app, deps) {
             });
         } catch (salesError) {
             console.warn(`[${logPrefix}] Daily sales update failed:`, salesError?.message || salesError);
+        }
+
+        try {
+            await recordTroyOrderHistory(context.roomRef, receiverId, checkoutPayload);
+        } catch (historyError) {
+            console.warn(`[${logPrefix}] Order history update failed:`, historyError?.message || historyError);
         }
 
         try {
@@ -4983,6 +5106,8 @@ module.exports = {
     getConfiguredTroyCloseSummaryLineUserIds,
     getTroyBusinessDayKey,
     buildTroyTodaySalesSnapshot,
+    buildTroyUsualItemsPayload,
+    mergeTroyOrderHistoryItems,
     formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };

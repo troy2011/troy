@@ -4,6 +4,8 @@ const {
   getConfiguredTroyCloseSummaryLineUserIds,
   getTroyBusinessDayKey,
   buildTroyTodaySalesSnapshot,
+  buildTroyUsualItemsPayload,
+  mergeTroyOrderHistoryItems,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 
@@ -84,4 +86,24 @@ test('resolves TROY close summary LINE IDs from game master environment keys', (
     if (previousGameMasterSingle === undefined) delete process.env.GAME_MASTER_LINE_USER_ID;
     else process.env.GAME_MASTER_LINE_USER_ID = previousGameMasterSingle;
   }
+});
+
+test('builds TROY usual order items from settled checkout history', () => {
+  const merged = mergeTroyOrderHistoryItems([
+    { name: 'ハイボール（角） S', price: 500, count: 2, lastOrderedAtMs: 1000 },
+    { name: '梅水晶', price: 500, count: 1, lastOrderedAtMs: 900 }
+  ], [
+    { name: 'ハイボール（角） S', price: 500, quantity: 1, orderedAtMs: 2000 },
+    { name: '梅水晶', price: 500, quantity: 3, orderedAtMs: 2100 },
+    { name: '入店チャージ', price: 500, quantity: 1, orderedAtMs: 2200 },
+    { name: '裏メニュー', price: 1500, quantity: 1, orderedAtMs: 2300 }
+  ], 3000);
+
+  const usualItems = buildTroyUsualItemsPayload({ items: merged });
+  expect(usualItems.map((item) => item.name)).toEqual(['梅水晶', 'ハイボール（角） S']);
+  expect(usualItems.map((item) => item.count)).toEqual([4, 3]);
+  expect(usualItems).not.toEqual(expect.arrayContaining([
+    expect.objectContaining({ name: '入店チャージ' }),
+    expect.objectContaining({ name: '裏メニュー' })
+  ]));
 });

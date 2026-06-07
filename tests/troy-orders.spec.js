@@ -8,7 +8,17 @@ test('staff register creates a checkout from an in-store member and settles with
     troyTodaySales: { total: 0, count: 0 },
     troyCoinConversionLogs: [],
     troyMembers: [
-      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 600000, level: 24, rankName: '船長' },
+      {
+        playFabId: 'PLAYER1',
+        displayName: '海風の船長',
+        joinedAtMs: now - 600000,
+        level: 24,
+        rankName: '船長',
+        usualItems: [
+          { name: 'ジンリッキー（+ソーダ） S', price: 500, count: 5, lastOrderedAtMs: now - 86400000 },
+          { name: 'ファジーネーブル（ピーチ+オレンジ） S', price: 500, count: 3, lastOrderedAtMs: now - 172800000 }
+        ]
+      },
       { playFabId: 'PLAYER2', displayName: '港町の料理人', joinedAtMs: now - 300000, level: 18, rankName: '航海士' }
     ],
     troyPendingCheckouts: []
@@ -88,6 +98,11 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('大きな伝票');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('海風の船長');
+  const usualCategory = page.locator('#troyOrdersTicketDetail .troy-orders-pos-category').first();
+  await expect(usualCategory.locator('summary')).toHaveText('いつもの');
+  await expect(usualCategory.locator('[data-add-item][data-item-name="ジンリッキー（+ソーダ） S"]')).toContainText('過去5回');
+  await expect(usualCategory.locator('[data-add-item][data-item-name="ファジーネーブル（ピーチ+オレンジ） S"]')).toContainText('過去3回');
+  await expect(usualCategory.locator('[data-add-item][data-item-name="ジンリッキー（+ソーダ） S"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ハイボール（角） S"]')).toContainText('¥500');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ハイボール（角） M"]')).toContainText('¥700');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="シャンディガフ（ビール+ジンジャーエール） S"]')).toContainText('¥500');
@@ -136,6 +151,7 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ナゲット"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/food\/pirate_fried_chicken_nuggets\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="梅水晶"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/food\/pirate_ume_crystal_bowl\.png/);
 
+  await page.locator('#troyOrdersTicketDetail .troy-orders-pos-category', { hasText: 'ビール・ハイボール' }).locator('summary').click();
   await page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="瓶ビール（ハートランド）"]').click();
 
   expect(addItemRequests).toHaveLength(1);

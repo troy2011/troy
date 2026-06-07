@@ -17,6 +17,9 @@ const CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
 const CUSTOM_ORDER_PRICE_PRESETS = [100, 300, 500, 1000, 1500, 2000, 3000, 5000];
 const CUSTOM_ORDER_PRICE_MIN = 100;
 const CUSTOM_ORDER_PRICE_MAX = 100000;
+const USUAL_ORDER_CATEGORY_ID = 'usual';
+const USUAL_ORDER_CATEGORY_TITLE = 'いつもの';
+const USUAL_ORDER_LIMIT = 8;
 
 let refreshTimer = null;
 let sseSource = null;
@@ -69,7 +72,25 @@ function normalizeStaffCustomMenuItems(data = lastData) {
     }).filter(Boolean);
 }
 
-function buildStaffMenu(data = lastData) {
+function normalizeUsualOrderItems(entry = {}) {
+    return (Array.isArray(entry?.usualItems) ? entry.usualItems : [])
+        .map((item) => {
+            const name = String(item?.name || '').trim();
+            const price = Math.max(0, Math.floor(Number(item?.price) || 0));
+            const count = Math.max(0, Math.floor(Number(item?.count || item?.orderCount || 0)));
+            if (!name || price <= 0) return null;
+            return {
+                name,
+                price,
+                note: count > 0 ? `過去${count}回` : '',
+                categoryId: USUAL_ORDER_CATEGORY_ID
+            };
+        })
+        .filter(Boolean)
+        .slice(0, USUAL_ORDER_LIMIT);
+}
+
+function buildStaffMenu(data = lastData, customerEntry = null) {
     const categories = getTroyStaffMenu();
     const categoryById = new Map(categories.map((category) => [category.id, category]));
     normalizeStaffCustomMenuItems(data).forEach((item) => {
@@ -85,6 +106,14 @@ function buildStaffMenu(data = lastData) {
             isCustom: true
         });
     });
+    const usualItems = normalizeUsualOrderItems(customerEntry);
+    if (usualItems.length) {
+        categories.unshift({
+            id: USUAL_ORDER_CATEGORY_ID,
+            category: USUAL_ORDER_CATEGORY_TITLE,
+            items: usualItems
+        });
+    }
     return categories;
 }
 
@@ -516,8 +545,8 @@ function getPendingServeCount(items = []) {
     return items.filter((item) => !(String(item.status || '').toLowerCase() === 'served' || Number(item.servedAtMs) > 0)).length;
 }
 
-function buildPosCategoryHtml() {
-    const menuHtml = buildStaffMenu().map((cat, index) => {
+function buildPosCategoryHtml(customerEntry = null) {
+    const menuHtml = buildStaffMenu(lastData, customerEntry).map((cat, index) => {
         const btns = cat.items.map((item) => {
             const image = getTroyMenuImage(cat.id, item);
             const thumb = image
@@ -883,7 +912,7 @@ function renderTicketDetail() {
                         <strong>注文追加</strong>
                         <span>商品を選択</span>
                     </div>
-                    ${buildPosCategoryHtml()}
+                    ${buildPosCategoryHtml(entry)}
                 </div>
             </div>
         </section>
