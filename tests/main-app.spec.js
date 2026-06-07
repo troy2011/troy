@@ -1216,7 +1216,8 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '#tabContentInventory .equip-slot',
       '#tabContentEvents .event-list-panel',
       '#tabContentEvents .event-card',
-      '#tabContentQr .guild-card'
+      '#tabContentQr .guild-card',
+      '#btnKingTroyOpen'
     ];
     return selectors
       .map((selector) => {
@@ -1235,6 +1236,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
   expect(audit.length).toBeGreaterThanOrEqual(8);
   expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
   expect(audit.filter((entry) => !/assets\/ui\/panels\//.test(entry.borderImageSource))).toEqual([]);
+  expect(audit.find((entry) => entry.selector === '#btnKingTroyOpen')?.borderImageSource).toContain('panel-gold-square.png');
   await expectNoPageErrors(errors);
 });
 
