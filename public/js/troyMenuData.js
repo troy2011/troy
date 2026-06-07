@@ -40,6 +40,7 @@ function withStaffSizes(variants = []) {
 export const TROY_BOTTLE_ITEMS = [
     { concept: 'キンミヤボトル', content: '割物はスタッフまで', price: 2500, emoji: '🍶' },
     { concept: '黒霧ボトル', content: '割物はスタッフまで', price: 3000, emoji: '🍾' },
+    { concept: 'ワインボトル', content: '', price: 3000, emoji: '🍷' },
     { concept: 'モエ・エ・シャンドン', content: '', price: 18000, emoji: '🍾' },
     { concept: '角ボトル', content: '割物はスタッフまで', price: 4000, emoji: '🥃' }
 ];
@@ -112,7 +113,7 @@ export const TROY_PRODUCT_MENUS = {
         ]
     },
     whisky: {
-        title: 'ウイスキー・焼酎',
+        title: 'ウイスキー・焼酎・ワイン',
         items: [
             {
                 concept: 'ウイスキー',
@@ -141,6 +142,18 @@ export const TROY_PRODUCT_MENUS = {
                     { name: '焼酎 麦' },
                     { name: '焼酎 米' },
                     { name: '焼酎 しそ' }
+                ])
+            },
+            {
+                concept: 'グラスワイン',
+                content: '赤 / 白を選択',
+                price: 500,
+                mixers: ['赤', '白'],
+                optionLabelName: '種類',
+                emoji: '🍷',
+                staffVariants: withStaffSizes([
+                    { name: 'グラスワイン（赤）' },
+                    { name: 'グラスワイン（白）' }
                 ])
             }
         ]

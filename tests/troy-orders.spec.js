@@ -147,11 +147,15 @@ test('staff register creates a checkout from an in-store member and settles with
     await expect(addButton.locator('.troy-orders-pos-thumb img')).toHaveAttribute('src', imagePattern);
   }
   await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('ワイン各種');
-  await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('ワインボトル');
-  await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('グラスワイン');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="黒霧ボトル"]')).toContainText('¥3,000');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ワインボトル"]')).toContainText('¥3,000');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（赤） S"]')).toContainText('¥500');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（白） S"]')).toContainText('¥500');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="モエ・エ・シャンドン"]')).toContainText('¥18,000');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="角ボトル"]')).toContainText('¥4,000');
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ワインボトル"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_bottle\.png/);
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（赤） S"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_glass\.png/);
+  await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="グラスワイン（白） S"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_compass_white_wine\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="モエ・エ・シャンドン"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="角ボトル"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/troy_yamazaki_whisky_bottle\.png/);
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="キンミヤボトル"] .troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_blue_crystal_potion\.png/);

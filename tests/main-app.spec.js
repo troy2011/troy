@@ -267,10 +267,12 @@ export function onSnapshot(_ref, next) {
 
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).click();
   await expect(page.locator('#troyMenuBoardList')).not.toContainText('ワイン各種');
-  await expect(page.locator('#troyMenuBoardList')).not.toContainText('ワインボトル');
   const blackBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^黒霧ボトル$/ }) });
   await expect(blackBottleItem.locator('.troy-menu-board-price')).toHaveText('¥3,000');
   await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: 'キンミヤボトル' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_blue_crystal_potion\.png/);
+  const wineBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^ワインボトル$/ }) });
+  await expect(wineBottleItem.locator('.troy-menu-board-price')).toHaveText('¥3,000');
+  await expect(wineBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_bottle\.png/);
   const moetItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^モエ・エ・シャンドン$/ }) });
   await expect(moetItem.locator('.troy-menu-board-price')).toHaveText('¥18,000');
   await expect(moetItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
@@ -278,8 +280,10 @@ export function onSnapshot(_ref, next) {
   await expect(kakuBottleItem.locator('.troy-menu-board-price')).toHaveText('¥4,000');
   await expect(kakuBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_yamazaki_whisky_bottle\.png/);
 
-  await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'ウイスキー・焼酎' }).click();
-  await expect(page.locator('#troyMenuBoardList')).not.toContainText('グラスワイン');
+  await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'ウイスキー・焼酎・ワイン' }).click();
+  const glassWineItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^グラスワイン$/ }) });
+  await expect(glassWineItem.locator('.troy-menu-board-price')).toHaveText('¥500');
+  await expect(glassWineItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/pirate_red_wine_glass\.png/);
 
   await expectNoPageErrors(errors);
 });
