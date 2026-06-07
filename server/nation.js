@@ -2990,6 +2990,7 @@ function initializeNationRoutes(app, deps) {
             const payload = csResult ? (csResult.FunctionResult || {}) : {};
             try {
                 const nation = await getNationForPlayer(requesterPlayFabId, { promisifyPlayFab, PlayFabServer });
+                payload.nation = nation;
                 const groupId = await getNationGroupIdByNation(nation, firestore, nationDeps);
                 const mapping = getNationMappingByNation(nation);
                 let groupData = {};

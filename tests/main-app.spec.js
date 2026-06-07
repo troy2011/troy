@@ -1494,6 +1494,62 @@ test('king OPEN button uses the current gold button frame', async ({ page }) => 
   await expectNoPageErrors(errors);
 });
 
+test('king page shows TROY entry QR from priority controls', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        troyOpen: false,
+        troyMembers: [],
+        announcement: { message: 'Map systems nominal' }
+      })
+    });
+  });
+
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js');
+    await king.refreshKingNav('PF_PLAYWRIGHT');
+    await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+  await expect(page.locator('#tabContentKing')).toBeVisible();
+  await expect(page.locator('#btnKingTroyEntryQr')).toBeHidden();
+
+  await page.unroute('**/api/get-nation-king-page');
+  await page.route('**/api/get-nation-king-page', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        nation: 'fire',
+        troyOpen: true,
+        troyMembers: [],
+        announcement: { message: 'Map systems nominal' }
+      })
+    });
+  });
+  await page.evaluate(async () => {
+    const king = await import('/js/nationKing.js');
+    await king.loadKingPage('PF_PLAYWRIGHT');
+  });
+  await expect(page.locator('#btnKingTroyEntryQr')).toBeVisible();
+  await page.locator('#btnKingTroyEntryQr').click();
+
+  const qrValue = await page.locator('#kingTroyEntryQrValue').inputValue();
+  expect(qrValue).toContain('action=troy-entry');
+  expect(qrValue).toContain('troyNation=fire');
+  await expect(page.locator('#kingTroyEntryQrModal')).toBeVisible();
+  await expect(page.locator('#kingTroyEntryQrCanvas')).toHaveAttribute('width', '300');
+
+  await page.locator('#btnKingTroyEntryQrClose').click();
+  await expect(page.locator('#kingTroyEntryQrModal')).toBeHidden();
+  await expectNoPageErrors(errors);
+});
+
 test('king can found a nation guild from companions regardless of level', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-stats', async (route) => {

@@ -10656,6 +10656,41 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     background: #fff;
 }
 
+.king-troy-entry-qr-modal {
+    width: min(92vw, 420px);
+    max-width: 420px;
+    border: 1px solid transparent;
+    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
+    background:
+        linear-gradient(180deg, rgba(11, 8, 6, 0.78), rgba(4, 4, 5, 0.96)),
+        repeating-linear-gradient(90deg, rgba(101, 58, 25, 0.12) 0 28px, rgba(16, 10, 6, 0.12) 28px 56px);
+}
+
+.king-troy-entry-qr-modal h2 {
+    margin: 0 0 14px;
+    color: #f7d68d;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.king-troy-entry-qr-canvas {
+    width: min(74vw, 300px);
+    height: auto;
+    padding: 10px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.34);
+}
+
+.king-troy-entry-qr-value {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 12px;
+}
+
 @media (max-width: 520px) {
     .king-coin-return-qr-row {
         grid-template-columns: 1fr;

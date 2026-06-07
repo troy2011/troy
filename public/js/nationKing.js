@@ -473,6 +473,63 @@ function _syncStoreGameScoreInput(typeEl, scoreEl) {
     scoreEl.placeholder = isKaraoke ? '例: 90.568' : '例: 701';
 }
 
+function _resolveTroyEntryNation() {
+    return String(
+        _lastPageData?.nation
+        || _lastPageData?.troyNation
+        || window.myAvatarBaseInfo?.Nation
+        || window.myAvatarBaseInfo?.nation
+        || 'fire'
+    ).trim().toLowerCase();
+}
+
+function _buildTroyEntryQrUrl() {
+    const url = new URL(window.location.pathname || '/', window.location.origin);
+    url.searchParams.set('action', 'troy-entry');
+    url.searchParams.set('troyNation', _resolveTroyEntryNation());
+    return url.toString();
+}
+
+function _setKingTroyEntryQrModalVisible(visible) {
+    const modal = document.getElementById('kingTroyEntryQrModal');
+    if (!modal) return;
+    modal.style.display = visible ? 'flex' : 'none';
+    modal.classList.toggle('active', !!visible);
+    modal.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
+
+function _syncTroyEntryQrButton(isOpen) {
+    const button = document.getElementById('btnKingTroyEntryQr');
+    if (!button) return;
+    button.style.display = isOpen ? '' : 'none';
+    button.disabled = !isOpen;
+}
+
+function _showTroyEntryQr() {
+    if (!_lastPageData?.troyOpen) {
+        _setMessage('TROYがOPEN中の時だけ入店QRを表示できます。', true);
+        _setKingTroyEntryQrModalVisible(false);
+        return;
+    }
+    const canvas = document.getElementById('kingTroyEntryQrCanvas');
+    const valueEl = document.getElementById('kingTroyEntryQrValue');
+    const url = _buildTroyEntryQrUrl();
+    if (valueEl) valueEl.value = url;
+    if (!canvas || typeof window.QRious !== 'function') {
+        _setMessage('QR生成ライブラリを読み込めませんでした。', true);
+        return;
+    }
+    new window.QRious({
+        element: canvas,
+        value: url,
+        size: 300,
+        background: 'white',
+        foreground: '#111827',
+        level: 'H'
+    });
+    _setKingTroyEntryQrModalVisible(true);
+}
+
 async function _scanQrValue() {
     if (!window.liff) throw new Error('LIFF が初期化されていません。');
     if (typeof window.liff.scanCodeV2 === 'function') {
@@ -556,11 +613,13 @@ export async function loadKingPage(playFabId, options = {}) {
     _renderTroyMembers(data.troyMembers);
     _renderMenuManagement(data);
     await _loadKingTroyCalendar(playFabId, data.nation);
+    const isOpen = !!data.troyOpen;
     if (troyStatusEl) {
-        const isOpen = !!data.troyOpen;
         if (troyStatusEl) troyStatusEl.innerText = isOpen ? 'OPEN' : 'CLOSE';
         if (troyStatusEl) troyStatusEl.classList.toggle('is-open', isOpen);
     }
+    _syncTroyEntryQrButton(isOpen);
+    if (!isOpen) _setKingTroyEntryQrModalVisible(false);
     _renderNationWar(data.war);
 
     _wireHandlers(playFabId);
@@ -576,6 +635,10 @@ function _wireHandlers(playFabId) {
     const inputEl = document.getElementById('kingAnnouncementInput');
     const troyOpenBtn = document.getElementById('btnKingTroyOpen');
     const troyCloseBtn = document.getElementById('btnKingTroyClose');
+    const troyEntryQrBtn = document.getElementById('btnKingTroyEntryQr');
+    const troyEntryQrModal = document.getElementById('kingTroyEntryQrModal');
+    const troyEntryQrCloseBtn = document.getElementById('btnKingTroyEntryQrClose');
+    const troyEntryQrCopyBtn = document.getElementById('btnKingTroyEntryQrCopy');
     const coinReturnBtn = document.getElementById('btnKingCoinReturn');
     const coinReturnAmountEl = document.getElementById('kingCoinReturnAmount');
     const storeGameTypeEl = document.getElementById('kingStoreGameType');
@@ -663,6 +726,7 @@ function _wireHandlers(playFabId) {
                 if (result) {
                     if (troyStatusEl) troyStatusEl.innerText = 'OPEN';
                     if (troyStatusEl) troyStatusEl.classList.add('is-open');
+                    _syncTroyEntryQrButton(true);
                     await loadKingPage(playFabId);
                     _setMessage('TROYをOPENにしました。');
                 }
@@ -679,11 +743,45 @@ function _wireHandlers(playFabId) {
                 if (result) {
                     if (troyStatusEl) troyStatusEl.innerText = 'CLOSE';
                     if (troyStatusEl) troyStatusEl.classList.remove('is-open');
+                    _syncTroyEntryQrButton(false);
+                    _setKingTroyEntryQrModalVisible(false);
                     await loadKingPage(playFabId);
                     _setMessage('TROYをCLOSEにしました。');
                 }
             } catch (error) {
                 _setMessage(_extractErrorMessage(error, 'CLOSEに失敗しました。'), true);
+            }
+        });
+    }
+
+    if (troyEntryQrBtn) {
+        troyEntryQrBtn.addEventListener('click', () => {
+            _showTroyEntryQr();
+        });
+    }
+
+    if (troyEntryQrCloseBtn) {
+        troyEntryQrCloseBtn.addEventListener('click', () => {
+            _setKingTroyEntryQrModalVisible(false);
+        });
+    }
+
+    if (troyEntryQrModal) {
+        troyEntryQrModal.addEventListener('click', (event) => {
+            if (event.target === troyEntryQrModal) {
+                _setKingTroyEntryQrModalVisible(false);
+            }
+        });
+    }
+
+    if (troyEntryQrCopyBtn) {
+        troyEntryQrCopyBtn.addEventListener('click', async () => {
+            const url = String(document.getElementById('kingTroyEntryQrValue')?.value || _buildTroyEntryQrUrl()).trim();
+            try {
+                await navigator.clipboard?.writeText(url);
+                _setMessage('入店QRのURLをコピーしました。');
+            } catch {
+                _setMessage('URLをコピーできませんでした。画面のURL欄を使用してください。', true);
             }
         });
     }

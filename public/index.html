@@ -1075,6 +1075,7 @@
                                 </div>
                                 <div class="troy-admin-actions">
                                     <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
+                                    <button id="btnKingTroyEntryQr" class="btn-open" type="button" style="display: none;" disabled>入店QR</button>
                                     <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
                                 </div>
                             </div>
@@ -1530,6 +1531,18 @@
                 <!-- 加入申請リストがここに動的に表示される -->
             </div>
             <button onclick="document.getElementById('guildApplicationsModal').style.display='none'" style="width: 100%; background: #4b5563;">閉じる</button>
+        </div>
+    </div>
+
+    <div id="kingTroyEntryQrModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content king-troy-entry-qr-modal" role="dialog" aria-modal="true" aria-labelledby="kingTroyEntryQrTitle">
+            <h2 id="kingTroyEntryQrTitle">TROY 入店QR</h2>
+            <canvas id="kingTroyEntryQrCanvas" class="king-troy-entry-qr-canvas" width="300" height="300" aria-label="TROY入店QR"></canvas>
+            <input id="kingTroyEntryQrValue" class="king-troy-entry-qr-value" type="text" readonly aria-label="入店URL" />
+            <div class="modal-buttons">
+                <button id="btnKingTroyEntryQrCopy" class="btn-open" type="button">URLコピー</button>
+                <button id="btnKingTroyEntryQrClose" class="btn-muted" type="button">閉じる</button>
+            </div>
         </div>
     </div>
 
