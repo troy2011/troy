@@ -712,12 +712,14 @@ function _wireHandlers(playFabId) {
                 const result = await kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
                 const contributionAmount = Math.max(0, Math.floor(Number(result?.contributionAmount) || 0));
                 const contributionNote = contributionAmount > 0 ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}` : '';
+                const debtMessage = String(result?.contributionDebtMessage || '').trim();
+                const debtNote = debtMessage ? ` / ${debtMessage}` : '';
                 const contribution = result?.contribution || {};
                 const unlockNote = formatUnlockedFeatures(contribution.unlockedFeatures);
                 const levelNote = contribution.leveledUp
                     ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
                     : '';
-                _setMessage(`${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}${levelNote}`);
+                _setMessage(`${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}${debtNote}${levelNote}`);
                 if (coinReturnAmountEl) coinReturnAmountEl.value = '0';
                 await loadKingPage(playFabId);
             } catch (error) {

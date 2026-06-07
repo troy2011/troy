@@ -110,6 +110,8 @@ const NATION_WAR_CARD_REWARD_HIGH_RAID_THRESHOLD = 50000;
 const TROY_COIN_CONVERSION_MAX_AMOUNT = 1000000;
 const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
 const TROY_BOUNTY_RANKING_MEMBER_LIMIT = 50;
+const TROY_CONTRIBUTION_DEBT_COLLECTION = 'troy_contribution_debts';
+const TROY_CONTRIBUTION_DEBT_MESSAGE = '古傷が疼き、経験値は波間に消えた。';
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -4162,6 +4164,90 @@ function initializeNationRoutes(app, deps) {
         return { nation, mapping, roomRef, roomData, memberId, memberRef, memberData: memberSnap.data() || {} };
     }
 
+    function getTroyContributionDebtRef(playFabId) {
+        const id = normalizePlayFabId(playFabId);
+        if (!id || !firestore) return null;
+        return firestore.collection(TROY_CONTRIBUTION_DEBT_COLLECTION).doc(id);
+    }
+
+    function normalizeContributionDebtAmount(value) {
+        return Math.max(0, Math.floor(Number(value) || 0));
+    }
+
+    function buildContributionDebtMessage(blockedAmount) {
+        const blocked = normalizeContributionDebtAmount(blockedAmount);
+        if (blocked <= 0) return '';
+        return `${TROY_CONTRIBUTION_DEBT_MESSAGE}（-${blocked.toLocaleString('ja-JP')}）`;
+    }
+
+    async function applyTroyContributionDebtForChipReturn(playFabId, amount) {
+        const targetId = normalizePlayFabId(playFabId);
+        const value = normalizeContributionDebtAmount(amount);
+        const debtRef = getTroyContributionDebtRef(targetId);
+        if (!targetId || value <= 0 || !debtRef || !admin) {
+            return {
+                requestedAmount: value,
+                contributionAmount: value,
+                debtBlockedAmount: 0,
+                debtRemaining: 0,
+                debtMessage: ''
+            };
+        }
+
+        const outcome = await firestore.runTransaction(async (transaction) => {
+            const debtSnap = await transaction.get(debtRef);
+            const data = debtSnap.exists ? (debtSnap.data() || {}) : {};
+            const currentDebt = normalizeContributionDebtAmount(data.debt);
+            const debtBlockedAmount = Math.min(currentDebt, value);
+            const contributionAmount = Math.max(0, value - debtBlockedAmount);
+            const debtRemaining = Math.max(0, currentDebt - debtBlockedAmount);
+            transaction.set(debtRef, {
+                playFabId: targetId,
+                debt: debtRemaining,
+                totalBlocked: normalizeContributionDebtAmount(data.totalBlocked) + debtBlockedAmount,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastBlockedAt: debtBlockedAmount > 0 ? admin.firestore.FieldValue.serverTimestamp() : data.lastBlockedAt || null
+            }, { merge: true });
+            return {
+                requestedAmount: value,
+                previousDebt: currentDebt,
+                contributionAmount,
+                debtBlockedAmount,
+                debtRemaining,
+                debtMessage: buildContributionDebtMessage(debtBlockedAmount)
+            };
+        });
+
+        let contribution = null;
+        if (outcome.contributionAmount > 0) {
+            try {
+                contribution = await addPlayerNationContribution(targetId, outcome.contributionAmount, nationDeps);
+            } catch (error) {
+                try {
+                    await firestore.runTransaction(async (transaction) => {
+                        const debtSnap = await transaction.get(debtRef);
+                        const data = debtSnap.exists ? (debtSnap.data() || {}) : {};
+                        const currentDebt = normalizeContributionDebtAmount(data.debt);
+                        transaction.set(debtRef, {
+                            playFabId: targetId,
+                            debt: currentDebt + outcome.contributionAmount,
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            lastRestoreAt: admin.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    });
+                } catch (restoreError) {
+                    console.warn('[troy-contribution-debt] Failed to restore debt after contribution error:', restoreError?.message || restoreError);
+                }
+                throw error;
+            }
+        }
+
+        return {
+            ...outcome,
+            contribution
+        };
+    }
+
     async function recordTroyCoinConversion(memberRef, requestId, direction, amount) {
         const safeRequestId = String(requestId || '').trim().slice(0, 120);
         const conversionRef = safeRequestId
@@ -4186,12 +4272,17 @@ function initializeNationRoutes(app, deps) {
                         coinConvertedTotal: Math.max(0, Math.floor(Number(conversionData.coinConvertedTotal) || 0)),
                         goldConvertedTotal: Math.max(0, Math.floor(Number(conversionData.goldConvertedTotal) || 0)),
                         contributionAmount: 0,
-                        contributionAppliedTotal: Math.max(0, Math.floor(Number(conversionData.contributionAppliedTotal) || 0))
+                        contributionAppliedTotal: Math.max(0, Math.floor(Number(conversionData.contributionAppliedTotal) || 0)),
+                        contributionDebtAdded: 0
                     };
                 }
             }
 
             const data = memberSnap.data() || {};
+            const memberId = normalizePlayFabId(memberRef.id || data.playFabId || '');
+            const debtRef = direction === 'gold_to_coin' ? getTroyContributionDebtRef(memberId) : null;
+            const debtSnap = debtRef ? await transaction.get(debtRef) : null;
+            const debtData = debtSnap?.exists ? (debtSnap.data() || {}) : {};
             const coinConvertedTotal = Math.max(0, Math.floor(Number(data.coinConvertedTotal) || 0));
             const goldConvertedTotal = Math.max(0, Math.floor(Number(data.goldConvertedTotal) || 0));
             const contributionAppliedTotal = Math.max(0, Math.floor(Number(data.coinGoldContributionTotal) || 0));
@@ -4199,9 +4290,21 @@ function initializeNationRoutes(app, deps) {
             let nextGoldConvertedTotal = goldConvertedTotal;
             let nextContributionAppliedTotal = contributionAppliedTotal;
             let contributionAmount = 0;
+            let contributionDebtAdded = 0;
 
             if (direction === 'gold_to_coin') {
                 nextCoinConvertedTotal += amount;
+                if (debtRef) {
+                    const currentDebt = normalizeContributionDebtAmount(debtData.debt);
+                    contributionDebtAdded = amount;
+                    transaction.set(debtRef, {
+                        playFabId: memberId,
+                        debt: currentDebt + contributionDebtAdded,
+                        totalDebtAdded: normalizeContributionDebtAmount(debtData.totalDebtAdded) + contributionDebtAdded,
+                        updatedAt: now,
+                        lastDebtAddedAt: now
+                    }, { merge: true });
+                }
             } else if (direction === 'coin_to_gold') {
                 nextGoldConvertedTotal += amount;
                 const eligibleContributionTotal = Math.max(0, nextGoldConvertedTotal - nextCoinConvertedTotal);
@@ -4230,7 +4333,8 @@ function initializeNationRoutes(app, deps) {
                 coinConvertedTotal: nextCoinConvertedTotal,
                 goldConvertedTotal: nextGoldConvertedTotal,
                 contributionAmount,
-                contributionAppliedTotal: nextContributionAppliedTotal
+                contributionAppliedTotal: nextContributionAppliedTotal,
+                contributionDebtAdded
             };
             if (conversionRef) {
                 transaction.set(conversionRef, {
@@ -4381,10 +4485,14 @@ function initializeNationRoutes(app, deps) {
             const conversion = await recordTroyCoinConversion(memberRef, requestId, 'coin_to_gold', amount);
 
             let contribution = null;
+            let contributionDebtResult = null;
             if (!conversion.duplicate && conversion.contributionAmount > 0) {
                 try {
-                    contribution = await addPlayerNationContribution(receiverId, conversion.contributionAmount, nationDeps);
-                    await updateTroyMemberRankSnapshot(memberRef, contribution);
+                    contributionDebtResult = await applyTroyContributionDebtForChipReturn(receiverId, conversion.contributionAmount);
+                    contribution = contributionDebtResult?.contribution || null;
+                    if (contribution) {
+                        await updateTroyMemberRankSnapshot(memberRef, contribution);
+                    }
                 } catch (contributionError) {
                     console.warn('[king-troy-return-coin] Failed to update contribution:', contributionError?.errorMessage || contributionError?.message || contributionError);
                 }
@@ -4432,7 +4540,12 @@ function initializeNationRoutes(app, deps) {
                 newBalance: Number.isFinite(newBalance) ? newBalance : undefined,
                 balanceSyncError: balanceSyncError || undefined,
                 contribution,
-                ...conversion
+                ...conversion,
+                rawContributionAmount: conversion.contributionAmount,
+                contributionAmount: Math.max(0, Math.floor(Number(contributionDebtResult?.contributionAmount) || 0)),
+                contributionDebtBlockedAmount: Math.max(0, Math.floor(Number(contributionDebtResult?.debtBlockedAmount) || 0)),
+                contributionDebtRemaining: Math.max(0, Math.floor(Number(contributionDebtResult?.debtRemaining) || 0)),
+                contributionDebtMessage: contributionDebtResult?.debtMessage || ''
             });
         } catch (error) {
             const msg = error?.errorMessage || error?.message || error;
@@ -5126,6 +5239,7 @@ function initializeNationRoutes(app, deps) {
         let chipReturnError = null;
         let chipReturnConversion = null;
         let chipReturnContribution = null;
+        let chipReturnDebtResult = null;
         if (chipReturnAmount > 0) {
             try {
                 const chipReturnRequestId = `${settleBaseId}:chip-return`;
@@ -5134,8 +5248,11 @@ function initializeNationRoutes(app, deps) {
                 chipReturnConversion = await recordTroyCoinConversion(memberRef, chipReturnRequestId, 'coin_to_gold', chipReturnAmount);
                 if (!chipReturnConversion.duplicate && chipReturnConversion.contributionAmount > 0) {
                     try {
-                        chipReturnContribution = await addPlayerNationContribution(receiverId, chipReturnConversion.contributionAmount, nationDeps);
-                        await updateTroyMemberRankSnapshot(memberRef, chipReturnContribution);
+                        chipReturnDebtResult = await applyTroyContributionDebtForChipReturn(receiverId, chipReturnConversion.contributionAmount);
+                        chipReturnContribution = chipReturnDebtResult?.contribution || null;
+                        if (chipReturnContribution) {
+                            await updateTroyMemberRankSnapshot(memberRef, chipReturnContribution);
+                        }
                     } catch (contributionError) {
                         console.warn(`[${logPrefix}] Chip return contribution failed:`, contributionError?.errorMessage || contributionError?.message || contributionError);
                     }
@@ -5269,6 +5386,11 @@ function initializeNationRoutes(app, deps) {
             chipReturnError,
             chipReturnConversion,
             chipReturnContribution,
+            chipReturnContributionAmount: Math.max(0, Math.floor(Number(chipReturnDebtResult?.contributionAmount) || 0)),
+            chipReturnRawContributionAmount: Math.max(0, Math.floor(Number(chipReturnConversion?.contributionAmount) || 0)),
+            chipReturnDebtBlockedAmount: Math.max(0, Math.floor(Number(chipReturnDebtResult?.debtBlockedAmount) || 0)),
+            chipReturnDebtRemaining: Math.max(0, Math.floor(Number(chipReturnDebtResult?.debtRemaining) || 0)),
+            chipReturnDebtMessage: chipReturnDebtResult?.debtMessage || '',
             coinDepositAmount: chipReturnAmount,
             coinDepositApplied: chipReturnApplied,
             coinDepositError: chipReturnError,

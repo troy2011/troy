@@ -1223,10 +1223,11 @@ async function settleFromCard(card) {
     card.classList.add('is-busy');
     try {
         const groupRequestId = createRequestId(targets.length > 1 ? 'troy-orders-group-settle' : 'troy-orders-settle');
+        const debtMessages = [];
         for (const target of targets) {
             const targetId = String(target.playFabId || '').trim();
             if (!targetId) continue;
-            await callApiWithLoader('/api/troy-orders/settle', {
+            const settleResult = await callApiWithLoader('/api/troy-orders/settle', {
                 ...getRequestedNationPayload(),
                 receiverPlayFabId: targetId,
                 settlementRepresentativePlayFabId: receiverId,
@@ -1234,9 +1235,12 @@ async function settleFromCard(card) {
                 requestId: `${groupRequestId}:${targetId}`,
                 chipReturnAmount: targetId === receiverId ? chipReturnAmount : 0
             }, { isSilent: true, throwOnError: true });
+            const debtMessage = String(settleResult?.chipReturnDebtMessage || '').trim();
+            if (debtMessage) debtMessages.push(debtMessage);
         }
         await refreshOrders({ silent: true, force: true });
-        setMessage(targets.length > 1 ? 'グループ会計と退店処理を完了しました。' : '会計と退店処理を完了しました。');
+        const doneMessage = targets.length > 1 ? 'グループ会計と退店処理を完了しました。' : '会計と退店処理を完了しました。';
+        setMessage(debtMessages.length ? `${doneMessage} ${debtMessages.join(' ')}` : doneMessage);
     } catch (error) {
         console.warn('[troy-orders] settle failed:', error);
         setMessage(`会計できませんでした: ${error?.message || error}`, true);
