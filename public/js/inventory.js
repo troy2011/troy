@@ -935,6 +935,7 @@ function getInventoryCardFooter(item, canonicalCategory) {
         return 'デッキに追加できます';
     }
     if (canonicalCategory === 'Consumable') {
+        if (isTroyMenuConsumableItem(item)) return 'TROYの会計で受け取ったメニューです。';
         return String(item?.description || '').trim() || '使うと効果を発揮します。';
     }
     if (canonicalCategory === 'Offhand') {
@@ -955,6 +956,18 @@ function createInventoryChip(label, tone = '') {
     chip.className = `inventory-item-chip${tone ? ` is-${tone}` : ''}`;
     chip.textContent = label;
     return chip;
+}
+
+function isTroyMenuConsumableItem(item) {
+    const cd = item?.customData || {};
+    return cd.TroyMenuConsumable === true
+        || String(cd.TroyMenuConsumable || cd.IsTroyMenuConsumable || '').trim().toLowerCase() === 'true'
+        || String(cd.FriendlyId || item?.itemId || '').trim().toLowerCase().startsWith('troy_menu_');
+}
+
+function getInventoryStandaloneImagePath(item) {
+    const cd = item?.customData || {};
+    return String(cd.image_path || cd.ImagePath || cd.MenuImagePath || cd.iconImage || '').trim();
 }
 
 function getInventoryRarityTone(item) {
@@ -1333,12 +1346,9 @@ function createInventoryCell(item, requestedCategory) {
     const iconDiv = document.createElement('div');
     iconDiv.className = 'inventory-item-icon';
     const spriteFrame = getInventorySpriteFrame(item);
-    setSpriteIcon(
+    setInventoryIcon(
         iconDiv,
-        spriteFrame.path,
-        spriteFrame.index,
-        spriteFrame.width,
-        spriteFrame.height,
+        spriteFrame,
         1,
         spriteFrame.category,
         window.myAvatarBaseInfo?.AvatarColor
@@ -1806,6 +1816,40 @@ function setSpriteIcon(element, imageUrl, spriteIndex, spriteWidth = 32, spriteH
     tryLoad(0);
 }
 
+function setInventoryIcon(element, spriteFrame, scale = 1, itemCategory = null, avatarColor = null) {
+    if (!element) return;
+    element.replaceChildren();
+    element.classList.toggle('is-image-icon', !!spriteFrame?.imagePath);
+    if (spriteFrame?.imagePath) {
+        element.style.backgroundImage = 'none';
+        element.style.width = '';
+        element.style.height = '';
+        element.style.backgroundSize = '';
+        element.style.backgroundPosition = '';
+        element.style.backgroundRepeat = '';
+        element.style.display = '';
+        element.style.flex = '';
+        element.style.margin = '';
+        element.style.imageRendering = 'auto';
+        const img = document.createElement('img');
+        img.src = spriteFrame.imagePath;
+        img.alt = '';
+        img.loading = 'lazy';
+        element.appendChild(img);
+        return;
+    }
+    setSpriteIcon(
+        element,
+        spriteFrame?.path,
+        Number(spriteFrame?.index || 0) || 0,
+        Number(spriteFrame?.width || 32) || 32,
+        Number(spriteFrame?.height || 32) || 32,
+        scale,
+        itemCategory,
+        avatarColor
+    );
+}
+
 function getInventorySpriteFrame(item) {
     const cd = item?.customData || {};
     const canonicalCategory = getCanonicalTarotCategory(cd.Category);
@@ -1820,6 +1864,17 @@ function getInventorySpriteFrame(item) {
                 category: cd.Category
             };
         }
+    }
+    const standaloneImagePath = getInventoryStandaloneImagePath(item);
+    if (standaloneImagePath) {
+        return {
+            path: standaloneImagePath,
+            imagePath: standaloneImagePath,
+            index: 0,
+            width: 64,
+            height: 64,
+            category: cd.Category
+        };
     }
     const frameSize = normalizeInventorySpriteFrame(
         cd.sprite_path,
@@ -1902,12 +1957,9 @@ function showItemDetailModal(item) {
     modal.dataset.detailKind = detailKind;
     modal.dataset.detailCategory = canonicalCategory || 'Unknown';
 
-    setSpriteIcon(
+    setInventoryIcon(
         iconEl,
-        spriteFrame.path,
-        spriteFrame.index,
-        spriteFrame.width,
-        spriteFrame.height,
+        spriteFrame,
         isTarotCard ? 1 : 1.2,
         spriteFrame.category,
         window.myAvatarBaseInfo?.AvatarColor

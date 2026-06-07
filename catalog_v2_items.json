@@ -70,6 +70,4946 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
+          "Value": "troy_menu_55358be23b941ed1"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シャンディガフ（ビール+ジンジャーエール） M",
+        "ja-JP": "シャンディガフ（ビール+ジンジャーエール） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 159,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3698dcd6973f1766"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シャンディガフ（ビール+ジンジャーエール） S",
+        "ja-JP": "シャンディガフ（ビール+ジンジャーエール） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 159,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_e2611f41c1f4688a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "シャンディガフ（ビール+ジンジャーエール） 海賊ジョッキ",
+        "ja-JP": "シャンディガフ（ビール+ジンジャーエール） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_shipwheel_beer_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 159,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_29bf6d85524fa287"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ノンアルコール瓶ビール（コロナセロ）",
+        "ja-JP": "ノンアルコール瓶ビール（コロナセロ）"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_golden_compass_beer.png",
+        "sprite_path": "./Sprites/drinks/fantasy_golden_compass_beer.png",
+        "sprite_index": 0,
+        "sprite_w": 78,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b3d812d172062bcf"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ノンアルコール瓶ビール（ハイネケン）",
+        "ja-JP": "ノンアルコール瓶ビール（ハイネケン）"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_anchor_green_beer_bottle.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_green_beer_bottle.png",
+        "sprite_index": 0,
+        "sprite_w": 75,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_e423d29f028bbd99"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ハイボール（角） M",
+        "ja-JP": "ハイボール（角） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 199,
+        "sprite_h": 297,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_d5f1abf8f7294904"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ハイボール（角） S",
+        "ja-JP": "ハイボール（角） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 199,
+        "sprite_h": 297,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_bae8cc3cd166e28b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ハイボール（角） 海賊ジョッキ",
+        "ja-JP": "ハイボール（角） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_path": "./Sprites/drinks/troy_highball_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 199,
+        "sprite_h": 297,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_fb1c5667ebe909ab"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "瓶ビール（ハートランド）",
+        "ja-JP": "瓶ビール（ハートランド）"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "beer",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_anchor_green_beer_bottle.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_green_beer_bottle.png",
+        "sprite_index": 0,
+        "sprite_w": 75,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f292fcc556975447"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "うずらの味玉",
+        "ja-JP": "うずらの味玉"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_boiled_egg_bowl.png",
+        "sprite_path": "./Sprites/food/pirate_boiled_egg_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 187,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_76a29cb93cfb396a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カップラーメン",
+        "ja-JP": "カップラーメン"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/snack_ramen_bowl.png",
+        "sprite_path": "./Sprites/food/snack_ramen_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 191,
+        "sprite_h": 207,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_61d3670a217af899"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ナゲット",
+        "ja-JP": "ナゲット"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_fried_chicken_nuggets.png",
+        "sprite_path": "./Sprites/food/pirate_fried_chicken_nuggets.png",
+        "sprite_index": 0,
+        "sprite_w": 198,
+        "sprite_h": 180,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4a1653a0fb8dba7c"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ビーフジャーキー",
+        "ja-JP": "ビーフジャーキー"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_jerky_platter.png",
+        "sprite_path": "./Sprites/food/pirate_jerky_platter.png",
+        "sprite_index": 0,
+        "sprite_w": 210,
+        "sprite_h": 187,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_85935ddb7729ce5f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ピザトースト",
+        "ja-JP": "ピザトースト"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/snack_mini_pizza_plate.png",
+        "sprite_path": "./Sprites/food/snack_mini_pizza_plate.png",
+        "sprite_index": 0,
+        "sprite_w": 226,
+        "sprite_h": 191,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_5998fa58d02f0568"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "フライドポテト",
+        "ja-JP": "フライドポテト"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_french_fries_bucket.png",
+        "sprite_path": "./Sprites/food/pirate_french_fries_bucket.png",
+        "sprite_index": 0,
+        "sprite_w": 181,
+        "sprite_h": 203,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7653eb52aafbab2d"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "フランク",
+        "ja-JP": "フランク"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/snack_sausage_skillet.png",
+        "sprite_path": "./Sprites/food/snack_sausage_skillet.png",
+        "sprite_index": 0,
+        "sprite_w": 211,
+        "sprite_h": 174,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_fecca7ff9542f4dd"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ポテトチップス",
+        "ja-JP": "ポテトチップス"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/snack_potato_chips_bowl.png",
+        "sprite_path": "./Sprites/food/snack_potato_chips_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 211,
+        "sprite_h": 180,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_988012661d1f31ca"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "みそ汁",
+        "ja-JP": "みそ汁"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/snack_miso_soup_bowl.png",
+        "sprite_path": "./Sprites/food/snack_miso_soup_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 179,
+        "sprite_h": 182,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_0fd95d1d0523a133"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ミックスナッツ",
+        "ja-JP": "ミックスナッツ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_mixed_nuts_barrel.png",
+        "sprite_path": "./Sprites/food/pirate_mixed_nuts_barrel.png",
+        "sprite_index": 0,
+        "sprite_w": 176,
+        "sprite_h": 183,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b29f1d64abe4e501"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "韓国のり",
+        "ja-JP": "韓国のり"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 300,
+        "image_path": "./Sprites/food/pirate_nori_stack.png",
+        "sprite_path": "./Sprites/food/pirate_nori_stack.png",
+        "sprite_index": 0,
+        "sprite_w": 192,
+        "sprite_h": 196,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_0064effbf88a8335"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "漬けチーズ",
+        "ja-JP": "漬けチーズ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_spiced_cheese_bowl.png",
+        "sprite_path": "./Sprites/food/pirate_spiced_cheese_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 199,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_a811080e7e615b61"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "梅水晶",
+        "ja-JP": "梅水晶"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_ume_crystal_bowl.png",
+        "sprite_path": "./Sprites/food/pirate_ume_crystal_bowl.png",
+        "sprite_index": 0,
+        "sprite_w": 207,
+        "sprite_h": 181,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3c02ef1889fc4366"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジントニック（+トニック） M",
+        "ja-JP": "ジントニック（+トニック） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 118,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_80bbd121c81bab5f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジントニック（+トニック） S",
+        "ja-JP": "ジントニック（+トニック） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 118,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_260930f9c3885fac"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジントニック（+トニック） 海賊ジョッキ",
+        "ja-JP": "ジントニック（+トニック） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_silver_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 118,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_d61935f48b36d13b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンバック（+ジンジャーエール） M",
+        "ja-JP": "ジンバック（+ジンジャーエール） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3b96566c75672d71"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンバック（+ジンジャーエール） S",
+        "ja-JP": "ジンバック（+ジンジャーエール） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_cd171f96056018e5"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンバック（+ジンジャーエール） 海賊ジョッキ",
+        "ja-JP": "ジンバック（+ジンジャーエール） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_2d0cff45653c185a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンリッキー（+ソーダ） M",
+        "ja-JP": "ジンリッキー（+ソーダ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_520ae921ac387db3"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンリッキー（+ソーダ） S",
+        "ja-JP": "ジンリッキー（+ソーダ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_e94d68e9fdd17864"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンリッキー（+ソーダ） 海賊ジョッキ",
+        "ja-JP": "ジンリッキー（+ソーダ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "gin",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4d74601f7483ccb9"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスウーロン M",
+        "ja-JP": "カシスウーロン M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4e2a2a6d8cb5b0d0"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスウーロン S",
+        "ja-JP": "カシスウーロン S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3087276010a9a58e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスウーロン 海賊ジョッキ",
+        "ja-JP": "カシスウーロン 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_ca3b547bcadd1510"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスオレンジ M",
+        "ja-JP": "カシスオレンジ M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_62197e867b4e083b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスオレンジ S",
+        "ja-JP": "カシスオレンジ S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_04ea07782fae23a2"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスオレンジ 海賊ジョッキ",
+        "ja-JP": "カシスオレンジ 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_1450d01047d62f78"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスソーダ M",
+        "ja-JP": "カシスソーダ M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_890edaf60af93160"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスソーダ S",
+        "ja-JP": "カシスソーダ S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7b35237e3e2dbc66"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "カシスソーダ 海賊ジョッキ",
+        "ja-JP": "カシスソーダ 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 144,
+        "sprite_h": 164,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_148b94bb40f7e5bf"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グレープフルーツサワー M",
+        "ja-JP": "グレープフルーツサワー M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_785dcb5797f4d467"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グレープフルーツサワー S",
+        "ja-JP": "グレープフルーツサワー S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_df9bfdb1f8665a82"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グレープフルーツサワー 海賊ジョッキ",
+        "ja-JP": "グレープフルーツサワー 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b014200d67c2918a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スプモーニ（カンパリ+グレープフルーツ+トニック） M",
+        "ja-JP": "スプモーニ（カンパリ+グレープフルーツ+トニック） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_369ca229f7913652"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スプモーニ（カンパリ+グレープフルーツ+トニック） S",
+        "ja-JP": "スプモーニ（カンパリ+グレープフルーツ+トニック） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b883a8613dab09ca"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スプモーニ（カンパリ+グレープフルーツ+トニック） 海賊ジョッキ",
+        "ja-JP": "スプモーニ（カンパリ+グレープフルーツ+トニック） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_e9021e22e88e0515"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファジーネーブル（ピーチ+オレンジ） M",
+        "ja-JP": "ファジーネーブル（ピーチ+オレンジ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_index": 0,
+        "sprite_w": 143,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_64067cc6f09709df"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファジーネーブル（ピーチ+オレンジ） S",
+        "ja-JP": "ファジーネーブル（ピーチ+オレンジ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_index": 0,
+        "sprite_w": 143,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b6b1bfc873b08355"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ファジーネーブル（ピーチ+オレンジ） 海賊ジョッキ",
+        "ja-JP": "ファジーネーブル（ピーチ+オレンジ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_path": "./Sprites/drinks/fantasy_tropical_orange_cocktail.png",
+        "sprite_index": 0,
+        "sprite_w": 143,
+        "sprite_h": 188,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_c3d9e0f170890162"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "レモンサワー M",
+        "ja-JP": "レモンサワー M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_index": 0,
+        "sprite_w": 128,
+        "sprite_h": 180,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_072e99341c641a2b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "レモンサワー S",
+        "ja-JP": "レモンサワー S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_index": 0,
+        "sprite_w": 128,
+        "sprite_h": 180,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7f78aac5b4eddc4f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "レモンサワー 海賊ジョッキ",
+        "ja-JP": "レモンサワー 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "liqueur",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lemon_mason_jar.png",
+        "sprite_index": 0,
+        "sprite_w": 128,
+        "sprite_h": 180,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_2eeee2d4e8ba86b5"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウーロン",
+        "ja-JP": "ウーロン"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "mixer",
+        "MenuPrice": 600,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_464b9474414f97b6"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "お茶",
+        "ja-JP": "お茶"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "mixer",
+        "MenuPrice": 600,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_ab540a935752b0ef"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ソーダ 1本",
+        "ja-JP": "ソーダ 1本"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "mixer",
+        "MenuPrice": 300,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4cba8ad6eddc0fd4"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "水 1本",
+        "ja-JP": "水 1本"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "mixer",
+        "MenuPrice": 300,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3b6120b83b69e1df"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "氷",
+        "ja-JP": "氷"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "mixer",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_c7fd9aa1aa179086"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "キューバリブレ（+コーラ） M",
+        "ja-JP": "キューバリブレ（+コーラ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 185,
+        "sprite_h": 178,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7bd3f9070dba6878"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "キューバリブレ（+コーラ） S",
+        "ja-JP": "キューバリブレ（+コーラ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 185,
+        "sprite_h": 178,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_04d50e7d1b21242f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "キューバリブレ（+コーラ） 海賊ジョッキ",
+        "ja-JP": "キューバリブレ（+コーラ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_path": "./Sprites/drinks/cocktail_copper_mint_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 185,
+        "sprite_h": 178,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_11bd7d346e5986b4"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モヒート（ミント+ソーダ） M",
+        "ja-JP": "モヒート（ミント+ソーダ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_index": 0,
+        "sprite_w": 161,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_6fadfedcec520d2e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モヒート（ミント+ソーダ） S",
+        "ja-JP": "モヒート（ミント+ソーダ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_index": 0,
+        "sprite_w": 161,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4968b2cb57a9cbf7"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モヒート（ミント+ソーダ） 海賊ジョッキ",
+        "ja-JP": "モヒート（ミント+ソーダ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_path": "./Sprites/drinks/cocktail_skull_mint_tankard.png",
+        "sprite_index": 0,
+        "sprite_w": 161,
+        "sprite_h": 201,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4062fb3dc0bfc90e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムパイン（+パイン） M",
+        "ja-JP": "ラムパイン（+パイン） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_index": 0,
+        "sprite_w": 170,
+        "sprite_h": 199,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_abb4dca5ab092b7f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムパイン（+パイン） S",
+        "ja-JP": "ラムパイン（+パイン） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_index": 0,
+        "sprite_w": 170,
+        "sprite_h": 199,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_1dc8bcca62974965"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムパイン（+パイン） 海賊ジョッキ",
+        "ja-JP": "ラムパイン（+パイン） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_path": "./Sprites/drinks/cocktail_pineapple_skull_tiki.png",
+        "sprite_index": 0,
+        "sprite_w": 170,
+        "sprite_h": 199,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_ee6fffecfd66227d"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムバック（+ジンジャーエール） M",
+        "ja-JP": "ラムバック（+ジンジャーエール） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 197,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_88e8f7b1c5cf510b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムバック（+ジンジャーエール） S",
+        "ja-JP": "ラムバック（+ジンジャーエール） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 197,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_1ce07aefc6f98db2"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ラムバック（+ジンジャーエール） 海賊ジョッキ",
+        "ja-JP": "ラムバック（+ジンジャーエール） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "rum",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_path": "./Sprites/drinks/pirate_lime_grog_mug.png",
+        "sprite_index": 0,
+        "sprite_w": 197,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_5429454d7dcf7517"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウーロン茶",
+        "ja-JP": "ウーロン茶"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "soft",
+        "MenuPrice": 400,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f97aaaa6f6c7f732"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "オレンジジュース",
+        "ja-JP": "オレンジジュース"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "soft",
+        "MenuPrice": 400,
+        "image_path": "./Sprites/drinks/fantasy_orange_juice_highball.png",
+        "sprite_path": "./Sprites/drinks/fantasy_orange_juice_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 118,
+        "sprite_h": 183,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4176ba7c7fba76cd"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グレープフルーツジュース",
+        "ja-JP": "グレープフルーツジュース"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "soft",
+        "MenuPrice": 400,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_cb546189e11df264"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "コーラ",
+        "ja-JP": "コーラ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "soft",
+        "MenuPrice": 400,
+        "image_path": "./Sprites/drinks/cocktail_cola_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_cola_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 103,
+        "sprite_h": 165,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b2ddcdda173e3753"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ジンジャーエール",
+        "ja-JP": "ジンジャーエール"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "soft",
+        "MenuPrice": 400,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_aae66c78ef725d88"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "テキーラサンライズ（+オレンジ） M",
+        "ja-JP": "テキーラサンライズ（+オレンジ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_65f04a9db102e36e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "テキーラサンライズ（+オレンジ） S",
+        "ja-JP": "テキーラサンライズ（+オレンジ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_6fa938b69898156c"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "テキーラサンライズ（+オレンジ） 海賊ジョッキ",
+        "ja-JP": "テキーラサンライズ（+オレンジ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4164b2ffeae9f214"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "メキシコーラ（+コーラ） M",
+        "ja-JP": "メキシコーラ（+コーラ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 121,
+        "sprite_h": 187,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_fc093636bf8c8f06"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "メキシコーラ（+コーラ） S",
+        "ja-JP": "メキシコーラ（+コーラ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 121,
+        "sprite_h": 187,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_d523d130e0d62f48"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "メキシコーラ（+コーラ） 海賊ジョッキ",
+        "ja-JP": "メキシコーラ（+コーラ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "tequila",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_lime_cola_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 121,
+        "sprite_h": 187,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_4db64f0f1e54a03e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウォッカトニック（+トニック） M",
+        "ja-JP": "ウォッカトニック（+トニック） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_1f243b1dfcd6d67f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウォッカトニック（+トニック） S",
+        "ja-JP": "ウォッカトニック（+トニック） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_bb1952542f0355d8"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウォッカトニック（+トニック） 海賊ジョッキ",
+        "ja-JP": "ウォッカトニック（+トニック） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_1e6e9e5421fd9ec9"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スクリュードライバー（+オレンジ） M",
+        "ja-JP": "スクリュードライバー（+オレンジ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7c93e8bea25e19a7"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スクリュードライバー（+オレンジ） S",
+        "ja-JP": "スクリュードライバー（+オレンジ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_0d2f670232baf102"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "スクリュードライバー（+オレンジ） 海賊ジョッキ",
+        "ja-JP": "スクリュードライバー（+オレンジ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_sunrise_orange_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 135,
+        "sprite_h": 186,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_64ffbf57f0d8edb7"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブルドッグ（+グレープフルーツ） M",
+        "ja-JP": "ブルドッグ（+グレープフルーツ） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_9b3ec937b36b8015"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブルドッグ（+グレープフルーツ） S",
+        "ja-JP": "ブルドッグ（+グレープフルーツ） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_37ce6a52de21c256"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ブルドッグ（+グレープフルーツ） 海賊ジョッキ",
+        "ja-JP": "ブルドッグ（+グレープフルーツ） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_path": "./Sprites/drinks/cocktail_grapefruit_spritz.png",
+        "sprite_index": 0,
+        "sprite_w": 145,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3b91cd1bc02d557a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モスコミュール（+ジンジャーエール） M",
+        "ja-JP": "モスコミュール（+ジンジャーエール） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f0dc2514473881be"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モスコミュール（+ジンジャーエール） S",
+        "ja-JP": "モスコミュール（+ジンジャーエール） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f19211757ab166cd"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モスコミュール（+ジンジャーエール） 海賊ジョッキ",
+        "ja-JP": "モスコミュール（+ジンジャーエール） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "vodka",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_path": "./Sprites/drinks/cocktail_gold_sparkle_highball.png",
+        "sprite_index": 0,
+        "sprite_w": 126,
+        "sprite_h": 161,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_919826e1dcd6e207"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（ロック） M",
+        "ja-JP": "ウイスキー（ロック） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f7d142087186ad56"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（ロック） S",
+        "ja-JP": "ウイスキー（ロック） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_2a96cccd303d6594"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（ロック） 海賊ジョッキ",
+        "ja-JP": "ウイスキー（ロック） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_a25e718e2741886b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（水割り） M",
+        "ja-JP": "ウイスキー（水割り） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_36a2cfdd8a5cbf69"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（水割り） S",
+        "ja-JP": "ウイスキー（水割り） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_5d7013748a147662"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ウイスキー（水割り） 海賊ジョッキ",
+        "ja-JP": "ウイスキー（水割り） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_amber_whiskey_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 146,
+        "sprite_h": 168,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_a85f895caab1bf61"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "キンミヤボトル",
+        "ja-JP": "キンミヤボトル"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 2500,
+        "image_path": "./Sprites/drinks/pirate_blue_crystal_potion.png",
+        "sprite_path": "./Sprites/drinks/pirate_blue_crystal_potion.png",
+        "sprite_index": 0,
+        "sprite_w": 124,
+        "sprite_h": 252,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_b8b3dc7c9dc0fe74"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（赤） M",
+        "ja-JP": "グラスワイン（赤） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 114,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_3edcf70baf696e94"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（赤） S",
+        "ja-JP": "グラスワイン（赤） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 114,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_95341c6fc3ad0c7d"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（赤） 海賊ジョッキ",
+        "ja-JP": "グラスワイン（赤） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_path": "./Sprites/drinks/pirate_red_wine_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 114,
+        "sprite_h": 220,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f81b459b73236d99"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（白） M",
+        "ja-JP": "グラスワイン（白） M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_index": 0,
+        "sprite_w": 102,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_d52e15fb81a55f9b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（白） S",
+        "ja-JP": "グラスワイン（白） S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_index": 0,
+        "sprite_w": 102,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_706e01a35e306a6a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "グラスワイン（白） 海賊ジョッキ",
+        "ja-JP": "グラスワイン（白） 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_path": "./Sprites/drinks/fantasy_compass_white_wine.png",
+        "sprite_index": 0,
+        "sprite_w": 102,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_354dfe79a5fb2fb8"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "モエ・エ・シャンドン",
+        "ja-JP": "モエ・エ・シャンドン"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 18000,
+        "image_path": "./Sprites/drinks/troy_champagne_bottle_flute.png",
+        "sprite_path": "./Sprites/drinks/troy_champagne_bottle_flute.png",
+        "sprite_index": 0,
+        "sprite_w": 177,
+        "sprite_h": 383,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_42679d406b2a6861"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ワインボトル",
+        "ja-JP": "ワインボトル"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 3000,
+        "image_path": "./Sprites/drinks/pirate_red_wine_bottle.png",
+        "sprite_path": "./Sprites/drinks/pirate_red_wine_bottle.png",
+        "sprite_index": 0,
+        "sprite_w": 104,
+        "sprite_h": 238,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_778837854960d387"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "角ボトル",
+        "ja-JP": "角ボトル"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 4000,
+        "image_path": "./Sprites/drinks/troy_yamazaki_whisky_bottle.png",
+        "sprite_path": "./Sprites/drinks/troy_yamazaki_whisky_bottle.png",
+        "sprite_index": 0,
+        "sprite_w": 114,
+        "sprite_h": 292,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_6797a5db140a474b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "黒霧ボトル",
+        "ja-JP": "黒霧ボトル"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 3000,
+        "image_path": "./Sprites/drinks/fantasy_black_skull_potion.png",
+        "sprite_path": "./Sprites/drinks/fantasy_black_skull_potion.png",
+        "sprite_index": 0,
+        "sprite_w": 123,
+        "sprite_h": 181,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_40b25facf4d86557"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ウーロン割り M",
+        "ja-JP": "焼酎 ウーロン割り M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_6be5433489d729e0"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ウーロン割り S",
+        "ja-JP": "焼酎 ウーロン割り S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_c11ca47a7b3c8161"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ウーロン割り 海賊ジョッキ",
+        "ja-JP": "焼酎 ウーロン割り 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_16d2cee4aa9c429a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 お茶割り M",
+        "ja-JP": "焼酎 お茶割り M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_e8f46edcfa9c0a2d"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 お茶割り S",
+        "ja-JP": "焼酎 お茶割り S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_af871cc4d3639006"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 お茶割り 海賊ジョッキ",
+        "ja-JP": "焼酎 お茶割り 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_path": "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "sprite_index": 0,
+        "sprite_w": 155,
+        "sprite_h": 272,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_7d9bdecc04efa3e7"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 しそ M",
+        "ja-JP": "焼酎 しそ M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_efb4fce35219cdac"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 しそ S",
+        "ja-JP": "焼酎 しそ S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_40c6b591156235f4"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 しそ 海賊ジョッキ",
+        "ja-JP": "焼酎 しそ 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_f16d0761403e356e"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ソーダ割り M",
+        "ja-JP": "焼酎 ソーダ割り M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_319bc948be39c950"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ソーダ割り S",
+        "ja-JP": "焼酎 ソーダ割り S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_564eaca3c2f2e5b3"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 ソーダ割り 海賊ジョッキ",
+        "ja-JP": "焼酎 ソーダ割り 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_path": "./Sprites/drinks/cocktail_clear_soda_tumbler.png",
+        "sprite_index": 0,
+        "sprite_w": 101,
+        "sprite_h": 150,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_369cd4e56c51fe3a"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 芋 M",
+        "ja-JP": "焼酎 芋 M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_07d4095591099f30"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 芋 S",
+        "ja-JP": "焼酎 芋 S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_07733d13402d61a7"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 芋 海賊ジョッキ",
+        "ja-JP": "焼酎 芋 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_2295e5211eef643b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 麦 M",
+        "ja-JP": "焼酎 麦 M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_77b0c14434a3d826"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 麦 S",
+        "ja-JP": "焼酎 麦 S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_ac1d6a8a16300f6b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 麦 海賊ジョッキ",
+        "ja-JP": "焼酎 麦 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_983e5dd8465c8949"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 米 M",
+        "ja-JP": "焼酎 米 M"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 700,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_0e76e2aabda6ab9f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 米 S",
+        "ja-JP": "焼酎 米 S"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_c1473663e1d87c8b"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "焼酎 米 海賊ジョッキ",
+        "ja-JP": "焼酎 米 海賊ジョッキ"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "whisky",
+        "MenuPrice": 1000,
+        "image_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_path": "./Sprites/drinks/fantasy_anchor_clay_jug.png",
+        "sprite_index": 0,
+        "sprite_w": 157,
+        "sprite_h": 198,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
           "Value": "axe_01"
         }
       ],

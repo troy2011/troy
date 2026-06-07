@@ -13,7 +13,7 @@ const {
 } = require('../server/playfab');
 
 function parseArgs(argv) {
-    const args = { publish: false, file: null };
+    const args = { publish: false, file: null, friendlyPrefix: '' };
     for (let i = 0; i < argv.length; i += 1) {
         const token = String(argv[i] || '').trim();
         if (!token) continue;
@@ -23,6 +23,11 @@ function parseArgs(argv) {
         }
         if (token === '--file' && argv[i + 1]) {
             args.file = String(argv[i + 1]).trim();
+            i += 1;
+            continue;
+        }
+        if (token === '--friendly-prefix' && argv[i + 1]) {
+            args.friendlyPrefix = String(argv[i + 1]).trim();
             i += 1;
             continue;
         }
@@ -265,7 +270,14 @@ async function main() {
 
     configurePlayFab({ titleId, secretKey });
 
-    const localItems = readCatalogItems(filePath);
+    let localItems = readCatalogItems(filePath);
+    if (args.friendlyPrefix) {
+        localItems = localItems.filter((item) => getFriendlyId(item).startsWith(args.friendlyPrefix));
+        if (!localItems.length) {
+            throw new Error(`friendly-prefix に一致するカタログ項目がありません: ${args.friendlyPrefix}`);
+        }
+        console.log(`[catalog:sync] filtered by friendly-prefix=${args.friendlyPrefix}: ${localItems.length} items`);
+    }
     const titleEntity = await getTitleEntity();
     const existingItems = await loadAllCatalogItems(titleEntity);
     const existingMaps = buildExistingItemMaps(existingItems);

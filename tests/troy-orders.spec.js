@@ -51,6 +51,9 @@ test('staff register creates a checkout from an in-store member and settles with
       name: body.name,
       quantity: body.quantity || 1,
       price: body.price,
+      menuImage: body.menuImage || body.image || '',
+      image: body.image || body.menuImage || '',
+      iconImage: body.iconImage || body.image || body.menuImage || '',
       lineTotal: body.price * (body.quantity || 1),
       status: 'pending',
       orderedAtMs: Date.now()
@@ -179,6 +182,8 @@ test('staff register creates a checkout from an in-store member and settles with
 
   expect(addItemRequests).toHaveLength(1);
   expect(addItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
+  expect(addItemRequests[0].image).toMatch(/Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
+  expect(addItemRequests[0].menuImage).toMatch(/Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥700');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
@@ -216,6 +221,7 @@ test('staff register creates a checkout from an in-store member and settles with
 
   expect(settleRequests).toHaveLength(1);
   expect(settleRequests[0].receiverPlayFabId).toBe('PLAYER1');
+  expect(settleRequests[0].settlementRepresentativePlayFabId).toBe('PLAYER1');
   expect(settleRequests[0].expectedTotal).toBe(2900);
   expect(settleRequests[0].chipReturnAmount).toBe(300);
   await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
@@ -274,6 +280,7 @@ test('staff register shows king-managed custom menu items', async ({ page }) => 
   expect(addItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
   expect(addItemRequests[0].name).toBe('特製氷');
   expect(addItemRequests[0].price).toBe(800);
+  expect(addItemRequests[0].image).toMatch(/Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
 });
 
 test('staff register can settle grouped customer tickets together', async ({ page }) => {
@@ -368,6 +375,7 @@ test('staff register can settle grouped customer tickets together', async ({ pag
   await expect(page.locator('#troyOrdersMessage')).toContainText('グループ会計と退店処理を完了しました');
   expect(settleRequests).toHaveLength(2);
   expect(settleRequests.map((entry) => entry.receiverPlayFabId)).toEqual(['PLAYER1', 'PLAYER2']);
+  expect(settleRequests.map((entry) => entry.settlementRepresentativePlayFabId)).toEqual(['PLAYER1', 'PLAYER1']);
   expect(settleRequests.map((entry) => entry.expectedTotal)).toEqual([1000, 700]);
   expect(settleRequests.map((entry) => entry.chipReturnAmount)).toEqual([0, 0]);
   await expect(page.locator('[data-open-ticket]')).toHaveCount(0);
@@ -582,6 +590,7 @@ test('staff register can group tickets by dragging and ungroup locally', async (
   await expect(page.locator('#troyOrdersMessage')).toContainText('グループ会計と退店処理を完了しました');
   expect(settleRequests).toHaveLength(2);
   expect(settleRequests.map((entry) => entry.receiverPlayFabId)).toEqual(['PLAYER1', 'PLAYER2']);
+  expect(settleRequests.map((entry) => entry.settlementRepresentativePlayFabId)).toEqual(['PLAYER1', 'PLAYER1']);
   expect(settleRequests.map((entry) => entry.expectedTotal)).toEqual([1000, 700]);
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
   await expect(page.locator('[data-open-ticket]')).toContainText('旅人の剣士');

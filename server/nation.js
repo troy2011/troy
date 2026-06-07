@@ -5,6 +5,10 @@ const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
 const { addPlayerNationContribution, calculateLevelFromContribution, buildStatsMapFromStatistics, PLAYER_CONTRIBUTION_STAT, PLAYER_LEVEL_STAT } = require('./playerLevel');
 const {
+    getTroyMenuConsumableItemId,
+    normalizeTroyMenuImagePath
+} = require('./troyMenuConsumables');
+const {
     CAPITAL_CAPTURE_BASE_DURATION_MS,
     CAPITAL_CAPTURE_BREACH_WALLS,
     CAPITAL_CAPTURE_SLOT_LIMIT,
@@ -1851,7 +1855,8 @@ function normalizeTroyCheckoutItems(items = []) {
             const itemStatus = servedAtMs > 0 || String(item?.status || '').trim().toLowerCase() === 'served'
                 ? 'served'
                 : 'pending';
-            return {
+            const menuImage = normalizeTroyMenuImagePath(item?.menuImage || item?.image || item?.iconImage);
+            const normalized = {
                 name,
                 quantity,
                 price,
@@ -1865,6 +1870,13 @@ function normalizeTroyCheckoutItems(items = []) {
                 status: itemStatus,
                 lineTotal: price * quantity
             };
+            if (menuImage) {
+                normalized.menuImage = menuImage;
+                normalized.image = menuImage;
+                normalized.iconImage = menuImage;
+                normalized.menuConsumableItemId = getTroyMenuConsumableItemId(name, menuImage);
+            }
+            return normalized;
         })
         .filter(Boolean);
 }
@@ -1898,6 +1910,12 @@ function buildStoredTroyCheckoutItem(item = {}) {
     if (normalized.servedAtMs > 0) stored.servedAtMs = normalized.servedAtMs;
     if (normalized.orderCountToday > 0) stored.orderCountToday = normalized.orderCountToday;
     if (normalized.status === 'served') stored.status = 'served';
+    if (normalized.menuImage) {
+        stored.menuImage = normalized.menuImage;
+        stored.image = normalized.menuImage;
+        stored.iconImage = normalized.menuImage;
+        stored.menuConsumableItemId = normalized.menuConsumableItemId;
+    }
     return stored;
 }
 
@@ -2166,7 +2184,7 @@ async function ensureKingStarterCrown(playFabId, nation, deps) {
 
 // APIルートを初期化
 function initializeNationRoutes(app, deps) {
-    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, lineClient, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId } = deps;
+    const { promisifyPlayFab, PlayFabServer, PlayFabAdmin, PlayFabGroups, firestore, admin, lineClient, getGroupDataValue, setGroupDataValues, subtractEconomyItem, addEconomyItem, getCurrencyBalance, applyTax, transferOwnedIslands, createStarterIsland, relocateActiveShip, emitDisplayEvent, requireAuthenticatedPlayFabId, catalogCache } = deps;
 
     const nationDeps = {
         promisifyPlayFab,
@@ -4192,6 +4210,7 @@ function initializeNationRoutes(app, deps) {
         const name = String(payload.name || '').trim().slice(0, 60);
         const price = Math.max(0, Math.floor(Number(payload.price) || 0));
         const quantity = Math.max(1, Math.min(99, Math.floor(Number(payload.quantity) || 1)));
+        const menuImage = normalizeTroyMenuImagePath(payload.menuImage || payload.image || payload.iconImage);
         if (!receiverId || !name) {
             const error = new Error('InvalidCheckoutItem');
             error.statusCode = 400;
@@ -4228,7 +4247,8 @@ function initializeNationRoutes(app, deps) {
                 orderId,
                 orderedAtMs,
                 undoUntilMs,
-                servedAtMs
+                servedAtMs,
+                menuImage
             });
             if (!newItem) {
                 const error = new Error('InvalidCheckoutItem');
@@ -4285,6 +4305,68 @@ function initializeNationRoutes(app, deps) {
         });
     }
 
+    function buildTroyMenuConsumableRewards(checkoutPayload = {}) {
+        const byItemId = new Map();
+        normalizeTroyCheckoutItems(checkoutPayload.items)
+            .filter(isTroyUsualOrderCandidate)
+            .forEach((item) => {
+                const image = normalizeTroyMenuImagePath(item.menuImage || item.image || item.iconImage);
+                const itemId = getTroyMenuConsumableItemId(item.name, image);
+                if (!itemId) return;
+                const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
+                const current = byItemId.get(itemId) || {
+                    itemId,
+                    name: item.name,
+                    image,
+                    quantity: 0
+                };
+                current.quantity += quantity;
+                byItemId.set(itemId, current);
+            });
+        return [...byItemId.values()];
+    }
+
+    function hasTroyMenuConsumableCatalogItem(itemId) {
+        const target = String(itemId || '').trim();
+        if (!target) return false;
+        return Object.values(catalogCache || {}).some((entry) => (
+            String(entry?.FriendlyId || '').trim() === target
+            || String(entry?.ItemId || '').trim() === target
+        ));
+    }
+
+    async function grantTroyMenuConsumables(playFabId, checkoutPayload = {}, checkoutStableId = '') {
+        const targetId = normalizePlayFabId(playFabId);
+        const rewards = buildTroyMenuConsumableRewards(checkoutPayload);
+        if (!targetId || !rewards.length) {
+            return { applied: false, targetPlayFabId: targetId, items: [], missingItems: [] };
+        }
+
+        const safeStableId = String(checkoutStableId || `${checkoutPayload.playFabId || targetId}:${checkoutPayload.createdAtMs || 0}:${checkoutPayload.total || 0}`).trim();
+        const granted = [];
+        const missing = [];
+        for (const reward of rewards) {
+            if (!hasTroyMenuConsumableCatalogItem(reward.itemId)) {
+                missing.push(reward);
+                continue;
+            }
+            await addEconomyItem(targetId, reward.itemId, reward.quantity, {
+                idempotencyId: `troy-menu-consumable:${safeStableId}:${reward.itemId}`
+            });
+            granted.push(reward);
+        }
+        if (missing.length) {
+            console.warn('[troy-menu-consumable] Catalog item missing:', missing.map((item) => `${item.name}:${item.itemId}`).join(', '));
+        }
+
+        return {
+            applied: granted.length > 0,
+            targetPlayFabId: targetId,
+            items: granted,
+            missingItems: missing
+        };
+    }
+
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
         if (!TROY_STAFF_CHECKOUT_ENABLED) {
             const error = new Error('TroyCheckoutDisabled');
@@ -4339,12 +4421,26 @@ function initializeNationRoutes(app, deps) {
             || `troy-settle:${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
         const idempotencyFor = (suffix) => `${settleBaseId}:${suffix}`;
         const checkoutStableId = `${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total}`;
+        const representativeId = normalizePlayFabId(payload.settlementRepresentativePlayFabId || payload.representativePlayFabId || receiverId) || receiverId;
 
         let grantAmount = 0;
         let cashbackRateBps = 0;
         let treasuryRank = null;
         let grantApplied = false;
         let grantError = null;
+        let menuConsumableGrant = { applied: false, targetPlayFabId: representativeId, items: [], missingItems: [] };
+        let menuConsumableGrantError = null;
+
+        try {
+            menuConsumableGrant = await grantTroyMenuConsumables(representativeId, checkoutPayload, checkoutStableId);
+        } catch (menuGrantIssue) {
+            menuConsumableGrantError = menuGrantIssue?.errorMessage || menuGrantIssue?.message || String(menuGrantIssue);
+            console.warn(`[${logPrefix}] Menu consumable grant failed:`, menuConsumableGrantError);
+            const error = new Error('FailedToGrantMenuConsumable');
+            error.statusCode = 500;
+            error.details = menuConsumableGrantError;
+            throw error;
+        }
 
         if (checkoutPayload.status === 'pending') {
             try {
@@ -4503,6 +4599,11 @@ function initializeNationRoutes(app, deps) {
             settlementContribution,
             grantApplied,
             grantError,
+            menuConsumableGrantApplied: !!menuConsumableGrant.applied,
+            menuConsumableGrantTargetPlayFabId: menuConsumableGrant.targetPlayFabId || representativeId,
+            menuConsumableGrantItems: menuConsumableGrant.items || [],
+            menuConsumableGrantMissingItems: menuConsumableGrant.missingItems || [],
+            menuConsumableGrantError,
             chipReturnAmount,
             chipReturnApplied,
             chipReturnError,
@@ -4710,6 +4811,7 @@ function initializeNationRoutes(app, deps) {
             const name = String(req.body?.name || '').trim().slice(0, 60);
             const price = Math.max(0, Math.floor(Number(req.body?.price) || 0));
             const quantity = Math.max(1, Math.min(99, Math.floor(Number(req.body?.quantity) || 1)));
+            const menuImage = normalizeTroyMenuImagePath(req.body?.menuImage || req.body?.image || req.body?.iconImage);
             if (!receiverId || !name) return res.status(400).json({ error: 'receiverPlayFabId and name are required' });
 
             const memberRef = context.roomRef.collection('members').doc(receiverId);
@@ -4724,6 +4826,7 @@ function initializeNationRoutes(app, deps) {
                 name,
                 price,
                 quantity,
+                menuImage,
                 orderId: `staff:${receiverId}:${orderedAtMs}`,
                 orderedAtMs,
                 undoUntilMs: orderedAtMs + 60000

@@ -556,7 +556,8 @@ function buildPosCategoryHtml(customerEntry = null) {
             <button type="button" class="troy-orders-pos-btn"
                 data-add-item
                 data-item-name="${escapeHtml(item.name)}"
-                data-item-price="${item.price}">
+                data-item-price="${item.price}"
+                data-item-image="${escapeHtml(image)}">
                 ${thumb}
                 <span class="troy-orders-pos-copy">
                     <strong class="troy-orders-pos-name">${escapeHtml(item.name)}</strong>
@@ -1005,6 +1006,7 @@ async function settleFromCard(card) {
             await callApiWithLoader('/api/troy-orders/settle', {
                 ...getRequestedNationPayload(),
                 receiverPlayFabId: targetId,
+                settlementRepresentativePlayFabId: receiverId,
                 expectedTotal: getEntryTotal(target),
                 requestId: `${groupRequestId}:${targetId}`,
                 chipReturnAmount: targetId === receiverId ? chipReturnAmount : 0
@@ -1025,6 +1027,7 @@ async function addItemToCheckout(button) {
     if (!button || !selectedCustomerId) return;
     const name = String(button.dataset.itemName || '').trim();
     const price = Math.max(0, Math.floor(Number(button.dataset.itemPrice) || 0));
+    const image = String(button.dataset.itemImage || '').trim();
     if (!name) return;
     button.disabled = true;
     try {
@@ -1033,7 +1036,9 @@ async function addItemToCheckout(button) {
             receiverPlayFabId: selectedCustomerId,
             name,
             price,
-            quantity: 1
+            quantity: 1,
+            image,
+            menuImage: image
         }, { isSilent: true, throwOnError: true });
         await refreshOrders({ silent: true, force: true });
     } catch (error) {

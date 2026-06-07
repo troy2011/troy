@@ -1477,7 +1477,23 @@ function initializeInventoryRoutes(app, deps) {
 
         try {
             const itemData = catalogCache[itemId];
-            if (!itemData || itemData.Category !== 'Consumable' || !itemData.Effect) {
+            if (!itemData || itemData.Category !== 'Consumable') {
+                return res.status(400).json({ error: 'このアイテムは使用できません。' });
+            }
+
+            const isTroyMenuConsumable = parseBooleanFlag(itemData.TroyMenuConsumable)
+                || parseBooleanFlag(itemData.IsTroyMenuConsumable);
+            if (isTroyMenuConsumable) {
+                await subtractEconomyItem(playFabId, itemId, 1);
+                const itemName = itemData.DisplayName || itemData.Title || itemId;
+                return res.json({
+                    status: 'success',
+                    message: `${itemName}を使いました。`,
+                    updatedStats: {}
+                });
+            }
+
+            if (!itemData.Effect) {
                 return res.status(400).json({ error: 'このアイテムは使用できません。' });
             }
 

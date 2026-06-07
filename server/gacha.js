@@ -24,7 +24,8 @@ const TAROT_MINOR_RARITY_THRESHOLDS = Object.freeze({
 });
 
 const DEFAULT_EXCLUDED_ITEM_PATTERNS = [
-    'metal_*_*'
+    'metal_*_*',
+    'troy_menu_*'
 ];
 
 const CATEGORY_ALIASES = {
@@ -110,6 +111,22 @@ function isExcludedItemId(itemId, options = {}) {
     return patterns.some((pattern) => wildcardToRegExp(pattern).test(id));
 }
 
+function isCatalogExcludedFromGacha(item) {
+    const flag = item?.GachaExcluded
+        ?? item?.LocalGachaExcluded
+        ?? item?.TroyMenuConsumable
+        ?? item?.DisplayProperties?.GachaExcluded
+        ?? item?.DisplayProperties?.LocalGachaExcluded
+        ?? item?.DisplayProperties?.TroyMenuConsumable
+        ?? item?.CustomData?.GachaExcluded
+        ?? item?.CustomData?.LocalGachaExcluded
+        ?? item?.CustomData?.TroyMenuConsumable
+        ?? item?.customData?.GachaExcluded
+        ?? item?.customData?.LocalGachaExcluded
+        ?? item?.customData?.TroyMenuConsumable;
+    return flag === true || flag === 1 || String(flag || '').trim().toLowerCase() === 'true';
+}
+
 function getNumericItemValue(item, key) {
     const lowerKey = String(key).toLowerCase();
     const value = Number(
@@ -190,6 +207,7 @@ function buildLocalGachaCandidates(catalogCache, options = {}) {
         .map((item) => {
             const itemId = getItemId(item);
             const category = getItemCategory(item);
+            if (isCatalogExcludedFromGacha(item)) return null;
             if (isExcludedItemId(itemId, options)) return null;
             if (!itemId || !allowedCategories.has(category)) return null;
             if (!isWithinStatGate(item, options)) return null;
