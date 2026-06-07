@@ -291,6 +291,41 @@ test('display ranking refreshes after troy close event', async ({ page }) => {
   await expect(page.locator('.effect-rank-badge')).toHaveCount(0);
 });
 
+test('display ranking refreshes after explicit troy ranking event', async ({ page }) => {
+  await installDisplayMocks(page, {
+    autoEntryEvent: false,
+    rankingResponses: [
+      {
+        scope: 'troy-members',
+        isOpen: true,
+        ranking: [
+          { position: 1, displayName: '海風の船長', level: 24, rankName: '船長', bounty: 307200 }
+        ]
+      },
+      {
+        scope: 'troy-members',
+        isOpen: true,
+        ranking: [
+          { position: 1, displayName: '海風の船長', level: 25, rankName: '船長', bounty: 360000 }
+        ]
+      }
+    ]
+  });
+  await page.goto('/display.html', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.locator('.ranking-bounty strong')).toHaveText('307,200 ĐɃ');
+
+  await page.evaluate(() => {
+    window.__emitDisplayEvent({
+      topic: 'troy-ranking',
+      type: 'refresh'
+    });
+  });
+
+  await expect(page.locator('.ranking-bounty strong')).toHaveText('360,000 ĐɃ');
+  await expect(page.locator('.ranking-meta')).toHaveText('Lv.25 船長');
+});
+
 test('display entry effect remains readable on mirrored iPad landscape', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await installDisplayMocks(page);

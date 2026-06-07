@@ -17,6 +17,7 @@
     'troy-entry',
     'troy-leave',
     'troy-checkout',
+    'troy-ranking',
     'troy-status'
   ]);
 

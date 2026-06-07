@@ -8,6 +8,7 @@ const {
   buildTroySalesPayouts,
   buildTroyUsualItemsPayload,
   mergeTroyOrderHistoryItems,
+  buildTroyBountyRankingRow,
   formatTroyCloseSummaryMessage
 } = require('../server/nation');
 
@@ -149,6 +150,52 @@ test('limits detailed TROY close summary LINE text safely', () => {
 
   expect(message.length).toBeLessThanOrEqual(4900);
   expect(message).toContain('※文字数上限のため');
+});
+
+test('builds TROY bounty ranking from fresh member snapshot when PlayFab stats lag', async () => {
+  const fakePlayFabServer = {
+    GetPlayerStatistics: () => {},
+    GetPlayerProfile: () => {}
+  };
+  const row = await buildTroyBountyRankingRow({
+    id: 'PLAYER1',
+    data: () => ({
+      displayName: '海風の船長',
+      contributionTotal: 3000,
+      level: 1,
+      joinedAt: { toMillis: () => 1000 }
+    })
+  }, {
+    PlayFabServer: fakePlayFabServer,
+    promisifyPlayFab: async (method) => {
+      if (method === fakePlayFabServer.GetPlayerStatistics) {
+        return {
+          Statistics: [
+            { StatisticName: 'NationContribution', Value: 1000 },
+            { StatisticName: 'Level', Value: 1 }
+          ]
+        };
+      }
+      return {
+        PlayerProfile: {
+          DisplayName: '海風の船長',
+          AvatarUrl: 'https://example.test/avatar.png'
+        }
+      };
+    },
+    firestore: {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({ exists: false, data: () => ({}) })
+        })
+      })
+    }
+  });
+
+  expect(row.contributionDebt).toBe(0);
+  expect(row.level).toBe(3);
+  expect(row.bounty).toBe(9000);
+  expect(row.avatarUrl).toBe('https://example.test/avatar.png');
 });
 
 test('builds TROY item and category sales breakdowns from checkout items', () => {

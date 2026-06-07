@@ -2621,11 +2621,12 @@ async function buildTroyBountyRankingRow(memberDoc, deps) {
         if (statsResult.status === 'fulfilled') {
             const statsMap = buildStatsMapFromStatistics(statsResult.value?.Statistics || []);
             if (Object.prototype.hasOwnProperty.call(statsMap, PLAYER_CONTRIBUTION_STAT)) {
-                contribution = normalizeTroyBountyNumber(statsMap[PLAYER_CONTRIBUTION_STAT]);
+                const statContribution = normalizeTroyBountyNumber(statsMap[PLAYER_CONTRIBUTION_STAT]);
+                contribution = Math.max(contribution, statContribution);
             }
             const derived = calculateLevelFromContribution(contribution);
             const statLevel = normalizeTroyBountyNumber(statsMap[PLAYER_LEVEL_STAT], 0);
-            level = Math.max(1, statLevel || derived.level || level);
+            level = Math.max(1, level, statLevel || 0, derived.level || 0);
             rankName = getPlayerRankNameByLevel(level);
         } else {
             console.warn('[troy-bounty-ranking] Statistics fetch failed:', playFabId, statsResult.reason?.errorMessage || statsResult.reason?.message || statsResult.reason);
@@ -3932,16 +3933,18 @@ function initializeNationRoutes(app, deps) {
                 console.warn('[troy-join] Failed to load order history:', historyError?.message || historyError);
             }
             let entryLevel = 1;
+            let entryContributionTotal = null;
             try {
                 const statsResult = await promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: memberId });
                 const statsMap = buildStatsMapFromStatistics(statsResult?.Statistics);
-                entryLevel = calculateLevelFromContribution(statsMap[PLAYER_CONTRIBUTION_STAT] || 0).level;
+                entryContributionTotal = normalizeTroyBountyNumber(statsMap[PLAYER_CONTRIBUTION_STAT] || 0);
+                entryLevel = calculateLevelFromContribution(entryContributionTotal).level;
             } catch (_) {}
             const entryRankName = getPlayerRankNameByLevel(entryLevel);
             const entryRankBenefits = getPlayerRankServiceBenefitsByLevel(entryLevel);
             let entryChargeCreated = false;
             let entryChargeError = null;
-            await memberRef.set({
+            const memberPayload = {
                 playFabId: memberId,
                 displayName: name,
                 ...(pictureUrl ? { avatarUrl: pictureUrl } : {}),
@@ -3951,7 +3954,12 @@ function initializeNationRoutes(app, deps) {
                 usualItems,
                 joinedAt: existingMemberSnap.exists ? (existingMemberSnap.data()?.joinedAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+            if (entryContributionTotal !== null) {
+                memberPayload.contributionTotal = entryContributionTotal;
+                memberPayload.contributionUpdatedAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await memberRef.set(memberPayload, { merge: true });
 
             if (isNewEntry && TROY_ENTRY_CHARGE_AMOUNT > 0) {
                 try {
@@ -4357,13 +4365,19 @@ function initializeNationRoutes(app, deps) {
     async function updateTroyMemberRankSnapshot(memberRef, contribution) {
         const level = Math.max(1, Math.floor(Number(contribution?.level) || 0));
         if (!memberRef || level <= 0) return;
+        const contributionTotal = normalizeTroyBountyNumber(contribution?.contributionTotal);
         try {
-            await memberRef.set({
+            const update = {
                 level,
                 rankName: getPlayerRankNameByLevel(level),
                 rankBenefits: getPlayerRankServiceBenefitsByLevel(level),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+            if (contributionTotal > 0) {
+                update.contributionTotal = contributionTotal;
+                update.contributionUpdatedAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await memberRef.set(update, { merge: true });
         } catch (rankError) {
             console.warn('[troy-member-rank] Failed to update rank snapshot:', rankError?.message || rankError);
         }
@@ -4540,6 +4554,12 @@ function initializeNationRoutes(app, deps) {
                 } catch (notifyError) {
                     console.warn('[king-troy-return-coin] Notification write failed:', notifyError?.message || notifyError);
                 }
+            }
+            if (contribution) {
+                pushDisplayEvent({
+                    type: 'refresh',
+                    topic: 'troy-ranking'
+                });
             }
             res.json({
                 success: true,
@@ -4754,6 +4774,12 @@ function initializeNationRoutes(app, deps) {
                     balanceSyncError = syncError?.errorMessage || syncError?.message || String(syncError);
                     console.warn('[king-direct-grant-ps] Balance/stat sync failed after grant:', balanceSyncError);
                 }
+            }
+            if (contribution) {
+                pushDisplayEvent({
+                    type: 'refresh',
+                    topic: 'troy-ranking'
+                });
             }
 
             res.json({
@@ -6163,6 +6189,7 @@ module.exports = {
     buildTroySalesPayouts,
     buildTroyUsualItemsPayload,
     mergeTroyOrderHistoryItems,
+    buildTroyBountyRankingRow,
     formatTroyCloseSummaryMessage,
     initializeNationRoutes
 };
