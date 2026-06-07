@@ -216,6 +216,10 @@ export function onSnapshot(_ref, next) {
 
   await expect(page.locator('#tabContentTroy')).toBeVisible();
   await expect(page.locator('#troyChatDetails')).toHaveCount(0);
+  const firstTroySectionId = await page.evaluate(() => (
+    document.querySelector('#tabContentTroy')?.firstElementChild?.id || ''
+  ));
+  expect(firstTroySectionId).toBe('troyMenuBoardSection');
   const troyHeaderLayout = await page.evaluate(() => {
     const row = document.querySelector('#tabContentTroy .troy-status-row');
     const map = document.getElementById('troyMapLink');

@@ -33,6 +33,7 @@ let _businessCalendar = [];
 let _selectedReservationCalendarEntry = null;
 let _statusRoomUnsubscribe = null;
 let _statusMembersUnsubscribe = null;
+let _menuBoardOriginalAnchor = null;
 let _statusSnapshotState = {
     nation: null,
     isOpen: false,
@@ -321,6 +322,31 @@ function isTroyMember(status, playFabId) {
     if (!Array.isArray(members) || !playFabId) return false;
     const target = String(playFabId).toLowerCase();
     return members.some((member) => String(member?.playFabId || member?.id || '').toLowerCase() === target);
+}
+
+function ensureTroyMenuBoardAnchor(tab, menuBoard) {
+    if (_menuBoardOriginalAnchor?.parentNode === tab) return _menuBoardOriginalAnchor;
+    _menuBoardOriginalAnchor = document.createComment('troy-menu-board-original-position');
+    tab.insertBefore(_menuBoardOriginalAnchor, menuBoard);
+    return _menuBoardOriginalAnchor;
+}
+
+function updateTroyMenuBoardPlacement() {
+    const tab = document.getElementById('tabContentTroy');
+    const menuBoard = document.getElementById('troyMenuBoardSection');
+    if (!tab || !menuBoard) return;
+
+    const anchor = ensureTroyMenuBoardAnchor(tab, menuBoard);
+    if (canUseTroyMenu()) {
+        if (tab.firstElementChild !== menuBoard) {
+            tab.insertBefore(menuBoard, tab.firstElementChild);
+        }
+        return;
+    }
+
+    if (anchor.parentNode === tab && anchor.nextSibling !== menuBoard) {
+        tab.insertBefore(menuBoard, anchor.nextSibling);
+    }
 }
 
 function updateOrderAvailability() {
@@ -1499,6 +1525,7 @@ function renderStatus(data) {
         renderEntryList(data?.members);
     }
     applyMenuState(data?.menuDisabled, data?.menuSpecials, data?.menuCustomItems);
+    updateTroyMenuBoardPlacement();
     updateOrderAvailability();
     updateTroyPrimaryAction();
     updateTroyRoleUI();
