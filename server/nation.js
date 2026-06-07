@@ -83,6 +83,7 @@ const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_
 const TROY_CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
 const TROY_USUAL_ORDER_ITEMS_LIMIT = 8;
 const TROY_ORDER_HISTORY_ITEMS_LIMIT = 32;
+const TROY_SALES_SUMMARY_LIMIT = 80;
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT = 5;
@@ -415,15 +416,109 @@ function formatTroyMoney(value) {
     return `¥${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ja-JP')}`;
 }
 
+function normalizeTroySalesCategoryId(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+}
+
+function normalizeTroySalesCategoryLabel(value, item = {}) {
+    const label = String(value || '').trim().slice(0, 40);
+    if (label) return label;
+    const name = String(item?.name || item?.itemName || '').trim();
+    if (name === TROY_ENTRY_CHARGE_ITEM_NAME) return 'チャージ';
+    if (name === TROY_CUSTOM_ORDER_ITEM_NAME) return TROY_CUSTOM_ORDER_ITEM_NAME;
+    const categoryId = normalizeTroySalesCategoryId(item?.menuCategory || item?.categoryId || item?.category);
+    if (categoryId === 'entry') return 'チャージ';
+    if (categoryId === 'custom') return TROY_CUSTOM_ORDER_ITEM_NAME;
+    if (categoryId === 'usual') return 'いつもの';
+    return '未分類';
+}
+
+function normalizeTroySalesItemRow(row = {}) {
+    const name = String(row?.name || row?.itemName || '').trim().slice(0, 80);
+    const quantity = Math.max(0, Math.floor(Number(row?.quantity) || 0));
+    const total = Math.max(0, Math.floor(Number(row?.total ?? row?.lineTotal) || 0));
+    if (!name || quantity <= 0 || total <= 0) return null;
+    return { name, quantity, total };
+}
+
+function normalizeTroySalesCategoryRow(row = {}) {
+    const categoryId = normalizeTroySalesCategoryId(row?.categoryId || row?.id || row?.menuCategory);
+    const name = normalizeTroySalesCategoryLabel(row?.name || row?.label || row?.menuCategoryLabel, row);
+    const quantity = Math.max(0, Math.floor(Number(row?.quantity) || 0));
+    const total = Math.max(0, Math.floor(Number(row?.total ?? row?.lineTotal) || 0));
+    if (!name || quantity <= 0 || total <= 0) return null;
+    return { categoryId, name, quantity, total };
+}
+
+function sortTroySalesRows(rows = []) {
+    return rows.sort((a, b) => (b.total - a.total)
+        || (b.quantity - a.quantity)
+        || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+}
+
+function mergeTroySalesRows(existingRows = [], addedRows = [], normalizer, keyFor, limit = TROY_SALES_SUMMARY_LIMIT) {
+    const byKey = new Map();
+    (Array.isArray(existingRows) ? existingRows : []).forEach((row) => {
+        const normalized = normalizer(row);
+        if (!normalized) return;
+        byKey.set(keyFor(normalized), { ...normalized });
+    });
+    (Array.isArray(addedRows) ? addedRows : []).forEach((row) => {
+        const normalized = normalizer(row);
+        if (!normalized) return;
+        const key = keyFor(normalized);
+        const current = byKey.get(key) || { ...normalized, quantity: 0, total: 0 };
+        current.name = current.name || normalized.name;
+        if (normalized.categoryId) current.categoryId = normalized.categoryId;
+        current.quantity += normalized.quantity;
+        current.total += normalized.total;
+        byKey.set(key, current);
+    });
+    return sortTroySalesRows([...byKey.values()]).slice(0, Math.max(0, Math.floor(Number(limit) || 0)));
+}
+
+function buildTroySalesBreakdownsFromItems(items = []) {
+    const itemRows = new Map();
+    const categoryRows = new Map();
+    normalizeTroyCheckoutItems(items).forEach((item) => {
+        if (!item.name || item.quantity <= 0 || item.lineTotal <= 0) return;
+        const itemKey = item.name;
+        const itemRow = itemRows.get(itemKey) || { name: item.name, quantity: 0, total: 0 };
+        itemRow.quantity += item.quantity;
+        itemRow.total += item.lineTotal;
+        itemRows.set(itemKey, itemRow);
+
+        const categoryId = normalizeTroySalesCategoryId(item.menuCategory);
+        const categoryName = normalizeTroySalesCategoryLabel(item.menuCategoryLabel, item);
+        const categoryKey = categoryId || categoryName;
+        const categoryRow = categoryRows.get(categoryKey) || { categoryId, name: categoryName, quantity: 0, total: 0 };
+        categoryRow.quantity += item.quantity;
+        categoryRow.total += item.lineTotal;
+        categoryRows.set(categoryKey, categoryRow);
+    });
+    return {
+        items: sortTroySalesRows([...itemRows.values()]).slice(0, TROY_SALES_SUMMARY_LIMIT),
+        categories: sortTroySalesRows([...categoryRows.values()]).slice(0, TROY_SALES_SUMMARY_LIMIT)
+    };
+}
+
 function formatTroyCloseSummaryMessage(summary = {}) {
     const sales = summary.sales || {};
     const pending = summary.pending || {};
     const topItems = Array.isArray(pending.topItems) ? pending.topItems : [];
+    const settledItems = Array.isArray(sales.items) ? sales.items : [];
+    const settledCategories = Array.isArray(sales.categories) ? sales.categories : [];
     const settledTotal = Math.max(0, Math.floor(Number(sales.total) || 0));
     const settledCount = Math.max(0, Math.floor(Number(sales.count) || 0));
     const pendingTotal = Math.max(0, Math.floor(Number(pending.total) || 0));
     const pendingCount = Math.max(0, Math.floor(Number(pending.count) || 0));
     const recordedTotal = settledTotal + pendingTotal;
+    const settledCategoryLines = settledCategories
+        .slice(0, 6)
+        .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
+    const settledItemLines = settledItems
+        .slice(0, 8)
+        .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
     const itemLines = topItems
         .slice(0, 6)
         .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
@@ -436,6 +531,14 @@ function formatTroyCloseSummaryMessage(summary = {}) {
         `記録合計: ${formatTroyMoney(recordedTotal)}`,
         `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`
     ];
+    if (settledCategoryLines.length) {
+        lines.push('カテゴリ別売上:');
+        lines.push(...settledCategoryLines);
+    }
+    if (settledItemLines.length) {
+        lines.push('商品別売上:');
+        lines.push(...settledItemLines);
+    }
     if (itemLines.length) {
         lines.push('未会計内訳:');
         lines.push(...itemLines);
@@ -747,25 +850,44 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
     if (!mapping || !firestore || !admin || value <= 0) return null;
     const dayKey = normalizeTroyBusinessDayKey(options.dayKey || options.businessDayKey)
         || getTroyBusinessDayKey(options.date || new Date());
+    const addedBreakdowns = buildTroySalesBreakdownsFromItems(options.items || options.checkoutItems || []);
     const docRef = getNationGroupDoc(firestore, mapping.groupName);
     let nextTotal = value;
     let nextCount = 1;
+    let nextItems = [];
+    let nextCategories = [];
     await firestore.runTransaction(async (tx) => {
         const snap = await tx.get(docRef);
         const data = snap.data() || {};
         const currentDayKey = String(data.troyTodaySalesDayKey || '').trim();
         const currentTotal = currentDayKey === dayKey ? Math.max(0, Math.floor(Number(data.troyTodaySalesTotal) || 0)) : 0;
         const currentCount = currentDayKey === dayKey ? Math.max(0, Math.floor(Number(data.troyTodaySalesCount) || 0)) : 0;
+        const currentItems = currentDayKey === dayKey && Array.isArray(data.troyTodaySalesItems) ? data.troyTodaySalesItems : [];
+        const currentCategories = currentDayKey === dayKey && Array.isArray(data.troyTodaySalesCategories) ? data.troyTodaySalesCategories : [];
         nextTotal = currentTotal + value;
         nextCount = currentCount + 1;
+        nextItems = mergeTroySalesRows(
+            currentItems,
+            addedBreakdowns.items,
+            normalizeTroySalesItemRow,
+            (row) => row.name
+        );
+        nextCategories = mergeTroySalesRows(
+            currentCategories,
+            addedBreakdowns.categories,
+            normalizeTroySalesCategoryRow,
+            (row) => row.categoryId || row.name
+        );
         tx.set(docRef, {
             troyTodaySalesDayKey: dayKey,
             troyTodaySalesTotal: nextTotal,
             troyTodaySalesCount: nextCount,
+            troyTodaySalesItems: nextItems,
+            troyTodaySalesCategories: nextCategories,
             troyTodaySalesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
     });
-    return { dayKey, total: nextTotal, count: nextCount };
+    return { dayKey, total: nextTotal, count: nextCount, items: nextItems, categories: nextCategories };
 }
 
 async function incrementTroyDailyOrderCount(nation, playFabId, firestore, admin) {
@@ -829,7 +951,13 @@ function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
         return {
             dayKey: todayDayKey,
             total: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesTotal) || 0)),
-            count: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesCount) || 0))
+            count: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesCount) || 0)),
+            items: sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesItems) ? groupData.troyTodaySalesItems : [])
+                .map(normalizeTroySalesItemRow)
+                .filter(Boolean)),
+            categories: sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesCategories) ? groupData.troyTodaySalesCategories : [])
+                .map(normalizeTroySalesCategoryRow)
+                .filter(Boolean))
         };
     }
     const fallbackEntries = Array.isArray(groupData?.treasuryRecentEntries) ? groupData.treasuryRecentEntries : [];
@@ -840,7 +968,9 @@ function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
     return {
         dayKey: todayDayKey,
         total: troyEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
-        count: troyEntries.length
+        count: troyEntries.length,
+        items: [],
+        categories: []
     };
 }
 
@@ -1856,6 +1986,12 @@ function normalizeTroyCheckoutItems(items = []) {
                 ? 'served'
                 : 'pending';
             const menuImage = normalizeTroyMenuImagePath(item?.menuImage || item?.image || item?.iconImage);
+            const menuCategory = normalizeTroySalesCategoryId(item?.menuCategory || item?.categoryId || item?.category);
+            const menuCategoryLabel = normalizeTroySalesCategoryLabel(item?.menuCategoryLabel || item?.categoryLabel, {
+                ...item,
+                menuCategory,
+                name
+            });
             const normalized = {
                 name,
                 quantity,
@@ -1868,6 +2004,8 @@ function normalizeTroyCheckoutItems(items = []) {
                 servedAtMs,
                 orderCountToday,
                 status: itemStatus,
+                menuCategory,
+                menuCategoryLabel,
                 lineTotal: price * quantity
             };
             if (menuImage) {
@@ -1910,6 +2048,8 @@ function buildStoredTroyCheckoutItem(item = {}) {
     if (normalized.servedAtMs > 0) stored.servedAtMs = normalized.servedAtMs;
     if (normalized.orderCountToday > 0) stored.orderCountToday = normalized.orderCountToday;
     if (normalized.status === 'served') stored.status = 'served';
+    if (normalized.menuCategory) stored.menuCategory = normalized.menuCategory;
+    if (normalized.menuCategoryLabel) stored.menuCategoryLabel = normalized.menuCategoryLabel;
     if (normalized.menuImage) {
         stored.menuImage = normalized.menuImage;
         stored.image = normalized.menuImage;
@@ -3482,6 +3622,8 @@ function initializeNationRoutes(app, deps) {
                         name: TROY_ENTRY_CHARGE_ITEM_NAME,
                         price: TROY_ENTRY_CHARGE_AMOUNT,
                         quantity: 1,
+                        menuCategory: 'entry',
+                        menuCategoryLabel: 'チャージ',
                         orderId: `troy-entry:${memberId}:${nation}`,
                         orderedAtMs,
                         servedAtMs: orderedAtMs
@@ -4211,6 +4353,12 @@ function initializeNationRoutes(app, deps) {
         const price = Math.max(0, Math.floor(Number(payload.price) || 0));
         const quantity = Math.max(1, Math.min(99, Math.floor(Number(payload.quantity) || 1)));
         const menuImage = normalizeTroyMenuImagePath(payload.menuImage || payload.image || payload.iconImage);
+        const menuCategory = normalizeTroySalesCategoryId(payload.menuCategory || payload.categoryId || payload.category);
+        const menuCategoryLabel = normalizeTroySalesCategoryLabel(payload.menuCategoryLabel || payload.categoryLabel, {
+            ...payload,
+            menuCategory,
+            name
+        });
         if (!receiverId || !name) {
             const error = new Error('InvalidCheckoutItem');
             error.statusCode = 400;
@@ -4248,7 +4396,9 @@ function initializeNationRoutes(app, deps) {
                 orderedAtMs,
                 undoUntilMs,
                 servedAtMs,
-                menuImage
+                menuImage,
+                menuCategory,
+                menuCategoryLabel
             });
             if (!newItem) {
                 const error = new Error('InvalidCheckoutItem');
@@ -4551,7 +4701,8 @@ function initializeNationRoutes(app, deps) {
         let troyTodaySales = null;
         try {
             troyTodaySales = await addTroyDailySales(context.nation, checkoutPayload.total, firestore, admin, {
-                dayKey: normalizeTroyBusinessDayKey(context.roomData?.troyBusinessDayKey)
+                dayKey: normalizeTroyBusinessDayKey(context.roomData?.troyBusinessDayKey),
+                items: checkoutPayload.items
             });
         } catch (salesError) {
             console.warn(`[${logPrefix}] Daily sales update failed:`, salesError?.message || salesError);
@@ -4812,6 +4963,12 @@ function initializeNationRoutes(app, deps) {
             const price = Math.max(0, Math.floor(Number(req.body?.price) || 0));
             const quantity = Math.max(1, Math.min(99, Math.floor(Number(req.body?.quantity) || 1)));
             const menuImage = normalizeTroyMenuImagePath(req.body?.menuImage || req.body?.image || req.body?.iconImage);
+            const menuCategory = normalizeTroySalesCategoryId(req.body?.menuCategory || req.body?.categoryId || req.body?.category);
+            const menuCategoryLabel = normalizeTroySalesCategoryLabel(req.body?.menuCategoryLabel || req.body?.categoryLabel, {
+                ...req.body,
+                menuCategory,
+                name
+            });
             if (!receiverId || !name) return res.status(400).json({ error: 'receiverPlayFabId and name are required' });
 
             const memberRef = context.roomRef.collection('members').doc(receiverId);
@@ -4827,6 +4984,8 @@ function initializeNationRoutes(app, deps) {
                 price,
                 quantity,
                 menuImage,
+                menuCategory,
+                menuCategoryLabel,
                 orderId: `staff:${receiverId}:${orderedAtMs}`,
                 orderedAtMs,
                 undoUntilMs: orderedAtMs + 60000
@@ -5286,6 +5445,7 @@ module.exports = {
     getConfiguredTroyCloseSummaryLineUserIds,
     getTroyBusinessDayKey,
     buildTroyTodaySalesSnapshot,
+    buildTroySalesBreakdownsFromItems,
     buildTroyUsualItemsPayload,
     mergeTroyOrderHistoryItems,
     formatTroyCloseSummaryMessage,

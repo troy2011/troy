@@ -156,6 +156,64 @@ function setSummary(data = {}) {
     const closeBtn = $('troyOrdersCloseBtn');
     if (openBtn) openBtn.hidden = open;
     if (closeBtn) closeBtn.hidden = !open;
+    renderSalesBreakdown(data.troyTodaySales || {});
+}
+
+function normalizeSalesSummaryRows(rows = []) {
+    return (Array.isArray(rows) ? rows : [])
+        .map((row) => {
+            const name = String(row?.name || row?.label || '').trim();
+            const quantity = Math.max(0, Math.floor(Number(row?.quantity) || 0));
+            const total = Math.max(0, Math.floor(Number(row?.total) || 0));
+            if (!name || quantity <= 0 || total <= 0) return null;
+            return { name, quantity, total };
+        })
+        .filter(Boolean)
+        .sort((a, b) => (b.total - a.total) || (b.quantity - a.quantity) || a.name.localeCompare(b.name, 'ja'));
+}
+
+function renderSalesList(rows, emptyText) {
+    if (!rows.length) {
+        return `<div class="troy-orders-sales-empty">${escapeHtml(emptyText)}</div>`;
+    }
+    return rows.slice(0, 8).map((row, index) => `
+        <div class="troy-orders-sales-row">
+            <span class="troy-orders-sales-rank">${index + 1}</span>
+            <span class="troy-orders-sales-name">${escapeHtml(row.name)}</span>
+            <span class="troy-orders-sales-quantity">x${row.quantity}</span>
+            <strong>${formatYen(row.total)}</strong>
+        </div>
+    `).join('');
+}
+
+function renderSalesBreakdown(sales = {}) {
+    const el = $('troyOrdersSalesBreakdown');
+    if (!el) return;
+    const panel = $('troyOrdersSalesPanel');
+    const categories = normalizeSalesSummaryRows(sales.categories);
+    const items = normalizeSalesSummaryRows(sales.items);
+    const hasRows = categories.length > 0 || items.length > 0;
+    if (panel) panel.hidden = !hasRows;
+    if (!hasRows) {
+        el.innerHTML = '';
+        return;
+    }
+    el.innerHTML = `
+        <section class="troy-orders-sales-column">
+            <div class="troy-orders-sales-column-head">
+                <strong>カテゴリ別売上</strong>
+                <span>${categories.length ? `${categories.length}種` : '未集計'}</span>
+            </div>
+            ${renderSalesList(categories, 'カテゴリ売上はまだありません。')}
+        </section>
+        <section class="troy-orders-sales-column">
+            <div class="troy-orders-sales-column-head">
+                <strong>商品別売上</strong>
+                <span>${items.length ? `${items.length}品` : '未集計'}</span>
+            </div>
+            ${renderSalesList(items, '商品売上はまだありません。')}
+        </section>
+    `;
 }
 
 function renderCoinConversionLogs(logs = []) {
@@ -557,7 +615,9 @@ function buildPosCategoryHtml(customerEntry = null) {
                 data-add-item
                 data-item-name="${escapeHtml(item.name)}"
                 data-item-price="${item.price}"
-                data-item-image="${escapeHtml(image)}">
+                data-item-image="${escapeHtml(image)}"
+                data-item-category="${escapeHtml(cat.id)}"
+                data-item-category-label="${escapeHtml(cat.category)}">
                 ${thumb}
                 <span class="troy-orders-pos-copy">
                     <strong class="troy-orders-pos-name">${escapeHtml(item.name)}</strong>
@@ -1028,6 +1088,8 @@ async function addItemToCheckout(button) {
     const name = String(button.dataset.itemName || '').trim();
     const price = Math.max(0, Math.floor(Number(button.dataset.itemPrice) || 0));
     const image = String(button.dataset.itemImage || '').trim();
+    const menuCategory = String(button.dataset.itemCategory || '').trim();
+    const menuCategoryLabel = String(button.dataset.itemCategoryLabel || '').trim();
     if (!name) return;
     button.disabled = true;
     try {
@@ -1038,7 +1100,9 @@ async function addItemToCheckout(button) {
             price,
             quantity: 1,
             image,
-            menuImage: image
+            menuImage: image,
+            menuCategory,
+            menuCategoryLabel
         }, { isSilent: true, throwOnError: true });
         await refreshOrders({ silent: true, force: true });
     } catch (error) {
@@ -1089,7 +1153,9 @@ async function addCustomItemToCheckout(button) {
             receiverPlayFabId: selectedCustomerId,
             name: CUSTOM_ORDER_ITEM_NAME,
             price,
-            quantity: 1
+            quantity: 1,
+            menuCategory: 'custom',
+            menuCategoryLabel: CUSTOM_ORDER_ITEM_NAME
         }, { isSilent: true, throwOnError: true });
         await refreshOrders({ silent: true, force: true });
     } catch (error) {

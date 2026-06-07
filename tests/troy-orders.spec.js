@@ -5,7 +5,18 @@ test('staff register creates a checkout from an in-store member and settles with
   const state = {
     troyOpen: true,
     nation: 'fire',
-    troyTodaySales: { total: 0, count: 0 },
+    troyTodaySales: {
+      total: 2200,
+      count: 2,
+      categories: [
+        { categoryId: 'beer', name: 'ビール・ハイボール', quantity: 2, total: 1400 },
+        { categoryId: 'custom', name: '裏メニュー', quantity: 1, total: 800 }
+      ],
+      items: [
+        { name: '瓶ビール（ハートランド）', quantity: 2, total: 1400 },
+        { name: '裏メニュー', quantity: 1, total: 800 }
+      ]
+    },
     troyCoinConversionLogs: [],
     troyMembers: [
       {
@@ -54,6 +65,8 @@ test('staff register creates a checkout from an in-store member and settles with
       menuImage: body.menuImage || body.image || '',
       image: body.image || body.menuImage || '',
       iconImage: body.iconImage || body.image || body.menuImage || '',
+      menuCategory: body.menuCategory || '',
+      menuCategoryLabel: body.menuCategoryLabel || '',
       lineTotal: body.price * (body.quantity || 1),
       status: 'pending',
       orderedAtMs: Date.now()
@@ -113,6 +126,11 @@ test('staff register creates a checkout from an in-store member and settles with
   await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
 
   await expect(page.locator('h1')).toHaveText('会計レジ');
+  await expect(page.locator('#troyOrdersTodaySales')).toHaveText('¥2,200');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('カテゴリ別売上');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('商品別売上');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('ビール・ハイボール');
+  await expect(page.locator('#troyOrdersSalesBreakdown')).toContainText('瓶ビール（ハートランド）');
   await expect(page.locator('[data-open-ticket]')).toHaveCount(2);
   await expect(page.locator('#troyOrdersEmpty')).toBeHidden();
 
@@ -184,6 +202,8 @@ test('staff register creates a checkout from an in-store member and settles with
   expect(addItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
   expect(addItemRequests[0].image).toMatch(/Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
   expect(addItemRequests[0].menuImage).toMatch(/Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
+  expect(addItemRequests[0].menuCategory).toBe('beer');
+  expect(addItemRequests[0].menuCategoryLabel).toBe('ビール・ハイボール');
   await expect(page.locator('#troyOrdersTicketModal')).toBeVisible();
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥700');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
@@ -206,6 +226,8 @@ test('staff register creates a checkout from an in-store member and settles with
   expect(addItemRequests[1].receiverPlayFabId).toBe('PLAYER1');
   expect(addItemRequests[1].name).toBe('裏メニュー');
   expect(addItemRequests[1].price).toBe(1500);
+  expect(addItemRequests[1].menuCategory).toBe('custom');
+  expect(addItemRequests[1].menuCategoryLabel).toBe('裏メニュー');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('裏メニュー');
   await expect(page.locator('#troyOrdersTicketDetail')).toContainText('¥2,900');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥2,900');

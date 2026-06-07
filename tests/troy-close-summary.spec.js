@@ -4,6 +4,7 @@ const {
   getConfiguredTroyCloseSummaryLineUserIds,
   getTroyBusinessDayKey,
   buildTroyTodaySalesSnapshot,
+  buildTroySalesBreakdownsFromItems,
   buildTroyUsualItemsPayload,
   mergeTroyOrderHistoryItems,
   formatTroyCloseSummaryMessage
@@ -16,7 +17,18 @@ test('formats TROY close summary LINE message with daily sales and pending check
   const message = formatTroyCloseSummaryMessage({
     dayKey: '2026-06-05',
     nation: 'fire',
-    sales: { total: 8600, count: 3 },
+    sales: {
+      total: 8600,
+      count: 3,
+      categories: [
+        { categoryId: 'beer', name: 'ビール・ハイボール', quantity: 4, total: 2800 },
+        { categoryId: 'food', name: 'フード', quantity: 2, total: 1000 }
+      ],
+      items: [
+        { name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 },
+        { name: 'フライドポテト', quantity: 2, total: 1000 }
+      ]
+    },
     memberCount: 2,
     pending: {
       count: 1,
@@ -34,6 +46,10 @@ test('formats TROY close summary LINE message with daily sales and pending check
   expect(message).toContain('入店中: 2名');
   expect(message).toContain('未会計伝票: 1件 / ¥1,600');
   expect(message).toContain('記録合計: ¥10,200');
+  expect(message).toContain('カテゴリ別売上:');
+  expect(message).toContain('- ビール・ハイボール x4 / ¥2,800');
+  expect(message).toContain('商品別売上:');
+  expect(message).toContain('- 瓶ビール（ハートランド） x3 / ¥2,100');
   expect(message).toContain('- 入店チャージ x1 / ¥500');
   expect(message).toContain('※未会計伝票はCLOSE処理でクリアされます。');
 });
@@ -54,14 +70,63 @@ test('keeps after-midnight TROY close sales on the same business day', () => {
     const snapshot = buildTroyTodaySalesSnapshot({
       troyTodaySalesDayKey: '2026-06-05',
       troyTodaySalesTotal: 8600,
-      troyTodaySalesCount: 3
+      troyTodaySalesCount: 3,
+      troyTodaySalesCategories: [
+        { categoryId: 'beer', name: 'ビール・ハイボール', quantity: 4, total: 2800 }
+      ],
+      troyTodaySalesItems: [
+        { name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 }
+      ]
     }, { date: afterMidnightJst });
 
-    expect(snapshot).toEqual({ dayKey: '2026-06-05', total: 8600, count: 3 });
+    expect(snapshot).toEqual({
+      dayKey: '2026-06-05',
+      total: 8600,
+      count: 3,
+      categories: [{ categoryId: 'beer', name: 'ビール・ハイボール', quantity: 4, total: 2800 }],
+      items: [{ name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 }]
+    });
   } finally {
     if (previousRollover === undefined) delete process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST;
     else process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST = previousRollover;
   }
+});
+
+test('builds TROY item and category sales breakdowns from checkout items', () => {
+  const result = buildTroySalesBreakdownsFromItems([
+    {
+      name: '瓶ビール（ハートランド）',
+      price: 700,
+      quantity: 2,
+      menuCategory: 'beer',
+      menuCategoryLabel: 'ビール・ハイボール'
+    },
+    {
+      name: '裏メニュー',
+      price: 1500,
+      quantity: 1,
+      menuCategory: 'custom',
+      menuCategoryLabel: '裏メニュー'
+    },
+    {
+      name: '入店チャージ',
+      price: 500,
+      quantity: 1,
+      menuCategory: 'entry',
+      menuCategoryLabel: 'チャージ'
+    }
+  ]);
+
+  expect(result.items).toEqual([
+    { name: '瓶ビール（ハートランド）', quantity: 2, total: 1400 },
+    { name: '裏メニュー', quantity: 1, total: 1500 },
+    { name: '入店チャージ', quantity: 1, total: 500 }
+  ].sort((a, b) => (b.total - a.total) || (b.quantity - a.quantity) || a.name.localeCompare(b.name, 'ja')));
+  expect(result.categories).toEqual([
+    { categoryId: 'custom', name: '裏メニュー', quantity: 1, total: 1500 },
+    { categoryId: 'beer', name: 'ビール・ハイボール', quantity: 2, total: 1400 },
+    { categoryId: 'entry', name: 'チャージ', quantity: 1, total: 500 }
+  ]);
 });
 
 test('resolves TROY close summary LINE IDs from game master environment keys', () => {

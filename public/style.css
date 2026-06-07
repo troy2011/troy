@@ -13861,6 +13861,103 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 18px / 0 stretch;
 }
 
+.troy-orders-sales-panel {
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 18px solid transparent;
+    border-image: url('/assets/ui/panels/panel-wood-large.png') 32 fill / 18px / 0 stretch;
+}
+
+.troy-orders-sales-breakdown {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.troy-orders-sales-column {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(226, 179, 90, 0.18);
+    border-radius: 8px;
+    background: rgba(22, 13, 6, 0.62);
+}
+
+.troy-orders-sales-column-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.troy-orders-sales-column-head strong {
+    color: #ffe0a0;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.troy-orders-sales-column-head span {
+    color: #bda16a;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.troy-orders-sales-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 34px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    background: rgba(255, 226, 151, 0.08);
+}
+
+.troy-orders-sales-rank {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(226, 179, 90, 0.18);
+    color: #ffe0a0;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.troy-orders-sales-name {
+    min-width: 0;
+    overflow: hidden;
+    color: #f7e8bd;
+    font-size: 13px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.troy-orders-sales-quantity {
+    color: #bda16a;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.troy-orders-sales-row strong {
+    color: #ffd67b;
+    font-size: 14px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.troy-orders-sales-empty {
+    min-height: 34px;
+    display: grid;
+    place-items: center start;
+    color: #bda16a;
+    font-size: 13px;
+}
+
 .troy-orders-section-head {
     display: flex;
     align-items: center;
@@ -15083,6 +15180,19 @@ body.is-new-order-flash::before {
 
     .troy-orders-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .troy-orders-sales-breakdown {
+        grid-template-columns: 1fr;
+    }
+
+    .troy-orders-sales-row {
+        grid-template-columns: 22px minmax(0, 1fr) auto;
+    }
+
+    .troy-orders-sales-row strong {
+        grid-column: 2 / -1;
+        justify-self: end;
     }
 
     .troy-orders-toolbar {
