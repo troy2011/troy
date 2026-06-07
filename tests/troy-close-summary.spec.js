@@ -30,6 +30,10 @@ test('formats TROY close summary LINE message with daily sales and pending check
         { name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 },
         { name: 'フライドポテト', quantity: 2, total: 1000 },
         { name: '入店チャージ', quantity: 1, total: 500 }
+      ],
+      settlements: [
+        { settlementId: 'settle-1', playFabId: 'PLAYER1', displayName: '海風の船長', total: 2700, totalItems: 3, settledAtMs: 1000 },
+        { settlementId: 'settle-2', playFabId: 'PLAYER2', displayName: '港町の料理人', total: 5900, totalItems: 7, settledAtMs: 2000 }
       ]
     },
     memberCount: 2,
@@ -45,8 +49,14 @@ test('formats TROY close summary LINE message with daily sales and pending check
 
   expect(message).toContain('【TROY CLOSE 売上まとめ】');
   expect(message).toContain('営業日: 2026-06-05');
-  expect(message).toContain('会計済売上: ¥8,600 / 3伝票');
-  expect(message).toContain('取り分: マスター ¥4,050 / ディーラー ¥500');
+  expect(message).toContain('総売上: ¥8,600 / 3伝票');
+  expect(message).toContain('チャージ代: ¥500');
+  expect(message).toContain('チャージ除外売上: ¥8,100');
+  expect(message).toContain('マスター取り分: ¥4,050（チャージ代を抜いた売上金額の半分）');
+  expect(message).toContain('ディーラー取り分: ¥500（チャージ代）');
+  expect(message).toContain('会計済み客別:');
+  expect(message).toContain('- 1. 海風の船長: ¥2,700 / 3点');
+  expect(message).toContain('- 2. 港町の料理人: ¥5,900 / 7点');
   expect(message).toContain('入店中: 2名');
   expect(message).toContain('未会計伝票: 1件 / ¥1,600');
   expect(message).toContain('記録合計: ¥10,200');
@@ -82,6 +92,10 @@ test('keeps after-midnight TROY close sales on the same business day', () => {
       troyTodaySalesItems: [
         { name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 },
         { name: '入店チャージ', quantity: 1, total: 500 }
+      ],
+      troyTodaySalesSettlements: [
+        { settlementId: 'settle-2', playFabId: 'PLAYER2', displayName: '港町の料理人', total: 5900, totalItems: 7, settledAtMs: 2000 },
+        { settlementId: 'settle-1', playFabId: 'PLAYER1', displayName: '海風の船長', total: 2700, totalItems: 3, settledAtMs: 1000 }
       ]
     }, { date: afterMidnightJst });
 
@@ -97,6 +111,10 @@ test('keeps after-midnight TROY close sales on the same business day', () => {
         { name: '瓶ビール（ハートランド）', quantity: 3, total: 2100 },
         { name: '入店チャージ', quantity: 1, total: 500 }
       ],
+      settlements: [
+        { settlementId: 'settle-1', playFabId: 'PLAYER1', displayName: '海風の船長', total: 2700, totalItems: 3, settledAtMs: 1000 },
+        { settlementId: 'settle-2', playFabId: 'PLAYER2', displayName: '港町の料理人', total: 5900, totalItems: 7, settledAtMs: 2000 }
+      ],
       payouts: {
         total: 8600,
         chargeTotal: 500,
@@ -109,6 +127,28 @@ test('keeps after-midnight TROY close sales on the same business day', () => {
     if (previousRollover === undefined) delete process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST;
     else process.env.TROY_BUSINESS_DAY_ROLLOVER_HOUR_JST = previousRollover;
   }
+});
+
+test('limits detailed TROY close summary LINE text safely', () => {
+  const settlements = Array.from({ length: 180 }, (_, index) => ({
+    settlementId: `settle-${index}`,
+    displayName: `とても長い名前のお客様${String(index + 1).padStart(3, '0')}`,
+    total: 1000 + index,
+    totalItems: 4,
+    settledAtMs: 1000 + index
+  }));
+  const message = formatTroyCloseSummaryMessage({
+    dayKey: '2026-06-05',
+    nation: 'fire',
+    sales: {
+      total: 180000,
+      count: 180,
+      settlements
+    }
+  });
+
+  expect(message.length).toBeLessThanOrEqual(4900);
+  expect(message).toContain('※文字数上限のため');
 });
 
 test('builds TROY item and category sales breakdowns from checkout items', () => {

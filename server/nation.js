@@ -84,6 +84,8 @@ const TROY_CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
 const TROY_USUAL_ORDER_ITEMS_LIMIT = 8;
 const TROY_ORDER_HISTORY_ITEMS_LIMIT = 32;
 const TROY_SALES_SUMMARY_LIMIT = 80;
+const TROY_SALES_SETTLEMENT_LIMIT = 120;
+const TROY_CLOSE_SUMMARY_SAFE_TEXT_LIMIT = 4900;
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT = 5;
@@ -450,10 +452,38 @@ function normalizeTroySalesCategoryRow(row = {}) {
     return { categoryId, name, quantity, total };
 }
 
+function normalizeTroySalesSettlementRow(row = {}) {
+    const playFabId = normalizePlayFabId(row?.playFabId || row?.receiverPlayFabId || row?.contributorPlayFabId || row?.actorId || '');
+    const displayName = String(row?.displayName || row?.customerName || row?.contributorName || row?.actorName || playFabId || 'お客様')
+        .trim()
+        .slice(0, 40);
+    const total = Math.max(0, Math.floor(Number(row?.total ?? row?.amount ?? row?.receivedAmount) || 0));
+    const totalItems = Math.max(0, Math.floor(Number(row?.totalItems ?? row?.quantity) || 0));
+    const settledAtMs = Math.max(0, Math.floor(Number(row?.settledAtMs ?? row?.timestampMs ?? row?.createdAtMs) || 0));
+    const rawSettlementId = String(row?.settlementId || row?.entryId || row?.id || '').trim();
+    const settlementId = (rawSettlementId || `${playFabId || displayName}:${settledAtMs || 0}:${total}`)
+        .slice(0, 120);
+    if (!displayName || total <= 0) return null;
+    return {
+        settlementId,
+        playFabId,
+        displayName,
+        total,
+        totalItems,
+        settledAtMs
+    };
+}
+
 function sortTroySalesRows(rows = []) {
     return rows.sort((a, b) => (b.total - a.total)
         || (b.quantity - a.quantity)
         || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+}
+
+function sortTroySettlementRows(rows = []) {
+    return rows.sort((a, b) => (a.settledAtMs - b.settledAtMs)
+        || String(a.displayName || '').localeCompare(String(b.displayName || ''), 'ja')
+        || String(a.settlementId || '').localeCompare(String(b.settlementId || '')));
 }
 
 function mergeTroySalesRows(existingRows = [], addedRows = [], normalizer, keyFor, limit = TROY_SALES_SUMMARY_LIMIT) {
@@ -475,6 +505,21 @@ function mergeTroySalesRows(existingRows = [], addedRows = [], normalizer, keyFo
         byKey.set(key, current);
     });
     return sortTroySalesRows([...byKey.values()]).slice(0, Math.max(0, Math.floor(Number(limit) || 0)));
+}
+
+function mergeTroySettlementRows(existingRows = [], addedRows = [], limit = TROY_SALES_SETTLEMENT_LIMIT) {
+    const byKey = new Map();
+    (Array.isArray(existingRows) ? existingRows : []).forEach((row) => {
+        const normalized = normalizeTroySalesSettlementRow(row);
+        if (!normalized) return;
+        byKey.set(normalized.settlementId, normalized);
+    });
+    (Array.isArray(addedRows) ? addedRows : []).forEach((row) => {
+        const normalized = normalizeTroySalesSettlementRow(row);
+        if (!normalized) return;
+        byKey.set(normalized.settlementId, normalized);
+    });
+    return sortTroySettlementRows([...byKey.values()]).slice(0, Math.max(0, Math.floor(Number(limit) || 0)));
 }
 
 function buildTroySalesBreakdownsFromItems(items = []) {
@@ -531,18 +576,61 @@ function buildTroySalesPayouts(sales = {}) {
     };
 }
 
+function createTroyCloseSummaryLineBuilder(maxCodeUnits = TROY_CLOSE_SUMMARY_SAFE_TEXT_LIMIT) {
+    const max = Math.max(500, Math.floor(Number(maxCodeUnits) || TROY_CLOSE_SUMMARY_SAFE_TEXT_LIMIT));
+    const lines = [];
+    let used = 0;
+    let omitted = 0;
+    const lineCost = (line) => String(line || '').length + (lines.length ? 1 : 0);
+    const push = (line, options = {}) => {
+        const text = String(line || '');
+        const cost = lineCost(text);
+        if (!options.force && used + cost > max) {
+            omitted += 1;
+            return false;
+        }
+        let nextText = text;
+        let nextCost = cost;
+        if (used + nextCost > max) {
+            const available = Math.max(0, max - used - (lines.length ? 1 : 0));
+            nextText = text.slice(0, available);
+            nextCost = lineCost(nextText);
+        }
+        lines.push(nextText);
+        used += nextCost;
+        return true;
+    };
+    const finish = () => {
+        if (omitted > 0) {
+            const notice = `※文字数上限のため ${omitted}行を省略`;
+            while (lines.length && used + lineCost(notice) > max) {
+                const removed = lines.pop();
+                used -= String(removed || '').length + (lines.length ? 1 : 0);
+            }
+            push(notice, { force: true });
+        }
+        return lines.join('\n');
+    };
+    return { push, finish };
+}
+
 function formatTroyCloseSummaryMessage(summary = {}) {
     const sales = summary.sales || {};
     const pending = summary.pending || {};
     const topItems = Array.isArray(pending.topItems) ? pending.topItems : [];
     const settledItems = Array.isArray(sales.items) ? sales.items : [];
     const settledCategories = Array.isArray(sales.categories) ? sales.categories : [];
+    const settledCustomers = sortTroySettlementRows((Array.isArray(sales.settlements) ? sales.settlements : [])
+        .map(normalizeTroySalesSettlementRow)
+        .filter(Boolean));
     const settledTotal = Math.max(0, Math.floor(Number(sales.total) || 0));
     const settledCount = Math.max(0, Math.floor(Number(sales.count) || 0));
     const pendingTotal = Math.max(0, Math.floor(Number(pending.total) || 0));
     const pendingCount = Math.max(0, Math.floor(Number(pending.count) || 0));
     const recordedTotal = settledTotal + pendingTotal;
     const payouts = sales.payouts || buildTroySalesPayouts(sales);
+    const settledCustomerLines = settledCustomers
+        .map((item, index) => `- ${index + 1}. ${item.displayName}: ${formatTroyMoney(item.total)}${item.totalItems > 0 ? ` / ${item.totalItems}点` : ''}`);
     const settledCategoryLines = settledCategories
         .slice(0, 6)
         .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
@@ -552,32 +640,38 @@ function formatTroyCloseSummaryMessage(summary = {}) {
     const itemLines = topItems
         .slice(0, 6)
         .map((item) => `- ${item.name} x${item.quantity} / ${formatTroyMoney(item.total)}`);
-    const lines = [
-        '【TROY CLOSE 売上まとめ】',
-        `営業日: ${summary.dayKey || getTroyBusinessDayKey()}`,
-        `国: ${getNationLabel(summary.nation) || summary.nation || '-'}`,
-        `会計済売上: ${formatTroyMoney(settledTotal)} / ${settledCount}伝票`,
-        `取り分: マスター ${formatTroyMoney(payouts.masterShare)} / ディーラー ${formatTroyMoney(payouts.dealerShare)}`,
-        `未会計伝票: ${pendingCount}件 / ${formatTroyMoney(pendingTotal)}`,
-        `記録合計: ${formatTroyMoney(recordedTotal)}`,
-        `入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`
-    ];
+    const builder = createTroyCloseSummaryLineBuilder();
+    builder.push('【TROY CLOSE 売上まとめ】', { force: true });
+    builder.push(`営業日: ${summary.dayKey || getTroyBusinessDayKey()}`, { force: true });
+    builder.push(`国: ${getNationLabel(summary.nation) || summary.nation || '-'}`, { force: true });
+    builder.push(`総売上: ${formatTroyMoney(settledTotal)} / ${settledCount}伝票`, { force: true });
+    builder.push(`チャージ代: ${formatTroyMoney(payouts.chargeTotal)}`, { force: true });
+    builder.push(`チャージ除外売上: ${formatTroyMoney(payouts.nonChargeTotal)}`, { force: true });
+    builder.push(`マスター取り分: ${formatTroyMoney(payouts.masterShare)}（チャージ代を抜いた売上金額の半分）`, { force: true });
+    builder.push(`ディーラー取り分: ${formatTroyMoney(payouts.dealerShare)}（チャージ代）`, { force: true });
+    builder.push(`未会計伝票: ${pendingCount}件 / ${formatTroyMoney(pendingTotal)}`, { force: true });
+    builder.push(`記録合計: ${formatTroyMoney(recordedTotal)}`, { force: true });
+    builder.push(`入店中: ${Math.max(0, Math.floor(Number(summary.memberCount) || 0))}名`, { force: true });
+    if (settledCustomerLines.length) {
+        builder.push('会計済み客別:');
+        settledCustomerLines.forEach((line) => builder.push(line));
+    }
     if (settledCategoryLines.length) {
-        lines.push('カテゴリ別売上:');
-        lines.push(...settledCategoryLines);
+        builder.push('カテゴリ別売上:');
+        settledCategoryLines.forEach((line) => builder.push(line));
     }
     if (settledItemLines.length) {
-        lines.push('商品別売上:');
-        lines.push(...settledItemLines);
+        builder.push('商品別売上:');
+        settledItemLines.forEach((line) => builder.push(line));
     }
     if (itemLines.length) {
-        lines.push('未会計内訳:');
-        lines.push(...itemLines);
+        builder.push('未会計内訳:');
+        itemLines.forEach((line) => builder.push(line));
     }
     if (pendingCount > 0) {
-        lines.push('※未会計伝票はCLOSE処理でクリアされます。');
+        builder.push('※未会計伝票はCLOSE処理でクリアされます。');
     }
-    return lines.join('\n');
+    return builder.finish();
 }
 
 const TROY_LAST_ORDER_UNDO_WINDOW_MS = 45 * 1000;
@@ -882,11 +976,25 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
     const dayKey = normalizeTroyBusinessDayKey(options.dayKey || options.businessDayKey)
         || getTroyBusinessDayKey(options.date || new Date());
     const addedBreakdowns = buildTroySalesBreakdownsFromItems(options.items || options.checkoutItems || []);
+    const settlementSource = options.settlement || options.checkout || null;
+    const addedSettlement = (settlementSource || options.displayName || options.playFabId)
+        ? normalizeTroySalesSettlementRow({
+            ...(settlementSource || {}),
+            settlementId: options.settlementId || settlementSource?.settlementId,
+            playFabId: options.playFabId || settlementSource?.playFabId,
+            displayName: options.displayName || settlementSource?.displayName,
+            total: value,
+            totalItems: options.totalItems ?? settlementSource?.totalItems,
+            settledAtMs: options.settledAtMs || settlementSource?.settledAtMs || Date.now()
+        })
+        : null;
+    const addedSettlements = addedSettlement ? [addedSettlement] : [];
     const docRef = getNationGroupDoc(firestore, mapping.groupName);
     let nextTotal = value;
     let nextCount = 1;
     let nextItems = [];
     let nextCategories = [];
+    let nextSettlements = addedSettlements;
     let nextPayouts = buildTroySalesPayouts({ total: value, items: addedBreakdowns.items, categories: addedBreakdowns.categories });
     await firestore.runTransaction(async (tx) => {
         const snap = await tx.get(docRef);
@@ -896,6 +1004,7 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
         const currentCount = currentDayKey === dayKey ? Math.max(0, Math.floor(Number(data.troyTodaySalesCount) || 0)) : 0;
         const currentItems = currentDayKey === dayKey && Array.isArray(data.troyTodaySalesItems) ? data.troyTodaySalesItems : [];
         const currentCategories = currentDayKey === dayKey && Array.isArray(data.troyTodaySalesCategories) ? data.troyTodaySalesCategories : [];
+        const currentSettlements = currentDayKey === dayKey && Array.isArray(data.troyTodaySalesSettlements) ? data.troyTodaySalesSettlements : [];
         nextTotal = currentTotal + value;
         nextCount = currentCount + 1;
         nextItems = mergeTroySalesRows(
@@ -910,17 +1019,19 @@ async function addTroyDailySales(nation, amount, firestore, admin, options = {})
             normalizeTroySalesCategoryRow,
             (row) => row.categoryId || row.name
         );
+        nextSettlements = mergeTroySettlementRows(currentSettlements, addedSettlements);
         tx.set(docRef, {
             troyTodaySalesDayKey: dayKey,
             troyTodaySalesTotal: nextTotal,
             troyTodaySalesCount: nextCount,
             troyTodaySalesItems: nextItems,
             troyTodaySalesCategories: nextCategories,
+            troyTodaySalesSettlements: nextSettlements,
             troyTodaySalesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         nextPayouts = buildTroySalesPayouts({ total: nextTotal, items: nextItems, categories: nextCategories });
     });
-    return { dayKey, total: nextTotal, count: nextCount, items: nextItems, categories: nextCategories, payouts: nextPayouts };
+    return { dayKey, total: nextTotal, count: nextCount, items: nextItems, categories: nextCategories, settlements: nextSettlements, payouts: nextPayouts };
 }
 
 async function incrementTroyDailyOrderCount(nation, playFabId, firestore, admin) {
@@ -976,10 +1087,26 @@ async function decrementTroyDailyOrderCount(nation, playFabId, firestore, admin)
     return nextCount;
 }
 
+function buildTroySettlementRowsFromTreasuryEntries(entries = [], dayKey = '') {
+    const targetDayKey = normalizeTroyBusinessDayKey(dayKey) || getTroyBusinessDayKey();
+    return mergeTroySettlementRows([], (Array.isArray(entries) ? entries : [])
+        .map((entry) => buildTreasuryRecentEntry(entry))
+        .filter((entry) => entry.direction === 'in' && ['troy_settlement', 'troy_order'].includes(entry.source))
+        .filter((entry) => getTroyBusinessDayKey(new Date(entry.timestampMs || 0)) === targetDayKey)
+        .map((entry) => ({
+            settlementId: entry.entryId,
+            playFabId: entry.actorId,
+            displayName: entry.actorName || entry.actorId || 'お客様',
+            total: entry.amount,
+            settledAtMs: entry.timestampMs
+        })));
+}
+
 function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
     const todayDayKey = normalizeTroyBusinessDayKey(options.dayKey || options.businessDayKey)
         || getTroyBusinessDayKey(options.date || new Date());
     const storedDayKey = String(groupData?.troyTodaySalesDayKey || '').trim();
+    const fallbackEntries = Array.isArray(groupData?.treasuryRecentEntries) ? groupData.treasuryRecentEntries : [];
     if (storedDayKey === todayDayKey) {
         const snapshotItems = sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesItems) ? groupData.troyTodaySalesItems : [])
             .map(normalizeTroySalesItemRow)
@@ -987,17 +1114,21 @@ function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
         const snapshotCategories = sortTroySalesRows((Array.isArray(groupData?.troyTodaySalesCategories) ? groupData.troyTodaySalesCategories : [])
             .map(normalizeTroySalesCategoryRow)
             .filter(Boolean));
+        const storedSettlements = mergeTroySettlementRows([], Array.isArray(groupData?.troyTodaySalesSettlements) ? groupData.troyTodaySalesSettlements : []);
+        const fallbackSettlements = storedSettlements.length
+            ? []
+            : buildTroySettlementRowsFromTreasuryEntries(fallbackEntries, todayDayKey);
         const snapshot = {
             dayKey: todayDayKey,
             total: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesTotal) || 0)),
             count: Math.max(0, Math.floor(Number(groupData?.troyTodaySalesCount) || 0)),
             items: snapshotItems,
-            categories: snapshotCategories
+            categories: snapshotCategories,
+            settlements: storedSettlements.length ? storedSettlements : fallbackSettlements
         };
         snapshot.payouts = buildTroySalesPayouts(snapshot);
         return snapshot;
     }
-    const fallbackEntries = Array.isArray(groupData?.treasuryRecentEntries) ? groupData.treasuryRecentEntries : [];
     const troyEntries = fallbackEntries
         .map((entry) => buildTreasuryRecentEntry(entry))
         .filter((entry) => entry.direction === 'in' && ['troy_settlement', 'troy_order'].includes(entry.source))
@@ -1007,7 +1138,8 @@ function buildTroyTodaySalesSnapshot(groupData = {}, options = {}) {
         total: troyEntries.reduce((sum, entry) => sum + Math.max(0, Number(entry.amount) || 0), 0),
         count: troyEntries.length,
         items: [],
-        categories: []
+        categories: [],
+        settlements: buildTroySettlementRowsFromTreasuryEntries(troyEntries, todayDayKey)
     };
     fallbackSnapshot.payouts = buildTroySalesPayouts(fallbackSnapshot);
     return fallbackSnapshot;
@@ -4739,9 +4871,15 @@ function initializeNationRoutes(app, deps) {
 
         let troyTodaySales = null;
         try {
+            const settledAtMs = Date.now();
             troyTodaySales = await addTroyDailySales(context.nation, checkoutPayload.total, firestore, admin, {
                 dayKey: normalizeTroyBusinessDayKey(context.roomData?.troyBusinessDayKey),
-                items: checkoutPayload.items
+                items: checkoutPayload.items,
+                settlementId: checkoutStableId,
+                playFabId: receiverId,
+                displayName: checkoutPayload.displayName,
+                totalItems: checkoutPayload.totalItems,
+                settledAtMs
             });
         } catch (salesError) {
             console.warn(`[${logPrefix}] Daily sales update failed:`, salesError?.message || salesError);
