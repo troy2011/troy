@@ -1557,7 +1557,7 @@ test('facial hair unlocks at level 21 and salon actions update the layer', async
   await expectNoPageErrors(errors);
 });
 
-test('tarot deck and list show suit-colored number badges at the lower left', async ({ page }) => {
+test('tarot deck and list show suit-colored number badges at the upper left', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
     {
@@ -1666,12 +1666,17 @@ test('tarot deck and list show suit-colored number badges at the lower left', as
     const frame = badge.closest('.inventory-item-icon-frame');
     const badgeRect = badge.getBoundingClientRect();
     const frameRect = frame.getBoundingClientRect();
+    const style = window.getComputedStyle(badge);
     return {
       leftOffset: badgeRect.left - frameRect.left,
-      bottomOffset: frameRect.bottom - badgeRect.bottom
+      topOffset: badgeRect.top - frameRect.top,
+      textShadow: style.textShadow,
+      strokeWidth: style.webkitTextStrokeWidth || style.getPropertyValue('-webkit-text-stroke-width')
     };
   });
   expect(badgePosition.leftOffset).toBeLessThan(8);
-  expect(badgePosition.bottomOffset).toBeLessThan(8);
+  expect(badgePosition.topOffset).toBeLessThan(8);
+  expect(badgePosition.textShadow).toMatch(/rgba?\(0, 0, 0/);
+  expect(badgePosition.strokeWidth).not.toBe('0px');
   await expectNoPageErrors(errors);
 });
