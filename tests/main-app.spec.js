@@ -292,13 +292,18 @@ export function onSnapshot(_ref, next) {
     ['ビーフジャーキー', /Sprites\/food\/pirate_jerky_platter\.png/],
     ['ポテトチップス', /Sprites\/food\/snack_potato_chips_bowl\.png/],
     ['カップラーメン', /Sprites\/food\/snack_ramen_bowl\.png/],
-    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/]
+    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/],
+    ['ピクルス', /Sprites\/food\/pirate_pickle_barrel\.png/],
+    ['珍味', /Sprites\/food\/pirate_dried_squid_plate\.png/]
   ];
   for (const [foodName, imagePattern] of addedFoodItems) {
     const foodItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: new RegExp(`^${foodName}$`) }) });
     await expect(foodItem.locator('.troy-menu-board-price')).toHaveText('¥500');
     await expect(foodItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', imagePattern);
   }
+  const pockyItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^ポッキー$/ }) });
+  await expect(pockyItem.locator('.troy-menu-board-price')).toHaveText('¥300');
+  await expect(pockyItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_dried_fish_sticks\.png/);
 
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).click();
   await expect(page.locator('#troyMenuBoardList')).not.toContainText('ワイン各種');

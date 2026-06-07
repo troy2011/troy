@@ -56,7 +56,10 @@ const MENU_IMAGE_RULES = [
     { pattern: /ビーフジャーキー|ジャーキー/u, image: foodAsset('pirate_jerky_platter.png') },
     { pattern: /ポテトチップス/u, image: foodAsset('snack_potato_chips_bowl.png') },
     { pattern: /カップラーメン|ラーメン/u, image: foodAsset('snack_ramen_bowl.png') },
-    { pattern: /みそ汁|味噌汁/u, image: foodAsset('snack_miso_soup_bowl.png') }
+    { pattern: /みそ汁|味噌汁/u, image: foodAsset('snack_miso_soup_bowl.png') },
+    { pattern: /ピクルス/u, image: foodAsset('pirate_pickle_barrel.png') },
+    { pattern: /珍味/u, image: foodAsset('pirate_dried_squid_plate.png') },
+    { pattern: /ポッキー/u, image: foodAsset('pirate_dried_fish_sticks.png') }
 ];
 
 const CATEGORY_FALLBACK_IMAGES = {

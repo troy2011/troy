@@ -564,6 +564,44 @@
       "AlternateIds": [
         {
           "Type": "FriendlyId",
+          "Value": "troy_menu_0e233f678df45c5f"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ピクルス",
+        "ja-JP": "ピクルス"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_pickle_barrel.png",
+        "sprite_path": "./Sprites/food/pirate_pickle_barrel.png",
+        "sprite_index": 0,
+        "sprite_w": 180,
+        "sprite_h": 185,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
           "Value": "troy_menu_85935ddb7729ce5f"
         }
       ],
@@ -670,6 +708,44 @@
         "sprite_index": 0,
         "sprite_w": 211,
         "sprite_h": 174,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_d83b51e7264fb2fa"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "ポッキー",
+        "ja-JP": "ポッキー"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 300,
+        "image_path": "./Sprites/food/pirate_dried_fish_sticks.png",
+        "sprite_path": "./Sprites/food/pirate_dried_fish_sticks.png",
+        "sprite_index": 0,
+        "sprite_w": 194,
+        "sprite_h": 187,
         "sprite_cols": 1,
         "UsageCount": 1
       }
@@ -822,6 +898,44 @@
         "sprite_index": 0,
         "sprite_w": 192,
         "sprite_h": 196,
+        "sprite_cols": 1,
+        "UsageCount": 1
+      }
+    },
+    {
+      "AlternateIds": [
+        {
+          "Type": "FriendlyId",
+          "Value": "troy_menu_94f34f51d7190d94"
+        }
+      ],
+      "Type": "catalogItem",
+      "Title": {
+        "NEUTRAL": "珍味",
+        "ja-JP": "珍味"
+      },
+      "Description": {
+        "NEUTRAL": "TROYの会計で受け取ったメニュー。",
+        "ja-JP": "TROYの会計で受け取ったメニュー。"
+      },
+      "ContentType": "Consumable",
+      "Tags": [
+        "troy",
+        "menu"
+      ],
+      "DisplayProperties": {
+        "Category": "Consumable",
+        "TroyMenuConsumable": true,
+        "GachaExcluded": true,
+        "ShopSeedable": false,
+        "ShopCraftable": false,
+        "MenuCategory": "food",
+        "MenuPrice": 500,
+        "image_path": "./Sprites/food/pirate_dried_squid_plate.png",
+        "sprite_path": "./Sprites/food/pirate_dried_squid_plate.png",
+        "sprite_index": 0,
+        "sprite_w": 196,
+        "sprite_h": 199,
         "sprite_cols": 1,
         "UsageCount": 1
       }

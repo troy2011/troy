@@ -166,13 +166,18 @@ test('staff register creates a checkout from an in-store member and settles with
     ['ビーフジャーキー', /Sprites\/food\/pirate_jerky_platter\.png/],
     ['ポテトチップス', /Sprites\/food\/snack_potato_chips_bowl\.png/],
     ['カップラーメン', /Sprites\/food\/snack_ramen_bowl\.png/],
-    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/]
+    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/],
+    ['ピクルス', /Sprites\/food\/pirate_pickle_barrel\.png/],
+    ['珍味', /Sprites\/food\/pirate_dried_squid_plate\.png/]
   ];
   for (const [foodName, imagePattern] of addedFoodItems) {
     const addButton = page.locator('#troyOrdersTicketDetail [data-add-item]').filter({ has: page.locator('.troy-orders-pos-name', { hasText: new RegExp(`^${foodName}$`) }) });
     await expect(addButton).toContainText('¥500');
     await expect(addButton.locator('.troy-orders-pos-thumb img')).toHaveAttribute('src', imagePattern);
   }
+  const pockyButton = page.locator('#troyOrdersTicketDetail [data-add-item]').filter({ has: page.locator('.troy-orders-pos-name', { hasText: /^ポッキー$/ }) });
+  await expect(pockyButton).toContainText('¥300');
+  await expect(pockyButton.locator('.troy-orders-pos-thumb img')).toHaveAttribute('src', /Sprites\/food\/pirate_dried_fish_sticks\.png/);
   await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('ワイン各種');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="黒霧ボトル"]')).toContainText('¥3,000');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ワインボトル"]')).toContainText('¥3,000');
