@@ -112,6 +112,8 @@ const TROY_COIN_RETURN_QR_VALUE = 'troy:coin-return';
 const TROY_BOUNTY_RANKING_MEMBER_LIMIT = 50;
 const TROY_CONTRIBUTION_DEBT_COLLECTION = 'troy_contribution_debts';
 const TROY_CONTRIBUTION_DEBT_MESSAGE = '古傷が疼き、経験値は波間に消えた。';
+const TROY_CHIP_RETURN_DEBT_REPAY_BPS = 9000;
+const TROY_SETTLEMENT_DEBT_REPAY_BPS = 5000;
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -1379,7 +1381,7 @@ async function addNationTreasury(nation, amount, firestore, deps, options = {}) 
         await deps.addEconomyItem(entityKey.Id, 'PS', value, { entityKeyOverride: entityKey, idempotencyId: options.idempotencyId });
     }
     let contribution = null;
-    if (value > 0 && options.contributorPlayFabId) {
+    if (value > 0 && options.contributorPlayFabId && !options.skipContributionUpdate) {
         try {
             contribution = await addPlayerNationContribution(options.contributorPlayFabId, value, deps);
         } catch (error) {
@@ -2570,6 +2572,18 @@ function normalizeTroyBountyNumber(value, fallback = 0) {
     return Math.max(0, num);
 }
 
+async function getTroyContributionDebtAmount(playFabId, firestore) {
+    const id = normalizePlayFabId(playFabId);
+    if (!id || !firestore) return 0;
+    try {
+        const snap = await firestore.collection(TROY_CONTRIBUTION_DEBT_COLLECTION).doc(id).get();
+        return normalizeTroyBountyNumber(snap.data()?.debt || 0);
+    } catch (error) {
+        console.warn('[troy-contribution-debt] Debt fetch failed:', id, error?.message || error);
+        return 0;
+    }
+}
+
 function getTroyMemberAvatarUrl(data = {}) {
     return String(
         data.avatarUrl
@@ -2594,7 +2608,7 @@ async function buildTroyBountyRankingRow(memberDoc, deps) {
     let avatarUrl = getTroyMemberAvatarUrl(data);
     const joinedAtMs = data.joinedAt?.toMillis ? data.joinedAt.toMillis() : Number(data.joinedAt) || 0;
 
-    const { promisifyPlayFab, PlayFabServer } = deps || {};
+    const { promisifyPlayFab, PlayFabServer, firestore } = deps || {};
     if (typeof promisifyPlayFab === 'function' && PlayFabServer) {
         const [statsResult, profileResult] = await Promise.allSettled([
             promisifyPlayFab(PlayFabServer.GetPlayerStatistics, { PlayFabId: playFabId }),
@@ -2626,9 +2640,10 @@ async function buildTroyBountyRankingRow(memberDoc, deps) {
         }
     }
 
+    const contributionDebt = await getTroyContributionDebtAmount(playFabId, firestore);
     const bountyRaw = contribution * level;
     const bounty = Number.isFinite(bountyRaw)
-        ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(bountyRaw)))
+        ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(bountyRaw) - contributionDebt))
         : 0;
 
     return {
@@ -2639,6 +2654,7 @@ async function buildTroyBountyRankingRow(memberDoc, deps) {
         rankName,
         bounty,
         score: bounty,
+        contributionDebt,
         joinedAtMs
     };
 }
@@ -4174,20 +4190,29 @@ function initializeNationRoutes(app, deps) {
         return Math.max(0, Math.floor(Number(value) || 0));
     }
 
+    function normalizeContributionDebtRepayBps(value, fallback = 10000) {
+        const parsed = Math.floor(Number(value));
+        if (!Number.isFinite(parsed)) return Math.max(0, Math.min(10000, Math.floor(Number(fallback) || 0)));
+        return Math.max(0, Math.min(10000, parsed));
+    }
+
     function buildContributionDebtMessage(blockedAmount) {
         const blocked = normalizeContributionDebtAmount(blockedAmount);
         if (blocked <= 0) return '';
         return `${TROY_CONTRIBUTION_DEBT_MESSAGE}（-${blocked.toLocaleString('ja-JP')}）`;
     }
 
-    async function applyTroyContributionDebtForChipReturn(playFabId, amount) {
+    async function applyTroyContributionDebtForContribution(playFabId, amount, options = {}) {
         const targetId = normalizePlayFabId(playFabId);
         const value = normalizeContributionDebtAmount(amount);
+        const debtRepayBps = normalizeContributionDebtRepayBps(options.debtRepayBps, 10000);
         const debtRef = getTroyContributionDebtRef(targetId);
         if (!targetId || value <= 0 || !debtRef || !admin) {
             return {
                 requestedAmount: value,
                 contributionAmount: value,
+                debtRepayBps,
+                debtRepayCapAmount: 0,
                 debtBlockedAmount: 0,
                 debtRemaining: 0,
                 debtMessage: ''
@@ -4198,7 +4223,8 @@ function initializeNationRoutes(app, deps) {
             const debtSnap = await transaction.get(debtRef);
             const data = debtSnap.exists ? (debtSnap.data() || {}) : {};
             const currentDebt = normalizeContributionDebtAmount(data.debt);
-            const debtBlockedAmount = Math.min(currentDebt, value);
+            const debtRepayCapAmount = Math.min(value, Math.floor((value * debtRepayBps) / 10000));
+            const debtBlockedAmount = Math.min(currentDebt, debtRepayCapAmount);
             const contributionAmount = Math.max(0, value - debtBlockedAmount);
             const debtRemaining = Math.max(0, currentDebt - debtBlockedAmount);
             transaction.set(debtRef, {
@@ -4211,6 +4237,8 @@ function initializeNationRoutes(app, deps) {
             return {
                 requestedAmount: value,
                 previousDebt: currentDebt,
+                debtRepayBps,
+                debtRepayCapAmount,
                 contributionAmount,
                 debtBlockedAmount,
                 debtRemaining,
@@ -4230,7 +4258,7 @@ function initializeNationRoutes(app, deps) {
                         const currentDebt = normalizeContributionDebtAmount(data.debt);
                         transaction.set(debtRef, {
                             playFabId: targetId,
-                            debt: currentDebt + outcome.contributionAmount,
+                            debt: currentDebt + outcome.debtBlockedAmount,
                             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                             lastRestoreAt: admin.firestore.FieldValue.serverTimestamp()
                         }, { merge: true });
@@ -4246,6 +4274,18 @@ function initializeNationRoutes(app, deps) {
             ...outcome,
             contribution
         };
+    }
+
+    async function applyTroyContributionDebtForChipReturn(playFabId, amount) {
+        return applyTroyContributionDebtForContribution(playFabId, amount, {
+            debtRepayBps: TROY_CHIP_RETURN_DEBT_REPAY_BPS
+        });
+    }
+
+    async function applyTroyContributionDebtForSettlement(playFabId, amount) {
+        return applyTroyContributionDebtForContribution(playFabId, amount, {
+            debtRepayBps: TROY_SETTLEMENT_DEBT_REPAY_BPS
+        });
     }
 
     async function recordTroyCoinConversion(memberRef, requestId, direction, amount) {
@@ -5293,6 +5333,7 @@ function initializeNationRoutes(app, deps) {
         let treasuryPs = null;
         let settlementContribution = null;
         let settlementContributionAmount = 0;
+        let settlementDebtResult = null;
         try {
             const treasuryResult = await addNationTreasury(context.nation, checkoutPayload.total, firestore, nationDeps, {
                 idempotencyId: idempotencyFor('treasury'),
@@ -5301,11 +5342,13 @@ function initializeNationRoutes(app, deps) {
                 source: 'troy_settlement',
                 label: 'TROY会計',
                 note: checkoutPayload.summary || `${checkoutPayload.totalItems}点`,
+                skipContributionUpdate: true,
                 requireContribution: true
             });
             treasuryPs = treasuryResult?.treasuryPs ?? null;
-            settlementContribution = treasuryResult?.contribution || null;
-            settlementContributionAmount = checkoutPayload.total;
+            settlementDebtResult = await applyTroyContributionDebtForSettlement(receiverId, checkoutPayload.total);
+            settlementContribution = settlementDebtResult?.contribution || null;
+            settlementContributionAmount = Math.max(0, Math.floor(Number(settlementDebtResult?.contributionAmount) || 0));
             if (settlementContribution) {
                 await updateTroyMemberRankSnapshot(memberRef, settlementContribution);
             }
@@ -5373,6 +5416,10 @@ function initializeNationRoutes(app, deps) {
             treasuryUpdated: true,
             treasuryPs,
             settlementContributionAmount,
+            settlementRawContributionAmount: checkoutPayload.total,
+            settlementDebtBlockedAmount: Math.max(0, Math.floor(Number(settlementDebtResult?.debtBlockedAmount) || 0)),
+            settlementDebtRemaining: Math.max(0, Math.floor(Number(settlementDebtResult?.debtRemaining) || 0)),
+            settlementDebtMessage: settlementDebtResult?.debtMessage || '',
             settlementContribution,
             grantApplied,
             grantError,

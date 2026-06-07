@@ -1235,8 +1235,10 @@ async function settleFromCard(card) {
                 requestId: `${groupRequestId}:${targetId}`,
                 chipReturnAmount: targetId === receiverId ? chipReturnAmount : 0
             }, { isSilent: true, throwOnError: true });
-            const debtMessage = String(settleResult?.chipReturnDebtMessage || '').trim();
-            if (debtMessage) debtMessages.push(debtMessage);
+            [settleResult?.settlementDebtMessage, settleResult?.chipReturnDebtMessage]
+                .map((message) => String(message || '').trim())
+                .filter(Boolean)
+                .forEach((message) => debtMessages.push(message));
         }
         await refreshOrders({ silent: true, force: true });
         const doneMessage = targets.length > 1 ? 'グループ会計と退店処理を完了しました。' : '会計と退店処理を完了しました。';
