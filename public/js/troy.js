@@ -4,6 +4,7 @@ import {
     getTroyStatus,
     joinTroy,
     getTroyCalendar,
+    createTroyCustomerOrderRequest,
     createReservation as requestCreateReservation
 } from './playfabClient.js';
 import { createRequestId } from './api.js';
@@ -41,7 +42,7 @@ let _statusSnapshotState = {
     menuCustomItems: []
 };
 
-const TROY_ORDER_ENTRY_ENABLED = false;
+const TROY_ORDER_ENTRY_ENABLED = true;
 const TROY_FAVORITES_STORAGE_PREFIX = 'troy-favorite-drinks:';
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CALENDAR_DIRECT_LIMIT = 3;
@@ -208,7 +209,8 @@ function getCustomMenuItems(menuId) {
             price: Math.max(0, Math.floor(Number(item?.price) || 0)),
             emoji: String(item?.emoji || '').trim(),
             image: String(item?.image || '').trim(),
-            iconImage: String(item?.iconImage || item?.image || '').trim()
+            iconImage: String(item?.iconImage || item?.image || '').trim(),
+            isCustomMenuItem: true
         }))
         .filter((item) => item.concept && item.price > 0);
 }
@@ -324,6 +326,7 @@ function isTroyMember(status, playFabId) {
 function updateOrderAvailability() {
     updateTroyStatusInline();
     setMenuButtonsEnabled(canUseTroyMenu());
+    renderTroyMenuBoard();
     updateTroyPrimaryAction();
     applyOrderEntryClosedPrimaryState();
 }
@@ -477,6 +480,127 @@ function createMenuBoardCategoryIcon(menuId = '') {
     return icon;
 }
 
+function getMenuBoardItemFromRow(row) {
+    if (!row) return null;
+    const menuId = String(row.dataset.menuId || '').trim();
+    const index = Math.floor(Number(row.dataset.itemIndex));
+    const data = getMenuDataById(menuId);
+    const item = Array.isArray(data?.items) && Number.isFinite(index) ? data.items[index] : null;
+    return item ? { menuId, index, item } : null;
+}
+
+function canShowMenuBoardOrderControls(menuId, item = null) {
+    if (!TROY_ORDER_ENTRY_ENABLED) return false;
+    if (!menuId || menuId === 'favorite' || menuId === 'specials') return false;
+    if (item?.isCustomMenuItem || item?.disabled) return false;
+    return getItemEffectivePrice(item, normalizeSizeLabel(item, item?.sizeLabel || '')) > 0;
+}
+
+function createMenuBoardSelect(className, options, value, datasetName) {
+    const select = document.createElement('select');
+    select.className = className;
+    select.dataset[datasetName] = 'true';
+    options.forEach((option) => {
+        const optionEl = document.createElement('option');
+        const label = typeof option === 'object' ? String(option.label || '') : String(option || '');
+        optionEl.value = label;
+        optionEl.textContent = label;
+        if (label === value) optionEl.selected = true;
+        select.appendChild(optionEl);
+    });
+    return select;
+}
+
+function createMenuBoardOrderControls(menuId, item, index, isSoldOut) {
+    const controls = document.createElement('div');
+    controls.className = 'troy-menu-board-order';
+    if (!canShowMenuBoardOrderControls(menuId, item)) return controls;
+
+    const optionChoices = getItemOptionChoices(item);
+    const sizeChoices = getItemSizeChoices(item);
+    const optionLabel = getMenuItemOption(menuId, item, index);
+    const sizeLabel = getMenuItemSize(menuId, item, index);
+    const canOrder = canUseTroyMenu() && !isSoldOut;
+
+    if (optionChoices.length) {
+        controls.appendChild(createMenuBoardSelect('troy-menu-board-select', optionChoices, optionLabel, 'troyBoardOption'));
+    }
+    if (sizeChoices.length) {
+        controls.appendChild(createMenuBoardSelect('troy-menu-board-select is-size', sizeChoices, sizeLabel, 'troyBoardSize'));
+    }
+
+    const qty = document.createElement('select');
+    qty.className = 'troy-menu-board-select is-qty';
+    qty.dataset.troyBoardQty = 'true';
+    const currentQty = getMenuItemQty(menuId, item, index);
+    for (let value = 1; value <= 9; value += 1) {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = `x${value}`;
+        if (value === currentQty) option.selected = true;
+        qty.appendChild(option);
+    }
+    controls.appendChild(qty);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'troy-menu-board-order-btn';
+    button.dataset.troyMenuBoardOrder = 'true';
+    button.textContent = canOrder ? '注文' : (_lastStatus?.isOpen ? '入店後' : 'CLOSE');
+    button.disabled = !canOrder;
+    controls.appendChild(button);
+    return controls;
+}
+
+async function submitMenuBoardOrder(button) {
+    if (!button || button.disabled) return;
+    const row = button.closest('.troy-menu-board-item');
+    const found = getMenuBoardItemFromRow(row);
+    if (!found) return;
+    if (!canUseTroyMenu()) {
+        showTroyNotice(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
+        if (_lastStatus?.isOpen) scrollTroyEntryIntoView();
+        return;
+    }
+
+    const { menuId, index, item } = found;
+    const optionSelect = row.querySelector('[data-troy-board-option]');
+    const sizeSelect = row.querySelector('[data-troy-board-size]');
+    const qtySelect = row.querySelector('[data-troy-board-qty]');
+    const optionLabel = optionSelect ? setMenuItemOption(menuId, item, index, optionSelect.value) : getMenuItemOption(menuId, item, index);
+    const sizeLabel = sizeSelect ? setMenuItemSize(menuId, item, index, sizeSelect.value) : getMenuItemSize(menuId, item, index);
+    const quantity = qtySelect ? setMenuItemQty(menuId, item, index, qtySelect.value) : getMenuItemQty(menuId, item, index);
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = '送信中';
+
+    try {
+        await createTroyCustomerOrderRequest(window.myPlayFabId, {
+            troyNation: resolveTroyNationKey(),
+            menuId,
+            concept: String(item?.concept || item?.name || '').trim(),
+            content: String(item?.content || '').trim(),
+            optionLabel,
+            sizeLabel,
+            quantity,
+            displayName: getDisplayName(),
+            requestId: createRequestId('troy-customer-order')
+        }, { throwOnError: true });
+        button.textContent = '送信済み';
+        showTroyNotice('スタッフに注文を送りました。受付までお待ちください。');
+        setTimeout(() => {
+            if (!button.isConnected) return;
+            button.textContent = previousText || '注文';
+            button.disabled = !canUseTroyMenu();
+        }, 1600);
+    } catch (error) {
+        console.warn('[TroyOrder] Customer request failed:', error);
+        button.textContent = previousText || '注文';
+        button.disabled = !canUseTroyMenu();
+        showTroyNotice(error?.message || '注文を送信できませんでした。');
+    }
+}
+
 function renderTroyMenuBoard() {
     const tabsEl = document.getElementById('troyMenuBoardCategoryTabs');
     const listEl = document.getElementById('troyMenuBoardList');
@@ -517,9 +641,11 @@ function renderTroyMenuBoard() {
         return;
     }
 
-    items.forEach((item) => {
+    items.forEach((item, index) => {
         const row = document.createElement('article');
         row.className = 'troy-menu-board-item';
+        row.dataset.menuId = _menuBoardActiveId;
+        row.dataset.itemIndex = String(index);
         const nameText = String(item?.concept || item?.name || '').trim();
         const isSoldOut = _menuDisabled.includes(nameText);
         row.classList.toggle('is-sold-out', isSoldOut);
@@ -558,6 +684,9 @@ function renderTroyMenuBoard() {
             priceWrap.appendChild(badge);
         }
 
+        const orderControls = createMenuBoardOrderControls(_menuBoardActiveId, item, index, isSoldOut);
+        priceWrap.appendChild(orderControls);
+
         row.append(createMenuBoardIcon(item, _menuBoardActiveId), body, priceWrap);
         listEl.appendChild(row);
     });
@@ -573,6 +702,28 @@ function wireTroyMenuBoard() {
             if (!button) return;
             _menuBoardActiveId = button.dataset.menuId || _menuBoardActiveId;
             renderTroyMenuBoard();
+        });
+    }
+    const listEl = document.getElementById('troyMenuBoardList');
+    if (listEl) {
+        listEl.addEventListener('click', (event) => {
+            const button = event.target?.closest?.('[data-troy-menu-board-order]');
+            if (!button) return;
+            void submitMenuBoardOrder(button);
+        });
+        listEl.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLSelectElement)) return;
+            const row = target.closest('.troy-menu-board-item');
+            const found = getMenuBoardItemFromRow(row);
+            if (!found) return;
+            if (target.matches('[data-troy-board-option]')) {
+                setMenuItemOption(found.menuId, found.item, found.index, target.value);
+            } else if (target.matches('[data-troy-board-size]')) {
+                setMenuItemSize(found.menuId, found.item, found.index, target.value);
+            } else if (target.matches('[data-troy-board-qty]')) {
+                setMenuItemQty(found.menuId, found.item, found.index, target.value);
+            }
         });
     }
     renderTroyMenuBoard();
@@ -887,8 +1038,29 @@ function updateTroyPrimaryAction() {
     button.disabled = true;
 }
 
-async function submitQuickCheckout() {
-    showTroyNotice('ご注文はスタッフにお伝えください。');
+async function submitQuickCheckout(playFabId, item = {}, quantity = 1) {
+    if (!canUseTroyMenu(playFabId)) {
+        showTroyNotice(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
+        return;
+    }
+    const menuId = String(item?.menuId || _menuActiveId || _menuBoardActiveId || '').trim();
+    try {
+        await createTroyCustomerOrderRequest(playFabId, {
+            troyNation: resolveTroyNationKey(),
+            menuId,
+            concept: String(item?.concept || item?.name || '').trim(),
+            content: String(item?.content || '').trim(),
+            optionLabel: String(item?.optionLabel || '').trim(),
+            sizeLabel: String(item?.sizeLabel || '').trim(),
+            quantity,
+            displayName: getDisplayName(),
+            requestId: createRequestId('troy-customer-order')
+        }, { throwOnError: true });
+        showTroyNotice('スタッフに注文を送りました。受付までお待ちください。');
+    } catch (error) {
+        console.warn('[TroyOrder] Customer request failed:', error);
+        showTroyNotice(error?.message || '注文を送信できませんでした。');
+    }
 }
 function openMenuModal(menuId) {
     if (!TROY_ORDER_ENTRY_ENABLED) {

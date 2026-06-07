@@ -4,6 +4,9 @@
 const { addGlobalChatMessage } = require('./chat');
 const { PlayFabData, withTitleEntityToken } = require('./playfab');
 const { addPlayerNationContribution, calculateLevelFromContribution, buildStatsMapFromStatistics, PLAYER_CONTRIBUTION_STAT, PLAYER_LEVEL_STAT } = require('./playerLevel');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const {
     getTroyMenuConsumableItemId,
     normalizeTroyMenuImagePath
@@ -86,6 +89,7 @@ const TROY_ORDER_HISTORY_ITEMS_LIMIT = 32;
 const TROY_SALES_SUMMARY_LIMIT = 80;
 const TROY_SALES_SETTLEMENT_LIMIT = 120;
 const TROY_CLOSE_SUMMARY_SAFE_TEXT_LIMIT = 4900;
+const TROY_CUSTOMER_ORDER_REQUEST_LIMIT = 50;
 const TROY_GLOBAL_ROOM_ID = 'global';
 const TROY_CLOSE_SUMMARY_LINE_ENV_KEYS = ['TROY_GAME_MASTER_LINE_USER_IDS', 'QUEST_APPROVER_ADMIN_LINE_IDS', 'GAME_MASTER_LINE_USER_IDS', 'GAME_MASTER_LINE_USER_ID'];
 const TROY_BUSINESS_DAY_ROLLOVER_HOUR_DEFAULT = 5;
@@ -433,6 +437,190 @@ function normalizeTroySalesCategoryLabel(value, item = {}) {
     if (categoryId === 'custom') return TROY_CUSTOM_ORDER_ITEM_NAME;
     if (categoryId === 'usual') return 'いつもの';
     return '未分類';
+}
+
+let troyPublicMenuCache = null;
+
+function loadPublicTroyModule(relativePath, exportNames = []) {
+    const filePath = path.resolve(__dirname, '..', relativePath);
+    const source = fs.readFileSync(filePath, 'utf8')
+        .replace(/export\s+const\s+/g, 'const ')
+        .replace(/export\s+function\s+/g, 'function ');
+    const safeExportNames = exportNames
+        .map((name) => String(name || '').trim())
+        .filter((name) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name));
+    const script = new vm.Script(`${source}\nmodule.exports = { ${safeExportNames.join(', ')} };`, {
+        filename: filePath
+    });
+    const sandbox = { module: { exports: {} }, exports: {} };
+    script.runInNewContext(sandbox);
+    return sandbox.module.exports || {};
+}
+
+function getPublicTroyMenuModules() {
+    if (troyPublicMenuCache) return troyPublicMenuCache;
+    const menuData = loadPublicTroyModule('public/js/troyMenuData.js', [
+        'TROY_PRODUCT_MENUS',
+        'TROY_BOTTLE_ITEMS',
+        'getTroyStaffMenu'
+    ]);
+    const menuAssets = loadPublicTroyModule('public/js/troyMenuAssets.js', [
+        'getTroyMenuImage',
+        'getTroyMenuCategoryImage'
+    ]);
+    troyPublicMenuCache = { ...menuData, ...menuAssets };
+    return troyPublicMenuCache;
+}
+
+function normalizeTroyCustomerOrderRequestId(value) {
+    return String(value || '')
+        .trim()
+        .replace(/[^A-Za-z0-9:_-]/g, '')
+        .slice(0, 120);
+}
+
+function getOfficialTroyMenuData(menuId, modules) {
+    const id = normalizeTroySalesCategoryId(menuId);
+    if (!id || id === 'favorite' || id === 'specials') return null;
+    if (id === 'bottle') {
+        return { id, title: 'BOTTLE MENU', items: Array.isArray(modules?.TROY_BOTTLE_ITEMS) ? modules.TROY_BOTTLE_ITEMS : [] };
+    }
+    const product = modules?.TROY_PRODUCT_MENUS?.[id];
+    if (!product) return null;
+    return { id, title: String(product.title || id).trim(), items: Array.isArray(product.items) ? product.items : [] };
+}
+
+function findOfficialTroyMenuItem(menuData, payload = {}) {
+    const concept = String(payload.concept || payload.name || '').trim();
+    const content = String(payload.content || '').trim();
+    if (!concept) return null;
+    const items = Array.isArray(menuData?.items) ? menuData.items : [];
+    const matches = items.filter((item) => String(item?.concept || item?.name || '').trim() === concept);
+    if (!matches.length) return null;
+    if (content) {
+        const exact = matches.find((item) => String(item?.content || '').trim() === content);
+        if (exact) return exact;
+    }
+    return matches.length === 1 ? matches[0] : null;
+}
+
+function normalizeTroyCustomerOrderOption(item = {}, value = '') {
+    const choices = Array.isArray(item?.mixers) ? item.mixers.map((row) => String(row || '').trim()).filter(Boolean) : [];
+    if (!choices.length) return '';
+    const raw = String(value || '').trim();
+    return choices.includes(raw) ? raw : choices[0];
+}
+
+function normalizeTroyCustomerOrderSize(item = {}, value = '') {
+    const choices = Array.isArray(item?.sizeOptions) ? item.sizeOptions : [];
+    if (!choices.length) return { label: '', price: Math.max(0, Math.floor(Number(item?.price) || 0)) };
+    const raw = String(value || '').trim();
+    const selected = choices.find((choice) => String(choice?.label || '').trim() === raw) || choices[0];
+    return {
+        label: String(selected?.label || '').trim(),
+        price: Math.max(0, Math.floor(Number(selected?.price) || 0))
+    };
+}
+
+function getTroyCustomerOrderBaseName(item = {}, optionLabel = '') {
+    const concept = String(item?.concept || item?.name || '').trim();
+    const staffName = String(item?.staffName || '').trim();
+    const variants = Array.isArray(item?.staffVariants) ? item.staffVariants : [];
+    if (optionLabel && variants.length) {
+        const matched = variants.find((variant) => String(variant?.name || '').includes(optionLabel));
+        if (matched?.name) return String(matched.name).trim();
+    }
+    if (staffName) return staffName;
+    if (optionLabel) return `${concept}（${optionLabel}）`;
+    const content = String(item?.content || '').trim();
+    if (!content || /選択|スタッフ/u.test(content)) return concept;
+    return `${concept}（+${content.replace(/\s*\+\s*/g, '+')}）`;
+}
+
+function resolveTroyCustomerOrderItem(payload = {}) {
+    const modules = getPublicTroyMenuModules();
+    const menuId = normalizeTroySalesCategoryId(payload.menuId || payload.categoryId || payload.menuCategory);
+    const menuData = getOfficialTroyMenuData(menuId, modules);
+    if (!menuData) {
+        const error = new Error('InvalidMenuCategory');
+        error.statusCode = 400;
+        throw error;
+    }
+    const item = findOfficialTroyMenuItem(menuData, payload);
+    if (!item || item.disabled) {
+        const error = new Error('InvalidMenuItem');
+        error.statusCode = 400;
+        throw error;
+    }
+    const optionLabel = normalizeTroyCustomerOrderOption(item, payload.optionLabel);
+    const size = normalizeTroyCustomerOrderSize(item, payload.sizeLabel);
+    const price = size.price;
+    if (price <= 0) {
+        const error = new Error('MenuItemUnavailable');
+        error.statusCode = 400;
+        throw error;
+    }
+    const baseName = getTroyCustomerOrderBaseName(item, optionLabel);
+    const name = `${baseName}${size.label ? ` ${size.label}` : ''}`.trim().slice(0, 60);
+    const quantity = Math.max(1, Math.min(9, Math.floor(Number(payload.quantity) || 1)));
+    const image = normalizeTroyMenuImagePath(
+        typeof modules.getTroyMenuImage === 'function'
+            ? modules.getTroyMenuImage(menuId, { ...item, optionLabel, sizeLabel: size.label })
+            : ''
+    );
+    const menuCategoryLabel = normalizeTroySalesCategoryLabel(menuData.title, {
+        menuCategory: menuId,
+        name
+    });
+    return {
+        menuId,
+        concept: String(item?.concept || item?.name || '').trim(),
+        content: String(item?.content || '').trim(),
+        optionLabel,
+        sizeLabel: size.label,
+        name,
+        price,
+        quantity,
+        lineTotal: price * quantity,
+        menuImage: image,
+        menuCategory: menuId,
+        menuCategoryLabel
+    };
+}
+
+function buildTroyCustomerOrderRequestPayload(requestDocs = []) {
+    return (Array.isArray(requestDocs) ? requestDocs : [])
+        .map((doc) => {
+            const data = typeof doc?.data === 'function' ? (doc.data() || {}) : (doc || {});
+            const requestId = String(doc?.id || data.requestId || '').trim();
+            const status = String(data.status || 'pending').trim().toLowerCase();
+            const createdAtMs = data.createdAt?.toMillis ? data.createdAt.toMillis() : Math.max(0, Math.floor(Number(data.createdAtMs || data.createdAt) || 0));
+            const updatedAtMs = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Math.max(0, Math.floor(Number(data.updatedAtMs || data.updatedAt) || 0));
+            const price = Math.max(0, Math.floor(Number(data.price) || 0));
+            const quantity = Math.max(1, Math.min(99, Math.floor(Number(data.quantity) || 1)));
+            const name = String(data.name || '').trim();
+            const playFabId = normalizePlayFabId(data.playFabId || data.receiverPlayFabId || '');
+            if (!requestId || !playFabId || !name || price <= 0) return null;
+            return {
+                requestId,
+                playFabId,
+                displayName: String(data.displayName || playFabId).trim(),
+                status,
+                name,
+                price,
+                quantity,
+                lineTotal: Math.max(0, Math.floor(Number(data.lineTotal) || (price * quantity))),
+                menuImage: normalizeTroyMenuImagePath(data.menuImage || data.image || data.iconImage),
+                menuCategory: normalizeTroySalesCategoryId(data.menuCategory || data.categoryId || data.menuId),
+                menuCategoryLabel: normalizeTroySalesCategoryLabel(data.menuCategoryLabel || data.categoryLabel, data),
+                optionLabel: String(data.optionLabel || '').trim(),
+                sizeLabel: String(data.sizeLabel || '').trim(),
+                createdAtMs,
+                updatedAtMs
+            };
+        })
+        .filter((entry) => entry && ['pending', 'processing'].includes(entry.status))
+        .sort((a, b) => (a.createdAtMs - b.createdAtMs) || String(a.requestId).localeCompare(String(b.requestId)));
 }
 
 function normalizeTroySalesItemRow(row = {}) {
@@ -4489,14 +4677,16 @@ function initializeNationRoutes(app, deps) {
                 troyTodaySales: { total: 0, count: 0 },
                 troyPendingCheckouts: [],
                 troyMembers: buildTroyMemberPayload([]),
+                troyCustomerOrderRequests: [],
                 troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
                 menuCustomItems,
                 checkoutDisabled: true
             };
         }
-        const [checkoutSnap, membersSnap, groupSnap] = await Promise.all([
+        const [checkoutSnap, membersSnap, requestSnap, groupSnap] = await Promise.all([
             context.roomRef.collection('checkouts').limit(50).get(),
             context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get(),
+            context.roomRef.collection('customerOrderRequests').orderBy('createdAtMs', 'desc').limit(TROY_CUSTOMER_ORDER_REQUEST_LIMIT).get(),
             getNationGroupDoc(firestore, context.mapping.groupName).get()
         ]);
         const groupData = groupSnap.data() || {};
@@ -4508,6 +4698,7 @@ function initializeNationRoutes(app, deps) {
             }),
             troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
             troyMembers: buildTroyMemberPayload(membersSnap.docs),
+            troyCustomerOrderRequests: buildTroyCustomerOrderRequestPayload(requestSnap.docs),
             troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(context.roomData),
             menuCustomItems
         };
@@ -4603,6 +4794,147 @@ function initializeNationRoutes(app, deps) {
 
             return { created: true, duplicate: false, total: nextTotal, totalItems: nextTotalItems };
         });
+    }
+
+    async function createTroyCustomerOrderRequest(context, payload = {}) {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) {
+            const error = new Error('TroyCheckoutDisabled');
+            error.statusCode = 503;
+            throw error;
+        }
+        const playFabId = normalizePlayFabId(payload.playFabId);
+        if (!playFabId) {
+            const error = new Error('playFabId is required');
+            error.statusCode = 400;
+            throw error;
+        }
+        const memberRef = context.roomRef.collection('members').doc(playFabId);
+        const memberSnap = await memberRef.get();
+        if (!memberSnap.exists) {
+            const error = new Error('NotInTroy');
+            error.statusCode = 403;
+            throw error;
+        }
+        const memberData = memberSnap.data() || {};
+        const displayName = String(memberData.displayName || payload.displayName || playFabId).trim().slice(0, 40) || playFabId;
+        const item = resolveTroyCustomerOrderItem(payload);
+        const requestId = normalizeTroyCustomerOrderRequestId(payload.requestId)
+            || `customer:${playFabId}:${Date.now()}`;
+        const nowMs = Date.now();
+        const requestRef = context.roomRef.collection('customerOrderRequests').doc(requestId);
+        const requestData = {
+            requestId,
+            playFabId,
+            displayName,
+            nation: context.nation,
+            status: 'pending',
+            ...item,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAtMs: nowMs,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAtMs: nowMs
+        };
+        const result = await firestore.runTransaction(async (tx) => {
+            const requestSnap = await tx.get(requestRef);
+            if (requestSnap.exists) {
+                return {
+                    created: false,
+                    request: buildTroyCustomerOrderRequestPayload([requestSnap])[0] || { requestId, status: String(requestSnap.data()?.status || 'pending') }
+                };
+            }
+            tx.set(requestRef, requestData);
+            return {
+                created: true,
+                request: buildTroyCustomerOrderRequestPayload([{ id: requestId, data: () => requestData }])[0]
+            };
+        });
+        return { success: true, duplicate: !result.created, request: result.request };
+    }
+
+    async function markTroyCustomerOrderRequestForReview(context, requestId, action) {
+        const requestRef = context.roomRef.collection('customerOrderRequests').doc(requestId);
+        const nowMs = Date.now();
+        return firestore.runTransaction(async (tx) => {
+            const snap = await tx.get(requestRef);
+            if (!snap.exists) {
+                const error = new Error('OrderRequestNotFound');
+                error.statusCode = 404;
+                throw error;
+            }
+            const data = snap.data() || {};
+            const status = String(data.status || 'pending').trim().toLowerCase();
+            if (!['pending', 'processing'].includes(status)) {
+                const error = new Error('OrderRequestAlreadyReviewed');
+                error.statusCode = 409;
+                throw error;
+            }
+            if (action === 'reject') {
+                tx.set(requestRef, {
+                    status: 'rejected',
+                    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    reviewedAtMs: nowMs,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAtMs: nowMs
+                }, { merge: true });
+                return { data, rejected: true };
+            }
+            tx.set(requestRef, {
+                status: 'processing',
+                processingAt: admin.firestore.FieldValue.serverTimestamp(),
+                processingAtMs: nowMs,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAtMs: nowMs
+            }, { merge: true });
+            return { data, rejected: false };
+        });
+    }
+
+    async function reviewTroyCustomerOrderRequest(context, payload = {}) {
+        const requestId = normalizeTroyCustomerOrderRequestId(payload.requestId);
+        const rawAction = String(payload.action || '').trim().toLowerCase();
+        const action = rawAction === 'accept' ? 'accept' : (['reject', 'cancel', 'decline'].includes(rawAction) ? 'reject' : '');
+        if (!requestId || !action) {
+            const error = new Error('requestId and action are required');
+            error.statusCode = 400;
+            throw error;
+        }
+        const requestRef = context.roomRef.collection('customerOrderRequests').doc(requestId);
+        const marked = await markTroyCustomerOrderRequestForReview(context, requestId, action);
+        if (marked.rejected) return { success: true, action: 'reject', requestId };
+
+        const request = marked.data || {};
+        const nowMs = Date.now();
+        try {
+            await appendTroyCheckoutItem(context, {
+                receiverPlayFabId: request.playFabId,
+                displayName: request.displayName || request.playFabId,
+                name: request.name,
+                price: request.price,
+                quantity: request.quantity,
+                menuImage: request.menuImage || request.image || request.iconImage,
+                menuCategory: request.menuCategory || request.menuId,
+                menuCategoryLabel: request.menuCategoryLabel,
+                orderId: `customer-request:${requestId}`,
+                orderedAtMs: nowMs,
+                undoUntilMs: nowMs + 60000
+            });
+            await requestRef.set({
+                status: 'accepted',
+                reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+                reviewedAtMs: nowMs,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAtMs: nowMs
+            }, { merge: true });
+            return { success: true, action: 'accept', requestId };
+        } catch (error) {
+            await requestRef.set({
+                status: 'pending',
+                reviewError: String(error?.message || error || '').slice(0, 240),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAtMs: Date.now()
+            }, { merge: true });
+            throw error;
+        }
     }
 
     async function recordTroyOrderHistory(roomRef, receiverId, checkoutPayload = {}) {
@@ -4955,6 +5287,7 @@ function initializeNationRoutes(app, deps) {
                     troyTodaySales: { total: 0, count: 0 },
                     troyPendingCheckouts: [],
                     troyMembers: [],
+                    troyCustomerOrderRequests: [],
                     troyCoinConversionLogs: [],
                     menuCustomItems: []
                 });
@@ -5130,6 +5463,39 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-orders/customer-request', async (req, res) => {
+        const playFabId = normalizePlayFabId(req.body?.playFabId);
+        if (!playFabId) return res.status(400).json({ error: 'playFabId is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+        try {
+            const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+            if (!context) return res.status(403).json({ error: 'TroyClosed' });
+            const result = await createTroyCustomerOrderRequest(context, {
+                ...(req.body || {}),
+                playFabId: requesterPlayFabId
+            });
+            return res.json(result);
+        } catch (error) {
+            const status = Number(error?.statusCode) || 500;
+            console.error('[troy-orders-customer-request] Error:', error?.message || error);
+            return res.status(status).json({ error: error?.message || 'FailedToCreateCustomerOrderRequest' });
+        }
+    });
+
+    app.post('/api/troy-orders/customer-request-review', async (req, res) => {
+        try {
+            const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+            if (!context) return res.status(403).json({ error: 'TroyClosed' });
+            const result = await reviewTroyCustomerOrderRequest(context, req.body || {});
+            return res.json(result);
+        } catch (error) {
+            const status = Number(error?.statusCode) || 500;
+            console.error('[troy-orders-customer-request-review] Error:', error?.message || error);
+            return res.status(status).json({ error: error?.message || 'FailedToReviewCustomerOrderRequest' });
+        }
+    });
+
     app.post('/api/troy-orders/add-item', async (req, res) => {
         try {
             const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
@@ -5186,6 +5552,7 @@ function initializeNationRoutes(app, deps) {
 
         let closed = false;
         let unsubCheckouts = null;
+        let unsubRequests = null;
         let unsubRoom = null;
         let keepAliveTimer = null;
         let lastPayload = null;
@@ -5203,6 +5570,7 @@ function initializeNationRoutes(app, deps) {
             closed = true;
             if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
             if (unsubCheckouts) { try { unsubCheckouts(); } catch (_) {} unsubCheckouts = null; }
+            if (unsubRequests) { try { unsubRequests(); } catch (_) {} unsubRequests = null; }
             if (unsubRoom) { try { unsubRoom(); } catch (_) {} unsubRoom = null; }
             if (!res.writableEnded) try { res.end(); } catch (_) {}
         }
@@ -5217,7 +5585,7 @@ function initializeNationRoutes(app, deps) {
         try {
             const context = await resolveOpenTroyOrdersContext(requestedNation);
             if (!context) {
-                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [], menuCustomItems: [] });
+                send({ troyOpen: false, nation: null, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCustomerOrderRequests: [], troyCoinConversionLogs: [], menuCustomItems: [] });
                 if (!res.writableEnded) res.write('retry: 15000\n\n');
                 cleanup();
                 return;
@@ -5234,10 +5602,11 @@ function initializeNationRoutes(app, deps) {
             unsubCheckouts = context.roomRef.collection('checkouts').onSnapshot(async (snap) => {
                 if (closed) return;
                 try {
-                    const [groupSnap, roomSnap, membersSnap] = await Promise.all([
+                    const [groupSnap, roomSnap, membersSnap, requestSnap] = await Promise.all([
                         getNationGroupDoc(firestore, context.mapping.groupName).get(),
                         context.roomRef.get(),
-                        context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get()
+                        context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get(),
+                        context.roomRef.collection('customerOrderRequests').orderBy('createdAtMs', 'desc').limit(TROY_CUSTOMER_ORDER_REQUEST_LIMIT).get()
                     ]);
                     const roomData = roomSnap.data() || {};
                     send({
@@ -5248,6 +5617,7 @@ function initializeNationRoutes(app, deps) {
                         }),
                         troyPendingCheckouts: buildTroyPendingCheckoutPayload(snap.docs),
                         troyMembers: buildTroyMemberPayload(membersSnap.docs),
+                        troyCustomerOrderRequests: buildTroyCustomerOrderRequestPayload(requestSnap.docs),
                         troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
                         menuCustomItems: Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : []
                     });
@@ -5258,11 +5628,40 @@ function initializeNationRoutes(app, deps) {
                 console.warn('[troy-orders-stream] checkout listener error:', err?.message || err);
             });
 
+            unsubRequests = context.roomRef.collection('customerOrderRequests').orderBy('createdAtMs', 'desc').limit(TROY_CUSTOMER_ORDER_REQUEST_LIMIT).onSnapshot(async (snap) => {
+                if (closed) return;
+                try {
+                    const [groupSnap, roomSnap, membersSnap, checkoutSnap] = await Promise.all([
+                        getNationGroupDoc(firestore, context.mapping.groupName).get(),
+                        context.roomRef.get(),
+                        context.roomRef.collection('members').orderBy('joinedAt', 'asc').limit(50).get(),
+                        context.roomRef.collection('checkouts').limit(50).get()
+                    ]);
+                    const roomData = roomSnap.data() || {};
+                    send({
+                        troyOpen: true,
+                        nation: context.nation,
+                        troyTodaySales: buildTroyTodaySalesSnapshot(groupSnap.data() || {}, {
+                            dayKey: normalizeTroyBusinessDayKey(roomData.troyBusinessDayKey)
+                        }),
+                        troyPendingCheckouts: buildTroyPendingCheckoutPayload(checkoutSnap.docs),
+                        troyMembers: buildTroyMemberPayload(membersSnap.docs),
+                        troyCustomerOrderRequests: buildTroyCustomerOrderRequestPayload(snap.docs),
+                        troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
+                        menuCustomItems: Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : []
+                    });
+                } catch (e) {
+                    console.warn('[troy-orders-stream] customer request snapshot error:', e?.message || e);
+                }
+            }, (err) => {
+                console.warn('[troy-orders-stream] customer request listener error:', err?.message || err);
+            });
+
             unsubRoom = context.roomRef.onSnapshot((roomSnap) => {
                 if (closed) return;
                 const roomData = roomSnap.exists ? (roomSnap.data() || {}) : {};
                 if (!roomData.isOpen) {
-                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCoinConversionLogs: [], menuCustomItems: [] });
+                    send({ troyOpen: false, nation: context.nation, troyTodaySales: { total: 0, count: 0 }, troyPendingCheckouts: [], troyMembers: [], troyCustomerOrderRequests: [], troyCoinConversionLogs: [], menuCustomItems: [] });
                     if (!res.writableEnded) try { res.write('retry: 15000\n\n'); } catch (_) {}
                     cleanup();
                 } else {
@@ -5272,6 +5671,7 @@ function initializeNationRoutes(app, deps) {
                         troyTodaySales: lastPayload?.troyTodaySales || { total: 0, count: 0 },
                         troyPendingCheckouts: lastPayload?.troyPendingCheckouts || [],
                         troyMembers: lastPayload?.troyMembers || [],
+                        troyCustomerOrderRequests: lastPayload?.troyCustomerOrderRequests || [],
                         troyCoinConversionLogs: buildTroyCoinConversionLogsPayload(roomData),
                         menuCustomItems: Array.isArray(roomData.menuCustomItems) ? roomData.menuCustomItems : []
                     });

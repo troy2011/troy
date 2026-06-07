@@ -333,6 +333,10 @@ export function getTroyStatus(playFabId, payload = {}, options) {
     return callApiWithLoader('/api/get-troy-status', { playFabId, ...(payload || {}) }, options);
 }
 
+export function createTroyCustomerOrderRequest(playFabId, payload = {}, options) {
+    return callApiWithLoader('/api/troy-orders/customer-request', { playFabId, ...(payload || {}) }, options);
+}
+
 export function setTroyOpen(playFabId, isOpen, options) {
     return callApiWithLoader('/api/king-set-troy-open', { playFabId, isOpen }, options);
 }

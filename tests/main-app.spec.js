@@ -139,8 +139,9 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await expectNoPageErrors(errors);
 });
 
-test('troy tab replaces bottom chat with a read-only menu board', async ({ page }) => {
+test('troy tab replaces bottom chat with a menu board customer order request', async ({ page }) => {
   const errors = trackPageErrors(page);
+  const customerOrderRequests = [];
   await page.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', async (route) => {
     await route.fulfill({
       status: 200,
@@ -154,7 +155,7 @@ const troySnapshot = {
     menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }],
     menuCustomItems: [{ menuId: 'food', concept: '氷', content: '割材', price: 500, emoji: '🧊' }]
   }),
-  docs: []
+  docs: [{ id: 'PF_PLAYWRIGHT', data: () => ({ displayName: 'テスト船長', joinedAt: Date.now() }) }]
 };
 export function getFirestore() { return {}; }
 export function doc() { return {}; }
@@ -192,11 +193,19 @@ export function onSnapshot(_ref, next) {
       body: JSON.stringify({
         nation: 'fire',
         isOpen: true,
-        members: [],
+        members: [{ playFabId: 'PF_PLAYWRIGHT', displayName: 'テスト船長' }],
         menuDisabled: ['ナゲット'],
         menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }],
         menuCustomItems: [{ menuId: 'food', concept: '氷', content: '割材', price: 500, emoji: '🧊' }]
       })
+    });
+  });
+  await page.route('**/api/troy-orders/customer-request', async (route) => {
+    customerOrderRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ success: true, request: { requestId: 'REQ1', status: 'pending' } })
     });
   });
 
@@ -226,7 +235,7 @@ export function onSnapshot(_ref, next) {
   expect(Math.abs(troyHeaderLayout.mapRight - troyHeaderLayout.badgeRight)).toBeLessThanOrEqual(2);
   expect(troyHeaderLayout.rowHeight).toBeLessThan(120);
   await expect(page.locator('#troyMenuBoardSection')).toContainText('メニュー表');
-  await expect(page.locator('#troyMenuBoardSection')).toContainText('価格確認用・注文はスタッフへ');
+  await expect(page.locator('#troyMenuBoardSection')).toContainText('入店中はメニューから注文できます');
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab-icon img')).toHaveCount(11);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_fried_chicken_skillet\.png/);
@@ -235,6 +244,17 @@ export function onSnapshot(_ref, next) {
   const heartlandBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^瓶ビール$/ }) });
   await expect(heartlandBottleItem).toContainText('¥700');
   await expect(heartlandBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
+  await expect(heartlandBottleItem.locator('[data-troy-menu-board-order]')).toBeEnabled();
+  await heartlandBottleItem.locator('[data-troy-menu-board-order]').click();
+  expect(customerOrderRequests).toHaveLength(1);
+  expect(customerOrderRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    troyNation: 'fire',
+    menuId: 'beer',
+    concept: '瓶ビール',
+    content: 'ハートランド',
+    quantity: 1
+  });
   const coronaZeroItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ hasText: 'コロナセロ' });
   await expect(coronaZeroItem).toContainText('¥500');
   await expect(coronaZeroItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_golden_compass_beer\.png/);

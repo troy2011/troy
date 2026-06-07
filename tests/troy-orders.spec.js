@@ -263,6 +263,97 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });
 
+test('staff register accepts customer-side order requests into tickets', async ({ page }) => {
+  const now = Date.now();
+  const state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 60_000, level: 24, rankName: '船長' }
+    ],
+    troyPendingCheckouts: [],
+    troyCustomerOrderRequests: [
+      {
+        requestId: 'REQ1',
+        playFabId: 'PLAYER1',
+        displayName: '海風の船長',
+        status: 'pending',
+        name: '瓶ビール（ハートランド）',
+        price: 700,
+        quantity: 1,
+        lineTotal: 700,
+        menuImage: './Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+        menuCategory: 'beer',
+        menuCategoryLabel: 'ビール・ハイボール',
+        createdAtMs: now - 10_000
+      }
+    ]
+  };
+  const reviewRequests = [];
+
+  await page.addInitScript(() => {
+    window.EventSource = class {
+      constructor() {}
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.route('**/api/troy-orders/customer-request-review', async (route) => {
+    const body = route.request().postDataJSON();
+    reviewRequests.push(body);
+    if (body.action === 'accept') {
+      const request = state.troyCustomerOrderRequests.find((entry) => entry.requestId === body.requestId);
+      state.troyCustomerOrderRequests = state.troyCustomerOrderRequests.filter((entry) => entry.requestId !== body.requestId);
+      state.troyPendingCheckouts.push({
+        playFabId: request.playFabId,
+        displayName: request.displayName,
+        status: 'open',
+        total: request.lineTotal,
+        totalItems: request.quantity,
+        grantTotal: 0,
+        createdAtMs: now,
+        lastOrderedAtMs: now,
+        items: [{
+          orderId: `customer-request:${request.requestId}`,
+          name: request.name,
+          quantity: request.quantity,
+          price: request.price,
+          lineTotal: request.lineTotal,
+          menuImage: request.menuImage,
+          image: request.menuImage,
+          iconImage: request.menuImage,
+          menuCategory: request.menuCategory,
+          menuCategoryLabel: request.menuCategoryLabel,
+          status: 'pending',
+          orderedAtMs: now
+        }]
+      });
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#troyOrdersCustomerRequestsPanel')).toBeVisible();
+  await expect(page.locator('#troyOrdersCustomerRequests')).toContainText('瓶ビール（ハートランド）');
+  await page.locator('#troyOrdersCustomerRequests [data-review-customer-order="accept"]').click();
+
+  expect(reviewRequests).toHaveLength(1);
+  expect(reviewRequests[0]).toMatchObject({ requestId: 'REQ1', action: 'accept' });
+  await expect(page.locator('#troyOrdersCustomerRequestsPanel')).toBeHidden();
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('瓶ビール（ハートランド）');
+});
+
 test('staff register shows king-managed custom menu items', async ({ page }) => {
   const now = Date.now();
   const state = {

@@ -27,7 +27,9 @@ let sseFallbackTimer = null;
 let lastData = null;
 let busy = false;
 let seenOrderIds = new Set();
+let seenCustomerOrderRequestIds = new Set();
 let hasRenderedOnce = false;
+let hasRenderedCustomerRequestsOnce = false;
 let pendingSettleCard = null;
 let soundEnabled = false;
 let selectedCustomerId = null;
@@ -445,6 +447,59 @@ function flashForNewOrders(entries = []) {
     hasRenderedOnce = true;
 }
 
+function normalizeCustomerOrderRequests(data = lastData) {
+    return (Array.isArray(data?.troyCustomerOrderRequests) ? data.troyCustomerOrderRequests : [])
+        .map((request) => {
+            const requestId = String(request?.requestId || '').trim();
+            const playFabId = String(request?.playFabId || '').trim();
+            const name = String(request?.name || '').trim();
+            const status = String(request?.status || 'pending').trim().toLowerCase();
+            const price = Math.max(0, Math.floor(Number(request?.price) || 0));
+            const quantity = Math.max(1, Math.min(99, Math.floor(Number(request?.quantity) || 1)));
+            if (!requestId || !playFabId || !name || price <= 0) return null;
+            return {
+                requestId,
+                playFabId,
+                displayName: String(request?.displayName || playFabId).trim(),
+                status,
+                name,
+                price,
+                quantity,
+                lineTotal: Math.max(0, Math.floor(Number(request?.lineTotal) || price * quantity)),
+                menuImage: String(request?.menuImage || request?.image || request?.iconImage || '').trim(),
+                menuCategory: String(request?.menuCategory || '').trim(),
+                menuCategoryLabel: String(request?.menuCategoryLabel || '').trim(),
+                optionLabel: String(request?.optionLabel || '').trim(),
+                sizeLabel: String(request?.sizeLabel || '').trim(),
+                createdAtMs: Math.max(0, Math.floor(Number(request?.createdAtMs) || 0))
+            };
+        })
+        .filter((request) => request && (request.status === 'pending' || request.status === 'processing'))
+        .sort((a, b) => (a.createdAtMs - b.createdAtMs) || a.requestId.localeCompare(b.requestId));
+}
+
+function flashForNewCustomerOrderRequests(requests = []) {
+    const pending = requests.filter((request) => request.status === 'pending');
+    const nextIds = new Set(pending.map((request) => request.requestId));
+    if (hasRenderedCustomerRequestsOnce) {
+        const newRequests = pending.filter((request) => !seenCustomerOrderRequestIds.has(request.requestId));
+        if (newRequests.length > 0) {
+            document.body.classList.remove('is-new-order-flash');
+            void document.body.offsetWidth;
+            document.body.classList.add('is-new-order-flash');
+            setTimeout(() => document.body.classList.remove('is-new-order-flash'), 1800);
+            playOrderSound(pickOrderSoundKey(newRequests.map((request) => ({
+                name: request.name,
+                price: request.price,
+                quantity: request.quantity,
+                lineTotal: request.lineTotal
+            }))));
+        }
+    }
+    seenCustomerOrderRequestIds = nextIds;
+    hasRenderedCustomerRequestsOnce = true;
+}
+
 function updateServeSummary(entries = []) {
     let pending = 0;
     let served = 0;
@@ -833,6 +888,41 @@ function renderTicketGrid(entries = []) {
     grid.innerHTML = buildTicketDisplayCards(entries).map(renderTicketCard).join('');
 }
 
+function renderCustomerOrderRequests(requests = []) {
+    const panel = $('troyOrdersCustomerRequestsPanel');
+    const list = $('troyOrdersCustomerRequests');
+    const count = $('troyOrdersCustomerRequestsCount');
+    if (!panel || !list) return;
+    const rows = normalizeCustomerOrderRequests({ troyCustomerOrderRequests: requests });
+    panel.hidden = rows.length === 0;
+    if (count) count.textContent = `${rows.length}件`;
+    if (!rows.length) {
+        list.innerHTML = '';
+        return;
+    }
+    list.innerHTML = rows.map((request) => {
+        const processing = request.status === 'processing';
+        const quantityLabel = request.quantity > 1 ? ` x${request.quantity}` : '';
+        const imageHtml = request.menuImage
+            ? `<span class="troy-orders-request-thumb"><img src="${escapeHtml(request.menuImage)}" alt="" loading="lazy"></span>`
+            : '<span class="troy-orders-request-thumb is-empty"></span>';
+        return `
+            <article class="troy-orders-request${processing ? ' is-processing' : ''}" data-customer-order-request-id="${escapeHtml(request.requestId)}">
+                ${imageHtml}
+                <div class="troy-orders-request-main">
+                    <strong>${escapeHtml(request.name)}${quantityLabel}</strong>
+                    <span>${escapeHtml(request.displayName)} / ${escapeHtml(formatTime(request.createdAtMs) || '--:--')}</span>
+                </div>
+                <div class="troy-orders-request-total">${formatYen(request.lineTotal)}</div>
+                <div class="troy-orders-request-actions">
+                    <button type="button" data-review-customer-order="accept" ${processing ? 'disabled' : ''}>受付</button>
+                    <button type="button" class="is-cancel" data-review-customer-order="reject" ${processing ? 'disabled' : ''}>取消</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
 function findSelectedCustomer() {
     if (!selectedCustomerId) return null;
     return getCustomerEntries(lastData).find((entry) => entry.playFabId === selectedCustomerId) || null;
@@ -1054,6 +1144,7 @@ function render(data = {}) {
     setSummary(data);
     renderCoinConversionLogs(data.troyCoinConversionLogs);
     const entries = getCheckoutEntries(data);
+    const customerOrderRequests = normalizeCustomerOrderRequests(data);
     const customers = sortCustomerEntries(getCustomerEntries(data));
     if (selectedCustomerId && !customers.some((entry) => entry.playFabId === selectedCustomerId)) {
         selectedCustomerId = null;
@@ -1062,6 +1153,8 @@ function render(data = {}) {
         document.body.classList.remove('is-troy-ticket-open');
     }
     flashForNewOrders(entries);
+    flashForNewCustomerOrderRequests(customerOrderRequests);
+    renderCustomerOrderRequests(customerOrderRequests);
     updateServeSummary(entries);
     renderTicketGrid(customers);
     if (!$('troyOrdersTicketModal')?.hidden && selectedCustomerId) {
@@ -1078,6 +1171,33 @@ async function refreshOrders({ silent = true, force = false } = {}) {
     } catch (error) {
         console.warn('[troy-orders] refresh failed:', error);
         setMessage('会計レジを取得できませんでした。通信状態を確認してください。', true);
+    }
+}
+
+async function reviewCustomerOrderRequest(button) {
+    if (!button || busy) return;
+    const row = button.closest('[data-customer-order-request-id]');
+    const requestId = String(row?.dataset.customerOrderRequestId || '').trim();
+    const action = String(button.dataset.reviewCustomerOrder || '').trim();
+    if (!requestId || !action) return;
+    busy = true;
+    row?.classList.add('is-processing');
+    row?.querySelectorAll('button').forEach((entry) => { entry.disabled = true; });
+    try {
+        await callApiWithLoader('/api/troy-orders/customer-request-review', {
+            ...getRequestedNationPayload(),
+            requestId,
+            action
+        }, { isSilent: true, throwOnError: true });
+        await refreshOrders({ silent: true, force: true });
+        setMessage(action === 'accept' ? '注文を受付して伝票に追加しました。' : '注文を取消しました。');
+    } catch (error) {
+        console.warn('[troy-orders] customer request review failed:', error);
+        setMessage(`未確認注文を処理できませんでした: ${error?.message || error}`, true);
+        row?.classList.remove('is-processing');
+        row?.querySelectorAll('button').forEach((entry) => { entry.disabled = false; });
+    } finally {
+        busy = false;
     }
 }
 
@@ -1564,6 +1684,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('troyOrdersRefresh')?.addEventListener('click', () => refreshOrders({ silent: false }));
     $('troyOrdersOpenBtn')?.addEventListener('click', () => setTroyOpen(true));
     $('troyOrdersCloseBtn')?.addEventListener('click', () => setTroyOpen(false));
+    $('troyOrdersCustomerRequests')?.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('[data-review-customer-order]') : null;
+        if (!target) return;
+        void reviewCustomerOrderRequest(target);
+    });
     const ticketGrid = $('troyOrdersTicketGrid');
     ticketGrid?.addEventListener('pointerdown', startTicketDrag);
     ticketGrid?.addEventListener('pointermove', moveTicketDrag);
