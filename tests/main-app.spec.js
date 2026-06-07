@@ -1710,6 +1710,59 @@ test('elf avatar uses purple base sprites when stored color is yellow', async ({
   await expectNoPageErrors(errors);
 });
 
+test('tall avatar weapons stay close to the avatar floor', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  await page.evaluate(async () => {
+    const fixture = document.createElement('div');
+    fixture.id = 'tallWeaponOffsetFixture';
+    fixture.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;';
+    const buildAvatar = (prefix) => `
+      <div id="${prefix}" class="avatar-container">
+        <div id="${prefix}-layer-body" class="avatar-layer"></div>
+        <div id="${prefix}-layer-head" class="avatar-layer"></div>
+        <div id="${prefix}-layer-facial-hair" class="avatar-layer"></div>
+        <div id="${prefix}-layer-hair" class="avatar-layer"></div>
+        <div id="${prefix}-layer-armor" class="avatar-layer"></div>
+        <div id="${prefix}-layer-hand-right" class="avatar-layer"></div>
+        <div id="${prefix}-layer-weapon-right" class="avatar-layer"></div>
+        <div id="${prefix}-layer-hand-left" class="avatar-layer"></div>
+        <div id="${prefix}-layer-shield-left" class="avatar-layer"></div>
+      </div>`;
+    fixture.innerHTML = buildAvatar('axeBig') + buildAvatar('polearm');
+    document.body.appendChild(fixture);
+
+    const { renderAvatar } = await import('/js/avatar.js');
+    const avatar = { Race: 'human', AvatarColor: 'brown', SkinColorIndex: 1, FaceIndex: 1, HairStyleIndex: 1, FacialHairStyleIndex: 0, level: 21 };
+    const items = {
+      axe_big_001: { itemId: 'axe_big_001', customData: { Category: 'Weapon', sprite_path: './Sprites/weapons/melee weapons/axe_big.png', sprite_index: '0', sprite_w: '32', sprite_h: '48' } },
+      polearm_001: { itemId: 'polearm_001', customData: { Category: 'Weapon', sprite_path: './Sprites/weapons/melee weapons/polearm.png', sprite_index: '0', sprite_w: '32', sprite_h: '64' } }
+    };
+    renderAvatar('axeBig', avatar, { RightHand: 'axe_big_001' }, items, false);
+    renderAvatar('polearm', avatar, { RightHand: 'polearm_001' }, items, false);
+  });
+
+  await page.waitForFunction(() => ['axeBig', 'polearm'].every((prefix) => (
+    document.getElementById(`${prefix}-layer-weapon-right`)?.dataset.loadState === 'ready'
+  )));
+  const floorOffsets = await page.evaluate(() => Object.fromEntries(['axeBig', 'polearm'].map((prefix) => {
+    const body = document.getElementById(`${prefix}-layer-body`).getBoundingClientRect();
+    const weapon = document.getElementById(`${prefix}-layer-weapon-right`).getBoundingClientRect();
+    return [prefix, Math.round(weapon.bottom - body.bottom)];
+  })));
+  const leftHandTransforms = await page.evaluate(() => Object.fromEntries(['axeBig', 'polearm'].map((prefix) => [
+    prefix,
+    document.getElementById(`${prefix}-layer-hand-left`).dataset.baseTransform || ''
+  ])));
+
+  expect(floorOffsets.axeBig).toBeLessThanOrEqual(60);
+  expect(floorOffsets.polearm).toBeLessThanOrEqual(60);
+  expect(leftHandTransforms.axeBig).toContain('translateX(0px)');
+  expect(leftHandTransforms.polearm).toContain('translateX(0px)');
+  await expectNoPageErrors(errors);
+});
+
 test('tarot deck and list show suit-colored number badges at the upper left', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [

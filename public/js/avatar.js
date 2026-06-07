@@ -14,14 +14,14 @@ const ITEM_SPRITE_PRESETS = Object.freeze([
     { idPrefixes: ['metal_black_'], path: './Sprites/wardrobe/metal/metal_black.png', width: 32, height: 48, cols: 10, twoHanded: false },
     { idPrefixes: ['metal_'], path: './Sprites/wardrobe/metal/metal.png', width: 32, height: 32, cols: 10, twoHanded: false },
     { idPrefixes: ['shield_'], path: './Sprites/weapons/melee weapons/shield.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { shieldLeft: { x: -10, y: -7 } } },
-    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true, avatarOffset: { weaponRight: { x: 0, y: -14 } } },
+    { idPrefixes: ['sword_big_'], path: './Sprites/weapons/melee weapons/sword_big.png', width: 32, height: 48, cols: 10, twoHanded: true, avatarOffset: { weaponRight: { x: 0, y: -24 } } },
     { idPrefixes: ['sword_'], path: './Sprites/weapons/melee weapons/sword.png', width: 32, height: 32, cols: 7, twoHanded: false, avatarOffset: { weaponRight: { x: -2, y: 2 } } },
     { idPrefixes: ['dagger_'], path: './Sprites/weapons/melee weapons/dagger.png', width: 32, height: 32, cols: 7, twoHanded: false, avatarOffset: { weaponRight: { x: 2, y: 4 } } },
-    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: -22, y: 14 } } },
+    { idPrefixes: ['axe_big_'], path: './Sprites/weapons/melee weapons/axe_big.png', width: 32, height: 48, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: 0, y: -24 } } },
     { idPrefixes: ['axe_'], path: './Sprites/weapons/melee weapons/axe.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { weaponRight: { x: -4, y: 5 } } },
     { idPrefixes: ['blunt_'], path: './Sprites/weapons/melee weapons/blunt.png', width: 32, height: 32, cols: 10, twoHanded: false, avatarOffset: { weaponRight: { x: -3, y: 5 } } },
-    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, avatarOffset: { weaponRight: { x: 2, y: -24 } } },
-    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 3, y: -24 } } },
+    { idPrefixes: ['polearm_'], path: './Sprites/weapons/melee weapons/polearm.png', width: 32, height: 64, cols: 12, twoHanded: true, avatarOffset: { weaponRight: { x: -2, y: -42 } } },
+    { idPrefixes: ['staff_'], path: './Sprites/weapons/magic weapons/staff.png', width: 32, height: 64, cols: 13, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: -1, y: -42 } } },
     { idPrefixes: ['wand_'], path: './Sprites/weapons/magic weapons/wand.png', width: 32, height: 32, cols: 6, twoHanded: false, weaponType: 'staff', avatarOffset: { weaponRight: { x: 2, y: 4 } } },
     { idPrefixes: ['gun_big_'], path: './Sprites/weapons/ranged weapons/pistol_big.png', width: 64, height: 32, cols: 5, twoHanded: true, avatarOffset: { weaponRight: { x: 8, y: 18 } } },
     { idPrefixes: ['gun_'], path: './Sprites/weapons/ranged weapons/pistol.png', width: 32, height: 32, cols: 4, twoHanded: false, avatarOffset: { weaponRight: { x: -4, y: 18 } } }
@@ -365,8 +365,10 @@ function setAvatarPart(layerId, imageUrl, spriteIndex, spriteWidth = 32, spriteH
             } else if (layerId.includes('hand-right')) {
                 transformValue += ` translateX(${AVATAR_PART_OFFSETS.handRight.x}px) translateY(${AVATAR_PART_OFFSETS.handRight.y}px)`;
             } else if (layerId.includes('hand-left')) {
-                // 両手持ち武器を装備しているかどうかの判定は renderAvatar で行うため、ここでは単純なオフセットを適用
-                transformValue += ` translateX(${AVATAR_PART_OFFSETS.handLeft.x}px) translateY(${AVATAR_PART_OFFSETS.handLeft.y}px)`;
+                const handOffset = itemCategory === 'TwoHandedGrip'
+                    ? AVATAR_PART_OFFSETS.handLeftTwoHanded
+                    : AVATAR_PART_OFFSETS.handLeft;
+                transformValue += ` translateX(${handOffset.x}px) translateY(${handOffset.y}px)`;
             } else if (layerId.includes('weapon-right')) {
                 let offsetX = AVATAR_PART_OFFSETS.rightHandItem.x;
                 let offsetY = AVATAR_PART_OFFSETS.rightHandItem.y;
@@ -569,6 +571,22 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
     const avatarColor = avatarBase
         ? resolveAvatarBaseSpriteColor(avatarBase.Race, avatarBase.AvatarColor)
         : (window.myAvatarBaseInfo?.AvatarColor || null);
+    const equipmentMap = equipment || {};
+
+    // 装備と手の位置判定に使うアイテム詳細ヘルパー
+    const getItemDetails = (id) => {
+        if (!id) return null;
+        if (typeof id === 'object' && id.customData) return id;
+        if (Array.isArray(itemSource)) {
+            return itemSource.find(i =>
+                (i.instances && i.instances.includes(id)) || i.itemId === id
+            );
+        }
+        return itemSource?.[id] || null;
+    };
+
+    const rightHandItem = getItemDetails(equipmentMap.RightHand);
+    const isTwoHanded = isTwoHandedAvatarWeapon(rightHandItem);
 
     // 1. 素体の描画
     if (avatarBase) {
@@ -590,27 +608,13 @@ export function renderAvatar(prefix, avatarBase, equipment, itemSource, isOppone
         drawLayer(`${prefix}-layer-facial-hair`, `./Sprites/Characters/${race}/hair/facial hair/${race}_facialhair_${color}.png`, facialHairIdx, 32, 32);
         drawLayer(`${prefix}-layer-hair`, `./Sprites/Characters/${race}/hair/hairstyle/${race}_hair_${color}.png`, hairIdx, 32, 32);
         drawLayer(`${prefix}-layer-hand-right`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
-        drawLayer(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16);
+        drawLayer(`${prefix}-layer-hand-left`, `./Sprites/Characters/${race}/hand/${race}_hand.png`, skinIndex - 1, 16, 16, isTwoHanded ? 'TwoHandedGrip' : null);
     }
 
-    // 2. アイテム詳細を取得するヘルパー
-    const getItemDetails = (id) => {
-        if (!id) return null;
-        if (typeof id === 'object' && id.customData) return id;
-        if (Array.isArray(itemSource)) {
-            return itemSource.find(i =>
-                (i.instances && i.instances.includes(id)) || i.itemId === id
-            );
-        }
-        return itemSource[id];
-    };
-
-    // 3. 装備品の描画
-    const rightHandItem = getItemDetails(equipment.RightHand);
-    const isTwoHanded = isTwoHandedAvatarWeapon(rightHandItem);
-    const leftHandItem = isTwoHanded ? null : getItemDetails(equipment.LeftHand);
-    const armorItem = getItemDetails(equipment.Armor);
-    const accessoryItem = getItemDetails(equipment.Accessory);
+    // 2. 装備品の描画
+    const leftHandItem = isTwoHanded ? null : getItemDetails(equipmentMap.LeftHand);
+    const armorItem = getItemDetails(equipmentMap.Armor);
+    const accessoryItem = getItemDetails(equipmentMap.Accessory);
 
     // 相手の場合は左右のアイテムを入れ替えて表示
     const finalRightHandItem = isOpponent ? leftHandItem : rightHandItem;
