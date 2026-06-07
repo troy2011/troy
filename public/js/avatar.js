@@ -272,6 +272,10 @@ function renderEquipmentSlotArt(artId, item, avatarColor = null) {
             spriteEl.style.backgroundPosition = croppedFrame
                 ? '0 0'
                 : `${-(col * frameWidth)}px ${-(row * frameHeight)}px`;
+            if (String(category || '').trim() === 'Armor') {
+                spriteEl.style.position = 'relative';
+                spriteEl.style.top = '-4px';
+            }
             spriteEl.style.transform = `scale(${previewScale})`;
 
             artEl.innerHTML = '';
