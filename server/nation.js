@@ -83,6 +83,7 @@ const TROY_STAFF_CHECKOUT_ENABLED = true;
 const TROY_ENTRY_DEFAULT_NATION = String(process.env.TROY_ENTRY_DEFAULT_NATION || 'fire').trim().toLowerCase();
 const TROY_ENTRY_CHARGE_ITEM_NAME = '入店チャージ';
 const TROY_ENTRY_CHARGE_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_CHARGE_AMOUNT || 500) || 0));
+const TROY_ENTRY_STAFF_CHIP_AMOUNT = Math.max(0, Math.floor(Number(process.env.TROY_ENTRY_STAFF_CHIP_AMOUNT || 500) || 0));
 const TROY_CUSTOM_ORDER_ITEM_NAME = '裏メニュー';
 const TROY_USUAL_ORDER_ITEMS_LIMIT = 8;
 const TROY_ORDER_HISTORY_ITEMS_LIMIT = 32;
@@ -4002,6 +4003,10 @@ function initializeNationRoutes(app, deps) {
                 entryBonusGranted: 0,
                 entryBonusError: null,
                 entryChargeAmount: isNewEntry ? TROY_ENTRY_CHARGE_AMOUNT : 0,
+                entryStaffChipAmount: isNewEntry ? TROY_ENTRY_STAFF_CHIP_AMOUNT : 0,
+                entryInstructionMessage: isNewEntry && TROY_ENTRY_STAFF_CHIP_AMOUNT > 0
+                    ? `スタッフからチップ${TROY_ENTRY_STAFF_CHIP_AMOUNT.toLocaleString('ja-JP')}を受け取ってください`
+                    : '',
                 entryChargeCreated,
                 entryChargeError,
                 alreadyEntered: !isNewEntry

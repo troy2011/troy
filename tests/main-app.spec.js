@@ -400,6 +400,8 @@ export function onSnapshot(_ref, next) {
         entryBonusGranted: 0,
         entryBonusError: null,
         entryChargeAmount: 500,
+        entryStaffChipAmount: 500,
+        entryInstructionMessage: 'スタッフからチップ500を受け取ってください',
         entryChargeCreated: true,
         entryChargeError: null,
         alreadyEntered: false

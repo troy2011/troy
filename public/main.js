@@ -1673,7 +1673,9 @@ async function handleTroyEntryRequest(entryRequest, options = {}) {
         if (result?.alreadyEntered) parts.push('TROYに入店済みです');
         else {
             parts.push('TROYに入店しました');
-            parts.push(`スタッフからチップ${TROY_ENTRY_STAFF_CHIP_AMOUNT.toLocaleString('ja-JP')}を受け取ってください`);
+            const instructionMessage = String(result?.entryInstructionMessage || '').trim()
+                || `スタッフからチップ${TROY_ENTRY_STAFF_CHIP_AMOUNT.toLocaleString('ja-JP')}を受け取ってください`;
+            parts.push(instructionMessage);
         }
         if (result?.entryChargeError) parts.push('入店チャージ未登録');
         if (result?.entryBonusGranted > 0) parts.push(`${result.entryBonusGranted}G 獲得`);
