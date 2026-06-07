@@ -2298,5 +2298,557 @@
         "width":  113,
         "height":  174,
         "alphaArea":  15248
+    },
+    {
+        "id":  "troy_vodka_bottle",
+        "displayName":  "TROY Vodka Bottle",
+        "file":  "./Sprites/drinks/troy_vodka_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  29,
+                             "y":  31,
+                             "w":  124,
+                             "h":  352
+                         },
+        "sourceRect":  {
+                           "x":  27,
+                           "y":  29,
+                           "w":  128,
+                           "h":  356
+                       },
+        "row":  0,
+        "col":  0,
+        "width":  128,
+        "height":  356,
+        "alphaArea":  33820
+    },
+    {
+        "id":  "troy_oolong_tea_glass",
+        "displayName":  "TROY Oolong Tea Glass",
+        "file":  "./Sprites/drinks/troy_oolong_tea_glass.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  191,
+                             "y":  108,
+                             "w":  151,
+                             "h":  268
+                         },
+        "sourceRect":  {
+                           "x":  189,
+                           "y":  106,
+                           "w":  155,
+                           "h":  272
+                       },
+        "row":  0,
+        "col":  1,
+        "width":  155,
+        "height":  272,
+        "alphaArea":  34890
+    },
+    {
+        "id":  "troy_highball_mug",
+        "displayName":  "TROY Highball Mug",
+        "file":  "./Sprites/drinks/troy_highball_mug.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  367,
+                             "y":  84,
+                             "w":  195,
+                             "h":  293
+                         },
+        "sourceRect":  {
+                           "x":  365,
+                           "y":  82,
+                           "w":  199,
+                           "h":  297
+                       },
+        "row":  0,
+        "col":  2,
+        "width":  199,
+        "height":  297,
+        "alphaArea":  44049
+    },
+    {
+        "id":  "troy_champagne_bottle_flute",
+        "displayName":  "TROY Champagne Bottle And Flute",
+        "file":  "./Sprites/drinks/troy_champagne_bottle_flute.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  914,
+                             "y":  9,
+                             "w":  173,
+                             "h":  379
+                         },
+        "sourceRect":  {
+                           "x":  912,
+                           "y":  7,
+                           "w":  177,
+                           "h":  383
+                       },
+        "row":  0,
+        "col":  4,
+        "width":  177,
+        "height":  383,
+        "alphaArea":  42788
+    },
+    {
+        "id":  "troy_cassis_bottle",
+        "displayName":  "TROY Cassis Bottle",
+        "file":  "./Sprites/drinks/troy_cassis_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1105,
+                             "y":  44,
+                             "w":  119,
+                             "h":  339
+                         },
+        "sourceRect":  {
+                           "x":  1103,
+                           "y":  42,
+                           "w":  123,
+                           "h":  343
+                       },
+        "row":  0,
+        "col":  5,
+        "width":  123,
+        "height":  343,
+        "alphaArea":  29576
+    },
+    {
+        "id":  "troy_cassis_rocks_glass",
+        "displayName":  "TROY Cassis Rocks Glass",
+        "file":  "./Sprites/drinks/troy_cassis_rocks_glass.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1236,
+                             "y":  227,
+                             "w":  140,
+                             "h":  160
+                         },
+        "sourceRect":  {
+                           "x":  1234,
+                           "y":  225,
+                           "w":  144,
+                           "h":  164
+                       },
+        "row":  0,
+        "col":  6,
+        "width":  144,
+        "height":  164,
+        "alphaArea":  17700
+    },
+    {
+        "id":  "troy_bourbon_whiskey_bottle",
+        "displayName":  "TROY Bourbon Whiskey Bottle",
+        "file":  "./Sprites/drinks/troy_bourbon_whiskey_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  31,
+                             "y":  411,
+                             "w":  116,
+                             "h":  293
+                         },
+        "sourceRect":  {
+                           "x":  29,
+                           "y":  409,
+                           "w":  120,
+                           "h":  297
+                       },
+        "row":  1,
+        "col":  0,
+        "width":  120,
+        "height":  297,
+        "alphaArea":  25431
+    },
+    {
+        "id":  "troy_irish_whiskey_bottle",
+        "displayName":  "TROY Irish Whiskey Bottle",
+        "file":  "./Sprites/drinks/troy_irish_whiskey_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  197,
+                             "y":  409,
+                             "w":  103,
+                             "h":  292
+                         },
+        "sourceRect":  {
+                           "x":  195,
+                           "y":  407,
+                           "w":  107,
+                           "h":  296
+                       },
+        "row":  1,
+        "col":  1,
+        "width":  107,
+        "height":  296,
+        "alphaArea":  23168
+    },
+    {
+        "id":  "troy_rum_square_bottle",
+        "displayName":  "TROY Rum Square Bottle",
+        "file":  "./Sprites/drinks/troy_rum_square_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  346,
+                             "y":  419,
+                             "w":  159,
+                             "h":  280
+                         },
+        "sourceRect":  {
+                           "x":  344,
+                           "y":  417,
+                           "w":  163,
+                           "h":  284
+                       },
+        "row":  1,
+        "col":  2,
+        "width":  163,
+        "height":  284,
+        "alphaArea":  31213
+    },
+    {
+        "id":  "troy_gin_bottle",
+        "displayName":  "TROY Gin Bottle",
+        "file":  "./Sprites/drinks/troy_gin_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  554,
+                             "y":  416,
+                             "w":  114,
+                             "h":  285
+                         },
+        "sourceRect":  {
+                           "x":  552,
+                           "y":  414,
+                           "w":  118,
+                           "h":  289
+                       },
+        "row":  1,
+        "col":  3,
+        "width":  118,
+        "height":  289,
+        "alphaArea":  25399
+    },
+    {
+        "id":  "troy_tequila_bottle",
+        "displayName":  "TROY Tequila Bottle",
+        "file":  "./Sprites/drinks/troy_tequila_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  719,
+                             "y":  425,
+                             "w":  124,
+                             "h":  278
+                         },
+        "sourceRect":  {
+                           "x":  717,
+                           "y":  423,
+                           "w":  128,
+                           "h":  282
+                       },
+        "row":  1,
+        "col":  4,
+        "width":  128,
+        "height":  282,
+        "alphaArea":  26774
+    },
+    {
+        "id":  "troy_blue_curacao_bottle",
+        "displayName":  "TROY Blue Curacao Bottle",
+        "file":  "./Sprites/drinks/troy_blue_curacao_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  891,
+                             "y":  427,
+                             "w":  110,
+                             "h":  270
+                         },
+        "sourceRect":  {
+                           "x":  889,
+                           "y":  425,
+                           "w":  114,
+                           "h":  274
+                       },
+        "row":  1,
+        "col":  5,
+        "width":  114,
+        "height":  274,
+        "alphaArea":  21658
+    },
+    {
+        "id":  "troy_baileys_bottle",
+        "displayName":  "TROY Baileys Bottle",
+        "file":  "./Sprites/drinks/troy_baileys_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1053,
+                             "y":  415,
+                             "w":  116,
+                             "h":  295
+                         },
+        "sourceRect":  {
+                           "x":  1051,
+                           "y":  413,
+                           "w":  120,
+                           "h":  299
+                       },
+        "row":  1,
+        "col":  6,
+        "width":  120,
+        "height":  299,
+        "alphaArea":  24056
+    },
+    {
+        "id":  "troy_disaronno_bottle",
+        "displayName":  "TROY Disaronno Bottle",
+        "file":  "./Sprites/drinks/troy_disaronno_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1208,
+                             "y":  425,
+                             "w":  140,
+                             "h":  276
+                         },
+        "sourceRect":  {
+                           "x":  1206,
+                           "y":  423,
+                           "w":  144,
+                           "h":  280
+                       },
+        "row":  1,
+        "col":  7,
+        "width":  144,
+        "height":  280,
+        "alphaArea":  29930
+    },
+    {
+        "id":  "troy_cognac_bottle",
+        "displayName":  "TROY Cognac Bottle",
+        "file":  "./Sprites/drinks/troy_cognac_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1364,
+                             "y":  437,
+                             "w":  162,
+                             "h":  264
+                         },
+        "sourceRect":  {
+                           "x":  1362,
+                           "y":  435,
+                           "w":  166,
+                           "h":  268
+                       },
+        "row":  1,
+        "col":  8,
+        "width":  166,
+        "height":  268,
+        "alphaArea":  26282
+    },
+    {
+        "id":  "troy_absinthe_bottle",
+        "displayName":  "TROY Absinthe Bottle",
+        "file":  "./Sprites/drinks/troy_absinthe_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  32,
+                             "y":  723,
+                             "w":  112,
+                             "h":  281
+                         },
+        "sourceRect":  {
+                           "x":  30,
+                           "y":  721,
+                           "w":  116,
+                           "h":  285
+                       },
+        "row":  2,
+        "col":  0,
+        "width":  116,
+        "height":  285,
+        "alphaArea":  24527
+    },
+    {
+        "id":  "troy_scotch_whisky_bottle",
+        "displayName":  "TROY Scotch Whisky Bottle",
+        "file":  "./Sprites/drinks/troy_scotch_whisky_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  198,
+                             "y":  717,
+                             "w":  106,
+                             "h":  287
+                         },
+        "sourceRect":  {
+                           "x":  196,
+                           "y":  715,
+                           "w":  110,
+                           "h":  291
+                       },
+        "row":  2,
+        "col":  1,
+        "width":  110,
+        "height":  291,
+        "alphaArea":  23852
+    },
+    {
+        "id":  "troy_yamazaki_whisky_bottle",
+        "displayName":  "TROY Yamazaki Whisky Bottle",
+        "file":  "./Sprites/drinks/troy_yamazaki_whisky_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  369,
+                             "y":  716,
+                             "w":  110,
+                             "h":  288
+                         },
+        "sourceRect":  {
+                           "x":  367,
+                           "y":  714,
+                           "w":  114,
+                           "h":  292
+                       },
+        "row":  2,
+        "col":  2,
+        "width":  114,
+        "height":  292,
+        "alphaArea":  25293
+    },
+    {
+        "id":  "troy_hakushu_whisky_bottle",
+        "displayName":  "TROY Hakushu Whisky Bottle",
+        "file":  "./Sprites/drinks/troy_hakushu_whisky_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  543,
+                             "y":  717,
+                             "w":  111,
+                             "h":  288
+                         },
+        "sourceRect":  {
+                           "x":  541,
+                           "y":  715,
+                           "w":  115,
+                           "h":  292
+                       },
+        "row":  2,
+        "col":  3,
+        "width":  115,
+        "height":  292,
+        "alphaArea":  25360
+    },
+    {
+        "id":  "troy_kubota_sake_bottle",
+        "displayName":  "TROY Kubota Sake Bottle",
+        "file":  "./Sprites/drinks/troy_kubota_sake_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  721,
+                             "y":  717,
+                             "w":  94,
+                             "h":  287
+                         },
+        "sourceRect":  {
+                           "x":  719,
+                           "y":  715,
+                           "w":  98,
+                           "h":  291
+                       },
+        "row":  2,
+        "col":  4,
+        "width":  98,
+        "height":  291,
+        "alphaArea":  20824
+    },
+    {
+        "id":  "troy_juyondai_sake_bottle",
+        "displayName":  "TROY Juyondai Sake Bottle",
+        "file":  "./Sprites/drinks/troy_juyondai_sake_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  870,
+                             "y":  708,
+                             "w":  100,
+                             "h":  296
+                         },
+        "sourceRect":  {
+                           "x":  868,
+                           "y":  706,
+                           "w":  104,
+                           "h":  300
+                       },
+        "row":  2,
+        "col":  5,
+        "width":  104,
+        "height":  300,
+        "alphaArea":  23166
+    },
+    {
+        "id":  "troy_awamori_bottle",
+        "displayName":  "TROY Awamori Bottle",
+        "file":  "./Sprites/drinks/troy_awamori_bottle.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1003,
+                             "y":  761,
+                             "w":  156,
+                             "h":  243
+                         },
+        "sourceRect":  {
+                           "x":  1001,
+                           "y":  759,
+                           "w":  160,
+                           "h":  247
+                       },
+        "row":  2,
+        "col":  6,
+        "width":  160,
+        "height":  247,
+        "alphaArea":  25607
+    },
+    {
+        "id":  "troy_shochu_clay_jug",
+        "displayName":  "TROY Shochu Clay Jug",
+        "file":  "./Sprites/drinks/troy_shochu_clay_jug.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1172,
+                             "y":  729,
+                             "w":  153,
+                             "h":  275
+                         },
+        "sourceRect":  {
+                           "x":  1170,
+                           "y":  727,
+                           "w":  157,
+                           "h":  279
+                       },
+        "row":  2,
+        "col":  7,
+        "width":  157,
+        "height":  279,
+        "alphaArea":  31506
+    },
+    {
+        "id":  "troy_shaoxing_wine_jar",
+        "displayName":  "TROY Shaoxing Wine Jar",
+        "file":  "./Sprites/drinks/troy_shaoxing_wine_jar.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1339,
+                             "y":  770,
+                             "w":  188,
+                             "h":  234
+                         },
+        "sourceRect":  {
+                           "x":  1337,
+                           "y":  768,
+                           "w":  192,
+                           "h":  238
+                       },
+        "row":  2,
+        "col":  8,
+        "width":  192,
+        "height":  238,
+        "alphaArea":  34722
     }
 ]

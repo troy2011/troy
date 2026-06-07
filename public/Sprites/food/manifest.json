@@ -1424,5 +1424,51 @@
         "width":  200,
         "height":  170,
         "alphaArea":  25107
+    },
+    {
+        "id":  "troy_roast_meat_platter",
+        "displayName":  "TROY Roast Meat Platter",
+        "file":  "./Sprites/food/troy_roast_meat_platter.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  564,
+                             "y":  177,
+                             "w":  313,
+                             "h":  214
+                         },
+        "sourceRect":  {
+                           "x":  562,
+                           "y":  175,
+                           "w":  317,
+                           "h":  218
+                       },
+        "row":  0,
+        "col":  3,
+        "width":  317,
+        "height":  218,
+        "alphaArea":  49618
+    },
+    {
+        "id":  "troy_shredded_seafood_bowl",
+        "displayName":  "TROY Shredded Seafood Bowl",
+        "file":  "./Sprites/food/troy_shredded_seafood_bowl.png",
+        "source":  "./assets/ui/drink/飲み物アイコン集_alpha.png",
+        "sourceRegion":  {
+                             "x":  1365,
+                             "y":  244,
+                             "w":  160,
+                             "h":  139
+                         },
+        "sourceRect":  {
+                           "x":  1363,
+                           "y":  242,
+                           "w":  164,
+                           "h":  143
+                       },
+        "row":  0,
+        "col":  7,
+        "width":  164,
+        "height":  143,
+        "alphaArea":  15697
     }
 ]

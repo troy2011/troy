@@ -44,9 +44,9 @@ function verifyMenuManifest(kind, expectedCount) {
 }
 
 test('drink sprite manifest points to sliced PNG assets', () => {
-  verifyMenuManifest('drinks', 100);
+  verifyMenuManifest('drinks', 124);
 });
 
 test('food sprite manifest points to sliced PNG assets', () => {
-  verifyMenuManifest('food', 62);
+  verifyMenuManifest('food', 64);
 });
