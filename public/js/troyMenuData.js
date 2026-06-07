@@ -162,7 +162,15 @@ export const TROY_PRODUCT_MENUS = {
             { concept: 'うずらの味玉', content: '', price: 500, emoji: '🥚' },
             { concept: 'ナゲット', content: '', price: 500, emoji: '🍗' },
             { concept: '韓国のり', content: '', price: 300, emoji: '◼️' },
-            { concept: '梅水晶', content: '', price: 500, emoji: '🥢' }
+            { concept: '梅水晶', content: '', price: 500, emoji: '🥢' },
+            { concept: 'フライドポテト', content: '', price: 500, emoji: '🍟' },
+            { concept: 'フランク', content: '', price: 500, emoji: '🌭' },
+            { concept: 'ミックスナッツ', content: '', price: 500, emoji: '🥜' },
+            { concept: 'ピザトースト', content: '', price: 500, emoji: '🍕' },
+            { concept: 'ビーフジャーキー', content: '', price: 500, emoji: '🥩' },
+            { concept: 'ポテトチップス', content: '', price: 500, emoji: '🥔' },
+            { concept: 'カップラーメン', content: '', price: 500, emoji: '🍜' },
+            { concept: 'みそ汁', content: '', price: 500, emoji: '🥣' }
         ]
     }
 };

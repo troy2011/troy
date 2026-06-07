@@ -97,6 +97,21 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="ラムパイン（+パイン） S"]')).toContainText('¥500');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="モヒート（ミント+ソーダ） M"]')).toContainText('¥700');
   await expect(page.locator('#troyOrdersTicketDetail [data-add-item][data-item-name="韓国のり"]')).toContainText('¥300');
+  const addedFoodItems = [
+    ['フライドポテト', /Sprites\/food\/pirate_french_fries_bucket\.png/],
+    ['フランク', /Sprites\/food\/snack_sausage_skillet\.png/],
+    ['ミックスナッツ', /Sprites\/food\/pirate_mixed_nuts_barrel\.png/],
+    ['ピザトースト', /Sprites\/food\/snack_mini_pizza_plate\.png/],
+    ['ビーフジャーキー', /Sprites\/food\/pirate_jerky_platter\.png/],
+    ['ポテトチップス', /Sprites\/food\/snack_potato_chips_bowl\.png/],
+    ['カップラーメン', /Sprites\/food\/snack_ramen_bowl\.png/],
+    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/]
+  ];
+  for (const [foodName, imagePattern] of addedFoodItems) {
+    const addButton = page.locator('#troyOrdersTicketDetail [data-add-item]').filter({ has: page.locator('.troy-orders-pos-name', { hasText: new RegExp(`^${foodName}$`) }) });
+    await expect(addButton).toContainText('¥500');
+    await expect(addButton.locator('.troy-orders-pos-thumb img')).toHaveAttribute('src', imagePattern);
+  }
   await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('ワイン各種');
   await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('ワインボトル');
   await expect(page.locator('#troyOrdersTicketDetail')).not.toContainText('グラスワイン');
