@@ -1216,8 +1216,7 @@ test('panel frame assets are applied through border-image slices', async ({ page
       '#tabContentInventory .equip-slot',
       '#tabContentEvents .event-list-panel',
       '#tabContentEvents .event-card',
-      '#tabContentQr .guild-card',
-      '#btnKingTroyOpen'
+      '#tabContentQr .guild-card'
     ];
     return selectors
       .map((selector) => {
@@ -1236,7 +1235,29 @@ test('panel frame assets are applied through border-image slices', async ({ page
   expect(audit.length).toBeGreaterThanOrEqual(8);
   expect(audit.filter((entry) => /assets\/ui\/panels\//.test(entry.backgroundImage))).toEqual([]);
   expect(audit.filter((entry) => !/assets\/ui\/panels\//.test(entry.borderImageSource))).toEqual([]);
-  expect(audit.find((entry) => entry.selector === '#btnKingTroyOpen')?.borderImageSource).toContain('panel-gold-square.png');
+  await expectNoPageErrors(errors);
+});
+
+test('king OPEN button uses the current gold button frame', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+
+  const openButton = await page.locator('#btnKingTroyOpen').evaluate((button) => {
+    const style = window.getComputedStyle(button);
+    return {
+      borderImageSource: style.borderImageSource,
+      borderImageSlice: style.borderImageSlice,
+      borderImageWidth: style.borderImageWidth,
+      color: style.color,
+      textShadow: style.textShadow
+    };
+  });
+
+  expect(openButton.borderImageSource).toContain('button-gold-large.png');
+  expect(openButton.borderImageSlice).toContain('24');
+  expect(openButton.borderImageWidth).toContain('10px');
+  expect(openButton.color).toBe('rgb(29, 14, 4)');
+  expect(openButton.textShadow).toContain('rgb');
   await expectNoPageErrors(errors);
 });
 
