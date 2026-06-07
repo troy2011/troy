@@ -14,7 +14,8 @@ const {
 const {
     applyDerivedPlayerLevelToStats,
     buildStatsMapFromStatistics,
-    getPlayerContributionTotal
+    getPlayerContributionTotal,
+    calculateLevelFromContribution
 } = require('./playerLevel');
 const {
     calculateStatAllocationState,
@@ -736,6 +737,7 @@ function initializeInventoryRoutes(app, deps) {
         try {
             const { currentStats } = await applyOfflineMpRecovery(playFabId);
             let experience = getPlayerContributionTotal(currentStats);
+            const contributionProgress = calculateLevelFromContribution(experience);
             const entityKey = await getEntityKeyForPlayFabId(playFabId);
             const items = await getAllInventoryItems(entityKey);
             const itemMap = new Map();
@@ -787,7 +789,8 @@ function initializeInventoryRoutes(app, deps) {
                 virtualCurrency,
                 experience,
                 contribution: experience,
-                level: Number(currentStats?.Level || 1) || 1,
+                level: contributionProgress.level,
+                contributionProgress,
                 isKing,
                 tarotSkills: {},
                 tarotSkillByCard: {},

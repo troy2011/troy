@@ -32,6 +32,7 @@ let myInventory = [];
 let myCurrentEquipment = {};
 let myVirtualCurrency = {};
 let myExperience = 0;
+let myExperienceProgress = null;
 let myIsKing = false;
 let myMeleeDeck = [];
 let myShipDeck = [];
@@ -1444,7 +1445,7 @@ export function getMyCurrentEquipment() {
 }
 
 function calculateLevelFromExp(expValue) {
-    const baseExp = 100;
+    const baseExp = 1500;
     let level = 1;
     let remaining = Math.max(0, Math.floor(Number(expValue) || 0));
     for (let i = 0; i < 10000; i++) {
@@ -1457,6 +1458,16 @@ function calculateLevelFromExp(expValue) {
         level += 1;
     }
     return { level, expInto: 0, expNeeded: baseExp, rank: Math.floor(level / 10) };
+}
+
+function normalizeExperienceProgress(progress, expValue) {
+    const fallback = calculateLevelFromExp(expValue);
+    if (!progress || typeof progress !== 'object') return fallback;
+    const level = Math.max(1, Math.floor(Number(progress.level) || fallback.level));
+    const expNeeded = Math.max(1, Math.floor(Number(progress.expNeeded) || fallback.expNeeded));
+    const expInto = Math.max(0, Math.min(expNeeded, Math.floor(Number(progress.expInto) || fallback.expInto)));
+    const rank = Math.max(0, Math.floor(Number(progress.rank) || Math.floor(level / 10)));
+    return { level, expInto, expNeeded, rank };
 }
 
 function getRankName(level, isKing) {
@@ -1484,7 +1495,7 @@ function updateExperienceUI() {
     const fillEl = document.getElementById('homeExpFill');
     if (!rankEl || !progressEl || !neededEl || !fillEl) return;
 
-    const data = calculateLevelFromExp(myExperience);
+    const data = myExperienceProgress || calculateLevelFromExp(myExperience);
     const ratio = data.expNeeded > 0 ? Math.min(1, data.expInto / data.expNeeded) : 0;
     const rankName = getRankName(data.level, myIsKing);
     const rankTier = getRankTier(data.level, myIsKing);
@@ -1519,6 +1530,7 @@ export async function getInventory(playFabId, options = {}) {
         myInventory = data.inventory;
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(contributionValue || 0);
+        myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
         myIsKing = !!data.isKing;
         Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
         Player.syncSpecialtyDisplay(myVirtualCurrency);
@@ -1564,6 +1576,7 @@ export async function refreshResourceSummary(playFabId, options = {}) {
         }
         myVirtualCurrency = data.virtualCurrency || {};
         myExperience = Number(contributionValue || 0);
+        myExperienceProgress = normalizeExperienceProgress(data.contributionProgress, myExperience);
         myIsKing = !!data.isKing;
         Player.syncPointsDisplay(Number(myVirtualCurrency?.PS || 0));
         Player.syncSpecialtyDisplay(myVirtualCurrency);
