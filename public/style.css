@@ -19914,8 +19914,26 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .equip-slot-stats {
     min-height: 14px;
     margin-top: 1px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 6px;
+    color: #f4efe3;
     font-size: 11px;
+    font-weight: 900;
     line-height: 1.2;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.94), 0 0 5px rgba(0, 0, 0, 0.72);
+}
+
+#tabContentInventory .equip-slot-stats span {
+    color: inherit;
+}
+
+#tabContentInventory .equip-slot-stats .stat-atk {
+    color: #ffd08a;
+}
+
+#tabContentInventory .equip-slot-stats .stat-def {
+    color: #b9dcff;
 }
 
 #tabContentInventory .equip-slot-item-art {

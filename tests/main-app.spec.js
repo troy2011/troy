@@ -1590,6 +1590,8 @@ test('current equipment slots render equipped item sprites on the right edge', a
       spriteHeight: spriteRect?.height || 0,
       spriteCenterX: spriteRect ? spriteRect.left + spriteRect.width / 2 : 0,
       spriteCenterY: spriteRect ? spriteRect.top + spriteRect.height / 2 : 0,
+      statAtkColor: window.getComputedStyle(document.querySelector('#equippedRightHandStats .stat-atk')).color,
+      statDefColor: window.getComputedStyle(document.querySelector('#equippedLeftHandStats .stat-def')).color,
       slotRight: slotRect?.right || 0
     };
   });
@@ -1603,6 +1605,8 @@ test('current equipment slots render equipped item sprites on the right edge', a
   expect(Math.max(layout.spriteWidth, layout.spriteHeight)).toBeGreaterThanOrEqual(48);
   expect(Math.abs(layout.spriteCenterX - layout.artCenterX)).toBeLessThanOrEqual(2);
   expect(Math.abs(layout.spriteCenterY - layout.artCenterY)).toBeLessThanOrEqual(2);
+  expect(layout.statAtkColor).toBe('rgb(255, 208, 138)');
+  expect(layout.statDefColor).toBe('rgb(185, 220, 255)');
   await expectNoPageErrors(errors);
 });
 
