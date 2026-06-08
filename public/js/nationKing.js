@@ -29,7 +29,7 @@ const STORE_GAME_LABELS = {
     game: 'ゲーム',
     karaoke: 'カラオケ採点'
 };
-const STORE_GAME_RATING_TYPES = new Set(['billiards', 'game']);
+const STORE_GAME_RATING_TYPES = new Set(['darts_countup', 'billiards', 'game']);
 
 function _getStoreGameOptionsHtml(selected = 'darts_countup') {
     const current = String(selected || 'darts_countup').trim().toLowerCase();

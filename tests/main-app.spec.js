@@ -83,6 +83,9 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
     const gameType = String(body.gameType || '');
     storeGameRequests.push(gameType);
     const rankingByType = {
+      darts_countup: [
+        { displayName: '矢場の名手', score: 1032, scoreScale: 1, level: 19, rankName: '狙撃手', playFabId: 'PF_DARTS' }
+      ],
       billiards: [
         { displayName: '玉突き名人', score: 800, scoreScale: 1, level: 12, rankName: '航海士', playFabId: 'PF_BILLIARDS' }
       ],
@@ -123,6 +126,11 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await expect(page.locator('#bountyRankingList')).toContainText('賞金首');
   await expect(page.locator('#bountyRankingList')).toContainText('1,234 ĐɃ');
 
+  await page.locator('#btnShowDartsRanking').click();
+  await expect(page.locator('#dartsRankingArea')).toBeVisible();
+  await expect(page.locator('#dartsRankingList')).toContainText('矢場の名手');
+  await expect(page.locator('#dartsRankingList')).toContainText('レート 1,032');
+
   await page.locator('#btnShowBilliardsRanking').click();
   await expect(page.locator('#billiardsRankingArea')).toBeVisible();
   await expect(page.locator('#billiardsRankingList')).toContainText('玉突き名人');
@@ -132,7 +140,7 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await expect(page.locator('#gameRankingArea')).toBeVisible();
   await expect(page.locator('#gameRankingList')).toContainText('遊技王');
   await expect(page.locator('#gameRankingList')).toContainText('レート 42');
-  expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
+  expect([...storeGameRequests].sort()).toEqual(['billiards', 'darts_countup', 'game']);
 
   await expectNoPageErrors(errors);
 });
@@ -1580,10 +1588,11 @@ test('king store game scoring saves from each in-store customer row', async ({ p
   await page.route('**/api/king-update-store-game-score', async (route) => {
     const requestBody = route.request().postDataJSON();
     scoreRequests.push(requestBody);
-    const responseBody = requestBody.gameType === 'billiards'
-      ? {
+    const responseBody = requestBody.gameType === 'karaoke'
+      ? { success: true, label: 'カラオケ採点', displayName: '海風の船長', score: requestBody.score }
+      : {
           success: true,
-          label: 'ビリヤード',
+          label: requestBody.gameType === 'darts_countup' ? 'ダーツカウントアップ' : 'ビリヤード',
           displayName: '海風の船長',
           opponentDisplayName: '月影の副長',
           previousRating: 1000,
@@ -1591,8 +1600,7 @@ test('king store game scoring saves from each in-store customer row', async ({ p
           opponentPreviousRating: 1000,
           opponentRating: 968,
           score: 1032
-        }
-      : { success: true, label: 'ダーツカウントアップ', displayName: '海風の船長', score: requestBody.score };
+        };
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -1617,9 +1625,10 @@ test('king store game scoring saves from each in-store customer row', async ({ p
 
   await playerRow.locator('.king-store-game-inline summary').click();
   await expect.poll(async () => playerRow.locator('.king-store-game-inline').evaluate((details) => details.open)).toBe(true);
-  await expect(playerRow.locator('[data-store-game-score]')).toBeVisible();
-  await expect(playerRow.locator('[data-store-game-opponent]')).toBeHidden();
-  await playerRow.locator('[data-store-game-score]').fill('701');
+  await expect(playerRow.locator('[data-store-game-score]')).toBeHidden();
+  await expect(playerRow.locator('[data-store-game-opponent]')).toBeVisible();
+  await expect(playerRow.locator('[data-store-game-save="PLAYER1"]')).toHaveText('勝利を記録');
+  await playerRow.locator('[data-store-game-opponent]').selectOption('PLAYER2');
   await playerRow.locator('[data-store-game-save="PLAYER1"]').click();
 
   await expect.poll(() => scoreRequests.length).toBe(1);
@@ -1627,26 +1636,26 @@ test('king store game scoring saves from each in-store customer row', async ({ p
     playFabId: 'PF_PLAYWRIGHT',
     targetPlayFabId: 'PLAYER1',
     gameType: 'darts_countup',
-    score: 701
+    opponentPlayFabId: 'PLAYER2'
   });
-  await expect(page.locator('#kingPageMessage')).toContainText('ダーツカウントアップ: 海風の船長 の記録を 701点で保存しました。');
+  expect(scoreRequests[0].score).toBeUndefined();
+  await expect(page.locator('#kingPageMessage')).toContainText('ダーツカウントアップ: 海風の船長 が 月影の副長 に勝利。レート 1,000→1,032');
 
-  await playerRow.locator('[data-store-game-type]').selectOption('billiards');
-  await expect(playerRow.locator('[data-store-game-score]')).toBeHidden();
-  await expect(playerRow.locator('[data-store-game-opponent]')).toBeVisible();
-  await expect(playerRow.locator('[data-store-game-save="PLAYER1"]')).toHaveText('勝利を記録');
-  await playerRow.locator('[data-store-game-opponent]').selectOption('PLAYER2');
+  await playerRow.locator('[data-store-game-type]').selectOption('karaoke');
+  await expect(playerRow.locator('[data-store-game-score]')).toBeVisible();
+  await expect(playerRow.locator('[data-store-game-opponent]')).toBeHidden();
+  await expect(playerRow.locator('[data-store-game-save="PLAYER1"]')).toHaveText('点数を保存');
+  await playerRow.locator('[data-store-game-score]').fill('90.568');
   await playerRow.locator('[data-store-game-save="PLAYER1"]').click();
 
   await expect.poll(() => scoreRequests.length).toBe(2);
   expect(scoreRequests[1]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     targetPlayFabId: 'PLAYER1',
-    gameType: 'billiards',
-    opponentPlayFabId: 'PLAYER2'
+    gameType: 'karaoke',
+    score: 90.568
   });
-  expect(scoreRequests[1].score).toBeUndefined();
-  await expect(page.locator('#kingPageMessage')).toContainText('ビリヤード: 海風の船長 が 月影の副長 に勝利。レート 1,000→1,032');
+  await expect(page.locator('#kingPageMessage')).toContainText('カラオケ採点: 海風の船長 の記録を 90.568点で保存しました。');
   await expectNoPageErrors(errors);
 });
 
