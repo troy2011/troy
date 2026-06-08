@@ -30,6 +30,7 @@ const STORE_GAME_LABELS = {
     karaoke: 'カラオケ採点'
 };
 const STORE_GAME_RATING_TYPES = new Set(['billiards', 'game']);
+const KING_SECTION_IDS = new Set(['ops', 'store', 'calendar', 'menu', 'notice']);
 
 function _getStoreGameOptionsHtml(selected = 'darts_countup') {
     const current = String(selected || 'darts_countup').trim().toLowerCase();
@@ -60,6 +61,27 @@ function _setMessage(text, isError = false) {
     if (!el) return;
     el.style.color = isError ? 'var(--danger-color)' : 'var(--accent-color)';
     el.innerText = text || '';
+}
+
+function _setKingSectionActive(sectionId = 'store') {
+    const safeId = KING_SECTION_IDS.has(String(sectionId || '')) ? String(sectionId) : 'store';
+    document.querySelectorAll('[data-king-section-tab]').forEach((button) => {
+        const id = String(button.getAttribute('data-king-section-tab') || '').trim();
+        const active = id === safeId;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+        button.setAttribute('tabindex', active ? '0' : '-1');
+    });
+    document.querySelectorAll('[data-king-section-panel]').forEach((panel) => {
+        const id = String(panel.getAttribute('data-king-section-panel') || '').trim();
+        panel.hidden = id !== safeId;
+    });
+}
+
+function _ensureKingSectionActive(defaultSectionId = 'store') {
+    const active = document.querySelector('[data-king-section-tab].is-active');
+    const activeId = String(active?.getAttribute('data-king-section-tab') || '').trim();
+    _setKingSectionActive(KING_SECTION_IDS.has(activeId) ? activeId : defaultSectionId);
 }
 
 function _formatEpochMs(ms) {
@@ -117,10 +139,7 @@ function _renderTroyMembers(members = []) {
                     </div>
                 </div>
                 <div class="king-chip-return-panel">
-                    <div class="king-chip-return-copy">
-                        <span>チップ返却</span>
-                        <small>${_escapeHtml(displayName)} にゴールド化して付与</small>
-                    </div>
+                    <span class="king-chip-return-label">チップ返却</span>
                     <div class="king-chip-return-controls">
                         <div class="transfer-input-row king-chip-return-input-row">
                             <input type="number" min="100" step="100" inputmode="numeric" placeholder="返却G" value="0" data-chip-return-amount="${_escapeHtml(playFabId)}" aria-label="${_escapeHtml(displayName)}への返却G" />
@@ -715,6 +734,7 @@ export async function loadKingPage(playFabId, options = {}) {
         if (troyStatusEl) troyStatusEl.classList.toggle('is-open', isOpen);
     }
     _syncTroyEntryQrButton(isOpen);
+    _ensureKingSectionActive(isOpen ? 'store' : 'ops');
     if (!isOpen) _setKingTroyEntryQrModalVisible(false);
     _renderNationWar(data.war);
 
@@ -745,6 +765,7 @@ function _wireHandlers(playFabId) {
     const warStrikeBtn = document.getElementById('btnKingWarStrike');
     const calendarMountEl = document.getElementById('kingTroyCalendarMount');
     const troyEntryListEl = document.getElementById('kingTroyEntryList');
+    const kingSectionTabsEl = document.getElementById('kingSectionTabs');
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
@@ -760,6 +781,15 @@ function _wireHandlers(playFabId) {
     if (reloadBtn2) {
         reloadBtn2.addEventListener('click', async () => {
             await loadKingPage(playFabId);
+        });
+    }
+
+    if (kingSectionTabsEl) {
+        kingSectionTabsEl.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            const button = target?.closest?.('[data-king-section-tab]');
+            if (!button) return;
+            _setKingSectionActive(button.getAttribute('data-king-section-tab') || 'store');
         });
     }
 

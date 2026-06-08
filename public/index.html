@@ -1095,29 +1095,42 @@
                     <p class="king-page-note">このページは各国（島）グループの王だけが閲覧できます。</p>
 
                     <div id="troyKingControls" style="display: none;">
-                        <div class="troy-admin-card troy-king-priority-card">
-                            <div class="king-troy-ops-head">
-                                <div>
-                                    <div class="troy-admin-label">TROY 営業</div>
-                                    <div id="kingTroyStatus" class="king-troy-status">CLOSE</div>
-                                </div>
-                                <div class="troy-admin-actions">
-                                    <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
-                                    <button id="btnKingTroyEntryQr" class="btn-open" type="button" style="display: none;" disabled>入店QR</button>
-                                    <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
+                        <div id="kingSectionTabs" class="king-section-tabs" role="tablist" aria-label="王ページメニュー">
+                            <button id="kingSectionTabOps" type="button" role="tab" aria-controls="kingSectionPanelOps" data-king-section-tab="ops">営業</button>
+                            <button id="kingSectionTabStore" type="button" role="tab" aria-controls="kingSectionPanelStore" data-king-section-tab="store">店内</button>
+                            <button id="kingSectionTabCalendar" type="button" role="tab" aria-controls="kingSectionPanelCalendar" data-king-section-tab="calendar">カレンダー</button>
+                            <button id="kingSectionTabMenu" type="button" role="tab" aria-controls="kingSectionPanelMenu" data-king-section-tab="menu">メニュー</button>
+                            <button id="kingSectionTabNotice" type="button" role="tab" aria-controls="kingSectionPanelNotice" data-king-section-tab="notice">告知</button>
+                        </div>
+                        <div id="kingPageMessage" class="king-page-message"></div>
+                        <section id="kingSectionPanelOps" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabOps" data-king-section-panel="ops">
+                            <div class="troy-admin-card troy-king-priority-card">
+                                <div class="king-troy-ops-head">
+                                    <div>
+                                        <div class="troy-admin-label">TROY 営業</div>
+                                        <div id="kingTroyStatus" class="king-troy-status">CLOSE</div>
+                                    </div>
+                                    <div class="troy-admin-actions">
+                                        <button id="btnKingTroyOpen" class="btn-open">OPEN</button>
+                                        <button id="btnKingTroyEntryQr" class="btn-open" type="button" style="display: none;" disabled>入店QR</button>
+                                        <button id="btnKingTroyClose" class="btn-muted">CLOSE</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="troy-admin-card troy-king-priority-card">
-                            <div class="troy-admin-label">店内リスト</div>
-                            <div id="kingTroyEntryList" class="troy-entry-list"></div>
-                            <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
-                        </div>
-                        <div class="troy-admin-card troy-king-priority-card">
-                            <div id="kingTroyCalendarMount"></div>
-                        </div>
-                        <details id="kingMenuDetails" class="troy-admin-details">
-                            <summary>メニュー管理</summary>
+                        </section>
+                        <section id="kingSectionPanelStore" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabStore" data-king-section-panel="store">
+                            <div class="troy-admin-card troy-king-priority-card">
+                                <div class="troy-admin-label">店内リスト</div>
+                                <div id="kingTroyEntryList" class="troy-entry-list"></div>
+                                <div id="kingTroyEntryEmpty" class="troy-entry-empty">入店者はいません</div>
+                            </div>
+                        </section>
+                        <section id="kingSectionPanelCalendar" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabCalendar" data-king-section-panel="calendar">
+                            <div class="troy-admin-card troy-king-priority-card">
+                                <div id="kingTroyCalendarMount"></div>
+                            </div>
+                        </section>
+                        <section id="kingSectionPanelMenu" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabMenu" data-king-section-panel="menu">
                             <div class="troy-admin-card">
                                 <div class="troy-admin-label">スタッフ用オーダーメニュー</div>
                                 <div class="troy-admin-help">スタッフ用オーダーページに追加する商品を管理します。</div>
@@ -1149,23 +1162,22 @@
                                     <button id="btnKingMenuAddCustom" class="btn-open">追加する</button>
                                 </div>
                             </div>
-                        </details>
-                    </div>
-
-                    <div class="king-card">
-                        <div class="king-card-label">現在の告知</div>
-                        <div id="kingAnnouncementCurrent" class="king-announcement-current">-</div>
-                        <div id="kingAnnouncementMeta" class="king-announcement-meta"></div>
-                    </div>
-
-                    <div class="king-editor-card">
-                        <div class="king-field-label">新しい告知（200文字まで）</div>
-                        <textarea id="kingAnnouncementInput" maxlength="200" rows="4" class="admin-textarea"></textarea>
-                        <div class="king-inline-actions">
-                            <button id="btnKingSaveAnnouncement" class="btn-open">告知を更新</button>
-                            <button id="btnKingReload2" class="btn-muted">再読み込み</button>
-                        </div>
-                        <div id="kingPageMessage"></div>
+                        </section>
+                        <section id="kingSectionPanelNotice" class="king-section-panel" role="tabpanel" aria-labelledby="kingSectionTabNotice" data-king-section-panel="notice">
+                            <div class="king-card">
+                                <div class="king-card-label">現在の告知</div>
+                                <div id="kingAnnouncementCurrent" class="king-announcement-current">-</div>
+                                <div id="kingAnnouncementMeta" class="king-announcement-meta"></div>
+                            </div>
+                            <div class="king-editor-card">
+                                <div class="king-field-label">新しい告知（200文字まで）</div>
+                                <textarea id="kingAnnouncementInput" maxlength="200" rows="4" class="admin-textarea"></textarea>
+                                <div class="king-inline-actions">
+                                    <button id="btnKingSaveAnnouncement" class="btn-open">告知を更新</button>
+                                    <button id="btnKingReload2" class="btn-muted">再読み込み</button>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>

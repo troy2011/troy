@@ -3755,64 +3755,62 @@ body.modal-lock .modal-overlay {
 }
 
 .king-chip-return-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 40px;
+    padding: 5px 8px;
     border-radius: 10px;
     border: 1px solid rgba(96, 165, 250, 0.22);
     background: rgba(15, 23, 42, 0.34);
 }
 
-.king-chip-return-copy {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-}
-
-.king-chip-return-copy span {
+.king-chip-return-label {
+    flex: 0 0 auto;
     color: #bfdbfe;
     font-size: 12px;
     font-weight: 900;
-}
-
-.king-chip-return-copy small {
-    color: var(--text-sub);
-    font-size: 11px;
-    line-height: 1.35;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .king-chip-return-controls {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
+    min-width: 0;
 }
 
 .king-chip-return-input-row {
-    width: 118px;
+    width: 104px;
+    min-height: 30px;
 }
 
 .king-chip-return-btn {
-    min-height: 32px;
-    padding: 6px 10px;
+    min-height: 30px;
+    padding: 5px 9px;
 }
 
 @media (max-width: 520px) {
     .king-chip-return-panel {
-        grid-template-columns: 1fr;
-        align-items: stretch;
+        flex-wrap: nowrap;
     }
 
     .king-chip-return-controls {
-        justify-content: stretch;
+        flex: 1 1 auto;
+        justify-content: flex-end;
     }
 
-    .king-chip-return-input-row,
+    .king-chip-return-input-row {
+        flex: 1 1 88px;
+        max-width: 112px;
+    }
+
     .king-chip-return-btn {
-        flex: 1 1 112px;
+        flex: 0 0 auto;
     }
 }
 
@@ -11567,8 +11565,10 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     }
 }
 
-#troyKingControls > div,
-#tabContentKing .content-area > div {
+#tabContentKing .king-card,
+#tabContentKing .king-editor-card,
+#tabContentKing .troy-admin-card,
+#tabContentKing .troy-admin-details {
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.14);
@@ -11580,8 +11580,10 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
         radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.08), transparent 62%) !important;
 }
 
-#troyKingControls > div::after,
-#tabContentKing .content-area > div::after {
+#tabContentKing .king-card::after,
+#tabContentKing .king-editor-card::after,
+#tabContentKing .troy-admin-card::after,
+#tabContentKing .troy-admin-details::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -11604,6 +11606,46 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
 #tabContentKing button {
     min-height: 44px;
     border-radius: 14px !important;
+}
+
+.king-section-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 8px;
+}
+
+#tabContentKing .king-section-tabs button {
+    min-height: 32px;
+    padding: 6px 10px;
+    border-radius: 999px !important;
+    border: 1px solid rgba(220, 169, 82, 0.28);
+    background: rgba(15, 23, 42, 0.72);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+#tabContentKing .king-section-tabs button.is-active {
+    border-color: rgba(251, 191, 36, 0.72);
+    background:
+        linear-gradient(180deg, rgba(251, 191, 36, 0.28), rgba(146, 64, 14, 0.34)),
+        rgba(15, 23, 42, 0.72);
+    color: #fff7ed;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.72);
+}
+
+.king-section-panel[hidden] {
+    display: none !important;
+}
+
+.king-page-message {
+    min-height: 22px;
+    margin: 6px 0 4px;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 
@@ -22161,6 +22203,41 @@ body[data-sea-tone] .home-hero-card {
     background:
         linear-gradient(180deg, rgba(8, 20, 32, 0.9), rgba(2, 5, 10, 0.96)),
         radial-gradient(ellipse at 50% 0%, rgba(66, 149, 196, 0.1), transparent 58%);
+}
+
+#tabContentKing .king-chip-return-panel {
+    min-height: 40px;
+    padding: 5px 8px;
+}
+
+#tabContentKing .king-chip-return-input-row {
+    width: 104px;
+    min-height: 30px;
+    margin: 0;
+    padding: 5px 8px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-image: none;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.82);
+}
+
+#tabContentKing .king-chip-return-input-row input {
+    min-height: 18px;
+    padding: 0 !important;
+    border: 0 !important;
+    border-image: none !important;
+    background: transparent !important;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+#tabContentKing .king-chip-return-input-row span {
+    font-size: 11px;
+}
+
+#tabContentKing .king-chip-return-btn {
+    min-height: 32px;
+    padding: 5px 9px;
 }
 
 .inventory-mobile-switch-btn:not(.active),

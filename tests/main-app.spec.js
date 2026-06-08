@@ -1543,6 +1543,13 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
     const king = await import('/js/nationKing.js');
     await king.loadKingPage('PF_PLAYWRIGHT');
   });
+  await expect(page.locator('[data-king-section-tab="ops"]')).toHaveClass(/is-active/);
+  await expect(page.locator('#btnKingTroyEntryQr')).toBeVisible();
+  await page.locator('[data-king-section-tab="store"]').click();
+  await expect(page.locator('[data-king-section-panel="store"]')).toBeVisible();
+  await expect(page.locator('#btnKingTroyEntryQr')).toBeHidden();
+  await page.locator('[data-king-section-tab="ops"]').click();
+  await expect(page.locator('[data-king-section-panel="ops"]')).toBeVisible();
   await expect(page.locator('#btnKingTroyEntryQr')).toBeVisible();
   await page.locator('#btnKingTroyEntryQr').click();
 
@@ -1624,6 +1631,9 @@ test('king store game scoring saves from each in-store customer row', async ({ p
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
 
+  await expect(page.locator('[data-king-section-tab="store"]')).toHaveClass(/is-active/);
+  await expect(page.locator('[data-king-section-panel="store"]')).toBeVisible();
+  await expect(page.locator('[data-king-section-panel="ops"]')).toBeHidden();
   await expect(page.locator('#kingStoreGameDetails')).toHaveCount(0);
   await expect(page.locator('#kingStoreGameType')).toHaveCount(0);
   await expect(page.locator('#btnKingCoinReturn')).toHaveCount(0);
