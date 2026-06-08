@@ -74,8 +74,11 @@ export function getStoreGameRanking(gameType, options) {
     return callApiWithLoader('/api/get-store-game-ranking', { gameType }, options);
 }
 
-export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, options) {
-    return callApiWithLoader('/api/king-update-store-game-score', { playFabId, targetPlayFabId, gameType, score }, options);
+export function kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, scoreOrPayload, options) {
+    const extraPayload = scoreOrPayload && typeof scoreOrPayload === 'object'
+        ? scoreOrPayload
+        : { score: scoreOrPayload };
+    return callApiWithLoader('/api/king-update-store-game-score', { playFabId, targetPlayFabId, gameType, ...extraPayload }, options);
 }
 
 export function getInventory(playFabId, options) {

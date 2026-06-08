@@ -126,12 +126,12 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await page.locator('#btnShowBilliardsRanking').click();
   await expect(page.locator('#billiardsRankingArea')).toBeVisible();
   await expect(page.locator('#billiardsRankingList')).toContainText('玉突き名人');
-  await expect(page.locator('#billiardsRankingList')).toContainText('800点');
+  await expect(page.locator('#billiardsRankingList')).toContainText('レート 800');
 
   await page.locator('#btnShowGameRanking').click();
   await expect(page.locator('#gameRankingArea')).toBeVisible();
   await expect(page.locator('#gameRankingList')).toContainText('遊技王');
-  await expect(page.locator('#gameRankingList')).toContainText('42点');
+  await expect(page.locator('#gameRankingList')).toContainText('レート 42');
   expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
 
   await expectNoPageErrors(errors);
@@ -1570,18 +1570,33 @@ test('king store game scoring saves from each in-store customer row', async ({ p
         nation: 'fire',
         troyOpen: true,
         troyMembers: [
-          { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: Date.now() - 1000, level: 24, rankName: '船長' }
+          { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: Date.now() - 1000, level: 24, rankName: '船長' },
+          { playFabId: 'PLAYER2', displayName: '月影の副長', joinedAtMs: Date.now() - 900, level: 18, rankName: '航海士' }
         ],
         announcement: { message: 'Map systems nominal' }
       })
     });
   });
   await page.route('**/api/king-update-store-game-score', async (route) => {
-    scoreRequests.push(route.request().postDataJSON());
+    const requestBody = route.request().postDataJSON();
+    scoreRequests.push(requestBody);
+    const responseBody = requestBody.gameType === 'billiards'
+      ? {
+          success: true,
+          label: 'ビリヤード',
+          displayName: '海風の船長',
+          opponentDisplayName: '月影の副長',
+          previousRating: 1000,
+          rating: 1032,
+          opponentPreviousRating: 1000,
+          opponentRating: 968,
+          score: 1032
+        }
+      : { success: true, label: 'ダーツカウントアップ', displayName: '海風の船長', score: requestBody.score };
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ success: true, label: 'ビリヤード', displayName: '海風の船長', score: 42 })
+      body: JSON.stringify(responseBody)
     });
   });
 
@@ -1602,18 +1617,36 @@ test('king store game scoring saves from each in-store customer row', async ({ p
 
   await playerRow.locator('.king-store-game-inline summary').click();
   await expect.poll(async () => playerRow.locator('.king-store-game-inline').evaluate((details) => details.open)).toBe(true);
-  await playerRow.locator('[data-store-game-type]').selectOption('billiards');
-  await playerRow.locator('[data-store-game-score]').fill('42');
+  await expect(playerRow.locator('[data-store-game-score]')).toBeVisible();
+  await expect(playerRow.locator('[data-store-game-opponent]')).toBeHidden();
+  await playerRow.locator('[data-store-game-score]').fill('701');
   await playerRow.locator('[data-store-game-save="PLAYER1"]').click();
 
   await expect.poll(() => scoreRequests.length).toBe(1);
   expect(scoreRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     targetPlayFabId: 'PLAYER1',
-    gameType: 'billiards',
-    score: 42
+    gameType: 'darts_countup',
+    score: 701
   });
-  await expect(page.locator('#kingPageMessage')).toContainText('ビリヤード: 海風の船長 の記録を 42点で保存しました。');
+  await expect(page.locator('#kingPageMessage')).toContainText('ダーツカウントアップ: 海風の船長 の記録を 701点で保存しました。');
+
+  await playerRow.locator('[data-store-game-type]').selectOption('billiards');
+  await expect(playerRow.locator('[data-store-game-score]')).toBeHidden();
+  await expect(playerRow.locator('[data-store-game-opponent]')).toBeVisible();
+  await expect(playerRow.locator('[data-store-game-save="PLAYER1"]')).toHaveText('勝利を記録');
+  await playerRow.locator('[data-store-game-opponent]').selectOption('PLAYER2');
+  await playerRow.locator('[data-store-game-save="PLAYER1"]').click();
+
+  await expect.poll(() => scoreRequests.length).toBe(2);
+  expect(scoreRequests[1]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    targetPlayFabId: 'PLAYER1',
+    gameType: 'billiards',
+    opponentPlayFabId: 'PLAYER2'
+  });
+  expect(scoreRequests[1].score).toBeUndefined();
+  await expect(page.locator('#kingPageMessage')).toContainText('ビリヤード: 海風の船長 が 月影の副長 に勝利。レート 1,000→1,032');
   await expectNoPageErrors(errors);
 });
 

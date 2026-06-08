@@ -29,11 +29,13 @@ const STORE_GAME_RANKING_UI = {
     },
     billiards: {
         listId: 'billiardsRankingList',
-        label: 'ビリヤード'
+        label: 'ビリヤード',
+        isRating: true
     },
     game: {
         listId: 'gameRankingList',
-        label: 'ゲーム'
+        label: 'ゲーム',
+        isRating: true
     },
     karaoke: {
         listId: 'karaokeRankingList',
@@ -252,6 +254,11 @@ function formatStoreGameScore(entry, gameType) {
     return formatNumber(storedScore);
 }
 
+function formatStoreGameRankingScore(entry, gameType) {
+    const value = formatStoreGameScore(entry, gameType);
+    return STORE_GAME_RANKING_UI[gameType]?.isRating ? `レート ${value}` : `${value}点`;
+}
+
 function normalizeStoreGameRankingType(value) {
     const key = String(value || '').trim().toLowerCase();
     return STORE_GAME_RANKING_UI[key] ? key : 'darts_countup';
@@ -396,7 +403,7 @@ export async function getStoreGameRanking(gameType = 'darts_countup') {
         rankingListEl.innerHTML = renderRankingRows(data.ranking, {
             emptyMessage: '（まだ記録がありません）',
             getName: (entry) => entry.displayName || '冒険者',
-            getScore: (entry) => `${formatStoreGameScore(entry, safeType)}点`,
+            getScore: (entry) => formatStoreGameRankingScore(entry, safeType),
             getMeta: formatPlayerLevelRankMeta,
             getPlayerId: (entry) => entry.playFabId || ''
         });

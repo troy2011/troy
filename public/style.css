@@ -3805,10 +3805,19 @@ body.modal-lock .modal-overlay {
     gap: 8px;
 }
 
+.king-store-game-inline-form.is-rating .king-store-game-inline-grid {
+    grid-template-columns: minmax(0, 0.74fr) minmax(0, 1fr);
+}
+
 .king-store-game-inline-grid label {
     display: grid;
     gap: 4px;
     min-width: 0;
+}
+
+.king-store-game-opponent-field[hidden],
+[data-store-game-score-field][hidden] {
+    display: none;
 }
 
 .king-store-game-inline-actions {

@@ -11,6 +11,8 @@ const VIRTUAL_CURRENCY_CODE = String(process.env.VIRTUAL_CURRENCY_CODE || 'PS').
 const LEADERBOARD_NAME = process.env.LEADERBOARD_NAME || 'ps_ranking';
 const ENABLE_LEGACY_POINT_ROUTES = String(process.env.ENABLE_LEGACY_POINT_ROUTES || '').trim().toLowerCase() === 'true';
 const BOUNTY_RANKING_STAT = 'bounty_ranking';
+const STORE_GAME_ELO_INITIAL_RATING = 1000;
+const STORE_GAME_ELO_K_FACTOR = 64;
 
 const ECONOMY_CURRENCY_IDS = new Set([
     VIRTUAL_CURRENCY_CODE,
@@ -29,16 +31,20 @@ const STORE_GAME_RANKING_STATS = {
         scoreScale: 1
     },
     billiards: {
-        statisticName: 'troy_billiards_score',
+        statisticName: 'troy_billiards_rating',
         label: 'ビリヤード',
-        maxScore: 999999,
-        scoreScale: 1
+        scoreScale: 1,
+        isRating: true,
+        initialRating: STORE_GAME_ELO_INITIAL_RATING,
+        kFactor: STORE_GAME_ELO_K_FACTOR
     },
     game: {
-        statisticName: 'troy_game_score',
+        statisticName: 'troy_game_rating',
         label: 'ゲーム',
-        maxScore: 999999,
-        scoreScale: 1
+        scoreScale: 1,
+        isRating: true,
+        initialRating: STORE_GAME_ELO_INITIAL_RATING,
+        kFactor: STORE_GAME_ELO_K_FACTOR
     },
     karaoke: {
         statisticName: 'troy_karaoke_score',
@@ -81,6 +87,53 @@ function normalizeStoreGameScore(value, game) {
     const storedScore = Math.round(clampedScore * scoreScale);
     const score = storedScore / scoreScale;
     return { score, storedScore };
+}
+
+function isStoreGameRatingGame(game) {
+    return Boolean(game?.isRating);
+}
+
+function normalizeStoreGameRating(value, game) {
+    const fallback = Math.max(1, Math.floor(Number(game?.initialRating) || STORE_GAME_ELO_INITIAL_RATING));
+    const rating = Math.floor(Number(value) || 0);
+    return rating > 0 ? rating : fallback;
+}
+
+function calculateStoreGameEloRating(playerRating, opponentRating, actualScore, game) {
+    const current = normalizeStoreGameRating(playerRating, game);
+    const opponent = normalizeStoreGameRating(opponentRating, game);
+    const kFactor = Math.max(1, Math.floor(Number(game?.kFactor) || STORE_GAME_ELO_K_FACTOR));
+    const expected = 1 / (1 + Math.pow(10, (opponent - current) / 400));
+    return Math.max(1, Math.round(current + (kFactor * (actualScore - expected))));
+}
+
+async function getStoreGameStatisticValue(playFabId, statisticName, deps) {
+    if (!playFabId || !statisticName) return 0;
+    try {
+        const result = await deps.promisifyPlayFab(deps.PlayFabServer.GetPlayerStatistics, {
+            PlayFabId: playFabId,
+            StatisticNames: [statisticName]
+        });
+        const stats = Array.isArray(result?.Statistics) ? result.Statistics : [];
+        const row = stats.find((entry) => String(entry?.StatisticName || '') === statisticName);
+        return Number(row?.Value || 0);
+    } catch {
+        return 0;
+    }
+}
+
+async function getPlayerDisplayName(playFabId, deps) {
+    const fallback = String(playFabId || '').trim();
+    if (!fallback) return '';
+    try {
+        const profile = await deps.promisifyPlayFab(deps.PlayFabServer.GetPlayerProfile, {
+            PlayFabId: fallback,
+            ProfileConstraints: { ShowDisplayName: true }
+        });
+        return String(profile?.PlayerProfile?.DisplayName || fallback).trim() || fallback;
+    } catch {
+        return fallback;
+    }
 }
 
 async function isKingPlayer(playFabId, deps) {
@@ -467,11 +520,21 @@ function initializeEconomyRoutes(app, deps) {
                         displayName: entry.DisplayName || entry.Profile?.DisplayName || '名無し',
                         score: Number(entry.StatValue || 0),
                         scoreScale: Math.max(1, Math.floor(Number(game.scoreScale) || 1)),
+                        isRating: isStoreGameRatingGame(game),
+                        initialRating: Math.max(1, Math.floor(Number(game.initialRating) || STORE_GAME_ELO_INITIAL_RATING)),
                         avatarUrl: entry.Profile?.AvatarUrl || null
                     })
                 )
                 : [];
-            res.json({ success: true, gameType, label: game.label, ranking });
+            res.json({
+                success: true,
+                gameType,
+                label: game.label,
+                isRating: isStoreGameRatingGame(game),
+                initialRating: Math.max(1, Math.floor(Number(game.initialRating) || STORE_GAME_ELO_INITIAL_RATING)),
+                kFactor: Math.max(1, Math.floor(Number(game.kFactor) || STORE_GAME_ELO_K_FACTOR)),
+                ranking
+            });
         } catch (error) {
             console.error('[get-store-game-ranking] failed:', error?.errorMessage || error?.message || error);
             return res.status(500).json({
@@ -496,6 +559,54 @@ function initializeEconomyRoutes(app, deps) {
             const gameType = normalizeStoreGameType(req.body?.gameType || req.body?.type);
             const game = STORE_GAME_RANKING_STATS[gameType];
             if (!game) return res.status(400).json({ error: 'InvalidGameType' });
+            if (isStoreGameRatingGame(game)) {
+                const opponentPlayFabId = String(req.body?.opponentPlayFabId || req.body?.opponentId || '').trim();
+                if (!opponentPlayFabId) return res.status(400).json({ error: '負けた相手を選択してください。' });
+                if (opponentPlayFabId === targetPlayFabId) return res.status(400).json({ error: '同じプレイヤー同士では記録できません。' });
+
+                const [winnerCurrentRaw, loserCurrentRaw] = await Promise.all([
+                    getStoreGameStatisticValue(targetPlayFabId, game.statisticName, { promisifyPlayFab, PlayFabServer }),
+                    getStoreGameStatisticValue(opponentPlayFabId, game.statisticName, { promisifyPlayFab, PlayFabServer })
+                ]);
+                const winnerPreviousRating = normalizeStoreGameRating(winnerCurrentRaw, game);
+                const loserPreviousRating = normalizeStoreGameRating(loserCurrentRaw, game);
+                const winnerRating = calculateStoreGameEloRating(winnerPreviousRating, loserPreviousRating, 1, game);
+                const loserRating = calculateStoreGameEloRating(loserPreviousRating, winnerPreviousRating, 0, game);
+
+                await Promise.all([
+                    promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: targetPlayFabId,
+                        Statistics: [{ StatisticName: game.statisticName, Value: winnerRating }]
+                    }),
+                    promisifyPlayFab(PlayFabServer.UpdatePlayerStatistics, {
+                        PlayFabId: opponentPlayFabId,
+                        Statistics: [{ StatisticName: game.statisticName, Value: loserRating }]
+                    })
+                ]);
+                const [winnerDisplayName, loserDisplayName] = await Promise.all([
+                    getPlayerDisplayName(targetPlayFabId, { promisifyPlayFab, PlayFabServer }),
+                    getPlayerDisplayName(opponentPlayFabId, { promisifyPlayFab, PlayFabServer })
+                ]);
+                return res.json({
+                    success: true,
+                    gameType,
+                    label: game.label,
+                    isRating: true,
+                    targetPlayFabId,
+                    opponentPlayFabId,
+                    displayName: winnerDisplayName,
+                    opponentDisplayName: loserDisplayName,
+                    previousRating: winnerPreviousRating,
+                    rating: winnerRating,
+                    opponentPreviousRating: loserPreviousRating,
+                    opponentRating: loserRating,
+                    score: winnerRating,
+                    storedScore: winnerRating,
+                    scoreScale: 1,
+                    initialRating: Math.max(1, Math.floor(Number(game.initialRating) || STORE_GAME_ELO_INITIAL_RATING)),
+                    kFactor: Math.max(1, Math.floor(Number(game.kFactor) || STORE_GAME_ELO_K_FACTOR))
+                });
+            }
             const scoreInfo = normalizeStoreGameScore(req.body?.score, game);
             if (scoreInfo.storedScore <= 0) return res.status(400).json({ error: '点数を入力してください。' });
 
@@ -503,14 +614,7 @@ function initializeEconomyRoutes(app, deps) {
                 PlayFabId: targetPlayFabId,
                 Statistics: [{ StatisticName: game.statisticName, Value: scoreInfo.storedScore }]
             });
-            let displayName = targetPlayFabId;
-            try {
-                const profile = await promisifyPlayFab(PlayFabServer.GetPlayerProfile, {
-                    PlayFabId: targetPlayFabId,
-                    ProfileConstraints: { ShowDisplayName: true }
-                });
-                displayName = String(profile?.PlayerProfile?.DisplayName || targetPlayFabId).trim() || targetPlayFabId;
-            } catch {}
+            const displayName = await getPlayerDisplayName(targetPlayFabId, { promisifyPlayFab, PlayFabServer });
             res.json({
                 success: true,
                 gameType,

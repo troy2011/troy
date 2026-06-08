@@ -29,12 +29,30 @@ const STORE_GAME_LABELS = {
     game: 'ゲーム',
     karaoke: 'カラオケ採点'
 };
+const STORE_GAME_RATING_TYPES = new Set(['billiards', 'game']);
 
 function _getStoreGameOptionsHtml(selected = 'darts_countup') {
     const current = String(selected || 'darts_countup').trim().toLowerCase();
     return Object.entries(STORE_GAME_LABELS).map(([value, label]) => (
         `<option value="${_escapeHtml(value)}"${value === current ? ' selected' : ''}>${_escapeHtml(label)}</option>`
     )).join('');
+}
+
+function _getStoreGameOpponentOptionsHtml(members = [], currentPlayFabId = '') {
+    const current = String(currentPlayFabId || '').trim();
+    const options = (Array.isArray(members) ? members : [])
+        .map((member) => ({
+            playFabId: String(member?.playFabId || member?.id || '').trim(),
+            displayName: String(member?.displayName || member?.playFabId || member?.id || 'Player').trim()
+        }))
+        .filter((member) => member.playFabId && member.playFabId !== current);
+    if (!options.length) return '<option value="">対戦相手なし</option>';
+    return [
+        '<option value="">負けた相手を選択</option>',
+        ...options.map((member) => (
+            `<option value="${_escapeHtml(member.playFabId)}">${_escapeHtml(member.displayName)}</option>`
+        ))
+    ].join('');
 }
 
 function _setMessage(text, isError = false) {
@@ -83,6 +101,7 @@ function _renderTroyMembers(members = []) {
             : [];
         const benefitText = rankBenefits.length ? rankBenefits.join(' / ') : '通常サービス';
         const displayName = String(member.displayName || playFabId || 'Player').trim();
+        const opponentOptionsHtml = _getStoreGameOpponentOptionsHtml(rows, playFabId);
         return `
             <div class="troy-entry-item is-king-entry" data-troy-entry-player="${_escapeHtml(playFabId)}">
                 <div class="troy-entry-row">
@@ -107,9 +126,15 @@ function _renderTroyMembers(members = []) {
                                     ${_getStoreGameOptionsHtml()}
                                 </select>
                             </label>
-                            <label>
+                            <label data-store-game-score-field>
                                 <span class="troy-admin-field-label">点数</span>
                                 <input type="number" min="1" step="1" placeholder="例: 701" class="admin-input" data-store-game-score />
+                            </label>
+                            <label class="king-store-game-opponent-field" data-store-game-opponent-field hidden>
+                                <span class="troy-admin-field-label">負けた相手</span>
+                                <select class="admin-input" data-store-game-opponent>
+                                    ${opponentOptionsHtml}
+                                </select>
                             </label>
                         </div>
                         <div class="king-store-game-inline-actions">
@@ -121,7 +146,7 @@ function _renderTroyMembers(members = []) {
         `;
     }).join('');
     listEl.querySelectorAll('.king-store-game-inline-form').forEach((form) => {
-        _syncStoreGameScoreInput(form.querySelector('[data-store-game-type]'), form.querySelector('[data-store-game-score]'));
+        _syncStoreGameForm(form);
     });
 }
 
@@ -498,7 +523,45 @@ function _getStoreGameLabel(gameType) {
     return STORE_GAME_LABELS[String(gameType || '').trim().toLowerCase()] || STORE_GAME_LABELS.darts_countup;
 }
 
+function _isStoreGameRatingType(gameType) {
+    return STORE_GAME_RATING_TYPES.has(String(gameType || '').trim().toLowerCase());
+}
+
+function _syncStoreGameForm(form) {
+    if (!form) return;
+    const typeEl = form.querySelector('[data-store-game-type]');
+    const scoreEl = form.querySelector('[data-store-game-score]');
+    const scoreField = form.querySelector('[data-store-game-score-field]');
+    const opponentEl = form.querySelector('[data-store-game-opponent]');
+    const opponentField = form.querySelector('[data-store-game-opponent-field]');
+    const saveBtn = form.querySelector('[data-store-game-save]');
+    const gameType = String(typeEl?.value || 'darts_countup');
+    const isRating = _isStoreGameRatingType(gameType);
+    form.classList.toggle('is-rating', isRating);
+    if (scoreField) scoreField.hidden = isRating;
+    if (opponentField) opponentField.hidden = !isRating;
+    if (scoreEl) {
+        const isKaraoke = gameType === 'karaoke';
+        scoreEl.step = isKaraoke ? '0.001' : '1';
+        scoreEl.min = isKaraoke ? '0.001' : '1';
+        scoreEl.placeholder = isKaraoke ? '例: 90.568' : '例: 701';
+        scoreEl.required = !isRating;
+    }
+    if (opponentEl) {
+        opponentEl.required = isRating;
+    }
+    if (saveBtn && !saveBtn.disabled) {
+        saveBtn.textContent = isRating ? '勝利を記録' : '点数を保存';
+    }
+}
+
 function _syncStoreGameScoreInput(typeEl, scoreEl) {
+    const form = typeEl?.closest?.('.king-store-game-inline-form')
+        || scoreEl?.closest?.('.king-store-game-inline-form');
+    if (form) {
+        _syncStoreGameForm(form);
+        return;
+    }
     if (!scoreEl) return;
     const isKaraoke = String(typeEl?.value || '') === 'karaoke';
     scoreEl.step = isKaraoke ? '0.001' : '1';
@@ -711,13 +774,21 @@ function _wireHandlers(playFabId) {
                 const form = storeGameSaveBtn.closest('.king-store-game-inline-form');
                 const typeEl = form?.querySelector('[data-store-game-type]');
                 const scoreEl = form?.querySelector('[data-store-game-score]');
+                const opponentEl = form?.querySelector('[data-store-game-opponent]');
                 const gameType = String(typeEl?.value || 'darts_countup');
+                const isRating = _isStoreGameRatingType(gameType);
                 const score = Number(scoreEl?.value) || 0;
+                const opponentPlayFabId = String(opponentEl?.value || '').trim();
                 if (!targetPlayFabId) {
                     _setMessage('採点対象が不正です。', true);
                     return;
                 }
-                if (!score || score <= 0) {
+                if (isRating && !opponentPlayFabId) {
+                    _setMessage('負けた相手を選択してください。', true);
+                    opponentEl?.focus();
+                    return;
+                }
+                if (!isRating && (!score || score <= 0)) {
                     _setMessage('点数を入力してください。', true);
                     scoreEl?.focus();
                     return;
@@ -727,12 +798,23 @@ function _wireHandlers(playFabId) {
                 storeGameSaveBtn.textContent = '保存中...';
                 if (typeEl) typeEl.disabled = true;
                 if (scoreEl) scoreEl.disabled = true;
+                if (opponentEl) opponentEl.disabled = true;
                 try {
-                    const result = await kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, score, { isSilent: true, throwOnError: true });
+                    const payload = isRating ? { opponentPlayFabId } : score;
+                    const result = await kingUpdateStoreGameScore(playFabId, targetPlayFabId, gameType, payload, { isSilent: true, throwOnError: true });
                     const label = result?.label || _getStoreGameLabel(gameType);
                     const name = result?.displayName || String(storeGameSaveBtn.getAttribute('data-store-game-name') || '').trim() || targetPlayFabId;
-                    _setMessage(`${label}: ${name} の記録を ${_formatStoreGameScore(result?.score || score, gameType)}点で保存しました。`);
-                    if (scoreEl) scoreEl.value = '';
+                    if (isRating) {
+                        const opponentName = result?.opponentDisplayName || opponentEl?.selectedOptions?.[0]?.textContent || opponentPlayFabId;
+                        const previousRating = _formatStoreGameScore(result?.previousRating || 1000, gameType);
+                        const rating = _formatStoreGameScore(result?.rating || result?.score || 0, gameType);
+                        const opponentPreviousRating = _formatStoreGameScore(result?.opponentPreviousRating || 1000, gameType);
+                        const opponentRating = _formatStoreGameScore(result?.opponentRating || 0, gameType);
+                        _setMessage(`${label}: ${name} が ${opponentName} に勝利。レート ${previousRating}→${rating} / ${opponentName} ${opponentPreviousRating}→${opponentRating}`);
+                    } else {
+                        _setMessage(`${label}: ${name} の記録を ${_formatStoreGameScore(result?.score || score, gameType)}点で保存しました。`);
+                        if (scoreEl) scoreEl.value = '';
+                    }
                 } catch (error) {
                     _setMessage(_extractErrorMessage(error, '店内ゲームの点数更新に失敗しました。'), true);
                 } finally {
@@ -740,6 +822,8 @@ function _wireHandlers(playFabId) {
                     storeGameSaveBtn.textContent = previous;
                     if (typeEl) typeEl.disabled = false;
                     if (scoreEl) scoreEl.disabled = false;
+                    if (opponentEl) opponentEl.disabled = false;
+                    _syncStoreGameForm(form);
                 }
                 return;
             }
@@ -790,7 +874,7 @@ function _wireHandlers(playFabId) {
             const typeEl = target?.matches?.('[data-store-game-type]') ? target : null;
             if (!typeEl) return;
             const form = typeEl.closest('.king-store-game-inline-form');
-            _syncStoreGameScoreInput(typeEl, form?.querySelector('[data-store-game-score]'));
+            _syncStoreGameForm(form);
         });
     }
 
