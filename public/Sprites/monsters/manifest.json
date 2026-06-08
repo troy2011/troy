@@ -16,8 +16,8 @@
                            "h":  420,
                            "x":  0
                        },
-        "width":  320,
-        "height":  420
+        "width":  280,
+        "height":  440
     },
     {
         "id":  "ghost_pirate",
@@ -36,8 +36,8 @@
                            "h":  386,
                            "x":  300
                        },
-        "width":  288,
-        "height":  386
+        "width":  320,
+        "height":  440
     },
     {
         "id":  "zombie_raider",
@@ -56,8 +56,8 @@
                            "h":  380,
                            "x":  605
                        },
-        "width":  265,
-        "height":  380
+        "width":  280,
+        "height":  400
     },
     {
         "id":  "drowned_buccaneer",
@@ -76,8 +76,8 @@
                            "h":  380,
                            "x":  884
                        },
-        "width":  296,
-        "height":  380
+        "width":  320,
+        "height":  400
     },
     {
         "id":  "shark_raider",
@@ -96,8 +96,8 @@
                            "h":  347,
                            "x":  1200
                        },
-        "width":  324,
-        "height":  347
+        "width":  320,
+        "height":  360
     },
     {
         "id":  "crab_brute",
@@ -117,7 +117,7 @@
                            "x":  0
                        },
         "width":  320,
-        "height":  298
+        "height":  320
     },
     {
         "id":  "anchor_golem",
@@ -136,8 +136,8 @@
                            "h":  351,
                            "x":  330
                        },
-        "width":  292,
-        "height":  351
+        "width":  320,
+        "height":  400
     },
     {
         "id":  "cursed_shipwheel",
@@ -156,8 +156,8 @@
                            "h":  335,
                            "x":  640
                        },
-        "width":  277,
-        "height":  335
+        "width":  280,
+        "height":  360
     },
     {
         "id":  "mimic_chest",
@@ -176,8 +176,8 @@
                            "h":  290,
                            "x":  960
                        },
-        "width":  240,
-        "height":  290
+        "width":  280,
+        "height":  320
     },
     {
         "id":  "cannon_mimic",
@@ -196,8 +196,8 @@
                            "h":  290,
                            "x":  1220
                        },
-        "width":  296,
-        "height":  290
+        "width":  320,
+        "height":  320
     },
     {
         "id":  "blue_kraken",
@@ -216,8 +216,8 @@
                            "h":  265,
                            "x":  21
                        },
-        "width":  279,
-        "height":  265
+        "width":  320,
+        "height":  320
     },
     {
         "id":  "kraken_pirate",
@@ -236,8 +236,8 @@
                            "h":  360,
                            "x":  328
                        },
-        "width":  312,
-        "height":  360
+        "width":  360,
+        "height":  320
     },
     {
         "id":  "lantern_wraith",
@@ -256,8 +256,8 @@
                            "h":  322,
                            "x":  716
                        },
-        "width":  144,
-        "height":  322
+        "width":  160,
+        "height":  320
     },
     {
         "id":  "skeletal_parrot",
@@ -276,8 +276,8 @@
                            "h":  313,
                            "x":  901
                        },
-        "width":  252,
-        "height":  313
+        "width":  280,
+        "height":  320
     },
     {
         "id":  "puffer_bomb",
@@ -296,8 +296,8 @@
                            "h":  310,
                            "x":  1200
                        },
-        "width":  231,
-        "height":  310
+        "width":  280,
+        "height":  320
     },
     {
         "id":  "treasure_slime",
@@ -316,8 +316,8 @@
                            "h":  269,
                            "x":  10
                        },
-        "width":  340,
-        "height":  269
+        "width":  360,
+        "height":  280
     },
     {
         "id":  "coral_goblin",
@@ -336,8 +336,8 @@
                            "h":  332,
                            "x":  374
                        },
-        "width":  292,
-        "height":  332
+        "width":  320,
+        "height":  360
     },
     {
         "id":  "merfolk_lancer",
@@ -356,7 +356,7 @@
                            "h":  355,
                            "x":  680
                        },
-        "width":  557,
-        "height":  355
+        "width":  560,
+        "height":  360
     }
 ]
