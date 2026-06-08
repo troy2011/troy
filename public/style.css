@@ -3690,18 +3690,23 @@ body.modal-lock .modal-overlay {
     font-size: 13px;
 }
 
+.troy-entry-item.is-king-entry {
+    display: grid;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.troy-entry-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .troy-entry-main {
     min-width: 0;
     display: grid;
     gap: 2px;
-}
-
-.king-store-game-target {
-    cursor: pointer;
-}
-
-.king-store-game-target:active {
-    color: #fde68a;
 }
 
 .troy-entry-item b {
@@ -3749,26 +3754,71 @@ body.modal-lock .modal-overlay {
     padding: 6px 10px;
 }
 
-.king-store-game-select-btn {
-    min-height: 32px;
-    padding: 6px 10px;
+.king-store-game-inline {
+    border-radius: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    background: rgba(15, 23, 42, 0.42);
+    overflow: hidden;
 }
 
-.king-store-game-selected {
-    margin: 10px 0 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(245, 158, 11, 0.32);
-    background: rgba(245, 158, 11, 0.12);
+.king-store-game-inline summary {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
     color: #fde68a;
-    font-size: 13px;
+    cursor: pointer;
+    font-size: 12px;
     font-weight: 900;
+    list-style: none;
 }
 
-.king-store-game-selected.is-empty {
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(15, 23, 42, 0.45);
-    color: var(--text-sub);
+.king-store-game-inline summary::-webkit-details-marker {
+    display: none;
+}
+
+.king-store-game-inline summary::after {
+    content: '+';
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.king-store-game-inline[open] summary::after {
+    content: '-';
+}
+
+.king-store-game-inline-form {
+    display: grid;
+    gap: 8px;
+    padding: 0 10px 10px;
+}
+
+.king-store-game-inline-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(104px, 0.55fr);
+    gap: 8px;
+}
+
+.king-store-game-inline-grid label {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.king-store-game-inline-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.king-store-game-inline-save {
+    min-height: 34px;
+    padding: 7px 12px;
 }
 
 .troy-entry-empty {
@@ -20487,6 +20537,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentMap .map-secondary-action-btn,
 .battle-room-btn,
 #tabContentKing .king-inline-actions button,
+#tabContentKing .king-store-game-inline-save,
 #tabContentKing .troy-admin-actions button {
     display: inline-flex;
     align-items: center;
@@ -20503,6 +20554,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentMap .map-secondary-action-btn::before,
 .battle-room-btn::before,
 #tabContentKing .king-inline-actions button::before,
+#tabContentKing .king-store-game-inline-save::before,
 #tabContentKing .troy-admin-actions button::before {
     content: "";
     width: 22px;
@@ -20518,7 +20570,7 @@ body[data-sea-tone] .home-hero-card {
 #battleRoomJoinBtn,
 #btnKingTroyOpen,
 #btnKingSaveAnnouncement,
-#btnKingSaveStoreGameScore,
+.king-store-game-inline-save,
 #btnKingTroyCalendarSave {
     --command-icon: var(--icon-action-check);
 }

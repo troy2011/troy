@@ -133,8 +133,6 @@ test('ranking tab shows bounty billiards and game as top category buttons', asyn
   await expect(page.locator('#gameRankingList')).toContainText('遊技王');
   await expect(page.locator('#gameRankingList')).toContainText('42点');
   expect([...storeGameRequests].sort()).toEqual(['billiards', 'game']);
-  await expect(page.locator('#kingStoreGameType option[value="billiards"]')).toHaveText('ビリヤード');
-  await expect(page.locator('#kingStoreGameType option[value="game"]')).toHaveText('ゲーム');
 
   await expectNoPageErrors(errors);
 });
@@ -1559,7 +1557,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
   await expectNoPageErrors(errors);
 });
 
-test('king store game scoring selects an in-store customer before saving', async ({ page }) => {
+test('king store game scoring saves from each in-store customer row', async ({ page }) => {
   const errors = trackPageErrors(page);
   const scoreRequests = [];
   await bootstrapMainApp(page);
@@ -1593,18 +1591,20 @@ test('king store game scoring selects an in-store customer before saving', async
     await window.showTab('king', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
   });
 
-  await expect(page.locator('#kingStoreGameSelected')).toHaveText('店内リストからお客さんを選択');
-  await expect(page.locator('#btnKingSaveStoreGameScore')).toBeDisabled();
+  await expect(page.locator('#kingStoreGameDetails')).toHaveCount(0);
+  await expect(page.locator('#kingStoreGameType')).toHaveCount(0);
 
-  await page.locator('.troy-entry-main[data-store-game-target="PLAYER1"]').click();
-  await expect.poll(async () => page.locator('#kingStoreGameDetails').evaluate((details) => details.open)).toBe(true);
-  await expect(page.locator('#kingStoreGameSelected')).toHaveText('対象: 海風の船長');
-  await expect(page.locator('#kingStoreGamePlayerId')).toHaveValue('PLAYER1');
-  await expect(page.locator('#btnKingSaveStoreGameScore')).toBeEnabled();
+  const playerRow = page.locator('.troy-entry-item[data-troy-entry-player="PLAYER1"]');
+  await expect(playerRow).toContainText('海風の船長');
+  await expect(playerRow.locator('.king-store-game-inline summary')).toHaveText('店内ゲーム採点');
+  await expect(playerRow.locator('[data-store-game-type] option[value="billiards"]')).toHaveText('ビリヤード');
+  await expect(playerRow.locator('[data-store-game-type] option[value="game"]')).toHaveText('ゲーム');
 
-  await page.locator('#kingStoreGameType').selectOption('billiards');
-  await page.locator('#kingStoreGameScore').fill('42');
-  await page.locator('#btnKingSaveStoreGameScore').click();
+  await playerRow.locator('.king-store-game-inline summary').click();
+  await expect.poll(async () => playerRow.locator('.king-store-game-inline').evaluate((details) => details.open)).toBe(true);
+  await playerRow.locator('[data-store-game-type]').selectOption('billiards');
+  await playerRow.locator('[data-store-game-score]').fill('42');
+  await playerRow.locator('[data-store-game-save="PLAYER1"]').click();
 
   await expect.poll(() => scoreRequests.length).toBe(1);
   expect(scoreRequests[0]).toMatchObject({
