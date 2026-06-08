@@ -5248,15 +5248,6 @@ function initializeNationRoutes(app, deps) {
         return [...byItemId.values()];
     }
 
-    function hasTroyMenuConsumableCatalogItem(itemId) {
-        const target = String(itemId || '').trim();
-        if (!target) return false;
-        return Object.values(catalogCache || {}).some((entry) => (
-            String(entry?.FriendlyId || '').trim() === target
-            || String(entry?.ItemId || '').trim() === target
-        ));
-    }
-
     async function grantTroyMenuConsumables(playFabId, checkoutPayload = {}, checkoutStableId = '') {
         const targetId = normalizePlayFabId(playFabId);
         const rewards = buildTroyMenuConsumableRewards(checkoutPayload);
@@ -5266,26 +5257,27 @@ function initializeNationRoutes(app, deps) {
 
         const safeStableId = String(checkoutStableId || `${checkoutPayload.playFabId || targetId}:${checkoutPayload.createdAtMs || 0}:${checkoutPayload.total || 0}`).trim();
         const granted = [];
-        const missing = [];
         for (const reward of rewards) {
-            if (!hasTroyMenuConsumableCatalogItem(reward.itemId)) {
-                missing.push(reward);
-                continue;
+            try {
+                await addEconomyItem(targetId, reward.itemId, reward.quantity, {
+                    idempotencyId: `troy-menu-consumable:${safeStableId}:${reward.itemId}`,
+                    alternateIdType: 'FriendlyId'
+                });
+            } catch (grantError) {
+                const message = grantError?.errorMessage || grantError?.message || String(grantError);
+                const error = new Error(`MenuConsumableGrantFailed:${reward.name}`);
+                error.statusCode = 500;
+                error.details = `${reward.name}:${reward.itemId}:${message}`;
+                throw error;
             }
-            await addEconomyItem(targetId, reward.itemId, reward.quantity, {
-                idempotencyId: `troy-menu-consumable:${safeStableId}:${reward.itemId}`
-            });
             granted.push(reward);
-        }
-        if (missing.length) {
-            console.warn('[troy-menu-consumable] Catalog item missing:', missing.map((item) => `${item.name}:${item.itemId}`).join(', '));
         }
 
         return {
             applied: granted.length > 0,
             targetPlayFabId: targetId,
             items: granted,
-            missingItems: missing
+            missingItems: []
         };
     }
 
@@ -5356,7 +5348,7 @@ function initializeNationRoutes(app, deps) {
         try {
             menuConsumableGrant = await grantTroyMenuConsumables(representativeId, checkoutPayload, checkoutStableId);
         } catch (menuGrantIssue) {
-            menuConsumableGrantError = menuGrantIssue?.errorMessage || menuGrantIssue?.message || String(menuGrantIssue);
+            menuConsumableGrantError = menuGrantIssue?.details || menuGrantIssue?.errorMessage || menuGrantIssue?.message || String(menuGrantIssue);
             console.warn(`[${logPrefix}] Menu consumable grant failed:`, menuConsumableGrantError);
             const error = new Error('FailedToGrantMenuConsumable');
             error.statusCode = 500;

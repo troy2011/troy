@@ -937,24 +937,28 @@ function createDependencies() {
         addEconomyItem: (playFabId, itemId, amount, options) => {
             const entityKeyOverride = (options && options.Id && options.Type) ? options : options?.entityKeyOverride;
             const idempotencyId = options?.idempotencyId;
+            const alternateIdType = options?.alternateIdType;
             return economy.addEconomyItem(playFabId, itemId, amount, {
                 promisifyPlayFab,
                 PlayFabEconomy,
                 getEntityKeyFromPlayFabId,
                 entityKeyOverride,
                 idempotencyId,
+                alternateIdType,
                 resolveItemId: resolveCatalogItemId
             });
         },
         subtractEconomyItem: (playFabId, itemId, amount, options) => {
             const entityKeyOverride = (options && options.Id && options.Type) ? options : options?.entityKeyOverride;
             const idempotencyId = options?.idempotencyId;
+            const alternateIdType = options?.alternateIdType;
             return economy.subtractEconomyItem(playFabId, itemId, amount, {
                 promisifyPlayFab,
                 PlayFabEconomy,
                 getEntityKeyFromPlayFabId,
                 entityKeyOverride,
                 idempotencyId,
+                alternateIdType,
                 resolveItemId: resolveCatalogItemId
             });
         },

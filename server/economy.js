@@ -227,14 +227,16 @@ async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
 }
 
 async function addEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId, alternateIdType } = deps;
     const requestEntity = normalizeEntityKey(entityKeyOverride);
     const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
-    const resolvedItemId = typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId;
+    const itemReference = alternateIdType
+        ? { AlternateId: { Type: String(alternateIdType), Value: String(itemId) } }
+        : { Id: typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId };
     const request = {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: resolvedItemId }
+        Item: itemReference
     };
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
     await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.AddInventoryItems, request));
@@ -242,14 +244,16 @@ async function addEconomyItem(playFabId, itemId, amount, deps) {
 }
 
 async function subtractEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId, alternateIdType } = deps;
     const requestEntity = normalizeEntityKey(entityKeyOverride);
     const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
-    const resolvedItemId = typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId;
+    const itemReference = alternateIdType
+        ? { AlternateId: { Type: String(alternateIdType), Value: String(itemId) } }
+        : { Id: typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId };
     const request = {
         Entity: entityKey,
         Amount: Number(amount),
-        Item: { Id: resolvedItemId }
+        Item: itemReference
     };
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
     await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.SubtractInventoryItems, request));
