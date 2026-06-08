@@ -1748,6 +1748,102 @@ test('king can found a nation guild from companions regardless of level', async 
   await expectNoPageErrors(errors);
 });
 
+test('companion tab hides internal PlayFab IDs from member and application cards', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/get-stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        stats: { Level: 24 },
+        isKing: false,
+        nation: 'fire'
+      })
+    });
+  });
+  await page.route('**/api/crew-recruitment/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ posts: [] })
+    });
+  });
+  await page.route('**/api/get-guild-members', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        members: [
+          {
+            playFabId: 'PLAYER_MEMBER_1',
+            displayName: '海風の剣士',
+            crewRoleId: 'swordsman',
+            crewRoleLabel: '剣士',
+            level: 24
+          }
+        ]
+      })
+    });
+  });
+  await page.route('**/api/get-guild-applications', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        applications: [
+          {
+            playFabId: 'APPLICANT_DOCTOR',
+            displayName: '流浪の医師',
+            crewRoleId: 'doctor',
+            crewRoleLabel: '医師',
+            appliedAt: Date.now()
+          }
+        ]
+      })
+    });
+  });
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-guild-info');
+  await page.route('**/api/get-guild-info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        guild: {
+          guildId: 'GUILD_OWNER',
+          name: 'テスト海賊団',
+          role: '船長',
+          isOwner: true,
+          guildType: 'pirate',
+          companionCount: 1,
+          maxCompanions: 7,
+          memberCount: 2,
+          maxMembers: 8,
+          level: 1,
+          treasury: 0,
+          availableRoles: [
+            { id: 'swordsman', available: false },
+            { id: 'doctor', available: true }
+          ]
+        }
+      })
+    });
+  });
+
+  await page.evaluate(async () => {
+    const events = await import('/js/events.js');
+    await events.loadEventPage('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#crewMembersList')).toContainText('海風の剣士');
+  await expect(page.locator('#crewMembersList')).toContainText('剣士');
+  await expect(page.locator('#crewApplicationsList')).toContainText('流浪の医師');
+  await expect(page.locator('#crewApplicationsList')).toContainText('医師');
+  await expect(page.locator('#tabContentEvents')).not.toContainText('ID PLAYER_MEMBER_1');
+  await expect(page.locator('#tabContentEvents')).not.toContainText('ID APPLICANT_DOCTOR');
+  await expectNoPageErrors(errors);
+});
+
 test('current equipment slots render equipped item sprites on the right edge', async ({ page }) => {
   const errors = trackPageErrors(page);
   await page.route('**/api/get-player-public-profile', async (route) => {

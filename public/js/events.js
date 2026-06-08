@@ -325,7 +325,7 @@ function renderApplications(applications, guild) {
                 <span class="event-status">${escapeHtml(app.crewRoleLabel || roleDef?.label || '役職未選択')}</span>
             </div>
             <div class="event-card-meta">
-                <span>ID ${escapeHtml(playFabId || '-')}</span>
+                ${roleDef?.gameLabel ? `<span>${escapeHtml(roleDef.gameLabel)}</span>` : ''}
                 ${app.appliedAt ? `<span>${escapeHtml(formatDateTime(app.appliedAt))}</span>` : ''}
             </div>
             <div class="crew-application-role-row">
@@ -490,7 +490,6 @@ function renderMembers(members) {
                 <span class="event-status">${escapeHtml(member.crewRoleLabel || member.role || '仲間')}</span>
             </div>
             <div class="event-card-meta">
-                <span>ID ${escapeHtml(playFabId || '-')}</span>
                 ${gameLabel ? `<span>${escapeHtml(gameLabel)}</span>` : ''}
                 ${roleId ? `<span>役職Lv.${rankLevel}</span>` : ''}
                 ${member.level ? `<span>Lv.${Number(member.level || 1)}</span>` : ''}
