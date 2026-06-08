@@ -94,17 +94,25 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   const panelFrame = await panel.evaluate((element) => {
     const style = window.getComputedStyle(element);
     const skullStyle = window.getComputedStyle(element, '::before');
+    const rect = element.getBoundingClientRect();
+    const messageStyle = window.getComputedStyle(element.querySelector('.home-announcement-message'));
     return {
+      height: rect.height,
       borderImageSource: style.borderImageSource,
       borderImageSlice: style.borderImageSlice,
       borderImageWidth: style.borderImageWidth,
-      skullBackground: skullStyle.backgroundImage
+      skullBackground: skullStyle.backgroundImage,
+      messageWhiteSpace: messageStyle.whiteSpace,
+      messageTextOverflow: messageStyle.textOverflow
     };
   });
+  expect(panelFrame.height).toBeLessThanOrEqual(54);
   expect(panelFrame.borderImageSource).toContain('panel-dark-gold.png');
   expect(panelFrame.borderImageSlice).toContain('32');
   expect(panelFrame.borderImageWidth).toContain('14px');
   expect(panelFrame.skullBackground).toContain('019.png');
+  expect(panelFrame.messageWhiteSpace).toBe('nowrap');
+  expect(panelFrame.messageTextOverflow).toBe('ellipsis');
   await expectNoPageErrors(errors);
 });
 

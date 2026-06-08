@@ -18147,9 +18147,14 @@ body[data-sea-tone] .home-hero-card {
 
 .home-announcement-panel {
     position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 9px;
     width: min(430px, calc(100% - 18px));
-    margin: 10px auto 8px;
-    padding: 27px 16px 14px;
+    min-height: 42px;
+    margin: 8px auto 6px;
+    padding: 8px 12px;
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
     background:
@@ -18168,10 +18173,10 @@ body[data-sea-tone] .home-hero-card {
 .home-announcement-panel::before {
     content: "";
     position: absolute;
-    top: -1px;
+    top: -2px;
     left: 50%;
-    width: 45px;
-    height: 45px;
+    width: 32px;
+    height: 32px;
     transform: translate(-50%, -44%);
     background: var(--icon-skull) center / contain no-repeat;
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.72));
@@ -18180,42 +18185,47 @@ body[data-sea-tone] .home-hero-card {
 }
 
 .home-announcement-title {
-    margin: 0 0 8px;
+    margin: 0;
     color: #ffe0a3;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 900;
-    line-height: 1.15;
-    text-align: center;
+    line-height: 1;
+    text-align: left;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    white-space: nowrap;
 }
 
 .home-announcement-list {
-    display: grid;
-    gap: 8px;
+    min-width: 0;
+    display: block;
 }
 
 .home-announcement-item {
-    padding: 9px 10px;
-    border: 1px solid rgba(229, 183, 96, 0.24);
-    background:
-        linear-gradient(180deg, rgba(16, 22, 29, 0.82), rgba(4, 5, 7, 0.9));
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
 }
 
 .home-announcement-meta {
-    margin-bottom: 4px;
+    flex: 0 0 auto;
+    margin: 0;
     color: #e5b760;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .home-announcement-message {
+    min-width: 0;
     color: #fff7df;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .home-hero-card,
