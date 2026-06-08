@@ -1163,17 +1163,6 @@ export function escapeHtml(str) {
     })[match]);
 }
 
-function formatAnnouncementTime(value) {
-    const date = new Date(value);
-    if (!value || Number.isNaN(date.getTime())) return '';
-    return date.toLocaleString('ja-JP', {
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
 let homeAnnouncementResizeBound = false;
 
 function updateHomeAnnouncementMarquees() {
@@ -1181,15 +1170,23 @@ function updateHomeAnnouncementMarquees() {
         const textEl = messageEl.querySelector('.home-announcement-marquee-text');
         messageEl.classList.remove('is-marquee');
         messageEl.style.removeProperty('--home-announcement-marquee-duration');
+        messageEl.style.removeProperty('--home-announcement-marquee-start');
+        messageEl.style.removeProperty('--home-announcement-marquee-end');
         if (!textEl) return;
 
+        const messageText = String(textEl.textContent || '').trim();
         const overflow = textEl.scrollWidth > messageEl.clientWidth + 2;
-        if (!overflow) return;
+        const longText = messageText.length > 20;
+        if (!overflow && !longText) return;
 
-        const distance = textEl.scrollWidth + messageEl.clientWidth;
+        const textWidth = Math.max(textEl.scrollWidth, messageText.length * 13);
+        const viewportWidth = Math.max(messageEl.clientWidth, 1);
+        const distance = textWidth + viewportWidth;
         const durationSeconds = Math.max(18, Math.min(60, Math.round(distance / 18)));
         const delaySeconds = Math.max(3, Math.min(8, Math.round(messageEl.clientWidth / 28)));
         messageEl.style.setProperty('--home-announcement-marquee-duration', `${durationSeconds}s`);
+        messageEl.style.setProperty('--home-announcement-marquee-start', `${viewportWidth}px`);
+        messageEl.style.setProperty('--home-announcement-marquee-end', `-${textWidth}px`);
         messageEl.style.setProperty('--home-announcement-marquee-delay', `-${delaySeconds}s`);
         messageEl.classList.add('is-marquee');
     });
@@ -1220,12 +1217,8 @@ function renderHomeAnnouncements(announcements) {
     }
 
     list.innerHTML = entries.map((entry) => {
-        const nationLabel = String(entry.nationLabel || '').trim();
-        const timeLabel = formatAnnouncementTime(entry.updatedAt);
-        const meta = [nationLabel, timeLabel].filter(Boolean).join(' / ');
         return `
             <article class="home-announcement-item">
-                ${meta ? `<div class="home-announcement-meta">${escapeHtml(meta)}</div>` : ''}
                 <div class="home-announcement-message">
                     <span class="home-announcement-marquee-text">${escapeHtml(String(entry.message || ''))}</span>
                 </div>

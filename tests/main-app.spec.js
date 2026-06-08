@@ -87,8 +87,8 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   const panel = page.locator('#homeAnnouncementPanel');
   await expect(panel).toBeVisible();
   await expect(panel.locator('.home-announcement-title')).toHaveText('王の告知');
-  await expect(panel).toContainText('水の国');
   await expect(panel).toContainText('全プレイヤー向けの告知です。');
+  await expect(panel).not.toContainText('水の国');
   await expect(panel).not.toContainText('火の国');
   await expect(panel).not.toContainText('火の国からのお知らせ。');
   await expect.poll(async () => (
@@ -110,7 +110,8 @@ test('home tab shows only the latest nation announcement in the top skull panel'
       messageTextOverflow: messageStyle.textOverflow,
       marqueeAnimationName: marqueeStyle.animationName,
       marqueeAnimationDuration: marqueeStyle.animationDuration,
-      marqueeAnimationDelay: marqueeStyle.animationDelay
+      marqueeAnimationDelay: marqueeStyle.animationDelay,
+      marqueeTransform: marqueeStyle.transform
     };
   });
   expect(panelFrame.height).toBeLessThanOrEqual(54);
@@ -123,6 +124,7 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
   expect(panelFrame.marqueeAnimationDuration).toMatch(/s$/);
   expect(panelFrame.marqueeAnimationDelay).toMatch(/^-/);
+  expect(panelFrame.marqueeTransform).toContain('matrix');
   await expectNoPageErrors(errors);
 });
 

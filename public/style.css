@@ -18202,24 +18202,13 @@ body[data-sea-tone] .home-hero-card {
 
 .home-announcement-item {
     min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-}
-
-.home-announcement-meta {
-    flex: 0 0 auto;
-    margin: 0;
-    color: #e5b760;
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-    white-space: nowrap;
+    display: block;
 }
 
 .home-announcement-message {
     min-width: 0;
     display: block;
+    position: relative;
     color: #fff7df;
     font-size: 12px;
     font-weight: 800;
@@ -18244,7 +18233,6 @@ body[data-sea-tone] .home-hero-card {
 .home-announcement-message.is-marquee .home-announcement-marquee-text {
     display: inline-block;
     min-width: max-content;
-    padding-left: 100%;
     overflow: visible;
     text-overflow: clip;
     animation: homeAnnouncementMarquee var(--home-announcement-marquee-duration, 24s) linear infinite;
@@ -18254,10 +18242,10 @@ body[data-sea-tone] .home-hero-card {
 
 @keyframes homeAnnouncementMarquee {
     from {
-        transform: translateX(0);
+        transform: translateX(var(--home-announcement-marquee-start, 100%));
     }
     to {
-        transform: translateX(-100%);
+        transform: translateX(var(--home-announcement-marquee-end, -100%));
     }
 }
 
