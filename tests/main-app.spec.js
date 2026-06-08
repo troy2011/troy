@@ -2453,13 +2453,13 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
   });
 
   const badgePosition = await page.locator('#inventoryGrid .tarot-number-badge.is-wand').evaluate((badge) => {
-    const frame = badge.closest('.inventory-item-icon-frame');
+    const cell = badge.closest('.inventory-item-cell');
     const badgeRect = badge.getBoundingClientRect();
-    const frameRect = frame.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
     const style = window.getComputedStyle(badge);
     return {
-      rightOffset: frameRect.right - badgeRect.right,
-      topOffset: badgeRect.top - frameRect.top,
+      rightOffset: cellRect.right - badgeRect.right,
+      topOffset: badgeRect.top - cellRect.top,
       backgroundImage: style.backgroundImage,
       textShadow: style.textShadow,
       strokeWidth: style.webkitTextStrokeWidth || style.getPropertyValue('-webkit-text-stroke-width')
@@ -2502,8 +2502,8 @@ test('tarot deck and list show suit-colored number badges at the upper right', a
     };
   });
   expect(equippedTarotMarker.content).toBe('"E"');
-  expect(equippedTarotMarker.top).toBeGreaterThanOrEqual(0);
-  expect(equippedTarotMarker.left).toBeGreaterThanOrEqual(0);
+  expect(equippedTarotMarker.top).toBeLessThan(0);
+  expect(equippedTarotMarker.left).toBeLessThan(0);
   expect(equippedTarotMarker.transform).toBe('none');
   expect(equippedTarotMarker.overflow).toBe('hidden');
   await expectNoPageErrors(errors);

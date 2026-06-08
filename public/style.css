@@ -19769,8 +19769,8 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    top: 3px;
-    left: 6px;
+    top: -6px;
+    left: -6px;
     z-index: 8;
     transform: none;
     font-family: Georgia, "Times New Roman", serif;
@@ -19997,7 +19997,7 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon-frame,
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon-frame,
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon-frame {
-    position: relative;
+    position: static;
     width: 48px;
     height: 80px;
     max-width: 48px;
@@ -20014,14 +20014,14 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .tarot-number-badge {
     position: absolute;
     left: auto;
-    right: 1px;
-    top: 1px;
+    right: -6px;
+    top: -6px;
     bottom: auto;
     z-index: 4;
     display: grid;
     place-items: center;
-    min-width: 21px;
-    height: 21px;
+    min-width: 18px;
+    height: 18px;
     padding: 0 3px 2px;
     box-sizing: border-box;
     border: 0;
@@ -20029,7 +20029,7 @@ body[data-sea-tone] .home-hero-card {
     background: url("./assets/ui/buttons/checkbox-empty.png") center / 100% 100% no-repeat;
     color: #ded7c6;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     line-height: 1;
     letter-spacing: 0;
@@ -22133,7 +22133,7 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .tarot-loadout-visual {
-    position: relative;
+    position: static;
     width: 48px;
     height: 80px;
     border: 0;
@@ -22153,13 +22153,13 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .tarot-loadout-visual .tarot-number-badge {
     left: auto;
-    right: 1px;
-    top: 1px;
+    right: 0;
+    top: 0;
     bottom: auto;
-    min-width: 20px;
-    height: 20px;
+    min-width: 18px;
+    height: 18px;
     padding-inline: 3px;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 #tabContentInventory .tarot-loadout-cell-actions {
