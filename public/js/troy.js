@@ -22,9 +22,6 @@ let _menuBoardActiveId = 'beer';
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
 const _menuSizeByKey = new Map();
-let _menuBoardDraftItems = [];
-let _menuBoardDraftNextId = 1;
-let _menuBoardDraftSubmitting = false;
 let _undoCountdownTimerId = 0;
 let _favoriteDrinkEntries = [];
 let _pendingAutoLeaveNotice = false;
@@ -525,186 +522,6 @@ function canShowMenuBoardOrderControls(menuId, item = null) {
     return getItemEffectivePrice(item, normalizeSizeLabel(item, item?.sizeLabel || '')) > 0;
 }
 
-function getMenuBoardDraftKey(entry = {}) {
-    return [
-        entry.menuId,
-        entry.concept,
-        entry.content,
-        entry.optionLabel,
-        entry.sizeLabel,
-        entry.price
-    ].map((value) => String(value || '').trim().toLowerCase()).join('|');
-}
-
-function buildMenuBoardDraftDetail(entry = {}) {
-    const parts = [];
-    const content = String(entry.content || '').trim();
-    if (content && !/選択$/.test(content)) parts.push(content);
-    if (entry.optionLabel) parts.push(`${entry.optionLabelName || '割り物'}: ${entry.optionLabel}`);
-    if (entry.sizeLabel) parts.push(`サイズ: ${entry.sizeLabel}`);
-    return parts.join(' / ');
-}
-
-function renderTroyMenuBoardDraft() {
-    const panel = document.getElementById('troyMenuBoardDraft');
-    const list = document.getElementById('troyMenuBoardDraftList');
-    const total = document.getElementById('troyMenuBoardDraftTotal');
-    const send = document.getElementById('troyMenuBoardDraftSend');
-    const clear = document.getElementById('troyMenuBoardDraftClear');
-    if (!panel || !list) return;
-
-    const items = _menuBoardDraftItems.filter((entry) => entry && entry.quantity > 0);
-    panel.hidden = items.length <= 0;
-    list.innerHTML = '';
-    if (!items.length) {
-        if (total) total.textContent = formatYen(0);
-        if (send) send.disabled = true;
-        if (clear) clear.disabled = true;
-        return;
-    }
-
-    const totalAmount = items.reduce((sum, entry) => sum + Math.max(0, entry.price * entry.quantity), 0);
-    if (total) total.textContent = formatYen(totalAmount);
-
-    items.forEach((entry) => {
-        const row = document.createElement('div');
-        row.className = 'troy-menu-board-draft-item';
-        row.dataset.draftId = String(entry.draftId);
-
-        const icon = document.createElement('span');
-        icon.className = 'troy-menu-board-draft-icon';
-        const imageSrc = entry.iconImage || entry.image || '';
-        if (imageSrc) {
-            const image = document.createElement('img');
-            image.src = imageSrc;
-            image.alt = '';
-            image.loading = 'lazy';
-            icon.appendChild(image);
-        } else {
-            icon.textContent = entry.emoji || '🍹';
-        }
-
-        const body = document.createElement('div');
-        body.className = 'troy-menu-board-draft-body';
-        const name = document.createElement('strong');
-        name.textContent = entry.concept || '商品';
-        const detail = document.createElement('span');
-        detail.textContent = buildMenuBoardDraftDetail(entry) || ' ';
-        body.append(name, detail);
-
-        const meta = document.createElement('div');
-        meta.className = 'troy-menu-board-draft-meta';
-        const amount = document.createElement('span');
-        amount.textContent = `${formatYen(entry.price)} x${entry.quantity}`;
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'troy-menu-board-draft-remove';
-        remove.dataset.troyMenuBoardDraftRemove = String(entry.draftId);
-        remove.textContent = '取消';
-        remove.disabled = _menuBoardDraftSubmitting;
-        meta.append(amount, remove);
-
-        row.append(icon, body, meta);
-        list.appendChild(row);
-    });
-
-    if (send) {
-        send.disabled = _menuBoardDraftSubmitting || !canUseTroyMenu();
-        send.textContent = _menuBoardDraftSubmitting ? '送信中' : 'スタッフに送信';
-    }
-    if (clear) clear.disabled = _menuBoardDraftSubmitting;
-}
-
-function addMenuBoardDraftItem(menuId, item, optionLabel = '', sizeLabel = '', quantity = 1) {
-    const concept = String(item?.concept || item?.name || '').trim();
-    const price = getItemEffectivePrice(item, sizeLabel || item?.sizeLabel || '');
-    if (!concept || price <= 0) return false;
-    const entry = {
-        draftId: _menuBoardDraftNextId,
-        menuId,
-        concept,
-        content: String(item?.content || '').trim(),
-        optionLabel: String(optionLabel || '').trim(),
-        optionLabelName: getItemOptionFieldLabel(item),
-        sizeLabel: String(sizeLabel || '').trim(),
-        quantity: Math.max(1, Math.min(99, Math.floor(Number(quantity) || 1))),
-        price,
-        image: String(item?.image || '').trim(),
-        iconImage: getTroyMenuImage(menuId, item),
-        emoji: item?.emoji || getMenuItemEmoji(item)
-    };
-    entry.key = getMenuBoardDraftKey(entry);
-
-    const existing = _menuBoardDraftItems.find((draft) => draft.key === entry.key);
-    if (existing) {
-        existing.quantity = Math.min(99, existing.quantity + entry.quantity);
-    } else {
-        _menuBoardDraftNextId += 1;
-        _menuBoardDraftItems.push(entry);
-    }
-    renderTroyMenuBoardDraft();
-    return true;
-}
-
-function removeMenuBoardDraftItem(draftId) {
-    const targetId = Math.floor(Number(draftId) || 0);
-    if (!targetId || _menuBoardDraftSubmitting) return;
-    _menuBoardDraftItems = _menuBoardDraftItems.filter((entry) => entry.draftId !== targetId);
-    renderTroyMenuBoardDraft();
-}
-
-function clearMenuBoardDraft() {
-    if (_menuBoardDraftSubmitting) return;
-    _menuBoardDraftItems = [];
-    renderTroyMenuBoardDraft();
-}
-
-async function submitMenuBoardDraft() {
-    if (_menuBoardDraftSubmitting) return;
-    if (!_menuBoardDraftItems.length) {
-        showTroyNotice('注文予定がありません。');
-        return;
-    }
-    if (!canUseTroyMenu()) {
-        showTroyNotice(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
-        if (_lastStatus?.isOpen) scrollTroyEntryIntoView();
-        return;
-    }
-
-    const draftItems = _menuBoardDraftItems.map((entry) => ({ ...entry }));
-    const sentDraftIds = [];
-    _menuBoardDraftSubmitting = true;
-    renderTroyMenuBoardDraft();
-    try {
-        for (const entry of draftItems) {
-            await createTroyCustomerOrderRequest(window.myPlayFabId, {
-                troyNation: resolveTroyNationKey(),
-                menuId: entry.menuId,
-                concept: entry.concept,
-                content: entry.content,
-                optionLabel: entry.optionLabel,
-                sizeLabel: entry.sizeLabel,
-                quantity: entry.quantity,
-                displayName: getDisplayName(),
-                requestId: createRequestId('troy-customer-order')
-            }, { throwOnError: true });
-            sentDraftIds.push(entry.draftId);
-        }
-        _menuBoardDraftItems = _menuBoardDraftItems.filter((entry) => !sentDraftIds.includes(entry.draftId));
-        showTroyNotice('スタッフに注文を送りました。受付までお待ちください。');
-    } catch (error) {
-        if (sentDraftIds.length) {
-            _menuBoardDraftItems = _menuBoardDraftItems.filter((entry) => !sentDraftIds.includes(entry.draftId));
-        }
-        console.warn('[TroyOrder] Customer request failed:', error);
-        const prefix = sentDraftIds.length ? '一部の注文は送信済みです。' : '';
-        showTroyNotice(`${prefix}${error?.message || '注文を送信できませんでした。'}`);
-    } finally {
-        _menuBoardDraftSubmitting = false;
-        renderTroyMenuBoardDraft();
-    }
-}
-
 function createMenuBoardSelect(className, options, value, datasetName) {
     const select = document.createElement('select');
     select.className = className;
@@ -755,13 +572,13 @@ function createMenuBoardOrderControls(menuId, item, index, isSoldOut) {
     button.type = 'button';
     button.className = 'troy-menu-board-order-btn';
     button.dataset.troyMenuBoardOrder = 'true';
-    button.textContent = canOrder ? '追加' : (_lastStatus?.isOpen ? '入店後' : 'CLOSE');
+    button.textContent = canOrder ? '注文' : (_lastStatus?.isOpen ? '入店後' : 'CLOSE');
     button.disabled = !canOrder;
     controls.appendChild(button);
     return controls;
 }
 
-function addMenuBoardDraftOrder(button) {
+async function submitMenuBoardOrder(button) {
     if (!button || button.disabled) return;
     const row = button.closest('.troy-menu-board-item');
     const found = getMenuBoardItemFromRow(row);
@@ -780,13 +597,34 @@ function addMenuBoardDraftOrder(button) {
     const sizeLabel = sizeSelect ? setMenuItemSize(menuId, item, index, sizeSelect.value) : getMenuItemSize(menuId, item, index);
     const quantity = qtySelect ? setMenuItemQty(menuId, item, index, qtySelect.value) : getMenuItemQty(menuId, item, index);
     const previousText = button.textContent;
-    if (!addMenuBoardDraftItem(menuId, item, optionLabel, sizeLabel, quantity)) return;
-    button.textContent = '追加済';
-    setTimeout(() => {
-        if (!button.isConnected) return;
-        button.textContent = previousText || '追加';
+    button.disabled = true;
+    button.textContent = '送信中';
+
+    try {
+        await createTroyCustomerOrderRequest(window.myPlayFabId, {
+            troyNation: resolveTroyNationKey(),
+            menuId,
+            concept: String(item?.concept || item?.name || '').trim(),
+            content: String(item?.content || '').trim(),
+            optionLabel,
+            sizeLabel,
+            quantity,
+            displayName: getDisplayName(),
+            requestId: createRequestId('troy-customer-order')
+        }, { throwOnError: true });
+        button.textContent = '送信済み';
+        showTroyNotice('スタッフに注文を送りました。受付までお待ちください。');
+        setTimeout(() => {
+            if (!button.isConnected) return;
+            button.textContent = previousText || '注文';
+            button.disabled = !canUseTroyMenu();
+        }, 1600);
+    } catch (error) {
+        console.warn('[TroyOrder] Customer request failed:', error);
+        button.textContent = previousText || '注文';
         button.disabled = !canUseTroyMenu();
-    }, 900);
+        showTroyNotice(error?.message || '注文を送信できませんでした。');
+    }
 }
 
 function renderTroyMenuBoard() {
@@ -826,7 +664,6 @@ function renderTroyMenuBoard() {
         empty.className = 'troy-calendar-empty';
         empty.textContent = '表示できるメニューがありません。';
         listEl.appendChild(empty);
-        renderTroyMenuBoardDraft();
         return;
     }
 
@@ -879,7 +716,6 @@ function renderTroyMenuBoard() {
         row.append(createMenuBoardIcon(item, _menuBoardActiveId), body, priceWrap);
         listEl.appendChild(row);
     });
-    renderTroyMenuBoardDraft();
 }
 
 function wireTroyMenuBoard() {
@@ -899,7 +735,7 @@ function wireTroyMenuBoard() {
         listEl.addEventListener('click', (event) => {
             const button = event.target?.closest?.('[data-troy-menu-board-order]');
             if (!button) return;
-            addMenuBoardDraftOrder(button);
+            void submitMenuBoardOrder(button);
         });
         listEl.addEventListener('change', (event) => {
             const target = event.target;
@@ -913,23 +749,6 @@ function wireTroyMenuBoard() {
                 setMenuItemSize(found.menuId, found.item, found.index, target.value);
             } else if (target.matches('[data-troy-board-qty]')) {
                 setMenuItemQty(found.menuId, found.item, found.index, target.value);
-            }
-        });
-    }
-    const draftEl = document.getElementById('troyMenuBoardDraft');
-    if (draftEl) {
-        draftEl.addEventListener('click', (event) => {
-            const removeButton = event.target?.closest?.('[data-troy-menu-board-draft-remove]');
-            if (removeButton) {
-                removeMenuBoardDraftItem(removeButton.dataset.troyMenuBoardDraftRemove);
-                return;
-            }
-            if (event.target?.closest?.('#troyMenuBoardDraftClear')) {
-                clearMenuBoardDraft();
-                return;
-            }
-            if (event.target?.closest?.('#troyMenuBoardDraftSend')) {
-                void submitMenuBoardDraft();
             }
         });
     }

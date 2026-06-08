@@ -759,15 +759,20 @@ function renderOrderItemRows(entry) {
         const orderId = String(item.orderId || '').trim();
         const served = String(item.status || '').toLowerCase() === 'served' || Number(item.servedAtMs) > 0;
         const itemName = String(item.name || '商品').trim();
-        const quantityControls = orderId && !/^troy-entry:/u.test(orderId) && !/入店|チャージ/u.test(itemName)
+        const canEditItem = orderId && !/^troy-entry:/u.test(orderId) && !/入店|チャージ/u.test(itemName);
+        const quantityControls = canEditItem
             ? `<span class="troy-orders-quantity-control"><em>x${quantity}</em><button type="button" data-increment-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}の数量を増やす">+</button></span>`
             : `<span class="troy-orders-quantity-control is-locked"><em>x${quantity}</em></span>`;
+        const removeButton = canEditItem
+            ? `<button type="button" data-remove-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}を取り消す">取消</button>`
+            : '<i></i>';
         return `
             <div class="troy-orders-item-row${served ? ' is-served' : ''}">
                 <span>${escapeHtml(itemName)}</span>
                 ${quantityControls}
                 <strong>${formatYen(item.lineTotal || ((Number(item.price) || 0) * quantity))}</strong>
                 ${orderId ? `<button type="button" data-toggle-served data-order-id="${escapeHtml(orderId)}" data-served="${served ? 'true' : 'false'}">${served ? '提供済み' : '未提供'}</button>` : '<i></i>'}
+                ${removeButton}
             </div>
         `;
     }).join('');
@@ -1385,6 +1390,30 @@ async function incrementItemQuantityFromButton(button) {
     }
 }
 
+async function removeItemFromButton(button) {
+    if (!button || busy) return;
+    const card = button.closest('[data-receiver-id]');
+    const receiverId = String(card?.dataset.receiverId || '').trim();
+    const orderId = String(button.dataset.orderId || '').trim();
+    if (!receiverId || !orderId) return;
+    busy = true;
+    button.disabled = true;
+    try {
+        await callApiWithLoader('/api/troy-orders/remove-item', {
+            ...getRequestedNationPayload(),
+            receiverPlayFabId: receiverId,
+            orderId
+        }, { isSilent: true, throwOnError: true });
+        await refreshOrders({ silent: true, force: true });
+    } catch (error) {
+        console.warn('[troy-orders] item remove failed:', error);
+        setMessage(`商品を取り消せませんでした: ${error?.message || error}`, true);
+    } finally {
+        busy = false;
+        button.disabled = false;
+    }
+}
+
 function renderConfirmOrderRowsForEntry(entry, { includeCustomer = false } = {}) {
     const items = getEntryItems(entry);
     const rows = [];
@@ -1739,6 +1768,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const incrementButton = target?.closest('[data-increment-item]');
         if (incrementButton) {
             void incrementItemQuantityFromButton(incrementButton);
+            return;
+        }
+        const removeButton = target?.closest('[data-remove-item]');
+        if (removeButton) {
+            void removeItemFromButton(removeButton);
             return;
         }
         const servedButton = target?.closest('[data-toggle-served]');

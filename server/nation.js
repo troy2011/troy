@@ -5595,6 +5595,80 @@ function initializeNationRoutes(app, deps) {
         }
     });
 
+    app.post('/api/troy-orders/remove-item', async (req, res) => {
+        if (!TROY_STAFF_CHECKOUT_ENABLED) return res.status(503).json({ error: 'TroyCheckoutDisabled' });
+        try {
+            const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);
+            if (!context) return res.status(403).json({ error: 'TroyClosed' });
+            const receiverId = normalizePlayFabId(req.body?.receiverPlayFabId);
+            const orderId = String(req.body?.orderId || '').trim();
+            if (!receiverId || !orderId) {
+                return res.status(400).json({ error: 'receiverPlayFabId and orderId are required' });
+            }
+            const checkoutRef = context.roomRef.collection('checkouts').doc(receiverId);
+            const result = await firestore.runTransaction(async (tx) => {
+                const checkoutSnap = await tx.get(checkoutRef);
+                if (!checkoutSnap.exists) {
+                    const error = new Error('CheckoutNotFound');
+                    error.statusCode = 404;
+                    throw error;
+                }
+                const checkoutData = checkoutSnap.data() || {};
+                const checkoutStatus = String(checkoutData.status || '').trim().toLowerCase();
+                if (checkoutStatus && !['open', 'pending'].includes(checkoutStatus)) {
+                    const error = new Error('CheckoutAlreadyClosed');
+                    error.statusCode = 409;
+                    throw error;
+                }
+                const storedItems = Array.isArray(checkoutData.items) ? checkoutData.items : [];
+                let matched = false;
+                const nextItems = storedItems.filter((item) => {
+                    if (String(item?.orderId || '').trim() !== orderId) return true;
+                    matched = true;
+                    if (isTroyUndoProtectedItem(item)) {
+                        const error = new Error('EntryChargeRemovalLocked');
+                        error.statusCode = 400;
+                        throw error;
+                    }
+                    return false;
+                });
+                if (!matched) {
+                    const error = new Error('OrderItemNotFound');
+                    error.statusCode = 404;
+                    throw error;
+                }
+                const normalized = normalizeTroyCheckoutItems(nextItems);
+                const nextTotal = normalized.reduce((sum, item) => sum + item.lineTotal, 0);
+                const nextTotalItems = normalized.reduce((sum, item) => sum + item.quantity, 0);
+                const nextGrantTotal = normalized.reduce((sum, item) => sum + Math.max(0, Number(item.grantedPs) || 0), 0);
+                const nextLastOrderedAtMs = normalized.reduce((max, item) => Math.max(max, Math.floor(Number(item.orderedAtMs) || 0)), 0);
+                tx.set(checkoutRef, {
+                    items: nextItems,
+                    total: nextTotal,
+                    totalItems: nextTotalItems,
+                    grantTotal: nextGrantTotal,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastOrderedAt: nextLastOrderedAtMs > 0
+                        ? admin.firestore.Timestamp.fromMillis(nextLastOrderedAtMs)
+                        : admin.firestore.FieldValue.delete()
+                }, { merge: true });
+                return buildTroyCheckoutPayload({
+                    ...checkoutData,
+                    items: nextItems,
+                    total: nextTotal,
+                    totalItems: nextTotalItems,
+                    grantTotal: nextGrantTotal,
+                    lastOrderedAt: nextLastOrderedAtMs
+                });
+            });
+            return res.json({ success: true, checkout: result });
+        } catch (error) {
+            const status = Number(error?.statusCode) || 500;
+            console.error('[troy-orders-remove-item] Error:', error?.message || error);
+            return res.status(status).json({ error: error?.message || 'FailedToRemoveOrderItem' });
+        }
+    });
+
     app.post('/api/troy-orders/settle', async (req, res) => {
         try {
             const context = await resolveOpenTroyOrdersContext(req.body?.troyNation);

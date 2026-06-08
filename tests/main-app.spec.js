@@ -250,19 +250,7 @@ export function onSnapshot(_ref, next) {
   await expect(heartlandBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
   await expect(heartlandBottleItem.locator('[data-troy-menu-board-order]')).toBeEnabled();
   await heartlandBottleItem.locator('[data-troy-menu-board-order]').click();
-  expect(customerOrderRequests).toHaveLength(0);
-  await expect(page.locator('#troyMenuBoardDraft')).toBeVisible();
-  await expect(page.locator('#troyMenuBoardDraft')).toContainText('瓶ビール');
-  await expect(page.locator('#troyMenuBoardDraft')).toContainText('¥700 x1');
-  await expect(page.locator('#troyMenuBoardDraftTotal')).toHaveText('¥700');
-  await page.locator('#troyMenuBoardDraft [data-troy-menu-board-draft-remove]').click();
-  await expect(page.locator('#troyMenuBoardDraft')).toBeHidden();
-  expect(customerOrderRequests).toHaveLength(0);
-
-  await heartlandBottleItem.locator('[data-troy-menu-board-order]').click();
-  await expect(page.locator('#troyMenuBoardDraft')).toContainText('瓶ビール');
-  await page.locator('#troyMenuBoardDraftSend').click();
-  await expect.poll(() => customerOrderRequests.length).toBe(1);
+  expect(customerOrderRequests).toHaveLength(1);
   expect(customerOrderRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     troyNation: 'fire',
