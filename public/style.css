@@ -19742,7 +19742,7 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
@@ -19769,9 +19769,21 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    top: 2px;
-    left: 5px;
-    font-size: 14px;
+    top: -7px;
+    left: 50%;
+    z-index: 8;
+    transform: translateX(-37px);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 15px;
+    font-weight: 900;
+    -webkit-text-stroke: 0.75px rgba(0, 0, 0, 0.95);
+    paint-order: stroke fill;
+    text-shadow:
+        -1px -1px 0 rgba(0, 0, 0, 0.92),
+        1px -1px 0 rgba(0, 0, 0, 0.92),
+        -1px 1px 0 rgba(0, 0, 0, 0.92),
+        1px 1px 0 rgba(0, 0, 0, 0.92),
+        0 2px 3px rgba(0, 0, 0, 0.82);
 }
 
 #tabContentInventory .inventory-item-main {
@@ -20001,27 +20013,52 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .tarot-number-badge {
     position: absolute;
-    left: 4px;
-    top: 4px;
+    left: 3px;
+    top: 2px;
     bottom: auto;
     z-index: 4;
-    display: block;
-    min-width: 0;
+    display: grid;
+    place-items: center;
+    min-width: 16px;
+    height: 17px;
+    padding: 0 3px 2px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 238, 190, 0.38);
+    border-radius: 3px;
+    background: rgba(11, 8, 7, 0.62);
     color: #ded7c6;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 16px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 13px;
     font-weight: 900;
     line-height: 1;
     letter-spacing: 0;
     text-align: left;
-    -webkit-text-stroke: 1.15px rgba(0, 0, 0, 0.96);
+    width: max-content;
+    -webkit-text-stroke: 0.55px rgba(0, 0, 0, 0.96);
+    paint-order: stroke fill;
     text-shadow:
-        -1px -1px 0 rgba(0, 0, 0, 0.96),
-        1px -1px 0 rgba(0, 0, 0, 0.96),
-        -1px 1px 0 rgba(0, 0, 0, 0.96),
-        1px 1px 0 rgba(0, 0, 0, 0.96),
-        0 2px 2px rgba(0, 0, 0, 0.86);
+        -1px -1px 0 rgba(0, 0, 0, 0.82),
+        1px -1px 0 rgba(0, 0, 0, 0.82),
+        -1px 1px 0 rgba(0, 0, 0, 0.82),
+        1px 1px 0 rgba(0, 0, 0, 0.82),
+        0 2px 2px rgba(0, 0, 0, 0.78);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 2px 4px rgba(0, 0, 0, 0.46);
     pointer-events: none;
+}
+
+#tabContentInventory .tarot-number-badge::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    bottom: 2px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.72;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.68);
 }
 
 #tabContentInventory .tarot-number-badge.is-wand {
@@ -22125,10 +22162,13 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .tarot-loadout-visual .tarot-number-badge {
-    left: 3px;
-    top: 3px;
+    left: 2px;
+    top: 2px;
     bottom: auto;
-    font-size: 14px;
+    min-width: 15px;
+    height: 16px;
+    padding-inline: 3px;
+    font-size: 12px;
 }
 
 #tabContentInventory .tarot-loadout-cell-actions {

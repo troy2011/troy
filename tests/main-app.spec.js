@@ -2488,5 +2488,19 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
     iconHeight: 80,
     iconTransform: 'none'
   });
+
+  const equippedTarotMarker = await page.locator('#inventoryGrid .inventory-item-cell.is-equipped[data-category="TarotMinor"]').evaluate((cell) => {
+    const marker = window.getComputedStyle(cell, '::after');
+    return {
+      content: marker.content,
+      top: Number.parseFloat(marker.top),
+      transform: marker.transform,
+      overflow: window.getComputedStyle(cell).overflow
+    };
+  });
+  expect(equippedTarotMarker.content).toBe('"E"');
+  expect(equippedTarotMarker.top).toBeLessThan(0);
+  expect(equippedTarotMarker.transform).not.toBe('none');
+  expect(equippedTarotMarker.overflow).toBe('visible');
   await expectNoPageErrors(errors);
 });
