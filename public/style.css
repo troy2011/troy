@@ -18152,11 +18152,11 @@ body[data-sea-tone] .home-hero-card {
     align-items: center;
     column-gap: 8px;
     width: min(430px, calc(100% - 20px));
-    min-height: 48px;
-    margin: 10px auto 4px;
-    padding: 17px 28px 9px;
+    min-height: 44px;
+    margin: 8px auto 6px;
+    padding: 12px 24px 10px;
     border: 1px solid transparent;
-    border-image: var(--panel-sheet-divider) 52 70 22 70 fill / 28px 28px 13px 28px / 0 stretch;
+    border-image: var(--panel-sheet-plaque-gold) 38 32 30 32 fill / 18px 17px 15px 17px / 0 stretch;
     background: rgba(7, 6, 5, 0.16);
     color: #f9edcf;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.34);

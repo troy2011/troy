@@ -53,7 +53,7 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
-test('home tab shows only the latest nation announcement in the top skull panel', async ({ page }) => {
+test('home tab shows only the latest nation announcement in the top banner panel', async ({ page }) => {
   const errors = trackPageErrors(page);
   await bootstrapMainApp(page);
   await page.unroute('**/api/get-nation-announcements');
@@ -112,13 +112,13 @@ test('home tab shows only the latest nation announcement in the top skull panel'
       marqueeTransform: marqueeStyle.transform
     };
   });
-  expect(panelFrame.height).toBeLessThanOrEqual(58);
-  expect(panelFrame.borderImageSource).toContain('banner-divider.png');
-  expect(panelFrame.borderImageSlice).toContain('52');
-  expect(panelFrame.borderImageSlice).toContain('70');
-  expect(panelFrame.borderImageSlice).toContain('22');
-  expect(panelFrame.borderImageWidth).toContain('28px');
-  expect(panelFrame.borderImageWidth).toContain('13px');
+  expect(panelFrame.height).toBeLessThanOrEqual(52);
+  expect(panelFrame.borderImageSource).toContain('banner-plaque-gold.png');
+  expect(panelFrame.borderImageSlice).toContain('38');
+  expect(panelFrame.borderImageSlice).toContain('32');
+  expect(panelFrame.borderImageSlice).toContain('30');
+  expect(panelFrame.borderImageWidth).toContain('18px');
+  expect(panelFrame.borderImageWidth).toContain('15px');
   expect(panelFrame.messageWhiteSpace).toBe('nowrap');
   expect(panelFrame.messageTextOverflow).toBe('clip');
   expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
