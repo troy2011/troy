@@ -19742,7 +19742,7 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped {
     position: relative;
-    overflow: visible;
+    overflow: hidden;
 }
 
 #tabContentInventory .inventory-item-cell.is-equipment-equipped::after,
@@ -19769,10 +19769,10 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell.is-equipped::after {
-    top: -7px;
-    left: 50%;
+    top: 3px;
+    left: 6px;
     z-index: 8;
-    transform: translateX(-37px);
+    transform: none;
     font-family: Georgia, "Times New Roman", serif;
     font-size: 15px;
     font-weight: 900;
@@ -20013,19 +20013,20 @@ body[data-sea-tone] .home-hero-card {
 
 #tabContentInventory .tarot-number-badge {
     position: absolute;
-    left: 3px;
-    top: 2px;
+    left: auto;
+    right: 1px;
+    top: 1px;
     bottom: auto;
     z-index: 4;
     display: grid;
     place-items: center;
-    min-width: 16px;
-    height: 17px;
+    min-width: 21px;
+    height: 21px;
     padding: 0 3px 2px;
     box-sizing: border-box;
-    border: 1px solid rgba(255, 238, 190, 0.38);
-    border-radius: 3px;
-    background: rgba(11, 8, 7, 0.62);
+    border: 0;
+    border-radius: 0;
+    background: url("./assets/ui/buttons/checkbox-empty.png") center / 100% 100% no-repeat;
     color: #ded7c6;
     font-family: Georgia, "Times New Roman", serif;
     font-size: 13px;
@@ -20042,23 +20043,12 @@ body[data-sea-tone] .home-hero-card {
         -1px 1px 0 rgba(0, 0, 0, 0.82),
         1px 1px 0 rgba(0, 0, 0, 0.82),
         0 2px 2px rgba(0, 0, 0, 0.78);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        0 2px 4px rgba(0, 0, 0, 0.46);
+    box-shadow: none;
     pointer-events: none;
 }
 
 #tabContentInventory .tarot-number-badge::after {
-    content: "";
-    position: absolute;
-    left: 3px;
-    right: 3px;
-    bottom: 2px;
-    height: 2px;
-    border-radius: 999px;
-    background: currentColor;
-    opacity: 0.72;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.68);
+    content: none;
 }
 
 #tabContentInventory .tarot-number-badge.is-wand {
@@ -22162,11 +22152,12 @@ body[data-sea-tone] .home-hero-card {
 }
 
 #tabContentInventory .tarot-loadout-visual .tarot-number-badge {
-    left: 2px;
-    top: 2px;
+    left: auto;
+    right: 1px;
+    top: 1px;
     bottom: auto;
-    min-width: 15px;
-    height: 16px;
+    min-width: 20px;
+    height: 20px;
     padding-inline: 3px;
     font-size: 12px;
 }
@@ -22174,7 +22165,8 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory .tarot-loadout-cell-actions {
     position: absolute;
     top: -6px;
-    right: -6px;
+    right: auto;
+    left: -6px;
     z-index: 5;
     display: block;
     width: 17px;

@@ -2346,7 +2346,7 @@ test('avatar shield center aligns with the left hand center', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
-test('tarot deck and list show suit-colored number badges at the upper left', async ({ page }) => {
+test('tarot deck and list show suit-colored number badges at the upper right', async ({ page }) => {
   const errors = trackPageErrors(page);
   const tarotItems = [
     {
@@ -2458,14 +2458,16 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
     const frameRect = frame.getBoundingClientRect();
     const style = window.getComputedStyle(badge);
     return {
-      leftOffset: badgeRect.left - frameRect.left,
+      rightOffset: frameRect.right - badgeRect.right,
       topOffset: badgeRect.top - frameRect.top,
+      backgroundImage: style.backgroundImage,
       textShadow: style.textShadow,
       strokeWidth: style.webkitTextStrokeWidth || style.getPropertyValue('-webkit-text-stroke-width')
     };
   });
-  expect(badgePosition.leftOffset).toBeLessThan(8);
+  expect(badgePosition.rightOffset).toBeLessThan(8);
   expect(badgePosition.topOffset).toBeLessThan(8);
+  expect(badgePosition.backgroundImage).toContain('checkbox-empty.png');
   expect(badgePosition.textShadow).toMatch(/rgba?\(0, 0, 0/);
   expect(badgePosition.strokeWidth).not.toBe('0px');
 
@@ -2494,13 +2496,15 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
     return {
       content: marker.content,
       top: Number.parseFloat(marker.top),
+      left: Number.parseFloat(marker.left),
       transform: marker.transform,
       overflow: window.getComputedStyle(cell).overflow
     };
   });
   expect(equippedTarotMarker.content).toBe('"E"');
-  expect(equippedTarotMarker.top).toBeLessThan(0);
-  expect(equippedTarotMarker.transform).not.toBe('none');
-  expect(equippedTarotMarker.overflow).toBe('visible');
+  expect(equippedTarotMarker.top).toBeGreaterThanOrEqual(0);
+  expect(equippedTarotMarker.left).toBeGreaterThanOrEqual(0);
+  expect(equippedTarotMarker.transform).toBe('none');
+  expect(equippedTarotMarker.overflow).toBe('hidden');
   await expectNoPageErrors(errors);
 });
