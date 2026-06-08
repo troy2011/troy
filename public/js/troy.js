@@ -19,6 +19,7 @@ let _menuBoardWired = false;
 let _lastStatus = null;
 let _menuActiveId = 'beer';
 let _menuBoardActiveId = 'beer';
+let _menuBoardOrderDraft = null;
 const _menuQtyByKey = new Map();
 const _menuOptionByKey = new Map();
 const _menuSizeByKey = new Map();
@@ -454,9 +455,9 @@ function getMenuBoardCategoryList() {
 function getMenuBoardPriceText(item = null) {
     const sizeChoices = getItemSizeChoices(item);
     if (sizeChoices.length) {
-        return sizeChoices
-            .map((choice) => `${choice.label} ${formatYen(choice.price)}`)
-            .join(' / ');
+        const prices = sizeChoices.map((choice) => parseYenPrice(choice.price)).filter((price) => price > 0);
+        const minPrice = prices.length ? Math.min(...prices) : 0;
+        return minPrice > 0 ? `${formatYen(minPrice)}〜` : 'サイズ選択';
     }
     const price = parseYenPrice(item?.price);
     return price > 0 ? formatYen(price) : 'ASK';
@@ -522,65 +523,60 @@ function canShowMenuBoardOrderControls(menuId, item = null) {
     return getItemEffectivePrice(item, normalizeSizeLabel(item, item?.sizeLabel || '')) > 0;
 }
 
-function createMenuBoardSelect(className, options, value, datasetName) {
-    const select = document.createElement('select');
-    select.className = className;
-    select.dataset[datasetName] = 'true';
-    options.forEach((option) => {
-        const optionEl = document.createElement('option');
-        const label = typeof option === 'object' ? String(option.label || '') : String(option || '');
-        optionEl.value = label;
-        optionEl.textContent = label;
-        if (label === value) optionEl.selected = true;
-        select.appendChild(optionEl);
-    });
-    return select;
+function getMenuBoardOrderElements() {
+    return {
+        modal: document.getElementById('troyMenuBoardOrderModal'),
+        card: document.querySelector('#troyMenuBoardOrderModal .troy-menu-board-order-card'),
+        close: document.getElementById('troyMenuBoardOrderClose'),
+        icon: document.getElementById('troyMenuBoardOrderIcon'),
+        title: document.getElementById('troyMenuBoardOrderTitle'),
+        detail: document.getElementById('troyMenuBoardOrderDetail'),
+        optionField: document.getElementById('troyMenuBoardOrderOptionField'),
+        optionLabel: document.getElementById('troyMenuBoardOrderOptionLabel'),
+        option: document.getElementById('troyMenuBoardOrderOption'),
+        sizeField: document.getElementById('troyMenuBoardOrderSizeField'),
+        sizes: document.getElementById('troyMenuBoardOrderSizes'),
+        qty: document.getElementById('troyMenuBoardOrderQty'),
+        total: document.getElementById('troyMenuBoardOrderTotal'),
+        submit: document.getElementById('troyMenuBoardOrderSubmit')
+    };
 }
 
-function createMenuBoardOrderControls(menuId, item, index, isSoldOut) {
-    const controls = document.createElement('div');
-    controls.className = 'troy-menu-board-order';
-    if (!canShowMenuBoardOrderControls(menuId, item)) return controls;
-
-    const optionChoices = getItemOptionChoices(item);
-    const sizeChoices = getItemSizeChoices(item);
-    const optionLabel = getMenuItemOption(menuId, item, index);
-    const sizeLabel = getMenuItemSize(menuId, item, index);
-    const canOrder = canUseTroyMenu() && !isSoldOut;
-
-    if (optionChoices.length) {
-        controls.appendChild(createMenuBoardSelect('troy-menu-board-select', optionChoices, optionLabel, 'troyBoardOption'));
-    }
-    if (sizeChoices.length) {
-        controls.appendChild(createMenuBoardSelect('troy-menu-board-select is-size', sizeChoices, sizeLabel, 'troyBoardSize'));
-    }
-
-    const qty = document.createElement('select');
-    qty.className = 'troy-menu-board-select is-qty';
-    qty.dataset.troyBoardQty = 'true';
-    const currentQty = getMenuItemQty(menuId, item, index);
-    for (let value = 1; value <= 9; value += 1) {
-        const option = document.createElement('option');
-        option.value = String(value);
-        option.textContent = `x${value}`;
-        if (value === currentQty) option.selected = true;
-        qty.appendChild(option);
-    }
-    controls.appendChild(qty);
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'troy-menu-board-order-btn';
-    button.dataset.troyMenuBoardOrder = 'true';
-    button.textContent = canOrder ? '注文' : (_lastStatus?.isOpen ? '入店後' : 'CLOSE');
-    button.disabled = !canOrder;
-    controls.appendChild(button);
-    return controls;
+function setTroyMenuBoardOrderModalVisible(visible) {
+    const { modal } = getMenuBoardOrderElements();
+    if (!modal) return;
+    modal.hidden = !visible;
+    document.body.classList.toggle('modal-lock', !!visible);
+    if (!visible) _menuBoardOrderDraft = null;
 }
 
-async function submitMenuBoardOrder(button) {
-    if (!button || button.disabled) return;
-    const row = button.closest('.troy-menu-board-item');
+function updateMenuBoardOrderTotal() {
+    const { total, qty } = getMenuBoardOrderElements();
+    if (!total || !_menuBoardOrderDraft) return;
+    const quantity = Math.max(1, Math.floor(Number(qty?.value) || 1));
+    const sizeLabel = String(_menuBoardOrderDraft.sizeLabel || '').trim();
+    const price = getItemEffectivePrice(_menuBoardOrderDraft.item, sizeLabel);
+    total.textContent = `${formatYen(price * quantity)} / x${quantity}`;
+}
+
+function renderMenuBoardOrderIcon(container, item, menuId) {
+    if (!container) return;
+    container.innerHTML = '';
+    const iconImage = getTroyMenuImage(menuId, item);
+    if (iconImage) {
+        const image = document.createElement('img');
+        image.src = iconImage;
+        image.alt = '';
+        image.loading = 'lazy';
+        container.classList.add('has-image');
+        container.appendChild(image);
+    } else {
+        container.classList.remove('has-image');
+        container.textContent = item?.emoji || getMenuItemEmoji(item);
+    }
+}
+
+function openMenuBoardOrderModal(row) {
     const found = getMenuBoardItemFromRow(row);
     if (!found) return;
     if (!canUseTroyMenu()) {
@@ -590,15 +586,87 @@ async function submitMenuBoardOrder(button) {
     }
 
     const { menuId, index, item } = found;
-    const optionSelect = row.querySelector('[data-troy-board-option]');
-    const sizeSelect = row.querySelector('[data-troy-board-size]');
-    const qtySelect = row.querySelector('[data-troy-board-qty]');
-    const optionLabel = optionSelect ? setMenuItemOption(menuId, item, index, optionSelect.value) : getMenuItemOption(menuId, item, index);
-    const sizeLabel = sizeSelect ? setMenuItemSize(menuId, item, index, sizeSelect.value) : getMenuItemSize(menuId, item, index);
-    const quantity = qtySelect ? setMenuItemQty(menuId, item, index, qtySelect.value) : getMenuItemQty(menuId, item, index);
-    const previousText = button.textContent;
-    button.disabled = true;
-    button.textContent = '送信中';
+    const nameText = String(item?.concept || item?.name || '').trim();
+    if (!canShowMenuBoardOrderControls(menuId, item) || _menuDisabled.includes(nameText)) return;
+
+    const elements = getMenuBoardOrderElements();
+    if (!elements.modal) return;
+    const optionChoices = getItemOptionChoices(item);
+    const sizeChoices = getItemSizeChoices(item);
+    const optionLabel = getMenuItemOption(menuId, item, index);
+    const sizeLabel = getMenuItemSize(menuId, item, index);
+    const quantity = getMenuItemQty(menuId, item, index);
+    _menuBoardOrderDraft = { menuId, index, item, optionLabel, sizeLabel };
+
+    renderMenuBoardOrderIcon(elements.icon, item, menuId);
+    if (elements.title) elements.title.textContent = nameText || '商品';
+    if (elements.detail) elements.detail.textContent = getMenuBoardDetailText(item) || ' ';
+
+    if (elements.optionField && elements.option) {
+        elements.option.innerHTML = '';
+        elements.optionField.hidden = optionChoices.length <= 0;
+        if (elements.optionLabel) elements.optionLabel.textContent = getItemOptionFieldLabel(item);
+        optionChoices.forEach((choice) => {
+            const option = document.createElement('option');
+            option.value = String(choice || '');
+            option.textContent = String(choice || '');
+            option.selected = option.value === optionLabel;
+            elements.option.appendChild(option);
+        });
+    }
+
+    if (elements.sizeField && elements.sizes) {
+        elements.sizes.innerHTML = '';
+        elements.sizeField.hidden = sizeChoices.length <= 0;
+        sizeChoices.forEach((choice) => {
+            const label = String(choice?.label || '').trim();
+            if (!label) return;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'troy-menu-board-size-choice';
+            button.dataset.troyMenuBoardSize = label;
+            button.classList.toggle('is-active', label === sizeLabel);
+            button.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(formatYen(choice.price))}</strong>`;
+            elements.sizes.appendChild(button);
+        });
+    }
+
+    if (elements.qty) {
+        elements.qty.innerHTML = '';
+        for (let value = 1; value <= 9; value += 1) {
+            const option = document.createElement('option');
+            option.value = String(value);
+            option.textContent = `x${value}`;
+            option.selected = value === quantity;
+            elements.qty.appendChild(option);
+        }
+    }
+
+    if (elements.submit) {
+        elements.submit.disabled = false;
+        elements.submit.textContent = '注文する';
+    }
+    updateMenuBoardOrderTotal();
+    setTroyMenuBoardOrderModalVisible(true);
+}
+
+async function submitMenuBoardOrder() {
+    const { option, qty, submit } = getMenuBoardOrderElements();
+    if (!_menuBoardOrderDraft || !submit || submit.disabled) return;
+    if (!canUseTroyMenu()) {
+        showTroyNotice(_lastStatus?.isOpen ? '入店してから注文できます。' : 'TROYはCLOSE中です。');
+        setTroyMenuBoardOrderModalVisible(false);
+        if (_lastStatus?.isOpen) scrollTroyEntryIntoView();
+        return;
+    }
+
+    const { menuId, index, item } = _menuBoardOrderDraft;
+    const optionLabel = option && !option.closest('[hidden]') ? setMenuItemOption(menuId, item, index, option.value) : getMenuItemOption(menuId, item, index);
+    const sizeLabel = _menuBoardOrderDraft.sizeLabel ? setMenuItemSize(menuId, item, index, _menuBoardOrderDraft.sizeLabel) : getMenuItemSize(menuId, item, index);
+    const quantity = qty ? setMenuItemQty(menuId, item, index, qty.value) : getMenuItemQty(menuId, item, index);
+    const previousText = submit.textContent;
+    submit.disabled = true;
+    submit.textContent = '送信中';
 
     try {
         await createTroyCustomerOrderRequest(window.myPlayFabId, {
@@ -612,17 +680,13 @@ async function submitMenuBoardOrder(button) {
             displayName: getDisplayName(),
             requestId: createRequestId('troy-customer-order')
         }, { throwOnError: true });
-        button.textContent = '送信済み';
+        submit.textContent = '送信済み';
+        setTroyMenuBoardOrderModalVisible(false);
         showTroyNotice('スタッフに注文を送りました。受付までお待ちください。');
-        setTimeout(() => {
-            if (!button.isConnected) return;
-            button.textContent = previousText || '注文';
-            button.disabled = !canUseTroyMenu();
-        }, 1600);
     } catch (error) {
         console.warn('[TroyOrder] Customer request failed:', error);
-        button.textContent = previousText || '注文';
-        button.disabled = !canUseTroyMenu();
+        submit.textContent = previousText || '注文する';
+        submit.disabled = false;
         showTroyNotice(error?.message || '注文を送信できませんでした。');
     }
 }
@@ -674,7 +738,13 @@ function renderTroyMenuBoard() {
         row.dataset.itemIndex = String(index);
         const nameText = String(item?.concept || item?.name || '').trim();
         const isSoldOut = _menuDisabled.includes(nameText);
+        const canOrderItem = canShowMenuBoardOrderControls(_menuBoardActiveId, item) && !isSoldOut;
         row.classList.toggle('is-sold-out', isSoldOut);
+        row.classList.toggle('is-orderable', canOrderItem);
+        if (canOrderItem) {
+            row.tabIndex = 0;
+            row.setAttribute('role', 'button');
+        }
 
         const body = document.createElement('div');
         body.className = 'troy-menu-board-body';
@@ -708,10 +778,12 @@ function renderTroyMenuBoard() {
             badge.className = 'troy-menu-board-badge is-ask';
             badge.textContent = 'STAFF';
             priceWrap.appendChild(badge);
+        } else if (canOrderItem) {
+            const badge = document.createElement('div');
+            badge.className = 'troy-menu-board-badge is-select';
+            badge.textContent = '選択';
+            priceWrap.appendChild(badge);
         }
-
-        const orderControls = createMenuBoardOrderControls(_menuBoardActiveId, item, index, isSoldOut);
-        priceWrap.appendChild(orderControls);
 
         row.append(createMenuBoardIcon(item, _menuBoardActiveId), body, priceWrap);
         listEl.appendChild(row);
@@ -733,22 +805,41 @@ function wireTroyMenuBoard() {
     const listEl = document.getElementById('troyMenuBoardList');
     if (listEl) {
         listEl.addEventListener('click', (event) => {
-            const button = event.target?.closest?.('[data-troy-menu-board-order]');
-            if (!button) return;
-            void submitMenuBoardOrder(button);
+            const row = event.target?.closest?.('.troy-menu-board-item.is-orderable');
+            if (!row) return;
+            openMenuBoardOrderModal(row);
         });
-        listEl.addEventListener('change', (event) => {
-            const target = event.target;
-            if (!(target instanceof HTMLSelectElement)) return;
-            const row = target.closest('.troy-menu-board-item');
-            const found = getMenuBoardItemFromRow(row);
-            if (!found) return;
-            if (target.matches('[data-troy-board-option]')) {
-                setMenuItemOption(found.menuId, found.item, found.index, target.value);
-            } else if (target.matches('[data-troy-board-size]')) {
-                setMenuItemSize(found.menuId, found.item, found.index, target.value);
-            } else if (target.matches('[data-troy-board-qty]')) {
-                setMenuItemQty(found.menuId, found.item, found.index, target.value);
+        listEl.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const row = event.target?.closest?.('.troy-menu-board-item.is-orderable');
+            if (!row) return;
+            event.preventDefault();
+            openMenuBoardOrderModal(row);
+        });
+    }
+    const orderModal = document.getElementById('troyMenuBoardOrderModal');
+    if (orderModal) {
+        orderModal.addEventListener('click', (event) => {
+            if (event.target === orderModal || event.target?.closest?.('#troyMenuBoardOrderClose')) {
+                setTroyMenuBoardOrderModalVisible(false);
+                return;
+            }
+            const sizeButton = event.target?.closest?.('[data-troy-menu-board-size]');
+            if (sizeButton && _menuBoardOrderDraft) {
+                _menuBoardOrderDraft.sizeLabel = String(sizeButton.dataset.troyMenuBoardSize || '').trim();
+                orderModal.querySelectorAll('[data-troy-menu-board-size]').forEach((button) => {
+                    button.classList.toggle('is-active', button === sizeButton);
+                });
+                updateMenuBoardOrderTotal();
+                return;
+            }
+            if (event.target?.closest?.('#troyMenuBoardOrderSubmit')) {
+                void submitMenuBoardOrder();
+            }
+        });
+        orderModal.addEventListener('change', (event) => {
+            if (event.target?.matches?.('#troyMenuBoardOrderQty')) {
+                updateMenuBoardOrderTotal();
             }
         });
     }

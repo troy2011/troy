@@ -244,20 +244,29 @@ export function onSnapshot(_ref, next) {
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_fried_chicken_skillet\.png/);
   await expect(page.locator('#troyMenuBoardList')).toContainText('瓶ビール');
-  await expect(page.locator('#troyMenuBoardList')).toContainText('S ¥500 / M ¥700');
+  await expect(page.locator('#troyMenuBoardList')).toContainText('¥500〜');
   const heartlandBottleItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^瓶ビール$/ }) });
   await expect(heartlandBottleItem).toContainText('¥700');
   await expect(heartlandBottleItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/fantasy_anchor_green_beer_bottle\.png/);
-  await expect(heartlandBottleItem.locator('[data-troy-menu-board-order]')).toBeEnabled();
-  await heartlandBottleItem.locator('[data-troy-menu-board-order]').click();
-  expect(customerOrderRequests).toHaveLength(1);
+  await expect(page.locator('#troyMenuBoardList [data-troy-menu-board-order]')).toHaveCount(0);
+
+  const highballItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^ハイボール$/ }) });
+  await highballItem.click();
+  await expect(page.locator('#troyMenuBoardOrderModal')).toBeVisible();
+  await expect(page.locator('#troyMenuBoardOrderSizes')).toContainText('海賊ジョッキ');
+  await page.locator('#troyMenuBoardOrderSizes [data-troy-menu-board-size="海賊ジョッキ"]').click();
+  await page.locator('#troyMenuBoardOrderQty').selectOption('2');
+  await expect(page.locator('#troyMenuBoardOrderTotal')).toHaveText('¥2,000 / x2');
+  await page.locator('#troyMenuBoardOrderSubmit').click();
+  await expect.poll(() => customerOrderRequests.length).toBe(1);
   expect(customerOrderRequests[0]).toMatchObject({
     playFabId: 'PF_PLAYWRIGHT',
     troyNation: 'fire',
     menuId: 'beer',
-    concept: '瓶ビール',
-    content: 'ハートランド',
-    quantity: 1
+    concept: 'ハイボール',
+    content: '角',
+    sizeLabel: '海賊ジョッキ',
+    quantity: 2
   });
   const coronaZeroItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ hasText: 'コロナセロ' });
   await expect(coronaZeroItem).toContainText('¥500');

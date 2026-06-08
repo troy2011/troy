@@ -2,12 +2,12 @@ export const TROY_MENU_IDS = ['favorite', 'beer', 'gin', 'vodka', 'rum', 'tequil
 
 export const TROY_ALCOHOL_SIZE_OPTIONS = [
     { label: 'S', price: 500 },
-    { label: 'M', price: 700 }
+    { label: 'M', price: 700 },
+    { label: '海賊ジョッキ', price: 1000 }
 ];
 
 const TROY_STAFF_ALCOHOL_SIZE_OPTIONS = [
-    ...TROY_ALCOHOL_SIZE_OPTIONS,
-    { label: '海賊ジョッキ', price: 1000 }
+    ...TROY_ALCOHOL_SIZE_OPTIONS
 ];
 
 function cloneSizeOptions(options = []) {
