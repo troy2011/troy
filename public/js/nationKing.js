@@ -116,6 +116,19 @@ function _renderTroyMembers(members = []) {
                         <button type="button" class="btn-muted king-direct-grant-btn" data-direct-grant="${_escapeHtml(playFabId)}">付与</button>
                     </div>
                 </div>
+                <div class="king-chip-return-panel">
+                    <div class="king-chip-return-copy">
+                        <span>チップ返却</span>
+                        <small>${_escapeHtml(displayName)} にゴールド化して付与</small>
+                    </div>
+                    <div class="king-chip-return-controls">
+                        <div class="transfer-input-row king-chip-return-input-row">
+                            <input type="number" min="100" step="100" inputmode="numeric" placeholder="返却G" value="0" data-chip-return-amount="${_escapeHtml(playFabId)}" aria-label="${_escapeHtml(displayName)}への返却G" />
+                            <span>G</span>
+                        </div>
+                        <button type="button" class="btn-muted king-chip-return-btn" data-chip-return="${_escapeHtml(playFabId)}" data-chip-return-name="${_escapeHtml(displayName)}">返却</button>
+                    </div>
+                </div>
                 <details class="king-store-game-inline">
                     <summary>店内ゲーム採点</summary>
                     <div class="king-store-game-inline-form" data-store-game-form="${_escapeHtml(playFabId)}" data-store-game-name="${_escapeHtml(displayName)}">
@@ -626,19 +639,6 @@ function _showTroyEntryQr() {
     _setKingTroyEntryQrModalVisible(true);
 }
 
-async function _scanQrValue() {
-    if (!window.liff) throw new Error('LIFF が初期化されていません。');
-    if (typeof window.liff.scanCodeV2 === 'function') {
-        const r = await window.liff.scanCodeV2();
-        return r && r.value ? String(r.value).trim() : '';
-    }
-    if (typeof window.liff.scanCode === 'function') {
-        const r = await window.liff.scanCode();
-        return r && r.value ? String(r.value).trim() : '';
-    }
-    throw new Error('この環境では QR 読み取りが利用できません。');
-}
-
 export function isKing() {
     return _isKing;
 }
@@ -735,8 +735,6 @@ function _wireHandlers(playFabId) {
     const troyEntryQrModal = document.getElementById('kingTroyEntryQrModal');
     const troyEntryQrCloseBtn = document.getElementById('btnKingTroyEntryQrClose');
     const troyEntryQrCopyBtn = document.getElementById('btnKingTroyEntryQrCopy');
-    const coinReturnBtn = document.getElementById('btnKingCoinReturn');
-    const coinReturnAmountEl = document.getElementById('kingCoinReturnAmount');
     const troyStatusEl = document.getElementById('kingTroyStatus');
     const warSectionEl = document.getElementById('kingWarSection');
     const warDeployWeaponEl = document.getElementById('kingWarDeployWeapon');
@@ -824,6 +822,53 @@ function _wireHandlers(playFabId) {
                     if (scoreEl) scoreEl.disabled = false;
                     if (opponentEl) opponentEl.disabled = false;
                     _syncStoreGameForm(form);
+                }
+                return;
+            }
+
+            const chipReturnBtn = target ? target.closest('[data-chip-return]') : null;
+            if (chipReturnBtn) {
+                const receiverPlayFabId = String(chipReturnBtn.getAttribute('data-chip-return') || '').trim();
+                const receiverName = String(chipReturnBtn.getAttribute('data-chip-return-name') || '').trim() || receiverPlayFabId;
+                const amountEl = receiverPlayFabId
+                    ? troyEntryListEl.querySelector(`[data-chip-return-amount="${CSS.escape(receiverPlayFabId)}"]`)
+                    : null;
+                const amount = Math.floor(Number(amountEl?.value) || 0);
+                if (!receiverPlayFabId) {
+                    _setMessage('返却対象が不正です。', true);
+                    return;
+                }
+                if (!amount || amount <= 0 || amount % 100 !== 0) {
+                    _setMessage('返却チップ総額は100G刻みで入力してください。', true);
+                    amountEl?.focus();
+                    return;
+                }
+                if (!confirm(`${receiverName} に ${amount.toLocaleString('ja-JP')}Gをチップ返却します。よろしいですか？`)) return;
+                const previous = chipReturnBtn.textContent;
+                chipReturnBtn.disabled = true;
+                if (amountEl) amountEl.disabled = true;
+                chipReturnBtn.textContent = '処理中...';
+                try {
+                    const requestId = createRequestId('king-troy-return-coin');
+                    const result = await kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
+                    const contributionAmount = Math.max(0, Math.floor(Number(result?.contributionAmount) || 0));
+                    const contributionNote = contributionAmount > 0 ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}` : '';
+                    const debtMessage = String(result?.contributionDebtMessage || '').trim();
+                    const debtNote = debtMessage ? ` / ${debtMessage}` : '';
+                    const contribution = result?.contribution || {};
+                    const unlockNote = formatUnlockedFeatures(contribution.unlockedFeatures);
+                    const levelNote = contribution.leveledUp
+                        ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
+                        : '';
+                    const successMessage = `${receiverName} に ${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}${debtNote}${levelNote}`;
+                    if (amountEl) amountEl.value = '0';
+                    await loadKingPage(playFabId);
+                    _setMessage(successMessage);
+                } catch (error) {
+                    _setMessage(_extractErrorMessage(error, 'チップ返却に失敗しました。'), true);
+                    chipReturnBtn.disabled = false;
+                    if (amountEl) amountEl.disabled = false;
+                    chipReturnBtn.textContent = previous;
                 }
                 return;
             }
@@ -941,49 +986,6 @@ function _wireHandlers(playFabId) {
                 _setMessage('入店QRのURLをコピーしました。');
             } catch {
                 _setMessage('URLをコピーできませんでした。画面のURL欄を使用してください。', true);
-            }
-        });
-    }
-
-    if (coinReturnBtn) {
-        coinReturnBtn.addEventListener('click', async () => {
-            const amount = Math.floor(Number(coinReturnAmountEl?.value) || 0);
-            if (!amount || amount <= 0 || amount % 100 !== 0) {
-                _setMessage('返却チップ総額は100G刻みで入力してください。', true);
-                return;
-            }
-            if (!window.liff?.isInClient?.()) {
-                _setMessage('MY QRの読み取りはLINEアプリ内で利用してください。', true);
-                return;
-            }
-            const previous = coinReturnBtn.textContent;
-            coinReturnBtn.disabled = true;
-            coinReturnBtn.textContent = 'MY QR読取中...';
-            _setMessage('');
-            try {
-                const receiverPlayFabId = await _scanQrValue();
-                if (!receiverPlayFabId) throw new Error('MY QRを読み取れませんでした。');
-                if (!confirm(`${amount.toLocaleString('ja-JP')}Gをゴールド化して付与します。よろしいですか？`)) return;
-                coinReturnBtn.textContent = '処理中...';
-                const requestId = createRequestId('king-troy-return-coin');
-                const result = await kingReturnTroyCoin(playFabId, receiverPlayFabId, amount, requestId, { isSilent: true, throwOnError: true });
-                const contributionAmount = Math.max(0, Math.floor(Number(result?.contributionAmount) || 0));
-                const contributionNote = contributionAmount > 0 ? ` / 経験値 +${contributionAmount.toLocaleString('ja-JP')}` : '';
-                const debtMessage = String(result?.contributionDebtMessage || '').trim();
-                const debtNote = debtMessage ? ` / ${debtMessage}` : '';
-                const contribution = result?.contribution || {};
-                const unlockNote = formatUnlockedFeatures(contribution.unlockedFeatures);
-                const levelNote = contribution.leveledUp
-                    ? `\nLv.${contribution.previousLevel} → Lv.${contribution.level}${unlockNote ? `\n${unlockNote}` : ''}`
-                    : '';
-                _setMessage(`${amount.toLocaleString('ja-JP')}Gをチップ返却しました。${contributionNote}${debtNote}${levelNote}`);
-                if (coinReturnAmountEl) coinReturnAmountEl.value = '0';
-                await loadKingPage(playFabId);
-            } catch (error) {
-                _setMessage(_extractErrorMessage(error, 'チップ返却に失敗しました。'), true);
-            } finally {
-                coinReturnBtn.disabled = false;
-                coinReturnBtn.textContent = previous;
             }
         });
     }

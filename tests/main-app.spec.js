@@ -1560,6 +1560,7 @@ test('king page shows TROY entry QR from priority controls', async ({ page }) =>
 test('king store game scoring saves from each in-store customer row', async ({ page }) => {
   const errors = trackPageErrors(page);
   const scoreRequests = [];
+  const chipReturnRequests = [];
   await bootstrapMainApp(page);
   await page.unroute('**/api/get-nation-king-page');
   await page.route('**/api/get-nation-king-page', async (route) => {
@@ -1599,6 +1600,23 @@ test('king store game scoring saves from each in-store customer row', async ({ p
       body: JSON.stringify(responseBody)
     });
   });
+  await page.route('**/api/king-troy-return-coin', async (route) => {
+    const requestBody = route.request().postDataJSON();
+    chipReturnRequests.push(requestBody);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        amount: requestBody.amount,
+        receiverPlayFabId: requestBody.receiverPlayFabId,
+        contributionAmount: 1200
+      })
+    });
+  });
+  page.on('dialog', async (dialog) => {
+    await dialog.accept();
+  });
 
   await page.evaluate(async () => {
     const king = await import('/js/nationKing.js');
@@ -1608,9 +1626,22 @@ test('king store game scoring saves from each in-store customer row', async ({ p
 
   await expect(page.locator('#kingStoreGameDetails')).toHaveCount(0);
   await expect(page.locator('#kingStoreGameType')).toHaveCount(0);
+  await expect(page.locator('#btnKingCoinReturn')).toHaveCount(0);
 
   const playerRow = page.locator('.troy-entry-item[data-troy-entry-player="PLAYER1"]');
   await expect(playerRow).toContainText('海風の船長');
+  await expect(playerRow.locator('.king-chip-return-panel')).toContainText('チップ返却');
+  await playerRow.locator('[data-chip-return-amount="PLAYER1"]').fill('1200');
+  await playerRow.locator('[data-chip-return="PLAYER1"]').click();
+
+  await expect.poll(() => chipReturnRequests.length).toBe(1);
+  expect(chipReturnRequests[0]).toMatchObject({
+    playFabId: 'PF_PLAYWRIGHT',
+    receiverPlayFabId: 'PLAYER1',
+    amount: 1200
+  });
+  await expect(page.locator('#kingPageMessage')).toContainText('海風の船長 に 1,200Gをチップ返却しました。');
+  await expect(playerRow.locator('[data-chip-return-amount="PLAYER1"]')).toHaveValue('0');
   await expect(playerRow.locator('.king-store-game-inline summary')).toHaveText('店内ゲーム採点');
   await expect(playerRow.locator('[data-store-game-type] option[value="billiards"]')).toHaveText('ビリヤード');
   await expect(playerRow.locator('[data-store-game-type] option[value="game"]')).toHaveText('ゲーム');

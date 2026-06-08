@@ -3754,6 +3754,68 @@ body.modal-lock .modal-overlay {
     padding: 6px 10px;
 }
 
+.king-chip-return-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    background: rgba(15, 23, 42, 0.34);
+}
+
+.king-chip-return-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.king-chip-return-copy span {
+    color: #bfdbfe;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.king-chip-return-copy small {
+    color: var(--text-sub);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.king-chip-return-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.king-chip-return-input-row {
+    width: 118px;
+}
+
+.king-chip-return-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+}
+
+@media (max-width: 520px) {
+    .king-chip-return-panel {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .king-chip-return-controls {
+        justify-content: stretch;
+    }
+
+    .king-chip-return-input-row,
+    .king-chip-return-btn {
+        flex: 1 1 112px;
+    }
+}
+
 .king-store-game-inline {
     border-radius: 10px;
     border: 1px solid rgba(245, 158, 11, 0.22);
@@ -10858,43 +10920,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     box-shadow: 0 18px 28px rgba(2, 6, 23, 0.28);
 }
 
-.king-coin-return-qr-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 14px;
-    margin-top: 16px;
-    padding: 12px;
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.38);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.king-coin-return-qr-copy {
-    min-width: 0;
-}
-
-.king-coin-return-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-    min-width: min(100%, 220px);
-}
-
-.king-coin-return-actions .king-coin-return-input-row,
-.king-coin-return-actions #btnKingCoinReturn {
-    width: 100%;
-}
-
-.king-coin-return-qr-canvas {
-    width: 96px;
-    height: 96px;
-    padding: 6px;
-    border-radius: 8px;
-    background: #fff;
-}
-
 .king-troy-entry-qr-modal {
     width: min(92vw, 420px);
     max-width: 420px;
@@ -10928,18 +10953,6 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     box-sizing: border-box;
     text-align: center;
     font-size: 12px;
-}
-
-@media (max-width: 520px) {
-    .king-coin-return-qr-row {
-        grid-template-columns: 1fr;
-        justify-items: start;
-    }
-
-    .king-coin-return-actions {
-        align-items: stretch;
-        width: 100%;
-    }
 }
 
 .transfer-quick-row {
@@ -18910,7 +18923,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn,
 .transfer-coin-btn,
 .transfer-gold-btn,
-#btnKingCoinReturn,
+.king-chip-return-btn,
 .home-exploration-btn,
 .ranking-toggle-btn,
 .ranking-refresh-btn,
@@ -18929,7 +18942,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn::before,
 .transfer-coin-btn::before,
 .transfer-gold-btn::before,
-#btnKingCoinReturn::before,
+.king-chip-return-btn::before,
 .home-exploration-btn::before,
 .ranking-toggle-btn::before,
 .ranking-refresh-btn::before,
@@ -18948,7 +18961,7 @@ body[data-sea-tone] .home-hero-card {
 .transfer-send-btn { --button-icon: var(--icon-money-bag); }
 .transfer-coin-btn { --button-icon: var(--icon-chip); }
 .transfer-gold-btn { --button-icon: var(--icon-coin-stack); }
-#btnKingCoinReturn { --button-icon: var(--icon-coin-stack); }
+.king-chip-return-btn { --button-icon: var(--icon-coin-stack); }
 .home-exploration-btn { --button-icon: var(--icon-compass); }
 .home-exploration-btn::before {
     width: 18px;
@@ -18990,8 +19003,7 @@ body[data-sea-tone] .home-hero-card {
 .home-qr-scan-btn,
 .transfer-send-btn,
 .transfer-coin-btn,
-.transfer-gold-btn,
-#btnKingCoinReturn {
+.transfer-gold-btn {
     border: 1px solid transparent;
     border-radius: 8px;
     background:
@@ -19045,14 +19057,6 @@ body[data-sea-tone] .home-hero-card {
     width: 18px;
     height: 18px;
     flex-basis: 18px;
-}
-
-#btnKingCoinReturn {
-    min-height: 44px;
-    padding: 7px 12px;
-    gap: 7px;
-    font-size: 14px;
-    white-space: nowrap;
 }
 
 #tabContentQr .qr-battle-card > h2::before,
@@ -20625,10 +20629,6 @@ body[data-sea-tone] .home-hero-card {
 
 #shipSkillToggleButton {
     --command-icon: var(--icon-action-card);
-}
-
-#btnKingCoinReturn {
-    --command-icon: var(--icon-coin-stack);
 }
 
 #btnKingWarDeploy {
