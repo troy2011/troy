@@ -238,6 +238,9 @@ export function onSnapshot(_ref, next) {
   expect(troyHeaderLayout.rowHeight).toBeLessThan(120);
   await expect(page.locator('#troyMenuBoardSection')).toContainText('メニュー表');
   await expect(page.locator('#troyMenuBoardSection')).toContainText('入店中はメニューから注文できます');
+  await expect(page.locator('#troyEntryList')).toContainText('現在 1 名入店中');
+  await expect(page.locator('#troyEntryList .troy-entry-item')).toContainText('テスト船長');
+  await expect(page.locator('#troyEntryList .troy-entry-item')).toContainText('自分');
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab-icon img')).toHaveCount(11);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/drinks\/troy_champagne_bottle_flute\.png/);
   await expect(page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).locator('.troy-menu-board-tab-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_fried_chicken_skillet\.png/);

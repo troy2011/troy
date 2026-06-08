@@ -1594,6 +1594,39 @@ function renderEntryList(members) {
     count.className = 'troy-entry-count';
     count.textContent = `現在 ${entries.length} 名入店中`;
     list.appendChild(count);
+
+    entries.forEach((member) => {
+        const playFabId = normalizePlayFabId(member?.playFabId || member?.id || '');
+        const displayName = String(member?.displayName || playFabId || 'Player').trim();
+        const joinedAt = toMillis(member?.joinedAtMs || member?.joinedAt);
+        const row = document.createElement('div');
+        row.className = 'troy-entry-item';
+        if (playFabId) row.dataset.troyEntryPlayer = playFabId;
+
+        const main = document.createElement('div');
+        main.className = 'troy-entry-main';
+        const name = document.createElement(playFabId ? 'button' : 'span');
+        if (playFabId) name.type = 'button';
+        name.textContent = displayName;
+        decoratePlayerTriggerElement(name, playFabId, { className: 'player-link-inline' });
+        main.appendChild(name);
+
+        const meta = document.createElement('span');
+        meta.className = 'troy-entry-benefit';
+        if (joinedAt) {
+            meta.textContent = `入店 ${new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(new Date(joinedAt))}`;
+        } else {
+            meta.textContent = '入店中';
+        }
+        main.appendChild(meta);
+
+        const badge = document.createElement('span');
+        badge.className = 'troy-entry-rank';
+        badge.textContent = playFabId && playFabId === normalizePlayFabId(window.myPlayFabId) ? '自分' : '入店中';
+
+        row.append(main, badge);
+        list.appendChild(row);
+    });
 }
 
 function renderStatus(data) {
