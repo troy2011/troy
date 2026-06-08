@@ -1139,6 +1139,7 @@ function initializeBattleRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdm
     _promisifyPlayFab = promisifyPlayFab;
     _PlayFabServer = PlayFabServer;
     _PlayFabEconomy = PlayFabEconomy;
+    _lineClient = lineClient || null;
     _catalogCache = catalogCache;
     _catalogCurrencyMap = catalogCurrencyMap || null;
     _resolveItemId = resolveItemId || null;
