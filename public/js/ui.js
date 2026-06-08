@@ -5,7 +5,7 @@ import * as Inventory from './inventory.js?v=20260604g';
 import * as Ship from './ship.js';
 import * as NationKing from './nationKing.js';
 import * as Islands from './islands.js';
-import { getNationKingPage } from './playfabClient.js';
+import { getNationAnnouncements } from './playfabClient.js';
 
 let troyModule = null;
 const ensureTroyModule = async () => {
@@ -1163,6 +1163,59 @@ export function escapeHtml(str) {
     })[match]);
 }
 
+function formatAnnouncementTime(value) {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function renderHomeAnnouncements(announcements) {
+    const panel = document.getElementById('homeAnnouncementPanel');
+    const list = document.getElementById('homeAnnouncementList');
+    if (!panel || !list) return;
+
+    const entries = Array.isArray(announcements)
+        ? announcements.filter((entry) => String(entry?.message || '').trim())
+            .slice(0, 1)
+        : [];
+    panel.hidden = entries.length === 0;
+    if (entries.length === 0) {
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = entries.map((entry) => {
+        const nationLabel = String(entry.nationLabel || '').trim();
+        const timeLabel = formatAnnouncementTime(entry.updatedAt);
+        const meta = [nationLabel, timeLabel].filter(Boolean).join(' / ');
+        return `
+            <article class="home-announcement-item">
+                ${meta ? `<div class="home-announcement-meta">${escapeHtml(meta)}</div>` : ''}
+                <div class="home-announcement-message">${escapeHtml(String(entry.message || ''))}</div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadHomeAnnouncements(playFabId) {
+    if (!playFabId) {
+        renderHomeAnnouncements([]);
+        return;
+    }
+    try {
+        const data = await getNationAnnouncements(playFabId, { isSilent: true });
+        renderHomeAnnouncements(data?.announcements || []);
+    } catch (error) {
+        console.warn('[home] Failed to load nation announcements:', error);
+        renderHomeAnnouncements([]);
+    }
+}
+
 function updateHomeAvatarSeaTone() {
     if (typeof document === 'undefined') return;
     const hour = new Date().getHours();
@@ -1238,8 +1291,10 @@ export async function showTab(tabId, playerInfo, options = {}) {
     const showKingAnnouncementOnMap = async () => {
         if (!playerInfo?.playFabId) return;
         try {
-            const data = await getNationKingPage(playerInfo.playFabId, { isSilent: true });
-            const msg = data?.announcement?.message;
+            const data = await getNationAnnouncements(playerInfo.playFabId, { isSilent: true });
+            const msg = Array.isArray(data?.announcements)
+                ? data.announcements.map((entry) => String(entry?.message || '').trim()).filter(Boolean)[0]
+                : '';
             if (msg && typeof window.showRpgMessage === 'function') {
                 window.showRpgMessage(`王の告知：${msg}`);
             }
@@ -1504,6 +1559,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
         }
 
         if (tabId === 'home') {
+            await loadHomeAnnouncements(playerInfo.playFabId);
             updateHomeAvatarSeaTone();
             revealBottomNavAfterHomeReady();
         }

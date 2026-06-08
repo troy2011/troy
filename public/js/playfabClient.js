@@ -300,6 +300,10 @@ export function getNationKingPage(playFabId, options) {
     return callApiWithLoader('/api/get-nation-king-page', { playFabId }, options);
 }
 
+export function getNationAnnouncements(playFabId, options) {
+    return callApiWithLoader('/api/get-nation-announcements', { playFabId }, options);
+}
+
 export function deployNationWarWeapon(playFabId, weaponId, options) {
     return callApiWithLoader('/api/nation-war-deploy', { playFabId, weaponId }, options);
 }

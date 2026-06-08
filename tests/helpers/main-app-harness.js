@@ -561,6 +561,16 @@ async function installBaseAppMocks(page, state, options = {}) {
     });
   });
 
+  await page.route('**/api/get-nation-announcements', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        announcements: []
+      })
+    });
+  });
+
   await page.route('**/api/get-world-map-layout', async (route) => {
     await route.fulfill({
       status: 200,

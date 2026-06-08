@@ -53,6 +53,61 @@ test('main app boots in limited mode with mocked LIFF login', async ({ page }) =
   await expectNoPageErrors(errors);
 });
 
+test('home tab shows only the latest nation announcement in the top skull panel', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await bootstrapMainApp(page);
+  await page.unroute('**/api/get-nation-announcements');
+  await page.route('**/api/get-nation-announcements', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        announcements: [
+          {
+            nation: 'water',
+            nationLabel: '水の国',
+            message: '全プレイヤー向けの告知です。',
+            updatedAt: Date.parse('2026-06-08T12:00:00+09:00')
+          },
+          {
+            nation: 'fire',
+            nationLabel: '火の国',
+            message: '火の国からのお知らせ。',
+            updatedAt: Date.parse('2026-06-08T10:00:00+09:00')
+          }
+        ]
+      })
+    });
+  });
+
+  await page.evaluate(async () => {
+    await window.showTab('home', { playFabId: 'PF_PLAYWRIGHT', race: 'human', nation: 'fire' });
+  });
+
+  const panel = page.locator('#homeAnnouncementPanel');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.home-announcement-title')).toHaveText('王の告知');
+  await expect(panel).toContainText('水の国');
+  await expect(panel).toContainText('全プレイヤー向けの告知です。');
+  await expect(panel).not.toContainText('火の国');
+  await expect(panel).not.toContainText('火の国からのお知らせ。');
+  const panelFrame = await panel.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    const skullStyle = window.getComputedStyle(element, '::before');
+    return {
+      borderImageSource: style.borderImageSource,
+      borderImageSlice: style.borderImageSlice,
+      borderImageWidth: style.borderImageWidth,
+      skullBackground: skullStyle.backgroundImage
+    };
+  });
+  expect(panelFrame.borderImageSource).toContain('panel-dark-gold.png');
+  expect(panelFrame.borderImageSlice).toContain('32');
+  expect(panelFrame.borderImageWidth).toContain('14px');
+  expect(panelFrame.skullBackground).toContain('019.png');
+  await expectNoPageErrors(errors);
+});
+
 test('ranking tab shows bounty billiards and game as top category buttons', async ({ page }) => {
   const errors = trackPageErrors(page);
   const storeGameRequests = [];

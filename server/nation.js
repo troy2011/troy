@@ -115,6 +115,12 @@ const TROY_CONTRIBUTION_DEBT_COLLECTION = 'troy_contribution_debts';
 const TROY_CONTRIBUTION_DEBT_MESSAGE = '古傷が疼き、経験値は波間に消えた。';
 const TROY_CHIP_RETURN_DEBT_REPAY_BPS = 9000;
 const TROY_SETTLEMENT_DEBT_REPAY_BPS = 5000;
+const NATION_ANNOUNCEMENT_CACHE_TTL_MS = 30 * 1000;
+
+let nationAnnouncementCache = {
+    expiresAt: 0,
+    payload: null
+};
 
 function callTitleScopedApi(promisifyPlayFab, apiFunction, request) {
     return withTitleEntityToken(() => promisifyPlayFab(apiFunction, request));
@@ -1097,6 +1103,72 @@ async function getNationGroupEntityKey(nation, firestore, deps) {
     const groupId = await getNationGroupIdByNation(nation, firestore, deps);
     if (!groupId) return null;
     return { Id: groupId, Type: 'group' };
+}
+
+async function getExistingNationGroupIdByNation(nation, firestore) {
+    const mapping = getNationMappingByNation(nation);
+    if (!mapping) return null;
+    const snap = await getNationGroupDoc(firestore, mapping.groupName).get();
+    return snap.exists ? String(snap.data()?.groupId || '').trim() || null : null;
+}
+
+function getPlayFabObjectData(objectsResult, objectName) {
+    const objects = objectsResult?.Data?.Objects || objectsResult?.Objects || {};
+    const entry = objects?.[objectName];
+    if (!entry) return null;
+    return entry?.DataObject ?? entry?.Object ?? entry;
+}
+
+function normalizeNationAnnouncementObject(value) {
+    let data = value;
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch {
+            data = { message: data };
+        }
+    }
+    const message = String(data?.message || '').trim().slice(0, 200);
+    const updatedAtRaw = Number(data?.updatedAt || 0);
+    const updatedAt = Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : null;
+    return { message, updatedAt };
+}
+
+async function getAllNationAnnouncements(firestore, deps) {
+    const now = Date.now();
+    if (nationAnnouncementCache.payload && nationAnnouncementCache.expiresAt > now) {
+        return nationAnnouncementCache.payload;
+    }
+
+    const announcements = [];
+    for (const nation of Object.keys(NATION_GROUP_BY_NATION)) {
+        try {
+            const groupId = await getExistingNationGroupIdByNation(nation, firestore);
+            if (!groupId) continue;
+            const objectsResult = await callTitleScopedApi(deps.promisifyPlayFab, PlayFabData.GetObjects, {
+                Entity: { Id: groupId, Type: 'group' },
+                EscapeObject: false
+            });
+            const announcement = normalizeNationAnnouncementObject(getPlayFabObjectData(objectsResult, 'NationAnnouncement'));
+            if (!announcement.message) continue;
+            announcements.push({
+                nation,
+                nationLabel: getNationLabel(nation),
+                message: announcement.message,
+                updatedAt: announcement.updatedAt
+            });
+        } catch (error) {
+            console.warn('[get-nation-announcements] Failed to load nation announcement:', nation, error?.message || error);
+        }
+    }
+
+    announcements.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+    const payload = { announcements: announcements.slice(0, 1) };
+    nationAnnouncementCache = {
+        expiresAt: now + NATION_ANNOUNCEMENT_CACHE_TTL_MS,
+        payload
+    };
+    return payload;
 }
 
 async function getGroupTreasuryBalance(groupId, deps) {
@@ -2923,6 +2995,50 @@ function initializeNationRoutes(app, deps) {
         } catch (error) {
             console.error('[ensure-nation-group] Error:', error.errorMessage || error.message || error);
             return res.status(500).json({ error: 'Failed to ensure nation group', details: error.errorMessage || error.message || String(error) });
+        }
+    });
+
+    app.post('/api/get-nation-announcements', async (req, res) => {
+        const { playFabId } = req.body || {};
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const payload = await getAllNationAnnouncements(firestore, nationDeps);
+            return res.json(payload);
+        } catch (error) {
+            console.error('[get-nation-announcements]', error?.message || error);
+            return res.status(500).json({ error: 'Failed to get nation announcements' });
+        }
+    });
+
+    app.post('/api/set-nation-announcement', async (req, res) => {
+        const { playFabId } = req.body || {};
+        const message = String(req.body?.message || '').slice(0, 200);
+        if (!playFabId) return res.status(400).json({ error: 'PlayFab ID is required' });
+        const requesterPlayFabId = await requireAuthedPlayFabId(req, res, playFabId);
+        if (!requesterPlayFabId) return;
+
+        try {
+            const csResult = await promisifyPlayFab(PlayFabServer.ExecuteCloudScript, {
+                PlayFabId: requesterPlayFabId,
+                FunctionName: 'SetNationAnnouncement',
+                FunctionParameter: { message },
+                GeneratePlayStreamEvent: false
+            });
+            if (csResult && csResult.Error) {
+                const msg = csResult.Error.Message || csResult.Error.Error || 'CloudScript error';
+                if (String(msg).includes('NotKing')) {
+                    return res.status(403).json({ error: 'Only the king can update announcements' });
+                }
+                return res.status(500).json({ error: 'Failed to set announcement', details: msg });
+            }
+            nationAnnouncementCache = { expiresAt: 0, payload: null };
+            return res.json({ success: true });
+        } catch (error) {
+            console.error('[set-nation-announcement]', error?.errorMessage || error?.message || error);
+            return res.status(500).json({ error: 'Failed to set announcement' });
         }
     });
 
