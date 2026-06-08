@@ -20,12 +20,18 @@ async function waitForSpinToSettle(page) {
 }
 
 async function readSpinSnapshot(page) {
-  return page.evaluate(() => ({
-    spinLabel: document.getElementById('spinTarotSpinButton')?.textContent?.trim() || '',
-    panelText: document.getElementById('tarotSpinRoot')?.innerText || '',
-    holdButtons: document.querySelectorAll('[data-hold-index]').length,
-    arcanaChoices: document.querySelectorAll('[data-arcana-choice]').length
-  }));
+  return page.evaluate(() => {
+    const root = document.getElementById('tarotSpinRoot');
+    const phaserLayer = document.getElementById('spinTarotBoardPhaser');
+    return {
+      spinLabel: document.getElementById('spinTarotSpinButton')?.textContent?.trim() || '',
+      panelText: root?.innerText || '',
+      holdButtons: document.querySelectorAll('[data-hold-index]').length,
+      arcanaChoices: document.querySelectorAll('[data-arcana-choice]').length,
+      phaserActive: root?.classList.contains('spin-tarot-phaser-active') || false,
+      phaserDisplay: phaserLayer ? window.getComputedStyle(phaserLayer).display : ''
+    };
+  });
 }
 
 async function waitForPokerInteractive(page) {
@@ -116,6 +122,9 @@ test.describe('preview smoke', () => {
     await waitForSpinToSettle(page);
 
     const before = await readSpinSnapshot(page);
+    if (!before.phaserActive) {
+      expect(before.phaserDisplay).toBe('none');
+    }
     await page.locator('#spinTarotSpinButton').click();
     await waitForSpinToSettle(page);
     const after = await readSpinSnapshot(page);

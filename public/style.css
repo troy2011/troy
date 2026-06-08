@@ -19986,17 +19986,17 @@ body[data-sea-tone] .home-hero-card {
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon-frame,
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon-frame {
     position: relative;
-    width: min(100%, 58px);
-    height: min(100%, 92px);
-    max-width: 58px;
-    max-height: 92px;
+    width: 48px;
+    height: 80px;
+    max-width: 48px;
+    max-height: 80px;
     overflow: visible;
 }
 
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-icon,
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMajor"] .inventory-item-icon,
 #tabContentInventory #inventoryGrid[data-layout="mixed"] .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon {
-    transform: scale(1.12);
+    transform: none;
 }
 
 #tabContentInventory .tarot-number-badge {

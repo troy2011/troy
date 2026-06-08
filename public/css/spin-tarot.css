@@ -1822,9 +1822,14 @@
     position: absolute;
     inset: 0;
     z-index: 2;
+    display: none;
     pointer-events: none;
     overflow: hidden;
     border-radius: 14px;
+}
+
+.tarot-spin-root.spin-tarot-phaser-active .spin-tarot-board-phaser {
+    display: block;
 }
 
 .tarot-spin-root .spin-tarot-board-phaser canvas {

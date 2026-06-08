@@ -2468,5 +2468,25 @@ test('tarot deck and list show suit-colored number badges at the upper left', as
   expect(badgePosition.topOffset).toBeLessThan(8);
   expect(badgePosition.textShadow).toMatch(/rgba?\(0, 0, 0/);
   expect(badgePosition.strokeWidth).not.toBe('0px');
+
+  const tarotIconMetrics = await page.locator('#inventoryGrid .inventory-item-cell[data-category="TarotMinor"] .inventory-item-icon-frame').first().evaluate((frame) => {
+    const icon = frame.querySelector('.inventory-item-icon');
+    const frameRect = frame.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      frameWidth: Math.round(frameRect.width),
+      frameHeight: Math.round(frameRect.height),
+      iconWidth: Math.round(iconRect.width),
+      iconHeight: Math.round(iconRect.height),
+      iconTransform: window.getComputedStyle(icon).transform
+    };
+  });
+  expect(tarotIconMetrics).toMatchObject({
+    frameWidth: 48,
+    frameHeight: 80,
+    iconWidth: 48,
+    iconHeight: 80,
+    iconTransform: 'none'
+  });
   await expectNoPageErrors(errors);
 });
