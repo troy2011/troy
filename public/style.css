@@ -18150,44 +18150,26 @@ body[data-sea-tone] .home-hero-card {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    column-gap: 9px;
-    width: min(430px, calc(100% - 18px));
-    min-height: 42px;
-    margin: 8px auto 6px;
-    padding: 8px 12px;
+    column-gap: 8px;
+    width: min(430px, calc(100% - 20px));
+    min-height: 48px;
+    margin: 10px auto 4px;
+    padding: 17px 28px 9px;
     border: 1px solid transparent;
-    border-image: url("./assets/ui/panels/panel-dark-gold.png") 32 fill / 14px / 0 stretch;
-    background:
-        linear-gradient(180deg, rgba(11, 8, 6, 0.48), rgba(4, 4, 5, 0.72)),
-        radial-gradient(ellipse at 50% 0%, rgba(255, 211, 111, 0.16), transparent 64%);
+    border-image: var(--panel-sheet-divider) 52 70 22 70 fill / 28px 28px 13px 28px / 0 stretch;
+    background: rgba(7, 6, 5, 0.16);
     color: #f9edcf;
-    box-shadow:
-        0 14px 30px rgba(0, 0, 0, 0.42),
-        inset 0 0 20px rgba(255, 211, 111, 0.08);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.34);
 }
 
 .home-announcement-panel[hidden] {
     display: none;
 }
 
-.home-announcement-panel::before {
-    content: "";
-    position: absolute;
-    top: -2px;
-    left: 50%;
-    width: 32px;
-    height: 32px;
-    transform: translate(-50%, -44%);
-    background: var(--icon-skull) center / contain no-repeat;
-    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.72));
-    pointer-events: none;
-    z-index: 1;
-}
-
 .home-announcement-title {
     margin: 0;
     color: #ffe0a3;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
     line-height: 1;
     text-align: left;

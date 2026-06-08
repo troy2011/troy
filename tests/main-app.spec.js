@@ -96,7 +96,6 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   )).toBe(true);
   const panelFrame = await panel.evaluate((element) => {
     const style = window.getComputedStyle(element);
-    const skullStyle = window.getComputedStyle(element, '::before');
     const rect = element.getBoundingClientRect();
     const messageStyle = window.getComputedStyle(element.querySelector('.home-announcement-message'));
     const marqueeStyle = window.getComputedStyle(element.querySelector('.home-announcement-marquee-text'));
@@ -105,7 +104,6 @@ test('home tab shows only the latest nation announcement in the top skull panel'
       borderImageSource: style.borderImageSource,
       borderImageSlice: style.borderImageSlice,
       borderImageWidth: style.borderImageWidth,
-      skullBackground: skullStyle.backgroundImage,
       messageWhiteSpace: messageStyle.whiteSpace,
       messageTextOverflow: messageStyle.textOverflow,
       marqueeAnimationName: marqueeStyle.animationName,
@@ -114,11 +112,13 @@ test('home tab shows only the latest nation announcement in the top skull panel'
       marqueeTransform: marqueeStyle.transform
     };
   });
-  expect(panelFrame.height).toBeLessThanOrEqual(54);
-  expect(panelFrame.borderImageSource).toContain('panel-dark-gold.png');
-  expect(panelFrame.borderImageSlice).toContain('32');
-  expect(panelFrame.borderImageWidth).toContain('14px');
-  expect(panelFrame.skullBackground).toContain('019.png');
+  expect(panelFrame.height).toBeLessThanOrEqual(58);
+  expect(panelFrame.borderImageSource).toContain('banner-divider.png');
+  expect(panelFrame.borderImageSlice).toContain('52');
+  expect(panelFrame.borderImageSlice).toContain('70');
+  expect(panelFrame.borderImageSlice).toContain('22');
+  expect(panelFrame.borderImageWidth).toContain('28px');
+  expect(panelFrame.borderImageWidth).toContain('13px');
   expect(panelFrame.messageWhiteSpace).toBe('nowrap');
   expect(panelFrame.messageTextOverflow).toBe('clip');
   expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
