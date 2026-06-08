@@ -25,8 +25,7 @@ const BOUNTY_UNIT_LABEL = 'ĐɃ';
 const STORE_GAME_RANKING_UI = {
     darts_countup: {
         listId: 'dartsRankingList',
-        label: 'ダーツカウントアップ',
-        isRating: true
+        label: 'ダーツカウントアップ'
     },
     billiards: {
         listId: 'billiardsRankingList',

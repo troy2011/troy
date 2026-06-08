@@ -25,12 +25,10 @@ const ECONOMY_CURRENCY_IDS = new Set([
 ]);
 const STORE_GAME_RANKING_STATS = {
     darts_countup: {
-        statisticName: 'troy_darts_countup_rating',
+        statisticName: 'troy_darts_countup_score',
         label: 'ダーツカウントアップ',
-        scoreScale: 1,
-        isRating: true,
-        initialRating: STORE_GAME_ELO_INITIAL_RATING,
-        kFactor: STORE_GAME_ELO_K_FACTOR
+        maxScore: 9999,
+        scoreScale: 1
     },
     billiards: {
         statisticName: 'troy_billiards_rating',
