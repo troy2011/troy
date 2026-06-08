@@ -296,6 +296,90 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]')).toHaveCount(1);
 });
 
+test('staff register completes checkout when menu consumable grant reports a warning', async ({ page }) => {
+  const now = Date.now();
+  const state = {
+    troyOpen: true,
+    nation: 'fire',
+    troyTodaySales: { total: 0, count: 0 },
+    troyCoinConversionLogs: [],
+    troyMembers: [
+      { playFabId: 'PLAYER1', displayName: '海風の船長', joinedAtMs: now - 60000, level: 24, rankName: '船長' }
+    ],
+    troyPendingCheckouts: [
+      {
+        playFabId: 'PLAYER1',
+        displayName: '海風の船長',
+        status: 'open',
+        total: 700,
+        totalItems: 1,
+        grantTotal: 0,
+        createdAtMs: now - 30000,
+        lastOrderedAtMs: now - 30000,
+        items: [
+          {
+            orderId: 'ORDER1',
+            name: '瓶ビール（ハートランド）',
+            quantity: 1,
+            price: 700,
+            menuImage: './Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+            image: './Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+            iconImage: './Sprites/drinks/fantasy_anchor_green_beer_bottle.png',
+            menuCategory: 'beer',
+            menuCategoryLabel: 'ビール・ハイボール',
+            lineTotal: 700,
+            status: 'pending',
+            orderedAtMs: now - 30000
+          }
+        ]
+      }
+    ]
+  };
+
+  await page.addInitScript(() => {
+    window.EventSource = class {
+      constructor() {}
+      close() {}
+    };
+  });
+
+  await page.route('**/api/troy-orders/list', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify(state)
+    });
+  });
+
+  await page.route('**/api/troy-orders/settle', async (route) => {
+    const body = route.request().postDataJSON();
+    state.troyPendingCheckouts = state.troyPendingCheckouts.filter((entry) => entry.playFabId !== body.receiverPlayFabId);
+    state.troyMembers = state.troyMembers.filter((entry) => entry.playFabId !== body.receiverPlayFabId);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        menuConsumableGrantApplied: false,
+        menuConsumableGrantError: '瓶ビール（ハートランド）:troy_menu_sample:temporary failure',
+        menuConsumableGrantFailureId: 'PLAYER1_123_700'
+      })
+    });
+  });
+
+  await page.goto('/troy-orders.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-open-ticket]', { hasText: '海風の船長' }).click();
+  await page.locator('#troyOrdersTicketDetail [data-settle]').click();
+  await expect(page.locator('#troyOrdersConfirmModal')).toBeVisible();
+  await page.locator('#troyOrdersReceivedAmount').fill('700');
+  await page.locator('#troyOrdersConfirmCheck').check();
+  await page.locator('#troyOrdersConfirmSubmit').click();
+
+  await expect(page.locator('#troyOrdersMessage')).toContainText('会計と退店処理を完了しました');
+  await expect(page.locator('#troyOrdersMessage')).toContainText('消耗品付与に失敗しました');
+  await expect(page.locator('[data-open-ticket]')).toHaveCount(0);
+});
+
 test('staff register accepts customer-side order requests into tickets', async ({ page }) => {
   const now = Date.now();
   const state = {

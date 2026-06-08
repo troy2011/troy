@@ -5281,6 +5281,37 @@ function initializeNationRoutes(app, deps) {
         };
     }
 
+    async function recordTroyMenuConsumableGrantFailure(context, failure = {}) {
+        const rewards = buildTroyMenuConsumableRewards(failure.checkoutPayload || {});
+        if (!context?.roomRef || !rewards.length) return '';
+        const receiverId = normalizePlayFabId(failure.receiverId);
+        const representativeId = normalizePlayFabId(failure.representativeId);
+        const checkoutPayload = failure.checkoutPayload || {};
+        const stableId = String(failure.checkoutStableId || `${receiverId}:${checkoutPayload.createdAtMs || checkoutPayload.updatedAtMs || 0}:${checkoutPayload.total || 0}`).trim();
+        const docId = (stableId || `grant-failure-${Date.now()}`)
+            .replace(/[^a-zA-Z0-9_-]/g, '_')
+            .slice(0, 120);
+        await context.roomRef.collection('menuConsumableGrantFailures').doc(docId).set({
+            status: 'pending',
+            receiverPlayFabId: receiverId,
+            representativePlayFabId: representativeId,
+            checkoutStableId: stableId,
+            checkoutTotal: Math.max(0, Math.floor(Number(checkoutPayload.total) || 0)),
+            checkoutTotalItems: Math.max(0, Math.floor(Number(checkoutPayload.totalItems) || 0)),
+            checkoutCreatedAtMs: Math.max(0, Math.floor(Number(checkoutPayload.createdAtMs) || 0)),
+            error: String(failure.error || '').slice(0, 600),
+            items: rewards.map((item) => ({
+                itemId: item.itemId,
+                name: item.name,
+                image: item.image,
+                quantity: item.quantity
+            })),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        return docId;
+    }
+
     async function settleTroyCheckoutForRoom(context, payload = {}, logPrefix = 'troy-orders-settle') {
         if (!TROY_STAFF_CHECKOUT_ENABLED) {
             const error = new Error('TroyCheckoutDisabled');
@@ -5344,16 +5375,24 @@ function initializeNationRoutes(app, deps) {
         let grantError = null;
         let menuConsumableGrant = { applied: false, targetPlayFabId: representativeId, items: [], missingItems: [] };
         let menuConsumableGrantError = null;
+        let menuConsumableGrantFailureId = '';
 
         try {
             menuConsumableGrant = await grantTroyMenuConsumables(representativeId, checkoutPayload, checkoutStableId);
         } catch (menuGrantIssue) {
             menuConsumableGrantError = menuGrantIssue?.details || menuGrantIssue?.errorMessage || menuGrantIssue?.message || String(menuGrantIssue);
             console.warn(`[${logPrefix}] Menu consumable grant failed:`, menuConsumableGrantError);
-            const error = new Error('FailedToGrantMenuConsumable');
-            error.statusCode = 500;
-            error.details = menuConsumableGrantError;
-            throw error;
+            try {
+                menuConsumableGrantFailureId = await recordTroyMenuConsumableGrantFailure(context, {
+                    receiverId,
+                    representativeId,
+                    checkoutPayload,
+                    checkoutStableId,
+                    error: menuConsumableGrantError
+                });
+            } catch (recordError) {
+                console.warn(`[${logPrefix}] Menu consumable grant failure record failed:`, recordError?.message || recordError);
+            }
         }
 
         if (checkoutPayload.status === 'pending') {
@@ -5536,6 +5575,7 @@ function initializeNationRoutes(app, deps) {
             menuConsumableGrantItems: menuConsumableGrant.items || [],
             menuConsumableGrantMissingItems: menuConsumableGrant.missingItems || [],
             menuConsumableGrantError,
+            menuConsumableGrantFailureId,
             chipReturnAmount,
             chipReturnApplied,
             chipReturnError,

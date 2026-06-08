@@ -1229,6 +1229,7 @@ async function settleFromCard(card) {
     try {
         const groupRequestId = createRequestId(targets.length > 1 ? 'troy-orders-group-settle' : 'troy-orders-settle');
         const debtMessages = [];
+        const grantWarnings = [];
         for (const target of targets) {
             const targetId = String(target.playFabId || '').trim();
             if (!targetId) continue;
@@ -1244,10 +1245,14 @@ async function settleFromCard(card) {
                 .map((message) => String(message || '').trim())
                 .filter(Boolean)
                 .forEach((message) => debtMessages.push(message));
+            if (settleResult?.menuConsumableGrantError) {
+                grantWarnings.push(`${getCustomerDisplayName(target)}の消耗品付与に失敗しました。後で確認してください。`);
+            }
         }
         await refreshOrders({ silent: true, force: true });
         const doneMessage = targets.length > 1 ? 'グループ会計と退店処理を完了しました。' : '会計と退店処理を完了しました。';
-        setMessage(debtMessages.length ? `${doneMessage} ${debtMessages.join(' ')}` : doneMessage);
+        const followupMessages = debtMessages.concat(grantWarnings);
+        setMessage(followupMessages.length ? `${doneMessage} ${followupMessages.join(' ')}` : doneMessage);
     } catch (error) {
         console.warn('[troy-orders] settle failed:', error);
         setMessage(`会計できませんでした: ${error?.message || error}`, true);
