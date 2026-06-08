@@ -1174,6 +1174,36 @@ function formatAnnouncementTime(value) {
     });
 }
 
+let homeAnnouncementResizeBound = false;
+
+function updateHomeAnnouncementMarquees() {
+    document.querySelectorAll('.home-announcement-message').forEach((messageEl) => {
+        const textEl = messageEl.querySelector('.home-announcement-marquee-text');
+        messageEl.classList.remove('is-marquee');
+        messageEl.style.removeProperty('--home-announcement-marquee-duration');
+        if (!textEl) return;
+
+        const overflow = textEl.scrollWidth > messageEl.clientWidth + 2;
+        if (!overflow) return;
+
+        const distance = textEl.scrollWidth + messageEl.clientWidth;
+        const durationSeconds = Math.max(18, Math.min(60, Math.round(distance / 18)));
+        const delaySeconds = Math.max(3, Math.min(8, Math.round(messageEl.clientWidth / 28)));
+        messageEl.style.setProperty('--home-announcement-marquee-duration', `${durationSeconds}s`);
+        messageEl.style.setProperty('--home-announcement-marquee-delay', `-${delaySeconds}s`);
+        messageEl.classList.add('is-marquee');
+    });
+}
+
+function scheduleHomeAnnouncementMarqueeUpdate() {
+    requestAnimationFrame(() => requestAnimationFrame(updateHomeAnnouncementMarquees));
+    if (homeAnnouncementResizeBound) return;
+    homeAnnouncementResizeBound = true;
+    window.addEventListener('resize', () => {
+        requestAnimationFrame(updateHomeAnnouncementMarquees);
+    }, { passive: true });
+}
+
 function renderHomeAnnouncements(announcements) {
     const panel = document.getElementById('homeAnnouncementPanel');
     const list = document.getElementById('homeAnnouncementList');
@@ -1196,10 +1226,13 @@ function renderHomeAnnouncements(announcements) {
         return `
             <article class="home-announcement-item">
                 ${meta ? `<div class="home-announcement-meta">${escapeHtml(meta)}</div>` : ''}
-                <div class="home-announcement-message">${escapeHtml(String(entry.message || ''))}</div>
+                <div class="home-announcement-message">
+                    <span class="home-announcement-marquee-text">${escapeHtml(String(entry.message || ''))}</span>
+                </div>
             </article>
         `;
     }).join('');
+    scheduleHomeAnnouncementMarqueeUpdate();
 }
 
 async function loadHomeAnnouncements(playFabId) {

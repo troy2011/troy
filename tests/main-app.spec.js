@@ -66,7 +66,7 @@ test('home tab shows only the latest nation announcement in the top skull panel'
           {
             nation: 'water',
             nationLabel: '水の国',
-            message: '全プレイヤー向けの告知です。',
+            message: '全プレイヤー向けの告知です。本日のTROYは22時から宝探しイベントを開催します。参加希望者は早めに集合してください。',
             updatedAt: Date.parse('2026-06-08T12:00:00+09:00')
           },
           {
@@ -91,11 +91,15 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   await expect(panel).toContainText('全プレイヤー向けの告知です。');
   await expect(panel).not.toContainText('火の国');
   await expect(panel).not.toContainText('火の国からのお知らせ。');
+  await expect.poll(async () => (
+    panel.locator('.home-announcement-message').evaluate((element) => element.classList.contains('is-marquee'))
+  )).toBe(true);
   const panelFrame = await panel.evaluate((element) => {
     const style = window.getComputedStyle(element);
     const skullStyle = window.getComputedStyle(element, '::before');
     const rect = element.getBoundingClientRect();
     const messageStyle = window.getComputedStyle(element.querySelector('.home-announcement-message'));
+    const marqueeStyle = window.getComputedStyle(element.querySelector('.home-announcement-marquee-text'));
     return {
       height: rect.height,
       borderImageSource: style.borderImageSource,
@@ -103,7 +107,10 @@ test('home tab shows only the latest nation announcement in the top skull panel'
       borderImageWidth: style.borderImageWidth,
       skullBackground: skullStyle.backgroundImage,
       messageWhiteSpace: messageStyle.whiteSpace,
-      messageTextOverflow: messageStyle.textOverflow
+      messageTextOverflow: messageStyle.textOverflow,
+      marqueeAnimationName: marqueeStyle.animationName,
+      marqueeAnimationDuration: marqueeStyle.animationDuration,
+      marqueeAnimationDelay: marqueeStyle.animationDelay
     };
   });
   expect(panelFrame.height).toBeLessThanOrEqual(54);
@@ -112,7 +119,10 @@ test('home tab shows only the latest nation announcement in the top skull panel'
   expect(panelFrame.borderImageWidth).toContain('14px');
   expect(panelFrame.skullBackground).toContain('019.png');
   expect(panelFrame.messageWhiteSpace).toBe('nowrap');
-  expect(panelFrame.messageTextOverflow).toBe('ellipsis');
+  expect(panelFrame.messageTextOverflow).toBe('clip');
+  expect(panelFrame.marqueeAnimationName).toBe('homeAnnouncementMarquee');
+  expect(panelFrame.marqueeAnimationDuration).toMatch(/s$/);
+  expect(panelFrame.marqueeAnimationDelay).toMatch(/^-/);
   await expectNoPageErrors(errors);
 });
 

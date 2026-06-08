@@ -18219,6 +18219,7 @@ body[data-sea-tone] .home-hero-card {
 
 .home-announcement-message {
     min-width: 0;
+    display: block;
     color: #fff7df;
     font-size: 12px;
     font-weight: 800;
@@ -18226,6 +18227,38 @@ body[data-sea-tone] .home-hero-card {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.home-announcement-marquee-text {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-announcement-message.is-marquee {
+    text-overflow: clip;
+}
+
+.home-announcement-message.is-marquee .home-announcement-marquee-text {
+    display: inline-block;
+    min-width: max-content;
+    padding-left: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    animation: homeAnnouncementMarquee var(--home-announcement-marquee-duration, 24s) linear infinite;
+    animation-delay: var(--home-announcement-marquee-delay, -6s);
+    will-change: transform;
+}
+
+@keyframes homeAnnouncementMarquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-100%);
+    }
 }
 
 .home-hero-card,
