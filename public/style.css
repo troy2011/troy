@@ -14884,7 +14884,7 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     justify-content: flex-end;
     align-items: center;
     gap: 6px;
-    min-width: 0;
+    min-width: 96px;
 }
 
 .troy-orders-quantity-control em {
@@ -14906,6 +14906,11 @@ body.modal-lock #shipExplorationPanel.ship-exploration-panel.is-popup {
     color: #1d6030;
     font-size: 18px;
     line-height: 1;
+}
+
+.troy-orders-quantity-control button:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
 }
 
 .troy-orders-quantity-control.is-locked {

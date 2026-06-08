@@ -761,7 +761,7 @@ function renderOrderItemRows(entry) {
         const itemName = String(item.name || '商品').trim();
         const canEditItem = orderId && !/^troy-entry:/u.test(orderId) && !/入店|チャージ/u.test(itemName);
         const quantityControls = canEditItem
-            ? `<span class="troy-orders-quantity-control"><em>x${quantity}</em><button type="button" data-increment-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}の数量を増やす">+</button></span>`
+            ? `<span class="troy-orders-quantity-control"><button type="button" data-decrement-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}の数量を減らす"${quantity <= 1 ? ' disabled' : ''}>-</button><em>x${quantity}</em><button type="button" data-increment-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}の数量を増やす">+</button></span>`
             : `<span class="troy-orders-quantity-control is-locked"><em>x${quantity}</em></span>`;
         const removeButton = canEditItem
             ? `<button type="button" data-remove-item data-order-id="${escapeHtml(orderId)}" aria-label="${escapeHtml(itemName)}を取り消す">取消</button>`
@@ -1365,8 +1365,10 @@ async function toggleServedFromButton(button) {
     }
 }
 
-async function incrementItemQuantityFromButton(button) {
+async function adjustItemQuantityFromButton(button, delta) {
     if (!button || busy) return;
+    const amount = Math.floor(Number(delta) || 0);
+    if (!amount) return;
     const card = button.closest('[data-receiver-id]');
     const receiverId = String(card?.dataset.receiverId || '').trim();
     const orderId = String(button.dataset.orderId || '').trim();
@@ -1378,7 +1380,7 @@ async function incrementItemQuantityFromButton(button) {
             ...getRequestedNationPayload(),
             receiverPlayFabId: receiverId,
             orderId,
-            delta: 1
+            delta: amount
         }, { isSilent: true, throwOnError: true });
         await refreshOrders({ silent: true, force: true });
     } catch (error) {
@@ -1388,6 +1390,14 @@ async function incrementItemQuantityFromButton(button) {
         busy = false;
         button.disabled = false;
     }
+}
+
+async function incrementItemQuantityFromButton(button) {
+    return adjustItemQuantityFromButton(button, 1);
+}
+
+async function decrementItemQuantityFromButton(button) {
+    return adjustItemQuantityFromButton(button, -1);
 }
 
 async function removeItemFromButton(button) {
@@ -1768,6 +1778,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const incrementButton = target?.closest('[data-increment-item]');
         if (incrementButton) {
             void incrementItemQuantityFromButton(incrementButton);
+            return;
+        }
+        const decrementButton = target?.closest('[data-decrement-item]');
+        if (decrementButton) {
+            void decrementItemQuantityFromButton(decrementButton);
             return;
         }
         const removeButton = target?.closest('[data-remove-item]');

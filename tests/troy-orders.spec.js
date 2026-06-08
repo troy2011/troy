@@ -233,6 +233,7 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
   const beerOrderRow = page.locator('#troyOrdersTicketDetail .troy-orders-item-row', { hasText: '瓶ビール（ハートランド）' });
   await expect(beerOrderRow.locator('.troy-orders-quantity-control em')).toHaveText('x1');
+  await expect(beerOrderRow.locator('[data-decrement-item]')).toBeDisabled();
   await beerOrderRow.locator('[data-increment-item]').click();
   expect(quantityRequests).toHaveLength(1);
   expect(quantityRequests[0].receiverPlayFabId).toBe('PLAYER1');
@@ -240,6 +241,14 @@ test('staff register creates a checkout from an in-store member and settles with
   await expect(beerOrderRow.locator('.troy-orders-quantity-control em')).toHaveText('x2');
   await expect(beerOrderRow.locator('strong')).toHaveText('¥1,400');
   await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥1,400');
+  await expect(beerOrderRow.locator('[data-decrement-item]')).toBeEnabled();
+  await beerOrderRow.locator('[data-decrement-item]').click();
+  expect(quantityRequests).toHaveLength(2);
+  expect(quantityRequests[1].receiverPlayFabId).toBe('PLAYER1');
+  expect(quantityRequests[1].delta).toBe(-1);
+  await expect(beerOrderRow.locator('.troy-orders-quantity-control em')).toHaveText('x1');
+  await expect(beerOrderRow.locator('strong')).toHaveText('¥700');
+  await expect(page.locator('[data-open-ticket]', { hasText: '海風の船長' })).toContainText('¥700');
   await beerOrderRow.locator('[data-remove-item]').click();
   expect(removeItemRequests).toHaveLength(1);
   expect(removeItemRequests[0].receiverPlayFabId).toBe('PLAYER1');
