@@ -69,6 +69,13 @@ const NATION_KING_LABEL_BY_KEY = {
     earth: '地の王'
 };
 
+const NATION_GROUP_NAME_BY_KEY = {
+    fire: 'nation_fire_island',
+    water: 'nation_water_island',
+    wind: 'nation_wind_island',
+    earth: 'nation_earth_island'
+};
+
 const NATION_KEY_ALIASES = {
     human: 'fire',
     goblin: 'water',
@@ -126,6 +133,63 @@ function resolveGuildShipId(guildId, guildData) {
     return id ? `guild_ship_${id}` : null;
 }
 
+function resolveNationGroupEntry(groups, nationKey) {
+    const groupName = NATION_GROUP_NAME_BY_KEY[nationKey];
+    if (!groupName) return null;
+    return (Array.isArray(groups) ? groups : []).find((group) => {
+        const names = [
+            group?.GroupName,
+            group?.Group?.Name
+        ].map((value) => String(value || '').trim());
+        return names.includes(groupName);
+    }) || null;
+}
+
+async function resolveNationGroupId(nationKey, groups, deps = {}) {
+    const groupName = NATION_GROUP_NAME_BY_KEY[nationKey];
+    if (!groupName) return '';
+    const groupEntry = resolveNationGroupEntry(groups, nationKey);
+    const groupId = String(groupEntry?.Group?.Id || '').trim();
+    if (groupId) return groupId;
+    const firestore = deps?.firestore;
+    if (!firestore?.collection) return '';
+    const snap = await firestore.collection('nation_groups').doc(groupName).get().catch(() => null);
+    return snap?.exists ? String(snap.data()?.groupId || '').trim() : '';
+}
+
+async function resolveKingOwnShipContext(requesterPlayFabId, groups, ownContext, deps = {}) {
+    const promisifyPlayFab = deps?.promisifyPlayFab;
+    const PlayFabServer = deps?.PlayFabServer;
+    if (typeof promisifyPlayFab !== 'function' || !PlayFabServer?.GetUserReadOnlyData) {
+        return ownContext;
+    }
+    const readOnly = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, {
+        PlayFabId: requesterPlayFabId,
+        Keys: ['IsKing', 'Nation']
+    }).catch(() => null);
+    const isKing = parseBooleanFlag(readOnly?.Data?.IsKing?.Value);
+    const nationKey = normalizeNationKey(readOnly?.Data?.Nation?.Value);
+    if (!isKing || !nationKey) return ownContext;
+
+    const groupId = await resolveNationGroupId(nationKey, groups, deps);
+    const groupName = NATION_GROUP_NAME_BY_KEY[nationKey];
+    const guildId = groupId || groupName;
+    const kingShipName = `${NATION_KING_LABEL_BY_KEY[nationKey]}の船`;
+    return {
+        ...ownContext,
+        shipOwnerPlayFabId: requesterPlayFabId,
+        isSharedShip: false,
+        isGuildShip: true,
+        isNationGuild: true,
+        guildType: 'nation',
+        guildShipId: resolveGuildShipId(guildId, { guildShipId: groupId ? `guild_ship_${groupId}` : '' }),
+        guildId,
+        guildName: `${NATION_KING_LABEL_BY_KEY[nationKey]}直属ギルド`,
+        kingShipName,
+        captainName: NATION_KING_LABEL_BY_KEY[nationKey]
+    };
+}
+
 async function resolveGuildShipContext(playFabId, deps = {}) {
     const requesterPlayFabId = normalizePlayFabId(playFabId);
     const ownContext = {
@@ -151,7 +215,6 @@ async function resolveGuildShipContext(playFabId, deps = {}) {
 
     const membership = await callTitleScoped(groupsApi.ListMembership, { Entity: entityKey }, deps).catch(() => null);
     const groups = Array.isArray(membership?.Groups) ? membership.Groups : [];
-    if (groups.length === 0) return ownContext;
 
     let selected = null;
     for (const group of groups) {
@@ -164,7 +227,9 @@ async function resolveGuildShipContext(playFabId, deps = {}) {
         selected = { group, guildId, guildData };
         break;
     }
-    if (!selected) return ownContext;
+    if (!selected) {
+        return resolveKingOwnShipContext(requesterPlayFabId, groups, ownContext, deps);
+    }
 
     const { group, guildId, guildData } = selected;
     const ownerPlayFabId = normalizePlayFabId(guildData?.ownerPlayFabId);

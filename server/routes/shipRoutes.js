@@ -81,6 +81,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             PlayFabServer,
             PlayFabGroups,
             PlayFabData,
+            firestore: db,
             getEntityKeyFromPlayFabId
         });
         const effectiveOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
@@ -102,6 +103,7 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
             PlayFabServer,
             PlayFabGroups,
             PlayFabData,
+            firestore: db,
             getEntityKeyFromPlayFabId
         });
         const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
