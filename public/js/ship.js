@@ -1066,6 +1066,8 @@ const HOME_PLAYER_SHIP_DIRECTIONS = [
     { key: 'row3-a', spriteY: -192, frameOffsetX: 0 },
     { key: 'row3-b', spriteY: -192, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN }
 ];
+const HOME_PLAYER_SHIP_LEFT_DIRECTION_KEY = 'row1-a';
+const HOME_GUILD_SHIP_LEFT_DIRECTION_KEY = 'guild-left';
 const HOME_GUILD_SHIP_DIRECTIONS = [
     { key: 'guild-down', spriteY: 0, frameOffsetX: 0 },
     { key: 'guild-left', spriteY: -64, frameOffsetX: 0 },
@@ -1085,8 +1087,6 @@ const GUILD_SHIP_SAIL_COLOR_BY_NATION = {
     wind: 'yellow',
     earth: 'green'
 };
-const HOME_PLAYER_SHIP_TAP_ANIMATION_MS = 3000;
-let homePlayerShipTapTimer = null;
 
 function normalizePlayerShipForm(form) {
     const key = String(form || 'boat').toLowerCase();
@@ -1166,6 +1166,7 @@ function withPlayerShipStatusContext(status, fallbackPlayFabId) {
     const isSharedShip = Boolean(ship.isSharedShip ?? status?.isSharedShip);
     return {
         ...ship,
+        shipId: ship.shipId || ship.ShipId || ship.id || status?.shipId || status?.activeShipId || ship.guildShipId || null,
         shipOwnerPlayFabId: ship.shipOwnerPlayFabId || status?.shipOwnerPlayFabId || fallbackPlayFabId || null,
         isSharedShip,
         guildId: ship.guildId || status?.guildId || null,
@@ -1201,15 +1202,6 @@ function getPlayerShipOwnerLabel(ship) {
     return guildName ? `${guildName}の船` : '仲間の船';
 }
 
-function clearHomePlayerShipTapAnimation(icon) {
-    if (homePlayerShipTapTimer) {
-        window.clearTimeout(homePlayerShipTapTimer);
-        homePlayerShipTapTimer = null;
-    }
-    const target = icon || document.querySelector('#homePlayerShipFrame .home-player-ship-icon.is-home-tap-animating');
-    target?.classList.remove('is-home-tap-animating');
-}
-
 function parseCssPixelValue(value, fallback = 0) {
     const parsed = Number.parseInt(String(value || '').trim(), 10);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -1225,7 +1217,7 @@ function getHomePlayerShipGroupX(icon) {
 }
 
 function getHomePlayerShipDirectionKey(icon) {
-    const key = icon?.dataset.playerShipDirection || (icon?.classList?.contains('is-guild') ? 'guild-down' : 'row1-a');
+    const key = icon?.dataset.playerShipDirection || (icon?.classList?.contains('is-guild') ? HOME_GUILD_SHIP_LEFT_DIRECTION_KEY : HOME_PLAYER_SHIP_LEFT_DIRECTION_KEY);
     const directions = icon?.classList?.contains('is-guild') ? HOME_GUILD_SHIP_DIRECTIONS : HOME_PLAYER_SHIP_DIRECTIONS;
     return directions.some((direction) => direction.key === key) ? key : directions[0].key;
 }
@@ -1234,13 +1226,6 @@ function getHomePlayerShipDirection(directionKey) {
     return HOME_GUILD_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey)
         || HOME_PLAYER_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey)
         || HOME_PLAYER_SHIP_DIRECTIONS[0];
-}
-
-function pickHomePlayerShipDirection(icon) {
-    const current = getHomePlayerShipDirectionKey(icon);
-    const directions = icon?.classList?.contains('is-guild') ? HOME_GUILD_SHIP_DIRECTIONS : HOME_PLAYER_SHIP_DIRECTIONS;
-    const options = directions.filter((direction) => direction.key !== current);
-    return options[Math.floor(Math.random() * options.length)] || directions[0];
 }
 
 function applyPlayerShipFrameDirection(icon, directionKey) {
@@ -1264,26 +1249,24 @@ function applyPlayerShipFrameDirection(icon, directionKey) {
     return direction;
 }
 
-function triggerHomePlayerShipTapAnimation(event) {
+function openHomePlayerShipDetails(event) {
     const icon = event?.currentTarget;
     const frame = icon?.closest('#homePlayerShipFrame');
     if (!icon || frame?.classList.contains('is-exploring')) return;
-
-    clearHomePlayerShipTapAnimation(icon);
-    const direction = pickHomePlayerShipDirection(icon);
-    applyPlayerShipFrameDirection(icon, direction.key);
-    void icon.offsetWidth;
-    icon.classList.add('is-home-tap-animating');
-    homePlayerShipTapTimer = window.setTimeout(() => {
-        icon.classList.remove('is-home-tap-animating');
-        homePlayerShipTapTimer = null;
-    }, HOME_PLAYER_SHIP_TAP_ANIMATION_MS);
+    const shipId = String(icon.dataset.playerShipId || currentPlayerShipProfile?.shipId || currentPlayerShipProfile?.guildShipId || '').trim();
+    if (!shipId) {
+        showRpgMessage('船情報を取得できませんでした。');
+        return;
+    }
+    if (typeof window.viewShipDetails === 'function') {
+        window.viewShipDetails(shipId);
+    }
 }
 
 function handleHomePlayerShipTapKeydown(event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
-    triggerHomePlayerShipTapAnimation(event);
+    openHomePlayerShipDetails(event);
 }
 
 function formatShipUpgradeCost(costs) {
@@ -1373,7 +1356,6 @@ function showShipEvolutionChoice(upgrades, upgradeCosts) {
 function renderPlayerShipWidget(ship) {
     const container = document.getElementById('homePlayerShipFrame');
     if (!container) return;
-    clearHomePlayerShipTapAnimation();
     currentPlayerShipProfile = ship || null;
     const form = normalizePlayerShipForm(ship?.form);
     const label = PLAYER_SHIP_LABELS[form] || 'ボート';
@@ -1385,6 +1367,7 @@ function renderPlayerShipWidget(ship) {
     const evolveCostLabel = getShipEvolutionButtonCostLabel(upgrades, upgradeCosts);
     const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
     const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
+    const detailsShipId = ship?.shipId || ship?.ShipId || ship?.id || ship?.guildShipId || '';
     container.classList.toggle('is-shared-ship', isSharedShip);
     container.innerHTML = `
         <div class="home-player-ship-owner" data-player-ship-owner>${escapeHtml(ownerLabel)}</div>
@@ -1392,7 +1375,7 @@ function renderPlayerShipWidget(ship) {
             <button type="button" class="home-player-ship-name" data-player-ship-rename ${isSharedShip ? 'disabled aria-disabled="true"' : ''}>${escapeHtml(shipName)}</button>
         </div>
         <div class="home-player-ship-body">
-            <div class="${getPlayerShipClassName(form)}" data-player-ship-tap data-guild-sail-color="${escapeHtml(guildSailColor)}" role="button" tabindex="0" aria-label="船を動かす">${guildLayers}</div>
+            <div class="${getPlayerShipClassName(form)}" data-player-ship-tap data-player-ship-id="${escapeHtml(detailsShipId)}" data-guild-sail-color="${escapeHtml(guildSailColor)}" role="button" tabindex="0" aria-label="船情報を開く">${guildLayers}</div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
@@ -1408,8 +1391,8 @@ function renderPlayerShipWidget(ship) {
         container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
     }
     const shipIcon = container.querySelector('[data-player-ship-tap]');
-    applyPlayerShipFrameDirection(shipIcon, form === 'guild' ? 'guild-down' : getHomePlayerShipDirectionKey(shipIcon));
-    shipIcon?.addEventListener('click', triggerHomePlayerShipTapAnimation);
+    applyPlayerShipFrameDirection(shipIcon, form === 'guild' ? HOME_GUILD_SHIP_LEFT_DIRECTION_KEY : HOME_PLAYER_SHIP_LEFT_DIRECTION_KEY);
+    shipIcon?.addEventListener('click', openHomePlayerShipDetails);
     shipIcon?.addEventListener('keydown', handleHomePlayerShipTapKeydown);
 }
 
@@ -1869,7 +1852,6 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     `;
     document.body.appendChild(overlay);
     applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), form === 'guild' ? 'guild-right' : 'row2-a');
-    clearHomePlayerShipTapAnimation(homeIcon);
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');
 

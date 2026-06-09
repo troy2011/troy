@@ -880,7 +880,7 @@ button.home-player-ship-name {
     animation: homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
-.home-player-ship-icon.is-guild.is-home-tap-animating .home-guild-ship-layer.is-hull,
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
 .exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
@@ -889,7 +889,7 @@ button.home-player-ship-name {
     animation: homeGuildShipHullFrameStep 300ms steps(3) infinite;
 }
 
-.home-player-ship-icon.is-guild.is-home-tap-animating .home-guild-ship-layer:not(.is-hull),
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
 .exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
@@ -17911,8 +17911,8 @@ body[data-sea-tone] .home-hero-card {
     background: none;
 }
 
-.home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
-    animation: homePlayerShipSail 1100ms ease-in-out infinite;
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite;
 }
 
 .home-hero-card .home-player-ship-icon[data-player-ship-tap] {
@@ -17924,10 +17924,6 @@ body[data-sea-tone] .home-hero-card {
     outline: 2px solid rgba(255, 237, 151, 0.9);
     outline-offset: 4px;
     border-radius: 8px;
-}
-
-.home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-home-tap-animating {
-    animation: homePlayerShipFrameStep 300ms steps(3) infinite !important;
 }
 
 @keyframes homePlayerShipFrameStep {
@@ -18600,7 +18596,11 @@ body[data-sea-tone] .home-hero-card {
     transform: translate(-50%, -50%) translateY(0) scale(1.62);
 }
 
-.home-hero-card .home-player-ship-frame .home-player-ship-icon {
+.home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite !important;
+}
+
+.home-hero-card .home-player-ship-frame.is-exploring .home-player-ship-icon {
     animation: none !important;
 }
 

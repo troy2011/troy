@@ -719,12 +719,43 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
       body: JSON.stringify({
         success: true,
         ship: {
+          shipId: 'ship-home-test',
           form: 'boat',
           name: 'Test Ship',
           upgradeOptions: ['explorer'],
           upgradeCosts: {
             explorer: [{ ItemId: 'PS', Amount: 1000 }]
           }
+        }
+      })
+    });
+  });
+  await page.route('**/api/get-ship-position', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        positionData: {
+          position: { x: 120, y: 140 },
+          movement: { isMoving: false }
+        }
+      })
+    });
+  });
+  await page.route('**/api/get-ship-asset', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        shipData: {
+          ShipType: 'Test Ship',
+          Domain: 'sea_surface',
+          Stats: { CurrentHP: 80, MaxHP: 100, Speed: 7, VisionRange: 4, CargoCapacity: 10, CrewCapacity: 3 },
+          Cargo: [],
+          Crew: [],
+          Equipment: {}
         }
       })
     });
@@ -763,6 +794,17 @@ test('home ship evolution button stays inside the ship panel', async ({ page }) 
   expect(layout.buttonLeft).toBeGreaterThanOrEqual(layout.panelLeft + 2);
   expect(layout.buttonRight).toBeLessThanOrEqual(layout.panelRight - 2);
   expect(layout.buttonBottom).toBeLessThanOrEqual(layout.panelBottom - 2);
+
+  const shipAudit = await page.locator('#homePlayerShipFrame .home-player-ship-icon').evaluate((el) => ({
+    direction: el.getAttribute('data-player-ship-direction'),
+    animationName: window.getComputedStyle(el).animationName
+  }));
+  expect(shipAudit.direction).toBe('row1-a');
+  expect(shipAudit.animationName).toContain('homePlayerShipFrameStep');
+
+  await page.locator('#homePlayerShipFrame .home-player-ship-icon').click();
+  await expect(page.locator('#shipDetailsModal')).toBeVisible();
+  await expect(page.locator('#shipDetailsContent')).toContainText('Test Ship');
   await expectNoPageErrors(errors);
 });
 
@@ -856,9 +898,9 @@ test('home nation guild ship uses guild ship display for the king owner', async 
     };
   });
   expect(layerAudit.sailColor).toBe('red');
-  expect(layerAudit.direction).toBe('guild-down');
+  expect(layerAudit.direction).toBe('guild-left');
   expect(layerAudit.backgroundImage).toContain('guildShips.png');
-  expect(layerAudit.backgroundPosition).toContain('-256px');
+  expect(layerAudit.backgroundPosition).toContain('-64px');
   await expectNoPageErrors(errors);
 });
 
