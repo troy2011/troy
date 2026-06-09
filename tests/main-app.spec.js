@@ -813,6 +813,52 @@ test('home shared guild ship shows owner label and disables evolution', async ({
   await expectNoPageErrors(errors);
 });
 
+test('home nation guild ship uses guild ship display for the king owner', async ({ page }) => {
+  const errors = trackPageErrors(page);
+  await page.route('**/api/player-ship/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({
+        success: true,
+        ship: {
+          form: 'guild',
+          name: '火の王の船',
+          shipOwnerPlayFabId: 'PF_PLAYWRIGHT',
+          isSharedShip: false,
+          isGuildShip: true,
+          isNationGuild: true,
+          guildId: 'guild-fire',
+          guildName: '火の国ギルド',
+          captainName: '火の王',
+          kingShipName: '火の王の船',
+          guildShipId: 'guild_ship_guild-fire',
+          upgradeOptions: ['merchant'],
+          upgradeCosts: {
+            merchant: [{ ItemId: 'PS', Amount: 1000 }]
+          }
+        }
+      })
+    });
+  });
+
+  await bootstrapMainApp(page);
+  await page.evaluate(async () => {
+    const ship = await import('/js/ship.js');
+    await ship.loadPlayerShipProfile('PF_PLAYWRIGHT');
+  });
+
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-owner]')).toHaveText('火の王の船');
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeDisabled();
+  await expect(page.locator('#homePlayerShipFrame [data-player-ship-rename]')).toBeDisabled();
+  await expect(page.locator('#homePlayerShipFrame .home-player-ship-icon')).toHaveClass(/is-guild/);
+  const backgroundImage = await page.locator('#homePlayerShipFrame .home-player-ship-icon').evaluate((el) => (
+    window.getComputedStyle(el).backgroundImage
+  ));
+  expect(backgroundImage).toContain('guildShips.png');
+  await expectNoPageErrors(errors);
+});
+
 test('home exploration button loads exploration data in a popup', async ({ page }) => {
   const errors = trackPageErrors(page);
   let explorationStatusBody = null;

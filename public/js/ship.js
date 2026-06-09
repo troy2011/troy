@@ -529,7 +529,7 @@ export async function getActiveShipId(playFabId) {
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || null;
         activeShipOwnerIdCache = result.shipOwnerPlayFabId || playFabId || null;
-        activeShipSharedCache = !!result.isSharedShip;
+        activeShipSharedCache = !!result.isSharedShip || !!result.isGuildShip || !!result.guildShip;
         return activeShipIdCache;
     }
     activeShipIdCache = null;
@@ -543,7 +543,7 @@ export async function setActiveShip(playFabId, shipId) {
     if (result && result.success) {
         activeShipIdCache = result.activeShipId || shipId;
         activeShipOwnerIdCache = result.shipOwnerPlayFabId || activeShipOwnerIdCache || playFabId || null;
-        activeShipSharedCache = !!result.isSharedShip;
+        activeShipSharedCache = !!result.isSharedShip || !!result.isGuildShip || !!result.guildShip;
         invalidateShipResourceStorage(playFabId);
 
         const container = document.getElementById('playerShipsContainer');
@@ -947,7 +947,8 @@ const PLAYER_SHIP_LABELS = {
     explorer: 'エクスプローラー',
     defender: 'ディフェンダー',
     fighter: 'ファイター',
-    merchant: 'マーチャント'
+    merchant: 'マーチャント',
+    guild: 'ギルドシップ'
 };
 
 const HOME_PLAYER_SHIP_LABELS = {
@@ -955,7 +956,8 @@ const HOME_PLAYER_SHIP_LABELS = {
     explorer: '探索船',
     defender: '守備船',
     fighter: '戦闘船',
-    merchant: '商船'
+    merchant: '商船',
+    guild: 'ギルドシップ'
 };
 
 const EXPLORATION_MONSTER_SPRITES = {
@@ -1046,7 +1048,8 @@ const EXPLORATION_SHIP_TRAITS = {
     explorer: { label: '追い風で高速接近', className: 'is-explorer-run' },
     defender: { label: '防壁を展開', className: 'is-defender-run' },
     fighter: { label: '砲撃態勢', className: 'is-fighter-run' },
-    merchant: { label: '大きな積荷で回収', className: 'is-merchant-run' }
+    merchant: { label: '大きな積荷で回収', className: 'is-merchant-run' },
+    guild: { label: '王の旗艦で接近', className: 'is-defender-run' }
 };
 
 let currentPlayerShipProfile = null;
@@ -1126,15 +1129,24 @@ function withPlayerShipStatusContext(status, fallbackPlayFabId) {
         isSharedShip,
         guildId: ship.guildId || status?.guildId || null,
         guildName: ship.guildName || status?.guildName || '',
+        kingShipName: ship.kingShipName || status?.kingShipName || '',
         captainName: ship.captainName || status?.captainName || ''
     };
 }
 
 function isSharedPlayerShipProfile(ship) {
-    return Boolean(ship?.isSharedShip || ship?.sharedForPlayFabId);
+    return Boolean(ship?.isSharedShip || ship?.isGuildShip || ship?.guildShip || ship?.sharedForPlayFabId);
 }
 
 function getPlayerShipOwnerLabel(ship) {
+    if (ship?.isGuildShip || ship?.guildShip) {
+        const kingShipName = String(ship?.kingShipName || '').trim();
+        if (kingShipName) return kingShipName;
+        const captainName = String(ship?.captainName || '').trim();
+        if (ship?.isNationGuild && captainName) return `${captainName}の船`;
+        const guildName = String(ship?.guildName || '').trim();
+        return guildName ? `${guildName}の船` : 'ギルドシップ';
+    }
     if (!isSharedPlayerShipProfile(ship)) return '自分の船';
     const ownerName = String(
         ship?.captainName

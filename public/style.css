@@ -321,6 +321,11 @@ button.home-player-ship-name {
 .home-player-ship-icon.is-defender { --player-ship-sprite-x: -728px; }
 .home-player-ship-icon.is-fighter { --player-ship-sprite-x: -1064px; }
 .home-player-ship-icon.is-merchant { --player-ship-sprite-x: -1400px; }
+.home-player-ship-icon.is-guild {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -56px;
+    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -56px) var(--player-ship-sprite-y, 0) / 1176px 672px no-repeat;
+}
 
 .home-player-ship-meta,
 .home-player-ship-empty,
@@ -644,6 +649,12 @@ button.home-player-ship-name {
 .exploration-sequence-ship.is-defender { --player-ship-group-x: -768px; --player-ship-sprite-x: -832px; --player-ship-sprite-y: -128px; }
 .exploration-sequence-ship.is-fighter { --player-ship-group-x: -1152px; --player-ship-sprite-x: -1216px; --player-ship-sprite-y: -128px; }
 .exploration-sequence-ship.is-merchant { --player-ship-group-x: -1536px; --player-ship-sprite-x: -1600px; --player-ship-sprite-y: -128px; }
+.exploration-sequence-ship.is-guild {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -64px;
+    --player-ship-sprite-y: -128px;
+    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -128px) / 1344px 768px no-repeat;
+}
 
 .exploration-sequence-chests {
     position: absolute;
@@ -17997,6 +18008,11 @@ body[data-sea-tone] .home-hero-card {
 .home-hero-card .home-player-ship-icon.is-defender { --player-ship-group-x: -768px; --player-ship-sprite-x: -832px; }
 .home-hero-card .home-player-ship-icon.is-fighter { --player-ship-group-x: -1152px; --player-ship-sprite-x: -1216px; }
 .home-hero-card .home-player-ship-icon.is-merchant { --player-ship-group-x: -1536px; --player-ship-sprite-x: -1600px; }
+.home-hero-card .home-player-ship-icon.is-guild {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -64px;
+    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -64px) / 1344px 768px no-repeat;
+}
 
 .home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
     animation: homePlayerShipSail 1100ms ease-in-out infinite;
@@ -18711,15 +18727,19 @@ body[data-sea-tone] .home-hero-card {
 
 .home-player-ship-owner {
     position: absolute;
-    top: 7px;
+    top: 6px;
     left: 50%;
-    width: 96px;
-    max-height: 22px;
+    width: calc(100% - 10px);
+    max-height: 24px;
     overflow: hidden;
     transform: translateX(-50%);
     color: #ffffff;
-    font-size: 10px;
-    font-weight: 900;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    font-weight: 800;
     line-height: 1.1;
     text-align: center;
     text-shadow:

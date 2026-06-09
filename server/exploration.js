@@ -201,20 +201,69 @@ async function resolveActiveShip(playFabId, deps) {
     const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
     const profile = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, deps);
     if (!profile) return null;
-    const itemId = String(profile.itemId || '').trim();
+    const resolvedProfile = shipContext.isGuildShip
+        ? await resolveGuildShipProfile(shipContext, profile, deps)
+        : profile;
+    const itemId = String(resolvedProfile.itemId || profile.itemId || '').trim();
     return {
-        shipId: shipOwnerPlayFabId,
-        shipName: String(profile.name || itemId || '船'),
-        shipClass: String(profile.shipClass || normalizeShipClassFromItemId(itemId)),
+        shipId: resolvedProfile.shipId || shipOwnerPlayFabId,
+        shipName: String(resolvedProfile.name || itemId || '船'),
+        shipClass: String(resolvedProfile.shipClass || normalizeShipClassFromItemId(itemId)),
         itemId,
-        form: profile.form,
-        stage: profile.stage,
-        level: profile.level,
-        upgradeOptions: resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[profile.form] || [],
+        form: resolvedProfile.form,
+        stage: resolvedProfile.stage,
+        level: resolvedProfile.level,
+        upgradeOptions: shipContext.isGuildShip ? [] : (resourceStorage.PLAYER_SHIP_UPGRADE_OPTIONS[profile.form] || []),
         shipOwnerPlayFabId,
         isSharedShip: shipContext.isSharedShip,
+        isGuildShip: shipContext.isGuildShip,
+        isNationGuild: shipContext.isNationGuild,
         guildId: shipContext.guildId,
-        guildName: shipContext.guildName
+        guildName: shipContext.guildName,
+        guildShipId: shipContext.guildShipId,
+        kingShipName: shipContext.kingShipName
+    };
+}
+
+async function resolveGuildShipProfile(shipContext, fallbackProfile = {}, deps = {}) {
+    const guildShipId = String(shipContext?.guildShipId || '').trim();
+    let guildShipData = null;
+    if (guildShipId && deps?.firestore) {
+        const snap = await deps.firestore.collection('ships').doc(guildShipId).get().catch(() => null);
+        guildShipData = snap?.exists ? (snap.data() || null) : null;
+    }
+    const currentHp = Number(guildShipData?.currentHp);
+    const maxHp = Number(guildShipData?.maxHp);
+    const guildName = String(shipContext?.guildName || '').trim();
+    const kingShipName = String(shipContext?.kingShipName || '').trim();
+    const autoGuildName = guildName ? `${guildName}号` : '';
+    const storedDisplayName = String(guildShipData?.displayName || '').trim();
+    const customDisplayName = storedDisplayName && storedDisplayName !== autoGuildName ? storedDisplayName : '';
+    const displayName = customDisplayName
+        || kingShipName
+        || autoGuildName
+        || String(fallbackProfile?.name || '').trim()
+        || 'ギルドシップ';
+    return {
+        ...fallbackProfile,
+        shipId: guildShipId || fallbackProfile?.shipId || null,
+        form: 'guild',
+        shipClass: String(guildShipData?.shipClass || guildShipData?.class || 'defender').trim() || 'defender',
+        itemId: 'guild_ship',
+        name: displayName,
+        stage: Number(guildShipData?.stage || guildShipData?.shipStage || 3) || 3,
+        level: Number(guildShipData?.level || guildShipData?.shipLevel || fallbackProfile?.level || 1) || 1,
+        upgradeOptions: [],
+        upgradeCosts: {},
+        isGuildShip: true,
+        isNationGuild: !!shipContext?.isNationGuild,
+        guildType: shipContext?.guildType || 'nation',
+        guildId: shipContext?.guildId || null,
+        guildName,
+        kingShipName,
+        guildShipId: guildShipId || null,
+        currentHp: Number.isFinite(currentHp) ? currentHp : null,
+        maxHp: Number.isFinite(maxHp) ? maxHp : null
     };
 }
 
@@ -964,16 +1013,23 @@ function initializeExplorationRoutes(app, deps) {
         try {
             const shipContext = await resolveGuildShipContext(playFabId, deps);
             const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
-            const ship = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const baseShip = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
+            const ship = shipContext.isGuildShip
+                ? await resolveGuildShipProfile(shipContext, baseShip, deps)
+                : attachUpgradeCosts(baseShip, catalogCache);
             res.json({
                 success: true,
                 ship: {
-                    ...attachUpgradeCosts(ship, catalogCache),
+                    ...ship,
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
+                    isGuildShip: shipContext.isGuildShip,
+                    isNationGuild: shipContext.isNationGuild,
                     guildId: shipContext.guildId,
                     guildName: shipContext.guildName,
-                    captainName: shipContext.captainName
+                    captainName: shipContext.captainName,
+                    guildShipId: shipContext.guildShipId,
+                    kingShipName: shipContext.kingShipName
                 }
             });
         } catch (error) {
@@ -989,8 +1045,8 @@ function initializeExplorationRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const shipContext = await resolveGuildShipContext(playFabId, deps);
-            if (shipContext.isSharedShip) {
-                return res.status(403).json({ error: '他プレイヤーの船は進化できません。' });
+            if (shipContext.isSharedShip || shipContext.isGuildShip) {
+                return res.status(403).json({ error: shipContext.isGuildShip ? 'ギルドシップは進化できません。' : '他プレイヤーの船は進化できません。' });
             }
             const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
             const current = await resourceStorage.getPlayerShipProfile(shipOwnerPlayFabId, { promisifyPlayFab, PlayFabServer });
@@ -1042,9 +1098,13 @@ function initializeExplorationRoutes(app, deps) {
                     ...attachUpgradeCosts(ship, catalogCache),
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
+                    isGuildShip: shipContext.isGuildShip,
+                    isNationGuild: shipContext.isNationGuild,
                     guildId: shipContext.guildId,
                     guildName: shipContext.guildName,
-                    captainName: shipContext.captainName
+                    captainName: shipContext.captainName,
+                    guildShipId: shipContext.guildShipId,
+                    kingShipName: shipContext.kingShipName
                 },
                 costs
             });
@@ -1068,8 +1128,8 @@ function initializeExplorationRoutes(app, deps) {
         if (!playFabId) return;
         try {
             const shipContext = await resolveGuildShipContext(playFabId, deps);
-            if (shipContext.isSharedShip) {
-                return res.status(403).json({ error: '他プレイヤーの船は名前を変更できません。' });
+            if (shipContext.isSharedShip || shipContext.isGuildShip) {
+                return res.status(403).json({ error: shipContext.isGuildShip ? 'ギルドシップは名前を変更できません。' : '他プレイヤーの船は名前を変更できません。' });
             }
             const shipOwnerPlayFabId = shipContext.shipOwnerPlayFabId || playFabId;
             const ship = await resourceStorage.renamePlayerShipProfile(shipOwnerPlayFabId, name, { promisifyPlayFab, PlayFabServer });
@@ -1079,9 +1139,13 @@ function initializeExplorationRoutes(app, deps) {
                     ...attachUpgradeCosts(ship, catalogCache),
                     shipOwnerPlayFabId,
                     isSharedShip: shipContext.isSharedShip,
+                    isGuildShip: shipContext.isGuildShip,
+                    isNationGuild: shipContext.isNationGuild,
                     guildId: shipContext.guildId,
                     guildName: shipContext.guildName,
-                    captainName: shipContext.captainName
+                    captainName: shipContext.captainName,
+                    guildShipId: shipContext.guildShipId,
+                    kingShipName: shipContext.kingShipName
                 }
             });
         } catch (error) {

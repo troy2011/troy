@@ -183,6 +183,12 @@ function buildNationGuildName(nationKey) {
     return `${getNationGuildLabel(nationKey)}ギルド`;
 }
 
+function buildNationKingShipName(nationKey) {
+    const nationLabel = getNationGuildLabel(nationKey);
+    const kingLabel = nationLabel.replace(/の国$/u, '') || '国';
+    return `${kingLabel}の王の船`;
+}
+
 function isNationGuildData(guildData) {
     return guildData?.guildType === 'nation' || parseBooleanFlag(guildData?.isNationGuild);
 }
@@ -974,7 +980,7 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         maxHp: maxHp,
                         currentHp: maxHp,
                         isDestroyed: false,
-                        displayName: `${guildName}号`,
+                        displayName: isNationGuild ? buildNationKingShipName(kingContext.nationKey) : `${guildName}号`,
                         appearance: {
                             shipType: 'guild',
                             domain: 'sea_surface',

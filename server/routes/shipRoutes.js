@@ -828,9 +828,13 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 activeShipId: shipContext.activeShipId,
                 shipOwnerPlayFabId: shipContext.shipOwnerPlayFabId,
                 isSharedShip: shipContext.isSharedShip,
+                isGuildShip: shipContext.isGuildShip,
+                isNationGuild: shipContext.isNationGuild,
                 guildId: shipContext.guildId,
                 guildName: shipContext.guildName,
-                captainName: shipContext.captainName
+                captainName: shipContext.captainName,
+                guildShipId: shipContext.guildShipId,
+                kingShipName: shipContext.kingShipName
             });
         } catch (error) {
             console.error('[GetActiveShip] Error:', error);
@@ -865,8 +869,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 activeShipId: shipId,
                 shipOwnerPlayFabId,
                 isSharedShip: shipContext.isSharedShip,
+                isGuildShip: shipContext.isGuildShip,
+                isNationGuild: shipContext.isNationGuild,
                 guildId: shipContext.guildId,
-                guildName: shipContext.guildName
+                guildName: shipContext.guildName,
+                guildShipId: shipContext.guildShipId,
+                kingShipName: shipContext.kingShipName
             });
         } catch (error) {
             if (handleShipOwnershipError(res, error)) return;
@@ -2630,8 +2638,12 @@ function initializeShipRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmin
                 activeShipId: activeShipId,
                 shipOwnerPlayFabId,
                 isSharedShip: shipContext.isSharedShip,
+                isGuildShip: shipContext.isGuildShip,
+                isNationGuild: shipContext.isNationGuild,
                 guildId: shipContext.guildId,
-                guildName: shipContext.guildName
+                guildName: shipContext.guildName,
+                guildShipId: shipContext.guildShipId,
+                kingShipName: shipContext.kingShipName
             });
 
         } catch (error) {
