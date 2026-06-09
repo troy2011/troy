@@ -114,16 +114,14 @@ function normalizeAvatarColor(value) {
     const aliasMap = {
         fire: 'red',
         water: 'blue',
-        wind: 'purple',
-        earth: 'yellow'
+        wind: 'yellow',
+        earth: 'green'
     };
     return aliasMap[raw] || raw;
 }
 
 function resolveAvatarBaseSpriteColor(race, value) {
     const color = normalizeAvatarColor(value) || 'brown';
-    const raceKey = String(race || '').trim().toLowerCase();
-    if (raceKey === 'elf' && color === 'yellow') return 'purple';
     return color;
 }
 

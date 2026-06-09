@@ -725,6 +725,7 @@ export function showBuildingMenu(island, playFabId) {
         const mapping = {
             red: 'fire',
             green: 'earth',
+            yellow: 'wind',
             purple: 'wind',
             blue: 'water'
         };

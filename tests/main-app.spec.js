@@ -2255,13 +2255,13 @@ test('facial hair unlocks at level 21 and salon actions update the layer', async
   await expectNoPageErrors(errors);
 });
 
-test('elf avatar uses purple base sprites when stored color is yellow', async ({ page }) => {
+test('elf avatar uses yellow base sprites when stored color is yellow', async ({ page }) => {
   const errors = trackPageErrors(page);
-  const yellowElfSpriteRequests = [];
+  const purpleElfSpriteRequests = [];
   page.on('request', (request) => {
     const url = request.url();
-    if (url.includes('/Sprites/Characters/elf/') && url.includes('_yellow.png')) {
-      yellowElfSpriteRequests.push(url);
+    if (url.includes('/Sprites/Characters/elf/') && url.includes('_purple.png')) {
+      purpleElfSpriteRequests.push(url);
     }
   });
 
@@ -2284,14 +2284,14 @@ test('elf avatar uses purple base sprites when stored color is yellow', async ({
 
   await expect.poll(async () => page.locator('#home-avatar-layer-body').evaluate((layer) => (
     window.getComputedStyle(layer).backgroundImage
-  ))).toContain('body_purple.png');
+  ))).toContain('body_yellow.png');
   await expect.poll(async () => page.locator('#home-avatar-layer-hair').evaluate((layer) => (
     window.getComputedStyle(layer).backgroundImage
-  ))).toContain('elf_hair_purple.png');
+  ))).toContain('elf_hair_yellow.png');
   await expect.poll(async () => page.locator('#home-avatar-layer-facial-hair').evaluate((layer) => (
     window.getComputedStyle(layer).backgroundImage
-  ))).toContain('elf_facialhair_purple.png');
-  expect(yellowElfSpriteRequests).toHaveLength(0);
+  ))).toContain('elf_facialhair_yellow.png');
+  expect(purpleElfSpriteRequests).toHaveLength(0);
   await expectNoPageErrors(errors);
 });
 

@@ -51,7 +51,7 @@ const NATION_EMOJI_BY_NATION = {
 const AVATAR_COLOR_BY_NATION = {
     fire: 'red',
     earth: 'green',
-    wind: 'purple',
+    wind: 'yellow',
     water: 'blue'
 };
 
