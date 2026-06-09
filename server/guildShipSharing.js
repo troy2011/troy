@@ -79,8 +79,8 @@ const NATION_GROUP_NAME_BY_KEY = {
 const NATION_SAIL_COLOR_BY_KEY = {
     fire: 'red',
     water: 'blue',
-    wind: 'green',
-    earth: 'yellow'
+    wind: 'yellow',
+    earth: 'green'
 };
 
 const NATION_KEY_ALIASES = {

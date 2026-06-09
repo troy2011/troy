@@ -951,8 +951,8 @@ function initializeGuildRoutes(app, promisifyPlayFab, PlayFabServer, PlayFabAdmi
                         sailColor = colorKey || sailColor;
                         if (!colorKey && nationKey) {
                             if (nationKey === 'fire') sailColor = 'red';
-                            if (nationKey === 'earth') sailColor = 'yellow';
-                            if (nationKey === 'wind') sailColor = 'green';
+                            if (nationKey === 'earth') sailColor = 'green';
+                            if (nationKey === 'wind') sailColor = 'yellow';
                             if (nationKey === 'water') sailColor = 'blue';
                         }
                     } catch (error) {

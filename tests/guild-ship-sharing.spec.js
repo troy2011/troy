@@ -104,6 +104,32 @@ test('king can resolve nation guild ship from Firestore when membership is unava
   expect(context.sailColor).toBe('red');
 });
 
+test('nation guild ship sail colors use wind yellow and earth green', async () => {
+  const windContext = await resolveGuildShipContext('WINDKING', makeDeps({
+    groups: [
+      { Group: { Id: 'nation-wind-group', Type: 'group' }, GroupName: 'nation_wind_island' }
+    ],
+    guildDataById: {},
+    readOnlyData: {
+      WINDKING: { IsKing: 'true', Nation: 'wind' }
+    }
+  }));
+  const earthContext = await resolveGuildShipContext('EARTHKING', makeDeps({
+    groups: [
+      { Group: { Id: 'nation-earth-group', Type: 'group' }, GroupName: 'nation_earth_island' }
+    ],
+    guildDataById: {},
+    readOnlyData: {
+      EARTHKING: { IsKing: 'true', Nation: 'earth' }
+    }
+  }));
+
+  expect(windContext.sailColor).toBe('yellow');
+  expect(windContext.appearance).toEqual({ color: 'yellow' });
+  expect(earthContext.sailColor).toBe('green');
+  expect(earthContext.appearance).toEqual({ color: 'green' });
+});
+
 test('non-king nation member remains on their own ship', async () => {
   const context = await resolveGuildShipContext('PLAYER1', makeDeps({
     groups: [

@@ -1082,8 +1082,8 @@ const GUILD_SHIP_SAIL_COLOR_OFFSETS = {
 const GUILD_SHIP_SAIL_COLOR_BY_NATION = {
     fire: 'red',
     water: 'blue',
-    wind: 'green',
-    earth: 'yellow'
+    wind: 'yellow',
+    earth: 'green'
 };
 const HOME_PLAYER_SHIP_TAP_ANIMATION_MS = 3000;
 let homePlayerShipTapTimer = null;
