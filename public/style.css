@@ -324,7 +324,44 @@ button.home-player-ship-name {
 .home-player-ship-icon.is-guild {
     --player-ship-group-x: 0px;
     --player-ship-sprite-x: -56px;
-    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -56px) var(--player-ship-sprite-y, 0) / 1176px 672px no-repeat;
+    --guild-hull-frame-x: -64px;
+    --guild-hull-animation-x: 0px;
+    --guild-sail-frame-x: -64px;
+    --guild-sail-animation-x: 0px;
+    --guild-top-y: 0px;
+    position: relative;
+    overflow: hidden;
+    background: none;
+}
+
+.home-guild-ship-layer {
+    position: absolute;
+    inset: 0;
+    image-rendering: pixelated;
+    pointer-events: none;
+    background-image: url("./Sprites/Ships/guildShips.png");
+    background-repeat: no-repeat;
+    background-size: 1344px 768px;
+}
+
+.home-guild-ship-layer.is-hull {
+    background-position: var(--guild-hull-frame-x, -64px) var(--guild-top-y, 0px);
+}
+
+.home-guild-ship-layer.is-sail-top {
+    background-position: var(--guild-sail-frame-x, -64px) var(--guild-top-y, 0px);
+}
+
+.home-guild-ship-layer.is-sail-middle {
+    background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, 0px) - 256px);
+}
+
+.home-guild-ship-layer.is-sail-bottom {
+    background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, 0px) - 512px);
+}
+
+.home-guild-ship-layer.is-white {
+    display: none;
 }
 
 .home-player-ship-meta,
@@ -653,7 +690,13 @@ button.home-player-ship-name {
     --player-ship-group-x: 0px;
     --player-ship-sprite-x: -64px;
     --player-ship-sprite-y: -128px;
-    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -128px) / 1344px 768px no-repeat;
+    --guild-hull-frame-x: -64px;
+    --guild-hull-animation-x: 0px;
+    --guild-sail-frame-x: -64px;
+    --guild-sail-animation-x: 0px;
+    --guild-top-y: -128px;
+    overflow: hidden;
+    background: none;
 }
 
 .exploration-sequence-chests {
@@ -835,6 +878,42 @@ button.home-player-ship-name {
     left: 232px;
     bottom: 64px;
     animation: homePlayerShipFrameStep 300ms steps(3) infinite;
+}
+
+.home-player-ship-icon.is-guild.is-home-tap-animating .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull {
+    animation: homeGuildShipHullFrameStep 300ms steps(3) infinite;
+}
+
+.home-player-ship-icon.is-guild.is-home-tap-animating .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull) {
+    animation: homeGuildShipSailFrameStep 300ms steps(3) infinite;
+}
+
+@keyframes homeGuildShipHullFrameStep {
+    from {
+        background-position-x: var(--guild-hull-animation-x, 0px);
+    }
+    to {
+        background-position-x: calc(var(--guild-hull-animation-x, 0px) - 192px);
+    }
+}
+
+@keyframes homeGuildShipSailFrameStep {
+    from {
+        background-position-x: var(--guild-sail-animation-x, 0px);
+    }
+    to {
+        background-position-x: calc(var(--guild-sail-animation-x, 0px) - 192px);
+    }
 }
 
 .exploration-sequence-overlay.is-treasure .exploration-sequence-boss {
@@ -17829,7 +17908,7 @@ body[data-sea-tone] .home-hero-card {
 .home-hero-card .home-player-ship-icon.is-guild {
     --player-ship-group-x: 0px;
     --player-ship-sprite-x: -64px;
-    background: url("./Sprites/Ships/guildShips.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -64px) / 1344px 768px no-repeat;
+    background: none;
 }
 
 .home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {

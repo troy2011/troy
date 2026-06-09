@@ -1066,6 +1066,25 @@ const HOME_PLAYER_SHIP_DIRECTIONS = [
     { key: 'row3-a', spriteY: -192, frameOffsetX: 0 },
     { key: 'row3-b', spriteY: -192, frameOffsetX: -HOME_PLAYER_SHIP_DIRECTION_FRAME_SPAN }
 ];
+const HOME_GUILD_SHIP_DIRECTIONS = [
+    { key: 'guild-down', spriteY: 0, frameOffsetX: 0 },
+    { key: 'guild-left', spriteY: -64, frameOffsetX: 0 },
+    { key: 'guild-right', spriteY: -128, frameOffsetX: 0 },
+    { key: 'guild-up', spriteY: -192, frameOffsetX: 0 }
+];
+const GUILD_SHIP_SAIL_COLOR_OFFSETS = {
+    white: 0,
+    red: 3,
+    blue: 6,
+    yellow: 9,
+    green: 12
+};
+const GUILD_SHIP_SAIL_COLOR_BY_NATION = {
+    fire: 'red',
+    water: 'blue',
+    wind: 'green',
+    earth: 'yellow'
+};
 const HOME_PLAYER_SHIP_TAP_ANIMATION_MS = 3000;
 let homePlayerShipTapTimer = null;
 
@@ -1117,6 +1136,28 @@ function getExplorationDestinationVisual(destinationId) {
 function getPlayerShipClassName(form) {
     const key = normalizePlayerShipForm(form);
     return `home-player-ship-icon is-${key}`;
+}
+
+function normalizeGuildShipSailColor(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(GUILD_SHIP_SAIL_COLOR_OFFSETS, key) ? key : 'white';
+}
+
+function resolveGuildShipSailColor(ship) {
+    const direct = normalizeGuildShipSailColor(ship?.appearance?.color || ship?.sailColor);
+    if (direct !== 'white') return direct;
+    const nationColor = GUILD_SHIP_SAIL_COLOR_BY_NATION[String(ship?.nationKey || ship?.nation || '').trim().toLowerCase()];
+    return normalizeGuildShipSailColor(nationColor || direct);
+}
+
+function renderGuildShipLayers(ship) {
+    const color = resolveGuildShipSailColor(ship);
+    return `
+        <span class="home-guild-ship-layer is-hull" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-bottom is-${color}" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-middle is-${color}" aria-hidden="true"></span>
+        <span class="home-guild-ship-layer is-sail-top is-${color}" aria-hidden="true"></span>
+    `;
 }
 
 function withPlayerShipStatusContext(status, fallbackPlayFabId) {
@@ -1184,18 +1225,22 @@ function getHomePlayerShipGroupX(icon) {
 }
 
 function getHomePlayerShipDirectionKey(icon) {
-    const key = icon?.dataset.playerShipDirection || 'row1-a';
-    return HOME_PLAYER_SHIP_DIRECTIONS.some((direction) => direction.key === key) ? key : 'row1-a';
+    const key = icon?.dataset.playerShipDirection || (icon?.classList?.contains('is-guild') ? 'guild-down' : 'row1-a');
+    const directions = icon?.classList?.contains('is-guild') ? HOME_GUILD_SHIP_DIRECTIONS : HOME_PLAYER_SHIP_DIRECTIONS;
+    return directions.some((direction) => direction.key === key) ? key : directions[0].key;
 }
 
 function getHomePlayerShipDirection(directionKey) {
-    return HOME_PLAYER_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey) || HOME_PLAYER_SHIP_DIRECTIONS[0];
+    return HOME_GUILD_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey)
+        || HOME_PLAYER_SHIP_DIRECTIONS.find((direction) => direction.key === directionKey)
+        || HOME_PLAYER_SHIP_DIRECTIONS[0];
 }
 
 function pickHomePlayerShipDirection(icon) {
     const current = getHomePlayerShipDirectionKey(icon);
-    const options = HOME_PLAYER_SHIP_DIRECTIONS.filter((direction) => direction.key !== current);
-    return options[Math.floor(Math.random() * options.length)] || HOME_PLAYER_SHIP_DIRECTIONS[0];
+    const directions = icon?.classList?.contains('is-guild') ? HOME_GUILD_SHIP_DIRECTIONS : HOME_PLAYER_SHIP_DIRECTIONS;
+    const options = directions.filter((direction) => direction.key !== current);
+    return options[Math.floor(Math.random() * options.length)] || directions[0];
 }
 
 function applyPlayerShipFrameDirection(icon, directionKey) {
@@ -1207,6 +1252,15 @@ function applyPlayerShipFrameDirection(icon, directionKey) {
     icon.style.setProperty('--player-ship-animation-x', `${firstFrameX}px`);
     icon.style.setProperty('--player-ship-sprite-x', `${restingFrameX}px`);
     icon.style.setProperty('--player-ship-sprite-y', `${direction.spriteY}px`);
+    if (icon.classList.contains('is-guild')) {
+        const color = normalizeGuildShipSailColor(icon.dataset.guildSailColor);
+        const sailFirstFrameX = -(GUILD_SHIP_SAIL_COLOR_OFFSETS[color] || 0) * HOME_PLAYER_SHIP_FRAME_SIZE;
+        icon.style.setProperty('--guild-hull-animation-x', '0px');
+        icon.style.setProperty('--guild-hull-frame-x', `-${HOME_PLAYER_SHIP_FRAME_SIZE}px`);
+        icon.style.setProperty('--guild-sail-animation-x', `${sailFirstFrameX}px`);
+        icon.style.setProperty('--guild-sail-frame-x', `${sailFirstFrameX - HOME_PLAYER_SHIP_FRAME_SIZE}px`);
+        icon.style.setProperty('--guild-top-y', `${direction.spriteY}px`);
+    }
     return direction;
 }
 
@@ -1329,6 +1383,8 @@ function renderPlayerShipWidget(ship) {
     const upgrades = Array.isArray(ship?.upgradeOptions) ? ship.upgradeOptions : [];
     const upgradeCosts = ship?.upgradeCosts || {};
     const evolveCostLabel = getShipEvolutionButtonCostLabel(upgrades, upgradeCosts);
+    const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
+    const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
     container.classList.toggle('is-shared-ship', isSharedShip);
     container.innerHTML = `
         <div class="home-player-ship-owner" data-player-ship-owner>${escapeHtml(ownerLabel)}</div>
@@ -1336,7 +1392,7 @@ function renderPlayerShipWidget(ship) {
             <button type="button" class="home-player-ship-name" data-player-ship-rename ${isSharedShip ? 'disabled aria-disabled="true"' : ''}>${escapeHtml(shipName)}</button>
         </div>
         <div class="home-player-ship-body">
-            <div class="${getPlayerShipClassName(form)}" data-player-ship-tap role="button" tabindex="0" aria-label="船を動かす"></div>
+            <div class="${getPlayerShipClassName(form)}" data-player-ship-tap data-guild-sail-color="${escapeHtml(guildSailColor)}" role="button" tabindex="0" aria-label="船を動かす">${guildLayers}</div>
         </div>
         ${upgrades.length ? `
             <div class="home-player-ship-upgrades">
@@ -1352,6 +1408,7 @@ function renderPlayerShipWidget(ship) {
         container.querySelector('[data-player-ship-rename]')?.addEventListener('click', renamePlayerShipProfile);
     }
     const shipIcon = container.querySelector('[data-player-ship-tap]');
+    applyPlayerShipFrameDirection(shipIcon, form === 'guild' ? 'guild-down' : getHomePlayerShipDirectionKey(shipIcon));
     shipIcon?.addEventListener('click', triggerHomePlayerShipTapAnimation);
     shipIcon?.addEventListener('keydown', handleHomePlayerShipTapKeydown);
 }
@@ -1765,6 +1822,8 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
     const ship = startData?.ship || currentPlayerShipProfile || {};
     const active = startData?.active || {};
     const form = normalizePlayerShipForm(ship.form);
+    const guildSailColor = form === 'guild' ? resolveGuildShipSailColor(ship) : 'white';
+    const guildLayers = form === 'guild' ? renderGuildShipLayers(ship) : '';
     const report = claimData?.report || {};
     const resolvedDestinationId = active.destinationId || report.destinationId || destinationId;
     const destinationVisual = getExplorationDestinationVisual(resolvedDestinationId);
@@ -1798,7 +1857,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
                     <small>BOSS</small>
                 </div>
                 <div class="exploration-sequence-ship-effect" aria-hidden="true"></div>
-                <div class="exploration-sequence-ship is-${form}" aria-hidden="true"></div>
+                <div class="exploration-sequence-ship is-${form}" data-guild-sail-color="${escapeHtml(guildSailColor)}" aria-hidden="true">${guildLayers}</div>
                 <div class="exploration-sequence-chests" aria-hidden="true">${renderExplorationRewardChests(rewardCount)}</div>
                 <div class="exploration-sequence-log" aria-live="polite"></div>
             </div>
@@ -1809,7 +1868,7 @@ async function showExplorationAutoSequence(startData, destinationId, claimData =
         </div>
     `;
     document.body.appendChild(overlay);
-    applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), 'row2-a');
+    applyPlayerShipFrameDirection(overlay.querySelector('.exploration-sequence-ship'), form === 'guild' ? 'guild-right' : 'row2-a');
     clearHomePlayerShipTapAnimation(homeIcon);
     homeFrame?.classList.add('is-exploring');
     homeIcon?.classList.add('is-exploring-sail');

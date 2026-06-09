@@ -80,6 +80,8 @@ test('king with only nation membership still uses the nation guild ship', async 
   expect(context.guildId).toBe('nation-fire-group');
   expect(context.guildShipId).toBe('guild_ship_nation-fire-group');
   expect(context.kingShipName).toBe('火の王の船');
+  expect(context.sailColor).toBe('red');
+  expect(context.appearance).toEqual({ color: 'red' });
 });
 
 test('king can resolve nation guild ship from Firestore when membership is unavailable', async () => {
@@ -99,6 +101,7 @@ test('king can resolve nation guild ship from Firestore when membership is unava
   expect(context.isNationGuild).toBe(true);
   expect(context.guildId).toBe('nation-fire-doc-group');
   expect(context.guildShipId).toBe('guild_ship_nation-fire-doc-group');
+  expect(context.sailColor).toBe('red');
 });
 
 test('non-king nation member remains on their own ship', async () => {

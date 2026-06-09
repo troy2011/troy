@@ -76,6 +76,13 @@ const NATION_GROUP_NAME_BY_KEY = {
     earth: 'nation_earth_island'
 };
 
+const NATION_SAIL_COLOR_BY_KEY = {
+    fire: 'red',
+    water: 'blue',
+    wind: 'green',
+    earth: 'yellow'
+};
+
 const NATION_KEY_ALIASES = {
     human: 'fire',
     goblin: 'water',
@@ -175,6 +182,7 @@ async function resolveKingOwnShipContext(requesterPlayFabId, groups, ownContext,
     const groupName = NATION_GROUP_NAME_BY_KEY[nationKey];
     const guildId = groupId || groupName;
     const kingShipName = `${NATION_KING_LABEL_BY_KEY[nationKey]}の船`;
+    const sailColor = NATION_SAIL_COLOR_BY_KEY[nationKey] || 'white';
     return {
         ...ownContext,
         shipOwnerPlayFabId: requesterPlayFabId,
@@ -186,7 +194,12 @@ async function resolveKingOwnShipContext(requesterPlayFabId, groups, ownContext,
         guildId,
         guildName: `${NATION_KING_LABEL_BY_KEY[nationKey]}直属ギルド`,
         kingShipName,
-        captainName: NATION_KING_LABEL_BY_KEY[nationKey]
+        captainName: NATION_KING_LABEL_BY_KEY[nationKey],
+        nationKey,
+        sailColor,
+        appearance: {
+            color: sailColor
+        }
     };
 }
 
@@ -263,7 +276,10 @@ async function resolveGuildShipContext(playFabId, deps = {}) {
         guildId,
         guildName,
         kingShipName,
-        captainName: guildData?.captainName || null
+        captainName: guildData?.captainName || null,
+        nationKey: normalizeNationKey(guildData?.nation || guildData?.nationKey || guildData?.kingNation),
+        sailColor: guildData?.sailColor || guildData?.appearance?.color || null,
+        appearance: guildData?.appearance || null
     };
 }
 

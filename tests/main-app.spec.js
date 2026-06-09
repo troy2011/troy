@@ -823,6 +823,8 @@ test('home nation guild ship uses guild ship display for the king owner', async 
           captainName: '火の王',
           kingShipName: '火の王の船',
           guildShipId: 'guild_ship_guild-fire',
+          appearance: { color: 'red' },
+          sailColor: 'red',
           upgradeOptions: ['merchant'],
           upgradeCosts: {
             merchant: [{ ItemId: 'PS', Amount: 1000 }]
@@ -842,10 +844,21 @@ test('home nation guild ship uses guild ship display for the king owner', async 
   await expect(page.locator('#homePlayerShipFrame [data-player-ship-evolve]')).toBeDisabled();
   await expect(page.locator('#homePlayerShipFrame [data-player-ship-rename]')).toBeDisabled();
   await expect(page.locator('#homePlayerShipFrame .home-player-ship-icon')).toHaveClass(/is-guild/);
-  const backgroundImage = await page.locator('#homePlayerShipFrame .home-player-ship-icon').evaluate((el) => (
-    window.getComputedStyle(el).backgroundImage
-  ));
-  expect(backgroundImage).toContain('guildShips.png');
+  await expect(page.locator('#homePlayerShipFrame .home-guild-ship-layer.is-sail-top')).toHaveClass(/is-red/);
+  const layerAudit = await page.locator('#homePlayerShipFrame .home-player-ship-icon').evaluate((el) => {
+    const sailTop = el.querySelector('.home-guild-ship-layer.is-sail-top');
+    const styles = window.getComputedStyle(sailTop);
+    return {
+      sailColor: el.getAttribute('data-guild-sail-color'),
+      direction: el.getAttribute('data-player-ship-direction'),
+      backgroundImage: styles.backgroundImage,
+      backgroundPosition: styles.backgroundPosition
+    };
+  });
+  expect(layerAudit.sailColor).toBe('red');
+  expect(layerAudit.direction).toBe('guild-down');
+  expect(layerAudit.backgroundImage).toContain('guildShips.png');
+  expect(layerAudit.backgroundPosition).toContain('-256px');
   await expectNoPageErrors(errors);
 });
 

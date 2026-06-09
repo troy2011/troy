@@ -221,7 +221,9 @@ async function resolveActiveShip(playFabId, deps) {
         guildId: shipContext.guildId,
         guildName: shipContext.guildName,
         guildShipId: shipContext.guildShipId,
-        kingShipName: shipContext.kingShipName
+        kingShipName: shipContext.kingShipName,
+        sailColor: resolvedProfile.sailColor || shipContext.sailColor || null,
+        appearance: resolvedProfile.appearance || shipContext.appearance || null
     };
 }
 
@@ -232,6 +234,13 @@ async function resolveGuildShipProfile(shipContext, fallbackProfile = {}, deps =
         const snap = await deps.firestore.collection('ships').doc(guildShipId).get().catch(() => null);
         guildShipData = snap?.exists ? (snap.data() || null) : null;
     }
+    const appearance = {
+        ...(fallbackProfile?.appearance && typeof fallbackProfile.appearance === 'object' ? fallbackProfile.appearance : {}),
+        ...(shipContext?.appearance && typeof shipContext.appearance === 'object' ? shipContext.appearance : {}),
+        ...(guildShipData?.appearance && typeof guildShipData.appearance === 'object' ? guildShipData.appearance : {})
+    };
+    const sailColor = String(guildShipData?.sailColor || appearance.color || shipContext?.sailColor || '').trim().toLowerCase();
+    if (sailColor) appearance.color = sailColor;
     const currentHp = Number(guildShipData?.currentHp);
     const maxHp = Number(guildShipData?.maxHp);
     const guildName = String(shipContext?.guildName || '').trim();
@@ -262,6 +271,8 @@ async function resolveGuildShipProfile(shipContext, fallbackProfile = {}, deps =
         guildName,
         kingShipName,
         guildShipId: guildShipId || null,
+        sailColor: sailColor || null,
+        appearance,
         currentHp: Number.isFinite(currentHp) ? currentHp : null,
         maxHp: Number.isFinite(maxHp) ? maxHp : null
     };
